@@ -45,27 +45,6 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// src/services/learningPairFilter.ts
-function isUsefulLearningPair(pair) {
-  const user = pair.user_message?.trim() ?? "";
-  const resp = pair.suggested_response?.trim() ?? "";
-  if (!user || !resp) return false;
-  if (user.length < 4 || resp.length < 12) return false;
-  if (/^(ok|okay|va|dale|gracias|hola|s[ií]|no|perfecto)[\s!.]*$/i.test(user)) return false;
-  if (/^(ok|okay|va|dale|gracias|hola|s[ií]|perfecto)[\s!.]*$/i.test(resp)) return false;
-  if (/\b(anoto|guardo|ubicaci[oó]n|direcci[oó]n|lugar)\b/i.test(resp) && /\b(es\s+muy\s+importante|en\s+la\s+noche|show\s+en\s+vivo|en\s+vivo|color\s+blanco|en\s+realidad|donde\s+estan)\b/i.test(
-    resp
-  )) {
-    return false;
-  }
-  return true;
-}
-var init_learningPairFilter = __esm({
-  "src/services/learningPairFilter.ts"() {
-    "use strict";
-  }
-});
-
 // ../node_modules/openai/internal/tslib.mjs
 function __classPrivateFieldSet(receiver, state, value, kind, f6) {
   if (kind === "m")
@@ -2254,7 +2233,7 @@ var init_resource = __esm({
 function encodeURIPath(str2) {
   return str2.replace(/[^A-Za-z0-9\-._~!$&'()*+,;=:@]+/g, encodeURIComponent);
 }
-var EMPTY, createPathTagFunction, path2;
+var EMPTY, createPathTagFunction, path;
 var init_path = __esm({
   "../node_modules/openai/internal/utils/path.mjs"() {
     init_error();
@@ -2307,7 +2286,7 @@ ${underline}`);
       }
       return path8;
     };
-    path2 = /* @__PURE__ */ createPathTagFunction(encodeURIPath);
+    path = /* @__PURE__ */ createPathTagFunction(encodeURIPath);
   }
 });
 
@@ -2334,7 +2313,7 @@ var init_messages = __esm({
        * ```
        */
       list(completionID, query = {}, options) {
-        return this._client.getAPIList(path2`/chat/completions/${completionID}/messages`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
+        return this._client.getAPIList(path`/chat/completions/${completionID}/messages`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
       }
     };
   }
@@ -4072,7 +4051,7 @@ var init_completions = __esm({
        * ```
        */
       retrieve(completionID, options) {
-        return this._client.get(path2`/chat/completions/${completionID}`, {
+        return this._client.get(path`/chat/completions/${completionID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -4091,7 +4070,7 @@ var init_completions = __esm({
        * ```
        */
       update(completionID, body2, options) {
-        return this._client.post(path2`/chat/completions/${completionID}`, {
+        return this._client.post(path`/chat/completions/${completionID}`, {
           body: body2,
           ...options,
           __security: { bearerAuth: true }
@@ -4127,7 +4106,7 @@ var init_completions = __esm({
        * ```
        */
       delete(completionID, options) {
-        return this._client.delete(path2`/chat/completions/${completionID}`, {
+        return this._client.delete(path`/chat/completions/${completionID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -4237,7 +4216,7 @@ var init_admin_api_keys = __esm({
        * ```
        */
       retrieve(keyID, options) {
-        return this._client.get(path2`/organization/admin_api_keys/${keyID}`, {
+        return this._client.get(path`/organization/admin_api_keys/${keyID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -4272,7 +4251,7 @@ var init_admin_api_keys = __esm({
        * ```
        */
       delete(keyID, options) {
-        return this._client.delete(path2`/organization/admin_api_keys/${keyID}`, {
+        return this._client.delete(path`/organization/admin_api_keys/${keyID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -4353,7 +4332,7 @@ var init_certificates = __esm({
        * ```
        */
       retrieve(certificateID, query = {}, options) {
-        return this._client.get(path2`/organization/certificates/${certificateID}`, {
+        return this._client.get(path`/organization/certificates/${certificateID}`, {
           query,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -4371,7 +4350,7 @@ var init_certificates = __esm({
        * ```
        */
       update(certificateID, body2, options) {
-        return this._client.post(path2`/organization/certificates/${certificateID}`, {
+        return this._client.post(path`/organization/certificates/${certificateID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -4405,7 +4384,7 @@ var init_certificates = __esm({
        * ```
        */
       delete(certificateID, options) {
-        return this._client.delete(path2`/organization/certificates/${certificateID}`, {
+        return this._client.delete(path`/organization/certificates/${certificateID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -4538,7 +4517,7 @@ var init_invites = __esm({
        * ```
        */
       retrieve(inviteID, options) {
-        return this._client.get(path2`/organization/invites/${inviteID}`, {
+        return this._client.get(path`/organization/invites/${inviteID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -4573,7 +4552,7 @@ var init_invites = __esm({
        * ```
        */
       delete(inviteID, options) {
-        return this._client.delete(path2`/organization/invites/${inviteID}`, {
+        return this._client.delete(path`/organization/invites/${inviteID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -4619,7 +4598,7 @@ var init_roles = __esm({
        * ```
        */
       retrieve(roleID, options) {
-        return this._client.get(path2`/organization/roles/${roleID}`, {
+        return this._client.get(path`/organization/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -4635,7 +4614,7 @@ var init_roles = __esm({
        * ```
        */
       update(roleID, body2, options) {
-        return this._client.post(path2`/organization/roles/${roleID}`, {
+        return this._client.post(path`/organization/roles/${roleID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -4670,7 +4649,7 @@ var init_roles = __esm({
        * ```
        */
       delete(roleID, options) {
-        return this._client.delete(path2`/organization/roles/${roleID}`, {
+        return this._client.delete(path`/organization/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -4723,7 +4702,7 @@ var init_spend_alerts = __esm({
        * ```
        */
       retrieve(alertID, options) {
-        return this._client.get(path2`/organization/spend_alerts/${alertID}`, {
+        return this._client.get(path`/organization/spend_alerts/${alertID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -4749,7 +4728,7 @@ var init_spend_alerts = __esm({
        * ```
        */
       update(alertID, body2, options) {
-        return this._client.post(path2`/organization/spend_alerts/${alertID}`, {
+        return this._client.post(path`/organization/spend_alerts/${alertID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -4781,7 +4760,7 @@ var init_spend_alerts = __esm({
        * ```
        */
       delete(alertID, options) {
-        return this._client.delete(path2`/organization/spend_alerts/${alertID}`, {
+        return this._client.delete(path`/organization/spend_alerts/${alertID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5079,7 +5058,7 @@ var init_roles2 = __esm({
        * ```
        */
       create(groupID, body2, options) {
-        return this._client.post(path2`/organization/groups/${groupID}/roles`, {
+        return this._client.post(path`/organization/groups/${groupID}/roles`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5099,7 +5078,7 @@ var init_roles2 = __esm({
        */
       retrieve(roleID, params, options) {
         const { group_id } = params;
-        return this._client.get(path2`/organization/groups/${group_id}/roles/${roleID}`, {
+        return this._client.get(path`/organization/groups/${group_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5118,7 +5097,7 @@ var init_roles2 = __esm({
        * ```
        */
       list(groupID, query = {}, options) {
-        return this._client.getAPIList(path2`/organization/groups/${groupID}/roles`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path`/organization/groups/${groupID}/roles`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Unassigns an organization role from a group within the organization.
@@ -5134,7 +5113,7 @@ var init_roles2 = __esm({
        */
       delete(roleID, params, options) {
         const { group_id } = params;
-        return this._client.delete(path2`/organization/groups/${group_id}/roles/${roleID}`, {
+        return this._client.delete(path`/organization/groups/${group_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5164,7 +5143,7 @@ var init_users = __esm({
        * ```
        */
       create(groupID, body2, options) {
-        return this._client.post(path2`/organization/groups/${groupID}/users`, {
+        return this._client.post(path`/organization/groups/${groupID}/users`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5184,7 +5163,7 @@ var init_users = __esm({
        */
       retrieve(userID, params, options) {
         const { group_id } = params;
-        return this._client.get(path2`/organization/groups/${group_id}/users/${userID}`, {
+        return this._client.get(path`/organization/groups/${group_id}/users/${userID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5203,7 +5182,7 @@ var init_users = __esm({
        * ```
        */
       list(groupID, query = {}, options) {
-        return this._client.getAPIList(path2`/organization/groups/${groupID}/users`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path`/organization/groups/${groupID}/users`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Removes a user from a group.
@@ -5219,7 +5198,7 @@ var init_users = __esm({
        */
       delete(userID, params, options) {
         const { group_id } = params;
-        return this._client.delete(path2`/organization/groups/${group_id}/users/${userID}`, {
+        return this._client.delete(path`/organization/groups/${group_id}/users/${userID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5274,7 +5253,7 @@ var init_groups = __esm({
        * ```
        */
       retrieve(groupID, options) {
-        return this._client.get(path2`/organization/groups/${groupID}`, {
+        return this._client.get(path`/organization/groups/${groupID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5291,7 +5270,7 @@ var init_groups = __esm({
        * ```
        */
       update(groupID, body2, options) {
-        return this._client.post(path2`/organization/groups/${groupID}`, {
+        return this._client.post(path`/organization/groups/${groupID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5326,7 +5305,7 @@ var init_groups = __esm({
        * ```
        */
       delete(groupID, options) {
-        return this._client.delete(path2`/organization/groups/${groupID}`, {
+        return this._client.delete(path`/organization/groups/${groupID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5359,7 +5338,7 @@ var init_api_keys = __esm({
        */
       retrieve(apiKeyID, params, options) {
         const { project_id } = params;
-        return this._client.get(path2`/organization/projects/${project_id}/api_keys/${apiKeyID}`, {
+        return this._client.get(path`/organization/projects/${project_id}/api_keys/${apiKeyID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5378,7 +5357,7 @@ var init_api_keys = __esm({
        * ```
        */
       list(projectID, query = {}, options) {
-        return this._client.getAPIList(path2`/organization/projects/${projectID}/api_keys`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path`/organization/projects/${projectID}/api_keys`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Deletes an API key from the project.
@@ -5397,7 +5376,7 @@ var init_api_keys = __esm({
        */
       delete(apiKeyID, params, options) {
         const { project_id } = params;
-        return this._client.delete(path2`/organization/projects/${project_id}/api_keys/${apiKeyID}`, {
+        return this._client.delete(path`/organization/projects/${project_id}/api_keys/${apiKeyID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5428,7 +5407,7 @@ var init_certificates2 = __esm({
        * ```
        */
       list(projectID, query = {}, options) {
-        return this._client.getAPIList(path2`/organization/projects/${projectID}/certificates`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path`/organization/projects/${projectID}/certificates`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Activate certificates at the project level.
@@ -5447,7 +5426,7 @@ var init_certificates2 = __esm({
        * ```
        */
       activate(projectID, body2, options) {
-        return this._client.getAPIList(path2`/organization/projects/${projectID}/certificates/activate`, Page, { body: body2, method: "post", ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path`/organization/projects/${projectID}/certificates/activate`, Page, { body: body2, method: "post", ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Deactivate certificates at the project level. You can atomically and
@@ -5465,7 +5444,7 @@ var init_certificates2 = __esm({
        * ```
        */
       deactivate(projectID, body2, options) {
-        return this._client.getAPIList(path2`/organization/projects/${projectID}/certificates/deactivate`, Page, { body: body2, method: "post", ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path`/organization/projects/${projectID}/certificates/deactivate`, Page, { body: body2, method: "post", ...options, __security: { adminAPIKeyAuth: true } });
       }
     };
   }
@@ -5490,7 +5469,7 @@ var init_data_retention2 = __esm({
        * ```
        */
       retrieve(projectID, options) {
-        return this._client.get(path2`/organization/projects/${projectID}/data_retention`, {
+        return this._client.get(path`/organization/projects/${projectID}/data_retention`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5508,7 +5487,7 @@ var init_data_retention2 = __esm({
        * ```
        */
       update(projectID, body2, options) {
-        return this._client.post(path2`/organization/projects/${projectID}/data_retention`, {
+        return this._client.post(path`/organization/projects/${projectID}/data_retention`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5537,7 +5516,7 @@ var init_hosted_tool_permissions = __esm({
        * ```
        */
       retrieve(projectID, options) {
-        return this._client.get(path2`/organization/projects/${projectID}/hosted_tool_permissions`, {
+        return this._client.get(path`/organization/projects/${projectID}/hosted_tool_permissions`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5554,7 +5533,7 @@ var init_hosted_tool_permissions = __esm({
        * ```
        */
       update(projectID, body2, options) {
-        return this._client.post(path2`/organization/projects/${projectID}/hosted_tool_permissions`, {
+        return this._client.post(path`/organization/projects/${projectID}/hosted_tool_permissions`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5583,7 +5562,7 @@ var init_model_permissions = __esm({
        * ```
        */
       retrieve(projectID, options) {
-        return this._client.get(path2`/organization/projects/${projectID}/model_permissions`, {
+        return this._client.get(path`/organization/projects/${projectID}/model_permissions`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5601,7 +5580,7 @@ var init_model_permissions = __esm({
        * ```
        */
       update(projectID, body2, options) {
-        return this._client.post(path2`/organization/projects/${projectID}/model_permissions`, {
+        return this._client.post(path`/organization/projects/${projectID}/model_permissions`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5619,7 +5598,7 @@ var init_model_permissions = __esm({
        * ```
        */
       delete(projectID, options) {
-        return this._client.delete(path2`/organization/projects/${projectID}/model_permissions`, {
+        return this._client.delete(path`/organization/projects/${projectID}/model_permissions`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5650,7 +5629,7 @@ var init_rate_limits = __esm({
        * ```
        */
       listRateLimits(projectID, query = {}, options) {
-        return this._client.getAPIList(path2`/organization/projects/${projectID}/rate_limits`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path`/organization/projects/${projectID}/rate_limits`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Updates a project rate limit.
@@ -5666,7 +5645,7 @@ var init_rate_limits = __esm({
        */
       updateRateLimit(rateLimitID, params, options) {
         const { project_id, ...body2 } = params;
-        return this._client.post(path2`/organization/projects/${project_id}/rate_limits/${rateLimitID}`, {
+        return this._client.post(path`/organization/projects/${project_id}/rate_limits/${rateLimitID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5697,7 +5676,7 @@ var init_roles3 = __esm({
        * ```
        */
       create(projectID, body2, options) {
-        return this._client.post(path2`/projects/${projectID}/roles`, {
+        return this._client.post(path`/projects/${projectID}/roles`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5717,7 +5696,7 @@ var init_roles3 = __esm({
        */
       retrieve(roleID, params, options) {
         const { project_id } = params;
-        return this._client.get(path2`/projects/${project_id}/roles/${roleID}`, {
+        return this._client.get(path`/projects/${project_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5736,7 +5715,7 @@ var init_roles3 = __esm({
        */
       update(roleID, params, options) {
         const { project_id, ...body2 } = params;
-        return this._client.post(path2`/projects/${project_id}/roles/${roleID}`, {
+        return this._client.post(path`/projects/${project_id}/roles/${roleID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5756,7 +5735,7 @@ var init_roles3 = __esm({
        * ```
        */
       list(projectID, query = {}, options) {
-        return this._client.getAPIList(path2`/projects/${projectID}/roles`, NextCursorPage, {
+        return this._client.getAPIList(path`/projects/${projectID}/roles`, NextCursorPage, {
           query,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5776,7 +5755,7 @@ var init_roles3 = __esm({
        */
       delete(roleID, params, options) {
         const { project_id } = params;
-        return this._client.delete(path2`/projects/${project_id}/roles/${roleID}`, {
+        return this._client.delete(path`/projects/${project_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5814,7 +5793,7 @@ var init_spend_alerts2 = __esm({
        * ```
        */
       create(projectID, body2, options) {
-        return this._client.post(path2`/organization/projects/${projectID}/spend_alerts`, {
+        return this._client.post(path`/organization/projects/${projectID}/spend_alerts`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5834,7 +5813,7 @@ var init_spend_alerts2 = __esm({
        */
       retrieve(alertID, params, options) {
         const { project_id } = params;
-        return this._client.get(path2`/organization/projects/${project_id}/spend_alerts/${alertID}`, {
+        return this._client.get(path`/organization/projects/${project_id}/spend_alerts/${alertID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5862,7 +5841,7 @@ var init_spend_alerts2 = __esm({
        */
       update(alertID, params, options) {
         const { project_id, ...body2 } = params;
-        return this._client.post(path2`/organization/projects/${project_id}/spend_alerts/${alertID}`, {
+        return this._client.post(path`/organization/projects/${project_id}/spend_alerts/${alertID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5882,7 +5861,7 @@ var init_spend_alerts2 = __esm({
        * ```
        */
       list(projectID, query = {}, options) {
-        return this._client.getAPIList(path2`/organization/projects/${projectID}/spend_alerts`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path`/organization/projects/${projectID}/spend_alerts`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Deletes a project spend alert.
@@ -5898,7 +5877,7 @@ var init_spend_alerts2 = __esm({
        */
       delete(alertID, params, options) {
         const { project_id } = params;
-        return this._client.delete(path2`/organization/projects/${project_id}/spend_alerts/${alertID}`, {
+        return this._client.delete(path`/organization/projects/${project_id}/spend_alerts/${alertID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5926,7 +5905,7 @@ var init_spend_limit2 = __esm({
        * ```
        */
       retrieve(projectID, options) {
-        return this._client.get(path2`/organization/projects/${projectID}/spend_limit`, {
+        return this._client.get(path`/organization/projects/${projectID}/spend_limit`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5948,7 +5927,7 @@ var init_spend_limit2 = __esm({
        * ```
        */
       update(projectID, body2, options) {
-        return this._client.post(path2`/organization/projects/${projectID}/spend_limit`, {
+        return this._client.post(path`/organization/projects/${projectID}/spend_limit`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5966,7 +5945,7 @@ var init_spend_limit2 = __esm({
        * ```
        */
       delete(projectID, options) {
-        return this._client.delete(path2`/organization/projects/${projectID}/spend_limit`, {
+        return this._client.delete(path`/organization/projects/${projectID}/spend_limit`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5997,7 +5976,7 @@ var init_roles4 = __esm({
        */
       create(groupID, params, options) {
         const { project_id, ...body2 } = params;
-        return this._client.post(path2`/projects/${project_id}/groups/${groupID}/roles`, {
+        return this._client.post(path`/projects/${project_id}/groups/${groupID}/roles`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6017,7 +5996,7 @@ var init_roles4 = __esm({
        */
       retrieve(roleID, params, options) {
         const { project_id, group_id } = params;
-        return this._client.get(path2`/projects/${project_id}/groups/${group_id}/roles/${roleID}`, {
+        return this._client.get(path`/projects/${project_id}/groups/${group_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6038,7 +6017,7 @@ var init_roles4 = __esm({
        */
       list(groupID, params, options) {
         const { project_id, ...query } = params;
-        return this._client.getAPIList(path2`/projects/${project_id}/groups/${groupID}/roles`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path`/projects/${project_id}/groups/${groupID}/roles`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Unassigns a project role from a group within a project.
@@ -6054,7 +6033,7 @@ var init_roles4 = __esm({
        */
       delete(roleID, params, options) {
         const { project_id, group_id } = params;
-        return this._client.delete(path2`/projects/${project_id}/groups/${group_id}/roles/${roleID}`, {
+        return this._client.delete(path`/projects/${project_id}/groups/${group_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6090,7 +6069,7 @@ var init_groups2 = __esm({
        * ```
        */
       create(projectID, body2, options) {
-        return this._client.post(path2`/organization/projects/${projectID}/groups`, {
+        return this._client.post(path`/organization/projects/${projectID}/groups`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6110,7 +6089,7 @@ var init_groups2 = __esm({
        */
       retrieve(groupID, params, options) {
         const { project_id, ...query } = params;
-        return this._client.get(path2`/organization/projects/${project_id}/groups/${groupID}`, {
+        return this._client.get(path`/organization/projects/${project_id}/groups/${groupID}`, {
           query,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6130,7 +6109,7 @@ var init_groups2 = __esm({
        * ```
        */
       list(projectID, query = {}, options) {
-        return this._client.getAPIList(path2`/organization/projects/${projectID}/groups`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path`/organization/projects/${projectID}/groups`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Revokes a group's access to a project.
@@ -6146,7 +6125,7 @@ var init_groups2 = __esm({
        */
       delete(groupID, params, options) {
         const { project_id } = params;
-        return this._client.delete(path2`/organization/projects/${project_id}/groups/${groupID}`, {
+        return this._client.delete(path`/organization/projects/${project_id}/groups/${groupID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6177,7 +6156,7 @@ var init_api_keys2 = __esm({
        */
       create(serviceAccountID, params, options) {
         const { project_id, ...body2 } = params;
-        return this._client.post(path2`/organization/projects/${project_id}/service_accounts/${serviceAccountID}/api_keys`, { body: body2, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.post(path`/organization/projects/${project_id}/service_accounts/${serviceAccountID}/api_keys`, { body: body2, ...options, __security: { adminAPIKeyAuth: true } });
       }
     };
   }
@@ -6211,7 +6190,7 @@ var init_service_accounts = __esm({
        * ```
        */
       create(projectID, body2, options) {
-        return this._client.post(path2`/organization/projects/${projectID}/service_accounts`, {
+        return this._client.post(path`/organization/projects/${projectID}/service_accounts`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6231,7 +6210,7 @@ var init_service_accounts = __esm({
        */
       retrieve(serviceAccountID, params, options) {
         const { project_id } = params;
-        return this._client.get(path2`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, {
+        return this._client.get(path`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6250,7 +6229,7 @@ var init_service_accounts = __esm({
        */
       update(serviceAccountID, params, options) {
         const { project_id, ...body2 } = params;
-        return this._client.post(path2`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, { body: body2, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.post(path`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, { body: body2, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Returns a list of service accounts in the project.
@@ -6266,7 +6245,7 @@ var init_service_accounts = __esm({
        * ```
        */
       list(projectID, query = {}, options) {
-        return this._client.getAPIList(path2`/organization/projects/${projectID}/service_accounts`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path`/organization/projects/${projectID}/service_accounts`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Deletes a service account from the project.
@@ -6285,7 +6264,7 @@ var init_service_accounts = __esm({
        */
       delete(serviceAccountID, params, options) {
         const { project_id } = params;
-        return this._client.delete(path2`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, { ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.delete(path`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, { ...options, __security: { adminAPIKeyAuth: true } });
       }
     };
     ServiceAccounts.APIKeys = APIKeys2;
@@ -6314,7 +6293,7 @@ var init_roles5 = __esm({
        */
       create(userID, params, options) {
         const { project_id, ...body2 } = params;
-        return this._client.post(path2`/projects/${project_id}/users/${userID}/roles`, {
+        return this._client.post(path`/projects/${project_id}/users/${userID}/roles`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6334,7 +6313,7 @@ var init_roles5 = __esm({
        */
       retrieve(roleID, params, options) {
         const { project_id, user_id } = params;
-        return this._client.get(path2`/projects/${project_id}/users/${user_id}/roles/${roleID}`, {
+        return this._client.get(path`/projects/${project_id}/users/${user_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6355,7 +6334,7 @@ var init_roles5 = __esm({
        */
       list(userID, params, options) {
         const { project_id, ...query } = params;
-        return this._client.getAPIList(path2`/projects/${project_id}/users/${userID}/roles`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path`/projects/${project_id}/users/${userID}/roles`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Unassigns a project role from a user within a project.
@@ -6371,7 +6350,7 @@ var init_roles5 = __esm({
        */
       delete(roleID, params, options) {
         const { project_id, user_id } = params;
-        return this._client.delete(path2`/projects/${project_id}/users/${user_id}/roles/${roleID}`, {
+        return this._client.delete(path`/projects/${project_id}/users/${user_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6408,7 +6387,7 @@ var init_users2 = __esm({
        * ```
        */
       create(projectID, body2, options) {
-        return this._client.post(path2`/organization/projects/${projectID}/users`, {
+        return this._client.post(path`/organization/projects/${projectID}/users`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6428,7 +6407,7 @@ var init_users2 = __esm({
        */
       retrieve(userID, params, options) {
         const { project_id } = params;
-        return this._client.get(path2`/organization/projects/${project_id}/users/${userID}`, {
+        return this._client.get(path`/organization/projects/${project_id}/users/${userID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6447,7 +6426,7 @@ var init_users2 = __esm({
        */
       update(userID, params, options) {
         const { project_id, ...body2 } = params;
-        return this._client.post(path2`/organization/projects/${project_id}/users/${userID}`, {
+        return this._client.post(path`/organization/projects/${project_id}/users/${userID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6467,7 +6446,7 @@ var init_users2 = __esm({
        * ```
        */
       list(projectID, query = {}, options) {
-        return this._client.getAPIList(path2`/organization/projects/${projectID}/users`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path`/organization/projects/${projectID}/users`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Deletes a user from the project.
@@ -6486,7 +6465,7 @@ var init_users2 = __esm({
        */
       delete(userID, params, options) {
         const { project_id } = params;
-        return this._client.delete(path2`/organization/projects/${project_id}/users/${userID}`, {
+        return this._client.delete(path`/organization/projects/${project_id}/users/${userID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6574,7 +6553,7 @@ var init_projects = __esm({
        * ```
        */
       retrieve(projectID, options) {
-        return this._client.get(path2`/organization/projects/${projectID}`, {
+        return this._client.get(path`/organization/projects/${projectID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6591,7 +6570,7 @@ var init_projects = __esm({
        * ```
        */
       update(projectID, body2, options) {
-        return this._client.post(path2`/organization/projects/${projectID}`, {
+        return this._client.post(path`/organization/projects/${projectID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6628,7 +6607,7 @@ var init_projects = __esm({
        * ```
        */
       archive(projectID, options) {
-        return this._client.post(path2`/organization/projects/${projectID}/archive`, {
+        return this._client.post(path`/organization/projects/${projectID}/archive`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6670,7 +6649,7 @@ var init_roles6 = __esm({
        * ```
        */
       create(userID, body2, options) {
-        return this._client.post(path2`/organization/users/${userID}/roles`, {
+        return this._client.post(path`/organization/users/${userID}/roles`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6690,7 +6669,7 @@ var init_roles6 = __esm({
        */
       retrieve(roleID, params, options) {
         const { user_id } = params;
-        return this._client.get(path2`/organization/users/${user_id}/roles/${roleID}`, {
+        return this._client.get(path`/organization/users/${user_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6709,7 +6688,7 @@ var init_roles6 = __esm({
        * ```
        */
       list(userID, query = {}, options) {
-        return this._client.getAPIList(path2`/organization/users/${userID}/roles`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path`/organization/users/${userID}/roles`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Unassigns an organization role from a user within the organization.
@@ -6725,7 +6704,7 @@ var init_roles6 = __esm({
        */
       delete(roleID, params, options) {
         const { user_id } = params;
-        return this._client.delete(path2`/organization/users/${user_id}/roles/${roleID}`, {
+        return this._client.delete(path`/organization/users/${user_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6758,7 +6737,7 @@ var init_users3 = __esm({
        * ```
        */
       retrieve(userID, options) {
-        return this._client.get(path2`/organization/users/${userID}`, {
+        return this._client.get(path`/organization/users/${userID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6773,7 +6752,7 @@ var init_users3 = __esm({
        * ```
        */
       update(userID, body2, options) {
-        return this._client.post(path2`/organization/users/${userID}`, {
+        return this._client.post(path`/organization/users/${userID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6808,7 +6787,7 @@ var init_users3 = __esm({
        * ```
        */
       delete(userID, options) {
-        return this._client.delete(path2`/organization/users/${userID}`, {
+        return this._client.delete(path`/organization/users/${userID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -7010,7 +6989,7 @@ var init_batches = __esm({
        * Retrieves a batch.
        */
       retrieve(batchID, options) {
-        return this._client.get(path2`/batches/${batchID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.get(path`/batches/${batchID}`, { ...options, __security: { bearerAuth: true } });
       }
       /**
        * List your organization's batches.
@@ -7028,7 +7007,7 @@ var init_batches = __esm({
        * (if any) available in the output file.
        */
       cancel(batchID, options) {
-        return this._client.post(path2`/batches/${batchID}/cancel`, {
+        return this._client.post(path`/batches/${batchID}/cancel`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -7065,7 +7044,7 @@ var init_assistants = __esm({
        * @deprecated
        */
       retrieve(assistantID, options) {
-        return this._client.get(path2`/assistants/${assistantID}`, {
+        return this._client.get(path`/assistants/${assistantID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -7077,7 +7056,7 @@ var init_assistants = __esm({
        * @deprecated
        */
       update(assistantID, body2, options) {
-        return this._client.post(path2`/assistants/${assistantID}`, {
+        return this._client.post(path`/assistants/${assistantID}`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -7103,7 +7082,7 @@ var init_assistants = __esm({
        * @deprecated
        */
       delete(assistantID, options) {
-        return this._client.delete(path2`/assistants/${assistantID}`, {
+        return this._client.delete(path`/assistants/${assistantID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -7242,7 +7221,7 @@ var init_sessions2 = __esm({
        * ```
        */
       cancel(sessionID, options) {
-        return this._client.post(path2`/chatkit/sessions/${sessionID}/cancel`, {
+        return this._client.post(path`/chatkit/sessions/${sessionID}/cancel`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "chatkit_beta=v1" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -7271,7 +7250,7 @@ var init_threads = __esm({
        * ```
        */
       retrieve(threadID, options) {
-        return this._client.get(path2`/chatkit/threads/${threadID}`, {
+        return this._client.get(path`/chatkit/threads/${threadID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "chatkit_beta=v1" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -7307,7 +7286,7 @@ var init_threads = __esm({
        * ```
        */
       delete(threadID, options) {
-        return this._client.delete(path2`/chatkit/threads/${threadID}`, {
+        return this._client.delete(path`/chatkit/threads/${threadID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "chatkit_beta=v1" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -7327,7 +7306,7 @@ var init_threads = __esm({
        * ```
        */
       listItems(threadID, query = {}, options) {
-        return this._client.getAPIList(path2`/chatkit/threads/${threadID}/items`, ConversationCursorPage, {
+        return this._client.getAPIList(path`/chatkit/threads/${threadID}/items`, ConversationCursorPage, {
           query,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "chatkit_beta=v1" }, options?.headers]),
@@ -7383,7 +7362,7 @@ var init_input_items = __esm({
        */
       list(responseID, params = {}, options) {
         const { betas, ...query } = params ?? {};
-        return this._client.getAPIList(path2`/responses/${responseID}/input_items?beta=true`, CursorPage, {
+        return this._client.getAPIList(path`/responses/${responseID}/input_items?beta=true`, CursorPage, {
           query,
           ...options,
           headers: buildHeaders([
@@ -7464,7 +7443,7 @@ var init_responses = __esm({
       }
       retrieve(responseID, params = {}, options) {
         const { betas, ...query } = params ?? {};
-        return this._client.get(path2`/responses/${responseID}?beta=true`, {
+        return this._client.get(path`/responses/${responseID}?beta=true`, {
           query,
           ...options,
           headers: buildHeaders([
@@ -7487,7 +7466,7 @@ var init_responses = __esm({
        */
       delete(responseID, params = {}, options) {
         const { betas } = params ?? {};
-        return this._client.delete(path2`/responses/${responseID}?beta=true`, {
+        return this._client.delete(path`/responses/${responseID}?beta=true`, {
           ...options,
           headers: buildHeaders([
             { Accept: "*/*", ...betas?.toString() != null ? { "openai-beta": betas?.toString() } : void 0 },
@@ -7510,7 +7489,7 @@ var init_responses = __esm({
        */
       cancel(responseID, params = {}, options) {
         const { betas } = params ?? {};
-        return this._client.post(path2`/responses/${responseID}/cancel?beta=true`, {
+        return this._client.post(path`/responses/${responseID}/cancel?beta=true`, {
           ...options,
           headers: buildHeaders([
             { ...betas?.toString() != null ? { "openai-beta": betas?.toString() } : void 0 },
@@ -7568,7 +7547,7 @@ var init_messages2 = __esm({
        * @deprecated The Assistants API is deprecated in favor of the Responses API
        */
       create(threadID, body2, options) {
-        return this._client.post(path2`/threads/${threadID}/messages`, {
+        return this._client.post(path`/threads/${threadID}/messages`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -7582,7 +7561,7 @@ var init_messages2 = __esm({
        */
       retrieve(messageID, params, options) {
         const { thread_id } = params;
-        return this._client.get(path2`/threads/${thread_id}/messages/${messageID}`, {
+        return this._client.get(path`/threads/${thread_id}/messages/${messageID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -7595,7 +7574,7 @@ var init_messages2 = __esm({
        */
       update(messageID, params, options) {
         const { thread_id, ...body2 } = params;
-        return this._client.post(path2`/threads/${thread_id}/messages/${messageID}`, {
+        return this._client.post(path`/threads/${thread_id}/messages/${messageID}`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -7608,7 +7587,7 @@ var init_messages2 = __esm({
        * @deprecated The Assistants API is deprecated in favor of the Responses API
        */
       list(threadID, query = {}, options) {
-        return this._client.getAPIList(path2`/threads/${threadID}/messages`, CursorPage, {
+        return this._client.getAPIList(path`/threads/${threadID}/messages`, CursorPage, {
           query,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -7622,7 +7601,7 @@ var init_messages2 = __esm({
        */
       delete(messageID, params, options) {
         const { thread_id } = params;
-        return this._client.delete(path2`/threads/${thread_id}/messages/${messageID}`, {
+        return this._client.delete(path`/threads/${thread_id}/messages/${messageID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -7648,7 +7627,7 @@ var init_steps = __esm({
        */
       retrieve(stepID, params, options) {
         const { thread_id, run_id, ...query } = params;
-        return this._client.get(path2`/threads/${thread_id}/runs/${run_id}/steps/${stepID}`, {
+        return this._client.get(path`/threads/${thread_id}/runs/${run_id}/steps/${stepID}`, {
           query,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -7662,7 +7641,7 @@ var init_steps = __esm({
        */
       list(runID, params, options) {
         const { thread_id, ...query } = params;
-        return this._client.getAPIList(path2`/threads/${thread_id}/runs/${runID}/steps`, CursorPage, {
+        return this._client.getAPIList(path`/threads/${thread_id}/runs/${runID}/steps`, CursorPage, {
           query,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -8251,7 +8230,7 @@ var init_runs = __esm({
       }
       create(threadID, params, options) {
         const { include, ...body2 } = params;
-        return this._client.post(path2`/threads/${threadID}/runs`, {
+        return this._client.post(path`/threads/${threadID}/runs`, {
           query: { include },
           body: body2,
           ...options,
@@ -8268,7 +8247,7 @@ var init_runs = __esm({
        */
       retrieve(runID, params, options) {
         const { thread_id } = params;
-        return this._client.get(path2`/threads/${thread_id}/runs/${runID}`, {
+        return this._client.get(path`/threads/${thread_id}/runs/${runID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -8281,7 +8260,7 @@ var init_runs = __esm({
        */
       update(runID, params, options) {
         const { thread_id, ...body2 } = params;
-        return this._client.post(path2`/threads/${thread_id}/runs/${runID}`, {
+        return this._client.post(path`/threads/${thread_id}/runs/${runID}`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -8294,7 +8273,7 @@ var init_runs = __esm({
        * @deprecated The Assistants API is deprecated in favor of the Responses API
        */
       list(threadID, query = {}, options) {
-        return this._client.getAPIList(path2`/threads/${threadID}/runs`, CursorPage, {
+        return this._client.getAPIList(path`/threads/${threadID}/runs`, CursorPage, {
           query,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -8308,7 +8287,7 @@ var init_runs = __esm({
        */
       cancel(runID, params, options) {
         const { thread_id } = params;
-        return this._client.post(path2`/threads/${thread_id}/runs/${runID}/cancel`, {
+        return this._client.post(path`/threads/${thread_id}/runs/${runID}/cancel`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -8387,7 +8366,7 @@ var init_runs = __esm({
       }
       submitToolOutputs(runID, params, options) {
         const { thread_id, ...body2 } = params;
-        return this._client.post(path2`/threads/${thread_id}/runs/${runID}/submit_tool_outputs`, {
+        return this._client.post(path`/threads/${thread_id}/runs/${runID}/submit_tool_outputs`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -8455,7 +8434,7 @@ var init_threads2 = __esm({
        * @deprecated The Assistants API is deprecated in favor of the Responses API
        */
       retrieve(threadID, options) {
-        return this._client.get(path2`/threads/${threadID}`, {
+        return this._client.get(path`/threads/${threadID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -8467,7 +8446,7 @@ var init_threads2 = __esm({
        * @deprecated The Assistants API is deprecated in favor of the Responses API
        */
       update(threadID, body2, options) {
-        return this._client.post(path2`/threads/${threadID}`, {
+        return this._client.post(path`/threads/${threadID}`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -8480,7 +8459,7 @@ var init_threads2 = __esm({
        * @deprecated The Assistants API is deprecated in favor of the Responses API
        */
       delete(threadID, options) {
-        return this._client.delete(path2`/threads/${threadID}`, {
+        return this._client.delete(path`/threads/${threadID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -8581,7 +8560,7 @@ var init_content = __esm({
        */
       retrieve(fileID, params, options) {
         const { container_id } = params;
-        return this._client.get(path2`/containers/${container_id}/files/${fileID}/content`, {
+        return this._client.get(path`/containers/${container_id}/files/${fileID}/content`, {
           ...options,
           headers: buildHeaders([{ Accept: "application/binary" }, options?.headers]),
           __security: { bearerAuth: true },
@@ -8615,14 +8594,14 @@ var init_files = __esm({
        * a JSON request with a file ID.
        */
       create(containerID, body2, options) {
-        return this._client.post(path2`/containers/${containerID}/files`, maybeMultipartFormRequestOptions({ body: body2, ...options, __security: { bearerAuth: true } }, this._client));
+        return this._client.post(path`/containers/${containerID}/files`, maybeMultipartFormRequestOptions({ body: body2, ...options, __security: { bearerAuth: true } }, this._client));
       }
       /**
        * Retrieve Container File
        */
       retrieve(fileID, params, options) {
         const { container_id } = params;
-        return this._client.get(path2`/containers/${container_id}/files/${fileID}`, {
+        return this._client.get(path`/containers/${container_id}/files/${fileID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8631,7 +8610,7 @@ var init_files = __esm({
        * List Container files
        */
       list(containerID, query = {}, options) {
-        return this._client.getAPIList(path2`/containers/${containerID}/files`, CursorPage, {
+        return this._client.getAPIList(path`/containers/${containerID}/files`, CursorPage, {
           query,
           ...options,
           __security: { bearerAuth: true }
@@ -8642,7 +8621,7 @@ var init_files = __esm({
        */
       delete(fileID, params, options) {
         const { container_id } = params;
-        return this._client.delete(path2`/containers/${container_id}/files/${fileID}`, {
+        return this._client.delete(path`/containers/${container_id}/files/${fileID}`, {
           ...options,
           headers: buildHeaders([{ Accept: "*/*" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -8678,7 +8657,7 @@ var init_containers = __esm({
        * Retrieve Container
        */
       retrieve(containerID, options) {
-        return this._client.get(path2`/containers/${containerID}`, {
+        return this._client.get(path`/containers/${containerID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8697,7 +8676,7 @@ var init_containers = __esm({
        * Delete Container
        */
       delete(containerID, options) {
-        return this._client.delete(path2`/containers/${containerID}`, {
+        return this._client.delete(path`/containers/${containerID}`, {
           ...options,
           headers: buildHeaders([{ Accept: "*/*" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -8721,7 +8700,7 @@ var init_items = __esm({
        */
       create(conversationID, params, options) {
         const { include, ...body2 } = params;
-        return this._client.post(path2`/conversations/${conversationID}/items`, {
+        return this._client.post(path`/conversations/${conversationID}/items`, {
           query: { include },
           body: body2,
           ...options,
@@ -8733,7 +8712,7 @@ var init_items = __esm({
        */
       retrieve(itemID, params, options) {
         const { conversation_id, ...query } = params;
-        return this._client.get(path2`/conversations/${conversation_id}/items/${itemID}`, {
+        return this._client.get(path`/conversations/${conversation_id}/items/${itemID}`, {
           query,
           ...options,
           __security: { bearerAuth: true }
@@ -8743,14 +8722,14 @@ var init_items = __esm({
        * List all items for a conversation with the given ID.
        */
       list(conversationID, query = {}, options) {
-        return this._client.getAPIList(path2`/conversations/${conversationID}/items`, ConversationCursorPage, { query, ...options, __security: { bearerAuth: true } });
+        return this._client.getAPIList(path`/conversations/${conversationID}/items`, ConversationCursorPage, { query, ...options, __security: { bearerAuth: true } });
       }
       /**
        * Delete an item from a conversation with the given IDs.
        */
       delete(itemID, params, options) {
         const { conversation_id } = params;
-        return this._client.delete(path2`/conversations/${conversation_id}/items/${itemID}`, {
+        return this._client.delete(path`/conversations/${conversation_id}/items/${itemID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8782,7 +8761,7 @@ var init_conversations = __esm({
        * Get a conversation
        */
       retrieve(conversationID, options) {
-        return this._client.get(path2`/conversations/${conversationID}`, {
+        return this._client.get(path`/conversations/${conversationID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8791,7 +8770,7 @@ var init_conversations = __esm({
        * Update a conversation
        */
       update(conversationID, body2, options) {
-        return this._client.post(path2`/conversations/${conversationID}`, {
+        return this._client.post(path`/conversations/${conversationID}`, {
           body: body2,
           ...options,
           __security: { bearerAuth: true }
@@ -8801,7 +8780,7 @@ var init_conversations = __esm({
        * Delete a conversation. Items in the conversation will not be deleted.
        */
       delete(conversationID, options) {
-        return this._client.delete(path2`/conversations/${conversationID}`, {
+        return this._client.delete(path`/conversations/${conversationID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8875,7 +8854,7 @@ var init_output_items = __esm({
        */
       retrieve(outputItemID, params, options) {
         const { eval_id, run_id } = params;
-        return this._client.get(path2`/evals/${eval_id}/runs/${run_id}/output_items/${outputItemID}`, {
+        return this._client.get(path`/evals/${eval_id}/runs/${run_id}/output_items/${outputItemID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8885,7 +8864,7 @@ var init_output_items = __esm({
        */
       list(runID, params, options) {
         const { eval_id, ...query } = params;
-        return this._client.getAPIList(path2`/evals/${eval_id}/runs/${runID}/output_items`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
+        return this._client.getAPIList(path`/evals/${eval_id}/runs/${runID}/output_items`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
       }
     };
   }
@@ -8911,7 +8890,7 @@ var init_runs2 = __esm({
        * schema specified in the config of the evaluation.
        */
       create(evalID, body2, options) {
-        return this._client.post(path2`/evals/${evalID}/runs`, {
+        return this._client.post(path`/evals/${evalID}/runs`, {
           body: body2,
           ...options,
           __security: { bearerAuth: true }
@@ -8922,7 +8901,7 @@ var init_runs2 = __esm({
        */
       retrieve(runID, params, options) {
         const { eval_id } = params;
-        return this._client.get(path2`/evals/${eval_id}/runs/${runID}`, {
+        return this._client.get(path`/evals/${eval_id}/runs/${runID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8931,7 +8910,7 @@ var init_runs2 = __esm({
        * Get a list of runs for an evaluation.
        */
       list(evalID, query = {}, options) {
-        return this._client.getAPIList(path2`/evals/${evalID}/runs`, CursorPage, {
+        return this._client.getAPIList(path`/evals/${evalID}/runs`, CursorPage, {
           query,
           ...options,
           __security: { bearerAuth: true }
@@ -8942,7 +8921,7 @@ var init_runs2 = __esm({
        */
       delete(runID, params, options) {
         const { eval_id } = params;
-        return this._client.delete(path2`/evals/${eval_id}/runs/${runID}`, {
+        return this._client.delete(path`/evals/${eval_id}/runs/${runID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8952,7 +8931,7 @@ var init_runs2 = __esm({
        */
       cancel(runID, params, options) {
         const { eval_id } = params;
-        return this._client.post(path2`/evals/${eval_id}/runs/${runID}`, {
+        return this._client.post(path`/evals/${eval_id}/runs/${runID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8991,13 +8970,13 @@ var init_evals = __esm({
        * Get an evaluation by ID.
        */
       retrieve(evalID, options) {
-        return this._client.get(path2`/evals/${evalID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.get(path`/evals/${evalID}`, { ...options, __security: { bearerAuth: true } });
       }
       /**
        * Update certain properties of an evaluation.
        */
       update(evalID, body2, options) {
-        return this._client.post(path2`/evals/${evalID}`, { body: body2, ...options, __security: { bearerAuth: true } });
+        return this._client.post(path`/evals/${evalID}`, { body: body2, ...options, __security: { bearerAuth: true } });
       }
       /**
        * List evaluations for a project.
@@ -9013,7 +8992,7 @@ var init_evals = __esm({
        * Delete an evaluation.
        */
       delete(evalID, options) {
-        return this._client.delete(path2`/evals/${evalID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.delete(path`/evals/${evalID}`, { ...options, __security: { bearerAuth: true } });
       }
     };
     Evals.Runs = Runs2;
@@ -9068,7 +9047,7 @@ var init_files2 = __esm({
        * Returns information about a specific file.
        */
       retrieve(fileID, options) {
-        return this._client.get(path2`/files/${fileID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.get(path`/files/${fileID}`, { ...options, __security: { bearerAuth: true } });
       }
       /**
        * Returns a list of files.
@@ -9084,13 +9063,13 @@ var init_files2 = __esm({
        * Delete a file and remove it from all vector stores.
        */
       delete(fileID, options) {
-        return this._client.delete(path2`/files/${fileID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.delete(path`/files/${fileID}`, { ...options, __security: { bearerAuth: true } });
       }
       /**
        * Returns the contents of the specified file.
        */
       content(fileID, options) {
-        return this._client.get(path2`/files/${fileID}/content`, {
+        return this._client.get(path`/files/${fileID}/content`, {
           ...options,
           headers: buildHeaders([{ Accept: "application/binary" }, options?.headers]),
           __security: { bearerAuth: true },
@@ -9230,7 +9209,7 @@ var init_permissions = __esm({
        * ```
        */
       create(fineTunedModelCheckpoint, body2, options) {
-        return this._client.getAPIList(path2`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, Page, { body: body2, method: "post", ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, Page, { body: body2, method: "post", ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * **NOTE:** This endpoint requires an [admin API key](../admin-api-keys).
@@ -9241,7 +9220,7 @@ var init_permissions = __esm({
        * @deprecated Retrieve is deprecated. Please swap to the paginated list method instead.
        */
       retrieve(fineTunedModelCheckpoint, query = {}, options) {
-        return this._client.get(path2`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, {
+        return this._client.get(path`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, {
           query,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -9264,7 +9243,7 @@ var init_permissions = __esm({
        * ```
        */
       list(fineTunedModelCheckpoint, query = {}, options) {
-        return this._client.getAPIList(path2`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * **NOTE:** This endpoint requires an [admin API key](../admin-api-keys).
@@ -9286,7 +9265,7 @@ var init_permissions = __esm({
        */
       delete(permissionID, params, options) {
         const { fine_tuned_model_checkpoint } = params;
-        return this._client.delete(path2`/fine_tuning/checkpoints/${fine_tuned_model_checkpoint}/permissions/${permissionID}`, { ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.delete(path`/fine_tuning/checkpoints/${fine_tuned_model_checkpoint}/permissions/${permissionID}`, { ...options, __security: { adminAPIKeyAuth: true } });
       }
     };
   }
@@ -9331,7 +9310,7 @@ var init_checkpoints2 = __esm({
        * ```
        */
       list(fineTuningJobID, query = {}, options) {
-        return this._client.getAPIList(path2`/fine_tuning/jobs/${fineTuningJobID}/checkpoints`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
+        return this._client.getAPIList(path`/fine_tuning/jobs/${fineTuningJobID}/checkpoints`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
       }
     };
   }
@@ -9384,7 +9363,7 @@ var init_jobs = __esm({
        * ```
        */
       retrieve(fineTuningJobID, options) {
-        return this._client.get(path2`/fine_tuning/jobs/${fineTuningJobID}`, {
+        return this._client.get(path`/fine_tuning/jobs/${fineTuningJobID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -9418,7 +9397,7 @@ var init_jobs = __esm({
        * ```
        */
       cancel(fineTuningJobID, options) {
-        return this._client.post(path2`/fine_tuning/jobs/${fineTuningJobID}/cancel`, {
+        return this._client.post(path`/fine_tuning/jobs/${fineTuningJobID}/cancel`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -9437,7 +9416,7 @@ var init_jobs = __esm({
        * ```
        */
       listEvents(fineTuningJobID, query = {}, options) {
-        return this._client.getAPIList(path2`/fine_tuning/jobs/${fineTuningJobID}/events`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
+        return this._client.getAPIList(path`/fine_tuning/jobs/${fineTuningJobID}/events`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
       }
       /**
        * Pause a fine-tune job.
@@ -9450,7 +9429,7 @@ var init_jobs = __esm({
        * ```
        */
       pause(fineTuningJobID, options) {
-        return this._client.post(path2`/fine_tuning/jobs/${fineTuningJobID}/pause`, {
+        return this._client.post(path`/fine_tuning/jobs/${fineTuningJobID}/pause`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -9466,7 +9445,7 @@ var init_jobs = __esm({
        * ```
        */
       resume(fineTuningJobID, options) {
-        return this._client.post(path2`/fine_tuning/jobs/${fineTuningJobID}/resume`, {
+        return this._client.post(path`/fine_tuning/jobs/${fineTuningJobID}/resume`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -9580,7 +9559,7 @@ var init_models = __esm({
        * the owner and permissioning.
        */
       retrieve(model, options) {
-        return this._client.get(path2`/models/${model}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.get(path`/models/${model}`, { ...options, __security: { bearerAuth: true } });
       }
       /**
        * Lists the currently available models, and provides basic information about each
@@ -9594,7 +9573,7 @@ var init_models = __esm({
        * delete a model.
        */
       delete(model, options) {
-        return this._client.delete(path2`/models/${model}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.delete(path`/models/${model}`, { ...options, __security: { bearerAuth: true } });
       }
     };
   }
@@ -9637,7 +9616,7 @@ var init_calls = __esm({
        * ```
        */
       accept(callID, body2, options) {
-        return this._client.post(path2`/realtime/calls/${callID}/accept`, {
+        return this._client.post(path`/realtime/calls/${callID}/accept`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ Accept: "*/*" }, options?.headers]),
@@ -9653,7 +9632,7 @@ var init_calls = __esm({
        * ```
        */
       hangup(callID, options) {
-        return this._client.post(path2`/realtime/calls/${callID}/hangup`, {
+        return this._client.post(path`/realtime/calls/${callID}/hangup`, {
           ...options,
           headers: buildHeaders([{ Accept: "*/*" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -9670,7 +9649,7 @@ var init_calls = __esm({
        * ```
        */
       refer(callID, body2, options) {
-        return this._client.post(path2`/realtime/calls/${callID}/refer`, {
+        return this._client.post(path`/realtime/calls/${callID}/refer`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ Accept: "*/*" }, options?.headers]),
@@ -9686,7 +9665,7 @@ var init_calls = __esm({
        * ```
        */
       reject(callID, body2 = {}, options) {
-        return this._client.post(path2`/realtime/calls/${callID}/reject`, {
+        return this._client.post(path`/realtime/calls/${callID}/reject`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ Accept: "*/*" }, options?.headers]),
@@ -10505,7 +10484,7 @@ var init_input_items2 = __esm({
        * ```
        */
       list(responseID, query = {}, options) {
-        return this._client.getAPIList(path2`/responses/${responseID}/input_items`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
+        return this._client.getAPIList(path`/responses/${responseID}/input_items`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
       }
     };
   }
@@ -10572,7 +10551,7 @@ var init_responses2 = __esm({
         });
       }
       retrieve(responseID, query = {}, options) {
-        return this._client.get(path2`/responses/${responseID}`, {
+        return this._client.get(path`/responses/${responseID}`, {
           query,
           ...options,
           stream: query?.stream ?? false,
@@ -10595,7 +10574,7 @@ var init_responses2 = __esm({
        * ```
        */
       delete(responseID, options) {
-        return this._client.delete(path2`/responses/${responseID}`, {
+        return this._client.delete(path`/responses/${responseID}`, {
           ...options,
           headers: buildHeaders([{ Accept: "*/*" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -10623,7 +10602,7 @@ var init_responses2 = __esm({
        * ```
        */
       cancel(responseID, options) {
-        return this._client.post(path2`/responses/${responseID}/cancel`, {
+        return this._client.post(path`/responses/${responseID}/cancel`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -10664,7 +10643,7 @@ var init_content2 = __esm({
        * Download a skill zip bundle by its ID.
        */
       retrieve(skillID, options) {
-        return this._client.get(path2`/skills/${skillID}/content`, {
+        return this._client.get(path`/skills/${skillID}/content`, {
           ...options,
           headers: buildHeaders([{ Accept: "application/binary" }, options?.headers]),
           __security: { bearerAuth: true },
@@ -10688,7 +10667,7 @@ var init_content3 = __esm({
        */
       retrieve(version2, params, options) {
         const { skill_id } = params;
-        return this._client.get(path2`/skills/${skill_id}/versions/${version2}/content`, {
+        return this._client.get(path`/skills/${skill_id}/versions/${version2}/content`, {
           ...options,
           headers: buildHeaders([{ Accept: "application/binary" }, options?.headers]),
           __security: { bearerAuth: true },
@@ -10718,14 +10697,14 @@ var init_versions = __esm({
        * Create a new immutable skill version.
        */
       create(skillID, body2 = {}, options) {
-        return this._client.post(path2`/skills/${skillID}/versions`, maybeMultipartFormRequestOptions({ body: body2, ...options, __security: { bearerAuth: true } }, this._client));
+        return this._client.post(path`/skills/${skillID}/versions`, maybeMultipartFormRequestOptions({ body: body2, ...options, __security: { bearerAuth: true } }, this._client));
       }
       /**
        * Get a specific skill version.
        */
       retrieve(version2, params, options) {
         const { skill_id } = params;
-        return this._client.get(path2`/skills/${skill_id}/versions/${version2}`, {
+        return this._client.get(path`/skills/${skill_id}/versions/${version2}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -10734,7 +10713,7 @@ var init_versions = __esm({
        * List skill versions for a skill.
        */
       list(skillID, query = {}, options) {
-        return this._client.getAPIList(path2`/skills/${skillID}/versions`, CursorPage, {
+        return this._client.getAPIList(path`/skills/${skillID}/versions`, CursorPage, {
           query,
           ...options,
           __security: { bearerAuth: true }
@@ -10745,7 +10724,7 @@ var init_versions = __esm({
        */
       delete(version2, params, options) {
         const { skill_id } = params;
-        return this._client.delete(path2`/skills/${skill_id}/versions/${version2}`, {
+        return this._client.delete(path`/skills/${skill_id}/versions/${version2}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -10783,13 +10762,13 @@ var init_skills = __esm({
        * Get a skill by its ID.
        */
       retrieve(skillID, options) {
-        return this._client.get(path2`/skills/${skillID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.get(path`/skills/${skillID}`, { ...options, __security: { bearerAuth: true } });
       }
       /**
        * Update the default version pointer for a skill.
        */
       update(skillID, body2, options) {
-        return this._client.post(path2`/skills/${skillID}`, {
+        return this._client.post(path`/skills/${skillID}`, {
           body: body2,
           ...options,
           __security: { bearerAuth: true }
@@ -10809,7 +10788,7 @@ var init_skills = __esm({
        * Delete a skill by its ID.
        */
       delete(skillID, options) {
-        return this._client.delete(path2`/skills/${skillID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.delete(path`/skills/${skillID}`, { ...options, __security: { bearerAuth: true } });
       }
     };
     Skills.Content = Content2;
@@ -10839,7 +10818,7 @@ var init_parts = __esm({
        * [complete the Upload](https://platform.openai.com/docs/api-reference/uploads/complete).
        */
       create(uploadID, body2, options) {
-        return this._client.post(path2`/uploads/${uploadID}/parts`, multipartFormRequestOptions({ body: body2, ...options, __security: { bearerAuth: true } }, this._client));
+        return this._client.post(path`/uploads/${uploadID}/parts`, multipartFormRequestOptions({ body: body2, ...options, __security: { bearerAuth: true } }, this._client));
       }
     };
   }
@@ -10890,7 +10869,7 @@ var init_uploads3 = __esm({
        * Returns the Upload object with status `cancelled`.
        */
       cancel(uploadID, options) {
-        return this._client.post(path2`/uploads/${uploadID}/cancel`, {
+        return this._client.post(path`/uploads/${uploadID}/cancel`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -10913,7 +10892,7 @@ var init_uploads3 = __esm({
        * object.
        */
       complete(uploadID, body2, options) {
-        return this._client.post(path2`/uploads/${uploadID}/complete`, {
+        return this._client.post(path`/uploads/${uploadID}/complete`, {
           body: body2,
           ...options,
           __security: { bearerAuth: true }
@@ -10963,7 +10942,7 @@ var init_file_batches = __esm({
        * Create a vector store file batch.
        */
       create(vectorStoreID, body2, options) {
-        return this._client.post(path2`/vector_stores/${vectorStoreID}/file_batches`, {
+        return this._client.post(path`/vector_stores/${vectorStoreID}/file_batches`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -10975,7 +10954,7 @@ var init_file_batches = __esm({
        */
       retrieve(batchID, params, options) {
         const { vector_store_id } = params;
-        return this._client.get(path2`/vector_stores/${vector_store_id}/file_batches/${batchID}`, {
+        return this._client.get(path`/vector_stores/${vector_store_id}/file_batches/${batchID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -10987,7 +10966,7 @@ var init_file_batches = __esm({
        */
       cancel(batchID, params, options) {
         const { vector_store_id } = params;
-        return this._client.post(path2`/vector_stores/${vector_store_id}/file_batches/${batchID}/cancel`, {
+        return this._client.post(path`/vector_stores/${vector_store_id}/file_batches/${batchID}/cancel`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -11005,7 +10984,7 @@ var init_file_batches = __esm({
        */
       listFiles(batchID, params, options) {
         const { vector_store_id, ...query } = params;
-        return this._client.getAPIList(path2`/vector_stores/${vector_store_id}/file_batches/${batchID}/files`, CursorPage, {
+        return this._client.getAPIList(path`/vector_stores/${vector_store_id}/file_batches/${batchID}/files`, CursorPage, {
           query,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -11100,7 +11079,7 @@ var init_files3 = __esm({
        * [vector store](https://platform.openai.com/docs/api-reference/vector-stores/object).
        */
       create(vectorStoreID, body2, options) {
-        return this._client.post(path2`/vector_stores/${vectorStoreID}/files`, {
+        return this._client.post(path`/vector_stores/${vectorStoreID}/files`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -11112,7 +11091,7 @@ var init_files3 = __esm({
        */
       retrieve(fileID, params, options) {
         const { vector_store_id } = params;
-        return this._client.get(path2`/vector_stores/${vector_store_id}/files/${fileID}`, {
+        return this._client.get(path`/vector_stores/${vector_store_id}/files/${fileID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -11123,7 +11102,7 @@ var init_files3 = __esm({
        */
       update(fileID, params, options) {
         const { vector_store_id, ...body2 } = params;
-        return this._client.post(path2`/vector_stores/${vector_store_id}/files/${fileID}`, {
+        return this._client.post(path`/vector_stores/${vector_store_id}/files/${fileID}`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -11134,7 +11113,7 @@ var init_files3 = __esm({
        * Returns a list of vector store files.
        */
       list(vectorStoreID, query = {}, options) {
-        return this._client.getAPIList(path2`/vector_stores/${vectorStoreID}/files`, CursorPage, {
+        return this._client.getAPIList(path`/vector_stores/${vectorStoreID}/files`, CursorPage, {
           query,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -11149,7 +11128,7 @@ var init_files3 = __esm({
        */
       delete(fileID, params, options) {
         const { vector_store_id } = params;
-        return this._client.delete(path2`/vector_stores/${vector_store_id}/files/${fileID}`, {
+        return this._client.delete(path`/vector_stores/${vector_store_id}/files/${fileID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -11225,7 +11204,7 @@ var init_files3 = __esm({
        */
       content(fileID, params, options) {
         const { vector_store_id } = params;
-        return this._client.getAPIList(path2`/vector_stores/${vector_store_id}/files/${fileID}/content`, Page, {
+        return this._client.getAPIList(path`/vector_stores/${vector_store_id}/files/${fileID}/content`, Page, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -11268,7 +11247,7 @@ var init_vector_stores = __esm({
        * Retrieves a vector store.
        */
       retrieve(vectorStoreID, options) {
-        return this._client.get(path2`/vector_stores/${vectorStoreID}`, {
+        return this._client.get(path`/vector_stores/${vectorStoreID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -11278,7 +11257,7 @@ var init_vector_stores = __esm({
        * Modifies a vector store.
        */
       update(vectorStoreID, body2, options) {
-        return this._client.post(path2`/vector_stores/${vectorStoreID}`, {
+        return this._client.post(path`/vector_stores/${vectorStoreID}`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -11300,7 +11279,7 @@ var init_vector_stores = __esm({
        * Delete a vector store.
        */
       delete(vectorStoreID, options) {
-        return this._client.delete(path2`/vector_stores/${vectorStoreID}`, {
+        return this._client.delete(path`/vector_stores/${vectorStoreID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -11311,7 +11290,7 @@ var init_vector_stores = __esm({
        * filter.
        */
       search(vectorStoreID, body2, options) {
-        return this._client.getAPIList(path2`/vector_stores/${vectorStoreID}/search`, Page, {
+        return this._client.getAPIList(path`/vector_stores/${vectorStoreID}/search`, Page, {
           body: body2,
           method: "post",
           ...options,
@@ -11345,7 +11324,7 @@ var init_videos = __esm({
        * Fetch the latest metadata for a generated video.
        */
       retrieve(videoID, options) {
-        return this._client.get(path2`/videos/${videoID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.get(path`/videos/${videoID}`, { ...options, __security: { bearerAuth: true } });
       }
       /**
        * List recently generated videos for the current project.
@@ -11361,7 +11340,7 @@ var init_videos = __esm({
        * Permanently delete a completed or failed video and its stored assets.
        */
       delete(videoID, options) {
-        return this._client.delete(path2`/videos/${videoID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.delete(path`/videos/${videoID}`, { ...options, __security: { bearerAuth: true } });
       }
       /**
        * Create a character from an uploaded video.
@@ -11375,7 +11354,7 @@ var init_videos = __esm({
        * Streams the rendered video content for the specified video job.
        */
       downloadContent(videoID, query = {}, options) {
-        return this._client.get(path2`/videos/${videoID}/content`, {
+        return this._client.get(path`/videos/${videoID}/content`, {
           query,
           ...options,
           headers: buildHeaders([{ Accept: "application/binary" }, options?.headers]),
@@ -11400,7 +11379,7 @@ var init_videos = __esm({
        * Fetch a character.
        */
       getCharacter(characterID, options) {
-        return this._client.get(path2`/videos/characters/${characterID}`, {
+        return this._client.get(path`/videos/characters/${characterID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -11409,7 +11388,7 @@ var init_videos = __esm({
        * Create a remix of a completed video using a refreshed prompt.
        */
       remix(videoID, body2, options) {
-        return this._client.post(path2`/videos/${videoID}/remix`, maybeMultipartFormRequestOptions({ body: body2, ...options, __security: { bearerAuth: true } }, this._client));
+        return this._client.post(path`/videos/${videoID}/remix`, maybeMultipartFormRequestOptions({ body: body2, ...options, __security: { bearerAuth: true } }, this._client));
       }
     };
   }
@@ -34670,7 +34649,7 @@ import * as fs3 from "fs/promises";
 import { writeFile } from "fs/promises";
 import { Readable } from "node:stream";
 import { finished } from "node:stream/promises";
-import * as path3 from "path";
+import * as path2 from "path";
 function getDefaultBaseUrls() {
   return {
     geminiUrl: _defaultBaseGeminiUrl,
@@ -49391,7 +49370,7 @@ function getApiKeyFromEnv() {
   }
   return envGoogleApiKey || envGeminiApiKey || void 0;
 }
-var import_p_retry, import_google_auth_library, _defaultBaseGeminiUrl, _defaultBaseVertexUrl, BaseModule, Outcome, Language, FunctionResponseScheduling, Type, AuthType, HttpElementLocation, ApiSpec, Environment, SafetyPolicy, PhishBlockThreshold, Behavior, DynamicRetrievalConfigMode, ThinkingLevel, PersonGeneration, ProminentPeople, HarmCategory, HarmBlockMethod, HarmBlockThreshold, FunctionCallingConfigMode, FinishReason, HarmProbability, HarmSeverity, UrlRetrievalStatus, BlockedReason, TrafficType, MediaModality, ModelStage, MediaResolution, Modality, Delivery, AspectRatio, ImageSize, TuningMode, AdapterSize, ResponseParseType, MatchOperation, ReinforcementTuningThinkingLevel, JobState, TuningJobState, AggregationMetric, PairwiseChoice, VideoOrientation, TuningSpeed, TuningTask, DocumentState, ServiceTier, PartMediaResolutionLevel, ToolType, ResourceScope, FeatureSelectionPreference, EmbeddingApiType, SafetyFilterLevel, ImagePromptLanguage, MaskReferenceMode, ControlReferenceType, SubjectReferenceType, EditMode, SegmentMode, VideoGenerationReferenceType, VideoGenerationMaskMode, VideoCompressionQuality, ImageResizeMode, TuningMethod, FileState, FileSource, TurnCompleteReason, VadSignalType, VoiceActivityType, StartSensitivity, EndSensitivity, ActivityHandling, TurnCoverage, Scale, MusicGenerationMode, LiveMusicPlaybackControl, HttpResponse, GenerateContentResponse, EmbedContentResponse, GenerateImagesResponse, EditImageResponse, UpscaleImageResponse, RecontextImageResponse, SegmentImageResponse, ListModelsResponse, DeleteModelResponse, CountTokensResponse, ComputeTokensResponse, GenerateVideosOperation, ListTuningJobsResponse, CancelTuningJobResponse, ValidateRewardResponse, DeleteCachedContentResponse, ListCachedContentsResponse, ListDocumentsResponse, ListFileSearchStoresResponse, UploadToFileSearchStoreResumableResponse, ImportFileOperation, ListFilesResponse, CreateFileResponse, DeleteFileResponse, RegisterFilesResponse, ListBatchJobsResponse, LiveServerMessage, LiveMusicServerMessage, UploadToFileSearchStoreOperation, PagedItem, Pager, Batches2, Caches, Chats, Chat2, ApiError, Files4, CONTENT_TYPE_HEADER, SERVER_TIMEOUT_HEADER, USER_AGENT_HEADER, GOOGLE_API_CLIENT_HEADER, SDK_VERSION, LIBRARY_LABEL, VERTEX_AI_API_DEFAULT_VERSION, GOOGLE_AI_API_DEFAULT_VERSION, MULTI_REGIONAL_LOCATIONS, DEFAULT_RETRY_ATTEMPTS, DEFAULT_RETRY_INITIAL_DELAY, DEFAULT_RETRY_MAX_DELAY, DEFAULT_RETRY_EXP_BASE, DEFAULT_RETRY_JITTER, DEFAULT_RETRY_HTTP_STATUS_CODES, ApiClient, MCP_LABEL, hasMcpToolUsageFromMcpToTool, McpCallableTool, LiveMusic, LiveMusicSession, FUNCTION_RESPONSE_REQUIRES_ID, Live, defaultLiveSendClientContentParamerters, Session, DEFAULT_MAX_REMOTE_CALLS, Models2, Operations, Tokens, Documents, FileSearchStores, envMemo, GoogleGenAISecurityProvider, GoogleGenAIAuthHook, HTTPClientError, UnexpectedClientError, InvalidRequestError, RequestAbortedError, RequestTimeoutError, ConnectionError, GoogleGenAiError, GeminiNextGenAPIClientError, APIError2, APIUserAbortError2, APIConnectionError2, APIConnectionTimeoutError2, BadRequestError2, AuthenticationError2, PermissionDeniedError2, NotFoundError2, ConflictError2, UnprocessableEntityError2, RateLimitError2, InternalServerError2, SDKHooks, hasOwn2, ServerList, SDK_METADATA, encodeForm, encodeSimple, encodeFormQuery, DEFAULT_FETCHER, HTTPClient, mediaParamSeparator, codeRangeRE$1, defaultBackoff, PermanentError, TemporaryError, codeRangeRE, gt, webWorkerLike, isBrowserLike, ClientSDK, jsonLikeContentTypeRE, jsonlLikeContentTypeRE, GoogleGenAiDefaultError, Stream4, CR2, LF2, BOUNDARIES, MAX_BOUNDARY_LEN, DEFAULT_CONTENT_TYPES, headerValRE, SecurityErrorCode, SecurityError, _a3, APIPromise2, Agents, Environments, CancelInteractionByIdServerError, CancelInteractionByIdClientError, CreateInteractionServerError, CreateInteractionClientError, DeleteInteractionServerError, DeleteInteractionClientError, GetInteractionByIdServerError, GetInteractionByIdClientError, Interactions, Triggers, Webhooks2, GoogleGenAI$1, LEGACY_LYRIA_MODELS, GeminiNextGenInteractions, GeminiNextGenAgents, GeminiNextGenWebhooks, GeminiNextGenTriggers, GeminiNextGenEnvironments, GOOGLE_API_KEY_HEADER, REQUIRED_VERTEX_AI_SCOPE, NodeAuth, NodeDownloader, NodeWebSocketFactory, NodeWebSocket, Tunings, MAX_CHUNK_SIZE, MAX_RETRY_COUNT, INITIAL_RETRY_DELAY_MS, DELAY_MULTIPLIER, X_GOOG_UPLOAD_STATUS_HEADER_FIELD, NodeUploader, NodeFiles, LANGUAGE_LABEL_PREFIX, GoogleGenAI2;
+var import_p_retry, import_google_auth_library, _defaultBaseGeminiUrl, _defaultBaseVertexUrl, BaseModule, Outcome, Language, FunctionResponseScheduling, Type, AuthType, HttpElementLocation, ApiSpec, Environment, SafetyPolicy, PhishBlockThreshold, Behavior, DynamicRetrievalConfigMode, ThinkingLevel, PersonGeneration, ProminentPeople, HarmCategory, HarmBlockMethod, HarmBlockThreshold, FunctionCallingConfigMode, FinishReason, HarmProbability, HarmSeverity, UrlRetrievalStatus, BlockedReason, TrafficType, MediaModality, ModelStage, MediaResolution, Modality, Delivery, AspectRatio, ImageSize, TuningMode, AdapterSize, ResponseParseType, MatchOperation, ReinforcementTuningThinkingLevel, JobState, TuningJobState, AggregationMetric, PairwiseChoice, VideoOrientation, TuningSpeed, TuningTask, DocumentState, ServiceTier, PartMediaResolutionLevel, ToolType, ResourceScope, FeatureSelectionPreference, EmbeddingApiType, SafetyFilterLevel, ImagePromptLanguage, MaskReferenceMode, ControlReferenceType, SubjectReferenceType, EditMode, SegmentMode, VideoGenerationReferenceType, VideoGenerationMaskMode, VideoCompressionQuality, ImageResizeMode, TuningMethod, FileState, FileSource, TurnCompleteReason, InteractionStatus, VadSignalType, VoiceActivityType, StartSensitivity, EndSensitivity, ActivityHandling, TurnCoverage, Scale, MusicGenerationMode, LiveMusicPlaybackControl, HttpResponse, GenerateContentResponse, EmbedContentResponse, GenerateImagesResponse, EditImageResponse, UpscaleImageResponse, RecontextImageResponse, SegmentImageResponse, ListModelsResponse, DeleteModelResponse, CountTokensResponse, ComputeTokensResponse, GenerateVideosOperation, ListTuningJobsResponse, CancelTuningJobResponse, ValidateRewardResponse, DeleteCachedContentResponse, ListCachedContentsResponse, ListDocumentsResponse, ListFileSearchStoresResponse, UploadToFileSearchStoreResumableResponse, ImportFileOperation, ListFilesResponse, CreateFileResponse, DeleteFileResponse, RegisterFilesResponse, ListBatchJobsResponse, LiveServerMessage, LiveMusicServerMessage, UploadToFileSearchStoreOperation, PagedItem, Pager, Batches2, Caches, Chats, Chat2, ApiError, Files4, CONTENT_TYPE_HEADER, SERVER_TIMEOUT_HEADER, USER_AGENT_HEADER, GOOGLE_API_CLIENT_HEADER, SDK_VERSION, LIBRARY_LABEL, VERTEX_AI_API_DEFAULT_VERSION, GOOGLE_AI_API_DEFAULT_VERSION, MULTI_REGIONAL_LOCATIONS, DEFAULT_RETRY_ATTEMPTS, DEFAULT_RETRY_INITIAL_DELAY, DEFAULT_RETRY_MAX_DELAY, DEFAULT_RETRY_EXP_BASE, DEFAULT_RETRY_JITTER, DEFAULT_RETRY_HTTP_STATUS_CODES, ApiClient, MCP_LABEL, hasMcpToolUsageFromMcpToTool, McpCallableTool, LiveMusic, LiveMusicSession, FUNCTION_RESPONSE_REQUIRES_ID, Live, defaultLiveSendClientContentParamerters, Session, DEFAULT_MAX_REMOTE_CALLS, Models2, Operations, Tokens, Documents, FileSearchStores, envMemo, GoogleGenAISecurityProvider, GoogleGenAIAuthHook, HTTPClientError, UnexpectedClientError, InvalidRequestError, RequestAbortedError, RequestTimeoutError, ConnectionError, GoogleGenAiError, GeminiNextGenAPIClientError, APIError2, APIUserAbortError2, APIConnectionError2, APIConnectionTimeoutError2, BadRequestError2, AuthenticationError2, PermissionDeniedError2, NotFoundError2, ConflictError2, UnprocessableEntityError2, RateLimitError2, InternalServerError2, SDKHooks, hasOwn2, ServerList, SDK_METADATA, encodeForm, encodeSimple, encodeFormQuery, DEFAULT_FETCHER, HTTPClient, mediaParamSeparator, codeRangeRE$1, defaultBackoff, PermanentError, TemporaryError, codeRangeRE, gt, webWorkerLike, isBrowserLike, ClientSDK, jsonLikeContentTypeRE, jsonlLikeContentTypeRE, GoogleGenAiDefaultError, Stream4, CR2, LF2, BOUNDARIES, MAX_BOUNDARY_LEN, DEFAULT_CONTENT_TYPES, headerValRE, SecurityErrorCode, SecurityError, _a3, APIPromise2, Agents, Environments, CancelInteractionByIdServerError, CancelInteractionByIdClientError, CreateInteractionServerError, CreateInteractionClientError, DeleteInteractionServerError, DeleteInteractionClientError, GetInteractionByIdServerError, GetInteractionByIdClientError, Interactions, Triggers, Webhooks2, GoogleGenAI$1, LEGACY_LYRIA_MODELS, GeminiNextGenInteractions, GeminiNextGenAgents, GeminiNextGenWebhooks, GeminiNextGenTriggers, GeminiNextGenEnvironments, GOOGLE_API_KEY_HEADER, REQUIRED_VERTEX_AI_SCOPE, NodeAuth, NodeDownloader, NodeWebSocketFactory, NodeWebSocket, Tunings, MAX_CHUNK_SIZE, MAX_RETRY_COUNT, INITIAL_RETRY_DELAY_MS, DELAY_MULTIPLIER, X_GOOG_UPLOAD_STATUS_HEADER_FIELD, NodeUploader, NodeFiles, LANGUAGE_LABEL_PREFIX, GoogleGenAI2;
 var init_node = __esm({
   "../node_modules/@google/genai/dist/node/index.mjs"() {
     import_p_retry = __toESM(require_p_retry(), 1);
@@ -49896,6 +49875,11 @@ var init_node = __esm({
       TurnCompleteReason2["GENERATED_OTHER"] = "GENERATED_OTHER";
       TurnCompleteReason2["MAX_REGENERATION_REACHED"] = "MAX_REGENERATION_REACHED";
     })(TurnCompleteReason || (TurnCompleteReason = {}));
+    (function(InteractionStatus2) {
+      InteractionStatus2["INTERACTION_STATUS_UNSPECIFIED"] = "INTERACTION_STATUS_UNSPECIFIED";
+      InteractionStatus2["IN_PROGRESS"] = "IN_PROGRESS";
+      InteractionStatus2["REQUIRES_ACTION"] = "REQUIRES_ACTION";
+    })(InteractionStatus || (InteractionStatus = {}));
     (function(VadSignalType2) {
       VadSignalType2["VAD_SIGNAL_TYPE_UNSPECIFIED"] = "VAD_SIGNAL_TYPE_UNSPECIFIED";
       VadSignalType2["VAD_SIGNAL_TYPE_SOS"] = "VAD_SIGNAL_TYPE_SOS";
@@ -51776,7 +51760,7 @@ var init_node = __esm({
     SERVER_TIMEOUT_HEADER = "X-Server-Timeout";
     USER_AGENT_HEADER = "User-Agent";
     GOOGLE_API_CLIENT_HEADER = "x-goog-api-client";
-    SDK_VERSION = "2.16.0";
+    SDK_VERSION = "2.17.0";
     LIBRARY_LABEL = `google-genai-sdk/${SDK_VERSION}`;
     VERTEX_AI_API_DEFAULT_VERSION = "v1beta1";
     GOOGLE_AI_API_DEFAULT_VERSION = "v1beta";
@@ -56712,7 +56696,7 @@ var init_node = __esm({
         let response = new HttpResponse(new Response());
         let uploadCommand = "upload";
         let fileHandle;
-        const fileName = path3.basename(file);
+        const fileName = path2.basename(file);
         try {
           fileHandle = await fs3.open(file, "r");
           if (!fileHandle) {
@@ -85968,6 +85952,27 @@ var require_pixelmatch = __commonJS({
   }
 });
 
+// src/services/learningPairFilter.ts
+function isUsefulLearningPair(pair) {
+  const user = pair.user_message?.trim() ?? "";
+  const resp = pair.suggested_response?.trim() ?? "";
+  if (!user || !resp) return false;
+  if (user.length < 4 || resp.length < 12) return false;
+  if (/^(ok|okay|va|dale|gracias|hola|s[ií]|no|perfecto)[\s!.]*$/i.test(user)) return false;
+  if (/^(ok|okay|va|dale|gracias|hola|s[ií]|perfecto)[\s!.]*$/i.test(resp)) return false;
+  if (/\b(anoto|guardo|ubicaci[oó]n|direcci[oó]n|lugar)\b/i.test(resp) && /\b(es\s+muy\s+importante|en\s+la\s+noche|show\s+en\s+vivo|en\s+vivo|color\s+blanco|en\s+realidad|donde\s+estan)\b/i.test(
+    resp
+  )) {
+    return false;
+  }
+  return true;
+}
+var init_learningPairFilter = __esm({
+  "src/services/learningPairFilter.ts"() {
+    "use strict";
+  }
+});
+
 // ../node_modules/postgres-array/index.js
 var require_postgres_array = __commonJS({
   "../node_modules/postgres-array/index.js"(exports) {
@@ -111120,5638 +111125,6 @@ function stripInternalCrmBlock(mensaje) {
   return "";
 }
 
-// src/conversation-understanding.ts
-var LUCY_FIELD_ASK_PATTERNS = {
-  nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
-  correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
-  tipo_evento: /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
-  requerimientos: (
-    // No usar "cotización" suelta: "la anoto para tu cotización" NO es pregunta de servicios.
-    /pensado|servicios?|banquete|taquiza|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|plat[ií]came|otro\s+servicio|te\s+gustar[ií]a\s+cotizar|qu[eé].{0,40}cotizar|animaci[oó]n|hora\s+loca|happening|show|incluir\s+en\s+la\s+cotiz|\bmen[uú]\b(?!\s+staff)/i
-  ),
-  invitados: /invitados|personas|gente|pax|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an|asistir[aá]n/i,
-  zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n|es)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n|venue|sede|colonia|municipio/i,
-  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo|qu[eé]\s+d[ií]a/i,
-  presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto|cu[aá]nto\s+cuesta|precio\s+total|para\s+la\s+comida|menos\s+de|hasta\s+\$?|opciones\s+de\s+precio/i
-};
-var BODASESOR_SERVICE_PATTERNS = [
-  ["Parrillada Argentina", /parrillada\s+argentina/i],
-  // Antes de Taquiza: "parrillada tacos" ≠ taquiza.
-  ["Parrillada Tacos", /\bparrillada\s+(de\s+)?tacos?\b/i],
-  ["Banquete Kosher Buffet", /\bkosher\s+buffet\b|\bbuffet\s+kosher\b/i],
-  ["Banquete Kosher", /\bkosher\b/i],
-  ["Banquete Navide\xF1o", /\bnavide[nñ]o\b/i],
-  // A15210: bare "mexicano" en "desayuno temático mexicano" ≠ Banquete Mexicano.
-  // Banquete: "banquete mexicano", "mexicano N tiempos", o "mexicano" suelto (elección de menú).
-  ["Banquete Mexicano", /\bbanquete\s+mexicano\b|\bmexicano\s+\d\s*tiempos?\b|\b\d\s*tiempos?\s+mexicanos?\b/i],
-  ["Banquete Formal", /\b(banquete\s+formal|banquete)\b/i],
-  // Barras específicas ANTES de genéricas (A14934 Barra Yucateca).
-  ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
-  // "americano" (bebida) ≠ Barra Americana (A14970).
-  ["Barra Americana", /\bbarra\s+americana\b/i],
-  ["Barra de mariscos", /\bbarra\s+de\s+mariscos?\b/i],
-  ["Barra de paninis", /\bbarra\s+de\s+paninis?\b/i],
-  ["Barra de Crepas", /\bbarra\s+de\s+crepas?\b/i],
-  ["Barra de pastas y ensaladas", /\bbarra\s+de\s+pastas?\s+y\s+ensaladas?\b/i],
-  ["Barra de pastas", /\bbarra\s+de\s+pastas?\b/i],
-  ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra)\b/i],
-  // A14985: cerveza/whisky/licores → Barra de bebidas (no solo "barra de bebidas" literal).
-  ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?|cervezas?|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|open\s*bar|barra\s+libre)\b/i],
-  ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
-  ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
-  // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
-  ["Barra de Caf\xE9", /\bbarra\s+de\s+caf[eé](?!\p{L})/iu],
-  ["Coffee break", /\b(coffee\s*break|coffeebreak|coffe\s*break)\b/i],
-  ["Comida Corrida", /\bcomida\s+corrida\b/i],
-  ["Paella", /\bpaellas?\b|\bpaellada\b/i],
-  ["Pozole y Tostadas", /\bpozole(\s+y\s+tostadas?)?\b|\bpozolada\b/i],
-  // A14985: banderillas / antojitos de stand → Puestos de Comida (no "Snack" corporativo).
-  ["Puestos de Comida", /\bpuestos?\s+de\s+comida\b|\bantojitos?\b|\bbanderillas?\b|\besquites?\b|\belotes?\b|\bgarnachas?\b|\bquesadillas?\b/i],
-  ["Cupcakes y Bet\xFAn", /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})/iu],
-  ["Carrito de Snacks", /\bcarrito\s+de\s+snacks?\b|\bcarrito\s+de\s+snaks?\b/i],
-  ["Paletas de Hielo y Helados", /\bpaletas?(\s+de\s+hielo)?\b|\bhelados?\b/i],
-  ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
-  // No robar "dulces" suelto (eso es Mesa de dulces).
-  ["Mesa de postres", /\bmesa\s+de\s+postres\b|\bpostres?\b/i],
-  ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
-  ["Canap\xE9s", /\bcanap[eé]s?(?!\p{L})/iu],
-  ["Bocadillos", /\bbocadillos?\b/i],
-  ["Entradas", /\bentradas?\b/i],
-  // Tiempos de comida corporativos (briefs con varios servicios).
-  ["Desayuno", /\bdesayunos?\b/i],
-  ["Brunch", /\bbrunch\b/i],
-  // A15212: typo frecuente "snaks".
-  ["Snack", /\bsnacks?\b|\bsnaks?\b/i],
-  ["Comida", /\bcomidas?\b/i],
-  ["Cena", /\bcenas?\b/i],
-  ["Men\xFA staff", /\bmen[uú]\s+(para\s+)?staff\b/iu],
-  ["Men\xFA Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/iu],
-  ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
-  ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
-  ["Animaci\xF3n / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|shows?|pixel|espejos|l[aá]ser|laser)\b/i],
-  // A15003 Juan: photo booth / cabina de fotos (entretenimiento).
-  ["Photo Booth", /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i],
-  // A15009 Erick: circo / Blue Man.
-  ["Circo para eventos", /\bcirco(\s+para\s+eventos?)?\b/i],
-  ["Show Blue Man", /\bblue\s*mans?\b|\bblueman\b/i],
-  // A14988 Ernesto: bailarinas / dancers = entretenimiento (no oferta genérica Nivel 1).
-  ["Bailarinas", /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i],
-  // A14962: robots LED / batucada = entretenimiento, NUNCA banquete.
-  ["Robots LED", /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i],
-  ["Batucada", /\bbatucada\b|\bambienta(?:r|ci[oó]n)\b.{0,40}\bbatucada\b|\bbatucada\b.{0,40}\bambient/i],
-  ["Maestro de ceremonias", /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador(\s+de\s+eventos?)?)\b/i],
-  ["Iluminaci\xF3n", /\biluminaci[oó]n\b/i],
-  // Antes de Decoración / Pantallas: "decoración aérea" y LED wall no deben robarse.
-  ["Colgantes Premium", /\bcolgantes?(?:\s+premium)?\b|\bwisteria\b|\bdecoraci[oó]n\s+a[eé]rea\b/i],
-  ["Entelados para Techo", /\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b/i],
-  ["Vajillas", /\bvajillas?\b|\bcuberter[ií]a\b|\bcristaler[ií]a\b/i],
-  ["Video", /\bvideo\b|\bled\s*wall\b/i],
-  // A15190: centros de mesa = floral/decorativo, NUNCA mobiliario (antes de Decoración/Mobiliario).
-  [
-    "Centros de mesa",
-    /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:florales?\s+)?(?:de\s+)?mesas?\b|\bdecoraci[oó]n\s+de\s+mesas?\b|\bflores?\s+(?:para|en|de)\s+mesas?\b/i
-  ],
-  ["Decoraci\xF3n", /\bdecoraci[oó]n\b/i],
-  ["Florister\xEDa", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
-  // Salas lounge / "sala: Luxor Rosa" / "4 salas" — producto, NO invitados ni ubicación.
-  ["Salas lounge", /\b(salas?\s+lounge|sala\s*:|ser[ií]an?\s+\d+\s+salas?|\d+\s+salas?)\b/i],
-  // "mesas?" no debe capturar "centros/arreglos/decoración de mesa" ni "mesa de dulces/…".
-  [
-    "Mobiliario",
-    /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|periqueras?)\b|(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)/i
-  ],
-  ["Carpas", /\b(carpa|carpas|toldo)\b/i],
-  ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
-  ["Audio y sonido", /\b(audio|microfon[ií]a|sonido|bocinas|amplificaci[oó]n)\b/i],
-  ["Estructuras", /\bestructuras?\b/i],
-  ["Inflables", /\binflable/i],
-  ["Softplay", /\bsoft\s*play\b/i],
-  ["Meseros", /\b(meseros?|staff|personal\s+de\s+servicio)\b/i],
-  ["DJ", /\bdj\b/i],
-  ["Mixolog\xEDa", /\bmixolog[ií]a\b/i],
-  ["Cocteler\xEDa", /\bcocteler[ií]a\b/i],
-  ["M\xF3cteles", /\bm[oó]cteles?\b/i],
-  ["Pastas", /\bpastas?\b/i],
-  ["Pizzas", /\bpizza/i],
-  ["Taquiza", /\btaquiza\b|\btacos?\b/i],
-  ["Parrillada", /\bparrillada\b/i],
-  ["Crepas", /\bcrep[aá]s?\b/i],
-  ["Frutas en vasito", /\bfrutas?\s+en\s+vasitos?\b|\bvasitos?\s+de\s+fruta/i],
-  ["Poptails", /\bpoptails?\b/i],
-  ["Renta de letras", /\b(renta\s+de\s+letras?|letras?\s+(xv|gigantes?)|letra\s+xv)\b/i],
-  ["Valet parking", /\b(valet|estacionamiento\s+valet)\b/i],
-  ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
-  ["Mesa imperial", /\bmesa\s+imperial\b/i]
-];
-var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
-var SHORT_SERVICE_ALIASES = {
-  pista: "pista de baile",
-  tarima: "pista de baile",
-  dj: "DJ",
-  mesa: "mobiliario",
-  mesas: "mobiliario",
-  "centro de mesa": "Centros de mesa",
-  "centros de mesa": "Centros de mesa",
-  "centros florales": "Centros de mesa",
-  "centro floral": "Centros de mesa",
-  "arreglo de mesa": "Centros de mesa",
-  "arreglos de mesa": "Centros de mesa",
-  "decoracion de mesas": "Centros de mesa",
-  "decoraci\xF3n de mesas": "Centros de mesa",
-  silla: "mobiliario",
-  sillas: "mobiliario",
-  sala: "salas lounge",
-  salas: "salas lounge",
-  lounge: "salas lounge",
-  periquera: "mobiliario",
-  periqueras: "mobiliario",
-  carpa: "carpas",
-  carpas: "carpas",
-  bebidas: "barra de bebidas",
-  bebida: "barra de bebidas",
-  banquete: "banquete",
-  taquiza: "taquiza",
-  tacos: "taquiza",
-  pizza: "pizzas",
-  pizzas: "pizzas",
-  pasta: "pastas",
-  pastas: "pastas",
-  cafe: "Barra de Caf\xE9",
-  caf\u00E9: "Barra de Caf\xE9",
-  sushi: "Barra de sushi",
-  kosher: "banquete kosher",
-  paella: "Paella",
-  pozole: "Pozole y Tostadas",
-  pozolada: "Pozole y Tostadas",
-  cupcakes: "Cupcakes y Bet\xFAn",
-  cupcake: "Cupcakes y Bet\xFAn",
-  betun: "Cupcakes y Bet\xFAn",
-  bet\u00FAn: "Cupcakes y Bet\xFAn",
-  entelado: "Entelados para Techo",
-  entelados: "Entelados para Techo",
-  colgantes: "Colgantes Premium",
-  colgante: "Colgantes Premium",
-  vajilla: "Vajillas",
-  vajillas: "Vajillas",
-  mocteles: "M\xF3cteles",
-  m\u00F3cteles: "M\xF3cteles",
-  video: "Video",
-  meseros: "meseros",
-  mesero: "meseros",
-  decoracion: "decoraci\xF3n",
-  iluminacion: "iluminaci\xF3n",
-  pantalla: "pantallas",
-  inflable: "inflables",
-  mobiliario: "mobiliario",
-  helado: "Paletas de Hielo y Helados",
-  helados: "Paletas de Hielo y Helados",
-  paletas: "Paletas de Hielo y Helados",
-  brunch: "Brunch",
-  softplay: "Softplay",
-  "soft play": "Softplay",
-  "comida corrida": "Comida Corrida",
-  antojitos: "Puestos de Comida",
-  "fiesta infantil": "Fiesta Infantil",
-  "carrito de snacks": "Carrito de Snacks",
-  "carrito de snaks": "Carrito de Snacks",
-  "parrillada tacos": "Parrillada Tacos",
-  "tarima y pista": "Pista de baile",
-  "tarimas y pistas": "Pista de baile",
-  bailarina: "Bailarinas",
-  bailarinas: "Bailarinas",
-  dancers: "Bailarinas",
-  dancer: "Bailarinas",
-  vedette: "Bailarinas",
-  vedettes: "Bailarinas",
-  "audio e iluminacion": "Audio y sonido",
-  "audio e iluminaci\xF3n": "Audio y sonido",
-  "desayuno o brunch": "Desayuno",
-  // A15205: comida/alimentos vagos NO se aliasan a banquete — van a formal vs casual.
-  letras: "renta de letras",
-  "renta de letras": "renta de letras",
-  "letra xv": "renta de letras"
-};
-var TIPO_EVENTO_PATTERNS = [
-  [/\b(expo(sición)?|feria|stand\s+de|congreso)\b/i, "evento corporativo"],
-  // A14985 Lilian: torneo de golf / stand en campo.
-  [/\b(torneo(\s+de\s+golf)?|torneo\s+de\s+golf|golf|stand\s+en\s+campo)\b/i, "evento corporativo"],
-  [/\b(boda|bodas|matrimonio|casamiento|nupcial)\b/i, "boda"],
-  [/\b(baby\s*shower)\b/i, "baby shower"],
-  [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV a\xF1os"],
-  [/\b(fin\s+de\s+a[nñ]o|fiesta\s+de\s+empresa|eventos?\s+de\s+empresa|de\s+empresa)\b/i, "evento corporativo"],
-  [/\b(eventos?\s+corporativos?|convenci[oó]n(es)?|conferencias?|corporativos?)\b/i, "evento corporativo"],
-  [/\b(cumplea[nñ]os?|cumple)\b/i, "cumplea\xF1os"],
-  [/\b(bautizos?)\b/i, "bautizo"],
-  [/\b(graduaci[oó]n(es)?)\b/i, "graduaci\xF3n"],
-  [/\b(comuni[oó]n)\b/i, "celebraci\xF3n"],
-  // Fiesta / celebración / reunión familiar (A15000 Itzel: "Reunión familiar").
-  [/\b(fiesta|celebraci[oó]n(es)?(\s+familiares?)?|reun[ií][oó]n(es)?\s+(social|familiar(es)?))\b/i, "fiesta"],
-  [/\b(reun[ií][oó]n\s+familiar|celebraci[oó]n\s+familiar)\b/i, "fiesta"],
-  [/\bpozolada\b/i, "pozolada"],
-  [/\bpaellada\b/i, "paellada"],
-  [/\btaquiza\b/i, "taquiza"],
-  [/\bparrillada\b/i, "parrillada"],
-  [/\bcarne\s+asada\b/i, "carne asada"],
-  [/\bposada\b/i, "posada"],
-  [/\bcena\s+navide[nñ]a\b/i, "cena navide\xF1a"],
-  // A14988 Ernesto: concierto es tipo de evento (no servicio).
-  [/\bconciertos?\b/i, "concierto"],
-  // A15205 Mariel: campamento / concentración deportiva.
-  [/\bcampamentos?\b|\bconcentraci[oó]n\b|\batletas?\b/i, "campamento"]
-];
-function normalizePresentationText(text2) {
-  return text2.toLowerCase().replace(/[¿?.,!]/g, "").trim();
-}
-function clientAsksAboutTeam(message, clientName) {
-  if (!message?.trim()) return false;
-  const t3 = message.trim();
-  const normalized = normalizePresentationText(t3);
-  const name2 = clientName?.trim().toLowerCase() ?? "";
-  const advisor = getAdvisorName().toLowerCase();
-  const advisorEsc = advisor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  if (name2) {
-    if (normalized === name2 || normalized === `soy ${name2}` || normalized === `me llamo ${name2}`) {
-      return false;
-    }
-  }
-  if (/^(soy\s+)?[a-záéíóúñ]{2,30}$/i.test(normalized)) return false;
-  if (/^hola,?\s+[a-záéíóúñ]{2,30}$/i.test(normalized)) return false;
-  if (name2 && name2 === advisor && new RegExp(`^${advisorEsc}$`, "i").test(normalized)) {
-    return false;
-  }
-  if (/^[a-záéíóúñ]{2,30}!?$/i.test(normalized)) return false;
-  const legacyTeamAsk = LEGACY_ADVISOR_NAMES.some((legacy) => {
-    const esc = legacy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp(`^${esc}$`, "i").test(normalized) || new RegExp(`\\bqui[e\xE9]n\\s+es\\s+${esc}\\b`, "i").test(t3) || new RegExp(`\\best[a\xE1]\\s+${esc}\\b`, "i").test(t3);
-  });
-  return legacyTeamAsk || new RegExp(`^${advisorEsc}$`, "i").test(normalized) && !(name2 && name2 === advisor) || new RegExp(`\\bqui[e\xE9]n\\s+es\\s+${advisorEsc}\\b`, "i").test(t3) || /\bqui[eé]n\s+es\s+alejandro\b/i.test(t3) || new RegExp(`\\best[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t3) || new RegExp(`\\bhablo\\s+con\\s+${advisorEsc}\\b`, "i").test(t3) || new RegExp(`\\bpuedo\\s+hablar\\s+con\\s+${advisorEsc}\\b`, "i").test(t3) || new RegExp(`\\bd[o\xF3]nde\\s+est[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t3) || /\bel\s+asesor\b/i.test(t3);
-}
-function clientAddsToQuote(message) {
-  if (!message?.trim()) return false;
-  if (isRichQuoteBrief(message)) return false;
-  const t3 = message.toLowerCase();
-  if (/\b(incluir|agregar|sumar|tambi[eé]n|adem[aá]s)\b/i.test(t3) && /\b(cotizaci[oó]n|propuesta|cotizar)\b/i.test(t3) || /\bincluir\b.+\b(en\s+la\s+)?cotiz/i.test(t3)) {
-    return true;
-  }
-  if (/\b(queremos|quisiera|me\s+gustar[ií]a|sumamos|ponemos|buscamos)\b/i.test(t3)) {
-    const services = parseServicesFromText(message);
-    if (services.length >= 1) return true;
-    if (/\b(helado|frutas?|vasitos?|postres?|dulces?)\b/i.test(t3)) return true;
-  }
-  return false;
-}
-function clientAsksForRecommendations(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.toLowerCase();
-  return /recomendaciones?|recomiendas?/i.test(t3) || /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t3) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t3) || /qu[eé]\s+opciones/i.test(t3) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t3) || /qu[eé]\s+(otros\s+)?servicios(\s+\w+){0,3}\s+(manejan|ofrecen|tienen|hay)/i.test(t3) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen/i.test(t3) || /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t3) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t3) || /algo\s+m[aá]s\s*\?/i.test(t3);
-}
-function lastAssistantOfferedNumberedPackages(lastAssistantText) {
-  const last = lastAssistantText ?? "";
-  return /coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]/i.test(last) || /\d\.\s*\*?coffee\s*break/i.test(last) || // A15168: menú corto "paquetes (1 a 5)" / listado CB 1–5.
-  /coffee\s*break|coffe\s*break/i.test(last) && (/paquetes?\s*\(?\s*1\s*a\s*5\s*\)?/i.test(last) || /coffee\s*break\s*1/i.test(last) && /coffee\s*break\s*5/i.test(last)) || /cu[aá]l\s+nivel\s+prefieres/i.test(last) && /coffee\s*break|coffe{1,2}\s*break/i.test(last) && /\$\s*\d/.test(last);
-}
-function foldNivelLabel(s6) {
-  return s6.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
-}
-function parseNumberedNivelesFromAssistant(lastAssistantText) {
-  const last = lastAssistantText ?? "";
-  if (!last.trim()) return [];
-  const out2 = [];
-  const re3 = /^\s*(\d+)\.\s*\*?([^*\n]+?)\*?(?:\s*[—\-–:].*)?$/gim;
-  let m5;
-  while ((m5 = re3.exec(last)) !== null) {
-    const index = parseInt(m5[1], 10);
-    let label = (m5[2] ?? "").replace(/\*+/g, "").trim();
-    label = label.replace(/\s+[—\-–].*$/, "").trim();
-    if (index >= 1 && index <= 9 && label.length >= 2 && label.length <= 80) {
-      out2.push({ index, label });
-    }
-  }
-  return out2;
-}
-function extractNumberedNivelFromLastAssistant(text2, lastAssistantText) {
-  const niveles = parseNumberedNivelesFromAssistant(lastAssistantText);
-  if (!niveles.length) return null;
-  const raw = text2?.trim() ?? "";
-  if (!raw) return null;
-  const bare = raw.match(/^(?:el\s+|la\s+|opci[oó]n(?:es)?\s+|paquete\s+|nivel\s+)?(\d+)\s*[.)]?$/i) || raw.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*(\d+)\b/i);
-  if (bare) {
-    const hit = niveles.find((x7) => x7.index === parseInt(bare[1], 10));
-    if (hit) return hit.label;
-  }
-  const numbered = raw.match(/^\s*(\d+)\s*[.)]?\s+(.+)$/i);
-  if (numbered) {
-    const hit = niveles.find((x7) => x7.index === parseInt(numbered[1], 10));
-    if (hit) return hit.label;
-  }
-  const tf = foldNivelLabel(raw);
-  for (const n4 of niveles) {
-    const lf = foldNivelLabel(n4.label);
-    if (!lf) continue;
-    if (tf === lf || tf.includes(lf) || lf.includes(tf)) return n4.label;
-  }
-  return null;
-}
-function extractCatalogNivelFromText(text2, lastAssistantText) {
-  const t3 = text2?.trim().toLowerCase() ?? "";
-  if (!t3) return null;
-  const fromMenu = extractNumberedNivelFromLastAssistant(text2, lastAssistantText);
-  if (fromMenu) return fromMenu;
-  const coffeeNamed = t3.match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
-  if (coffeeNamed) return `Coffee Break ${coffeeNamed[1]}`;
-  if (lastAssistantOfferedNumberedPackages(lastAssistantText)) {
-    const bare = t3.match(/^(?:el\s+|la\s+)?([1-9])$/i) || t3.match(/\bel\s+([1-9])\b/i);
-    if (bare) return `Coffee Break ${bare[1]}`;
-    const opcionN = t3.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*([1-9])\b/i);
-    if (opcionN) return `Coffee Break ${opcionN[1]}`;
-  }
-  const m5 = t3.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t3.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t3.match(/^(1|2|3|4)$/);
-  if (!m5) return null;
-  const raw = (m5[1] ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-  if (/^(1|2|3|4)$/.test(raw)) {
-    const last = lastAssistantText ?? "";
-    const numbered = parseNumberedNivelesFromAssistant(last);
-    const classicInMenu = /b[aá]sic|tradicional|premium|solo\s*alimentos/i.test(last);
-    if (numbered.length && !classicInMenu) return null;
-  }
-  if (raw === "1" || raw.startsWith("basic")) return "basica";
-  if (raw === "2" || raw.startsWith("tradicional")) return "tradicional";
-  if (raw === "3" || raw.startsWith("premium")) return "premium";
-  if (raw === "4" || /solo\s*alimento/.test(raw)) return "solo alimentos";
-  return null;
-}
-function isCatalogLevelSelection(text2, lastAssistantText) {
-  const t3 = text2?.trim().toLowerCase() ?? "";
-  if (!t3) return false;
-  const last = lastAssistantText?.toLowerCase() ?? "";
-  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|varios paquetes|paquetes?\s*\(?\s*1\s*a\s*5|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles|manejamos estos paquetes/i.test(
-    last
-  );
-  if (!askedNivel) {
-    return /\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(t3);
-  }
-  if (extractNumberedNivelFromLastAssistant(text2, lastAssistantText)) return true;
-  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1-9])$/i.test(t3)) return true;
-  if (/^(?:el\s+|la\s+)?[1-9]$/i.test(t3) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
-    return true;
-  }
-  if (/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*[1-9]\b/i.test(t3) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
-    return true;
-  }
-  return !!extractCatalogNivelFromText(t3, lastAssistantText);
-}
-function isAmbiguousShortNumber(text2, ctx) {
-  const t3 = text2?.trim() ?? "";
-  if (!t3) return false;
-  if (ctx?.lastAskedField === "invitados") return false;
-  const guestCount = t3.match(/^(?:son\s+)?(\d+)\s*(?:personas?|invitados?|pax|gente)?$/i);
-  if (guestCount) {
-    const n4 = parseInt(guestCount[1], 10);
-    if (n4 >= 10) return false;
-  }
-  const elMatch = t3.match(/^el\s+(\d{1,2})$/i);
-  if (elMatch) {
-    const n4 = parseInt(elMatch[1], 10);
-    return n4 >= 1 && n4 <= 9;
-  }
-  const bareMatch = t3.match(/^(\d+)$/);
-  if (bareMatch) {
-    const n4 = parseInt(bareMatch[1], 10);
-    if (n4 >= 10) return false;
-    return n4 >= 1 && n4 <= 9;
-  }
-  return false;
-}
-function parseWebLeadBrief(text2) {
-  const t3 = text2.trim();
-  if (!/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t3)) return null;
-  const result = {};
-  const eventoMatch = t3.match(
-    /(?:evento|celebraci[oó]n)\s*:\s*([^.\n]+?)(?:\.|,|\s+ser[ií]a|\s+para\s+\d|\s+en\s+)/i
-  );
-  if (eventoMatch) {
-    const chunk = eventoMatch[1].trim();
-    const tipo = parseTipoEventoFromText(chunk);
-    if (tipo) result.tipo_evento = tipo;
-    const services = parseServicesFromText(chunk);
-    if (services.length) result.requerimientos_evento = services.slice(0, 6).join(", ");
-    else if (!tipo) result.requerimientos_evento = chunk;
-  }
-  if (!result.requerimientos_evento) {
-    const colonSvc = t3.match(/me\s+interesa\s+cotizar\s*:\s*([^.\n]+)/i);
-    const quotedSvc = t3.match(
-      /(?:me\s+interesa\s+)?cotizar\s*[“"']([^”"']+)[”"']/i
-    );
-    const enSvc = t3.match(
-      /(?:me\s+interesa\s+)?cotizar\s+(.+?)\s+en\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]/i
-    );
-    const raw = (colonSvc?.[1] ?? quotedSvc?.[1] ?? enSvc?.[1] ?? "").trim();
-    if (raw) {
-      const chunk = raw.replace(/\s+para\s+eventos?(?:\s+\w+)*\s*$/i, "").replace(/^["'“”]+|["'“”]+$/g, "").trim();
-      const services = parseServicesFromText(chunk || raw);
-      if (services.length) result.requerimientos_evento = services.slice(0, 6).join(", ");
-      else if (chunk) result.requerimientos_evento = chunk;
-      const tipo = parseTipoEventoFromText(raw);
-      if (tipo && !result.tipo_evento) result.tipo_evento = tipo;
-    }
-  }
-  if (!result.direccion_evento) {
-    const enZona = t3.match(/\ben\s+((?:Ciudad\s+de\s+)?M[eé]xico|CDMX|[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ\s.-]{2,40})(?:\s+para\s+mi\s+evento)?/i);
-    if (enZona?.[1]) {
-      const z3 = parseZonaFromText(enZona[1]) ?? enZona[1].trim();
-      if (z3 && isUsableDireccionEvento(z3)) result.direccion_evento = z3;
-    }
-  }
-  const seriaMatch = t3.match(/ser[ií]a\s+(?:el\s+)?([^,.\n]+?)\s+en\s+([^,.\n]+?)(?:\.|,|\s+para\s+)/i);
-  if (seriaMatch) {
-    const fechaPart = seriaMatch[1].trim();
-    const lugarPart = seriaMatch[2].trim();
-    result.fecha_horario = parseFechaFromText(fechaPart) ?? fechaPart;
-    result.direccion_evento = parseZonaFromText(lugarPart) ?? lugarPart;
-  }
-  const invMatch = t3.match(/para\s+(\d{1,4})\s*(?:personas?|invitados?|pax|gente)/i);
-  if (invMatch) result.num_invitados = parseInt(invMatch[1], 10);
-  return Object.keys(result).length > 0 ? result : null;
-}
-function applyWebLeadBrief(extracted, text2) {
-  const brief = parseWebLeadBrief(text2);
-  if (!brief) return false;
-  if (!extracted.tipo_evento?.trim() && brief.tipo_evento) extracted.tipo_evento = brief.tipo_evento;
-  if (brief.requerimientos_evento) {
-    const merged = mergeServiceRequirements(
-      extracted.requerimientos_evento,
-      brief.requerimientos_evento,
-      6
-    );
-    if (merged) extracted.requerimientos_evento = merged;
-  }
-  if (!extracted.fecha_horario?.trim() && brief.fecha_horario) {
-    extracted.fecha_horario = brief.fecha_horario;
-  }
-  if (!isUsableDireccionEvento(extracted.direccion_evento) && brief.direccion_evento && isUsableDireccionEvento(brief.direccion_evento)) {
-    extracted.direccion_evento = brief.direccion_evento;
-  }
-  if (!extracted.num_invitados && brief.num_invitados) extracted.num_invitados = brief.num_invitados;
-  return true;
-}
-function isGettingReadyContext(text2) {
-  if (!text2?.trim()) return false;
-  return /\b(getting\s*ready|nos\s+arreglamos|arreglo\s+de\s+novia|donde\s+nos\s+arreglamos|d[ií]a\s+de\s+la\s+boda\s+en\s+casa)\b/i.test(
-    text2
-  );
-}
-function hasSpecificFoodService(text2) {
-  if (/\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b|\bbanquetes?\s+o\s+catering\b/i.test(
-    text2
-  )) {
-    return false;
-  }
-  return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé](?!\p{L})|pizzas?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?(?!\p{L})|bocadillos?|parrillada|brunch\s+buf[eé](?!\p{L})|desayuno\s+(?:buffet|ejecutivo|continental)|puestos?\s+de\s+comida|antojitos?|quesadillas?)\b/iu.test(
-    text2
-  );
-}
-function isVagueFoodTerm(text2) {
-  const t3 = text2?.trim() ?? "";
-  if (!t3) return false;
-  if (clientAsksCafeOrCateringChoice(t3)) return true;
-  if (/\b(desayuno|snack|cena|coffee\s*break)\b/i.test(t3) && /\b(desayuno|comida|cena|snack|coffee)\b/i.test(t3) && (t3.match(/\b(desayuno|comida|cena|snack|coffee\s*break)\b/gi) ?? []).length >= 2) {
-    return false;
-  }
-  if (hasSpecificFoodService(t3)) return false;
-  if (/\b(comidas?|alimentos?|algo\s+de\s+comer|catering|banquetes?)\b/i.test(t3) && !/\b(banquete\s+(formal|mexicano|premium|b[aá]sic|tradicional)|\d\s*tiempos?|taquiza|coffee\s*break|barra\s+de|sushi|parrillada|canap|pizza|pasta|pozole|paella)\b/i.test(
-    t3
-  )) {
-    return true;
-  }
-  if (/\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b/i.test(
-    t3
-  ) || /^(me\s+interesa\s+(cotizar\s+)?)?(un\s+)?(servicio\s+de\s+)?(banquetes?|catering)(\s+para\s+mi\s+evento)?[.!?¿?]*$/i.test(
-    t3
-  )) {
-    if (!/\b(banquete\s+(formal|mexicano|premium|b[aá]sic|tradicional|\d\s+tiempos)|\d\s+tiempos|taquiza|coffee\s*break|barra\s+de|sushi|parrillada)\b/i.test(t3)) {
-      return true;
-    }
-  }
-  const services = parseServicesFromText(t3);
-  if (services.length >= 2) return false;
-  if (services.length > 0 && !/^(comida|alimentos?|men[uú]|desayuno|brunch|catering|banquetes?)$/i.test(t3) && !/^(quiero|necesito|busco)\s+(comida|alimentos?|men[uú]|desayuno|brunch|catering|banquetes?)$/i.test(t3)) {
-    if (services.length === 1 && /^(Desayuno|Snack|Cena|Coffee break|Brunch)$/i.test(services[0])) {
-      return false;
-    }
-    if (services.length === 1 && !/^(Comida|Alimentos|banquete \/ taquiza)$/i.test(services[0])) {
-      return false;
-    }
-  }
-  const cleaned = t3.replace(
-    /^(quer[ií]a|quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i,
-    ""
-  ).replace(/^(una?|el|la|los|las|un\s+servicio\s+de)\s+/i, "").replace(/\s+para\s+(un\s+)?evento\b.*$/i, "").trim();
-  if (/^(comidas?|alimentos?|men[uú]s?|catering|banquetes?|algo\s+de\s+comer|servicio\s+de\s+banquetes?(\s+o\s+catering)?|banquetes?\s+o\s+catering)$/i.test(
-    cleaned
-  )) {
-    return true;
-  }
-  return /\b(quer[ií]a|quiero|necesito|busco|me\s+interesa|cotizar?)\b.{0,24}\b(comidas?|alimentos?|algo\s+de\s+comer|banquetes?|catering)\b/i.test(
-    t3
-  );
-}
-function sanitizeExtractedAmbiguousNumbers(extracted, messageText, ctx) {
-  if (isAmbiguousShortNumber(messageText, ctx)) {
-    extracted.num_invitados = null;
-  }
-  const m5 = (messageText ?? "").match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
-  if (m5 && extracted.num_invitados === parseInt(m5[1], 10)) {
-    extracted.num_invitados = null;
-  }
-}
-function stripNombrePresentationPrefix(raw) {
-  const m5 = raw.trim().match(/^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es|c[oó]mo)\s+(.+)$/i);
-  return (m5?.[1] ?? raw).trim();
-}
-function recoverClienteNombreFromHistory(history, currentMessage) {
-  let lastAssistant = "";
-  for (const msg of history) {
-    if (msg.role === "assistant" && typeof msg.content === "string") {
-      lastAssistant = msg.content;
-      continue;
-    }
-    if (msg.role !== "user" || typeof msg.content !== "string") continue;
-    const asked = inferLucyAskedField(lastAssistant);
-    if (asked !== "nombre" && !LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) continue;
-    const raw = msg.content.trim();
-    if (!raw || isAffirmativeOnlyMessage(raw) || isAmbiguousShortNumber(raw)) continue;
-    const nombreSalvage = sanitizeCrmNombre(raw);
-    if (isLikelyNotPersonNameMessage(raw) || isServiceRelatedMessage(raw) || isQuoteIntentMessage(raw)) {
-      if (nombreSalvage && (clientAsksForHumanAdvisor(raw) || /\b(hablar|asesor|agente|humano)\b/i.test(raw))) {
-        return nombreSalvage;
-      }
-      continue;
-    }
-    const candidato = stripNombrePresentationPrefix(raw);
-    const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
-    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato) && !isLikelyNotPersonNameMessage(candidato)) {
-      return nombre;
-    }
-  }
-  if (currentMessage?.trim()) {
-    const asked = inferLucyAskedField(lastAssistant);
-    if (asked === "nombre" || LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) {
-      const raw = currentMessage.trim();
-      if (!isAffirmativeOnlyMessage(raw) && !isAmbiguousShortNumber(raw) && !isLikelyNotPersonNameMessage(raw) && !isServiceRelatedMessage(raw) && !isQuoteIntentMessage(raw)) {
-        const candidato = stripNombrePresentationPrefix(raw);
-        const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
-        if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato)) {
-          return nombre;
-        }
-      }
-    }
-  }
-  return null;
-}
-function clientAsksLocation(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.toLowerCase();
-  return /d[oó]nde\s+(se\s+)?ubican/i.test(t3) || /d[oó]nde\s+est[aá]n(\s+ubicados?)?/i.test(t3) || /en\s+d[oó]nde\s+est[aá]n/i.test(t3) || /cu[aá]l\s+es\s+su\s+ubicaci[oó]n/i.test(t3) || /zona\s+de\s+cobertura/i.test(t3) || /en\s+qu[eé]\s+ciudad\s+est[aá]n/i.test(t3) || /\b(est[aá]n|quedan)\s+ubicados?\b/i.test(t3) || /\bd[oó]nde\s+tienen\s+(oficina|sucursal|local)\b/i.test(t3);
-}
-function looksLikeCompanyLocationQuestionFragment(text2) {
-  const t3 = (text2 ?? "").trim().toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
-  if (!t3) return false;
-  if (clientAsksLocation(t3)) return true;
-  return /^(d[oó]nde\s+est[aá]n|en\s+d[oó]nde(\s+est[aá]n)?|donde\s+estan|ubicados?|su\s+ubicaci[oó]n|ubicaci[oó]n)$/i.test(
-    t3
-  ) || /^d[oó]nde\s+est[aá]n(\s+ubicados?)?$/i.test(t3) || /^en\s+d[oó]nde(\s+est[aá]n)?(\s+ubicados?)?$/i.test(t3);
-}
-function clientMentionsItalianTheme(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.trim();
-  if (/\bbarra\s+de\s+pastas?\b/i.test(t3) && !/\b(italian[ao]?|italia|toscana|mafia\s+italiana)\b/i.test(t3)) {
-    return false;
-  }
-  return /\b(italian[ao]?|italia|toscana|toscano|mafia\s+italiana|pastas?|pizzas?|antipasti|selecci[oó]n\s+de\s+italia|partido.*italia)\b/i.test(
-    t3
-  );
-}
-function clientMentionsEntertainment(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.toLowerCase();
-  return /\bshows?\b/i.test(t3) || /\bgrupo\s+vers[aá]til\b/i.test(t3) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t3) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t3) || /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t3) || /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(shows?|maestro|animaci)/i.test(t3) || // A14962 Vane: batucada / robots LED / ambientación de show
-  /\bbatucada\b/i.test(t3) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t3) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|shows?|robots?|leds?)\b/i.test(t3) || // A14988 Ernesto: bailarinas para concierto
-  /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(t3) || // A15003 Juan: photo booth / cabina
-  /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
-    t3
-  ) || // A15009 Erick: circo / Blue Man / actos en vivo especiales
-  clientMentionsSpecialLiveAct(message);
-}
-function clientMentionsSpecialLiveAct(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.toLowerCase();
-  if (/\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca|entretenimiento)\b/i.test(t3) || /\bgrupo\s+vers[aá]til\b/i.test(t3)) {
-    return false;
-  }
-  return /\bcirco\b/i.test(t3) || /\bblue\s*mans?\b|\bblueman\b/i.test(t3) || /\b(mago|magia|ilusionista)\b/i.test(t3) || /\b(payasos?|malabares?|acr[oó]batas?|trapecio|contorsion)\b/i.test(t3) || // "show blueman" / "show X" con nombre propio (no "show de…").
-  /\bshow\s+[a-záéíóúüñ][\wáéíóúüñ.-]{2,}(?!\s+de\b)/i.test(t3) && !/\bshow\s+(de|en|para|con|un|una|el|la|los|las)\b/i.test(t3) || /\b(quiero|busco|necesito|interes[aá]|cotiz)\b.{0,40}\bcirco\b/i.test(t3);
-}
-function parseSpecialLiveActLabel(message) {
-  if (!message?.trim()) return null;
-  const t3 = message.trim();
-  if (/\bcirco\b/i.test(t3)) return "Circo para eventos";
-  if (/\bblue\s*mans?\b|\bblueman\b/i.test(t3)) return "Show Blue Man";
-  if (/\b(mago|magia|ilusionista)\b/i.test(t3)) return "Show de magia";
-  if (/\b(payasos?|malabares?|acr[oó]batas?)\b/i.test(t3)) return "Actos de circo / animaci\xF3n";
-  if (/\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca)\b/i.test(t3) || /\bgrupo\s+vers[aá]til\b/i.test(t3)) {
-    return null;
-  }
-  const named = t3.match(/\bshow\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.-]{1,40})/i);
-  if (named?.[1] && !/^(de|en|para|con|un|una|el|la)$/i.test(named[1])) {
-    return `Show ${named[1].trim()}`;
-  }
-  if (clientMentionsSpecialLiveAct(t3)) {
-    return t3.replace(/\s+/g, " ").slice(0, 60);
-  }
-  return null;
-}
-function clientConfirmsOfferReview(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.trim();
-  return /^(revisar|revisemos|revisarlo|revisarla|revisar\s+primero|el\s+detalle|detallame|det[aá]llame)[\s.!]*$/i.test(
-    t3
-  );
-}
-function clientMentionsLedRobotsOrBatucada(message) {
-  if (!message?.trim()) return false;
-  return /\bbatucada\b/i.test(message) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(message) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\bbatucada\b/i.test(message);
-}
-function clientDeclinesMoreServices(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.trim().toLowerCase();
-  if (clientWantsFoodOnlyQuote(message)) return false;
-  if (/\bsolo\s+(el\s+)?(servicio|photo|photobooth|cabina|banquete|barra|dj|mobiliario)/i.test(t3) && !/\bno\s+quiero\b/i.test(t3)) {
-    return false;
-  }
-  return /^(no|nop)[\s.,!]*$/i.test(t3) || /\bsolo\s+(con\s+)?eso\b/i.test(t3) || /\bsolo\s+ese\b/i.test(t3) || /\bsolamente\s+eso\b/i.test(t3) || /\bnada\s+m[aá]s\b/i.test(t3) || /\bno\s+quiero\s+nada\s+m[aá]s\b/i.test(t3) || /\bno\s+quiero\s+(nada\s+)?m[aá]s\b/i.test(t3) || /\bning[uú]n[a]?\b/i.test(t3) || /\bning[uú]n\s+otro\b/i.test(t3) || /\bninguno\s+de\s+(esos|ellos|estos)\b/i.test(t3) || /\bno[.\s,¡!]+gracias\b/i.test(t3) || /\bno\s+gracias\b/i.test(t3) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t3) || /\beso\s+es\s+todo\b/i.test(t3) || /\bes\s+todo\b/i.test(t3) || /\bya\s+no\b/i.test(t3) || /\bno\s+m[aá]s\b/i.test(t3) || /\blisto\s+as[ií]\b/i.test(t3) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t3) || /\bno\s+me\s+interesa\b/i.test(t3) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t3) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t3) || /\bpor\s+ahora\s+no\b/i.test(t3) || // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
-  /\bsolo\s+quiero\b/i.test(t3) && !/\bcomida\b|\bcotiz/i.test(t3) || /\bquiero\s+solo\b/i.test(t3) && !/\bcomida\b|\bcotiz/i.test(t3);
-}
-function clientMentionsCatering(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.toLowerCase();
-  return /\bcatering\b/i.test(t3) || /\bbanquetes?\b/i.test(t3) || /\btaquiza\b|\btacos?\b/i.test(t3) || /\b(brunch|desayuno)\b/i.test(t3) || /\bbrunch\s*\/\s*desayuno/i.test(t3) || /\bcoffee\s*break\b|\bcoffe\s*break\b|\bcoffeebreak\b/i.test(t3) || /\bbarra\s+de\s+caf[eé](?!\p{L})/iu.test(t3) || // Barras de comida / sushi (form leads y WhatsApp) — misma pista que coffee break.
-  /\bbarra\s+de\s+(sushi|pizzas?|alimentos|bebidas?|crepas?|pastas?|mariscos?)\b/i.test(t3) || /\b(sushi|poke(\s*bowl)?)\b/i.test(t3) || /\b(busco|necesito|quiero|cotizar|interesa)\s+(cotizar\s+)?(comida|alimentos?|men[uú])\b/i.test(t3) || /\bcomida\s+para\b/i.test(t3) || /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t3) || /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t3);
-}
-function clientAsksServiceInfo(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.toLowerCase();
-  const asksWhatTypes = /\bqu[eé]\s+(tipo\s+de\s+)?(snacks?|snaks?|bocadillos?|antojitos?|puestos?)\b/i.test(t3) || /\b(snacks?|snaks?|bocadillos?|antojitos?).{0,40}\b(tienen|tienes|manejan|ofrecen)\b/i.test(t3) || /\b(tienen|tienes|manejan|ofrecen).{0,40}\b(snacks?|snaks?|bocadillos?|antojitos?)\b/i.test(t3);
-  if (!isServiceRelatedMessage(message) && !asksWhatTypes) return false;
-  return asksWhatTypes || /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?|modelos?)\b/i.test(t3) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t3) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t3) || /\bnecesito\s+saber\b/i.test(t3) || /\b(tiene|tienes|tienen)\s+(info|informaci[oó]n|cat[aá]logo|detalle|modelos?)\b/i.test(t3) || // "¿Cuentan/cuenta con carpas…?" / "¿tienen pista?" / "¿tienes modelos?"
-  /\b(cuenta|cuentan|tienen|tienes|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t3) || /\b(cuenta|cuentan|tienen|tienes|manejan|ofrecen)\s+con\b/i.test(t3) || // A14938: "¿Hacen las pizzas en el evento?" / preparan / cocinan / montan.
-  /\b(hacen|preparan|cocinan|sirven|montan|elaboran)\b.{0,60}\?/i.test(t3);
-}
-var NON_GUEST_UNIT_PATTERN = /\b\d+\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?|pantallas?|paquetes?|juegos?|m[oó]dulos?|piezas?)\b/i;
-function isLikelyProductNameNotLocation(value) {
-  const t3 = (value ?? "").trim();
-  if (!t3) return false;
-  if (/^sala\s*:/i.test(t3)) return true;
-  if (/\bsala\s*:/i.test(t3)) return true;
-  if (/^luxor(\s+rosa)?$/i.test(t3)) return true;
-  if (parseCarpaVariantFromText(t3)) return true;
-  if (/^(cathedral|catedral|pir[aá]mide|planas?)(\s+(carpa|tent))?$/i.test(t3)) return true;
-  if (/^(salas?(\s+lounge)?|periqueras?|lounge|mobiliario|carpas?|pistas?|tarimas?|tiffany|vajilla|manteler[ií]a)$/i.test(
-    t3
-  )) {
-    return true;
-  }
-  if (/\b(luxor|tiffany|vers[aá]til)\b/i.test(t3) && !/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida|quer[eé]taro|polanco|santa\s+fe)\b/i.test(
-    t3
-  )) {
-    return true;
-  }
-  return false;
-}
-var CARPA_OPTIONS_TEXT = "blancas, negras, transparentes y tipo domo";
-function parseCarpaVariantFromText(text2) {
-  const t3 = (text2 ?? "").trim();
-  if (!t3 || t3.length > 60) return null;
-  if (/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida)\b/i.test(t3)) {
-    return null;
-  }
-  if (/^blancas?(\s+(carpa|tent))?$/i.test(t3) || /\bcarpa\s+blanca\b/i.test(t3)) {
-    return "Carpa blanca";
-  }
-  if (/^negras?(\s+(carpa|tent))?$/i.test(t3) || /\bcarpa\s+negra\b/i.test(t3)) {
-    return "Carpa negra";
-  }
-  if (/^transparentes?(\s+(carpa|tent))?$/i.test(t3) || /\bcarpa\s+transparente\b/i.test(t3)) {
-    return "Carpa transparente";
-  }
-  if (/^domos?(\s+(carpa|tent))?$/i.test(t3) || /\bcarpa\s+(?:tipo\s+)?domo\b/i.test(t3)) {
-    return "Carpa tipo domo";
-  }
-  return null;
-}
-function parseSalaProductFromText(text2) {
-  const named = text2.match(/\bsala\s*:\s*([A-Za-zÁÉÍÓÚáéíóúñ0-9][\w\s.-]{1,40})/i);
-  if (named?.[1]) {
-    const qty = text2.match(/\b(\d+)\s+salas?\b/i);
-    const name2 = named[1].trim().replace(/[.,;]+$/, "");
-    return qty ? `${qty[1]} salas ${name2}` : `Sala ${name2}`;
-  }
-  const qtyOnly = text2.match(/\b(\d+)\s+salas?\b/i);
-  if (qtyOnly) return `${qtyOnly[1]} salas lounge`;
-  if (/\bsalas?\s+lounge\b/i.test(text2)) return "Salas lounge";
-  return null;
-}
-function clientMentionsCarpas(message) {
-  if (!message?.trim()) return false;
-  return /\bcarpas?\b|\btoldos?\b|\blonas?\b/i.test(message) || !!parseCarpaVariantFromText(message);
-}
-function clientRequestsCallback(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.toLowerCase();
-  return /\b(m[aá]rquenme|marquenme|ll[aá]menme|llamarme|me\s+marcan|me\s+llaman)\b/i.test(t3) || /\bme\s+pueden\s+(marcar|llamar)\b/i.test(t3) || /\b(pueden|pueden\s+ustedes)\s+(marcar|llamar)\b/i.test(t3) || /\batenci[oó]n\s+personalizada\b/i.test(t3) || /\bque\s+me\s+(marquen|llamen)\b/i.test(t3) || /\bnecesito\s+que\s+me\s+(marquen|llamen)\b/i.test(t3);
-}
-function clientAsksPhone(message) {
-  if (!message?.trim()) return false;
-  if (clientRequestsCallback(message)) return true;
-  const t3 = message.toLowerCase();
-  return /\btel[eé]fono/i.test(t3) || /\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas|gerencia)/i.test(t3) || /\b(llamar|marcar|contestar|contestan|nadie\s+contesta|me\s+urge)\b/i.test(t3) || /\bwhatsapp\s+(de\s+)?(ventas|gerencia|corporativo|bodasesor)/i.test(t3) || /\btienen\s+whatsapp/i.test(t3);
-}
-function isRichQuoteBrief(text2) {
-  const t3 = text2?.trim() ?? "";
-  if (t3.length < 180) return false;
-  let score = 0;
-  if (/\bcotiz/i.test(t3)) score += 1;
-  if (/\b(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|fecha\s*:)/i.test(
-    t3
-  )) {
-    score += 1;
-  }
-  if (/\b(ubicaci[oó]n|santa\s+fe|ciudad\s+de\s+m[eé]xico|cdmx|polanco|narvarte|coyoac[aá]n|pedregal)\b/i.test(
-    t3
-  ) || /\ben\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s*,\s*|\s+)(?:ciudad\s+de\s+m[eé]xico|cdmx|m[eé]xico)/i.test(t3)) {
-    score += 1;
-  }
-  if (/\b\d{2,4}\s*(?:personas?|invitados?|asistentes?)\b/i.test(t3)) score += 1;
-  if (parseServicesFromText(t3).length >= 2) score += 1;
-  if (/\b(opci[oó]n\s*[123]|tres\s+propuestas|propuestas?\s+de\s+men[uú]|diferentes\s+rangos?\s+de\s+precio)\b/i.test(
-    t3
-  )) {
-    score += 1;
-  }
-  if (/\b(distribuidor|precio\s+para\s+distribuidor|margen\s+comercial)\b/i.test(t3)) score += 1;
-  if (/\b(meseros?|mobiliario|manteler|cristal|sillas?\s+con\s+fundas?)\b/i.test(t3)) score += 1;
-  if (/\b(fotograf[ií]as?|fotos?)\b.{0,40}\b(mobiliario|mesas?|sillas?)/i.test(t3)) score += 1;
-  if (/\b(mesas?\s+tipo\s+picnic|picnic|periqueras?|bancos?)\b/i.test(t3) && /\b(entrega|recoger|sin\s+montaje|periqueras?|bancos?)\b/i.test(t3)) {
-    score += 2;
-  }
-  if (/\b(avenida|calle|planta|cuautlancingo|puebla|cp\s*\d{4,5}|\d{5}\s+\w+)/i.test(t3)) {
-    score += 1;
-  }
-  if (/@[a-z0-9.-]+\.[a-z]{2,}/i.test(t3)) score += 1;
-  return score >= 3;
-}
-function clientAsksToRereadBrief(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.trim();
-  return /\bleer.{0,40}especificaciones\b/i.test(t3) || /\bespecificaciones\b/i.test(t3) || /\blee\s+(muy\s+)?bien\b/i.test(t3) || /\bno\s+le[ií]ste\b/i.test(t3) || /\bfavor\s+de\s+leer\b/i.test(t3);
-}
-function clientAsksDistributorPricing(message) {
-  if (!message?.trim()) return false;
-  return /\bprecio\s+(para\s+)?distribuidor\b/i.test(message) || /\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message) || /\b(somos|como)\s+distribuidores?\b/i.test(message) || /\bmargen\s+comercial\b/i.test(message) || /\bprecio\s+de\s+mayoreo\b/i.test(message);
-}
-function clientAsksForHumanAdvisor(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.trim();
-  if (/\bqui[eé]n\s+es\b/i.test(t3) && !/\b(prefiero|quiero|necesito|puedo|pueden|hablar)\b/i.test(t3)) {
-    return false;
-  }
-  const tNoPp = t3.replace(/\bpor\s+personas?\b/gi, " ").replace(/\b\d+\s*pp\b/gi, " ").replace(/\bpp\b/gi, " ").replace(/\s+/g, " ").trim();
-  if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(tNoPp)) {
-    return true;
-  }
-  if (/^hablar\s+con\s+(un\s+)?humano\b/i.test(tNoPp) || /^humano(\s+por\s+favor)?[\s!.]*$/i.test(tNoPp)) {
-    return true;
-  }
-  if (/^(asesor|agente|humano)(\s+por\s+favor)?[\s!.]*$/i.test(tNoPp) || /^(quiero|necesito|prefiero)\s+(un\s+|una\s+)?(asesor|agente|humano)\b/i.test(tNoPp)) {
-    return true;
-  }
-  if (/\b(prefiero|quiero|necesito|mejor)\b.{0,40}\b(hablar|comunicar|platicar|atenci[oó]n|contacto)\b.{0,40}\b(asesor|agente|humano|persona|equipo)\b/i.test(
-    tNoPp
-  )) {
-    return true;
-  }
-  if (/\b(prefiero|quiero|necesito)\b.{0,30}\b(un\s+|una\s+)?(asesor|agente|humano|persona)\b/i.test(
-    tNoPp
-  )) {
-    return true;
-  }
-  if (/\b(asesor|agente|humano|alguien\s+del\s+equipo)\b.{0,30}\b(se\s+)?(comunique|contacte|llame|hable)\b/i.test(
-    tNoPp
-  )) {
-    return true;
-  }
-  if (/\bpuede(n)?\s+(un\s+)?(asesor|agente)\s+(contactarme|comunicarse|llamarme)\b/i.test(tNoPp)) {
-    return true;
-  }
-  if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano)\b/im.test(tNoPp)) return true;
-  return false;
-}
-function clientNeedsEmergencyContact(message) {
-  if (!message?.trim()) return false;
-  if (clientAsksPhone(message)) return true;
-  if (clientAsksForHumanAdvisor(message)) return true;
-  const t3 = message.trim();
-  if (/\b(ayuda|ayudar|ayudame|ayúdame)\b/i.test(t3) && isServiceRelatedMessage(t3) && !/\b(emergencia|urgente|me\s+urge|auxilio|nadie\s+(me\s+)?(contesta|atiende))\b/i.test(t3)) {
-    return false;
-  }
-  return /\b(emergencia|urgente|me\s+urge|es\s+urgente|auxilio)\b/i.test(t3) || /\b(contacto\s+(de\s+)?emergencia|n[uú]mero\s+de\s+emergencia)\b/i.test(t3) || /\b(necesito|quiero|puedo)\s+(hablar|contactar|llamar).{0,40}(alguien|humano|asesor|persona|equipo|ustedes)\b/i.test(
-    t3
-  ) || /\b(nadie\s+(me\s+)?(contesta|atiende)|no\s+me\s+(contesta|atiende|responde))\b/i.test(t3) || /\b(ayuda|auxilio).{0,25}(urgente|emergencia|humano|asesor|persona)\b/i.test(t3) || /\b(pasame|pásame|dame|necesito)\s+(un\s+)?(contacto|tel[eé]fono|n[uú]mero)\b/i.test(t3) || /\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(t3);
-}
-var CATALOG_TYPO_RE = /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b/i;
-function clientAsksForCatalog(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.toLowerCase();
-  if (CATALOG_TYPO_RE.test(t3) && /\b(de|web|completo|general|sillas?|mesas?|men[uú]|carpas?)\b/i.test(t3)) {
-    return true;
-  }
-  if (CATALOG_TYPO_RE.test(t3) && t3.trim().split(/\s+/).length <= 4) return true;
-  if (/\b(manda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|comparte|quiero|necesito|dame|puedes\s+(manda|envia|pasar)|me\s+puedes\s+(manda|envia|pasar))\b.{0,50}\b(cat[aá]logo|c+t?a+l+[oó]+g+[oa])/i.test(
-    t3
-  )) {
-    return true;
-  }
-  if (/\bel\s+cat[aá]logo\s+(de|con|completo|general|web)/i.test(t3)) return true;
-  if (/\bcat[aá]logo\s+(de|web|completo|general)\b/i.test(t3)) return true;
-  if (/\b(cuentan|tienen|hay|manejan)\s+.{0,20}\bcat[aá]logo/i.test(t3)) return true;
-  if (/\bcat[aá]logo\s+de\s+men[uú]/i.test(t3)) return true;
-  if (/\blink\s+(del\s+)?cat[aá]logo/i.test(t3)) return true;
-  if (/bodasesor\.com\/catalogos/i.test(t3)) return true;
-  if (/\b(m[aá]nda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|dame)\s+el\s+(de|del)\b/i.test(t3) || /\b(m[aá]nda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same)\s+el\s+link\b/i.test(t3)) {
-    return true;
-  }
-  if (/^(s[ií][,.]?\s*)?(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)([.!?]|\s|$)/i.test(
-    t3.trim()
-  )) {
-    return true;
-  }
-  return false;
-}
-function clientAsksGenericMenuCatalog(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.toLowerCase();
-  if (parseServicesFromText(message).length > 0) return false;
-  if (/\bcat[aá]logo\s+de\s+men[uú]\b/i.test(t3) || /\b(cuentan|tienen|hay|manejan)\s+.{0,24}\bcat[aá]logo/i.test(t3) || /\bcat[aá]logo\s+(general|completo|de\s+servicios?|de\s+opciones)\b/i.test(t3) || /\b(conocer|ver|explorar)\s+m[aá]s\s+de\s+(sus\s+)?servicios\b/i.test(t3) && /\bcat[aá]logo|men[uú]/i.test(t3) || /\b(conocer|ver)\s+(sus\s+)?servicios\b/i.test(t3) && /\bcat[aá]logo|men[uú]/i.test(t3)) {
-    return true;
-  }
-  if (clientAsksForCatalog(message) && !/\b(barra|banquete|taquiza|coffee|pizza|sushi|dj|carpa|pista|mobiliario|sillas?|mesas?)\b/i.test(
-    t3
-  )) {
-    return true;
-  }
-  return false;
-}
-function clientWantsFullCatalog(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.toLowerCase();
-  if (clientAsksGenericMenuCatalog(message)) return true;
-  if (/\b(m[aá]ndame|env[ií]ame|pasa(me)?|pásame)\s+todo\b/i.test(t3)) return true;
-  if (/\bcat[aá]logo\s+(completo|general|todo|todos)\b/i.test(t3)) return true;
-  if (/\b(todo|todos)\s+(el\s+)?cat[aá]logo/i.test(t3)) return true;
-  if (/\bno\s+s[eé]\s+cu[aá]l\b/i.test(t3) && /\bcat[aá]logo/i.test(t3)) return true;
-  if (/\bindeciso|todas\s+las\s+opciones/i.test(t3) && /\bcat[aá]logo/i.test(t3)) return true;
-  return false;
-}
-function assistantOfferedCatalogDetail(lastAssistantText) {
-  if (!lastAssistantText?.trim()) return false;
-  if (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(lastAssistantText)) {
-    return true;
-  }
-  return /cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo|mande\s+el\s+cat[aá]logo\s+con\s+m[aá]s\s+detalle|aqu[ií]\s+tienes\s+el\s+cat[aá]logo|te\s+dejo\s+el\s+cat[aá]logo|cat[aá]logo\s+general/i.test(
-    lastAssistantText
-  );
-}
-function clientAffirmsCatalogOffer(message, lastAssistantText) {
-  if (!message?.trim() || !assistantOfferedCatalogDetail(lastAssistantText)) return false;
-  const t3 = message.trim().toLowerCase();
-  if (clientAsksForCatalog(message)) return true;
-  if (/^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|p[aá]samelo)([.!?]|\s|$)/i.test(
-    t3
-  )) {
-    return true;
-  }
-  return /^(s[ií]|claro|ok|okay|dale|va)([\s,]+(por\s+favor|pls|please|mande|m[aá]nda(me)?lo|env[ií]a(me)?lo|env[ií]a|env[ií]ame))?[\s.!]*$/i.test(
-    t3
-  );
-}
-function looksLikeGuestCountRange(text2) {
-  const trimmed = text2?.trim() ?? "";
-  if (!trimmed) return false;
-  if (/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed)) {
-    return false;
-  }
-  const m5 = trimmed.match(/\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i);
-  if (!m5) {
-    const crm = trimmed.match(/^(\d{1,4})\s*[-–]\s*(\d{1,4})(?:\s*MXN)?$/i);
-    if (!crm) return false;
-    const a4 = parseInt(crm[1], 10);
-    const b5 = parseInt(crm[2], 10);
-    const lo2 = Math.min(a4, b5);
-    const hi2 = Math.max(a4, b5);
-    if (lo2 <= 12 && hi2 <= 24 && hi2 - lo2 <= 16) return false;
-    return a4 >= 10 && b5 >= 10 && a4 <= 2e3 && b5 <= 2e3 && Math.abs(a4 - b5) <= 500;
-  }
-  const a3 = parseInt(m5[1], 10);
-  const b4 = parseInt(m5[2], 10);
-  const lo = Math.min(a3, b4);
-  const hi = Math.max(a3, b4);
-  if (lo <= 12 && hi <= 24 && hi - lo <= 16) return false;
-  return a3 >= 10 && b4 >= 10 && a3 <= 2e3 && b4 <= 2e3 && Math.abs(a3 - b4) <= 500;
-}
-function clientAsksBanqueteVsTaquiza(message) {
-  if (!message?.trim()) return false;
-  return /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(message.toLowerCase());
-}
-var WRITTEN_NUMBERS = {
-  uno: "1",
-  una: "1",
-  dos: "2",
-  tres: "3",
-  cuatro: "4",
-  cinco: "5",
-  seis: "6",
-  siete: "7",
-  ocho: "8",
-  nueve: "9",
-  diez: "10",
-  once: "11",
-  doce: "12",
-  quince: "15",
-  veinte: "20",
-  treinta: "30",
-  cuarenta: "40",
-  cincuenta: "50",
-  sesenta: "60",
-  setenta: "70",
-  ochenta: "80",
-  noventa: "90",
-  cien: "100",
-  ciento: "100",
-  doscientos: "200",
-  trescientos: "300",
-  cuatrocientos: "400",
-  quinientos: "500"
-};
-var MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
-var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco)\b/i;
-var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale)\b/i;
-function hasGeoLocationSignal(text2) {
-  const t3 = text2.trim();
-  if (!t3) return false;
-  if (KNOWN_ZONES.test(t3)) return true;
-  if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio|calle|av\.?|avenida|blvd|boulevard|cp\.?|c\.p\.?|cdmx|ciudad|estado\s+de|edo\.?\s*m[eé]x|quer[eé]taro|puebla|monterrey|guadalajara)\b/i.test(
-    t3
-  )) {
-    return true;
-  }
-  if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(\s+de\s+golf)?|expo|centro\s+de\s+convenciones)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]/i.test(
-    t3
-  )) {
-    return true;
-  }
-  if (/\b(calle|av\.?|avenida|blvd)\b.+\d/i.test(t3)) return true;
-  if (/\b\d{4,5}\b/.test(t3) && /\b(colonia|delegaci|cdmx|estado|municipio)\b/i.test(t3)) return true;
-  return false;
-}
-var JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
-function looksLikeDiscourseNotPlace(text2) {
-  const t3 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t3) return true;
-  if (JUNK_DIRECCION_PATTERN.test(t3)) return true;
-  if (hasGeoLocationSignal(t3) || KNOWN_ZONES.test(t3)) return false;
-  const lower2 = t3.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
-  if (/\b(es|son|esta|estan|esta|estan|quiero|necesito|busco|tengo|hay|muy|mas|mas|importante|necesario|urgente|parece|creo|pienso)\b/.test(
-    lower2
-  )) {
-    return true;
-  }
-  if (/^(en\s+)?(la\s+)?(noche|tarde|manana|mañana|vivo|directo|realidad|verdad|serio|cambio|caso|color(\s+\w+)?)$/i.test(
-    t3
-  )) {
-    return true;
-  }
-  return false;
-}
-function isNonLocationBusinessPhrase(text2) {
-  const t3 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t3) return true;
-  if (JUNK_DIRECCION_PATTERN.test(t3)) return true;
-  if (looksLikeDiscourseNotPlace(t3)) return true;
-  const cleaned = t3.replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "").trim();
-  if (!cleaned) return true;
-  if (JUNK_DIRECCION_PATTERN.test(cleaned)) return true;
-  if (/^color(\s+\w+)?$/i.test(cleaned)) return true;
-  if (/^(blanco|negro|dorado|plateado|natural|madera|rojo|azul|verde|rosa)$/i.test(cleaned)) {
-    return true;
-  }
-  if (/^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n|noche|tarde|vivo|realidad|serio|importante)$/i.test(
-    cleaned
-  )) {
-    return true;
-  }
-  if (looksLikeCompanyLocationQuestionFragment(cleaned) || looksLikeCompanyLocationQuestionFragment(t3)) {
-    return true;
-  }
-  if (/^cotizaci[oó]n\b/i.test(cleaned) && cleaned.split(/\s+/).length <= 2) return true;
-  if (cleaned.split(/\s+/).length <= 4) {
-    if (/^(quiero|necesito|requiero|busco|me\s+interesa)\b/i.test(cleaned) || /^(una?\s+)?cotizaci[oó]n$/i.test(cleaned) || /^(la\s+)?(propuesta|montaje|presentaci[oó]n|informaci[oó]n)$/i.test(cleaned)) {
-      return true;
-    }
-    if (/\b(cotizaci[oó]n|propuesta|montaje|presentaci[oó]n)\b/i.test(cleaned) && !KNOWN_ZONES.test(cleaned) && !/\b(colonia|delegaci[oó]n|alcald[ií]a|calle|av\.|avenida|cdmx|ciudad|sal[oó]n\s+\w)/i.test(
-      cleaned
-    )) {
-      return true;
-    }
-  }
-  return false;
-}
-function isVagueVenueOnly(text2) {
-  const t3 = (text2 ?? "").trim();
-  if (!t3) return true;
-  const cleaned = t3.replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "").trim();
-  if (!cleaned) return true;
-  if (/^(sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá])$/i.test(
-    cleaned
-  )) {
-    return true;
-  }
-  if (/^(sal[oó]n|edificio|venue|jard[ií]n)(\s+de)?(\s+(eventos?|oficinas?|corporativo|privado|la\s+empresa|la\s+compa[nñ][ií]a))?$/i.test(
-    cleaned
-  )) {
-    return true;
-  }
-  return false;
-}
-function inferLucyAskedField(lastLucyMessage) {
-  const msg = lastLucyMessage?.trim() ?? "";
-  if (!msg) return null;
-  const priority = [
-    "nombre",
-    "correo",
-    "tipo_evento",
-    "requerimientos",
-    "invitados",
-    "zona",
-    "fecha",
-    "presupuesto"
-  ];
-  for (const field of priority) {
-    if (LUCY_FIELD_ASK_PATTERNS[field].test(msg)) return field;
-  }
-  return null;
-}
-function parseCentrosDeMesaRequirement(text2) {
-  if (!text2?.trim()) return null;
-  const t3 = text2.trim();
-  if (!/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:florales?\s+)?(?:de\s+)?mesas?\b/i.test(
-    t3
-  )) {
-    return null;
-  }
-  const qty = t3.match(
-    /\bcentros?\s+de\s+mesas?\b[\s\S]{0,48}\b(?:ser[ií]an?|seran|son|como|unos?|unas?)?\s*(\d{1,3})\b/i
-  )?.[1] || t3.match(
-    /\b(\d{1,3})\s*(?:centros?\s+de\s+mesas?|centros?\s+florales?|arreglos?\s+(?:de\s+)?mesas?)\b/i
-  )?.[1] || (/\bcentros?\s+de\s+mesas?\b/i.test(t3) ? t3.match(/\bser[ií]an?\s+(\d{1,3})\b/i)?.[1] : null);
-  if (qty && Number(qty) >= 1 && Number(qty) <= 500) {
-    return `Centros de mesa (${qty})`;
-  }
-  return "Centros de mesa";
-}
-function parseServicesFromText(text2) {
-  const found = [];
-  const lower2 = text2.toLowerCase();
-  const hasMealListContext = /\b(desayuno|snack|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text2) || (text2.match(/,/g) ?? []).length >= 1 || /\b(desayuno|snack|comida|cena)\b.+\b(desayuno|snack|comida|cena)\b/i.test(text2);
-  const snackIsAntojito = /\bsnacks?\b/i.test(text2) && /\b(banderillas?|antojitos?|esquites?|elotes?|garnachas?|quesadillas?)\b/i.test(text2);
-  const hasCorporateMealList = /\b(desayuno|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text2) || /\bsnack\b/i.test(text2) && /\b(desayuno|comida|cena|coffee)\b/i.test(text2) && !snackIsAntojito;
-  for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
-    if (label === "Comida" && !hasMealListContext) continue;
-    if (label === "Snack" && (snackIsAntojito || !hasCorporateMealList)) continue;
-    if (pattern.test(text2) || pattern.test(lower2)) found.push(label);
-  }
-  if (!found.includes("Banquete Mexicano") && /\bmexicano\b/i.test(text2) && !/\b(desayuno|brunch|tem[aá]tico)\b/i.test(text2) && (/^mexicano[\s.,!]*$/i.test(text2.trim()) || /\b(banquete|formal|tiempos|comida\s+mexicana|men[uú]\s+mexicano)\b/i.test(text2))) {
-    found.push("Banquete Mexicano");
-  }
-  if (!found.some((s6) => /barra\s+de\s+bebidas/i.test(s6)) && /\bbebidas?\b/i.test(text2) && /\b(cerveza|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|alcohol|open\s*bar)\b/i.test(
-    text2
-  ) && !/\bbarra\s+de\s+caf[eé]/i.test(text2)) {
-    found.push("Barra de bebidas");
-  }
-  const deduped = dedupeServiceHierarchy(found, text2);
-  found.length = 0;
-  found.push(...deduped);
-  if (/\b(pastas?\s+y\s+pizzas?|pizzas?\s+y\s+pastas?)\b/i.test(text2) || /\bbarra\s+de\s+pastas?\s+y\s+pizzas?\b/i.test(text2)) {
-    if (!found.some((s6) => /pasta/i.test(s6))) found.push("Barra de pastas");
-    if (!found.some((s6) => /pizza/i.test(s6))) found.push("Barra de pizzas");
-  }
-  const salaProduct = parseSalaProductFromText(text2);
-  if (salaProduct) {
-    const idx = found.findIndex((s6) => /salas?\s*lounge/i.test(s6));
-    if (idx >= 0) found[idx] = salaProduct;
-    else if (!found.some((s6) => /sala|luxor/i.test(s6))) found.push(salaProduct);
-  }
-  const normalized = normalizeShortServicePhrase(text2);
-  if (normalized) {
-    const normLower = normalized.toLowerCase();
-    const already = found.some(
-      (s6) => s6.toLowerCase().includes(normLower) || normLower.includes(s6.toLowerCase())
-    );
-    const isVagueFoodAlias = /banquete\s*\/\s*taquiza/i.test(normalized);
-    if (isVagueFoodAlias && clientAsksCafeOrCateringChoice(text2)) {
-    } else if (
-      // A15000: "alimentos + meseros + mobiliario" — conservar Alimentos aunque haya otros.
-      isVagueFoodAlias && found.length > 0 && /\b(alimentos?|comida|banquete|catering|taquiza)\b/i.test(text2)
-    ) {
-      if (!found.some((s6) => /alimento|banquete|taquiza|catering|comida/i.test(s6))) {
-        found.push("Alimentos");
-      }
-    } else if (!already && !(isVagueFoodAlias && found.length > 0)) {
-      found.push(normalized);
-    }
-  }
-  if (/\b(alimentos?|comidas?)\b/i.test(text2) && !clientAsksCafeOrCateringChoice(text2) && !found.some((s6) => /alimento|banquete|taquiza|catering|comida|barra\s+de\s+alimentos/i.test(s6))) {
-    found.push("Alimentos");
-  }
-  return dedupeServiceHierarchy([...new Set(found)], text2);
-}
-function formatServicesList(services) {
-  const clean = services.map((s6) => s6.trim()).filter(Boolean);
-  if (clean.length === 0) return "";
-  if (clean.length === 1) return clean[0];
-  if (clean.length === 2) return `${clean[0]} y ${clean[1]}`;
-  return `${clean.slice(0, -1).join(", ")} y ${clean[clean.length - 1]}`;
-}
-function dedupeServiceHierarchy(services, sourceText) {
-  const found = [...services].map((s6) => s6.trim()).filter(Boolean);
-  const text2 = sourceText ?? found.join(" ");
-  if (found.includes("Men\xFA staff")) {
-    const meserosIdx = found.indexOf("Meseros");
-    if (meserosIdx >= 0) found.splice(meserosIdx, 1);
-  }
-  if (found.includes("Barra de pastas")) {
-    const pastasIdx = found.indexOf("Pastas");
-    if (pastasIdx >= 0) found.splice(pastasIdx, 1);
-  }
-  if (found.includes("Barra de pastas y ensaladas")) {
-    const shortIdx = found.indexOf("Barra de pastas");
-    if (shortIdx >= 0) found.splice(shortIdx, 1);
-    const pastasIdx = found.indexOf("Pastas");
-    if (pastasIdx >= 0) found.splice(pastasIdx, 1);
-  }
-  if (found.includes("Barra de pizzas")) {
-    const pizzasIdx = found.indexOf("Pizzas");
-    if (pizzasIdx >= 0) found.splice(pizzasIdx, 1);
-  }
-  if (found.includes("Barra de Crepas")) {
-    const crepasIdx = found.indexOf("Crepas");
-    if (crepasIdx >= 0) found.splice(crepasIdx, 1);
-  }
-  const specificBanquete = found.find(
-    (s6) => /Banquete\s+(Mexicano|Kosher|Navide)/i.test(s6)
-  );
-  if (specificBanquete) {
-    const formalIdx = found.indexOf("Banquete Formal");
-    if (formalIdx >= 0) found.splice(formalIdx, 1);
-  }
-  if (found.some((s6) => /^Desayuno$/i.test(s6) || /^Brunch$/i.test(s6)) && found.some((s6) => /Banquete\s+Mexicano/i.test(s6)) && /\b(desayuno|brunch|tem[aá]tico)\b/i.test(text2) && !/\bbanquete\b/i.test(text2)) {
-    for (let i5 = found.length - 1; i5 >= 0; i5--) {
-      if (/Banquete\s+Mexicano/i.test(found[i5])) found.splice(i5, 1);
-    }
-  }
-  if (found.some((s6) => /puestos?\s+de\s+comida/i.test(s6))) {
-    for (let i5 = found.length - 1; i5 >= 0; i5--) {
-      if (/^Snack$/i.test(found[i5])) found.splice(i5, 1);
-    }
-  }
-  if (found.some((s6) => /centros?\s+de\s+mesa/i.test(s6))) {
-    for (let i5 = found.length - 1; i5 >= 0; i5--) {
-      if (/^Mobiliario$/i.test(found[i5])) found.splice(i5, 1);
-    }
-    if (/\b(centros?\s+de\s+mesas?|centros?\s+florales?|arreglos?\s+(?:de\s+)?mesas?|decoraci[oó]n\s+de\s+mesas?|flores?\s+(?:para|en|de)\s+mesas?)\b/i.test(
-      text2
-    )) {
-      for (let i5 = found.length - 1; i5 >= 0; i5--) {
-        if (/^(Decoraci[oó]n|Florister[ií]a)$/i.test(found[i5])) found.splice(i5, 1);
-      }
-    }
-    const centrosLabel = parseCentrosDeMesaRequirement(text2);
-    if (centrosLabel) {
-      for (let i5 = 0; i5 < found.length; i5++) {
-        if (/^Centros de mesa/i.test(found[i5])) found[i5] = centrosLabel;
-      }
-    }
-  }
-  if (found.includes("Parrillada Argentina") || found.includes("Parrillada Tacos")) {
-    const genIdx = found.indexOf("Parrillada");
-    if (genIdx >= 0) found.splice(genIdx, 1);
-  }
-  if (found.includes("Parrillada Tacos")) {
-    const taqIdx = found.indexOf("Taquiza");
-    if (taqIdx >= 0) found.splice(taqIdx, 1);
-  }
-  const hasPastaBar = found.some((s6) => /barra\s+de\s+pastas/i.test(s6));
-  if (hasPastaBar) {
-    for (let i5 = found.length - 1; i5 >= 0; i5--) {
-      if (/^(Taquiza|Pastas|Comida)$/i.test(found[i5])) found.splice(i5, 1);
-    }
-  }
-  const hasMealTimes = found.some((s6) => /^(Desayuno|Snack|Cena|Coffee break)$/i.test(s6)) || /\b(desayuno|snack|cena|coffee\s*break)\b/i.test(text2);
-  if (!hasMealTimes && found.some(
-    (s6) => /barra\s+de|banquete|taquiza|parrillada|paella|cupcake|mesa\s+de/i.test(s6)
-  )) {
-    for (let i5 = found.length - 1; i5 >= 0; i5--) {
-      if (/^Comida$/i.test(found[i5])) found.splice(i5, 1);
-    }
-  }
-  if (found.includes("Colgantes Premium") || found.includes("Entelados para Techo")) {
-    const decoIdx = found.indexOf("Decoraci\xF3n");
-    if (decoIdx >= 0 && /decoraci[oó]n\s+a[eé]rea|colgante|entelado|wisteria/i.test(text2)) {
-      found.splice(decoIdx, 1);
-    }
-  }
-  if (found.includes("Video")) {
-    const pantIdx = found.indexOf("Pantallas");
-    if (pantIdx >= 0 && /\bled\s*wall\b/i.test(text2)) found.splice(pantIdx, 1);
-  }
-  return [...new Set(found)];
-}
-function looksLikeConflictingFoodAlternatives(services) {
-  const foods = services.filter((s6) => !/^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i.test(s6.trim()));
-  if (foods.length < 2) return false;
-  const hasPasta = foods.some((s6) => /pasta/i.test(s6));
-  const hasTaquiza = foods.some((s6) => /^taquiza$/i.test(s6));
-  const hasBanquete = foods.some((s6) => /banquete/i.test(s6));
-  if (hasPasta && hasTaquiza) return true;
-  if (hasBanquete && hasTaquiza && foods.length <= 3) return true;
-  return false;
-}
-function clientWantsFoodOnlyQuote(text2) {
-  const t3 = text2?.trim() ?? "";
-  if (!t3) return false;
-  return /\bsolo\s+(quiero\s+)?(que\s+me\s+)?cotice?n?\s+la\s+comida\b/i.test(t3) || /\bsolo\s+(la\s+)?comida\b/i.test(t3) || /\bnada\s+m[aá]s\s+(que\s+)?(la\s+)?comida\b/i.test(t3) || /\bsolo\s+(quiero|necesito)\s+(la\s+)?comida\b/i.test(t3) || /\bcoticen?\s+solo\s+(la\s+)?comida\b/i.test(t3) || // A15212: "Solo dame cotización de los antojitos".
-  /\bsolo\s+(dame\s+)?(la\s+|una\s+)?cotizaci[oó]n\s+(de\s+)?(los\s+)?(antojitos?|puestos?)\b/i.test(
-    t3
-  ) || /\bsolo\s+(los\s+)?(antojitos?|puestos?(\s+de\s+comida)?)\b/i.test(t3);
-}
-function mergeServiceRequirements(existing, text2, max = 6) {
-  const fromExisting = existing?.trim() ? parseServicesFromText(existing) : [];
-  const fromText = text2?.trim() ? parseServicesFromText(text2) : [];
-  const merged = dedupeServiceHierarchy(
-    [...fromExisting, ...fromText],
-    `${existing ?? ""} ${text2 ?? ""}`
-  ).slice(0, max);
-  if (merged.length === 0) {
-    const fallback = existing?.trim() || text2?.trim() || "";
-    if (!fallback) return null;
-    if (isGenericQuoteIntentRequerimiento(fallback) || isQuoteIntentMessage(fallback) || isGreetingOnlyMessage(fallback)) {
-      return null;
-    }
-    if (existing?.trim() && !isGenericQuoteIntentRequerimiento(existing)) {
-      return existing.trim().slice(0, 250);
-    }
-    return null;
-  }
-  return merged.join(", ");
-}
-function buildMultiServiceAck(services) {
-  const list = formatServicesList(services);
-  if (!list) return "Perfecto, anoto lo que necesitas para tu evento.";
-  if (services.length === 1) {
-    return `Perfecto, veo que necesitas ${list}.`;
-  }
-  return `Perfecto, veo que necesitas ${list}. Te cotizamos todo eso.`;
-}
-function buildRichBriefAcknowledgment(text2) {
-  const services = parseServicesFromText(text2);
-  const tipo = parseTipoEventoFromText(text2);
-  const inv = text2.match(/\b(\d{2,4})\s*(?:personas?|invitados?|asistentes?)\b/i);
-  const fecha = text2.match(
-    /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+\d{4})?)/i
-  );
-  const zona = text2.match(/\ben\s+(Santa\s+Fe(?:,?\s*Ciudad\s+de\s+M[eé]xico)?)/i)?.[1] || text2.match(/\bUbicaci[oó]n:\s*([^\n.*]{4,60})/i)?.[1]?.trim() || text2.match(/\ben\s+([A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+){0,3}),?\s*(?:Ciudad\s+de\s+M[eé]xico|CDMX)/i)?.[0]?.replace(/^en\s+/i, "");
-  const hasThreeMenus = /\b(opci[oó]n\s*[123]|tres\s+propuestas|propuestas?\s+de\s+men[uú])\b/i.test(text2);
-  const distributor = clientAsksDistributorPricing(text2);
-  const bits = [];
-  if (tipo) bits.push(tipo);
-  if (fecha) bits.push(fecha[1]);
-  if (zona) bits.push(zona.trim());
-  if (inv) bits.push(`${inv[1]} personas`);
-  let ack = bits.length > 0 ? `De acuerdo, revis\xE9 tu solicitud para ${bits.join(", ")}.` : "De acuerdo, revis\xE9 con detalle tu solicitud de cotizaci\xF3n.";
-  const mobItems = text2.match(
-    /(\d+\s+mesas?\s+tipo\s+picnic|\d+\s+picnic|\d+\s+periqueras?|\d+\s+bancos?)/gi
-  );
-  const mobSummary = mobItems?.length ? [...new Set(mobItems.map((m5) => m5.trim().toLowerCase()))].join(", ") : null;
-  if (hasThreeMenus) {
-    ack += " Anoto las tres propuestas de men\xFA (parrillada, opci\xF3n costo-beneficio y men\xFA casual) junto con meseros y mobiliario.";
-  } else if (mobSummary) {
-    ack += ` Anoto ${mobSummary}.`;
-  } else if (services.length >= 2) {
-    ack += ` Anoto ${formatServicesList(services)}.`;
-  } else if (services.length === 1) {
-    ack += ` Anoto ${services[0]}.`;
-  }
-  if (distributor) {
-    ack += " Como cotizan como distribuidores, el equipo les arma precio de mayoreo (no lista al p\xFAblico).";
-  } else {
-    ack += " Nuestro equipo arma la cotizaci\xF3n a la medida con lo que pediste.";
-  }
-  return ack;
-}
-function appendPostCierreRequirements(existing, message) {
-  const t3 = message.trim();
-  if (!t3) return existing?.trim() || null;
-  const services = parseServicesFromText(t3);
-  const hasServiceIntent = services.length > 0 || clientAddsToQuote(t3) || isServiceRelatedMessage(t3) || isServicePreferenceRefinement(t3, existing) || /\b(pantalla|audio|microfon|led|dj|entradas?|postres?|canap)\b/i.test(t3);
-  if (!hasServiceIntent) return existing?.trim() || null;
-  const base = existing?.trim() || "";
-  if (isServicePreferenceRefinement(t3, base)) {
-    const snippet2 = t3.replace(/\s+/g, " ").slice(0, 250);
-    if (base && base.toLowerCase().includes(snippet2.toLowerCase().slice(0, 40))) return base;
-    return base ? `${base}; preferencia: ${snippet2}` : snippet2;
-  }
-  if (services.length > 0) {
-    const merged = mergeServiceRequirements(base || null, services.join(", "), 8);
-    return merged || base || null;
-  }
-  const snippet = t3.replace(/\s+/g, " ").slice(0, 250);
-  if (base && base.toLowerCase().includes(snippet.toLowerCase().slice(0, 40))) return base;
-  return base ? `${base}; ${snippet}` : snippet;
-}
-var STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
-function preferPrimaryCatalogService(services) {
-  if (!services.length) return null;
-  const cleaned = dedupeServiceHierarchy(services);
-  const pool2 = cleaned.filter((s6) => !STAFF_OR_ADDON_SERVICE.test(s6.trim()));
-  const candidates = pool2.length ? pool2 : cleaned;
-  const scored = [...candidates].sort((a3, b4) => {
-    const score = (s6) => {
-      let n4 = s6.length;
-      if (/^Barra de /i.test(s6)) n4 += 40;
-      if (/Puestos\s+de\s+Comida/i.test(s6)) n4 += 45;
-      if (/Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s6)) n4 += 30;
-      if (/Parrillada|Paella|Coffee|Cupcakes|Mesa de/i.test(s6)) n4 += 20;
-      if (/^(Pastas|Pizzas|Crepas|Comida|Taquiza|Parrillada|Bocadillos?|Snack)$/i.test(s6)) n4 -= 25;
-      return n4;
-    };
-    return score(b4) - score(a3);
-  });
-  return (scored[0] || candidates[0]).trim();
-}
-function isServicePreferenceRefinement(message, serviceHint) {
-  const t3 = message?.trim() ?? "";
-  if (!t3 || t3.length > 320) return false;
-  if (/\b(cotizar|cu[aá]nto\s+cuesta|precio\s+de|otra\s+barra|nuevo\s+servicio)\b/i.test(t3)) {
-    return false;
-  }
-  const cafeCtx = /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcafeter[ií]a\b|\bbarista\b/iu.test(t3) || /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcaf[eé](?!\p{L})|barista|coffee\s*break/iu.test(
-    serviceHint ?? ""
-  );
-  const beveragePick = /\b(americano|capuchin?o|cappuccino|espresso|latte|moc?cha|t[eé]s?\b|chocolates?|bebidas?\s+artesanal)/i.test(
-    t3
-  );
-  const refineCue = /\b(solo\s+requieren|solo\s+quieren|solo\s+necesitan|respecto\s+a|nada\s+m[aá]s|nomas|nom[aá]s|unicamente|únicamente)\b/i.test(
-    t3
-  );
-  return cafeCtx && (beveragePick || refineCue);
-}
-function parsePrimaryService(text2) {
-  const services = parseServicesFromText(text2);
-  if (services.length > 0) return preferPrimaryCatalogService(services);
-  const normalized = normalizeShortServicePhrase(text2);
-  return normalized;
-}
-function normalizeShortServicePhrase(text2) {
-  const trimmed = text2.trim();
-  if (!trimmed) return null;
-  let cleaned = trimmed.replace(/^(quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i, "").replace(/^(una?|el|la|los|las)\s+/i, "").trim();
-  const lower2 = cleaned.toLowerCase();
-  if (SHORT_SERVICE_ALIASES[lower2]) return SHORT_SERVICE_ALIASES[lower2];
-  if (/^pista$/i.test(cleaned)) return "pista de baile";
-  if (/^dj$/i.test(cleaned)) return "DJ";
-  return null;
-}
-function isServiceRelatedMessage(text2) {
-  const trimmed = text2?.trim() ?? "";
-  if (!trimmed || /^info pendiente$/i.test(trimmed)) return false;
-  if (/\bservicio\s+completo\b/i.test(trimmed)) return true;
-  if (SERVICE_HINT.test(trimmed)) return true;
-  if (parsePrimaryService(trimmed)) return true;
-  if (/^(una?\s+)?(pista|tarima|dj|mesas?|sillas?|carpa|banquete|taquiza)\b/i.test(trimmed)) return true;
-  return false;
-}
-function parseTipoEventoFromText(text2) {
-  for (const [pattern, label] of TIPO_EVENTO_PATTERNS) {
-    if (pattern.test(text2)) return label;
-  }
-  return null;
-}
-function isReferentialPriorAnswer(message) {
-  if (!message?.trim()) return false;
-  const n4 = message.trim().normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
-  if (!n4 || n4.length > 120) return false;
-  return /^(a\s+)?(este|ese|esta|esa)(\s+(mismo|misma|correo|mail|email|dato))?$/.test(n4) || /^(el|la)\s+(mismo|misma)(\s+(correo|mail|email|dato))?$/.test(n4) || /^(el|la)\s+de\s+(antes|arriba|hace\s+rato|hace\s+un\s+rato)$/.test(n4) || /^(ese|este)\s+(que\s+)?(ya\s+)?(te\s+)?(di|mande|envie|pase)$/.test(n4) || /^(el\s+)?(mismo\s+)?(correo|mail|email)(\s+(de\s+antes|anterior))?$/.test(n4) || /^ya\s+(te\s+)?(lo\s+)?(di|mande|envie|pase|he\s+enviado|he\s+mandado)(\s+(ese|el|antes))?$/.test(
-    n4
-  ) || /^(ese|este)\s+mismo$/.test(n4) || // A15212: "Al mismo que ya te he enviado" / "el mismo que ya te mandé".
-  /^al\s+(mismo|que\s+ya\s+(te\s+)?(he\s+)?(di|mande|envie|enviado|mandado))$/.test(n4) || /^al\s+mismo\s+que\s+ya\s+(te\s+)?(he\s+)?(enviado|mandado|dado|di|mande|envie)\b/.test(n4) || /^(el\s+)?mismo\s+que\s+ya\s+(te\s+)?(he\s+)?(enviado|mandado|dado|di|mande|envie)\b/.test(n4) || /\bya\s+te\s+(lo\s+)?he\s+(enviado|mandado|dado)\b/.test(n4);
-}
-function clientComplainsAboutRepeat(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.trim();
-  return /\bya\s+me\s+(hab[ií]as|habias|hab[ií]a|habia|hab[eé]is)?\s*preguntad/i.test(t3) || /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t3) || /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé]|pase|compart[ií]|he\s+enviado|he\s+mandado|he\s+dado)\b/i.test(
-    t3
-  ) || /\bya\s+(te\s+)?(lo\s+)?(dije|mencion[eé]|coment[eé])\b/i.test(t3) || /\beso\s+ya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t3) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(t3) || /\b(otra\s+vez|de\s+nuevo)\s+(me\s+)?preguntas?\b/i.test(t3) || /\bya\s+respond[ií]\b/i.test(t3);
-}
-function recoverCorreoFromUserTexts(texts, currentMessage) {
-  const blob = [...texts, currentMessage ?? ""].filter(Boolean).join("\n");
-  return parseCorreoFromText(blob);
-}
-function isUnusableTipoEventoReply(text2) {
-  const t3 = text2?.trim() ?? "";
-  if (!t3) return true;
-  const n4 = t3.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
-  if (/^(lo\s+)?(acabo|acabe)\s+de\s+(mencionar|decir|comentar|explicar)(lo)?$/.test(n4) || /^(ya\s+)?(lo\s+)?(dije|mencione|comente|te\s+dije|te\s+lo\s+dije)$/.test(n4) || /^(como\s+)?(te\s+)?(dije|mencione|arriba|antes|hace\s+rato)$/.test(n4) || /^(igual|lo\s+mismo|idem|ya\s+te\s+dije|eso|eso\s+mismo|lo\s+de\s+arriba)$/.test(n4) || /^ya\s+(te\s+)?(lo\s+)?(dije|mencione|comente)$/.test(n4)) {
-    return true;
-  }
-  if (clientComplainsAboutRepeat(t3) || isReferentialPriorAnswer(t3)) return true;
-  if (parseCorreoFromText(t3)) return true;
-  return false;
-}
-function clientAsksCafeOrCateringChoice(text2) {
-  const t3 = text2?.trim() ?? "";
-  if (!t3) return false;
-  if (/\b(caf[eé](?!\p{L})|barista|barra\s+de\s+caf[eé](?!\p{L})).{0,50}\b(o|u)\b.{0,50}\b(catering|comida|banquete|alimentos?)\b/iu.test(
-    t3
-  )) {
-    return true;
-  }
-  if (/\b(catering|comida|banquete|alimentos?).{0,50}\b(o|u)\b.{0,50}\b(caf[eé](?!\p{L})|barista)\b/iu.test(
-    t3
-  )) {
-    return true;
-  }
-  return /\bes\s+solo\s+caf[eé](?!\p{L})/iu.test(t3) || /\btienes\s+(tambi[eé]n\s+)?catering(\s+de\s+comida)?\b/i.test(t3) || /\bsolo\s+caf[eé](?!\p{L})\s+o\b/iu.test(t3);
-}
-function looksLikeNameAnswerMessage(text2) {
-  const t3 = text2?.trim() ?? "";
-  if (!t3 || t3.length > 90 || /\?/.test(t3) || /@/.test(t3) || /\d{3,}/.test(t3)) return false;
-  if (clientAsksCafeOrCateringChoice(t3)) return false;
-  if (isServiceRelatedMessage(t3) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\b/i.test(t3)) {
-    if (/\b(quiero|necesito|busco|cotiz|banquete|taquiza|barra|dj|pista)\b/i.test(t3)) {
-      return false;
-    }
-  }
-  const candidato = stripNombrePresentationPrefix(t3).replace(/\s+de\s+[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúñ.\s-]{2,50}$/u, "").trim();
-  const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
-  if (!nombre) return false;
-  if (isLikelyNotPersonNameMessage(candidato) && !/^(soy|me\s+llamo)/i.test(t3)) {
-    const full = sanitizeCrmNombre(stripNombrePresentationPrefix(t3).split(/\s+de\s+/i)[0] ?? "");
-    return !!full;
-  }
-  return true;
-}
-function parseInvitadosFromText(text2) {
-  const trimmed = text2.trim();
-  if (!trimmed) return null;
-  const numMatchEarly = trimmed.match(
-    /\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i
-  );
-  if (numMatchEarly) return numMatchEarly[1];
-  if (/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(trimmed) && trimmed.split(/\s+/).length <= 14) {
-    return null;
-  }
-  if (isCatalogLevelSelection(trimmed) && trimmed.split(/\s+/).length <= 10 && !/\b(personas?|invitados?|pax|guests?)\b/i.test(trimmed)) {
-    return null;
-  }
-  const kidsAdults = trimmed.match(
-    /\b(\d+)\s*(niñ[oa]s?|chiquit[oa]s?|peques?|infantes?)\s*y\s*(\d+)\s*(adultos?|mayores?)\b/i
-  );
-  if (kidsAdults) {
-    return String(parseInt(kidsAdults[1], 10) + parseInt(kidsAdults[3], 10));
-  }
-  const adultsKids = trimmed.match(
-    /\b(\d+)\s*(adultos?|mayores?)\s*y\s*(\d+)\s*(niñ[oa]s?|chiquit[oa]s?|peques?|infantes?)\b/i
-  );
-  if (adultsKids) {
-    return String(parseInt(adultsKids[1], 10) + parseInt(adultsKids[3], 10));
-  }
-  if (/\bniñ[oa]s?\b/i.test(trimmed) && /\badultos?\b/i.test(trimmed)) {
-    const nums = [...trimmed.matchAll(/\b(\d{1,4})\b/g)].map((m5) => parseInt(m5[1], 10));
-    if (nums.length >= 2 && nums.every((n4) => n4 >= 1 && n4 <= 500)) {
-      return String(nums[0] + nums[1]);
-    }
-  }
-  if (NON_GUEST_UNIT_PATTERN.test(trimmed)) return null;
-  const approxSuffix = trimmed.match(
-    /^(\d{1,4})\s*(?:aprox(?:imadamente)?|aproximados?|personas?\s+aprox)\.?$/i
-  );
-  if (approxSuffix) return approxSuffix[1];
-  if (isServiceRelatedMessage(trimmed)) return null;
-  if (/\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+(?:lo\s+)?sabemos|no\s+(?:te\s+)?(?:lo\s+)?(?:puedo|podr[ií]a)\s+(?:decir|confirmar)|van\s+viendo)\b/i.test(
-    trimmed
-  )) {
-    return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
-  }
-  const rangoMatch = trimmed.match(/\bentre\s+(\d+)\s+y\s+(\d+)\b/i);
-  if (rangoMatch) {
-    const a3 = parseInt(rangoMatch[1], 10);
-    const b4 = parseInt(rangoMatch[2], 10);
-    return String(Math.max(a3, b4));
-  }
-  {
-    if (looksLikeGuestCountRange(trimmed) && !parseFechaFromText(trimmed)) {
-      const guestRange = trimmed.match(
-        /\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i
-      );
-      if (guestRange) {
-        const a3 = parseInt(guestRange[1], 10);
-        const b4 = parseInt(guestRange[2], 10);
-        return String(Math.round((a3 + b4) / 2));
-      }
-    }
-  }
-  const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i);
-  if (numMatch) return numMatch[1];
-  const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como|unos?|unas?)\s+(\d+)\b/i);
-  if (paraMatch) {
-    const after = trimmed.slice(paraMatch.index + paraMatch[0].length);
-    if (/^\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?)\b/i.test(after)) {
-      return null;
-    }
-    return paraMatch[1];
-  }
-  const aproxMatch = trimmed.match(
-    /\b(?:m[aá]s\s+o\s+menos|aproximadamente|al\s+rededor\s+de|alrededor\s+de|cerca\s+de)\s+(\d+)\b/i
-  );
-  if (aproxMatch) return aproxMatch[1];
-  const writtenMatch = trimmed.match(
-    /\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|doscientos|trescientos|cuatrocientos|quinientos)\s+(personas?|invitados?)\b/i
-  );
-  if (writtenMatch) {
-    return WRITTEN_NUMBERS[writtenMatch[1].toLowerCase()] ?? null;
-  }
-  if (/^el\s+\d{1,2}$/i.test(trimmed)) return null;
-  if (/^\d{1,4}$/.test(trimmed)) {
-    const n4 = parseInt(trimmed, 10);
-    if (n4 < 10) return null;
-    return trimmed;
-  }
-  return null;
-}
-function isDimensionText(text2) {
-  const t3 = text2?.trim() ?? "";
-  if (!t3) return false;
-  const dePrefixed = t3.replace(/^(de|son|miden|mide|aproximadamente|aprox\.?)\s+/i, "").trim();
-  return /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t3) || /\b\d+\s*m\s*(por|x)\s*\d+\s*m\b/i.test(t3) || /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t3) || /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t3) || /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(dePrefixed) || /^\d+m\s*x\s*\d+m$/i.test(t3) || /^\d+m\s*x\s*\d+m$/i.test(dePrefixed);
-}
-function isUsableDireccionEvento(value) {
-  const t3 = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
-  if (!t3) return false;
-  if (isDimensionText(t3)) return false;
-  if (isVagueVenueOnly(t3)) return false;
-  if (isLikelyProductNameNotLocation(t3)) return false;
-  if (JUNK_DIRECCION_PATTERN.test(t3)) return false;
-  if (isNonLocationBusinessPhrase(t3)) return false;
-  if (looksLikeDiscourseNotPlace(t3)) return false;
-  if (looksLikeCompanyLocationQuestionFragment(t3)) return false;
-  if (/\bd[oó]nde\b|\bubicad/i.test(t3) && !KNOWN_ZONES.test(t3) && t3.split(/\s+/).length <= 5) {
-    return false;
-  }
-  if (!hasGeoLocationSignal(t3) && !KNOWN_ZONES.test(t3)) {
-    const words = t3.split(/\s+/).filter(Boolean);
-    if (words.length > 4 || t3.length > 60) return false;
-    if (/\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete)\b/i.test(
-      t3
-    )) {
-      return false;
-    }
-  }
-  return true;
-}
-function clientCorrectsLocation(text2) {
-  const t3 = (text2 ?? "").trim();
-  if (!t3) return false;
-  return /\bme\s+equivoqu[eé]/i.test(t3) || /\bno\s+es\s+en\s+(el\s+)?piso\b/i.test(t3) || /\bno\s+es\s+(en\s+)?(la\s+)?(torre|piso|edificio)\b/i.test(t3) || /\b(es\s+en\s+)?otra\s+ubicaci[oó]n\b/i.test(t3) || /\bcambi[oó]\s+(de\s+)?(ubicaci[oó]n|lugar|direcci[oó]n)\b/i.test(t3) || /\bes\s+un\s+patio\b/i.test(t3) || /\bpatio\s+techado\b/i.test(t3);
-}
-function isVenueSpaceDetail(text2) {
-  const t3 = (text2 ?? "").trim();
-  if (!t3) return false;
-  return /^(el\s+|un\s+|una\s+)?(patio(\s+techado)?|techado|jard[ií]n|azotea|rooftop|terraza)[\s.,!]*$/i.test(
-    t3
-  );
-}
-function applyLocationCorrectionToAddress(existing, message) {
-  const msg = (message ?? "").trim();
-  const prev = (existing ?? "").trim();
-  if (!msg) return null;
-  const corrects = clientCorrectsLocation(msg);
-  const spaceDetail = isVenueSpaceDetail(msg);
-  if (!corrects && !(spaceDetail && prev)) return null;
-  let zoneFromMsg = parseZonaFromText(msg);
-  if (!zoneFromMsg) {
-    const m5 = msg.match(KNOWN_ZONES);
-    if (m5?.[0]) zoneFromMsg = m5[0].trim();
-  }
-  let zoneFromPrev = null;
-  if (prev) {
-    const m5 = prev.match(KNOWN_ZONES);
-    if (m5?.[0]) zoneFromPrev = m5[0].trim();
-  }
-  const zone = zoneFromMsg || zoneFromPrev;
-  let result = prev;
-  if (/\bno\s+es\s+en\s+(el\s+)?piso\b|\botra\s+ubicaci[oó]n\b|\bme\s+equivoqu|\bno\s+es\s+(en\s+)?(la\s+)?torre\b/i.test(
-    msg
-  )) {
-    result = result.replace(/,?\s*piso\s*\d+/gi, "").replace(/\btorre\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ-]*/gi, "").replace(/\s*,\s*,+/g, ",").replace(/^\s*,\s*|\s*,\s*$/g, "").replace(/\s{2,}/g, " ").trim();
-    if (/\botra\s+ubicaci[oó]n\b/i.test(msg) && zone) {
-      result = zone;
-    }
-  }
-  if (/\bpatio\b/i.test(msg)) {
-    result = result.replace(/,?\s*piso\s*\d+/gi, "").trim();
-    if (!/\bpatio\b/i.test(result)) {
-      result = result ? `${result}, patio` : zone ? `${zone}, patio` : "patio";
-    }
-  }
-  if (/\btechado\b/i.test(msg)) {
-    if (/\bpatio\b/i.test(result) && !/\btechado\b/i.test(result)) {
-      result = result.replace(/\bpatio\b/i, "patio techado");
-    } else if (!/\btechado\b/i.test(result)) {
-      result = result ? `${result}, techado` : zone ? `${zone}, techado` : "";
-    }
-  }
-  if (/\bjard[ií]n\b/i.test(msg) && !/\bjard[ií]n\b/i.test(result)) {
-    result = result ? `${result}, jard\xEDn` : zone ? `${zone}, jard\xEDn` : "jard\xEDn";
-  }
-  if (/\b(azotea|rooftop|terraza)\b/i.test(msg)) {
-    const detail = msg.match(/\b(azotea|rooftop|terraza)\b/i)?.[1] ?? "terraza";
-    if (!new RegExp(`\\b${detail}\\b`, "i").test(result)) {
-      result = result ? `${result}, ${detail}` : zone ? `${zone}, ${detail}` : detail;
-    }
-  }
-  if (zone && result && !new RegExp(zone.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(result)) {
-    result = `${result}, ${zone}`;
-  }
-  if ((!result || !result.trim()) && zone) result = zone;
-  result = (result ?? "").replace(/\s*,\s*,+/g, ",").replace(/^\s*,\s*|\s*,\s*$/g, "").trim();
-  if (!result) return null;
-  if (!isUsableDireccionEvento(result)) {
-    if (zone && isUsableDireccionEvento(zone)) return zone;
-    return null;
-  }
-  return result;
-}
-function shouldReplaceCrmDireccion(existing, incoming) {
-  const next = incoming?.trim() ?? "";
-  if (!next || !isUsableDireccionEvento(next)) return false;
-  const prev = existing?.trim() ?? "";
-  if (!prev || !isUsableDireccionEvento(prev)) return true;
-  if (prev.toLowerCase() === next.toLowerCase()) return false;
-  if (clientCorrectsLocation(next) || isVenueSpaceDetail(next)) return true;
-  if (/\bpiso\s*\d+/i.test(prev) && !/\bpiso\s*\d+/i.test(next) && KNOWN_ZONES.test(prev) && KNOWN_ZONES.test(next)) {
-    return true;
-  }
-  if (prev.toLowerCase().includes(next.toLowerCase()) && next.length < prev.length) return false;
-  if (next.toLowerCase().includes(prev.toLowerCase()) && next.length > prev.length + 2) return true;
-  if (hasGeoLocationSignal(next) && !hasGeoLocationSignal(prev) && next.length >= prev.length) {
-    return true;
-  }
-  return false;
-}
-function applyLocationCorrectionToCrm(mergedLines, filledSet, extracted, currentMessage) {
-  const msg = currentMessage?.trim() ?? "";
-  if (!msg) return false;
-  const idx = mergedLines.findIndex((l5) => /^-?\s*Lugar\/dirección del evento:/i.test(l5));
-  const existing = (idx >= 0 ? mergedLines[idx].replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "").trim() : null) || extracted.direccion_evento?.trim() || null;
-  if (!clientCorrectsLocation(msg) && !(isVenueSpaceDetail(msg) && existing)) return false;
-  const next = applyLocationCorrectionToAddress(existing, msg);
-  if (!next || next === existing) return false;
-  if (idx >= 0) {
-    mergedLines[idx] = `- Lugar/direcci\xF3n del evento: ${next}`;
-  } else {
-    mergedLines.push(`- Lugar/direcci\xF3n del evento: ${next}`);
-  }
-  filledSet.add("Lugar/direcci\xF3n del evento");
-  extracted.direccion_evento = next;
-  return true;
-}
-function parseSpaceDimensions(text2) {
-  const m5 = text2.match(/\b(\d+)\s*metros?\s*(por|x)\s*(\d+)\s*metros?\b/i);
-  if (m5) return `${m5[1]}m x ${m5[3]}m`;
-  const m22 = text2.match(/\bespacio\s+(?:es\s+de|de|mide)\s+(\d+)\s*metros?\s*(por|x)\s*(\d+)/i);
-  if (m22) return `${m22[1]}m x ${m22[3]}m`;
-  const m32 = text2.match(/\b(\d+)\s*m?\s*[x×]\s*(\d+)\s*m?\b/i);
-  if (m32) return `${m32[1]}m x ${m32[2]}m`;
-  return null;
-}
-function clientMentionsPistaTarima(message) {
-  if (!message?.trim()) return false;
-  return /\bpista(\s+de\s+baile)?\b|\btarima/i.test(message);
-}
-function parseZonaFromText(text2) {
-  const trimmed = text2.trim();
-  if (!trimmed || /@/.test(trimmed)) return null;
-  if (isGreetingOnlyMessage(trimmed)) return null;
-  if (isAffirmativeOnlyMessage(trimmed)) return null;
-  if (isDimensionText(trimmed)) return null;
-  if (isLikelyProductNameNotLocation(trimmed)) return null;
-  if (/\bsala\s*:/i.test(trimmed)) return null;
-  if (clientAsksLocation(trimmed) || looksLikeCompanyLocationQuestionFragment(trimmed)) {
-    return null;
-  }
-  const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
-  if (expoMatch?.[0] && isUsableDireccionEvento(expoMatch[0].trim())) {
-    return expoMatch[0].trim();
-  }
-  if (KNOWN_ZONES.test(trimmed)) {
-    const m5 = trimmed.match(KNOWN_ZONES);
-    if (m5 && isUsableDireccionEvento(m5[0].trim())) return m5[0].trim();
-  }
-  const coloniaMatch = trimmed.match(
-    /\b((?:colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+[A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{1,28})/i
-  );
-  if (coloniaMatch?.[1] && isUsableDireccionEvento(coloniaMatch[1].trim())) {
-    return coloniaMatch[1].trim();
-  }
-  const enMatch = trimmed.match(
-    /\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,28})(?:\s|,|\.|$)/i
-  );
-  if (enMatch) {
-    let lugar = enMatch[1].trim().replace(/[.,;:]+$/g, "").trim();
-    lugar = lugar.split(/\s+(?:para|con|por|donde|cuando|porque|que|y\s+también)\b/i)[0].trim().replace(/[.,;:]+$/g, "").trim();
-    const sinArticulo = lugar.replace(/^(el|la|los|las)\s+/i, "").trim();
-    const candidato = sinArticulo || lugar;
-    if (candidato && !MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !isVagueVenueOnly(candidato) && !isNonLocationBusinessPhrase(candidato) && !looksLikeDiscourseNotPlace(candidato) && !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje|color|noche|tarde|vivo|realidad|serio|importante)\b/i.test(
-      candidato
-    ) && !/^color\b/i.test(candidato) && isUsableDireccionEvento(candidato)) {
-      return candidato;
-    }
-  }
-  const venueMatch = trimmed.match(
-    /\b((?:la\s+)?casa\s+del\s+corregidor|cd\.?\s*nezahualc[oó]yotl)\b/i
-  );
-  if (venueMatch?.[1] && isUsableDireccionEvento(venueMatch[1].trim())) {
-    return venueMatch[1].trim();
-  }
-  const clubMatch = trimmed.match(/\b(club\s+de\s+golf\s+[A-Za-zÁÉÍÓÚáéíóúñ\s]{2,30})/i);
-  if (clubMatch?.[1] && isUsableDireccionEvento(clubMatch[1].trim())) {
-    return clubMatch[1].trim();
-  }
-  if (/\b(se\s+llevar[aá]|llevaremos|ser[aá])\s+(a\s+cabo\s+)?en\s+(el\s+)?/i.test(trimmed)) {
-    const enVenue = trimmed.match(/\ben\s+(el\s+)?([A-ZÁÉÍÓÚ][A-Za-zÁÉÍÓÚáéíóúñ\s]{4,40})/);
-    if (enVenue?.[2] && !MONTH_PATTERN.test(enVenue[2]) && isUsableDireccionEvento(enVenue[2].trim())) {
-      return enVenue[2].trim();
-    }
-  }
-  return null;
-}
-var SERVICE_LABELS_NOT_TIPO = /^(brunch|banquete|taquiza|desayuno|catering|pista de baile|dj|mobiliario|bebidas?)$/i;
-var CORREO_DICTADO_STOPWORDS = /* @__PURE__ */ new Set([
-  "es",
-  "mi",
-  "correo",
-  "el",
-  "mail",
-  "email",
-  "de",
-  "ser[i\xED]a",
-  "seria",
-  "ser\xEDa"
-]);
-function normalizeDictatedCorreo(text2) {
-  const lower2 = text2.toLowerCase().replace(/[¿?¡!,.;:]+$/g, "");
-  if (!/\barroba\b/.test(lower2)) return null;
-  const tokens = lower2.split(/\s+/);
-  const arrobaIdx = tokens.indexOf("arroba");
-  if (arrobaIdx === -1) return null;
-  const localParts = [];
-  for (let i5 = arrobaIdx - 1; i5 >= 0; ) {
-    const tok = tokens[i5];
-    if (tok === "bajo" && i5 - 1 >= 0 && (tokens[i5 - 1] === "guion" || tokens[i5 - 1] === "gui\xF3n")) {
-      localParts.unshift("_");
-      i5 -= 2;
-      continue;
-    }
-    if (tok === "guion" || tok === "gui\xF3n") {
-      localParts.unshift("-");
-      i5 -= 1;
-      continue;
-    }
-    if (CORREO_DICTADO_STOPWORDS.has(tok)) break;
-    if (!/^[a-z0-9]+$/.test(tok)) break;
-    localParts.unshift(tok);
-    i5 -= 1;
-  }
-  if (localParts.length === 0) return null;
-  const domainParts = [];
-  for (let i5 = arrobaIdx + 1; i5 < tokens.length; ) {
-    const tok = tokens[i5];
-    if (tok === "punto") {
-      domainParts.push(".");
-      i5 += 1;
-      continue;
-    }
-    if (tok === "guion" || tok === "gui\xF3n") {
-      if (tokens[i5 + 1] === "bajo") {
-        domainParts.push("_");
-        i5 += 2;
-        continue;
-      }
-      domainParts.push("-");
-      i5 += 1;
-      continue;
-    }
-    if (!/^[a-z0-9]+$/.test(tok)) break;
-    domainParts.push(tok);
-    i5 += 1;
-  }
-  if (domainParts.length === 0) return null;
-  const candidate = `${localParts.join("")}@${domainParts.join("")}`;
-  return /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(candidate) ? candidate : null;
-}
-function parseCorreoFromText(text2) {
-  if (!text2) return null;
-  const m5 = text2.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
-  const raw = m5 ? m5[1] : normalizeDictatedCorreo(text2);
-  if (!raw) return null;
-  return filterClientEmail(raw);
-}
-function isServiceLabelNotTipoEvento(label) {
-  if (!label?.trim()) return false;
-  const t3 = label.trim();
-  if (/^evento\s+con\s+/i.test(t3) || /^celebraci[oó]n\b/i.test(t3)) return false;
-  if (SERVICE_LABELS_NOT_TIPO.test(t3)) return true;
-  if (parseTipoEventoFromText(t3)) return false;
-  return !!parsePrimaryService(t3);
-}
-function parseFechaFromText(text2) {
-  const trimmed = text2.trim();
-  const fechaMatch = trimmed.match(
-    /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+de\s+\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
-  );
-  if (fechaMatch) {
-    const base = fechaMatch[1];
-    const hora = fechaMatch[2];
-    return hora ? `${base} a las ${hora}${hora.includes(":") ? "" : ":00"} horas` : base;
-  }
-  if (/\b(todav[ií]a\s+la\s+vamos\s+a\s+definir|todav[ií]a\s+(no\s+)?la\s+van?\s+a\s+definir|vamos\s+a\s+definir|siguen\s+viendo\s+opciones?|a[uú]n\s+sin\s+fecha|la\s+fecha\s+(a[uú]n\s+)?no\s+est[aá]|a[uú]n\s+no\s+(la\s+)?defin|no\s+tenemos\s+(fecha|d[ií]a)|sin\s+definir\s+(a[uú]n|todav[ií]a)|todav[ií]a\s+no\s+sabemos)\b/i.test(
-    trimmed
-  )) {
-    return "Sin definir (pendiente)";
-  }
-  if (/\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|a[uú]n\s+no\s+tenemos\s+fecha|todav[ií]a\s+no|por\s+definir)\b/i.test(
-    trimmed
-  )) {
-    return trimmed.slice(0, 80);
-  }
-  const weekdayDate = trimmed.match(
-    /\b((?:este|el|pr[oó]ximo)\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+(\d{1,2})(?:\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))?\b/i
-  );
-  if (weekdayDate) {
-    return weekdayDate[0].replace(/^(s[ií]|ok|vale)[,.]?\s+/i, "").trim().slice(0, 80);
-  }
-  const relativeDay = trimmed.match(
-    /\b((?:este|el|pr[oó]ximo)\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+de\s+(\d{1,2})\s*(?:a|[-–]|hasta)\s*(\d{1,2}))?\b/i
-  );
-  if (relativeDay) {
-    const day = relativeDay[0].replace(/^(s[ií]|ok|vale)[,.]?\s+/i, "").trim();
-    return day.slice(0, 80);
-  }
-  if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
-    return trimmed.slice(0, 80);
-  }
-  return null;
-}
-function isGenericQuoteIntentRequerimiento(value) {
-  const t3 = value?.trim() ?? "";
-  if (!t3) return false;
-  if (isServiceRelatedMessage(t3) && parseServicesFromText(t3).length > 0) return false;
-  if (isQuoteIntentMessage(t3)) return true;
-  return /^(quiero|necesito|requiero|busco|me\s+interesa)\s+(una?\s+)?cotiz/i.test(t3) || /^cotizaci[oó]n$/i.test(t3) || /^una?\s+cotizaci[oó]n$/i.test(t3) || /\bquiero\s+una?\s+cotizaci[oó]n\b/i.test(t3) || /\bsolicito\s+(una?\s+)?cotizaci[oó]n\b/i.test(t3);
-}
-function mergeZonaDetail(existing, incoming) {
-  const prev = existing?.trim() ?? "";
-  const next = incoming?.trim() ?? "";
-  if (!next) return prev || null;
-  if (!prev) return next;
-  if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
-  if (next.toLowerCase().includes(prev.toLowerCase())) return next;
-  if (textOverlapLoose(prev, next) >= 0.85) return prev.length >= next.length ? prev : next;
-  return `${prev}, ${next}`;
-}
-function textOverlapLoose(a3, b4) {
-  const norm2 = (s6) => s6.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(Boolean);
-  const wa = new Set(norm2(a3));
-  const wb = new Set(norm2(b4));
-  if (!wa.size || !wb.size) return 0;
-  let shared = 0;
-  for (const w4 of wa) if (wb.has(w4)) shared++;
-  return shared / Math.max(wa.size, wb.size);
-}
-function bareNumberLooksLikeInvitados(num, trimmed) {
-  if (/\$|k\b|mil\b|pesos|mxn|mnx/i.test(trimmed)) return false;
-  return num >= 5 && num <= 999;
-}
-var PRESUPUESTO_MAX_ASKS = 2;
-var FECHA_MAX_ASKS = 2;
-var PRESUPUESTO_AUTO_WAIVER = "Sin definir (no indic\xF3 monto)";
-var FECHA_AUTO_WAIVER = "Sin definir (pendiente)";
-function countLucyFieldAsks(history, field) {
-  const pattern = LUCY_FIELD_ASK_PATTERNS[field];
-  return history.filter(
-    (m5) => m5.role === "assistant" && typeof m5.content === "string" && pattern.test(m5.content)
-  ).length;
-}
-function detectPresupuestoRefusal(text2) {
-  const t3 = text2?.trim() ?? "";
-  if (!t3) return false;
-  if (isRichQuoteBrief(t3)) return false;
-  if (/^(no|nop)[\s.,!]*$/i.test(t3)) return true;
-  if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t3)) return true;
-  if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t3)) return true;
-  if (/^\.{2,}$/.test(t3)) return true;
-  if (/\bpara\s+eso\s+(te\s+)?(contacto|contact[eé]|escribo|hablo|llamo)\b/i.test(t3) || /\b(por|para)\s+eso\s+(te\s+)?(estoy\s+)?(contactando|escribiendo|llamando)\b/i.test(t3)) {
-    return true;
-  }
-  const explicitNoBudget = /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t3) || /\bno\s+me\s+brindaron\b/i.test(t3) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t3) || /\bsin\s+presupuesto\b/i.test(t3) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t3);
-  if (explicitNoBudget) return true;
-  const budgetCareLanguage = /\b(dentro\s+del\s+presupuesto|sin\s+perder.{0,40}presupuesto|al\s+presupuesto|bajo\s+presupuesto|mantener.{0,25}presupuesto|seg[uú]n\s+(el\s+)?presupuesto|cuidando.{0,25}presupuesto)\b/i.test(
-    t3
-  );
-  if (!budgetCareLanguage && t3.length <= 160 && /\bno\b/i.test(t3) && /\bpresupuesto\b/i.test(t3)) {
-    return true;
-  }
-  if (t3.length > 140) return false;
-  const norm2 = t3.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-  if (/\bno\s+se\b/.test(norm2) && /\b(cual|nivel|opcion|variante|paquete|incluir|incluye|podria\s+ser)\b/.test(norm2)) {
-    return false;
-  }
-  return /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t3) || /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t3) || /\bt[uú]\s+m[aá]ndame\b/i.test(t3) || /\bsi\s+quieres\s+vemos\b/i.test(t3) || /\b(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s|$|[.,!?])/i.test(t3) || /\ba[uú]n\s+no\s+(?:s[eé]|lo\s+s[eé]|s[eé]\s+cu[aá]nto)/i.test(t3) || /\btodav[ií]a\s+no\b/i.test(t3) || /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t3) || /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t3) || /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t3) || /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t3) || /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t3) || /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t3) || /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t3) || /\b(el\s+)?equipo\s+(me\s+)?propong/i.test(t3);
-}
-function isPresupuestoResuelto(filledSet, texts = [], history) {
-  if (filledSet.has("Presupuesto (MXN)")) return true;
-  if (findPresupuestoInTexts(texts, history)) return true;
-  if (texts.some((t3) => detectPresupuestoRefusal(t3))) return true;
-  return false;
-}
-function findPresupuestoInTexts(texts, history) {
-  if (history?.length) {
-    let lastAssistant = "";
-    for (const msg of history) {
-      if (msg.role === "assistant" && typeof msg.content === "string") {
-        lastAssistant = msg.content;
-      }
-      if (msg.role === "user" && typeof msg.content === "string") {
-        const asked = inferLucyAskedField(lastAssistant);
-        const pres = parsePresupuestoFromText(msg.content, {
-          askedField: asked === "presupuesto" ? "presupuesto" : null
-        });
-        if (pres) return pres;
-      }
-    }
-  }
-  for (const t3 of texts) {
-    const pres = parsePresupuestoFromText(t3);
-    if (pres) return pres;
-  }
-  return null;
-}
-function looksLikeCalendarYearAmount(num, text2) {
-  if (num < 1990 || num > 2100) return false;
-  if (/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget|tope)\b/i.test(text2)) {
-    return false;
-  }
-  const t3 = text2.trim();
-  if (/^(19|20)\d{2}$/.test(t3)) return true;
-  if (/\b(19|20)\d{2}\b/.test(t3) && /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|fecha|a[nñ]o)\b/i.test(
-    t3
-  )) {
-    return true;
-  }
-  return false;
-}
-function parsePresupuestoFromText(text2, opts) {
-  const withoutEmails = text2.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ").replace(/\s+/g, " ").trim();
-  const trimmed = withoutEmails || text2.trim();
-  if (!trimmed) return null;
-  if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(text2.trim())) return null;
-  if (clientCorrectsLocation(trimmed) || isVenueSpaceDetail(trimmed)) return null;
-  if (/\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?(presupuesto|cotiz)/i.test(trimmed) || /\bt[uú]\s+m[aá]ndame\b/i.test(trimmed)) {
-    return "Sin definir (cliente pidi\xF3 que propongamos)";
-  }
-  if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(trimmed)) {
-    return "Sin definir (cliente pidi\xF3 que propongamos)";
-  }
-  if (/\b(que\s+(me\s+)?propongan|el\s+equipo\s+(me\s+)?propong|ustedes\s+(me\s+)?propong)/i.test(
-    trimmed
-  )) {
-    return "Sin definir (cliente pidi\xF3 que propongamos)";
-  }
-  if (detectPresupuestoRefusal(trimmed)) {
-    return "Sin definir (cliente indic\xF3 que no tiene)";
-  }
-  if (/\b(lo\s+m[aá]s\s+)?econ[oó]mic[oa]s?\b/i.test(trimmed) || /\b(barato|accesible|ajustad[oa]|menor\s+costo|lo\s+m[aá]s\s+barato)\b/i.test(trimmed)) {
-    return "Opciones econ\xF3micas (sin monto fijo)";
-  }
-  if (/\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(trimmed)) {
-    return "Sin definir (cliente indic\xF3 que no tiene)";
-  }
-  if (/\b(poquito|lo\s+que\s+sea\s+necesario|flexible|lo\s+que\s+se\s+necesite)\b/i.test(trimmed)) {
-    return "Flexible (sin monto fijo)";
-  }
-  if (opts?.askedField === "presupuesto" && /^(no|nop)[\s.,!]*$/i.test(trimmed)) {
-    return "Sin definir (cliente indic\xF3 que no tiene)";
-  }
-  if (opts?.askedField === "presupuesto") {
-    if (/^(s[ií]|ok|vale|bueno|est[aá]\s+bien|perfecto|claro|de\s+acuerdo|opciones?|propuestas?)[\s.,!]*$/i.test(trimmed)) {
-      return trimmed.match(/^opciones?|^propuestas?/i) ? "Sin definir (cliente pidi\xF3 que propongamos)" : PRESUPUESTO_AUTO_WAIVER;
-    }
-    if (/^(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea|\.\.+)[\s.,!]*$/i.test(trimmed)) {
-      return "Sin definir (cliente indic\xF3 que no tiene)";
-    }
-  }
-  if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones|todav[ií]a\s+no|despu[eé]s\s+vemos)\b/i.test(
-    trimmed
-  )) {
-    return "Sin definir (cliente indic\xF3 que no tiene)";
-  }
-  if (parseFechaFromText(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b)/i.test(trimmed)) {
-    return null;
-  }
-  if (/\b\d+\s*(personas?|invitados?|pax)\b/i.test(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b)/i.test(trimmed)) {
-    return null;
-  }
-  if (/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|hoy|ma[nñ]ana|esta?\s+semana|este\s+s[aá]bado|pr[oó]ximo)\b/i.test(
-    trimmed
-  ) && /\b\d{1,2}\s*(?:[:.]\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}\b/i.test(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)) {
-    return null;
-  }
-  {
-    const hourRange = trimmed.match(/\b(\d{1,2})\s*(?:[:.]\d{2})?\s*(?:a|[-–]|hasta)\s*(\d{1,2})\b/i);
-    if (hourRange && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)) {
-      const a3 = parseInt(hourRange[1], 10);
-      const b4 = parseInt(hourRange[2], 10);
-      if (a3 >= 0 && a3 <= 24 && b4 >= 0 && b4 <= 24 && a3 < 1e3 && b4 < 1e3) {
-        if (a3 < 100 && b4 < 100) return null;
-      }
-    }
-  }
-  const rangeMatch = trimmed.match(/\b(\d[\d,.]*)\s*[-–a]\s*(\d[\d,.]*)\s*(mxn|mnx|pesos)?\b/i);
-  if (rangeMatch) {
-    const aRaw = rangeMatch[1].replace(/,/g, "");
-    const bRaw = rangeMatch[2].replace(/,/g, "");
-    const a3 = parseInt(aRaw, 10);
-    const b4 = parseInt(bRaw, 10);
-    const hasMoneyToken = !!(rangeMatch[3] || /\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed));
-    if (!hasMoneyToken && looksLikeGuestCountRange(trimmed)) return null;
-    if (!hasMoneyToken && Number.isFinite(a3) && Number.isFinite(b4) && a3 < 1e3 && b4 < 1e3) {
-      if (opts?.askedField !== "presupuesto") return null;
-      if (a3 < 500 && b4 < 500) return null;
-    }
-    return `${aRaw} - ${bRaw} MXN`;
-  }
-  const perPersonMatch = trimmed.match(
-    /\$?\s*([\d][\d,.]*)\s*(?:mxn|mnx|pesos)?\s*(?:por\s+(?:persona|cabeza)|x\s+persona|pp\b|c\/u\b)/i
-  );
-  if (perPersonMatch) {
-    const hasBudgetIntent = opts?.askedField === "presupuesto" || /\b(presupuesto|rango|inversi[oó]n|budget|tope|menos\s+de|hasta|m[aá]ximo)\b/i.test(trimmed);
-    const looksLikeCatalogPitch = /\b(manejamos|desde|ofrecemos|tenemos|niveles?|incluye)\b/i.test(trimmed) || trimmed.length > 90;
-    if (hasBudgetIntent || !looksLikeCatalogPitch) {
-      const num = parseInt(perPersonMatch[1].replace(/,/g, ""), 10);
-      if (!isNaN(num) && num > 0) return `$${num.toLocaleString("es-MX")} MXN por persona`;
-    }
-  }
-  const menosDeMatch = trimmed.match(
-    /\b(?:menos\s+de|hasta|m[aá]ximo|max\.?)\s+\$?\s*([\d][\d,.]*)\s*(mxn|mnx|pesos)?\b/i
-  );
-  if (menosDeMatch) {
-    return `Hasta $${menosDeMatch[1].replace(/,/g, "")} MXN`;
-  }
-  const topeMatch = trimmed.match(
-    /\btope\s+(?:es\s+)?(?:de\s+)?\$?\s*([\d][\d,.]*)\s*(mxn|mnx|pesos|k)?\b/i
-  );
-  if (topeMatch) {
-    const suffix = topeMatch[2]?.toLowerCase() === "k" ? "k" : "";
-    return `Hasta $${topeMatch[1].replace(/,/g, "")}${suffix} MXN`;
-  }
-  const kMatch = trimmed.match(/\$?\s*([\d,.]+)\s*k\b/i);
-  if (kMatch) {
-    const num = parseInt(kMatch[1].replace(/[,.]/g, ""), 10);
-    if (!isNaN(num) && num > 0) return `$${num}k`;
-  }
-  const milMatch = trimmed.match(/([\d,.]+)\s*mil\b/i);
-  if (milMatch) {
-    const num = parseInt(milMatch[1].replace(/[,.]/g, ""), 10);
-    if (!isNaN(num) && num > 0) return `$${num * 1e3}`;
-  }
-  {
-    const yearOnly = trimmed.match(/^(19|20)\d{2}$/);
-    if (yearOnly) return null;
-    const yearNum = parseInt(trimmed.replace(/[^\d]/g, ""), 10);
-    if (looksLikeCalendarYearAmount(yearNum, trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)) {
-      if (/^(19|20)\d{2}$/.test(trimmed) || trimmed.length <= 6) return null;
-    }
-  }
-  const hasMoneyWord = /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn|mnx|tope)\b/i.test(trimmed) || opts?.askedField === "presupuesto";
-  const hasAproxBudget = hasMoneyWord && /\b(como|aprox|alrededor|cerca\s+de|menos\s+de|hasta)\b/i.test(trimmed);
-  if (hasMoneyWord || hasAproxBudget || /\$/.test(trimmed) && hasMoneyWord) {
-    const amountMatch = trimmed.match(/(?<![A-Za-z0-9])\$?\s*([\d][\d,.]*)/);
-    if (amountMatch) {
-      const num = parseInt(amountMatch[1].replace(/,/g, ""), 10);
-      if (!isNaN(num) && looksLikeCalendarYearAmount(num, trimmed) && !/\$/.test(trimmed)) {
-        return null;
-      }
-      return trimmed.slice(0, 80);
-    }
-  }
-  if (/\$\s*[\d][\d,.]{3,}/.test(trimmed) && !/\bdesde\s+\$/i.test(trimmed)) {
-    const amountMatch = trimmed.match(/\$\s*([\d][\d,.]*)/);
-    if (amountMatch) {
-      const num = parseInt(amountMatch[1].replace(/,/g, ""), 10);
-      if (!isNaN(num) && num >= 1e3) return trimmed.slice(0, 80);
-    }
-  }
-  const bareMatch = trimmed.match(/^\$?\s*([\d][\d,.]*)\s*(k|mxn|mnx|pesos)?$/i);
-  if (bareMatch) {
-    const num = parseInt(bareMatch[1].replace(/,/g, ""), 10);
-    if (isNaN(num) || num <= 0) return null;
-    if (looksLikeCalendarYearAmount(num, trimmed) && !bareMatch[2]) return null;
-    if (opts?.askedField === "presupuesto") return trimmed.slice(0, 80);
-    if (bareNumberLooksLikeInvitados(num, trimmed)) return null;
-    if (num >= 1e3) return `$${num.toLocaleString("es-MX")} MXN`;
-    return null;
-  }
-  return null;
-}
-function getLastLucyMessage(history) {
-  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(-1)[0]?.content ?? "";
-}
-function collectUserMessages(history, currentMessage) {
-  const fromHistory = history.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content);
-  return currentMessage?.trim() ? [...fromHistory, currentMessage.trim()] : fromHistory;
-}
-function captureContextualAnswer(history, currentMessage, filledSet) {
-  const msg = currentMessage.trim();
-  if (!msg) return [];
-  const lastLucy = getLastLucyMessage(history);
-  const asked = inferLucyAskedField(lastLucy);
-  const captures = [];
-  const carpaVariant = parseCarpaVariantFromText(msg);
-  if (carpaVariant && !filledSet.has("Requerimientos o servicios")) {
-    captures.push({ label: "Requerimientos o servicios", value: carpaVariant });
-  } else if (carpaVariant) {
-    captures.push({ label: "Requerimientos o servicios", value: carpaVariant });
-  }
-  const zonaFromMsg = parseZonaFromText(msg);
-  const msgIsLocation = !carpaVariant && !!zonaFromMsg && isUsableDireccionEvento(zonaFromMsg) && (isLikelyUbicacionNotNombre(msg) || asked === "zona" || /^en\s+/i.test(msg.trim()) || msg.trim().split(/\s+/).length <= 4 && !!zonaFromMsg);
-  if (msgIsLocation && zonaFromMsg && !filledSet.has("Lugar/direcci\xF3n del evento")) {
-    captures.push({ label: "Lugar/direcci\xF3n del evento", value: zonaFromMsg });
-  }
-  const dimsNow = parseSpaceDimensions(msg);
-  if (dimsNow && (isDimensionText(msg) || /medidas?/i.test(lastLucy) || /carpa|pista|tarima/i.test(lastLucy))) {
-    const existingReq = captures.find((c4) => c4.label === "Requerimientos o servicios");
-    if (existingReq) {
-      if (!existingReq.value.includes(dimsNow)) {
-        existingReq.value = `${existingReq.value.replace(/\s*\(espacio [^)]+\)/, "").trim()} (espacio ${dimsNow})`;
-      }
-    } else {
-      captures.push({
-        label: "Requerimientos o servicios",
-        value: `Carpas (espacio ${dimsNow})`
-      });
-    }
-  }
-  if (!msgIsLocation && !filledSet.has("Nombre del cliente") && asked !== "zona" && (asked === "nombre" || !history.some((m5) => m5.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && !isQuoteIntentMessage(msg) && !isServiceRelatedMessage(msg) && !isAmbiguousShortNumber(msg) && !isLikelyUbicacionNotNombre(msg) && !parseZonaFromText(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
-    const candidato = stripNombrePresentationPrefix(msg);
-    const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
-    const handoffNoise = clientAsksForHumanAdvisor(msg) || /\b(hablar|asesor|agente|humano)\b/i.test(candidato);
-    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && (!isLikelyNotPersonNameMessage(candidato) || handoffNoise) && !isServiceRelatedMessage(candidato) && !isLikelyUbicacionNotNombre(candidato)) {
-      captures.push({ label: "Nombre del cliente", value: nombre });
-    }
-  }
-  if (!filledSet.has("Tipo de evento") && asked === "tipo_evento") {
-    if (isUnusableTipoEventoReply(msg)) {
-      const histBlob = history.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content).join(" ");
-      const tipoHist = parseTipoEventoFromText(histBlob) || (/\bbanquete\b/i.test(histBlob) ? "evento con banquete" : /\bcatering\b/i.test(histBlob) ? "evento con catering" : null);
-      if (tipoHist) {
-        captures.push({ label: "Tipo de evento", value: tipoHist });
-      }
-    } else {
-      const tipo = parseTipoEventoFromText(msg);
-      if (tipo) {
-        captures.push({ label: "Tipo de evento", value: tipo });
-      } else if (isServiceRelatedMessage(msg) || /\b(banquete|catering)\b/i.test(msg)) {
-        const services = parseServicesFromText(msg);
-        const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
-        const inv = parseInvitadosFromText(msg);
-        if (service) {
-          captures.push({ label: "Requerimientos o servicios", value: service });
-        }
-        if (inv) {
-          captures.push({ label: "N\xFAmero de invitados", value: inv });
-        }
-        if (/\bbanquete\b/i.test(msg)) {
-          captures.push({ label: "Tipo de evento", value: "evento con banquete" });
-        } else if (/\bcatering\b/i.test(msg)) {
-          captures.push({ label: "Tipo de evento", value: "evento con catering" });
-        } else {
-          const tipoHist = parseTipoEventoFromText(
-            history.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content).join(" ")
-          );
-          if (tipoHist) {
-            captures.push({ label: "Tipo de evento", value: tipoHist });
-          }
-        }
-      } else if (tipo == null && msg.length >= 2 && !/@/.test(msg) && !isUnusableTipoEventoReply(msg)) {
-        captures.push({ label: "Tipo de evento", value: msg });
-      }
-    }
-  }
-  if (!filledSet.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && !clientAsksCafeOrCateringChoice(msg) && (asked === "requerimientos" || isServiceRelatedMessage(msg))) {
-    const services = parseServicesFromText(msg);
-    const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
-    const dims = parseSpaceDimensions(msg);
-    if (service || isServiceRelatedMessage(msg)) {
-      let value = service ?? msg.slice(0, 120);
-      if (dims && service) value = `${service} (espacio ${dims})`;
-      else if (dims) value = `Tarima/pista \u2014 espacio ${dims}`;
-      captures.push({
-        label: "Requerimientos o servicios",
-        value
-      });
-    }
-  }
-  if (!filledSet.has("N\xFAmero de invitados") && asked === "invitados") {
-    const inv = parseInvitadosFromText(msg);
-    if (inv) captures.push({ label: "N\xFAmero de invitados", value: inv });
-  }
-  if (!filledSet.has("N\xFAmero de invitados") && asked !== "invitados" && lastLucy && /invitados|cu[aá]ntos\s+invit|asistir[aá]n/i.test(lastLucy) && /^\d{2,4}$/.test(msg)) {
-    const inv = parseInvitadosFromText(msg);
-    if (inv) captures.push({ label: "N\xFAmero de invitados", value: inv });
-  }
-  if (asked === "zona") {
-    const zona = parseZonaFromText(msg);
-    if (zona && isUsableDireccionEvento(zona)) {
-      captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
-    }
-  }
-  if (!filledSet.has("Fecha y horario") && asked === "fecha") {
-    const fecha = parseFechaFromText(msg);
-    if (fecha) captures.push({ label: "Fecha y horario", value: fecha });
-  }
-  if (clientCorrectsLocation(msg) || isVenueSpaceDetail(msg) && filledSet.has("Lugar/direcci\xF3n del evento")) {
-    const zonaHint = parseZonaFromText(msg);
-    if (zonaHint && isUsableDireccionEvento(zonaHint)) {
-      captures.push({ label: "Lugar/direcci\xF3n del evento", value: zonaHint });
-    }
-  } else if (!filledSet.has("Presupuesto (MXN)") && (asked === "presupuesto" || detectPresupuestoRefusal(msg))) {
-    const pres = parsePresupuestoFromText(msg, { askedField: asked === "presupuesto" ? "presupuesto" : null });
-    if (pres) {
-      captures.push({ label: "Presupuesto (MXN)", value: pres });
-    } else if (/\b(s[ií]|ok|dale|claro)\b/i.test(msg) && /\b(alejandro|opciones|propong)\b/i.test(msg)) {
-      captures.push({
-        label: "Presupuesto (MXN)",
-        value: "Sin definir (cliente pidi\xF3 opciones)"
-      });
-    }
-  }
-  return captures;
-}
-function scanConversationForCaptures(history, currentMessage, filledSet) {
-  const captures = [];
-  const pending = new Set(filledSet);
-  const userTexts = collectUserMessages(history, currentMessage).slice(-12);
-  if (!pending.has("Nombre del cliente")) {
-    const nombre = recoverClienteNombreFromHistory(history, currentMessage);
-    if (nombre) {
-      captures.push({ label: "Nombre del cliente", value: nombre });
-      pending.add("Nombre del cliente");
-    }
-  }
-  for (const msg of userTexts) {
-    if (!pending.has("Tipo de evento")) {
-      const tipo = parseTipoEventoFromText(msg);
-      if (tipo) {
-        captures.push({ label: "Tipo de evento", value: tipo });
-        pending.add("Tipo de evento");
-      }
-    }
-    if (!pending.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && !clientAsksCafeOrCateringChoice(msg) && isServiceRelatedMessage(msg)) {
-      const services = parseServicesFromText(msg);
-      const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
-      const dims2 = parseSpaceDimensions(msg);
-      let value = service ?? msg.trim().slice(0, 120);
-      if (dims2 && service) value = `${service} (espacio ${dims2})`;
-      else if (dims2 && /pista|tarima/i.test(msg)) value = `Pista de baile (espacio ${dims2})`;
-      captures.push({
-        label: "Requerimientos o servicios",
-        value
-      });
-      pending.add("Requerimientos o servicios");
-    }
-    if (!pending.has("N\xFAmero de invitados") && !isAmbiguousShortNumber(msg)) {
-      const inv = parseInvitadosFromText(msg);
-      if (inv) {
-        captures.push({ label: "N\xFAmero de invitados", value: inv });
-        pending.add("N\xFAmero de invitados");
-      }
-    }
-    {
-      const zona = parseZonaFromText(msg);
-      if (zona && isUsableDireccionEvento(zona)) {
-        captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
-        pending.add("Lugar/direcci\xF3n del evento");
-      }
-    }
-    if (!pending.has("Fecha y horario")) {
-      const fecha = parseFechaFromText(msg);
-      if (fecha) {
-        captures.push({ label: "Fecha y horario", value: fecha });
-        pending.add("Fecha y horario");
-      }
-    }
-    if (!pending.has("Presupuesto (MXN)")) {
-      const invMatch = parseInvitadosFromText(msg);
-      const looksLikeInvitadosOnly = !!invMatch && !/\$|presupuesto|mil\b|pesos|mxn|mnx/i.test(msg);
-      if (!looksLikeInvitadosOnly) {
-        const pres = parsePresupuestoFromText(msg);
-        if (pres) {
-          captures.push({ label: "Presupuesto (MXN)", value: pres });
-          pending.add("Presupuesto (MXN)");
-        }
-      }
-    }
-    const dims = parseSpaceDimensions(msg);
-    if (dims && /pista|tarima/i.test(userTexts.join(" "))) {
-      const reqIdx = captures.findIndex((c4) => c4.label === "Requerimientos o servicios");
-      if (reqIdx >= 0) {
-        if (!captures[reqIdx].value.includes(dims)) {
-          const base = captures[reqIdx].value.replace(/\s*\(espacio [^)]+\)/, "").trim();
-          captures[reqIdx].value = `${base} (espacio ${dims})`;
-        }
-      } else if (!pending.has("Requerimientos o servicios")) {
-        const service = parsePrimaryService(userTexts.join(" ")) ?? "Pista de baile";
-        captures.push({
-          label: "Requerimientos o servicios",
-          value: `${service} (espacio ${dims})`
-        });
-        pending.add("Requerimientos o servicios");
-      }
-    }
-  }
-  return captures;
-}
-function applyCapturesToCrm(mergedLines, filledSet, captures) {
-  for (const { label, value } of captures) {
-    if (!value?.trim()) continue;
-    if (label === "Lugar/direcci\xF3n del evento" && filledSet.has(label)) {
-      const idx = mergedLines.findIndex((l5) => /^-?\s*Lugar\/dirección del evento:/i.test(l5));
-      if (idx >= 0) {
-        const existing = mergedLines[idx].replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "").trim();
-        if (shouldReplaceCrmDireccion(existing, value)) {
-          mergedLines[idx] = `- Lugar/direcci\xF3n del evento: ${value}`;
-        } else {
-          const merged = mergeZonaDetail(existing, value);
-          if (merged && merged !== existing) {
-            mergedLines[idx] = `- Lugar/direcci\xF3n del evento: ${merged}`;
-          }
-        }
-      }
-      continue;
-    }
-    if (label === "Requerimientos o servicios" && filledSet.has(label)) {
-      const idx = mergedLines.findIndex((l5) => /^-?\s*Requerimientos o servicios:/i.test(l5));
-      if (idx >= 0) {
-        const existing = mergedLines[idx].replace(/^-?\s*Requerimientos o servicios:\s*/i, "").trim();
-        const merged = mergeServiceRequirements(existing, value, 6);
-        const prev = parseServicesFromText(existing).length;
-        const next = merged ? parseServicesFromText(merged).length : 0;
-        if (merged && next > prev) {
-          mergedLines[idx] = `- Requerimientos o servicios: ${merged}`;
-        }
-      }
-      continue;
-    }
-    if (label === "Presupuesto (MXN)" && filledSet.has(label)) {
-      const idx = mergedLines.findIndex((l5) => /^-?\s*Presupuesto \(MXN\):/i.test(l5));
-      if (idx >= 0) {
-        const existing = mergedLines[idx].replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "").trim();
-        const oldNum = parseInt(existing.replace(/[^\d]/g, ""), 10);
-        const newNum = parseInt(value.replace(/[^\d]/g, ""), 10);
-        if (!isNaN(newNum) && newNum >= 1e3 && (isNaN(oldNum) || newNum > oldNum)) {
-          mergedLines[idx] = `- Presupuesto (MXN): ${value}`;
-        }
-      }
-      continue;
-    }
-    if (filledSet.has(label)) continue;
-    mergedLines.push(`- ${label}: ${value}`);
-    filledSet.add(label);
-  }
-}
-function enrichExtractedFromConversation(extracted, conversationText) {
-  if (!extracted.tipo_evento?.trim()) {
-    const tipo = parseTipoEventoFromText(conversationText);
-    if (tipo) extracted.tipo_evento = tipo;
-  }
-  if (!extracted.fecha_horario?.trim()) {
-    const fecha = parseFechaFromText(conversationText);
-    if (fecha) extracted.fecha_horario = fecha;
-  }
-  if (!extracted.num_invitados) {
-    const inv = parseInvitadosFromText(conversationText);
-    if (inv) extracted.num_invitados = parseInt(inv, 10);
-  }
-  if (!isUsableDireccionEvento(extracted.direccion_evento)) {
-    extracted.direccion_evento = null;
-    const zona = parseZonaFromText(conversationText);
-    if (zona && isUsableDireccionEvento(zona)) extracted.direccion_evento = zona;
-  } else {
-    const zones = [...conversationText.matchAll(new RegExp(KNOWN_ZONES.source, "gi"))].map((m5) => m5[0].trim()).filter(Boolean);
-    let merged = extracted.direccion_evento;
-    for (const z3 of zones) {
-      if (isUsableDireccionEvento(z3)) merged = mergeZonaDetail(merged, z3);
-    }
-    if (merged) extracted.direccion_evento = merged;
-  }
-  if (extracted.requerimientos_evento?.trim() && isGenericQuoteIntentRequerimiento(extracted.requerimientos_evento)) {
-    extracted.requerimientos_evento = null;
-  }
-  {
-    const serviceSource = conversationText.split(/\n+/).map((l5) => l5.trim()).filter(
-      (l5) => l5 && !isGenericQuoteIntentRequerimiento(l5) && !isQuoteIntentMessage(l5) && !isGreetingOnlyMessage(l5)
-    ).join(" ");
-    const merged = mergeServiceRequirements(
-      extracted.requerimientos_evento,
-      serviceSource,
-      6
-    );
-    if (merged) extracted.requerimientos_evento = merged;
-  }
-  if (extracted.presupuesto === null || extracted.presupuesto === void 0) {
-    const scrubbedConv = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
-    const presChunks = scrubbedConv.split(/\n|\.|;/).map((s6) => s6.trim()).filter((s6) => /\b(presupuesto|mil\b|pesos|\$|k\b|inversi[oó]n|rango)\b/i.test(s6));
-    for (const chunk of presChunks) {
-      const pres = parsePresupuestoFromText(chunk);
-      if (!pres) continue;
-      const num = parseInt(pres.replace(/[^\d]/g, ""), 10);
-      if (!isNaN(num) && num >= 1e3) {
-        extracted.presupuesto = num;
-        break;
-      }
-    }
-  } else {
-    const scrubbed = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
-    const amounts = [...scrubbed.matchAll(/(?<![A-Za-z0-9])\$?\s*([\d][\d,]{2,})\b/g)].map((m5) => parseInt(m5[1].replace(/,/g, ""), 10)).filter((n4) => !isNaN(n4) && n4 >= 1e3 && n4 <= 5e7);
-    const maxAmt = amounts.length ? Math.max(...amounts) : 0;
-    if (maxAmt > extracted.presupuesto) {
-      extracted.presupuesto = maxAmt;
-    }
-  }
-  if (extracted.presupuesto !== null && extracted.num_invitados !== null && extracted.presupuesto === extracted.num_invitados && extracted.presupuesto < 1e3) {
-    extracted.presupuesto = null;
-  }
-  if (!extracted.correo?.trim()) {
-    const fromConv = parseCorreoFromText(conversationText);
-    if (fromConv) extracted.correo = fromConv;
-  }
-  if (extracted.requerimientos_evento?.trim() && extracted.tipo_evento?.trim() && extracted.requerimientos_evento.trim().toLowerCase() === extracted.tipo_evento.trim().toLowerCase()) {
-    extracted.requerimientos_evento = null;
-  }
-}
-
-// src/lucyCrmInvariants.ts
-function userTextsBlob(userTexts) {
-  return userTexts.filter(Boolean).join("\n");
-}
-function userJustifiesPresupuesto(userTexts) {
-  for (const t3 of userTexts) {
-    const pres = parsePresupuestoFromText(t3, { askedField: null });
-    if (!pres) continue;
-    if (/sin definir|econ[oó]mic|flexible|opciones|propong/i.test(pres)) return true;
-    const n4 = parseInt(pres.replace(/[^\d]/g, ""), 10);
-    if (!isNaN(n4) && n4 > 0) return true;
-  }
-  for (const t3 of userTexts) {
-    if (!/\b(presupuesto|rango|inversi[oó]n|budget|tope|menos\s+de|hasta)\b/i.test(t3)) {
-      continue;
-    }
-    if (parsePresupuestoFromText(t3, { askedField: "presupuesto" })) return true;
-  }
-  return false;
-}
-function isInvalidCrmNombre(value) {
-  const raw = value?.trim() ?? "";
-  if (!raw) return true;
-  if (isQuoteIntentMessage(raw)) return true;
-  if (isLikelyUbicacionNotNombre(raw)) return true;
-  if (isLikelyNotPersonNameMessage(raw) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw)) {
-    return true;
-  }
-  const zona = parseZonaFromText(raw);
-  if (zona && isUsableDireccionEvento(zona) && raw.split(/\s+/).length <= 6) {
-    if (/^en\s+/i.test(raw) || raw.toLowerCase() === zona.toLowerCase()) return true;
-  }
-  return !sanitizeCrmNombre(raw);
-}
-function applyCrmWriteInvariants(extracted, userTexts = []) {
-  const out2 = { ...extracted };
-  const applied = [];
-  const blob = userTextsBlob(userTexts);
-  if (out2.nombre && isInvalidCrmNombre(out2.nombre)) {
-    const zona = parseZonaFromText(out2.nombre) ?? parseZonaFromText(blob);
-    if (zona && isUsableDireccionEvento(zona) && !isUsableDireccionEvento(out2.direccion_evento)) {
-      out2.direccion_evento = zona;
-      applied.push("nombre-to-zona");
-    }
-    out2.nombre = null;
-    applied.push("nombre-invalid-cleared");
-  } else if (out2.nombre) {
-    const cleaned = sanitizeCrmNombre(out2.nombre);
-    if (!cleaned) {
-      out2.nombre = null;
-      applied.push("nombre-sanitize-null");
-    } else if (cleaned !== out2.nombre) {
-      out2.nombre = cleaned;
-      applied.push("nombre-sanitized");
-    }
-  }
-  if (out2.presupuesto !== null && out2.presupuesto !== void 0) {
-    const presStr = String(out2.presupuesto).trim();
-    const digits = presStr.replace(/[^\d]/g, "");
-    const fromEmailLocal = userTexts.some((t3) => {
-      const emails = t3.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? [];
-      return emails.some((e3) => {
-        const local = e3.split("@")[0] ?? "";
-        return digits.length >= 4 && local.includes(digits);
-      });
-    });
-    if (fromEmailLocal) {
-      out2.presupuesto = null;
-      applied.push("presupuesto-from-email-cleared");
-      for (const t3 of userTexts) {
-        const p4 = parsePresupuestoFromText(t3.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " "), {
-          askedField: "presupuesto"
-        });
-        if (!p4) continue;
-        const n4 = parseInt(p4.replace(/[^\d]/g, ""), 10);
-        if (!isNaN(n4) && n4 >= 1e3 && String(n4) !== digits) {
-          out2.presupuesto = n4;
-          applied.push("presupuesto-recovered-after-email");
-          break;
-        }
-      }
-    }
-    const guestRangePolluted = looksLikeGuestCountRange(presStr) || looksLikeGuestCountRange(presStr.replace(/\s*MXN$/i, "")) || typeof out2.presupuesto === "number" && out2.num_invitados != null && (out2.presupuesto === out2.num_invitados || // "80"+"100" concatenado ≈ 80100 con invitados ~90
-    out2.presupuesto >= 1e3 && out2.presupuesto < 1e5 && userTexts.some((t3) => looksLikeGuestCountRange(t3)));
-    if (out2.presupuesto != null && guestRangePolluted && !userTexts.some((t3) => /\b(presupuesto|mil|pesos|\$|k\b|inversi[oó]n)\b/i.test(t3))) {
-      out2.presupuesto = null;
-      applied.push("presupuesto-guest-range-cleared");
-    } else if (out2.presupuesto != null && !userJustifiesPresupuesto(userTexts)) {
-      out2.presupuesto = null;
-      applied.push("presupuesto-no-user-source");
-    } else if (typeof out2.presupuesto === "number" && out2.presupuesto > 0 && out2.presupuesto < 1e3) {
-      const userSaidSmall = userTexts.some((t3) => {
-        const p4 = parsePresupuestoFromText(t3, { askedField: "presupuesto" });
-        if (!p4) return false;
-        const n4 = parseInt(p4.replace(/[^\d]/g, ""), 10);
-        return n4 === out2.presupuesto;
-      }) && userTexts.some(
-        (t3) => /\b(presupuesto|rango|inversi[oó]n|tope|menos\s+de|hasta)\b/i.test(t3)
-      );
-      if (!userSaidSmall) {
-        out2.presupuesto = null;
-        applied.push("presupuesto-too-small-cleared");
-      }
-    }
-  }
-  if (out2.direccion_evento && (!isUsableDireccionEvento(out2.direccion_evento) || looksLikeCompanyLocationQuestionFragment(out2.direccion_evento) || isLikelyProductNameNotLocation(out2.direccion_evento))) {
-    out2.direccion_evento = null;
-    applied.push("zona-unusable-cleared");
-  }
-  return { extracted: out2, applied };
-}
-function purgeUnjustifiedPresupuestoLines(lines, userTexts) {
-  if (userJustifiesPresupuesto(userTexts)) return lines;
-  return lines.filter((line2) => !/^-?\s*Presupuesto \(MXN\):/i.test(line2));
-}
-
-// src/selftest/lucy-flow-selftest.ts
-init_learningPairFilter();
-
-// src/modoServicio.ts
-var PEDIDO_ENTREGA = /\b(para\s+llevar|a\s+domicilio|en\s+mi\s+casa|entrega|que\s+me\s+(los?\s+|las?\s+)?dejen|que\s+me\s+(los?\s+|las?\s+)?entreguen|solo\s+los?\s+rollos?|solo\s+el\s+producto|sin\s+montaje|pedido\s+de|un\s+pedido\s+de|cantidad\s+de\s+\d+|piezas?\s+de)\b/i;
-var SERVICIO_MONTADO = /\b(montado\s+en|en\s+el\s+evento|barra\s+en|estaci[oó]n\s+en|meseros|servicio\s+en\s+el|montaje\s+en|en\s+mi\s+evento|en\s+la\s+fiesta)\b/i;
-function detectModoServicio(text2) {
-  const t3 = text2?.trim() ?? "";
-  if (!t3) return null;
-  if (PEDIDO_ENTREGA.test(t3)) return "pedido_entrega";
-  if (SERVICIO_MONTADO.test(t3)) return "servicio_montado";
-  return null;
-}
-function needsModoServicioClarification(text2, current) {
-  if (current) return false;
-  const t3 = text2?.trim() ?? "";
-  if (!t3) return false;
-  return /\b(\d+\s+rollos?|\d+\s+piezas?|\d+\s+platos?|quiero\s+\d+|necesito\s+\d+)\b/i.test(t3) && !PEDIDO_ENTREGA.test(t3) && !SERVICIO_MONTADO.test(t3);
-}
-function buildModoServicioClarificationQuestion() {
-  return "\xBFLo quieres montado en tu evento con barra y servicio, o solo la entrega del producto?";
-}
-function isMobiliarioRentalPedido(message) {
-  const t3 = message?.trim() ?? "";
-  if (!t3) return false;
-  return /\b(mesas?\s+tipo\s+picnic|picnic|periqueras?|bancos?|mobiliario|mesas?\s+y\s+sillas?)\b/i.test(
-    t3
-  );
-}
-function buildPedidoEntregaReply(message) {
-  const t3 = message?.trim() ?? "";
-  if (isMobiliarioRentalPedido(t3)) {
-    return `Perfecto \u2014 lo tomo como *entrega/recolecci\xF3n de mobiliario* (sin montaje en sitio). Nuestro equipo te arma la cotizaci\xF3n seg\xFAn cantidades, color y zona de entrega.`;
-  }
-  const qtyMatch = t3.match(/(\d+)\s*(rollos?|piezas?|platos?)/i);
-  const qtyLabel = qtyMatch ? `${qtyMatch[1]} ${qtyMatch[2]}` : null;
-  const product = /\bsushi\b/i.test(t3) ? "sushi" : /\bpizzas?\b/i.test(t3) ? "pizza" : /\bpoke\b/i.test(t3) ? "poke" : "producto";
-  const what = qtyLabel ? `${qtyLabel} de ${product}` : `tu pedido de ${product}`;
-  return `Perfecto \u2014 lo tomo como *pedido/entrega a domicilio* (sin barra ni chefs en el evento). Para ${what}, nuestro equipo te arma la cotizaci\xF3n exacta seg\xFAn cantidad y zona de entrega. \xBFMe regalas tu nombre para pas\xE1rselo?`;
-}
-
-// src/tipoContacto.ts
-var PROVEEDOR_SELL = /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|soy\s+proveedor|quiero\s+venderles|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidor\s+de|mi\s+empresa\s+ofrece|vendo\s+.+\s+a\s+eventos)\b/i;
-var PROVEEDOR_ALLIANCE = /\b(red\s+de\s+aliados|aliados?\s+comerciales?|alianza\s+comercial|aliado\s+comercial|registrarte\s+en\s+nuestra\s+base|invitarte\s+a\s+registrarte|te\s+invito\s+a\s+registrarte|ser\s+parte\s+de\s+nuestra\s+red|sumarte\s+a\s+(nuestra\s+)?red|formar\s+parte\s+de\s+nuestra\s+red|proveedores?\s+aliados?|cat[aá]logo\s+de\s+proveedores|beneficios\s+y\s+tarifas.{0,80}(?:venue|hacienda|sal[oó]n)|ejecutiv[oa]\s+de\s+ventas\s+en\s+(?:hacienda|sal[oó]n|venue|hotel)|nuestro\s+venue|red\s+de\s+proveedores|quiero\s+ser\s+proveedor|ofrecerles\s+(nuestro|mis|nuestros)|los\s+invito\s+a\s+(conocer|registr|formar)|invitarlos\s+a\s+(nuestra|formar|registr))\b/i;
-var PROVEEDOR_OFFER = new RegExp(
-  `(?:${PROVEEDOR_SELL.source})|(?:${PROVEEDOR_ALLIANCE.source})`,
-  "i"
-);
-var CLIENTE_BUY = /\b(solicit[oa]\s+(una\s+)?cotizaci[oó]n|quiero\s+cotizar|necesito\s+(servicio|cotiz|un\s+|una\s+)|requiero\s+(servicio|cotiz)|me\s+das\s+precio|me\s+interesa\s+contratar|busco\s+(servicio|cotiz|proveedor\s+de\s+catering|banquete|taquiza|caf[eé])|cotizaci[oó]n\s+de|precio\s+de|para\s+mi\s+(boda|evento|xv|fiesta)|mi\s+boda|nuestro\s+evento)\b/i;
-function looksLikeProveedorOutreach(text2) {
-  if (!text2?.trim()) return false;
-  if (CLIENTE_BUY.test(text2)) return false;
-  return PROVEEDOR_OFFER.test(text2);
-}
-function resolveTipoContacto(extracted, conversationText) {
-  const text2 = conversationText.trim();
-  if (!text2) return extracted === "incierto" ? "cliente" : extracted;
-  if (CLIENTE_BUY.test(text2)) return "cliente";
-  if (PROVEEDOR_OFFER.test(text2)) return "proveedor";
-  if (extracted === "proveedor" && !PROVEEDOR_OFFER.test(text2)) {
-    return "cliente";
-  }
-  if (extracted === "incierto" || !extracted) return "cliente";
-  return extracted;
-}
-function clientMentionsOwnCompanyEmail(text2) {
-  if (!text2?.trim()) return false;
-  return /\b(capybaraeventos@gmail\.com|bodasesor@gmail\.com|hola@bodasesor\.com)\b/i.test(text2);
-}
-function clientAsksIfCompanyEmailCorrect(text2) {
-  if (!text2?.trim()) return false;
-  const t3 = text2.toLowerCase();
-  return clientMentionsOwnCompanyEmail(text2) || /es\s+el\s+correo\s+correcto|ese\s+correo\s+es\s+correcto|correo\s+correcto|es\s+ese\s+el\s+correo/i.test(
-    t3
-  );
-}
-function buildCompanyEmailConfirmReply() {
-  return "S\xED, capybaraeventos@gmail.com es el correo de Bodasesor \u2014 tu solicitud ya nos lleg\xF3 bien. Para enviarte la cotizaci\xF3n personalizada, \xBFme compartes tu correo de trabajo?";
-}
-
-// src/services/lucyInfoPriceCache.ts
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-
-// src/services/serviceSynonyms.ts
-function norm(s6) {
-  return s6.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
-}
-var DEFAULT_SERVICE_SYNONYM_FAMILIES = [
-  {
-    key: "banquete_formal",
-    serviceHints: ["banquete formal", "banquete 3", "banquete 4", "banquete"],
-    aliases: [
-      "menu formal",
-      "men\xFA formal",
-      "comida servida",
-      "banquete sentado",
-      "menu de tiempos",
-      "men\xFA de tiempos",
-      "comida de plato",
-      "servicio a la mesa",
-      "comida formal",
-      "menu emplatado",
-      "men\xFA emplatado",
-      "cena formal",
-      "banquete de boda",
-      "banquete formal",
-      "banquete",
-      "4 tiempos",
-      "3 tiempos",
-      "plated",
-      "emplatado"
-    ],
-    excludeIf: ["mexicano", "navideno", "navide\xF1o", "kosher", "taquiza", "tacos"]
-  },
-  {
-    key: "banquete_kosher",
-    serviceHints: ["kosher"],
-    aliases: [
-      "kosher",
-      "kasher",
-      "comida kosher",
-      "comida judia",
-      "comida jud\xEDa",
-      "menu kosher",
-      "men\xFA kosher",
-      "certificado rabinico",
-      "certificado rab\xEDnico",
-      "supervision rabinica",
-      "supervisi\xF3n rab\xEDnica",
-      "banquete judio",
-      "banquete jud\xEDo",
-      "comida para evento judio",
-      "comida para evento jud\xEDo",
-      "cocina kosher"
-    ]
-  },
-  {
-    key: "banquete_mexicano",
-    serviceHints: ["banquete mexicano", "mexicano"],
-    aliases: [
-      "comida mexicana",
-      "menu mexicano",
-      "men\xFA mexicano",
-      "banquete tipico",
-      "banquete t\xEDpico",
-      "cena mexicana",
-      "comida tradicional",
-      "platillos mexicanos",
-      "buffet mexicano",
-      "banquete mexicano",
-      "fiesta mexicana",
-      "comida tipica",
-      "comida t\xEDpica"
-    ],
-    excludeIf: ["taquiza", "tacos", "antojitos", "yucateca"]
-  },
-  {
-    key: "banquete_navideno",
-    serviceHints: ["navideno", "navide\xF1o", "navidad"],
-    aliases: [
-      "cena navide\xF1a",
-      "cena navadena",
-      "posada",
-      "cena de fin de a\xF1o",
-      "cena de fin de ano",
-      "evento decembrino",
-      "pavo navide\xF1o",
-      "pavo navideno",
-      "cena de temporada",
-      "banquete de navidad",
-      "fiesta navide\xF1a",
-      "fiesta navadena",
-      "cena de diciembre",
-      "brindis navide\xF1o",
-      "brindis navideno",
-      "navidad"
-    ]
-  },
-  {
-    key: "barra_americana",
-    serviceHints: ["barra americana", "americana"],
-    aliases: [
-      "hamburguesas",
-      "hot dogs",
-      "hotdogs",
-      "alitas",
-      "comida americana",
-      "boneless",
-      "sliders",
-      "papas y hamburguesas",
-      "comida rapida gourmet",
-      "comida r\xE1pida gourmet",
-      "barra americana"
-    ]
-  },
-  {
-    key: "barra_bebidas_sin_alcohol",
-    serviceHints: ["barra de bebidas", "sin alcohol"],
-    aliases: [
-      "refrescos",
-      "aguas frescas",
-      "barra de refrescos",
-      "bebidas sin alcohol",
-      "vitroleros",
-      "solo bebidas",
-      "barra de aguas",
-      "sodas",
-      "bebidas para el evento",
-      "barra sin alcohol"
-    ],
-    excludeIf: ["open bar", "barra libre", "tragos", "licores", "alcohol"]
-  },
-  {
-    key: "barra_bebidas_alcohol",
-    serviceHints: ["barra de bebidas", "con alcohol", "bebidas con alcohol"],
-    aliases: [
-      "barra libre",
-      "open bar",
-      "bar",
-      "cocteleria con alcohol",
-      "cocteler\xEDa con alcohol",
-      "tragos",
-      "barra de licores",
-      "barra con alcohol",
-      "bebidas con alcohol",
-      "barra de tragos",
-      "servicio de bar",
-      "barra de bebidas",
-      // A14985 stand/golf: cerveza / whisky sin decir "barra".
-      "cerveza",
-      "cervezas",
-      "whisky",
-      "whiskey",
-      "tequila",
-      "vodka",
-      "licores"
-    ],
-    excludeIf: ["sin alcohol", "mocteles", "mocktail", "cafe", "caf\xE9"]
-  },
-  {
-    key: "barra_cafe",
-    serviceHints: ["barra de cafe", "barra de caf\xE9", "cafe"],
-    aliases: [
-      "cafeteria",
-      "cafeter\xEDa",
-      "barista",
-      "cafe gourmet",
-      "caf\xE9 gourmet",
-      "estacion de cafe",
-      "estaci\xF3n de caf\xE9",
-      "cafe de especialidad",
-      "caf\xE9 de especialidad",
-      "barra de cafe",
-      "barra de caf\xE9",
-      "cafe artesanal",
-      "caf\xE9 artesanal",
-      "carrito de cafe",
-      "carrito de caf\xE9",
-      "cafe para invitados",
-      "caf\xE9 para invitados",
-      "stand de cafe",
-      "stand de caf\xE9",
-      "coffee"
-    ],
-    excludeIf: ["coffee break", "coffeebreak", "receso", "junta"]
-  },
-  {
-    key: "coffee_break",
-    serviceHints: ["coffee break", "coffeebreak", "coffe break"],
-    aliases: [
-      "coffee break",
-      "coffeebreak",
-      "coffe break",
-      "receso de cafe",
-      "receso de caf\xE9",
-      "cafe para junta",
-      "caf\xE9 para junta",
-      "break corporativo",
-      "estacion de cafe y snacks",
-      "estaci\xF3n de caf\xE9 y snacks",
-      "pausa de cafe",
-      "pausa de caf\xE9",
-      "break de cafe",
-      "break de caf\xE9",
-      "receso corporativo",
-      "cafe y galletas",
-      "caf\xE9 y galletas"
-    ]
-  },
-  {
-    key: "barra_crepas",
-    serviceHints: ["crepas", "crepa"],
-    aliases: [
-      "crepas",
-      "creperia",
-      "creper\xEDa",
-      "crepes",
-      "waffles",
-      "postres calientes",
-      "estacion de crepas",
-      "estaci\xF3n de crepas",
-      "crepas dulces",
-      "crepas saladas",
-      "barra de crepas",
-      "crepas gourmet"
-    ]
-  },
-  {
-    key: "barra_mariscos",
-    serviceHints: ["mariscos"],
-    aliases: [
-      "mariscos",
-      "ceviches",
-      "aguachile",
-      "coctel de camaron",
-      "coctel de camar\xF3n",
-      "pescados y mariscos",
-      "barra de mar",
-      "ostiones",
-      "tostadas de mariscos",
-      "comida del mar",
-      "barra de mariscos"
-    ]
-  },
-  {
-    key: "barra_paninis",
-    serviceHints: ["paninis", "panini"],
-    aliases: [
-      "paninis",
-      "sandwiches",
-      "s\xE1ndwiches",
-      "sandwiches gourmet",
-      "s\xE1ndwiches gourmet",
-      "baguettes",
-      "molletes gourmet",
-      "sandwicheria",
-      "sandwicher\xEDa",
-      "tortas gourmet",
-      "paninos",
-      "barra de sandwiches",
-      "barra de s\xE1ndwiches",
-      "panini"
-    ]
-  },
-  {
-    key: "barra_pastas",
-    serviceHints: ["pastas", "ensaladas"],
-    aliases: [
-      "pastas",
-      "espagueti",
-      "estacion de pastas",
-      "estaci\xF3n de pastas",
-      "pasta italiana",
-      "ensaladas",
-      "barra de pastas",
-      "fettuccine",
-      "lasana",
-      "lasa\xF1a",
-      "pasta al momento",
-      "comida italiana",
-      "italiana"
-    ]
-  },
-  {
-    key: "barra_pizzas",
-    serviceHints: ["pizza", "pizzas"],
-    aliases: [
-      "pizzas",
-      "pizza artesanal",
-      "estacion de pizza",
-      "estaci\xF3n de pizza",
-      "horno de pizza",
-      "pizzas gourmet",
-      "barra de pizzas",
-      "pizza al momento",
-      "pizza italiana",
-      "pizzeria",
-      "pizzer\xEDa",
-      "pizza"
-    ]
-  },
-  {
-    key: "barra_sushi",
-    serviceHints: ["sushi", "poke"],
-    aliases: [
-      "sushi",
-      "rollos",
-      "poke",
-      "poke bowls",
-      "comida japonesa",
-      "makis",
-      "barra de sushi",
-      "sushi al momento",
-      "rollos japoneses",
-      "comida oriental",
-      "japones",
-      "japon\xE9s",
-      "nigiri",
-      "sashimi"
-    ]
-  },
-  {
-    key: "barra_yucateca",
-    serviceHints: ["yucateca", "yucatan"],
-    aliases: [
-      "comida yucateca",
-      "cochinita",
-      "cochinita pibil",
-      "panuchos",
-      "salbutes",
-      "comida del sureste",
-      "comida de yucatan",
-      "comida de yucat\xE1n",
-      "papadzules",
-      "barra yucateca",
-      "comida maya"
-    ]
-  },
-  {
-    key: "bocadillos",
-    serviceHints: ["bocadillos", "bocadillo"],
-    aliases: [
-      "botana",
-      "botanas",
-      "snacks",
-      "aperitivos",
-      "finger food",
-      "bocadillos",
-      "entradas",
-      "pasabocas",
-      "tentempies",
-      "tentempi\xE9s",
-      "comida para picar"
-    ],
-    excludeIf: ["canapes", "canap\xE9s", "carrito"]
-  },
-  {
-    key: "canapes",
-    serviceHints: ["canapes", "canap\xE9s"],
-    aliases: [
-      "canapes",
-      "canap\xE9s",
-      "bocaditos",
-      "entremeses",
-      "bocadillos finos",
-      "pasapalos",
-      "bocados gourmet",
-      "canape",
-      "canap\xE9",
-      "entradas frias",
-      "entradas fr\xEDas"
-    ]
-  },
-  {
-    key: "carrito_snacks",
-    serviceHints: ["carrito de snacks", "snacks"],
-    aliases: [
-      "carrito de botana",
-      "snacks",
-      "dulces y frituras",
-      "carrito de golosinas",
-      "botanas para llevar",
-      "estacion de snacks",
-      "estaci\xF3n de snacks",
-      "carrito de dulces",
-      "chucherias",
-      "chucher\xEDas",
-      "papitas y dulces",
-      "carrito de snacks"
-    ]
-  },
-  {
-    key: "cocteles_mixologia",
-    serviceHints: ["cocteles", "mixologia", "mixolog\xEDa", "cocteleria"],
-    aliases: [
-      "cocteles",
-      "c\xF3cteles",
-      "cocteleria",
-      "cocteler\xEDa",
-      "mixologia",
-      "mixolog\xEDa",
-      "bartender",
-      "cantinero",
-      "tragos de autor",
-      "cocktails",
-      "barra de cocteles",
-      "barra de c\xF3cteles",
-      "mixologo",
-      "mix\xF3logo",
-      "cocteles de autor",
-      "c\xF3cteles de autor"
-    ],
-    excludeIf: ["sin alcohol", "mocteles", "mocktail"]
-  },
-  {
-    key: "comida_corrida",
-    serviceHints: ["comida corrida", "corrida"],
-    aliases: [
-      "comida corrida",
-      "menu del dia",
-      "men\xFA del d\xEDa",
-      "comida economica",
-      "comida econ\xF3mica",
-      // NO: "comida corporativa" / "menu corporativo" — A14943 confundía evento de trabajo.
-      "comida sencilla",
-      "comida de oficina",
-      "menu ejecutivo",
-      "men\xFA ejecutivo"
-    ]
-  },
-  {
-    key: "desayuno_brunch",
-    serviceHints: ["desayuno", "brunch"],
-    aliases: [
-      "desayuno",
-      "brunch",
-      "almuerzo",
-      "desayuno buffet",
-      "getting ready",
-      "desayuno para evento",
-      "desayuno social",
-      "chilaquiles",
-      "huevos",
-      "brunch de boda"
-    ]
-  },
-  {
-    key: "cupcakes",
-    serviceHints: ["cupcakes", "cupcake", "bet\xFAn", "betun", "cupcakes y bet\xFAn"],
-    aliases: [
-      "cupcakes",
-      "panquecitos",
-      "pastelitos",
-      "muffins",
-      "cup cakes decorados",
-      "postrecitos",
-      "cupcakes personalizados",
-      "mini pasteles",
-      "ponquesitos",
-      "cupcakes tematicos",
-      "cupcakes tem\xE1ticos",
-      "betun",
-      "bet\xFAn",
-      "betunes",
-      "fondant",
-      "cupcakes y betun",
-      "cupcakes y bet\xFAn"
-    ]
-  },
-  {
-    key: "mesa_dulces",
-    serviceHints: ["mesa de dulces", "dulces"],
-    aliases: [
-      "mesa de dulces",
-      "candy bar",
-      "mesa de golosinas",
-      "dulcero",
-      "mesa de dulces mexicanos",
-      "barra de dulces",
-      "dulces para evento",
-      "mesa de caramelos",
-      "estacion de dulces",
-      "estaci\xF3n de dulces",
-      "candy"
-    ],
-    excludeIf: ["postres", "cupcakes", "helados"]
-  },
-  {
-    key: "mesa_postres",
-    serviceHints: ["mesa de postres", "postres"],
-    aliases: [
-      "mesa de postres",
-      "postres",
-      "reposteria",
-      "reposter\xEDa",
-      "mesa de pasteles",
-      "estacion de postres",
-      "estaci\xF3n de postres",
-      "dulces finos",
-      "postres para evento",
-      "pasteleria",
-      "pasteler\xEDa",
-      "mesa de dulces finos",
-      "barra de postres"
-    ]
-  },
-  {
-    key: "mesa_quesos",
-    serviceHints: ["mesa de quesos", "quesos"],
-    aliases: [
-      "tabla de quesos",
-      "mesa de quesos",
-      "quesos y carnes frias",
-      "quesos y carnes fr\xEDas",
-      "charcuteria",
-      "charcuter\xEDa",
-      "tabla de embutidos",
-      "quesos gourmet",
-      "tabla de fiambres",
-      "mesa de quesos y vinos",
-      "degustacion de quesos",
-      "degustaci\xF3n de quesos",
-      "tabla gourmet",
-      "grazing"
-    ]
-  },
-  {
-    key: "mocteles",
-    serviceHints: ["mocteles", "m\xF3cteles"],
-    aliases: [
-      "mocteles",
-      "m\xF3cteles",
-      "cocteles sin alcohol",
-      "c\xF3cteles sin alcohol",
-      "bebidas sin alcohol",
-      "cocteleria sin alcohol",
-      "cocteler\xEDa sin alcohol",
-      "tragos sin alcohol",
-      "barra de mocteles",
-      "barra de m\xF3cteles",
-      "bebidas de autor sin alcohol",
-      "cocteles virgenes",
-      "c\xF3cteles v\xEDrgenes",
-      "mixologia sin alcohol",
-      "mixolog\xEDa sin alcohol",
-      "mocktails",
-      "mocktail"
-    ]
-  },
-  {
-    key: "paella",
-    serviceHints: ["paella"],
-    aliases: [
-      "paella",
-      "arroz espanol",
-      "arroz espa\xF1ol",
-      "paella valenciana",
-      "paella de mariscos",
-      "arroz a la valenciana",
-      "comida espanola",
-      "comida espa\xF1ola",
-      "paella en vivo",
-      "paellera",
-      "arroz espanol al momento",
-      "arroz espa\xF1ol al momento",
-      "paellas"
-    ]
-  },
-  {
-    key: "paletas_helados",
-    serviceHints: ["paletas", "helados"],
-    aliases: [
-      "paletas",
-      "paletas de hielo",
-      "helados",
-      "nieves",
-      "sorbetes",
-      "carrito de helados",
-      "paletas artesanales",
-      "neveria",
-      "never\xEDa",
-      "paletas heladas",
-      "helado para evento"
-    ]
-  },
-  {
-    key: "parrillada_argentina",
-    serviceHints: ["parrillada argentina", "parillada argentina", "argentina"],
-    aliases: [
-      "asado argentino",
-      "cortes argentinos",
-      "parrilla argentina",
-      "carnes asadas",
-      "asador",
-      "parrillada argentina",
-      "parillada argentina",
-      "cortes finos",
-      "asador en vivo",
-      "carne al carbon",
-      "carne al carb\xF3n",
-      "parrilla de cortes",
-      "asado",
-      "carne asada",
-      "argentino"
-    ]
-  },
-  {
-    key: "taquiza",
-    serviceHints: ["taquiza"],
-    aliases: [
-      "taquiza",
-      "tacos",
-      "tacos de guisado",
-      "tacos de guisados",
-      "taquiza para evento",
-      "puesto de tacos",
-      "tacos al pastor",
-      "tacos de canasta",
-      "taquiza a domicilio",
-      "tacos de carne asada",
-      "taqueria",
-      "taquer\xEDa",
-      "estacion de tacos",
-      "estaci\xF3n de tacos",
-      "barra de tacos",
-      "guisados"
-    ],
-    excludeIf: [
-      "parrillada tacos",
-      "parrillada de tacos",
-      "parrillada argentina",
-      "asado argentino"
-    ]
-  },
-  {
-    key: "parrillada_tacos",
-    serviceHints: ["parrillada tacos"],
-    aliases: [
-      "parrillada tacos",
-      "parrillada de tacos",
-      "tacos a la parrilla",
-      "tacos parrillada",
-      "estacion de tacos a la parrilla",
-      "estaci\xF3n de tacos a la parrilla"
-    ],
-    excludeIf: ["parrillada argentina", "asado argentino", "argentina"]
-  },
-  {
-    key: "entelados_techo",
-    serviceHints: ["entelados para techo", "entelado", "entelados"],
-    aliases: [
-      "entelados",
-      "entelado",
-      "entelado para techo",
-      "entelados para techo",
-      "tela en techo",
-      "tela de techo",
-      "telas para techo",
-      "tela para techo",
-      "techo entelado",
-      "entelado de techo"
-    ],
-    excludeIf: ["colgante", "colgantes"]
-  },
-  {
-    key: "colgantes_premium",
-    serviceHints: ["colgantes premium", "colgantes"],
-    aliases: [
-      "colgantes",
-      "colgante",
-      "colgantes premium",
-      "decoracion colgante",
-      "decoraci\xF3n colgante",
-      "estructuras colgantes",
-      "flores colgantes",
-      "wisteria"
-    ],
-    excludeIf: ["entelado", "entelados", "tela en techo", "tela de techo"]
-  },
-  {
-    // A15190: floral/decorativo — nunca mesas/sillas de renta.
-    key: "centros_mesa",
-    serviceHints: ["centros de mesa", "centro de mesa"],
-    aliases: [
-      "centros de mesa",
-      "centro de mesa",
-      "centros de mesas",
-      "arreglos de mesa",
-      "arreglo de mesa",
-      "centros florales",
-      "centro floral",
-      "decoracion de mesas",
-      "decoraci\xF3n de mesas",
-      "flores para mesa",
-      "flores en mesa"
-    ],
-    excludeIf: [
-      "mobiliario",
-      "mesas y sillas",
-      "renta de mesas",
-      "mesa de dulces",
-      "mesa de postres",
-      "mesa de quesos",
-      "mesa imperial"
-    ]
-  },
-  {
-    key: "pozole_tostadas",
-    serviceHints: ["pozole", "tostadas"],
-    aliases: [
-      "pozole",
-      "tostadas",
-      "pozole rojo",
-      "pozole verde",
-      "pozole blanco",
-      "pozole y tostadas",
-      "pozolada",
-      "antojito mexicano",
-      "pozole para evento",
-      "tostadas de tinga",
-      "pozoleria",
-      "pozoler\xEDa"
-    ]
-  },
-  {
-    key: "antojitos",
-    serviceHints: ["antojitos", "puestos de comida"],
-    aliases: [
-      "antojitos",
-      "puesto de antojitos",
-      "esquites",
-      "elotes",
-      "quesadillas",
-      "kermes",
-      "kerm\xE9s",
-      "sopes",
-      "gorditas",
-      "garnachas",
-      "feria de antojitos",
-      "puestos de comida",
-      "street food",
-      // A14985: snack de stand.
-      "banderillas",
-      "banderilla",
-      "snack banderillas"
-    ]
-  }
-];
-var sheetSynonymIndex = /* @__PURE__ */ new Map();
-function registerSheetSynonyms(rows) {
-  const next = /* @__PURE__ */ new Map();
-  for (const row of rows) {
-    const svc = norm(row.servicio || "");
-    if (!svc) continue;
-    const raw = (row.sinonimos ?? "").trim();
-    if (!raw) continue;
-    const parts2 = raw.split(/[,;|/]/).map((p4) => p4.trim()).filter((p4) => p4.length >= 2);
-    if (!parts2.length) continue;
-    const prev = next.get(svc) ?? [];
-    next.set(svc, [.../* @__PURE__ */ new Set([...prev, ...parts2])]);
-  }
-  sheetSynonymIndex = next;
-}
-function parseSynonymList(raw) {
-  if (!raw?.trim()) return [];
-  return raw.split(/[,;|/]/).map((p4) => p4.trim()).filter((p4) => p4.length >= 2);
-}
-function synonymsForServiceName(servicio) {
-  const n4 = norm(servicio);
-  const out2 = /* @__PURE__ */ new Set();
-  for (const fam of DEFAULT_SERVICE_SYNONYM_FAMILIES) {
-    if (fam.serviceHints.some((h4) => n4.includes(norm(h4)) || norm(h4).includes(n4))) {
-      for (const a3 of fam.aliases) out2.add(a3);
-    }
-  }
-  for (const [svc, aliases] of sheetSynonymIndex) {
-    if (n4.includes(svc) || svc.includes(n4)) {
-      for (const a3 of aliases) out2.add(a3);
-    }
-  }
-  return [...out2];
-}
-function synonymHaystackForService(servicio, sheetSinonimos) {
-  const parts2 = [
-    servicio,
-    sheetSinonimos ?? "",
-    ...synonymsForServiceName(servicio)
-  ];
-  return norm(parts2.join(" "));
-}
-function expandQueryWithServiceSynonyms(query) {
-  const q2 = norm(query);
-  const baseTokens = q2.split(" ").filter((w4) => w4.length >= 3);
-  const familyKeys = [];
-  const boostedHints = [];
-  const matchedServiceHints = [];
-  const extraTokens = new Set(baseTokens);
-  for (const fam of DEFAULT_SERVICE_SYNONYM_FAMILIES) {
-    if (fam.excludeIf?.some((ex) => q2.includes(norm(ex)))) {
-      const specificHit = fam.aliases.some((a3) => {
-        const na = norm(a3);
-        return na.includes(" ") && q2.includes(na);
-      });
-      if (!specificHit) continue;
-    }
-    const hit = fam.aliases.some((a3) => {
-      const na = norm(a3);
-      if (na.includes(" ")) return q2.includes(na);
-      return new RegExp(`\\b${na}\\b`).test(q2);
-    });
-    if (!hit) continue;
-    familyKeys.push(fam.key);
-    for (const h4 of fam.serviceHints) {
-      const nh = norm(h4);
-      boostedHints.push(nh);
-      matchedServiceHints.push(h4);
-      for (const t3 of nh.split(" ")) if (t3.length >= 3) extraTokens.add(t3);
-    }
-    for (const a3 of fam.aliases) {
-      for (const t3 of norm(a3).split(" ")) if (t3.length >= 3) extraTokens.add(t3);
-    }
-  }
-  for (const [svc, aliases] of sheetSynonymIndex) {
-    for (const a3 of aliases) {
-      const na = norm(a3);
-      const matched = na.includes(" ") ? q2.includes(na) : new RegExp(`\\b${na}\\b`).test(q2);
-      if (!matched) continue;
-      matchedServiceHints.push(svc);
-      boostedHints.push(svc);
-      for (const t3 of svc.split(" ")) if (t3.length >= 3) extraTokens.add(t3);
-      for (const t3 of na.split(" ")) if (t3.length >= 3) extraTokens.add(t3);
-    }
-  }
-  return {
-    tokens: [...extraTokens],
-    familyKeys: [...new Set(familyKeys)],
-    boostedHints: [...new Set(boostedHints)],
-    matchedServiceHints: [...new Set(matchedServiceHints)]
-  };
-}
-function synonymScoreForService(query, serviceLabel, sheetSinonimos) {
-  const expanded = expandQueryWithServiceSynonyms(query);
-  if (!expanded.familyKeys.length && !expanded.boostedHints.length) return 0;
-  const hay = synonymHaystackForService(serviceLabel, sheetSinonimos);
-  let score = 0;
-  for (const hint of expanded.boostedHints) {
-    if (hay.includes(hint)) score += hint.includes(" ") ? 22 : 14;
-  }
-  for (const hint of expanded.matchedServiceHints) {
-    if (hay.includes(norm(hint))) score += 10;
-  }
-  if (expanded.familyKeys.includes("taquiza") && /banquete/.test(hay) && !/taquiza/.test(hay)) {
-    score -= 25;
-  }
-  if (expanded.familyKeys.includes("banquete_formal") && /taquiza/.test(hay)) score -= 25;
-  if (expanded.familyKeys.includes("barra_sushi") && /banquete|taquiza/.test(hay) && !/sushi|poke/.test(hay)) {
-    score -= 25;
-  }
-  if (expanded.familyKeys.includes("banquete_mexicano") && /banquete/.test(hay) && !/mexicano/.test(hay)) {
-    score -= 20;
-  }
-  if (expanded.familyKeys.includes("coffee_break") && /barra de cafe|barra de café/.test(hay) && !/coffee/.test(hay)) {
-    score -= 5;
-  }
-  return score;
-}
-var FAMILY_DISPLAY = {
-  pozole_tostadas: {
-    label: "Pozole y Tostadas",
-    complements: ["Barras de bebidas", "Mobiliario"]
-  },
-  taquiza: {
-    label: "Taquiza",
-    complements: ["Barras de bebidas", "Mobiliario"]
-  },
-  parrillada_tacos: {
-    label: "Parrillada Tacos",
-    complements: ["Barras de bebidas", "Mobiliario"]
-  },
-  paella: {
-    label: "Paella",
-    complements: ["Barras de bebidas", "Mobiliario"]
-  },
-  parrillada_argentina: {
-    label: "Parrillada Argentina",
-    complements: ["Barras de bebidas", "Mobiliario"]
-  },
-  banquete_navideno: {
-    label: "Banquete Navide\xF1o",
-    complements: ["Barras de bebidas", "Mobiliario", "Mesa de dulces"]
-  },
-  entelados_techo: {
-    label: "Entelados para Techo",
-    complements: ["Colgantes Premium", "Iluminaci\xF3n"]
-  },
-  colgantes_premium: {
-    label: "Colgantes Premium",
-    complements: ["Entelados para Techo", "Iluminaci\xF3n"]
-  },
-  centros_mesa: {
-    label: "Centros de mesa",
-    complements: ["Iluminaci\xF3n", "Colgantes Premium", "Entelados para Techo"]
-  }
-};
-function resolveServiceFocusFromText(text2) {
-  if (!text2?.trim()) return null;
-  const expanded = expandQueryWithServiceSynonyms(text2);
-  if (!expanded.familyKeys.length) return null;
-  const preferredOrder = [
-    "pozole_tostadas",
-    "parrillada_tacos",
-    "taquiza",
-    "paella",
-    "parrillada_argentina",
-    "banquete_navideno",
-    "barra_americana",
-    "barra_sushi",
-    "entelados_techo",
-    "colgantes_premium",
-    "centros_mesa"
-  ];
-  const familyKey = preferredOrder.find((k4) => expanded.familyKeys.includes(k4)) ?? expanded.familyKeys[0];
-  const fam = DEFAULT_SERVICE_SYNONYM_FAMILIES.find((f6) => f6.key === familyKey);
-  if (!fam) return null;
-  const display = FAMILY_DISPLAY[familyKey] ?? {
-    label: fam.serviceHints[0] ?? familyKey,
-    complements: ["Barras de bebidas", "Mobiliario"]
-  };
-  return {
-    familyKey,
-    label: display.label,
-    serviceHints: fam.serviceHints,
-    complements: display.complements
-  };
-}
-function loadSinonimosJson(raw) {
-  if (!raw || typeof raw !== "object") return 0;
-  const obj = raw;
-  const map = obj.sinonimos ?? obj.synonyms ?? obj;
-  if (!map || typeof map !== "object") return 0;
-  const rows = [];
-  for (const [servicio, aliases] of Object.entries(map)) {
-    if (servicio === "version" || servicio === "note") continue;
-    if (Array.isArray(aliases)) {
-      rows.push({ servicio, sinonimos: aliases.map(String).join(", ") });
-    } else if (typeof aliases === "string") {
-      rows.push({ servicio, sinonimos: aliases });
-    }
-  }
-  if (!rows.length) return 0;
-  const merged = new Map(sheetSynonymIndex);
-  for (const row of rows) {
-    const svc = norm(row.servicio);
-    const parts2 = parseSynonymList(row.sinonimos);
-    const prev = merged.get(svc) ?? [];
-    merged.set(svc, [.../* @__PURE__ */ new Set([...prev, ...parts2])]);
-  }
-  sheetSynonymIndex = merged;
-  return rows.length;
-}
-
-// src/services/lucyInfoPriceCache.ts
-function cacheState() {
-  const g6 = globalThis;
-  if (!g6.__lucyInfoPriceCache) {
-    g6.__lucyInfoPriceCache = { docs: [], corpusFold: "" };
-  }
-  return g6.__lucyInfoPriceCache;
-}
-function fold(text2) {
-  return (text2 || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ñ/g, "n");
-}
-function refreshLucyInfoPriceCache(input) {
-  const state = cacheState();
-  state.docs = (input || []).filter((d2) => d2?.content?.trim()).map((d2) => ({
-    title: (d2.title || "").trim() || "Cat\xE1logo",
-    content: d2.content.trim(),
-    kind: d2.kind
-  }));
-  state.corpusFold = fold(state.docs.map((d2) => `${d2.title}
-${d2.content}`).join("\n\n"));
-}
-function extractPriceAmounts(text2) {
-  const out2 = [];
-  const re3 = /\$\s*([\d]{1,3}(?:,[\d]{3})*(?:\.\d+)?|[\d]+(?:\.\d+)?)/g;
-  let m5;
-  while (m5 = re3.exec(text2 || "")) {
-    const raw = m5[1].replace(/,/g, "");
-    const n4 = Number(raw);
-    if (!Number.isFinite(n4) || n4 < 10) continue;
-    out2.push(String(Math.round(n4)));
-  }
-  return out2;
-}
-function lucyInfoSupportsPriceClaim(mensaje) {
-  const { corpusFold } = cacheState();
-  if (!corpusFold || !mensaje?.trim()) return false;
-  const amounts = extractPriceAmounts(mensaje);
-  if (!amounts.length) return false;
-  let hits = 0;
-  for (const a3 of amounts) {
-    if (corpusFold.includes(a3)) hits += 1;
-    else if (a3.length >= 4 && corpusFold.includes(a3.replace(/(\d)(?=(\d{3})+$)/g, "$1,"))) hits += 1;
-  }
-  return hits >= 1 && hits >= Math.ceil(amounts.length * 0.4);
-}
-function scoreDoc(doc, tokens) {
-  if (!tokens.length) return 0;
-  const title = fold(doc.title);
-  const body2 = fold(doc.content);
-  let s6 = 0;
-  for (const tok of tokens) {
-    if (title.includes(tok)) s6 += 14;
-    if (body2.slice(0, 900).includes(tok)) s6 += 5;
-    else if (body2.includes(tok)) s6 += 1;
-  }
-  return s6;
-}
-var STRICT_PDF_SERVICE_FAMILIES = /* @__PURE__ */ new Set([
-  "barra_cafe",
-  "coffee_break",
-  "barra_americana",
-  "canapes",
-  "bocadillos",
-  "taquiza",
-  "paella",
-  "pozole_tostadas",
-  "barra_pizzas",
-  "barra_pastas",
-  "barra_sushi",
-  "barra_crepas",
-  "barra_yucateca",
-  "parrillada_tacos",
-  "parrillada_argentina",
-  "banquete_formal",
-  "banquete_mexicano",
-  "banquete_kosher",
-  "banquete_navideno"
-]);
-function isMobiliarioPdfTitle(title) {
-  const t3 = fold(title);
-  return /\bmesas?\b.*\bsillas?\b|\bsillas?\b.*\bmesas?\b/.test(t3) || /\bmobiliario\b|\bperiqueras?\b|\bsalas?\s+lounge\b|\bluxor\b/.test(t3);
-}
-function isFoodServiceQuery(text2) {
-  const t3 = fold(text2);
-  return /\b(canap|bocadillo|banquete|catering|taquiza|paella|pozole|pizza|pasta|sushi|crepa|coffee\s*break|barra\s+de|parrillada|brunch|desayuno|coctel|mixolog|moctel|americano|marisco|panini|yucateca)\b/.test(
-    t3
-  );
-}
-function strictPdfServiceFamily(text2) {
-  const families = expandQueryWithServiceSynonyms(text2).familyKeys;
-  return families.find((family) => STRICT_PDF_SERVICE_FAMILIES.has(family)) ?? null;
-}
-function pdfDocMatchesStrictQuery(query, docTitle) {
-  const strictFamily = strictPdfServiceFamily(query);
-  if (strictFamily) {
-    const docFamily = strictPdfServiceFamily(docTitle);
-    if (docFamily !== strictFamily) return false;
-  }
-  if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(docTitle)) return false;
-  return true;
-}
-function tokenize(text2) {
-  const raw = fold(text2).replace(/[^a-z0-9\s]/g, " ");
-  const stop2 = /* @__PURE__ */ new Set([
-    "de",
-    "del",
-    "la",
-    "el",
-    "los",
-    "las",
-    "un",
-    "una",
-    "y",
-    "o",
-    "en",
-    "para",
-    "por",
-    "con",
-    "que",
-    // "san" en "San Francisco" / "usan" / "descansan" ensuciaba el score PDF (A14964).
-    "san",
-    "soy",
-    "llamo",
-    "nombre",
-    "hola",
-    "buenos",
-    "buenas",
-    "dias",
-    "tardes",
-    "noches",
-    "precio",
-    "precios",
-    "cuanto",
-    "cuesta",
-    "costo",
-    "persona",
-    "personas",
-    "quiero",
-    "necesito",
-    "incluye",
-    "incluir",
-    "incluiria",
-    "detalle",
-    "descripcion",
-    "descripciones",
-    "cada",
-    "nivel",
-    "niveles",
-    "paquete",
-    "paquetes",
-    "dime",
-    "cual",
-    "cuales",
-    "trae",
-    "lleva",
-    "menu",
-    "opcion",
-    "opciones"
-  ]);
-  const out2 = [];
-  const seen = /* @__PURE__ */ new Set();
-  for (const t3 of raw.split(/\s+/)) {
-    if (t3.length < 3 || stop2.has(t3) || seen.has(t3)) continue;
-    seen.add(t3);
-    out2.push(t3);
-  }
-  for (const t3 of raw.split(/\s+/)) {
-    if (/^\d{1,2}$/.test(t3) && !seen.has(t3)) {
-      seen.add(t3);
-      out2.push(t3);
-    }
-  }
-  return out2.slice(0, 40);
-}
-function findInclusionSection(content, query, maxChars = 1100) {
-  if (!content?.trim()) return null;
-  const q2 = fold(query);
-  const c4 = content;
-  const f6 = fold(c4);
-  const anchors = [];
-  const cb = q2.match(/coffee\s*break\s*(\d)/);
-  if (cb) {
-    const needle = `coffee break ${cb[1]}`;
-    if (!f6.includes(needle)) return null;
-    anchors.unshift(`coffee break ${cb[1]} \u2014`, `coffee break ${cb[1]}`, `cb${cb[1]}`);
-  }
-  if (/gourmet con sandwich|sandwich/.test(q2) && /coffee|break/.test(q2)) {
-    anchors.push("coffee break 5", "gourmet con sandwich");
-  }
-  const tiempos = q2.match(/(\d)\s*tiempos?/);
-  const nivel = /\bpremium\b/.test(q2) ? "premium" : /\bbasic|\bb[aá]sic/.test(q2) ? "basico" : /\btradicional\b/.test(q2) ? "tradicional" : "";
-  if (tiempos && /banquete|formal|mexicano/.test(q2)) {
-    anchors.push(`menu ${tiempos[1]} tiempos ${nivel}`.trim());
-    anchors.push(`${tiempos[1]} tiempos ${nivel}`.trim());
-    if (nivel === "tradicional" && tiempos[1] === "3") {
-      anchors.unshift("tradicional $830 por persona", "tradicional $830");
-    }
-    if (nivel === "tradicional" && tiempos[1] === "4") {
-      anchors.unshift("tradicional $880 por persona", "tradicional $880");
-    }
-    if (nivel === "basico" && tiempos[1] === "3") {
-      anchors.unshift("basico $780 por persona", "basico $780");
-    }
-    if (nivel === "premium" && tiempos[1] === "3") {
-      anchors.unshift("premium $880 por persona", "premium $880");
-    }
-  }
-  if (/banquete/.test(q2) && nivel) {
-    anchors.push(`tradicional $830`, `basico $780`, `premium $880`);
-  }
-  for (const tok of tokenize(query)) {
-    if (tok.length >= 4) anchors.push(tok);
-  }
-  let bestIdx = -1;
-  let bestScore = -1;
-  for (const a3 of anchors) {
-    const fa = fold(a3);
-    if (fa.length < 2) continue;
-    let from = 0;
-    while (from < f6.length) {
-      const i5 = f6.indexOf(fa, from);
-      if (i5 < 0) break;
-      let score = fa.length;
-      const window2 = f6.slice(Math.max(0, i5 - 40), i5 + 200);
-      if (/incluye|bebidas|alimentos|meseros|vajilla|persona/.test(window2)) score += 40;
-      if (/coffee break \d|menu \d tiempos|tradicional \$\d|basico \$\d|premium \$\d/.test(window2)) {
-        score += 30;
-      }
-      if (score > bestScore) {
-        bestScore = score;
-        bestIdx = i5;
-      }
-      from = i5 + fa.length;
-    }
-  }
-  if (bestIdx < 0) {
-    const dollar = c4.search(/\$\s*\d/);
-    if (dollar < 0) return null;
-    bestIdx = dollar;
-  }
-  const atHeading = /coffee break \d|tradicional \$\d|basico \$\d|premium \$\d|menu \d tiempos/i.test(
-    f6.slice(bestIdx, bestIdx + 48)
-  );
-  let start2 = atHeading ? bestIdx : Math.max(0, bestIdx - 40);
-  let end = Math.min(c4.length, start2 + maxChars);
-  const tail = c4.slice(Math.max(start2, bestIdx) + 40, end);
-  const nextPkg = tail.search(
-    /Coffee Break \d|Men[uú] \d tiempos|B[aá]sico \$\s*\d|Tradicional \$\s*\d|Premium \$\s*\d|Ideal para:|Condiciones del Servicio/i
-  );
-  if (nextPkg > 200) {
-    end = Math.max(start2, bestIdx) + 40 + nextPkg;
-  }
-  let slice = c4.slice(start2, end).replace(/\s+/g, " ").trim();
-  slice = slice.replace(/^[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9🥐☕🍽*•]+/, "");
-  if (slice.length < 80) return null;
-  return slice.slice(0, maxChars);
-}
-function queryHasServicePdfAnchor(query) {
-  const q2 = fold(query);
-  return /\b(banquete|taquiza|coffee|break|barra|catering|pizza|pasta|sushi|dj|pista|tarima|crepas?|canapes?|queso|dulce|postre|paella|pozole|brunch|desayuno|cena|mesero|mobiliario|carpa|iluminaci|pantalla|incluye|precio|nivel|paquete|formal|tiempos|tradicional|premium|basico|bocadillos?|entradas?|vajilla|mixolog|coctel|helado|fruta|inflable|softplay|letras?|valet|pirotecnia)\b/.test(
-    q2
-  );
-}
-function buildLucyInfoInclusionReply(query, maxChars = 1100) {
-  ensureCacheFromSeedSync();
-  const docs = cacheState().docs;
-  if (!docs.length || !query?.trim()) return null;
-  if (!queryHasServicePdfAnchor(query)) return null;
-  const tokens = tokenize(query);
-  if (!tokens.length) return null;
-  const ranked = [...docs].filter((doc) => pdfDocMatchesStrictQuery(query, doc.title)).map((d2) => ({ d: d2, s: scoreDoc(d2, tokens) })).filter((x7) => x7.s >= 6).sort((a3, b4) => b4.s - a3.s);
-  if (!ranked.length) return null;
-  const serviceHints = [
-    "canapes",
-    "canap",
-    "coffee",
-    "cafe",
-    "banquete",
-    "taquiza",
-    "sushi",
-    "paella",
-    "pozole",
-    "pista",
-    "mobiliario",
-    "mesas y sillas",
-    "barra de cafe",
-    "barra americana",
-    "bocadillo"
-  ];
-  const qf = fold(query);
-  const preferred = ranked.filter((x7) => {
-    const title = fold(x7.d.title);
-    return serviceHints.some((h4) => qf.includes(h4) && title.includes(h4));
-  });
-  const pool2 = preferred.length ? preferred : ranked;
-  for (const { d: d2 } of pool2.slice(0, 4)) {
-    const section = findInclusionSection(d2.content, query, maxChars);
-    if (!section) continue;
-    const label = d2.title.replace(/[-_]+/g, " ").replace(/\s+2026.*$/i, "").trim();
-    if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(label)) continue;
-    return `Seg\xFAn el cat\xE1logo que ya tenemos de *${label}*:
-
-${section}
-
-\xBFTe late este nivel o quieres que te detalle otro?`;
-  }
-  return null;
-}
-function collapseDuplicatedInclusionReply(text2) {
-  if (!text2?.trim()) return text2;
-  const closeRe = /¿Te late este nivel o quieres que te detalle otro\?/i;
-  const m5 = closeRe.exec(text2);
-  if (m5 && m5.index != null) {
-    const head = text2.slice(0, m5.index + m5[0].length).trim();
-    const rest = text2.slice(m5.index + m5[0].length).trim();
-    if (!rest || /Según el catálogo que ya tenemos/i.test(rest) || /Bebidas incluidas|Alimentos:|Meseros:|Vajilla|Coffee Break \d|Tradicional \$\s*\d|¿Te late este nivel/i.test(
-      rest
-    )) {
-      if (rest) return head;
-    }
-  }
-  const parts2 = text2.split(/(?=Según el catálogo que ya tenemos de \*)/i).filter((p4) => p4.trim());
-  if (parts2.length > 1 && /Según el catálogo que ya tenemos/i.test(parts2[0])) {
-    return parts2[0].trim();
-  }
-  return text2.trim();
-}
-function ensureCacheFromSeedSync() {
-  if (cacheState().docs.length > 0) return;
-  try {
-    let moduleDir2 = "";
-    try {
-      moduleDir2 = dirname(fileURLToPath(import.meta.url));
-    } catch {
-    }
-    let argvDir = "";
-    try {
-      const entry = process.argv[1];
-      if (entry) argvDir = dirname(entry);
-    } catch {
-    }
-    const here = typeof __dirname === "string" && __dirname || moduleDir2 || argvDir || process.cwd();
-    const candidates = [
-      process.env["LUCY_INFO_SEED_PATH"]?.trim(),
-      join(here, "config", "lucy-info-seed.json"),
-      join(here, "lucy-info-seed.json"),
-      join(here, "data", "lucy-info-seed.json"),
-      join(moduleDir2, "config", "lucy-info-seed.json"),
-      join(moduleDir2, "lucy-info-seed.json"),
-      join(argvDir, "lucy-info-seed.json"),
-      join(argvDir, "config", "lucy-info-seed.json"),
-      join(process.cwd(), "config", "lucy-info-seed.json"),
-      join(process.cwd(), "lucy-info-seed.json"),
-      join(process.cwd(), "data", "lucy-info-seed.json"),
-      join(process.cwd(), "api-server", "config", "lucy-info-seed.json"),
-      join(process.cwd(), "api-server", "dist", "lucy-info-seed.json"),
-      join(process.cwd(), "deploy", "lucy-info-seed.json")
-    ].filter(Boolean);
-    for (const p4 of candidates) {
-      if (!existsSync(p4)) continue;
-      const raw = JSON.parse(readFileSync(p4, "utf8"));
-      const docs = (raw.documents || []).filter((d2) => d2?.content?.trim());
-      if (docs.length) {
-        refreshLucyInfoPriceCache(docs);
-        return;
-      }
-    }
-  } catch {
-  }
-}
-function extractPriceWindows(content, max = 8) {
-  const windows = [];
-  const re3 = /.{0,55}\$\s*[\d,.]+.{0,55}/g;
-  let m5;
-  while ((m5 = re3.exec(content || "")) && windows.length < max) {
-    const w4 = m5[0].replace(/\s+/g, " ").trim();
-    if (w4.length > 12) windows.push(w4);
-  }
-  if (windows.length) return windows;
-  return (content || "").split(/\n+/).map((l5) => l5.trim()).filter((l5) => l5.length > 8 && /\$\s*\d/.test(l5)).slice(0, max);
-}
-function buildLucyInfoPriceSnippet(query, maxChars = 520) {
-  ensureCacheFromSeedSync();
-  const docs = cacheState().docs;
-  if (!docs.length || !query?.trim()) return null;
-  const tokens = tokenize(query);
-  if (!tokens.length) return null;
-  const ranked = [...docs].map((d2) => ({ d: d2, s: scoreDoc(d2, tokens) })).filter((x7) => x7.s >= 8).sort((a3, b4) => b4.s - a3.s);
-  if (!ranked.length) return null;
-  const top = ranked[0].d;
-  const windows = extractPriceWindows(top.content, 10);
-  const scored = windows.map((l5) => {
-    const f6 = fold(l5);
-    let s6 = 0;
-    for (const tok of tokens) if (f6.includes(tok)) s6 += 3;
-    if (/\$\s*\d/.test(l5)) s6 += 1;
-    return { l: l5, s: s6 };
-  }).sort((a3, b4) => b4.s - a3.s);
-  const picked = (scored.some((x7) => x7.s > 1) ? scored.filter((x7) => x7.s > 1) : scored).map((x7) => x7.l).slice(0, 5);
-  if (!picked.length) return null;
-  const body2 = picked.join(" \xB7 ").slice(0, maxChars);
-  return `*${top.title}*: ${body2}`;
-}
-function buildLucyInfoLearnedPriceReply(message) {
-  const focusedPista = /\b(pintada|led|iluminada|madera\s+premium|vinil|charol|logo|tarima\s+b[aá]sica|escenario|estrado)\b/i.test(
-    message
-  );
-  const snip = buildLucyInfoPriceSnippet(message, focusedPista ? 420 : 520);
-  if (!snip) return null;
-  const t3 = fold(message);
-  let ask = "\xBFLo agregamos a tu cotizaci\xF3n?";
-  if (/pista|tarima|baile/.test(t3)) {
-    ask = "\xBFQu\xE9 medidas aproximadas tiene el espacio?";
-  } else if (/periquera|mesa|silla|sala|mobiliario|lounge|luxor/.test(t3)) {
-    ask = "\xBFCu\xE1ntas piezas necesitas y para cu\xE1ndo?";
-  }
-  const body2 = snip.replace(/\s*¿Qué medidas aproximadas tiene el espacio\?\s*/gi, " ").trim();
-  return `Seg\xFAn el cat\xE1logo que ya cargamos en Aprendizaje:
-${body2}
-${ask}`;
-}
-
-// src/price-guard.ts
-var NO_LISTED_PRICE_PATTERN = /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|mesas?|sillas?|periqueras?|salas?\s*(lounge)?|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
-var LISTED_PRICE_PATTERN = /banquete|taquiza|parrillada|barra\s+(de\s+)?(bebidas?|alimentos?|caf[eé]|pizzas?|sushi|crepas?|mariscos?|pastas?)|mesa\s+de\s+dulces|cocteler[ií]a|mixolog[ií]a|coffee\s*break|brunch|paella|m[oó]cteles?|canap[eé]s|pozole|americana|kosher|navide[nñ]o/i;
-var dynamicListedPattern = null;
-var dynamicNoListedPattern = null;
-function escapeRegex2(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-function buildServicePattern(labels) {
-  const terms = labels.map((label) => label.trim().toLowerCase()).filter((label) => label.length >= 2).map((label) => escapeRegex2(label).replace(/\s+/g, "\\s+"));
-  if (!terms.length) return null;
-  return new RegExp(`\\b(?:${terms.join("|")})\\b`, "i");
-}
-function setCatalogPriceIndex(priced, noPrice) {
-  dynamicListedPattern = buildServicePattern(priced);
-  dynamicNoListedPattern = buildServicePattern(noPrice);
-}
-var PRICE_CLAIM_PATTERN = /\$\s*[\d,.]+(?:\s*\/\s*pp)?|\b[\d,.]+\s*(?:mil|k)\b(?:\s*pesos?)?|\bentre\s*\$?\s*[\d,.]+\s*y\s*\$?\s*[\d,.]+|\bdesde\s*\$[\d,.]+|\b[\d,.]+\s*pesos?\b/i;
-var PRICE_QUESTION_PATTERN = /\bcu[aá]nto\s+cuesta|\bprecios?\b|\bcostos?\b|\bm[aá]s\s+o\s+menos\s+cu[aá]nto|\bcu[aá]nto\s+sale|\bcu[aá]nto\s+cobran|\btarifa\b|\bver\s+(los\s+)?precios?\b|\bpasar?(me)?\s+(los\s+)?precios?\b/i;
-function clientAsksPrice(message) {
-  if (!message?.trim()) return false;
-  if (!PRICE_QUESTION_PATTERN.test(message)) return false;
-  if (message.trim().length > 220 && /\b(cotiz|propuestas?|opci[oó]n\s*[123]|distribuidor)\b/i.test(message)) {
-    return false;
-  }
-  if (/\bprecio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
-  if (/\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
-  if (/\brangos?\s+de\s+precio\b/i.test(message) && /\b(propuestas?|opci[oó]n|men[uú])\b/i.test(message)) {
-    return false;
-  }
-  return true;
-}
-function mentionsNoListedPriceService(text2) {
-  if (dynamicNoListedPattern?.test(text2)) return true;
-  return NO_LISTED_PRICE_PATTERN.test(text2);
-}
-function mentionsListedPriceService(text2) {
-  if (dynamicListedPattern?.test(text2)) return true;
-  return LISTED_PRICE_PATTERN.test(text2);
-}
-function messageClaimsPrice(mensaje) {
-  return PRICE_CLAIM_PATTERN.test(mensaje);
-}
-function responseHasInventedPrice(mensaje, currentMessage, recentContext) {
-  if (!messageClaimsPrice(mensaje)) return false;
-  if (lucyInfoSupportsPriceClaim(mensaje)) return false;
-  const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`.toLowerCase();
-  if (mentionsNoListedPriceService(ctx)) return true;
-  if (!mentionsListedPriceService(ctx) && messageClaimsPrice(mensaje)) {
-    return true;
-  }
-  return false;
-}
-function detectServiceLabel(text2) {
-  const t3 = text2.toLowerCase();
-  if (/\bdj\b/.test(t3)) return "DJ";
-  if (/iluminaci[oó]n/.test(t3)) return "iluminaci\xF3n";
-  if (/periqueras?/.test(t3)) return "periqueras";
-  if (/mesas?/.test(t3) && /sillas?/.test(t3)) return "mesas y sillas";
-  if (/mesas?/.test(t3)) return "mesas";
-  if (/sillas?/.test(t3)) return "sillas";
-  if (/salas?\s*lounge|lounge/.test(t3)) return "salas lounge";
-  if (/mobiliario/.test(t3)) return "mobiliario";
-  if (/carpas?|lonas?/.test(t3)) return "carpas";
-  if (/pantallas?/.test(t3)) return "pantallas";
-  if (/pista(\s+de\s+baile)?|tarimas?/.test(t3)) return "pista de baile";
-  if (/flor/.test(t3)) return "florister\xEDa";
-  return "ese servicio";
-}
-function getPriceServiceLabel(text2) {
-  return detectServiceLabel(text2);
-}
-function stripPriceSentences(mensaje) {
-  const sentences = mensaje.split(/(?<=[.!?])\s+|\n+/);
-  const kept = sentences.filter((s6) => !PRICE_CLAIM_PATTERN.test(s6));
-  return kept.join(" ").replace(/\s{2,}/g, " ").trim();
-}
-function stripStalePriceTalk(mensaje, currentMessage) {
-  if (!currentMessage?.trim() || clientAsksPrice(currentMessage)) return mensaje;
-  if (/\bdj\b|precio|cu[aá]nto\s+cuesta/i.test(currentMessage)) return mensaje;
-  return mensaje.split(/(?<=[.!?])\s+|\n+/).filter((s6) => !/\bdj\b/i.test(s6) || clientAsksPrice(currentMessage)).filter((s6) => !/alejandro te (incluye|da) el precio/i.test(s6)).join(" ").replace(/\s{2,}/g, " ").trim();
-}
-function buildConsultativeNoPriceReply(message) {
-  if (!message?.trim()) return null;
-  const t3 = message.toLowerCase();
-  const team = advisorLabelForClient();
-  if (/pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\b|lounge|luxor|chesterfield|camila/.test(
-    t3
-  )) {
-    const fromPdf = buildLucyInfoLearnedPriceReply(message);
-    if (fromPdf) return fromPdf;
-  }
-  if (/\bcarpas?\b|lonas?\b|toldos?\b/.test(t3)) {
-    return `S\xED, manejamos carpas para jard\xEDn o terraza: ${CARPA_OPTIONS_TEXT}. Se cotizan seg\xFAn medidas y sede. ${team} arma el precio. \xBFQu\xE9 opci\xF3n prefieres y qu\xE9 medidas aproximadas debe tener (largo \xD7 ancho)?`;
-  }
-  if (/\bdj\b|disc\s*jockey|audio\b|sonido\b/.test(t3)) {
-    return `El DJ incluye equipo completo, micr\xF3fono para brindis e iluminaci\xF3n b\xE1sica; puedes mandar playlist. ${team} incluir\xE1 el precio en tu cotizaci\xF3n. \xBFYa tienes estilo de m\xFAsica o prefieres que lea el ambiente?`;
-  }
-  if (/iluminaci[oó]n/.test(t3)) {
-    return `Opciones: uplighting LED en paredes, luces colgantes tipo edison o luces de pista. ${team} cotiza seg\xFAn el espacio. \xBFQu\xE9 ambiente buscas: elegante, rom\xE1ntico o fiesta?`;
-  }
-  if (/pista(\s+de\s+baile)?|tarimas?\b/.test(t3)) {
-    return `S\xED, manejamos pistas de baile y tarimas en varios tama\xF1os, con opci\xF3n iluminada. ${team} cotiza seg\xFAn las medidas. \xBFQuieres que lo agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas tiene el espacio?`;
-  }
-  if (/periqueras?|mesas?\s+(peque[nñ]as?|tipo\s+bar)|mesas?\s+periqueras?/.test(t3)) {
-    return `S\xED, rentamos periqueras y mesas tipo bar en distintos acabados. El precio depende de cantidad, estilo y si llevan montaje en sitio. ${team} cotiza seg\xFAn lo que necesites. \xBFCu\xE1ntas periqueras/mesas necesitas y para cu\xE1ndo?`;
-  }
-  if (/mesas?|sillas?|mobiliario|salas?\s*lounge/.test(t3)) {
-    return `Manejamos mesas, sillas, periqueras y salas lounge para eventos en distintos estilos. ${team} cotiza seg\xFAn cantidad y tipo. \xBFQu\xE9 mobiliario necesitas y para cu\xE1ntas personas?`;
-  }
-  return null;
-}
-function buildAlejandroPriceReply(serviceHint, clientMessage) {
-  const consultative = clientMessage ? buildConsultativeNoPriceReply(clientMessage) : null;
-  if (consultative) return consultative;
-  const svc = serviceHint?.trim() || "ese servicio";
-  const team = advisorLabelForClient();
-  return `S\xED, manejamos ${svc}. El precio depende del evento \u2014 ${team} te lo incluye en tu cotizaci\xF3n.`;
-}
-function sanitizeInventedPrices(mensaje, currentMessage, recentContext) {
-  if (!responseHasInventedPrice(mensaje, currentMessage, recentContext)) {
-    return mensaje;
-  }
-  const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`;
-  const service = detectServiceLabel(ctx);
-  const cleaned = stripPriceSentences(mensaje);
-  const safe = buildAlejandroPriceReply(service, currentMessage);
-  if (!cleaned || cleaned.length < 15) return safe;
-  const withoutCorreoInsist = cleaned.replace(/[^.!?\n]*correo[^.!?\n]*\?[^.!?\n]*/gi, "").trim();
-  const base = withoutCorreoInsist.length > 20 ? withoutCorreoInsist : "";
-  if (base && !/alejandro/i.test(base)) {
-    return `${base} ${safe}`.trim();
-  }
-  return safe;
-}
-
-// src/catalogo.ts
-var CATALOGO_BODASESOR = `
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-CAT\xC1LOGO BODASESOR 2026 \u2014 INFORMACI\xD3N COMPLETA
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-CONDICIONES GENERALES:
-\u2022 Precios NO incluyen IVA (16%)
-\u2022 Propina 15% recomendada (no obligatoria)
-\u2022 Inversi\xF3n m\xEDnima general: $18,000 MXN por evento (excepto Kosher: $29,000; barras: desde $6,000)
-\u2022 Duraci\xF3n est\xE1ndar banquetes: 5 horas
-\u2022 Barras tem\xE1ticas: 3 horas o hasta agotar producto
-\u2022 Anticipo 50% para apartar fecha
-\u2022 Liquidaci\xF3n 10 d\xEDas antes del evento
-\u2022 Cambios: hasta 30 d\xEDas antes
-\u2022 Formas de pago: efectivo o transferencia
-\u2022 Atendemos de 30 hasta 10,000 personas
-\u2022 Montaje y desmontaje incluidos. Trabajamos en el venue del cliente.
-\u2022 Men\xFAs adaptables a restricciones alimenticias y opci\xF3n vegetariana disponible
-\u2022 Hora extra: $60/pp (m\xEDnimo 10 personas)
-\u2022 Eventos con +100 personas: opci\xF3n de 2 men\xFAs distintos
-\u2022 Prueba de men\xFA: $5,000 MXN para 4 personas (se descuentan $2,500 al confirmar)
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-BANQUETE FORMAL
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-Cocina internacional: res, pollo, pescado, mariscos. Presentaci\xF3n elegante emplatada.
-
-MEN\xDA 3 TIEMPOS:
-\u2022 B\xE1sico: $750/pp \u2014 entrada o sopa/pasta + plato fuerte (lomo o pollo) + guarnici\xF3n + postre
-\u2022 Tradicional: $880/pp \u2014 igual + 2 guarniciones
-\u2022 Premium: $930/pp \u2014 prote\xEDna libre + 2 guarniciones
-
-MEN\xDA 4 TIEMPOS:
-\u2022 B\xE1sico: $800/pp \u2014 entrada + sopa/pasta + plato fuerte (lomo o pollo) + guarnici\xF3n + postre
-\u2022 Tradicional: $930/pp \u2014 igual + 2 guarniciones
-\u2022 Premium: $980/pp \u2014 prote\xEDna libre + 2 guarniciones
-
-BUFFET: $1,200/pp (2 prote\xEDnas + opciones de pasta/ensalada/sopa + guarnici\xF3n + postre)
-SOLO ALIMENTOS (sin mobiliario): desde $400/pp (+$150 con vajilla decorativa)
-
-INCLUIDO EN TODOS LOS PAQUETES COMPLETOS:
-\u2022 Mesa redonda con mantel (color a elecci\xF3n) + silla Tiffany + centro de mesa con flores
-\u2022 Vajilla blanca + cuberter\xEDa + cristaler\xEDa (copa + vaso)
-\u2022 Meseros: 1 c/20 personas (B\xE1sico), 1 c/15 (Tradicional), 1 c/10 (Premium)
-\u2022 Barra de bebidas sin alcohol: vitroleros (2 sabores), agua natural, caf\xE9
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-BANQUETE MEXICANO
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-Gastronom\xEDa mexicana: moles, pozoles, ceviches, platillos regionales, salsas artesanales,
-aguas frescas de sabores tradicionales. Diferente al formal en men\xFA, misma calidad de servicio.
-
-MEN\xDA 3 TIEMPOS:
-\u2022 B\xE1sico: $670/pp \u2014 prote\xEDna: lomo o pollo
-\u2022 Tradicional: $770/pp \u2014 2 guarniciones
-\u2022 Premium: $830/pp \u2014 prote\xEDna libre
-
-MEN\xDA 4 TIEMPOS:
-\u2022 B\xE1sico: $720/pp \u2014 prote\xEDna: lomo o pollo
-\u2022 Tradicional: $830/pp \u2014 2 guarniciones
-\u2022 Premium: $880/pp \u2014 prote\xEDna libre
-
-BUFFET: $1,200/pp
-SOLO ALIMENTOS: desde $450/pp
-
-Incluye lo mismo que Banquete Formal (mobiliario, vajilla, meseros, barra sin alcohol).
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-BANQUETE NAVIDE\xD1O (solo noviembre\u2013enero)
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-Pavos con 3 preparaciones distintas, bacalao, romeritos, decoraci\xF3n festiva incluida.
-Diciembre: alta demanda \u2014 reservar desde octubre.
-
-\u2022 Premium 3 tiempos: $830/pp
-\u2022 Premium 4 tiempos: $880/pp
-\u2022 Buffet Navide\xF1o: $1,200/pp (pollo o lomo incluido; pavo: +$100/pp extra)
-\u2022 Solo alimentos: desde $500/pp
-
-PREGUNTAS FRECUENTES NAVIDE\xD1O:
-\u2022 \xBFEl pavo es por persona? S\xED, porciones individuales.
-\u2022 \xBFEl buffet incluye pavo? El base incluye pollo o lomo. Pavo: +$100/pp.
-\u2022 \xBFCrepas Suzette incluidas? No, tienen costo adicional de $100/pp (flambeado especial).
-\u2022 \xBFCu\xE1ndo reservar? Para diciembre, desde octubre.
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-BANQUETE KOSHER
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-Certificaci\xF3n Kosher completa + supervisi\xF3n rab\xEDnica permanente.
-Separaci\xF3n absoluta: el evento es 100% L\xC1CTEO (Jalav) O 100% CARNE (Basar) \u2014 nunca mezclados.
-Utensilios Kosher certificados dedicados exclusivamente.
-
-MEN\xDA 3 TIEMPOS:
-\u2022 B\xE1sico: $1,170/pp \u2014 prote\xEDna: lomo o pollo
-\u2022 Tradicional: $1,330/pp \u2014 2 guarniciones
-\u2022 Premium: $1,430/pp \u2014 prote\xEDna libre
-
-MEN\xDA 4 TIEMPOS:
-\u2022 B\xE1sico: $1,250/pp \u2014 prote\xEDna: lomo o pollo
-\u2022 Tradicional: $1,430/pp \u2014 2 guarniciones
-\u2022 Premium: $1,500/pp \u2014 prote\xEDna libre
-
-BUFFET KOSHER: $2,000/pp (2 prote\xEDnas + pasta/ensalada/sopa + guarnici\xF3n + postre)
-SOLO ALIMENTOS KOSHER: $600/pp
-Inversi\xF3n m\xEDnima: $29,000 MXN
-
-INCLUIDO: mismos servicios que Banquete Formal + vajilla y utensilios certificados Kosher.
-
-PREGUNTAS FRECUENTES KOSHER:
-\u2022 \xBFMezclar l\xE1cteos y carne? NUNCA \u2014 las leyes Kosher lo proh\xEDben absolutamente.
-\u2022 \xBFQu\xE9 es parve? Alimentos neutros (frutas, vegetales, huevos, pescado) \u2014 combinables con l\xE1cteos o carne.
-\u2022 \xBFEl vino es Kosher? S\xED, solo vinos y bebidas certificadas Kosher.
-\u2022 \xBFLa supervisi\xF3n rab\xEDnica tiene costo extra? No, est\xE1 incluida en todos los precios.
-\u2022 \xBFPuedo coordinar con mi rabino? S\xED, Alejandro coordina todos los detalles.
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-DESAYUNO / BRUNCH
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-\u2022 B\xE1sico: $550/pp (entrada + plato fuerte + jugo + caf\xE9)
-\u2022 Premium: $650/pp (+ 2 guarniciones + pan dulce y salado)
-\u2022 Buffet: $750/pp (fruta + 3 platillos salados + 2 dulces)
-\u2022 Inversi\xF3n m\xEDnima: $18,000 MXN
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-PAELLA
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-\u2022 Solo alimentos: $450/pp
-\u2022 Tradicional (con mobiliario): $800/pp
-\u2022 Premium: $900/pp
-\u2022 Inversi\xF3n m\xEDnima: $19,500 MXN
-\u2022 Incluye: chistorra, croquetas de serrano, tortilla espa\xF1ola, paella al momento
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-TAQUIZA & PARRILLADA
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-TAQUIZA (guisados \u2014 tacos de canasta/cazuela, NO al carb\xF3n):
-\u2022 5 guisados: $300/pp \u2014 arroz, frijol, tortillas, salsas incluidos
-\u2022 6 guisados: $320/pp | Guisado extra: +$20/pp
-\u2022 Vajilla y cubiertos: +$20/pp adicional
-\u2022 Servicio Completo Premium: $750/pp (con mobiliario, cristaler\xEDa, meseros)
-\u2022 M\xEDnimo 40 personas / inversi\xF3n m\xEDnima $10,000 / duraci\xF3n: 3 horas
-
-PARRILLADA MEXICANA (tacos al carb\xF3n \u2014 \u2260 taquiza):
-\u2022 5 platillos: $300/pp \u2014 nopales, cebollitas, tortillas, salsas incluidos
-\u2022 Platillo extra: +$30/pp
-\u2022 Todo incluido (con bebidas sin alcohol): $700/pp
-\u2022 Inversi\xF3n m\xEDnima: $11,000 / duraci\xF3n: 3 horas
-
-PARRILLADA ARGENTINA (cortes premium al carb\xF3n \u2014 5 horas completas):
-\u2022 $900/pp | Inversi\xF3n m\xEDnima: $19,500 MXN
-\u2022 Cortes: Pica\xF1a, New York, Arrachera, Rib Eye, Pollo BBQ
-\u2022 Asador solo alimentos: +$500 adicional
-\u2022 Incluye: mesa, mantel, silla Tiffany, vajilla, cristaler\xEDa, hielos, barra de bebidas sin alcohol
-
-DIFERENCIA CLAVE \u2014 Tacos: preguntarle al cliente si quiere guisados (taquiza) o al carb\xF3n (parrillada).
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-BARRA AMERICANA
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-Comida estilo americano casual. El cliente elige 5 opciones del men\xFA completo.
-Ideal para eventos informales, cumplea\xF1os, graduaciones, fiestas en jard\xEDn.
-
-NIVELES:
-\u2022 B\xE1sica: $350/pp \u2014 3h o hasta agotar, desechables, sin mobiliario, 1 mesero c/50
-\u2022 Completo B\xE1sico: $750/pp \u2014 5h, todo incluido, 1 mesero c/20
-\u2022 Completo Tradicional: $800/pp \u2014 5h, mejor presentaci\xF3n, 1 mesero c/15 (M\xC1S POPULAR)
-\u2022 Completo Premium: $900/pp \u2014 5h, atenci\xF3n VIP 1 mesero c/10, copas de color
-
-Inversi\xF3n m\xEDnima B\xE1sica: $10,500 MXN
-
-LO QUE INCLUYE CADA NIVEL:
-\u2022 B\xE1sica: solo comida + desechables. Sin mobiliario ni bebidas.
-\u2022 Completo B\xE1sico: mesa + mantel + silla Tiffany + centro de mesa + vajilla blanca + cristaler\xEDa copa/vaso
-  + barra de bebidas: aguas (2 sabores), agua natural, caf\xE9
-\u2022 Completo Tradicional: + plato base decorativo + cristaler\xEDa premium completa + margaritas sin alcohol
-  + Coca Light, Coca Normal, Squirt, agua mineral (1 sabor de agua fresca)
-\u2022 Completo Premium: = Tradicional + copas de color (elemento distintivo) + 1 mesero c/10 personas
-
-MEN\xDA COMPLETO \u2014 OPCIONES PRINCIPALES (elegir 5):
-Hamburguesas y hot dogs: mini sliders, mini hot dogs, pulled pork, corn dogs
-Pollo: tiras empanizadas (chicken tenders), alitas BBQ / b\xFAfalo / habanero-miel
-Mini wraps y tacos: burritos tex-mex, mini tacos de carne asada
-Pizzas y pasta: mini pizzas (pepperoni/queso/vegetales), mac & cheese en vasito
-
-ACOMPA\xD1AMIENTOS (tambi\xE9n cuentan como 1 opci\xF3n):
-Papas: a la francesa, papas gajo con especias, tater tots, aros de cebolla empanizados
-Quesos y nachos: nachos con cheddar y jalape\xF1os, chili con carne, mozzarella sticks
-Otros: palomitas saborizadas (mantequilla/queso/caramelo), coleslaw, elotes en vasito (americano o mexicano)
-
-EXTRAS (costo adicional):
-\u2022 Mesero adicional: $800 (5 horas, ideal +150 personas)
-\u2022 Mesa de madera para barra: $600
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-ANTOJITOS & PUESTOS DE COMIDA
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-Puestos de madera elegantes con cocina mexicana aut\xE9ntica al momento. 3 horas de servicio.
-Ideal para cocktail de bienvenida, complemento al banquete, XV a\xF1os, cumplea\xF1os.
-
-\u2022 $300/pp (8 piezas por persona) \u2014 m\xEDnimo 240 piezas / inversi\xF3n m\xEDnima $9,000
-\u2022 Pieza adicional: $38/pp | Puestos adicionales: $1,500 c/u (1 puesto por cada 100 personas incluido)
-\u2022 Incluye: puesto de madera, desechables, queso fresco, crema, salsas artesanales, personal uniformado
-
-MEN\xDA DISPONIBLE (todo al momento):
-QUESADILLAS FRITAS: queso fundido, chicharr\xF3n en salsa, tinga de pollo o res, papa con especias, hongos con epazote
-FLAUTAS CRUJIENTES: pollo deshebrado, carne deshebrada, papa con queso, queso derretido
-SOPES Y GORDITAS: frijoles, pollo, chorizo, chicharr\xF3n prensado, queso derretido
-MINI TORTAS: cochinita pibil, chilaquiles, tacos de canasta
-ANTOJITOS Y SNACKS: esquites, elotes asados, espiropapas, hot dogs, banderillas
-BEBIDAS Y SNACKS SALUDABLES: ponche de frutas, crudit\xE9s, jicaletas, paletas de sand\xEDa, pepinos con cacahuate
-DULCES Y POSTRES: algodones de az\xFAcar, manzanas chamoy, churros reci\xE9n fritos, crepaletas
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-BARRAS TEM\xC1TICAS (otras)
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-\u2022 Barra de Pizzas (horno de piedra, chef en vivo): desde $9,515 total (hasta 10 pax) \u2014 3 horas
-  Rangos: 11-15 pax $10,780 | 16-20 $11,385 | 21-25 $12,650 | 26-30 $13,915
-  31-40 $14,575\u2013$15,180 | 41-50 $15,950\u2013$17,050 | 51-60 $18,040\u2013$19,690
-  61-100 $22,110\u2013$29,755 | 101-160 $30,360\u2013$37,400 | +160 pax: $200/pp extra
-\u2022 Barra de Sushi y Poke Bowl: $13,800 fijo (-30 pax) / $460/pp (30+) \u2014 3 horas
-\u2022 Barra de Crepas: $280/pp (5 crepas), $320/pp (6 crepas), Premium $750/pp \u2014 m\xEDn. 40 pax
-\u2022 Barra de Mariscos: $580/pp \u2014 inversi\xF3n m\xEDnima $16,000 \u2014 3 horas
-\u2022 Barra de Pastas y Ensaladas: $380/pp simple ($750/pp completo) \u2014 2 lasa\xF1as + 2 pastas + 2 ensaladas
-\u2022 Barra de Paninis y Ensaladas: $350/pp (4 paninis + 2 ensaladas) / $800/pp completo
-\u2022 Barra Yucateca: $350/pp \u2014 Sopa de Lima, Cochinita Pibil, Panuchos, Papadzules, Empanadas, tortillas frescas
-\u2022 Pozole y Tostadas: $300/pp b\xE1sico ($680/pp completo premium) \u2014 Rojo, Blanco o Verde
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-BARRA DE BEBIDAS
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-Servicio profesional de bar: barra de madera, bartenders certificados, cristaler\xEDa completa,
-hielo ilimitado. Servicio libre durante 5 horas. Inversi\xF3n m\xEDnima: $6,000 MXN.
-1 barman por cada 50 personas (incluido en el precio).
-
-BARRAS SIN ALCOHOL (3 niveles \u2014 5 horas):
-\u2022 B\xE1sica: $150/pp
-  Incluye: refrescos (Coca Light, Coca Normal, Squirt), agua mineral, agua natural,
-  vitrolero con 1 sabor de agua fresca a elegir (jamaica, lim\xF3n, tamarindo, horchata,
-  pepino-lim\xF3n-menta, sand\xEDa, mel\xF3n, mango)
-
-\u2022 Tradicional: $180/pp
-  Incluye todo lo de B\xE1sica + fruta picada + margaritas sin alcohol (mango y tamarindo)
-  + caf\xE9 y t\xE9 | (solo +$30 sobre B\xE1sica \u2014 MEJOR VALOR)
-
-\u2022 Premium: $200/pp
-  Incluye todo lo de Tradicional + jugos naturales frescos
-
-BARRAS CON ALCOHOL (5 horas \u2014 incluyen autom\xE1ticamente Barra sin Alcohol Tradicional completa):
-\u2022 B\xE1sica: $370/pp
-  Licores: Capit\xE1n Morgan (ron), Cuervo Especial (tequila), Wyborowa (vodka),
-  Black & White (whisky), Larios (gin)
-
-\u2022 Tradicional: $410/pp \u2014 LA M\xC1S POPULAR (solo +$40 sobre b\xE1sica, marcas premium + mezcal)
-  Licores: Bacard\xED (ron), Jos\xE9 Cuervo Tradicional (tequila), Absolut (vodka),
-  Johnnie Walker Red Label (whisky), Diega (gin), Mezcal incluido
-
-\u2022 Premium: $600/pp
-  Licores top shelf: Bacard\xED (ron), Maestro Dobel (tequila), Stolichnaya (vodka),
-  Johnnie Walker Black Label (whisky), Tanqueray (gin), 400 Conejos (mezcal)
-
-EXTRAS (solo como complemento a un paquete de barra \u2014 NO se venden solos):
-\u2022 Cerveza: $35/pieza (servicio libre 5 horas)
-\u2022 Vino tinto o blanco: $50/copa (servicio libre 5 horas)
-
-M\xCDNIMOS EN PERSONAS (inversi\xF3n m\xEDnima $6,000):
-Sin alcohol \u2014 B\xE1sica: 40 pax | Tradicional: 34 pax | Premium: 30 pax
-Con alcohol \u2014 B\xE1sica: 17 pax | Tradicional: 15 pax | Premium: 10 pax
-
-DIFERENCIA CLAVE: Barra de Bebidas = SOLO bebidas. Barra Americana = SOLO comida.
-Se pueden contratar juntas para un evento completo.
-Si el banquete ya incluye bebidas sin alcohol y quieren agregar alcohol:
-Banquete Formal 4T ($800/pp) + Barra con alcohol B\xE1sica ($370/pp) = $1,170/pp completo.
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-BARRA DE CAF\xC9
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-\u2022 $180/pp \u2014 inversi\xF3n m\xEDnima $7,000
-\u2022 Baristas profesionales, caf\xE9 de altura tostado tipo italiano
-\u2022 Bebidas: Americano, Espresso, Capuchino, Latte, Frappuccino, Moka, Vainilla,
-  Chocolate caliente, Chai Latte, Matcha, 9 variedades de t\xE9s
-
-COFFEE BREAK:
-\u2022 Desde $160/pp \u2014 inversi\xF3n m\xEDnima $7,500
-\u2022 Opciones b\xE1sica, intermedia y completa
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-COCTELER\xCDA Y MIXOLOG\xCDA
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-(Servicio de c\xF3cteles especializados \u2014 diferente a Barra de Bebidas)
-\u2022 Cocteler\xEDa Cl\xE1sica: $285/pp (6 c\xF3cteles para 100+ pax / 3 c\xF3cteles para menos)
-\u2022 Mixolog\xEDa Premium: $460/pp \u2014 3 c\xF3cteles exclusivos personalizados (m\xEDn. 40 pax)
-\u2022 Inversi\xF3n m\xEDnima B\xE1sica (2h): $7,000
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-POSTRES & EXTRAS
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-MESA DE DULCES:
-\u2022 $250/pp \u2014 inversi\xF3n m\xEDnima $8,000
-\u2022 15 opciones de dulces a elegir (tradicionales + premium)
-\u2022 Decoraci\xF3n, personalizaci\xF3n y montaje incluido
-
-PASTELES / CUPCAKES:
-\u2022 Bet\xFAn Cl\xE1sico: $35/pc | Bet\xFAn Decorado: $45/pc | Bet\xFAn + Cake Topper: $40/pc
-\u2022 Fondant 2D: $55/pc | Fondant 3D: $60/pc
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-SERVICIOS SIN PRECIO LISTADO \u2192 RODRIGO DA EL PRECIO
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-Mobiliario extra (mesas, sillas Tiffany, periqueras, salas lounge), decoraci\xF3n floral,
-estructuras colgantes, pistas de baile personalizadas, vajillas premium, paletas/helados,
-DJ y audio, pantallas LED, iluminaci\xF3n, fiesta infantil, carpas y lonas.
-\u2192 Responder: "Para [servicio], Alejandro te da los detalles y precio en tu cotizaci\xF3n."
-`;
-
-// src/services/googleSheetsCatalog.ts
-var HEADER_ALIASES = {
-  servicio: "servicio",
-  service: "servicio",
-  nombre: "servicio",
-  producto: "servicio",
-  categoria: "categoria",
-  categor\u00EDa: "categoria",
-  category: "categoria",
-  tipo: "categoria",
-  nivel: "nivel",
-  tier: "nivel",
-  paquete: "nivel",
-  "precio unitario": "precio",
-  precio: "precio",
-  price: "precio",
-  costo: "precio",
-  tarifa: "precio",
-  unidad: "unidad",
-  unit: "unidad",
-  pp: "unidad",
-  notas: "notas",
-  nota: "notas",
-  notes: "notas",
-  descripcion: "notas",
-  descripci\u00F3n: "notas",
-  detalle: "notas",
-  "que incluye": "notas",
-  extras: "notas",
-  sinonimos: "sinonimos",
-  sin\u00F3nimos: "sinonimos",
-  aliases: "sinonimos"
-};
-function deriveCatalogCategory(servicio) {
-  const s6 = servicio.toLowerCase();
-  if (/barra de bebida|cocteler|mixolog|m[oó]ctel/.test(s6)) return "Bebidas";
-  if (/banquete|taquiza|brunch|coffee|barra|comida|desayuno|canap|bocadillo|parrillada|pizza|sushi|crepa|marisco|pasta|paella|pozole|mesa de|carrito|snak/i.test(
-    s6
-  )) {
-    return "Alimentos";
-  }
-  if (/mobiliario|silla/.test(s6)) return "Mobiliario";
-  if (/dj|animaci|iluminaci|pantalla|audio|pista/.test(s6)) return "Entretenimiento";
-  return "Servicios";
-}
-function formatCatalogRowLabel(row) {
-  const svc = row.servicio.trim();
-  const nivel = row.nivel.trim();
-  if (!nivel || nivel.toLowerCase() === svc.toLowerCase()) return svc;
-  return `${svc} \u2014 ${nivel}`;
-}
-function normalizeHeader(h4) {
-  return h4.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
-}
-function parseCsvRows(text2) {
-  const rows = [];
-  let row = [];
-  let cell = "";
-  let inQuotes = false;
-  for (let i5 = 0; i5 < text2.length; i5++) {
-    const ch = text2[i5];
-    const next = text2[i5 + 1];
-    if (inQuotes) {
-      if (ch === '"' && next === '"') {
-        cell += '"';
-        i5++;
-      } else if (ch === '"') {
-        inQuotes = false;
-      } else {
-        cell += ch;
-      }
-      continue;
-    }
-    if (ch === '"') {
-      inQuotes = true;
-      continue;
-    }
-    if (ch === ",") {
-      row.push(cell);
-      cell = "";
-      continue;
-    }
-    if (ch === "\n" || ch === "\r" && next === "\n") {
-      row.push(cell);
-      cell = "";
-      if (row.some((c4) => c4.trim())) rows.push(row);
-      row = [];
-      if (ch === "\r") i5++;
-      continue;
-    }
-    cell += ch;
-  }
-  if (cell.length || row.length) {
-    row.push(cell);
-    if (row.some((c4) => c4.trim())) rows.push(row);
-  }
-  return rows;
-}
-function truthyPrecioFlag(raw) {
-  if (!raw?.trim()) return null;
-  const v3 = raw.trim().toLowerCase();
-  if (/^(s[ií]|yes|true|1|x|con\s+precio)$/.test(v3)) return true;
-  if (/^(no|false|0|sin\s+precio|alejandro|cotizar)$/.test(v3)) return false;
-  return null;
-}
-function rowHasPriceValue(precio) {
-  return /\$|\/pp|\/\s*pp|mil|pesos|mxn|\d/.test(precio);
-}
-function parseSheetCatalogCsv(csvText) {
-  const matrix = parseCsvRows(csvText);
-  if (matrix.length < 2) return [];
-  const headers = matrix[0].map(normalizeHeader);
-  const idx = {};
-  let tienePrecioCol = null;
-  let catalogoRevisadoCol = null;
-  let precioMinimoCol = null;
-  let linkCatalogoCol = null;
-  let extrasCol = null;
-  headers.forEach((h4, i5) => {
-    if (h4 === "tiene_precio" || h4 === "tiene precio" || h4 === "con_precio" || h4 === "listed_price") {
-      tienePrecioCol = i5;
-      return;
-    }
-    if (h4 === "catalogo revisado" || h4 === "catalogo_revisado") {
-      catalogoRevisadoCol = i5;
-      return;
-    }
-    if (h4 === "precio minimo de salida" || h4 === "precio minimo") {
-      precioMinimoCol = i5;
-      return;
-    }
-    if (h4 === "link catalogo" || h4 === "link_catalogo" || h4 === "link") {
-      linkCatalogoCol = i5;
-      return;
-    }
-    if (h4 === "extras") {
-      extrasCol = i5;
-      return;
-    }
-    const mapped = HEADER_ALIASES[h4];
-    if (mapped && idx[mapped] === void 0) idx[mapped] = i5;
-  });
-  if (idx.servicio === void 0) return [];
-  const rows = [];
-  for (const line2 of matrix.slice(1)) {
-    const get = (key) => {
-      const col = idx[key];
-      return col === void 0 ? "" : (line2[col] ?? "").trim();
-    };
-    const servicioBase = get("servicio");
-    if (!servicioBase || /^#|comentario|ignore/i.test(servicioBase)) continue;
-    if (catalogoRevisadoCol !== null) {
-      const revisado = (line2[catalogoRevisadoCol] ?? "").trim().toLowerCase();
-      if (revisado === "false" || revisado === "no" || revisado === "0") continue;
-    }
-    const servicio = servicioBase;
-    const nivelVal = get("nivel");
-    const categoria = get("categoria") || deriveCatalogCategory(servicioBase);
-    const precio = get("precio");
-    const flag = tienePrecioCol !== null ? truthyPrecioFlag(line2[tienePrecioCol]) : null;
-    const tienePrecio = flag === true || flag === null && rowHasPriceValue(precio);
-    const notasParts = [];
-    const notasBase = get("notas");
-    if (notasBase) notasParts.push(notasBase);
-    if (precioMinimoCol !== null) {
-      const min = (line2[precioMinimoCol] ?? "").trim();
-      if (min) notasParts.push(`M\xEDnimo de salida: ${min}`);
-    }
-    let linkCatalogo;
-    if (linkCatalogoCol !== null) {
-      const link = (line2[linkCatalogoCol] ?? "").trim();
-      if (link && /^https?:\/\//i.test(link)) {
-        linkCatalogo = link;
-      }
-    }
-    if (extrasCol !== null) {
-      const extras = (line2[extrasCol] ?? "").trim();
-      if (extras) notasParts.push(`Extras: ${extras}`);
-    }
-    let unidad = get("unidad");
-    if (!unidad && /\$/.test(precio)) unidad = "/pp";
-    rows.push({
-      servicio,
-      nivel: nivelVal,
-      categoria,
-      precio,
-      unidad,
-      notas: notasParts.join(" | "),
-      tienePrecio,
-      sinonimos: get("sinonimos") || void 0,
-      linkCatalogo
-    });
-  }
-  return rows;
-}
-function sheetRowsToMarkdown(rows) {
-  if (!rows.length) return "";
-  const byCategory = /* @__PURE__ */ new Map();
-  for (const row of rows) {
-    const cat = row.categoria || "Servicios";
-    if (!byCategory.has(cat)) byCategory.set(cat, []);
-    byCategory.get(cat).push(row);
-  }
-  const lines = [
-    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    "CAT\xC1LOGO BODASESOR \u2014 GOOGLE SHEETS (fuente viva)",
-    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    "",
-    "REGLA: Solo cita precios e inclusiones que aparecen en esta tabla. Si no hay precio o Incluye vac\xEDo \u2192 el equipo confirma en cotizaci\xF3n. NUNCA inventes bebidas, platillos ni marcas.",
-    "REGLA LINK WEB: Si una fila trae Link cat\xE1logo (bodasesor.com/catalogos/\u2026), SOLO env\xEDalo cuando el cliente lo pida. Un link a la vez. No inventes URLs.",
-    ""
-  ];
-  for (const [cat, items] of byCategory) {
-    lines.push(`## ${cat}`, "");
-    const byService = /* @__PURE__ */ new Map();
-    for (const item of items) {
-      const key = item.servicio;
-      if (!byService.has(key)) byService.set(key, []);
-      byService.get(key).push(item);
-    }
-    for (const [svc, levels] of byService) {
-      if (levels.length === 1) {
-        const item = levels[0];
-        const label = formatCatalogRowLabel(item);
-        if (item.tienePrecio && item.precio) {
-          const unit = item.unidad ? ` ${item.unidad}` : "";
-          lines.push(`\u2022 **${label}**: ${item.precio}${unit}`);
-        } else {
-          lines.push(`\u2022 **${label}**: sin precio listado \u2014 Alejandro cotiza`);
-        }
-        if (item.notas) {
-          const parsed = parseRowNotes(item.notas);
-          const clientNotes = [parsed.inclusion, parsed.minimo ? `M\xEDnimo de salida: ${parsed.minimo}` : ""].filter(Boolean).join(" | ");
-          if (clientNotes) lines.push(`  Incluye: ${clientNotes}`);
-        }
-        if (item.linkCatalogo) {
-          lines.push(`  Link cat\xE1logo (solo si lo piden): ${item.linkCatalogo}`);
-        }
-      } else {
-        lines.push(`\u2022 **${svc}** (${levels.length} niveles)`);
-        for (const item of levels.slice(0, 6)) {
-          const label = item.nivel || formatCatalogRowLabel(item);
-          if (item.tienePrecio && item.precio) {
-            const unit = item.unidad ? ` ${item.unidad}` : "";
-            lines.push(`  - ${label}: ${item.precio}${unit}`);
-          } else {
-            lines.push(`  - ${label}: sin precio listado \u2014 el equipo cotiza`);
-          }
-          if (item.notas) {
-            const parsed = parseRowNotes(item.notas);
-            const bits = [
-              parsed.inclusion ? formatInclusionForWhatsApp(parsed.inclusion, 280) : "",
-              parsed.minimo ? `M\xEDn. salida: ${parsed.minimo}` : ""
-            ].filter(Boolean);
-            if (bits.length) lines.push(`    Incluye: ${bits.join(" | ")}`);
-          }
-        }
-        const link = levels.find((l5) => l5.linkCatalogo)?.linkCatalogo;
-        if (link) lines.push(`  Link cat\xE1logo (solo si lo piden): ${link}`);
-      }
-    }
-    lines.push("");
-  }
-  return lines.join("\n").trim();
-}
-function formatInclusionForWhatsApp(text2, maxLen = 420) {
-  let cleaned = text2.replace(/\s+/g, " ").replace(/ incluido\s+/gi, ". ").replace(/ servicio base incluye:/gi, " Incluye:").replace(/([a-záéíóúñ])([A-ZÁÉÍÓÚ])/g, "$1. $2").trim();
-  if (cleaned.length > maxLen) {
-    cleaned = `${cleaned.slice(0, maxLen - 1).trim()}\u2026`;
-  }
-  return cleaned;
-}
-function parseRowNotes(notas) {
-  const result = { inclusion: "", minimo: "", gammaLink: "", extras: "" };
-  if (!notas?.trim()) return result;
-  for (const part of notas.split("|").map((s6) => s6.trim())) {
-    if (!part) continue;
-    if (/^cat[aá]logo:\s*https?:/i.test(part)) {
-      result.gammaLink = part.replace(/^cat[aá]logo:\s*/i, "").trim();
-    } else if (/^m[ií]nimo de salida:/i.test(part)) {
-      result.minimo = part.replace(/^m[ií]nimo de salida:\s*/i, "").trim();
-    } else if (/^extras:/i.test(part)) {
-      result.extras = part.replace(/^extras:\s*/i, "").trim();
-    } else if (!result.inclusion) {
-      result.inclusion = formatInclusionForWhatsApp(part);
-    } else {
-      result.inclusion = formatInclusionForWhatsApp(`${result.inclusion} ${part}`);
-    }
-  }
-  if (result.extras) {
-    const extraText = formatInclusionForWhatsApp(result.extras, 180);
-    result.inclusion = result.inclusion ? `${result.inclusion} Extras: ${extraText}` : `Extras: ${extraText}`;
-  }
-  return result;
-}
-
-// src/services/catalogWebKnowledge.ts
-import { readFileSync as readFileSync2 } from "node:fs";
-import path from "node:path";
-import { fileURLToPath as fileURLToPath2 } from "node:url";
-var CATALOG_WEB_HUB = "https://bodasesor.com/catalogos";
-var embedsCache = null;
-var knowledgeCache = [];
-function embedsJsonPath() {
-  const here = path.dirname(fileURLToPath2(import.meta.url));
-  const candidates = [
-    path.resolve(here, "../../public/catalogos-light/embeds.json"),
-    path.resolve(here, "../catalogos-light/embeds.json"),
-    path.resolve(process.cwd(), "public/catalogos-light/embeds.json"),
-    path.resolve(process.cwd(), "dist/catalogos-light/embeds.json")
-  ];
-  for (const p4 of candidates) {
-    try {
-      readFileSync2(p4, "utf8");
-      return p4;
-    } catch {
-    }
-  }
-  return candidates[0];
-}
-function extractGammaIdFromEmbed(embedSrc) {
-  const m5 = embedSrc.match(/gamma\.app\/embed\/([a-z0-9]+)/i);
-  return m5?.[1] ?? null;
-}
-function loadCatalogEmbeds() {
-  if (embedsCache) return embedsCache;
-  try {
-    const raw = readFileSync2(embedsJsonPath(), "utf8");
-    const parsed = JSON.parse(raw);
-    embedsCache = Object.entries(parsed).map(([slug, v3]) => {
-      const embedSrc = (v3.embedSrc ?? "").trim();
-      return {
-        slug,
-        title: (v3.title ?? slug).trim(),
-        embedSrc,
-        gammaId: extractGammaIdFromEmbed(embedSrc),
-        webUrl: `${CATALOG_WEB_HUB}/${slug}`
-      };
-    });
-  } catch {
-    embedsCache = [];
-  }
-  return embedsCache;
-}
-function resolveCatalogWebSlug(query) {
-  if (!query?.trim()) return null;
-  const t3 = query.trim().toLowerCase();
-  const urlMatch = t3.match(/bodasesor\.com\/catalogos\/([a-z0-9-]+)/i);
-  if (urlMatch?.[1]) return urlMatch[1];
-  if (/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(t3)) {
-    return null;
-  }
-  const aliases = [
-    // "mesas?" no debe matchear dentro de "centros de mesa" (ya filtrado arriba).
-    [/\b(mesas?\s*y\s*sillas?|sillas?|(?<!centros?\s+de\s+)mesas?|mobiliario|mobilairio)\b/i, "mesas-y-sillas"],
-    [/\b(salas?|periqueras?|lounge)\b/i, "salas-y-periqueras"],
-    [/\b(audio|iluminaci[oó]n|video|dj|sonido)\b/i, "audio-iluminacion-y-video"],
-    [/\bbanquetes?\b/i, "banquete-formal"]
-  ];
-  for (const [re3, slug] of aliases) {
-    if (re3.test(t3) && loadCatalogEmbeds().some((e3) => e3.slug === slug)) return slug;
-  }
-  const embeds = loadCatalogEmbeds();
-  const exact = embeds.find((e3) => e3.slug === t3.replace(/\s+/g, "-"));
-  if (exact) return exact.slug;
-  const norm2 = t3.normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, " ").trim();
-  let best = null;
-  for (const e3 of embeds) {
-    const titleNorm = e3.title.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, " ").trim();
-    const slugNorm = e3.slug.replace(/-/g, " ");
-    let score = 0;
-    if (norm2.includes(titleNorm) || titleNorm.includes(norm2)) score += 5;
-    if (norm2.includes(slugNorm) || slugNorm.includes(norm2)) score += 4;
-    for (const tok of norm2.split(" ").filter((w4) => w4.length > 3)) {
-      if (titleNorm.includes(tok) || slugNorm.includes(tok)) score += 1;
-    }
-    if (!best || score > best.score) best = { slug: e3.slug, score };
-  }
-  return best && best.score >= 4 ? best.slug : null;
-}
-function getCatalogWebUrlForQuery(query) {
-  const slug = resolveCatalogWebSlug(query);
-  return slug ? `${CATALOG_WEB_HUB}/${slug}` : null;
-}
-function getCatalogEmbed(slug) {
-  return loadCatalogEmbeds().find((e3) => e3.slug === slug) ?? null;
-}
-function getCatalogWebKnowledgeForQuery(query) {
-  const slug = resolveCatalogWebSlug(query);
-  if (!slug) return null;
-  return knowledgeCache.find((e3) => e3.slug === slug) ?? null;
-}
-function buildCatalogWebDetailHint(query) {
-  const entry = getCatalogWebKnowledgeForQuery(query) || (() => {
-    const slug = resolveCatalogWebSlug(query);
-    const embed = slug ? getCatalogEmbed(slug) : null;
-    if (!embed) return null;
-    return {
-      ...embed,
-      gammaTitle: "",
-      gammaDescription: ""
-    };
-  })();
-  if (!entry) return null;
-  const parts2 = [];
-  if (entry.gammaDescription) {
-    parts2.push(entry.gammaDescription.slice(0, 500));
-  }
-  parts2.push(
-    `El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: ${entry.webUrl}`
-  );
-  return parts2.join("\n");
-}
-
-// src/services/serviceProgressiveOffer.ts
-var SERVICE_NIVEL_DETAIL_CTA = "\xBFQuieres que te d\xE9 detalles de alguno?";
-function banqueteDetailQuery(text2) {
-  const tiempos4 = /\b(4\s*tiempos?|cuatro\s*tiempos?)\b/i.test(text2);
-  const tiempos3 = /\b(3\s*tiempos?|tres\s*tiempos?)\b/i.test(text2);
-  if (/\bkosher\b/i.test(text2)) {
-    if (/\bbuffet\b/i.test(text2)) return "Banquete Kosher Buffet";
-    if (tiempos4) return "Banquete Kosher 4 tiempos";
-    if (tiempos3) return "Banquete Kosher 3 tiempos";
-    return "Banquete Kosher";
-  }
-  if (/\bnavide/i.test(text2)) {
-    if (tiempos4) return "Banquete Navide\xF1o 4 tiempos";
-    if (tiempos3) return "Banquete Navide\xF1o 3 tiempos";
-    return "Banquete Navide\xF1o";
-  }
-  if (/\bmexicano\b/i.test(text2)) {
-    if (tiempos4) return "Banquete Mexicano 4 tiempos";
-    if (tiempos3) return "Banquete Mexicano 3 tiempos";
-    return "Banquete Mexicano";
-  }
-  if (/\bformal\b/i.test(text2)) {
-    if (tiempos4) return "Banquete Formal 4 tiempos";
-    if (tiempos3) return "Banquete Formal 3 tiempos";
-    return "Banquete Formal";
-  }
-  if (tiempos4) return "Banquete Formal 4 tiempos";
-  if (tiempos3) return "Banquete Formal 3 tiempos";
-  return "banquete";
-}
-var FAMILIES = [
-  {
-    family: "banquete",
-    // "catering" solo cuenta como banquete si NO hay SKU concreto (canapés, taquiza…).
-    // A15204: "Un catering/ canapés" debe ir a gastronomía, no a Banquete Formal.
-    familyPattern: /\bbanquetes?\b|(?:(?!.*\b(?:canap[eé]s?|bocadillos?|paellas?|pozole|taquiza|parrillada|pizzas?|pastas?|sushi|crepas?|coffee\s*break)\b).*\bcatering\b)/iu,
-    variantPattern: /\b(formal|mexicano|kosher|navide[nñ]o|buffet|\d\s*tiempos?|tres\s*tiempos?|cuatro\s*tiempos?|3\s*tiempos?|4\s*tiempos?)\b/i,
-    detailQueryFromText: banqueteDetailQuery,
-    buildMenu: () => [
-      "Claro. En *banquete* manejamos varias opciones:",
-      "\u2022 *Formal* (3 o 4 tiempos)",
-      "\u2022 *Mexicano* (3 o 4 tiempos)",
-      "\u2022 *Kosher* (3/4 tiempos o buffet)",
-      "\u2022 *Navide\xF1o* (3 o 4 tiempos)",
-      "",
-      SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n")
-  },
-  {
-    family: "coffee_break",
-    familyPattern: /\bcoffee\s*break\b|\bcoffeebreak\b|\bcoffe\s*break\b/i,
-    variantPattern: /\b(?:coffee\s*break|coffe{1,2}e?\s*break)\s*[1-9]\b|\bnivel\s*[1-9]\b|\bopci[oó]n(?:es)?\s*[1-9]\b|\bpaquete\s*[1-9]\b|^(?:el\s+|la\s+)?[1-9]$/i,
-    detailQueryFromText: (text2) => {
-      const m5 = text2.match(/\b(?:coffee\s*break|coffe{1,2}e?\s*break)\s*([1-9])\b/i) || text2.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*([1-9])\b/i) || text2.match(/^(?:el\s+|la\s+)?([1-9])$/i);
-      if (m5) return `Coffee Break ${m5[1]}`;
-      if (/\b(ver|muestr|muéstr|dame|quiero)\b.{0,24}\bopciones?\b/i.test(text2)) {
-        return "Coffee Break";
-      }
-      return "Coffee Break";
-    },
-    buildMenu: () => [
-      "Claro. En *Coffee Break* manejamos estos paquetes (del m\xE1s esencial al m\xE1s completo):",
-      "1. *Coffee Break 1*",
-      "2. *Coffee Break 2*",
-      "3. *Coffee Break 3*",
-      "4. *Coffee Break 4*",
-      "5. *Coffee Break 5*",
-      "",
-      "El detalle de men\xFAs e inclusiones est\xE1 en el cat\xE1logo:",
-      "https://bodasesor.com/catalogos/coffee-break",
-      "",
-      SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n")
-  },
-  {
-    family: "barra_sushi",
-    familyPattern: /\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
-    detailQueryFromText: (text2) => withCatalogNivelQuery("Barra de sushi", text2),
-    buildMenu: () => [
-      "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
-      "",
-      SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n")
-  },
-  {
-    family: "barra_cafe",
-    familyPattern: /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcafeter[ií]a\b|\bbarista\b/iu,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
-    detailQueryFromText: (text2) => withCatalogNivelQuery("Barra de Caf\xE9", text2),
-    buildMenu: () => [
-      "Claro. En *Barra de Caf\xE9* manejamos niveles con baristas y bebidas artesanales.",
-      "",
-      SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n")
-  },
-  {
-    family: "barra_bebidas",
-    familyPattern: /\bbarra\s+(de\s+)?bebidas?\b|\bbebidas?\s+alcoh[oó]licas?\b|\bmixolog|\bcocteler|\bm[oó]cteles?\b/i,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium|americana|yucateca|mixolog|cocteler|m[oó]cteles?|con\s+alcohol|sin\s+alcohol)\b/i,
-    detailQueryFromText: (text2) => {
-      if (/yucateca/i.test(text2)) return withCatalogNivelQuery("Barra Yucateca", text2);
-      if (/americana/i.test(text2)) return withCatalogNivelQuery("Barra Americana", text2);
-      if (/m[oó]cteles?/i.test(text2)) return "M\xF3cteles";
-      if (/mixolog|cocteler/i.test(text2)) return "Cocteler\xEDa y Mixolog\xEDa";
-      if (/con\s+alcohol/i.test(text2)) return "Barra de bebidas con Alcohol";
-      return withCatalogNivelQuery("Barra de bebidas", text2);
-    },
-    buildMenu: () => [
-      "Claro. En bebidas manejamos:",
-      "\u2022 *Barra de bebidas* (con o sin alcohol)",
-      "\u2022 *Barra Americana* / *Barra Yucateca*",
-      "\u2022 *Cocteler\xEDa / Mixolog\xEDa* y *M\xF3cteles*",
-      "",
-      SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n")
-  },
-  {
-    family: "barra_alimentos",
-    familyPattern: /\bbarra\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarras?\s+tem[aá]ticas?\b/i,
-    variantPattern: /\b(pizzas?|pastas?|ensaladas?|crepas?|mariscos?|paninis?|americana|yucateca|solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
-    detailQueryFromText: (text2) => {
-      if (/pizza/i.test(text2)) return withCatalogNivelQuery("Barra de pizzas", text2);
-      if (/pasta|ensalada/i.test(text2)) {
-        return withCatalogNivelQuery("Barra de pastas y ensaladas", text2);
-      }
-      if (/crepa/i.test(text2)) return withCatalogNivelQuery("Barra de Crepas", text2);
-      if (/marisco/i.test(text2)) return withCatalogNivelQuery("Barra de mariscos", text2);
-      if (/panini/i.test(text2)) return withCatalogNivelQuery("Barra de paninis", text2);
-      if (/yucateca/i.test(text2)) return withCatalogNivelQuery("Barra Yucateca", text2);
-      if (/americana/i.test(text2)) return withCatalogNivelQuery("Barra Americana", text2);
-      return withCatalogNivelQuery("Barra de alimentos", text2);
-    },
-    buildMenu: () => [
-      "Claro. En barras de alimentos manejamos varias:",
-      "\u2022 Pizzas, pastas y ensaladas, crepas, mariscos, paninis",
-      "\u2022 Americana, Yucateca y m\xE1s",
-      "",
-      SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n")
-  },
-  {
-    family: "taquiza",
-    familyPattern: /\btaquiza\b/i,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
-    detailQueryFromText: (text2) => withCatalogNivelQuery("taquiza", text2),
-    buildMenu: () => [
-      "Claro. En *taquiza* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
-      "",
-      SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n")
-  },
-  {
-    family: "parrillada",
-    familyPattern: /\bparrillada\b/i,
-    variantPattern: /\bargentina\b|\btacos?\b|\b(solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
-    detailQueryFromText: (text2) => {
-      if (/argentina/i.test(text2)) {
-        return withCatalogNivelQuery("Parrillada Argentina", text2);
-      }
-      if (/\btacos?\b/i.test(text2)) {
-        return withCatalogNivelQuery("Parrillada Tacos", text2);
-      }
-      return withCatalogNivelQuery("parrillada", text2);
-    },
-    buildMenu: () => [
-      "Claro. En *parrillada* tenemos *Parrillada Argentina* y *Parrillada Tacos*.",
-      "",
-      SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n")
-  },
-  {
-    family: "cupcakes_betun",
-    familyPattern: /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})/iu,
-    variantPattern: /\b(cl[aá]sico|decorado|cupcakes?|bet[uú]n)\b/i,
-    detailQueryFromText: (text2) => {
-      if (/decorado/i.test(text2)) return "Bet\xFAn Decorado";
-      if (/cl[aá]sico|bet[uú]n/i.test(text2) && !/cupcake/i.test(text2)) return "Bet\xFAn Cl\xE1sico";
-      if (/cupcake/i.test(text2)) return "Cupcakes";
-      return "Cupcakes y Bet\xFAn";
-    },
-    buildMenu: () => [
-      "Claro. En *Cupcakes y Bet\xFAn* manejamos *Cupcakes*, *Bet\xFAn Cl\xE1sico* y *Bet\xFAn Decorado*.",
-      "",
-      SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n")
-  },
-  {
-    family: "mesa_dulces",
-    familyPattern: /\bmesa\s+de\s+(dulces|postres|quesos)\b|\bcarrito\s+de\s+snacks?\b/i,
-    variantPattern: /\bmesa\s+de\s+(quesos|postres|dulces)\b|\bcarrito\s+de\s+snacks?\b/i,
-    detailQueryFromText: (text2) => {
-      if (/carrito/i.test(text2)) return "Carrito de Snacks";
-      if (/queso/i.test(text2)) return "Mesa de quesos";
-      if (/postre/i.test(text2)) return "Mesa de postres";
-      return "Mesa de dulces";
-    },
-    buildMenu: () => [
-      "Claro. En dulce manejamos *mesa de dulces*, *mesa de postres*, *mesa de quesos* y *carrito de snacks*.",
-      "",
-      SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n")
-  },
-  {
-    family: "gastronomia",
-    familyPattern: /\bpaellas?\b|\bpozole|\bpuestos?\s+de\s+comida\b|\bantojitos?\b|\bcanap[eé]s?(?!\p{L})|\bbocadillos?\b|\bpaletas?|\bhelados?\b|\bcomida\s+corrida\b/iu,
-    variantPattern: /\b(paella|pozole|puestos?|antojitos?|canap|bocadillo|paleta|helado|comida\s+corrida)\b/i,
-    detailQueryFromText: (text2) => {
-      if (/paella/i.test(text2)) return "Paella";
-      if (/pozole/i.test(text2)) return "Pozole y Tostadas";
-      if (/puesto|antojito/i.test(text2)) return "Puestos de Comida";
-      if (/canap/i.test(text2)) return "Canap\xE9s";
-      if (/bocadillo/i.test(text2)) return "Bocadillos";
-      if (/paleta|helado/i.test(text2)) return "Paletas de Hielo y Helados";
-      if (/comida\s+corrida/i.test(text2)) return "Comida Corrida";
-      return "gastronom\xEDa";
-    },
-    buildMenu: () => [
-      "Claro. En gastronom\xEDa manejamos varias opciones:",
-      "\u2022 Paella, pozole y tostadas, puestos de comida",
-      "\u2022 Canap\xE9s, bocadillos, paletas/helados",
-      "\u2022 Comida corrida (corporativo)",
-      "",
-      SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n")
-  },
-  {
-    family: "mobiliario",
-    // A15190: "centros de mesa" es floral/decorativo — no entra a familia mobiliario.
-    familyPattern: /^(?!.*\bcentros?\s+de\s+mesas?\b).*\b(?:mobiliario|periqueras?|salas?\s+lounge|mesas?\s+y\s+sillas?|renta\s+de\s+(?:mesas?|sillas?|mobiliario)|entelados?|colgantes?|vajillas?|barras?\s+de\s+mobiliario)\b/i,
-    // Pieza concreta (mesas/sillas/…) o modelo (Tiffany/Crossback…).
-    variantPattern: /\b(periqueras?|lounge|luxor|tiffany|crossback|imperial|ghost|wishbone|tolix|camila|antonella|basket|cabos|caroline|mar[ií]a|avant\s*garde|louis\s*xv|mariantonieta|manteler[ií]a|vajilla|sillas?|(?<!centros?\s+de\s)mesas?|picnic|bancos?|renta\s+de\s+mesas|entelado|colgante|wisteria)\b/i,
-    detailQueryFromText: (text2) => {
-      if (/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:de\s+)?mesas?\b|\bdecoraci[oó]n\s+de\s+mesas?\b/i.test(
-        text2
-      )) {
-        return "Centros de mesa";
-      }
-      if (/entelado|tela\s+(en\s+|de\s+|para\s+)?techo/i.test(text2)) {
-        return "Entelados para Techo";
-      }
-      if (/colgante|wisteria|a[eé]rea/i.test(text2)) return "Colgantes Premium";
-      if (/vajilla|cuberter|cristaler/i.test(text2)) return "Vajillas";
-      if (/periquera/i.test(text2)) return "periqueras";
-      if (/lounge|luxor/i.test(text2)) return "salas lounge";
-      if (/\bsillas?\b/i.test(text2)) return "sillas";
-      if (/(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)|picnic/i.test(
-        text2
-      )) {
-        return "mesas";
-      }
-      return "mobiliario";
-    },
-    buildMenu: () => [
-      "S\xED, contamos con *mobiliario*. \xBFQu\xE9 es lo que buscas?",
-      "\u2022 Mesas",
-      "\u2022 Sillas",
-      "\u2022 Periqueras",
-      "\u2022 Salas lounge",
-      "Tambi\xE9n manejamos vajillas, manteler\xEDa, entelados y colgantes.",
-      "",
-      "Dime qu\xE9 pieza te interesa y te paso modelos."
-    ].join("\n")
-  }
-];
-function fold2(s6) {
-  return s6.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-}
-function buildAlimentosModoMenu() {
-  return [
-    "Claro. Para *comida* del evento, \xBFqu\xE9 te gustar\xEDa?",
-    "\u2022 Un *banquete* m\xE1s formal (servicio a la mesa, varios tiempos)",
-    "\u2022 Algo m\xE1s *casual* tipo catering \u2014 por ejemplo: barra de pastas y ensaladas, barra de pizzas, taquiza, sushi\u2026",
-    "",
-    "Tambi\xE9n manejamos desayuno, brunch, canap\xE9s y otras estaciones. Dime qu\xE9 estilo te late y te paso el detalle."
-  ].join("\n");
-}
-function isAlimentosModoMenuReply(text2) {
-  if (!text2?.trim()) return false;
-  return (/banquete.*formal|formal.*banquete|algo m[aá]s \*?casual\*?\s+tipo\s+catering|\*banquete\*.*formal|casual.*catering/i.test(
-    text2
-  ) || /para \*comida\* del evento/i.test(text2)) && /barra de pastas|barra de pizzas|taquiza|sushi|desayuno|brunch|canap/i.test(text2);
-}
-function historyOfferedAlimentosModoMenu(history) {
-  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some((m5) => isAlimentosModoMenuReply(m5.content));
-}
-function clientChoseBanqueteFormal(text2) {
-  const t3 = text2?.trim() ?? "";
-  if (!t3) return false;
-  if (/\b(casual|barra\s+de|taquiza|pizza|pasta|sushi|pozole|panini|catering\s+casual)\b/i.test(t3) && !/\bbanquete\b|\bformal\b/i.test(t3)) {
-    return false;
-  }
-  return /\b(quiero|busco|prefiero|mejor|me\s+late|el|un|una)?\s*(banquete|formal)\b/i.test(t3) || /^(banquete|formal|el\s+banquete|m[aá]s\s+formal)[\s.!]*$/i.test(t3) || /\bbanquete\s+(formal|mexicano|kosher|navide)/i.test(t3);
-}
-function clientChoseCateringCasual(text2) {
-  const t3 = text2?.trim() ?? "";
-  if (!t3) return false;
-  if (/\bbanquete\b|\bformal\b/i.test(t3) && !/\bcasual\b|\bcatering\b|\bbarra\b|\btaquiza\b/i.test(t3)) {
-    return false;
-  }
-  return /\b(casual|catering|barra\s+de|taquiza|pizza|pastas?|sushi|pozole|paninis?|algo\s+m[aá]s\s+(ligero|informal|relajado))\b/i.test(
-    t3
-  ) || /^(casual|catering|m[aá]s\s+casual|algo\s+casual)[\s.!]*$/i.test(t3);
-}
-function buildCateringCasualMenu() {
-  return [
-    "Perfecto. En *catering* m\xE1s casual manejamos varias estaciones, por ejemplo:",
-    "\u2022 Barra de sushi",
-    "\u2022 Pozole y tostadas",
-    "\u2022 Barra de paninis",
-    "\u2022 Barra de pizzas / pastas y ensaladas",
-    "\u2022 Taquiza, parrillada y m\xE1s",
-    "",
-    "Si buscas algo especial, te paso el *cat\xE1logo general* para que veas todas las opciones.",
-    SERVICE_NIVEL_DETAIL_CTA
-  ].join("\n");
-}
-function isMobiliarioPieceMenuReply(text2) {
-  if (!text2?.trim()) return false;
-  return /contamos con \*mobiliario\*|en \*mobiliario\* manejamos/i.test(text2) && /\bmesas\b/i.test(text2) && /\bsillas\b/i.test(text2) && /qu[eé] es lo que buscas|qu[eé] pieza|dime qu[eé]/i.test(text2);
-}
-function historyOfferedMobiliarioPieceMenu(history) {
-  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some((m5) => isMobiliarioPieceMenuReply(m5.content));
-}
-function parseMobiliarioPieceChoice(text2) {
-  const t3 = text2?.trim() ?? "";
-  if (!t3) return null;
-  if (/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:de\s+)?mesas?\b|\bdecoraci[oó]n\s+de\s+mesas?\b|\bflores?\s+(?:para|en|de)\s+mesas?\b|\bmesa\s+de\s+(dulces|postres|quesos?|imperial)\b/i.test(
-    t3
-  )) {
-    return null;
-  }
-  if (/\b(periqueras?)\b/i.test(t3)) return "periqueras";
-  if (/\b(salas?\s+lounge|lounge)\b/i.test(t3)) return "salas lounge";
-  if (/\b(vajillas?|manteler[ií]a)\b/i.test(t3)) return "vajillas";
-  if (/\b(entelados?)\b/i.test(t3)) return "entelados";
-  if (/\b(colgantes?)\b/i.test(t3)) return "colgantes";
-  if (/\bsillas?\b/i.test(t3)) return "sillas";
-  if (/(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)|\bpicnic\b/i.test(t3)) {
-    return "mesas";
-  }
-  return null;
-}
-function buildSillasModelMenu() {
-  return [
-    "Claro. En *sillas* manejamos varios modelos; por ejemplo:",
-    "\u2022 *Tiffany* (cl\xE1sica / vers\xE1til)",
-    "\u2022 *Crossback* (r\xFAstico / vintage)",
-    "\u2022 *Ghost* (minimalista)",
-    "\u2022 *Camila*, *Tolix*, *Wishbone*, *Louis XV* y m\xE1s",
-    "",
-    "\xBFDe cu\xE1l te paso detalle, o te mando el *cat\xE1logo de mesas y sillas*?"
-  ].join("\n");
-}
-function isSillasModelMenuReply(text2) {
-  if (!text2?.trim()) return false;
-  return /en \*sillas\* manejamos|modelos.*sillas|sillas.*modelos/i.test(text2) && /tiffany/i.test(text2) && /crossback|ghost/i.test(text2);
-}
-function buildMesasModelMenu() {
-  return [
-    "Claro. En *mesas* manejamos varias l\xEDneas; por ejemplo:",
-    "\u2022 Mesas *Vintage* (blanco luminoso)",
-    "\u2022 Mesas *Caoba Natural*",
-    "\u2022 Mesas *M\xE1rmol*",
-    "\u2022 Mesas *picnic* / tablones y m\xE1s",
-    "",
-    "\xBFDe cu\xE1l te paso detalle, o te mando el *cat\xE1logo de mesas y sillas*?"
-  ].join("\n");
-}
-function buildMobiliarioPieceFollowUp(piece) {
-  const p4 = piece.toLowerCase();
-  if (p4 === "sillas") return buildSillasModelMenu();
-  if (p4 === "mesas") return buildMesasModelMenu();
-  if (p4 === "periqueras") {
-    return [
-      "Claro. En *periqueras* manejamos varios estilos y colores para barra o zona de pie.",
-      "",
-      "\xBFQuieres que te d\xE9 detalles o te paso el cat\xE1logo de salas y periqueras?"
-    ].join("\n");
-  }
-  if (p4 === "salas lounge") {
-    return [
-      "Claro. En *salas lounge* manejamos varios sets (Vintage Capitoneada, Black Trendy, Luxor y m\xE1s).",
-      "",
-      "\xBFQuieres que te d\xE9 detalles de alguno o te paso el cat\xE1logo?"
-    ].join("\n");
-  }
-  return [
-    `Claro. Anoto *${piece}*.`,
-    "",
-    SERVICE_NIVEL_DETAIL_CTA
-  ].join("\n");
-}
-function catalogNivelLabelFromText(text2) {
-  const t3 = fold2(text2 ?? "");
-  if (!t3) return null;
-  if (/\bsolo\s+alimentos?\b/.test(t3)) return "Solo Alimentos";
-  if (/\bservicio\s+completo\b/.test(t3)) return "Servicio completo";
-  if (/\bpor\s+pieza\b/.test(t3)) return "Por pieza";
-  if (/\btradicional\b/.test(t3)) return "Tradicional";
-  if (/\bpremium\b/.test(t3)) return "Premium";
-  if (/\bbasic[ao]\b/.test(t3)) return "Basico";
-  return null;
-}
-function withCatalogNivelQuery(baseService, text2) {
-  const base = baseService.trim();
-  const nivel = catalogNivelLabelFromText(text2);
-  if (!nivel) return base;
-  if (new RegExp(`\\b${nivel.replace(/\s+/g, "\\s+")}\\b`, "i").test(base)) return base;
-  return `${base} ${nivel}`;
-}
-function isProgressiveOptionsMenuReply(text2) {
-  if (!text2?.trim()) return false;
-  const t3 = text2;
-  if (isAlimentosModoMenuReply(t3) || isMobiliarioPieceMenuReply(t3) || isSillasModelMenuReply(t3)) {
-    return true;
-  }
-  if (/claro\.\s*en\s+\*|claro\.\s*en\s+(bebidas|barras|dulce|gastronom)/i.test(t3) || /opciones principales|¿Cu[aá]l estilo te late|s[ií],?\s+contamos con \*mobiliario\*/i.test(t3) || /manejamos estos paquetes|coffee\s*break\s*1[\s\S]{0,120}coffee\s*break\s*5/i.test(t3)) {
-    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos|qu[eé] es lo que buscas|dime qu[eé] pieza|modelos|catalogos\/coffee-break|cat[aá]logo/i.test(
-      t3
-    );
-  }
-  return false;
-}
-function historyOfferedServiceOptionsMenu(history) {
-  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some((m5) => isProgressiveOptionsMenuReply(m5.content));
-}
-var FAMILY_ALL_DETAIL_QUERIES = {
-  banquete: [
-    "Banquete Formal 3 tiempos",
-    "Banquete Formal 4 tiempos",
-    "Banquete Mexicano 3 tiempos",
-    "Banquete Mexicano 4 tiempos",
-    "Banquete Kosher 3 tiempos",
-    "Banquete Kosher 4 tiempos",
-    "Banquete Kosher Buffet",
-    "Banquete Navide\xF1o 3 tiempos",
-    "Banquete Navide\xF1o 4 tiempos"
-  ],
-  coffee_break: ["Coffee Break"],
-  barra_bebidas: [
-    "Barra de bebidas",
-    "Barra Americana",
-    "Barra Yucateca",
-    "M\xF3cteles",
-    "Cocteler\xEDa y Mixolog\xEDa"
-  ],
-  barra_alimentos: [
-    "Barra de pizzas",
-    "Barra de pastas y ensaladas",
-    "Barra de Crepas",
-    "Barra de mariscos",
-    "Barra de paninis"
-  ],
-  barra_cafe: ["Barra de Caf\xE9"],
-  barra_sushi: ["Barra de sushi"],
-  taquiza: ["taquiza"],
-  parrillada: ["Parrillada Argentina", "Parrillada Tacos"],
-  mesa_dulces: ["Mesa de dulces", "Mesa de postres", "Mesa de quesos", "Carrito de Snacks"],
-  cupcakes_betun: ["Cupcakes", "Bet\xFAn Cl\xE1sico", "Bet\xFAn Decorado"],
-  gastronomia: [
-    "Paella",
-    "Pozole y Tostadas",
-    "Puestos de Comida",
-    "Canap\xE9s",
-    "Bocadillos",
-    "Paletas de Hielo y Helados",
-    "Comida Corrida"
-  ],
-  mobiliario: [
-    "mesas y sillas",
-    "salas lounge",
-    "periqueras",
-    "Entelados para Techo",
-    "Colgantes Premium",
-    "Vajillas"
-  ]
-};
-function progressiveFamilyDetailQueries(family) {
-  return FAMILY_ALL_DETAIL_QUERIES[family] ?? [family];
-}
-function isBareProgressiveAffirmation(text2) {
-  const t3 = text2?.trim() ?? "";
-  if (!t3) return false;
-  return /^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas|el\s+detalle|detallame|detállame|m[aá]ndame\s+(la\s+)?info|dame\s+(la\s+)?info|quiero\s+(ver\s+)?(el\s+)?detalle)[\s.!]*$/i.test(
-    t3
-  );
-}
-function clientWantsServiceDetail(text2, history) {
-  const t3 = text2?.trim() ?? "";
-  if (!t3) return false;
-  const n4 = fold2(t3);
-  if (/^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas|el\s+detalle|detallame|detállame|m[aá]ndame\s+(la\s+)?info|dame\s+(la\s+)?info|quiero\s+(ver\s+)?(el\s+)?detalle)[\s.!]*$/i.test(
-    t3
-  )) {
-    return !!(history && historyOfferedServiceOptionsMenu(history));
-  }
-  if (/\b(quiero|necesito|me\s+gustar[ií]a|puedes?|me\s+puedes?)\b.{0,30}\b(ver|verlas|conocer)\b.{0,20}\b(las\s+)?opciones?\b/i.test(
-    t3
-  ) || /^(ver|muestra|muéstra|muestrame|muéstrame|dame|pasa|manda)\s+(las\s+)?opciones?\b/i.test(t3) || /^las\s+opciones?\b/i.test(t3)) {
-    return !!(history && historyOfferedServiceOptionsMenu(history));
-  }
-  if (/\b(dame|pasa|manda|quiero|necesito|me\s+interes[ao])\b.{0,40}\b(detalle|info|informaci[oó]n|precios?|incluye|inclusiones)\b/i.test(
-    t3
-  )) {
-    return true;
-  }
-  for (const fam of FAMILIES) {
-    if (fam.variantPattern.test(t3) && fam.familyPattern.test(t3 + " " + (history ? "" : ""))) {
-      return true;
-    }
-    if (history && historyOfferedServiceOptionsMenu(history) && fam.variantPattern.test(t3)) {
-      return true;
-    }
-  }
-  if (history && historyOfferedServiceOptionsMenu(history)) {
-    if (/\b(formal|mexicano|kosher|navide|3\s*tiempos|4\s*tiempos|tres|cuatro|led|iluminada|pintada|vinil|logo|charol|madera|premium|b[aá]sic|tradicional|solo\s+alimentos|opci[oó]n(?:es)?\s*[1-9]|paquete\s*[1-9]|nivel\s*[1-9]|(?:el\s+|la\s+)?[1-9])\b/i.test(
-      t3
-    ) || /^(?:el\s+|la\s+)?[1-9]$/i.test(t3)) {
-      return true;
-    }
-  }
-  return false;
-}
-function detectProgressiveFamily(text2) {
-  const t3 = text2?.trim() ?? "";
-  if (!t3) return null;
-  const matches = FAMILIES.filter((fam) => fam.familyPattern.test(t3));
-  if (!matches.length) return null;
-  if (matches.length === 1) return matches[0].family;
-  const withVariant = matches.filter((fam) => fam.variantPattern.test(t3));
-  if (withVariant.length === 1) return withVariant[0].family;
-  if (withVariant.length > 1) {
-    const nonBanquete = withVariant.filter((f6) => f6.family !== "banquete");
-    return (nonBanquete[0] ?? withVariant[0]).family;
-  }
-  if (/\bcatering\b/i.test(t3) && !/\bbanquetes?\b/i.test(t3)) {
-    const other = matches.find((f6) => f6.family !== "banquete");
-    if (other) return other.family;
-  }
-  return matches[0].family;
-}
-function defFor(family) {
-  return FAMILIES.find((f6) => f6.family === family);
-}
-function hasConcreteServiceVariant(text2) {
-  const t3 = text2?.trim() ?? "";
-  if (!t3) return false;
-  for (const fam of FAMILIES) {
-    if (fam.familyPattern.test(t3) && fam.variantPattern.test(t3)) return true;
-  }
-  return false;
-}
-function buildProgressiveOptionsMenu(family, hint) {
-  return defFor(family).buildMenu(hint);
-}
-function resolveDetailQueryForFamily(family, text2) {
-  return defFor(family).detailQueryFromText(text2);
-}
-function shouldOfferOptionsBeforeDetail(opts) {
-  const msg = opts.currentMessage?.trim() ?? "";
-  const blob = `${msg} ${opts.serviceHint ?? ""}`.trim();
-  if (!blob) return null;
-  if (/\b(incluye|inclue|incluyen|trae|tiene|tienen|viene|vienen)\b.{0,48}\b(bebidas?|refrescos?|meseros?|vajilla|cristaler[ií]a|alcohol|montaje|chef)\b/i.test(
-    msg
-  ) || /\bsi\b.{0,40}\bincluye\b.{0,40}\b(bebidas?|meseros?|vajilla)\b/i.test(msg) || clientAsksForCatalog(msg) || /\b(fotos?|fotograf|iluminaci|cuenta\s+con\s+luz|mesas?\s+por\s+carpa|c+t?a+l+[oó]+g+)/i.test(
-    msg
-  ) || /\?|¿/.test(msg) && /\b(carpa|toldo|luz|mesas?|sillas?|incluye|cuenta|cu[aá]ntas?)\b/i.test(msg)) {
-    return null;
-  }
-  const lastAsst = [...opts.history].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
-  const lastAsstText = lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : "";
-  if (/cu[aá]l\s+nivel|qu[eé]\s+nivel|nivel\s+(prefieres|te\s+interes)|niveles disponibles|qu[eé]\s+incluye\s+cada/i.test(
-    lastAsstText
-  )) {
-    return null;
-  }
-  const family = detectProgressiveFamily(msg) || detectProgressiveFamily(opts.serviceHint) || detectProgressiveFamily(blob);
-  if (!family) return null;
-  if (family === "banquete" && !/\bbanquetes?\b/i.test(msg) && !hasConcreteServiceVariant(msg) && !/\b(formal|mexicano|kosher|navide|\d\s*tiempos)\b/i.test(msg) && (/banquete\s*\/\s*taquiza/i.test(opts.serviceHint ?? "") || /\b(comidas?|alimentos?|catering)\b/i.test(msg) || /^(alimentos?|comidas?)$/i.test((opts.serviceHint ?? "").trim()))) {
-    return null;
-  }
-  const hintHasMultipleFamilies = (() => {
-    const hint = opts.serviceHint?.trim() ?? "";
-    if (!hint || !/,| y /.test(hint)) return false;
-    const families = new Set(
-      hint.split(/,|\by\b/i).map((p4) => detectProgressiveFamily(p4.trim())).filter(Boolean)
-    );
-    return families.size >= 2;
-  })();
-  if (hintHasMultipleFamilies && !detectProgressiveFamily(msg)) {
-    return null;
-  }
-  const famDef = defFor(family);
-  const hasVariantNow = hasConcreteServiceVariant(msg) || famDef.variantPattern.test(msg) || /\b(b[aá]sic[oa]|tradicional|premium|solo\s+alimentos)\b/i.test(msg);
-  if (hasVariantNow) {
-    return null;
-  }
-  if (family === "banquete" && /\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b/i.test(
-    msg
-  ) && !/\b(formal|mexicano|kosher|navide|\d\s*tiempos)\b/i.test(msg)) {
-    return null;
-  }
-  if (historyOfferedServiceOptionsMenu(opts.history) && clientWantsServiceDetail(msg, opts.history)) {
-    return null;
-  }
-  if (/^(si|sí)(?:\s|$|[.!,])/i.test(msg) && famDef.familyPattern.test(msg) && !/\b(detalle|info|informaci[oó]n|precio|incluye|opciones|cotiz)/i.test(msg) && (detectProgressiveFamily(opts.serviceHint) === family || opts.serviceHint && famDef.familyPattern.test(opts.serviceHint))) {
-    return null;
-  }
-  if (historyOfferedServiceOptionsMenu(opts.history) && msg.length < 80) {
-    const msgFamily = detectProgressiveFamily(msg);
-    const hintFamily = detectProgressiveFamily(opts.serviceHint);
-    const menuWasOtherFamily = !!msgFamily && !!hintFamily && msgFamily !== hintFamily;
-    if (menuWasOtherFamily) {
-      return { family: msgFamily, menu: buildProgressiveOptionsMenu(msgFamily) };
-    }
-    if (!msgFamily || msgFamily === family) {
-      return {
-        family,
-        menu: SERVICE_NIVEL_DETAIL_CTA
-      };
-    }
-  }
-  if (historyOfferedServiceOptionsMenu(opts.history)) return null;
-  return { family, menu: buildProgressiveOptionsMenu(family, opts.serviceHint) };
-}
-function resolveProgressiveDetailQuery(opts) {
-  const msg = opts.currentMessage?.trim() ?? "";
-  const hint = opts.serviceHint?.trim() ?? "";
-  const userBlob = [
-    ...opts.history.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content).slice(-6),
-    msg,
-    hint
-  ].filter(Boolean).join(" ");
-  const concreteFam = FAMILIES.find(
-    (f6) => f6.familyPattern.test(msg) && f6.variantPattern.test(msg)
-  );
-  const family = concreteFam?.family || detectProgressiveFamily(msg) || detectProgressiveFamily(hint) || detectProgressiveFamily(userBlob);
-  if (!family) return null;
-  if (hasConcreteServiceVariant(msg) || concreteFam) {
-    return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
-  }
-  if (clientWantsServiceDetail(msg, opts.history)) {
-    const def = defFor(family);
-    if (/^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas)[\s.!]*$/i.test(
-      msg
-    ) && !def.variantPattern.test(msg)) {
-      return null;
-    }
-    if (def.variantPattern.test(msg) || def.familyPattern.test(msg)) {
-      return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
-    }
-    if (historyOfferedServiceOptionsMenu(opts.history) && def.variantPattern.test(msg)) {
-      return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
-    }
-    if (historyOfferedServiceOptionsMenu(opts.history) && /\b(formal|mexicano|kosher|navide|\d\s*tiempos|tres|cuatro|coffee\s*break\s*[1-9]|b[aá]sic|tradicional|premium|solo\s+alimentos)\b/i.test(
-      msg
-    )) {
-      return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
-    }
-  }
-  return null;
-}
-
 // src/services/imageProcessor.ts
 init_llmChat();
 init_llmEnv();
@@ -124211,7 +118584,7 @@ var import_await_to_js = __toESM(require_await_to_js_umd(), 1);
 
 // ../node_modules/@jimp/file-ops/dist/esm/index.js
 import { promises as fs4 } from "fs";
-import { existsSync as existsSync2 } from "fs";
+import { existsSync } from "fs";
 var readFile = fs4.readFile;
 var writeFile2 = fs4.writeFile;
 
@@ -124628,7 +119001,7 @@ function createJimp({ plugins: pluginsArg, formats: formatsArg } = {}) {
       if (Buffer.isBuffer(url) || url instanceof ArrayBuffer) {
         return this.fromBuffer(url);
       }
-      if (existsSync2(url)) {
+      if (existsSync(url)) {
         return this.fromBuffer(await readFile(url));
       }
       const [fetchErr, response] = await (0, import_await_to_js.to)(fetch(url));
@@ -129968,6 +124341,5794 @@ function extractImageIntent(text2) {
   return normalizeIntent(m5[1]);
 }
 
+// src/services/serviceDecline.ts
+var FAMILY_SERVICE_RE = {
+  alimentos: /^(Alimentos|Comida)$|banquete|taquiza|catering|pizzas?|barra\s+de\s+(pizzas?|pastas?|alimentos|sushi)|brunch|parrillada|sushi|canap|bocadillo|coffee\s*break|puestos?\s+de\s+comida|desayuno|paella|pozole|pasta/i,
+  bebidas: /bebidas?|barra\s+de\s+bebidas|coctel|m[oó]cteles|mixolog|barra\s+de\s+caf[eé]/i,
+  mobiliario: /mobiliario|sillas?|mesas?(?!\s+de)|periqueras?|salas?\s+lounge|tiffany/i,
+  carpas: /carpas?|toldos?|lonas?/i,
+  decoracion: /decoraci[oó]n|centros?\s+de\s+mesa|florister|globos?|tem[aá]tica/i,
+  entretenimiento: /show|dj\b|entretenimiento|hora\s+loca|photobooth|photo\s*booth|bailarinas|batucada|robots?/i,
+  pista: /pista|tarima/i,
+  dulces: /mesa\s+de\s+dulces|postres?|cupcakes?|bet[uú]n|candy/i
+};
+var FAMILY_DECLINE_WORDS = {
+  alimentos: "comida|comidas|alimentos?|pizzas?|banquete|taquiza|catering|barra\\s+de\\s+pizzas?|brunch|parrillada|sushi|canap[e\xE9]s?|bocadillos?|coffee\\s*break",
+  bebidas: "bebidas?|barra\\s+de\\s+bebidas|cocteler[i\xED]a|m[o\xF3]cteles?|mixolog[i\xED]a",
+  mobiliario: "mobiliario|sillas?|mesas?|periqueras?|salas?",
+  carpas: "carpas?|toldos?|lonas?",
+  decoracion: "decoraci[o\xF3]n|centros?\\s+de\\s+mesa|flores?|globos?",
+  entretenimiento: "show|dj|entretenimiento|hora\\s+loca|photobooth|photo\\s*booth",
+  pista: "pista|tarima",
+  dulces: "mesa\\s+de\\s+dulces|postres?|dulces?|cupcakes?"
+};
+function captionOf(message) {
+  if (!message?.trim()) return "";
+  return (clientCaptionForServiceParse(message) || message).trim();
+}
+function clientDeclinesServiceFamilies(message) {
+  const t3 = captionOf(message).toLowerCase();
+  if (!t3) return [];
+  const out2 = /* @__PURE__ */ new Set();
+  if (/\b(yo\s+)?(ya\s+)?(les\s+|le\s+)?(voy\s+a\s+dar|doy|pondr[eé]|llevo|traigo)\b/i.test(t3) && /\b(pizza|comida|alimentos?|banquete|taquiza)\b/i.test(t3)) {
+    out2.add("alimentos");
+  }
+  if (/\b(porque|por\s*qu[eé])\s+yo\b/i.test(t3) && /\b(dar|doy|pondr|voy\s+a\s+dar|comida|pizza|alimentos|les\s+voy)\b/i.test(t3)) {
+    out2.add("alimentos");
+  }
+  if (/\b(yo\s+)?(ya\s+)?les?\s+voy\s+a\s+dar\b/i.test(t3) && !/\b(correo|tel[eé]fono|whatsapp|datos|nombre|ubicaci|direcci[oó]n)\b/i.test(t3)) {
+    out2.add("alimentos");
+  }
+  for (const family of Object.keys(FAMILY_DECLINE_WORDS)) {
+    const words = FAMILY_DECLINE_WORDS[family];
+    const reNoQuiero = new RegExp(
+      `\\b(no|nop)(?:\\s+pero|\\s+peor)?\\s+(quiero|necesito|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
+      "i"
+    );
+    const reQuitale = new RegExp(
+      `\\b(?:pero|peor\\s+)?(qu[i\xED]ta(le|me)?|quita(r|mos)?|sacar?|saquen|elimina(r)?)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
+      "i"
+    );
+    const reSin = new RegExp(`\\bsin\\s+(${words})\\b`, "i");
+    const reQueNo = new RegExp(
+      `\\bque\\s+no\\s+(quiero|necesito)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
+      "i"
+    );
+    if (reNoQuiero.test(t3) || reQuitale.test(t3) || reSin.test(t3) || reQueNo.test(t3)) {
+      out2.add(family);
+    }
+  }
+  if (/\bno(?:\s+pero|\s+peor)?\s+(quiero\s+)?comoda\b/i.test(t3) || /\bqu[ií]tale?\s+la\s+comoda\b/i.test(t3) || /\bno\s+quiero\s+comoda\b/i.test(t3)) {
+    out2.add("alimentos");
+  }
+  return [...out2];
+}
+function clientDeclinesServiceFamiliesWithContext(message, recentUserTexts = []) {
+  const fromCurrent = clientDeclinesServiceFamilies(message);
+  const out2 = new Set(fromCurrent);
+  const cur = captionOf(message).trim();
+  if (/^(comida|comidas|alimentos?)$/i.test(cur)) {
+    const prevBlob = recentUserTexts.slice(-3).join(" \n ");
+    if (clientDeclinesServiceFamilies(prevBlob).includes("alimentos") || /\bcomoda\b/i.test(prevBlob) || /\bno(?:\s+pero|\s+peor)?\s+no\s+quiero\b/i.test(prevBlob) || /\bqu[ií]tale?\s+la\s+comi/i.test(prevBlob)) {
+      out2.add("alimentos");
+    }
+  }
+  return [...out2];
+}
+function clientDeclinesAnyService(message) {
+  return clientDeclinesServiceFamilies(message).length > 0;
+}
+function serviceMatchesDeclinedFamily(serviceLabel, family) {
+  return FAMILY_SERVICE_RE[family].test(serviceLabel.trim());
+}
+function serviceIsDeclined(serviceLabel, families) {
+  return families.some((f6) => serviceMatchesDeclinedFamily(serviceLabel, f6));
+}
+function removeDeclinedFamiliesFromRequirements(existing, families) {
+  if (!existing?.trim() || families.length === 0) {
+    return existing?.trim() || null;
+  }
+  const parts2 = existing.split(",").map((s6) => s6.trim()).filter(Boolean).filter((s6) => !serviceIsDeclined(s6, families));
+  return parts2.length ? parts2.join(", ") : null;
+}
+function declinedFamilyLabel(family) {
+  switch (family) {
+    case "alimentos":
+      return "alimentos / comida";
+    case "bebidas":
+      return "bebidas";
+    case "mobiliario":
+      return "mobiliario";
+    case "carpas":
+      return "carpas";
+    case "decoracion":
+      return "decoraci\xF3n";
+    case "entretenimiento":
+      return "entretenimiento";
+    case "pista":
+      return "pista / tarima";
+    case "dulces":
+      return "mesa de dulces / postres";
+  }
+}
+function buildServiceDeclineAck(families) {
+  if (!families.length) return "Listo, lo quito de la cotizaci\xF3n.";
+  const labels = families.map(declinedFamilyLabel);
+  const list = labels.length === 1 ? labels[0] : labels.length === 2 ? `${labels[0]} y ${labels[1]}` : `${labels.slice(0, -1).join(", ")} y ${labels[labels.length - 1]}`;
+  return `Listo \u2014 *no* incluimos ${list} en tu cotizaci\xF3n.`;
+}
+function looksLikeThemeColorNotLocation(value) {
+  const t3 = (value ?? "").trim();
+  if (!t3) return false;
+  if (/^colores?\b/i.test(t3)) return true;
+  if (/^tem[aá]tica\b/i.test(t3)) return true;
+  if (/^(blanco|negro|dorado|plateado|rojo|azul|verde|rosa|morado|violeta|gris|beige|dorado)(\s*(y|con|\/|,)\s*(blanco|negro|dorado|plateado|rojo|azul|verde|rosa|morado|violeta|gris|beige))+$/i.test(
+    t3
+  )) {
+    return true;
+  }
+  return false;
+}
+function stripThemeColorsFromZona(value) {
+  if (!value?.trim()) return null;
+  let v3 = value.trim();
+  v3 = v3.replace(
+    /,\s*(blanco|negro|dorado|plateado|rojo|azul|verde|rosa|morado|violeta|gris|beige)(\s*(y|con|\/)\s*(blanco|negro|dorado|plateado|rojo|azul|verde|rosa|morado|violeta|gris|beige))*\s*$/i,
+    ""
+  );
+  v3 = v3.replace(/\s*[-–]\s*(rojo|negro|azul|blanco|dorado).*$/i, "");
+  return v3.trim() || null;
+}
+
+// src/conversation-understanding.ts
+var LUCY_FIELD_ASK_PATTERNS = {
+  nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
+  correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
+  tipo_evento: /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
+  requerimientos: (
+    // No usar "cotización" suelta: "la anoto para tu cotización" NO es pregunta de servicios.
+    /pensado|servicios?|banquete|taquiza|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|plat[ií]came|otro\s+servicio|te\s+gustar[ií]a\s+cotizar|qu[eé].{0,40}cotizar|animaci[oó]n|hora\s+loca|happening|show|incluir\s+en\s+la\s+cotiz|\bmen[uú]\b(?!\s+staff)/i
+  ),
+  invitados: /invitados|personas|gente|pax|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an|asistir[aá]n/i,
+  zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n|es)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n|venue|sede|colonia|municipio/i,
+  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo|qu[eé]\s+d[ií]a/i,
+  presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto|cu[aá]nto\s+cuesta|precio\s+total|para\s+la\s+comida|menos\s+de|hasta\s+\$?|opciones\s+de\s+precio/i
+};
+var BODASESOR_SERVICE_PATTERNS = [
+  ["Parrillada Argentina", /parrillada\s+argentina/i],
+  // Antes de Taquiza: "parrillada tacos" ≠ taquiza.
+  ["Parrillada Tacos", /\bparrillada\s+(de\s+)?tacos?\b/i],
+  ["Banquete Kosher Buffet", /\bkosher\s+buffet\b|\bbuffet\s+kosher\b/i],
+  ["Banquete Kosher", /\bkosher\b/i],
+  ["Banquete Navide\xF1o", /\bnavide[nñ]o\b/i],
+  // A15210: bare "mexicano" en "desayuno temático mexicano" ≠ Banquete Mexicano.
+  // Banquete: "banquete mexicano", "mexicano N tiempos", o "mexicano" suelto (elección de menú).
+  ["Banquete Mexicano", /\bbanquete\s+mexicano\b|\bmexicano\s+\d\s*tiempos?\b|\b\d\s*tiempos?\s+mexicanos?\b/i],
+  ["Banquete Formal", /\b(banquete\s+formal|banquete)\b/i],
+  // Barras específicas ANTES de genéricas (A14934 Barra Yucateca).
+  ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
+  // "americano" (bebida) ≠ Barra Americana (A14970).
+  ["Barra Americana", /\bbarra\s+americana\b/i],
+  ["Barra de mariscos", /\bbarra\s+de\s+mariscos?\b/i],
+  ["Barra de paninis", /\bbarra\s+de\s+paninis?\b/i],
+  ["Barra de Crepas", /\bbarra\s+de\s+crepas?\b/i],
+  ["Barra de pastas y ensaladas", /\bbarra\s+de\s+pastas?\s+y\s+ensaladas?\b/i],
+  ["Barra de pastas", /\bbarra\s+de\s+pastas?\b/i],
+  ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra)\b/i],
+  // A14985: cerveza/whisky/licores → Barra de bebidas (no solo "barra de bebidas" literal).
+  ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?|cervezas?|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|open\s*bar|barra\s+libre)\b/i],
+  ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
+  ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
+  // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
+  ["Barra de Caf\xE9", /\bbarra\s+de\s+caf[eé](?!\p{L})/iu],
+  ["Coffee break", /\b(coffee\s*break|coffeebreak|coffe\s*break)\b/i],
+  ["Comida Corrida", /\bcomida\s+corrida\b/i],
+  ["Paella", /\bpaellas?\b|\bpaellada\b/i],
+  ["Pozole y Tostadas", /\bpozole(\s+y\s+tostadas?)?\b|\bpozolada\b/i],
+  // A14985: banderillas / antojitos de stand → Puestos de Comida (no "Snack" corporativo).
+  ["Puestos de Comida", /\bpuestos?\s+de\s+comida\b|\bantojitos?\b|\bbanderillas?\b|\besquites?\b|\belotes?\b|\bgarnachas?\b|\bquesadillas?\b/i],
+  ["Cupcakes y Bet\xFAn", /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})/iu],
+  ["Carrito de Snacks", /\bcarrito\s+de\s+snacks?\b|\bcarrito\s+de\s+snaks?\b/i],
+  ["Paletas de Hielo y Helados", /\bpaletas?(\s+de\s+hielo)?\b|\bhelados?\b/i],
+  ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
+  // No robar "dulces" suelto (eso es Mesa de dulces).
+  ["Mesa de postres", /\bmesa\s+de\s+postres\b|\bpostres?\b/i],
+  ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
+  ["Canap\xE9s", /\bcanap[eé]s?(?!\p{L})/iu],
+  ["Bocadillos", /\bbocadillos?\b/i],
+  ["Entradas", /\bentradas?\b/i],
+  // Tiempos de comida corporativos (briefs con varios servicios).
+  ["Desayuno", /\bdesayunos?\b/i],
+  ["Brunch", /\bbrunch\b/i],
+  // A15212: typo frecuente "snaks".
+  ["Snack", /\bsnacks?\b|\bsnaks?\b/i],
+  ["Comida", /\bcomidas?\b/i],
+  ["Cena", /\bcenas?\b/i],
+  ["Men\xFA staff", /\bmen[uú]\s+(para\s+)?staff\b/iu],
+  ["Men\xFA Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/iu],
+  ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
+  ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
+  ["Animaci\xF3n / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|shows?|pixel|espejos|l[aá]ser|laser)\b/i],
+  // A15003 Juan: photo booth / cabina de fotos (entretenimiento).
+  ["Photo Booth", /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i],
+  // A15009 Erick: circo / Blue Man.
+  ["Circo para eventos", /\bcirco(\s+para\s+eventos?)?\b/i],
+  ["Show Blue Man", /\bblue\s*mans?\b|\bblueman\b/i],
+  // A14988 Ernesto: bailarinas / dancers = entretenimiento (no oferta genérica Nivel 1).
+  ["Bailarinas", /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i],
+  // A14962: robots LED / batucada = entretenimiento, NUNCA banquete.
+  ["Robots LED", /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i],
+  ["Batucada", /\bbatucada\b|\bambienta(?:r|ci[oó]n)\b.{0,40}\bbatucada\b|\bbatucada\b.{0,40}\bambient/i],
+  ["Maestro de ceremonias", /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador(\s+de\s+eventos?)?)\b/i],
+  ["Iluminaci\xF3n", /\biluminaci[oó]n\b/i],
+  // Antes de Decoración / Pantallas: "decoración aérea" y LED wall no deben robarse.
+  ["Colgantes Premium", /\bcolgantes?(?:\s+premium)?\b|\bwisteria\b|\bdecoraci[oó]n\s+a[eé]rea\b/i],
+  ["Entelados para Techo", /\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b/i],
+  ["Vajillas", /\bvajillas?\b|\bcuberter[ií]a\b|\bcristaler[ií]a\b/i],
+  ["Video", /\bvideo\b|\bled\s*wall\b/i],
+  // A15190: centros de mesa = floral/decorativo, NUNCA mobiliario (antes de Decoración/Mobiliario).
+  [
+    "Centros de mesa",
+    /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:florales?\s+)?(?:de\s+)?mesas?\b|\bdecoraci[oó]n\s+de\s+mesas?\b|\bflores?\s+(?:para|en|de)\s+mesas?\b/i
+  ],
+  ["Decoraci\xF3n", /\bdecoraci[oó]n\b/i],
+  ["Florister\xEDa", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
+  // Salas lounge / "sala: Luxor Rosa" / "4 salas" — producto, NO invitados ni ubicación.
+  ["Salas lounge", /\b(salas?\s+lounge|sala\s*:|ser[ií]an?\s+\d+\s+salas?|\d+\s+salas?)\b/i],
+  // "mesas?" no debe capturar "centros/arreglos/decoración de mesa" ni "mesa de dulces/…".
+  [
+    "Mobiliario",
+    /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|periqueras?)\b|(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)/i
+  ],
+  ["Carpas", /\b(carpa|carpas|toldo)\b/i],
+  ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
+  ["Audio y sonido", /\b(audio|microfon[ií]a|sonido|bocinas|amplificaci[oó]n)\b/i],
+  ["Estructuras", /\bestructuras?\b/i],
+  ["Inflables", /\binflable/i],
+  ["Softplay", /\bsoft\s*play\b/i],
+  ["Meseros", /\b(meseros?|staff|personal\s+de\s+servicio)\b/i],
+  ["DJ", /\bdj\b/i],
+  ["Mixolog\xEDa", /\bmixolog[ií]a\b/i],
+  ["Cocteler\xEDa", /\bcocteler[ií]a\b/i],
+  ["M\xF3cteles", /\bm[oó]cteles?\b/i],
+  ["Pastas", /\bpastas?\b/i],
+  ["Pizzas", /\bpizza/i],
+  ["Taquiza", /\btaquiza\b|\btacos?\b/i],
+  ["Parrillada", /\bparrillada\b/i],
+  ["Crepas", /\bcrep[aá]s?\b/i],
+  ["Frutas en vasito", /\bfrutas?\s+en\s+vasitos?\b|\bvasitos?\s+de\s+fruta/i],
+  ["Poptails", /\bpoptails?\b/i],
+  ["Renta de letras", /\b(renta\s+de\s+letras?|letras?\s+(xv|gigantes?)|letra\s+xv)\b/i],
+  ["Valet parking", /\b(valet|estacionamiento\s+valet)\b/i],
+  ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
+  ["Mesa imperial", /\bmesa\s+imperial\b/i]
+];
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+var SHORT_SERVICE_ALIASES = {
+  pista: "pista de baile",
+  tarima: "pista de baile",
+  dj: "DJ",
+  mesa: "mobiliario",
+  mesas: "mobiliario",
+  "centro de mesa": "Centros de mesa",
+  "centros de mesa": "Centros de mesa",
+  "centros florales": "Centros de mesa",
+  "centro floral": "Centros de mesa",
+  "arreglo de mesa": "Centros de mesa",
+  "arreglos de mesa": "Centros de mesa",
+  "decoracion de mesas": "Centros de mesa",
+  "decoraci\xF3n de mesas": "Centros de mesa",
+  silla: "mobiliario",
+  sillas: "mobiliario",
+  sala: "salas lounge",
+  salas: "salas lounge",
+  lounge: "salas lounge",
+  periquera: "mobiliario",
+  periqueras: "mobiliario",
+  carpa: "carpas",
+  carpas: "carpas",
+  bebidas: "barra de bebidas",
+  bebida: "barra de bebidas",
+  banquete: "banquete",
+  taquiza: "taquiza",
+  tacos: "taquiza",
+  pizza: "pizzas",
+  pizzas: "pizzas",
+  pasta: "pastas",
+  pastas: "pastas",
+  cafe: "Barra de Caf\xE9",
+  caf\u00E9: "Barra de Caf\xE9",
+  sushi: "Barra de sushi",
+  kosher: "banquete kosher",
+  paella: "Paella",
+  pozole: "Pozole y Tostadas",
+  pozolada: "Pozole y Tostadas",
+  cupcakes: "Cupcakes y Bet\xFAn",
+  cupcake: "Cupcakes y Bet\xFAn",
+  betun: "Cupcakes y Bet\xFAn",
+  bet\u00FAn: "Cupcakes y Bet\xFAn",
+  entelado: "Entelados para Techo",
+  entelados: "Entelados para Techo",
+  colgantes: "Colgantes Premium",
+  colgante: "Colgantes Premium",
+  vajilla: "Vajillas",
+  vajillas: "Vajillas",
+  mocteles: "M\xF3cteles",
+  m\u00F3cteles: "M\xF3cteles",
+  video: "Video",
+  meseros: "meseros",
+  mesero: "meseros",
+  decoracion: "decoraci\xF3n",
+  iluminacion: "iluminaci\xF3n",
+  pantalla: "pantallas",
+  inflable: "inflables",
+  mobiliario: "mobiliario",
+  helado: "Paletas de Hielo y Helados",
+  helados: "Paletas de Hielo y Helados",
+  paletas: "Paletas de Hielo y Helados",
+  brunch: "Brunch",
+  softplay: "Softplay",
+  "soft play": "Softplay",
+  "comida corrida": "Comida Corrida",
+  antojitos: "Puestos de Comida",
+  "fiesta infantil": "Fiesta Infantil",
+  "carrito de snacks": "Carrito de Snacks",
+  "carrito de snaks": "Carrito de Snacks",
+  "parrillada tacos": "Parrillada Tacos",
+  "tarima y pista": "Pista de baile",
+  "tarimas y pistas": "Pista de baile",
+  bailarina: "Bailarinas",
+  bailarinas: "Bailarinas",
+  dancers: "Bailarinas",
+  dancer: "Bailarinas",
+  vedette: "Bailarinas",
+  vedettes: "Bailarinas",
+  "audio e iluminacion": "Audio y sonido",
+  "audio e iluminaci\xF3n": "Audio y sonido",
+  "desayuno o brunch": "Desayuno",
+  // A15205: comida/alimentos vagos NO se aliasan a banquete — van a formal vs casual.
+  letras: "renta de letras",
+  "renta de letras": "renta de letras",
+  "letra xv": "renta de letras"
+};
+var TIPO_EVENTO_PATTERNS = [
+  [/\b(expo(sición)?|feria|stand\s+de|congreso)\b/i, "evento corporativo"],
+  // A14985 Lilian: torneo de golf / stand en campo.
+  [/\b(torneo(\s+de\s+golf)?|torneo\s+de\s+golf|golf|stand\s+en\s+campo)\b/i, "evento corporativo"],
+  [/\b(boda|bodas|matrimonio|casamiento|nupcial)\b/i, "boda"],
+  [/\b(baby\s*shower)\b/i, "baby shower"],
+  [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV a\xF1os"],
+  [/\b(fin\s+de\s+a[nñ]o|fiesta\s+de\s+empresa|eventos?\s+de\s+empresa|de\s+empresa)\b/i, "evento corporativo"],
+  [/\b(eventos?\s+corporativos?|convenci[oó]n(es)?|conferencias?|corporativos?)\b/i, "evento corporativo"],
+  [/\b(cumplea[nñ]os?|cumple)\b/i, "cumplea\xF1os"],
+  [/\b(bautizos?)\b/i, "bautizo"],
+  [/\b(graduaci[oó]n(es)?)\b/i, "graduaci\xF3n"],
+  [/\b(comuni[oó]n)\b/i, "celebraci\xF3n"],
+  // Fiesta / celebración / reunión familiar (A15000 Itzel: "Reunión familiar").
+  [/\b(fiesta|celebraci[oó]n(es)?(\s+familiares?)?|reun[ií][oó]n(es)?\s+(social|familiar(es)?))\b/i, "fiesta"],
+  [/\b(reun[ií][oó]n\s+familiar|celebraci[oó]n\s+familiar)\b/i, "fiesta"],
+  [/\bpozolada\b/i, "pozolada"],
+  [/\bpaellada\b/i, "paellada"],
+  [/\btaquiza\b/i, "taquiza"],
+  [/\bparrillada\b/i, "parrillada"],
+  [/\bcarne\s+asada\b/i, "carne asada"],
+  [/\bposada\b/i, "posada"],
+  [/\bcena\s+navide[nñ]a\b/i, "cena navide\xF1a"],
+  // A14988 Ernesto: concierto es tipo de evento (no servicio).
+  [/\bconciertos?\b/i, "concierto"],
+  // A15205 Mariel: campamento / concentración deportiva.
+  [/\bcampamentos?\b|\bconcentraci[oó]n\b|\batletas?\b/i, "campamento"]
+];
+function normalizePresentationText(text2) {
+  return text2.toLowerCase().replace(/[¿?.,!]/g, "").trim();
+}
+function clientAsksAboutTeam(message, clientName) {
+  if (!message?.trim()) return false;
+  const t3 = message.trim();
+  const normalized = normalizePresentationText(t3);
+  const name2 = clientName?.trim().toLowerCase() ?? "";
+  const advisor = getAdvisorName().toLowerCase();
+  const advisorEsc = advisor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (name2) {
+    if (normalized === name2 || normalized === `soy ${name2}` || normalized === `me llamo ${name2}`) {
+      return false;
+    }
+  }
+  if (/^(soy\s+)?[a-záéíóúñ]{2,30}$/i.test(normalized)) return false;
+  if (/^hola,?\s+[a-záéíóúñ]{2,30}$/i.test(normalized)) return false;
+  if (name2 && name2 === advisor && new RegExp(`^${advisorEsc}$`, "i").test(normalized)) {
+    return false;
+  }
+  if (/^[a-záéíóúñ]{2,30}!?$/i.test(normalized)) return false;
+  const legacyTeamAsk = LEGACY_ADVISOR_NAMES.some((legacy) => {
+    const esc = legacy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`^${esc}$`, "i").test(normalized) || new RegExp(`\\bqui[e\xE9]n\\s+es\\s+${esc}\\b`, "i").test(t3) || new RegExp(`\\best[a\xE1]\\s+${esc}\\b`, "i").test(t3);
+  });
+  return legacyTeamAsk || new RegExp(`^${advisorEsc}$`, "i").test(normalized) && !(name2 && name2 === advisor) || new RegExp(`\\bqui[e\xE9]n\\s+es\\s+${advisorEsc}\\b`, "i").test(t3) || /\bqui[eé]n\s+es\s+alejandro\b/i.test(t3) || new RegExp(`\\best[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t3) || new RegExp(`\\bhablo\\s+con\\s+${advisorEsc}\\b`, "i").test(t3) || new RegExp(`\\bpuedo\\s+hablar\\s+con\\s+${advisorEsc}\\b`, "i").test(t3) || new RegExp(`\\bd[o\xF3]nde\\s+est[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t3) || /\bel\s+asesor\b/i.test(t3);
+}
+function clientAddsToQuote(message) {
+  if (!message?.trim()) return false;
+  if (isRichQuoteBrief(message)) return false;
+  const t3 = message.toLowerCase();
+  if (/\b(incluir|agregar|sumar|tambi[eé]n|adem[aá]s)\b/i.test(t3) && /\b(cotizaci[oó]n|propuesta|cotizar)\b/i.test(t3) || /\bincluir\b.+\b(en\s+la\s+)?cotiz/i.test(t3)) {
+    return true;
+  }
+  if (/\b(queremos|quisiera|me\s+gustar[ií]a|sumamos|ponemos|buscamos)\b/i.test(t3)) {
+    const services = parseServicesFromText(message);
+    if (services.length >= 1) return true;
+    if (/\b(helado|frutas?|vasitos?|postres?|dulces?)\b/i.test(t3)) return true;
+  }
+  return false;
+}
+function clientAsksForRecommendations(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  return /recomendaciones?|recomiendas?/i.test(t3) || /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t3) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t3) || /qu[eé]\s+opciones/i.test(t3) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t3) || /qu[eé]\s+(otros\s+)?servicios(\s+\w+){0,3}\s+(manejan|ofrecen|tienen|hay)/i.test(t3) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen/i.test(t3) || /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t3) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t3) || /algo\s+m[aá]s\s*\?/i.test(t3);
+}
+function lastAssistantOfferedNumberedPackages(lastAssistantText) {
+  const last = lastAssistantText ?? "";
+  return /coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]/i.test(last) || /\d\.\s*\*?coffee\s*break/i.test(last) || // A15168: menú corto "paquetes (1 a 5)" / listado CB 1–5.
+  /coffee\s*break|coffe\s*break/i.test(last) && (/paquetes?\s*\(?\s*1\s*a\s*5\s*\)?/i.test(last) || /coffee\s*break\s*1/i.test(last) && /coffee\s*break\s*5/i.test(last)) || /cu[aá]l\s+nivel\s+prefieres/i.test(last) && /coffee\s*break|coffe{1,2}\s*break/i.test(last) && /\$\s*\d/.test(last);
+}
+function foldNivelLabel(s6) {
+  return s6.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+}
+function parseNumberedNivelesFromAssistant(lastAssistantText) {
+  const last = lastAssistantText ?? "";
+  if (!last.trim()) return [];
+  const out2 = [];
+  const re3 = /^\s*(\d+)\.\s*\*?([^*\n]+?)\*?(?:\s*[—\-–:].*)?$/gim;
+  let m5;
+  while ((m5 = re3.exec(last)) !== null) {
+    const index = parseInt(m5[1], 10);
+    let label = (m5[2] ?? "").replace(/\*+/g, "").trim();
+    label = label.replace(/\s+[—\-–].*$/, "").trim();
+    if (index >= 1 && index <= 9 && label.length >= 2 && label.length <= 80) {
+      out2.push({ index, label });
+    }
+  }
+  return out2;
+}
+function extractNumberedNivelFromLastAssistant(text2, lastAssistantText) {
+  const niveles = parseNumberedNivelesFromAssistant(lastAssistantText);
+  if (!niveles.length) return null;
+  const raw = text2?.trim() ?? "";
+  if (!raw) return null;
+  const bare = raw.match(/^(?:el\s+|la\s+|opci[oó]n(?:es)?\s+|paquete\s+|nivel\s+)?(\d+)\s*[.)]?$/i) || raw.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*(\d+)\b/i);
+  if (bare) {
+    const hit = niveles.find((x7) => x7.index === parseInt(bare[1], 10));
+    if (hit) return hit.label;
+  }
+  const numbered = raw.match(/^\s*(\d+)\s*[.)]?\s+(.+)$/i);
+  if (numbered) {
+    const hit = niveles.find((x7) => x7.index === parseInt(numbered[1], 10));
+    if (hit) return hit.label;
+  }
+  const tf = foldNivelLabel(raw);
+  for (const n4 of niveles) {
+    const lf = foldNivelLabel(n4.label);
+    if (!lf) continue;
+    if (tf === lf || tf.includes(lf) || lf.includes(tf)) return n4.label;
+  }
+  return null;
+}
+function extractCatalogNivelFromText(text2, lastAssistantText) {
+  const t3 = text2?.trim().toLowerCase() ?? "";
+  if (!t3) return null;
+  const fromMenu = extractNumberedNivelFromLastAssistant(text2, lastAssistantText);
+  if (fromMenu) return fromMenu;
+  const coffeeNamed = t3.match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
+  if (coffeeNamed) return `Coffee Break ${coffeeNamed[1]}`;
+  if (lastAssistantOfferedNumberedPackages(lastAssistantText)) {
+    const bare = t3.match(/^(?:el\s+|la\s+)?([1-9])$/i) || t3.match(/\bel\s+([1-9])\b/i);
+    if (bare) return `Coffee Break ${bare[1]}`;
+    const opcionN = t3.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*([1-9])\b/i);
+    if (opcionN) return `Coffee Break ${opcionN[1]}`;
+  }
+  const m5 = t3.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t3.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t3.match(/^(1|2|3|4)$/);
+  if (!m5) return null;
+  const raw = (m5[1] ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  if (/^(1|2|3|4)$/.test(raw)) {
+    const last = lastAssistantText ?? "";
+    const numbered = parseNumberedNivelesFromAssistant(last);
+    const classicInMenu = /b[aá]sic|tradicional|premium|solo\s*alimentos/i.test(last);
+    if (numbered.length && !classicInMenu) return null;
+  }
+  if (raw === "1" || raw.startsWith("basic")) return "basica";
+  if (raw === "2" || raw.startsWith("tradicional")) return "tradicional";
+  if (raw === "3" || raw.startsWith("premium")) return "premium";
+  if (raw === "4" || /solo\s*alimento/.test(raw)) return "solo alimentos";
+  return null;
+}
+function isCatalogLevelSelection(text2, lastAssistantText) {
+  const t3 = text2?.trim().toLowerCase() ?? "";
+  if (!t3) return false;
+  const last = lastAssistantText?.toLowerCase() ?? "";
+  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|varios paquetes|paquetes?\s*\(?\s*1\s*a\s*5|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles|manejamos estos paquetes/i.test(
+    last
+  );
+  if (!askedNivel) {
+    return /\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(t3);
+  }
+  if (extractNumberedNivelFromLastAssistant(text2, lastAssistantText)) return true;
+  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1-9])$/i.test(t3)) return true;
+  if (/^(?:el\s+|la\s+)?[1-9]$/i.test(t3) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
+    return true;
+  }
+  if (/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*[1-9]\b/i.test(t3) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
+    return true;
+  }
+  return !!extractCatalogNivelFromText(t3, lastAssistantText);
+}
+function isAmbiguousShortNumber(text2, ctx) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return false;
+  if (ctx?.lastAskedField === "invitados") return false;
+  const guestCount = t3.match(/^(?:son\s+)?(\d+)\s*(?:personas?|invitados?|pax|gente)?$/i);
+  if (guestCount) {
+    const n4 = parseInt(guestCount[1], 10);
+    if (n4 >= 10) return false;
+  }
+  const elMatch = t3.match(/^el\s+(\d{1,2})$/i);
+  if (elMatch) {
+    const n4 = parseInt(elMatch[1], 10);
+    return n4 >= 1 && n4 <= 9;
+  }
+  const bareMatch = t3.match(/^(\d+)$/);
+  if (bareMatch) {
+    const n4 = parseInt(bareMatch[1], 10);
+    if (n4 >= 10) return false;
+    return n4 >= 1 && n4 <= 9;
+  }
+  return false;
+}
+function parseWebLeadBrief(text2) {
+  const t3 = text2.trim();
+  if (!/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t3)) return null;
+  const result = {};
+  const eventoMatch = t3.match(
+    /(?:evento|celebraci[oó]n)\s*:\s*([^.\n]+?)(?:\.|,|\s+ser[ií]a|\s+para\s+\d|\s+en\s+)/i
+  );
+  if (eventoMatch) {
+    const chunk = eventoMatch[1].trim();
+    const tipo = parseTipoEventoFromText(chunk);
+    if (tipo) result.tipo_evento = tipo;
+    const services = parseServicesFromText(chunk);
+    if (services.length) result.requerimientos_evento = services.slice(0, 6).join(", ");
+    else if (!tipo) result.requerimientos_evento = chunk;
+  }
+  if (!result.requerimientos_evento) {
+    const colonSvc = t3.match(/me\s+interesa\s+cotizar\s*:\s*([^.\n]+)/i);
+    const quotedSvc = t3.match(
+      /(?:me\s+interesa\s+)?cotizar\s*[“"']([^”"']+)[”"']/i
+    );
+    const enSvc = t3.match(
+      /(?:me\s+interesa\s+)?cotizar\s+(.+?)\s+en\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]/i
+    );
+    const raw = (colonSvc?.[1] ?? quotedSvc?.[1] ?? enSvc?.[1] ?? "").trim();
+    if (raw) {
+      const chunk = raw.replace(/\s+para\s+eventos?(?:\s+\w+)*\s*$/i, "").replace(/^["'“”]+|["'“”]+$/g, "").trim();
+      const services = parseServicesFromText(chunk || raw);
+      if (services.length) result.requerimientos_evento = services.slice(0, 6).join(", ");
+      else if (chunk) result.requerimientos_evento = chunk;
+      const tipo = parseTipoEventoFromText(raw);
+      if (tipo && !result.tipo_evento) result.tipo_evento = tipo;
+    }
+  }
+  if (!result.direccion_evento) {
+    const enZona = t3.match(/\ben\s+((?:Ciudad\s+de\s+)?M[eé]xico|CDMX|[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ\s.-]{2,40})(?:\s+para\s+mi\s+evento)?/i);
+    if (enZona?.[1]) {
+      const z3 = parseZonaFromText(enZona[1]) ?? enZona[1].trim();
+      if (z3 && isUsableDireccionEvento(z3)) result.direccion_evento = z3;
+    }
+  }
+  const seriaMatch = t3.match(/ser[ií]a\s+(?:el\s+)?([^,.\n]+?)\s+en\s+([^,.\n]+?)(?:\.|,|\s+para\s+)/i);
+  if (seriaMatch) {
+    const fechaPart = seriaMatch[1].trim();
+    const lugarPart = seriaMatch[2].trim();
+    result.fecha_horario = parseFechaFromText(fechaPart) ?? fechaPart;
+    result.direccion_evento = parseZonaFromText(lugarPart) ?? lugarPart;
+  }
+  const invMatch = t3.match(/para\s+(\d{1,4})\s*(?:personas?|invitados?|pax|gente)/i);
+  if (invMatch) result.num_invitados = parseInt(invMatch[1], 10);
+  return Object.keys(result).length > 0 ? result : null;
+}
+function applyWebLeadBrief(extracted, text2) {
+  const brief = parseWebLeadBrief(text2);
+  if (!brief) return false;
+  if (!extracted.tipo_evento?.trim() && brief.tipo_evento) extracted.tipo_evento = brief.tipo_evento;
+  if (brief.requerimientos_evento) {
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      brief.requerimientos_evento,
+      6
+    );
+    if (merged) extracted.requerimientos_evento = merged;
+  }
+  if (!extracted.fecha_horario?.trim() && brief.fecha_horario) {
+    extracted.fecha_horario = brief.fecha_horario;
+  }
+  if (!isUsableDireccionEvento(extracted.direccion_evento) && brief.direccion_evento && isUsableDireccionEvento(brief.direccion_evento)) {
+    extracted.direccion_evento = brief.direccion_evento;
+  }
+  if (!extracted.num_invitados && brief.num_invitados) extracted.num_invitados = brief.num_invitados;
+  return true;
+}
+function isGettingReadyContext(text2) {
+  if (!text2?.trim()) return false;
+  return /\b(getting\s*ready|nos\s+arreglamos|arreglo\s+de\s+novia|donde\s+nos\s+arreglamos|d[ií]a\s+de\s+la\s+boda\s+en\s+casa)\b/i.test(
+    text2
+  );
+}
+function hasSpecificFoodService(text2) {
+  if (/\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b|\bbanquetes?\s+o\s+catering\b/i.test(
+    text2
+  )) {
+    return false;
+  }
+  return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé](?!\p{L})|pizzas?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?(?!\p{L})|bocadillos?|parrillada|brunch\s+buf[eé](?!\p{L})|desayuno\s+(?:buffet|ejecutivo|continental)|puestos?\s+de\s+comida|antojitos?|quesadillas?)\b/iu.test(
+    text2
+  );
+}
+function isVagueFoodTerm(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return false;
+  if (clientDeclinesServiceFamilies(t3).includes("alimentos")) return false;
+  if (clientAsksCafeOrCateringChoice(t3)) return true;
+  if (/\b(desayuno|snack|cena|coffee\s*break)\b/i.test(t3) && /\b(desayuno|comida|cena|snack|coffee)\b/i.test(t3) && (t3.match(/\b(desayuno|comida|cena|snack|coffee\s*break)\b/gi) ?? []).length >= 2) {
+    return false;
+  }
+  if (hasSpecificFoodService(t3)) return false;
+  if (/\b(comidas?|alimentos?|algo\s+de\s+comer|catering|banquetes?)\b/i.test(t3) && !/\b(banquete\s+(formal|mexicano|premium|b[aá]sic|tradicional)|\d\s*tiempos?|taquiza|coffee\s*break|barra\s+de|sushi|parrillada|canap|pizza|pasta|pozole|paella)\b/i.test(
+    t3
+  )) {
+    return true;
+  }
+  if (/\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b/i.test(
+    t3
+  ) || /^(me\s+interesa\s+(cotizar\s+)?)?(un\s+)?(servicio\s+de\s+)?(banquetes?|catering)(\s+para\s+mi\s+evento)?[.!?¿?]*$/i.test(
+    t3
+  )) {
+    if (!/\b(banquete\s+(formal|mexicano|premium|b[aá]sic|tradicional|\d\s+tiempos)|\d\s+tiempos|taquiza|coffee\s*break|barra\s+de|sushi|parrillada)\b/i.test(t3)) {
+      return true;
+    }
+  }
+  const services = parseServicesFromText(t3);
+  if (services.length >= 2) return false;
+  if (services.length > 0 && !/^(comida|alimentos?|men[uú]|desayuno|brunch|catering|banquetes?)$/i.test(t3) && !/^(quiero|necesito|busco)\s+(comida|alimentos?|men[uú]|desayuno|brunch|catering|banquetes?)$/i.test(t3)) {
+    if (services.length === 1 && /^(Desayuno|Snack|Cena|Coffee break|Brunch)$/i.test(services[0])) {
+      return false;
+    }
+    if (services.length === 1 && !/^(Comida|Alimentos|banquete \/ taquiza)$/i.test(services[0])) {
+      return false;
+    }
+  }
+  const cleaned = t3.replace(
+    /^(quer[ií]a|quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i,
+    ""
+  ).replace(/^(una?|el|la|los|las|un\s+servicio\s+de)\s+/i, "").replace(/\s+para\s+(un\s+)?evento\b.*$/i, "").trim();
+  if (/^(comidas?|alimentos?|men[uú]s?|catering|banquetes?|algo\s+de\s+comer|servicio\s+de\s+banquetes?(\s+o\s+catering)?|banquetes?\s+o\s+catering)$/i.test(
+    cleaned
+  )) {
+    return true;
+  }
+  return /\b(quer[ií]a|quiero|necesito|busco|me\s+interesa|cotizar?)\b.{0,24}\b(comidas?|alimentos?|algo\s+de\s+comer|banquetes?|catering)\b/i.test(
+    t3
+  );
+}
+function sanitizeExtractedAmbiguousNumbers(extracted, messageText, ctx) {
+  if (isAmbiguousShortNumber(messageText, ctx)) {
+    extracted.num_invitados = null;
+  }
+  const m5 = (messageText ?? "").match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
+  if (m5 && extracted.num_invitados === parseInt(m5[1], 10)) {
+    extracted.num_invitados = null;
+  }
+}
+function stripNombrePresentationPrefix(raw) {
+  const m5 = raw.trim().match(/^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es|c[oó]mo)\s+(.+)$/i);
+  return (m5?.[1] ?? raw).trim();
+}
+function recoverClienteNombreFromHistory(history, currentMessage) {
+  let lastAssistant = "";
+  for (const msg of history) {
+    if (msg.role === "assistant" && typeof msg.content === "string") {
+      lastAssistant = msg.content;
+      continue;
+    }
+    if (msg.role !== "user" || typeof msg.content !== "string") continue;
+    const asked = inferLucyAskedField(lastAssistant);
+    if (asked !== "nombre" && !LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) continue;
+    const raw = msg.content.trim();
+    if (!raw || isAffirmativeOnlyMessage(raw) || isAmbiguousShortNumber(raw)) continue;
+    const nombreSalvage = sanitizeCrmNombre(raw);
+    if (isLikelyNotPersonNameMessage(raw) || isServiceRelatedMessage(raw) || isQuoteIntentMessage(raw)) {
+      if (nombreSalvage && (clientAsksForHumanAdvisor(raw) || /\b(hablar|asesor|agente|humano)\b/i.test(raw))) {
+        return nombreSalvage;
+      }
+      continue;
+    }
+    const candidato = stripNombrePresentationPrefix(raw);
+    const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato) && !isLikelyNotPersonNameMessage(candidato)) {
+      return nombre;
+    }
+  }
+  if (currentMessage?.trim()) {
+    const asked = inferLucyAskedField(lastAssistant);
+    if (asked === "nombre" || LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) {
+      const raw = currentMessage.trim();
+      if (!isAffirmativeOnlyMessage(raw) && !isAmbiguousShortNumber(raw) && !isLikelyNotPersonNameMessage(raw) && !isServiceRelatedMessage(raw) && !isQuoteIntentMessage(raw)) {
+        const candidato = stripNombrePresentationPrefix(raw);
+        const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+        if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato)) {
+          return nombre;
+        }
+      }
+    }
+  }
+  return null;
+}
+function clientAsksLocation(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  return /d[oó]nde\s+(se\s+)?ubican/i.test(t3) || /d[oó]nde\s+est[aá]n(\s+ubicados?)?/i.test(t3) || /en\s+d[oó]nde\s+est[aá]n/i.test(t3) || /cu[aá]l\s+es\s+su\s+ubicaci[oó]n/i.test(t3) || /zona\s+de\s+cobertura/i.test(t3) || /en\s+qu[eé]\s+ciudad\s+est[aá]n/i.test(t3) || /\b(est[aá]n|quedan)\s+ubicados?\b/i.test(t3) || /\bd[oó]nde\s+tienen\s+(oficina|sucursal|local)\b/i.test(t3);
+}
+function looksLikeCompanyLocationQuestionFragment(text2) {
+  const t3 = (text2 ?? "").trim().toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
+  if (!t3) return false;
+  if (clientAsksLocation(t3)) return true;
+  return /^(d[oó]nde\s+est[aá]n|en\s+d[oó]nde(\s+est[aá]n)?|donde\s+estan|ubicados?|su\s+ubicaci[oó]n|ubicaci[oó]n)$/i.test(
+    t3
+  ) || /^d[oó]nde\s+est[aá]n(\s+ubicados?)?$/i.test(t3) || /^en\s+d[oó]nde(\s+est[aá]n)?(\s+ubicados?)?$/i.test(t3);
+}
+function clientMentionsItalianTheme(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.trim();
+  if (/\bbarra\s+de\s+pastas?\b/i.test(t3) && !/\b(italian[ao]?|italia|toscana|mafia\s+italiana)\b/i.test(t3)) {
+    return false;
+  }
+  return /\b(italian[ao]?|italia|toscana|toscano|mafia\s+italiana|pastas?|pizzas?|antipasti|selecci[oó]n\s+de\s+italia|partido.*italia)\b/i.test(
+    t3
+  );
+}
+function clientMentionsEntertainment(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  return /\bshows?\b/i.test(t3) || /\bgrupo\s+vers[aá]til\b/i.test(t3) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t3) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t3) || /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t3) || /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(shows?|maestro|animaci)/i.test(t3) || // A14962 Vane: batucada / robots LED / ambientación de show
+  /\bbatucada\b/i.test(t3) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t3) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|shows?|robots?|leds?)\b/i.test(t3) || // A14988 Ernesto: bailarinas para concierto
+  /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(t3) || // A15003 Juan: photo booth / cabina
+  /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
+    t3
+  ) || // A15009 Erick: circo / Blue Man / actos en vivo especiales
+  clientMentionsSpecialLiveAct(message);
+}
+function clientMentionsSpecialLiveAct(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  if (/\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca|entretenimiento)\b/i.test(t3) || /\bgrupo\s+vers[aá]til\b/i.test(t3)) {
+    return false;
+  }
+  return /\bcirco\b/i.test(t3) || /\bblue\s*mans?\b|\bblueman\b/i.test(t3) || /\b(mago|magia|ilusionista)\b/i.test(t3) || /\b(payasos?|malabares?|acr[oó]batas?|trapecio|contorsion)\b/i.test(t3) || // "show blueman" / "show X" con nombre propio (no "show de…").
+  /\bshow\s+[a-záéíóúüñ][\wáéíóúüñ.-]{2,}(?!\s+de\b)/i.test(t3) && !/\bshow\s+(de|en|para|con|un|una|el|la|los|las)\b/i.test(t3) || /\b(quiero|busco|necesito|interes[aá]|cotiz)\b.{0,40}\bcirco\b/i.test(t3);
+}
+function parseSpecialLiveActLabel(message) {
+  if (!message?.trim()) return null;
+  const t3 = message.trim();
+  if (/\bcirco\b/i.test(t3)) return "Circo para eventos";
+  if (/\bblue\s*mans?\b|\bblueman\b/i.test(t3)) return "Show Blue Man";
+  if (/\b(mago|magia|ilusionista)\b/i.test(t3)) return "Show de magia";
+  if (/\b(payasos?|malabares?|acr[oó]batas?)\b/i.test(t3)) return "Actos de circo / animaci\xF3n";
+  if (/\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca)\b/i.test(t3) || /\bgrupo\s+vers[aá]til\b/i.test(t3)) {
+    return null;
+  }
+  const named = t3.match(/\bshow\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.-]{1,40})/i);
+  if (named?.[1] && !/^(de|en|para|con|un|una|el|la)$/i.test(named[1])) {
+    return `Show ${named[1].trim()}`;
+  }
+  if (clientMentionsSpecialLiveAct(t3)) {
+    return t3.replace(/\s+/g, " ").slice(0, 60);
+  }
+  return null;
+}
+function clientConfirmsOfferReview(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.trim();
+  return /^(revisar|revisemos|revisarlo|revisarla|revisar\s+primero|el\s+detalle|detallame|det[aá]llame)[\s.!]*$/i.test(
+    t3
+  );
+}
+function clientMentionsLedRobotsOrBatucada(message) {
+  if (!message?.trim()) return false;
+  return /\bbatucada\b/i.test(message) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(message) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\bbatucada\b/i.test(message);
+}
+function clientDeclinesMoreServices(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.trim().toLowerCase();
+  if (clientWantsFoodOnlyQuote(message)) return false;
+  if (/\bsolo\s+(el\s+)?(servicio|photo|photobooth|cabina|banquete|barra|dj|mobiliario)/i.test(t3) && !/\bno\s+quiero\b/i.test(t3)) {
+    return false;
+  }
+  return /^(no|nop)[\s.,!]*$/i.test(t3) || /\bsolo\s+(con\s+)?eso\b/i.test(t3) || /\bsolo\s+ese\b/i.test(t3) || /\bsolamente\s+eso\b/i.test(t3) || /\bnada\s+m[aá]s\b/i.test(t3) || /\bno\s+quiero\s+nada\s+m[aá]s\b/i.test(t3) || /\bno\s+quiero\s+(nada\s+)?m[aá]s\b/i.test(t3) || /\bning[uú]n[a]?\b/i.test(t3) || /\bning[uú]n\s+otro\b/i.test(t3) || /\bninguno\s+de\s+(esos|ellos|estos)\b/i.test(t3) || /\bno[.\s,¡!]+gracias\b/i.test(t3) || /\bno\s+gracias\b/i.test(t3) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t3) || /\beso\s+es\s+todo\b/i.test(t3) || /\bes\s+todo\b/i.test(t3) || /\bya\s+no\b/i.test(t3) || /\bno\s+m[aá]s\b/i.test(t3) || /\blisto\s+as[ií]\b/i.test(t3) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t3) || /\bno\s+me\s+interesa\b/i.test(t3) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t3) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t3) || /\bpor\s+ahora\s+no\b/i.test(t3) || // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
+  /\bsolo\s+quiero\b/i.test(t3) && !/\bcomida\b|\bcotiz/i.test(t3) || /\bquiero\s+solo\b/i.test(t3) && !/\bcomida\b|\bcotiz/i.test(t3);
+}
+function clientMentionsCatering(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  return /\bcatering\b/i.test(t3) || /\bbanquetes?\b/i.test(t3) || /\btaquiza\b|\btacos?\b/i.test(t3) || /\b(brunch|desayuno)\b/i.test(t3) || /\bbrunch\s*\/\s*desayuno/i.test(t3) || /\bcoffee\s*break\b|\bcoffe\s*break\b|\bcoffeebreak\b/i.test(t3) || /\bbarra\s+de\s+caf[eé](?!\p{L})/iu.test(t3) || // Barras de comida / sushi (form leads y WhatsApp) — misma pista que coffee break.
+  /\bbarra\s+de\s+(sushi|pizzas?|alimentos|bebidas?|crepas?|pastas?|mariscos?)\b/i.test(t3) || /\b(sushi|poke(\s*bowl)?)\b/i.test(t3) || /\b(busco|necesito|quiero|cotizar|interesa)\s+(cotizar\s+)?(comida|alimentos?|men[uú])\b/i.test(t3) || /\bcomida\s+para\b/i.test(t3) || /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t3) || /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t3);
+}
+function clientAsksServiceInfo(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  const asksWhatTypes = /\bqu[eé]\s+(tipo\s+de\s+)?(snacks?|snaks?|bocadillos?|antojitos?|puestos?)\b/i.test(t3) || /\b(snacks?|snaks?|bocadillos?|antojitos?).{0,40}\b(tienen|tienes|manejan|ofrecen)\b/i.test(t3) || /\b(tienen|tienes|manejan|ofrecen).{0,40}\b(snacks?|snaks?|bocadillos?|antojitos?)\b/i.test(t3);
+  if (!isServiceRelatedMessage(message) && !asksWhatTypes) return false;
+  return asksWhatTypes || /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?|modelos?)\b/i.test(t3) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t3) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t3) || /\bnecesito\s+saber\b/i.test(t3) || /\b(tiene|tienes|tienen)\s+(info|informaci[oó]n|cat[aá]logo|detalle|modelos?)\b/i.test(t3) || // "¿Cuentan/cuenta con carpas…?" / "¿tienen pista?" / "¿tienes modelos?"
+  /\b(cuenta|cuentan|tienen|tienes|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t3) || /\b(cuenta|cuentan|tienen|tienes|manejan|ofrecen)\s+con\b/i.test(t3) || // A14938: "¿Hacen las pizzas en el evento?" / preparan / cocinan / montan.
+  /\b(hacen|preparan|cocinan|sirven|montan|elaboran)\b.{0,60}\?/i.test(t3);
+}
+var NON_GUEST_UNIT_PATTERN = /\b\d+\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?|pantallas?|paquetes?|juegos?|m[oó]dulos?|piezas?)\b/i;
+function isLikelyProductNameNotLocation(value) {
+  const t3 = (value ?? "").trim();
+  if (!t3) return false;
+  if (/^sala\s*:/i.test(t3)) return true;
+  if (/\bsala\s*:/i.test(t3)) return true;
+  if (/^luxor(\s+rosa)?$/i.test(t3)) return true;
+  if (parseCarpaVariantFromText(t3)) return true;
+  if (/^(cathedral|catedral|pir[aá]mide|planas?)(\s+(carpa|tent))?$/i.test(t3)) return true;
+  if (/^(salas?(\s+lounge)?|periqueras?|lounge|mobiliario|carpas?|pistas?|tarimas?|tiffany|vajilla|manteler[ií]a)$/i.test(
+    t3
+  )) {
+    return true;
+  }
+  if (/\b(luxor|tiffany|vers[aá]til)\b/i.test(t3) && !/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida|quer[eé]taro|polanco|santa\s+fe)\b/i.test(
+    t3
+  )) {
+    return true;
+  }
+  return false;
+}
+var CARPA_OPTIONS_TEXT = "blancas, negras, transparentes y tipo domo";
+function parseCarpaVariantFromText(text2) {
+  const t3 = (text2 ?? "").trim();
+  if (!t3 || t3.length > 60) return null;
+  if (/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida)\b/i.test(t3)) {
+    return null;
+  }
+  if (/^blancas?(\s+(carpa|tent))?$/i.test(t3) || /\bcarpa\s+blanca\b/i.test(t3)) {
+    return "Carpa blanca";
+  }
+  if (/^negras?(\s+(carpa|tent))?$/i.test(t3) || /\bcarpa\s+negra\b/i.test(t3)) {
+    return "Carpa negra";
+  }
+  if (/^transparentes?(\s+(carpa|tent))?$/i.test(t3) || /\bcarpa\s+transparente\b/i.test(t3)) {
+    return "Carpa transparente";
+  }
+  if (/^domos?(\s+(carpa|tent))?$/i.test(t3) || /\bcarpa\s+(?:tipo\s+)?domo\b/i.test(t3)) {
+    return "Carpa tipo domo";
+  }
+  return null;
+}
+function parseSalaProductFromText(text2) {
+  const named = text2.match(/\bsala\s*:\s*([A-Za-zÁÉÍÓÚáéíóúñ0-9][\w\s.-]{1,40})/i);
+  if (named?.[1]) {
+    const qty = text2.match(/\b(\d+)\s+salas?\b/i);
+    const name2 = named[1].trim().replace(/[.,;]+$/, "");
+    return qty ? `${qty[1]} salas ${name2}` : `Sala ${name2}`;
+  }
+  const qtyOnly = text2.match(/\b(\d+)\s+salas?\b/i);
+  if (qtyOnly) return `${qtyOnly[1]} salas lounge`;
+  if (/\bsalas?\s+lounge\b/i.test(text2)) return "Salas lounge";
+  return null;
+}
+function clientMentionsCarpas(message) {
+  if (!message?.trim()) return false;
+  return /\bcarpas?\b|\btoldos?\b|\blonas?\b/i.test(message) || !!parseCarpaVariantFromText(message);
+}
+function clientRequestsCallback(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  return /\b(m[aá]rquenme|marquenme|ll[aá]menme|llamarme|me\s+marcan|me\s+llaman)\b/i.test(t3) || /\bme\s+pueden\s+(marcar|llamar)\b/i.test(t3) || /\b(pueden|pueden\s+ustedes)\s+(marcar|llamar)\b/i.test(t3) || /\batenci[oó]n\s+personalizada\b/i.test(t3) || /\bque\s+me\s+(marquen|llamen)\b/i.test(t3) || /\bnecesito\s+que\s+me\s+(marquen|llamen)\b/i.test(t3);
+}
+function clientAsksPhone(message) {
+  if (!message?.trim()) return false;
+  if (clientRequestsCallback(message)) return true;
+  const t3 = message.toLowerCase();
+  return /\btel[eé]fono/i.test(t3) || /\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas|gerencia)/i.test(t3) || /\b(llamar|marcar|contestar|contestan|nadie\s+contesta|me\s+urge)\b/i.test(t3) || /\bwhatsapp\s+(de\s+)?(ventas|gerencia|corporativo|bodasesor)/i.test(t3) || /\btienen\s+whatsapp/i.test(t3);
+}
+function isRichQuoteBrief(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (t3.length < 180) return false;
+  let score = 0;
+  if (/\bcotiz/i.test(t3)) score += 1;
+  if (/\b(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|fecha\s*:)/i.test(
+    t3
+  )) {
+    score += 1;
+  }
+  if (/\b(ubicaci[oó]n|santa\s+fe|ciudad\s+de\s+m[eé]xico|cdmx|polanco|narvarte|coyoac[aá]n|pedregal)\b/i.test(
+    t3
+  ) || /\ben\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s*,\s*|\s+)(?:ciudad\s+de\s+m[eé]xico|cdmx|m[eé]xico)/i.test(t3)) {
+    score += 1;
+  }
+  if (/\b\d{2,4}\s*(?:personas?|invitados?|asistentes?)\b/i.test(t3)) score += 1;
+  if (parseServicesFromText(t3).length >= 2) score += 1;
+  if (/\b(opci[oó]n\s*[123]|tres\s+propuestas|propuestas?\s+de\s+men[uú]|diferentes\s+rangos?\s+de\s+precio)\b/i.test(
+    t3
+  )) {
+    score += 1;
+  }
+  if (/\b(distribuidor|precio\s+para\s+distribuidor|margen\s+comercial)\b/i.test(t3)) score += 1;
+  if (/\b(meseros?|mobiliario|manteler|cristal|sillas?\s+con\s+fundas?)\b/i.test(t3)) score += 1;
+  if (/\b(fotograf[ií]as?|fotos?)\b.{0,40}\b(mobiliario|mesas?|sillas?)/i.test(t3)) score += 1;
+  if (/\b(mesas?\s+tipo\s+picnic|picnic|periqueras?|bancos?)\b/i.test(t3) && /\b(entrega|recoger|sin\s+montaje|periqueras?|bancos?)\b/i.test(t3)) {
+    score += 2;
+  }
+  if (/\b(avenida|calle|planta|cuautlancingo|puebla|cp\s*\d{4,5}|\d{5}\s+\w+)/i.test(t3)) {
+    score += 1;
+  }
+  if (/@[a-z0-9.-]+\.[a-z]{2,}/i.test(t3)) score += 1;
+  return score >= 3;
+}
+function clientAsksToRereadBrief(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.trim();
+  return /\bleer.{0,40}especificaciones\b/i.test(t3) || /\bespecificaciones\b/i.test(t3) || /\blee\s+(muy\s+)?bien\b/i.test(t3) || /\bno\s+le[ií]ste\b/i.test(t3) || /\bfavor\s+de\s+leer\b/i.test(t3);
+}
+function clientAsksDistributorPricing(message) {
+  if (!message?.trim()) return false;
+  return /\bprecio\s+(para\s+)?distribuidor\b/i.test(message) || /\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message) || /\b(somos|como)\s+distribuidores?\b/i.test(message) || /\bmargen\s+comercial\b/i.test(message) || /\bprecio\s+de\s+mayoreo\b/i.test(message);
+}
+function clientAsksForHumanAdvisor(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.trim();
+  if (/\bqui[eé]n\s+es\b/i.test(t3) && !/\b(prefiero|quiero|necesito|puedo|pueden|hablar)\b/i.test(t3)) {
+    return false;
+  }
+  const tNoPp = t3.replace(/\bpor\s+personas?\b/gi, " ").replace(/\b\d+\s*pp\b/gi, " ").replace(/\bpp\b/gi, " ").replace(/\s+/g, " ").trim();
+  if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(tNoPp)) {
+    return true;
+  }
+  if (/^hablar\s+con\s+(un\s+)?humano\b/i.test(tNoPp) || /^humano(\s+por\s+favor)?[\s!.]*$/i.test(tNoPp)) {
+    return true;
+  }
+  if (/^(asesor|agente|humano)(\s+por\s+favor)?[\s!.]*$/i.test(tNoPp) || /^(quiero|necesito|prefiero)\s+(un\s+|una\s+)?(asesor|agente|humano)\b/i.test(tNoPp)) {
+    return true;
+  }
+  if (/\b(prefiero|quiero|necesito|mejor)\b.{0,40}\b(hablar|comunicar|platicar|atenci[oó]n|contacto)\b.{0,40}\b(asesor|agente|humano|persona|equipo)\b/i.test(
+    tNoPp
+  )) {
+    return true;
+  }
+  if (/\b(prefiero|quiero|necesito)\b.{0,30}\b(un\s+|una\s+)?(asesor|agente|humano|persona)\b/i.test(
+    tNoPp
+  )) {
+    return true;
+  }
+  if (/\b(asesor|agente|humano|alguien\s+del\s+equipo)\b.{0,30}\b(se\s+)?(comunique|contacte|llame|hable)\b/i.test(
+    tNoPp
+  )) {
+    return true;
+  }
+  if (/\bpuede(n)?\s+(un\s+)?(asesor|agente)\s+(contactarme|comunicarse|llamarme)\b/i.test(tNoPp)) {
+    return true;
+  }
+  if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano)\b/im.test(tNoPp)) return true;
+  return false;
+}
+function clientNeedsEmergencyContact(message) {
+  if (!message?.trim()) return false;
+  if (clientAsksPhone(message)) return true;
+  if (clientAsksForHumanAdvisor(message)) return true;
+  const t3 = message.trim();
+  if (/\b(ayuda|ayudar|ayudame|ayúdame)\b/i.test(t3) && isServiceRelatedMessage(t3) && !/\b(emergencia|urgente|me\s+urge|auxilio|nadie\s+(me\s+)?(contesta|atiende))\b/i.test(t3)) {
+    return false;
+  }
+  return /\b(emergencia|urgente|me\s+urge|es\s+urgente|auxilio)\b/i.test(t3) || /\b(contacto\s+(de\s+)?emergencia|n[uú]mero\s+de\s+emergencia)\b/i.test(t3) || /\b(necesito|quiero|puedo)\s+(hablar|contactar|llamar).{0,40}(alguien|humano|asesor|persona|equipo|ustedes)\b/i.test(
+    t3
+  ) || /\b(nadie\s+(me\s+)?(contesta|atiende)|no\s+me\s+(contesta|atiende|responde))\b/i.test(t3) || /\b(ayuda|auxilio).{0,25}(urgente|emergencia|humano|asesor|persona)\b/i.test(t3) || /\b(pasame|pásame|dame|necesito)\s+(un\s+)?(contacto|tel[eé]fono|n[uú]mero)\b/i.test(t3) || /\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(t3);
+}
+var CATALOG_TYPO_RE = /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b/i;
+function clientAsksForCatalog(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  if (CATALOG_TYPO_RE.test(t3) && /\b(de|web|completo|general|sillas?|mesas?|men[uú]|carpas?)\b/i.test(t3)) {
+    return true;
+  }
+  if (CATALOG_TYPO_RE.test(t3) && t3.trim().split(/\s+/).length <= 4) return true;
+  if (/\b(manda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|comparte|quiero|necesito|dame|puedes\s+(manda|envia|pasar)|me\s+puedes\s+(manda|envia|pasar))\b.{0,50}\b(cat[aá]logo|c+t?a+l+[oó]+g+[oa])/i.test(
+    t3
+  )) {
+    return true;
+  }
+  if (/\bel\s+cat[aá]logo\s+(de|con|completo|general|web)/i.test(t3)) return true;
+  if (/\bcat[aá]logo\s+(de|web|completo|general)\b/i.test(t3)) return true;
+  if (/\b(cuentan|tienen|hay|manejan)\s+.{0,20}\bcat[aá]logo/i.test(t3)) return true;
+  if (/\bcat[aá]logo\s+de\s+men[uú]/i.test(t3)) return true;
+  if (/\blink\s+(del\s+)?cat[aá]logo/i.test(t3)) return true;
+  if (/bodasesor\.com\/catalogos/i.test(t3)) return true;
+  if (/\b(m[aá]nda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|dame)\s+el\s+(de|del)\b/i.test(t3) || /\b(m[aá]nda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same)\s+el\s+link\b/i.test(t3)) {
+    return true;
+  }
+  if (/^(s[ií][,.]?\s*)?(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)([.!?]|\s|$)/i.test(
+    t3.trim()
+  )) {
+    return true;
+  }
+  return false;
+}
+function clientAsksGenericMenuCatalog(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  if (parseServicesFromText(message).length > 0) return false;
+  if (/\bcat[aá]logo\s+de\s+men[uú]\b/i.test(t3) || /\b(cuentan|tienen|hay|manejan)\s+.{0,24}\bcat[aá]logo/i.test(t3) || /\bcat[aá]logo\s+(general|completo|de\s+servicios?|de\s+opciones)\b/i.test(t3) || /\b(conocer|ver|explorar)\s+m[aá]s\s+de\s+(sus\s+)?servicios\b/i.test(t3) && /\bcat[aá]logo|men[uú]/i.test(t3) || /\b(conocer|ver)\s+(sus\s+)?servicios\b/i.test(t3) && /\bcat[aá]logo|men[uú]/i.test(t3)) {
+    return true;
+  }
+  if (clientAsksForCatalog(message) && !/\b(barra|banquete|taquiza|coffee|pizza|sushi|dj|carpa|pista|mobiliario|sillas?|mesas?)\b/i.test(
+    t3
+  )) {
+    return true;
+  }
+  return false;
+}
+function clientWantsFullCatalog(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  if (clientAsksGenericMenuCatalog(message)) return true;
+  if (/\b(m[aá]ndame|env[ií]ame|pasa(me)?|pásame)\s+todo\b/i.test(t3)) return true;
+  if (/\bcat[aá]logo\s+(completo|general|todo|todos)\b/i.test(t3)) return true;
+  if (/\b(todo|todos)\s+(el\s+)?cat[aá]logo/i.test(t3)) return true;
+  if (/\bno\s+s[eé]\s+cu[aá]l\b/i.test(t3) && /\bcat[aá]logo/i.test(t3)) return true;
+  if (/\bindeciso|todas\s+las\s+opciones/i.test(t3) && /\bcat[aá]logo/i.test(t3)) return true;
+  return false;
+}
+function assistantOfferedCatalogDetail(lastAssistantText) {
+  if (!lastAssistantText?.trim()) return false;
+  if (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(lastAssistantText)) {
+    return true;
+  }
+  return /cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo|mande\s+el\s+cat[aá]logo\s+con\s+m[aá]s\s+detalle|aqu[ií]\s+tienes\s+el\s+cat[aá]logo|te\s+dejo\s+el\s+cat[aá]logo|cat[aá]logo\s+general/i.test(
+    lastAssistantText
+  );
+}
+function clientAffirmsCatalogOffer(message, lastAssistantText) {
+  if (!message?.trim() || !assistantOfferedCatalogDetail(lastAssistantText)) return false;
+  const t3 = message.trim().toLowerCase();
+  if (clientAsksForCatalog(message)) return true;
+  if (/^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|p[aá]samelo)([.!?]|\s|$)/i.test(
+    t3
+  )) {
+    return true;
+  }
+  return /^(s[ií]|claro|ok|okay|dale|va)([\s,]+(por\s+favor|pls|please|mande|m[aá]nda(me)?lo|env[ií]a(me)?lo|env[ií]a|env[ií]ame))?[\s.!]*$/i.test(
+    t3
+  );
+}
+function looksLikeGuestCountRange(text2) {
+  const trimmed = text2?.trim() ?? "";
+  if (!trimmed) return false;
+  if (/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed)) {
+    return false;
+  }
+  const m5 = trimmed.match(/\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i);
+  if (!m5) {
+    const crm = trimmed.match(/^(\d{1,4})\s*[-–]\s*(\d{1,4})(?:\s*MXN)?$/i);
+    if (!crm) return false;
+    const a4 = parseInt(crm[1], 10);
+    const b5 = parseInt(crm[2], 10);
+    const lo2 = Math.min(a4, b5);
+    const hi2 = Math.max(a4, b5);
+    if (lo2 <= 12 && hi2 <= 24 && hi2 - lo2 <= 16) return false;
+    return a4 >= 10 && b5 >= 10 && a4 <= 2e3 && b5 <= 2e3 && Math.abs(a4 - b5) <= 500;
+  }
+  const a3 = parseInt(m5[1], 10);
+  const b4 = parseInt(m5[2], 10);
+  const lo = Math.min(a3, b4);
+  const hi = Math.max(a3, b4);
+  if (lo <= 12 && hi <= 24 && hi - lo <= 16) return false;
+  return a3 >= 10 && b4 >= 10 && a3 <= 2e3 && b4 <= 2e3 && Math.abs(a3 - b4) <= 500;
+}
+function clientAsksBanqueteVsTaquiza(message) {
+  if (!message?.trim()) return false;
+  return /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(message.toLowerCase());
+}
+var WRITTEN_NUMBERS = {
+  uno: "1",
+  una: "1",
+  dos: "2",
+  tres: "3",
+  cuatro: "4",
+  cinco: "5",
+  seis: "6",
+  siete: "7",
+  ocho: "8",
+  nueve: "9",
+  diez: "10",
+  once: "11",
+  doce: "12",
+  quince: "15",
+  veinte: "20",
+  treinta: "30",
+  cuarenta: "40",
+  cincuenta: "50",
+  sesenta: "60",
+  setenta: "70",
+  ochenta: "80",
+  noventa: "90",
+  cien: "100",
+  ciento: "100",
+  doscientos: "200",
+  trescientos: "300",
+  cuatrocientos: "400",
+  quinientos: "500"
+};
+var MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
+var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco)\b/i;
+var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale)\b/i;
+function hasGeoLocationSignal(text2) {
+  const t3 = text2.trim();
+  if (!t3) return false;
+  if (KNOWN_ZONES.test(t3)) return true;
+  if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio|calle|av\.?|avenida|blvd|boulevard|cp\.?|c\.p\.?|cdmx|ciudad|estado\s+de|edo\.?\s*m[eé]x|quer[eé]taro|puebla|monterrey|guadalajara)\b/i.test(
+    t3
+  )) {
+    return true;
+  }
+  if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(\s+de\s+golf)?|expo|centro\s+de\s+convenciones)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]/i.test(
+    t3
+  )) {
+    return true;
+  }
+  if (/\b(calle|av\.?|avenida|blvd)\b.+\d/i.test(t3)) return true;
+  if (/\b\d{4,5}\b/.test(t3) && /\b(colonia|delegaci|cdmx|estado|municipio)\b/i.test(t3)) return true;
+  return false;
+}
+var JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
+function looksLikeDiscourseNotPlace(text2) {
+  const t3 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t3) return true;
+  if (JUNK_DIRECCION_PATTERN.test(t3)) return true;
+  if (hasGeoLocationSignal(t3) || KNOWN_ZONES.test(t3)) return false;
+  const lower2 = t3.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+  if (/\b(es|son|esta|estan|esta|estan|quiero|necesito|busco|tengo|hay|muy|mas|mas|importante|necesario|urgente|parece|creo|pienso)\b/.test(
+    lower2
+  )) {
+    return true;
+  }
+  if (/^(en\s+)?(la\s+)?(noche|tarde|manana|mañana|vivo|directo|realidad|verdad|serio|cambio|caso|color(\s+\w+)?)$/i.test(
+    t3
+  )) {
+    return true;
+  }
+  return false;
+}
+function isNonLocationBusinessPhrase(text2) {
+  const t3 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t3) return true;
+  if (JUNK_DIRECCION_PATTERN.test(t3)) return true;
+  if (looksLikeDiscourseNotPlace(t3)) return true;
+  const cleaned = t3.replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "").trim();
+  if (!cleaned) return true;
+  if (JUNK_DIRECCION_PATTERN.test(cleaned)) return true;
+  if (/^color(\s+\w+)?$/i.test(cleaned)) return true;
+  if (/^(blanco|negro|dorado|plateado|natural|madera|rojo|azul|verde|rosa)$/i.test(cleaned)) {
+    return true;
+  }
+  if (looksLikeThemeColorNotLocation(cleaned) || looksLikeThemeColorNotLocation(t3)) {
+    return true;
+  }
+  if (/^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n|noche|tarde|vivo|realidad|serio|importante)$/i.test(
+    cleaned
+  )) {
+    return true;
+  }
+  if (looksLikeCompanyLocationQuestionFragment(cleaned) || looksLikeCompanyLocationQuestionFragment(t3)) {
+    return true;
+  }
+  if (/^cotizaci[oó]n\b/i.test(cleaned) && cleaned.split(/\s+/).length <= 2) return true;
+  if (cleaned.split(/\s+/).length <= 4) {
+    if (/^(quiero|necesito|requiero|busco|me\s+interesa)\b/i.test(cleaned) || /^(una?\s+)?cotizaci[oó]n$/i.test(cleaned) || /^(la\s+)?(propuesta|montaje|presentaci[oó]n|informaci[oó]n)$/i.test(cleaned)) {
+      return true;
+    }
+    if (/\b(cotizaci[oó]n|propuesta|montaje|presentaci[oó]n)\b/i.test(cleaned) && !KNOWN_ZONES.test(cleaned) && !/\b(colonia|delegaci[oó]n|alcald[ií]a|calle|av\.|avenida|cdmx|ciudad|sal[oó]n\s+\w)/i.test(
+      cleaned
+    )) {
+      return true;
+    }
+  }
+  return false;
+}
+function isVagueVenueOnly(text2) {
+  const t3 = (text2 ?? "").trim();
+  if (!t3) return true;
+  const cleaned = t3.replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "").trim();
+  if (!cleaned) return true;
+  if (/^(sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá])$/i.test(
+    cleaned
+  )) {
+    return true;
+  }
+  if (/^(sal[oó]n|edificio|venue|jard[ií]n)(\s+de)?(\s+(eventos?|oficinas?|corporativo|privado|la\s+empresa|la\s+compa[nñ][ií]a))?$/i.test(
+    cleaned
+  )) {
+    return true;
+  }
+  return false;
+}
+function inferLucyAskedField(lastLucyMessage) {
+  const msg = lastLucyMessage?.trim() ?? "";
+  if (!msg) return null;
+  const priority = [
+    "nombre",
+    "correo",
+    "tipo_evento",
+    "requerimientos",
+    "invitados",
+    "zona",
+    "fecha",
+    "presupuesto"
+  ];
+  for (const field of priority) {
+    if (LUCY_FIELD_ASK_PATTERNS[field].test(msg)) return field;
+  }
+  return null;
+}
+function parseCentrosDeMesaRequirement(text2) {
+  if (!text2?.trim()) return null;
+  const t3 = text2.trim();
+  if (!/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:florales?\s+)?(?:de\s+)?mesas?\b/i.test(
+    t3
+  )) {
+    return null;
+  }
+  const qty = t3.match(
+    /\bcentros?\s+de\s+mesas?\b[\s\S]{0,48}\b(?:ser[ií]an?|seran|son|como|unos?|unas?)?\s*(\d{1,3})\b/i
+  )?.[1] || t3.match(
+    /\b(\d{1,3})\s*(?:centros?\s+de\s+mesas?|centros?\s+florales?|arreglos?\s+(?:de\s+)?mesas?)\b/i
+  )?.[1] || (/\bcentros?\s+de\s+mesas?\b/i.test(t3) ? t3.match(/\bser[ií]an?\s+(\d{1,3})\b/i)?.[1] : null);
+  if (qty && Number(qty) >= 1 && Number(qty) <= 500) {
+    return `Centros de mesa (${qty})`;
+  }
+  return "Centros de mesa";
+}
+function parseServicesFromText(text2) {
+  const found = [];
+  const lower2 = text2.toLowerCase();
+  const declined = clientDeclinesServiceFamilies(text2);
+  const hasMealListContext = /\b(desayuno|snack|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text2) || (text2.match(/,/g) ?? []).length >= 1 || /\b(desayuno|snack|comida|cena)\b.+\b(desayuno|snack|comida|cena)\b/i.test(text2);
+  const snackIsAntojito = /\bsnacks?\b/i.test(text2) && /\b(banderillas?|antojitos?|esquites?|elotes?|garnachas?|quesadillas?)\b/i.test(text2);
+  const hasCorporateMealList = /\b(desayuno|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text2) || /\bsnack\b/i.test(text2) && /\b(desayuno|comida|cena|coffee)\b/i.test(text2) && !snackIsAntojito;
+  for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
+    if (label === "Comida" && !hasMealListContext) continue;
+    if (label === "Snack" && (snackIsAntojito || !hasCorporateMealList)) continue;
+    if (pattern.test(text2) || pattern.test(lower2)) found.push(label);
+  }
+  if (!found.includes("Banquete Mexicano") && /\bmexicano\b/i.test(text2) && !/\b(desayuno|brunch|tem[aá]tico)\b/i.test(text2) && (/^mexicano[\s.,!]*$/i.test(text2.trim()) || /\b(banquete|formal|tiempos|comida\s+mexicana|men[uú]\s+mexicano)\b/i.test(text2))) {
+    found.push("Banquete Mexicano");
+  }
+  if (!found.some((s6) => /barra\s+de\s+bebidas/i.test(s6)) && /\bbebidas?\b/i.test(text2) && /\b(cerveza|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|alcohol|open\s*bar)\b/i.test(
+    text2
+  ) && !/\bbarra\s+de\s+caf[eé]/i.test(text2)) {
+    found.push("Barra de bebidas");
+  }
+  const deduped = dedupeServiceHierarchy(found, text2);
+  found.length = 0;
+  found.push(...deduped);
+  if (/\b(pastas?\s+y\s+pizzas?|pizzas?\s+y\s+pastas?)\b/i.test(text2) || /\bbarra\s+de\s+pastas?\s+y\s+pizzas?\b/i.test(text2)) {
+    if (!found.some((s6) => /pasta/i.test(s6))) found.push("Barra de pastas");
+    if (!found.some((s6) => /pizza/i.test(s6))) found.push("Barra de pizzas");
+  }
+  const salaProduct = parseSalaProductFromText(text2);
+  if (salaProduct) {
+    const idx = found.findIndex((s6) => /salas?\s*lounge/i.test(s6));
+    if (idx >= 0) found[idx] = salaProduct;
+    else if (!found.some((s6) => /sala|luxor/i.test(s6))) found.push(salaProduct);
+  }
+  const normalized = normalizeShortServicePhrase(text2);
+  if (normalized) {
+    const normLower = normalized.toLowerCase();
+    const already = found.some(
+      (s6) => s6.toLowerCase().includes(normLower) || normLower.includes(s6.toLowerCase())
+    );
+    const isVagueFoodAlias = /banquete\s*\/\s*taquiza/i.test(normalized);
+    if (isVagueFoodAlias && clientAsksCafeOrCateringChoice(text2)) {
+    } else if (
+      // A15000: "alimentos + meseros + mobiliario" — conservar Alimentos aunque haya otros.
+      isVagueFoodAlias && found.length > 0 && /\b(alimentos?|comida|banquete|catering|taquiza)\b/i.test(text2)
+    ) {
+      if (!found.some((s6) => /alimento|banquete|taquiza|catering|comida/i.test(s6))) {
+        found.push("Alimentos");
+      }
+    } else if (!already && !(isVagueFoodAlias && found.length > 0)) {
+      found.push(normalized);
+    }
+  }
+  if (/\b(alimentos?|comidas?)\b/i.test(text2) && !clientAsksCafeOrCateringChoice(text2) && !declined.includes("alimentos") && !found.some((s6) => /alimento|banquete|taquiza|catering|comida|barra\s+de\s+alimentos/i.test(s6))) {
+    found.push("Alimentos");
+  }
+  const filtered = declined.length > 0 ? found.filter((s6) => !serviceIsDeclined(s6, declined)) : found;
+  return dedupeServiceHierarchy([...new Set(filtered)], text2);
+}
+function formatServicesList(services) {
+  const clean = services.map((s6) => s6.trim()).filter(Boolean);
+  if (clean.length === 0) return "";
+  if (clean.length === 1) return clean[0];
+  if (clean.length === 2) return `${clean[0]} y ${clean[1]}`;
+  return `${clean.slice(0, -1).join(", ")} y ${clean[clean.length - 1]}`;
+}
+function dedupeServiceHierarchy(services, sourceText) {
+  const found = [...services].map((s6) => s6.trim()).filter(Boolean);
+  const text2 = sourceText ?? found.join(" ");
+  if (found.includes("Men\xFA staff")) {
+    const meserosIdx = found.indexOf("Meseros");
+    if (meserosIdx >= 0) found.splice(meserosIdx, 1);
+  }
+  if (found.includes("Barra de pastas")) {
+    const pastasIdx = found.indexOf("Pastas");
+    if (pastasIdx >= 0) found.splice(pastasIdx, 1);
+  }
+  if (found.includes("Barra de pastas y ensaladas")) {
+    const shortIdx = found.indexOf("Barra de pastas");
+    if (shortIdx >= 0) found.splice(shortIdx, 1);
+    const pastasIdx = found.indexOf("Pastas");
+    if (pastasIdx >= 0) found.splice(pastasIdx, 1);
+  }
+  if (found.includes("Barra de pizzas")) {
+    const pizzasIdx = found.indexOf("Pizzas");
+    if (pizzasIdx >= 0) found.splice(pizzasIdx, 1);
+  }
+  if (found.includes("Barra de Crepas")) {
+    const crepasIdx = found.indexOf("Crepas");
+    if (crepasIdx >= 0) found.splice(crepasIdx, 1);
+  }
+  const specificBanquete = found.find(
+    (s6) => /Banquete\s+(Mexicano|Kosher|Navide)/i.test(s6)
+  );
+  if (specificBanquete) {
+    const formalIdx = found.indexOf("Banquete Formal");
+    if (formalIdx >= 0) found.splice(formalIdx, 1);
+  }
+  if (found.some((s6) => /^Desayuno$/i.test(s6) || /^Brunch$/i.test(s6)) && found.some((s6) => /Banquete\s+Mexicano/i.test(s6)) && /\b(desayuno|brunch|tem[aá]tico)\b/i.test(text2) && !/\bbanquete\b/i.test(text2)) {
+    for (let i5 = found.length - 1; i5 >= 0; i5--) {
+      if (/Banquete\s+Mexicano/i.test(found[i5])) found.splice(i5, 1);
+    }
+  }
+  if (found.some((s6) => /puestos?\s+de\s+comida/i.test(s6))) {
+    for (let i5 = found.length - 1; i5 >= 0; i5--) {
+      if (/^Snack$/i.test(found[i5])) found.splice(i5, 1);
+    }
+  }
+  if (found.some((s6) => /centros?\s+de\s+mesa/i.test(s6))) {
+    for (let i5 = found.length - 1; i5 >= 0; i5--) {
+      if (/^Mobiliario$/i.test(found[i5])) found.splice(i5, 1);
+    }
+    if (/\b(centros?\s+de\s+mesas?|centros?\s+florales?|arreglos?\s+(?:de\s+)?mesas?|decoraci[oó]n\s+de\s+mesas?|flores?\s+(?:para|en|de)\s+mesas?)\b/i.test(
+      text2
+    )) {
+      for (let i5 = found.length - 1; i5 >= 0; i5--) {
+        if (/^(Decoraci[oó]n|Florister[ií]a)$/i.test(found[i5])) found.splice(i5, 1);
+      }
+    }
+    const centrosLabel = parseCentrosDeMesaRequirement(text2);
+    if (centrosLabel) {
+      for (let i5 = 0; i5 < found.length; i5++) {
+        if (/^Centros de mesa/i.test(found[i5])) found[i5] = centrosLabel;
+      }
+    }
+  }
+  if (found.includes("Parrillada Argentina") || found.includes("Parrillada Tacos")) {
+    const genIdx = found.indexOf("Parrillada");
+    if (genIdx >= 0) found.splice(genIdx, 1);
+  }
+  if (found.includes("Parrillada Tacos")) {
+    const taqIdx = found.indexOf("Taquiza");
+    if (taqIdx >= 0) found.splice(taqIdx, 1);
+  }
+  const hasPastaBar = found.some((s6) => /barra\s+de\s+pastas/i.test(s6));
+  if (hasPastaBar) {
+    for (let i5 = found.length - 1; i5 >= 0; i5--) {
+      if (/^(Taquiza|Pastas|Comida)$/i.test(found[i5])) found.splice(i5, 1);
+    }
+  }
+  const hasMealTimes = found.some((s6) => /^(Desayuno|Snack|Cena|Coffee break)$/i.test(s6)) || /\b(desayuno|snack|cena|coffee\s*break)\b/i.test(text2);
+  if (!hasMealTimes && found.some(
+    (s6) => /barra\s+de|banquete|taquiza|parrillada|paella|cupcake|mesa\s+de/i.test(s6)
+  )) {
+    for (let i5 = found.length - 1; i5 >= 0; i5--) {
+      if (/^Comida$/i.test(found[i5])) found.splice(i5, 1);
+    }
+  }
+  if (found.includes("Colgantes Premium") || found.includes("Entelados para Techo")) {
+    const decoIdx = found.indexOf("Decoraci\xF3n");
+    if (decoIdx >= 0 && /decoraci[oó]n\s+a[eé]rea|colgante|entelado|wisteria/i.test(text2)) {
+      found.splice(decoIdx, 1);
+    }
+  }
+  if (found.includes("Video")) {
+    const pantIdx = found.indexOf("Pantallas");
+    if (pantIdx >= 0 && /\bled\s*wall\b/i.test(text2)) found.splice(pantIdx, 1);
+  }
+  return [...new Set(found)];
+}
+function looksLikeConflictingFoodAlternatives(services) {
+  const foods = services.filter((s6) => !/^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i.test(s6.trim()));
+  if (foods.length < 2) return false;
+  const hasPasta = foods.some((s6) => /pasta/i.test(s6));
+  const hasTaquiza = foods.some((s6) => /^taquiza$/i.test(s6));
+  const hasBanquete = foods.some((s6) => /banquete/i.test(s6));
+  if (hasPasta && hasTaquiza) return true;
+  if (hasBanquete && hasTaquiza && foods.length <= 3) return true;
+  return false;
+}
+function clientWantsFoodOnlyQuote(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return false;
+  return /\bsolo\s+(quiero\s+)?(que\s+me\s+)?cotice?n?\s+la\s+comida\b/i.test(t3) || /\bsolo\s+(la\s+)?comida\b/i.test(t3) || /\bnada\s+m[aá]s\s+(que\s+)?(la\s+)?comida\b/i.test(t3) || /\bsolo\s+(quiero|necesito)\s+(la\s+)?comida\b/i.test(t3) || /\bcoticen?\s+solo\s+(la\s+)?comida\b/i.test(t3) || // A15212: "Solo dame cotización de los antojitos".
+  /\bsolo\s+(dame\s+)?(la\s+|una\s+)?cotizaci[oó]n\s+(de\s+)?(los\s+)?(antojitos?|puestos?)\b/i.test(
+    t3
+  ) || /\bsolo\s+(los\s+)?(antojitos?|puestos?(\s+de\s+comida)?)\b/i.test(t3);
+}
+function mergeServiceRequirements(existing, text2, max = 6) {
+  const declined = clientDeclinesServiceFamilies(text2);
+  const existingClean = declined.length ? removeDeclinedFamiliesFromRequirements(existing, declined) : existing;
+  const fromExisting = existingClean?.trim() ? parseServicesFromText(existingClean).filter((s6) => !serviceIsDeclined(s6, declined)) : [];
+  const fromText = text2?.trim() ? parseServicesFromText(text2).filter((s6) => !serviceIsDeclined(s6, declined)) : [];
+  const merged = dedupeServiceHierarchy(
+    [...fromExisting, ...fromText],
+    `${existingClean ?? ""} ${text2 ?? ""}`
+  ).slice(0, max);
+  if (merged.length === 0) {
+    if (declined.length > 0) {
+      return existingClean?.trim() || null;
+    }
+    const fallback = existingClean?.trim() || text2?.trim() || "";
+    if (!fallback) return null;
+    if (isGenericQuoteIntentRequerimiento(fallback) || isQuoteIntentMessage(fallback) || isGreetingOnlyMessage(fallback)) {
+      return null;
+    }
+    if (existingClean?.trim() && !isGenericQuoteIntentRequerimiento(existingClean)) {
+      return existingClean.trim().slice(0, 250);
+    }
+    return null;
+  }
+  return merged.join(", ");
+}
+function buildMultiServiceAck(services) {
+  const list = formatServicesList(services);
+  if (!list) return "Perfecto, anoto lo que necesitas para tu evento.";
+  if (services.length === 1) {
+    return `Perfecto, veo que necesitas ${list}.`;
+  }
+  return `Perfecto, veo que necesitas ${list}. Te cotizamos todo eso.`;
+}
+function buildRichBriefAcknowledgment(text2) {
+  const services = parseServicesFromText(text2);
+  const tipo = parseTipoEventoFromText(text2);
+  const inv = text2.match(/\b(\d{2,4})\s*(?:personas?|invitados?|asistentes?)\b/i);
+  const fecha = text2.match(
+    /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+\d{4})?)/i
+  );
+  const zona = text2.match(/\ben\s+(Santa\s+Fe(?:,?\s*Ciudad\s+de\s+M[eé]xico)?)/i)?.[1] || text2.match(/\bUbicaci[oó]n:\s*([^\n.*]{4,60})/i)?.[1]?.trim() || text2.match(/\ben\s+([A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+){0,3}),?\s*(?:Ciudad\s+de\s+M[eé]xico|CDMX)/i)?.[0]?.replace(/^en\s+/i, "");
+  const hasThreeMenus = /\b(opci[oó]n\s*[123]|tres\s+propuestas|propuestas?\s+de\s+men[uú])\b/i.test(text2);
+  const distributor = clientAsksDistributorPricing(text2);
+  const bits = [];
+  if (tipo) bits.push(tipo);
+  if (fecha) bits.push(fecha[1]);
+  if (zona) bits.push(zona.trim());
+  if (inv) bits.push(`${inv[1]} personas`);
+  let ack = bits.length > 0 ? `De acuerdo, revis\xE9 tu solicitud para ${bits.join(", ")}.` : "De acuerdo, revis\xE9 con detalle tu solicitud de cotizaci\xF3n.";
+  const mobItems = text2.match(
+    /(\d+\s+mesas?\s+tipo\s+picnic|\d+\s+picnic|\d+\s+periqueras?|\d+\s+bancos?)/gi
+  );
+  const mobSummary = mobItems?.length ? [...new Set(mobItems.map((m5) => m5.trim().toLowerCase()))].join(", ") : null;
+  if (hasThreeMenus) {
+    ack += " Anoto las tres propuestas de men\xFA (parrillada, opci\xF3n costo-beneficio y men\xFA casual) junto con meseros y mobiliario.";
+  } else if (mobSummary) {
+    ack += ` Anoto ${mobSummary}.`;
+  } else if (services.length >= 2) {
+    ack += ` Anoto ${formatServicesList(services)}.`;
+  } else if (services.length === 1) {
+    ack += ` Anoto ${services[0]}.`;
+  }
+  if (distributor) {
+    ack += " Como cotizan como distribuidores, el equipo les arma precio de mayoreo (no lista al p\xFAblico).";
+  } else {
+    ack += " Nuestro equipo arma la cotizaci\xF3n a la medida con lo que pediste.";
+  }
+  return ack;
+}
+function appendPostCierreRequirements(existing, message) {
+  const t3 = message.trim();
+  if (!t3) return existing?.trim() || null;
+  const services = parseServicesFromText(t3);
+  const hasServiceIntent = services.length > 0 || clientAddsToQuote(t3) || isServiceRelatedMessage(t3) || isServicePreferenceRefinement(t3, existing) || /\b(pantalla|audio|microfon|led|dj|entradas?|postres?|canap)\b/i.test(t3);
+  if (!hasServiceIntent) return existing?.trim() || null;
+  const base = existing?.trim() || "";
+  if (isServicePreferenceRefinement(t3, base)) {
+    const snippet2 = t3.replace(/\s+/g, " ").slice(0, 250);
+    if (base && base.toLowerCase().includes(snippet2.toLowerCase().slice(0, 40))) return base;
+    return base ? `${base}; preferencia: ${snippet2}` : snippet2;
+  }
+  if (services.length > 0) {
+    const merged = mergeServiceRequirements(base || null, services.join(", "), 8);
+    return merged || base || null;
+  }
+  const snippet = t3.replace(/\s+/g, " ").slice(0, 250);
+  if (base && base.toLowerCase().includes(snippet.toLowerCase().slice(0, 40))) return base;
+  return base ? `${base}; ${snippet}` : snippet;
+}
+var STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
+function preferPrimaryCatalogService(services) {
+  if (!services.length) return null;
+  const cleaned = dedupeServiceHierarchy(services);
+  const pool2 = cleaned.filter((s6) => !STAFF_OR_ADDON_SERVICE.test(s6.trim()));
+  const candidates = pool2.length ? pool2 : cleaned;
+  const scored = [...candidates].sort((a3, b4) => {
+    const score = (s6) => {
+      let n4 = s6.length;
+      if (/^Barra de /i.test(s6)) n4 += 40;
+      if (/Puestos\s+de\s+Comida/i.test(s6)) n4 += 45;
+      if (/Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s6)) n4 += 30;
+      if (/Parrillada|Paella|Coffee|Cupcakes|Mesa de/i.test(s6)) n4 += 20;
+      if (/^(Pastas|Pizzas|Crepas|Comida|Taquiza|Parrillada|Bocadillos?|Snack)$/i.test(s6)) n4 -= 25;
+      return n4;
+    };
+    return score(b4) - score(a3);
+  });
+  return (scored[0] || candidates[0]).trim();
+}
+function isServicePreferenceRefinement(message, serviceHint) {
+  const t3 = message?.trim() ?? "";
+  if (!t3 || t3.length > 320) return false;
+  if (/\b(cotizar|cu[aá]nto\s+cuesta|precio\s+de|otra\s+barra|nuevo\s+servicio)\b/i.test(t3)) {
+    return false;
+  }
+  const cafeCtx = /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcafeter[ií]a\b|\bbarista\b/iu.test(t3) || /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcaf[eé](?!\p{L})|barista|coffee\s*break/iu.test(
+    serviceHint ?? ""
+  );
+  const beveragePick = /\b(americano|capuchin?o|cappuccino|espresso|latte|moc?cha|t[eé]s?\b|chocolates?|bebidas?\s+artesanal)/i.test(
+    t3
+  );
+  const refineCue = /\b(solo\s+requieren|solo\s+quieren|solo\s+necesitan|respecto\s+a|nada\s+m[aá]s|nomas|nom[aá]s|unicamente|únicamente)\b/i.test(
+    t3
+  );
+  return cafeCtx && (beveragePick || refineCue);
+}
+function parsePrimaryService(text2) {
+  const services = parseServicesFromText(text2);
+  if (services.length > 0) return preferPrimaryCatalogService(services);
+  const normalized = normalizeShortServicePhrase(text2);
+  return normalized;
+}
+function normalizeShortServicePhrase(text2) {
+  const trimmed = text2.trim();
+  if (!trimmed) return null;
+  let cleaned = trimmed.replace(/^(quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i, "").replace(/^(una?|el|la|los|las)\s+/i, "").trim();
+  const lower2 = cleaned.toLowerCase();
+  if (SHORT_SERVICE_ALIASES[lower2]) return SHORT_SERVICE_ALIASES[lower2];
+  if (/^pista$/i.test(cleaned)) return "pista de baile";
+  if (/^dj$/i.test(cleaned)) return "DJ";
+  return null;
+}
+function isServiceRelatedMessage(text2) {
+  const trimmed = text2?.trim() ?? "";
+  if (!trimmed || /^info pendiente$/i.test(trimmed)) return false;
+  if (/\bservicio\s+completo\b/i.test(trimmed)) return true;
+  if (SERVICE_HINT.test(trimmed)) return true;
+  if (parsePrimaryService(trimmed)) return true;
+  if (/^(una?\s+)?(pista|tarima|dj|mesas?|sillas?|carpa|banquete|taquiza)\b/i.test(trimmed)) return true;
+  return false;
+}
+function parseTipoEventoFromText(text2) {
+  for (const [pattern, label] of TIPO_EVENTO_PATTERNS) {
+    if (pattern.test(text2)) return label;
+  }
+  return null;
+}
+function isReferentialPriorAnswer(message) {
+  if (!message?.trim()) return false;
+  const n4 = message.trim().normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
+  if (!n4 || n4.length > 120) return false;
+  return /^(a\s+)?(este|ese|esta|esa)(\s+(mismo|misma|correo|mail|email|dato))?$/.test(n4) || /^(el|la)\s+(mismo|misma)(\s+(correo|mail|email|dato))?$/.test(n4) || /^(el|la)\s+de\s+(antes|arriba|hace\s+rato|hace\s+un\s+rato)$/.test(n4) || /^(ese|este)\s+(que\s+)?(ya\s+)?(te\s+)?(di|mande|envie|pase)$/.test(n4) || /^(el\s+)?(mismo\s+)?(correo|mail|email)(\s+(de\s+antes|anterior))?$/.test(n4) || /^ya\s+(te\s+)?(lo\s+)?(di|mande|envie|pase|he\s+enviado|he\s+mandado)(\s+(ese|el|antes))?$/.test(
+    n4
+  ) || /^(ese|este)\s+mismo$/.test(n4) || // A15212: "Al mismo que ya te he enviado" / "el mismo que ya te mandé".
+  /^al\s+(mismo|que\s+ya\s+(te\s+)?(he\s+)?(di|mande|envie|enviado|mandado))$/.test(n4) || /^al\s+mismo\s+que\s+ya\s+(te\s+)?(he\s+)?(enviado|mandado|dado|di|mande|envie)\b/.test(n4) || /^(el\s+)?mismo\s+que\s+ya\s+(te\s+)?(he\s+)?(enviado|mandado|dado|di|mande|envie)\b/.test(n4) || /\bya\s+te\s+(lo\s+)?he\s+(enviado|mandado|dado)\b/.test(n4);
+}
+function clientComplainsAboutRepeat(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.trim();
+  return /\bya\s+me\s+(hab[ií]as|habias|hab[ií]a|habia|hab[eé]is)?\s*preguntad/i.test(t3) || /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t3) || /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé]|pase|compart[ií]|he\s+enviado|he\s+mandado|he\s+dado)\b/i.test(
+    t3
+  ) || /\bya\s+(te\s+)?(lo\s+)?(dije|mencion[eé]|coment[eé])\b/i.test(t3) || /\beso\s+ya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t3) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(t3) || /\b(otra\s+vez|de\s+nuevo)\s+(me\s+)?preguntas?\b/i.test(t3) || /\bya\s+respond[ií]\b/i.test(t3);
+}
+function recoverCorreoFromUserTexts(texts, currentMessage) {
+  const blob = [...texts, currentMessage ?? ""].filter(Boolean).join("\n");
+  return parseCorreoFromText(blob);
+}
+function isUnusableTipoEventoReply(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return true;
+  const n4 = t3.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
+  if (/^(lo\s+)?(acabo|acabe)\s+de\s+(mencionar|decir|comentar|explicar)(lo)?$/.test(n4) || /^(ya\s+)?(lo\s+)?(dije|mencione|comente|te\s+dije|te\s+lo\s+dije)$/.test(n4) || /^(como\s+)?(te\s+)?(dije|mencione|arriba|antes|hace\s+rato)$/.test(n4) || /^(igual|lo\s+mismo|idem|ya\s+te\s+dije|eso|eso\s+mismo|lo\s+de\s+arriba)$/.test(n4) || /^ya\s+(te\s+)?(lo\s+)?(dije|mencione|comente)$/.test(n4)) {
+    return true;
+  }
+  if (clientComplainsAboutRepeat(t3) || isReferentialPriorAnswer(t3)) return true;
+  if (parseCorreoFromText(t3)) return true;
+  return false;
+}
+function clientAsksCafeOrCateringChoice(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return false;
+  if (/\b(caf[eé](?!\p{L})|barista|barra\s+de\s+caf[eé](?!\p{L})).{0,50}\b(o|u)\b.{0,50}\b(catering|comida|banquete|alimentos?)\b/iu.test(
+    t3
+  )) {
+    return true;
+  }
+  if (/\b(catering|comida|banquete|alimentos?).{0,50}\b(o|u)\b.{0,50}\b(caf[eé](?!\p{L})|barista)\b/iu.test(
+    t3
+  )) {
+    return true;
+  }
+  return /\bes\s+solo\s+caf[eé](?!\p{L})/iu.test(t3) || /\btienes\s+(tambi[eé]n\s+)?catering(\s+de\s+comida)?\b/i.test(t3) || /\bsolo\s+caf[eé](?!\p{L})\s+o\b/iu.test(t3);
+}
+function looksLikeNameAnswerMessage(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3 || t3.length > 90 || /\?/.test(t3) || /@/.test(t3) || /\d{3,}/.test(t3)) return false;
+  if (clientAsksCafeOrCateringChoice(t3)) return false;
+  if (isServiceRelatedMessage(t3) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\b/i.test(t3)) {
+    if (/\b(quiero|necesito|busco|cotiz|banquete|taquiza|barra|dj|pista)\b/i.test(t3)) {
+      return false;
+    }
+  }
+  const candidato = stripNombrePresentationPrefix(t3).replace(/\s+de\s+[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúñ.\s-]{2,50}$/u, "").trim();
+  const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+  if (!nombre) return false;
+  if (isLikelyNotPersonNameMessage(candidato) && !/^(soy|me\s+llamo)/i.test(t3)) {
+    const full = sanitizeCrmNombre(stripNombrePresentationPrefix(t3).split(/\s+de\s+/i)[0] ?? "");
+    return !!full;
+  }
+  return true;
+}
+function parseInvitadosFromText(text2) {
+  const trimmed = text2.trim();
+  if (!trimmed) return null;
+  const numMatchEarly = trimmed.match(
+    /\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i
+  );
+  if (numMatchEarly) return numMatchEarly[1];
+  if (/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(trimmed) && trimmed.split(/\s+/).length <= 14) {
+    return null;
+  }
+  if (isCatalogLevelSelection(trimmed) && trimmed.split(/\s+/).length <= 10 && !/\b(personas?|invitados?|pax|guests?)\b/i.test(trimmed)) {
+    return null;
+  }
+  const kidsAdults = trimmed.match(
+    /\b(\d+)\s*(niñ[oa]s?|chiquit[oa]s?|peques?|infantes?)\s*y\s*(\d+)\s*(adultos?|mayores?)\b/i
+  );
+  if (kidsAdults) {
+    return String(parseInt(kidsAdults[1], 10) + parseInt(kidsAdults[3], 10));
+  }
+  const adultsKids = trimmed.match(
+    /\b(\d+)\s*(adultos?|mayores?)\s*y\s*(\d+)\s*(niñ[oa]s?|chiquit[oa]s?|peques?|infantes?)\b/i
+  );
+  if (adultsKids) {
+    return String(parseInt(adultsKids[1], 10) + parseInt(adultsKids[3], 10));
+  }
+  if (/\bniñ[oa]s?\b/i.test(trimmed) && /\badultos?\b/i.test(trimmed)) {
+    const nums = [...trimmed.matchAll(/\b(\d{1,4})\b/g)].map((m5) => parseInt(m5[1], 10));
+    if (nums.length >= 2 && nums.every((n4) => n4 >= 1 && n4 <= 500)) {
+      return String(nums[0] + nums[1]);
+    }
+  }
+  if (NON_GUEST_UNIT_PATTERN.test(trimmed)) return null;
+  const approxSuffix = trimmed.match(
+    /^(\d{1,4})\s*(?:aprox(?:imadamente)?|aproximados?|personas?\s+aprox)\.?$/i
+  );
+  if (approxSuffix) return approxSuffix[1];
+  if (isServiceRelatedMessage(trimmed)) return null;
+  if (/\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+(?:lo\s+)?sabemos|no\s+(?:te\s+)?(?:lo\s+)?(?:puedo|podr[ií]a)\s+(?:decir|confirmar)|van\s+viendo)\b/i.test(
+    trimmed
+  )) {
+    return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
+  }
+  const rangoMatch = trimmed.match(/\bentre\s+(\d+)\s+y\s+(\d+)\b/i);
+  if (rangoMatch) {
+    const a3 = parseInt(rangoMatch[1], 10);
+    const b4 = parseInt(rangoMatch[2], 10);
+    return String(Math.max(a3, b4));
+  }
+  {
+    if (looksLikeGuestCountRange(trimmed) && !parseFechaFromText(trimmed)) {
+      const guestRange = trimmed.match(
+        /\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i
+      );
+      if (guestRange) {
+        const a3 = parseInt(guestRange[1], 10);
+        const b4 = parseInt(guestRange[2], 10);
+        return String(Math.round((a3 + b4) / 2));
+      }
+    }
+  }
+  const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i);
+  if (numMatch) return numMatch[1];
+  const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como|unos?|unas?)\s+(\d+)\b/i);
+  if (paraMatch) {
+    const after = trimmed.slice(paraMatch.index + paraMatch[0].length);
+    if (/^\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?)\b/i.test(after)) {
+      return null;
+    }
+    return paraMatch[1];
+  }
+  const aproxMatch = trimmed.match(
+    /\b(?:m[aá]s\s+o\s+menos|aproximadamente|al\s+rededor\s+de|alrededor\s+de|cerca\s+de)\s+(\d+)\b/i
+  );
+  if (aproxMatch) return aproxMatch[1];
+  const writtenMatch = trimmed.match(
+    /\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|doscientos|trescientos|cuatrocientos|quinientos)\s+(personas?|invitados?)\b/i
+  );
+  if (writtenMatch) {
+    return WRITTEN_NUMBERS[writtenMatch[1].toLowerCase()] ?? null;
+  }
+  if (/^el\s+\d{1,2}$/i.test(trimmed)) return null;
+  if (/^\d{1,4}$/.test(trimmed)) {
+    const n4 = parseInt(trimmed, 10);
+    if (n4 < 10) return null;
+    return trimmed;
+  }
+  return null;
+}
+function isDimensionText(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return false;
+  const dePrefixed = t3.replace(/^(de|son|miden|mide|aproximadamente|aprox\.?)\s+/i, "").trim();
+  return /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t3) || /\b\d+\s*m\s*(por|x)\s*\d+\s*m\b/i.test(t3) || /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t3) || /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t3) || /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(dePrefixed) || /^\d+m\s*x\s*\d+m$/i.test(t3) || /^\d+m\s*x\s*\d+m$/i.test(dePrefixed);
+}
+function isUsableDireccionEvento(value) {
+  const t3 = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
+  if (!t3) return false;
+  if (isDimensionText(t3)) return false;
+  if (isVagueVenueOnly(t3)) return false;
+  if (isLikelyProductNameNotLocation(t3)) return false;
+  if (JUNK_DIRECCION_PATTERN.test(t3)) return false;
+  if (isNonLocationBusinessPhrase(t3)) return false;
+  if (looksLikeThemeColorNotLocation(t3)) return false;
+  if (looksLikeDiscourseNotPlace(t3)) return false;
+  if (looksLikeCompanyLocationQuestionFragment(t3)) return false;
+  if (/\bd[oó]nde\b|\bubicad/i.test(t3) && !KNOWN_ZONES.test(t3) && t3.split(/\s+/).length <= 5) {
+    return false;
+  }
+  if (!hasGeoLocationSignal(t3) && !KNOWN_ZONES.test(t3)) {
+    const words = t3.split(/\s+/).filter(Boolean);
+    if (words.length > 4 || t3.length > 60) return false;
+    if (/\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete)\b/i.test(
+      t3
+    )) {
+      return false;
+    }
+  }
+  return true;
+}
+function clientCorrectsLocation(text2) {
+  const t3 = (text2 ?? "").trim();
+  if (!t3) return false;
+  return /\bme\s+equivoqu[eé]/i.test(t3) || /\bno\s+es\s+en\s+(el\s+)?piso\b/i.test(t3) || /\bno\s+es\s+(en\s+)?(la\s+)?(torre|piso|edificio)\b/i.test(t3) || /\b(es\s+en\s+)?otra\s+ubicaci[oó]n\b/i.test(t3) || /\bcambi[oó]\s+(de\s+)?(ubicaci[oó]n|lugar|direcci[oó]n)\b/i.test(t3) || /\bes\s+un\s+patio\b/i.test(t3) || /\bpatio\s+techado\b/i.test(t3);
+}
+function isVenueSpaceDetail(text2) {
+  const t3 = (text2 ?? "").trim();
+  if (!t3) return false;
+  return /^(el\s+|un\s+|una\s+)?(patio(\s+techado)?|techado|jard[ií]n|azotea|rooftop|terraza)[\s.,!]*$/i.test(
+    t3
+  );
+}
+function applyLocationCorrectionToAddress(existing, message) {
+  const msg = (message ?? "").trim();
+  const prev = (existing ?? "").trim();
+  if (!msg) return null;
+  const corrects = clientCorrectsLocation(msg);
+  const spaceDetail = isVenueSpaceDetail(msg);
+  if (!corrects && !(spaceDetail && prev)) return null;
+  let zoneFromMsg = parseZonaFromText(msg);
+  if (!zoneFromMsg) {
+    const m5 = msg.match(KNOWN_ZONES);
+    if (m5?.[0]) zoneFromMsg = m5[0].trim();
+  }
+  let zoneFromPrev = null;
+  if (prev) {
+    const m5 = prev.match(KNOWN_ZONES);
+    if (m5?.[0]) zoneFromPrev = m5[0].trim();
+  }
+  const zone = zoneFromMsg || zoneFromPrev;
+  let result = prev;
+  if (/\bno\s+es\s+en\s+(el\s+)?piso\b|\botra\s+ubicaci[oó]n\b|\bme\s+equivoqu|\bno\s+es\s+(en\s+)?(la\s+)?torre\b/i.test(
+    msg
+  )) {
+    result = result.replace(/,?\s*piso\s*\d+/gi, "").replace(/\btorre\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ-]*/gi, "").replace(/\s*,\s*,+/g, ",").replace(/^\s*,\s*|\s*,\s*$/g, "").replace(/\s{2,}/g, " ").trim();
+    if (/\botra\s+ubicaci[oó]n\b/i.test(msg) && zone) {
+      result = zone;
+    }
+  }
+  if (/\bpatio\b/i.test(msg)) {
+    result = result.replace(/,?\s*piso\s*\d+/gi, "").trim();
+    if (!/\bpatio\b/i.test(result)) {
+      result = result ? `${result}, patio` : zone ? `${zone}, patio` : "patio";
+    }
+  }
+  if (/\btechado\b/i.test(msg)) {
+    if (/\bpatio\b/i.test(result) && !/\btechado\b/i.test(result)) {
+      result = result.replace(/\bpatio\b/i, "patio techado");
+    } else if (!/\btechado\b/i.test(result)) {
+      result = result ? `${result}, techado` : zone ? `${zone}, techado` : "";
+    }
+  }
+  if (/\bjard[ií]n\b/i.test(msg) && !/\bjard[ií]n\b/i.test(result)) {
+    result = result ? `${result}, jard\xEDn` : zone ? `${zone}, jard\xEDn` : "jard\xEDn";
+  }
+  if (/\b(azotea|rooftop|terraza)\b/i.test(msg)) {
+    const detail = msg.match(/\b(azotea|rooftop|terraza)\b/i)?.[1] ?? "terraza";
+    if (!new RegExp(`\\b${detail}\\b`, "i").test(result)) {
+      result = result ? `${result}, ${detail}` : zone ? `${zone}, ${detail}` : detail;
+    }
+  }
+  if (zone && result && !new RegExp(zone.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(result)) {
+    result = `${result}, ${zone}`;
+  }
+  if ((!result || !result.trim()) && zone) result = zone;
+  result = (result ?? "").replace(/\s*,\s*,+/g, ",").replace(/^\s*,\s*|\s*,\s*$/g, "").trim();
+  if (!result) return null;
+  if (!isUsableDireccionEvento(result)) {
+    if (zone && isUsableDireccionEvento(zone)) return zone;
+    return null;
+  }
+  return result;
+}
+function shouldReplaceCrmDireccion(existing, incoming) {
+  const next = incoming?.trim() ?? "";
+  if (!next || !isUsableDireccionEvento(next)) return false;
+  const prev = existing?.trim() ?? "";
+  if (!prev || !isUsableDireccionEvento(prev)) return true;
+  if (prev.toLowerCase() === next.toLowerCase()) return false;
+  if (clientCorrectsLocation(next) || isVenueSpaceDetail(next)) return true;
+  if (/\bpiso\s*\d+/i.test(prev) && !/\bpiso\s*\d+/i.test(next) && KNOWN_ZONES.test(prev) && KNOWN_ZONES.test(next)) {
+    return true;
+  }
+  if (prev.toLowerCase().includes(next.toLowerCase()) && next.length < prev.length) return false;
+  if (next.toLowerCase().includes(prev.toLowerCase()) && next.length > prev.length + 2) return true;
+  if (hasGeoLocationSignal(next) && !hasGeoLocationSignal(prev) && next.length >= prev.length) {
+    return true;
+  }
+  return false;
+}
+function applyLocationCorrectionToCrm(mergedLines, filledSet, extracted, currentMessage) {
+  const msg = currentMessage?.trim() ?? "";
+  if (!msg) return false;
+  const idx = mergedLines.findIndex((l5) => /^-?\s*Lugar\/dirección del evento:/i.test(l5));
+  const existing = (idx >= 0 ? mergedLines[idx].replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "").trim() : null) || extracted.direccion_evento?.trim() || null;
+  if (!clientCorrectsLocation(msg) && !(isVenueSpaceDetail(msg) && existing)) return false;
+  const next = applyLocationCorrectionToAddress(existing, msg);
+  if (!next || next === existing) return false;
+  if (idx >= 0) {
+    mergedLines[idx] = `- Lugar/direcci\xF3n del evento: ${next}`;
+  } else {
+    mergedLines.push(`- Lugar/direcci\xF3n del evento: ${next}`);
+  }
+  filledSet.add("Lugar/direcci\xF3n del evento");
+  extracted.direccion_evento = next;
+  return true;
+}
+function parseSpaceDimensions(text2) {
+  const m5 = text2.match(/\b(\d+)\s*metros?\s*(por|x)\s*(\d+)\s*metros?\b/i);
+  if (m5) return `${m5[1]}m x ${m5[3]}m`;
+  const m22 = text2.match(/\bespacio\s+(?:es\s+de|de|mide)\s+(\d+)\s*metros?\s*(por|x)\s*(\d+)/i);
+  if (m22) return `${m22[1]}m x ${m22[3]}m`;
+  const m32 = text2.match(/\b(\d+)\s*m?\s*[x×]\s*(\d+)\s*m?\b/i);
+  if (m32) return `${m32[1]}m x ${m32[2]}m`;
+  return null;
+}
+function clientMentionsPistaTarima(message) {
+  if (!message?.trim()) return false;
+  return /\bpista(\s+de\s+baile)?\b|\btarima/i.test(message);
+}
+function parseZonaFromText(text2) {
+  const trimmed = text2.trim();
+  if (!trimmed || /@/.test(trimmed)) return null;
+  if (isGreetingOnlyMessage(trimmed)) return null;
+  if (isAffirmativeOnlyMessage(trimmed)) return null;
+  if (isDimensionText(trimmed)) return null;
+  if (isLikelyProductNameNotLocation(trimmed)) return null;
+  if (/\bsala\s*:/i.test(trimmed)) return null;
+  if (clientAsksLocation(trimmed) || looksLikeCompanyLocationQuestionFragment(trimmed)) {
+    return null;
+  }
+  const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
+  if (expoMatch?.[0] && isUsableDireccionEvento(expoMatch[0].trim())) {
+    return expoMatch[0].trim();
+  }
+  if (KNOWN_ZONES.test(trimmed)) {
+    const m5 = trimmed.match(KNOWN_ZONES);
+    if (m5 && isUsableDireccionEvento(m5[0].trim())) return m5[0].trim();
+  }
+  const coloniaMatch = trimmed.match(
+    /\b((?:colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+[A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{1,28})/i
+  );
+  if (coloniaMatch?.[1] && isUsableDireccionEvento(coloniaMatch[1].trim())) {
+    return coloniaMatch[1].trim();
+  }
+  const enMatch = trimmed.match(
+    /\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,28})(?:\s|,|\.|$)/i
+  );
+  if (enMatch) {
+    let lugar = enMatch[1].trim().replace(/[.,;:]+$/g, "").trim();
+    lugar = lugar.split(/\s+(?:para|con|por|donde|cuando|porque|que|y\s+también)\b/i)[0].trim().replace(/[.,;:]+$/g, "").trim();
+    const sinArticulo = lugar.replace(/^(el|la|los|las)\s+/i, "").trim();
+    const candidato = sinArticulo || lugar;
+    if (candidato && !MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !isVagueVenueOnly(candidato) && !isNonLocationBusinessPhrase(candidato) && !looksLikeDiscourseNotPlace(candidato) && !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje|color|noche|tarde|vivo|realidad|serio|importante)\b/i.test(
+      candidato
+    ) && !/^color\b/i.test(candidato) && isUsableDireccionEvento(candidato)) {
+      return candidato;
+    }
+  }
+  const venueMatch = trimmed.match(
+    /\b((?:la\s+)?casa\s+del\s+corregidor|cd\.?\s*nezahualc[oó]yotl)\b/i
+  );
+  if (venueMatch?.[1] && isUsableDireccionEvento(venueMatch[1].trim())) {
+    return venueMatch[1].trim();
+  }
+  const clubMatch = trimmed.match(/\b(club\s+de\s+golf\s+[A-Za-zÁÉÍÓÚáéíóúñ\s]{2,30})/i);
+  if (clubMatch?.[1] && isUsableDireccionEvento(clubMatch[1].trim())) {
+    return clubMatch[1].trim();
+  }
+  if (/\b(se\s+llevar[aá]|llevaremos|ser[aá])\s+(a\s+cabo\s+)?en\s+(el\s+)?/i.test(trimmed)) {
+    const enVenue = trimmed.match(/\ben\s+(el\s+)?([A-ZÁÉÍÓÚ][A-Za-zÁÉÍÓÚáéíóúñ\s]{4,40})/);
+    if (enVenue?.[2] && !MONTH_PATTERN.test(enVenue[2]) && isUsableDireccionEvento(enVenue[2].trim())) {
+      return enVenue[2].trim();
+    }
+  }
+  return null;
+}
+var SERVICE_LABELS_NOT_TIPO = /^(brunch|banquete|taquiza|desayuno|catering|pista de baile|dj|mobiliario|bebidas?)$/i;
+var CORREO_DICTADO_STOPWORDS = /* @__PURE__ */ new Set([
+  "es",
+  "mi",
+  "correo",
+  "el",
+  "mail",
+  "email",
+  "de",
+  "ser[i\xED]a",
+  "seria",
+  "ser\xEDa"
+]);
+function normalizeDictatedCorreo(text2) {
+  const lower2 = text2.toLowerCase().replace(/[¿?¡!,.;:]+$/g, "");
+  if (!/\barroba\b/.test(lower2)) return null;
+  const tokens = lower2.split(/\s+/);
+  const arrobaIdx = tokens.indexOf("arroba");
+  if (arrobaIdx === -1) return null;
+  const localParts = [];
+  for (let i5 = arrobaIdx - 1; i5 >= 0; ) {
+    const tok = tokens[i5];
+    if (tok === "bajo" && i5 - 1 >= 0 && (tokens[i5 - 1] === "guion" || tokens[i5 - 1] === "gui\xF3n")) {
+      localParts.unshift("_");
+      i5 -= 2;
+      continue;
+    }
+    if (tok === "guion" || tok === "gui\xF3n") {
+      localParts.unshift("-");
+      i5 -= 1;
+      continue;
+    }
+    if (CORREO_DICTADO_STOPWORDS.has(tok)) break;
+    if (!/^[a-z0-9]+$/.test(tok)) break;
+    localParts.unshift(tok);
+    i5 -= 1;
+  }
+  if (localParts.length === 0) return null;
+  const domainParts = [];
+  for (let i5 = arrobaIdx + 1; i5 < tokens.length; ) {
+    const tok = tokens[i5];
+    if (tok === "punto") {
+      domainParts.push(".");
+      i5 += 1;
+      continue;
+    }
+    if (tok === "guion" || tok === "gui\xF3n") {
+      if (tokens[i5 + 1] === "bajo") {
+        domainParts.push("_");
+        i5 += 2;
+        continue;
+      }
+      domainParts.push("-");
+      i5 += 1;
+      continue;
+    }
+    if (!/^[a-z0-9]+$/.test(tok)) break;
+    domainParts.push(tok);
+    i5 += 1;
+  }
+  if (domainParts.length === 0) return null;
+  const candidate = `${localParts.join("")}@${domainParts.join("")}`;
+  return /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(candidate) ? candidate : null;
+}
+function parseCorreoFromText(text2) {
+  if (!text2) return null;
+  const m5 = text2.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
+  const raw = m5 ? m5[1] : normalizeDictatedCorreo(text2);
+  if (!raw) return null;
+  return filterClientEmail(raw);
+}
+function isServiceLabelNotTipoEvento(label) {
+  if (!label?.trim()) return false;
+  const t3 = label.trim();
+  if (/^evento\s+con\s+/i.test(t3) || /^celebraci[oó]n\b/i.test(t3)) return false;
+  if (SERVICE_LABELS_NOT_TIPO.test(t3)) return true;
+  if (parseTipoEventoFromText(t3)) return false;
+  return !!parsePrimaryService(t3);
+}
+function parseFechaFromText(text2) {
+  const trimmed = text2.trim();
+  const fechaMatch = trimmed.match(
+    /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+de\s+\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
+  );
+  if (fechaMatch) {
+    const base = fechaMatch[1];
+    const hora = fechaMatch[2];
+    return hora ? `${base} a las ${hora}${hora.includes(":") ? "" : ":00"} horas` : base;
+  }
+  if (/\b(todav[ií]a\s+la\s+vamos\s+a\s+definir|todav[ií]a\s+(no\s+)?la\s+van?\s+a\s+definir|vamos\s+a\s+definir|siguen\s+viendo\s+opciones?|a[uú]n\s+sin\s+fecha|la\s+fecha\s+(a[uú]n\s+)?no\s+est[aá]|a[uú]n\s+no\s+(la\s+)?defin|no\s+tenemos\s+(fecha|d[ií]a)|sin\s+definir\s+(a[uú]n|todav[ií]a)|todav[ií]a\s+no\s+sabemos)\b/i.test(
+    trimmed
+  )) {
+    return "Sin definir (pendiente)";
+  }
+  if (/\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|a[uú]n\s+no\s+tenemos\s+fecha|todav[ií]a\s+no|por\s+definir)\b/i.test(
+    trimmed
+  )) {
+    return trimmed.slice(0, 80);
+  }
+  const weekdayDate = trimmed.match(
+    /\b((?:este|el|pr[oó]ximo)\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+(\d{1,2})(?:\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))?\b/i
+  );
+  if (weekdayDate) {
+    return weekdayDate[0].replace(/^(s[ií]|ok|vale)[,.]?\s+/i, "").trim().slice(0, 80);
+  }
+  const relativeDay = trimmed.match(
+    /\b((?:este|el|pr[oó]ximo)\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+de\s+(\d{1,2})\s*(?:a|[-–]|hasta)\s*(\d{1,2}))?\b/i
+  );
+  if (relativeDay) {
+    const day = relativeDay[0].replace(/^(s[ií]|ok|vale)[,.]?\s+/i, "").trim();
+    return day.slice(0, 80);
+  }
+  if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
+    return trimmed.slice(0, 80);
+  }
+  return null;
+}
+function isGenericQuoteIntentRequerimiento(value) {
+  const t3 = value?.trim() ?? "";
+  if (!t3) return false;
+  if (isServiceRelatedMessage(t3) && parseServicesFromText(t3).length > 0) return false;
+  if (isQuoteIntentMessage(t3)) return true;
+  return /^(quiero|necesito|requiero|busco|me\s+interesa)\s+(una?\s+)?cotiz/i.test(t3) || /^cotizaci[oó]n$/i.test(t3) || /^una?\s+cotizaci[oó]n$/i.test(t3) || /\bquiero\s+una?\s+cotizaci[oó]n\b/i.test(t3) || /\bsolicito\s+(una?\s+)?cotizaci[oó]n\b/i.test(t3);
+}
+function mergeZonaDetail(existing, incoming) {
+  const prevRaw = existing?.trim() ?? "";
+  const nextRaw = incoming?.trim() ?? "";
+  if (looksLikeThemeColorNotLocation(nextRaw)) {
+    return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
+  }
+  const prev = stripThemeColorsFromZona(prevRaw) || prevRaw;
+  const next = stripThemeColorsFromZona(nextRaw) || nextRaw;
+  if (!next) return prev || null;
+  if (!prev) return next;
+  if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
+  if (next.toLowerCase().includes(prev.toLowerCase())) return next;
+  if (textOverlapLoose(prev, next) >= 0.85) return prev.length >= next.length ? prev : next;
+  return `${prev}, ${next}`;
+}
+function textOverlapLoose(a3, b4) {
+  const norm2 = (s6) => s6.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(Boolean);
+  const wa = new Set(norm2(a3));
+  const wb = new Set(norm2(b4));
+  if (!wa.size || !wb.size) return 0;
+  let shared = 0;
+  for (const w4 of wa) if (wb.has(w4)) shared++;
+  return shared / Math.max(wa.size, wb.size);
+}
+function bareNumberLooksLikeInvitados(num, trimmed) {
+  if (/\$|k\b|mil\b|pesos|mxn|mnx/i.test(trimmed)) return false;
+  return num >= 5 && num <= 999;
+}
+var PRESUPUESTO_MAX_ASKS = 2;
+var FECHA_MAX_ASKS = 2;
+var PRESUPUESTO_AUTO_WAIVER = "Sin definir (no indic\xF3 monto)";
+var FECHA_AUTO_WAIVER = "Sin definir (pendiente)";
+function countLucyFieldAsks(history, field) {
+  const pattern = LUCY_FIELD_ASK_PATTERNS[field];
+  return history.filter(
+    (m5) => m5.role === "assistant" && typeof m5.content === "string" && pattern.test(m5.content)
+  ).length;
+}
+function detectPresupuestoRefusal(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return false;
+  if (isRichQuoteBrief(t3)) return false;
+  if (/^(no|nop)[\s.,!]*$/i.test(t3)) return true;
+  if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t3)) return true;
+  if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t3)) return true;
+  if (/^\.{2,}$/.test(t3)) return true;
+  if (/\bpara\s+eso\s+(te\s+)?(contacto|contact[eé]|escribo|hablo|llamo)\b/i.test(t3) || /\b(por|para)\s+eso\s+(te\s+)?(estoy\s+)?(contactando|escribiendo|llamando)\b/i.test(t3)) {
+    return true;
+  }
+  const explicitNoBudget = /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t3) || /\bno\s+me\s+brindaron\b/i.test(t3) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t3) || /\bsin\s+presupuesto\b/i.test(t3) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t3);
+  if (explicitNoBudget) return true;
+  const budgetCareLanguage = /\b(dentro\s+del\s+presupuesto|sin\s+perder.{0,40}presupuesto|al\s+presupuesto|bajo\s+presupuesto|mantener.{0,25}presupuesto|seg[uú]n\s+(el\s+)?presupuesto|cuidando.{0,25}presupuesto)\b/i.test(
+    t3
+  );
+  if (!budgetCareLanguage && t3.length <= 160 && /\bno\b/i.test(t3) && /\bpresupuesto\b/i.test(t3)) {
+    return true;
+  }
+  if (t3.length > 140) return false;
+  const norm2 = t3.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  if (/\bno\s+se\b/.test(norm2) && /\b(cual|nivel|opcion|variante|paquete|incluir|incluye|podria\s+ser)\b/.test(norm2)) {
+    return false;
+  }
+  return /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t3) || /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t3) || /\bt[uú]\s+m[aá]ndame\b/i.test(t3) || /\bsi\s+quieres\s+vemos\b/i.test(t3) || /\b(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s|$|[.,!?])/i.test(t3) || /\ba[uú]n\s+no\s+(?:s[eé]|lo\s+s[eé]|s[eé]\s+cu[aá]nto)/i.test(t3) || /\btodav[ií]a\s+no\b/i.test(t3) || /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t3) || /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t3) || /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t3) || /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t3) || /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t3) || /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t3) || /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t3) || /\b(el\s+)?equipo\s+(me\s+)?propong/i.test(t3);
+}
+function isPresupuestoResuelto(filledSet, texts = [], history) {
+  if (filledSet.has("Presupuesto (MXN)")) return true;
+  if (findPresupuestoInTexts(texts, history)) return true;
+  if (texts.some((t3) => detectPresupuestoRefusal(t3))) return true;
+  return false;
+}
+function findPresupuestoInTexts(texts, history) {
+  if (history?.length) {
+    let lastAssistant = "";
+    for (const msg of history) {
+      if (msg.role === "assistant" && typeof msg.content === "string") {
+        lastAssistant = msg.content;
+      }
+      if (msg.role === "user" && typeof msg.content === "string") {
+        const asked = inferLucyAskedField(lastAssistant);
+        const pres = parsePresupuestoFromText(msg.content, {
+          askedField: asked === "presupuesto" ? "presupuesto" : null
+        });
+        if (pres) return pres;
+      }
+    }
+  }
+  for (const t3 of texts) {
+    const pres = parsePresupuestoFromText(t3);
+    if (pres) return pres;
+  }
+  return null;
+}
+function looksLikeCalendarYearAmount(num, text2) {
+  if (num < 1990 || num > 2100) return false;
+  if (/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget|tope)\b/i.test(text2)) {
+    return false;
+  }
+  const t3 = text2.trim();
+  if (/^(19|20)\d{2}$/.test(t3)) return true;
+  if (/\b(19|20)\d{2}\b/.test(t3) && /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|fecha|a[nñ]o)\b/i.test(
+    t3
+  )) {
+    return true;
+  }
+  return false;
+}
+function parsePresupuestoFromText(text2, opts) {
+  const withoutEmails = text2.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ").replace(/\s+/g, " ").trim();
+  const trimmed = withoutEmails || text2.trim();
+  if (!trimmed) return null;
+  if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(text2.trim())) return null;
+  if (clientCorrectsLocation(trimmed) || isVenueSpaceDetail(trimmed)) return null;
+  if (/\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?(presupuesto|cotiz)/i.test(trimmed) || /\bt[uú]\s+m[aá]ndame\b/i.test(trimmed)) {
+    return "Sin definir (cliente pidi\xF3 que propongamos)";
+  }
+  if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(trimmed)) {
+    return "Sin definir (cliente pidi\xF3 que propongamos)";
+  }
+  if (/\b(que\s+(me\s+)?propongan|el\s+equipo\s+(me\s+)?propong|ustedes\s+(me\s+)?propong)/i.test(
+    trimmed
+  )) {
+    return "Sin definir (cliente pidi\xF3 que propongamos)";
+  }
+  if (detectPresupuestoRefusal(trimmed)) {
+    return "Sin definir (cliente indic\xF3 que no tiene)";
+  }
+  if (/\b(lo\s+m[aá]s\s+)?econ[oó]mic[oa]s?\b/i.test(trimmed) || /\b(barato|accesible|ajustad[oa]|menor\s+costo|lo\s+m[aá]s\s+barato)\b/i.test(trimmed)) {
+    return "Opciones econ\xF3micas (sin monto fijo)";
+  }
+  if (/\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(trimmed)) {
+    return "Sin definir (cliente indic\xF3 que no tiene)";
+  }
+  if (/\b(poquito|lo\s+que\s+sea\s+necesario|flexible|lo\s+que\s+se\s+necesite)\b/i.test(trimmed)) {
+    return "Flexible (sin monto fijo)";
+  }
+  if (opts?.askedField === "presupuesto" && /^(no|nop)[\s.,!]*$/i.test(trimmed)) {
+    return "Sin definir (cliente indic\xF3 que no tiene)";
+  }
+  if (opts?.askedField === "presupuesto") {
+    if (/^(s[ií]|ok|vale|bueno|est[aá]\s+bien|perfecto|claro|de\s+acuerdo|opciones?|propuestas?)[\s.,!]*$/i.test(trimmed)) {
+      return trimmed.match(/^opciones?|^propuestas?/i) ? "Sin definir (cliente pidi\xF3 que propongamos)" : PRESUPUESTO_AUTO_WAIVER;
+    }
+    if (/^(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea|\.\.+)[\s.,!]*$/i.test(trimmed)) {
+      return "Sin definir (cliente indic\xF3 que no tiene)";
+    }
+  }
+  if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones|todav[ií]a\s+no|despu[eé]s\s+vemos)\b/i.test(
+    trimmed
+  )) {
+    return "Sin definir (cliente indic\xF3 que no tiene)";
+  }
+  if (parseFechaFromText(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b)/i.test(trimmed)) {
+    return null;
+  }
+  if (/\b\d+\s*(personas?|invitados?|pax)\b/i.test(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b)/i.test(trimmed)) {
+    return null;
+  }
+  if (/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|hoy|ma[nñ]ana|esta?\s+semana|este\s+s[aá]bado|pr[oó]ximo)\b/i.test(
+    trimmed
+  ) && /\b\d{1,2}\s*(?:[:.]\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}\b/i.test(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)) {
+    return null;
+  }
+  {
+    const hourRange = trimmed.match(/\b(\d{1,2})\s*(?:[:.]\d{2})?\s*(?:a|[-–]|hasta)\s*(\d{1,2})\b/i);
+    if (hourRange && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)) {
+      const a3 = parseInt(hourRange[1], 10);
+      const b4 = parseInt(hourRange[2], 10);
+      if (a3 >= 0 && a3 <= 24 && b4 >= 0 && b4 <= 24 && a3 < 1e3 && b4 < 1e3) {
+        if (a3 < 100 && b4 < 100) return null;
+      }
+    }
+  }
+  const rangeMatch = trimmed.match(/\b(\d[\d,.]*)\s*[-–a]\s*(\d[\d,.]*)\s*(mxn|mnx|pesos)?\b/i);
+  if (rangeMatch) {
+    const aRaw = rangeMatch[1].replace(/,/g, "");
+    const bRaw = rangeMatch[2].replace(/,/g, "");
+    const a3 = parseInt(aRaw, 10);
+    const b4 = parseInt(bRaw, 10);
+    const hasMoneyToken = !!(rangeMatch[3] || /\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed));
+    if (!hasMoneyToken && looksLikeGuestCountRange(trimmed)) return null;
+    if (!hasMoneyToken && Number.isFinite(a3) && Number.isFinite(b4) && a3 < 1e3 && b4 < 1e3) {
+      if (opts?.askedField !== "presupuesto") return null;
+      if (a3 < 500 && b4 < 500) return null;
+    }
+    return `${aRaw} - ${bRaw} MXN`;
+  }
+  const perPersonMatch = trimmed.match(
+    /\$?\s*([\d][\d,.]*)\s*(?:mxn|mnx|pesos)?\s*(?:por\s+(?:persona|cabeza)|x\s+persona|pp\b|c\/u\b)/i
+  );
+  if (perPersonMatch) {
+    const hasBudgetIntent = opts?.askedField === "presupuesto" || /\b(presupuesto|rango|inversi[oó]n|budget|tope|menos\s+de|hasta|m[aá]ximo)\b/i.test(trimmed);
+    const looksLikeCatalogPitch = /\b(manejamos|desde|ofrecemos|tenemos|niveles?|incluye)\b/i.test(trimmed) || trimmed.length > 90;
+    if (hasBudgetIntent || !looksLikeCatalogPitch) {
+      const num = parseInt(perPersonMatch[1].replace(/,/g, ""), 10);
+      if (!isNaN(num) && num > 0) return `$${num.toLocaleString("es-MX")} MXN por persona`;
+    }
+  }
+  const menosDeMatch = trimmed.match(
+    /\b(?:menos\s+de|hasta|m[aá]ximo|max\.?)\s+\$?\s*([\d][\d,.]*)\s*(mxn|mnx|pesos)?\b/i
+  );
+  if (menosDeMatch) {
+    return `Hasta $${menosDeMatch[1].replace(/,/g, "")} MXN`;
+  }
+  const topeMatch = trimmed.match(
+    /\btope\s+(?:es\s+)?(?:de\s+)?\$?\s*([\d][\d,.]*)\s*(mxn|mnx|pesos|k)?\b/i
+  );
+  if (topeMatch) {
+    const suffix = topeMatch[2]?.toLowerCase() === "k" ? "k" : "";
+    return `Hasta $${topeMatch[1].replace(/,/g, "")}${suffix} MXN`;
+  }
+  const kMatch = trimmed.match(/\$?\s*([\d,.]+)\s*k\b/i);
+  if (kMatch) {
+    const num = parseInt(kMatch[1].replace(/[,.]/g, ""), 10);
+    if (!isNaN(num) && num > 0) return `$${num}k`;
+  }
+  const milMatch = trimmed.match(/([\d,.]+)\s*mil\b/i);
+  if (milMatch) {
+    const num = parseInt(milMatch[1].replace(/[,.]/g, ""), 10);
+    if (!isNaN(num) && num > 0) return `$${num * 1e3}`;
+  }
+  {
+    const yearOnly = trimmed.match(/^(19|20)\d{2}$/);
+    if (yearOnly) return null;
+    const yearNum = parseInt(trimmed.replace(/[^\d]/g, ""), 10);
+    if (looksLikeCalendarYearAmount(yearNum, trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)) {
+      if (/^(19|20)\d{2}$/.test(trimmed) || trimmed.length <= 6) return null;
+    }
+  }
+  const hasMoneyWord = /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn|mnx|tope)\b/i.test(trimmed) || opts?.askedField === "presupuesto";
+  const hasAproxBudget = hasMoneyWord && /\b(como|aprox|alrededor|cerca\s+de|menos\s+de|hasta)\b/i.test(trimmed);
+  if (hasMoneyWord || hasAproxBudget || /\$/.test(trimmed) && hasMoneyWord) {
+    const amountMatch = trimmed.match(/(?<![A-Za-z0-9])\$?\s*([\d][\d,.]*)/);
+    if (amountMatch) {
+      const num = parseInt(amountMatch[1].replace(/,/g, ""), 10);
+      if (!isNaN(num) && looksLikeCalendarYearAmount(num, trimmed) && !/\$/.test(trimmed)) {
+        return null;
+      }
+      return trimmed.slice(0, 80);
+    }
+  }
+  if (/\$\s*[\d][\d,.]{3,}/.test(trimmed) && !/\bdesde\s+\$/i.test(trimmed)) {
+    const amountMatch = trimmed.match(/\$\s*([\d][\d,.]*)/);
+    if (amountMatch) {
+      const num = parseInt(amountMatch[1].replace(/,/g, ""), 10);
+      if (!isNaN(num) && num >= 1e3) return trimmed.slice(0, 80);
+    }
+  }
+  const bareMatch = trimmed.match(/^\$?\s*([\d][\d,.]*)\s*(k|mxn|mnx|pesos)?$/i);
+  if (bareMatch) {
+    const num = parseInt(bareMatch[1].replace(/,/g, ""), 10);
+    if (isNaN(num) || num <= 0) return null;
+    if (looksLikeCalendarYearAmount(num, trimmed) && !bareMatch[2]) return null;
+    if (opts?.askedField === "presupuesto") return trimmed.slice(0, 80);
+    if (bareNumberLooksLikeInvitados(num, trimmed)) return null;
+    if (num >= 1e3) return `$${num.toLocaleString("es-MX")} MXN`;
+    return null;
+  }
+  return null;
+}
+function getLastLucyMessage(history) {
+  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(-1)[0]?.content ?? "";
+}
+function collectUserMessages(history, currentMessage) {
+  const fromHistory = history.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content);
+  return currentMessage?.trim() ? [...fromHistory, currentMessage.trim()] : fromHistory;
+}
+function captureContextualAnswer(history, currentMessage, filledSet) {
+  const msg = currentMessage.trim();
+  if (!msg) return [];
+  const lastLucy = getLastLucyMessage(history);
+  const asked = inferLucyAskedField(lastLucy);
+  const captures = [];
+  const carpaVariant = parseCarpaVariantFromText(msg);
+  if (carpaVariant && !filledSet.has("Requerimientos o servicios")) {
+    captures.push({ label: "Requerimientos o servicios", value: carpaVariant });
+  } else if (carpaVariant) {
+    captures.push({ label: "Requerimientos o servicios", value: carpaVariant });
+  }
+  const zonaFromMsg = parseZonaFromText(msg);
+  const msgIsLocation = !carpaVariant && !!zonaFromMsg && isUsableDireccionEvento(zonaFromMsg) && (isLikelyUbicacionNotNombre(msg) || asked === "zona" || /^en\s+/i.test(msg.trim()) || msg.trim().split(/\s+/).length <= 4 && !!zonaFromMsg);
+  if (msgIsLocation && zonaFromMsg && !filledSet.has("Lugar/direcci\xF3n del evento")) {
+    captures.push({ label: "Lugar/direcci\xF3n del evento", value: zonaFromMsg });
+  }
+  const dimsNow = parseSpaceDimensions(msg);
+  if (dimsNow && (isDimensionText(msg) || /medidas?/i.test(lastLucy) || /carpa|pista|tarima/i.test(lastLucy))) {
+    const existingReq = captures.find((c4) => c4.label === "Requerimientos o servicios");
+    if (existingReq) {
+      if (!existingReq.value.includes(dimsNow)) {
+        existingReq.value = `${existingReq.value.replace(/\s*\(espacio [^)]+\)/, "").trim()} (espacio ${dimsNow})`;
+      }
+    } else {
+      captures.push({
+        label: "Requerimientos o servicios",
+        value: `Carpas (espacio ${dimsNow})`
+      });
+    }
+  }
+  if (!msgIsLocation && !filledSet.has("Nombre del cliente") && asked !== "zona" && (asked === "nombre" || !history.some((m5) => m5.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && !isQuoteIntentMessage(msg) && !isServiceRelatedMessage(msg) && !isAmbiguousShortNumber(msg) && !isLikelyUbicacionNotNombre(msg) && !parseZonaFromText(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
+    const candidato = stripNombrePresentationPrefix(msg);
+    const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+    const handoffNoise = clientAsksForHumanAdvisor(msg) || /\b(hablar|asesor|agente|humano)\b/i.test(candidato);
+    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && (!isLikelyNotPersonNameMessage(candidato) || handoffNoise) && !isServiceRelatedMessage(candidato) && !isLikelyUbicacionNotNombre(candidato)) {
+      captures.push({ label: "Nombre del cliente", value: nombre });
+    }
+  }
+  if (!filledSet.has("Tipo de evento") && asked === "tipo_evento") {
+    if (isUnusableTipoEventoReply(msg)) {
+      const histBlob = history.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content).join(" ");
+      const tipoHist = parseTipoEventoFromText(histBlob) || (/\bbanquete\b/i.test(histBlob) ? "evento con banquete" : /\bcatering\b/i.test(histBlob) ? "evento con catering" : null);
+      if (tipoHist) {
+        captures.push({ label: "Tipo de evento", value: tipoHist });
+      }
+    } else {
+      const tipo = parseTipoEventoFromText(msg);
+      if (tipo) {
+        captures.push({ label: "Tipo de evento", value: tipo });
+      } else if (isServiceRelatedMessage(msg) || /\b(banquete|catering)\b/i.test(msg)) {
+        const services = parseServicesFromText(msg);
+        const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
+        const inv = parseInvitadosFromText(msg);
+        if (service) {
+          captures.push({ label: "Requerimientos o servicios", value: service });
+        }
+        if (inv) {
+          captures.push({ label: "N\xFAmero de invitados", value: inv });
+        }
+        if (/\bbanquete\b/i.test(msg)) {
+          captures.push({ label: "Tipo de evento", value: "evento con banquete" });
+        } else if (/\bcatering\b/i.test(msg)) {
+          captures.push({ label: "Tipo de evento", value: "evento con catering" });
+        } else {
+          const tipoHist = parseTipoEventoFromText(
+            history.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content).join(" ")
+          );
+          if (tipoHist) {
+            captures.push({ label: "Tipo de evento", value: tipoHist });
+          }
+        }
+      } else if (tipo == null && msg.length >= 2 && !/@/.test(msg) && !isUnusableTipoEventoReply(msg)) {
+        captures.push({ label: "Tipo de evento", value: msg });
+      }
+    }
+  }
+  if (!filledSet.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && !clientAsksCafeOrCateringChoice(msg) && (asked === "requerimientos" || isServiceRelatedMessage(msg))) {
+    const services = parseServicesFromText(msg);
+    const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
+    const dims = parseSpaceDimensions(msg);
+    if (service || isServiceRelatedMessage(msg)) {
+      let value = service ?? msg.slice(0, 120);
+      if (dims && service) value = `${service} (espacio ${dims})`;
+      else if (dims) value = `Tarima/pista \u2014 espacio ${dims}`;
+      captures.push({
+        label: "Requerimientos o servicios",
+        value
+      });
+    }
+  }
+  if (!filledSet.has("N\xFAmero de invitados") && asked === "invitados") {
+    const inv = parseInvitadosFromText(msg);
+    if (inv) captures.push({ label: "N\xFAmero de invitados", value: inv });
+  }
+  if (!filledSet.has("N\xFAmero de invitados") && asked !== "invitados" && lastLucy && /invitados|cu[aá]ntos\s+invit|asistir[aá]n/i.test(lastLucy) && /^\d{2,4}$/.test(msg)) {
+    const inv = parseInvitadosFromText(msg);
+    if (inv) captures.push({ label: "N\xFAmero de invitados", value: inv });
+  }
+  if (asked === "zona") {
+    const zona = parseZonaFromText(msg);
+    if (zona && isUsableDireccionEvento(zona)) {
+      captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
+    }
+  }
+  if (!filledSet.has("Fecha y horario") && asked === "fecha") {
+    const fecha = parseFechaFromText(msg);
+    if (fecha) captures.push({ label: "Fecha y horario", value: fecha });
+  }
+  if (clientCorrectsLocation(msg) || isVenueSpaceDetail(msg) && filledSet.has("Lugar/direcci\xF3n del evento")) {
+    const zonaHint = parseZonaFromText(msg);
+    if (zonaHint && isUsableDireccionEvento(zonaHint)) {
+      captures.push({ label: "Lugar/direcci\xF3n del evento", value: zonaHint });
+    }
+  } else if (!filledSet.has("Presupuesto (MXN)") && (asked === "presupuesto" || detectPresupuestoRefusal(msg))) {
+    const pres = parsePresupuestoFromText(msg, { askedField: asked === "presupuesto" ? "presupuesto" : null });
+    if (pres) {
+      captures.push({ label: "Presupuesto (MXN)", value: pres });
+    } else if (/\b(s[ií]|ok|dale|claro)\b/i.test(msg) && /\b(alejandro|opciones|propong)\b/i.test(msg)) {
+      captures.push({
+        label: "Presupuesto (MXN)",
+        value: "Sin definir (cliente pidi\xF3 opciones)"
+      });
+    }
+  }
+  return captures;
+}
+function scanConversationForCaptures(history, currentMessage, filledSet) {
+  const captures = [];
+  const pending = new Set(filledSet);
+  const userTexts = collectUserMessages(history, currentMessage).slice(-12);
+  if (!pending.has("Nombre del cliente")) {
+    const nombre = recoverClienteNombreFromHistory(history, currentMessage);
+    if (nombre) {
+      captures.push({ label: "Nombre del cliente", value: nombre });
+      pending.add("Nombre del cliente");
+    }
+  }
+  for (const msg of userTexts) {
+    if (!pending.has("Tipo de evento")) {
+      const tipo = parseTipoEventoFromText(msg);
+      if (tipo) {
+        captures.push({ label: "Tipo de evento", value: tipo });
+        pending.add("Tipo de evento");
+      }
+    }
+    if (!pending.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && !clientAsksCafeOrCateringChoice(msg) && isServiceRelatedMessage(msg)) {
+      const services = parseServicesFromText(msg);
+      const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
+      const dims2 = parseSpaceDimensions(msg);
+      let value = service ?? msg.trim().slice(0, 120);
+      if (dims2 && service) value = `${service} (espacio ${dims2})`;
+      else if (dims2 && /pista|tarima/i.test(msg)) value = `Pista de baile (espacio ${dims2})`;
+      captures.push({
+        label: "Requerimientos o servicios",
+        value
+      });
+      pending.add("Requerimientos o servicios");
+    }
+    if (!pending.has("N\xFAmero de invitados") && !isAmbiguousShortNumber(msg)) {
+      const inv = parseInvitadosFromText(msg);
+      if (inv) {
+        captures.push({ label: "N\xFAmero de invitados", value: inv });
+        pending.add("N\xFAmero de invitados");
+      }
+    }
+    {
+      const zona = parseZonaFromText(msg);
+      if (zona && isUsableDireccionEvento(zona)) {
+        captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
+        pending.add("Lugar/direcci\xF3n del evento");
+      }
+    }
+    if (!pending.has("Fecha y horario")) {
+      const fecha = parseFechaFromText(msg);
+      if (fecha) {
+        captures.push({ label: "Fecha y horario", value: fecha });
+        pending.add("Fecha y horario");
+      }
+    }
+    if (!pending.has("Presupuesto (MXN)")) {
+      const invMatch = parseInvitadosFromText(msg);
+      const looksLikeInvitadosOnly = !!invMatch && !/\$|presupuesto|mil\b|pesos|mxn|mnx/i.test(msg);
+      if (!looksLikeInvitadosOnly) {
+        const pres = parsePresupuestoFromText(msg);
+        if (pres) {
+          captures.push({ label: "Presupuesto (MXN)", value: pres });
+          pending.add("Presupuesto (MXN)");
+        }
+      }
+    }
+    const dims = parseSpaceDimensions(msg);
+    if (dims && /pista|tarima/i.test(userTexts.join(" "))) {
+      const reqIdx = captures.findIndex((c4) => c4.label === "Requerimientos o servicios");
+      if (reqIdx >= 0) {
+        if (!captures[reqIdx].value.includes(dims)) {
+          const base = captures[reqIdx].value.replace(/\s*\(espacio [^)]+\)/, "").trim();
+          captures[reqIdx].value = `${base} (espacio ${dims})`;
+        }
+      } else if (!pending.has("Requerimientos o servicios")) {
+        const service = parsePrimaryService(userTexts.join(" ")) ?? "Pista de baile";
+        captures.push({
+          label: "Requerimientos o servicios",
+          value: `${service} (espacio ${dims})`
+        });
+        pending.add("Requerimientos o servicios");
+      }
+    }
+  }
+  return captures;
+}
+function applyCapturesToCrm(mergedLines, filledSet, captures) {
+  for (const { label, value } of captures) {
+    if (!value?.trim()) continue;
+    if (label === "Lugar/direcci\xF3n del evento" && filledSet.has(label)) {
+      const idx = mergedLines.findIndex((l5) => /^-?\s*Lugar\/dirección del evento:/i.test(l5));
+      if (idx >= 0) {
+        const existing = mergedLines[idx].replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "").trim();
+        if (shouldReplaceCrmDireccion(existing, value)) {
+          mergedLines[idx] = `- Lugar/direcci\xF3n del evento: ${value}`;
+        } else {
+          const merged = mergeZonaDetail(existing, value);
+          if (merged && merged !== existing) {
+            mergedLines[idx] = `- Lugar/direcci\xF3n del evento: ${merged}`;
+          }
+        }
+      }
+      continue;
+    }
+    if (label === "Requerimientos o servicios" && filledSet.has(label)) {
+      const idx = mergedLines.findIndex((l5) => /^-?\s*Requerimientos o servicios:/i.test(l5));
+      if (idx >= 0) {
+        const existing = mergedLines[idx].replace(/^-?\s*Requerimientos o servicios:\s*/i, "").trim();
+        const merged = mergeServiceRequirements(existing, value, 6);
+        const prev = parseServicesFromText(existing).length;
+        const next = merged ? parseServicesFromText(merged).length : 0;
+        if (merged && next > prev) {
+          mergedLines[idx] = `- Requerimientos o servicios: ${merged}`;
+        }
+      }
+      continue;
+    }
+    if (label === "Presupuesto (MXN)" && filledSet.has(label)) {
+      const idx = mergedLines.findIndex((l5) => /^-?\s*Presupuesto \(MXN\):/i.test(l5));
+      if (idx >= 0) {
+        const existing = mergedLines[idx].replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "").trim();
+        const oldNum = parseInt(existing.replace(/[^\d]/g, ""), 10);
+        const newNum = parseInt(value.replace(/[^\d]/g, ""), 10);
+        if (!isNaN(newNum) && newNum >= 1e3 && (isNaN(oldNum) || newNum > oldNum)) {
+          mergedLines[idx] = `- Presupuesto (MXN): ${value}`;
+        }
+      }
+      continue;
+    }
+    if (filledSet.has(label)) continue;
+    mergedLines.push(`- ${label}: ${value}`);
+    filledSet.add(label);
+  }
+}
+function enrichExtractedFromConversation(extracted, conversationText) {
+  if (!extracted.tipo_evento?.trim()) {
+    const tipo = parseTipoEventoFromText(conversationText);
+    if (tipo) extracted.tipo_evento = tipo;
+  }
+  if (!extracted.fecha_horario?.trim()) {
+    const fecha = parseFechaFromText(conversationText);
+    if (fecha) extracted.fecha_horario = fecha;
+  }
+  if (!extracted.num_invitados) {
+    const inv = parseInvitadosFromText(conversationText);
+    if (inv) extracted.num_invitados = parseInt(inv, 10);
+  }
+  if (!isUsableDireccionEvento(extracted.direccion_evento)) {
+    extracted.direccion_evento = null;
+    const zona = parseZonaFromText(conversationText);
+    if (zona && isUsableDireccionEvento(zona)) extracted.direccion_evento = zona;
+  } else {
+    const zones = [...conversationText.matchAll(new RegExp(KNOWN_ZONES.source, "gi"))].map((m5) => m5[0].trim()).filter(Boolean);
+    let merged = extracted.direccion_evento;
+    for (const z3 of zones) {
+      if (isUsableDireccionEvento(z3)) merged = mergeZonaDetail(merged, z3);
+    }
+    if (merged) extracted.direccion_evento = merged;
+  }
+  if (extracted.requerimientos_evento?.trim() && isGenericQuoteIntentRequerimiento(extracted.requerimientos_evento)) {
+    extracted.requerimientos_evento = null;
+  }
+  {
+    const serviceSource = conversationText.split(/\n+/).map((l5) => l5.trim()).filter(
+      (l5) => l5 && !isGenericQuoteIntentRequerimiento(l5) && !isQuoteIntentMessage(l5) && !isGreetingOnlyMessage(l5)
+    ).join(" ");
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      serviceSource,
+      6
+    );
+    if (merged) extracted.requerimientos_evento = merged;
+  }
+  if (extracted.presupuesto === null || extracted.presupuesto === void 0) {
+    const scrubbedConv = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
+    const presChunks = scrubbedConv.split(/\n|\.|;/).map((s6) => s6.trim()).filter((s6) => /\b(presupuesto|mil\b|pesos|\$|k\b|inversi[oó]n|rango)\b/i.test(s6));
+    for (const chunk of presChunks) {
+      const pres = parsePresupuestoFromText(chunk);
+      if (!pres) continue;
+      const num = parseInt(pres.replace(/[^\d]/g, ""), 10);
+      if (!isNaN(num) && num >= 1e3) {
+        extracted.presupuesto = num;
+        break;
+      }
+    }
+  } else {
+    const scrubbed = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
+    const amounts = [...scrubbed.matchAll(/(?<![A-Za-z0-9])\$?\s*([\d][\d,]{2,})\b/g)].map((m5) => parseInt(m5[1].replace(/,/g, ""), 10)).filter((n4) => !isNaN(n4) && n4 >= 1e3 && n4 <= 5e7);
+    const maxAmt = amounts.length ? Math.max(...amounts) : 0;
+    if (maxAmt > extracted.presupuesto) {
+      extracted.presupuesto = maxAmt;
+    }
+  }
+  if (extracted.presupuesto !== null && extracted.num_invitados !== null && extracted.presupuesto === extracted.num_invitados && extracted.presupuesto < 1e3) {
+    extracted.presupuesto = null;
+  }
+  if (!extracted.correo?.trim()) {
+    const fromConv = parseCorreoFromText(conversationText);
+    if (fromConv) extracted.correo = fromConv;
+  }
+  if (extracted.requerimientos_evento?.trim() && extracted.tipo_evento?.trim() && extracted.requerimientos_evento.trim().toLowerCase() === extracted.tipo_evento.trim().toLowerCase()) {
+    extracted.requerimientos_evento = null;
+  }
+}
+
+// src/lucyCrmInvariants.ts
+function userTextsBlob(userTexts) {
+  return userTexts.filter(Boolean).join("\n");
+}
+function userJustifiesPresupuesto(userTexts) {
+  for (const t3 of userTexts) {
+    const pres = parsePresupuestoFromText(t3, { askedField: null });
+    if (!pres) continue;
+    if (/sin definir|econ[oó]mic|flexible|opciones|propong/i.test(pres)) return true;
+    const n4 = parseInt(pres.replace(/[^\d]/g, ""), 10);
+    if (!isNaN(n4) && n4 > 0) return true;
+  }
+  for (const t3 of userTexts) {
+    if (!/\b(presupuesto|rango|inversi[oó]n|budget|tope|menos\s+de|hasta)\b/i.test(t3)) {
+      continue;
+    }
+    if (parsePresupuestoFromText(t3, { askedField: "presupuesto" })) return true;
+  }
+  return false;
+}
+function isInvalidCrmNombre(value) {
+  const raw = value?.trim() ?? "";
+  if (!raw) return true;
+  if (isQuoteIntentMessage(raw)) return true;
+  if (isLikelyUbicacionNotNombre(raw)) return true;
+  if (isLikelyNotPersonNameMessage(raw) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw)) {
+    return true;
+  }
+  const zona = parseZonaFromText(raw);
+  if (zona && isUsableDireccionEvento(zona) && raw.split(/\s+/).length <= 6) {
+    if (/^en\s+/i.test(raw) || raw.toLowerCase() === zona.toLowerCase()) return true;
+  }
+  return !sanitizeCrmNombre(raw);
+}
+function applyCrmWriteInvariants(extracted, userTexts = []) {
+  const out2 = { ...extracted };
+  const applied = [];
+  const blob = userTextsBlob(userTexts);
+  if (out2.nombre && isInvalidCrmNombre(out2.nombre)) {
+    const zona = parseZonaFromText(out2.nombre) ?? parseZonaFromText(blob);
+    if (zona && isUsableDireccionEvento(zona) && !isUsableDireccionEvento(out2.direccion_evento)) {
+      out2.direccion_evento = zona;
+      applied.push("nombre-to-zona");
+    }
+    out2.nombre = null;
+    applied.push("nombre-invalid-cleared");
+  } else if (out2.nombre) {
+    const cleaned = sanitizeCrmNombre(out2.nombre);
+    if (!cleaned) {
+      out2.nombre = null;
+      applied.push("nombre-sanitize-null");
+    } else if (cleaned !== out2.nombre) {
+      out2.nombre = cleaned;
+      applied.push("nombre-sanitized");
+    }
+  }
+  if (out2.presupuesto !== null && out2.presupuesto !== void 0) {
+    const presStr = String(out2.presupuesto).trim();
+    const digits = presStr.replace(/[^\d]/g, "");
+    const fromEmailLocal = userTexts.some((t3) => {
+      const emails = t3.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? [];
+      return emails.some((e3) => {
+        const local = e3.split("@")[0] ?? "";
+        return digits.length >= 4 && local.includes(digits);
+      });
+    });
+    if (fromEmailLocal) {
+      out2.presupuesto = null;
+      applied.push("presupuesto-from-email-cleared");
+      for (const t3 of userTexts) {
+        const p4 = parsePresupuestoFromText(t3.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " "), {
+          askedField: "presupuesto"
+        });
+        if (!p4) continue;
+        const n4 = parseInt(p4.replace(/[^\d]/g, ""), 10);
+        if (!isNaN(n4) && n4 >= 1e3 && String(n4) !== digits) {
+          out2.presupuesto = n4;
+          applied.push("presupuesto-recovered-after-email");
+          break;
+        }
+      }
+    }
+    const guestRangePolluted = looksLikeGuestCountRange(presStr) || looksLikeGuestCountRange(presStr.replace(/\s*MXN$/i, "")) || typeof out2.presupuesto === "number" && out2.num_invitados != null && (out2.presupuesto === out2.num_invitados || // "80"+"100" concatenado ≈ 80100 con invitados ~90
+    out2.presupuesto >= 1e3 && out2.presupuesto < 1e5 && userTexts.some((t3) => looksLikeGuestCountRange(t3)));
+    if (out2.presupuesto != null && guestRangePolluted && !userTexts.some((t3) => /\b(presupuesto|mil|pesos|\$|k\b|inversi[oó]n)\b/i.test(t3))) {
+      out2.presupuesto = null;
+      applied.push("presupuesto-guest-range-cleared");
+    } else if (out2.presupuesto != null && !userJustifiesPresupuesto(userTexts)) {
+      out2.presupuesto = null;
+      applied.push("presupuesto-no-user-source");
+    } else if (typeof out2.presupuesto === "number" && out2.presupuesto > 0 && out2.presupuesto < 1e3) {
+      const userSaidSmall = userTexts.some((t3) => {
+        const p4 = parsePresupuestoFromText(t3, { askedField: "presupuesto" });
+        if (!p4) return false;
+        const n4 = parseInt(p4.replace(/[^\d]/g, ""), 10);
+        return n4 === out2.presupuesto;
+      }) && userTexts.some(
+        (t3) => /\b(presupuesto|rango|inversi[oó]n|tope|menos\s+de|hasta)\b/i.test(t3)
+      );
+      if (!userSaidSmall) {
+        out2.presupuesto = null;
+        applied.push("presupuesto-too-small-cleared");
+      }
+    }
+  }
+  if (out2.direccion_evento && (!isUsableDireccionEvento(out2.direccion_evento) || looksLikeCompanyLocationQuestionFragment(out2.direccion_evento) || isLikelyProductNameNotLocation(out2.direccion_evento))) {
+    out2.direccion_evento = null;
+    applied.push("zona-unusable-cleared");
+  }
+  return { extracted: out2, applied };
+}
+function purgeUnjustifiedPresupuestoLines(lines, userTexts) {
+  if (userJustifiesPresupuesto(userTexts)) return lines;
+  return lines.filter((line2) => !/^-?\s*Presupuesto \(MXN\):/i.test(line2));
+}
+
+// src/selftest/lucy-flow-selftest.ts
+init_learningPairFilter();
+
+// src/modoServicio.ts
+var PEDIDO_ENTREGA = /\b(para\s+llevar|a\s+domicilio|en\s+mi\s+casa|entrega|que\s+me\s+(los?\s+|las?\s+)?dejen|que\s+me\s+(los?\s+|las?\s+)?entreguen|solo\s+los?\s+rollos?|solo\s+el\s+producto|sin\s+montaje|pedido\s+de|un\s+pedido\s+de|cantidad\s+de\s+\d+|piezas?\s+de)\b/i;
+var SERVICIO_MONTADO = /\b(montado\s+en|en\s+el\s+evento|barra\s+en|estaci[oó]n\s+en|meseros|servicio\s+en\s+el|montaje\s+en|en\s+mi\s+evento|en\s+la\s+fiesta)\b/i;
+function detectModoServicio(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return null;
+  if (PEDIDO_ENTREGA.test(t3)) return "pedido_entrega";
+  if (SERVICIO_MONTADO.test(t3)) return "servicio_montado";
+  return null;
+}
+function needsModoServicioClarification(text2, current) {
+  if (current) return false;
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return false;
+  return /\b(\d+\s+rollos?|\d+\s+piezas?|\d+\s+platos?|quiero\s+\d+|necesito\s+\d+)\b/i.test(t3) && !PEDIDO_ENTREGA.test(t3) && !SERVICIO_MONTADO.test(t3);
+}
+function buildModoServicioClarificationQuestion() {
+  return "\xBFLo quieres montado en tu evento con barra y servicio, o solo la entrega del producto?";
+}
+function isMobiliarioRentalPedido(message) {
+  const t3 = message?.trim() ?? "";
+  if (!t3) return false;
+  return /\b(mesas?\s+tipo\s+picnic|picnic|periqueras?|bancos?|mobiliario|mesas?\s+y\s+sillas?)\b/i.test(
+    t3
+  );
+}
+function buildPedidoEntregaReply(message) {
+  const t3 = message?.trim() ?? "";
+  if (isMobiliarioRentalPedido(t3)) {
+    return `Perfecto \u2014 lo tomo como *entrega/recolecci\xF3n de mobiliario* (sin montaje en sitio). Nuestro equipo te arma la cotizaci\xF3n seg\xFAn cantidades, color y zona de entrega.`;
+  }
+  const qtyMatch = t3.match(/(\d+)\s*(rollos?|piezas?|platos?)/i);
+  const qtyLabel = qtyMatch ? `${qtyMatch[1]} ${qtyMatch[2]}` : null;
+  const product = /\bsushi\b/i.test(t3) ? "sushi" : /\bpizzas?\b/i.test(t3) ? "pizza" : /\bpoke\b/i.test(t3) ? "poke" : "producto";
+  const what = qtyLabel ? `${qtyLabel} de ${product}` : `tu pedido de ${product}`;
+  return `Perfecto \u2014 lo tomo como *pedido/entrega a domicilio* (sin barra ni chefs en el evento). Para ${what}, nuestro equipo te arma la cotizaci\xF3n exacta seg\xFAn cantidad y zona de entrega. \xBFMe regalas tu nombre para pas\xE1rselo?`;
+}
+
+// src/tipoContacto.ts
+var PROVEEDOR_SELL = /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|soy\s+proveedor|quiero\s+venderles|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidor\s+de|mi\s+empresa\s+ofrece|vendo\s+.+\s+a\s+eventos)\b/i;
+var PROVEEDOR_ALLIANCE = /\b(red\s+de\s+aliados|aliados?\s+comerciales?|alianza\s+comercial|aliado\s+comercial|registrarte\s+en\s+nuestra\s+base|invitarte\s+a\s+registrarte|te\s+invito\s+a\s+registrarte|ser\s+parte\s+de\s+nuestra\s+red|sumarte\s+a\s+(nuestra\s+)?red|formar\s+parte\s+de\s+nuestra\s+red|proveedores?\s+aliados?|cat[aá]logo\s+de\s+proveedores|beneficios\s+y\s+tarifas.{0,80}(?:venue|hacienda|sal[oó]n)|ejecutiv[oa]\s+de\s+ventas\s+en\s+(?:hacienda|sal[oó]n|venue|hotel)|nuestro\s+venue|red\s+de\s+proveedores|quiero\s+ser\s+proveedor|ofrecerles\s+(nuestro|mis|nuestros)|los\s+invito\s+a\s+(conocer|registr|formar)|invitarlos\s+a\s+(nuestra|formar|registr))\b/i;
+var PROVEEDOR_OFFER = new RegExp(
+  `(?:${PROVEEDOR_SELL.source})|(?:${PROVEEDOR_ALLIANCE.source})`,
+  "i"
+);
+var CLIENTE_BUY = /\b(solicit[oa]\s+(una\s+)?cotizaci[oó]n|quiero\s+cotizar|necesito\s+(servicio|cotiz|un\s+|una\s+)|requiero\s+(servicio|cotiz)|me\s+das\s+precio|me\s+interesa\s+contratar|busco\s+(servicio|cotiz|proveedor\s+de\s+catering|banquete|taquiza|caf[eé])|cotizaci[oó]n\s+de|precio\s+de|para\s+mi\s+(boda|evento|xv|fiesta)|mi\s+boda|nuestro\s+evento)\b/i;
+function looksLikeProveedorOutreach(text2) {
+  if (!text2?.trim()) return false;
+  if (CLIENTE_BUY.test(text2)) return false;
+  return PROVEEDOR_OFFER.test(text2);
+}
+function resolveTipoContacto(extracted, conversationText) {
+  const text2 = conversationText.trim();
+  if (!text2) return extracted === "incierto" ? "cliente" : extracted;
+  if (CLIENTE_BUY.test(text2)) return "cliente";
+  if (PROVEEDOR_OFFER.test(text2)) return "proveedor";
+  if (extracted === "proveedor" && !PROVEEDOR_OFFER.test(text2)) {
+    return "cliente";
+  }
+  if (extracted === "incierto" || !extracted) return "cliente";
+  return extracted;
+}
+function clientMentionsOwnCompanyEmail(text2) {
+  if (!text2?.trim()) return false;
+  return /\b(capybaraeventos@gmail\.com|bodasesor@gmail\.com|hola@bodasesor\.com)\b/i.test(text2);
+}
+function clientAsksIfCompanyEmailCorrect(text2) {
+  if (!text2?.trim()) return false;
+  const t3 = text2.toLowerCase();
+  return clientMentionsOwnCompanyEmail(text2) || /es\s+el\s+correo\s+correcto|ese\s+correo\s+es\s+correcto|correo\s+correcto|es\s+ese\s+el\s+correo/i.test(
+    t3
+  );
+}
+function buildCompanyEmailConfirmReply() {
+  return "S\xED, capybaraeventos@gmail.com es el correo de Bodasesor \u2014 tu solicitud ya nos lleg\xF3 bien. Para enviarte la cotizaci\xF3n personalizada, \xBFme compartes tu correo de trabajo?";
+}
+
+// src/services/lucyInfoPriceCache.ts
+import { existsSync as existsSync2, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// src/services/serviceSynonyms.ts
+function norm(s6) {
+  return s6.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+var DEFAULT_SERVICE_SYNONYM_FAMILIES = [
+  {
+    key: "banquete_formal",
+    serviceHints: ["banquete formal", "banquete 3", "banquete 4", "banquete"],
+    aliases: [
+      "menu formal",
+      "men\xFA formal",
+      "comida servida",
+      "banquete sentado",
+      "menu de tiempos",
+      "men\xFA de tiempos",
+      "comida de plato",
+      "servicio a la mesa",
+      "comida formal",
+      "menu emplatado",
+      "men\xFA emplatado",
+      "cena formal",
+      "banquete de boda",
+      "banquete formal",
+      "banquete",
+      "4 tiempos",
+      "3 tiempos",
+      "plated",
+      "emplatado"
+    ],
+    excludeIf: ["mexicano", "navideno", "navide\xF1o", "kosher", "taquiza", "tacos"]
+  },
+  {
+    key: "banquete_kosher",
+    serviceHints: ["kosher"],
+    aliases: [
+      "kosher",
+      "kasher",
+      "comida kosher",
+      "comida judia",
+      "comida jud\xEDa",
+      "menu kosher",
+      "men\xFA kosher",
+      "certificado rabinico",
+      "certificado rab\xEDnico",
+      "supervision rabinica",
+      "supervisi\xF3n rab\xEDnica",
+      "banquete judio",
+      "banquete jud\xEDo",
+      "comida para evento judio",
+      "comida para evento jud\xEDo",
+      "cocina kosher"
+    ]
+  },
+  {
+    key: "banquete_mexicano",
+    serviceHints: ["banquete mexicano", "mexicano"],
+    aliases: [
+      "comida mexicana",
+      "menu mexicano",
+      "men\xFA mexicano",
+      "banquete tipico",
+      "banquete t\xEDpico",
+      "cena mexicana",
+      "comida tradicional",
+      "platillos mexicanos",
+      "buffet mexicano",
+      "banquete mexicano",
+      "fiesta mexicana",
+      "comida tipica",
+      "comida t\xEDpica"
+    ],
+    excludeIf: ["taquiza", "tacos", "antojitos", "yucateca"]
+  },
+  {
+    key: "banquete_navideno",
+    serviceHints: ["navideno", "navide\xF1o", "navidad"],
+    aliases: [
+      "cena navide\xF1a",
+      "cena navadena",
+      "posada",
+      "cena de fin de a\xF1o",
+      "cena de fin de ano",
+      "evento decembrino",
+      "pavo navide\xF1o",
+      "pavo navideno",
+      "cena de temporada",
+      "banquete de navidad",
+      "fiesta navide\xF1a",
+      "fiesta navadena",
+      "cena de diciembre",
+      "brindis navide\xF1o",
+      "brindis navideno",
+      "navidad"
+    ]
+  },
+  {
+    key: "barra_americana",
+    serviceHints: ["barra americana", "americana"],
+    aliases: [
+      "hamburguesas",
+      "hot dogs",
+      "hotdogs",
+      "alitas",
+      "comida americana",
+      "boneless",
+      "sliders",
+      "papas y hamburguesas",
+      "comida rapida gourmet",
+      "comida r\xE1pida gourmet",
+      "barra americana"
+    ]
+  },
+  {
+    key: "barra_bebidas_sin_alcohol",
+    serviceHints: ["barra de bebidas", "sin alcohol"],
+    aliases: [
+      "refrescos",
+      "aguas frescas",
+      "barra de refrescos",
+      "bebidas sin alcohol",
+      "vitroleros",
+      "solo bebidas",
+      "barra de aguas",
+      "sodas",
+      "bebidas para el evento",
+      "barra sin alcohol"
+    ],
+    excludeIf: ["open bar", "barra libre", "tragos", "licores", "alcohol"]
+  },
+  {
+    key: "barra_bebidas_alcohol",
+    serviceHints: ["barra de bebidas", "con alcohol", "bebidas con alcohol"],
+    aliases: [
+      "barra libre",
+      "open bar",
+      "bar",
+      "cocteleria con alcohol",
+      "cocteler\xEDa con alcohol",
+      "tragos",
+      "barra de licores",
+      "barra con alcohol",
+      "bebidas con alcohol",
+      "barra de tragos",
+      "servicio de bar",
+      "barra de bebidas",
+      // A14985 stand/golf: cerveza / whisky sin decir "barra".
+      "cerveza",
+      "cervezas",
+      "whisky",
+      "whiskey",
+      "tequila",
+      "vodka",
+      "licores"
+    ],
+    excludeIf: ["sin alcohol", "mocteles", "mocktail", "cafe", "caf\xE9"]
+  },
+  {
+    key: "barra_cafe",
+    serviceHints: ["barra de cafe", "barra de caf\xE9", "cafe"],
+    aliases: [
+      "cafeteria",
+      "cafeter\xEDa",
+      "barista",
+      "cafe gourmet",
+      "caf\xE9 gourmet",
+      "estacion de cafe",
+      "estaci\xF3n de caf\xE9",
+      "cafe de especialidad",
+      "caf\xE9 de especialidad",
+      "barra de cafe",
+      "barra de caf\xE9",
+      "cafe artesanal",
+      "caf\xE9 artesanal",
+      "carrito de cafe",
+      "carrito de caf\xE9",
+      "cafe para invitados",
+      "caf\xE9 para invitados",
+      "stand de cafe",
+      "stand de caf\xE9",
+      "coffee"
+    ],
+    excludeIf: ["coffee break", "coffeebreak", "receso", "junta"]
+  },
+  {
+    key: "coffee_break",
+    serviceHints: ["coffee break", "coffeebreak", "coffe break"],
+    aliases: [
+      "coffee break",
+      "coffeebreak",
+      "coffe break",
+      "receso de cafe",
+      "receso de caf\xE9",
+      "cafe para junta",
+      "caf\xE9 para junta",
+      "break corporativo",
+      "estacion de cafe y snacks",
+      "estaci\xF3n de caf\xE9 y snacks",
+      "pausa de cafe",
+      "pausa de caf\xE9",
+      "break de cafe",
+      "break de caf\xE9",
+      "receso corporativo",
+      "cafe y galletas",
+      "caf\xE9 y galletas"
+    ]
+  },
+  {
+    key: "barra_crepas",
+    serviceHints: ["crepas", "crepa"],
+    aliases: [
+      "crepas",
+      "creperia",
+      "creper\xEDa",
+      "crepes",
+      "waffles",
+      "postres calientes",
+      "estacion de crepas",
+      "estaci\xF3n de crepas",
+      "crepas dulces",
+      "crepas saladas",
+      "barra de crepas",
+      "crepas gourmet"
+    ]
+  },
+  {
+    key: "barra_mariscos",
+    serviceHints: ["mariscos"],
+    aliases: [
+      "mariscos",
+      "ceviches",
+      "aguachile",
+      "coctel de camaron",
+      "coctel de camar\xF3n",
+      "pescados y mariscos",
+      "barra de mar",
+      "ostiones",
+      "tostadas de mariscos",
+      "comida del mar",
+      "barra de mariscos"
+    ]
+  },
+  {
+    key: "barra_paninis",
+    serviceHints: ["paninis", "panini"],
+    aliases: [
+      "paninis",
+      "sandwiches",
+      "s\xE1ndwiches",
+      "sandwiches gourmet",
+      "s\xE1ndwiches gourmet",
+      "baguettes",
+      "molletes gourmet",
+      "sandwicheria",
+      "sandwicher\xEDa",
+      "tortas gourmet",
+      "paninos",
+      "barra de sandwiches",
+      "barra de s\xE1ndwiches",
+      "panini"
+    ]
+  },
+  {
+    key: "barra_pastas",
+    serviceHints: ["pastas", "ensaladas"],
+    aliases: [
+      "pastas",
+      "espagueti",
+      "estacion de pastas",
+      "estaci\xF3n de pastas",
+      "pasta italiana",
+      "ensaladas",
+      "barra de pastas",
+      "fettuccine",
+      "lasana",
+      "lasa\xF1a",
+      "pasta al momento",
+      "comida italiana",
+      "italiana"
+    ]
+  },
+  {
+    key: "barra_pizzas",
+    serviceHints: ["pizza", "pizzas"],
+    aliases: [
+      "pizzas",
+      "pizza artesanal",
+      "estacion de pizza",
+      "estaci\xF3n de pizza",
+      "horno de pizza",
+      "pizzas gourmet",
+      "barra de pizzas",
+      "pizza al momento",
+      "pizza italiana",
+      "pizzeria",
+      "pizzer\xEDa",
+      "pizza"
+    ]
+  },
+  {
+    key: "barra_sushi",
+    serviceHints: ["sushi", "poke"],
+    aliases: [
+      "sushi",
+      "rollos",
+      "poke",
+      "poke bowls",
+      "comida japonesa",
+      "makis",
+      "barra de sushi",
+      "sushi al momento",
+      "rollos japoneses",
+      "comida oriental",
+      "japones",
+      "japon\xE9s",
+      "nigiri",
+      "sashimi"
+    ]
+  },
+  {
+    key: "barra_yucateca",
+    serviceHints: ["yucateca", "yucatan"],
+    aliases: [
+      "comida yucateca",
+      "cochinita",
+      "cochinita pibil",
+      "panuchos",
+      "salbutes",
+      "comida del sureste",
+      "comida de yucatan",
+      "comida de yucat\xE1n",
+      "papadzules",
+      "barra yucateca",
+      "comida maya"
+    ]
+  },
+  {
+    key: "bocadillos",
+    serviceHints: ["bocadillos", "bocadillo"],
+    aliases: [
+      "botana",
+      "botanas",
+      "snacks",
+      "aperitivos",
+      "finger food",
+      "bocadillos",
+      "entradas",
+      "pasabocas",
+      "tentempies",
+      "tentempi\xE9s",
+      "comida para picar"
+    ],
+    excludeIf: ["canapes", "canap\xE9s", "carrito"]
+  },
+  {
+    key: "canapes",
+    serviceHints: ["canapes", "canap\xE9s"],
+    aliases: [
+      "canapes",
+      "canap\xE9s",
+      "bocaditos",
+      "entremeses",
+      "bocadillos finos",
+      "pasapalos",
+      "bocados gourmet",
+      "canape",
+      "canap\xE9",
+      "entradas frias",
+      "entradas fr\xEDas"
+    ]
+  },
+  {
+    key: "carrito_snacks",
+    serviceHints: ["carrito de snacks", "snacks"],
+    aliases: [
+      "carrito de botana",
+      "snacks",
+      "dulces y frituras",
+      "carrito de golosinas",
+      "botanas para llevar",
+      "estacion de snacks",
+      "estaci\xF3n de snacks",
+      "carrito de dulces",
+      "chucherias",
+      "chucher\xEDas",
+      "papitas y dulces",
+      "carrito de snacks"
+    ]
+  },
+  {
+    key: "cocteles_mixologia",
+    serviceHints: ["cocteles", "mixologia", "mixolog\xEDa", "cocteleria"],
+    aliases: [
+      "cocteles",
+      "c\xF3cteles",
+      "cocteleria",
+      "cocteler\xEDa",
+      "mixologia",
+      "mixolog\xEDa",
+      "bartender",
+      "cantinero",
+      "tragos de autor",
+      "cocktails",
+      "barra de cocteles",
+      "barra de c\xF3cteles",
+      "mixologo",
+      "mix\xF3logo",
+      "cocteles de autor",
+      "c\xF3cteles de autor"
+    ],
+    excludeIf: ["sin alcohol", "mocteles", "mocktail"]
+  },
+  {
+    key: "comida_corrida",
+    serviceHints: ["comida corrida", "corrida"],
+    aliases: [
+      "comida corrida",
+      "menu del dia",
+      "men\xFA del d\xEDa",
+      "comida economica",
+      "comida econ\xF3mica",
+      // NO: "comida corporativa" / "menu corporativo" — A14943 confundía evento de trabajo.
+      "comida sencilla",
+      "comida de oficina",
+      "menu ejecutivo",
+      "men\xFA ejecutivo"
+    ]
+  },
+  {
+    key: "desayuno_brunch",
+    serviceHints: ["desayuno", "brunch"],
+    aliases: [
+      "desayuno",
+      "brunch",
+      "almuerzo",
+      "desayuno buffet",
+      "getting ready",
+      "desayuno para evento",
+      "desayuno social",
+      "chilaquiles",
+      "huevos",
+      "brunch de boda"
+    ]
+  },
+  {
+    key: "cupcakes",
+    serviceHints: ["cupcakes", "cupcake", "bet\xFAn", "betun", "cupcakes y bet\xFAn"],
+    aliases: [
+      "cupcakes",
+      "panquecitos",
+      "pastelitos",
+      "muffins",
+      "cup cakes decorados",
+      "postrecitos",
+      "cupcakes personalizados",
+      "mini pasteles",
+      "ponquesitos",
+      "cupcakes tematicos",
+      "cupcakes tem\xE1ticos",
+      "betun",
+      "bet\xFAn",
+      "betunes",
+      "fondant",
+      "cupcakes y betun",
+      "cupcakes y bet\xFAn"
+    ]
+  },
+  {
+    key: "mesa_dulces",
+    serviceHints: ["mesa de dulces", "dulces"],
+    aliases: [
+      "mesa de dulces",
+      "candy bar",
+      "mesa de golosinas",
+      "dulcero",
+      "mesa de dulces mexicanos",
+      "barra de dulces",
+      "dulces para evento",
+      "mesa de caramelos",
+      "estacion de dulces",
+      "estaci\xF3n de dulces",
+      "candy"
+    ],
+    excludeIf: ["postres", "cupcakes", "helados"]
+  },
+  {
+    key: "mesa_postres",
+    serviceHints: ["mesa de postres", "postres"],
+    aliases: [
+      "mesa de postres",
+      "postres",
+      "reposteria",
+      "reposter\xEDa",
+      "mesa de pasteles",
+      "estacion de postres",
+      "estaci\xF3n de postres",
+      "dulces finos",
+      "postres para evento",
+      "pasteleria",
+      "pasteler\xEDa",
+      "mesa de dulces finos",
+      "barra de postres"
+    ]
+  },
+  {
+    key: "mesa_quesos",
+    serviceHints: ["mesa de quesos", "quesos"],
+    aliases: [
+      "tabla de quesos",
+      "mesa de quesos",
+      "quesos y carnes frias",
+      "quesos y carnes fr\xEDas",
+      "charcuteria",
+      "charcuter\xEDa",
+      "tabla de embutidos",
+      "quesos gourmet",
+      "tabla de fiambres",
+      "mesa de quesos y vinos",
+      "degustacion de quesos",
+      "degustaci\xF3n de quesos",
+      "tabla gourmet",
+      "grazing"
+    ]
+  },
+  {
+    key: "mocteles",
+    serviceHints: ["mocteles", "m\xF3cteles"],
+    aliases: [
+      "mocteles",
+      "m\xF3cteles",
+      "cocteles sin alcohol",
+      "c\xF3cteles sin alcohol",
+      "bebidas sin alcohol",
+      "cocteleria sin alcohol",
+      "cocteler\xEDa sin alcohol",
+      "tragos sin alcohol",
+      "barra de mocteles",
+      "barra de m\xF3cteles",
+      "bebidas de autor sin alcohol",
+      "cocteles virgenes",
+      "c\xF3cteles v\xEDrgenes",
+      "mixologia sin alcohol",
+      "mixolog\xEDa sin alcohol",
+      "mocktails",
+      "mocktail"
+    ]
+  },
+  {
+    key: "paella",
+    serviceHints: ["paella"],
+    aliases: [
+      "paella",
+      "arroz espanol",
+      "arroz espa\xF1ol",
+      "paella valenciana",
+      "paella de mariscos",
+      "arroz a la valenciana",
+      "comida espanola",
+      "comida espa\xF1ola",
+      "paella en vivo",
+      "paellera",
+      "arroz espanol al momento",
+      "arroz espa\xF1ol al momento",
+      "paellas"
+    ]
+  },
+  {
+    key: "paletas_helados",
+    serviceHints: ["paletas", "helados"],
+    aliases: [
+      "paletas",
+      "paletas de hielo",
+      "helados",
+      "nieves",
+      "sorbetes",
+      "carrito de helados",
+      "paletas artesanales",
+      "neveria",
+      "never\xEDa",
+      "paletas heladas",
+      "helado para evento"
+    ]
+  },
+  {
+    key: "parrillada_argentina",
+    serviceHints: ["parrillada argentina", "parillada argentina", "argentina"],
+    aliases: [
+      "asado argentino",
+      "cortes argentinos",
+      "parrilla argentina",
+      "carnes asadas",
+      "asador",
+      "parrillada argentina",
+      "parillada argentina",
+      "cortes finos",
+      "asador en vivo",
+      "carne al carbon",
+      "carne al carb\xF3n",
+      "parrilla de cortes",
+      "asado",
+      "carne asada",
+      "argentino"
+    ]
+  },
+  {
+    key: "taquiza",
+    serviceHints: ["taquiza"],
+    aliases: [
+      "taquiza",
+      "tacos",
+      "tacos de guisado",
+      "tacos de guisados",
+      "taquiza para evento",
+      "puesto de tacos",
+      "tacos al pastor",
+      "tacos de canasta",
+      "taquiza a domicilio",
+      "tacos de carne asada",
+      "taqueria",
+      "taquer\xEDa",
+      "estacion de tacos",
+      "estaci\xF3n de tacos",
+      "barra de tacos",
+      "guisados"
+    ],
+    excludeIf: [
+      "parrillada tacos",
+      "parrillada de tacos",
+      "parrillada argentina",
+      "asado argentino"
+    ]
+  },
+  {
+    key: "parrillada_tacos",
+    serviceHints: ["parrillada tacos"],
+    aliases: [
+      "parrillada tacos",
+      "parrillada de tacos",
+      "tacos a la parrilla",
+      "tacos parrillada",
+      "estacion de tacos a la parrilla",
+      "estaci\xF3n de tacos a la parrilla"
+    ],
+    excludeIf: ["parrillada argentina", "asado argentino", "argentina"]
+  },
+  {
+    key: "entelados_techo",
+    serviceHints: ["entelados para techo", "entelado", "entelados"],
+    aliases: [
+      "entelados",
+      "entelado",
+      "entelado para techo",
+      "entelados para techo",
+      "tela en techo",
+      "tela de techo",
+      "telas para techo",
+      "tela para techo",
+      "techo entelado",
+      "entelado de techo"
+    ],
+    excludeIf: ["colgante", "colgantes"]
+  },
+  {
+    key: "colgantes_premium",
+    serviceHints: ["colgantes premium", "colgantes"],
+    aliases: [
+      "colgantes",
+      "colgante",
+      "colgantes premium",
+      "decoracion colgante",
+      "decoraci\xF3n colgante",
+      "estructuras colgantes",
+      "flores colgantes",
+      "wisteria"
+    ],
+    excludeIf: ["entelado", "entelados", "tela en techo", "tela de techo"]
+  },
+  {
+    // A15190: floral/decorativo — nunca mesas/sillas de renta.
+    key: "centros_mesa",
+    serviceHints: ["centros de mesa", "centro de mesa"],
+    aliases: [
+      "centros de mesa",
+      "centro de mesa",
+      "centros de mesas",
+      "arreglos de mesa",
+      "arreglo de mesa",
+      "centros florales",
+      "centro floral",
+      "decoracion de mesas",
+      "decoraci\xF3n de mesas",
+      "flores para mesa",
+      "flores en mesa"
+    ],
+    excludeIf: [
+      "mobiliario",
+      "mesas y sillas",
+      "renta de mesas",
+      "mesa de dulces",
+      "mesa de postres",
+      "mesa de quesos",
+      "mesa imperial"
+    ]
+  },
+  {
+    key: "pozole_tostadas",
+    serviceHints: ["pozole", "tostadas"],
+    aliases: [
+      "pozole",
+      "tostadas",
+      "pozole rojo",
+      "pozole verde",
+      "pozole blanco",
+      "pozole y tostadas",
+      "pozolada",
+      "antojito mexicano",
+      "pozole para evento",
+      "tostadas de tinga",
+      "pozoleria",
+      "pozoler\xEDa"
+    ]
+  },
+  {
+    key: "antojitos",
+    serviceHints: ["antojitos", "puestos de comida"],
+    aliases: [
+      "antojitos",
+      "puesto de antojitos",
+      "esquites",
+      "elotes",
+      "quesadillas",
+      "kermes",
+      "kerm\xE9s",
+      "sopes",
+      "gorditas",
+      "garnachas",
+      "feria de antojitos",
+      "puestos de comida",
+      "street food",
+      // A14985: snack de stand.
+      "banderillas",
+      "banderilla",
+      "snack banderillas"
+    ]
+  }
+];
+var sheetSynonymIndex = /* @__PURE__ */ new Map();
+function registerSheetSynonyms(rows) {
+  const next = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const svc = norm(row.servicio || "");
+    if (!svc) continue;
+    const raw = (row.sinonimos ?? "").trim();
+    if (!raw) continue;
+    const parts2 = raw.split(/[,;|/]/).map((p4) => p4.trim()).filter((p4) => p4.length >= 2);
+    if (!parts2.length) continue;
+    const prev = next.get(svc) ?? [];
+    next.set(svc, [.../* @__PURE__ */ new Set([...prev, ...parts2])]);
+  }
+  sheetSynonymIndex = next;
+}
+function parseSynonymList(raw) {
+  if (!raw?.trim()) return [];
+  return raw.split(/[,;|/]/).map((p4) => p4.trim()).filter((p4) => p4.length >= 2);
+}
+function synonymsForServiceName(servicio) {
+  const n4 = norm(servicio);
+  const out2 = /* @__PURE__ */ new Set();
+  for (const fam of DEFAULT_SERVICE_SYNONYM_FAMILIES) {
+    if (fam.serviceHints.some((h4) => n4.includes(norm(h4)) || norm(h4).includes(n4))) {
+      for (const a3 of fam.aliases) out2.add(a3);
+    }
+  }
+  for (const [svc, aliases] of sheetSynonymIndex) {
+    if (n4.includes(svc) || svc.includes(n4)) {
+      for (const a3 of aliases) out2.add(a3);
+    }
+  }
+  return [...out2];
+}
+function synonymHaystackForService(servicio, sheetSinonimos) {
+  const parts2 = [
+    servicio,
+    sheetSinonimos ?? "",
+    ...synonymsForServiceName(servicio)
+  ];
+  return norm(parts2.join(" "));
+}
+function expandQueryWithServiceSynonyms(query) {
+  const q2 = norm(query);
+  const baseTokens = q2.split(" ").filter((w4) => w4.length >= 3);
+  const familyKeys = [];
+  const boostedHints = [];
+  const matchedServiceHints = [];
+  const extraTokens = new Set(baseTokens);
+  for (const fam of DEFAULT_SERVICE_SYNONYM_FAMILIES) {
+    if (fam.excludeIf?.some((ex) => q2.includes(norm(ex)))) {
+      const specificHit = fam.aliases.some((a3) => {
+        const na = norm(a3);
+        return na.includes(" ") && q2.includes(na);
+      });
+      if (!specificHit) continue;
+    }
+    const hit = fam.aliases.some((a3) => {
+      const na = norm(a3);
+      if (na.includes(" ")) return q2.includes(na);
+      return new RegExp(`\\b${na}\\b`).test(q2);
+    });
+    if (!hit) continue;
+    familyKeys.push(fam.key);
+    for (const h4 of fam.serviceHints) {
+      const nh = norm(h4);
+      boostedHints.push(nh);
+      matchedServiceHints.push(h4);
+      for (const t3 of nh.split(" ")) if (t3.length >= 3) extraTokens.add(t3);
+    }
+    for (const a3 of fam.aliases) {
+      for (const t3 of norm(a3).split(" ")) if (t3.length >= 3) extraTokens.add(t3);
+    }
+  }
+  for (const [svc, aliases] of sheetSynonymIndex) {
+    for (const a3 of aliases) {
+      const na = norm(a3);
+      const matched = na.includes(" ") ? q2.includes(na) : new RegExp(`\\b${na}\\b`).test(q2);
+      if (!matched) continue;
+      matchedServiceHints.push(svc);
+      boostedHints.push(svc);
+      for (const t3 of svc.split(" ")) if (t3.length >= 3) extraTokens.add(t3);
+      for (const t3 of na.split(" ")) if (t3.length >= 3) extraTokens.add(t3);
+    }
+  }
+  return {
+    tokens: [...extraTokens],
+    familyKeys: [...new Set(familyKeys)],
+    boostedHints: [...new Set(boostedHints)],
+    matchedServiceHints: [...new Set(matchedServiceHints)]
+  };
+}
+function synonymScoreForService(query, serviceLabel, sheetSinonimos) {
+  const expanded = expandQueryWithServiceSynonyms(query);
+  if (!expanded.familyKeys.length && !expanded.boostedHints.length) return 0;
+  const hay = synonymHaystackForService(serviceLabel, sheetSinonimos);
+  let score = 0;
+  for (const hint of expanded.boostedHints) {
+    if (hay.includes(hint)) score += hint.includes(" ") ? 22 : 14;
+  }
+  for (const hint of expanded.matchedServiceHints) {
+    if (hay.includes(norm(hint))) score += 10;
+  }
+  if (expanded.familyKeys.includes("taquiza") && /banquete/.test(hay) && !/taquiza/.test(hay)) {
+    score -= 25;
+  }
+  if (expanded.familyKeys.includes("banquete_formal") && /taquiza/.test(hay)) score -= 25;
+  if (expanded.familyKeys.includes("barra_sushi") && /banquete|taquiza/.test(hay) && !/sushi|poke/.test(hay)) {
+    score -= 25;
+  }
+  if (expanded.familyKeys.includes("banquete_mexicano") && /banquete/.test(hay) && !/mexicano/.test(hay)) {
+    score -= 20;
+  }
+  if (expanded.familyKeys.includes("coffee_break") && /barra de cafe|barra de café/.test(hay) && !/coffee/.test(hay)) {
+    score -= 5;
+  }
+  return score;
+}
+var FAMILY_DISPLAY = {
+  pozole_tostadas: {
+    label: "Pozole y Tostadas",
+    complements: ["Barras de bebidas", "Mobiliario"]
+  },
+  taquiza: {
+    label: "Taquiza",
+    complements: ["Barras de bebidas", "Mobiliario"]
+  },
+  parrillada_tacos: {
+    label: "Parrillada Tacos",
+    complements: ["Barras de bebidas", "Mobiliario"]
+  },
+  paella: {
+    label: "Paella",
+    complements: ["Barras de bebidas", "Mobiliario"]
+  },
+  parrillada_argentina: {
+    label: "Parrillada Argentina",
+    complements: ["Barras de bebidas", "Mobiliario"]
+  },
+  banquete_navideno: {
+    label: "Banquete Navide\xF1o",
+    complements: ["Barras de bebidas", "Mobiliario", "Mesa de dulces"]
+  },
+  entelados_techo: {
+    label: "Entelados para Techo",
+    complements: ["Colgantes Premium", "Iluminaci\xF3n"]
+  },
+  colgantes_premium: {
+    label: "Colgantes Premium",
+    complements: ["Entelados para Techo", "Iluminaci\xF3n"]
+  },
+  centros_mesa: {
+    label: "Centros de mesa",
+    complements: ["Iluminaci\xF3n", "Colgantes Premium", "Entelados para Techo"]
+  }
+};
+function resolveServiceFocusFromText(text2) {
+  if (!text2?.trim()) return null;
+  const expanded = expandQueryWithServiceSynonyms(text2);
+  if (!expanded.familyKeys.length) return null;
+  const preferredOrder = [
+    "pozole_tostadas",
+    "parrillada_tacos",
+    "taquiza",
+    "paella",
+    "parrillada_argentina",
+    "banquete_navideno",
+    "barra_americana",
+    "barra_sushi",
+    "entelados_techo",
+    "colgantes_premium",
+    "centros_mesa"
+  ];
+  const familyKey = preferredOrder.find((k4) => expanded.familyKeys.includes(k4)) ?? expanded.familyKeys[0];
+  const fam = DEFAULT_SERVICE_SYNONYM_FAMILIES.find((f6) => f6.key === familyKey);
+  if (!fam) return null;
+  const display = FAMILY_DISPLAY[familyKey] ?? {
+    label: fam.serviceHints[0] ?? familyKey,
+    complements: ["Barras de bebidas", "Mobiliario"]
+  };
+  return {
+    familyKey,
+    label: display.label,
+    serviceHints: fam.serviceHints,
+    complements: display.complements
+  };
+}
+function loadSinonimosJson(raw) {
+  if (!raw || typeof raw !== "object") return 0;
+  const obj = raw;
+  const map = obj.sinonimos ?? obj.synonyms ?? obj;
+  if (!map || typeof map !== "object") return 0;
+  const rows = [];
+  for (const [servicio, aliases] of Object.entries(map)) {
+    if (servicio === "version" || servicio === "note") continue;
+    if (Array.isArray(aliases)) {
+      rows.push({ servicio, sinonimos: aliases.map(String).join(", ") });
+    } else if (typeof aliases === "string") {
+      rows.push({ servicio, sinonimos: aliases });
+    }
+  }
+  if (!rows.length) return 0;
+  const merged = new Map(sheetSynonymIndex);
+  for (const row of rows) {
+    const svc = norm(row.servicio);
+    const parts2 = parseSynonymList(row.sinonimos);
+    const prev = merged.get(svc) ?? [];
+    merged.set(svc, [.../* @__PURE__ */ new Set([...prev, ...parts2])]);
+  }
+  sheetSynonymIndex = merged;
+  return rows.length;
+}
+
+// src/services/lucyInfoPriceCache.ts
+function cacheState() {
+  const g6 = globalThis;
+  if (!g6.__lucyInfoPriceCache) {
+    g6.__lucyInfoPriceCache = { docs: [], corpusFold: "" };
+  }
+  return g6.__lucyInfoPriceCache;
+}
+function fold(text2) {
+  return (text2 || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ñ/g, "n");
+}
+function refreshLucyInfoPriceCache(input) {
+  const state = cacheState();
+  state.docs = (input || []).filter((d2) => d2?.content?.trim()).map((d2) => ({
+    title: (d2.title || "").trim() || "Cat\xE1logo",
+    content: d2.content.trim(),
+    kind: d2.kind
+  }));
+  state.corpusFold = fold(state.docs.map((d2) => `${d2.title}
+${d2.content}`).join("\n\n"));
+}
+function extractPriceAmounts(text2) {
+  const out2 = [];
+  const re3 = /\$\s*([\d]{1,3}(?:,[\d]{3})*(?:\.\d+)?|[\d]+(?:\.\d+)?)/g;
+  let m5;
+  while (m5 = re3.exec(text2 || "")) {
+    const raw = m5[1].replace(/,/g, "");
+    const n4 = Number(raw);
+    if (!Number.isFinite(n4) || n4 < 10) continue;
+    out2.push(String(Math.round(n4)));
+  }
+  return out2;
+}
+function lucyInfoSupportsPriceClaim(mensaje) {
+  const { corpusFold } = cacheState();
+  if (!corpusFold || !mensaje?.trim()) return false;
+  const amounts = extractPriceAmounts(mensaje);
+  if (!amounts.length) return false;
+  let hits = 0;
+  for (const a3 of amounts) {
+    if (corpusFold.includes(a3)) hits += 1;
+    else if (a3.length >= 4 && corpusFold.includes(a3.replace(/(\d)(?=(\d{3})+$)/g, "$1,"))) hits += 1;
+  }
+  return hits >= 1 && hits >= Math.ceil(amounts.length * 0.4);
+}
+function scoreDoc(doc, tokens) {
+  if (!tokens.length) return 0;
+  const title = fold(doc.title);
+  const body2 = fold(doc.content);
+  let s6 = 0;
+  for (const tok of tokens) {
+    if (title.includes(tok)) s6 += 14;
+    if (body2.slice(0, 900).includes(tok)) s6 += 5;
+    else if (body2.includes(tok)) s6 += 1;
+  }
+  return s6;
+}
+var STRICT_PDF_SERVICE_FAMILIES = /* @__PURE__ */ new Set([
+  "barra_cafe",
+  "coffee_break",
+  "barra_americana",
+  "canapes",
+  "bocadillos",
+  "taquiza",
+  "paella",
+  "pozole_tostadas",
+  "barra_pizzas",
+  "barra_pastas",
+  "barra_sushi",
+  "barra_crepas",
+  "barra_yucateca",
+  "parrillada_tacos",
+  "parrillada_argentina",
+  "banquete_formal",
+  "banquete_mexicano",
+  "banquete_kosher",
+  "banquete_navideno"
+]);
+function isMobiliarioPdfTitle(title) {
+  const t3 = fold(title);
+  return /\bmesas?\b.*\bsillas?\b|\bsillas?\b.*\bmesas?\b/.test(t3) || /\bmobiliario\b|\bperiqueras?\b|\bsalas?\s+lounge\b|\bluxor\b/.test(t3);
+}
+function isFoodServiceQuery(text2) {
+  const t3 = fold(text2);
+  return /\b(canap|bocadillo|banquete|catering|taquiza|paella|pozole|pizza|pasta|sushi|crepa|coffee\s*break|barra\s+de|parrillada|brunch|desayuno|coctel|mixolog|moctel|americano|marisco|panini|yucateca)\b/.test(
+    t3
+  );
+}
+function strictPdfServiceFamily(text2) {
+  const families = expandQueryWithServiceSynonyms(text2).familyKeys;
+  return families.find((family) => STRICT_PDF_SERVICE_FAMILIES.has(family)) ?? null;
+}
+function pdfDocMatchesStrictQuery(query, docTitle) {
+  const strictFamily = strictPdfServiceFamily(query);
+  if (strictFamily) {
+    const docFamily = strictPdfServiceFamily(docTitle);
+    if (docFamily !== strictFamily) return false;
+  }
+  if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(docTitle)) return false;
+  return true;
+}
+function tokenize(text2) {
+  const raw = fold(text2).replace(/[^a-z0-9\s]/g, " ");
+  const stop2 = /* @__PURE__ */ new Set([
+    "de",
+    "del",
+    "la",
+    "el",
+    "los",
+    "las",
+    "un",
+    "una",
+    "y",
+    "o",
+    "en",
+    "para",
+    "por",
+    "con",
+    "que",
+    // "san" en "San Francisco" / "usan" / "descansan" ensuciaba el score PDF (A14964).
+    "san",
+    "soy",
+    "llamo",
+    "nombre",
+    "hola",
+    "buenos",
+    "buenas",
+    "dias",
+    "tardes",
+    "noches",
+    "precio",
+    "precios",
+    "cuanto",
+    "cuesta",
+    "costo",
+    "persona",
+    "personas",
+    "quiero",
+    "necesito",
+    "incluye",
+    "incluir",
+    "incluiria",
+    "detalle",
+    "descripcion",
+    "descripciones",
+    "cada",
+    "nivel",
+    "niveles",
+    "paquete",
+    "paquetes",
+    "dime",
+    "cual",
+    "cuales",
+    "trae",
+    "lleva",
+    "menu",
+    "opcion",
+    "opciones"
+  ]);
+  const out2 = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const t3 of raw.split(/\s+/)) {
+    if (t3.length < 3 || stop2.has(t3) || seen.has(t3)) continue;
+    seen.add(t3);
+    out2.push(t3);
+  }
+  for (const t3 of raw.split(/\s+/)) {
+    if (/^\d{1,2}$/.test(t3) && !seen.has(t3)) {
+      seen.add(t3);
+      out2.push(t3);
+    }
+  }
+  return out2.slice(0, 40);
+}
+function findInclusionSection(content, query, maxChars = 1100) {
+  if (!content?.trim()) return null;
+  const q2 = fold(query);
+  const c4 = content;
+  const f6 = fold(c4);
+  const anchors = [];
+  const cb = q2.match(/coffee\s*break\s*(\d)/);
+  if (cb) {
+    const needle = `coffee break ${cb[1]}`;
+    if (!f6.includes(needle)) return null;
+    anchors.unshift(`coffee break ${cb[1]} \u2014`, `coffee break ${cb[1]}`, `cb${cb[1]}`);
+  }
+  if (/gourmet con sandwich|sandwich/.test(q2) && /coffee|break/.test(q2)) {
+    anchors.push("coffee break 5", "gourmet con sandwich");
+  }
+  const tiempos = q2.match(/(\d)\s*tiempos?/);
+  const nivel = /\bpremium\b/.test(q2) ? "premium" : /\bbasic|\bb[aá]sic/.test(q2) ? "basico" : /\btradicional\b/.test(q2) ? "tradicional" : "";
+  if (tiempos && /banquete|formal|mexicano/.test(q2)) {
+    anchors.push(`menu ${tiempos[1]} tiempos ${nivel}`.trim());
+    anchors.push(`${tiempos[1]} tiempos ${nivel}`.trim());
+    if (nivel === "tradicional" && tiempos[1] === "3") {
+      anchors.unshift("tradicional $830 por persona", "tradicional $830");
+    }
+    if (nivel === "tradicional" && tiempos[1] === "4") {
+      anchors.unshift("tradicional $880 por persona", "tradicional $880");
+    }
+    if (nivel === "basico" && tiempos[1] === "3") {
+      anchors.unshift("basico $780 por persona", "basico $780");
+    }
+    if (nivel === "premium" && tiempos[1] === "3") {
+      anchors.unshift("premium $880 por persona", "premium $880");
+    }
+  }
+  if (/banquete/.test(q2) && nivel) {
+    anchors.push(`tradicional $830`, `basico $780`, `premium $880`);
+  }
+  for (const tok of tokenize(query)) {
+    if (tok.length >= 4) anchors.push(tok);
+  }
+  let bestIdx = -1;
+  let bestScore = -1;
+  for (const a3 of anchors) {
+    const fa = fold(a3);
+    if (fa.length < 2) continue;
+    let from = 0;
+    while (from < f6.length) {
+      const i5 = f6.indexOf(fa, from);
+      if (i5 < 0) break;
+      let score = fa.length;
+      const window2 = f6.slice(Math.max(0, i5 - 40), i5 + 200);
+      if (/incluye|bebidas|alimentos|meseros|vajilla|persona/.test(window2)) score += 40;
+      if (/coffee break \d|menu \d tiempos|tradicional \$\d|basico \$\d|premium \$\d/.test(window2)) {
+        score += 30;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = i5;
+      }
+      from = i5 + fa.length;
+    }
+  }
+  if (bestIdx < 0) {
+    const dollar = c4.search(/\$\s*\d/);
+    if (dollar < 0) return null;
+    bestIdx = dollar;
+  }
+  const atHeading = /coffee break \d|tradicional \$\d|basico \$\d|premium \$\d|menu \d tiempos/i.test(
+    f6.slice(bestIdx, bestIdx + 48)
+  );
+  let start2 = atHeading ? bestIdx : Math.max(0, bestIdx - 40);
+  let end = Math.min(c4.length, start2 + maxChars);
+  const tail = c4.slice(Math.max(start2, bestIdx) + 40, end);
+  const nextPkg = tail.search(
+    /Coffee Break \d|Men[uú] \d tiempos|B[aá]sico \$\s*\d|Tradicional \$\s*\d|Premium \$\s*\d|Ideal para:|Condiciones del Servicio/i
+  );
+  if (nextPkg > 200) {
+    end = Math.max(start2, bestIdx) + 40 + nextPkg;
+  }
+  let slice = c4.slice(start2, end).replace(/\s+/g, " ").trim();
+  slice = slice.replace(/^[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9🥐☕🍽*•]+/, "");
+  if (slice.length < 80) return null;
+  return slice.slice(0, maxChars);
+}
+function queryHasServicePdfAnchor(query) {
+  const q2 = fold(query);
+  return /\b(banquete|taquiza|coffee|break|barra|catering|pizza|pasta|sushi|dj|pista|tarima|crepas?|canapes?|queso|dulce|postre|paella|pozole|brunch|desayuno|cena|mesero|mobiliario|carpa|iluminaci|pantalla|incluye|precio|nivel|paquete|formal|tiempos|tradicional|premium|basico|bocadillos?|entradas?|vajilla|mixolog|coctel|helado|fruta|inflable|softplay|letras?|valet|pirotecnia)\b/.test(
+    q2
+  );
+}
+function buildLucyInfoInclusionReply(query, maxChars = 1100) {
+  ensureCacheFromSeedSync();
+  const docs = cacheState().docs;
+  if (!docs.length || !query?.trim()) return null;
+  if (!queryHasServicePdfAnchor(query)) return null;
+  const tokens = tokenize(query);
+  if (!tokens.length) return null;
+  const ranked = [...docs].filter((doc) => pdfDocMatchesStrictQuery(query, doc.title)).map((d2) => ({ d: d2, s: scoreDoc(d2, tokens) })).filter((x7) => x7.s >= 6).sort((a3, b4) => b4.s - a3.s);
+  if (!ranked.length) return null;
+  const serviceHints = [
+    "canapes",
+    "canap",
+    "coffee",
+    "cafe",
+    "banquete",
+    "taquiza",
+    "sushi",
+    "paella",
+    "pozole",
+    "pista",
+    "mobiliario",
+    "mesas y sillas",
+    "barra de cafe",
+    "barra americana",
+    "bocadillo"
+  ];
+  const qf = fold(query);
+  const preferred = ranked.filter((x7) => {
+    const title = fold(x7.d.title);
+    return serviceHints.some((h4) => qf.includes(h4) && title.includes(h4));
+  });
+  const pool2 = preferred.length ? preferred : ranked;
+  for (const { d: d2 } of pool2.slice(0, 4)) {
+    const section = findInclusionSection(d2.content, query, maxChars);
+    if (!section) continue;
+    const label = d2.title.replace(/[-_]+/g, " ").replace(/\s+2026.*$/i, "").trim();
+    if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(label)) continue;
+    return `Seg\xFAn el cat\xE1logo que ya tenemos de *${label}*:
+
+${section}
+
+\xBFTe late este nivel o quieres que te detalle otro?`;
+  }
+  return null;
+}
+function collapseDuplicatedInclusionReply(text2) {
+  if (!text2?.trim()) return text2;
+  const closeRe = /¿Te late este nivel o quieres que te detalle otro\?/i;
+  const m5 = closeRe.exec(text2);
+  if (m5 && m5.index != null) {
+    const head = text2.slice(0, m5.index + m5[0].length).trim();
+    const rest = text2.slice(m5.index + m5[0].length).trim();
+    if (!rest || /Según el catálogo que ya tenemos/i.test(rest) || /Bebidas incluidas|Alimentos:|Meseros:|Vajilla|Coffee Break \d|Tradicional \$\s*\d|¿Te late este nivel/i.test(
+      rest
+    )) {
+      if (rest) return head;
+    }
+  }
+  const parts2 = text2.split(/(?=Según el catálogo que ya tenemos de \*)/i).filter((p4) => p4.trim());
+  if (parts2.length > 1 && /Según el catálogo que ya tenemos/i.test(parts2[0])) {
+    return parts2[0].trim();
+  }
+  return text2.trim();
+}
+function ensureCacheFromSeedSync() {
+  if (cacheState().docs.length > 0) return;
+  try {
+    let moduleDir2 = "";
+    try {
+      moduleDir2 = dirname(fileURLToPath(import.meta.url));
+    } catch {
+    }
+    let argvDir = "";
+    try {
+      const entry = process.argv[1];
+      if (entry) argvDir = dirname(entry);
+    } catch {
+    }
+    const here = typeof __dirname === "string" && __dirname || moduleDir2 || argvDir || process.cwd();
+    const candidates = [
+      process.env["LUCY_INFO_SEED_PATH"]?.trim(),
+      join(here, "config", "lucy-info-seed.json"),
+      join(here, "lucy-info-seed.json"),
+      join(here, "data", "lucy-info-seed.json"),
+      join(moduleDir2, "config", "lucy-info-seed.json"),
+      join(moduleDir2, "lucy-info-seed.json"),
+      join(argvDir, "lucy-info-seed.json"),
+      join(argvDir, "config", "lucy-info-seed.json"),
+      join(process.cwd(), "config", "lucy-info-seed.json"),
+      join(process.cwd(), "lucy-info-seed.json"),
+      join(process.cwd(), "data", "lucy-info-seed.json"),
+      join(process.cwd(), "api-server", "config", "lucy-info-seed.json"),
+      join(process.cwd(), "api-server", "dist", "lucy-info-seed.json"),
+      join(process.cwd(), "deploy", "lucy-info-seed.json")
+    ].filter(Boolean);
+    for (const p4 of candidates) {
+      if (!existsSync2(p4)) continue;
+      const raw = JSON.parse(readFileSync(p4, "utf8"));
+      const docs = (raw.documents || []).filter((d2) => d2?.content?.trim());
+      if (docs.length) {
+        refreshLucyInfoPriceCache(docs);
+        return;
+      }
+    }
+  } catch {
+  }
+}
+function extractPriceWindows(content, max = 8) {
+  const windows = [];
+  const re3 = /.{0,55}\$\s*[\d,.]+.{0,55}/g;
+  let m5;
+  while ((m5 = re3.exec(content || "")) && windows.length < max) {
+    const w4 = m5[0].replace(/\s+/g, " ").trim();
+    if (w4.length > 12) windows.push(w4);
+  }
+  if (windows.length) return windows;
+  return (content || "").split(/\n+/).map((l5) => l5.trim()).filter((l5) => l5.length > 8 && /\$\s*\d/.test(l5)).slice(0, max);
+}
+function buildLucyInfoPriceSnippet(query, maxChars = 520) {
+  ensureCacheFromSeedSync();
+  const docs = cacheState().docs;
+  if (!docs.length || !query?.trim()) return null;
+  const tokens = tokenize(query);
+  if (!tokens.length) return null;
+  const ranked = [...docs].map((d2) => ({ d: d2, s: scoreDoc(d2, tokens) })).filter((x7) => x7.s >= 8).sort((a3, b4) => b4.s - a3.s);
+  if (!ranked.length) return null;
+  const top = ranked[0].d;
+  const windows = extractPriceWindows(top.content, 10);
+  const scored = windows.map((l5) => {
+    const f6 = fold(l5);
+    let s6 = 0;
+    for (const tok of tokens) if (f6.includes(tok)) s6 += 3;
+    if (/\$\s*\d/.test(l5)) s6 += 1;
+    return { l: l5, s: s6 };
+  }).sort((a3, b4) => b4.s - a3.s);
+  const picked = (scored.some((x7) => x7.s > 1) ? scored.filter((x7) => x7.s > 1) : scored).map((x7) => x7.l).slice(0, 5);
+  if (!picked.length) return null;
+  const body2 = picked.join(" \xB7 ").slice(0, maxChars);
+  return `*${top.title}*: ${body2}`;
+}
+function buildLucyInfoLearnedPriceReply(message) {
+  const focusedPista = /\b(pintada|led|iluminada|madera\s+premium|vinil|charol|logo|tarima\s+b[aá]sica|escenario|estrado)\b/i.test(
+    message
+  );
+  const snip = buildLucyInfoPriceSnippet(message, focusedPista ? 420 : 520);
+  if (!snip) return null;
+  const t3 = fold(message);
+  let ask = "\xBFLo agregamos a tu cotizaci\xF3n?";
+  if (/pista|tarima|baile/.test(t3)) {
+    ask = "\xBFQu\xE9 medidas aproximadas tiene el espacio?";
+  } else if (/periquera|mesa|silla|sala|mobiliario|lounge|luxor/.test(t3)) {
+    ask = "\xBFCu\xE1ntas piezas necesitas y para cu\xE1ndo?";
+  }
+  const body2 = snip.replace(/\s*¿Qué medidas aproximadas tiene el espacio\?\s*/gi, " ").trim();
+  return `Seg\xFAn el cat\xE1logo que ya cargamos en Aprendizaje:
+${body2}
+${ask}`;
+}
+
+// src/price-guard.ts
+var NO_LISTED_PRICE_PATTERN = /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|mesas?|sillas?|periqueras?|salas?\s*(lounge)?|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
+var LISTED_PRICE_PATTERN = /banquete|taquiza|parrillada|barra\s+(de\s+)?(bebidas?|alimentos?|caf[eé]|pizzas?|sushi|crepas?|mariscos?|pastas?)|mesa\s+de\s+dulces|cocteler[ií]a|mixolog[ií]a|coffee\s*break|brunch|paella|m[oó]cteles?|canap[eé]s|pozole|americana|kosher|navide[nñ]o/i;
+var dynamicListedPattern = null;
+var dynamicNoListedPattern = null;
+function escapeRegex2(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function buildServicePattern(labels) {
+  const terms = labels.map((label) => label.trim().toLowerCase()).filter((label) => label.length >= 2).map((label) => escapeRegex2(label).replace(/\s+/g, "\\s+"));
+  if (!terms.length) return null;
+  return new RegExp(`\\b(?:${terms.join("|")})\\b`, "i");
+}
+function setCatalogPriceIndex(priced, noPrice) {
+  dynamicListedPattern = buildServicePattern(priced);
+  dynamicNoListedPattern = buildServicePattern(noPrice);
+}
+var PRICE_CLAIM_PATTERN = /\$\s*[\d,.]+(?:\s*\/\s*pp)?|\b[\d,.]+\s*(?:mil|k)\b(?:\s*pesos?)?|\bentre\s*\$?\s*[\d,.]+\s*y\s*\$?\s*[\d,.]+|\bdesde\s*\$[\d,.]+|\b[\d,.]+\s*pesos?\b/i;
+var PRICE_QUESTION_PATTERN = /\bcu[aá]nto\s+cuesta|\bprecios?\b|\bcostos?\b|\bm[aá]s\s+o\s+menos\s+cu[aá]nto|\bcu[aá]nto\s+sale|\bcu[aá]nto\s+cobran|\btarifa\b|\bver\s+(los\s+)?precios?\b|\bpasar?(me)?\s+(los\s+)?precios?\b/i;
+function clientAsksPrice(message) {
+  if (!message?.trim()) return false;
+  if (!PRICE_QUESTION_PATTERN.test(message)) return false;
+  if (message.trim().length > 220 && /\b(cotiz|propuestas?|opci[oó]n\s*[123]|distribuidor)\b/i.test(message)) {
+    return false;
+  }
+  if (/\bprecio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
+  if (/\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
+  if (/\brangos?\s+de\s+precio\b/i.test(message) && /\b(propuestas?|opci[oó]n|men[uú])\b/i.test(message)) {
+    return false;
+  }
+  return true;
+}
+function mentionsNoListedPriceService(text2) {
+  if (dynamicNoListedPattern?.test(text2)) return true;
+  return NO_LISTED_PRICE_PATTERN.test(text2);
+}
+function mentionsListedPriceService(text2) {
+  if (dynamicListedPattern?.test(text2)) return true;
+  return LISTED_PRICE_PATTERN.test(text2);
+}
+function messageClaimsPrice(mensaje) {
+  return PRICE_CLAIM_PATTERN.test(mensaje);
+}
+function responseHasInventedPrice(mensaje, currentMessage, recentContext) {
+  if (!messageClaimsPrice(mensaje)) return false;
+  if (lucyInfoSupportsPriceClaim(mensaje)) return false;
+  const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`.toLowerCase();
+  if (mentionsNoListedPriceService(ctx)) return true;
+  if (!mentionsListedPriceService(ctx) && messageClaimsPrice(mensaje)) {
+    return true;
+  }
+  return false;
+}
+function detectServiceLabel(text2) {
+  const t3 = text2.toLowerCase();
+  if (/\bdj\b/.test(t3)) return "DJ";
+  if (/iluminaci[oó]n/.test(t3)) return "iluminaci\xF3n";
+  if (/periqueras?/.test(t3)) return "periqueras";
+  if (/mesas?/.test(t3) && /sillas?/.test(t3)) return "mesas y sillas";
+  if (/mesas?/.test(t3)) return "mesas";
+  if (/sillas?/.test(t3)) return "sillas";
+  if (/salas?\s*lounge|lounge/.test(t3)) return "salas lounge";
+  if (/mobiliario/.test(t3)) return "mobiliario";
+  if (/carpas?|lonas?/.test(t3)) return "carpas";
+  if (/pantallas?/.test(t3)) return "pantallas";
+  if (/pista(\s+de\s+baile)?|tarimas?/.test(t3)) return "pista de baile";
+  if (/flor/.test(t3)) return "florister\xEDa";
+  return "ese servicio";
+}
+function getPriceServiceLabel(text2) {
+  return detectServiceLabel(text2);
+}
+function stripPriceSentences(mensaje) {
+  const sentences = mensaje.split(/(?<=[.!?])\s+|\n+/);
+  const kept = sentences.filter((s6) => !PRICE_CLAIM_PATTERN.test(s6));
+  return kept.join(" ").replace(/\s{2,}/g, " ").trim();
+}
+function stripStalePriceTalk(mensaje, currentMessage) {
+  if (!currentMessage?.trim() || clientAsksPrice(currentMessage)) return mensaje;
+  if (/\bdj\b|precio|cu[aá]nto\s+cuesta/i.test(currentMessage)) return mensaje;
+  return mensaje.split(/(?<=[.!?])\s+|\n+/).filter((s6) => !/\bdj\b/i.test(s6) || clientAsksPrice(currentMessage)).filter((s6) => !/alejandro te (incluye|da) el precio/i.test(s6)).join(" ").replace(/\s{2,}/g, " ").trim();
+}
+function buildConsultativeNoPriceReply(message) {
+  if (!message?.trim()) return null;
+  const t3 = message.toLowerCase();
+  const team = advisorLabelForClient();
+  if (/pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\b|lounge|luxor|chesterfield|camila/.test(
+    t3
+  )) {
+    const fromPdf = buildLucyInfoLearnedPriceReply(message);
+    if (fromPdf) return fromPdf;
+  }
+  if (/\bcarpas?\b|lonas?\b|toldos?\b/.test(t3)) {
+    return `S\xED, manejamos carpas para jard\xEDn o terraza: ${CARPA_OPTIONS_TEXT}. Se cotizan seg\xFAn medidas y sede. ${team} arma el precio. \xBFQu\xE9 opci\xF3n prefieres y qu\xE9 medidas aproximadas debe tener (largo \xD7 ancho)?`;
+  }
+  if (/\bdj\b|disc\s*jockey|audio\b|sonido\b/.test(t3)) {
+    return `El DJ incluye equipo completo, micr\xF3fono para brindis e iluminaci\xF3n b\xE1sica; puedes mandar playlist. ${team} incluir\xE1 el precio en tu cotizaci\xF3n. \xBFYa tienes estilo de m\xFAsica o prefieres que lea el ambiente?`;
+  }
+  if (/iluminaci[oó]n/.test(t3)) {
+    return `Opciones: uplighting LED en paredes, luces colgantes tipo edison o luces de pista. ${team} cotiza seg\xFAn el espacio. \xBFQu\xE9 ambiente buscas: elegante, rom\xE1ntico o fiesta?`;
+  }
+  if (/pista(\s+de\s+baile)?|tarimas?\b/.test(t3)) {
+    return `S\xED, manejamos pistas de baile y tarimas en varios tama\xF1os, con opci\xF3n iluminada. ${team} cotiza seg\xFAn las medidas. \xBFQuieres que lo agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas tiene el espacio?`;
+  }
+  if (/periqueras?|mesas?\s+(peque[nñ]as?|tipo\s+bar)|mesas?\s+periqueras?/.test(t3)) {
+    return `S\xED, rentamos periqueras y mesas tipo bar en distintos acabados. El precio depende de cantidad, estilo y si llevan montaje en sitio. ${team} cotiza seg\xFAn lo que necesites. \xBFCu\xE1ntas periqueras/mesas necesitas y para cu\xE1ndo?`;
+  }
+  if (/mesas?|sillas?|mobiliario|salas?\s*lounge/.test(t3)) {
+    return `Manejamos mesas, sillas, periqueras y salas lounge para eventos en distintos estilos. ${team} cotiza seg\xFAn cantidad y tipo. \xBFQu\xE9 mobiliario necesitas y para cu\xE1ntas personas?`;
+  }
+  return null;
+}
+function buildAlejandroPriceReply(serviceHint, clientMessage) {
+  const consultative = clientMessage ? buildConsultativeNoPriceReply(clientMessage) : null;
+  if (consultative) return consultative;
+  const svc = serviceHint?.trim() || "ese servicio";
+  const team = advisorLabelForClient();
+  return `S\xED, manejamos ${svc}. El precio depende del evento \u2014 ${team} te lo incluye en tu cotizaci\xF3n.`;
+}
+function sanitizeInventedPrices(mensaje, currentMessage, recentContext) {
+  if (!responseHasInventedPrice(mensaje, currentMessage, recentContext)) {
+    return mensaje;
+  }
+  const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`;
+  const service = detectServiceLabel(ctx);
+  const cleaned = stripPriceSentences(mensaje);
+  const safe = buildAlejandroPriceReply(service, currentMessage);
+  if (!cleaned || cleaned.length < 15) return safe;
+  const withoutCorreoInsist = cleaned.replace(/[^.!?\n]*correo[^.!?\n]*\?[^.!?\n]*/gi, "").trim();
+  const base = withoutCorreoInsist.length > 20 ? withoutCorreoInsist : "";
+  if (base && !/alejandro/i.test(base)) {
+    return `${base} ${safe}`.trim();
+  }
+  return safe;
+}
+
+// src/catalogo.ts
+var CATALOGO_BODASESOR = `
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+CAT\xC1LOGO BODASESOR 2026 \u2014 INFORMACI\xD3N COMPLETA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+CONDICIONES GENERALES:
+\u2022 Precios NO incluyen IVA (16%)
+\u2022 Propina 15% recomendada (no obligatoria)
+\u2022 Inversi\xF3n m\xEDnima general: $18,000 MXN por evento (excepto Kosher: $29,000; barras: desde $6,000)
+\u2022 Duraci\xF3n est\xE1ndar banquetes: 5 horas
+\u2022 Barras tem\xE1ticas: 3 horas o hasta agotar producto
+\u2022 Anticipo 50% para apartar fecha
+\u2022 Liquidaci\xF3n 10 d\xEDas antes del evento
+\u2022 Cambios: hasta 30 d\xEDas antes
+\u2022 Formas de pago: efectivo o transferencia
+\u2022 Atendemos de 30 hasta 10,000 personas
+\u2022 Montaje y desmontaje incluidos. Trabajamos en el venue del cliente.
+\u2022 Men\xFAs adaptables a restricciones alimenticias y opci\xF3n vegetariana disponible
+\u2022 Hora extra: $60/pp (m\xEDnimo 10 personas)
+\u2022 Eventos con +100 personas: opci\xF3n de 2 men\xFAs distintos
+\u2022 Prueba de men\xFA: $5,000 MXN para 4 personas (se descuentan $2,500 al confirmar)
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BANQUETE FORMAL
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Cocina internacional: res, pollo, pescado, mariscos. Presentaci\xF3n elegante emplatada.
+
+MEN\xDA 3 TIEMPOS:
+\u2022 B\xE1sico: $750/pp \u2014 entrada o sopa/pasta + plato fuerte (lomo o pollo) + guarnici\xF3n + postre
+\u2022 Tradicional: $880/pp \u2014 igual + 2 guarniciones
+\u2022 Premium: $930/pp \u2014 prote\xEDna libre + 2 guarniciones
+
+MEN\xDA 4 TIEMPOS:
+\u2022 B\xE1sico: $800/pp \u2014 entrada + sopa/pasta + plato fuerte (lomo o pollo) + guarnici\xF3n + postre
+\u2022 Tradicional: $930/pp \u2014 igual + 2 guarniciones
+\u2022 Premium: $980/pp \u2014 prote\xEDna libre + 2 guarniciones
+
+BUFFET: $1,200/pp (2 prote\xEDnas + opciones de pasta/ensalada/sopa + guarnici\xF3n + postre)
+SOLO ALIMENTOS (sin mobiliario): desde $400/pp (+$150 con vajilla decorativa)
+
+INCLUIDO EN TODOS LOS PAQUETES COMPLETOS:
+\u2022 Mesa redonda con mantel (color a elecci\xF3n) + silla Tiffany + centro de mesa con flores
+\u2022 Vajilla blanca + cuberter\xEDa + cristaler\xEDa (copa + vaso)
+\u2022 Meseros: 1 c/20 personas (B\xE1sico), 1 c/15 (Tradicional), 1 c/10 (Premium)
+\u2022 Barra de bebidas sin alcohol: vitroleros (2 sabores), agua natural, caf\xE9
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BANQUETE MEXICANO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Gastronom\xEDa mexicana: moles, pozoles, ceviches, platillos regionales, salsas artesanales,
+aguas frescas de sabores tradicionales. Diferente al formal en men\xFA, misma calidad de servicio.
+
+MEN\xDA 3 TIEMPOS:
+\u2022 B\xE1sico: $670/pp \u2014 prote\xEDna: lomo o pollo
+\u2022 Tradicional: $770/pp \u2014 2 guarniciones
+\u2022 Premium: $830/pp \u2014 prote\xEDna libre
+
+MEN\xDA 4 TIEMPOS:
+\u2022 B\xE1sico: $720/pp \u2014 prote\xEDna: lomo o pollo
+\u2022 Tradicional: $830/pp \u2014 2 guarniciones
+\u2022 Premium: $880/pp \u2014 prote\xEDna libre
+
+BUFFET: $1,200/pp
+SOLO ALIMENTOS: desde $450/pp
+
+Incluye lo mismo que Banquete Formal (mobiliario, vajilla, meseros, barra sin alcohol).
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BANQUETE NAVIDE\xD1O (solo noviembre\u2013enero)
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Pavos con 3 preparaciones distintas, bacalao, romeritos, decoraci\xF3n festiva incluida.
+Diciembre: alta demanda \u2014 reservar desde octubre.
+
+\u2022 Premium 3 tiempos: $830/pp
+\u2022 Premium 4 tiempos: $880/pp
+\u2022 Buffet Navide\xF1o: $1,200/pp (pollo o lomo incluido; pavo: +$100/pp extra)
+\u2022 Solo alimentos: desde $500/pp
+
+PREGUNTAS FRECUENTES NAVIDE\xD1O:
+\u2022 \xBFEl pavo es por persona? S\xED, porciones individuales.
+\u2022 \xBFEl buffet incluye pavo? El base incluye pollo o lomo. Pavo: +$100/pp.
+\u2022 \xBFCrepas Suzette incluidas? No, tienen costo adicional de $100/pp (flambeado especial).
+\u2022 \xBFCu\xE1ndo reservar? Para diciembre, desde octubre.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BANQUETE KOSHER
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Certificaci\xF3n Kosher completa + supervisi\xF3n rab\xEDnica permanente.
+Separaci\xF3n absoluta: el evento es 100% L\xC1CTEO (Jalav) O 100% CARNE (Basar) \u2014 nunca mezclados.
+Utensilios Kosher certificados dedicados exclusivamente.
+
+MEN\xDA 3 TIEMPOS:
+\u2022 B\xE1sico: $1,170/pp \u2014 prote\xEDna: lomo o pollo
+\u2022 Tradicional: $1,330/pp \u2014 2 guarniciones
+\u2022 Premium: $1,430/pp \u2014 prote\xEDna libre
+
+MEN\xDA 4 TIEMPOS:
+\u2022 B\xE1sico: $1,250/pp \u2014 prote\xEDna: lomo o pollo
+\u2022 Tradicional: $1,430/pp \u2014 2 guarniciones
+\u2022 Premium: $1,500/pp \u2014 prote\xEDna libre
+
+BUFFET KOSHER: $2,000/pp (2 prote\xEDnas + pasta/ensalada/sopa + guarnici\xF3n + postre)
+SOLO ALIMENTOS KOSHER: $600/pp
+Inversi\xF3n m\xEDnima: $29,000 MXN
+
+INCLUIDO: mismos servicios que Banquete Formal + vajilla y utensilios certificados Kosher.
+
+PREGUNTAS FRECUENTES KOSHER:
+\u2022 \xBFMezclar l\xE1cteos y carne? NUNCA \u2014 las leyes Kosher lo proh\xEDben absolutamente.
+\u2022 \xBFQu\xE9 es parve? Alimentos neutros (frutas, vegetales, huevos, pescado) \u2014 combinables con l\xE1cteos o carne.
+\u2022 \xBFEl vino es Kosher? S\xED, solo vinos y bebidas certificadas Kosher.
+\u2022 \xBFLa supervisi\xF3n rab\xEDnica tiene costo extra? No, est\xE1 incluida en todos los precios.
+\u2022 \xBFPuedo coordinar con mi rabino? S\xED, Alejandro coordina todos los detalles.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+DESAYUNO / BRUNCH
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u2022 B\xE1sico: $550/pp (entrada + plato fuerte + jugo + caf\xE9)
+\u2022 Premium: $650/pp (+ 2 guarniciones + pan dulce y salado)
+\u2022 Buffet: $750/pp (fruta + 3 platillos salados + 2 dulces)
+\u2022 Inversi\xF3n m\xEDnima: $18,000 MXN
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+PAELLA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u2022 Solo alimentos: $450/pp
+\u2022 Tradicional (con mobiliario): $800/pp
+\u2022 Premium: $900/pp
+\u2022 Inversi\xF3n m\xEDnima: $19,500 MXN
+\u2022 Incluye: chistorra, croquetas de serrano, tortilla espa\xF1ola, paella al momento
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+TAQUIZA & PARRILLADA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+TAQUIZA (guisados \u2014 tacos de canasta/cazuela, NO al carb\xF3n):
+\u2022 5 guisados: $300/pp \u2014 arroz, frijol, tortillas, salsas incluidos
+\u2022 6 guisados: $320/pp | Guisado extra: +$20/pp
+\u2022 Vajilla y cubiertos: +$20/pp adicional
+\u2022 Servicio Completo Premium: $750/pp (con mobiliario, cristaler\xEDa, meseros)
+\u2022 M\xEDnimo 40 personas / inversi\xF3n m\xEDnima $10,000 / duraci\xF3n: 3 horas
+
+PARRILLADA MEXICANA (tacos al carb\xF3n \u2014 \u2260 taquiza):
+\u2022 5 platillos: $300/pp \u2014 nopales, cebollitas, tortillas, salsas incluidos
+\u2022 Platillo extra: +$30/pp
+\u2022 Todo incluido (con bebidas sin alcohol): $700/pp
+\u2022 Inversi\xF3n m\xEDnima: $11,000 / duraci\xF3n: 3 horas
+
+PARRILLADA ARGENTINA (cortes premium al carb\xF3n \u2014 5 horas completas):
+\u2022 $900/pp | Inversi\xF3n m\xEDnima: $19,500 MXN
+\u2022 Cortes: Pica\xF1a, New York, Arrachera, Rib Eye, Pollo BBQ
+\u2022 Asador solo alimentos: +$500 adicional
+\u2022 Incluye: mesa, mantel, silla Tiffany, vajilla, cristaler\xEDa, hielos, barra de bebidas sin alcohol
+
+DIFERENCIA CLAVE \u2014 Tacos: preguntarle al cliente si quiere guisados (taquiza) o al carb\xF3n (parrillada).
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BARRA AMERICANA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Comida estilo americano casual. El cliente elige 5 opciones del men\xFA completo.
+Ideal para eventos informales, cumplea\xF1os, graduaciones, fiestas en jard\xEDn.
+
+NIVELES:
+\u2022 B\xE1sica: $350/pp \u2014 3h o hasta agotar, desechables, sin mobiliario, 1 mesero c/50
+\u2022 Completo B\xE1sico: $750/pp \u2014 5h, todo incluido, 1 mesero c/20
+\u2022 Completo Tradicional: $800/pp \u2014 5h, mejor presentaci\xF3n, 1 mesero c/15 (M\xC1S POPULAR)
+\u2022 Completo Premium: $900/pp \u2014 5h, atenci\xF3n VIP 1 mesero c/10, copas de color
+
+Inversi\xF3n m\xEDnima B\xE1sica: $10,500 MXN
+
+LO QUE INCLUYE CADA NIVEL:
+\u2022 B\xE1sica: solo comida + desechables. Sin mobiliario ni bebidas.
+\u2022 Completo B\xE1sico: mesa + mantel + silla Tiffany + centro de mesa + vajilla blanca + cristaler\xEDa copa/vaso
+  + barra de bebidas: aguas (2 sabores), agua natural, caf\xE9
+\u2022 Completo Tradicional: + plato base decorativo + cristaler\xEDa premium completa + margaritas sin alcohol
+  + Coca Light, Coca Normal, Squirt, agua mineral (1 sabor de agua fresca)
+\u2022 Completo Premium: = Tradicional + copas de color (elemento distintivo) + 1 mesero c/10 personas
+
+MEN\xDA COMPLETO \u2014 OPCIONES PRINCIPALES (elegir 5):
+Hamburguesas y hot dogs: mini sliders, mini hot dogs, pulled pork, corn dogs
+Pollo: tiras empanizadas (chicken tenders), alitas BBQ / b\xFAfalo / habanero-miel
+Mini wraps y tacos: burritos tex-mex, mini tacos de carne asada
+Pizzas y pasta: mini pizzas (pepperoni/queso/vegetales), mac & cheese en vasito
+
+ACOMPA\xD1AMIENTOS (tambi\xE9n cuentan como 1 opci\xF3n):
+Papas: a la francesa, papas gajo con especias, tater tots, aros de cebolla empanizados
+Quesos y nachos: nachos con cheddar y jalape\xF1os, chili con carne, mozzarella sticks
+Otros: palomitas saborizadas (mantequilla/queso/caramelo), coleslaw, elotes en vasito (americano o mexicano)
+
+EXTRAS (costo adicional):
+\u2022 Mesero adicional: $800 (5 horas, ideal +150 personas)
+\u2022 Mesa de madera para barra: $600
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+ANTOJITOS & PUESTOS DE COMIDA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Puestos de madera elegantes con cocina mexicana aut\xE9ntica al momento. 3 horas de servicio.
+Ideal para cocktail de bienvenida, complemento al banquete, XV a\xF1os, cumplea\xF1os.
+
+\u2022 $300/pp (8 piezas por persona) \u2014 m\xEDnimo 240 piezas / inversi\xF3n m\xEDnima $9,000
+\u2022 Pieza adicional: $38/pp | Puestos adicionales: $1,500 c/u (1 puesto por cada 100 personas incluido)
+\u2022 Incluye: puesto de madera, desechables, queso fresco, crema, salsas artesanales, personal uniformado
+
+MEN\xDA DISPONIBLE (todo al momento):
+QUESADILLAS FRITAS: queso fundido, chicharr\xF3n en salsa, tinga de pollo o res, papa con especias, hongos con epazote
+FLAUTAS CRUJIENTES: pollo deshebrado, carne deshebrada, papa con queso, queso derretido
+SOPES Y GORDITAS: frijoles, pollo, chorizo, chicharr\xF3n prensado, queso derretido
+MINI TORTAS: cochinita pibil, chilaquiles, tacos de canasta
+ANTOJITOS Y SNACKS: esquites, elotes asados, espiropapas, hot dogs, banderillas
+BEBIDAS Y SNACKS SALUDABLES: ponche de frutas, crudit\xE9s, jicaletas, paletas de sand\xEDa, pepinos con cacahuate
+DULCES Y POSTRES: algodones de az\xFAcar, manzanas chamoy, churros reci\xE9n fritos, crepaletas
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BARRAS TEM\xC1TICAS (otras)
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u2022 Barra de Pizzas (horno de piedra, chef en vivo): desde $9,515 total (hasta 10 pax) \u2014 3 horas
+  Rangos: 11-15 pax $10,780 | 16-20 $11,385 | 21-25 $12,650 | 26-30 $13,915
+  31-40 $14,575\u2013$15,180 | 41-50 $15,950\u2013$17,050 | 51-60 $18,040\u2013$19,690
+  61-100 $22,110\u2013$29,755 | 101-160 $30,360\u2013$37,400 | +160 pax: $200/pp extra
+\u2022 Barra de Sushi y Poke Bowl: $13,800 fijo (-30 pax) / $460/pp (30+) \u2014 3 horas
+\u2022 Barra de Crepas: $280/pp (5 crepas), $320/pp (6 crepas), Premium $750/pp \u2014 m\xEDn. 40 pax
+\u2022 Barra de Mariscos: $580/pp \u2014 inversi\xF3n m\xEDnima $16,000 \u2014 3 horas
+\u2022 Barra de Pastas y Ensaladas: $380/pp simple ($750/pp completo) \u2014 2 lasa\xF1as + 2 pastas + 2 ensaladas
+\u2022 Barra de Paninis y Ensaladas: $350/pp (4 paninis + 2 ensaladas) / $800/pp completo
+\u2022 Barra Yucateca: $350/pp \u2014 Sopa de Lima, Cochinita Pibil, Panuchos, Papadzules, Empanadas, tortillas frescas
+\u2022 Pozole y Tostadas: $300/pp b\xE1sico ($680/pp completo premium) \u2014 Rojo, Blanco o Verde
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BARRA DE BEBIDAS
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Servicio profesional de bar: barra de madera, bartenders certificados, cristaler\xEDa completa,
+hielo ilimitado. Servicio libre durante 5 horas. Inversi\xF3n m\xEDnima: $6,000 MXN.
+1 barman por cada 50 personas (incluido en el precio).
+
+BARRAS SIN ALCOHOL (3 niveles \u2014 5 horas):
+\u2022 B\xE1sica: $150/pp
+  Incluye: refrescos (Coca Light, Coca Normal, Squirt), agua mineral, agua natural,
+  vitrolero con 1 sabor de agua fresca a elegir (jamaica, lim\xF3n, tamarindo, horchata,
+  pepino-lim\xF3n-menta, sand\xEDa, mel\xF3n, mango)
+
+\u2022 Tradicional: $180/pp
+  Incluye todo lo de B\xE1sica + fruta picada + margaritas sin alcohol (mango y tamarindo)
+  + caf\xE9 y t\xE9 | (solo +$30 sobre B\xE1sica \u2014 MEJOR VALOR)
+
+\u2022 Premium: $200/pp
+  Incluye todo lo de Tradicional + jugos naturales frescos
+
+BARRAS CON ALCOHOL (5 horas \u2014 incluyen autom\xE1ticamente Barra sin Alcohol Tradicional completa):
+\u2022 B\xE1sica: $370/pp
+  Licores: Capit\xE1n Morgan (ron), Cuervo Especial (tequila), Wyborowa (vodka),
+  Black & White (whisky), Larios (gin)
+
+\u2022 Tradicional: $410/pp \u2014 LA M\xC1S POPULAR (solo +$40 sobre b\xE1sica, marcas premium + mezcal)
+  Licores: Bacard\xED (ron), Jos\xE9 Cuervo Tradicional (tequila), Absolut (vodka),
+  Johnnie Walker Red Label (whisky), Diega (gin), Mezcal incluido
+
+\u2022 Premium: $600/pp
+  Licores top shelf: Bacard\xED (ron), Maestro Dobel (tequila), Stolichnaya (vodka),
+  Johnnie Walker Black Label (whisky), Tanqueray (gin), 400 Conejos (mezcal)
+
+EXTRAS (solo como complemento a un paquete de barra \u2014 NO se venden solos):
+\u2022 Cerveza: $35/pieza (servicio libre 5 horas)
+\u2022 Vino tinto o blanco: $50/copa (servicio libre 5 horas)
+
+M\xCDNIMOS EN PERSONAS (inversi\xF3n m\xEDnima $6,000):
+Sin alcohol \u2014 B\xE1sica: 40 pax | Tradicional: 34 pax | Premium: 30 pax
+Con alcohol \u2014 B\xE1sica: 17 pax | Tradicional: 15 pax | Premium: 10 pax
+
+DIFERENCIA CLAVE: Barra de Bebidas = SOLO bebidas. Barra Americana = SOLO comida.
+Se pueden contratar juntas para un evento completo.
+Si el banquete ya incluye bebidas sin alcohol y quieren agregar alcohol:
+Banquete Formal 4T ($800/pp) + Barra con alcohol B\xE1sica ($370/pp) = $1,170/pp completo.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BARRA DE CAF\xC9
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u2022 $180/pp \u2014 inversi\xF3n m\xEDnima $7,000
+\u2022 Baristas profesionales, caf\xE9 de altura tostado tipo italiano
+\u2022 Bebidas: Americano, Espresso, Capuchino, Latte, Frappuccino, Moka, Vainilla,
+  Chocolate caliente, Chai Latte, Matcha, 9 variedades de t\xE9s
+
+COFFEE BREAK:
+\u2022 Desde $160/pp \u2014 inversi\xF3n m\xEDnima $7,500
+\u2022 Opciones b\xE1sica, intermedia y completa
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+COCTELER\xCDA Y MIXOLOG\xCDA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+(Servicio de c\xF3cteles especializados \u2014 diferente a Barra de Bebidas)
+\u2022 Cocteler\xEDa Cl\xE1sica: $285/pp (6 c\xF3cteles para 100+ pax / 3 c\xF3cteles para menos)
+\u2022 Mixolog\xEDa Premium: $460/pp \u2014 3 c\xF3cteles exclusivos personalizados (m\xEDn. 40 pax)
+\u2022 Inversi\xF3n m\xEDnima B\xE1sica (2h): $7,000
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+POSTRES & EXTRAS
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+MESA DE DULCES:
+\u2022 $250/pp \u2014 inversi\xF3n m\xEDnima $8,000
+\u2022 15 opciones de dulces a elegir (tradicionales + premium)
+\u2022 Decoraci\xF3n, personalizaci\xF3n y montaje incluido
+
+PASTELES / CUPCAKES:
+\u2022 Bet\xFAn Cl\xE1sico: $35/pc | Bet\xFAn Decorado: $45/pc | Bet\xFAn + Cake Topper: $40/pc
+\u2022 Fondant 2D: $55/pc | Fondant 3D: $60/pc
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+SERVICIOS SIN PRECIO LISTADO \u2192 RODRIGO DA EL PRECIO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Mobiliario extra (mesas, sillas Tiffany, periqueras, salas lounge), decoraci\xF3n floral,
+estructuras colgantes, pistas de baile personalizadas, vajillas premium, paletas/helados,
+DJ y audio, pantallas LED, iluminaci\xF3n, fiesta infantil, carpas y lonas.
+\u2192 Responder: "Para [servicio], Alejandro te da los detalles y precio en tu cotizaci\xF3n."
+`;
+
+// src/services/googleSheetsCatalog.ts
+var HEADER_ALIASES = {
+  servicio: "servicio",
+  service: "servicio",
+  nombre: "servicio",
+  producto: "servicio",
+  categoria: "categoria",
+  categor\u00EDa: "categoria",
+  category: "categoria",
+  tipo: "categoria",
+  nivel: "nivel",
+  tier: "nivel",
+  paquete: "nivel",
+  "precio unitario": "precio",
+  precio: "precio",
+  price: "precio",
+  costo: "precio",
+  tarifa: "precio",
+  unidad: "unidad",
+  unit: "unidad",
+  pp: "unidad",
+  notas: "notas",
+  nota: "notas",
+  notes: "notas",
+  descripcion: "notas",
+  descripci\u00F3n: "notas",
+  detalle: "notas",
+  "que incluye": "notas",
+  extras: "notas",
+  sinonimos: "sinonimos",
+  sin\u00F3nimos: "sinonimos",
+  aliases: "sinonimos"
+};
+function deriveCatalogCategory(servicio) {
+  const s6 = servicio.toLowerCase();
+  if (/barra de bebida|cocteler|mixolog|m[oó]ctel/.test(s6)) return "Bebidas";
+  if (/banquete|taquiza|brunch|coffee|barra|comida|desayuno|canap|bocadillo|parrillada|pizza|sushi|crepa|marisco|pasta|paella|pozole|mesa de|carrito|snak/i.test(
+    s6
+  )) {
+    return "Alimentos";
+  }
+  if (/mobiliario|silla/.test(s6)) return "Mobiliario";
+  if (/dj|animaci|iluminaci|pantalla|audio|pista/.test(s6)) return "Entretenimiento";
+  return "Servicios";
+}
+function formatCatalogRowLabel(row) {
+  const svc = row.servicio.trim();
+  const nivel = row.nivel.trim();
+  if (!nivel || nivel.toLowerCase() === svc.toLowerCase()) return svc;
+  return `${svc} \u2014 ${nivel}`;
+}
+function normalizeHeader(h4) {
+  return h4.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+}
+function parseCsvRows(text2) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+  for (let i5 = 0; i5 < text2.length; i5++) {
+    const ch = text2[i5];
+    const next = text2[i5 + 1];
+    if (inQuotes) {
+      if (ch === '"' && next === '"') {
+        cell += '"';
+        i5++;
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        cell += ch;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inQuotes = true;
+      continue;
+    }
+    if (ch === ",") {
+      row.push(cell);
+      cell = "";
+      continue;
+    }
+    if (ch === "\n" || ch === "\r" && next === "\n") {
+      row.push(cell);
+      cell = "";
+      if (row.some((c4) => c4.trim())) rows.push(row);
+      row = [];
+      if (ch === "\r") i5++;
+      continue;
+    }
+    cell += ch;
+  }
+  if (cell.length || row.length) {
+    row.push(cell);
+    if (row.some((c4) => c4.trim())) rows.push(row);
+  }
+  return rows;
+}
+function truthyPrecioFlag(raw) {
+  if (!raw?.trim()) return null;
+  const v3 = raw.trim().toLowerCase();
+  if (/^(s[ií]|yes|true|1|x|con\s+precio)$/.test(v3)) return true;
+  if (/^(no|false|0|sin\s+precio|alejandro|cotizar)$/.test(v3)) return false;
+  return null;
+}
+function rowHasPriceValue(precio) {
+  return /\$|\/pp|\/\s*pp|mil|pesos|mxn|\d/.test(precio);
+}
+function parseSheetCatalogCsv(csvText) {
+  const matrix = parseCsvRows(csvText);
+  if (matrix.length < 2) return [];
+  const headers = matrix[0].map(normalizeHeader);
+  const idx = {};
+  let tienePrecioCol = null;
+  let catalogoRevisadoCol = null;
+  let precioMinimoCol = null;
+  let linkCatalogoCol = null;
+  let extrasCol = null;
+  headers.forEach((h4, i5) => {
+    if (h4 === "tiene_precio" || h4 === "tiene precio" || h4 === "con_precio" || h4 === "listed_price") {
+      tienePrecioCol = i5;
+      return;
+    }
+    if (h4 === "catalogo revisado" || h4 === "catalogo_revisado") {
+      catalogoRevisadoCol = i5;
+      return;
+    }
+    if (h4 === "precio minimo de salida" || h4 === "precio minimo") {
+      precioMinimoCol = i5;
+      return;
+    }
+    if (h4 === "link catalogo" || h4 === "link_catalogo" || h4 === "link") {
+      linkCatalogoCol = i5;
+      return;
+    }
+    if (h4 === "extras") {
+      extrasCol = i5;
+      return;
+    }
+    const mapped = HEADER_ALIASES[h4];
+    if (mapped && idx[mapped] === void 0) idx[mapped] = i5;
+  });
+  if (idx.servicio === void 0) return [];
+  const rows = [];
+  for (const line2 of matrix.slice(1)) {
+    const get = (key) => {
+      const col = idx[key];
+      return col === void 0 ? "" : (line2[col] ?? "").trim();
+    };
+    const servicioBase = get("servicio");
+    if (!servicioBase || /^#|comentario|ignore/i.test(servicioBase)) continue;
+    if (catalogoRevisadoCol !== null) {
+      const revisado = (line2[catalogoRevisadoCol] ?? "").trim().toLowerCase();
+      if (revisado === "false" || revisado === "no" || revisado === "0") continue;
+    }
+    const servicio = servicioBase;
+    const nivelVal = get("nivel");
+    const categoria = get("categoria") || deriveCatalogCategory(servicioBase);
+    const precio = get("precio");
+    const flag = tienePrecioCol !== null ? truthyPrecioFlag(line2[tienePrecioCol]) : null;
+    const tienePrecio = flag === true || flag === null && rowHasPriceValue(precio);
+    const notasParts = [];
+    const notasBase = get("notas");
+    if (notasBase) notasParts.push(notasBase);
+    if (precioMinimoCol !== null) {
+      const min = (line2[precioMinimoCol] ?? "").trim();
+      if (min) notasParts.push(`M\xEDnimo de salida: ${min}`);
+    }
+    let linkCatalogo;
+    if (linkCatalogoCol !== null) {
+      const link = (line2[linkCatalogoCol] ?? "").trim();
+      if (link && /^https?:\/\//i.test(link)) {
+        linkCatalogo = link;
+      }
+    }
+    if (extrasCol !== null) {
+      const extras = (line2[extrasCol] ?? "").trim();
+      if (extras) notasParts.push(`Extras: ${extras}`);
+    }
+    let unidad = get("unidad");
+    if (!unidad && /\$/.test(precio)) unidad = "/pp";
+    rows.push({
+      servicio,
+      nivel: nivelVal,
+      categoria,
+      precio,
+      unidad,
+      notas: notasParts.join(" | "),
+      tienePrecio,
+      sinonimos: get("sinonimos") || void 0,
+      linkCatalogo
+    });
+  }
+  return rows;
+}
+function sheetRowsToMarkdown(rows) {
+  if (!rows.length) return "";
+  const byCategory = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const cat = row.categoria || "Servicios";
+    if (!byCategory.has(cat)) byCategory.set(cat, []);
+    byCategory.get(cat).push(row);
+  }
+  const lines = [
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "CAT\xC1LOGO BODASESOR \u2014 GOOGLE SHEETS (fuente viva)",
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "",
+    "REGLA: Solo cita precios e inclusiones que aparecen en esta tabla. Si no hay precio o Incluye vac\xEDo \u2192 el equipo confirma en cotizaci\xF3n. NUNCA inventes bebidas, platillos ni marcas.",
+    "REGLA LINK WEB: Si una fila trae Link cat\xE1logo (bodasesor.com/catalogos/\u2026), SOLO env\xEDalo cuando el cliente lo pida. Un link a la vez. No inventes URLs.",
+    ""
+  ];
+  for (const [cat, items] of byCategory) {
+    lines.push(`## ${cat}`, "");
+    const byService = /* @__PURE__ */ new Map();
+    for (const item of items) {
+      const key = item.servicio;
+      if (!byService.has(key)) byService.set(key, []);
+      byService.get(key).push(item);
+    }
+    for (const [svc, levels] of byService) {
+      if (levels.length === 1) {
+        const item = levels[0];
+        const label = formatCatalogRowLabel(item);
+        if (item.tienePrecio && item.precio) {
+          const unit = item.unidad ? ` ${item.unidad}` : "";
+          lines.push(`\u2022 **${label}**: ${item.precio}${unit}`);
+        } else {
+          lines.push(`\u2022 **${label}**: sin precio listado \u2014 Alejandro cotiza`);
+        }
+        if (item.notas) {
+          const parsed = parseRowNotes(item.notas);
+          const clientNotes = [parsed.inclusion, parsed.minimo ? `M\xEDnimo de salida: ${parsed.minimo}` : ""].filter(Boolean).join(" | ");
+          if (clientNotes) lines.push(`  Incluye: ${clientNotes}`);
+        }
+        if (item.linkCatalogo) {
+          lines.push(`  Link cat\xE1logo (solo si lo piden): ${item.linkCatalogo}`);
+        }
+      } else {
+        lines.push(`\u2022 **${svc}** (${levels.length} niveles)`);
+        for (const item of levels.slice(0, 6)) {
+          const label = item.nivel || formatCatalogRowLabel(item);
+          if (item.tienePrecio && item.precio) {
+            const unit = item.unidad ? ` ${item.unidad}` : "";
+            lines.push(`  - ${label}: ${item.precio}${unit}`);
+          } else {
+            lines.push(`  - ${label}: sin precio listado \u2014 el equipo cotiza`);
+          }
+          if (item.notas) {
+            const parsed = parseRowNotes(item.notas);
+            const bits = [
+              parsed.inclusion ? formatInclusionForWhatsApp(parsed.inclusion, 280) : "",
+              parsed.minimo ? `M\xEDn. salida: ${parsed.minimo}` : ""
+            ].filter(Boolean);
+            if (bits.length) lines.push(`    Incluye: ${bits.join(" | ")}`);
+          }
+        }
+        const link = levels.find((l5) => l5.linkCatalogo)?.linkCatalogo;
+        if (link) lines.push(`  Link cat\xE1logo (solo si lo piden): ${link}`);
+      }
+    }
+    lines.push("");
+  }
+  return lines.join("\n").trim();
+}
+function formatInclusionForWhatsApp(text2, maxLen = 420) {
+  let cleaned = text2.replace(/\s+/g, " ").replace(/ incluido\s+/gi, ". ").replace(/ servicio base incluye:/gi, " Incluye:").replace(/([a-záéíóúñ])([A-ZÁÉÍÓÚ])/g, "$1. $2").trim();
+  if (cleaned.length > maxLen) {
+    cleaned = `${cleaned.slice(0, maxLen - 1).trim()}\u2026`;
+  }
+  return cleaned;
+}
+function parseRowNotes(notas) {
+  const result = { inclusion: "", minimo: "", gammaLink: "", extras: "" };
+  if (!notas?.trim()) return result;
+  for (const part of notas.split("|").map((s6) => s6.trim())) {
+    if (!part) continue;
+    if (/^cat[aá]logo:\s*https?:/i.test(part)) {
+      result.gammaLink = part.replace(/^cat[aá]logo:\s*/i, "").trim();
+    } else if (/^m[ií]nimo de salida:/i.test(part)) {
+      result.minimo = part.replace(/^m[ií]nimo de salida:\s*/i, "").trim();
+    } else if (/^extras:/i.test(part)) {
+      result.extras = part.replace(/^extras:\s*/i, "").trim();
+    } else if (!result.inclusion) {
+      result.inclusion = formatInclusionForWhatsApp(part);
+    } else {
+      result.inclusion = formatInclusionForWhatsApp(`${result.inclusion} ${part}`);
+    }
+  }
+  if (result.extras) {
+    const extraText = formatInclusionForWhatsApp(result.extras, 180);
+    result.inclusion = result.inclusion ? `${result.inclusion} Extras: ${extraText}` : `Extras: ${extraText}`;
+  }
+  return result;
+}
+
+// src/services/catalogWebKnowledge.ts
+import { readFileSync as readFileSync2 } from "node:fs";
+import path3 from "node:path";
+import { fileURLToPath as fileURLToPath2 } from "node:url";
+var CATALOG_WEB_HUB = "https://bodasesor.com/catalogos";
+var embedsCache = null;
+var knowledgeCache = [];
+function embedsJsonPath() {
+  const here = path3.dirname(fileURLToPath2(import.meta.url));
+  const candidates = [
+    path3.resolve(here, "../../public/catalogos-light/embeds.json"),
+    path3.resolve(here, "../catalogos-light/embeds.json"),
+    path3.resolve(process.cwd(), "public/catalogos-light/embeds.json"),
+    path3.resolve(process.cwd(), "dist/catalogos-light/embeds.json")
+  ];
+  for (const p4 of candidates) {
+    try {
+      readFileSync2(p4, "utf8");
+      return p4;
+    } catch {
+    }
+  }
+  return candidates[0];
+}
+function extractGammaIdFromEmbed(embedSrc) {
+  const m5 = embedSrc.match(/gamma\.app\/embed\/([a-z0-9]+)/i);
+  return m5?.[1] ?? null;
+}
+function loadCatalogEmbeds() {
+  if (embedsCache) return embedsCache;
+  try {
+    const raw = readFileSync2(embedsJsonPath(), "utf8");
+    const parsed = JSON.parse(raw);
+    embedsCache = Object.entries(parsed).map(([slug, v3]) => {
+      const embedSrc = (v3.embedSrc ?? "").trim();
+      return {
+        slug,
+        title: (v3.title ?? slug).trim(),
+        embedSrc,
+        gammaId: extractGammaIdFromEmbed(embedSrc),
+        webUrl: `${CATALOG_WEB_HUB}/${slug}`
+      };
+    });
+  } catch {
+    embedsCache = [];
+  }
+  return embedsCache;
+}
+function resolveCatalogWebSlug(query) {
+  if (!query?.trim()) return null;
+  const t3 = query.trim().toLowerCase();
+  const urlMatch = t3.match(/bodasesor\.com\/catalogos\/([a-z0-9-]+)/i);
+  if (urlMatch?.[1]) return urlMatch[1];
+  if (/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(t3)) {
+    return null;
+  }
+  const aliases = [
+    // "mesas?" no debe matchear dentro de "centros de mesa" (ya filtrado arriba).
+    [/\b(mesas?\s*y\s*sillas?|sillas?|(?<!centros?\s+de\s+)mesas?|mobiliario|mobilairio)\b/i, "mesas-y-sillas"],
+    [/\b(salas?|periqueras?|lounge)\b/i, "salas-y-periqueras"],
+    [/\b(audio|iluminaci[oó]n|video|dj|sonido)\b/i, "audio-iluminacion-y-video"],
+    [/\bbanquetes?\b/i, "banquete-formal"]
+  ];
+  for (const [re3, slug] of aliases) {
+    if (re3.test(t3) && loadCatalogEmbeds().some((e3) => e3.slug === slug)) return slug;
+  }
+  const embeds = loadCatalogEmbeds();
+  const exact = embeds.find((e3) => e3.slug === t3.replace(/\s+/g, "-"));
+  if (exact) return exact.slug;
+  const norm2 = t3.normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, " ").trim();
+  let best = null;
+  for (const e3 of embeds) {
+    const titleNorm = e3.title.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, " ").trim();
+    const slugNorm = e3.slug.replace(/-/g, " ");
+    let score = 0;
+    if (norm2.includes(titleNorm) || titleNorm.includes(norm2)) score += 5;
+    if (norm2.includes(slugNorm) || slugNorm.includes(norm2)) score += 4;
+    for (const tok of norm2.split(" ").filter((w4) => w4.length > 3)) {
+      if (titleNorm.includes(tok) || slugNorm.includes(tok)) score += 1;
+    }
+    if (!best || score > best.score) best = { slug: e3.slug, score };
+  }
+  return best && best.score >= 4 ? best.slug : null;
+}
+function getCatalogWebUrlForQuery(query) {
+  const slug = resolveCatalogWebSlug(query);
+  return slug ? `${CATALOG_WEB_HUB}/${slug}` : null;
+}
+function getCatalogEmbed(slug) {
+  return loadCatalogEmbeds().find((e3) => e3.slug === slug) ?? null;
+}
+function getCatalogWebKnowledgeForQuery(query) {
+  const slug = resolveCatalogWebSlug(query);
+  if (!slug) return null;
+  return knowledgeCache.find((e3) => e3.slug === slug) ?? null;
+}
+function buildCatalogWebDetailHint(query) {
+  const entry = getCatalogWebKnowledgeForQuery(query) || (() => {
+    const slug = resolveCatalogWebSlug(query);
+    const embed = slug ? getCatalogEmbed(slug) : null;
+    if (!embed) return null;
+    return {
+      ...embed,
+      gammaTitle: "",
+      gammaDescription: ""
+    };
+  })();
+  if (!entry) return null;
+  const parts2 = [];
+  if (entry.gammaDescription) {
+    parts2.push(entry.gammaDescription.slice(0, 500));
+  }
+  parts2.push(
+    `El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: ${entry.webUrl}`
+  );
+  return parts2.join("\n");
+}
+
+// src/services/serviceProgressiveOffer.ts
+var SERVICE_NIVEL_DETAIL_CTA = "\xBFQuieres que te d\xE9 detalles de alguno?";
+function banqueteDetailQuery(text2) {
+  const tiempos4 = /\b(4\s*tiempos?|cuatro\s*tiempos?)\b/i.test(text2);
+  const tiempos3 = /\b(3\s*tiempos?|tres\s*tiempos?)\b/i.test(text2);
+  if (/\bkosher\b/i.test(text2)) {
+    if (/\bbuffet\b/i.test(text2)) return "Banquete Kosher Buffet";
+    if (tiempos4) return "Banquete Kosher 4 tiempos";
+    if (tiempos3) return "Banquete Kosher 3 tiempos";
+    return "Banquete Kosher";
+  }
+  if (/\bnavide/i.test(text2)) {
+    if (tiempos4) return "Banquete Navide\xF1o 4 tiempos";
+    if (tiempos3) return "Banquete Navide\xF1o 3 tiempos";
+    return "Banquete Navide\xF1o";
+  }
+  if (/\bmexicano\b/i.test(text2)) {
+    if (tiempos4) return "Banquete Mexicano 4 tiempos";
+    if (tiempos3) return "Banquete Mexicano 3 tiempos";
+    return "Banquete Mexicano";
+  }
+  if (/\bformal\b/i.test(text2)) {
+    if (tiempos4) return "Banquete Formal 4 tiempos";
+    if (tiempos3) return "Banquete Formal 3 tiempos";
+    return "Banquete Formal";
+  }
+  if (tiempos4) return "Banquete Formal 4 tiempos";
+  if (tiempos3) return "Banquete Formal 3 tiempos";
+  return "banquete";
+}
+var FAMILIES = [
+  {
+    family: "banquete",
+    // "catering" solo cuenta como banquete si NO hay SKU concreto (canapés, taquiza…).
+    // A15204: "Un catering/ canapés" debe ir a gastronomía, no a Banquete Formal.
+    familyPattern: /\bbanquetes?\b|(?:(?!.*\b(?:canap[eé]s?|bocadillos?|paellas?|pozole|taquiza|parrillada|pizzas?|pastas?|sushi|crepas?|coffee\s*break)\b).*\bcatering\b)/iu,
+    variantPattern: /\b(formal|mexicano|kosher|navide[nñ]o|buffet|\d\s*tiempos?|tres\s*tiempos?|cuatro\s*tiempos?|3\s*tiempos?|4\s*tiempos?)\b/i,
+    detailQueryFromText: banqueteDetailQuery,
+    buildMenu: () => [
+      "Claro. En *banquete* manejamos varias opciones:",
+      "\u2022 *Formal* (3 o 4 tiempos)",
+      "\u2022 *Mexicano* (3 o 4 tiempos)",
+      "\u2022 *Kosher* (3/4 tiempos o buffet)",
+      "\u2022 *Navide\xF1o* (3 o 4 tiempos)",
+      "",
+      SERVICE_NIVEL_DETAIL_CTA
+    ].join("\n")
+  },
+  {
+    family: "coffee_break",
+    familyPattern: /\bcoffee\s*break\b|\bcoffeebreak\b|\bcoffe\s*break\b/i,
+    variantPattern: /\b(?:coffee\s*break|coffe{1,2}e?\s*break)\s*[1-9]\b|\bnivel\s*[1-9]\b|\bopci[oó]n(?:es)?\s*[1-9]\b|\bpaquete\s*[1-9]\b|^(?:el\s+|la\s+)?[1-9]$/i,
+    detailQueryFromText: (text2) => {
+      const m5 = text2.match(/\b(?:coffee\s*break|coffe{1,2}e?\s*break)\s*([1-9])\b/i) || text2.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*([1-9])\b/i) || text2.match(/^(?:el\s+|la\s+)?([1-9])$/i);
+      if (m5) return `Coffee Break ${m5[1]}`;
+      if (/\b(ver|muestr|muéstr|dame|quiero)\b.{0,24}\bopciones?\b/i.test(text2)) {
+        return "Coffee Break";
+      }
+      return "Coffee Break";
+    },
+    buildMenu: () => [
+      "Claro. En *Coffee Break* manejamos estos paquetes (del m\xE1s esencial al m\xE1s completo):",
+      "1. *Coffee Break 1*",
+      "2. *Coffee Break 2*",
+      "3. *Coffee Break 3*",
+      "4. *Coffee Break 4*",
+      "5. *Coffee Break 5*",
+      "",
+      "El detalle de men\xFAs e inclusiones est\xE1 en el cat\xE1logo:",
+      "https://bodasesor.com/catalogos/coffee-break",
+      "",
+      SERVICE_NIVEL_DETAIL_CTA
+    ].join("\n")
+  },
+  {
+    family: "barra_sushi",
+    familyPattern: /\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i,
+    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
+    detailQueryFromText: (text2) => withCatalogNivelQuery("Barra de sushi", text2),
+    buildMenu: () => [
+      "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
+      "",
+      SERVICE_NIVEL_DETAIL_CTA
+    ].join("\n")
+  },
+  {
+    family: "barra_cafe",
+    familyPattern: /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcafeter[ií]a\b|\bbarista\b/iu,
+    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
+    detailQueryFromText: (text2) => withCatalogNivelQuery("Barra de Caf\xE9", text2),
+    buildMenu: () => [
+      "Claro. En *Barra de Caf\xE9* manejamos niveles con baristas y bebidas artesanales.",
+      "",
+      SERVICE_NIVEL_DETAIL_CTA
+    ].join("\n")
+  },
+  {
+    family: "barra_bebidas",
+    familyPattern: /\bbarra\s+(de\s+)?bebidas?\b|\bbebidas?\s+alcoh[oó]licas?\b|\bmixolog|\bcocteler|\bm[oó]cteles?\b/i,
+    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium|americana|yucateca|mixolog|cocteler|m[oó]cteles?|con\s+alcohol|sin\s+alcohol)\b/i,
+    detailQueryFromText: (text2) => {
+      if (/yucateca/i.test(text2)) return withCatalogNivelQuery("Barra Yucateca", text2);
+      if (/americana/i.test(text2)) return withCatalogNivelQuery("Barra Americana", text2);
+      if (/m[oó]cteles?/i.test(text2)) return "M\xF3cteles";
+      if (/mixolog|cocteler/i.test(text2)) return "Cocteler\xEDa y Mixolog\xEDa";
+      if (/con\s+alcohol/i.test(text2)) return "Barra de bebidas con Alcohol";
+      return withCatalogNivelQuery("Barra de bebidas", text2);
+    },
+    buildMenu: () => [
+      "Claro. En bebidas manejamos:",
+      "\u2022 *Barra de bebidas* (con o sin alcohol)",
+      "\u2022 *Barra Americana* / *Barra Yucateca*",
+      "\u2022 *Cocteler\xEDa / Mixolog\xEDa* y *M\xF3cteles*",
+      "",
+      SERVICE_NIVEL_DETAIL_CTA
+    ].join("\n")
+  },
+  {
+    family: "barra_alimentos",
+    familyPattern: /\bbarra\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarras?\s+tem[aá]ticas?\b/i,
+    variantPattern: /\b(pizzas?|pastas?|ensaladas?|crepas?|mariscos?|paninis?|americana|yucateca|solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
+    detailQueryFromText: (text2) => {
+      if (/pizza/i.test(text2)) return withCatalogNivelQuery("Barra de pizzas", text2);
+      if (/pasta|ensalada/i.test(text2)) {
+        return withCatalogNivelQuery("Barra de pastas y ensaladas", text2);
+      }
+      if (/crepa/i.test(text2)) return withCatalogNivelQuery("Barra de Crepas", text2);
+      if (/marisco/i.test(text2)) return withCatalogNivelQuery("Barra de mariscos", text2);
+      if (/panini/i.test(text2)) return withCatalogNivelQuery("Barra de paninis", text2);
+      if (/yucateca/i.test(text2)) return withCatalogNivelQuery("Barra Yucateca", text2);
+      if (/americana/i.test(text2)) return withCatalogNivelQuery("Barra Americana", text2);
+      return withCatalogNivelQuery("Barra de alimentos", text2);
+    },
+    buildMenu: () => [
+      "Claro. En barras de alimentos manejamos varias:",
+      "\u2022 Pizzas, pastas y ensaladas, crepas, mariscos, paninis",
+      "\u2022 Americana, Yucateca y m\xE1s",
+      "",
+      SERVICE_NIVEL_DETAIL_CTA
+    ].join("\n")
+  },
+  {
+    family: "taquiza",
+    familyPattern: /\btaquiza\b/i,
+    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
+    detailQueryFromText: (text2) => withCatalogNivelQuery("taquiza", text2),
+    buildMenu: () => [
+      "Claro. En *taquiza* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
+      "",
+      SERVICE_NIVEL_DETAIL_CTA
+    ].join("\n")
+  },
+  {
+    family: "parrillada",
+    familyPattern: /\bparrillada\b/i,
+    variantPattern: /\bargentina\b|\btacos?\b|\b(solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
+    detailQueryFromText: (text2) => {
+      if (/argentina/i.test(text2)) {
+        return withCatalogNivelQuery("Parrillada Argentina", text2);
+      }
+      if (/\btacos?\b/i.test(text2)) {
+        return withCatalogNivelQuery("Parrillada Tacos", text2);
+      }
+      return withCatalogNivelQuery("parrillada", text2);
+    },
+    buildMenu: () => [
+      "Claro. En *parrillada* tenemos *Parrillada Argentina* y *Parrillada Tacos*.",
+      "",
+      SERVICE_NIVEL_DETAIL_CTA
+    ].join("\n")
+  },
+  {
+    family: "cupcakes_betun",
+    familyPattern: /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})/iu,
+    variantPattern: /\b(cl[aá]sico|decorado|cupcakes?|bet[uú]n)\b/i,
+    detailQueryFromText: (text2) => {
+      if (/decorado/i.test(text2)) return "Bet\xFAn Decorado";
+      if (/cl[aá]sico|bet[uú]n/i.test(text2) && !/cupcake/i.test(text2)) return "Bet\xFAn Cl\xE1sico";
+      if (/cupcake/i.test(text2)) return "Cupcakes";
+      return "Cupcakes y Bet\xFAn";
+    },
+    buildMenu: () => [
+      "Claro. En *Cupcakes y Bet\xFAn* manejamos *Cupcakes*, *Bet\xFAn Cl\xE1sico* y *Bet\xFAn Decorado*.",
+      "",
+      SERVICE_NIVEL_DETAIL_CTA
+    ].join("\n")
+  },
+  {
+    family: "mesa_dulces",
+    familyPattern: /\bmesa\s+de\s+(dulces|postres|quesos)\b|\bcarrito\s+de\s+snacks?\b/i,
+    variantPattern: /\bmesa\s+de\s+(quesos|postres|dulces)\b|\bcarrito\s+de\s+snacks?\b/i,
+    detailQueryFromText: (text2) => {
+      if (/carrito/i.test(text2)) return "Carrito de Snacks";
+      if (/queso/i.test(text2)) return "Mesa de quesos";
+      if (/postre/i.test(text2)) return "Mesa de postres";
+      return "Mesa de dulces";
+    },
+    buildMenu: () => [
+      "Claro. En dulce manejamos *mesa de dulces*, *mesa de postres*, *mesa de quesos* y *carrito de snacks*.",
+      "",
+      SERVICE_NIVEL_DETAIL_CTA
+    ].join("\n")
+  },
+  {
+    family: "gastronomia",
+    familyPattern: /\bpaellas?\b|\bpozole|\bpuestos?\s+de\s+comida\b|\bantojitos?\b|\bcanap[eé]s?(?!\p{L})|\bbocadillos?\b|\bpaletas?|\bhelados?\b|\bcomida\s+corrida\b/iu,
+    variantPattern: /\b(paella|pozole|puestos?|antojitos?|canap|bocadillo|paleta|helado|comida\s+corrida)\b/i,
+    detailQueryFromText: (text2) => {
+      if (/paella/i.test(text2)) return "Paella";
+      if (/pozole/i.test(text2)) return "Pozole y Tostadas";
+      if (/puesto|antojito/i.test(text2)) return "Puestos de Comida";
+      if (/canap/i.test(text2)) return "Canap\xE9s";
+      if (/bocadillo/i.test(text2)) return "Bocadillos";
+      if (/paleta|helado/i.test(text2)) return "Paletas de Hielo y Helados";
+      if (/comida\s+corrida/i.test(text2)) return "Comida Corrida";
+      return "gastronom\xEDa";
+    },
+    buildMenu: () => [
+      "Claro. En gastronom\xEDa manejamos varias opciones:",
+      "\u2022 Paella, pozole y tostadas, puestos de comida",
+      "\u2022 Canap\xE9s, bocadillos, paletas/helados",
+      "\u2022 Comida corrida (corporativo)",
+      "",
+      SERVICE_NIVEL_DETAIL_CTA
+    ].join("\n")
+  },
+  {
+    family: "mobiliario",
+    // A15190: "centros de mesa" es floral/decorativo — no entra a familia mobiliario.
+    familyPattern: /^(?!.*\bcentros?\s+de\s+mesas?\b).*\b(?:mobiliario|periqueras?|salas?\s+lounge|mesas?\s+y\s+sillas?|renta\s+de\s+(?:mesas?|sillas?|mobiliario)|entelados?|colgantes?|vajillas?|barras?\s+de\s+mobiliario)\b/i,
+    // Pieza concreta (mesas/sillas/…) o modelo (Tiffany/Crossback…).
+    variantPattern: /\b(periqueras?|lounge|luxor|tiffany|crossback|imperial|ghost|wishbone|tolix|camila|antonella|basket|cabos|caroline|mar[ií]a|avant\s*garde|louis\s*xv|mariantonieta|manteler[ií]a|vajilla|sillas?|(?<!centros?\s+de\s)mesas?|picnic|bancos?|renta\s+de\s+mesas|entelado|colgante|wisteria)\b/i,
+    detailQueryFromText: (text2) => {
+      if (/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:de\s+)?mesas?\b|\bdecoraci[oó]n\s+de\s+mesas?\b/i.test(
+        text2
+      )) {
+        return "Centros de mesa";
+      }
+      if (/entelado|tela\s+(en\s+|de\s+|para\s+)?techo/i.test(text2)) {
+        return "Entelados para Techo";
+      }
+      if (/colgante|wisteria|a[eé]rea/i.test(text2)) return "Colgantes Premium";
+      if (/vajilla|cuberter|cristaler/i.test(text2)) return "Vajillas";
+      if (/periquera/i.test(text2)) return "periqueras";
+      if (/lounge|luxor/i.test(text2)) return "salas lounge";
+      if (/\bsillas?\b/i.test(text2)) return "sillas";
+      if (/(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)|picnic/i.test(
+        text2
+      )) {
+        return "mesas";
+      }
+      return "mobiliario";
+    },
+    buildMenu: () => [
+      "S\xED, contamos con *mobiliario*. \xBFQu\xE9 es lo que buscas?",
+      "\u2022 Mesas",
+      "\u2022 Sillas",
+      "\u2022 Periqueras",
+      "\u2022 Salas lounge",
+      "Tambi\xE9n manejamos vajillas, manteler\xEDa, entelados y colgantes.",
+      "",
+      "Dime qu\xE9 pieza te interesa y te paso modelos."
+    ].join("\n")
+  }
+];
+function fold2(s6) {
+  return s6.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+}
+function buildAlimentosModoMenu() {
+  return [
+    "Claro. Para *comida* del evento, \xBFqu\xE9 te gustar\xEDa?",
+    "\u2022 Un *banquete* m\xE1s formal (servicio a la mesa, varios tiempos)",
+    "\u2022 Algo m\xE1s *casual* tipo catering \u2014 por ejemplo: barra de pastas y ensaladas, barra de pizzas, taquiza, sushi\u2026",
+    "",
+    "Tambi\xE9n manejamos desayuno, brunch, canap\xE9s y otras estaciones. Dime qu\xE9 estilo te late y te paso el detalle."
+  ].join("\n");
+}
+function isAlimentosModoMenuReply(text2) {
+  if (!text2?.trim()) return false;
+  return (/banquete.*formal|formal.*banquete|algo m[aá]s \*?casual\*?\s+tipo\s+catering|\*banquete\*.*formal|casual.*catering/i.test(
+    text2
+  ) || /para \*comida\* del evento/i.test(text2)) && /barra de pastas|barra de pizzas|taquiza|sushi|desayuno|brunch|canap/i.test(text2);
+}
+function historyOfferedAlimentosModoMenu(history) {
+  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some((m5) => isAlimentosModoMenuReply(m5.content));
+}
+function clientChoseBanqueteFormal(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return false;
+  if (/\b(casual|barra\s+de|taquiza|pizza|pasta|sushi|pozole|panini|catering\s+casual)\b/i.test(t3) && !/\bbanquete\b|\bformal\b/i.test(t3)) {
+    return false;
+  }
+  return /\b(quiero|busco|prefiero|mejor|me\s+late|el|un|una)?\s*(banquete|formal)\b/i.test(t3) || /^(banquete|formal|el\s+banquete|m[aá]s\s+formal)[\s.!]*$/i.test(t3) || /\bbanquete\s+(formal|mexicano|kosher|navide)/i.test(t3);
+}
+function clientChoseCateringCasual(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return false;
+  if (/\bbanquete\b|\bformal\b/i.test(t3) && !/\bcasual\b|\bcatering\b|\bbarra\b|\btaquiza\b/i.test(t3)) {
+    return false;
+  }
+  return /\b(casual|catering|barra\s+de|taquiza|pizza|pastas?|sushi|pozole|paninis?|algo\s+m[aá]s\s+(ligero|informal|relajado))\b/i.test(
+    t3
+  ) || /^(casual|catering|m[aá]s\s+casual|algo\s+casual)[\s.!]*$/i.test(t3);
+}
+function buildCateringCasualMenu() {
+  return [
+    "Perfecto. En *catering* m\xE1s casual manejamos varias estaciones, por ejemplo:",
+    "\u2022 Barra de sushi",
+    "\u2022 Pozole y tostadas",
+    "\u2022 Barra de paninis",
+    "\u2022 Barra de pizzas / pastas y ensaladas",
+    "\u2022 Taquiza, parrillada y m\xE1s",
+    "",
+    "Si buscas algo especial, te paso el *cat\xE1logo general* para que veas todas las opciones.",
+    SERVICE_NIVEL_DETAIL_CTA
+  ].join("\n");
+}
+function isMobiliarioPieceMenuReply(text2) {
+  if (!text2?.trim()) return false;
+  return /contamos con \*mobiliario\*|en \*mobiliario\* manejamos/i.test(text2) && /\bmesas\b/i.test(text2) && /\bsillas\b/i.test(text2) && /qu[eé] es lo que buscas|qu[eé] pieza|dime qu[eé]/i.test(text2);
+}
+function historyOfferedMobiliarioPieceMenu(history) {
+  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some((m5) => isMobiliarioPieceMenuReply(m5.content));
+}
+function parseMobiliarioPieceChoice(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return null;
+  if (/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:de\s+)?mesas?\b|\bdecoraci[oó]n\s+de\s+mesas?\b|\bflores?\s+(?:para|en|de)\s+mesas?\b|\bmesa\s+de\s+(dulces|postres|quesos?|imperial)\b/i.test(
+    t3
+  )) {
+    return null;
+  }
+  if (/\b(periqueras?)\b/i.test(t3)) return "periqueras";
+  if (/\b(salas?\s+lounge|lounge)\b/i.test(t3)) return "salas lounge";
+  if (/\b(vajillas?|manteler[ií]a)\b/i.test(t3)) return "vajillas";
+  if (/\b(entelados?)\b/i.test(t3)) return "entelados";
+  if (/\b(colgantes?)\b/i.test(t3)) return "colgantes";
+  if (/\bsillas?\b/i.test(t3)) return "sillas";
+  if (/(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)|\bpicnic\b/i.test(t3)) {
+    return "mesas";
+  }
+  return null;
+}
+function buildSillasModelMenu() {
+  return [
+    "Claro. En *sillas* manejamos varios modelos; por ejemplo:",
+    "\u2022 *Tiffany* (cl\xE1sica / vers\xE1til)",
+    "\u2022 *Crossback* (r\xFAstico / vintage)",
+    "\u2022 *Ghost* (minimalista)",
+    "\u2022 *Camila*, *Tolix*, *Wishbone*, *Louis XV* y m\xE1s",
+    "",
+    "\xBFDe cu\xE1l te paso detalle, o te mando el *cat\xE1logo de mesas y sillas*?"
+  ].join("\n");
+}
+function isSillasModelMenuReply(text2) {
+  if (!text2?.trim()) return false;
+  return /en \*sillas\* manejamos|modelos.*sillas|sillas.*modelos/i.test(text2) && /tiffany/i.test(text2) && /crossback|ghost/i.test(text2);
+}
+function buildMesasModelMenu() {
+  return [
+    "Claro. En *mesas* manejamos varias l\xEDneas; por ejemplo:",
+    "\u2022 Mesas *Vintage* (blanco luminoso)",
+    "\u2022 Mesas *Caoba Natural*",
+    "\u2022 Mesas *M\xE1rmol*",
+    "\u2022 Mesas *picnic* / tablones y m\xE1s",
+    "",
+    "\xBFDe cu\xE1l te paso detalle, o te mando el *cat\xE1logo de mesas y sillas*?"
+  ].join("\n");
+}
+function buildMobiliarioPieceFollowUp(piece) {
+  const p4 = piece.toLowerCase();
+  if (p4 === "sillas") return buildSillasModelMenu();
+  if (p4 === "mesas") return buildMesasModelMenu();
+  if (p4 === "periqueras") {
+    return [
+      "Claro. En *periqueras* manejamos varios estilos y colores para barra o zona de pie.",
+      "",
+      "\xBFQuieres que te d\xE9 detalles o te paso el cat\xE1logo de salas y periqueras?"
+    ].join("\n");
+  }
+  if (p4 === "salas lounge") {
+    return [
+      "Claro. En *salas lounge* manejamos varios sets (Vintage Capitoneada, Black Trendy, Luxor y m\xE1s).",
+      "",
+      "\xBFQuieres que te d\xE9 detalles de alguno o te paso el cat\xE1logo?"
+    ].join("\n");
+  }
+  return [
+    `Claro. Anoto *${piece}*.`,
+    "",
+    SERVICE_NIVEL_DETAIL_CTA
+  ].join("\n");
+}
+function catalogNivelLabelFromText(text2) {
+  const t3 = fold2(text2 ?? "");
+  if (!t3) return null;
+  if (/\bsolo\s+alimentos?\b/.test(t3)) return "Solo Alimentos";
+  if (/\bservicio\s+completo\b/.test(t3)) return "Servicio completo";
+  if (/\bpor\s+pieza\b/.test(t3)) return "Por pieza";
+  if (/\btradicional\b/.test(t3)) return "Tradicional";
+  if (/\bpremium\b/.test(t3)) return "Premium";
+  if (/\bbasic[ao]\b/.test(t3)) return "Basico";
+  return null;
+}
+function withCatalogNivelQuery(baseService, text2) {
+  const base = baseService.trim();
+  const nivel = catalogNivelLabelFromText(text2);
+  if (!nivel) return base;
+  if (new RegExp(`\\b${nivel.replace(/\s+/g, "\\s+")}\\b`, "i").test(base)) return base;
+  return `${base} ${nivel}`;
+}
+function isProgressiveOptionsMenuReply(text2) {
+  if (!text2?.trim()) return false;
+  const t3 = text2;
+  if (isAlimentosModoMenuReply(t3) || isMobiliarioPieceMenuReply(t3) || isSillasModelMenuReply(t3)) {
+    return true;
+  }
+  if (/claro\.\s*en\s+\*|claro\.\s*en\s+(bebidas|barras|dulce|gastronom)/i.test(t3) || /opciones principales|¿Cu[aá]l estilo te late|s[ií],?\s+contamos con \*mobiliario\*/i.test(t3) || /manejamos estos paquetes|coffee\s*break\s*1[\s\S]{0,120}coffee\s*break\s*5/i.test(t3)) {
+    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos|qu[eé] es lo que buscas|dime qu[eé] pieza|modelos|catalogos\/coffee-break|cat[aá]logo/i.test(
+      t3
+    );
+  }
+  return false;
+}
+function historyOfferedServiceOptionsMenu(history) {
+  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some((m5) => isProgressiveOptionsMenuReply(m5.content));
+}
+var FAMILY_ALL_DETAIL_QUERIES = {
+  banquete: [
+    "Banquete Formal 3 tiempos",
+    "Banquete Formal 4 tiempos",
+    "Banquete Mexicano 3 tiempos",
+    "Banquete Mexicano 4 tiempos",
+    "Banquete Kosher 3 tiempos",
+    "Banquete Kosher 4 tiempos",
+    "Banquete Kosher Buffet",
+    "Banquete Navide\xF1o 3 tiempos",
+    "Banquete Navide\xF1o 4 tiempos"
+  ],
+  coffee_break: ["Coffee Break"],
+  barra_bebidas: [
+    "Barra de bebidas",
+    "Barra Americana",
+    "Barra Yucateca",
+    "M\xF3cteles",
+    "Cocteler\xEDa y Mixolog\xEDa"
+  ],
+  barra_alimentos: [
+    "Barra de pizzas",
+    "Barra de pastas y ensaladas",
+    "Barra de Crepas",
+    "Barra de mariscos",
+    "Barra de paninis"
+  ],
+  barra_cafe: ["Barra de Caf\xE9"],
+  barra_sushi: ["Barra de sushi"],
+  taquiza: ["taquiza"],
+  parrillada: ["Parrillada Argentina", "Parrillada Tacos"],
+  mesa_dulces: ["Mesa de dulces", "Mesa de postres", "Mesa de quesos", "Carrito de Snacks"],
+  cupcakes_betun: ["Cupcakes", "Bet\xFAn Cl\xE1sico", "Bet\xFAn Decorado"],
+  gastronomia: [
+    "Paella",
+    "Pozole y Tostadas",
+    "Puestos de Comida",
+    "Canap\xE9s",
+    "Bocadillos",
+    "Paletas de Hielo y Helados",
+    "Comida Corrida"
+  ],
+  mobiliario: [
+    "mesas y sillas",
+    "salas lounge",
+    "periqueras",
+    "Entelados para Techo",
+    "Colgantes Premium",
+    "Vajillas"
+  ]
+};
+function progressiveFamilyDetailQueries(family) {
+  return FAMILY_ALL_DETAIL_QUERIES[family] ?? [family];
+}
+function isBareProgressiveAffirmation(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return false;
+  return /^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas|el\s+detalle|detallame|detállame|m[aá]ndame\s+(la\s+)?info|dame\s+(la\s+)?info|quiero\s+(ver\s+)?(el\s+)?detalle)[\s.!]*$/i.test(
+    t3
+  );
+}
+function clientWantsServiceDetail(text2, history) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return false;
+  const n4 = fold2(t3);
+  if (/^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas|el\s+detalle|detallame|detállame|m[aá]ndame\s+(la\s+)?info|dame\s+(la\s+)?info|quiero\s+(ver\s+)?(el\s+)?detalle)[\s.!]*$/i.test(
+    t3
+  )) {
+    return !!(history && historyOfferedServiceOptionsMenu(history));
+  }
+  if (/\b(quiero|necesito|me\s+gustar[ií]a|puedes?|me\s+puedes?)\b.{0,30}\b(ver|verlas|conocer)\b.{0,20}\b(las\s+)?opciones?\b/i.test(
+    t3
+  ) || /^(ver|muestra|muéstra|muestrame|muéstrame|dame|pasa|manda)\s+(las\s+)?opciones?\b/i.test(t3) || /^las\s+opciones?\b/i.test(t3)) {
+    return !!(history && historyOfferedServiceOptionsMenu(history));
+  }
+  if (/\b(dame|pasa|manda|quiero|necesito|me\s+interes[ao])\b.{0,40}\b(detalle|info|informaci[oó]n|precios?|incluye|inclusiones)\b/i.test(
+    t3
+  )) {
+    return true;
+  }
+  for (const fam of FAMILIES) {
+    if (fam.variantPattern.test(t3) && fam.familyPattern.test(t3 + " " + (history ? "" : ""))) {
+      return true;
+    }
+    if (history && historyOfferedServiceOptionsMenu(history) && fam.variantPattern.test(t3)) {
+      return true;
+    }
+  }
+  if (history && historyOfferedServiceOptionsMenu(history)) {
+    if (/\b(formal|mexicano|kosher|navide|3\s*tiempos|4\s*tiempos|tres|cuatro|led|iluminada|pintada|vinil|logo|charol|madera|premium|b[aá]sic|tradicional|solo\s+alimentos|opci[oó]n(?:es)?\s*[1-9]|paquete\s*[1-9]|nivel\s*[1-9]|(?:el\s+|la\s+)?[1-9])\b/i.test(
+      t3
+    ) || /^(?:el\s+|la\s+)?[1-9]$/i.test(t3)) {
+      return true;
+    }
+  }
+  return false;
+}
+function detectProgressiveFamily(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return null;
+  const matches = FAMILIES.filter((fam) => fam.familyPattern.test(t3));
+  if (!matches.length) return null;
+  if (matches.length === 1) return matches[0].family;
+  const withVariant = matches.filter((fam) => fam.variantPattern.test(t3));
+  if (withVariant.length === 1) return withVariant[0].family;
+  if (withVariant.length > 1) {
+    const nonBanquete = withVariant.filter((f6) => f6.family !== "banquete");
+    return (nonBanquete[0] ?? withVariant[0]).family;
+  }
+  if (/\bcatering\b/i.test(t3) && !/\bbanquetes?\b/i.test(t3)) {
+    const other = matches.find((f6) => f6.family !== "banquete");
+    if (other) return other.family;
+  }
+  return matches[0].family;
+}
+function defFor(family) {
+  return FAMILIES.find((f6) => f6.family === family);
+}
+function hasConcreteServiceVariant(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return false;
+  for (const fam of FAMILIES) {
+    if (fam.familyPattern.test(t3) && fam.variantPattern.test(t3)) return true;
+  }
+  return false;
+}
+function buildProgressiveOptionsMenu(family, hint) {
+  return defFor(family).buildMenu(hint);
+}
+function resolveDetailQueryForFamily(family, text2) {
+  return defFor(family).detailQueryFromText(text2);
+}
+function shouldOfferOptionsBeforeDetail(opts) {
+  const msg = opts.currentMessage?.trim() ?? "";
+  const blob = `${msg} ${opts.serviceHint ?? ""}`.trim();
+  if (!blob) return null;
+  if (/\b(incluye|inclue|incluyen|trae|tiene|tienen|viene|vienen)\b.{0,48}\b(bebidas?|refrescos?|meseros?|vajilla|cristaler[ií]a|alcohol|montaje|chef)\b/i.test(
+    msg
+  ) || /\bsi\b.{0,40}\bincluye\b.{0,40}\b(bebidas?|meseros?|vajilla)\b/i.test(msg) || clientAsksForCatalog(msg) || /\b(fotos?|fotograf|iluminaci|cuenta\s+con\s+luz|mesas?\s+por\s+carpa|c+t?a+l+[oó]+g+)/i.test(
+    msg
+  ) || /\?|¿/.test(msg) && /\b(carpa|toldo|luz|mesas?|sillas?|incluye|cuenta|cu[aá]ntas?)\b/i.test(msg)) {
+    return null;
+  }
+  const lastAsst = [...opts.history].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
+  const lastAsstText = lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : "";
+  if (/cu[aá]l\s+nivel|qu[eé]\s+nivel|nivel\s+(prefieres|te\s+interes)|niveles disponibles|qu[eé]\s+incluye\s+cada/i.test(
+    lastAsstText
+  )) {
+    return null;
+  }
+  const family = detectProgressiveFamily(msg) || detectProgressiveFamily(opts.serviceHint) || detectProgressiveFamily(blob);
+  if (!family) return null;
+  if (family === "banquete" && !/\bbanquetes?\b/i.test(msg) && !hasConcreteServiceVariant(msg) && !/\b(formal|mexicano|kosher|navide|\d\s*tiempos)\b/i.test(msg) && (/banquete\s*\/\s*taquiza/i.test(opts.serviceHint ?? "") || /\b(comidas?|alimentos?|catering)\b/i.test(msg) || /^(alimentos?|comidas?)$/i.test((opts.serviceHint ?? "").trim()))) {
+    return null;
+  }
+  const hintHasMultipleFamilies = (() => {
+    const hint = opts.serviceHint?.trim() ?? "";
+    if (!hint || !/,| y /.test(hint)) return false;
+    const families = new Set(
+      hint.split(/,|\by\b/i).map((p4) => detectProgressiveFamily(p4.trim())).filter(Boolean)
+    );
+    return families.size >= 2;
+  })();
+  if (hintHasMultipleFamilies && !detectProgressiveFamily(msg)) {
+    return null;
+  }
+  const famDef = defFor(family);
+  const hasVariantNow = hasConcreteServiceVariant(msg) || famDef.variantPattern.test(msg) || /\b(b[aá]sic[oa]|tradicional|premium|solo\s+alimentos)\b/i.test(msg);
+  if (hasVariantNow) {
+    return null;
+  }
+  if (family === "banquete" && /\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b/i.test(
+    msg
+  ) && !/\b(formal|mexicano|kosher|navide|\d\s*tiempos)\b/i.test(msg)) {
+    return null;
+  }
+  if (historyOfferedServiceOptionsMenu(opts.history) && clientWantsServiceDetail(msg, opts.history)) {
+    return null;
+  }
+  if (/^(si|sí)(?:\s|$|[.!,])/i.test(msg) && famDef.familyPattern.test(msg) && !/\b(detalle|info|informaci[oó]n|precio|incluye|opciones|cotiz)/i.test(msg) && (detectProgressiveFamily(opts.serviceHint) === family || opts.serviceHint && famDef.familyPattern.test(opts.serviceHint))) {
+    return null;
+  }
+  if (historyOfferedServiceOptionsMenu(opts.history) && msg.length < 80) {
+    const msgFamily = detectProgressiveFamily(msg);
+    const hintFamily = detectProgressiveFamily(opts.serviceHint);
+    const menuWasOtherFamily = !!msgFamily && !!hintFamily && msgFamily !== hintFamily;
+    if (menuWasOtherFamily) {
+      return { family: msgFamily, menu: buildProgressiveOptionsMenu(msgFamily) };
+    }
+    if (!msgFamily || msgFamily === family) {
+      return {
+        family,
+        menu: SERVICE_NIVEL_DETAIL_CTA
+      };
+    }
+  }
+  if (historyOfferedServiceOptionsMenu(opts.history)) return null;
+  return { family, menu: buildProgressiveOptionsMenu(family, opts.serviceHint) };
+}
+function resolveProgressiveDetailQuery(opts) {
+  const msg = opts.currentMessage?.trim() ?? "";
+  const hint = opts.serviceHint?.trim() ?? "";
+  const userBlob = [
+    ...opts.history.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content).slice(-6),
+    msg,
+    hint
+  ].filter(Boolean).join(" ");
+  const concreteFam = FAMILIES.find(
+    (f6) => f6.familyPattern.test(msg) && f6.variantPattern.test(msg)
+  );
+  const family = concreteFam?.family || detectProgressiveFamily(msg) || detectProgressiveFamily(hint) || detectProgressiveFamily(userBlob);
+  if (!family) return null;
+  if (hasConcreteServiceVariant(msg) || concreteFam) {
+    return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
+  }
+  if (clientWantsServiceDetail(msg, opts.history)) {
+    const def = defFor(family);
+    if (/^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas)[\s.!]*$/i.test(
+      msg
+    ) && !def.variantPattern.test(msg)) {
+      return null;
+    }
+    if (def.variantPattern.test(msg) || def.familyPattern.test(msg)) {
+      return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
+    }
+    if (historyOfferedServiceOptionsMenu(opts.history) && def.variantPattern.test(msg)) {
+      return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
+    }
+    if (historyOfferedServiceOptionsMenu(opts.history) && /\b(formal|mexicano|kosher|navide|\d\s*tiempos|tres|cuatro|coffee\s*break\s*[1-9]|b[aá]sic|tradicional|premium|solo\s+alimentos)\b/i.test(
+      msg
+    )) {
+      return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
+    }
+  }
+  return null;
+}
+
 // src/services/concreteProductQuestion.ts
 var CATALOG_WORD_RE = /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b/i;
 function isCentrosDeMesaFloral(text2) {
@@ -134656,6 +134817,15 @@ function applyLucyMessageGuards(input) {
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
   syncFilledFromExtracted(filledSet, extracted);
+  if (extracted.direccion_evento) {
+    if (looksLikeThemeColorNotLocation(extracted.direccion_evento)) {
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/direcci\xF3n del evento");
+    } else {
+      const cleanedZona = stripThemeColorsFromZona(extracted.direccion_evento);
+      if (cleanedZona) extracted.direccion_evento = cleanedZona;
+    }
+  }
   applyInvitadosWaiver(
     filledSet,
     [],
@@ -134896,6 +135066,39 @@ ${nextQ}` : ack;
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
     );
   }
+  {
+    const recentUserForDecline = collectUserTexts(presHistory, void 0).slice(-4);
+    const declineFamilies = clientDeclinesServiceFamiliesWithContext(
+      currentMessage,
+      recentUserForDecline
+    );
+    if (!cierreYaEnviado && currentMessage?.trim() && declineFamilies.length > 0) {
+      extracted.requerimientos_evento = removeDeclinedFamiliesFromRequirements(
+        extracted.requerimientos_evento,
+        declineFamilies
+      );
+      const afterRaw = mergeServiceRequirements(
+        extracted.requerimientos_evento,
+        clientCaptionForServiceParse(currentMessage) || currentMessage,
+        6
+      );
+      const after = removeDeclinedFamiliesFromRequirements(afterRaw, declineFamilies);
+      extracted.requerimientos_evento = after;
+      if (after) filledSet.add("Requerimientos o servicios");
+      else filledSet.delete("Requerimientos o servicios");
+      const ack = buildServiceDeclineAck(declineFamilies);
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : pending === "requerimientos" ? "\xBFQu\xE9 m\xE1s te gustar\xEDa incluir en la cotizaci\xF3n (sin alimentos, si as\xED lo prefieres)?" : null;
+      log?.info(
+        { entityId, families: declineFamilies },
+        "GUARD: A15295 \u2014 declina familia de servicio (return temprano)"
+      );
+      return normalizeAdvisorReferences(
+        nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
   if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
     if (clientAsksPrice(currentMessage)) {
     } else {
@@ -135064,12 +135267,36 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
   }
   const reqBeforeServiceMerge = extracted.requerimientos_evento?.trim() ?? "";
   const captionForServices = clientCaptionForServiceParse(currentMessage);
+  const declinedFamilies = clientDeclinesServiceFamiliesWithContext(
+    captionForServices || currentMessage,
+    collectUserTexts(presHistory, void 0).slice(-4)
+  );
+  if (declinedFamilies.length > 0) {
+    extracted.requerimientos_evento = removeDeclinedFamiliesFromRequirements(
+      extracted.requerimientos_evento,
+      declinedFamilies
+    );
+    if (!extracted.requerimientos_evento?.trim()) {
+      filledSet.delete("Requerimientos o servicios");
+    }
+  }
+  if (extracted.direccion_evento) {
+    if (looksLikeThemeColorNotLocation(extracted.direccion_evento)) {
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/direcci\xF3n del evento");
+    } else {
+      const cleanedZona = stripThemeColorsFromZona(extracted.direccion_evento);
+      if (cleanedZona && cleanedZona !== extracted.direccion_evento) {
+        extracted.direccion_evento = cleanedZona;
+      }
+    }
+  }
   const userBlobForServices = collectUserTexts(presHistory, currentMessage).map((t3) => clientCaptionForServiceParse(t3)).join(" ");
   const servicesFromCurrentMessage = parseServicesFromText(captionForServices);
   const servicesFromTurn = parseServicesFromText(
     `${captionForServices} ${userBlobForServices}`
   );
-  if (servicesFromTurn.length > 0 && !isVagueFoodTerm(captionForServices || currentMessage)) {
+  if (servicesFromTurn.length > 0 && !isVagueFoodTerm(captionForServices || currentMessage) && declinedFamilies.length === 0 && !clientDeclinesAnyService(captionForServices || currentMessage)) {
     const mergeMax = isRichQuoteBrief(captionForServices || currentMessage) || servicesFromTurn.length >= 4 ? 8 : 6;
     const mergedReq = mergeServiceRequirements(
       extracted.requerimientos_evento,
@@ -135080,6 +135307,19 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
       extracted.requerimientos_evento = mergedReq;
       filledSet.add("Requerimientos o servicios");
     }
+  } else if (declinedFamilies.length > 0 && captionForServices?.trim()) {
+    const strippedRaw = mergeServiceRequirements(
+      reqBeforeServiceMerge,
+      captionForServices,
+      6
+    );
+    const stripped = removeDeclinedFamiliesFromRequirements(
+      strippedRaw,
+      declinedFamilies
+    );
+    extracted.requerimientos_evento = stripped;
+    if (stripped) filledSet.add("Requerimientos o servicios");
+    else filledSet.delete("Requerimientos o servicios");
   }
   if (clientWantsFoodOnlyQuote(currentMessage)) {
     const isVagueFoodLabel = (s6) => !!s6 && /^(Comida|Alimentos)$/i.test(s6.trim());
@@ -135554,7 +135794,7 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
         "GUARD: brief multi-servicio \u2014 lista completa + cat\xE1logo"
       );
     }
-  } else if (allowSalesReplyOverride && isVagueFoodTerm(currentMessage) && !clientAsksForRecommendations(currentMessage) && // A15212: si ya hay SKU concreto (Puestos/Banquete/…), no reabrir banquete/taquiza/brunch.
+  } else if (allowSalesReplyOverride && isVagueFoodTerm(currentMessage) && !clientDeclinesAnyService(currentMessage) && !clientAsksForRecommendations(currentMessage) && // A15212: si ya hay SKU concreto (Puestos/Banquete/…), no reabrir banquete/taquiza/brunch.
   !preferPrimaryCatalogService(
     parseServicesFromText(extracted.requerimientos_evento ?? "")
   )?.match(
@@ -137785,6 +138025,15 @@ No vuelques niveles de cada SKU salvo que pidan detalle de uno.
 - Robots LED, batucada, shows = ENTRETENIMIENTO. No respondas con banquete.
 - Precio distribuidor / mayoreo \u2192 el equipo cotiza; no des precio de lista.
 
+### Declinar / quitar un servicio (cr\xEDtico \u2014 A15295)
+Si el cliente dice que NO quiere algo, que lo quiten, o que \xE9l lo trae/pone
+("no quiero alimentos", "qu\xEDtale la comida", "yo les voy a dar pizza", typos
+como "comoda"):
+- NUNCA lo anotes ni digas "anoto Alimentos/Pizzas/\u2026".
+- NUNCA mandes cat\xE1logo ni precios de eso que est\xE1 rechazando.
+- Confirma que lo QUITAS de la cotizaci\xF3n y sigue con el siguiente dato del embudo.
+- Colores de tem\xE1tica de una foto (ej. "rojo y negro") NO son la ubicaci\xF3n.
+
 ===================================================================
 ## 7. UBICACI\xD3N / COBERTURA
 ===================================================================
@@ -138476,7 +138725,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.19";
+var LUCY_PROMPT_VERSION = "V9.20";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -147073,6 +147322,119 @@ ${golfText}`,
         `[${caption}] req=${extracted.requerimientos_evento}`
       );
     }
+  });
+  await test("141. A15295 \u2014 no quiero comida / qu\xEDtale / typo comoda \u2192 quita Alimentos+Pizzas", () => {
+    assert2.ok(
+      clientDeclinesServiceFamilies(
+        "Peor qu\xEDtale la comida por qu\xE9 les voy a dar pizza"
+      ).includes("alimentos")
+    );
+    assert2.ok(clientDeclinesServiceFamilies("Que no quiero alimentos").includes("alimentos"));
+    assert2.ok(clientDeclinesServiceFamilies("No pero no quiero comoda").includes("alimentos"));
+    assert2.ok(
+      clientDeclinesServiceFamiliesWithContext("Comida", [
+        "No pero no quiero comoda"
+      ]).includes("alimentos")
+    );
+    assert2.ok(
+      clientDeclinesServiceFamilies("Por qu\xE9 yo ya les voy a dar").includes("alimentos")
+    );
+    const stripped = removeDeclinedFamiliesFromRequirements(
+      "Mesa de dulces, Decoraci\xF3n, Pizzas, Alimentos",
+      ["alimentos"]
+    );
+    assert2.ok(stripped && !/alimento|pizza/i.test(stripped), stripped);
+    assert2.ok(/dulces|decoraci/i.test(stripped), stripped);
+    assert2.ok(looksLikeThemeColorNotLocation("rojo y negro"));
+    assert2.equal(
+      stripThemeColorsFromZona("Estado de M\xE9xico, rojo y negro"),
+      "Estado de M\xE9xico"
+    );
+    const extracted = emptyExtracted({
+      nombre: "Catalina",
+      tipo_evento: "cumplea\xF1os",
+      requerimientos_evento: "Mesa de dulces, Decoraci\xF3n, Pizzas, Alimentos",
+      fecha_horario: "25 de agosto",
+      direccion_evento: "Estado de M\xE9xico, rojo y negro"
+    });
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Fecha y horario",
+      "Lugar/direcci\xF3n del evento"
+    ]);
+    const live = runGuards({
+      aiResponse: "\xA1Claro! *Alimentos* la anoto para tu cotizaci\xF3n. Seg\xFAn el cat\xE1logo que ya tenemos de *Barra de pizzas Bodasesor*: Tradicional $250...",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Que no quiero alimentos",
+      history: [
+        { role: "user", content: "El cumplea\xF1os de mi nena" },
+        {
+          role: "assistant",
+          content: "Con gusto te apoyo. \xBFQu\xE9 te gustar\xEDa revisar primero?"
+        },
+        {
+          role: "user",
+          content: "Peor qu\xEDtale la comida por qu\xE9 les voy a dar pizza"
+        },
+        {
+          role: "assistant",
+          content: "Seg\xFAn el cat\xE1logo de Barra de pizzas..."
+        }
+      ]
+    });
+    assert2.ok(
+      /no\s+incluimos|no\s+incluyo|\*no\*/i.test(live),
+      `ack decline: ${live.slice(0, 300)}`
+    );
+    assert2.ok(
+      !/Según el catálogo|Barra de pizzas|anoto Alimentos|anoto \*Alimentos/i.test(live),
+      `no dump/re-anotar: ${live.slice(0, 350)}`
+    );
+    assert2.ok(
+      !/alimento|pizza/i.test(extracted.requerimientos_evento ?? ""),
+      `CRM limpio: ${extracted.requerimientos_evento}`
+    );
+    assert2.ok(
+      !/rojo|negro/i.test(extracted.direccion_evento ?? ""),
+      `zona sin colores: ${extracted.direccion_evento}`
+    );
+    assert2.ok(
+      mensajeAsksForField(live, "correo") || /correo/i.test(live),
+      `sigue embudo (correo): ${live.slice(0, 300)}`
+    );
+    const ex2 = emptyExtracted({
+      nombre: "Catalina",
+      tipo_evento: "cumplea\xF1os",
+      requerimientos_evento: "Decoraci\xF3n, Alimentos",
+      fecha_horario: "25 de agosto",
+      direccion_evento: "Estado de M\xE9xico condado de Sayavedra"
+    });
+    const live2 = runGuards({
+      aiResponse: "Perfecto, anoto Alimentos.",
+      extracted: ex2,
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Fecha y horario",
+        "Lugar/direcci\xF3n del evento"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Comida",
+      history: [
+        { role: "user", content: "No pero no quiero comoda" },
+        { role: "assistant", content: "Perfecto, anoto Alimentos. \xBFCorreo?" }
+      ]
+    });
+    assert2.ok(
+      !/alimento|pizza/i.test(ex2.requerimientos_evento ?? ""),
+      `typo fix no re-anota: ${ex2.requerimientos_evento}`
+    );
+    assert2.ok(/no\s+incluimos|\*no\*/i.test(live2), live2.slice(0, 250));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

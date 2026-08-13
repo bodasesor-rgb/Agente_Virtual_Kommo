@@ -16,6 +16,13 @@ import {
 } from "./contact-name.js";
 import { filterClientEmail } from "./client-email.js";
 import { getAdvisorName, LEGACY_ADVISOR_NAMES } from "./lib/bodasesorAdvisor.js";
+import {
+  clientDeclinesServiceFamilies,
+  looksLikeThemeColorNotLocation,
+  removeDeclinedFamiliesFromRequirements,
+  serviceIsDeclined,
+  stripThemeColorsFromZona,
+} from "./services/serviceDecline.js";
 
 export type UnderstandingField =
   | "nombre"
@@ -704,6 +711,8 @@ function hasSpecificFoodService(text: string): boolean {
 export function isVagueFoodTerm(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
+  // A15295: "no quiero alimentos/comida" ≠ pedir menú vago.
+  if (clientDeclinesServiceFamilies(t).includes("alimentos")) return false;
   // A14964: "¿es solo café o tienes catering de comida?" → ofrecer ambas, no forzar banquete.
   if (clientAsksCafeOrCateringChoice(t)) return true;
   // Brief multi-tiempo (desayuno + comida + cena) no es vago.
@@ -1672,9 +1681,12 @@ export function isNonLocationBusinessPhrase(text: string | null | undefined): bo
     .trim();
   if (!cleaned) return true;
   if (JUNK_DIRECCION_PATTERN.test(cleaned)) return true;
-  // A14987: "en color blanco" ≠ ubicación del evento.
+  // A14987 / A15295: "en color blanco" / "rojo y negro" ≠ ubicación del evento.
   if (/^color(\s+\w+)?$/i.test(cleaned)) return true;
   if (/^(blanco|negro|dorado|plateado|natural|madera|rojo|azul|verde|rosa)$/i.test(cleaned)) {
+    return true;
+  }
+  if (looksLikeThemeColorNotLocation(cleaned) || looksLikeThemeColorNotLocation(t)) {
     return true;
   }
   // Exacto / casi exacto — no usar ^salón\b sobre "Salón Hacienda Los Olivos".
@@ -1800,6 +1812,8 @@ export function parseCentrosDeMesaRequirement(text: string | null | undefined): 
 export function parseServicesFromText(text: string): string[] {
   const found: string[] = [];
   const lower = text.toLowerCase();
+  // A15295: si declina una familia, no parsear esos SKUs del mismo mensaje.
+  const declined = clientDeclinesServiceFamilies(text);
 
   // "Comida" como tiempo de menú solo en briefs con varios servicios/tiempos.
   // Si el cliente dice solo "busco comida", sigue el alias banquete/taquiza.
@@ -1898,12 +1912,17 @@ export function parseServicesFromText(text: string): string[] {
   if (
     /\b(alimentos?|comidas?)\b/i.test(text) &&
     !clientAsksCafeOrCateringChoice(text) &&
+    !declined.includes("alimentos") &&
     !found.some((s) => /alimento|banquete|taquiza|catering|comida|barra\s+de\s+alimentos/i.test(s))
   ) {
     found.push("Alimentos");
   }
 
-  return dedupeServiceHierarchy([...new Set(found)], text);
+  const filtered =
+    declined.length > 0
+      ? found.filter((s) => !serviceIsDeclined(s, declined))
+      : found;
+  return dedupeServiceHierarchy([...new Set(filtered)], text);
 }
 
 /** Lista natural en español: "A, B y C". */
@@ -2086,15 +2105,28 @@ export function mergeServiceRequirements(
   text: string | null | undefined,
   max = 6
 ): string | null {
-  const fromExisting = existing?.trim() ? parseServicesFromText(existing) : [];
-  const fromText = text?.trim() ? parseServicesFromText(text) : [];
+  // A15295: declinar familia → quitar del CRM y no re-agregar desde el mismo texto.
+  const declined = clientDeclinesServiceFamilies(text);
+  const existingClean = declined.length
+    ? removeDeclinedFamiliesFromRequirements(existing, declined)
+    : existing;
+  const fromExisting = existingClean?.trim()
+    ? parseServicesFromText(existingClean).filter((s) => !serviceIsDeclined(s, declined))
+    : [];
+  const fromText = text?.trim()
+    ? parseServicesFromText(text).filter((s) => !serviceIsDeclined(s, declined))
+    : [];
   const merged = dedupeServiceHierarchy(
     [...fromExisting, ...fromText],
-    `${existing ?? ""} ${text ?? ""}`
+    `${existingClean ?? ""} ${text ?? ""}`
   ).slice(0, max);
   if (merged.length === 0) {
+    // Si solo declinó y no queda nada, devolver null (o lo limpio).
+    if (declined.length > 0) {
+      return existingClean?.trim() || null;
+    }
     // Nunca degradar a intención de cotización / saludo (A14924: "Quiero hacer una cotizacion").
-    const fallback = existing?.trim() || text?.trim() || "";
+    const fallback = existingClean?.trim() || text?.trim() || "";
     if (!fallback) return null;
     if (
       isGenericQuoteIntentRequerimiento(fallback) ||
@@ -2104,8 +2136,8 @@ export function mergeServiceRequirements(
       return null;
     }
     // Sin servicios parseados, solo conservar existing si ya era usable.
-    if (existing?.trim() && !isGenericQuoteIntentRequerimiento(existing)) {
-      return existing.trim().slice(0, 250);
+    if (existingClean?.trim() && !isGenericQuoteIntentRequerimiento(existingClean)) {
+      return existingClean.trim().slice(0, 250);
     }
     return null;
   }
@@ -2605,6 +2637,7 @@ export function isUsableDireccionEvento(value: string | null | undefined): boole
   if (isLikelyProductNameNotLocation(t)) return false;
   if (JUNK_DIRECCION_PATTERN.test(t)) return false;
   if (isNonLocationBusinessPhrase(t)) return false;
+  if (looksLikeThemeColorNotLocation(t)) return false;
   if (looksLikeDiscourseNotPlace(t)) return false;
   // A14995 Hortensia: "donde estan" / pregunta de sede ≠ ubicación del evento.
   if (looksLikeCompanyLocationQuestionFragment(t)) return false;
@@ -3083,8 +3116,14 @@ export function mergeZonaDetail(
   existing: string | null | undefined,
   incoming: string | null | undefined
 ): string | null {
-  const prev = existing?.trim() ?? "";
-  const next = incoming?.trim() ?? "";
+  const prevRaw = existing?.trim() ?? "";
+  const nextRaw = incoming?.trim() ?? "";
+  // A15295: no pegar "rojo y negro" (temática) a la zona.
+  if (looksLikeThemeColorNotLocation(nextRaw)) {
+    return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
+  }
+  const prev = stripThemeColorsFromZona(prevRaw) || prevRaw;
+  const next = stripThemeColorsFromZona(nextRaw) || nextRaw;
   if (!next) return prev || null;
   if (!prev) return next;
   if (prev.toLowerCase().includes(next.toLowerCase())) return prev;

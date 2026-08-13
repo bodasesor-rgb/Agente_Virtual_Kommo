@@ -111,6 +111,13 @@ import { finalizeLucyOutboundMessage } from "../lucyOutboundPipeline.js";
 import { buildGuardServiceAck } from "../services/serviceKnowledge.js";
 import { buildSillasModelMenu } from "../services/serviceProgressiveOffer.js";
 import {
+  clientDeclinesServiceFamilies,
+  clientDeclinesServiceFamiliesWithContext,
+  looksLikeThemeColorNotLocation,
+  removeDeclinedFamiliesFromRequirements,
+  stripThemeColorsFromZona,
+} from "../services/serviceDecline.js";
+import {
   buildConcreteProductQuestionReply,
   clientAsksAboutLighting,
   clientAsksCapacityLayout,
@@ -10062,6 +10069,128 @@ async function runAll(): Promise<void> {
         `[${caption}] req=${extracted.requerimientos_evento}`
       );
     }
+  });
+
+  // ─── 141. A15295 — declinar alimentos/comida (Catalina) ───
+  await test("141. A15295 — no quiero comida / quítale / typo comoda → quita Alimentos+Pizzas", () => {
+    assert.ok(
+      clientDeclinesServiceFamilies(
+        "Peor quítale la comida por qué les voy a dar pizza"
+      ).includes("alimentos")
+    );
+    assert.ok(clientDeclinesServiceFamilies("Que no quiero alimentos").includes("alimentos"));
+    assert.ok(clientDeclinesServiceFamilies("No pero no quiero comoda").includes("alimentos"));
+    assert.ok(
+      clientDeclinesServiceFamiliesWithContext("Comida", [
+        "No pero no quiero comoda",
+      ]).includes("alimentos")
+    );
+    assert.ok(
+      clientDeclinesServiceFamilies("Por qué yo ya les voy a dar").includes("alimentos")
+    );
+
+    const stripped = removeDeclinedFamiliesFromRequirements(
+      "Mesa de dulces, Decoración, Pizzas, Alimentos",
+      ["alimentos"]
+    );
+    assert.ok(stripped && !/alimento|pizza/i.test(stripped), stripped);
+    assert.ok(/dulces|decoraci/i.test(stripped!), stripped);
+
+    assert.ok(looksLikeThemeColorNotLocation("rojo y negro"));
+    assert.equal(
+      stripThemeColorsFromZona("Estado de México, rojo y negro"),
+      "Estado de México"
+    );
+
+    // Flujo: CRM ya tiene Alimentos+Pizzas por error → cliente declina → no dump pizza.
+    const extracted = emptyExtracted({
+      nombre: "Catalina",
+      tipo_evento: "cumpleaños",
+      requerimientos_evento: "Mesa de dulces, Decoración, Pizzas, Alimentos",
+      fecha_horario: "25 de agosto",
+      direccion_evento: "Estado de México, rojo y negro",
+    });
+    const filled = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Fecha y horario",
+      "Lugar/dirección del evento",
+    ]);
+    const live = runGuards({
+      aiResponse:
+        "¡Claro! *Alimentos* la anoto para tu cotización. Según el catálogo que ya tenemos de *Barra de pizzas Bodasesor*: Tradicional $250...",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Que no quiero alimentos",
+      history: [
+        { role: "user", content: "El cumpleaños de mi nena" },
+        {
+          role: "assistant",
+          content: "Con gusto te apoyo. ¿Qué te gustaría revisar primero?",
+        },
+        {
+          role: "user",
+          content: "Peor quítale la comida por qué les voy a dar pizza",
+        },
+        {
+          role: "assistant",
+          content: "Según el catálogo de Barra de pizzas...",
+        },
+      ],
+    });
+    assert.ok(
+      /no\s+incluimos|no\s+incluyo|\*no\*/i.test(live),
+      `ack decline: ${live.slice(0, 300)}`
+    );
+    assert.ok(
+      !/Según el catálogo|Barra de pizzas|anoto Alimentos|anoto \*Alimentos/i.test(live),
+      `no dump/re-anotar: ${live.slice(0, 350)}`
+    );
+    assert.ok(
+      !/alimento|pizza/i.test(extracted.requerimientos_evento ?? ""),
+      `CRM limpio: ${extracted.requerimientos_evento}`
+    );
+    assert.ok(
+      !/rojo|negro/i.test(extracted.direccion_evento ?? ""),
+      `zona sin colores: ${extracted.direccion_evento}`
+    );
+    assert.ok(
+      mensajeAsksForField(live, "correo") || /correo/i.test(live),
+      `sigue embudo (correo): ${live.slice(0, 300)}`
+    );
+
+    // Typo "comoda" + aclaración "Comida" no re-anota.
+    const ex2 = emptyExtracted({
+      nombre: "Catalina",
+      tipo_evento: "cumpleaños",
+      requerimientos_evento: "Decoración, Alimentos",
+      fecha_horario: "25 de agosto",
+      direccion_evento: "Estado de México condado de Sayavedra",
+    });
+    const live2 = runGuards({
+      aiResponse: "Perfecto, anoto Alimentos.",
+      extracted: ex2,
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Fecha y horario",
+        "Lugar/dirección del evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Comida",
+      history: [
+        { role: "user", content: "No pero no quiero comoda" },
+        { role: "assistant", content: "Perfecto, anoto Alimentos. ¿Correo?" },
+      ],
+    });
+    assert.ok(
+      !/alimento|pizza/i.test(ex2.requerimientos_evento ?? ""),
+      `typo fix no re-anota: ${ex2.requerimientos_evento}`
+    );
+    assert.ok(/no\s+incluimos|\*no\*/i.test(live2), live2.slice(0, 250));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

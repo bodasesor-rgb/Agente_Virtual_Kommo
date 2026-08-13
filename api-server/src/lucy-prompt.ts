@@ -1,4 +1,4 @@
-// PROMPT LUCY — V9.13 (chat natural WhatsApp; memoria; sin formulario)
+// PROMPT LUCY — V9.20 (chat natural WhatsApp; memoria; declinar servicios)
 // El bloque de catálogo/precios lo agrega catalogService vía buildDynamicPrompt.
 
 import { getAdvisorName, advisorLabelForClient } from "./lib/bodasesorAdvisor.js";
@@ -161,6 +161,15 @@ No vuelques niveles de cada SKU salvo que pidan detalle de uno.
 - Servicio fuera de lista → acéptalo, anótalo y avanza. Nunca "no lo tenemos".
 - Robots LED, batucada, shows = ENTRETENIMIENTO. No respondas con banquete.
 - Precio distribuidor / mayoreo → el equipo cotiza; no des precio de lista.
+
+### Declinar / quitar un servicio (crítico — A15295)
+Si el cliente dice que NO quiere algo, que lo quiten, o que él lo trae/pone
+("no quiero alimentos", "quítale la comida", "yo les voy a dar pizza", typos
+como "comoda"):
+- NUNCA lo anotes ni digas "anoto Alimentos/Pizzas/…".
+- NUNCA mandes catálogo ni precios de eso que está rechazando.
+- Confirma que lo QUITAS de la cotización y sigue con el siguiente dato del embudo.
+- Colores de temática de una foto (ej. "rojo y negro") NO son la ubicación.
 
 ===================================================================
 ## 7. UBICACIÓN / COBERTURA
