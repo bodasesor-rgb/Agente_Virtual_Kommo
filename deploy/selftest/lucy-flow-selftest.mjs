@@ -134925,6 +134925,19 @@ function clientAskedFreeformQuestion(message) {
 function responseLooksLikePrematureClose(mensaje) {
   return mensaje.includes(CLOSING_SIGNATURE) || /cotizaci[oó]n personalizada/i.test(mensaje) || /cdn\.shopify\.com/i.test(mensaje) || /cat[aá]logo completo/i.test(mensaje) || /ya tengo todos los datos/i.test(mensaje);
 }
+function looksLikeDeadEndAck(mensaje) {
+  const t3 = (mensaje || "").trim();
+  if (!t3) return true;
+  if (/\?/.test(t3)) return false;
+  if (/ya tengo todo|paso (estos )?datos|cotizaci[oó]n personalizada|nuestro equipo (ya )?(tiene|sigue)|si necesitas algo m[aá]s|con gusto te apoyo/i.test(
+    t3
+  )) {
+    return false;
+  }
+  return /\b(ya\s+lo\s+tengo\s+anotad[oa]?|lo\s+tengo\s+anotad[oa]?|ya\s+lo\s+anoto|ya\s+anot[eé]|ya\s+tengo\s+lo\s+principal|seguimos\s+con\s+lo\s+que\s+ya\s+platicamos)\b/i.test(
+    t3
+  ) || /^perfecto[^.!]*[.!]?\s*$/i.test(t3) && t3.length < 60;
+}
 var MINIMAL_SERVICE_PATTERN = /\b(solo\s+)?(mesas?\s+y\s+sillas?|sillas?\s+y\s+mesas?|renta\s+de\s+(mesas?|sillas?)|solo\s+(mesas?|sillas?|mobiliario))\b/i;
 function historyAlreadyOfferedComplements(history) {
   return history.some(
@@ -135164,7 +135177,7 @@ ${buildNaturalQuestion(pending, ctx)}`;
         extracted.nombre
       );
     } else {
-      body2 = ack;
+      body2 = nombre ? `Perfecto, ${nombre}. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?` : "Perfecto. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?";
     }
     log?.info({ entityId, pending }, "GUARD: A15007 \u2014 referencia/queja de repetici\xF3n \u2192 avanzar");
     return normalizeAdvisorReferences(
@@ -137757,6 +137770,16 @@ ${buildNaturalQuestion(pending, ctx)}` : ack;
     }
   }
   mensaje = stripClientServiceConfusionNotes(mensaje);
+  if (!cierreYaEnviado && !trulyReadyForClosing && looksLikeDeadEndAck(mensaje)) {
+    const pendingDead = getNextPendingField(extracted, filledSet);
+    if (pendingDead) {
+      const nextQ = buildNaturalQuestion(pendingDead, ctx);
+      mensaje = `${mensaje.trim()}
+
+${nextQ}`;
+      log?.info({ entityId, pending: pendingDead }, "GUARD: dead-end ack \u2192 embudo");
+    }
+  }
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 function stripClientServiceConfusionNotes(text2) {
@@ -138197,8 +138220,42 @@ function applyLucyGlobalAntiRepetition(input) {
     if (stripped && stripped !== mensaje) {
       mensaje = stripped;
       applied.push("filled-field-strip");
+      if (!/\?/.test(mensaje) && !isReadyForClosing(filled)) {
+        const extractedFull = asExtracted(extracted);
+        const pending = getNextPendingField(extractedFull, filled);
+        if (pending) {
+          const q2 = buildNaturalQuestion(pending, {
+            extracted: extractedFull,
+            filledSet: filled,
+            history: input.history ?? [],
+            currentMessage: input.currentMessage,
+            whatsappName: display
+          });
+          mensaje = mensaje.trim() ? `${mensaje.trim()}
+
+${q2}` : q2;
+          applied.push("filled-field-strip-continue");
+        }
+      }
     } else if (!stripped || mensajeAsksForFilledField(mensaje, filled, extracted)) {
-      mensaje = display ? `Perfecto, ${display}. Ya lo tengo anotado.` : "Perfecto, ya lo tengo anotado.";
+      const extractedFull = asExtracted(extracted);
+      const pending = getNextPendingField(extractedFull, filled);
+      if (pending) {
+        mensaje = buildNaturalQuestion(pending, {
+          extracted: extractedFull,
+          filledSet: filled,
+          history: input.history ?? [],
+          currentMessage: input.currentMessage,
+          whatsappName: display
+        });
+        if (display && !mensaje.includes(display)) {
+          mensaje = `Perfecto, ${display}. ${mensaje}`;
+        }
+      } else if (isReadyForClosing(filled)) {
+        mensaje = display ? `Perfecto, ${display}. Ya tengo todo anotado.` : "Perfecto, ya tengo todo anotado.";
+      } else {
+        mensaje = display ? `Perfecto, ${display}. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?` : "Perfecto. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?";
+      }
       applied.push("filled-field-ack");
     }
   }
@@ -138226,8 +138283,10 @@ function applyLucyGlobalAntiRepetition(input) {
           if (display && !mensaje.includes(display)) {
             mensaje = `Perfecto, ${display}. ${mensaje}`;
           }
-        } else {
+        } else if (isReadyForClosing(filled)) {
           mensaje = display ? `Perfecto, ${display}. Ya tengo lo principal anotado.` : "Perfecto, ya tengo lo principal anotado.";
+        } else {
+          mensaje = display ? `Perfecto, ${display}. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?` : "Perfecto. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?";
         }
       }
       applied.push("catalog-resend-dedupe");
@@ -138292,7 +138351,24 @@ function applyLucyGlobalAntiRepetition(input) {
           mensaje = display ? `Perfecto, ${display}. ${q2}` : q2;
           applied.push("near-duplicate-keep-question");
         } else if (!applied.some((a3) => a3.startsWith("same-field"))) {
-          mensaje = display ? `Entendido, ${display}. Seguimos con lo que ya platicamos.` : "Entendido. Seguimos con lo que ya platicamos.";
+          const extractedFull = asExtracted(extracted);
+          const pending = getNextPendingField(extractedFull, filled);
+          if (pending) {
+            mensaje = buildNaturalQuestion(pending, {
+              extracted: extractedFull,
+              filledSet: filled,
+              history: input.history ?? [],
+              currentMessage: input.currentMessage,
+              whatsappName: display
+            });
+            if (display && !mensaje.includes(display)) {
+              mensaje = `Entendido, ${display}. ${mensaje}`;
+            }
+          } else if (isReadyForClosing(filled)) {
+            mensaje = display ? `Entendido, ${display}. Ya tengo lo principal.` : "Entendido. Ya tengo lo principal.";
+          } else {
+            mensaje = display ? `Entendido, ${display}. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?` : "Entendido. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?";
+          }
           applied.push("near-duplicate-ack");
         }
       }
@@ -138313,6 +138389,24 @@ function applyLucyGlobalAntiRepetition(input) {
   if (!mensaje.trim()) {
     mensaje = display ? `Gracias, ${display}. \xBFEn qu\xE9 m\xE1s te ayudo con tu evento?` : "Gracias. \xBFEn qu\xE9 m\xE1s te ayudo con tu evento?";
     applied.push("empty-fallback");
+  }
+  if (!cierre && looksLikeDeadEndAck(mensaje) && !isReadyForClosing(filled)) {
+    const extractedFull = asExtracted(extracted);
+    const pending = getNextPendingField(extractedFull, filled);
+    if (pending) {
+      const q2 = buildNaturalQuestion(pending, {
+        extracted: extractedFull,
+        filledSet: filled,
+        history: input.history ?? [],
+        currentMessage: input.currentMessage,
+        whatsappName: display
+      });
+      const ack = mensaje.trim();
+      mensaje = ack && /anotad|anoto|platicamos|principal/i.test(ack) ? `${ack}
+
+${q2}` : display && !q2.includes(display) ? `Perfecto, ${display}. ${q2}` : q2;
+      applied.push("dead-end-ack-continue");
+    }
   }
   return { mensaje: mensaje.trim(), applied };
 }
@@ -138451,6 +138545,10 @@ Otras reglas:
   es producto, no sede.
 - NUNCA digas "\xBFSeguimos con el siguiente dato del evento?". Si falta un dato,
   haz ESA pregunta concreta (fecha, zona, correo, invitados\u2026).
+- NUNCA termines un turno solo con "Perfecto, ya lo tengo anotado" (ni "lo anoto",
+  "ya tengo lo principal"). Eso corta el chat. T\xFA NO cierras la conversaci\xF3n:
+  acusa en una frase y pide el siguiente dato faltante. Solo cierra cuando el
+  checklist est\xE9 completo o el cliente se despida.
 - Si el cliente eligi\xF3 un SKU (sala/mesa) o dijo "s\xED" para continuar: anota y
   pregunta el siguiente faltante. No mandes otro cat\xE1logo al azar.
 - Correos propios (capybaraeventos@, bodasesor@) son NUESTROS: no los guardes.
@@ -139231,7 +139329,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.25";
+var LUCY_PROMPT_VERSION = "V9.26";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -142383,10 +142481,12 @@ ${CATALOG_OFFER_QUESTION}`
       extracted: emptyExtracted({ nombre: "Ana", correo: "ana@test.com" })
     });
     assert2.ok(
-      filledAsk.applied.includes("filled-field-strip") || filledAsk.applied.includes("filled-field-ack"),
+      filledAsk.applied.includes("filled-field-strip") || filledAsk.applied.includes("filled-field-ack") || filledAsk.applied.includes("filled-field-strip-continue") || filledAsk.applied.includes("dead-end-ack-continue"),
       String(filledAsk.applied)
     );
     assert2.ok(!mensajeAsksForField(filledAsk.mensaje, "correo"), filledAsk.mensaje);
+    assert2.ok(/\?/.test(filledAsk.mensaje), filledAsk.mensaje);
+    assert2.ok(!/^Perfecto[^.]*anotad[oa]\.?\s*$/i.test(filledAsk.mensaje.trim()), filledAsk.mensaje);
     const paraphrase = applyLucyGlobalAntiRepetition({
       mensaje: "Perfecto, Nicole. \xBFQu\xE9 tipo de evento est\xE1s organizando?",
       history: [
@@ -146315,7 +146415,7 @@ ${golfText}`,
     assert2.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.16");
+    assert2.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert2.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
@@ -148311,6 +148411,93 @@ ${golfText}`,
       /ya tengo todo|equipo|cotizaci/i.test(cierre),
       cierre.slice(0, 300)
     );
+  });
+  await test("127. V9.26 \u2014 anti-cierre 'Ya lo tengo anotado' sigue embudo", async () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.26");
+    assert2.ok(looksLikeDeadEndAck("Perfecto, Ana. Ya lo tengo anotado."));
+    assert2.ok(looksLikeDeadEndAck("Perfecto, ya tengo lo principal anotado."));
+    assert2.ok(looksLikeDeadEndAck("Entendido. Seguimos con lo que ya platicamos."));
+    assert2.ok(!looksLikeDeadEndAck("Perfecto, Ana. Ya lo tengo anotado.\n\n\xBFQu\xE9 tipo de evento es?"));
+    assert2.ok(!looksLikeDeadEndAck("Perfecto, ya tengo todo. Le paso estos datos al equipo."));
+    const filledMid = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios"
+    ]);
+    const exMid = emptyExtracted({
+      nombre: "Ana",
+      tipo_evento: "boda",
+      requerimientos_evento: "Barra de bebidas"
+    });
+    const antiBare = applyLucyGlobalAntiRepetition({
+      mensaje: "Perfecto, Ana. Ya lo tengo anotado.",
+      history: [
+        { role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" },
+        { role: "user", content: "barra de bebidas" }
+      ],
+      filledSet: filledMid,
+      extracted: exMid,
+      clientName: "Ana",
+      currentMessage: "barra de bebidas"
+    });
+    assert2.ok(/\?/.test(antiBare.mensaje), antiBare.mensaje);
+    assert2.ok(
+      !looksLikeDeadEndAck(antiBare.mensaje),
+      antiBare.mensaje.slice(0, 300)
+    );
+    assert2.ok(
+      /fecha|cu[aá]ndo|cuando|d[ií]a|horario/i.test(antiBare.mensaje) || mensajeAsksForField(antiBare.mensaje, "fecha"),
+      antiBare.mensaje.slice(0, 400)
+    );
+    const filledAskZona = applyLucyGlobalAntiRepetition({
+      mensaje: "Genial. \xBFMe compartes tu correo para enviarte la info?",
+      history: [{ role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa?" }],
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Requerimientos o servicios"
+      ]),
+      extracted: emptyExtracted({
+        nombre: "Luis",
+        correo: "luis@test.com",
+        tipo_evento: "cumplea\xF1os",
+        requerimientos_evento: "DJ"
+      }),
+      clientName: "Luis"
+    });
+    assert2.ok(!mensajeAsksForField(filledAskZona.mensaje, "correo"), filledAskZona.mensaje);
+    assert2.ok(/\?/.test(filledAskZona.mensaje), filledAskZona.mensaje);
+    assert2.ok(
+      mensajeAsksForField(filledAskZona.mensaje, "fecha") || /fecha|cu[aá]ndo|d[ií]a/i.test(filledAskZona.mensaje),
+      filledAskZona.mensaje
+    );
+    const guardBare = runGuards({
+      aiResponse: "Perfecto, Ana. Ya lo tengo anotado.",
+      extracted: exMid,
+      filledSet: filledMid,
+      readyForClosing: false,
+      currentMessage: "barra de bebidas",
+      history: [
+        { role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" },
+        { role: "user", content: "barra de bebidas" }
+      ]
+    });
+    assert2.ok(/\?/.test(guardBare), guardBare.slice(0, 400));
+    assert2.ok(!looksLikeDeadEndAck(guardBare), guardBare.slice(0, 300));
+    const pipe = await finalizeLucyOutboundMessage({
+      mensaje: "Perfecto, Ana. Ya lo tengo anotado.",
+      extracted: exMid,
+      readyForClosing: false,
+      cierreYaEnviado: false,
+      filledSet: filledMid,
+      currentMessage: "barra de bebidas",
+      history: [
+        { role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" }
+      ]
+    });
+    assert2.ok(/\?/.test(pipe), pipe.slice(0, 400));
+    assert2.ok(!looksLikeDeadEndAck(pipe), pipe.slice(0, 300));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

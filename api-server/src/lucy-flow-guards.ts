@@ -4190,6 +4190,30 @@ function responseLooksLikePrematureClose(mensaje: string): boolean {
   );
 }
 
+/**
+ * V9.26: acuse muerto sin pregunta ("Perfecto, ya lo tengo anotado.") —
+ * Lucy corta el embudo y "termina" ella en vez de seguir pidiendo datos.
+ * Si hay `?` no aplica (ack + pregunta OK).
+ */
+export function looksLikeDeadEndAck(mensaje: string): boolean {
+  const t = (mensaje || "").trim();
+  if (!t) return true;
+  if (/\?/.test(t)) return false;
+  // Cierre / handoff legítimo
+  if (
+    /ya tengo todo|paso (estos )?datos|cotizaci[oó]n personalizada|nuestro equipo (ya )?(tiene|sigue)|si necesitas algo m[aá]s|con gusto te apoyo/i.test(
+      t
+    )
+  ) {
+    return false;
+  }
+  return (
+    /\b(ya\s+lo\s+tengo\s+anotad[oa]?|lo\s+tengo\s+anotad[oa]?|ya\s+lo\s+anoto|ya\s+anot[eé]|ya\s+tengo\s+lo\s+principal|seguimos\s+con\s+lo\s+que\s+ya\s+platicamos)\b/i.test(
+      t
+    ) || (/^perfecto[^.!]*[.!]?\s*$/i.test(t) && t.length < 60)
+  );
+}
+
 /** Pedido mínimo (ej. solo mesa y sillas) → ofrecer 1-2 complementos UNA vez. */
 const MINIMAL_SERVICE_PATTERN =
   /\b(solo\s+)?(mesas?\s+y\s+sillas?|sillas?\s+y\s+mesas?|renta\s+de\s+(mesas?|sillas?)|solo\s+(mesas?|sillas?|mobiliario))\b/i;
@@ -4554,6 +4578,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   // A15007: "A este" / "ya me preguntaste" — no reiniciar embudo ni "Sigo aquí".
+  // V9.26: nunca devolver solo el ack (corta la conversación).
   if (
     !cierreYaEnviado &&
     currentMessage &&
@@ -4573,7 +4598,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         extracted.nombre
       );
     } else {
-      body = ack;
+      // filledSet desfasado vs extracted: mantener el chat abierto
+      body = nombre
+        ? `Perfecto, ${nombre}. ¿Me confirmas la fecha, zona, invitados o presupuesto que aún falte?`
+        : "Perfecto. ¿Me confirmas la fecha, zona, invitados o presupuesto que aún falte?";
     }
     log?.info({ entityId, pending }, "GUARD: A15007 — referencia/queja de repetición → avanzar");
     return normalizeAdvisorReferences(
@@ -8437,6 +8465,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   // Nunca hablarle al cliente en meta ("No confundir con…"): es nota interna.
   mensaje = stripClientServiceConfusionNotes(mensaje);
+
+  // V9.26: última red — nunca salir con solo "ya lo tengo anotado" si falta embudo.
+  if (!cierreYaEnviado && !trulyReadyForClosing && looksLikeDeadEndAck(mensaje)) {
+    const pendingDead = getNextPendingField(extracted, filledSet);
+    if (pendingDead) {
+      const nextQ = buildNaturalQuestion(pendingDead, ctx);
+      mensaje = `${mensaje.trim()}\n\n${nextQ}`;
+      log?.info({ entityId, pending: pendingDead }, "GUARD: dead-end ack → embudo");
+    }
+  }
 
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
