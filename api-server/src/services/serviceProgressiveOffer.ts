@@ -178,13 +178,14 @@ const FAMILIES: FamilyDef[] = [
   },
   {
     family: "barra_alimentos",
+    // A15302: "barra italiana" cuenta como familia de alimentos (no bebidas).
     familyPattern:
-      /\bbarra\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarras?\s+tem[aá]ticas?\b/i,
+      /\bbarra\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarra\s+italian|\bbarras?\s+tem[aá]ticas?\b/i,
     variantPattern:
-      /\b(pizzas?|pastas?|ensaladas?|crepas?|mariscos?|paninis?|americana|yucateca|solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
+      /\b(pizzas?|pastas?|ensaladas?|crepas?|mariscos?|paninis?|italian[ao]?|americana|yucateca|solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
     detailQueryFromText: (text) => {
       if (/pizza/i.test(text)) return withCatalogNivelQuery("Barra de pizzas", text);
-      if (/pasta|ensalada/i.test(text)) {
+      if (/pasta|ensalada|italian/i.test(text)) {
         return withCatalogNivelQuery("Barra de pastas y ensaladas", text);
       }
       if (/crepa/i.test(text)) return withCatalogNivelQuery("Barra de Crepas", text);
@@ -194,14 +195,25 @@ const FAMILIES: FamilyDef[] = [
       if (/americana/i.test(text)) return withCatalogNivelQuery("Barra Americana", text);
       return withCatalogNivelQuery("Barra de alimentos", text);
     },
-    buildMenu: () =>
-      [
+    buildMenu: (hint) => {
+      if (hint && /\bitalian/i.test(hint)) {
+        return [
+          "¡Sí! Para *barra italiana* manejamos estaciones de comida italiana:",
+          "• *Barra de pastas y ensaladas*",
+          "• *Barra de pizzas*",
+          "• También paninis u otras estaciones si quieres complementar",
+          "",
+          "¿Te detallo pastas, pizzas, o ambas?",
+        ].join("\n");
+      }
+      return [
         "Claro. En barras de alimentos manejamos varias:",
         "• Pizzas, pastas y ensaladas, crepas, mariscos, paninis",
         "• Americana, Yucateca y más",
         "",
         SERVICE_NIVEL_DETAIL_CTA,
-      ].join("\n"),
+      ].join("\n");
+    },
   },
   {
     family: "taquiza",

@@ -727,6 +727,8 @@ export function isVagueFoodTerm(text: string | null | undefined): boolean {
   if (!t) return false;
   // A15295: "no quiero alimentos/comida" ≠ pedir menú vago.
   if (clientDeclinesServiceFamilies(t).includes("alimentos")) return false;
+  // A15302: "me regalas tu menú" (con o sin tipo de evento en el mismo mensaje).
+  if (clientAsksForFoodMenu(t)) return true;
   // A14964: "¿es solo café o tienes catering de comida?" → ofrecer ambas, no forzar banquete.
   if (clientAsksCafeOrCateringChoice(t)) return true;
   // Brief multi-tiempo (desayuno + comida + cena) no es vago.
@@ -934,8 +936,37 @@ export function clientMentionsItalianTheme(message?: string): boolean {
   if (/\bbarra\s+de\s+pastas?\b/i.test(t) && !/\b(italian[ao]?|italia|toscana|mafia\s+italiana)\b/i.test(t)) {
     return false;
   }
+  // A15302: "barra italiana" / "estación italiana".
+  if (/\bbarra\s+italian|\bestaci[oó]n\s+italian|\bcomida\s+italian/i.test(t)) {
+    return true;
+  }
   return /\b(italian[ao]?|italia|toscana|toscano|mafia\s+italiana|pastas?|pizzas?|antipasti|selecci[oó]n\s+de\s+italia|partido.*italia)\b/i.test(
     t
+  );
+}
+
+/**
+ * A15302: "me regalas tu menú", "pásame el menú", "tu menú porfa"
+ * (aunque vaya junto con "mi cumpleaños") → pedir estilo de comida, no dump banquete.
+ */
+export function clientAsksForFoodMenu(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  if (hasSpecificFoodService(t) && !/\bmen[uú]\b/i.test(t)) return false;
+  // Ya eligió un SKU concreto con menú ("menú casual", "menú de banquete formal").
+  if (
+    /\bmen[uú]\s+(casual|formal|premium|b[aá]sic|tradicional|kosher|mexicano|navide)/i.test(t) ||
+    /\b(banquete|taquiza|coffee\s*break|barra\s+de)\b.{0,20}\bmen[uú]\b/i.test(t)
+  ) {
+    return false;
+  }
+  return (
+    /\b(me\s+)?(regalas?|pasas?|mandas?|env[ií]as?|das?|compartes?)\b.{0,24}\b(tu\s+|el\s+|su\s+)?men[uú]/i.test(
+      t
+    ) ||
+    /\b(tu|el|su)\s+men[uú]\b.{0,16}\b(por\s*fa|porfavor|please)\b/i.test(t) ||
+    /\b(quiero|necesito|puedes?\s+pasar)\b.{0,20}\b(el\s+|tu\s+)?men[uú]\b/i.test(t) ||
+    (/^\s*men[uú]s?\s*[?¿.!]*\s*$/i.test(t) && t.length <= 12)
   );
 }
 

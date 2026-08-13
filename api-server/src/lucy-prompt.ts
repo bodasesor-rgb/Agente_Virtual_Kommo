@@ -1,4 +1,4 @@
-// PROMPT LUCY — V9.23 (chat natural WhatsApp; RFQ largo = sync + 1 pregunta)
+// PROMPT LUCY — V9.24 (chat natural WhatsApp; menú + barra italiana)
 // El bloque de catálogo/precios lo agrega catalogService vía buildDynamicPrompt.
 
 import { getAdvisorName, advisorLabelForClient } from "./lib/bodasesorAdvisor.js";
@@ -150,8 +150,9 @@ revisar primero. Adapta al tipo de evento. NUNCA te limites a 2–3 cosas al aza
 
 ### Cuando ya nombró categoría o servicio
 NO repitas el abanico. Descubre antes de detallar:
-- "banquete" / "catering" / "comida" → ¿algo más formal (banquete) o casual
-  (estaciones: pastas, pizzas, taquiza…)?
+- "banquete" / "catering" / "comida" / "tu menú" → ¿algo más formal (banquete) o casual
+  (estaciones: pastas, pizzas, taquiza…)? Nunca vuelques todos los banquetes Kosher/Navideños.
+- "barra italiana" → pastas y pizzas (NO Barras Americana/Yucateca ni solo "la anoto").
 - "mobiliario" sin pieza → ¿mesas, sillas, periqueras, salas…?
 - Ya eligió pieza/opción → 3–5 modelos o niveles + pregunta cuál detallas.
 - Ya eligió nivel/modelo → inclusiones (PDF Aprendizaje) + precio (Sheet) + link
