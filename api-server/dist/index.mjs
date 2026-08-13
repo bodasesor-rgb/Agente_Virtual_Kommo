@@ -202901,7 +202901,10 @@ function extractCatalogNivelFromText(text2, lastAssistantText) {
     const opcionN = t4.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*([1-9])\b/i);
     if (opcionN) return `Coffee Break ${opcionN[1]}`;
   }
-  const m6 = t4.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t4.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t4.match(/^(1|2|3|4)$/);
+  const m6 = t4.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|servicio\s*completo)\b/i) || t4.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|servicio\s*completo)\b/i) || t4.match(/^(1|2|3|4)$/);
+  if (!m6 && /\bcompleto\b/i.test(t4) && /solo\s+alimentos|servicio\s+completo|cu[aá]l te late|dos caminos/i.test(lastAssistantText ?? "")) {
+    return "Servicio completo";
+  }
   if (!m6) return null;
   const raw = (m6[1] ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
   if (/^(1|2|3|4)$/.test(raw)) {
@@ -202914,20 +202917,21 @@ function extractCatalogNivelFromText(text2, lastAssistantText) {
   if (raw === "2" || raw.startsWith("tradicional")) return "tradicional";
   if (raw === "3" || raw.startsWith("premium")) return "premium";
   if (raw === "4" || /solo\s*alimento/.test(raw)) return "solo alimentos";
+  if (/completo/.test(raw)) return "Servicio completo";
   return null;
 }
 function isCatalogLevelSelection(text2, lastAssistantText) {
   const t4 = text2?.trim().toLowerCase() ?? "";
   if (!t4) return false;
   const last = lastAssistantText?.toLowerCase() ?? "";
-  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|varios paquetes|paquetes?\s*\(?\s*1\s*a\s*5|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles|manejamos estos paquetes/i.test(
+  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|varios paquetes|paquetes?\s*\(?\s*1\s*a\s*5|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles|manejamos estos paquetes|cu[aá]l te late m[aá]s|dos caminos|solo\s+alimentos[\s\S]{0,80}servicio\s+completo/i.test(
     last
   );
   if (!askedNivel) {
     return /\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(t4);
   }
   if (extractNumberedNivelFromLastAssistant(text2, lastAssistantText)) return true;
-  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1-9])$/i.test(t4)) return true;
+  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|servicio\s*completo|completo|[1-9])$/i.test(t4)) return true;
   if (/^(?:el\s+|la\s+)?[1-9]$/i.test(t4) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
     return true;
   }
@@ -206122,18 +206126,18 @@ var FAMILIES = [
   {
     family: "barra_sushi",
     familyPattern: /\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
+    variantPattern: /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text2) => withCatalogNivelQuery("Barra de sushi", text2),
     buildMenu: () => [
-      "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
+      "Claro. En *Barra de sushi* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).",
       "",
-      SERVICE_NIVEL_DETAIL_CTA
+      "\xBFCu\xE1l te late m\xE1s?"
     ].join("\n")
   },
   {
     family: "barra_cafe",
     familyPattern: /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcafeter[ií]a\b|\bbarista\b/iu,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
+    variantPattern: /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text2) => withCatalogNivelQuery("Barra de Caf\xE9", text2),
     buildMenu: () => [
       "Claro. En *Barra de Caf\xE9* manejamos niveles con baristas y bebidas artesanales.",
@@ -206202,12 +206206,12 @@ var FAMILIES = [
   {
     family: "taquiza",
     familyPattern: /\btaquiza\b/i,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
+    variantPattern: /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text2) => withCatalogNivelQuery("taquiza", text2),
     buildMenu: () => [
-      "Claro. En *taquiza* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
+      "Claro. En *taquiza* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).",
       "",
-      SERVICE_NIVEL_DETAIL_CTA
+      "\xBFCu\xE1l te late m\xE1s?"
     ].join("\n")
   },
   {
@@ -206455,7 +206459,9 @@ function catalogNivelLabelFromText(text2) {
   const t4 = fold2(text2 ?? "");
   if (!t4) return null;
   if (/\bsolo\s+alimentos?\b/.test(t4)) return "Solo Alimentos";
-  if (/\bservicio\s+completo\b/.test(t4)) return "Servicio completo";
+  if (/\bservicio\s+completo\b/.test(t4) || /(?:^|\s)completo(?:\s|$)/.test(t4)) {
+    return "Servicio completo";
+  }
   if (/\bpor\s+pieza\b/.test(t4)) return "Por pieza";
   if (/\btradicional\b/.test(t4)) return "Tradicional";
   if (/\bpremium\b/.test(t4)) return "Premium";
@@ -206475,8 +206481,10 @@ function isProgressiveOptionsMenuReply(text2) {
   if (isAlimentosModoMenuReply(t4) || isMobiliarioPieceMenuReply(t4) || isSillasModelMenuReply(t4)) {
     return true;
   }
-  if (/claro\.\s*en\s+\*|claro\.\s*en\s+(bebidas|barras|dulce|gastronom)/i.test(t4) || /opciones principales|¿Cu[aá]l estilo te late|s[ií],?\s+contamos con \*mobiliario\*/i.test(t4) || /manejamos estos paquetes|coffee\s*break\s*1[\s\S]{0,120}coffee\s*break\s*5/i.test(t4)) {
-    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos|qu[eé] es lo que buscas|dime qu[eé] pieza|modelos|catalogos\/coffee-break|cat[aá]logo/i.test(
+  if (/claro\.\s*en\s+\*|claro\.\s*en\s+(bebidas|barras|dulce|gastronom)/i.test(t4) || /opciones principales|¿Cu[aá]l estilo te late|s[ií],?\s+contamos con \*mobiliario\*/i.test(t4) || /manejamos estos paquetes|coffee\s*break\s*1[\s\S]{0,120}coffee\s*break\s*5/i.test(t4) || /solo\s+alimentos[\s\S]{0,120}servicio\s+completo|servicio\s+completo[\s\S]{0,120}solo\s+alimentos/i.test(
+    t4
+  ) || /tenemos dos caminos/i.test(t4)) {
+    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos|qu[eé] es lo que buscas|dime qu[eé] pieza|modelos|catalogos\/coffee-break|cat[aá]logo|cu[aá]l te late/i.test(
       t4
     );
   }
@@ -207603,11 +207611,12 @@ function withCatalogOfferQuestion(text2, query) {
   if (!body2) return body2;
   return ensureCatalogWebLink(body2, query);
 }
-function buildServiceNivelChoiceAnswer(result) {
+function buildServiceNivelChoiceAnswer(result, query) {
   const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
   const svcRows = result.rows.filter((r5) => r5.servicio === svc || result.rows.length <= 6);
-  const rowsForChoice = (svcRows.length ? svcRows : result.rows).slice(0, 6);
+  const rowsForChoice = (svcRows.length ? svcRows : result.rows).slice(0, 8);
   const niveles = uniqueNiveles(rowsForChoice);
+  const q3 = query ?? "";
   if (niveles.length <= 1) {
     const row = svcRows[0] ?? result.rows[0];
     return buildExactRowDetailAnswer(row);
@@ -207617,25 +207626,10 @@ function buildServiceNivelChoiceAnswer(result) {
       (r5) => normalizeForMatch(r5.servicio) === normalizeForMatch(svc) || rowMatchesServiceLabel(r5, svc)
     );
     if (svcOnly.length && uniqueServicios(svcOnly).length === 1) {
-      const nivelesOnly = uniqueNiveles(svcOnly);
-      if (nivelesOnly.length > 1) {
-        const lines2 = nivelesOnly.slice(0, 6).map((n5, i6) => {
-          const row = svcOnly.find(
-            (r5) => normalizeForMatch(extractNivelLabel(r5)) === normalizeForMatch(n5)
-          );
-          const incl = row ? getInclusionFromRow(row) : null;
-          const price = row?.tienePrecio && row.precio ? ` \u2014 ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
-          const inclTxt = incl ? `: ${incl.slice(0, 120)}` : "";
-          return `${i6 + 1}. *${n5}*${price}${inclTxt}`;
-        });
-        return withCatalogOfferQuestion(
-          `Para *${svc}* manejamos estos niveles:
-${lines2.join("\n")}
-
-${SERVICE_NIVEL_DETAIL_CTA}`,
-          svc
-        );
-      }
+      return buildServiceNivelChoiceAnswer(
+        { ...result, serviceName: svc, rows: svcOnly, kind: "service" },
+        query
+      );
     }
     const variants = simplifyServiceNamesForList(uniqueServicios(result.rows)).slice(0, 8).join(", ");
     const inclusionBlock = buildInclusionBlock(rowsForChoice, 180).trim();
@@ -207648,6 +207642,18 @@ ${SERVICE_NIVEL_DETAIL_CTA}`,
       `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}${SERVICE_NIVEL_DETAIL_CTA}`,
       svc
     );
+  }
+  if (serviceHasSoloVsCompleto(rowsForChoice)) {
+    if (queryWantsSoloAlimentos(q3)) {
+      const soloRow = findNivelRow(rowsForChoice, /solo\s+alimentos/i);
+      if (soloRow) return buildExactRowDetailAnswer(soloRow);
+    }
+    if (queryWantsCompletoMode(q3) && !queryWantsSpecificCompletoNivel(q3)) {
+      return buildCompletoNivelesTeaser(svc, rowsForChoice);
+    }
+    if (!queryWantsSpecificCompletoNivel(q3) && !queryWantsSoloAlimentos(q3)) {
+      return buildSoloVsCompletoModeAnswer(svc, rowsForChoice);
+    }
   }
   const lines = niveles.slice(0, 6).map((n5, i6) => {
     const row = rowsForChoice.find(
@@ -207690,6 +207696,72 @@ ${getCatalogWebHubDeliveryUrl()}`;
   }
   return withCatalogOfferQuestion(body2, svc);
 }
+function isSoloAlimentosNivelLabel(n5) {
+  return /solo\s+alimentos/i.test(n5);
+}
+function isCompletoPackageNivelLabel(n5) {
+  return /\b(b[aá]sic[oa]?|tradicional|premium)\b/i.test(n5) && !isSoloAlimentosNivelLabel(n5);
+}
+function serviceHasSoloVsCompleto(rows) {
+  const niveles = uniqueNiveles(rows);
+  const hasSolo = niveles.some(isSoloAlimentosNivelLabel);
+  const completo = niveles.filter(isCompletoPackageNivelLabel);
+  return hasSolo && completo.length >= 2;
+}
+function findNivelRow(rows, re4) {
+  return rows.find((r5) => re4.test(extractNivelLabel(r5)));
+}
+function formatRowPriceShort(row) {
+  if (!row?.tienePrecio || !row.precio) return "";
+  const unit = row.unidad?.trim() ? ` ${row.unidad.trim()}` : "";
+  return `${row.precio}${unit}`;
+}
+function queryWantsSoloAlimentos(q3) {
+  return /\bsolo\s+alimentos?\b/i.test(q3);
+}
+function queryWantsCompletoMode(q3) {
+  return /\bservicio\s+completo\b/i.test(q3) || /(?:^|[^\p{L}])completo(?:[^\p{L}]|$)/iu.test(q3);
+}
+function queryWantsSpecificCompletoNivel(q3) {
+  return /\b(b[aá]sic[oa]?|tradicional|premium)\b/i.test(q3);
+}
+function buildSoloVsCompletoModeAnswer(svc, rows) {
+  const soloRow = findNivelRow(rows, /solo\s+alimentos/i);
+  const basicoRow = findNivelRow(rows, /\bb[aá]sic/i) || rows.filter((r5) => isCompletoPackageNivelLabel(extractNivelLabel(r5))).sort((a4, b5) => {
+    const pa2 = parseFloat((a4.precio ?? "").replace(/[^\d.]/g, "")) || 0;
+    const pb = parseFloat((b5.precio ?? "").replace(/[^\d.]/g, "")) || 0;
+    return pa2 - pb;
+  })[0];
+  const soloPrice = formatRowPriceShort(soloRow);
+  const desdePrice = formatRowPriceShort(basicoRow);
+  return withCatalogOfferQuestion(
+    [
+      `Para *${svc}* tenemos dos caminos:`,
+      "",
+      `1. *Solo alimentos*${soloPrice ? ` \u2014 ${soloPrice}` : ""} (solo la comida)`,
+      `2. *Servicio completo*${desdePrice ? ` \u2014 desde ${desdePrice}` : ""} (incluye bebidas, mobiliario y meseros)`,
+      "",
+      "\xBFCu\xE1l te late m\xE1s?"
+    ].join("\n"),
+    svc
+  );
+}
+function buildCompletoNivelesTeaser(svc, rows) {
+  const completo = uniqueNiveles(rows).filter(isCompletoPackageNivelLabel);
+  const pretty = completo.slice(0, 3).map((n5) => `*${n5.replace(/^Basico$/i, "B\xE1sico")}*`).join(", ");
+  const basicoRow = findNivelRow(rows, /\bb[aá]sic/i);
+  const desde = formatRowPriceShort(basicoRow);
+  const desdeBit = desde ? ` Arrancan desde ${desde}.` : "";
+  return withCatalogOfferQuestion(
+    [
+      `Perfecto. En *servicio completo* de *${svc}* manejamos ${Math.min(completo.length, 3)} niveles (${pretty}).`,
+      `Lo que cambia entre uno y otro es el nivel de montaje, la cantidad de meseros, la decoraci\xF3n y las bebidas.${desdeBit}`,
+      "",
+      SERVICE_NIVEL_DETAIL_CTA
+    ].join("\n"),
+    svc
+  );
+}
 function messageOffersLevelsWithoutInclusions(text2) {
   if (!text2?.trim()) return false;
   const t4 = text2.trim();
@@ -207701,7 +207773,8 @@ function messageOffersLevelsWithoutInclusions(text2) {
   const onlyTeamPlaceholder = hasIncluyeLine && hasTeamPlaceholder && !hasRealInclusionLine;
   if (hasIncluyeLine && !onlyTeamPlaceholder) return false;
   const mentionsTriad = /\bb[aá]sic/i.test(t4) && /\btradicional\b/i.test(t4) && /\bpremium\b/i.test(t4);
-  return onlyTeamPlaceholder || /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t4) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t4) || /1\.\s*\*?b[aá]sic/i.test(t4) && /2\.\s*\*?tradicional/i.test(t4) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t4) && /prefieres|nivel/i.test(t4) || // "Básica $150, Tradicional $220, Premium $320 ¿cuál prefieres?"
+  const soloDump = /solo\s+alimentos/i.test(t4) && mentionsTriad && (/1\.\s*\*?solo\s+alimentos/i.test(t4) || /manejamos estos niveles/i.test(t4));
+  return onlyTeamPlaceholder || soloDump || /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t4) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t4) || /1\.\s*\*?b[aá]sic/i.test(t4) && /2\.\s*\*?tradicional/i.test(t4) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t4) && /prefieres|nivel/i.test(t4) || // "Básica $150, Tradicional $220, Premium $320 ¿cuál prefieres?"
   mentionsTriad && (/\$\s*\d|\d+\s*(pesos|mxn)|precio/i.test(t4) || /prefieres|nivel|opci[oó]n/i.test(t4)) || mentionsTriad && /confirma\s+(nuestro\s+)?equipo|el\s+equipo\s+te\s+confirma/i.test(t4);
 }
 function enrichBareNivelOffer(mensaje, serviceHint) {
@@ -208298,6 +208371,12 @@ function buildCatalogPriceAnswer(query) {
         ...new Map(priced.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()
       ];
       const baseName2 = resolved.serviceName ?? unique2[0].servicio;
+      if (serviceHasSoloVsCompleto(unique2) && !queryWantsSpecificCompletoNivel(query) && !queryWantsSoloAlimentos(query)) {
+        if (queryWantsCompletoMode(query)) {
+          return withLink(buildCompletoNivelesTeaser(baseName2, unique2));
+        }
+        return withLink(buildSoloVsCompletoModeAnswer(baseName2, unique2));
+      }
       const priceLines2 = unique2.slice(0, 6).map((row) => {
         const parsed = parseRowNotes(row.notas);
         const nivel = extractNivelLabel(row);
@@ -208316,15 +208395,21 @@ ${priceLines2}${inclusionBlock2}
 \xBFQu\xE9 nivel te interesa?`
         );
       }
-      return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced });
+      return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced }, query);
     }
     if (priced.length === 1) {
       return buildExactRowPriceAnswer(priced[0]);
     }
-    return buildServiceNivelChoiceAnswer(resolved);
+    return buildServiceNivelChoiceAnswer(resolved, query);
   }
   const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
   const baseName = resolved.serviceName ?? unique[0].servicio;
+  if (serviceHasSoloVsCompleto(unique) && !queryWantsSpecificCompletoNivel(query) && !queryWantsSoloAlimentos(query)) {
+    if (queryWantsCompletoMode(query)) {
+      return withLink(buildCompletoNivelesTeaser(baseName, unique));
+    }
+    return withLink(buildSoloVsCompletoModeAnswer(baseName, unique));
+  }
   const priceLines = unique.filter((r5) => r5.tienePrecio && r5.precio).slice(0, 6).map((row) => {
     const parsed = parseRowNotes(row.notas);
     const nivel = extractNivelLabel(row);
@@ -208332,7 +208417,7 @@ ${priceLines2}${inclusionBlock2}
     const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
     return `\u2022 *${nivel}* \u2014 ${row.precio}${unit}${min}`;
   }).join("\n");
-  if (!priceLines) return buildServiceNivelChoiceAnswer(resolved);
+  if (!priceLines) return buildServiceNivelChoiceAnswer(resolved, query);
   const inclusionBlock = buildInclusionBlock(unique, 280);
   return withLink(`S\xED, manejamos ${baseName}:
 
@@ -208450,6 +208535,12 @@ function buildCatalogServiceDetailAnswer(query) {
     return buildExactRowDetailAnswer(row2);
   }
   if (resolved?.kind === "service") {
+    if (serviceHasSoloVsCompleto(resolved.rows) && queryWantsCompletoMode(query) && !queryWantsSpecificCompletoNivel(query)) {
+      return buildCompletoNivelesTeaser(
+        resolved.serviceName ?? uniqueServicios(resolved.rows)[0] ?? "ese servicio",
+        resolved.rows
+      );
+    }
     if (/\bcoffee\s*break\s*\d/.test(query)) {
       const fromPdf = buildPdfInclusionReply(query);
       if (fromPdf) return fromPdf;
@@ -208459,7 +208550,7 @@ function buildCatalogServiceDetailAnswer(query) {
       const fromPdf = buildPdfInclusionReply(query);
       if (fromPdf) return fromPdf;
     }
-    return buildServiceNivelChoiceAnswer(resolved);
+    return buildServiceNivelChoiceAnswer(resolved, query);
   }
   const priceAnswer = buildCatalogPriceAnswer(query);
   if (priceAnswer) return priceAnswer;
@@ -208991,7 +209082,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.26";
+var LUCY_PROMPT_VERSION = "V9.27";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -216967,6 +217058,12 @@ NO repitas el abanico. Descubre antes de detallar:
 - Ya eligi\xF3 pieza/opci\xF3n \u2192 3\u20135 modelos o niveles + pregunta cu\xE1l detallas.
 - Ya eligi\xF3 nivel/modelo \u2192 inclusiones (PDF Aprendizaje) + precio (Sheet) + link
   de cat\xE1logo de ESE servicio.
+- Servicios con *Solo Alimentos* + Basico/Tradicional/Premium (taquiza, sushi,
+  yucateca, pastas\u2026): NUNCA listes los 4 con precio. Primero pregunta:
+  *solo alimentos* (con su precio) o *servicio completo* (desde el precio B\xE1sico;
+  incluye bebidas, mobiliario y meseros). Si elige completo \u2192 di que hay 3 niveles
+  y que lo que cambia es montaje, meseros, decoraci\xF3n y bebidas; pregunta de cu\xE1l
+  quiere detalle. Solo entonces da inclusiones/precios de ESE nivel.
 
 Si PDF y Sheet chocan en precio, gana el Sheet. Nunca inventes inclusiones.
 

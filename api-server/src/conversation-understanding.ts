@@ -517,9 +517,16 @@ export function extractCatalogNivelFromText(
   }
 
   const m =
-    t.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) ||
-    t.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) ||
+    t.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|servicio\s*completo)\b/i) ||
+    t.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|servicio\s*completo)\b/i) ||
     t.match(/^(1|2|3|4)$/);
+  if (
+    !m &&
+    /\bcompleto\b/i.test(t) &&
+    /solo\s+alimentos|servicio\s+completo|cu[aá]l te late|dos caminos/i.test(lastAssistantText ?? "")
+  ) {
+    return "Servicio completo";
+  }
   if (!m) return null;
   const raw = (m[1] ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
   // A15212: bare 1/2/3 → básica/tradicional/premium SOLO si Lucy listó esos nombres.
@@ -533,6 +540,7 @@ export function extractCatalogNivelFromText(
   if (raw === "2" || raw.startsWith("tradicional")) return "tradicional";
   if (raw === "3" || raw.startsWith("premium")) return "premium";
   if (raw === "4" || /solo\s*alimento/.test(raw)) return "solo alimentos";
+  if (/completo/.test(raw)) return "Servicio completo";
   return null;
 }
 
@@ -544,7 +552,7 @@ export function isCatalogLevelSelection(
   if (!t) return false;
   const last = lastAssistantText?.toLowerCase() ?? "";
   const askedNivel =
-    /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|varios paquetes|paquetes?\s*\(?\s*1\s*a\s*5|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles|manejamos estos paquetes/i.test(
+    /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|varios paquetes|paquetes?\s*\(?\s*1\s*a\s*5|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles|manejamos estos paquetes|cu[aá]l te late m[aá]s|dos caminos|solo\s+alimentos[\s\S]{0,80}servicio\s+completo/i.test(
       last
     );
   if (!askedNivel) {
@@ -554,7 +562,7 @@ export function isCatalogLevelSelection(
   // A15212: "2. Servicio completo" / label del menú numerado.
   if (extractNumberedNivelFromLastAssistant(text, lastAssistantText)) return true;
   // Mensaje solo nivel, o compuesto con correo/servicio (A14934 / A14949).
-  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1-9])$/i.test(t)) return true;
+  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|servicio\s*completo|completo|[1-9])$/i.test(t)) return true;
   if (/^(?:el\s+|la\s+)?[1-9]$/i.test(t) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
     return true;
   }

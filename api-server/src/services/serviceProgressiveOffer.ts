@@ -131,19 +131,19 @@ const FAMILIES: FamilyDef[] = [
     family: "barra_sushi",
     familyPattern: /\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i,
     variantPattern:
-      /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
+      /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text) => withCatalogNivelQuery("Barra de sushi", text),
     buildMenu: () =>
       [
-        "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, Básico, Tradicional, Premium).",
+        "Claro. En *Barra de sushi* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).",
         "",
-        SERVICE_NIVEL_DETAIL_CTA,
+        "¿Cuál te late más?",
       ].join("\n"),
   },
   {
     family: "barra_cafe",
     familyPattern: /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcafeter[ií]a\b|\bbarista\b/iu,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
+    variantPattern: /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text) => withCatalogNivelQuery("Barra de Café", text),
     buildMenu: () =>
       [
@@ -218,13 +218,14 @@ const FAMILIES: FamilyDef[] = [
   {
     family: "taquiza",
     familyPattern: /\btaquiza\b/i,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
+    variantPattern:
+      /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text) => withCatalogNivelQuery("taquiza", text),
     buildMenu: () =>
       [
-        "Claro. En *taquiza* manejamos varios niveles (Solo Alimentos, Básico, Tradicional, Premium).",
+        "Claro. En *taquiza* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).",
         "",
-        SERVICE_NIVEL_DETAIL_CTA,
+        "¿Cuál te late más?",
       ].join("\n"),
   },
   {
@@ -547,8 +548,10 @@ export function catalogNivelLabelFromText(text: string | null | undefined): stri
   const t = fold(text ?? "");
   if (!t) return null;
   if (/\bsolo\s+alimentos?\b/.test(t)) return "Solo Alimentos";
-  // A15212: niveles Sheet de Puestos (y similares) — no confundir con Taquiza Premium.
-  if (/\bservicio\s+completo\b/.test(t)) return "Servicio completo";
+  // A15212 / V9.27: modo completo (Puestos Sheet o embudo solo vs completo).
+  if (/\bservicio\s+completo\b/.test(t) || /(?:^|\s)completo(?:\s|$)/.test(t)) {
+    return "Servicio completo";
+  }
   if (/\bpor\s+pieza\b/.test(t)) return "Por pieza";
   if (/\btradicional\b/.test(t)) return "Tradicional";
   if (/\bpremium\b/.test(t)) return "Premium";
@@ -583,9 +586,13 @@ export function isProgressiveOptionsMenuReply(text: string | null | undefined): 
   if (
     /claro\.\s*en\s+\*|claro\.\s*en\s+(bebidas|barras|dulce|gastronom)/i.test(t) ||
     /opciones principales|¿Cu[aá]l estilo te late|s[ií],?\s+contamos con \*mobiliario\*/i.test(t) ||
-    /manejamos estos paquetes|coffee\s*break\s*1[\s\S]{0,120}coffee\s*break\s*5/i.test(t)
+    /manejamos estos paquetes|coffee\s*break\s*1[\s\S]{0,120}coffee\s*break\s*5/i.test(t) ||
+    /solo\s+alimentos[\s\S]{0,120}servicio\s+completo|servicio\s+completo[\s\S]{0,120}solo\s+alimentos/i.test(
+      t
+    ) ||
+    /tenemos dos caminos/i.test(t)
   ) {
-    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos|qu[eé] es lo que buscas|dime qu[eé] pieza|modelos|catalogos\/coffee-break|cat[aá]logo/i.test(
+    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos|qu[eé] es lo que buscas|dime qu[eé] pieza|modelos|catalogos\/coffee-break|cat[aá]logo|cu[aá]l te late/i.test(
       t
     );
   }
