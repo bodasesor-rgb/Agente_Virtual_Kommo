@@ -208991,7 +208991,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.24";
+var LUCY_PROMPT_VERSION = "V9.25";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -211561,6 +211561,28 @@ function pickTransition(history) {
   }
   return LUCY_TRANSITIONS[0];
 }
+function stripPrematureCelebrationFluff(mensaje, opts) {
+  if (!mensaje?.trim()) return mensaje;
+  const msg = opts?.currentMessage?.trim() ?? "";
+  const tipo = opts?.tipoEvento?.trim() ?? "";
+  const nameOnly = !!msg && (looksLikeNameAnswerMessage(msg) || /^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(msg) && !/\b(boda|cumplea|xv|bautizo|baby|corporativ|graduaci|evento)\b/i.test(msg));
+  const noEventYet = !tipo || /^cotizaci[oó]n|evento$/i.test(tipo);
+  if (!opts?.force && !nameOnly && !noEventYet) return mensaje;
+  let out2 = mensaje;
+  out2 = out2.replace(
+    /(¡?Mucho gusto,\s*[^!]{1,40}!)\s*(?:¡?\s*)?(?:Qu[eé]\s+emoción|Qu[eé]\s+padre|Qu[eé]\s+bonito|Felicidades)(?:\s*,\s*(?:felicidades|qu[eé]\s+emoción))?[^.?!]{0,40}[.!]?\s*/gi,
+    "$1 "
+  );
+  out2 = out2.replace(
+    /\s+(?:¡?\s*)?(?:qu[eé]\s+emoción|qu[eé]\s+padre|qu[eé]\s+bonito|qu[eé]\s+genial|felicidades|me\s+da\s+mucho\s+gusto|qu[eé]\s+alegre|qu[eé]\s+ilusi[oó]n)\b[^.?!¡¿\n]{0,40}[.!…]?/gi,
+    ""
+  );
+  out2 = out2.replace(
+    /^(?:¡?\s*)?(?:qu[eé]\s+emoción|felicidades)\b[^.?!¡¿\n]{0,40}[.!…]?\s*/gi,
+    ""
+  );
+  return out2.replace(/\s{2,}/g, " ").replace(/\s+\n/g, "\n").trim();
+}
 function dedupeTransitionsInMessage(mensaje) {
   if (!mensaje?.trim()) return mensaje;
   const pattern = /\b(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)\./gi;
@@ -211582,6 +211604,10 @@ function dedupeTransitionsInMessage(mensaje) {
   out2 = out2.replace(
     /(¡Mucho gusto,\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})!)\s+¡?Mucho gusto,\s+\2[.!]/gi,
     "$1"
+  );
+  out2 = out2.replace(
+    /(¡?Mucho gusto,\s*[^!]{1,40}!)\s*(?:¡?\s*)?(?:Qu[eé]\s+emoción|Qu[eé]\s+padre|Qu[eé]\s+bonito|Felicidades)(?:\s*,\s*(?:felicidades|qu[eé]\s+emoción))?[^.?!]{0,40}[.!]?\s*/gi,
+    "$1 "
   );
   return out2.replace(/\s{2,}/g, " ").trim();
 }
@@ -215415,6 +215441,10 @@ ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
     log?.info({ entityId }, "GUARD: quit\xF3 bloque gen\xE9rico fijo del cierre");
   }
   mensaje = dedupeTransitionsInMessage(mensaje);
+  mensaje = stripPrematureCelebrationFluff(mensaje, {
+    currentMessage,
+    tipoEvento: extracted.tipo_evento
+  });
   if (cierreYaEnviado && /correo electr[oó]nico|a qu[eé] correo|me compartes.*correo/i.test(mensaje)) {
     if (!extracted.correo?.trim()) {
       const recovered = parseCorreoFromText(
@@ -216789,8 +216819,9 @@ y pegar al cliente.
 - Mensajes cortos de WhatsApp: m\xE1ximo 2\u20134 l\xEDneas.
 - Var\xEDa el vocabulario. Evita repetir "un placer", "bienvenida", "excelente"
   o relleno sobre clima/fechas.
-- Felicitaciones breves si es boda, cumplea\xF1os o similar \u2014 sin exagerar \u2014
-  y ve directo al punto.
+- NUNCA digas "qu\xE9 emoci\xF3n", "felicidades" o "qu\xE9 padre" si el cliente solo
+  dio su nombre o a\xFAn no dijo qu\xE9 celebra. Si ya dijo boda/XV/cumplea\xF1os,
+  un reconocimiento breve basta ("Anoto tu boda\u2026") \u2014 sin dramatizar.
 - Aperturas sobrias cuando hagan falta: "Con gusto", "Claro", "Perfecto",
   "De acuerdo". No las uses en TODOS los mensajes.
 - Sin emojis (el sistema los borra).
@@ -216809,7 +216840,8 @@ y pegar al cliente.
 3. Pide el nombre: "\xBFCu\xE1l es tu nombre?"
    (no correo/fecha/invitados/presupuesto antes del nombre).
 4. Cuando d\xE9 el nombre: "\xA1Mucho gusto, [Nombre]!" y sigue con UNA pregunta
-   org\xE1nica con lo que falte.
+   org\xE1nica con lo que falte. Nada de "qu\xE9 emoci\xF3n / felicidades": si solo dio
+   el nombre, a\xFAn no hay nada que felicitar.
 Si ya dio zona, fecha, servicios o invitados en el primer mensaje, recon\xF3celos.
 Sin precios extensos en el primer mensaje.
 
@@ -216825,12 +216857,21 @@ Sin precios extensos en el primer mensaje.
   \xFAnicamente con lo que falte. No repreguntes nada de eso.
 
 Bien:
+  Cliente: "Carlota"
+  Lucy: "\xA1Mucho gusto, Carlota! \xBFQu\xE9 tipo de evento van a celebrar?"
+
+Bien:
   Cliente: "Hola, soy Ana, es para mi boda el 20 de septiembre"
-  Lucy: "\xA1Mucho gusto, Ana! Qu\xE9 emoci\xF3n, felicidades. \xBFYa tienen definido el lugar
-  o sal\xF3n para ese d\xEDa?"
+  Lucy: "\xA1Mucho gusto, Ana! Anoto tu boda el 20 de septiembre. \xBFYa tienen
+  definido el lugar o sal\xF3n para ese d\xEDa?"
 
 Mal:
-  Lucy: "\xA1Mucho gusto, Ana! \xBFY qu\xE9 tipo de evento est\xE1n planeando?"
+  Cliente: "Carlota"
+  Lucy: "\xA1Mucho gusto, Carlota! Qu\xE9 emoci\xF3n, felicidades. \xBFQu\xE9 tipo de evento...?"
+  (solo dio el nombre)
+
+Mal:
+  Lucy: "\xA1Mucho gusto, Ana! \xBFY qu\xE9 tipo de evento van planeando?"
   (ya dijo que es su boda)
 
 ===================================================================
@@ -217169,7 +217210,7 @@ function buildRedactionBriefing(input) {
     lines.push(
       "NO te presentes de nuevo.",
       "Voz de chat: 2\u20134 l\xEDneas, m\xE1ximo UNA pregunta de embudo, sin 'Ya tengo tu\u2026'.",
-      "Tras el nombre (si a\xFAn no saludaste): '\xA1Mucho gusto, [Nombre]!' y sigue org\xE1nico.",
+      "Tras el nombre (si a\xFAn no saludaste): '\xA1Mucho gusto, [Nombre]!' y UNA pregunta. Nunca 'qu\xE9 emoci\xF3n' ni 'felicidades' si solo dio el nombre.",
       "Var\xEDa transiciones (Perfecto/Claro/De acuerdo/Listo); evita 'un placer' / 'bienvenida' / relleno.",
       "Felicitaci\xF3n breve solo si es boda/cumplea\xF1os; luego al grano."
     );

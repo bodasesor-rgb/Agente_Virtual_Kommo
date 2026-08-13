@@ -169,6 +169,7 @@ import {
   buildPostCierrePaymentHandoffReply,
   clientAsksPaymentOrQuoteDelivery,
   dedupeTransitionsInMessage,
+  stripPrematureCelebrationFluff,
   buildStandardClosingMessage,
   buildMultiServicePackageReply,
   buildMultiServiceSheetLevelsReply,
@@ -10333,6 +10334,40 @@ async function runAll(): Promise<void> {
       !/colgantes|Según el catálogo/i.test(liveFecha),
       liveFecha.slice(0, 350)
     );
+  });
+
+  // ─── 146. A15308 — Carlota: solo nombre → sin "qué emoción / felicidades" ───
+  await test("146. A15308 — solo nombre: Mucho gusto + embudo, sin felicitar", () => {
+    const dirty =
+      "¡Mucho gusto, Carlota! Qué emoción, felicidades. ¿Qué tipo de evento van planeando celebrar?";
+    const cleaned = stripPrematureCelebrationFluff(dirty, {
+      currentMessage: "Carlota",
+      tipoEvento: null,
+    });
+    assert.ok(/Mucho gusto,\s*Carlota/i.test(cleaned), cleaned);
+    assert.ok(!/emoción|felicidades/i.test(cleaned), cleaned);
+    assert.ok(
+      !/emoción|felicidades/i.test(dedupeTransitionsInMessage(dirty)),
+      dedupeTransitionsInMessage(dirty)
+    );
+
+    const live = runGuards({
+      aiResponse: dirty,
+      extracted: emptyExtracted({ nombre: "Carlota" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Carlota",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "¡Hola! Buen día. Soy Lucy, agente virtual de Bodasesor. ¿Me regalas tu nombre?",
+        },
+      ],
+    });
+    assert.ok(/Mucho gusto,\s*Carlota/i.test(live), live.slice(0, 300));
+    assert.ok(!/emoción|felicidades|qu[eé]\s+padre/i.test(live), live.slice(0, 400));
+    assert.ok(/tipo de evento|van a celebrar|qu[eé] van a celebrar/i.test(live), live.slice(0, 400));
   });
 
   // ─── 145. A15302 — Christián: menú cumpleaños + barra italiana ───
