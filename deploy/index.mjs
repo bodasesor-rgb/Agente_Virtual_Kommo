@@ -77947,7 +77947,7 @@ function getApiKeyFromEnv() {
   }
   return envGoogleApiKey || envGeminiApiKey || void 0;
 }
-var import_p_retry, import_google_auth_library, _defaultBaseGeminiUrl, _defaultBaseVertexUrl, BaseModule, Outcome, Language, FunctionResponseScheduling, Type, AuthType, HttpElementLocation, ApiSpec, Environment, SafetyPolicy, PhishBlockThreshold, Behavior, DynamicRetrievalConfigMode, ThinkingLevel, PersonGeneration, ProminentPeople, HarmCategory, HarmBlockMethod, HarmBlockThreshold, FunctionCallingConfigMode, FinishReason, HarmProbability, HarmSeverity, UrlRetrievalStatus, BlockedReason, TrafficType, MediaModality, ModelStage, MediaResolution, Modality, Delivery, AspectRatio, ImageSize, TuningMode, AdapterSize, ResponseParseType, MatchOperation, ReinforcementTuningThinkingLevel, JobState, TuningJobState, AggregationMetric, PairwiseChoice, VideoOrientation, TuningSpeed, TuningTask, DocumentState, ServiceTier, PartMediaResolutionLevel, ToolType, ResourceScope, FeatureSelectionPreference, EmbeddingApiType, SafetyFilterLevel, ImagePromptLanguage, MaskReferenceMode, ControlReferenceType, SubjectReferenceType, EditMode, SegmentMode, VideoGenerationReferenceType, VideoGenerationMaskMode, VideoCompressionQuality, ImageResizeMode, TuningMethod, FileState, FileSource, TurnCompleteReason, VadSignalType, VoiceActivityType, StartSensitivity, EndSensitivity, ActivityHandling, TurnCoverage, Scale, MusicGenerationMode, LiveMusicPlaybackControl, HttpResponse, GenerateContentResponse, EmbedContentResponse, GenerateImagesResponse, EditImageResponse, UpscaleImageResponse, RecontextImageResponse, SegmentImageResponse, ListModelsResponse, DeleteModelResponse, CountTokensResponse, ComputeTokensResponse, GenerateVideosOperation, ListTuningJobsResponse, CancelTuningJobResponse, ValidateRewardResponse, DeleteCachedContentResponse, ListCachedContentsResponse, ListDocumentsResponse, ListFileSearchStoresResponse, UploadToFileSearchStoreResumableResponse, ImportFileOperation, ListFilesResponse, CreateFileResponse, DeleteFileResponse, RegisterFilesResponse, ListBatchJobsResponse, LiveServerMessage, LiveMusicServerMessage, UploadToFileSearchStoreOperation, PagedItem, Pager, Batches2, Caches, Chats, Chat2, ApiError, Files4, CONTENT_TYPE_HEADER, SERVER_TIMEOUT_HEADER, USER_AGENT_HEADER, GOOGLE_API_CLIENT_HEADER, SDK_VERSION, LIBRARY_LABEL, VERTEX_AI_API_DEFAULT_VERSION, GOOGLE_AI_API_DEFAULT_VERSION, MULTI_REGIONAL_LOCATIONS, DEFAULT_RETRY_ATTEMPTS, DEFAULT_RETRY_INITIAL_DELAY, DEFAULT_RETRY_MAX_DELAY, DEFAULT_RETRY_EXP_BASE, DEFAULT_RETRY_JITTER, DEFAULT_RETRY_HTTP_STATUS_CODES, ApiClient, MCP_LABEL, hasMcpToolUsageFromMcpToTool, McpCallableTool, LiveMusic, LiveMusicSession, FUNCTION_RESPONSE_REQUIRES_ID, Live, defaultLiveSendClientContentParamerters, Session, DEFAULT_MAX_REMOTE_CALLS, Models2, Operations, Tokens, Documents, FileSearchStores, envMemo, GoogleGenAISecurityProvider, GoogleGenAIAuthHook, HTTPClientError, UnexpectedClientError, InvalidRequestError, RequestAbortedError, RequestTimeoutError, ConnectionError, GoogleGenAiError, GeminiNextGenAPIClientError, APIError2, APIUserAbortError2, APIConnectionError2, APIConnectionTimeoutError2, BadRequestError2, AuthenticationError2, PermissionDeniedError2, NotFoundError2, ConflictError2, UnprocessableEntityError2, RateLimitError2, InternalServerError2, SDKHooks, hasOwn2, ServerList, SDK_METADATA, encodeForm, encodeSimple, encodeFormQuery, DEFAULT_FETCHER, HTTPClient, mediaParamSeparator, codeRangeRE$1, defaultBackoff, PermanentError, TemporaryError, codeRangeRE, gt, webWorkerLike, isBrowserLike, ClientSDK, jsonLikeContentTypeRE, jsonlLikeContentTypeRE, GoogleGenAiDefaultError, Stream4, CR2, LF2, BOUNDARIES, MAX_BOUNDARY_LEN, DEFAULT_CONTENT_TYPES, headerValRE, SecurityErrorCode, SecurityError, _a3, APIPromise2, Agents, Environments, CancelInteractionByIdServerError, CancelInteractionByIdClientError, CreateInteractionServerError, CreateInteractionClientError, DeleteInteractionServerError, DeleteInteractionClientError, GetInteractionByIdServerError, GetInteractionByIdClientError, Interactions, Triggers, Webhooks2, GoogleGenAI$1, LEGACY_LYRIA_MODELS, GeminiNextGenInteractions, GeminiNextGenAgents, GeminiNextGenWebhooks, GeminiNextGenTriggers, GeminiNextGenEnvironments, GOOGLE_API_KEY_HEADER, REQUIRED_VERTEX_AI_SCOPE, NodeAuth, NodeDownloader, NodeWebSocketFactory, NodeWebSocket, Tunings, MAX_CHUNK_SIZE, MAX_RETRY_COUNT, INITIAL_RETRY_DELAY_MS, DELAY_MULTIPLIER, X_GOOG_UPLOAD_STATUS_HEADER_FIELD, NodeUploader, NodeFiles, LANGUAGE_LABEL_PREFIX, GoogleGenAI2;
+var import_p_retry, import_google_auth_library, _defaultBaseGeminiUrl, _defaultBaseVertexUrl, BaseModule, Outcome, Language, FunctionResponseScheduling, Type, AuthType, HttpElementLocation, ApiSpec, Environment, SafetyPolicy, PhishBlockThreshold, Behavior, DynamicRetrievalConfigMode, ThinkingLevel, PersonGeneration, ProminentPeople, HarmCategory, HarmBlockMethod, HarmBlockThreshold, FunctionCallingConfigMode, FinishReason, HarmProbability, HarmSeverity, UrlRetrievalStatus, BlockedReason, TrafficType, MediaModality, ModelStage, MediaResolution, Modality, Delivery, AspectRatio, ImageSize, TuningMode, AdapterSize, ResponseParseType, MatchOperation, ReinforcementTuningThinkingLevel, JobState, TuningJobState, AggregationMetric, PairwiseChoice, VideoOrientation, TuningSpeed, TuningTask, DocumentState, ServiceTier, PartMediaResolutionLevel, ToolType, ResourceScope, FeatureSelectionPreference, EmbeddingApiType, SafetyFilterLevel, ImagePromptLanguage, MaskReferenceMode, ControlReferenceType, SubjectReferenceType, EditMode, SegmentMode, VideoGenerationReferenceType, VideoGenerationMaskMode, VideoCompressionQuality, ImageResizeMode, TuningMethod, FileState, FileSource, TurnCompleteReason, InteractionStatus, VadSignalType, VoiceActivityType, StartSensitivity, EndSensitivity, ActivityHandling, TurnCoverage, Scale, MusicGenerationMode, LiveMusicPlaybackControl, HttpResponse, GenerateContentResponse, EmbedContentResponse, GenerateImagesResponse, EditImageResponse, UpscaleImageResponse, RecontextImageResponse, SegmentImageResponse, ListModelsResponse, DeleteModelResponse, CountTokensResponse, ComputeTokensResponse, GenerateVideosOperation, ListTuningJobsResponse, CancelTuningJobResponse, ValidateRewardResponse, DeleteCachedContentResponse, ListCachedContentsResponse, ListDocumentsResponse, ListFileSearchStoresResponse, UploadToFileSearchStoreResumableResponse, ImportFileOperation, ListFilesResponse, CreateFileResponse, DeleteFileResponse, RegisterFilesResponse, ListBatchJobsResponse, LiveServerMessage, LiveMusicServerMessage, UploadToFileSearchStoreOperation, PagedItem, Pager, Batches2, Caches, Chats, Chat2, ApiError, Files4, CONTENT_TYPE_HEADER, SERVER_TIMEOUT_HEADER, USER_AGENT_HEADER, GOOGLE_API_CLIENT_HEADER, SDK_VERSION, LIBRARY_LABEL, VERTEX_AI_API_DEFAULT_VERSION, GOOGLE_AI_API_DEFAULT_VERSION, MULTI_REGIONAL_LOCATIONS, DEFAULT_RETRY_ATTEMPTS, DEFAULT_RETRY_INITIAL_DELAY, DEFAULT_RETRY_MAX_DELAY, DEFAULT_RETRY_EXP_BASE, DEFAULT_RETRY_JITTER, DEFAULT_RETRY_HTTP_STATUS_CODES, ApiClient, MCP_LABEL, hasMcpToolUsageFromMcpToTool, McpCallableTool, LiveMusic, LiveMusicSession, FUNCTION_RESPONSE_REQUIRES_ID, Live, defaultLiveSendClientContentParamerters, Session, DEFAULT_MAX_REMOTE_CALLS, Models2, Operations, Tokens, Documents, FileSearchStores, envMemo, GoogleGenAISecurityProvider, GoogleGenAIAuthHook, HTTPClientError, UnexpectedClientError, InvalidRequestError, RequestAbortedError, RequestTimeoutError, ConnectionError, GoogleGenAiError, GeminiNextGenAPIClientError, APIError2, APIUserAbortError2, APIConnectionError2, APIConnectionTimeoutError2, BadRequestError2, AuthenticationError2, PermissionDeniedError2, NotFoundError2, ConflictError2, UnprocessableEntityError2, RateLimitError2, InternalServerError2, SDKHooks, hasOwn2, ServerList, SDK_METADATA, encodeForm, encodeSimple, encodeFormQuery, DEFAULT_FETCHER, HTTPClient, mediaParamSeparator, codeRangeRE$1, defaultBackoff, PermanentError, TemporaryError, codeRangeRE, gt, webWorkerLike, isBrowserLike, ClientSDK, jsonLikeContentTypeRE, jsonlLikeContentTypeRE, GoogleGenAiDefaultError, Stream4, CR2, LF2, BOUNDARIES, MAX_BOUNDARY_LEN, DEFAULT_CONTENT_TYPES, headerValRE, SecurityErrorCode, SecurityError, _a3, APIPromise2, Agents, Environments, CancelInteractionByIdServerError, CancelInteractionByIdClientError, CreateInteractionServerError, CreateInteractionClientError, DeleteInteractionServerError, DeleteInteractionClientError, GetInteractionByIdServerError, GetInteractionByIdClientError, Interactions, Triggers, Webhooks2, GoogleGenAI$1, LEGACY_LYRIA_MODELS, GeminiNextGenInteractions, GeminiNextGenAgents, GeminiNextGenWebhooks, GeminiNextGenTriggers, GeminiNextGenEnvironments, GOOGLE_API_KEY_HEADER, REQUIRED_VERTEX_AI_SCOPE, NodeAuth, NodeDownloader, NodeWebSocketFactory, NodeWebSocket, Tunings, MAX_CHUNK_SIZE, MAX_RETRY_COUNT, INITIAL_RETRY_DELAY_MS, DELAY_MULTIPLIER, X_GOOG_UPLOAD_STATUS_HEADER_FIELD, NodeUploader, NodeFiles, LANGUAGE_LABEL_PREFIX, GoogleGenAI2;
 var init_node = __esm({
   "../node_modules/@google/genai/dist/node/index.mjs"() {
     import_p_retry = __toESM(require_p_retry(), 1);
@@ -78452,6 +78452,11 @@ var init_node = __esm({
       TurnCompleteReason2["GENERATED_OTHER"] = "GENERATED_OTHER";
       TurnCompleteReason2["MAX_REGENERATION_REACHED"] = "MAX_REGENERATION_REACHED";
     })(TurnCompleteReason || (TurnCompleteReason = {}));
+    (function(InteractionStatus2) {
+      InteractionStatus2["INTERACTION_STATUS_UNSPECIFIED"] = "INTERACTION_STATUS_UNSPECIFIED";
+      InteractionStatus2["IN_PROGRESS"] = "IN_PROGRESS";
+      InteractionStatus2["REQUIRES_ACTION"] = "REQUIRES_ACTION";
+    })(InteractionStatus || (InteractionStatus = {}));
     (function(VadSignalType2) {
       VadSignalType2["VAD_SIGNAL_TYPE_UNSPECIFIED"] = "VAD_SIGNAL_TYPE_UNSPECIFIED";
       VadSignalType2["VAD_SIGNAL_TYPE_SOS"] = "VAD_SIGNAL_TYPE_SOS";
@@ -80332,7 +80337,7 @@ var init_node = __esm({
     SERVER_TIMEOUT_HEADER = "X-Server-Timeout";
     USER_AGENT_HEADER = "User-Agent";
     GOOGLE_API_CLIENT_HEADER = "x-goog-api-client";
-    SDK_VERSION = "2.16.0";
+    SDK_VERSION = "2.17.0";
     LIBRARY_LABEL = `google-genai-sdk/${SDK_VERSION}`;
     VERTEX_AI_API_DEFAULT_VERSION = "v1beta1";
     GOOGLE_AI_API_DEFAULT_VERSION = "v1beta";
@@ -202104,6 +202109,441 @@ function stripInternalCrmBlock(mensaje) {
   return "";
 }
 
+// src/services/imageProcessor.ts
+init_llmChat();
+init_llmEnv();
+var IMAGE_TYPES = /* @__PURE__ */ new Set(["picture", "image", "photo"]);
+var IMAGE_CACHE_TTL_MS = 2 * 60 * 60 * 1e3;
+var IMAGE_CACHE_MAX = 500;
+var imageAnalysisCache = /* @__PURE__ */ new Map();
+function pruneImageCache() {
+  const now = Date.now();
+  for (const [url2, entry] of imageAnalysisCache) {
+    if (now - entry.at > IMAGE_CACHE_TTL_MS) imageAnalysisCache.delete(url2);
+  }
+  if (imageAnalysisCache.size <= IMAGE_CACHE_MAX) return;
+  const sorted = [...imageAnalysisCache.entries()].sort((a4, b5) => a4[1].at - b5[1].at);
+  for (let i6 = 0; i6 < sorted.length - IMAGE_CACHE_MAX; i6++) {
+    imageAnalysisCache.delete(sorted[i6][0]);
+  }
+}
+function getCachedImageAnalysis(imageUrl) {
+  const entry = imageAnalysisCache.get(imageUrl);
+  if (!entry) return null;
+  if (Date.now() - entry.at > IMAGE_CACHE_TTL_MS) {
+    imageAnalysisCache.delete(imageUrl);
+    return null;
+  }
+  return entry.analysis;
+}
+function cacheImageAnalysis(imageUrl, analysis) {
+  imageAnalysisCache.set(imageUrl, { analysis, at: Date.now() });
+  if (imageAnalysisCache.size > IMAGE_CACHE_MAX * 0.9) pruneImageCache();
+}
+function isImageMessage(message) {
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const a4 = att;
+    if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) return true;
+    if (typeof a4["mime_type"] === "string" && a4["mime_type"].startsWith("image/")) return true;
+  }
+  const atts = message["attachments"];
+  if (Array.isArray(atts)) {
+    for (const item of atts) {
+      if (typeof item === "object" && item !== null) {
+        const a4 = item;
+        if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) return true;
+        if (typeof a4["mime_type"] === "string" && a4["mime_type"].startsWith("image/")) return true;
+      }
+    }
+  }
+  const mediaType = String(message["media_type"] ?? "");
+  if (IMAGE_TYPES.has(mediaType)) return true;
+  const mimeType = String(message["mime_type"] ?? "");
+  if (mimeType.startsWith("image/")) return true;
+  return false;
+}
+function getImageUrl(message) {
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const a4 = att;
+    for (const key of ["link", "url", "media_url"]) {
+      if (typeof a4[key] === "string" && a4[key].length > 0) return a4[key];
+    }
+  }
+  const atts = message["attachments"];
+  if (Array.isArray(atts)) {
+    for (const item of atts) {
+      if (typeof item === "object" && item !== null) {
+        const a4 = item;
+        if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) {
+          for (const key of ["link", "url", "media_url"]) {
+            if (typeof a4[key] === "string" && a4[key].length > 0) return a4[key];
+          }
+        }
+      }
+    }
+  }
+  for (const key of ["media_url", "file_url", "url"]) {
+    if (typeof message[key] === "string" && message[key].length > 0) {
+      return message[key];
+    }
+  }
+  const media = message["media"];
+  if (typeof media === "object" && media !== null) {
+    const m6 = media;
+    if (typeof m6["url"] === "string" && m6["url"].length > 0) return m6["url"];
+  }
+  return null;
+}
+function getImageCaption(message) {
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const a4 = att;
+    const caption = (typeof a4["text"] === "string" ? a4["text"] : "") || (typeof a4["caption"] === "string" ? a4["caption"] : "") || (typeof a4["title"] === "string" ? a4["title"] : "");
+    if (caption.trim()) return caption.trim();
+  }
+  const rawText = message["text"];
+  if (typeof rawText === "string" && rawText.trim()) return rawText.trim();
+  return null;
+}
+var VALID_INTENTS = /* @__PURE__ */ new Set([
+  "montaje_referencia",
+  "comprobante_pago",
+  "comida_producto",
+  "lugar_evento",
+  "documento",
+  "otro",
+  "no_claro"
+]);
+var VISION_PROMPT = `Eres Lucy de Bodasesor (bodas y eventos en M\xE9xico). Un cliente envi\xF3 una imagen por WhatsApp.
+Tu trabajo: ENTENDER la foto y CONTESTARLE AL CLIENTE sobre lo que envi\xF3.
+NO hagas un resumen t\xE9cnico/interno. NO digas 'la imagen muestra\u2026', 'se observa\u2026', 'el espacio es\u2026'.
+Habla como en un chat: menciona 1-2 detalles concretos de LA FOTO y dile c\xF3mo lo ayudas (cotizaci\xF3n, estilo, servicio).
+
+Clasifica intent como UNO de:
+- montaje_referencia: foto de montaje, mesas/sillas, decoraci\xF3n o estilo de referencia
+- comprobante_pago: captura de transferencia, SPEI, ticket o comprobante de pago
+- comida_producto: comida, men\xFA, taquiza, pastel, bebida u otro producto de catering
+- lugar_evento: foto del sal\xF3n, jard\xEDn o venue del evento
+- documento: INE, contrato u otro documento
+- otro: relacionado con el evento pero no encaja arriba
+- no_claro: no se entiende qu\xE9 quiere el cliente con la foto
+
+Responde SOLO JSON v\xE1lido (sin markdown) con exactamente estas claves:
+{"intent":"...","internal_description":"muy breve para el equipo (max 12 palabras)","client_reply":"2-3 oraciones AL CLIENTE sobre su foto"}
+
+Reglas para client_reply (ES LO IMPORTANTE):
+- Es la respuesta que el cliente leer\xE1 en WhatsApp.
+- Debe sonar a conversaci\xF3n: 'Vi que\u2026 / Me encanta el estilo\u2026 / Anoto\u2026 / \xBFQuieres\u2026?'
+- Nombra algo concreto que salga en la foto (color, tipo de mesa, plato, jard\xEDn, etc.).
+- montaje_referencia: confirma que pueden armar ese estilo/mobiliario y an\xF3talo.
+- comprobante_pago: agradece el pago y di que el equipo da seguimiento (sin leer datos sensibles).
+- comida_producto: nombra el platillo/estilo de la foto. Si el caption ya dice un servicio (ej. barra de pastas), confirma ESE servicio. NO inventes alternativas (taquiza, banquete) si la foto o el caption ya son claros.
+- lugar_evento: reconoce el espacio y confirma si ah\xED ser\xEDa el evento.
+- documento: confirma recepci\xF3n sin leer datos sensibles.
+- no_claro / otro: pregunta qu\xE9 le gustar\xEDa de esa foto para su evento.
+- Espa\xF1ol mexicano, de t\xFA, c\xE1lida. NUNCA digas 'resumen', 'descripci\xF3n' ni 'an\xE1lisis'.`;
+var FALLBACK_REPLIES = {
+  montaje_referencia: "\xA1S\xED! Manejamos mesas, sillas y montajes de ese estilo. Lo anoto para tu cotizaci\xF3n.",
+  comprobante_pago: "\xA1Gracias por tu pago! Lo registro y el equipo da seguimiento.",
+  comida_producto: "\xA1Qu\xE9 rico! Lo tomo como referencia de lo que buscas y lo anoto para tu cotizaci\xF3n.",
+  lugar_evento: "Recib\xED la foto del lugar. \xBFConfirmas que ah\xED ser\xEDa tu evento?",
+  documento: "Listo, recib\xED el documento. El equipo lo revisa y te confirma.",
+  otro: "Recib\xED tu imagen. \xBFMe confirmas qu\xE9 te gustar\xEDa de esta foto para tu evento?",
+  no_claro: "Recib\xED tu imagen. \xBFMe confirmas qu\xE9 te gustar\xEDa de esta foto?"
+};
+function normalizeIntent(raw) {
+  const s7 = String(raw ?? "").trim().toLowerCase().replace(/\s+/g, "_");
+  if (VALID_INTENTS.has(s7)) return s7;
+  if (/montaje|referencia|estilo|mobiliario|mesa|silla|decor/i.test(s7)) return "montaje_referencia";
+  if (/comprobante|pago|transfer|spei|ticket/i.test(s7)) return "comprobante_pago";
+  if (/comida|producto|menu|taquiza|banquete|pastel/i.test(s7)) return "comida_producto";
+  if (/lugar|salon|salón|venue|jard[ií]n/i.test(s7)) return "lugar_evento";
+  if (/documento|ine|identific/i.test(s7)) return "documento";
+  return "no_claro";
+}
+function looksLikeOwnerDescription(text2) {
+  return /^(el|la|los|las)\s+(espacio|área|area|imagen|foto|sal[oó]n|jard[ií]n|mesa)/i.test(text2.trim()) || /\b(se observa|se aprecia|la imagen muestra|en la fotograf[ií]a|resumen\s+de\s+la\s+(imagen|foto)|descripci[oó]n\s+de\s+la\s+(imagen|foto))\b/i.test(
+    text2
+  ) || /\ban[aá]lisis\s+(interno|de\s+la\s+imagen|visual)\b/i.test(text2);
+}
+function looksLikeImageInternalSummary(text2) {
+  if (!text2?.trim()) return false;
+  return looksLikeOwnerDescription(text2) || /\[Imagen nota interna\]/i.test(text2);
+}
+function buildAnalysisFromParts(intentRaw, internalRaw, clientRaw) {
+  const intent = normalizeIntent(intentRaw);
+  const internalDescription = String(internalRaw ?? "").trim().slice(0, 500) || "Imagen recibida sin detalle.";
+  let clientReply = String(clientRaw ?? "").trim().slice(0, 400);
+  if (!clientReply || looksLikeOwnerDescription(clientReply)) {
+    clientReply = FALLBACK_REPLIES[intent];
+  }
+  return { intent, internalDescription, clientReply };
+}
+function parseVisionImageJson(raw) {
+  const trimmed = raw.trim();
+  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return null;
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    return buildAnalysisFromParts(
+      parsed.intent ?? parsed.Intent,
+      parsed.internal_description ?? parsed.internalDescription ?? parsed.description,
+      parsed.client_reply ?? parsed.clientReply ?? parsed.reply
+    );
+  } catch {
+    return null;
+  }
+}
+async function analyzeImageFull(imageUrl, accessToken, log) {
+  const cached2 = getCachedImageAnalysis(imageUrl);
+  if (cached2) {
+    log.info({ imageUrl: imageUrl.slice(0, 80), intent: cached2.intent }, "Imagen en cach\xE9 (Vision)");
+    return cached2;
+  }
+  try {
+    const imgResponse = await fetch(imageUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!imgResponse.ok) {
+      log.warn({ status: imgResponse.status, imageUrl }, "Error descargando imagen del cliente");
+      return null;
+    }
+    const contentType = imgResponse.headers.get("content-type") || "image/jpeg";
+    const buffer = await imgResponse.arrayBuffer();
+    const compressed = await tryCompressImageForVision(buffer);
+    const mimeType = compressed?.mimeType ?? (contentType.split(";")[0]?.trim() || "image/jpeg");
+    const base64 = compressed?.base64 ?? Buffer.from(buffer).toString("base64");
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+    if (compressed) {
+      log.info(
+        {
+          bytesIn: compressed.bytesIn,
+          bytesOut: compressed.bytesOut,
+          width: compressed.width,
+          height: compressed.height,
+          resized: compressed.resized
+        },
+        "Imagen comprimida para Vision"
+      );
+    }
+    const completion = await completeChat({
+      model: getChatModel(),
+      purpose: "vision",
+      maxTokens: 320,
+      temperature: 0.3,
+      json: true,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: VISION_PROMPT },
+            {
+              type: "image_url",
+              image_url: { url: dataUrl },
+              mimeType,
+              base64
+            }
+          ]
+        }
+      ]
+    });
+    const raw = completion.text.trim();
+    const parsed = raw ? parseVisionImageJson(raw) : null;
+    const analysis = parsed ?? buildAnalysisFromParts(
+      "no_claro",
+      raw || "No se pudo parsear la visi\xF3n",
+      FALLBACK_REPLIES.no_claro
+    );
+    cacheImageAnalysis(imageUrl, analysis);
+    log.info(
+      { intent: analysis.intent, chars: analysis.clientReply.length },
+      "Imagen analizada (Vision accionable)"
+    );
+    return analysis;
+  } catch (err2) {
+    log.error({ err: err2 }, "Error analizando imagen con Vision");
+    return null;
+  }
+}
+var IMAGE_ACTION_MARKER = "[Imagen respuesta cliente]:";
+var IMAGE_INTENT_MARKER = "[Imagen intent]:";
+function formatImageTurnText(analysis, caption) {
+  const parts2 = [
+    `${IMAGE_INTENT_MARKER} ${analysis.intent}`,
+    `${IMAGE_ACTION_MARKER} ${analysis.clientReply}`
+  ];
+  if (caption?.trim()) {
+    return `${caption.trim()}
+
+${parts2.join("\n")}`;
+  }
+  return parts2.join("\n");
+}
+function formatImageTeamNote(analysis) {
+  return `Intent: ${analysis.intent}
+Respuesta enviada al cliente: ${analysis.clientReply}
+Ref. equipo (no enviar): ${analysis.internalDescription}`;
+}
+function extractImageClientReply(text2) {
+  if (!text2) return null;
+  const m6 = text2.match(/\[Imagen respuesta cliente\]:\s*([^\n\[]+)/i);
+  return m6?.[1]?.trim() || null;
+}
+function stripImageMarkersFromText(text2) {
+  if (!text2?.trim()) return "";
+  return text2.replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/gi, "").replace(/\[Imagen nota interna\]:\s*[^\n]*/gi, "").replace(/\[Imagen intent\]:\s*[^\n]*/gi, "").replace(/\[Imagen adjunta:[^\]]*\]/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
+function clientCaptionForServiceParse(text2) {
+  return stripImageMarkersFromText(text2);
+}
+function extractImageIntent(text2) {
+  if (!text2) return null;
+  const m6 = text2.match(/\[Imagen intent\]:\s*([a-z_]+)/i);
+  if (!m6?.[1]) return null;
+  return normalizeIntent(m6[1]);
+}
+
+// src/services/serviceDecline.ts
+var FAMILY_SERVICE_RE = {
+  alimentos: /^(Alimentos|Comida)$|banquete|taquiza|catering|pizzas?|barra\s+de\s+(pizzas?|pastas?|alimentos|sushi)|brunch|parrillada|sushi|canap|bocadillo|coffee\s*break|puestos?\s+de\s+comida|desayuno|paella|pozole|pasta/i,
+  bebidas: /bebidas?|barra\s+de\s+bebidas|coctel|m[oó]cteles|mixolog|barra\s+de\s+caf[eé]/i,
+  mobiliario: /mobiliario|sillas?|mesas?(?!\s+de)|periqueras?|salas?\s+lounge|tiffany/i,
+  carpas: /carpas?|toldos?|lonas?/i,
+  decoracion: /decoraci[oó]n|centros?\s+de\s+mesa|florister|globos?|tem[aá]tica/i,
+  entretenimiento: /show|dj\b|entretenimiento|hora\s+loca|photobooth|photo\s*booth|bailarinas|batucada|robots?/i,
+  pista: /pista|tarima/i,
+  dulces: /mesa\s+de\s+dulces|postres?|cupcakes?|bet[uú]n|candy/i
+};
+var FAMILY_DECLINE_WORDS = {
+  alimentos: "comida|comidas|alimentos?|pizzas?|banquete|taquiza|catering|barra\\s+de\\s+pizzas?|brunch|parrillada|sushi|canap[e\xE9]s?|bocadillos?|coffee\\s*break",
+  bebidas: "bebidas?|barra\\s+de\\s+bebidas|cocteler[i\xED]a|m[o\xF3]cteles?|mixolog[i\xED]a",
+  mobiliario: "mobiliario|sillas?|mesas?|periqueras?|salas?",
+  carpas: "carpas?|toldos?|lonas?",
+  decoracion: "decoraci[o\xF3]n|centros?\\s+de\\s+mesa|flores?|globos?",
+  entretenimiento: "show|dj|entretenimiento|hora\\s+loca|photobooth|photo\\s*booth",
+  pista: "pista|tarima",
+  dulces: "mesa\\s+de\\s+dulces|postres?|dulces?|cupcakes?"
+};
+function captionOf(message) {
+  if (!message?.trim()) return "";
+  return (clientCaptionForServiceParse(message) || message).trim();
+}
+function clientDeclinesServiceFamilies(message) {
+  const t4 = captionOf(message).toLowerCase();
+  if (!t4) return [];
+  const out2 = /* @__PURE__ */ new Set();
+  if (/\b(yo\s+)?(ya\s+)?(les\s+|le\s+)?(voy\s+a\s+dar|doy|pondr[eé]|llevo|traigo)\b/i.test(t4) && /\b(pizza|comida|alimentos?|banquete|taquiza)\b/i.test(t4)) {
+    out2.add("alimentos");
+  }
+  if (/\b(porque|por\s*qu[eé])\s+yo\b/i.test(t4) && /\b(dar|doy|pondr|voy\s+a\s+dar|comida|pizza|alimentos|les\s+voy)\b/i.test(t4)) {
+    out2.add("alimentos");
+  }
+  if (/\b(yo\s+)?(ya\s+)?les?\s+voy\s+a\s+dar\b/i.test(t4) && !/\b(correo|tel[eé]fono|whatsapp|datos|nombre|ubicaci|direcci[oó]n)\b/i.test(t4)) {
+    out2.add("alimentos");
+  }
+  for (const family of Object.keys(FAMILY_DECLINE_WORDS)) {
+    const words = FAMILY_DECLINE_WORDS[family];
+    const reNoQuiero = new RegExp(
+      `\\b(no|nop)(?:\\s+pero|\\s+peor)?\\s+(quiero|necesito|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
+      "i"
+    );
+    const reQuitale = new RegExp(
+      `\\b(?:pero|peor\\s+)?(qu[i\xED]ta(le|me)?|quita(r|mos)?|sacar?|saquen|elimina(r)?)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
+      "i"
+    );
+    const reSin = new RegExp(`\\bsin\\s+(${words})\\b`, "i");
+    const reQueNo = new RegExp(
+      `\\bque\\s+no\\s+(quiero|necesito)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
+      "i"
+    );
+    if (reNoQuiero.test(t4) || reQuitale.test(t4) || reSin.test(t4) || reQueNo.test(t4)) {
+      out2.add(family);
+    }
+  }
+  if (/\bno(?:\s+pero|\s+peor)?\s+(quiero\s+)?comoda\b/i.test(t4) || /\bqu[ií]tale?\s+la\s+comoda\b/i.test(t4) || /\bno\s+quiero\s+comoda\b/i.test(t4)) {
+    out2.add("alimentos");
+  }
+  return [...out2];
+}
+function clientDeclinesServiceFamiliesWithContext(message, recentUserTexts = []) {
+  const fromCurrent = clientDeclinesServiceFamilies(message);
+  const out2 = new Set(fromCurrent);
+  const cur = captionOf(message).trim();
+  if (/^(comida|comidas|alimentos?)$/i.test(cur)) {
+    const prevBlob = recentUserTexts.slice(-3).join(" \n ");
+    if (clientDeclinesServiceFamilies(prevBlob).includes("alimentos") || /\bcomoda\b/i.test(prevBlob) || /\bno(?:\s+pero|\s+peor)?\s+no\s+quiero\b/i.test(prevBlob) || /\bqu[ií]tale?\s+la\s+comi/i.test(prevBlob)) {
+      out2.add("alimentos");
+    }
+  }
+  return [...out2];
+}
+function clientDeclinesAnyService(message) {
+  return clientDeclinesServiceFamilies(message).length > 0;
+}
+function serviceMatchesDeclinedFamily(serviceLabel, family) {
+  return FAMILY_SERVICE_RE[family].test(serviceLabel.trim());
+}
+function serviceIsDeclined(serviceLabel, families) {
+  return families.some((f7) => serviceMatchesDeclinedFamily(serviceLabel, f7));
+}
+function removeDeclinedFamiliesFromRequirements(existing, families) {
+  if (!existing?.trim() || families.length === 0) {
+    return existing?.trim() || null;
+  }
+  const parts2 = existing.split(",").map((s7) => s7.trim()).filter(Boolean).filter((s7) => !serviceIsDeclined(s7, families));
+  return parts2.length ? parts2.join(", ") : null;
+}
+function declinedFamilyLabel(family) {
+  switch (family) {
+    case "alimentos":
+      return "alimentos / comida";
+    case "bebidas":
+      return "bebidas";
+    case "mobiliario":
+      return "mobiliario";
+    case "carpas":
+      return "carpas";
+    case "decoracion":
+      return "decoraci\xF3n";
+    case "entretenimiento":
+      return "entretenimiento";
+    case "pista":
+      return "pista / tarima";
+    case "dulces":
+      return "mesa de dulces / postres";
+  }
+}
+function buildServiceDeclineAck(families) {
+  if (!families.length) return "Listo, lo quito de la cotizaci\xF3n.";
+  const labels = families.map(declinedFamilyLabel);
+  const list = labels.length === 1 ? labels[0] : labels.length === 2 ? `${labels[0]} y ${labels[1]}` : `${labels.slice(0, -1).join(", ")} y ${labels[labels.length - 1]}`;
+  return `Listo \u2014 *no* incluimos ${list} en tu cotizaci\xF3n.`;
+}
+function looksLikeThemeColorNotLocation(value) {
+  const t4 = (value ?? "").trim();
+  if (!t4) return false;
+  if (/^colores?\b/i.test(t4)) return true;
+  if (/^tem[aá]tica\b/i.test(t4)) return true;
+  if (/^(blanco|negro|dorado|plateado|rojo|azul|verde|rosa|morado|violeta|gris|beige|dorado)(\s*(y|con|\/|,)\s*(blanco|negro|dorado|plateado|rojo|azul|verde|rosa|morado|violeta|gris|beige))+$/i.test(
+    t4
+  )) {
+    return true;
+  }
+  return false;
+}
+function stripThemeColorsFromZona(value) {
+  if (!value?.trim()) return null;
+  let v4 = value.trim();
+  v4 = v4.replace(
+    /,\s*(blanco|negro|dorado|plateado|rojo|azul|verde|rosa|morado|violeta|gris|beige)(\s*(y|con|\/)\s*(blanco|negro|dorado|plateado|rojo|azul|verde|rosa|morado|violeta|gris|beige))*\s*$/i,
+    ""
+  );
+  v4 = v4.replace(/\s*[-–]\s*(rojo|negro|azul|blanco|dorado).*$/i, "");
+  return v4.trim() || null;
+}
+
 // src/conversation-understanding.ts
 var LUCY_FIELD_ASK_PATTERNS = {
   nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
@@ -202597,6 +203037,7 @@ function hasSpecificFoodService(text2) {
 function isVagueFoodTerm(text2) {
   const t4 = text2?.trim() ?? "";
   if (!t4) return false;
+  if (clientDeclinesServiceFamilies(t4).includes("alimentos")) return false;
   if (clientAsksCafeOrCateringChoice(t4)) return true;
   if (/\b(desayuno|snack|cena|coffee\s*break)\b/i.test(t4) && /\b(desayuno|comida|cena|snack|coffee)\b/i.test(t4) && (t4.match(/\b(desayuno|comida|cena|snack|coffee\s*break)\b/gi) ?? []).length >= 2) {
     return false;
@@ -203137,6 +203578,9 @@ function isNonLocationBusinessPhrase(text2) {
   if (/^(blanco|negro|dorado|plateado|natural|madera|rojo|azul|verde|rosa)$/i.test(cleaned)) {
     return true;
   }
+  if (looksLikeThemeColorNotLocation(cleaned) || looksLikeThemeColorNotLocation(t4)) {
+    return true;
+  }
   if (/^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n|noche|tarde|vivo|realidad|serio|importante)$/i.test(
     cleaned
   )) {
@@ -203214,6 +203658,7 @@ function parseCentrosDeMesaRequirement(text2) {
 function parseServicesFromText(text2) {
   const found = [];
   const lower2 = text2.toLowerCase();
+  const declined = clientDeclinesServiceFamilies(text2);
   const hasMealListContext = /\b(desayuno|snack|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text2) || (text2.match(/,/g) ?? []).length >= 1 || /\b(desayuno|snack|comida|cena)\b.+\b(desayuno|snack|comida|cena)\b/i.test(text2);
   const snackIsAntojito = /\bsnacks?\b/i.test(text2) && /\b(banderillas?|antojitos?|esquites?|elotes?|garnachas?|quesadillas?)\b/i.test(text2);
   const hasCorporateMealList = /\b(desayuno|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text2) || /\bsnack\b/i.test(text2) && /\b(desayuno|comida|cena|coffee)\b/i.test(text2) && !snackIsAntojito;
@@ -203262,10 +203707,11 @@ function parseServicesFromText(text2) {
       found.push(normalized);
     }
   }
-  if (/\b(alimentos?|comidas?)\b/i.test(text2) && !clientAsksCafeOrCateringChoice(text2) && !found.some((s7) => /alimento|banquete|taquiza|catering|comida|barra\s+de\s+alimentos/i.test(s7))) {
+  if (/\b(alimentos?|comidas?)\b/i.test(text2) && !clientAsksCafeOrCateringChoice(text2) && !declined.includes("alimentos") && !found.some((s7) => /alimento|banquete|taquiza|catering|comida|barra\s+de\s+alimentos/i.test(s7))) {
     found.push("Alimentos");
   }
-  return dedupeServiceHierarchy([...new Set(found)], text2);
+  const filtered = declined.length > 0 ? found.filter((s7) => !serviceIsDeclined(s7, declined)) : found;
+  return dedupeServiceHierarchy([...new Set(filtered)], text2);
 }
 function formatServicesList(services) {
   const clean = services.map((s7) => s7.trim()).filter(Boolean);
@@ -203387,20 +203833,25 @@ function clientWantsFoodOnlyQuote(text2) {
   ) || /\bsolo\s+(los\s+)?(antojitos?|puestos?(\s+de\s+comida)?)\b/i.test(t4);
 }
 function mergeServiceRequirements(existing, text2, max = 6) {
-  const fromExisting = existing?.trim() ? parseServicesFromText(existing) : [];
-  const fromText = text2?.trim() ? parseServicesFromText(text2) : [];
+  const declined = clientDeclinesServiceFamilies(text2);
+  const existingClean = declined.length ? removeDeclinedFamiliesFromRequirements(existing, declined) : existing;
+  const fromExisting = existingClean?.trim() ? parseServicesFromText(existingClean).filter((s7) => !serviceIsDeclined(s7, declined)) : [];
+  const fromText = text2?.trim() ? parseServicesFromText(text2).filter((s7) => !serviceIsDeclined(s7, declined)) : [];
   const merged = dedupeServiceHierarchy(
     [...fromExisting, ...fromText],
-    `${existing ?? ""} ${text2 ?? ""}`
+    `${existingClean ?? ""} ${text2 ?? ""}`
   ).slice(0, max);
   if (merged.length === 0) {
-    const fallback = existing?.trim() || text2?.trim() || "";
+    if (declined.length > 0) {
+      return existingClean?.trim() || null;
+    }
+    const fallback = existingClean?.trim() || text2?.trim() || "";
     if (!fallback) return null;
     if (isGenericQuoteIntentRequerimiento(fallback) || isQuoteIntentMessage(fallback) || isGreetingOnlyMessage(fallback)) {
       return null;
     }
-    if (existing?.trim() && !isGenericQuoteIntentRequerimiento(existing)) {
-      return existing.trim().slice(0, 250);
+    if (existingClean?.trim() && !isGenericQuoteIntentRequerimiento(existingClean)) {
+      return existingClean.trim().slice(0, 250);
     }
     return null;
   }
@@ -203704,6 +204155,7 @@ function isUsableDireccionEvento(value) {
   if (isLikelyProductNameNotLocation(t4)) return false;
   if (JUNK_DIRECCION_PATTERN.test(t4)) return false;
   if (isNonLocationBusinessPhrase(t4)) return false;
+  if (looksLikeThemeColorNotLocation(t4)) return false;
   if (looksLikeDiscourseNotPlace(t4)) return false;
   if (looksLikeCompanyLocationQuestionFragment(t4)) return false;
   if (/\bd[oó]nde\b|\bubicad/i.test(t4) && !KNOWN_ZONES.test(t4) && t4.split(/\s+/).length <= 5) {
@@ -204022,8 +204474,13 @@ function isGenericQuoteIntentRequerimiento(value) {
   return /^(quiero|necesito|requiero|busco|me\s+interesa)\s+(una?\s+)?cotiz/i.test(t4) || /^cotizaci[oó]n$/i.test(t4) || /^una?\s+cotizaci[oó]n$/i.test(t4) || /\bquiero\s+una?\s+cotizaci[oó]n\b/i.test(t4) || /\bsolicito\s+(una?\s+)?cotizaci[oó]n\b/i.test(t4);
 }
 function mergeZonaDetail(existing, incoming) {
-  const prev = existing?.trim() ?? "";
-  const next = incoming?.trim() ?? "";
+  const prevRaw = existing?.trim() ?? "";
+  const nextRaw = incoming?.trim() ?? "";
+  if (looksLikeThemeColorNotLocation(nextRaw)) {
+    return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
+  }
+  const prev = stripThemeColorsFromZona(prevRaw) || prevRaw;
+  const next = stripThemeColorsFromZona(nextRaw) || nextRaw;
   if (!next) return prev || null;
   if (!prev) return next;
   if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
@@ -206149,302 +206606,6 @@ function resolveProgressiveDetailQuery(opts) {
     }
   }
   return null;
-}
-
-// src/services/imageProcessor.ts
-init_llmChat();
-init_llmEnv();
-var IMAGE_TYPES = /* @__PURE__ */ new Set(["picture", "image", "photo"]);
-var IMAGE_CACHE_TTL_MS = 2 * 60 * 60 * 1e3;
-var IMAGE_CACHE_MAX = 500;
-var imageAnalysisCache = /* @__PURE__ */ new Map();
-function pruneImageCache() {
-  const now = Date.now();
-  for (const [url2, entry] of imageAnalysisCache) {
-    if (now - entry.at > IMAGE_CACHE_TTL_MS) imageAnalysisCache.delete(url2);
-  }
-  if (imageAnalysisCache.size <= IMAGE_CACHE_MAX) return;
-  const sorted = [...imageAnalysisCache.entries()].sort((a4, b5) => a4[1].at - b5[1].at);
-  for (let i6 = 0; i6 < sorted.length - IMAGE_CACHE_MAX; i6++) {
-    imageAnalysisCache.delete(sorted[i6][0]);
-  }
-}
-function getCachedImageAnalysis(imageUrl) {
-  const entry = imageAnalysisCache.get(imageUrl);
-  if (!entry) return null;
-  if (Date.now() - entry.at > IMAGE_CACHE_TTL_MS) {
-    imageAnalysisCache.delete(imageUrl);
-    return null;
-  }
-  return entry.analysis;
-}
-function cacheImageAnalysis(imageUrl, analysis) {
-  imageAnalysisCache.set(imageUrl, { analysis, at: Date.now() });
-  if (imageAnalysisCache.size > IMAGE_CACHE_MAX * 0.9) pruneImageCache();
-}
-function isImageMessage(message) {
-  const att = message["attachment"];
-  if (typeof att === "object" && att !== null) {
-    const a4 = att;
-    if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) return true;
-    if (typeof a4["mime_type"] === "string" && a4["mime_type"].startsWith("image/")) return true;
-  }
-  const atts = message["attachments"];
-  if (Array.isArray(atts)) {
-    for (const item of atts) {
-      if (typeof item === "object" && item !== null) {
-        const a4 = item;
-        if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) return true;
-        if (typeof a4["mime_type"] === "string" && a4["mime_type"].startsWith("image/")) return true;
-      }
-    }
-  }
-  const mediaType = String(message["media_type"] ?? "");
-  if (IMAGE_TYPES.has(mediaType)) return true;
-  const mimeType = String(message["mime_type"] ?? "");
-  if (mimeType.startsWith("image/")) return true;
-  return false;
-}
-function getImageUrl(message) {
-  const att = message["attachment"];
-  if (typeof att === "object" && att !== null) {
-    const a4 = att;
-    for (const key of ["link", "url", "media_url"]) {
-      if (typeof a4[key] === "string" && a4[key].length > 0) return a4[key];
-    }
-  }
-  const atts = message["attachments"];
-  if (Array.isArray(atts)) {
-    for (const item of atts) {
-      if (typeof item === "object" && item !== null) {
-        const a4 = item;
-        if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) {
-          for (const key of ["link", "url", "media_url"]) {
-            if (typeof a4[key] === "string" && a4[key].length > 0) return a4[key];
-          }
-        }
-      }
-    }
-  }
-  for (const key of ["media_url", "file_url", "url"]) {
-    if (typeof message[key] === "string" && message[key].length > 0) {
-      return message[key];
-    }
-  }
-  const media = message["media"];
-  if (typeof media === "object" && media !== null) {
-    const m6 = media;
-    if (typeof m6["url"] === "string" && m6["url"].length > 0) return m6["url"];
-  }
-  return null;
-}
-function getImageCaption(message) {
-  const att = message["attachment"];
-  if (typeof att === "object" && att !== null) {
-    const a4 = att;
-    const caption = (typeof a4["text"] === "string" ? a4["text"] : "") || (typeof a4["caption"] === "string" ? a4["caption"] : "") || (typeof a4["title"] === "string" ? a4["title"] : "");
-    if (caption.trim()) return caption.trim();
-  }
-  const rawText = message["text"];
-  if (typeof rawText === "string" && rawText.trim()) return rawText.trim();
-  return null;
-}
-var VALID_INTENTS = /* @__PURE__ */ new Set([
-  "montaje_referencia",
-  "comprobante_pago",
-  "comida_producto",
-  "lugar_evento",
-  "documento",
-  "otro",
-  "no_claro"
-]);
-var VISION_PROMPT = `Eres Lucy de Bodasesor (bodas y eventos en M\xE9xico). Un cliente envi\xF3 una imagen por WhatsApp.
-Tu trabajo: ENTENDER la foto y CONTESTARLE AL CLIENTE sobre lo que envi\xF3.
-NO hagas un resumen t\xE9cnico/interno. NO digas 'la imagen muestra\u2026', 'se observa\u2026', 'el espacio es\u2026'.
-Habla como en un chat: menciona 1-2 detalles concretos de LA FOTO y dile c\xF3mo lo ayudas (cotizaci\xF3n, estilo, servicio).
-
-Clasifica intent como UNO de:
-- montaje_referencia: foto de montaje, mesas/sillas, decoraci\xF3n o estilo de referencia
-- comprobante_pago: captura de transferencia, SPEI, ticket o comprobante de pago
-- comida_producto: comida, men\xFA, taquiza, pastel, bebida u otro producto de catering
-- lugar_evento: foto del sal\xF3n, jard\xEDn o venue del evento
-- documento: INE, contrato u otro documento
-- otro: relacionado con el evento pero no encaja arriba
-- no_claro: no se entiende qu\xE9 quiere el cliente con la foto
-
-Responde SOLO JSON v\xE1lido (sin markdown) con exactamente estas claves:
-{"intent":"...","internal_description":"muy breve para el equipo (max 12 palabras)","client_reply":"2-3 oraciones AL CLIENTE sobre su foto"}
-
-Reglas para client_reply (ES LO IMPORTANTE):
-- Es la respuesta que el cliente leer\xE1 en WhatsApp.
-- Debe sonar a conversaci\xF3n: 'Vi que\u2026 / Me encanta el estilo\u2026 / Anoto\u2026 / \xBFQuieres\u2026?'
-- Nombra algo concreto que salga en la foto (color, tipo de mesa, plato, jard\xEDn, etc.).
-- montaje_referencia: confirma que pueden armar ese estilo/mobiliario y an\xF3talo.
-- comprobante_pago: agradece el pago y di que el equipo da seguimiento (sin leer datos sensibles).
-- comida_producto: nombra el platillo/estilo de la foto. Si el caption ya dice un servicio (ej. barra de pastas), confirma ESE servicio. NO inventes alternativas (taquiza, banquete) si la foto o el caption ya son claros.
-- lugar_evento: reconoce el espacio y confirma si ah\xED ser\xEDa el evento.
-- documento: confirma recepci\xF3n sin leer datos sensibles.
-- no_claro / otro: pregunta qu\xE9 le gustar\xEDa de esa foto para su evento.
-- Espa\xF1ol mexicano, de t\xFA, c\xE1lida. NUNCA digas 'resumen', 'descripci\xF3n' ni 'an\xE1lisis'.`;
-var FALLBACK_REPLIES = {
-  montaje_referencia: "\xA1S\xED! Manejamos mesas, sillas y montajes de ese estilo. Lo anoto para tu cotizaci\xF3n.",
-  comprobante_pago: "\xA1Gracias por tu pago! Lo registro y el equipo da seguimiento.",
-  comida_producto: "\xA1Qu\xE9 rico! Lo tomo como referencia de lo que buscas y lo anoto para tu cotizaci\xF3n.",
-  lugar_evento: "Recib\xED la foto del lugar. \xBFConfirmas que ah\xED ser\xEDa tu evento?",
-  documento: "Listo, recib\xED el documento. El equipo lo revisa y te confirma.",
-  otro: "Recib\xED tu imagen. \xBFMe confirmas qu\xE9 te gustar\xEDa de esta foto para tu evento?",
-  no_claro: "Recib\xED tu imagen. \xBFMe confirmas qu\xE9 te gustar\xEDa de esta foto?"
-};
-function normalizeIntent(raw) {
-  const s7 = String(raw ?? "").trim().toLowerCase().replace(/\s+/g, "_");
-  if (VALID_INTENTS.has(s7)) return s7;
-  if (/montaje|referencia|estilo|mobiliario|mesa|silla|decor/i.test(s7)) return "montaje_referencia";
-  if (/comprobante|pago|transfer|spei|ticket/i.test(s7)) return "comprobante_pago";
-  if (/comida|producto|menu|taquiza|banquete|pastel/i.test(s7)) return "comida_producto";
-  if (/lugar|salon|salón|venue|jard[ií]n/i.test(s7)) return "lugar_evento";
-  if (/documento|ine|identific/i.test(s7)) return "documento";
-  return "no_claro";
-}
-function looksLikeOwnerDescription(text2) {
-  return /^(el|la|los|las)\s+(espacio|área|area|imagen|foto|sal[oó]n|jard[ií]n|mesa)/i.test(text2.trim()) || /\b(se observa|se aprecia|la imagen muestra|en la fotograf[ií]a|resumen\s+de\s+la\s+(imagen|foto)|descripci[oó]n\s+de\s+la\s+(imagen|foto))\b/i.test(
-    text2
-  ) || /\ban[aá]lisis\s+(interno|de\s+la\s+imagen|visual)\b/i.test(text2);
-}
-function looksLikeImageInternalSummary(text2) {
-  if (!text2?.trim()) return false;
-  return looksLikeOwnerDescription(text2) || /\[Imagen nota interna\]/i.test(text2);
-}
-function buildAnalysisFromParts(intentRaw, internalRaw, clientRaw) {
-  const intent = normalizeIntent(intentRaw);
-  const internalDescription = String(internalRaw ?? "").trim().slice(0, 500) || "Imagen recibida sin detalle.";
-  let clientReply = String(clientRaw ?? "").trim().slice(0, 400);
-  if (!clientReply || looksLikeOwnerDescription(clientReply)) {
-    clientReply = FALLBACK_REPLIES[intent];
-  }
-  return { intent, internalDescription, clientReply };
-}
-function parseVisionImageJson(raw) {
-  const trimmed = raw.trim();
-  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return null;
-  try {
-    const parsed = JSON.parse(jsonMatch[0]);
-    return buildAnalysisFromParts(
-      parsed.intent ?? parsed.Intent,
-      parsed.internal_description ?? parsed.internalDescription ?? parsed.description,
-      parsed.client_reply ?? parsed.clientReply ?? parsed.reply
-    );
-  } catch {
-    return null;
-  }
-}
-async function analyzeImageFull(imageUrl, accessToken, log) {
-  const cached2 = getCachedImageAnalysis(imageUrl);
-  if (cached2) {
-    log.info({ imageUrl: imageUrl.slice(0, 80), intent: cached2.intent }, "Imagen en cach\xE9 (Vision)");
-    return cached2;
-  }
-  try {
-    const imgResponse = await fetch(imageUrl, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    if (!imgResponse.ok) {
-      log.warn({ status: imgResponse.status, imageUrl }, "Error descargando imagen del cliente");
-      return null;
-    }
-    const contentType = imgResponse.headers.get("content-type") || "image/jpeg";
-    const buffer = await imgResponse.arrayBuffer();
-    const compressed = await tryCompressImageForVision(buffer);
-    const mimeType = compressed?.mimeType ?? (contentType.split(";")[0]?.trim() || "image/jpeg");
-    const base64 = compressed?.base64 ?? Buffer.from(buffer).toString("base64");
-    const dataUrl = `data:${mimeType};base64,${base64}`;
-    if (compressed) {
-      log.info(
-        {
-          bytesIn: compressed.bytesIn,
-          bytesOut: compressed.bytesOut,
-          width: compressed.width,
-          height: compressed.height,
-          resized: compressed.resized
-        },
-        "Imagen comprimida para Vision"
-      );
-    }
-    const completion = await completeChat({
-      model: getChatModel(),
-      purpose: "vision",
-      maxTokens: 320,
-      temperature: 0.3,
-      json: true,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: VISION_PROMPT },
-            {
-              type: "image_url",
-              image_url: { url: dataUrl },
-              mimeType,
-              base64
-            }
-          ]
-        }
-      ]
-    });
-    const raw = completion.text.trim();
-    const parsed = raw ? parseVisionImageJson(raw) : null;
-    const analysis = parsed ?? buildAnalysisFromParts(
-      "no_claro",
-      raw || "No se pudo parsear la visi\xF3n",
-      FALLBACK_REPLIES.no_claro
-    );
-    cacheImageAnalysis(imageUrl, analysis);
-    log.info(
-      { intent: analysis.intent, chars: analysis.clientReply.length },
-      "Imagen analizada (Vision accionable)"
-    );
-    return analysis;
-  } catch (err2) {
-    log.error({ err: err2 }, "Error analizando imagen con Vision");
-    return null;
-  }
-}
-var IMAGE_ACTION_MARKER = "[Imagen respuesta cliente]:";
-var IMAGE_INTENT_MARKER = "[Imagen intent]:";
-function formatImageTurnText(analysis, caption) {
-  const parts2 = [
-    `${IMAGE_INTENT_MARKER} ${analysis.intent}`,
-    `${IMAGE_ACTION_MARKER} ${analysis.clientReply}`
-  ];
-  if (caption?.trim()) {
-    return `${caption.trim()}
-
-${parts2.join("\n")}`;
-  }
-  return parts2.join("\n");
-}
-function formatImageTeamNote(analysis) {
-  return `Intent: ${analysis.intent}
-Respuesta enviada al cliente: ${analysis.clientReply}
-Ref. equipo (no enviar): ${analysis.internalDescription}`;
-}
-function extractImageClientReply(text2) {
-  if (!text2) return null;
-  const m6 = text2.match(/\[Imagen respuesta cliente\]:\s*([^\n\[]+)/i);
-  return m6?.[1]?.trim() || null;
-}
-function stripImageMarkersFromText(text2) {
-  if (!text2?.trim()) return "";
-  return text2.replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/gi, "").replace(/\[Imagen nota interna\]:\s*[^\n]*/gi, "").replace(/\[Imagen intent\]:\s*[^\n]*/gi, "").replace(/\[Imagen adjunta:[^\]]*\]/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
-}
-function clientCaptionForServiceParse(text2) {
-  return stripImageMarkersFromText(text2);
-}
-function extractImageIntent(text2) {
-  if (!text2) return null;
-  const m6 = text2.match(/\[Imagen intent\]:\s*([a-z_]+)/i);
-  if (!m6?.[1]) return null;
-  return normalizeIntent(m6[1]);
 }
 
 // src/services/concreteProductQuestion.ts
@@ -208702,7 +208863,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.19";
+var LUCY_PROMPT_VERSION = "V9.20";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -212528,6 +212689,15 @@ function applyLucyMessageGuards(input) {
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
   syncFilledFromExtracted(filledSet, extracted);
+  if (extracted.direccion_evento) {
+    if (looksLikeThemeColorNotLocation(extracted.direccion_evento)) {
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/direcci\xF3n del evento");
+    } else {
+      const cleanedZona = stripThemeColorsFromZona(extracted.direccion_evento);
+      if (cleanedZona) extracted.direccion_evento = cleanedZona;
+    }
+  }
   applyInvitadosWaiver(
     filledSet,
     [],
@@ -212768,6 +212938,39 @@ ${nextQ}` : ack;
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
     );
   }
+  {
+    const recentUserForDecline = collectUserTexts(presHistory, void 0).slice(-4);
+    const declineFamilies = clientDeclinesServiceFamiliesWithContext(
+      currentMessage,
+      recentUserForDecline
+    );
+    if (!cierreYaEnviado && currentMessage?.trim() && declineFamilies.length > 0) {
+      extracted.requerimientos_evento = removeDeclinedFamiliesFromRequirements(
+        extracted.requerimientos_evento,
+        declineFamilies
+      );
+      const afterRaw = mergeServiceRequirements(
+        extracted.requerimientos_evento,
+        clientCaptionForServiceParse(currentMessage) || currentMessage,
+        6
+      );
+      const after = removeDeclinedFamiliesFromRequirements(afterRaw, declineFamilies);
+      extracted.requerimientos_evento = after;
+      if (after) filledSet.add("Requerimientos o servicios");
+      else filledSet.delete("Requerimientos o servicios");
+      const ack = buildServiceDeclineAck(declineFamilies);
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : pending === "requerimientos" ? "\xBFQu\xE9 m\xE1s te gustar\xEDa incluir en la cotizaci\xF3n (sin alimentos, si as\xED lo prefieres)?" : null;
+      log?.info(
+        { entityId, families: declineFamilies },
+        "GUARD: A15295 \u2014 declina familia de servicio (return temprano)"
+      );
+      return normalizeAdvisorReferences(
+        nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
   if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
     if (clientAsksPrice(currentMessage)) {
     } else {
@@ -212936,12 +213139,36 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
   }
   const reqBeforeServiceMerge = extracted.requerimientos_evento?.trim() ?? "";
   const captionForServices = clientCaptionForServiceParse(currentMessage);
+  const declinedFamilies = clientDeclinesServiceFamiliesWithContext(
+    captionForServices || currentMessage,
+    collectUserTexts(presHistory, void 0).slice(-4)
+  );
+  if (declinedFamilies.length > 0) {
+    extracted.requerimientos_evento = removeDeclinedFamiliesFromRequirements(
+      extracted.requerimientos_evento,
+      declinedFamilies
+    );
+    if (!extracted.requerimientos_evento?.trim()) {
+      filledSet.delete("Requerimientos o servicios");
+    }
+  }
+  if (extracted.direccion_evento) {
+    if (looksLikeThemeColorNotLocation(extracted.direccion_evento)) {
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/direcci\xF3n del evento");
+    } else {
+      const cleanedZona = stripThemeColorsFromZona(extracted.direccion_evento);
+      if (cleanedZona && cleanedZona !== extracted.direccion_evento) {
+        extracted.direccion_evento = cleanedZona;
+      }
+    }
+  }
   const userBlobForServices = collectUserTexts(presHistory, currentMessage).map((t4) => clientCaptionForServiceParse(t4)).join(" ");
   const servicesFromCurrentMessage = parseServicesFromText(captionForServices);
   const servicesFromTurn = parseServicesFromText(
     `${captionForServices} ${userBlobForServices}`
   );
-  if (servicesFromTurn.length > 0 && !isVagueFoodTerm(captionForServices || currentMessage)) {
+  if (servicesFromTurn.length > 0 && !isVagueFoodTerm(captionForServices || currentMessage) && declinedFamilies.length === 0 && !clientDeclinesAnyService(captionForServices || currentMessage)) {
     const mergeMax = isRichQuoteBrief(captionForServices || currentMessage) || servicesFromTurn.length >= 4 ? 8 : 6;
     const mergedReq = mergeServiceRequirements(
       extracted.requerimientos_evento,
@@ -212952,6 +213179,19 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
       extracted.requerimientos_evento = mergedReq;
       filledSet.add("Requerimientos o servicios");
     }
+  } else if (declinedFamilies.length > 0 && captionForServices?.trim()) {
+    const strippedRaw = mergeServiceRequirements(
+      reqBeforeServiceMerge,
+      captionForServices,
+      6
+    );
+    const stripped = removeDeclinedFamiliesFromRequirements(
+      strippedRaw,
+      declinedFamilies
+    );
+    extracted.requerimientos_evento = stripped;
+    if (stripped) filledSet.add("Requerimientos o servicios");
+    else filledSet.delete("Requerimientos o servicios");
   }
   if (clientWantsFoodOnlyQuote(currentMessage)) {
     const isVagueFoodLabel = (s7) => !!s7 && /^(Comida|Alimentos)$/i.test(s7.trim());
@@ -213426,7 +213666,7 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
         "GUARD: brief multi-servicio \u2014 lista completa + cat\xE1logo"
       );
     }
-  } else if (allowSalesReplyOverride && isVagueFoodTerm(currentMessage) && !clientAsksForRecommendations(currentMessage) && // A15212: si ya hay SKU concreto (Puestos/Banquete/…), no reabrir banquete/taquiza/brunch.
+  } else if (allowSalesReplyOverride && isVagueFoodTerm(currentMessage) && !clientDeclinesAnyService(currentMessage) && !clientAsksForRecommendations(currentMessage) && // A15212: si ya hay SKU concreto (Puestos/Banquete/…), no reabrir banquete/taquiza/brunch.
   !preferPrimaryCatalogService(
     parseServicesFromText(extracted.requerimientos_evento ?? "")
   )?.match(
@@ -216267,6 +216507,15 @@ No vuelques niveles de cada SKU salvo que pidan detalle de uno.
 - Servicio fuera de lista \u2192 ac\xE9ptalo, an\xF3talo y avanza. Nunca "no lo tenemos".
 - Robots LED, batucada, shows = ENTRETENIMIENTO. No respondas con banquete.
 - Precio distribuidor / mayoreo \u2192 el equipo cotiza; no des precio de lista.
+
+### Declinar / quitar un servicio (cr\xEDtico \u2014 A15295)
+Si el cliente dice que NO quiere algo, que lo quiten, o que \xE9l lo trae/pone
+("no quiero alimentos", "qu\xEDtale la comida", "yo les voy a dar pizza", typos
+como "comoda"):
+- NUNCA lo anotes ni digas "anoto Alimentos/Pizzas/\u2026".
+- NUNCA mandes cat\xE1logo ni precios de eso que est\xE1 rechazando.
+- Confirma que lo QUITAS de la cotizaci\xF3n y sigue con el siguiente dato del embudo.
+- Colores de tem\xE1tica de una foto (ej. "rojo y negro") NO son la ubicaci\xF3n.
 
 ===================================================================
 ## 7. UBICACI\xD3N / COBERTURA

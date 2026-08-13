@@ -114,6 +114,15 @@ import {
   shouldSkipSalesMenuForConcreteQuestion,
 } from "./services/concreteProductQuestion.js";
 import {
+  buildServiceDeclineAck,
+  clientDeclinesAnyService,
+  clientDeclinesServiceFamilies,
+  clientDeclinesServiceFamiliesWithContext,
+  looksLikeThemeColorNotLocation,
+  removeDeclinedFamiliesFromRequirements,
+  stripThemeColorsFromZona,
+} from "./services/serviceDecline.js";
+import {
   extractImageClientReply,
   extractImageIntent,
   looksLikeImageInternalSummary,
@@ -4255,6 +4264,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const presHistory = input.presentationHistory ?? history;
 
   syncFilledFromExtracted(filledSet, extracted);
+  // A15295: colores de temática (foto) nunca deben vivir en zona.
+  if (extracted.direccion_evento) {
+    if (looksLikeThemeColorNotLocation(extracted.direccion_evento)) {
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/dirección del evento");
+    } else {
+      const cleanedZona = stripThemeColorsFromZona(extracted.direccion_evento);
+      if (cleanedZona) extracted.direccion_evento = cleanedZona;
+    }
+  }
   applyInvitadosWaiver(
     filledSet,
     [],
@@ -4601,6 +4620,49 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
   }
 
+  // A15295 (todas las ramas): "no quiero comida / quítale alimentos" → quitar + ack + embudo.
+  // Debe ir ANTES de isVagueFoodTerm / catálogo pizza / re-anotar Alimentos.
+  {
+    const recentUserForDecline = collectUserTexts(presHistory, undefined).slice(-4);
+    const declineFamilies = clientDeclinesServiceFamiliesWithContext(
+      currentMessage,
+      recentUserForDecline
+    );
+    if (!cierreYaEnviado && currentMessage?.trim() && declineFamilies.length > 0) {
+      extracted.requerimientos_evento = removeDeclinedFamiliesFromRequirements(
+        extracted.requerimientos_evento,
+        declineFamilies
+      );
+      // Merge puede re-parsear "Comida" (typo fix) → volver a stripear familias declinadas.
+      const afterRaw = mergeServiceRequirements(
+        extracted.requerimientos_evento,
+        clientCaptionForServiceParse(currentMessage) || currentMessage,
+        6
+      );
+      const after = removeDeclinedFamiliesFromRequirements(afterRaw, declineFamilies);
+      extracted.requerimientos_evento = after;
+      if (after) filledSet.add("Requerimientos o servicios");
+      else filledSet.delete("Requerimientos o servicios");
+
+      const ack = buildServiceDeclineAck(declineFamilies);
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ =
+        pending && pending !== "requerimientos"
+          ? buildNaturalQuestion(pending, ctx)
+          : pending === "requerimientos"
+            ? "¿Qué más te gustaría incluir en la cotización (sin alimentos, si así lo prefieres)?"
+            : null;
+      log?.info(
+        { entityId, families: declineFamilies },
+        "GUARD: A15295 — declina familia de servicio (return temprano)"
+      );
+      return normalizeAdvisorReferences(
+        nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
+
   // Salida temprana: "qué incluye / descripción de cada nivel" no debe perderse
   // por redirect a zona ni anti-repeat de embudo.
   if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
@@ -4828,6 +4890,32 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   // A14981: no parsear la respuesta inventada por Vision como pedido del cliente.
   const reqBeforeServiceMerge = extracted.requerimientos_evento?.trim() ?? "";
   const captionForServices = clientCaptionForServiceParse(currentMessage);
+  // A15295: quitar familias declinadas ANTES de merge (no re-anotar Alimentos/Pizzas).
+  const declinedFamilies = clientDeclinesServiceFamiliesWithContext(
+    captionForServices || currentMessage,
+    collectUserTexts(presHistory, undefined).slice(-4)
+  );
+  if (declinedFamilies.length > 0) {
+    extracted.requerimientos_evento = removeDeclinedFamiliesFromRequirements(
+      extracted.requerimientos_evento,
+      declinedFamilies
+    );
+    if (!extracted.requerimientos_evento?.trim()) {
+      filledSet.delete("Requerimientos o servicios");
+    }
+  }
+  // A15295: limpiar colores temáticos pegados a la zona.
+  if (extracted.direccion_evento) {
+    if (looksLikeThemeColorNotLocation(extracted.direccion_evento)) {
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/dirección del evento");
+    } else {
+      const cleanedZona = stripThemeColorsFromZona(extracted.direccion_evento);
+      if (cleanedZona && cleanedZona !== extracted.direccion_evento) {
+        extracted.direccion_evento = cleanedZona;
+      }
+    }
+  }
   const userBlobForServices = collectUserTexts(presHistory, currentMessage)
     .map((t) => clientCaptionForServiceParse(t))
     .join(" ");
@@ -4835,7 +4923,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const servicesFromTurn = parseServicesFromText(
     `${captionForServices} ${userBlobForServices}`
   );
-  if (servicesFromTurn.length > 0 && !isVagueFoodTerm(captionForServices || currentMessage)) {
+  if (
+    servicesFromTurn.length > 0 &&
+    !isVagueFoodTerm(captionForServices || currentMessage) &&
+    declinedFamilies.length === 0 &&
+    !clientDeclinesAnyService(captionForServices || currentMessage)
+  ) {
     const mergeMax =
       isRichQuoteBrief(captionForServices || currentMessage) || servicesFromTurn.length >= 4
         ? 8
@@ -4849,6 +4942,20 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       extracted.requerimientos_evento = mergedReq;
       filledSet.add("Requerimientos o servicios");
     }
+  } else if (declinedFamilies.length > 0 && captionForServices?.trim()) {
+    // Merge solo para aplicar el strip vía mergeServiceRequirements (texto = decline).
+    const strippedRaw = mergeServiceRequirements(
+      reqBeforeServiceMerge,
+      captionForServices,
+      6
+    );
+    const stripped = removeDeclinedFamiliesFromRequirements(
+      strippedRaw,
+      declinedFamilies
+    );
+    extracted.requerimientos_evento = stripped;
+    if (stripped) filledSet.add("Requerimientos o servicios");
+    else filledSet.delete("Requerimientos o servicios");
   }
   // A14981 / A15212: "solo la comida" / "solo antojitos" → acotar al SKU primario.
   // No dejar que la palabra "comida" del mensaje pise un SKU concreto del CRM (pastas).
@@ -5604,6 +5711,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (
     allowSalesReplyOverride &&
     isVagueFoodTerm(currentMessage) &&
+    !clientDeclinesAnyService(currentMessage) &&
     !clientAsksForRecommendations(currentMessage) &&
     // A15212: si ya hay SKU concreto (Puestos/Banquete/…), no reabrir banquete/taquiza/brunch.
     !preferPrimaryCatalogService(
