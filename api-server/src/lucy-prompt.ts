@@ -1,4 +1,4 @@
-// PROMPT LUCY — V9.29 (chat natural WhatsApp; empresa/espacio ≠ dirección)
+// PROMPT LUCY — V9.30 (chat natural WhatsApp; ubicación mínima = ciudad)
 // El bloque de catálogo/precios lo agrega catalogService vía buildDynamicPrompt.
 
 import { getAdvisorName, advisorLabelForClient } from "./lib/bodasesorAdvisor.js";
@@ -212,6 +212,7 @@ como "comoda"):
 "Estamos en Ciudad de México y trabajamos en toda la república. Según la fecha y el
 lugar de tu evento, coordinamos el servicio."
 - "salón" / "edificio" / "empresa" / "espacio" / "oficinas" sin nombre/ciudad/colonia → pide ciudad y colonia (no lo anotes como dirección).
+- Salón/hacienda/hotel con nombre pero SIN ciudad → NO cierra ubicación. Anota el salón si quieres y pide la *ciudad* (mínimo).
 - "un ratito" / "ahorita te digo" NO es dirección: espera o vuelve a pedir ubicación.
 - Nombre de producto lounge ≠ ubicación.
 

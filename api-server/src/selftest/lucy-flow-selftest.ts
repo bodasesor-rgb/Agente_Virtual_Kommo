@@ -48,6 +48,9 @@ import {
   enrichExtractedFromConversation,
   isVagueVenueOnly,
   isLocationDeferralOrVagueWorkplace,
+  isVenueWithoutCity,
+  hasCityOrMetroSignal,
+  extractVenueNameHint,
   isUsableDireccionEvento,
   sanitizeExtractedAmbiguousNumbers,
   clientAsksForCatalog,
@@ -729,7 +732,7 @@ async function runAll(): Promise<void> {
       tipo_evento: "evento corporativo",
       requerimientos_evento: "show grupo versatil",
       num_invitados: 30,
-      direccion_evento: "Club de Golf Mexico",
+      direccion_evento: "Club de Golf Mexico, CDMX",
       fecha_horario: "18 de diciembre a las 20:00 horas",
     });
     const reply = runGuards({
@@ -3419,7 +3422,10 @@ async function runAll(): Promise<void> {
     assert.ok(isVagueVenueOnly("salón de eventos"));
     assert.ok(!isUsableDireccionEvento("salón"));
     assert.ok(isUsableDireccionEvento("Polanco CDMX"));
-    assert.ok(isUsableDireccionEvento("Salón Hacienda Los Olivos"));
+    assert.ok(!isUsableDireccionEvento("Salón Hacienda Los Olivos"));
+    assert.ok(isUsableDireccionEvento("Salón Hacienda Los Olivos, CDMX"));
+    assert.ok(isVenueWithoutCity("Salón Hacienda Los Olivos"));
+    assert.ok(!isVenueWithoutCity("Salón Hacienda Los Olivos en Polanco"));
 
     // V9.29: empresa / espacio / "un ratito" ≠ dirección.
     assert.equal(parseZonaFromText("en la empresa"), null);
@@ -6929,7 +6935,7 @@ async function runAll(): Promise<void> {
         correo: "lilian@nodum.com.mx",
         tipo_evento: "evento corporativo",
         num_invitados: 80,
-        direccion_evento: "Club de Golf Los Encinos",
+        direccion_evento: "Club de Golf Los Encinos, Estado de México",
         fecha_horario: "20 de agosto, 07:00 a 15:00 hrs",
       }),
       filledSet: new Set([
@@ -10881,7 +10887,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.29 — empresa / espacio / ratito ≠ dirección (todas las ramas) ───
   await test("129. V9.29 — empresa/espacio/ratito no cierran dirección", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.29");
+    assert.ok(/^V9\.(29|3\d)$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     for (const junk of [
       "nuestra empresa, un ratito",
       "nuestra empresa",
@@ -10903,7 +10909,8 @@ async function runAll(): Promise<void> {
     }
     assert.ok(isUsableDireccionEvento("Polanco"));
     assert.ok(isUsableDireccionEvento("Santa Fe, CDMX"));
-    assert.ok(isUsableDireccionEvento("Salón Hacienda Los Olivos"));
+    assert.ok(!isUsableDireccionEvento("Salón Hacienda Los Olivos"));
+    assert.ok(isUsableDireccionEvento("Salón Hacienda Los Olivos, CDMX"));
 
     const filled = new Set([
       "Nombre del cliente",
@@ -10944,6 +10951,63 @@ async function runAll(): Promise<void> {
       !/anoto.{0,40}nuestra empresa/i.test(reply),
       reply.slice(0, 400)
     );
+  });
+
+  // ─── V9.30 — mínimo ciudad; salón solo no cierra ───
+  await test("130. V9.30 — ubicación mínima es ciudad (salón solo no basta)", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.30");
+    assert.ok(hasCityOrMetroSignal("CDMX"));
+    assert.ok(hasCityOrMetroSignal("Querétaro"));
+    assert.ok(hasCityOrMetroSignal("colonia Roma"));
+    assert.ok(!hasCityOrMetroSignal("Salón Hacienda Los Olivos"));
+    assert.ok(isVenueWithoutCity("Salón Hacienda Los Olivos"));
+    assert.ok(isVenueWithoutCity("Hacienda Los Arcángeles"));
+    assert.ok(!isVenueWithoutCity("Expo Santa Fe"));
+    assert.ok(!isUsableDireccionEvento("Salón Hacienda Los Olivos"));
+    assert.ok(!isUsableDireccionEvento("Club de Golf Mexico"));
+    assert.ok(isUsableDireccionEvento("Salón Hacienda Los Olivos, CDMX"));
+    assert.ok(isUsableDireccionEvento("Polanco"));
+    assert.ok(isUsableDireccionEvento("Jiutepec"));
+    assert.equal(
+      sanitizeExtractedFromExternal(
+        emptyExtracted({ direccion_evento: "Salón Hacienda Los Olivos" })
+      ).direccion_evento,
+      null
+    );
+
+    const filled = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Número de invitados",
+      "Fecha y horario",
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Ana",
+      tipo_evento: "boda",
+      requerimientos_evento: "Banquete",
+      num_invitados: 100,
+      fecha_horario: "20 de diciembre",
+      direccion_evento: "Salón Hacienda Los Olivos",
+    });
+    const reply = runGuards({
+      aiResponse: "Perfecto, anoto el salón. ¿Me pasas tu correo?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Salón Hacienda Los Olivos",
+      history: [
+        {
+          role: "assistant",
+          content: "¿En qué ciudad sería tu evento?",
+        },
+        { role: "user", content: "Salón Hacienda Los Olivos" },
+      ],
+    });
+    assert.equal(extracted.direccion_evento, null);
+    assert.ok(/ciudad/i.test(reply), reply.slice(0, 400));
+    assert.ok(/Hacienda Los Olivos|sal[oó]n/i.test(reply), reply.slice(0, 400));
+    assert.match(extractVenueNameHint("Salón Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

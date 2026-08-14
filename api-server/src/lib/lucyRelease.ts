@@ -1,5 +1,5 @@
 /** Versión del servidor API (panel, health). */
 export const LUCY_SERVER_VERSION = "3.3";
 
-/** Versión del prompt maestro de Lucy (V9.29: empresa/espacio/ratito ≠ dirección). */
-export const LUCY_PROMPT_VERSION = "V9.29";
+/** Versión del prompt maestro de Lucy (V9.30: ubicación mínima = ciudad). */
+export const LUCY_PROMPT_VERSION = "V9.30";

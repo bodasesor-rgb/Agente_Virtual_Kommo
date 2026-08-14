@@ -1778,6 +1778,68 @@ export function hasGeoLocationSignal(text: string): boolean {
   return false;
 }
 
+/**
+ * Ciudad / metro / colonia-municipio — mínimo para cerrar ubicación (V9.30).
+ * Un salón o hacienda con nombre NO basta sin ciudad.
+ */
+export function hasCityOrMetroSignal(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  if (KNOWN_ZONES.test(t)) return true;
+  if (
+    /\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio)\s+[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\b(ciudad(\s+de)?|estado\s+de|edo\.?\s*m[eé]x|cdmx|d\.?\s*f\.?)\b/i.test(t)
+  ) {
+    return true;
+  }
+  // Ciudades / estados frecuentes fuera de KNOWN_ZONES (respuesta corta = ciudad).
+  if (
+    /\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum)\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+const VENUE_NAME_PATTERN =
+  /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue)\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.'-]{1,48})/i;
+
+/** Nombre de salón/venue si el mensaje lo trae. */
+export function extractVenueNameHint(text: string | null | undefined): string | null {
+  const t = (text ?? "").trim();
+  if (!t) return null;
+  const m = t.match(VENUE_NAME_PATTERN);
+  if (!m?.[1]) return null;
+  const venue = m[1].trim().replace(/[.,;:]+$/g, "").trim();
+  return venue.length >= 4 ? venue : null;
+}
+
+/**
+ * Salón/hotel/hacienda/club con nombre pero SIN ciudad → no cierra ubicación.
+ * "Expo Santa Fe" sí (Santa Fe es zona conocida). "Salón Los Olivos" no.
+ */
+export function isVenueWithoutCity(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  if (hasCityOrMetroSignal(t)) return false;
+  if (
+    /\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club|expo|centro\s+(de\s+)?(convenciones|cultural)|venue)\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /** Basura típica que GPT/parser meten como "ubicación". */
 const JUNK_DIRECCION_PATTERN =
   /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
@@ -2864,13 +2926,14 @@ export function isDimensionText(text: string | null | undefined): boolean {
   );
 }
 
-/** Ubicación usable: no vacía, no medidas, no venue genérico, no producto de catálogo. */
+/** Ubicación usable: mínimo ciudad/metro (V9.30). Salón solo no basta. */
 export function isUsableDireccionEvento(value: string | null | undefined): boolean {
   const t = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
   if (!t) return false;
   if (isDimensionText(t)) return false;
   if (isVagueVenueOnly(t)) return false;
   if (isLocationDeferralOrVagueWorkplace(t)) return false;
+  if (isVenueWithoutCity(t)) return false;
   if (isLikelyProductNameNotLocation(t)) return false;
   if (JUNK_DIRECCION_PATTERN.test(t)) return false;
   if (isNonLocationBusinessPhrase(t)) return false;
@@ -2881,19 +2944,23 @@ export function isUsableDireccionEvento(value: string | null | undefined): boole
   if (/\bd[oó]nde\b|\bubicad/i.test(t) && !KNOWN_ZONES.test(t) && t.split(/\s+/).length <= 5) {
     return false;
   }
-  // Sin geo ni zona conocida: solo aceptar topónimos cortos (1–4 palabras), sin verbos/servicios.
+  // Ciudad / zona metro conocida → OK (también "Salón X en CDMX").
+  if (hasCityOrMetroSignal(t) || KNOWN_ZONES.test(t)) return true;
+  // Sin ciudad: solo topónimos cortos tipo ciudad (Jiutepec), nunca venues.
   if (!hasGeoLocationSignal(t) && !KNOWN_ZONES.test(t)) {
     const words = t.split(/\s+/).filter(Boolean);
-    if (words.length > 4 || t.length > 60) return false;
+    if (words.length > 3 || t.length > 40) return false;
     if (
-      /\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|ratito|ahorita)\b/i.test(
+      /\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|ratito|ahorita|sal[oó]n|hotel|hacienda|club|expo)\b/i.test(
         t
       )
     ) {
       return false;
     }
+    return true;
   }
-  return true;
+  // Tiene señal geo de venue/calle pero sin ciudad → no cerrar.
+  return false;
 }
 
 /**

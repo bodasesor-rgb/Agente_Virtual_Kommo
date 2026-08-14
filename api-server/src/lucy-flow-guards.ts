@@ -195,6 +195,9 @@ import {
   isUsableDireccionEvento,
   isVagueVenueOnly,
   isLocationDeferralOrVagueWorkplace,
+  isVenueWithoutCity,
+  extractVenueNameHint,
+  hasCityOrMetroSignal,
   clientCorrectsLocation,
   isVenueSpaceDetail,
   applyLocationCorrectionToAddress,
@@ -428,7 +431,7 @@ export const FLOW_QUESTIONS = {
   tipoEventoTrasCorreo: "¿Qué tipo de celebración están planeando?",
   requerimientos: "Platícame, ¿qué te gustaría armar para tu evento?",
   invitados: "¿Más o menos para cuántas personas sería?",
-  zona: "¿En qué ciudad y colonia (o salón) sería tu evento? Si tienes la dirección exacta, mejor.",
+  zona: "¿En qué ciudad sería tu evento? Con la ciudad basta para cotizar; si tienes colonia o salón, mejor.",
   fecha: "¿Ya tienen fecha o todavía la van definiendo?",
   presupuesto: "¿Tienen algún rango de presupuesto en mente?",
   serviciosExtra: SERVICIOS_CATALOGO_HINT_ADICIONAL,
@@ -473,9 +476,9 @@ function getQuestionVariants(): Record<PendingField, string[]> {
     "¿Tienen un estimado de invitados? Si aún no, un rango sirve.",
   ],
   zona: [
-    "¿En qué ciudad y colonia (o salón) sería?",
-    "¿Me compartes la ubicación o el nombre del salón?",
-    "¿Dónde sería el evento?",
+    "¿En qué ciudad sería tu evento?",
+    "¿Me confirmas la ciudad? Con eso cotizamos; colonia o salón si ya lo tienen.",
+    "¿En qué ciudad lo arman?",
   ],
   fecha: [
     "¿Ya tienen fecha o todavía la van definiendo?",
@@ -4720,6 +4723,50 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     return normalizeAdvisorReferences(body, display);
   }
 
+  // V9.30: salón/hacienda sin ciudad → no cerrar ubicación; pedir ciudad.
+  if (
+    !cierreYaEnviado &&
+    currentMessage &&
+    isVenueWithoutCity(currentMessage) &&
+    !isUsableDireccionEvento(currentMessage)
+  ) {
+    const lastAsstZona = [...presHistory]
+      .reverse()
+      .find((m) => m.role === "assistant" && typeof m.content === "string");
+    const askedZona = lastAsstZona
+      ? inferLucyAskedField(lastAsstZona.content as string)
+      : null;
+    const zonaPending = !isFieldSatisfied("zona", filledSet, extracted);
+    if (
+      askedZona === "zona" ||
+      (zonaPending &&
+        /sal[oó]n|hacienda|hotel|club|expo|jard[ií]n/i.test(currentMessage))
+    ) {
+      if (
+        extracted.direccion_evento &&
+        (isVenueWithoutCity(extracted.direccion_evento) ||
+          !isUsableDireccionEvento(extracted.direccion_evento))
+      ) {
+        extracted.direccion_evento = null;
+        filledSet.delete("Lugar/dirección del evento");
+      }
+      const venue = extractVenueNameHint(currentMessage);
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const body = [
+        display ? `Listo, ${display}.` : "Listo.",
+        venue ? `Anoto *${venue}*.` : null,
+        "Para cotizar bien necesito al menos la *ciudad* del evento. ¿En qué ciudad está?",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      log?.info(
+        { entityId, venue, msg: currentMessage.slice(0, 80) },
+        "GUARD: V9.30 — venue sin ciudad → pedir ciudad"
+      );
+      return normalizeAdvisorReferences(body, display);
+    }
+  }
+
   // A14938: "en Tlalnepantla" con pizzas ya pedidas — anotar zona, no inventar taquiza.
   if (
     !cierreYaEnviado &&
@@ -7943,14 +7990,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const zonaAsks = countLucyFieldAsks(presHistory, "zona");
     const zonaVariants = nombre
       ? [
-          `${pickTransition(presHistory)} ${nombre}, ¿me confirmas la ciudad o colonia del evento?`,
-          `${pickTransition(presHistory)} ${nombre}, ¿en qué zona o salón lo tendrían?`,
-          `${pickTransition(presHistory)} ${nombre}, ¿ya tienen el lugar del evento?`,
+          `${pickTransition(presHistory)} ${nombre}, ¿me confirmas la *ciudad* del evento?`,
+          `${pickTransition(presHistory)} ${nombre}, ¿en qué ciudad sería?`,
+          `${pickTransition(presHistory)} ${nombre}, ¿ya tienen ciudad del evento?`,
         ]
       : [
-          `${pickTransition(presHistory)} ¿Me confirmas la ciudad o colonia del evento?`,
-          `${pickTransition(presHistory)} ¿En qué zona o salón lo tendrían?`,
-          `${pickTransition(presHistory)} ¿Ya tienen el lugar del evento?`,
+          `${pickTransition(presHistory)} ¿Me confirmas la *ciudad* del evento?`,
+          `${pickTransition(presHistory)} ¿En qué ciudad sería?`,
+          `${pickTransition(presHistory)} ¿Ya tienen ciudad del evento?`,
         ];
     mensaje = zonaVariants[Math.min(zonaAsks - 1, zonaVariants.length - 1)]!;
     log?.info({ entityId, zonaAsks }, "GUARD: pregunta de zona — variante alterna");
