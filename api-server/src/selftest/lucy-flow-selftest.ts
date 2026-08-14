@@ -47,6 +47,7 @@ import {
   mergeServiceRequirements,
   enrichExtractedFromConversation,
   isVagueVenueOnly,
+  isLocationDeferralOrVagueWorkplace,
   isUsableDireccionEvento,
   sanitizeExtractedAmbiguousNumbers,
   clientAsksForCatalog,
@@ -3419,6 +3420,26 @@ async function runAll(): Promise<void> {
     assert.ok(!isUsableDireccionEvento("salón"));
     assert.ok(isUsableDireccionEvento("Polanco CDMX"));
     assert.ok(isUsableDireccionEvento("Salón Hacienda Los Olivos"));
+
+    // V9.29: empresa / espacio / "un ratito" ≠ dirección.
+    assert.equal(parseZonaFromText("en la empresa"), null);
+    assert.equal(parseZonaFromText("en nuestro espacio"), null);
+    assert.ok(isVagueVenueOnly("empresa"));
+    assert.ok(isVagueVenueOnly("nuestra empresa"));
+    assert.ok(isVagueVenueOnly("nuestro espacio"));
+    assert.ok(isLocationDeferralOrVagueWorkplace("nuestra empresa, un ratito"));
+    assert.ok(isLocationDeferralOrVagueWorkplace("un ratito"));
+    assert.ok(isLocationDeferralOrVagueWorkplace("ahorita te digo"));
+    assert.ok(!isUsableDireccionEvento("nuestra empresa, un ratito"));
+    assert.ok(!isUsableDireccionEvento("nuestra empresa"));
+    assert.ok(!isUsableDireccionEvento("espacio"));
+    assert.ok(!isUsableDireccionEvento("un ratito"));
+    assert.equal(
+      sanitizeExtractedFromExternal(
+        emptyExtracted({ direccion_evento: "nuestra empresa, un ratito" })
+      ).direccion_evento,
+      null
+    );
 
     const vagueLoc = emptyExtracted({ direccion_evento: "salón" });
     const cleaned = sanitizeExtractedFromExternal(vagueLoc);
@@ -10701,7 +10722,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.28 — solo vs completo en TODAS las estaciones (mismo procedimiento) ───
   await test("128. V9.28 — solo vs completo en todas las ramas completas", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.28");
+    assert.ok(/^V9\.(2[89]|[3-9]\d)$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     const csv = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye","Link catalogo"',
       '"Taquiza","Solo Alimentos","$320.00","$9,600.00","TRUE","Tacos","https://bodasesor.com/catalogos/taquiza"',
@@ -10855,6 +10876,73 @@ async function runAll(): Promise<void> {
     assert.ok(
       !(/1\.\s*\*?Solo Alimentos[\s\S]*4\.\s*\*?Premium/i.test(pastasLive)),
       `pastas sin dump 4: ${pastasLive.slice(0, 600)}`
+    );
+  });
+
+  // ─── V9.29 — empresa / espacio / ratito ≠ dirección (todas las ramas) ───
+  await test("129. V9.29 — empresa/espacio/ratito no cierran dirección", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.29");
+    for (const junk of [
+      "nuestra empresa, un ratito",
+      "nuestra empresa",
+      "empresa",
+      "nuestro espacio",
+      "espacio",
+      "nuestras oficinas",
+      "un ratito",
+      "ahorita te digo",
+    ]) {
+      assert.equal(parseZonaFromText(junk), null, `zona null: ${junk}`);
+      assert.ok(!isUsableDireccionEvento(junk), `no usable: ${junk}`);
+      assert.equal(
+        sanitizeExtractedFromExternal(emptyExtracted({ direccion_evento: junk }))
+          .direccion_evento,
+        null,
+        `sanitize: ${junk}`
+      );
+    }
+    assert.ok(isUsableDireccionEvento("Polanco"));
+    assert.ok(isUsableDireccionEvento("Santa Fe, CDMX"));
+    assert.ok(isUsableDireccionEvento("Salón Hacienda Los Olivos"));
+
+    const filled = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Número de invitados",
+      "Fecha y horario",
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Ana",
+      tipo_evento: "corporativo",
+      requerimientos_evento: "Coffee break",
+      num_invitados: 80,
+      fecha_horario: "12 de septiembre",
+      direccion_evento: "nuestra empresa, un ratito",
+    });
+    const reply = runGuards({
+      aiResponse: "Perfecto, anoto la dirección en nuestra empresa. ¿Me pasas tu correo?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "nuestra empresa, un ratito",
+      history: [
+        {
+          role: "assistant",
+          content: "¿En qué ciudad y colonia (o salón) sería tu evento?",
+        },
+        { role: "user", content: "nuestra empresa, un ratito" },
+      ],
+    });
+    assert.equal(extracted.direccion_evento, null);
+    assert.ok(!filled.has("Lugar/dirección del evento"));
+    assert.ok(
+      /ciudad|colonia|sal[oó]n|ubicaci[oó]n|direcci[oó]n|zona|lugar/i.test(reply),
+      reply.slice(0, 400)
+    );
+    assert.ok(
+      !/anoto.{0,40}nuestra empresa/i.test(reply),
+      reply.slice(0, 400)
     );
   });
 

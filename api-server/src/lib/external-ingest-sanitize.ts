@@ -14,6 +14,7 @@ import {
   isLikelyProductNameNotLocation,
   isNonLocationBusinessPhrase,
   isVagueVenueOnly,
+  isLocationDeferralOrVagueWorkplace,
   isUsableDireccionEvento,
   looksLikeCompanyLocationQuestionFragment,
 } from "../conversation-understanding.js";
@@ -105,6 +106,7 @@ export function sanitizeExtractedFromExternal(
     out.direccion_evento &&
     (isDimensionText(out.direccion_evento) ||
       isVagueVenueOnly(out.direccion_evento) ||
+      isLocationDeferralOrVagueWorkplace(out.direccion_evento) ||
       isLikelyProductNameNotLocation(out.direccion_evento) ||
       isNonLocationBusinessPhrase(out.direccion_evento) ||
       looksLikeCompanyLocationQuestionFragment(out.direccion_evento) ||

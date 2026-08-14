@@ -85,6 +85,7 @@ import {
   isVenueSpaceDetail,
   isDimensionText,
   isVagueVenueOnly,
+  isLocationDeferralOrVagueWorkplace,
   isNonLocationBusinessPhrase,
   isServiceLabelNotTipoEvento,
   isUnusableTipoEventoReply,
@@ -502,6 +503,7 @@ function purgeDimensionAsUbicacion(
   if (
     !isDimensionText(value) &&
     !isVagueVenueOnly(value) &&
+    !isLocationDeferralOrVagueWorkplace(value) &&
     !isNonLocationBusinessPhrase(value) &&
     isUsableDireccionEvento(value)
   ) {

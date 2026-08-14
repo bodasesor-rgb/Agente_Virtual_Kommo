@@ -194,6 +194,7 @@ import {
   formatServicesList,
   isUsableDireccionEvento,
   isVagueVenueOnly,
+  isLocationDeferralOrVagueWorkplace,
   clientCorrectsLocation,
   isVenueSpaceDetail,
   applyLocationCorrectionToAddress,
@@ -5240,6 +5241,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     if (
       extracted.direccion_evento &&
       (isLikelyProductNameNotLocation(extracted.direccion_evento) ||
+        isVagueVenueOnly(extracted.direccion_evento) ||
+        isLocationDeferralOrVagueWorkplace(extracted.direccion_evento) ||
         looksLikeCompanyLocationQuestionFragment(extracted.direccion_evento) ||
         !isUsableDireccionEvento(extracted.direccion_evento) ||
         parseCarpaVariantFromText(extracted.direccion_evento) ||

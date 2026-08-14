@@ -1750,7 +1750,7 @@ const KNOWN_ZONES =
 
 /** Fragmentos (sin artículo) que NO son ubicación, aunque vengan tras "en …". */
 const NON_LOCATION_WORDS =
-  /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale)\b/i;
+  /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
 
 /** Señales positivas de que el texto sí es un lugar del evento. */
 export function hasGeoLocationSignal(text: string): boolean {
@@ -1780,7 +1780,7 @@ export function hasGeoLocationSignal(text: string): boolean {
 
 /** Basura típica que GPT/parser meten como "ubicación". */
 const JUNK_DIRECCION_PATTERN =
-  /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
+  /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
 
 /**
  * Discurso / servicio / adjetivo sin señal geográfica — no es dirección del evento.
@@ -1839,7 +1839,7 @@ export function isNonLocationBusinessPhrase(text: string | null | undefined): bo
   }
   // Exacto / casi exacto — no usar ^salón\b sobre "Salón Hacienda Los Olivos".
   if (
-    /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n|noche|tarde|vivo|realidad|serio|importante)$/i.test(
+    /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n|noche|tarde|vivo|realidad|serio|importante|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|negocio|sede|ratito|ahorita)$/i.test(
       cleaned
     )
   ) {
@@ -1873,7 +1873,7 @@ export function isNonLocationBusinessPhrase(text: string | null | undefined): bo
 }
 
 /**
- * "salón", "edificio", "en el salón" sin nombre propio / ciudad / colonia
+ * "salón", "edificio", "empresa", "espacio" sin nombre propio / ciudad / colonia
  * NO cuentan como ubicación completa del evento.
  */
 export function isVagueVenueOnly(text: string | null | undefined): boolean {
@@ -1888,7 +1888,7 @@ export function isVagueVenueOnly(text: string | null | undefined): boolean {
     .trim();
   if (!cleaned) return true;
   if (
-    /^(sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá])$/i.test(
+    /^(sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede|trabajo)$/i.test(
       cleaned
     )
   ) {
@@ -1903,6 +1903,82 @@ export function isVagueVenueOnly(text: string | null | undefined): boolean {
     /^(sal[oó]n|edificio|venue|jard[ií]n)(\s+de)?(\s+(eventos?|oficinas?|corporativo|privado|la\s+empresa|la\s+compa[nñ][ií]a))?$/i.test(
       cleaned
     )
+  ) {
+    return true;
+  }
+  // "nuestra empresa" / "nuestro espacio" / "mis oficinas" sin ciudad ni nombre.
+  if (
+    /^(nuestras?|nuestros?|mi|mis|su|sus|la|el)\s+(empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede)(\s+de\s+(eventos?|la\s+empresa))?$/i.test(
+      cleaned
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Cliente pospone la dirección ("un ratito", "ahorita te digo") — no es ubicación.
+ * Aplica en todas las ramas del embudo (parse, GPT sanitize, CRM purge).
+ */
+export function isLocationDeferralOrVagueWorkplace(
+  text: string | null | undefined
+): boolean {
+  const raw = (text ?? "").trim();
+  if (!raw) return true;
+  const t = raw.replace(/[¡!¿?]+/g, "").replace(/\s+/g, " ").trim();
+  if (!t) return true;
+  if (hasGeoLocationSignal(t) || KNOWN_ZONES.test(t)) {
+    // "en Polanco, un ratito" → sí hay zona usable (no bloquear el topónimo).
+    // Pero si SOLO hay workplace genérico + deferral sin geo, sigue abajo.
+    if (
+      !/\b(empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|negocio|sede)\b/i.test(t) ||
+      hasGeoLocationSignal(t) ||
+      KNOWN_ZONES.test(t)
+    ) {
+      // Con geo real, no es "solo workplace vago".
+      if (hasGeoLocationSignal(t) || KNOWN_ZONES.test(t)) return false;
+    }
+  }
+
+  // Diferimiento puro o mezclado sin ciudad.
+  if (
+    /^(un\s+)?(ratito|rato|momento|minuto)[\s.,!]*$/i.test(t) ||
+    /^(ahorita|luego|despu[eé]s)(\s+te\s+(digo|paso|mando|aviso|confirmo))?[\s.,!]*$/i.test(
+      t
+    ) ||
+    /^en\s+un\s+(rato|momento|minuto)[\s.,!]*$/i.test(t) ||
+    /^(te\s+aviso|te\s+digo|todav[ií]a\s+no(\s+s[eé]|\s+lo\s+tengo)?)[\s.,!]*$/i.test(t)
+  ) {
+    return true;
+  }
+  if (
+    /\b(un\s+ratito|un\s+rato|ahorita(\s+te\s+\w+)?|luego\s+te\s+(digo|aviso|paso)|en\s+un\s+(rato|momento)|todav[ií]a\s+no\s+(s[eé]|lo\s+tengo)|te\s+aviso\s+despu[eé]s)\b/i.test(
+      t
+    ) &&
+    !hasGeoLocationSignal(t) &&
+    !KNOWN_ZONES.test(t)
+  ) {
+    return true;
+  }
+
+  // Quita cola de diferimiento: "nuestra empresa, un ratito" → "nuestra empresa"
+  const withoutDeferral = t
+    .replace(
+      /[,;]?\s*(un\s+)?(ratito|rato|momento|minuto|ahorita|luego|despu[eé]s)(\s+te\s+\w+)?.*$/i,
+      ""
+    )
+    .trim()
+    .replace(/[.,;:]+$/g, "")
+    .trim();
+  const core = withoutDeferral || t;
+  if (isVagueVenueOnly(core)) return true;
+  if (
+    /\b(empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|negocio|sede)\b/i.test(core) &&
+    !hasGeoLocationSignal(core) &&
+    !KNOWN_ZONES.test(core) &&
+    !/\b(sal[oó]n|hotel|hacienda|expo|club|centro\s+cultural)\s+\S+/i.test(core) &&
+    core.split(/\s+/).length <= 6
   ) {
     return true;
   }
@@ -2794,6 +2870,7 @@ export function isUsableDireccionEvento(value: string | null | undefined): boole
   if (!t) return false;
   if (isDimensionText(t)) return false;
   if (isVagueVenueOnly(t)) return false;
+  if (isLocationDeferralOrVagueWorkplace(t)) return false;
   if (isLikelyProductNameNotLocation(t)) return false;
   if (JUNK_DIRECCION_PATTERN.test(t)) return false;
   if (isNonLocationBusinessPhrase(t)) return false;
@@ -2809,7 +2886,7 @@ export function isUsableDireccionEvento(value: string | null | undefined): boole
     const words = t.split(/\s+/).filter(Boolean);
     if (words.length > 4 || t.length > 60) return false;
     if (
-      /\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete)\b/i.test(
+      /\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|ratito|ahorita)\b/i.test(
         t
       )
     ) {
