@@ -203626,6 +203626,45 @@ function hasGeoLocationSignal(text2) {
   if (/\b\d{4,5}\b/.test(t4) && /\b(colonia|delegaci|cdmx|estado|municipio)\b/i.test(t4)) return true;
   return false;
 }
+function hasCityOrMetroSignal(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return false;
+  if (KNOWN_ZONES.test(t4)) return true;
+  if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio)\s+[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(
+    t4
+  )) {
+    return true;
+  }
+  if (/\b(ciudad(\s+de)?|estado\s+de|edo\.?\s*m[eé]x|cdmx|d\.?\s*f\.?)\b/i.test(t4)) {
+    return true;
+  }
+  if (/\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum)\b/i.test(
+    t4
+  )) {
+    return true;
+  }
+  return false;
+}
+var VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue)\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.'-]{1,48})/i;
+function extractVenueNameHint(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return null;
+  const m6 = t4.match(VENUE_NAME_PATTERN);
+  if (!m6?.[1]) return null;
+  const venue = m6[1].trim().replace(/[.,;:]+$/g, "").trim();
+  return venue.length >= 4 ? venue : null;
+}
+function isVenueWithoutCity(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return false;
+  if (hasCityOrMetroSignal(t4)) return false;
+  if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club|expo|centro\s+(de\s+)?(convenciones|cultural)|venue)\b/i.test(
+    t4
+  )) {
+    return true;
+  }
+  return false;
+}
 var JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
 function looksLikeDiscourseNotPlace(text2) {
   const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
@@ -204273,6 +204312,7 @@ function isUsableDireccionEvento(value) {
   if (isDimensionText(t4)) return false;
   if (isVagueVenueOnly(t4)) return false;
   if (isLocationDeferralOrVagueWorkplace(t4)) return false;
+  if (isVenueWithoutCity(t4)) return false;
   if (isLikelyProductNameNotLocation(t4)) return false;
   if (JUNK_DIRECCION_PATTERN.test(t4)) return false;
   if (isNonLocationBusinessPhrase(t4)) return false;
@@ -204282,16 +204322,18 @@ function isUsableDireccionEvento(value) {
   if (/\bd[oó]nde\b|\bubicad/i.test(t4) && !KNOWN_ZONES.test(t4) && t4.split(/\s+/).length <= 5) {
     return false;
   }
+  if (hasCityOrMetroSignal(t4) || KNOWN_ZONES.test(t4)) return true;
   if (!hasGeoLocationSignal(t4) && !KNOWN_ZONES.test(t4)) {
     const words = t4.split(/\s+/).filter(Boolean);
-    if (words.length > 4 || t4.length > 60) return false;
-    if (/\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|ratito|ahorita)\b/i.test(
+    if (words.length > 3 || t4.length > 40) return false;
+    if (/\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|ratito|ahorita|sal[oó]n|hotel|hacienda|club|expo)\b/i.test(
       t4
     )) {
       return false;
     }
+    return true;
   }
-  return true;
+  return false;
 }
 function clientCorrectsLocation(text2) {
   const t4 = (text2 ?? "").trim();
@@ -209211,7 +209253,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.29";
+var LUCY_PROMPT_VERSION = "V9.30";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -210634,9 +210676,9 @@ function getQuestionVariants() {
       "\xBFTienen un estimado de invitados? Si a\xFAn no, un rango sirve."
     ],
     zona: [
-      "\xBFEn qu\xE9 ciudad y colonia (o sal\xF3n) ser\xEDa?",
-      "\xBFMe compartes la ubicaci\xF3n o el nombre del sal\xF3n?",
-      "\xBFD\xF3nde ser\xEDa el evento?"
+      "\xBFEn qu\xE9 ciudad ser\xEDa tu evento?",
+      "\xBFMe confirmas la ciudad? Con eso cotizamos; colonia o sal\xF3n si ya lo tienen.",
+      "\xBFEn qu\xE9 ciudad lo arman?"
     ],
     fecha: [
       "\xBFYa tienen fecha o todav\xEDa la van definiendo?",
@@ -213348,6 +213390,29 @@ ${nextQ}` : ack;
     );
     return normalizeAdvisorReferences(body2, display);
   }
+  if (!cierreYaEnviado && currentMessage && isVenueWithoutCity(currentMessage) && !isUsableDireccionEvento(currentMessage)) {
+    const lastAsstZona = [...presHistory].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string");
+    const askedZona = lastAsstZona ? inferLucyAskedField(lastAsstZona.content) : null;
+    const zonaPending = !isFieldSatisfied("zona", filledSet, extracted);
+    if (askedZona === "zona" || zonaPending && /sal[oó]n|hacienda|hotel|club|expo|jard[ií]n/i.test(currentMessage)) {
+      if (extracted.direccion_evento && (isVenueWithoutCity(extracted.direccion_evento) || !isUsableDireccionEvento(extracted.direccion_evento))) {
+        extracted.direccion_evento = null;
+        filledSet.delete("Lugar/direcci\xF3n del evento");
+      }
+      const venue = extractVenueNameHint(currentMessage);
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const body2 = [
+        display ? `Listo, ${display}.` : "Listo.",
+        venue ? `Anoto *${venue}*.` : null,
+        "Para cotizar bien necesito al menos la *ciudad* del evento. \xBFEn qu\xE9 ciudad est\xE1?"
+      ].filter(Boolean).join(" ");
+      log?.info(
+        { entityId, venue, msg: currentMessage.slice(0, 80) },
+        "GUARD: V9.30 \u2014 venue sin ciudad \u2192 pedir ciudad"
+      );
+      return normalizeAdvisorReferences(body2, display);
+    }
+  }
   if (!cierreYaEnviado && currentMessage && (() => {
     const z4 = parseZonaFromText(currentMessage);
     return !!z4 && currentMessage.trim().split(/\s+/).length <= 6 && (/^en\s+/i.test(currentMessage.trim()) || isLikelyUbicacionNotNombre(currentMessage));
@@ -215543,13 +215608,13 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     const nombre = getDisplayName(extracted, whatsappDisplayName);
     const zonaAsks = countLucyFieldAsks(presHistory, "zona");
     const zonaVariants = nombre ? [
-      `${pickTransition(presHistory)} ${nombre}, \xBFme confirmas la ciudad o colonia del evento?`,
-      `${pickTransition(presHistory)} ${nombre}, \xBFen qu\xE9 zona o sal\xF3n lo tendr\xEDan?`,
-      `${pickTransition(presHistory)} ${nombre}, \xBFya tienen el lugar del evento?`
+      `${pickTransition(presHistory)} ${nombre}, \xBFme confirmas la *ciudad* del evento?`,
+      `${pickTransition(presHistory)} ${nombre}, \xBFen qu\xE9 ciudad ser\xEDa?`,
+      `${pickTransition(presHistory)} ${nombre}, \xBFya tienen ciudad del evento?`
     ] : [
-      `${pickTransition(presHistory)} \xBFMe confirmas la ciudad o colonia del evento?`,
-      `${pickTransition(presHistory)} \xBFEn qu\xE9 zona o sal\xF3n lo tendr\xEDan?`,
-      `${pickTransition(presHistory)} \xBFYa tienen el lugar del evento?`
+      `${pickTransition(presHistory)} \xBFMe confirmas la *ciudad* del evento?`,
+      `${pickTransition(presHistory)} \xBFEn qu\xE9 ciudad ser\xEDa?`,
+      `${pickTransition(presHistory)} \xBFYa tienen ciudad del evento?`
     ];
     mensaje = zonaVariants[Math.min(zonaAsks - 1, zonaVariants.length - 1)];
     log?.info({ entityId, zonaAsks }, "GUARD: pregunta de zona \u2014 variante alterna");
@@ -217240,6 +217305,7 @@ como "comoda"):
 "Estamos en Ciudad de M\xE9xico y trabajamos en toda la rep\xFAblica. Seg\xFAn la fecha y el
 lugar de tu evento, coordinamos el servicio."
 - "sal\xF3n" / "edificio" / "empresa" / "espacio" / "oficinas" sin nombre/ciudad/colonia \u2192 pide ciudad y colonia (no lo anotes como direcci\xF3n).
+- Sal\xF3n/hacienda/hotel con nombre pero SIN ciudad \u2192 NO cierra ubicaci\xF3n. Anota el sal\xF3n si quieres y pide la *ciudad* (m\xEDnimo).
 - "un ratito" / "ahorita te digo" NO es direcci\xF3n: espera o vuelve a pedir ubicaci\xF3n.
 - Nombre de producto lounge \u2260 ubicaci\xF3n.
 
