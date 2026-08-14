@@ -186,7 +186,7 @@ export function isLikelyNotPersonNameMessage(text: string | null | undefined): b
   if (/\b(asesor|agente|humano)\b/i.test(t) && t.split(/\s+/).length <= 5) return true;
   // Servicio del catálogo sin verbo ("crepas para eventos", "barra de sushi", mesas/periqueras).
   if (
-    /\b(crepas?|sushi|poke|banquete|taquiza|coffee\s*break|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mobiliario|salas?\s+lounge|photo\s*booth|photobooth|cabina)\b/i.test(
+    /\b(crepas?|pastas?|pizzas?|sushi|poke|banquete|taquiza|coffee\s*break|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mobiliario|salas?\s+lounge|photo\s*booth|photobooth|cabina|ensaladas?)\b/i.test(
       t
     ) &&
     !/^(soy|me\s+llamo)/i.test(t)

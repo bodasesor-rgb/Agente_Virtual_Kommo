@@ -2559,15 +2559,22 @@ export function preferPrimaryCatalogService(services: string[]): string | null {
   const cleaned = dedupeServiceHierarchy(services);
   const pool = cleaned.filter((s) => !STAFF_OR_ADDON_SERVICE.test(s.trim()));
   const candidates = pool.length ? pool : cleaned;
+  // A15318: pastas/pizzas/crepas ganan sobre Banquete Formal (pedido "banquete de pasta").
+  const hasStationFood = candidates.some((s) =>
+    /pasta|pizza|crepa|sushi|taquiza|yucateca|parrillada|barra\s+de/i.test(s)
+  );
   const scored = [...candidates].sort((a, b) => {
     const score = (s: string) => {
       let n = s.length;
       if (/^Barra de /i.test(s)) n += 40;
+      if (/pasta|pizza|crepa/i.test(s)) n += 45;
       // A15212: Puestos/antojitos gana sobre Comida/Bocadillos genéricos.
       if (/Puestos\s+de\s+Comida/i.test(s)) n += 45;
-      if (/Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s)) n += 30;
+      if (/Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s)) {
+        n += hasStationFood ? -20 : 30;
+      }
       if (/Parrillada|Paella|Coffee|Cupcakes|Mesa de/i.test(s)) n += 20;
-      if (/^(Pastas|Pizzas|Crepas|Comida|Taquiza|Parrillada|Bocadillos?|Snack)$/i.test(s)) n -= 25;
+      if (/^(Comida|Bocadillos?|Snack)$/i.test(s)) n -= 25;
       return n;
     };
     return score(b) - score(a);

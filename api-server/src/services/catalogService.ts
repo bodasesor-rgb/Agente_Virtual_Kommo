@@ -1328,7 +1328,7 @@ export function reconcilePdfInclusionWithSheetPrice(pdfReply: string, query: str
   const pdfMatch = pdfReply.match(/\$\s*([\d]{1,3}(?:,[\d]{3})*(?:\.\d+)?|[\d]+(?:\.\d+)?)/);
   if (!pdfMatch) {
     return pdfReply.replace(
-      /(Según el catálogo[^\n]*:\s*\n\n)/i,
+      /((?:Según el catálogo|Para \*)[^\n]*:\s*\n\n)/i,
       `$1*Precio de lista:* ${sheet.price}${sheet.unit ? ` ${sheet.unit}` : ""}${
         sheet.minimo ? ` (mín. ${sheet.minimo})` : ""
       }\n`
@@ -1648,7 +1648,9 @@ function pdfWindowForNivel(service: string, nivel: string): string {
     buildPdfInclusionReply(`${nivel} ${service}`) ||
     "";
   if (!raw) return "";
-  const body = raw.replace(/^Según el catálogo[^\n]*:\n\n/i, "");
+  const body = raw
+    .replace(/^Según el catálogo[^\n]*:\n\n/i, "")
+    .replace(/^Para \*[^*]+\*:\n\n/i, "");
   const nivelRe = nivel
     .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
     .replace(/\s+/g, "\\s+");
@@ -1825,7 +1827,9 @@ export function buildSpecificInclusionItemReply(
       );
     }
     return ensureCatalogWebLink(
-      `Sobre *${item}* en *${service}*:\n\n${fromPdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "")}`,
+      `Sobre *${item}* en *${service}*:\n\n${fromPdf
+        .replace(/^Según el catálogo[^\n]*:\n\n/i, "")
+        .replace(/^Para \*[^*]+\*:\n\n/i, "")}`,
       service
     );
   }
@@ -1850,7 +1854,9 @@ export function buildSpecificInclusionItemReply(
       buildPdfInclusionReply(service);
     const body = [
       fromPdf
-        ? fromPdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "")
+        ? fromPdf
+            .replace(/^Según el catálogo[^\n]*:\n\n/i, "")
+            .replace(/^Para \*[^*]+\*:\n\n/i, "")
         : `En el catálogo de *${service}* te detallo lo de *${item}* por nivel.`,
       priced && /\$\s*\d/.test(priced) ? `\n\nPrecios de lista:\n${priced}` : "",
     ].join("");
