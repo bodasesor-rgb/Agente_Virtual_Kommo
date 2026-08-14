@@ -265,7 +265,6 @@ function findInclusionSection(content: string, query: string, maxChars = 1100): 
     anchors.push(`menu ${tiempos[1]} tiempos ${nivel}`.trim());
     anchors.push(`${tiempos[1]} tiempos ${nivel}`.trim());
     if (nivel === "tradicional" && tiempos[1] === "3") {
-      // Ancla al bloque Tradicional (no al Básico que aparece antes en el mismo apartado).
       anchors.unshift("tradicional $830 por persona", "tradicional $830");
     }
     if (nivel === "tradicional" && tiempos[1] === "4") {
@@ -282,9 +281,32 @@ function findInclusionSection(content: string, query: string, maxChars = 1100): 
     anchors.push(`tradicional $830`, `basico $780`, `premium $880`);
   }
 
-  // Tokens fuertes del query como ancla
+  // Pastas / estaciones: Solo Alimentos ≈ Barra Simple $340; completo = Básico+.
+  if (/pasta|ensalada|pizza|crepa|sushi|taquiza|yucateca|parrillada|barra/.test(q)) {
+    if (/solo\s+alimentos|barra\s+simple|\$\s*340|\b340\b/.test(q)) {
+      anchors.unshift(
+        "barra simple $340 por persona",
+        "barra simple $340",
+        "barra simple",
+        "solo alimentos"
+      );
+    }
+    if (nivel === "basico" || /\bbasic|\bb[aá]sic/.test(q)) {
+      anchors.unshift("basico $780 por persona", "básico $780 por persona", "basico $780", "básico $780");
+    }
+    if (nivel === "tradicional" || /\btradicional\b/.test(q)) {
+      anchors.unshift("tradicional $830 por persona", "tradicional $830");
+    }
+    if (nivel === "premium" || /\bpremium\b/.test(q)) {
+      anchors.unshift("premium $880 por persona", "premium $880");
+    }
+  }
+
+  // Tokens fuertes del query como ancla (evitar "solo"/"aderezo" sueltos que cortan a media frase).
   for (const tok of tokenize(query)) {
-    if (tok.length >= 4) anchors.push(tok);
+    if (tok.length >= 5 && !/^(solo|aderezo|incluye|detalle|menu|nivel|persona|personas)$/.test(tok)) {
+      anchors.push(tok);
+    }
   }
 
   let bestIdx = -1;
@@ -297,12 +319,18 @@ function findInclusionSection(content: string, query: string, maxChars = 1100): 
       const i = f.indexOf(fa, from);
       if (i < 0) break;
       let score = fa.length;
-      // Preferir coincidencias cerca de "incluye", bebidas, alimentos, meseros.
       const window = f.slice(Math.max(0, i - 40), i + 200);
       if (/incluye|bebidas|alimentos|meseros|vajilla|persona/.test(window)) score += 40;
-      if (/coffee break \d|menu \d tiempos|tradicional \$\d|basico \$\d|premium \$\d/.test(window)) {
-        score += 30;
+      if (
+        /coffee break \d|menu \d tiempos|tradicional \$\d|basico \$\d|b[aá]sico \$\d|premium \$\d|barra simple \$\d/.test(
+          window
+        )
+      ) {
+        score += 50;
       }
+      // Penalizar anclas a media frase (p.ej. "aderezos" en "1 Aderezo 5 aderezos").
+      const atWordStart = i === 0 || /[\s\n*—\-–]/.test(f[i - 1] ?? "");
+      if (!atWordStart) score -= 25;
       if (score > bestScore) {
         bestScore = score;
         bestIdx = i;
@@ -312,35 +340,119 @@ function findInclusionSection(content: string, query: string, maxChars = 1100): 
   }
 
   if (bestIdx < 0) {
-    // Fallback: primer bloque con $ cerca del inicio del doc si el título ya matcheó.
     const dollar = c.search(/\$\s*\d/);
     if (dollar < 0) return null;
     bestIdx = dollar;
   }
 
-  // Retroceder poco solo si no empezamos en el nombre del paquete/nivel.
+  // Snap al encabezado de paquete más cercano hacia atrás (nunca empezar a media palabra).
+  bestIdx = snapInclusionStartToHeading(c, f, bestIdx);
+
   const atHeading =
-    /coffee break \d|tradicional \$\d|basico \$\d|premium \$\d|menu \d tiempos/i.test(
-      f.slice(bestIdx, bestIdx + 48),
+    /coffee break \d|tradicional \$\d|basico \$\d|b[aá]sico \$\d|premium \$\d|barra simple \$\d|menu \d tiempos|solo alimentos/i.test(
+      f.slice(bestIdx, bestIdx + 56)
     );
-  let start = atHeading ? bestIdx : Math.max(0, bestIdx - 40);
-  // Avanzar al siguiente límite razonable
+  let start = atHeading ? bestIdx : Math.max(0, bestIdx - 20);
   let end = Math.min(c.length, start + maxChars);
-  // Preferir cortar en un límite de paquete siguiente (Coffee Break N+1, Premium $, etc.)
   const tail = c.slice(Math.max(start, bestIdx) + 40, end);
   const nextPkg = tail.search(
-    /Coffee Break \d|Men[uú] \d tiempos|B[aá]sico \$\s*\d|Tradicional \$\s*\d|Premium \$\s*\d|Ideal para:|Condiciones del Servicio/i,
+    /Coffee Break \d|Men[uú] \d tiempos|B[aá]sico \$\s*\d|Tradicional \$\s*\d|Premium \$\s*\d|Barra Simple \$\s*\d|Ideal para:|Condiciones del Servicio|Slide\s+\d+/i
   );
-  // Don't cut too early — only if we find another package heading after enough content
-  if (nextPkg > 200) {
+  if (nextPkg > 180) {
     end = Math.max(start, bestIdx) + 40 + nextPkg;
   }
 
   let slice = c.slice(start, end).replace(/\s+/g, " ").trim();
-  // Quitar basura previa al título del paquete si quedó cortado.
-  slice = slice.replace(/^[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9🥐☕🍽*•]+/, "");
-  if (slice.length < 80) return null;
-  return slice.slice(0, maxChars);
+  slice = formatInclusionSectionForWhatsApp(slice, maxChars);
+  if (slice.length < 60) return null;
+  return slice;
+}
+
+/** Retrocede al inicio de un encabezado de paquete/nivel si está cerca. */
+function snapInclusionStartToHeading(content: string, folded: string, idx: number): number {
+  const lookBack = Math.max(0, idx - 220);
+  const beforeFold = folded.slice(lookBack, idx + 1);
+  const headingFold =
+    /(barra simple \$\s*\d|solo alimentos|b[aá]?sico \$\s*\d|tradicional \$\s*\d|premium \$\s*\d|coffee break \d|men[uú] \d tiempos)/gi;
+  let last = -1;
+  let m: RegExpExecArray | null;
+  while ((m = headingFold.exec(beforeFold))) {
+    last = m.index;
+  }
+  if (last >= 0) return lookBack + last;
+
+  // Si caímos a media palabra, avanzar al siguiente espacio.
+  if (idx > 0 && /[a-záéíóúñ0-9]/i.test(content[idx] ?? "") && /[a-záéíóúñ0-9]/i.test(content[idx - 1] ?? "")) {
+    const space = content.indexOf(" ", idx);
+    if (space > 0 && space - idx < 40) return space + 1;
+  }
+  return idx;
+}
+
+/**
+ * V9.31: convierte un slice crudo de PDF en texto legible para WhatsApp.
+ * Nunca empieza a media frase ni corta a media palabra.
+ */
+export function formatInclusionSectionForWhatsApp(raw: string, maxChars = 900): string {
+  let t = (raw || "")
+    .replace(/Slide\s+\d+\s*[—\-–:]?\s*/gi, "\n")
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (!t) return "";
+
+  // Si hay basura antes del primer encabezado real, cortar ahí.
+  const head = t.match(
+    /(?:Barra Simple|Solo Alimentos|Servicio Completo|B[aá]sico|Tradicional|Premium|Coffee Break\s*\d|Men[uú]\s*\d\s*tiempos)\s*\$?/i
+  );
+  if (head?.index != null && head.index > 0 && head.index < 160) {
+    const prefix = t.slice(0, head.index).trim();
+    // Prefijo basura / media frase (empieza en minúscula o muy corto).
+    if (!prefix || /^[a-záéíóúñ]/.test(prefix) || prefix.length < 24) {
+      t = t.slice(head.index).trim();
+    }
+  }
+  // Todavía empieza en minúscula → saltar hasta mayúscula / bullet / precio.
+  if (/^[a-záéíóúñ]/.test(t)) {
+    const next = t.search(/ [A-ZÁÉÍÓÚÑ*•\d]/);
+    if (next > 0 && next < 100) t = t.slice(next + 1).trim();
+  }
+
+  // Separar niveles y bullets típicos del PDF.
+  t = t
+    .replace(
+      /\s+(?=(?:Barra Simple|B[aá]sico|Tradicional|Premium|Solo Alimentos|Coffee Break\s*\d)\s*\$)/gi,
+      "\n\n"
+    )
+    .replace(
+      /\s+(?=(?:Meseros:|Personal de cocina|Vajilla|Cristaler[ií]a|Silla|Mesa redonda|Centro de mesa|Barra:|Barman|M[ií]nimo:|Inversi[oó]n m[ií]nima:|Servicio de Alimentos|Montaje))/gi,
+      "\n• "
+    )
+    .replace(/[^\S\n]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  // Truncar en límite limpio (oración / bullet / párrafo / espacio).
+  if (t.length > maxChars) {
+    const cut = t.slice(0, maxChars);
+    const breaks = [
+      cut.lastIndexOf("\n\n"),
+      cut.lastIndexOf("\n• "),
+      cut.lastIndexOf(". "),
+      cut.lastIndexOf("\n"),
+      cut.lastIndexOf(" "),
+    ];
+    const lastBreak = Math.max(...breaks);
+    t = (lastBreak > maxChars * 0.4 ? cut.slice(0, lastBreak + (cut[lastBreak] === "." ? 1 : 0)) : cut)
+      .trim()
+      .replace(/[^\S\n]+$/g, "");
+    if (t && !/[.!?…)]$/.test(t) && !/\n•[^\n]*$/.test(t)) t += "…";
+  }
+
+  // Quitar basura residual al inicio.
+  t = t.replace(/^[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9*•]+/, "").trim();
+  return t;
 }
 
 /**
@@ -400,11 +512,15 @@ export function buildLucyInfoInclusionReply(query: string, maxChars = 1100): str
   for (const { d } of pool.slice(0, 4)) {
     const section = findInclusionSection(d.content, query, maxChars);
     if (!section) continue;
-    const label = d.title.replace(/[-_]+/g, " ").replace(/\s+2026.*$/i, "").trim();
+    const label = d.title
+      .replace(/[-_]+/g, " ")
+      .replace(/\s+2026.*$/i, "")
+      .replace(/^Bodasesor\s+/i, "")
+      .trim();
     // Doble chequeo: nunca etiquetar comida con catálogo de mobiliario.
     if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(label)) continue;
     return (
-      `Según el catálogo que ya tenemos de *${label}*:\n\n` +
+      `Para *${label}*:\n\n` +
       `${section}\n\n` +
       `¿Te late este nivel o quieres que te detalle otro?`
     );
@@ -422,18 +538,16 @@ export function collapseDuplicatedInclusionReply(text: string): string {
     const rest = text.slice(m.index + m[0].length).trim();
     if (
       !rest ||
-      /Según el catálogo que ya tenemos/i.test(rest) ||
+      /Según el catálogo que ya tenemos|Para \*/i.test(rest) ||
       /Bebidas incluidas|Alimentos:|Meseros:|Vajilla|Coffee Break \d|Tradicional \$\s*\d|¿Te late este nivel/i.test(
         rest
       )
     ) {
-      // Si hay cola de inclusiones duplicada, nos quedamos con el primer cierre.
       if (rest) return head;
     }
   }
-  // Dos bloques con el mismo encabezado.
-  const parts = text.split(/(?=Según el catálogo que ya tenemos de \*)/i).filter((p) => p.trim());
-  if (parts.length > 1 && /Según el catálogo que ya tenemos/i.test(parts[0]!)) {
+  const parts = text.split(/(?=(?:Según el catálogo que ya tenemos de \*|Para \*))/i).filter((p) => p.trim());
+  if (parts.length > 1 && /(?:Según el catálogo que ya tenemos|Para \*)/i.test(parts[0]!)) {
     return parts[0]!.trim();
   }
   return text.trim();

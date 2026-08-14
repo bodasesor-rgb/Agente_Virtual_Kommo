@@ -99,6 +99,7 @@ import {
   withCatalogNivelQuery,
   resolveDetailQueryForFamily,
   resolveSoloVsCompletoStationLabel,
+  buildSoloVsCompletoProgressiveMenu,
   buildAlimentosModoMenu,
   buildCateringCasualMenu,
   buildProgressiveOptionsMenu,
@@ -994,6 +995,39 @@ export function buildItalianFoodPitch(message?: string): string {
     "Para temática italiana manejamos *barra de pastas y ensaladas*, *barra de pizzas*, antipasti y estaciones italianas";
   if (inv) pitch += ` para ${inv[1]} personas`;
   return `${pitch}. ¿Te late más pastas, pizzas, o te detallo ambas?`;
+}
+
+/** Lucy ya preguntó pastas vs pizzas (A15302 / A15318). */
+export function historyAskedItalianPastasOrPizzasChoice(
+  history: OpenAI.Chat.ChatCompletionMessageParam[]
+): boolean {
+  for (let i = history.length - 1; i >= 0; i--) {
+    const m = history[i];
+    if (m?.role !== "assistant" || typeof m.content !== "string") continue;
+    return /te late m[aá]s pastas|pastas,\s*pizzas|barra de pastas y ensaladas[\s\S]{0,120}barra de pizzas/i.test(
+      m.content
+    );
+  }
+  return false;
+}
+
+/** Cliente elige pastas / pizzas / ambas tras el pitch italiano. */
+export function parseItalianStationPick(
+  message: string | null | undefined
+): "pastas" | "pizzas" | "ambas" | null {
+  const t = message?.trim() ?? "";
+  if (!t || t.length > 100) return null;
+  if (/\bambas\b|\blas\s+dos\b|\btodas\b/i.test(t)) return "ambas";
+  const pasta = /\bpastas?\b/i.test(t);
+  const pizza = /\bpizzas?\b/i.test(t);
+  if (pasta && pizza) return "ambas";
+  if (pasta && !pizza) return "pastas";
+  if (pizza && !pasta) return "pizzas";
+  return null;
+}
+
+export function looksLikeNameMismatchConfirm(text: string | null | undefined): boolean {
+  return /para anotarte bien:\s*¿?eres\s+.+\s+o\s+sigo contigo como/i.test(text ?? "");
 }
 
 /** Variantes concretas del catálogo Pistas/Tarimas (A14967 — menú primero, detalle después). */
@@ -6170,6 +6204,43 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
     } // fin else: RFQ no-mobiliario
   } else if (
+    // A15318: tras "¿pastas o pizzas?" el cliente responde "pasta" → embudo de esa estación
+    // (nunca "¿eres Pasta o sigo contigo como Jess?").
+    allowSalesReplyOverride &&
+    !cierreYaEnviado &&
+    currentMessage &&
+    historyAskedItalianPastasOrPizzasChoice(presHistory) &&
+    parseItalianStationPick(currentMessage)
+  ) {
+    const pick = parseItalianStationPick(currentMessage)!;
+    const station =
+      pick === "pizzas"
+        ? "Barra de pizzas"
+        : pick === "ambas"
+          ? "Barra de pastas y ensaladas, Barra de pizzas"
+          : "Barra de pastas y ensaladas";
+    const merged = mergeServiceRequirements(extracted.requerimientos_evento, station, 6);
+    if (merged) {
+      extracted.requerimientos_evento = merged;
+      filledSet.add("Requerimientos o servicios");
+    }
+    const primary =
+      pick === "pizzas"
+        ? "Barra de pizzas"
+        : "Barra de pastas y ensaladas";
+    const offer =
+      (pick !== "ambas" ? buildSoloVsCompletoOfferIfApplicable(primary) : null) ||
+      (pick === "ambas"
+        ? `Perfecto. Anoto *pastas y pizzas*. ¿Empezamos por la *barra de pastas y ensaladas* o por la *barra de pizzas*?`
+        : buildSoloVsCompletoProgressiveMenu(primary));
+    const body = /^(¡?s[ií]|claro|perfecto)/i.test(offer.trim())
+      ? offer
+      : `${pickTransition(presHistory)} ${offer}`;
+    mensaje = mergeWithPendingQuestion(body, filledSet, extracted, ctx);
+    appliedDirectReply = true;
+    appliedSalesReply = true;
+    log?.info({ entityId, pick, primary }, "GUARD: A15318 — pick pastas/pizzas tras pitch italiano");
+  } else if (
     // A15302: "¿Tienes barra italiana?" → pastas/pizzas (nunca dump Americana/Yucateca ni "la anoto").
     allowSalesReplyOverride &&
     !cierreYaEnviado &&
@@ -8545,6 +8616,41 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       mensaje = `${mensaje.trim()}\n\n${nextQ}`;
       log?.info({ entityId, pending: pendingDead }, "GUARD: dead-end ack → embudo");
     }
+  }
+
+  // A15318: si el modelo inventó "¿eres Pasta…?" con un mensaje que no es nombre, no enviarlo.
+  if (
+    looksLikeNameMismatchConfirm(mensaje) &&
+    currentMessage &&
+    isLikelyNotPersonNameMessage(currentMessage)
+  ) {
+    const italianPick = parseItalianStationPick(currentMessage);
+    if (italianPick && historyAskedItalianPastasOrPizzasChoice(presHistory)) {
+      const primary =
+        italianPick === "pizzas" ? "Barra de pizzas" : "Barra de pastas y ensaladas";
+      const offer =
+        italianPick === "ambas"
+          ? `Perfecto. Anoto *pastas y pizzas*. ¿Empezamos por la *barra de pastas y ensaladas* o por la *barra de pizzas*?`
+          : buildSoloVsCompletoOfferIfApplicable(primary) ||
+            buildSoloVsCompletoProgressiveMenu(primary);
+      mensaje = mergeWithPendingQuestion(
+        /^(¡?s[ií]|claro|perfecto)/i.test(offer.trim())
+          ? offer
+          : `${pickTransition(presHistory)} ${offer}`,
+        filledSet,
+        extracted,
+        ctx
+      );
+    } else {
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending
+        ? buildNaturalQuestion(pending, { ...ctx, filledSet })
+        : null;
+      mensaje =
+        nextQ ||
+        "Claro. ¿Me confirmas qué servicio te gustaría cotizar para tu evento?";
+    }
+    log?.info({ entityId }, "GUARD: A15318 — bloqueó confirmación de nombre falsa");
   }
 
   return normalizeAdvisorReferences(mensaje, extracted.nombre);

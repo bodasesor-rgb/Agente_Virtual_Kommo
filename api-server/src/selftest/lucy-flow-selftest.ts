@@ -218,6 +218,7 @@ import {
 import {
   buildLucyInfoInclusionReply,
   refreshLucyInfoPriceCache,
+  formatInclusionSectionForWhatsApp,
 } from "../services/lucyInfoPriceCache.js";
 import {
   sanitizeKommoCrmLines,
@@ -406,6 +407,7 @@ function runGuards(opts: {
   readyForClosing: boolean;
   currentMessage?: string;
   history?: OpenAI.Chat.ChatCompletionMessageParam[];
+  presentationHistory?: OpenAI.Chat.ChatCompletionMessageParam[];
   emailRefusedThisTurn?: boolean;
   whatsappDisplayName?: string | null;
   forceFirstPresentation?: boolean;
@@ -420,6 +422,7 @@ function runGuards(opts: {
     cierreYaEnviado: opts.cierreYaEnviado ?? false,
     emailRefusedThisTurn: opts.emailRefusedThisTurn ?? false,
     history: opts.history ?? [],
+    presentationHistory: opts.presentationHistory,
     currentMessage: opts.currentMessage,
     whatsappDisplayName: opts.whatsappDisplayName,
     forceFirstPresentation: opts.forceFirstPresentation,
@@ -10953,9 +10956,101 @@ async function runAll(): Promise<void> {
     );
   });
 
+  // ─── V9.31 — A15318 Jessica: catálogo limpio + pasta ≠ nombre ───
+  await test("131. V9.31 — pastas inclusiones limpias; pasta no es nombre; pastas > Banquete Formal", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.31");
+    assert.ok(isLikelyNotPersonNameMessage("pasta"));
+    assert.ok(isLikelyNotPersonNameMessage("pastas"));
+    assert.equal(
+      preferPrimaryCatalogService(["Banquete Formal", "Pastas", "Pizzas", "Alimentos"]),
+      "Pastas"
+    );
+    assert.equal(
+      preferPrimaryCatalogService(["Banquete Formal", "Barra de pastas y ensaladas"]),
+      "Barra de pastas y ensaladas"
+    );
+
+    // Recargar PDF de pastas (tests previos pueden haber reemplazado la caché).
+    refreshLucyInfoPriceCache([
+      {
+        title: "Bodasesor-Barra-de-pastas-y-ensaladas-2026",
+        content:
+          "Barra de Pastas y Ensaladas. Elige tu Servicio. " +
+          "Barra Simple $340 por persona. 2 lasañas + 2 pastas + 2 ensaladas + 1 aderezo a elegir. " +
+          "Servicio de 3 horas o hasta agotar producto. Montaje tipo buffet. Plato trinché, tenedor y cuchillo. " +
+          "1 mesero por cada 50 personas (servicio en barra). Todo el equipo de cocina necesario. " +
+          "Inversión mínima: $10,200 MXN. " +
+          "Servicio Completo — Elige tu Nivel. " +
+          "Básico $780 por persona. Mínimo: $23,400 MXN. Servicio de Alimentos incluidos. " +
+          "Meseros: 1 c/20 personas · 5 horas. Personal de cocina. Vajilla blanca + cubertería. " +
+          "Cristalería: copa + vaso. Silla Tiffany. Mesa redonda. Centro de mesa. " +
+          "Tradicional $830 por persona. Premium $880 por persona. " +
+          "Ideal para: bodas y eventos corporativos. Condiciones del Servicio.",
+      },
+    ]);
+
+    const pastasSolo = buildLucyInfoInclusionReply(
+      "de la barra de pastas y ensaladas de 340 por persona me pueden dar mas detalle"
+    );
+    assert.ok(pastasSolo, "debe haber detalle PDF pastas $340");
+    assert.ok(/^Para \*/i.test(pastasSolo!), pastasSolo!.slice(0, 120));
+    assert.ok(!/^Según el catálogo/i.test(pastasSolo!), pastasSolo!.slice(0, 120));
+    assert.ok(/Barra Simple|\$\s*340/i.test(pastasSolo!), pastasSolo!.slice(0, 400));
+    assert.ok(!/^[a-záéíóúñ]/.test(pastasSolo!.split("\n\n")[1] ?? "X"), pastasSolo!.slice(0, 300));
+    assert.ok(!/\bo 5 aderezos/i.test(pastasSolo!), pastasSolo!.slice(0, 400));
+    assert.ok(!/Slide\s+\d/i.test(pastasSolo!), pastasSolo!);
+
+    // Simula el corte basura que veía Jessica ("o 5 aderezos…").
+    const cleaned = formatInclusionSectionForWhatsApp(
+      "o 5 aderezos gourmet para acompañar tus ensaladas ¿Quieres más variedad? " +
+        "Barra Simple $340 por persona 2 lasañas + 2 pastas + 2 ensaladas + 1 aderezo",
+      400
+    );
+    assert.ok(/^Barra Simple/i.test(cleaned), cleaned);
+    assert.ok(!/^o 5 aderezos/i.test(cleaned), cleaned);
+
+    const pastasBasico = buildLucyInfoInclusionReply("el menu básico de pastas que incluye");
+    assert.ok(pastasBasico, "debe haber detalle PDF pastas básico");
+    assert.ok(/B[aá]sico|\$\s*780/i.test(pastasBasico!), pastasBasico!.slice(0, 500));
+    assert.ok(/Meseros|Vajilla|Cristaler/i.test(pastasBasico!), pastasBasico!.slice(0, 600));
+    const bodyBasico = pastasBasico!.replace(/^Para \*[^*]+\*:\n\n/, "");
+    assert.ok(!/^[a-záéíóúñ]/.test(bodyBasico), bodyBasico.slice(0, 200));
+    assert.ok(!/Tiffan(?!y)/i.test(bodyBasico), "no cortar Tiffany a media palabra");
+    assert.ok(!/\bo 5 aderezos/i.test(bodyBasico), bodyBasico.slice(0, 300));
+
+    const mismatch = runGuards({
+      aiResponse: "Para anotarte bien: ¿eres Pasta o sigo contigo como Jess?",
+      extracted: emptyExtracted({
+        requerimientos_evento: "Banquete Formal, Pastas, Pizzas, Alimentos",
+        num_invitados: 50,
+      }),
+      filledSet: new Set(["Número de invitados"]),
+      readyForClosing: false,
+      currentMessage: "pasta",
+      whatsappDisplayName: "Jess",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Perfecto. Para temática italiana manejamos *barra de pastas y ensaladas*, *barra de pizzas*, antipasti y estaciones italianas para 50 personas. ¿Te late más pastas, pizzas, o te detallo ambas?",
+        },
+        { role: "user", content: "pasta" },
+      ],
+      presentationHistory: [
+        {
+          role: "assistant",
+          content:
+            "Perfecto. Para temática italiana manejamos *barra de pastas y ensaladas*, *barra de pizzas*, antipasti y estaciones italianas para 50 personas. ¿Te late más pastas, pizzas, o te detallo ambas?",
+        },
+      ],
+    });
+    assert.ok(!/eres Pasta|sigo contigo/i.test(mismatch), mismatch.slice(0, 400));
+    assert.ok(/pastas|solo alimentos|servicio completo/i.test(mismatch), mismatch.slice(0, 500));
+  });
+
   // ─── V9.30 — mínimo ciudad; salón solo no cierra ───
   await test("130. V9.30 — ubicación mínima es ciudad (salón solo no basta)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.30");
+    assert.ok(/^V9\.(30|3[1-9])$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(hasCityOrMetroSignal("CDMX"));
     assert.ok(hasCityOrMetroSignal("Querétaro"));
     assert.ok(hasCityOrMetroSignal("colonia Roma"));

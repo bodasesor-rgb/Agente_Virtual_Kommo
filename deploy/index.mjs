@@ -201477,8 +201477,29 @@ function findInclusionSection(content, query, maxChars = 1100) {
   if (/banquete/.test(q3) && nivel) {
     anchors.push(`tradicional $830`, `basico $780`, `premium $880`);
   }
+  if (/pasta|ensalada|pizza|crepa|sushi|taquiza|yucateca|parrillada|barra/.test(q3)) {
+    if (/solo\s+alimentos|barra\s+simple|\$\s*340|\b340\b/.test(q3)) {
+      anchors.unshift(
+        "barra simple $340 por persona",
+        "barra simple $340",
+        "barra simple",
+        "solo alimentos"
+      );
+    }
+    if (nivel === "basico" || /\bbasic|\bb[aá]sic/.test(q3)) {
+      anchors.unshift("basico $780 por persona", "b\xE1sico $780 por persona", "basico $780", "b\xE1sico $780");
+    }
+    if (nivel === "tradicional" || /\btradicional\b/.test(q3)) {
+      anchors.unshift("tradicional $830 por persona", "tradicional $830");
+    }
+    if (nivel === "premium" || /\bpremium\b/.test(q3)) {
+      anchors.unshift("premium $880 por persona", "premium $880");
+    }
+  }
   for (const tok of tokenize(query)) {
-    if (tok.length >= 4) anchors.push(tok);
+    if (tok.length >= 5 && !/^(solo|aderezo|incluye|detalle|menu|nivel|persona|personas)$/.test(tok)) {
+      anchors.push(tok);
+    }
   }
   let bestIdx = -1;
   let bestScore = -1;
@@ -201492,9 +201513,13 @@ function findInclusionSection(content, query, maxChars = 1100) {
       let score = fa2.length;
       const window2 = f7.slice(Math.max(0, i6 - 40), i6 + 200);
       if (/incluye|bebidas|alimentos|meseros|vajilla|persona/.test(window2)) score += 40;
-      if (/coffee break \d|menu \d tiempos|tradicional \$\d|basico \$\d|premium \$\d/.test(window2)) {
-        score += 30;
+      if (/coffee break \d|menu \d tiempos|tradicional \$\d|basico \$\d|b[aá]sico \$\d|premium \$\d|barra simple \$\d/.test(
+        window2
+      )) {
+        score += 50;
       }
+      const atWordStart = i6 === 0 || /[\s\n*—\-–]/.test(f7[i6 - 1] ?? "");
+      if (!atWordStart) score -= 25;
       if (score > bestScore) {
         bestScore = score;
         bestIdx = i6;
@@ -201507,22 +201532,78 @@ function findInclusionSection(content, query, maxChars = 1100) {
     if (dollar < 0) return null;
     bestIdx = dollar;
   }
-  const atHeading = /coffee break \d|tradicional \$\d|basico \$\d|premium \$\d|menu \d tiempos/i.test(
-    f7.slice(bestIdx, bestIdx + 48)
+  bestIdx = snapInclusionStartToHeading(c5, f7, bestIdx);
+  const atHeading = /coffee break \d|tradicional \$\d|basico \$\d|b[aá]sico \$\d|premium \$\d|barra simple \$\d|menu \d tiempos|solo alimentos/i.test(
+    f7.slice(bestIdx, bestIdx + 56)
   );
-  let start2 = atHeading ? bestIdx : Math.max(0, bestIdx - 40);
+  let start2 = atHeading ? bestIdx : Math.max(0, bestIdx - 20);
   let end = Math.min(c5.length, start2 + maxChars);
   const tail = c5.slice(Math.max(start2, bestIdx) + 40, end);
   const nextPkg = tail.search(
-    /Coffee Break \d|Men[uú] \d tiempos|B[aá]sico \$\s*\d|Tradicional \$\s*\d|Premium \$\s*\d|Ideal para:|Condiciones del Servicio/i
+    /Coffee Break \d|Men[uú] \d tiempos|B[aá]sico \$\s*\d|Tradicional \$\s*\d|Premium \$\s*\d|Barra Simple \$\s*\d|Ideal para:|Condiciones del Servicio|Slide\s+\d+/i
   );
-  if (nextPkg > 200) {
+  if (nextPkg > 180) {
     end = Math.max(start2, bestIdx) + 40 + nextPkg;
   }
   let slice = c5.slice(start2, end).replace(/\s+/g, " ").trim();
-  slice = slice.replace(/^[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9🥐☕🍽*•]+/, "");
-  if (slice.length < 80) return null;
-  return slice.slice(0, maxChars);
+  slice = formatInclusionSectionForWhatsApp(slice, maxChars);
+  if (slice.length < 60) return null;
+  return slice;
+}
+function snapInclusionStartToHeading(content, folded, idx) {
+  const lookBack = Math.max(0, idx - 220);
+  const beforeFold = folded.slice(lookBack, idx + 1);
+  const headingFold = /(barra simple \$\s*\d|solo alimentos|b[aá]?sico \$\s*\d|tradicional \$\s*\d|premium \$\s*\d|coffee break \d|men[uú] \d tiempos)/gi;
+  let last = -1;
+  let m6;
+  while (m6 = headingFold.exec(beforeFold)) {
+    last = m6.index;
+  }
+  if (last >= 0) return lookBack + last;
+  if (idx > 0 && /[a-záéíóúñ0-9]/i.test(content[idx] ?? "") && /[a-záéíóúñ0-9]/i.test(content[idx - 1] ?? "")) {
+    const space = content.indexOf(" ", idx);
+    if (space > 0 && space - idx < 40) return space + 1;
+  }
+  return idx;
+}
+function formatInclusionSectionForWhatsApp(raw, maxChars = 900) {
+  let t4 = (raw || "").replace(/Slide\s+\d+\s*[—\-–:]?\s*/gi, "\n").replace(/\u00a0/g, " ").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  if (!t4) return "";
+  const head = t4.match(
+    /(?:Barra Simple|Solo Alimentos|Servicio Completo|B[aá]sico|Tradicional|Premium|Coffee Break\s*\d|Men[uú]\s*\d\s*tiempos)\s*\$?/i
+  );
+  if (head?.index != null && head.index > 0 && head.index < 160) {
+    const prefix = t4.slice(0, head.index).trim();
+    if (!prefix || /^[a-záéíóúñ]/.test(prefix) || prefix.length < 24) {
+      t4 = t4.slice(head.index).trim();
+    }
+  }
+  if (/^[a-záéíóúñ]/.test(t4)) {
+    const next = t4.search(/ [A-ZÁÉÍÓÚÑ*•\d]/);
+    if (next > 0 && next < 100) t4 = t4.slice(next + 1).trim();
+  }
+  t4 = t4.replace(
+    /\s+(?=(?:Barra Simple|B[aá]sico|Tradicional|Premium|Solo Alimentos|Coffee Break\s*\d)\s*\$)/gi,
+    "\n\n"
+  ).replace(
+    /\s+(?=(?:Meseros:|Personal de cocina|Vajilla|Cristaler[ií]a|Silla|Mesa redonda|Centro de mesa|Barra:|Barman|M[ií]nimo:|Inversi[oó]n m[ií]nima:|Servicio de Alimentos|Montaje))/gi,
+    "\n\u2022 "
+  ).replace(/[^\S\n]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  if (t4.length > maxChars) {
+    const cut = t4.slice(0, maxChars);
+    const breaks = [
+      cut.lastIndexOf("\n\n"),
+      cut.lastIndexOf("\n\u2022 "),
+      cut.lastIndexOf(". "),
+      cut.lastIndexOf("\n"),
+      cut.lastIndexOf(" ")
+    ];
+    const lastBreak = Math.max(...breaks);
+    t4 = (lastBreak > maxChars * 0.4 ? cut.slice(0, lastBreak + (cut[lastBreak] === "." ? 1 : 0)) : cut).trim().replace(/[^\S\n]+$/g, "");
+    if (t4 && !/[.!?…)]$/.test(t4) && !/\n•[^\n]*$/.test(t4)) t4 += "\u2026";
+  }
+  t4 = t4.replace(/^[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9*•]+/, "").trim();
+  return t4;
 }
 function queryHasServicePdfAnchor(query) {
   const q3 = fold(query);
@@ -201565,9 +201646,9 @@ function buildLucyInfoInclusionReply(query, maxChars = 1100) {
   for (const { d: d3 } of pool2.slice(0, 4)) {
     const section2 = findInclusionSection(d3.content, query, maxChars);
     if (!section2) continue;
-    const label = d3.title.replace(/[-_]+/g, " ").replace(/\s+2026.*$/i, "").trim();
+    const label = d3.title.replace(/[-_]+/g, " ").replace(/\s+2026.*$/i, "").replace(/^Bodasesor\s+/i, "").trim();
     if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(label)) continue;
-    return `Seg\xFAn el cat\xE1logo que ya tenemos de *${label}*:
+    return `Para *${label}*:
 
 ${section2}
 
@@ -201582,14 +201663,14 @@ function collapseDuplicatedInclusionReply(text2) {
   if (m6 && m6.index != null) {
     const head = text2.slice(0, m6.index + m6[0].length).trim();
     const rest = text2.slice(m6.index + m6[0].length).trim();
-    if (!rest || /Según el catálogo que ya tenemos/i.test(rest) || /Bebidas incluidas|Alimentos:|Meseros:|Vajilla|Coffee Break \d|Tradicional \$\s*\d|¿Te late este nivel/i.test(
+    if (!rest || /Según el catálogo que ya tenemos|Para \*/i.test(rest) || /Bebidas incluidas|Alimentos:|Meseros:|Vajilla|Coffee Break \d|Tradicional \$\s*\d|¿Te late este nivel/i.test(
       rest
     )) {
       if (rest) return head;
     }
   }
-  const parts2 = text2.split(/(?=Según el catálogo que ya tenemos de \*)/i).filter((p5) => p5.trim());
-  if (parts2.length > 1 && /Según el catálogo que ya tenemos/i.test(parts2[0])) {
+  const parts2 = text2.split(/(?=(?:Según el catálogo que ya tenemos de \*|Para \*))/i).filter((p5) => p5.trim());
+  if (parts2.length > 1 && /(?:Según el catálogo que ya tenemos|Para \*)/i.test(parts2[0])) {
     return parts2[0].trim();
   }
   return text2.trim();
@@ -201784,7 +201865,7 @@ function isLikelyNotPersonNameMessage(text2) {
   if (COMPANY_OR_CHANNEL_PATTERN.test(t4)) return true;
   if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona)\b/i.test(t4)) return true;
   if (/\b(asesor|agente|humano)\b/i.test(t4) && t4.split(/\s+/).length <= 5) return true;
-  if (/\b(crepas?|sushi|poke|banquete|taquiza|coffee\s*break|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mobiliario|salas?\s+lounge|photo\s*booth|photobooth|cabina)\b/i.test(
+  if (/\b(crepas?|pastas?|pizzas?|sushi|poke|banquete|taquiza|coffee\s*break|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mobiliario|salas?\s+lounge|photo\s*booth|photobooth|cabina|ensaladas?)\b/i.test(
     t4
   ) && !/^(soy|me\s+llamo)/i.test(t4)) {
     return true;
@@ -204086,14 +204167,20 @@ function preferPrimaryCatalogService(services) {
   const cleaned = dedupeServiceHierarchy(services);
   const pool2 = cleaned.filter((s7) => !STAFF_OR_ADDON_SERVICE.test(s7.trim()));
   const candidates = pool2.length ? pool2 : cleaned;
+  const hasStationFood = candidates.some(
+    (s7) => /pasta|pizza|crepa|sushi|taquiza|yucateca|parrillada|barra\s+de/i.test(s7)
+  );
   const scored = [...candidates].sort((a4, b5) => {
     const score = (s7) => {
       let n5 = s7.length;
       if (/^Barra de /i.test(s7)) n5 += 40;
+      if (/pasta|pizza|crepa/i.test(s7)) n5 += 45;
       if (/Puestos\s+de\s+Comida/i.test(s7)) n5 += 45;
-      if (/Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s7)) n5 += 30;
+      if (/Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s7)) {
+        n5 += hasStationFood ? -20 : 30;
+      }
       if (/Parrillada|Paella|Coffee|Cupcakes|Mesa de/i.test(s7)) n5 += 20;
-      if (/^(Pastas|Pizzas|Crepas|Comida|Taquiza|Parrillada|Bocadillos?|Snack)$/i.test(s7)) n5 -= 25;
+      if (/^(Comida|Bocadillos?|Snack)$/i.test(s7)) n5 -= 25;
       return n5;
     };
     return score(b5) - score(a4);
@@ -208135,7 +208222,7 @@ function reconcilePdfInclusionWithSheetPrice(pdfReply, query) {
   const pdfMatch = pdfReply.match(/\$\s*([\d]{1,3}(?:,[\d]{3})*(?:\.\d+)?|[\d]+(?:\.\d+)?)/);
   if (!pdfMatch) {
     return pdfReply.replace(
-      /(Según el catálogo[^\n]*:\s*\n\n)/i,
+      /((?:Según el catálogo|Para \*)[^\n]*:\s*\n\n)/i,
       `$1*Precio de lista:* ${sheet.price}${sheet.unit ? ` ${sheet.unit}` : ""}${sheet.minimo ? ` (m\xEDn. ${sheet.minimo})` : ""}
 `
     );
@@ -208342,7 +208429,7 @@ function inclusionEvidenceRegex(item, serviceLabel) {
 function pdfWindowForNivel(service, nivel) {
   const raw = buildPdfInclusionReply(`${service} ${nivel}`) || buildPdfInclusionReply(`${nivel} ${service}`) || "";
   if (!raw) return "";
-  const body2 = raw.replace(/^Según el catálogo[^\n]*:\n\n/i, "");
+  const body2 = raw.replace(/^Según el catálogo[^\n]*:\n\n/i, "").replace(/^Para \*[^*]+\*:\n\n/i, "");
   const nivelRe = nivel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
   const start2 = body2.search(new RegExp(nivelRe, "i"));
   if (start2 < 0) return body2.slice(0, 420);
@@ -208453,7 +208540,7 @@ ${pdf}`;
     return ensureCatalogWebLink(
       `Sobre *${item}* en *${service}*:
 
-${fromPdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "")}`,
+${fromPdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "").replace(/^Para \*[^*]+\*:\n\n/i, "")}`,
       service
     );
   }
@@ -208472,7 +208559,7 @@ ${fromPdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "")}`,
     const priced = buildCatalogPriceAnswer(service);
     const fromPdf = buildPdfInclusionReply(`${service} ${query}`) || buildPdfInclusionReply(`${service} ${item}`) || buildPdfInclusionReply(service);
     const body2 = [
-      fromPdf ? fromPdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "") : `En el cat\xE1logo de *${service}* te detallo lo de *${item}* por nivel.`,
+      fromPdf ? fromPdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "").replace(/^Para \*[^*]+\*:\n\n/i, "") : `En el cat\xE1logo de *${service}* te detallo lo de *${item}* por nivel.`,
       priced && /\$\s*\d/.test(priced) ? `
 
 Precios de lista:
@@ -209253,7 +209340,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.30";
+var LUCY_PROMPT_VERSION = "V9.31";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -210982,6 +211069,30 @@ function buildItalianFoodPitch(message) {
   let pitch = "Para tem\xE1tica italiana manejamos *barra de pastas y ensaladas*, *barra de pizzas*, antipasti y estaciones italianas";
   if (inv) pitch += ` para ${inv[1]} personas`;
   return `${pitch}. \xBFTe late m\xE1s pastas, pizzas, o te detallo ambas?`;
+}
+function historyAskedItalianPastasOrPizzasChoice(history) {
+  for (let i6 = history.length - 1; i6 >= 0; i6--) {
+    const m6 = history[i6];
+    if (m6?.role !== "assistant" || typeof m6.content !== "string") continue;
+    return /te late m[aá]s pastas|pastas,\s*pizzas|barra de pastas y ensaladas[\s\S]{0,120}barra de pizzas/i.test(
+      m6.content
+    );
+  }
+  return false;
+}
+function parseItalianStationPick(message) {
+  const t4 = message?.trim() ?? "";
+  if (!t4 || t4.length > 100) return null;
+  if (/\bambas\b|\blas\s+dos\b|\btodas\b/i.test(t4)) return "ambas";
+  const pasta = /\bpastas?\b/i.test(t4);
+  const pizza = /\bpizzas?\b/i.test(t4);
+  if (pasta && pizza) return "ambas";
+  if (pasta && !pizza) return "pastas";
+  if (pizza && !pasta) return "pizzas";
+  return null;
+}
+function looksLikeNameMismatchConfirm(text2) {
+  return /para anotarte bien:\s*¿?eres\s+.+\s+o\s+sigo contigo como/i.test(text2 ?? "");
 }
 var PISTA_TARIMA_VARIANTS = [
   {
@@ -214336,6 +214447,25 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
       );
     }
   } else if (
+    // A15318: tras "¿pastas o pizzas?" el cliente responde "pasta" → embudo de esa estación
+    // (nunca "¿eres Pasta o sigo contigo como Jess?").
+    allowSalesReplyOverride && !cierreYaEnviado && currentMessage && historyAskedItalianPastasOrPizzasChoice(presHistory) && parseItalianStationPick(currentMessage)
+  ) {
+    const pick = parseItalianStationPick(currentMessage);
+    const station = pick === "pizzas" ? "Barra de pizzas" : pick === "ambas" ? "Barra de pastas y ensaladas, Barra de pizzas" : "Barra de pastas y ensaladas";
+    const merged = mergeServiceRequirements(extracted.requerimientos_evento, station, 6);
+    if (merged) {
+      extracted.requerimientos_evento = merged;
+      filledSet.add("Requerimientos o servicios");
+    }
+    const primary = pick === "pizzas" ? "Barra de pizzas" : "Barra de pastas y ensaladas";
+    const offer = (pick !== "ambas" ? buildSoloVsCompletoOfferIfApplicable(primary) : null) || (pick === "ambas" ? `Perfecto. Anoto *pastas y pizzas*. \xBFEmpezamos por la *barra de pastas y ensaladas* o por la *barra de pizzas*?` : buildSoloVsCompletoProgressiveMenu(primary));
+    const body2 = /^(¡?s[ií]|claro|perfecto)/i.test(offer.trim()) ? offer : `${pickTransition(presHistory)} ${offer}`;
+    mensaje = mergeWithPendingQuestion(body2, filledSet, extracted, ctx);
+    appliedDirectReply = true;
+    appliedSalesReply = true;
+    log?.info({ entityId, pick, primary }, "GUARD: A15318 \u2014 pick pastas/pizzas tras pitch italiano");
+  } else if (
     // A15302: "¿Tienes barra italiana?" → pastas/pizzas (nunca dump Americana/Yucateca ni "la anoto").
     allowSalesReplyOverride && !cierreYaEnviado && currentMessage && clientMentionsItalianTheme(currentMessage) && (/\bbarra\b/i.test(currentMessage) || clientAsksServiceInfo(currentMessage) || /\b(tienes|tienen|cuentan|manejan|ofrecen)\b/i.test(currentMessage))
   ) {
@@ -215950,6 +216080,24 @@ ${nextQ}`;
       log?.info({ entityId, pending: pendingDead }, "GUARD: dead-end ack \u2192 embudo");
     }
   }
+  if (looksLikeNameMismatchConfirm(mensaje) && currentMessage && isLikelyNotPersonNameMessage(currentMessage)) {
+    const italianPick = parseItalianStationPick(currentMessage);
+    if (italianPick && historyAskedItalianPastasOrPizzasChoice(presHistory)) {
+      const primary = italianPick === "pizzas" ? "Barra de pizzas" : "Barra de pastas y ensaladas";
+      const offer = italianPick === "ambas" ? `Perfecto. Anoto *pastas y pizzas*. \xBFEmpezamos por la *barra de pastas y ensaladas* o por la *barra de pizzas*?` : buildSoloVsCompletoOfferIfApplicable(primary) || buildSoloVsCompletoProgressiveMenu(primary);
+      mensaje = mergeWithPendingQuestion(
+        /^(¡?s[ií]|claro|perfecto)/i.test(offer.trim()) ? offer : `${pickTransition(presHistory)} ${offer}`,
+        filledSet,
+        extracted,
+        ctx
+      );
+    } else {
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending ? buildNaturalQuestion(pending, { ...ctx, filledSet }) : null;
+      mensaje = nextQ || "Claro. \xBFMe confirmas qu\xE9 servicio te gustar\xEDa cotizar para tu evento?";
+    }
+    log?.info({ entityId }, "GUARD: A15318 \u2014 bloque\xF3 confirmaci\xF3n de nombre falsa");
+  }
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 function stripClientServiceConfusionNotes(text2) {
@@ -217124,6 +217272,10 @@ bloques de referencia. Eso es tu memoria de producto, no un texto para copiar
 y pegar al cliente.
 - \xDAsalo para SABER qu\xE9 existe, qu\xE9 incluye y qu\xE9 precio/rango hay.
 - REDACTA t\xFA la respuesta, en 2\u20134 l\xEDneas naturales de WhatsApp.
+- Si el cliente pide detalle/inclusiones de un nivel: resume limpio (oraciones
+  completas, bullets claros). NUNCA pegues un pedazo de PDF a media frase,
+  a media palabra, ni con basura de diapositiva ("Slide\u2026", texto cortado).
+  Si el bloque inyectado llega mal cortado, reescr\xEDbelo bien antes de enviarlo.
 - NUNCA vuelques un men\xFA completo, una lista de 8 categor\xEDas ni un bloque de
   plantilla tal cual, salvo que el cliente pida expl\xEDcitamente "todas las opciones"
   o "el cat\xE1logo completo".
