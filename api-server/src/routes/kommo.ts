@@ -67,10 +67,8 @@ import {
   resolveKommoLeadNamePatch,
 } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
-import {
-  prepareLucyExtraction,
-  generateLucyOutbound,
-} from "../lucyTurnProcessor.js";
+import { prepareLucyExtraction, generateLucyOutbound } from "../lucyTurnProcessor.js";
+import { isLucyUnifiedLlmTurn } from "../lib/lucyCostControls.js";
 import {
   applyCapturesToCrm,
   applyLocationCorrectionToCrm,
@@ -274,6 +272,11 @@ async function extractData(
     tipo_contacto: null, empresa: null,
     modo_servicio: null,
   };
+
+  // V9.32: extract va dentro del turno unificado (1 call). Aquí solo enrich local.
+  if (isLucyUnifiedLlmTurn()) {
+    return empty;
+  }
 
   try {
     const crmHint = crmAlreadyFilled

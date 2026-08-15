@@ -57009,8 +57009,8 @@ function resetGeminiContextCacheForTests() {
   stats.lastHash = null;
 }
 function isCacheEnabled() {
-  const raw = (process.env["GEMINI_CONTEXT_CACHE"] ?? "1").trim().toLowerCase();
-  return raw !== "0" && raw !== "false" && raw !== "off";
+  const raw = (process.env["GEMINI_CONTEXT_CACHE"] ?? "0").trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "on";
 }
 function ttlSec() {
   const n4 = Number(process.env["GEMINI_CONTEXT_CACHE_TTL_SEC"] ?? DEFAULT_TTL_SEC);
@@ -57197,12 +57197,15 @@ async function completeWithGemini(opts) {
     throw new Error(`Modelo Gemini no permitido: ${model} (solo ${DEFAULT_GEMINI_MODEL})`);
   }
   let cachedContent = null;
-  if (system) {
+  const systemLooksDynamic = /CONTEXTO DEL TURNO|ESTADO ACTUAL|CAT[AÁ]LOGO|Que Incluye|BRIEFING INTERNO/i.test(system);
+  if (system && !systemLooksDynamic) {
     cachedContent = await getOrCreateSystemCache(ai, system, DEFAULT_GEMINI_MODEL);
+  } else if (system && systemLooksDynamic) {
+    geminiCallStats.contextCacheSkipped += 1;
   }
   if (cachedContent) {
     geminiCallStats.contextCacheUsed += 1;
-  } else if (system) {
+  } else if (system && !systemLooksDynamic) {
     geminiCallStats.contextCacheSkipped += 1;
   }
   const response = await ai.models.generateContent({
@@ -125543,7 +125546,7 @@ var WRITTEN_NUMBERS = {
 };
 var MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
 var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco)\b/i;
-var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale)\b/i;
+var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
 function hasGeoLocationSignal(text2) {
   const t3 = text2.trim();
   if (!t3) return false;
@@ -125562,7 +125565,46 @@ function hasGeoLocationSignal(text2) {
   if (/\b\d{4,5}\b/.test(t3) && /\b(colonia|delegaci|cdmx|estado|municipio)\b/i.test(t3)) return true;
   return false;
 }
-var JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
+function hasCityOrMetroSignal(text2) {
+  const t3 = (text2 ?? "").trim();
+  if (!t3) return false;
+  if (KNOWN_ZONES.test(t3)) return true;
+  if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio)\s+[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(
+    t3
+  )) {
+    return true;
+  }
+  if (/\b(ciudad(\s+de)?|estado\s+de|edo\.?\s*m[eé]x|cdmx|d\.?\s*f\.?)\b/i.test(t3)) {
+    return true;
+  }
+  if (/\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum)\b/i.test(
+    t3
+  )) {
+    return true;
+  }
+  return false;
+}
+var VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue)\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.'-]{1,48})/i;
+function extractVenueNameHint(text2) {
+  const t3 = (text2 ?? "").trim();
+  if (!t3) return null;
+  const m5 = t3.match(VENUE_NAME_PATTERN);
+  if (!m5?.[1]) return null;
+  const venue = m5[1].trim().replace(/[.,;:]+$/g, "").trim();
+  return venue.length >= 4 ? venue : null;
+}
+function isVenueWithoutCity(text2) {
+  const t3 = (text2 ?? "").trim();
+  if (!t3) return false;
+  if (hasCityOrMetroSignal(t3)) return false;
+  if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club|expo|centro\s+(de\s+)?(convenciones|cultural)|venue)\b/i.test(
+    t3
+  )) {
+    return true;
+  }
+  return false;
+}
+var JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
 function looksLikeDiscourseNotPlace(text2) {
   const t3 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
   if (!t3) return true;
@@ -125596,7 +125638,7 @@ function isNonLocationBusinessPhrase(text2) {
   if (looksLikeThemeColorNotLocation(cleaned) || looksLikeThemeColorNotLocation(t3)) {
     return true;
   }
-  if (/^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n|noche|tarde|vivo|realidad|serio|importante)$/i.test(
+  if (/^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n|noche|tarde|vivo|realidad|serio|importante|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|negocio|sede|ratito|ahorita)$/i.test(
     cleaned
   )) {
     return true;
@@ -125622,7 +125664,7 @@ function isVagueVenueOnly(text2) {
   if (!t3) return true;
   const cleaned = t3.replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "").trim().split(/\n/)[0].replace(/\s+tipo\s+de.*$/i, "").trim();
   if (!cleaned) return true;
-  if (/^(sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá])$/i.test(
+  if (/^(sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede|trabajo)$/i.test(
     cleaned
   )) {
     return true;
@@ -125633,6 +125675,42 @@ function isVagueVenueOnly(text2) {
   if (/^(sal[oó]n|edificio|venue|jard[ií]n)(\s+de)?(\s+(eventos?|oficinas?|corporativo|privado|la\s+empresa|la\s+compa[nñ][ií]a))?$/i.test(
     cleaned
   )) {
+    return true;
+  }
+  if (/^(nuestras?|nuestros?|mi|mis|su|sus|la|el)\s+(empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede)(\s+de\s+(eventos?|la\s+empresa))?$/i.test(
+    cleaned
+  )) {
+    return true;
+  }
+  return false;
+}
+function isLocationDeferralOrVagueWorkplace(text2) {
+  const raw = (text2 ?? "").trim();
+  if (!raw) return true;
+  const t3 = raw.replace(/[¡!¿?]+/g, "").replace(/\s+/g, " ").trim();
+  if (!t3) return true;
+  if (hasGeoLocationSignal(t3) || KNOWN_ZONES.test(t3)) {
+    if (!/\b(empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|negocio|sede)\b/i.test(t3) || hasGeoLocationSignal(t3) || KNOWN_ZONES.test(t3)) {
+      if (hasGeoLocationSignal(t3) || KNOWN_ZONES.test(t3)) return false;
+    }
+  }
+  if (/^(un\s+)?(ratito|rato|momento|minuto)[\s.,!]*$/i.test(t3) || /^(ahorita|luego|despu[eé]s)(\s+te\s+(digo|paso|mando|aviso|confirmo))?[\s.,!]*$/i.test(
+    t3
+  ) || /^en\s+un\s+(rato|momento|minuto)[\s.,!]*$/i.test(t3) || /^(te\s+aviso|te\s+digo|todav[ií]a\s+no(\s+s[eé]|\s+lo\s+tengo)?)[\s.,!]*$/i.test(t3)) {
+    return true;
+  }
+  if (/\b(un\s+ratito|un\s+rato|ahorita(\s+te\s+\w+)?|luego\s+te\s+(digo|aviso|paso)|en\s+un\s+(rato|momento)|todav[ií]a\s+no\s+(s[eé]|lo\s+tengo)|te\s+aviso\s+despu[eé]s)\b/i.test(
+    t3
+  ) && !hasGeoLocationSignal(t3) && !KNOWN_ZONES.test(t3)) {
+    return true;
+  }
+  const withoutDeferral = t3.replace(
+    /[,;]?\s*(un\s+)?(ratito|rato|momento|minuto|ahorita|luego|despu[eé]s)(\s+te\s+\w+)?.*$/i,
+    ""
+  ).trim().replace(/[.,;:]+$/g, "").trim();
+  const core = withoutDeferral || t3;
+  if (isVagueVenueOnly(core)) return true;
+  if (/\b(empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|negocio|sede)\b/i.test(core) && !hasGeoLocationSignal(core) && !KNOWN_ZONES.test(core) && !/\b(sal[oó]n|hotel|hacienda|expo|club|centro\s+cultural)\s+\S+/i.test(core) && core.split(/\s+/).length <= 6) {
     return true;
   }
   return false;
@@ -126172,6 +126250,8 @@ function isUsableDireccionEvento(value) {
   if (!t3) return false;
   if (isDimensionText(t3)) return false;
   if (isVagueVenueOnly(t3)) return false;
+  if (isLocationDeferralOrVagueWorkplace(t3)) return false;
+  if (isVenueWithoutCity(t3)) return false;
   if (isLikelyProductNameNotLocation(t3)) return false;
   if (JUNK_DIRECCION_PATTERN.test(t3)) return false;
   if (isNonLocationBusinessPhrase(t3)) return false;
@@ -126181,16 +126261,18 @@ function isUsableDireccionEvento(value) {
   if (/\bd[oó]nde\b|\bubicad/i.test(t3) && !KNOWN_ZONES.test(t3) && t3.split(/\s+/).length <= 5) {
     return false;
   }
+  if (hasCityOrMetroSignal(t3) || KNOWN_ZONES.test(t3)) return true;
   if (!hasGeoLocationSignal(t3) && !KNOWN_ZONES.test(t3)) {
     const words = t3.split(/\s+/).filter(Boolean);
-    if (words.length > 4 || t3.length > 60) return false;
-    if (/\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete)\b/i.test(
+    if (words.length > 3 || t3.length > 40) return false;
+    if (/\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|ratito|ahorita|sal[oó]n|hotel|hacienda|club|expo)\b/i.test(
       t3
     )) {
       return false;
     }
+    return true;
   }
-  return true;
+  return false;
 }
 function clientCorrectsLocation(text2) {
   const t3 = (text2 ?? "").trim();
@@ -129572,6 +129654,46 @@ function buildCatalogWebDetailHint(query) {
 
 // src/services/serviceProgressiveOffer.ts
 var SERVICE_NIVEL_DETAIL_CTA = "\xBFQuieres que te d\xE9 detalles de alguno?";
+function messageHasSoloCompletoNivelOrMode(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return false;
+  return /\b(solo\s+alimentos|servicio\s+completo)\b/i.test(t3) || /(?:^|[^\p{L}])completo(?:[^\p{L}]|$)/iu.test(t3) || /\b(b[aá]sic[oa]|tradicional|premium)\b/i.test(t3);
+}
+function buildSoloVsCompletoProgressiveMenu(serviceLabel) {
+  const label = serviceLabel.trim() || "ese servicio";
+  return [
+    `Claro. En *${label}* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).`,
+    "",
+    "\xBFCu\xE1l te late m\xE1s?"
+  ].join("\n");
+}
+function resolveSoloVsCompletoStationLabel(text2, family) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3 && !family) return null;
+  if (family === "barra_sushi" || /\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i.test(t3)) {
+    return "Barra de sushi";
+  }
+  if (family === "taquiza" || /\btaquiza\b/i.test(t3)) {
+    return "taquiza";
+  }
+  if (/\bbarra\s+yucateca\b|\byucateca\b/i.test(t3)) return "Barra Yucateca";
+  if (family === "parrillada" || /\bparrillada\b/i.test(t3)) {
+    if (/\bargentina\b/i.test(t3)) return "Parrillada Argentina";
+    if (/\btacos?\b/i.test(t3)) return "Parrillada Tacos";
+    return null;
+  }
+  if (family === "barra_alimentos" || /\bbarra\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarra\s+italian|\bpizzas?\b|\bpastas?\b|\bcrepas?\b|\bmariscos?\b|\bpaninis?\b/i.test(
+    t3
+  )) {
+    if (/\bpizzas?\b/i.test(t3)) return "Barra de pizzas";
+    if (/\bpasta|ensalada|italian/i.test(t3)) return "Barra de pastas y ensaladas";
+    if (/\bcrepas?\b/i.test(t3)) return "Barra de Crepas";
+    if (/\bmariscos?\b/i.test(t3)) return "Barra de mariscos";
+    if (/\bpaninis?\b/i.test(t3)) return "Barra de paninis";
+    return null;
+  }
+  return null;
+}
 function banqueteDetailQuery(text2) {
   const tiempos4 = /\b(4\s*tiempos?|cuatro\s*tiempos?)\b/i.test(text2);
   const tiempos3 = /\b(3\s*tiempos?|tres\s*tiempos?)\b/i.test(text2);
@@ -129649,11 +129771,7 @@ var FAMILIES = [
     familyPattern: /\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i,
     variantPattern: /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text2) => withCatalogNivelQuery("Barra de sushi", text2),
-    buildMenu: () => [
-      "Claro. En *Barra de sushi* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).",
-      "",
-      "\xBFCu\xE1l te late m\xE1s?"
-    ].join("\n")
+    buildMenu: () => buildSoloVsCompletoProgressiveMenu("Barra de sushi")
   },
   {
     family: "barra_cafe",
@@ -129668,8 +129786,8 @@ var FAMILIES = [
   },
   {
     family: "barra_bebidas",
-    familyPattern: /\bbarra\s+(de\s+)?bebidas?\b|\bbebidas?\s+alcoh[oó]licas?\b|\bmixolog|\bcocteler|\bm[oó]cteles?\b/i,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium|americana|yucateca|mixolog|cocteler|m[oó]cteles?|con\s+alcohol|sin\s+alcohol)\b/i,
+    familyPattern: /\bbarra\s+(de\s+)?bebidas?\b|\bbebidas?\s+alcoh[oó]licas?\b|\bmixolog|\bcocteler|\bm[oó]cteles?\b|\bbarra\s+americana\b/i,
+    variantPattern: /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium|americana|yucateca|mixolog|cocteler|m[oó]cteles?|con\s+alcohol|sin\s+alcohol)\b/i,
     detailQueryFromText: (text2) => {
       if (/yucateca/i.test(text2)) return withCatalogNivelQuery("Barra Yucateca", text2);
       if (/americana/i.test(text2)) return withCatalogNivelQuery("Barra Americana", text2);
@@ -129678,20 +129796,33 @@ var FAMILIES = [
       if (/con\s+alcohol/i.test(text2)) return "Barra de bebidas con Alcohol";
       return withCatalogNivelQuery("Barra de bebidas", text2);
     },
-    buildMenu: () => [
-      "Claro. En bebidas manejamos:",
-      "\u2022 *Barra de bebidas* (con o sin alcohol)",
-      "\u2022 *Barra Americana* / *Barra Yucateca*",
-      "\u2022 *Cocteler\xEDa / Mixolog\xEDa* y *M\xF3cteles*",
-      "",
-      SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n")
+    buildMenu: (hint) => {
+      if (hint && /\byucateca\b/i.test(hint)) {
+        return buildSoloVsCompletoProgressiveMenu("Barra Yucateca");
+      }
+      if (hint && /\bamericana\b/i.test(hint)) {
+        return [
+          "Claro. En *Barra Americana* manejamos varios niveles de montaje y bebidas.",
+          "",
+          SERVICE_NIVEL_DETAIL_CTA
+        ].join("\n");
+      }
+      return [
+        "Claro. En bebidas manejamos:",
+        "\u2022 *Barra de bebidas* (con o sin alcohol)",
+        "\u2022 *Barra Americana* / *Barra Yucateca*",
+        "\u2022 *Cocteler\xEDa / Mixolog\xEDa* y *M\xF3cteles*",
+        "",
+        SERVICE_NIVEL_DETAIL_CTA
+      ].join("\n");
+    }
   },
   {
     family: "barra_alimentos",
     // A15302: "barra italiana" cuenta como familia de alimentos (no bebidas).
-    familyPattern: /\bbarra\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarra\s+italian|\bbarras?\s+tem[aá]ticas?\b/i,
-    variantPattern: /\b(pizzas?|pastas?|ensaladas?|crepas?|mariscos?|paninis?|italian[ao]?|americana|yucateca|solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
+    // V9.28: yucateca también entra aquí (estación con Solo Alimentos).
+    familyPattern: /\bbarras?\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarra\s+italian|\bbarras?\s+tem[aá]ticas?\b|\bbarra\s+yucateca\b|\byucateca\b/i,
+    variantPattern: /\b(pizzas?|pastas?|ensaladas?|crepas?|mariscos?|paninis?|italian[ao]?|americana|yucateca|solo\s+alimentos|servicio\s+completo|completo|b[aá]sic|tradicional|premium)\b/i,
     detailQueryFromText: (text2) => {
       if (/pizza/i.test(text2)) return withCatalogNivelQuery("Barra de pizzas", text2);
       if (/pasta|ensalada|italian/i.test(text2)) {
@@ -129705,6 +129836,8 @@ var FAMILIES = [
       return withCatalogNivelQuery("Barra de alimentos", text2);
     },
     buildMenu: (hint) => {
+      const station = resolveSoloVsCompletoStationLabel(hint, "barra_alimentos");
+      if (station) return buildSoloVsCompletoProgressiveMenu(station);
       if (hint && /\bitalian/i.test(hint)) {
         return [
           "\xA1S\xED! Para *barra italiana* manejamos estaciones de comida italiana:",
@@ -129718,7 +129851,7 @@ var FAMILIES = [
       return [
         "Claro. En barras de alimentos manejamos varias:",
         "\u2022 Pizzas, pastas y ensaladas, crepas, mariscos, paninis",
-        "\u2022 Americana, Yucateca y m\xE1s",
+        "\u2022 Yucateca y m\xE1s",
         "",
         SERVICE_NIVEL_DETAIL_CTA
       ].join("\n");
@@ -129729,16 +129862,12 @@ var FAMILIES = [
     familyPattern: /\btaquiza\b/i,
     variantPattern: /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text2) => withCatalogNivelQuery("taquiza", text2),
-    buildMenu: () => [
-      "Claro. En *taquiza* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).",
-      "",
-      "\xBFCu\xE1l te late m\xE1s?"
-    ].join("\n")
+    buildMenu: () => buildSoloVsCompletoProgressiveMenu("taquiza")
   },
   {
     family: "parrillada",
     familyPattern: /\bparrillada\b/i,
-    variantPattern: /\bargentina\b|\btacos?\b|\b(solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
+    variantPattern: /\bargentina\b|\btacos?\b|\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic|tradicional|premium)\b/i,
     detailQueryFromText: (text2) => {
       if (/argentina/i.test(text2)) {
         return withCatalogNivelQuery("Parrillada Argentina", text2);
@@ -129748,11 +129877,15 @@ var FAMILIES = [
       }
       return withCatalogNivelQuery("parrillada", text2);
     },
-    buildMenu: () => [
-      "Claro. En *parrillada* tenemos *Parrillada Argentina* y *Parrillada Tacos*.",
-      "",
-      SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n")
+    buildMenu: (hint) => {
+      const station = resolveSoloVsCompletoStationLabel(hint, "parrillada");
+      if (station) return buildSoloVsCompletoProgressiveMenu(station);
+      return [
+        "Claro. En *parrillada* tenemos *Parrillada Argentina* y *Parrillada Tacos*.",
+        "",
+        SERVICE_NIVEL_DETAIL_CTA
+      ].join("\n");
+    }
   },
   {
     family: "cupcakes_betun",
@@ -130181,7 +130314,27 @@ function shouldOfferOptionsBeforeDetail(opts) {
     return null;
   }
   const famDef = defFor(family);
-  const hasVariantNow = hasConcreteServiceVariant(msg) || famDef.variantPattern.test(msg) || /\b(b[aá]sic[oa]|tradicional|premium|solo\s+alimentos)\b/i.test(msg);
+  const hasNivelOrModeNow = messageHasSoloCompletoNivelOrMode(msg);
+  const stationBlob = `${msg} ${opts.serviceHint ?? ""}`.trim();
+  const soloCompletoStation = resolveSoloVsCompletoStationLabel(msg, family) || resolveSoloVsCompletoStationLabel(stationBlob, family) || resolveSoloVsCompletoStationLabel(opts.serviceHint, family);
+  if (soloCompletoStation && !hasNivelOrModeNow) {
+    if (historyOfferedServiceOptionsMenu(opts.history) && clientWantsServiceDetail(msg, opts.history)) {
+      return null;
+    }
+    if (historyOfferedServiceOptionsMenu(opts.history) && msg.length < 80) {
+      const msgFamily = detectProgressiveFamily(msg);
+      if (!msgFamily || msgFamily === family) {
+        return { family, menu: SERVICE_NIVEL_DETAIL_CTA };
+      }
+    }
+    if (!historyOfferedServiceOptionsMenu(opts.history)) {
+      return {
+        family,
+        menu: buildSoloVsCompletoProgressiveMenu(soloCompletoStation)
+      };
+    }
+  }
+  const hasVariantNow = hasNivelOrModeNow || hasConcreteServiceVariant(msg) || famDef.variantPattern.test(msg);
   if (hasVariantNow) {
     return null;
   }
@@ -131162,6 +131315,25 @@ function buildCompletoNivelesTeaser(svc, rows) {
     svc
   );
 }
+function buildSoloVsCompletoOfferIfApplicable(query) {
+  if (!snapshot?.rows.length || !query.trim()) return null;
+  if (queryWantsSpecificCompletoNivel(query) || queryWantsSoloAlimentos(query)) {
+    return null;
+  }
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved || resolved.kind === "category") return null;
+  if (resolved.kind === "service_nivel") return null;
+  const svc = resolved.serviceName ?? uniqueServicios(resolved.rows)[0] ?? query.trim();
+  const svcRows = resolved.rows.filter(
+    (r4) => normalizeForMatch(r4.servicio) === normalizeForMatch(svc) || rowMatchesServiceLabel(r4, svc)
+  );
+  const rows = (svcRows.length ? svcRows : resolved.rows).slice(0, 12);
+  if (!serviceHasSoloVsCompleto(rows)) return null;
+  if (queryWantsCompletoMode(query)) {
+    return buildCompletoNivelesTeaser(svc, rows);
+  }
+  return buildSoloVsCompletoModeAnswer(svc, rows);
+}
 function messageOffersLevelsWithoutInclusions(text2) {
   if (!text2?.trim()) return false;
   const t3 = text2.trim();
@@ -131180,6 +131352,8 @@ function messageOffersLevelsWithoutInclusions(text2) {
 function enrichBareNivelOffer(mensaje, serviceHint) {
   if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
   const hint = (serviceHint?.trim() || mensaje).slice(0, 400);
+  const soloCompleto = buildSoloVsCompletoOfferIfApplicable(hint);
+  if (soloCompleto) return soloCompleto;
   const fromPdf = buildPdfInclusionReply(hint);
   if (fromPdf) return fromPdf;
   const detail = buildCatalogServiceDetailAnswer(hint);
@@ -132640,9 +132814,9 @@ function getQuestionVariants() {
       "\xBFTienen un estimado de invitados? Si a\xFAn no, un rango sirve."
     ],
     zona: [
-      "\xBFEn qu\xE9 ciudad y colonia (o sal\xF3n) ser\xEDa?",
-      "\xBFMe compartes la ubicaci\xF3n o el nombre del sal\xF3n?",
-      "\xBFD\xF3nde ser\xEDa el evento?"
+      "\xBFEn qu\xE9 ciudad ser\xEDa tu evento?",
+      "\xBFMe confirmas la ciudad? Con eso cotizamos; colonia o sal\xF3n si ya lo tienen.",
+      "\xBFEn qu\xE9 ciudad lo arman?"
     ],
     fecha: [
       "\xBFYa tienen fecha o todav\xEDa la van definiendo?",
@@ -133659,6 +133833,16 @@ ${nextQ}`;
 Cat\xE1logo:
 https://bodasesor.com/catalogos/coffee-break`;
         }
+      } else {
+        const station = resolveSoloVsCompletoStationLabel(
+          currentMessage,
+          optionsFirst.family
+        ) || resolveSoloVsCompletoStationLabel(
+          mentionedService || serviceLabel || crmService,
+          optionsFirst.family
+        );
+        const sheetMode = station ? buildSoloVsCompletoOfferIfApplicable(station) : null;
+        if (sheetMode) menu = sheetMode;
       }
       return `${pickTransition(history)} ${menu}`.trim();
     }
@@ -134834,7 +135018,10 @@ function buildDeferredKnownServiceOffer(opts) {
     serviceHint: svc
   });
   if (optionsFirst) {
-    let body3 = `${intro} ${optionsFirst.menu}`.trim();
+    const station = resolveSoloVsCompletoStationLabel(svc, optionsFirst.family) || resolveSoloVsCompletoStationLabel(svc);
+    const sheetMode = station ? buildSoloVsCompletoOfferIfApplicable(station) : null;
+    const menu = sheetMode || optionsFirst.menu;
+    let body3 = `${intro} ${menu}`.trim();
     const pending2 = getNextPendingField(extracted, filledSet);
     if (pending2 && pending2 !== "requerimientos" && pending2 !== "nombre") {
       const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet });
@@ -135334,6 +135521,29 @@ ${nextQ}` : ack;
     );
     return normalizeAdvisorReferences(body2, display);
   }
+  if (!cierreYaEnviado && currentMessage && isVenueWithoutCity(currentMessage) && !isUsableDireccionEvento(currentMessage)) {
+    const lastAsstZona = [...presHistory].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
+    const askedZona = lastAsstZona ? inferLucyAskedField(lastAsstZona.content) : null;
+    const zonaPending = !isFieldSatisfied("zona", filledSet, extracted);
+    if (askedZona === "zona" || zonaPending && /sal[oó]n|hacienda|hotel|club|expo|jard[ií]n/i.test(currentMessage)) {
+      if (extracted.direccion_evento && (isVenueWithoutCity(extracted.direccion_evento) || !isUsableDireccionEvento(extracted.direccion_evento))) {
+        extracted.direccion_evento = null;
+        filledSet.delete("Lugar/direcci\xF3n del evento");
+      }
+      const venue = extractVenueNameHint(currentMessage);
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const body2 = [
+        display ? `Listo, ${display}.` : "Listo.",
+        venue ? `Anoto *${venue}*.` : null,
+        "Para cotizar bien necesito al menos la *ciudad* del evento. \xBFEn qu\xE9 ciudad est\xE1?"
+      ].filter(Boolean).join(" ");
+      log?.info(
+        { entityId, venue, msg: currentMessage.slice(0, 80) },
+        "GUARD: V9.30 \u2014 venue sin ciudad \u2192 pedir ciudad"
+      );
+      return normalizeAdvisorReferences(body2, display);
+    }
+  }
   if (!cierreYaEnviado && currentMessage && (() => {
     const z3 = parseZonaFromText(currentMessage);
     return !!z3 && currentMessage.trim().split(/\s+/).length <= 6 && (/^en\s+/i.test(currentMessage.trim()) || isLikelyUbicacionNotNombre(currentMessage));
@@ -135697,7 +135907,7 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
         }
       }
     }
-    if (extracted.direccion_evento && (isLikelyProductNameNotLocation(extracted.direccion_evento) || looksLikeCompanyLocationQuestionFragment(extracted.direccion_evento) || !isUsableDireccionEvento(extracted.direccion_evento) || parseCarpaVariantFromText(extracted.direccion_evento) || /\bsala\s*:/i.test(blob) && new RegExp(
+    if (extracted.direccion_evento && (isLikelyProductNameNotLocation(extracted.direccion_evento) || isVagueVenueOnly(extracted.direccion_evento) || isLocationDeferralOrVagueWorkplace(extracted.direccion_evento) || looksLikeCompanyLocationQuestionFragment(extracted.direccion_evento) || !isUsableDireccionEvento(extracted.direccion_evento) || parseCarpaVariantFromText(extracted.direccion_evento) || /\bsala\s*:/i.test(blob) && new RegExp(
       extracted.direccion_evento.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
       "i"
     ).test(blob))) {
@@ -137529,13 +137739,13 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     const nombre = getDisplayName(extracted, whatsappDisplayName);
     const zonaAsks = countLucyFieldAsks(presHistory, "zona");
     const zonaVariants = nombre ? [
-      `${pickTransition(presHistory)} ${nombre}, \xBFme confirmas la ciudad o colonia del evento?`,
-      `${pickTransition(presHistory)} ${nombre}, \xBFen qu\xE9 zona o sal\xF3n lo tendr\xEDan?`,
-      `${pickTransition(presHistory)} ${nombre}, \xBFya tienen el lugar del evento?`
+      `${pickTransition(presHistory)} ${nombre}, \xBFme confirmas la *ciudad* del evento?`,
+      `${pickTransition(presHistory)} ${nombre}, \xBFen qu\xE9 ciudad ser\xEDa?`,
+      `${pickTransition(presHistory)} ${nombre}, \xBFya tienen ciudad del evento?`
     ] : [
-      `${pickTransition(presHistory)} \xBFMe confirmas la ciudad o colonia del evento?`,
-      `${pickTransition(presHistory)} \xBFEn qu\xE9 zona o sal\xF3n lo tendr\xEDan?`,
-      `${pickTransition(presHistory)} \xBFYa tienen el lugar del evento?`
+      `${pickTransition(presHistory)} \xBFMe confirmas la *ciudad* del evento?`,
+      `${pickTransition(presHistory)} \xBFEn qu\xE9 ciudad ser\xEDa?`,
+      `${pickTransition(presHistory)} \xBFYa tienen ciudad del evento?`
     ];
     mensaje = zonaVariants[Math.min(zonaAsks - 1, zonaVariants.length - 1)];
     log?.info({ entityId, zonaAsks }, "GUARD: pregunta de zona \u2014 variante alterna");
@@ -138675,12 +138885,14 @@ NO repitas el abanico. Descubre antes de detallar:
 - Ya eligi\xF3 pieza/opci\xF3n \u2192 3\u20135 modelos o niveles + pregunta cu\xE1l detallas.
 - Ya eligi\xF3 nivel/modelo \u2192 inclusiones (PDF Aprendizaje) + precio (Sheet) + link
   de cat\xE1logo de ESE servicio.
-- Servicios con *Solo Alimentos* + Basico/Tradicional/Premium (taquiza, sushi,
-  yucateca, pastas\u2026): NUNCA listes los 4 con precio. Primero pregunta:
-  *solo alimentos* (con su precio) o *servicio completo* (desde el precio B\xE1sico;
-  incluye bebidas, mobiliario y meseros). Si elige completo \u2192 di que hay 3 niveles
-  y que lo que cambia es montaje, meseros, decoraci\xF3n y bebidas; pregunta de cu\xE1l
-  quiere detalle. Solo entonces da inclusiones/precios de ESE nivel.
+- Servicios con *Solo Alimentos* + Basico/Tradicional/Premium (TODAS las estaciones:
+  taquiza, sushi, pastas, pizzas, crepas, mariscos, paninis, yucateca, parrillada
+  argentina/tacos, y cualquier otra del Sheet con ese patr\xF3n): NUNCA listes los 4
+  con precio. Primero pregunta: *solo alimentos* (con su precio) o *servicio
+  completo* (desde el precio B\xE1sico; incluye bebidas, mobiliario y meseros). Si
+  elige completo \u2192 di que hay 3 niveles y que lo que cambia es montaje, meseros,
+  decoraci\xF3n y bebidas; pregunta de cu\xE1l quiere detalle. Solo entonces da
+  inclusiones/precios de ESE nivel. Mismo procedimiento en todas las ramas.
 
 Si PDF y Sheet chocan en precio, gana el Sheet. Nunca inventes inclusiones.
 
@@ -138712,7 +138924,9 @@ como "comoda"):
 ===================================================================
 "Estamos en Ciudad de M\xE9xico y trabajamos en toda la rep\xFAblica. Seg\xFAn la fecha y el
 lugar de tu evento, coordinamos el servicio."
-- "sal\xF3n" / "edificio" sin nombre/ciudad/colonia \u2192 pide ciudad y colonia.
+- "sal\xF3n" / "edificio" / "empresa" / "espacio" / "oficinas" sin nombre/ciudad/colonia \u2192 pide ciudad y colonia (no lo anotes como direcci\xF3n).
+- Sal\xF3n/hacienda/hotel con nombre pero SIN ciudad \u2192 NO cierra ubicaci\xF3n. Anota el sal\xF3n si quieres y pide la *ciudad* (m\xEDnimo).
+- "un ratito" / "ahorita te digo" NO es direcci\xF3n: espera o vuelve a pedir ubicaci\xF3n.
 - Nombre de producto lounge \u2260 ubicaci\xF3n.
 
 ===================================================================
@@ -138788,6 +139002,13 @@ async function maybeRefinarMensajeCierre(openai, mensaje, opts) {
   if (!refined.includes(closingSignature)) return mensaje;
   if (catalogUrl && mensaje.includes(catalogUrl) && !refined.includes(catalogUrl)) return mensaje;
   return refined;
+}
+function mergeExtractedPatch(target, patch) {
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null || value === void 0) continue;
+    if (typeof value === "string" && !value.trim()) continue;
+    target[key] = value;
+  }
 }
 
 // src/lucyOutboundPipeline.ts
@@ -138904,69 +139125,93 @@ ${keepQ}` : ack;
 }
 
 // src/services/promptBuilder.ts
-function buildDynamicPrompt(context) {
-  const { hasObjection } = context;
-  const catalog = context.catalogBlock ?? getCatalogPromptBlockSync();
-  const team = advisorLabelForClient();
-  let prompt = SYSTEM_PROMPT;
-  prompt += `
+function buildStaticSystemPrompt() {
+  return `${SYSTEM_PROMPT}
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 VOZ DE CHAT (prioridad de redacci\xF3n)
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 Responde como asesora real de WhatsApp: amable, directa, 2\u20134 l\xEDneas.
 NO suenes a formulario ni a men\xFA autom\xE1tico.
-El bloque de cat\xE1logo abajo es REFERENCIA: \xFAsalo para no inventar; NO lo pegues.
+El bloque de cat\xE1logo/contexto del turno es REFERENCIA: \xFAsalo para no inventar; NO lo pegues.
 M\xE1ximo una pregunta de embudo por mensaje.
 Antes de preguntar, revisa historial + ESTADO ACTUAL: nunca repreguntes un dato ya dado.
 Si el cliente dio varios datos juntos, registra todos y pide solo lo que falte.
 Correo: si duda o no quiere darlo \u2192 "\xA1Claro, sin problema! Lo revisamos todo por este chat".`;
-  if (context.lucyInfoBlock?.trim()) {
-    prompt += "\n\n" + context.lucyInfoBlock.trim();
-  }
-  prompt += "\n\n" + catalog;
-  const tipo = context.extracted.tipo_evento?.trim();
-  const hasReq = !!context.extracted.requerimientos_evento?.trim();
-  if (tipo && !hasReq) {
-    const offerHint = buildEventOfferCatalogHint(tipo);
-    if (offerHint) {
-      prompt += `
-
-${offerHint}`;
-    }
-  }
+}
+function buildDynamicTurnContext(context) {
+  const { hasObjection } = context;
+  const team = advisorLabelForClient();
+  const parts2 = [];
+  parts2.push("\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501");
+  parts2.push("CONTEXTO DEL TURNO (din\xE1mico \u2014 no es system fijo)");
+  parts2.push("\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501");
+  parts2.push(`Etapa: ${context.stage} \xB7 Prioridad: ${context.priority}`);
   if (context.isFirstInteraction) {
-    prompt += `
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+    parts2.push(`
 PRIMERA INTERACCI\xD3N \u2014 OBLIGATORIO
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
 1. Empieza con: "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor."
 2. Reconoce brevemente lo que el cliente mencion\xF3 (si aplica).
 3. Pide el nombre: "\xBFCu\xE1l es tu nombre?"
 4. Si ya escribi\xF3 su nombre en ese mensaje, saluda ("\xA1Mucho gusto, [Nombre]!") y contin\xFAa.
 5. En el primer mensaje NO pidas correo, fecha, invitados ni presupuesto antes del nombre.
-6. Si ya dio tipo/fecha/lugar/servicios, NO los vuelvas a pedir.`;
+6. Si ya dio tipo/fecha/lugar/servicios, NO los vuelvas a pedir.`);
   } else {
-    prompt += `
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+    parts2.push(`
 CONVERSACI\xD3N EN CURSO
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
 NO te presentes de nuevo.
 Revisa CRM + historial: pide solo el siguiente dato que falte.
 Orden natural: tipo \u2192 servicios \u2192 fecha \u2192 ubicaci\xF3n \u2192 correo \u2192 invitados \u2192 presupuesto
-(salta lo ya capturado). Al cerrar, pasa a ${team} sin prometer tiempos exactos.`;
+(salta lo ya capturado). Al cerrar, pasa a ${team} sin prometer tiempos exactos.`);
   }
   if (hasObjection?.hasObjection && hasObjection.type) {
-    prompt += "\n\n" + getObjectionModule(hasObjection.type);
+    parts2.push(getObjectionModule(hasObjection.type));
   }
   if (context.crmContext) {
-    prompt += context.crmContext;
+    parts2.push(context.crmContext);
   }
-  return prompt;
+  if (context.lucyInfoBlock?.trim()) {
+    const info2 = context.lucyInfoBlock.trim();
+    parts2.push(info2.length > 2500 ? `${info2.slice(0, 2497)}\u2026` : info2);
+  }
+  if (context.slimCatalog) {
+    const focused = (context.messageText ? formatServiceDataForPrompt(context.messageText) : null) || (context.extracted.requerimientos_evento ? formatServiceDataForPrompt(context.extracted.requerimientos_evento) : null);
+    if (focused) {
+      parts2.push(focused);
+    } else {
+      const tipo = context.extracted.tipo_evento?.trim();
+      const hasReq = !!context.extracted.requerimientos_evento?.trim();
+      if (tipo && !hasReq) {
+        const offerHint = buildEventOfferCatalogHint(tipo);
+        if (offerHint) parts2.push(offerHint);
+      }
+      const full = context.catalogBlock ?? getCatalogPromptBlockSync();
+      if (full) {
+        const clipped = full.length > 1800 ? `${full.slice(0, 1797)}\u2026` : full;
+        parts2.push(`
+\xCDndice corto de cat\xE1logo (referencia):
+${clipped}`);
+      }
+    }
+  } else {
+    const catalog = context.catalogBlock ?? getCatalogPromptBlockSync();
+    if (catalog) parts2.push(catalog);
+    const tipo = context.extracted.tipo_evento?.trim();
+    const hasReq = !!context.extracted.requerimientos_evento?.trim();
+    if (tipo && !hasReq) {
+      const offerHint = buildEventOfferCatalogHint(tipo);
+      if (offerHint) parts2.push(offerHint);
+    }
+  }
+  return parts2.filter(Boolean).join("\n\n");
+}
+function buildDynamicPrompt(context) {
+  return `${buildStaticSystemPrompt()}
+
+${buildDynamicTurnContext({
+    ...context,
+    slimCatalog: false
+  })}`;
 }
 function getObjectionModule(type) {
   const team = advisorLabelForClient();
@@ -139183,6 +139428,35 @@ init_logger2();
 // src/lib/training.ts
 await init_trainingStore();
 
+// src/lib/lucyCostControls.ts
+function isLucyUnifiedLlmTurn() {
+  const raw = (process.env["LUCY_UNIFIED_LLM_TURN"] ?? "1").trim().toLowerCase();
+  return raw !== "0" && raw !== "false" && raw !== "off";
+}
+function getLucyChatHistoryMax() {
+  const n4 = Number(process.env["LUCY_CHAT_HISTORY_MAX"] ?? "6");
+  if (!Number.isFinite(n4) || n4 < 2) return 6;
+  return Math.min(Math.floor(n4), 40);
+}
+function getLucyFewShotMax() {
+  const n4 = Number(process.env["LUCY_FEW_SHOT_MAX"] ?? "0");
+  if (!Number.isFinite(n4) || n4 < 0) return 0;
+  return Math.min(Math.floor(n4), 20);
+}
+function trimChatHistory(messages2, maxMessages = getLucyChatHistoryMax()) {
+  const dialog = messages2.filter((m5) => m5.role === "user" || m5.role === "assistant");
+  if (dialog.length <= maxMessages) return dialog;
+  return dialog.slice(-maxMessages);
+}
+function lucyCostControlsSummary() {
+  return {
+    unified_llm_turn: isLucyUnifiedLlmTurn(),
+    chat_history_max: getLucyChatHistoryMax(),
+    few_shot_max: getLucyFewShotMax(),
+    context_cache_env: (process.env["GEMINI_CONTEXT_CACHE"] ?? "0").trim() || "0"
+  };
+}
+
 // src/lucyTurnProcessor.ts
 async function prepareLucyExtraction(input) {
   const { fullHistory, messageText, crmLines, extractFn } = input;
@@ -139276,7 +139550,7 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
   out2.correo = correo;
   const nombre = sanitizeCrmNombre(out2.nombre);
   out2.nombre = nombre && !isQuoteIntentMessage(nombre) ? nombre : null;
-  if (out2.direccion_evento && (isDimensionText(out2.direccion_evento) || isVagueVenueOnly(out2.direccion_evento) || isLikelyProductNameNotLocation(out2.direccion_evento) || isNonLocationBusinessPhrase(out2.direccion_evento) || looksLikeCompanyLocationQuestionFragment(out2.direccion_evento) || !isUsableDireccionEvento(out2.direccion_evento))) {
+  if (out2.direccion_evento && (isDimensionText(out2.direccion_evento) || isVagueVenueOnly(out2.direccion_evento) || isLocationDeferralOrVagueWorkplace(out2.direccion_evento) || isLikelyProductNameNotLocation(out2.direccion_evento) || isNonLocationBusinessPhrase(out2.direccion_evento) || looksLikeCompanyLocationQuestionFragment(out2.direccion_evento) || !isUsableDireccionEvento(out2.direccion_evento))) {
     out2.direccion_evento = null;
   }
   if (out2.requerimientos_evento?.trim() && out2.tipo_evento?.trim() && out2.requerimientos_evento.trim().toLowerCase() === out2.tipo_evento.trim().toLowerCase()) {
@@ -139426,7 +139700,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.27";
+var LUCY_PROMPT_VERSION = "V9.32";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -139754,7 +140028,7 @@ async function runAll() {
       tipo_evento: "evento corporativo",
       requerimientos_evento: "show grupo versatil",
       num_invitados: 30,
-      direccion_evento: "Club de Golf Mexico",
+      direccion_evento: "Club de Golf Mexico, CDMX",
       fecha_horario: "18 de diciembre a las 20:00 horas"
     });
     const reply = runGuards({
@@ -142107,7 +142381,28 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(isVagueVenueOnly("sal\xF3n de eventos"));
     assert2.ok(!isUsableDireccionEvento("sal\xF3n"));
     assert2.ok(isUsableDireccionEvento("Polanco CDMX"));
-    assert2.ok(isUsableDireccionEvento("Sal\xF3n Hacienda Los Olivos"));
+    assert2.ok(!isUsableDireccionEvento("Sal\xF3n Hacienda Los Olivos"));
+    assert2.ok(isUsableDireccionEvento("Sal\xF3n Hacienda Los Olivos, CDMX"));
+    assert2.ok(isVenueWithoutCity("Sal\xF3n Hacienda Los Olivos"));
+    assert2.ok(!isVenueWithoutCity("Sal\xF3n Hacienda Los Olivos en Polanco"));
+    assert2.equal(parseZonaFromText("en la empresa"), null);
+    assert2.equal(parseZonaFromText("en nuestro espacio"), null);
+    assert2.ok(isVagueVenueOnly("empresa"));
+    assert2.ok(isVagueVenueOnly("nuestra empresa"));
+    assert2.ok(isVagueVenueOnly("nuestro espacio"));
+    assert2.ok(isLocationDeferralOrVagueWorkplace("nuestra empresa, un ratito"));
+    assert2.ok(isLocationDeferralOrVagueWorkplace("un ratito"));
+    assert2.ok(isLocationDeferralOrVagueWorkplace("ahorita te digo"));
+    assert2.ok(!isUsableDireccionEvento("nuestra empresa, un ratito"));
+    assert2.ok(!isUsableDireccionEvento("nuestra empresa"));
+    assert2.ok(!isUsableDireccionEvento("espacio"));
+    assert2.ok(!isUsableDireccionEvento("un ratito"));
+    assert2.equal(
+      sanitizeExtractedFromExternal(
+        emptyExtracted({ direccion_evento: "nuestra empresa, un ratito" })
+      ).direccion_evento,
+      null
+    );
     const vagueLoc = emptyExtracted({ direccion_evento: "sal\xF3n" });
     const cleaned = sanitizeExtractedFromExternal(vagueLoc);
     assert2.equal(cleaned.direccion_evento, null);
@@ -144886,10 +145181,40 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         );
       } else {
         assert2.ok(
-          menu.includes(SERVICE_NIVEL_DETAIL_CTA),
-          `men\xFA ${fam} debe usar CTA global: ${menu.slice(-120)}`
+          menu.includes(SERVICE_NIVEL_DETAIL_CTA) || /solo\s+alimentos|servicio\s+completo|cu[aá]l te late/i.test(menu),
+          `men\xFA ${fam} debe usar CTA global o solo vs completo: ${menu.slice(-120)}`
         );
       }
+    }
+    for (const [fam, hint] of [
+      ["barra_alimentos", "barra de pastas"],
+      ["barra_alimentos", "barra de pizzas"],
+      ["barra_alimentos", "barra de crepas"],
+      ["barra_alimentos", "barra yucateca"],
+      ["parrillada", "parrillada argentina"]
+    ]) {
+      const menu = buildProgressiveOptionsMenu(fam, hint);
+      assert2.ok(
+        /solo\s+alimentos/i.test(menu) && /servicio\s+completo/i.test(menu),
+        `hint ${hint}: ${menu.slice(0, 200)}`
+      );
+    }
+    for (const msg of [
+      "quiero barra de pastas",
+      "barra de pizzas",
+      "barra yucateca",
+      "parrillada argentina"
+    ]) {
+      const offer = shouldOfferOptionsBeforeDetail({
+        currentMessage: msg,
+        history: [],
+        serviceHint: msg
+      });
+      assert2.ok(offer, `offer ${msg}`);
+      assert2.ok(
+        /solo\s+alimentos/i.test(offer.menu) && /servicio\s+completo/i.test(offer.menu),
+        `progressive ${msg}: ${offer.menu.slice(0, 200)}`
+      );
     }
     const yuca = buildCatalogServiceDetailAnswer("Barra Yucateca");
     assert2.ok(
@@ -145167,7 +145492,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         correo: "lilian@nodum.com.mx",
         tipo_evento: "evento corporativo",
         num_invitados: 80,
-        direccion_evento: "Club de Golf Los Encinos",
+        direccion_evento: "Club de Golf Los Encinos, Estado de M\xE9xico",
         fecha_horario: "20 de agosto, 07:00 a 15:00 hrs"
       }),
       filledSet: /* @__PURE__ */ new Set([
@@ -146734,6 +147059,8 @@ ${golfText}`,
   });
   await test("126. V9.00 \u2014 context cache + media-once + image compress", async () => {
     assert2.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    const prevCache = process.env.GEMINI_CONTEXT_CACHE;
+    process.env.GEMINI_CONTEXT_CACHE = "1";
     resetGeminiContextCacheForTests();
     const longSystem = ("Lucy Bodasesor system. " + "x".repeat(4e3)).slice(0, 4200);
     const h1 = hashSystemInstruction(longSystem);
@@ -146761,6 +147088,12 @@ ${golfText}`,
     assert2.equal(cstats.creates, 1);
     assert2.equal(cstats.hits, 1);
     assert2.equal(await getOrCreateSystemCache(fakeAi, "hola"), null);
+    process.env.GEMINI_CONTEXT_CACHE = "0";
+    resetGeminiContextCacheForTests();
+    assert2.equal(await getOrCreateSystemCache(fakeAi, longSystem), null);
+    assert2.equal(getGeminiContextCacheStats().disabled, 1);
+    if (prevCache === void 0) delete process.env.GEMINI_CONTEXT_CACHE;
+    else process.env.GEMINI_CONTEXT_CACHE = prevCache;
     const turn = formatImageTurnText({
       intent: "montaje_referencia",
       internalDescription: "mesas redondas blancas",
@@ -148558,16 +148891,69 @@ ${golfText}`,
     assert2.ok(/\?/.test(pipe), pipe.slice(0, 400));
     assert2.ok(!looksLikeDeadEndAck(pipe), pipe.slice(0, 300));
   });
-  await test("128. V9.27 \u2014 solo alimentos vs servicio completo sin dump de 4 niveles", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.27");
+  await test("128. V9.28 \u2014 solo vs completo en todas las ramas completas", () => {
+    assert2.ok(/^V9\.(2[89]|[3-9]\d)$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     const csv = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
       '"Taquiza","Solo Alimentos","$320.00","$9,600.00","TRUE","Tacos","https://bodasesor.com/catalogos/taquiza"',
       '"Taquiza","Basico","$750.00","$22,500.00","TRUE","Basico completo","https://bodasesor.com/catalogos/taquiza"',
       '"Taquiza","Tradicional","$800.00","$24,000.00","TRUE","Trad completo","https://bodasesor.com/catalogos/taquiza"',
-      '"Taquiza","Premium","$850.00","$25,500.00","TRUE","Prem completo","https://bodasesor.com/catalogos/taquiza"'
+      '"Taquiza","Premium","$850.00","$25,500.00","TRUE","Prem completo","https://bodasesor.com/catalogos/taquiza"',
+      '"Barra de pastas y ensaladas","Solo Alimentos","$280.00","$8,400.00","TRUE","Pastas","https://bodasesor.com/catalogos/pastas"',
+      '"Barra de pastas y ensaladas","Basico","$700.00","$21,000.00","TRUE","Bas","https://bodasesor.com/catalogos/pastas"',
+      '"Barra de pastas y ensaladas","Tradicional","$750.00","$22,500.00","TRUE","Trad","https://bodasesor.com/catalogos/pastas"',
+      '"Barra de pastas y ensaladas","Premium","$800.00","$24,000.00","TRUE","Prem","https://bodasesor.com/catalogos/pastas"',
+      '"Barra de pizzas","Solo Alimentos","$290.00","$8,700.00","TRUE","Pizza","https://bodasesor.com/catalogos/pizzas"',
+      '"Barra de pizzas","Basico","$710.00","$21,300.00","TRUE","Bas","https://bodasesor.com/catalogos/pizzas"',
+      '"Barra de pizzas","Tradicional","$760.00","$22,800.00","TRUE","Trad","https://bodasesor.com/catalogos/pizzas"',
+      '"Barra de pizzas","Premium","$810.00","$24,300.00","TRUE","Prem","https://bodasesor.com/catalogos/pizzas"',
+      '"Barra Yucateca","Solo Alimentos","$330.00","$9,900.00","TRUE","Yuca","https://bodasesor.com/catalogos/barra-yucateca"',
+      '"Barra Yucateca","Basico","$750.00","$22,500.00","TRUE","Bas","https://bodasesor.com/catalogos/barra-yucateca"',
+      '"Barra Yucateca","Tradicional","$800.00","$24,000.00","TRUE","Trad","https://bodasesor.com/catalogos/barra-yucateca"',
+      '"Barra Yucateca","Premium","$850.00","$25,500.00","TRUE","Prem","https://bodasesor.com/catalogos/barra-yucateca"',
+      '"Parrillada Argentina","Solo Alimentos","$400.00","$12,000.00","TRUE","Carne","https://bodasesor.com/catalogos/parrillada"',
+      '"Parrillada Argentina","Basico","$850.00","$25,500.00","TRUE","Bas","https://bodasesor.com/catalogos/parrillada"',
+      '"Parrillada Argentina","Tradicional","$900.00","$27,000.00","TRUE","Trad","https://bodasesor.com/catalogos/parrillada"',
+      '"Parrillada Argentina","Premium","$950.00","$28,500.00","TRUE","Prem","https://bodasesor.com/catalogos/parrillada"'
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+    for (const svc of [
+      "taquiza",
+      "Barra de pastas y ensaladas",
+      "Barra de pizzas",
+      "Barra Yucateca",
+      "Parrillada Argentina"
+    ]) {
+      const rows2 = resolveCatalogQuery(svc)?.rows ?? [];
+      assert2.ok(serviceHasSoloVsCompleto(rows2), `detecta solo vs completo: ${svc}`);
+      const mode2 = buildCatalogServiceDetailAnswer(svc);
+      assert2.ok(mode2, `detalle ${svc}`);
+      assert2.ok(
+        /solo\s+alimentos/i.test(mode2) && /servicio\s+completo/i.test(mode2),
+        `embudo ${svc}: ${mode2.slice(0, 400)}`
+      );
+      assert2.ok(
+        !/1\.\s*\*?Solo Alimentos[\s\S]*2\.\s*\*?Basico[\s\S]*3\.\s*\*?Tradicional[\s\S]*4\.\s*\*?Premium/i.test(
+          mode2
+        ),
+        `no dump 4: ${svc}`
+      );
+      const offer = buildSoloVsCompletoOfferIfApplicable(svc);
+      assert2.ok(offer && /cu[aá]l te late/i.test(offer), `offer helper ${svc}`);
+      const teaser2 = buildCatalogServiceDetailAnswer(`${svc} servicio completo`);
+      assert2.ok(
+        teaser2 && /3 niveles|B[aá]sico|Tradicional|Premium/i.test(teaser2),
+        `teaser ${svc}: ${teaser2?.slice(0, 300)}`
+      );
+    }
+    assert2.equal(
+      resolveSoloVsCompletoStationLabel("quiero barra de pastas", "barra_alimentos"),
+      "Barra de pastas y ensaladas"
+    );
+    assert2.match(
+      buildSoloVsCompletoProgressiveMenu("Barra de Crepas"),
+      /solo\s+alimentos[\s\S]*servicio\s+completo/i
+    );
     const rows = resolveCatalogQuery("taquiza")?.rows ?? [];
     assert2.ok(serviceHasSoloVsCompleto(rows), "debe detectar solo vs completo");
     const mode = buildCatalogServiceDetailAnswer("taquiza");
@@ -148579,12 +148965,6 @@ ${golfText}`,
     );
     assert2.ok(/bebidas|mobiliario|meseros/i.test(mode), mode.slice(0, 500));
     assert2.ok(/cu[aá]l te late/i.test(mode), mode.slice(0, 400));
-    assert2.ok(
-      !/1\.\s*\*?Solo Alimentos[\s\S]*2\.\s*\*?Basico[\s\S]*3\.\s*\*?Tradicional[\s\S]*4\.\s*\*?Premium/i.test(
-        mode
-      ),
-      `no dump 4: ${mode.slice(0, 600)}`
-    );
     const teaser = buildCatalogServiceDetailAnswer("taquiza servicio completo");
     assert2.ok(teaser, "teaser completo");
     assert2.ok(/3 niveles|B[aá]sico|Tradicional|Premium/i.test(teaser), teaser.slice(0, 500));
@@ -148631,6 +149011,219 @@ ${golfText}`,
       !/1\.\s*\*?Solo Alimentos[\s\S]*4\.\s*\*?Premium/i.test(live),
       `guards no deben dejar dump: ${live.slice(0, 600)}`
     );
+    const pastasLive = runGuards({
+      aiResponse: "Para *Barra de pastas y ensaladas* manejamos estos niveles:\n1. *Solo Alimentos* \u2014 $280\n2. *Basico* \u2014 $700\n3. *Tradicional* \u2014 $750\n4. *Premium* \u2014 $800\n\n\xBFCu\xE1l prefieres?",
+      extracted: emptyExtracted({
+        nombre: "Luis",
+        tipo_evento: "corporativo",
+        requerimientos_evento: "Barra de pastas y ensaladas"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios"
+      ]),
+      readyForClosing: false,
+      currentMessage: "quiero barra de pastas",
+      history: [{ role: "user", content: "quiero barra de pastas" }]
+    });
+    assert2.ok(
+      /solo\s+alimentos/i.test(pastasLive) && /servicio\s+completo/i.test(pastasLive),
+      pastasLive.slice(0, 500)
+    );
+    assert2.ok(
+      !/1\.\s*\*?Solo Alimentos[\s\S]*4\.\s*\*?Premium/i.test(pastasLive),
+      `pastas sin dump 4: ${pastasLive.slice(0, 600)}`
+    );
+  });
+  await test("129. V9.29 \u2014 empresa/espacio/ratito no cierran direcci\xF3n", () => {
+    assert2.ok(/^V9\.(29|3\d)$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    for (const junk of [
+      "nuestra empresa, un ratito",
+      "nuestra empresa",
+      "empresa",
+      "nuestro espacio",
+      "espacio",
+      "nuestras oficinas",
+      "un ratito",
+      "ahorita te digo"
+    ]) {
+      assert2.equal(parseZonaFromText(junk), null, `zona null: ${junk}`);
+      assert2.ok(!isUsableDireccionEvento(junk), `no usable: ${junk}`);
+      assert2.equal(
+        sanitizeExtractedFromExternal(emptyExtracted({ direccion_evento: junk })).direccion_evento,
+        null,
+        `sanitize: ${junk}`
+      );
+    }
+    assert2.ok(isUsableDireccionEvento("Polanco"));
+    assert2.ok(isUsableDireccionEvento("Santa Fe, CDMX"));
+    assert2.ok(!isUsableDireccionEvento("Sal\xF3n Hacienda Los Olivos"));
+    assert2.ok(isUsableDireccionEvento("Sal\xF3n Hacienda Los Olivos, CDMX"));
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "N\xFAmero de invitados",
+      "Fecha y horario"
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Ana",
+      tipo_evento: "corporativo",
+      requerimientos_evento: "Coffee break",
+      num_invitados: 80,
+      fecha_horario: "12 de septiembre",
+      direccion_evento: "nuestra empresa, un ratito"
+    });
+    const reply = runGuards({
+      aiResponse: "Perfecto, anoto la direcci\xF3n en nuestra empresa. \xBFMe pasas tu correo?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "nuestra empresa, un ratito",
+      history: [
+        {
+          role: "assistant",
+          content: "\xBFEn qu\xE9 ciudad y colonia (o sal\xF3n) ser\xEDa tu evento?"
+        },
+        { role: "user", content: "nuestra empresa, un ratito" }
+      ]
+    });
+    assert2.equal(extracted.direccion_evento, null);
+    assert2.ok(!filled.has("Lugar/direcci\xF3n del evento"));
+    assert2.ok(
+      /ciudad|colonia|sal[oó]n|ubicaci[oó]n|direcci[oó]n|zona|lugar/i.test(reply),
+      reply.slice(0, 400)
+    );
+    assert2.ok(
+      !/anoto.{0,40}nuestra empresa/i.test(reply),
+      reply.slice(0, 400)
+    );
+  });
+  await test("130. V9.30 \u2014 ubicaci\xF3n m\xEDnima es ciudad (sal\xF3n solo no basta)", () => {
+    assert2.ok(/^V9\.(3[0-9])$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert2.ok(hasCityOrMetroSignal("CDMX"));
+    assert2.ok(hasCityOrMetroSignal("Quer\xE9taro"));
+    assert2.ok(hasCityOrMetroSignal("colonia Roma"));
+    assert2.ok(!hasCityOrMetroSignal("Sal\xF3n Hacienda Los Olivos"));
+    assert2.ok(isVenueWithoutCity("Sal\xF3n Hacienda Los Olivos"));
+    assert2.ok(isVenueWithoutCity("Hacienda Los Arc\xE1ngeles"));
+    assert2.ok(!isVenueWithoutCity("Expo Santa Fe"));
+    assert2.ok(!isUsableDireccionEvento("Sal\xF3n Hacienda Los Olivos"));
+    assert2.ok(!isUsableDireccionEvento("Club de Golf Mexico"));
+    assert2.ok(isUsableDireccionEvento("Sal\xF3n Hacienda Los Olivos, CDMX"));
+    assert2.ok(isUsableDireccionEvento("Polanco"));
+    assert2.ok(isUsableDireccionEvento("Jiutepec"));
+    assert2.equal(
+      sanitizeExtractedFromExternal(
+        emptyExtracted({ direccion_evento: "Sal\xF3n Hacienda Los Olivos" })
+      ).direccion_evento,
+      null
+    );
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "N\xFAmero de invitados",
+      "Fecha y horario"
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Ana",
+      tipo_evento: "boda",
+      requerimientos_evento: "Banquete",
+      num_invitados: 100,
+      fecha_horario: "20 de diciembre",
+      direccion_evento: "Sal\xF3n Hacienda Los Olivos"
+    });
+    const reply = runGuards({
+      aiResponse: "Perfecto, anoto el sal\xF3n. \xBFMe pasas tu correo?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Sal\xF3n Hacienda Los Olivos",
+      history: [
+        {
+          role: "assistant",
+          content: "\xBFEn qu\xE9 ciudad ser\xEDa tu evento?"
+        },
+        { role: "user", content: "Sal\xF3n Hacienda Los Olivos" }
+      ]
+    });
+    assert2.equal(extracted.direccion_evento, null);
+    assert2.ok(/ciudad/i.test(reply), reply.slice(0, 400));
+    assert2.ok(/Hacienda Los Olivos|sal[oó]n/i.test(reply), reply.slice(0, 400));
+    assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
+  });
+  await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.32");
+    const prev = {
+      u: process.env.LUCY_UNIFIED_LLM_TURN,
+      h: process.env.LUCY_CHAT_HISTORY_MAX,
+      f: process.env.LUCY_FEW_SHOT_MAX,
+      c: process.env.GEMINI_CONTEXT_CACHE
+    };
+    process.env.LUCY_UNIFIED_LLM_TURN = "1";
+    process.env.LUCY_CHAT_HISTORY_MAX = "6";
+    process.env.LUCY_FEW_SHOT_MAX = "0";
+    process.env.GEMINI_CONTEXT_CACHE = "0";
+    try {
+      if (!isLucyUnifiedLlmTurn()) {
+        throw new Error(`unified=false env=${JSON.stringify(process.env.LUCY_UNIFIED_LLM_TURN)}`);
+      }
+      assert2.equal(getLucyChatHistoryMax(), 6);
+      assert2.equal(getLucyFewShotMax(), 0);
+      assert2.equal(lucyCostControlsSummary().context_cache_env, "0");
+      const trimmed = trimChatHistory(
+        [
+          { role: "user", content: "1" },
+          { role: "assistant", content: "a1" },
+          { role: "user", content: "2" },
+          { role: "assistant", content: "a2" },
+          { role: "user", content: "3" },
+          { role: "assistant", content: "a3" },
+          { role: "user", content: "4" },
+          { role: "assistant", content: "a4" }
+        ],
+        4
+      );
+      assert2.equal(trimmed.length, 4);
+      assert2.equal(trimmed[0].content, "3");
+      const staticSys = buildStaticSystemPrompt();
+      if (!staticSys.includes("Eres Lucy")) {
+        throw new Error(`static missing Lucy: ${staticSys.slice(0, 80)}`);
+      }
+      assert2.equal(/CONTEXTO DEL TURNO \(din/i.test(staticSys), false);
+      const dyn = buildDynamicTurnContext({
+        stage: "qualification",
+        priority: "warm",
+        extracted: emptyExtracted({ tipo_evento: "boda" }),
+        crmContext: "ESTADO ACTUAL",
+        isFirstInteraction: false,
+        slimCatalog: true,
+        messageText: "taquiza",
+        catalogBlock: "x".repeat(8e3)
+      });
+      assert2.equal(/CONTEXTO DEL TURNO \(din/i.test(dyn), true);
+      assert2.ok(dyn.length < 5e3, `dyn len ${dyn.length}`);
+      const target = emptyExtracted({ nombre: "Ana" });
+      mergeExtractedPatch(target, { nombre: "Ana P\xE9rez", num_invitados: 80 });
+      assert2.equal(target.nombre, "Ana P\xE9rez");
+      assert2.equal(target.num_invitados, 80);
+      const apiRoot = path6.resolve(path6.dirname(fileURLToPath5(import.meta.url)), "../..");
+      const healthSrc = readFileSync4(path6.join(apiRoot, "src/routes/health.ts"), "utf8");
+      assert2.equal(healthSrc.includes("gemini-unified-turn"), true);
+      assert2.equal(healthSrc.includes("gemini-context-cache-default-off"), true);
+    } finally {
+      for (const [k4, v3] of [
+        ["LUCY_UNIFIED_LLM_TURN", prev.u],
+        ["LUCY_CHAT_HISTORY_MAX", prev.h],
+        ["LUCY_FEW_SHOT_MAX", prev.f],
+        ["GEMINI_CONTEXT_CACHE", prev.c]
+      ]) {
+        if (v3 === void 0) delete process.env[k4];
+        else process.env[k4] = v3;
+      }
+    }
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

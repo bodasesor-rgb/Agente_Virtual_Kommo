@@ -57009,8 +57009,8 @@ function resetGeminiContextCacheForTests() {
   stats.lastHash = null;
 }
 function isCacheEnabled() {
-  const raw = (process.env["GEMINI_CONTEXT_CACHE"] ?? "1").trim().toLowerCase();
-  return raw !== "0" && raw !== "false" && raw !== "off";
+  const raw = (process.env["GEMINI_CONTEXT_CACHE"] ?? "0").trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "on";
 }
 function ttlSec() {
   const n4 = Number(process.env["GEMINI_CONTEXT_CACHE_TTL_SEC"] ?? DEFAULT_TTL_SEC);
@@ -57197,12 +57197,15 @@ async function completeWithGemini(opts) {
     throw new Error(`Modelo Gemini no permitido: ${model} (solo ${DEFAULT_GEMINI_MODEL})`);
   }
   let cachedContent = null;
-  if (system) {
+  const systemLooksDynamic = /CONTEXTO DEL TURNO|ESTADO ACTUAL|CAT[AÁ]LOGO|Que Incluye|BRIEFING INTERNO/i.test(system);
+  if (system && !systemLooksDynamic) {
     cachedContent = await getOrCreateSystemCache(ai, system, DEFAULT_GEMINI_MODEL);
+  } else if (system && systemLooksDynamic) {
+    geminiCallStats.contextCacheSkipped += 1;
   }
   if (cachedContent) {
     geminiCallStats.contextCacheUsed += 1;
-  } else if (system) {
+  } else if (system && !systemLooksDynamic) {
     geminiCallStats.contextCacheSkipped += 1;
   }
   const response = await ai.models.generateContent({
@@ -139000,6 +139003,13 @@ async function maybeRefinarMensajeCierre(openai, mensaje, opts) {
   if (catalogUrl && mensaje.includes(catalogUrl) && !refined.includes(catalogUrl)) return mensaje;
   return refined;
 }
+function mergeExtractedPatch(target, patch) {
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null || value === void 0) continue;
+    if (typeof value === "string" && !value.trim()) continue;
+    target[key] = value;
+  }
+}
 
 // src/lucyOutboundPipeline.ts
 async function finalizeLucyOutboundMessage(input) {
@@ -139115,69 +139125,93 @@ ${keepQ}` : ack;
 }
 
 // src/services/promptBuilder.ts
-function buildDynamicPrompt(context) {
-  const { hasObjection } = context;
-  const catalog = context.catalogBlock ?? getCatalogPromptBlockSync();
-  const team = advisorLabelForClient();
-  let prompt = SYSTEM_PROMPT;
-  prompt += `
+function buildStaticSystemPrompt() {
+  return `${SYSTEM_PROMPT}
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 VOZ DE CHAT (prioridad de redacci\xF3n)
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 Responde como asesora real de WhatsApp: amable, directa, 2\u20134 l\xEDneas.
 NO suenes a formulario ni a men\xFA autom\xE1tico.
-El bloque de cat\xE1logo abajo es REFERENCIA: \xFAsalo para no inventar; NO lo pegues.
+El bloque de cat\xE1logo/contexto del turno es REFERENCIA: \xFAsalo para no inventar; NO lo pegues.
 M\xE1ximo una pregunta de embudo por mensaje.
 Antes de preguntar, revisa historial + ESTADO ACTUAL: nunca repreguntes un dato ya dado.
 Si el cliente dio varios datos juntos, registra todos y pide solo lo que falte.
 Correo: si duda o no quiere darlo \u2192 "\xA1Claro, sin problema! Lo revisamos todo por este chat".`;
-  if (context.lucyInfoBlock?.trim()) {
-    prompt += "\n\n" + context.lucyInfoBlock.trim();
-  }
-  prompt += "\n\n" + catalog;
-  const tipo = context.extracted.tipo_evento?.trim();
-  const hasReq = !!context.extracted.requerimientos_evento?.trim();
-  if (tipo && !hasReq) {
-    const offerHint = buildEventOfferCatalogHint(tipo);
-    if (offerHint) {
-      prompt += `
-
-${offerHint}`;
-    }
-  }
+}
+function buildDynamicTurnContext(context) {
+  const { hasObjection } = context;
+  const team = advisorLabelForClient();
+  const parts2 = [];
+  parts2.push("\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501");
+  parts2.push("CONTEXTO DEL TURNO (din\xE1mico \u2014 no es system fijo)");
+  parts2.push("\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501");
+  parts2.push(`Etapa: ${context.stage} \xB7 Prioridad: ${context.priority}`);
   if (context.isFirstInteraction) {
-    prompt += `
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+    parts2.push(`
 PRIMERA INTERACCI\xD3N \u2014 OBLIGATORIO
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
 1. Empieza con: "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor."
 2. Reconoce brevemente lo que el cliente mencion\xF3 (si aplica).
 3. Pide el nombre: "\xBFCu\xE1l es tu nombre?"
 4. Si ya escribi\xF3 su nombre en ese mensaje, saluda ("\xA1Mucho gusto, [Nombre]!") y contin\xFAa.
 5. En el primer mensaje NO pidas correo, fecha, invitados ni presupuesto antes del nombre.
-6. Si ya dio tipo/fecha/lugar/servicios, NO los vuelvas a pedir.`;
+6. Si ya dio tipo/fecha/lugar/servicios, NO los vuelvas a pedir.`);
   } else {
-    prompt += `
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+    parts2.push(`
 CONVERSACI\xD3N EN CURSO
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
 NO te presentes de nuevo.
 Revisa CRM + historial: pide solo el siguiente dato que falte.
 Orden natural: tipo \u2192 servicios \u2192 fecha \u2192 ubicaci\xF3n \u2192 correo \u2192 invitados \u2192 presupuesto
-(salta lo ya capturado). Al cerrar, pasa a ${team} sin prometer tiempos exactos.`;
+(salta lo ya capturado). Al cerrar, pasa a ${team} sin prometer tiempos exactos.`);
   }
   if (hasObjection?.hasObjection && hasObjection.type) {
-    prompt += "\n\n" + getObjectionModule(hasObjection.type);
+    parts2.push(getObjectionModule(hasObjection.type));
   }
   if (context.crmContext) {
-    prompt += context.crmContext;
+    parts2.push(context.crmContext);
   }
-  return prompt;
+  if (context.lucyInfoBlock?.trim()) {
+    const info2 = context.lucyInfoBlock.trim();
+    parts2.push(info2.length > 2500 ? `${info2.slice(0, 2497)}\u2026` : info2);
+  }
+  if (context.slimCatalog) {
+    const focused = (context.messageText ? formatServiceDataForPrompt(context.messageText) : null) || (context.extracted.requerimientos_evento ? formatServiceDataForPrompt(context.extracted.requerimientos_evento) : null);
+    if (focused) {
+      parts2.push(focused);
+    } else {
+      const tipo = context.extracted.tipo_evento?.trim();
+      const hasReq = !!context.extracted.requerimientos_evento?.trim();
+      if (tipo && !hasReq) {
+        const offerHint = buildEventOfferCatalogHint(tipo);
+        if (offerHint) parts2.push(offerHint);
+      }
+      const full = context.catalogBlock ?? getCatalogPromptBlockSync();
+      if (full) {
+        const clipped = full.length > 1800 ? `${full.slice(0, 1797)}\u2026` : full;
+        parts2.push(`
+\xCDndice corto de cat\xE1logo (referencia):
+${clipped}`);
+      }
+    }
+  } else {
+    const catalog = context.catalogBlock ?? getCatalogPromptBlockSync();
+    if (catalog) parts2.push(catalog);
+    const tipo = context.extracted.tipo_evento?.trim();
+    const hasReq = !!context.extracted.requerimientos_evento?.trim();
+    if (tipo && !hasReq) {
+      const offerHint = buildEventOfferCatalogHint(tipo);
+      if (offerHint) parts2.push(offerHint);
+    }
+  }
+  return parts2.filter(Boolean).join("\n\n");
+}
+function buildDynamicPrompt(context) {
+  return `${buildStaticSystemPrompt()}
+
+${buildDynamicTurnContext({
+    ...context,
+    slimCatalog: false
+  })}`;
 }
 function getObjectionModule(type) {
   const team = advisorLabelForClient();
@@ -139393,6 +139427,35 @@ init_logger2();
 
 // src/lib/training.ts
 await init_trainingStore();
+
+// src/lib/lucyCostControls.ts
+function isLucyUnifiedLlmTurn() {
+  const raw = (process.env["LUCY_UNIFIED_LLM_TURN"] ?? "1").trim().toLowerCase();
+  return raw !== "0" && raw !== "false" && raw !== "off";
+}
+function getLucyChatHistoryMax() {
+  const n4 = Number(process.env["LUCY_CHAT_HISTORY_MAX"] ?? "6");
+  if (!Number.isFinite(n4) || n4 < 2) return 6;
+  return Math.min(Math.floor(n4), 40);
+}
+function getLucyFewShotMax() {
+  const n4 = Number(process.env["LUCY_FEW_SHOT_MAX"] ?? "0");
+  if (!Number.isFinite(n4) || n4 < 0) return 0;
+  return Math.min(Math.floor(n4), 20);
+}
+function trimChatHistory(messages2, maxMessages = getLucyChatHistoryMax()) {
+  const dialog = messages2.filter((m5) => m5.role === "user" || m5.role === "assistant");
+  if (dialog.length <= maxMessages) return dialog;
+  return dialog.slice(-maxMessages);
+}
+function lucyCostControlsSummary() {
+  return {
+    unified_llm_turn: isLucyUnifiedLlmTurn(),
+    chat_history_max: getLucyChatHistoryMax(),
+    few_shot_max: getLucyFewShotMax(),
+    context_cache_env: (process.env["GEMINI_CONTEXT_CACHE"] ?? "0").trim() || "0"
+  };
+}
 
 // src/lucyTurnProcessor.ts
 async function prepareLucyExtraction(input) {
@@ -139637,7 +139700,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.30";
+var LUCY_PROMPT_VERSION = "V9.32";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -146996,6 +147059,8 @@ ${golfText}`,
   });
   await test("126. V9.00 \u2014 context cache + media-once + image compress", async () => {
     assert2.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    const prevCache = process.env.GEMINI_CONTEXT_CACHE;
+    process.env.GEMINI_CONTEXT_CACHE = "1";
     resetGeminiContextCacheForTests();
     const longSystem = ("Lucy Bodasesor system. " + "x".repeat(4e3)).slice(0, 4200);
     const h1 = hashSystemInstruction(longSystem);
@@ -147023,6 +147088,12 @@ ${golfText}`,
     assert2.equal(cstats.creates, 1);
     assert2.equal(cstats.hits, 1);
     assert2.equal(await getOrCreateSystemCache(fakeAi, "hola"), null);
+    process.env.GEMINI_CONTEXT_CACHE = "0";
+    resetGeminiContextCacheForTests();
+    assert2.equal(await getOrCreateSystemCache(fakeAi, longSystem), null);
+    assert2.equal(getGeminiContextCacheStats().disabled, 1);
+    if (prevCache === void 0) delete process.env.GEMINI_CONTEXT_CACHE;
+    else process.env.GEMINI_CONTEXT_CACHE = prevCache;
     const turn = formatImageTurnText({
       intent: "montaje_referencia",
       internalDescription: "mesas redondas blancas",
@@ -149030,7 +149101,7 @@ ${golfText}`,
     );
   });
   await test("130. V9.30 \u2014 ubicaci\xF3n m\xEDnima es ciudad (sal\xF3n solo no basta)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.30");
+    assert2.ok(/^V9\.(3[0-9])$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert2.ok(hasCityOrMetroSignal("CDMX"));
     assert2.ok(hasCityOrMetroSignal("Quer\xE9taro"));
     assert2.ok(hasCityOrMetroSignal("colonia Roma"));
@@ -149082,6 +149153,77 @@ ${golfText}`,
     assert2.ok(/ciudad/i.test(reply), reply.slice(0, 400));
     assert2.ok(/Hacienda Los Olivos|sal[oó]n/i.test(reply), reply.slice(0, 400));
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
+  });
+  await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.32");
+    const prev = {
+      u: process.env.LUCY_UNIFIED_LLM_TURN,
+      h: process.env.LUCY_CHAT_HISTORY_MAX,
+      f: process.env.LUCY_FEW_SHOT_MAX,
+      c: process.env.GEMINI_CONTEXT_CACHE
+    };
+    process.env.LUCY_UNIFIED_LLM_TURN = "1";
+    process.env.LUCY_CHAT_HISTORY_MAX = "6";
+    process.env.LUCY_FEW_SHOT_MAX = "0";
+    process.env.GEMINI_CONTEXT_CACHE = "0";
+    try {
+      if (!isLucyUnifiedLlmTurn()) {
+        throw new Error(`unified=false env=${JSON.stringify(process.env.LUCY_UNIFIED_LLM_TURN)}`);
+      }
+      assert2.equal(getLucyChatHistoryMax(), 6);
+      assert2.equal(getLucyFewShotMax(), 0);
+      assert2.equal(lucyCostControlsSummary().context_cache_env, "0");
+      const trimmed = trimChatHistory(
+        [
+          { role: "user", content: "1" },
+          { role: "assistant", content: "a1" },
+          { role: "user", content: "2" },
+          { role: "assistant", content: "a2" },
+          { role: "user", content: "3" },
+          { role: "assistant", content: "a3" },
+          { role: "user", content: "4" },
+          { role: "assistant", content: "a4" }
+        ],
+        4
+      );
+      assert2.equal(trimmed.length, 4);
+      assert2.equal(trimmed[0].content, "3");
+      const staticSys = buildStaticSystemPrompt();
+      if (!staticSys.includes("Eres Lucy")) {
+        throw new Error(`static missing Lucy: ${staticSys.slice(0, 80)}`);
+      }
+      assert2.equal(/CONTEXTO DEL TURNO \(din/i.test(staticSys), false);
+      const dyn = buildDynamicTurnContext({
+        stage: "qualification",
+        priority: "warm",
+        extracted: emptyExtracted({ tipo_evento: "boda" }),
+        crmContext: "ESTADO ACTUAL",
+        isFirstInteraction: false,
+        slimCatalog: true,
+        messageText: "taquiza",
+        catalogBlock: "x".repeat(8e3)
+      });
+      assert2.equal(/CONTEXTO DEL TURNO \(din/i.test(dyn), true);
+      assert2.ok(dyn.length < 5e3, `dyn len ${dyn.length}`);
+      const target = emptyExtracted({ nombre: "Ana" });
+      mergeExtractedPatch(target, { nombre: "Ana P\xE9rez", num_invitados: 80 });
+      assert2.equal(target.nombre, "Ana P\xE9rez");
+      assert2.equal(target.num_invitados, 80);
+      const apiRoot = path6.resolve(path6.dirname(fileURLToPath5(import.meta.url)), "../..");
+      const healthSrc = readFileSync4(path6.join(apiRoot, "src/routes/health.ts"), "utf8");
+      assert2.equal(healthSrc.includes("gemini-unified-turn"), true);
+      assert2.equal(healthSrc.includes("gemini-context-cache-default-off"), true);
+    } finally {
+      for (const [k4, v3] of [
+        ["LUCY_UNIFIED_LLM_TURN", prev.u],
+        ["LUCY_CHAT_HISTORY_MAX", prev.h],
+        ["LUCY_FEW_SHOT_MAX", prev.f],
+        ["GEMINI_CONTEXT_CACHE", prev.c]
+      ]) {
+        if (v3 === void 0) delete process.env[k4];
+        else process.env[k4] = v3;
+      }
+    }
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

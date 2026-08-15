@@ -357,6 +357,15 @@ import {
   resetImageCompressStatsForTests,
   getImageCompressStats,
 } from "../lib/imageCompress.js";
+import {
+  isLucyUnifiedLlmTurn,
+  getLucyChatHistoryMax,
+  getLucyFewShotMax,
+  trimChatHistory,
+  lucyCostControlsSummary,
+} from "../lib/lucyCostControls.js";
+import { buildStaticSystemPrompt, buildDynamicTurnContext } from "../services/promptBuilder.js";
+import { mergeExtractedPatch } from "../services/lucyRedaction.js";
 import { Jimp } from "jimp";
 
 const CATALOG_URL = "https://bodasesor.com/catalogos";
@@ -8688,6 +8697,10 @@ async function runAll(): Promise<void> {
   await test("126. V9.00 — context cache + media-once + image compress", async () => {
     assert.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
 
+    // V9.32: explicit cache default OFF — activar solo para este test.
+    const prevCache = process.env.GEMINI_CONTEXT_CACHE;
+    process.env.GEMINI_CONTEXT_CACHE = "1";
+
     // Context cache: hash estable + create/reuse vía mock ai.caches
     resetGeminiContextCacheForTests();
     const longSystem = ("Lucy Bodasesor system. " + "x".repeat(4000)).slice(0, 4200);
@@ -8718,6 +8731,14 @@ async function runAll(): Promise<void> {
     assert.equal(cstats.hits, 1);
     // Prompt corto no cachea
     assert.equal(await getOrCreateSystemCache(fakeAi as never, "hola"), null);
+
+    // Default off: sin GEMINI_CONTEXT_CACHE=1 no crea
+    process.env.GEMINI_CONTEXT_CACHE = "0";
+    resetGeminiContextCacheForTests();
+    assert.equal(await getOrCreateSystemCache(fakeAi as never, longSystem), null);
+    assert.equal(getGeminiContextCacheStats().disabled, 1);
+    if (prevCache === undefined) delete process.env.GEMINI_CONTEXT_CACHE;
+    else process.env.GEMINI_CONTEXT_CACHE = prevCache;
 
     // Media-once: historial de chat no retiene image_url en texto de turno
     // (processMessage → formatImageTurnText); fromOpenAiMessages puede mapear
@@ -10955,7 +10976,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.30 — mínimo ciudad; salón solo no cierra ───
   await test("130. V9.30 — ubicación mínima es ciudad (salón solo no basta)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.30");
+    assert.ok(/^V9\.(3[0-9])$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(hasCityOrMetroSignal("CDMX"));
     assert.ok(hasCityOrMetroSignal("Querétaro"));
     assert.ok(hasCityOrMetroSignal("colonia Roma"));
@@ -11008,6 +11029,84 @@ async function runAll(): Promise<void> {
     assert.ok(/ciudad/i.test(reply), reply.slice(0, 400));
     assert.ok(/Hacienda Los Olivos|sal[oó]n/i.test(reply), reply.slice(0, 400));
     assert.match(extractVenueNameHint("Salón Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
+  });
+
+  // ─── V9.32 — corte de costo Gemini ───
+  await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.32");
+
+    const prev = {
+      u: process.env.LUCY_UNIFIED_LLM_TURN,
+      h: process.env.LUCY_CHAT_HISTORY_MAX,
+      f: process.env.LUCY_FEW_SHOT_MAX,
+      c: process.env.GEMINI_CONTEXT_CACHE,
+    };
+    process.env.LUCY_UNIFIED_LLM_TURN = "1";
+    process.env.LUCY_CHAT_HISTORY_MAX = "6";
+    process.env.LUCY_FEW_SHOT_MAX = "0";
+    process.env.GEMINI_CONTEXT_CACHE = "0";
+    try {
+      if (!isLucyUnifiedLlmTurn()) {
+        throw new Error(`unified=false env=${JSON.stringify(process.env.LUCY_UNIFIED_LLM_TURN)}`);
+      }
+      assert.equal(getLucyChatHistoryMax(), 6);
+      assert.equal(getLucyFewShotMax(), 0);
+      assert.equal(lucyCostControlsSummary().context_cache_env, "0");
+
+      const trimmed = trimChatHistory(
+        [
+          { role: "user", content: "1" },
+          { role: "assistant", content: "a1" },
+          { role: "user", content: "2" },
+          { role: "assistant", content: "a2" },
+          { role: "user", content: "3" },
+          { role: "assistant", content: "a3" },
+          { role: "user", content: "4" },
+          { role: "assistant", content: "a4" },
+        ],
+        4
+      );
+      assert.equal(trimmed.length, 4);
+      assert.equal(trimmed[0]!.content, "3");
+
+      const staticSys = buildStaticSystemPrompt();
+      if (!staticSys.includes("Eres Lucy")) {
+        throw new Error(`static missing Lucy: ${staticSys.slice(0, 80)}`);
+      }
+      assert.equal(/CONTEXTO DEL TURNO \(din/i.test(staticSys), false);
+      const dyn = buildDynamicTurnContext({
+        stage: "qualification",
+        priority: "warm",
+        extracted: emptyExtracted({ tipo_evento: "boda" }),
+        crmContext: "ESTADO ACTUAL",
+        isFirstInteraction: false,
+        slimCatalog: true,
+        messageText: "taquiza",
+        catalogBlock: "x".repeat(8000),
+      });
+      assert.equal(/CONTEXTO DEL TURNO \(din/i.test(dyn), true);
+      assert.ok(dyn.length < 5000, `dyn len ${dyn.length}`);
+
+      const target = emptyExtracted({ nombre: "Ana" });
+      mergeExtractedPatch(target, { nombre: "Ana Pérez", num_invitados: 80 });
+      assert.equal(target.nombre, "Ana Pérez");
+      assert.equal(target.num_invitados, 80);
+
+      const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+      const healthSrc = readFileSync(path.join(apiRoot, "src/routes/health.ts"), "utf8");
+      assert.equal(healthSrc.includes("gemini-unified-turn"), true);
+      assert.equal(healthSrc.includes("gemini-context-cache-default-off"), true);
+    } finally {
+      for (const [k, v] of [
+        ["LUCY_UNIFIED_LLM_TURN", prev.u],
+        ["LUCY_CHAT_HISTORY_MAX", prev.h],
+        ["LUCY_FEW_SHOT_MAX", prev.f],
+        ["GEMINI_CONTEXT_CACHE", prev.c],
+      ] as const) {
+        if (v === undefined) delete process.env[k];
+        else process.env[k] = v;
+      }
+    }
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

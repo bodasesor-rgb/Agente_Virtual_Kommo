@@ -5,6 +5,7 @@ import { llmConfigSummary, llmKeyPrefix } from "../lib/llmEnv.js";
 import { getGeminiCallStats } from "../lib/llmChat.js";
 import { getImageCompressStats } from "../lib/imageCompress.js";
 import { getGeminiContextCacheStats } from "../lib/geminiContextCache.js";
+import { lucyCostControlsSummary } from "../lib/lucyCostControls.js";
 import { getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
 import { isAuthConfigured } from "../lib/authJwt.js";
 import { getCatalogStatus } from "../services/catalogService.js";
@@ -57,6 +58,9 @@ router.get("/health", async (_req, res) => {
       "gemini-voice-transcribe",
       "gemini-no-image-generation",
       "gemini-context-cache",
+      "gemini-context-cache-default-off",
+      "gemini-unified-turn",
+      "gemini-history-trim",
       "gemini-media-once",
       "gemini-image-compress-1024",
       "proveedor-alianza-handoff",
@@ -97,8 +101,9 @@ router.get("/health", async (_req, res) => {
     gemini_call_stats: getGeminiCallStats(),
     gemini_context_cache: getGeminiContextCacheStats(),
     gemini_image_compress: getImageCompressStats(),
+    gemini_cost_controls: lucyCostControlsSummary(),
     gemini_policy:
-      "Solo gemini-3.1-flash-lite (texto/visión/voz). Context cache del system. Media una sola vez. Imágenes ≤1024 JPEG. Sin Nano Banana/Imagen.",
+      "V9.32: flash-lite; 1 call/turno (extract+reply JSON); GEMINI_CONTEXT_CACHE default off; historial≤6; few-shot 0; system estático vs contexto dinámico. Sin Nano Banana/Imagen.",
     kommo_configured: isKommoConfigured(),
     kommo_subdomain: getKommoSubdomain() || null,
     lucy_outbound: {

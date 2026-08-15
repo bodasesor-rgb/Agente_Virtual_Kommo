@@ -12,7 +12,7 @@ import type { IntentResult, SentimentResult } from "./intentDetection.js";
 import { CLOSING_CORE_FIELDS } from "../lucy-flow-guards.js";
 import { SERVICE_KNOWLEDGE_GOLDEN_RULE } from "./serviceKnowledge.js";
 import { buildEventOfferCatalogHint } from "./catalogService.js";
-import { completeChat, fromOpenAiMessages } from "../lib/llmChat.js";
+import { completeChat, fromOpenAiMessages, type ChatMessage } from "../lib/llmChat.js";
 import { getChatModel } from "../lib/llmEnv.js";
 
 /** Modelo activo (Gemini Flash-Lite por default si hay key). */
@@ -231,4 +231,138 @@ export async function maybeRefinarMensajeCierre(
   if (!refined.includes(closingSignature)) return mensaje;
   if (catalogUrl && mensaje.includes(catalogUrl) && !refined.includes(catalogUrl)) return mensaje;
   return refined;
+}
+
+const UNIFIED_JSON_INSTRUCTIONS = `Devuelve ÚNICAMENTE un JSON con esta forma:
+{
+  "extracted": {
+    "tipo_contacto": "cliente"|"proveedor"|null,
+    "nombre": string|null,
+    "empresa": string|null,
+    "telefono": string|null,
+    "correo": string|null,
+    "presupuesto": number|null,
+    "direccion_evento": string|null,
+    "requerimientos_evento": string|null,
+    "fecha_horario": string|null,
+    "num_invitados": number|null,
+    "tipo_evento": string|null,
+    "modo_servicio": "pedido_entrega"|"servicio_montado"|null
+  },
+  "reply": "mensaje WhatsApp de Lucy al cliente (2–4 líneas, natural)"
+}
+Reglas extracted: solo lo que el CLIENTE dijo en este turno/historial; null si no está; no inventes.
+Reglas reply: voz Lucy; no pegues catálogo crudo; una pregunta de embudo máx.`;
+
+export interface UnifiedLucyTurnResult {
+  reply: string;
+  extractedPatch: Partial<ExtractedData>;
+  rawText: string;
+  parsedOk: boolean;
+}
+
+function parseUnifiedLucyJson(raw: string): UnifiedLucyTurnResult {
+  const empty: UnifiedLucyTurnResult = {
+    reply: raw.trim(),
+    extractedPatch: {},
+    rawText: raw,
+    parsedOk: false,
+  };
+  if (!raw?.trim()) return empty;
+  try {
+    const start = raw.indexOf("{");
+    const end = raw.lastIndexOf("}");
+    const slice = start >= 0 && end > start ? raw.slice(start, end + 1) : raw;
+    const parsed = JSON.parse(slice) as {
+      extracted?: Partial<ExtractedData>;
+      reply?: string;
+      mensaje?: string;
+    };
+    const reply = (parsed.reply ?? parsed.mensaje ?? "").trim();
+    if (!reply) return empty;
+    const ex = parsed.extracted ?? {};
+    const patch: Partial<ExtractedData> = {};
+    if (typeof ex.nombre === "string") patch.nombre = ex.nombre;
+    if (typeof ex.empresa === "string") patch.empresa = ex.empresa;
+    if (typeof ex.telefono === "string") patch.telefono = ex.telefono;
+    if (typeof ex.correo === "string") patch.correo = ex.correo;
+    if (typeof ex.direccion_evento === "string") patch.direccion_evento = ex.direccion_evento;
+    if (typeof ex.requerimientos_evento === "string") {
+      patch.requerimientos_evento = ex.requerimientos_evento;
+    }
+    if (typeof ex.fecha_horario === "string") patch.fecha_horario = ex.fecha_horario;
+    if (typeof ex.tipo_evento === "string") patch.tipo_evento = ex.tipo_evento;
+    if (typeof ex.presupuesto === "number") patch.presupuesto = ex.presupuesto;
+    if (typeof ex.num_invitados === "number") patch.num_invitados = ex.num_invitados;
+    if (
+      ex.tipo_contacto === "cliente" ||
+      ex.tipo_contacto === "proveedor" ||
+      ex.tipo_contacto === "incierto"
+    ) {
+      patch.tipo_contacto = ex.tipo_contacto;
+    }
+    if (ex.modo_servicio === "pedido_entrega" || ex.modo_servicio === "servicio_montado") {
+      patch.modo_servicio = ex.modo_servicio;
+    }
+    return { reply, extractedPatch: patch, rawText: raw, parsedOk: true };
+  } catch {
+    return empty;
+  }
+}
+
+/**
+ * V9.32: una sola llamada LLM → JSON { extracted, reply }.
+ * System = estático; contexto dinámico + briefing van en mensajes de usuario.
+ */
+export async function completeLucyUnifiedTurn(opts: {
+  staticSystem: string;
+  dynamicContext: string;
+  briefing: string;
+  history: OpenAI.Chat.ChatCompletionMessageParam[];
+  userMessage: string;
+}): Promise<UnifiedLucyTurnResult> {
+  const contextBlock = [
+    opts.dynamicContext.trim(),
+    "",
+    opts.briefing.trim(),
+    "",
+    UNIFIED_JSON_INSTRUCTIONS,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const messages: ChatMessage[] = [
+    { role: "system", content: opts.staticSystem },
+    { role: "user", content: contextBlock },
+    ...fromOpenAiMessages(opts.history),
+    {
+      role: "user",
+      content: `Mensaje del cliente:\n${opts.userMessage}\n\nResponde SOLO el JSON pedido.`,
+    },
+  ];
+
+  const result = await completeChat({
+    messages,
+    purpose: "redaction",
+    temperature: LUCY_REDACTION_PARAMS.temperature,
+    maxTokens: LUCY_REDACTION_PARAMS.max_tokens,
+    topP: LUCY_REDACTION_PARAMS.top_p,
+    json: true,
+  });
+
+  return parseUnifiedLucyJson(result.text || "");
+}
+
+/** Fusiona patch del turno unificado sin pisar con null/vacío. */
+export function mergeExtractedPatch(
+  target: ExtractedData,
+  patch: Partial<ExtractedData>
+): void {
+  for (const [key, value] of Object.entries(patch) as Array<
+    [keyof ExtractedData, ExtractedData[keyof ExtractedData]]
+  >) {
+    if (value === null || value === undefined) continue;
+    if (typeof value === "string" && !value.trim()) continue;
+    (target as Record<string, unknown>)[key] = value;
+  }
 }

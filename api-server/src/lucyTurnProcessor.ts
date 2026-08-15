@@ -22,12 +22,12 @@ import {
 } from "./conversation-understanding.js";
 import { enrichExtractedFromText } from "./services/summaryService.js";
 import { sanitizeCrmNombre } from "./contact-name.js";
-import { detectIntent, analyzeSentiment, detectObjection } from "./services/intentDetection.js";
-import { calculateLeadScore, detectStage } from "./services/leadScoring.js";
-import { buildDynamicPrompt } from "./services/promptBuilder.js";
+import { buildDynamicPrompt, buildStaticSystemPrompt, buildDynamicTurnContext } from "./services/promptBuilder.js";
 import {
   buildRedactionBriefing,
   completeLucyRedaction,
+  completeLucyUnifiedTurn,
+  mergeExtractedPatch,
 } from "./services/lucyRedaction.js";
 import { buildLucyInfoPromptBlock, warmLucyInfoPriceCache } from "./services/lucyInfoStore.js";
 import {
@@ -44,6 +44,13 @@ import {
   detectEmailRefusal,
 } from "./lucy-flow-guards.js";
 import { finalizeLucyOutboundMessage } from "./lucyOutboundPipeline.js";
+import {
+  getLucyFewShotMax,
+  isLucyUnifiedLlmTurn,
+  trimChatHistory,
+} from "./lib/lucyCostControls.js";
+import { detectIntent, analyzeSentiment, detectObjection } from "./services/intentDetection.js";
+import { calculateLeadScore, detectStage } from "./services/leadScoring.js";
 
 export interface PrepareLucyExtractionInput {
   fullHistory: OpenAI.Chat.ChatCompletionMessageParam[];
@@ -283,29 +290,17 @@ export async function generateLucyOutbound(
     return { mensajeParaCliente: reply, aiResponse: reply };
   }
 
-  const systemContent = await buildLucySystemPrompt({
-    messageText,
-    conversationText,
-    extracted,
-    crmContext,
-    filledLabels,
-    isFirstInteraction,
-    messageCount,
-    conversationAgeHours,
-  });
-
   const trainingExamples = await getTrainingExamples();
-  const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] = trainingExamples.flatMap((ex) => [
-    { role: "user" as const, content: ex.userMessage },
-    { role: "assistant" as const, content: ex.lucyResponse },
-  ]);
+  const fewShotMax = getLucyFewShotMax();
+  const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] =
+    fewShotMax > 0
+      ? trainingExamples.slice(0, fewShotMax).flatMap((ex) => [
+          { role: "user" as const, content: ex.userMessage },
+          { role: "assistant" as const, content: ex.lucyResponse },
+        ])
+      : [];
 
-  const lucyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-    { role: "system", content: systemContent },
-    ...fewShot,
-    ...history,
-    { role: "user", content: messageText },
-  ];
+  const historyTrimmed = trimChatHistory(history);
 
   const redactionBriefing = buildLucyRedactionBriefing({
     extracted,
@@ -320,7 +315,85 @@ export async function generateLucyOutbound(
     conversationAgeHours,
   });
 
-  let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);
+  let aiResponse: string;
+
+  if (isLucyUnifiedLlmTurn()) {
+    // V9.32: 1 llamada — system estático + contexto dinámico + JSON {extracted, reply}.
+    // No construir system monolítico (evita tokens/caché thrashing).
+    const intentResult = detectIntent(messageText);
+    const objectionResult = detectObjection(messageText);
+    const scoreContext = {
+      extracted,
+      messageCount: messageCount ?? 1,
+      hasResponded: true,
+      conversationAge: conversationAgeHours ?? 0,
+      lastIntent: intentResult.intent,
+      conversationText,
+    };
+    const leadScore = calculateLeadScore(scoreContext);
+    const stage = detectStage(scoreContext);
+    await warmLucyInfoPriceCache().catch(() => 0);
+    const [catalogBlock, lucyInfoBlock] = await Promise.all([
+      getCatalogPromptBlock(),
+      buildLucyInfoPromptBlock({
+        queryText: [messageText, conversationText].filter(Boolean).join("\n"),
+      }).catch(() => ""),
+    ]);
+    const dynamicContext = buildDynamicTurnContext({
+      stage,
+      priority: leadScore.priority,
+      extracted,
+      hasObjection: objectionResult.hasObjection ? objectionResult : undefined,
+      crmContext,
+      isFirstInteraction,
+      hasClientName: filledLabels.has("Nombre del cliente"),
+      catalogBlock,
+      lucyInfoBlock: lucyInfoBlock || undefined,
+      slimCatalog: true,
+      messageText,
+    });
+
+    const unified = await completeLucyUnifiedTurn({
+      staticSystem: buildStaticSystemPrompt(),
+      dynamicContext,
+      briefing: redactionBriefing,
+      history: [...fewShot, ...historyTrimmed],
+      userMessage: messageText,
+    });
+    aiResponse = unified.reply;
+    if (unified.parsedOk && unified.extractedPatch) {
+      mergeExtractedPatch(extracted, unified.extractedPatch);
+      extracted.nombre = sanitizeCrmNombre(extracted.nombre);
+      if (extracted.correo) {
+        extracted.correo = filterClientEmail(
+          parseCorreoFromText(extracted.correo) ?? extracted.correo
+        );
+      }
+      log?.info?.(
+        { entityId, parsedOk: unified.parsedOk },
+        "V9.32 turno unificado LLM (extract+reply en 1 call)"
+      );
+    }
+  } else {
+    const systemContent = await buildLucySystemPrompt({
+      messageText,
+      conversationText,
+      extracted,
+      crmContext,
+      filledLabels,
+      isFirstInteraction,
+      messageCount,
+      conversationAgeHours,
+    });
+    const lucyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "system", content: systemContent },
+      ...fewShot,
+      ...historyTrimmed,
+      { role: "user", content: messageText },
+    ];
+    aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);
+  }
+
   aiResponse = injectCatalogInclusionIfAsked(
     messageText,
     aiResponse,
@@ -342,7 +415,7 @@ export async function generateLucyOutbound(
     readyForClosing: allFieldsFilled,
     cierreYaEnviado,
     emailRefusedThisTurn,
-    history,
+    history: historyTrimmed,
     presentationHistory: fullHistory,
     currentMessage: messageText,
     whatsappDisplayName,

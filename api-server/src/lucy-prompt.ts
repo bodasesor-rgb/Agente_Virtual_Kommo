@@ -1,4 +1,4 @@
-// PROMPT LUCY — V9.30 (chat natural WhatsApp; ubicación mínima = ciudad)
+// PROMPT LUCY — V9.32 (corte de costo Gemini: 1 call/turno, cache off, historial corto)
 // El bloque de catálogo/precios lo agrega catalogService vía buildDynamicPrompt.
 
 import { getAdvisorName, advisorLabelForClient } from "./lib/bodasesorAdvisor.js";

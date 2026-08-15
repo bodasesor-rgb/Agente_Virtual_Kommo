@@ -47,9 +47,15 @@ export function resetGeminiContextCacheForTests(): void {
   stats.lastHash = null;
 }
 
+/**
+ * V9.32: default OFF.
+ * El system dinámico (catálogo/CRM) invalidaba el hash en cada turno → thrashing
+ * (creates >> hits) y cobro de storage. Solo activar con GEMINI_CONTEXT_CACHE=1
+ * cuando el system sea estático (buildStaticSystemPrompt).
+ */
 function isCacheEnabled(): boolean {
-  const raw = (process.env["GEMINI_CONTEXT_CACHE"] ?? "1").trim().toLowerCase();
-  return raw !== "0" && raw !== "false" && raw !== "off";
+  const raw = (process.env["GEMINI_CONTEXT_CACHE"] ?? "0").trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "on";
 }
 
 function ttlSec(): number {

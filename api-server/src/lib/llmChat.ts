@@ -226,14 +226,19 @@ async function completeWithGemini(opts: CompleteChatOptions): Promise<CompleteCh
     throw new Error(`Modelo Gemini no permitido: ${model} (solo ${DEFAULT_GEMINI_MODEL})`);
   }
 
-  // V9.00: cachedContent si el system es largo; si no, systemInstruction inline.
+  // V9.32: solo cachear system ESTÁTICO (sin catálogo/CRM). Si el system trae
+  // contexto dinámico, no crear cachedContents (evita thrashing).
   let cachedContent: string | null = null;
-  if (system) {
+  const systemLooksDynamic =
+    /CONTEXTO DEL TURNO|ESTADO ACTUAL|CAT[AÁ]LOGO|Que Incluye|BRIEFING INTERNO/i.test(system);
+  if (system && !systemLooksDynamic) {
     cachedContent = await getOrCreateSystemCache(ai, system, DEFAULT_GEMINI_MODEL);
+  } else if (system && systemLooksDynamic) {
+    geminiCallStats.contextCacheSkipped += 1;
   }
   if (cachedContent) {
     geminiCallStats.contextCacheUsed += 1;
-  } else if (system) {
+  } else if (system && !systemLooksDynamic) {
     geminiCallStats.contextCacheSkipped += 1;
   }
 
