@@ -130464,7 +130464,7 @@ var init_conversation_understanding = __esm({
       quinientos: "500"
     };
     MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
-    KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica)\b/i;
+    KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n)\b/i;
     NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
     VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue)\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.'-]{1,48})/i;
     JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
@@ -156841,7 +156841,6 @@ function lucyHasPresented(history) {
 }
 function conversationAlreadyStarted(filledSet, history) {
   if (history.some((m10) => m10.role === "assistant")) return true;
-  if (filledSet.has("Nombre del cliente")) return true;
   if (filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL)) return true;
   return false;
 }
@@ -157577,7 +157576,7 @@ https://bodasesor.com/catalogos/coffee-break`;
         const sheetMode = station ? buildSoloVsCompletoOfferIfApplicable(station) : null;
         if (sheetMode) menu = sheetMode;
       }
-      return `${pickTransition(history)} ${menu}`.trim();
+      return appendNext(`${pickTransition(history)} ${menu}`.trim(), serviceLabel);
     }
     const detailQuery = resolveProgressiveDetailQuery({
       currentMessage,
@@ -157971,7 +157970,10 @@ ${buildPackageCatalogOfferBlock(multiServices, userText)}` : vagueFoodFirst ? `
 
 ${buildAlimentosModoMenu()}` : progressiveFirst ? `
 
-${progressiveFirst.menu}` : sheetDetail ? `
+${(() => {
+    const station = resolveSoloVsCompletoStationLabel(svcHint ?? "", progressiveFirst.family) || resolveSoloVsCompletoStationLabel(svcHint ?? "");
+    return (station ? buildSoloVsCompletoOfferIfApplicable(station) : null) || progressiveFirst.menu;
+  })()}` : sheetDetail ? `
 
 ${sheetDetail}` : "";
   if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
@@ -158306,6 +158308,14 @@ function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
     if (!mensajeAsksForField(base, pending)) return base;
   }
   if (isProgressiveOptionsMenuReply(base)) {
+    if (pending && pending !== "requerimientos" && pending !== "nombre") {
+      const nextQ2 = buildNaturalQuestion(pending, ctx);
+      if (nextQ2 && !mensajeAsksForField(base, pending) && !base.includes(nextQ2)) {
+        return `${base}
+
+${nextQ2}`;
+      }
+    }
     return base;
   }
   if (pending === "requerimientos" && hasTipoEvento(filledSet, extracted) && aiLooksLikeEventServiceOffer(base)) {
@@ -158746,7 +158756,7 @@ function buildDeferredKnownServiceOffer(opts) {
     const pending2 = getNextPendingField(extracted, filledSet);
     if (pending2 && pending2 !== "requerimientos" && pending2 !== "nombre") {
       const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet });
-      if (nextQ && pending2 !== "correo" && !body3.includes(nextQ)) {
+      if (nextQ && !body3.includes(nextQ)) {
         body3 = `${body3}
 
 ${nextQ}`;
@@ -160098,6 +160108,13 @@ ${nextQ}` : ""}`.trim();
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje \u2014 brief web con datos del formulario");
+  } else if (isFirstLucyReply(presHistory) && !cierreYaEnviado && currentMessage?.trim() && (isServiceRelatedMessage(currentMessage) || isValidRequerimientosValue(extracted.requerimientos_evento))) {
+    mensaje = buildFirstInteractionMessage(ctx, true);
+    appliedDirectReply = true;
+    if (messageHasSheetServiceDetail(mensaje) || isProgressiveOptionsMenuReply(mensaje)) {
+      appliedSalesReply = true;
+    }
+    log?.info({ entityId }, "GUARD: V9.35 \u2014 primer turno con servicio \u2192 ack + embudo");
   } else if (clientAsksToRereadBrief(currentMessage) && !cierreYaEnviado) {
     const blob = collectUserTexts(presHistory, currentMessage).join(" ");
     const services = parseServicesFromText(
@@ -161379,13 +161396,14 @@ ${pickVariant("nombre", history, entityId)}`.trim();
     }
   }
   mensaje = stripStalePriceTalk(mensaje, currentMessage);
-  if (!mensaje.includes("?") && !trulyReadyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
+  if (!trulyReadyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
     let pendingAfter = getNextPendingField(extracted, filledSet);
     if (pendingAfter === "presupuesto" && countLucyFieldAsks(presHistory, "presupuesto") >= PRESUPUESTO_MAX_ASKS) {
       applyPresupuestoWaiver(filledSet, [], collectUserTexts(presHistory, currentMessage), presHistory);
       pendingAfter = getNextPendingField(extracted, filledSet);
     }
-    if (pendingAfter && !(pendingAfter === "presupuesto" && filledSet.has("Presupuesto (MXN)"))) {
+    const catalogOnlyQuestions = isProgressiveOptionsMenuReply(mensaje) || /quieres que te d[eé] detalles de alguno/i.test(mensaje) && pendingAfter && !mensajeAsksForField(mensaje, pendingAfter);
+    if (pendingAfter && !(pendingAfter === "presupuesto" && filledSet.has("Presupuesto (MXN)")) && (!mensaje.includes("?") || catalogOnlyQuestions)) {
       mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
     }
   }
@@ -226227,7 +226245,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.34";
+var LUCY_PROMPT_VERSION = "V9.35";
 
 // src/lib/buildMeta.ts
 var cached = null;

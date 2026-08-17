@@ -122626,7 +122626,7 @@ var WRITTEN_NUMBERS = {
   quinientos: "500"
 };
 var MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
-var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica)\b/i;
+var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n)\b/i;
 var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
 function hasGeoLocationSignal(text2) {
   const t3 = text2.trim();
@@ -130140,7 +130140,6 @@ function lucyHasPresented(history) {
 }
 function conversationAlreadyStarted(filledSet, history) {
   if (history.some((m5) => m5.role === "assistant")) return true;
-  if (filledSet.has("Nombre del cliente")) return true;
   if (filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL)) return true;
   return false;
 }
@@ -130938,7 +130937,7 @@ https://bodasesor.com/catalogos/coffee-break`;
         const sheetMode = station ? buildSoloVsCompletoOfferIfApplicable(station) : null;
         if (sheetMode) menu = sheetMode;
       }
-      return `${pickTransition(history)} ${menu}`.trim();
+      return appendNext(`${pickTransition(history)} ${menu}`.trim(), serviceLabel);
     }
     const detailQuery = resolveProgressiveDetailQuery({
       currentMessage,
@@ -131329,7 +131328,10 @@ ${buildPackageCatalogOfferBlock(multiServices, userText)}` : vagueFoodFirst ? `
 
 ${buildAlimentosModoMenu()}` : progressiveFirst ? `
 
-${progressiveFirst.menu}` : sheetDetail ? `
+${(() => {
+    const station = resolveSoloVsCompletoStationLabel(svcHint ?? "", progressiveFirst.family) || resolveSoloVsCompletoStationLabel(svcHint ?? "");
+    return (station ? buildSoloVsCompletoOfferIfApplicable(station) : null) || progressiveFirst.menu;
+  })()}` : sheetDetail ? `
 
 ${sheetDetail}` : "";
   if (isFieldSatisfied2("nombre", filledSet, ctx.extracted)) {
@@ -131674,6 +131676,14 @@ function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
     if (!mensajeAsksForField(base, pending)) return base;
   }
   if (isProgressiveOptionsMenuReply(base)) {
+    if (pending && pending !== "requerimientos" && pending !== "nombre") {
+      const nextQ2 = buildNaturalQuestion(pending, ctx);
+      if (nextQ2 && !mensajeAsksForField(base, pending) && !base.includes(nextQ2)) {
+        return `${base}
+
+${nextQ2}`;
+      }
+    }
     return base;
   }
   if (pending === "requerimientos" && hasTipoEvento(filledSet, extracted) && aiLooksLikeEventServiceOffer(base)) {
@@ -132119,7 +132129,7 @@ function buildDeferredKnownServiceOffer(opts) {
     const pending2 = getNextPendingField(extracted, filledSet);
     if (pending2 && pending2 !== "requerimientos" && pending2 !== "nombre") {
       const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet });
-      if (nextQ && pending2 !== "correo" && !body3.includes(nextQ)) {
+      if (nextQ && !body3.includes(nextQ)) {
         body3 = `${body3}
 
 ${nextQ}`;
@@ -133472,6 +133482,13 @@ ${nextQ}` : ""}`.trim();
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje \u2014 brief web con datos del formulario");
+  } else if (isFirstLucyReply(presHistory) && !cierreYaEnviado && currentMessage?.trim() && (isServiceRelatedMessage(currentMessage) || isValidRequerimientosValue(extracted.requerimientos_evento))) {
+    mensaje = buildFirstInteractionMessage(ctx, true);
+    appliedDirectReply = true;
+    if (messageHasSheetServiceDetail(mensaje) || isProgressiveOptionsMenuReply(mensaje)) {
+      appliedSalesReply = true;
+    }
+    log?.info({ entityId }, "GUARD: V9.35 \u2014 primer turno con servicio \u2192 ack + embudo");
   } else if (clientAsksToRereadBrief(currentMessage) && !cierreYaEnviado) {
     const blob = collectUserTexts(presHistory, currentMessage).join(" ");
     const services = parseServicesFromText(
@@ -134753,13 +134770,14 @@ ${pickVariant("nombre", history, entityId)}`.trim();
     }
   }
   mensaje = stripStalePriceTalk(mensaje, currentMessage);
-  if (!mensaje.includes("?") && !trulyReadyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
+  if (!trulyReadyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
     let pendingAfter = getNextPendingField(extracted, filledSet);
     if (pendingAfter === "presupuesto" && countLucyFieldAsks(presHistory, "presupuesto") >= PRESUPUESTO_MAX_ASKS) {
       applyPresupuestoWaiver(filledSet, [], collectUserTexts(presHistory, currentMessage), presHistory);
       pendingAfter = getNextPendingField(extracted, filledSet);
     }
-    if (pendingAfter && !(pendingAfter === "presupuesto" && filledSet.has("Presupuesto (MXN)"))) {
+    const catalogOnlyQuestions = isProgressiveOptionsMenuReply(mensaje) || /quieres que te d[eé] detalles de alguno/i.test(mensaje) && pendingAfter && !mensajeAsksForField(mensaje, pendingAfter);
+    if (pendingAfter && !(pendingAfter === "presupuesto" && filledSet.has("Presupuesto (MXN)")) && (!mensaje.includes("?") || catalogOnlyQuestions)) {
       mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
     }
   }
@@ -136901,7 +136919,7 @@ function isWithinLookback(createdAt, lookbackMs, now = Date.now()) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.34";
+var LUCY_PROMPT_VERSION = "V9.35";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -146426,8 +146444,37 @@ ${golfText}`,
     assert2.ok(/Hacienda Los Olivos|sal[oó]n/i.test(reply), reply.slice(0, 400));
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
+  await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.35");
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/direcci\xF3n del evento"
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Allison Berumen",
+      tipo_evento: "evento con banquete",
+      requerimientos_evento: "Banquete Formal 3 tiempos",
+      direccion_evento: "Torre\xF3n"
+    });
+    const reply = runGuards({
+      aiResponse: "Perfecto, Allison. Anoto Banquete Formal 3 tiempos. Solo alimentos $450 servicio completo $780. \xBFCu\xE1l te late m\xE1s?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Hola, me interesa cotizar: Banquete 3 Tiempos Torre\xF3n",
+      whatsappDisplayName: "Allison Berumen",
+      history: [{ role: "user", content: "Hola, me interesa cotizar: Banquete 3 Tiempos Torre\xF3n" }]
+    });
+    assert2.ok(
+      /fecha|cu[aá]ndo|d[ií]a|invitados|correo|e-?mail/i.test(reply),
+      `debe pedir dato del embudo: ${reply.slice(0, 500)}`
+    );
+    assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
+  });
   await test("132. V9.34 \u2014 Valle de Bravo y mesa rica (Sara A15370)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.34");
+    assert2.ok(/^V9\.(3[4-9])$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert2.ok(hasCityOrMetroSignal("Valle de Bravo"));
     assert2.ok(isUsableDireccionEvento("Valle de Bravo"));
     assert2.equal(parseZonaFromText("Valle de bravo"), "Valle de bravo");
@@ -146476,7 +146523,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.34");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.35");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,

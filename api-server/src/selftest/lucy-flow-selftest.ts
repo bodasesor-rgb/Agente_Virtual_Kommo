@@ -11117,9 +11117,41 @@ async function runAll(): Promise<void> {
     assert.match(extractVenueNameHint("Salón Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
 
+  // ─── V9.35 — primer turno banquete: catálogo + pregunta embudo (Allison A15370) ───
+  await test("133. V9.35 — banquete Torreón primer turno pide fecha/invitados", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.35");
+    const filled = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/dirección del evento",
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Allison Berumen",
+      tipo_evento: "evento con banquete",
+      requerimientos_evento: "Banquete Formal 3 tiempos",
+      direccion_evento: "Torreón",
+    });
+    const reply = runGuards({
+      aiResponse:
+        "Perfecto, Allison. Anoto Banquete Formal 3 tiempos. Solo alimentos $450 servicio completo $780. ¿Cuál te late más?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Hola, me interesa cotizar: Banquete 3 Tiempos Torreón",
+      whatsappDisplayName: "Allison Berumen",
+      history: [{ role: "user", content: "Hola, me interesa cotizar: Banquete 3 Tiempos Torreón" }],
+    });
+    assert.ok(
+      /fecha|cu[aá]ndo|d[ií]a|invitados|correo|e-?mail/i.test(reply),
+      `debe pedir dato del embudo: ${reply.slice(0, 500)}`
+    );
+    assert.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
+  });
+
   // ─── V9.34 — Valle de Bravo / Mesa Rica; mesa rica ≠ mobiliario ───
   await test("132. V9.34 — Valle de Bravo y mesa rica (Sara A15370)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.34");
+    assert.ok(/^V9\.(3[4-9])$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(hasCityOrMetroSignal("Valle de Bravo"));
     assert.ok(isUsableDireccionEvento("Valle de Bravo"));
     assert.equal(parseZonaFromText("Valle de bravo"), "Valle de bravo");
@@ -11171,7 +11203,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.34");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.35");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,

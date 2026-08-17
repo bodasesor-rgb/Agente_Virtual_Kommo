@@ -880,7 +880,7 @@ function conversationAlreadyStarted(
   history: OpenAI.Chat.ChatCompletionMessageParam[]
 ): boolean {
   if (history.some((m) => m.role === "assistant")) return true;
-  if (filledSet.has("Nombre del cliente")) return true;
+  // Nombre desde WhatsApp/Kommo NO cuenta como conversación iniciada (A15370 Allison).
   if (filledSet.has("Correo electrónico") || filledSet.has(EMAIL_WAIVED_LABEL)) return true;
   // No usar Tipo/Requerimientos aquí: el merge del mismo turno los llena antes
   // del branch de primer mensaje y rompía intro+ack en RFQ (tests 38/44/66/69).
@@ -1994,7 +1994,7 @@ function buildFoodSalesReply(
         const sheetMode = station ? buildSoloVsCompletoOfferIfApplicable(station) : null;
         if (sheetMode) menu = sheetMode;
       }
-      return `${pickTransition(history)} ${menu}`.trim();
+      return appendNext(`${pickTransition(history)} ${menu}`.trim(), serviceLabel);
     }
 
     // Tras elegir / pedir detalle → query concreto + detalle + link aparte.
@@ -2619,7 +2619,17 @@ export function buildFirstInteractionMessage(
     : vagueFoodFirst
       ? `\n\n${buildAlimentosModoMenu()}`
       : progressiveFirst
-        ? `\n\n${progressiveFirst.menu}`
+        ? `\n\n${
+            (() => {
+              const station =
+                resolveSoloVsCompletoStationLabel(svcHint ?? "", progressiveFirst.family) ||
+                resolveSoloVsCompletoStationLabel(svcHint ?? "");
+              return (
+                (station ? buildSoloVsCompletoOfferIfApplicable(station) : null) ||
+                progressiveFirst.menu
+              );
+            })()
+          }`
         : sheetDetail
           ? `\n\n${sheetDetail}`
           : "";
@@ -3180,8 +3190,14 @@ function mergeWithPendingQuestion(
     if (!mensajeAsksForField(base, pending)) return base;
   }
 
-  // Menú progresivo: deja elegir variante antes de pedir correo/tipo.
+  // Menú progresivo: ofrece variantes pero sigue el embudo (fecha, invitados…).
   if (isProgressiveOptionsMenuReply(base)) {
+    if (pending && pending !== "requerimientos" && pending !== "nombre") {
+      const nextQ = buildNaturalQuestion(pending, ctx);
+      if (nextQ && !mensajeAsksForField(base, pending) && !base.includes(nextQ)) {
+        return `${base}\n\n${nextQ}`;
+      }
+    }
     return base;
   }
 
@@ -3928,8 +3944,7 @@ export function buildDeferredKnownServiceOffer(opts: {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending && pending !== "requerimientos" && pending !== "nombre") {
       const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });
-      // No apilar correo encima del menú — deja elegir servicio primero.
-      if (nextQ && pending !== "correo" && !body.includes(nextQ)) {
+      if (nextQ && !body.includes(nextQ)) {
         body = `${body}\n\n${nextQ}`;
       }
     }
@@ -6055,6 +6070,19 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje — brief web con datos del formulario");
+  } else if (
+    isFirstLucyReply(presHistory) &&
+    !cierreYaEnviado &&
+    currentMessage?.trim() &&
+    (isServiceRelatedMessage(currentMessage) ||
+      isValidRequerimientosValue(extracted.requerimientos_evento))
+  ) {
+    mensaje = buildFirstInteractionMessage(ctx, true);
+    appliedDirectReply = true;
+    if (messageHasSheetServiceDetail(mensaje) || isProgressiveOptionsMenuReply(mensaje)) {
+      appliedSalesReply = true;
+    }
+    log?.info({ entityId }, "GUARD: V9.35 — primer turno con servicio → ack + embudo");
   } else if (clientAsksToRereadBrief(currentMessage) && !cierreYaEnviado) {
     const blob = collectUserTexts(presHistory, currentMessage).join(" ");
     const services = parseServicesFromText(
@@ -7890,7 +7918,6 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   mensaje = stripStalePriceTalk(mensaje, currentMessage);
   if (
-    !mensaje.includes("?") &&
     !trulyReadyForClosing &&
     !cierreYaEnviado &&
     !clientAskedFreeformQuestion(currentMessage)
@@ -7903,7 +7930,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       applyPresupuestoWaiver(filledSet, [], collectUserTexts(presHistory, currentMessage), presHistory);
       pendingAfter = getNextPendingField(extracted, filledSet);
     }
-    if (pendingAfter && !(pendingAfter === "presupuesto" && filledSet.has("Presupuesto (MXN)"))) {
+    const catalogOnlyQuestions =
+      isProgressiveOptionsMenuReply(mensaje) ||
+      (/quieres que te d[eé] detalles de alguno/i.test(mensaje) &&
+        pendingAfter &&
+        !mensajeAsksForField(mensaje, pendingAfter));
+    if (
+      pendingAfter &&
+      !(pendingAfter === "presupuesto" && filledSet.has("Presupuesto (MXN)")) &&
+      (!mensaje.includes("?") || catalogOnlyQuestions)
+    ) {
       mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
     }
   }
