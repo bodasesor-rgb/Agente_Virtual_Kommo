@@ -11117,9 +11117,61 @@ async function runAll(): Promise<void> {
     assert.match(extractVenueNameHint("Salón Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
 
+  // ─── V9.34 — Valle de Bravo / Mesa Rica; mesa rica ≠ mobiliario ───
+  await test("132. V9.34 — Valle de Bravo y mesa rica (Sara A15370)", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.34");
+    assert.ok(hasCityOrMetroSignal("Valle de Bravo"));
+    assert.ok(isUsableDireccionEvento("Valle de Bravo"));
+    assert.equal(parseZonaFromText("Valle de bravo"), "Valle de bravo");
+    assert.equal(parseZonaFromText("En valle de bravo"), "valle de bravo");
+    assert.equal(
+      parseZonaFromText("Pertenece a valle de bravo"),
+      "valle de bravo"
+    );
+    assert.equal(
+      parseZonaFromText(
+        "La comunidad se llama mesa rica pertenece a valle de bravo, a media hora del fresno"
+      ),
+      "valle de bravo"
+    );
+    assert.ok(isLikelyUbicacionNotNombre("Es en mesa rica"));
+    assert.deepEqual(parseServicesFromText("Es en mesa rica"), []);
+    assert.equal(
+      mergeServiceRequirements("Renta de letras", "Es en mesa rica", 6),
+      "Renta de letras"
+    );
+
+    const filled = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Fecha y horario",
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Sara",
+      tipo_evento: "bautizo",
+      requerimientos_evento: "Renta de letras",
+      fecha_horario: "Diciembre",
+    });
+    const reply = runGuards({
+      aiResponse: "¿En qué ciudad sería tu evento?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Valle de bravo",
+      history: [
+        { role: "assistant", content: "¿Me confirmas la *ciudad* del evento?" },
+        { role: "user", content: "Valle de bravo" },
+      ],
+    });
+    assert.ok(isFieldSatisfied("zona", filled, extracted));
+    assert.equal(extracted.direccion_evento?.toLowerCase(), "valle de bravo");
+    assert.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
+  });
+
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.32");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.34");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,

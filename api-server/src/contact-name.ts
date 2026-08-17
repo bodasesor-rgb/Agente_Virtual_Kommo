@@ -233,7 +233,7 @@ export function isLikelyUbicacionNotNombre(text: string | null | undefined): boo
     return true;
   }
   if (
-    /\b(cdmx|cd\.?\s*m\.?x\.?|ciudad de m[eé]xico|polanco|narvarte|santa\s*fe|cuernavaca|morelos|coyoac[aá]n|tlalpan|tlalnepantla|naucalpan|ecatepec|atizap[aá]n|sat[eé]lite|interlomas|expo\s+santa|estado\s+de\s+m[eé]xico|edo\.?\s*mex|canc[uú]n|cancun|guadalajara|monterrey|puebla|quer[eé]taro|m[eé]rida|tulum|playa\s+del\s+carmen|toluca|acapulco|veracruz|tijuana)\b/i.test(
+    /\b(cdmx|cd\.?\s*m\.?x\.?|ciudad de m[eé]xico|polanco|narvarte|santa\s*fe|cuernavaca|morelos|coyoac[aá]n|tlalpan|tlalnepantla|naucalpan|ecatepec|atizap[aá]n|sat[eé]lite|interlomas|expo\s+santa|estado\s+de\s+m[eé]xico|edo\.?\s*mex|canc[uú]n|cancun|guadalajara|monterrey|puebla|quer[eé]taro|m[eé]rida|tulum|playa\s+del\s+carmen|toluca|acapulco|veracruz|tijuana|valle\s+de\s+bravo|mesa\s+rica)\b/i.test(
       t
     ) &&
     t.split(/\s+/).length <= 5

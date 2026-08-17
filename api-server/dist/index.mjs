@@ -126952,7 +126952,7 @@ function isLikelyUbicacionNotNombre(text2) {
   if (/^en\s+[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ.'\s-]{2,40}$/i.test(t10) && t10.split(/\s+/).length <= 6) {
     return true;
   }
-  if (/\b(cdmx|cd\.?\s*m\.?x\.?|ciudad de m[eé]xico|polanco|narvarte|santa\s*fe|cuernavaca|morelos|coyoac[aá]n|tlalpan|tlalnepantla|naucalpan|ecatepec|atizap[aá]n|sat[eé]lite|interlomas|expo\s+santa|estado\s+de\s+m[eé]xico|edo\.?\s*mex|canc[uú]n|cancun|guadalajara|monterrey|puebla|quer[eé]taro|m[eé]rida|tulum|playa\s+del\s+carmen|toluca|acapulco|veracruz|tijuana)\b/i.test(
+  if (/\b(cdmx|cd\.?\s*m\.?x\.?|ciudad de m[eé]xico|polanco|narvarte|santa\s*fe|cuernavaca|morelos|coyoac[aá]n|tlalpan|tlalnepantla|naucalpan|ecatepec|atizap[aá]n|sat[eé]lite|interlomas|expo\s+santa|estado\s+de\s+m[eé]xico|edo\.?\s*mex|canc[uú]n|cancun|guadalajara|monterrey|puebla|quer[eé]taro|m[eé]rida|tulum|playa\s+del\s+carmen|toluca|acapulco|veracruz|tijuana|valle\s+de\s+bravo|mesa\s+rica)\b/i.test(
     t10
   ) && t10.split(/\s+/).length <= 5) {
     return true;
@@ -128552,7 +128552,7 @@ function hasCityOrMetroSignal(text2) {
   if (/\b(ciudad(\s+de)?|estado\s+de|edo\.?\s*m[eé]x|cdmx|d\.?\s*f\.?)\b/i.test(t10)) {
     return true;
   }
-  if (/\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum)\b/i.test(
+  if (/\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica)\b/i.test(
     t10
   )) {
     return true;
@@ -128905,7 +128905,9 @@ function mergeServiceRequirements(existing, text2, max = 6) {
   const declined = clientDeclinesServiceFamilies(text2);
   const existingClean = declined.length ? removeDeclinedFamiliesFromRequirements(existing, declined) : existing;
   const fromExisting = existingClean?.trim() ? parseServicesFromText(existingClean).filter((s10) => !serviceIsDeclined(s10, declined)) : [];
-  const fromText = text2?.trim() ? parseServicesFromText(text2).filter((s10) => !serviceIsDeclined(s10, declined)) : [];
+  const textTrim = text2?.trim() ?? "";
+  const textIsLocation = !!textTrim && (isLikelyUbicacionNotNombre(textTrim) || !!parseZonaFromText(textTrim) && textTrim.split(/\s+/).length <= 8);
+  const fromText = textTrim && !textIsLocation ? parseServicesFromText(textTrim).filter((s10) => !serviceIsDeclined(s10, declined)) : [];
   const merged = dedupeServiceHierarchy(
     [...fromExisting, ...fromText],
     `${existingClean ?? ""} ${text2 ?? ""}`
@@ -129438,6 +129440,17 @@ function parseZonaFromText(text2) {
     if (enVenue?.[2] && !MONTH_PATTERN.test(enVenue[2]) && isUsableDireccionEvento(enVenue[2].trim())) {
       return enVenue[2].trim();
     }
+  }
+  const perteneceMatch = trimmed.match(
+    /\bpertenece\s+a\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,40})/i
+  );
+  if (perteneceMatch?.[1]) {
+    const lugar = perteneceMatch[1].trim().replace(/[.,;:]+$/g, "").split(/\s+(?:a\s+media|a\s+\d|por\s+la|por\s+que)\b/i)[0].trim();
+    if (lugar && isUsableDireccionEvento(lugar)) return lugar;
+  }
+  const shortPlace = trimmed.replace(/^(es\s+en\s+|en\s+|ser[ií]a\s+en\s+)/i, "").trim().replace(/[.,;:]+$/g, "").trim();
+  if (shortPlace && shortPlace.split(/\s+/).length <= 4 && shortPlace.length <= 48 && isUsableDireccionEvento(shortPlace)) {
+    return shortPlace;
   }
   return null;
 }
@@ -130271,7 +130284,7 @@ var init_conversation_understanding = __esm({
       // "mesas?" no debe capturar "centros/arreglos/decoración de mesa" ni "mesa de dulces/…".
       [
         "Mobiliario",
-        /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|periqueras?)\b|(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)/i
+        /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|periqueras?)\b|(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+(?:de\s|rica\b|imperial\b))/i
       ],
       ["Carpas", /\b(carpa|carpas|toldo)\b/i],
       ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
@@ -130451,7 +130464,7 @@ var init_conversation_understanding = __esm({
       quinientos: "500"
     };
     MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
-    KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco)\b/i;
+    KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica)\b/i;
     NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
     VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue)\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.'-]{1,48})/i;
     JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
@@ -159251,6 +159264,13 @@ ${nextQ}` : ack;
       return normalizeAdvisorReferences(body2, display);
     }
   }
+  if (!cierreYaEnviado && currentMessage && !isFieldSatisfied("zona", filledSet, extracted)) {
+    const zonaNow = parseZonaFromText(currentMessage);
+    if (zonaNow && isUsableDireccionEvento(zonaNow)) {
+      extracted.direccion_evento = mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
+      filledSet.add("Lugar/direcci\xF3n del evento");
+    }
+  }
   if (!cierreYaEnviado && currentMessage && (() => {
     const z10 = parseZonaFromText(currentMessage);
     return !!z10 && currentMessage.trim().split(/\s+/).length <= 6 && (/^en\s+/i.test(currentMessage.trim()) || isLikelyUbicacionNotNombre(currentMessage));
@@ -161440,7 +161460,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     }
   }
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
-  if (mensajeAsksForField(mensaje, "zona") && countLucyFieldAsks(presHistory, "zona") >= 1 && !isFieldSatisfied("zona", filledSet, extracted) && !/\bincluye\b|\bniveles?\b|\$\s*\d|bodasesor\.com\/catalogos|cat[aá]logo general|shows?\s+en\s+vivo|maestro\s+de\s+ceremonias/i.test(
+  if (mensajeAsksForField(mensaje, "zona") && countLucyFieldAsks(presHistory, "zona") >= 1 && !isFieldSatisfied("zona", filledSet, extracted) && !(currentMessage && parseZonaFromText(currentMessage)) && !/\bincluye\b|\bniveles?\b|\$\s*\d|bodasesor\.com\/catalogos|cat[aá]logo general|shows?\s+en\s+vivo|maestro\s+de\s+ceremonias/i.test(
     mensaje
   )) {
     const nombre = getDisplayName(extracted, whatsappDisplayName);
@@ -226207,7 +226227,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.32";
+var LUCY_PROMPT_VERSION = "V9.34";
 
 // src/lib/buildMeta.ts
 var cached = null;

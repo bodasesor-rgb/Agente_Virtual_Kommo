@@ -137,7 +137,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   // "mesas?" no debe capturar "centros/arreglos/decoración de mesa" ni "mesa de dulces/…".
   [
     "Mobiliario",
-    /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|periqueras?)\b|(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)/i,
+    /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|periqueras?)\b|(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+(?:de\s|rica\b|imperial\b))/i,
   ],
   ["Carpas", /\b(carpa|carpas|toldo)\b/i],
   ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
@@ -1746,7 +1746,7 @@ const MONTH_PATTERN =
   /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
 
 const KNOWN_ZONES =
-  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco)\b/i;
+  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica)\b/i;
 
 /** Fragmentos (sin artículo) que NO son ubicación, aunque vengan tras "en …". */
 const NON_LOCATION_WORDS =
@@ -1800,7 +1800,7 @@ export function hasCityOrMetroSignal(text: string | null | undefined): boolean {
   }
   // Ciudades / estados frecuentes fuera de KNOWN_ZONES (respuesta corta = ciudad).
   if (
-    /\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum)\b/i.test(
+    /\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica)\b/i.test(
       t
     )
   ) {
@@ -2407,9 +2407,15 @@ export function mergeServiceRequirements(
   const fromExisting = existingClean?.trim()
     ? parseServicesFromText(existingClean).filter((s) => !serviceIsDeclined(s, declined))
     : [];
-  const fromText = text?.trim()
-    ? parseServicesFromText(text).filter((s) => !serviceIsDeclined(s, declined))
-    : [];
+  const textTrim = text?.trim() ?? "";
+  const textIsLocation =
+    !!textTrim &&
+    (isLikelyUbicacionNotNombre(textTrim) ||
+      (!!parseZonaFromText(textTrim) && textTrim.split(/\s+/).length <= 8));
+  const fromText =
+    textTrim && !textIsLocation
+      ? parseServicesFromText(textTrim).filter((s) => !serviceIsDeclined(s, declined))
+      : [];
   const merged = dedupeServiceHierarchy(
     [...fromExisting, ...fromText],
     `${existingClean ?? ""} ${text ?? ""}`
@@ -3276,6 +3282,33 @@ export function parseZonaFromText(text: string): string | null {
     ) {
       return enVenue[2].trim();
     }
+  }
+
+  const perteneceMatch = trimmed.match(
+    /\bpertenece\s+a\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,40})/i
+  );
+  if (perteneceMatch?.[1]) {
+    const lugar = perteneceMatch[1]
+      .trim()
+      .replace(/[.,;:]+$/g, "")
+      .split(/\s+(?:a\s+media|a\s+\d|por\s+la|por\s+que)\b/i)[0]!
+      .trim();
+    if (lugar && isUsableDireccionEvento(lugar)) return lugar;
+  }
+
+  // Respuesta corta = ciudad (V9.34): "Valle de Bravo", "Jiutepec"
+  const shortPlace = trimmed
+    .replace(/^(es\s+en\s+|en\s+|ser[ií]a\s+en\s+)/i, "")
+    .trim()
+    .replace(/[.,;:]+$/g, "")
+    .trim();
+  if (
+    shortPlace &&
+    shortPlace.split(/\s+/).length <= 4 &&
+    shortPlace.length <= 48 &&
+    isUsableDireccionEvento(shortPlace)
+  ) {
+    return shortPlace;
   }
 
   return null;

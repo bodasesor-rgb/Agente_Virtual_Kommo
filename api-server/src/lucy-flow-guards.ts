@@ -187,6 +187,7 @@ import {
   parseTipoEventoFromText,
   parseInvitadosFromText,
   parseZonaFromText,
+  mergeZonaDetail,
   parseServicesFromText,
   mergeServiceRequirements,
   buildMultiServiceAck,
@@ -4767,6 +4768,19 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
+  // V9.34: anotar ciudad cuando el cliente responde con topónimo (evita bucle "¿en qué ciudad?").
+  if (
+    !cierreYaEnviado &&
+    currentMessage &&
+    !isFieldSatisfied("zona", filledSet, extracted)
+  ) {
+    const zonaNow = parseZonaFromText(currentMessage);
+    if (zonaNow && isUsableDireccionEvento(zonaNow)) {
+      extracted.direccion_evento = mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
+      filledSet.add("Lugar/dirección del evento");
+    }
+  }
+
   // A14938: "en Tlalnepantla" con pizzas ya pedidas — anotar zona, no inventar taquiza.
   if (
     !cierreYaEnviado &&
@@ -7982,6 +7996,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensajeAsksForField(mensaje, "zona") &&
     countLucyFieldAsks(presHistory, "zona") >= 1 &&
     !isFieldSatisfied("zona", filledSet, extracted) &&
+    !(currentMessage && parseZonaFromText(currentMessage)) &&
     !/\bincluye\b|\bniveles?\b|\$\s*\d|bodasesor\.com\/catalogos|cat[aá]logo general|shows?\s+en\s+vivo|maestro\s+de\s+ceremonias/i.test(
       mensaje
     )
