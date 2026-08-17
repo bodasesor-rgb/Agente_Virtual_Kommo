@@ -171,8 +171,15 @@ export async function handleLearningCron(req: Request, res: Response): Promise<v
   const subdomain = process.env["KOMMO_SUBDOMAIN"]?.trim().replace(/\s+/g, "").toLowerCase() ?? "";
   const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";
   try {
+    const { recoverStuckIncomingLeads } = await import("../services/incomingLeadRecovery.js");
+    const recovered = await recoverStuckIncomingLeads({ subdomain, accessToken, hours: 15 }).catch(
+      (err: unknown) => {
+        req.log?.warn?.({ err }, "Cron learning: recover-incoming falló (no bloquea aprendizaje)");
+        return null;
+      }
+    );
     const result = await runLearningSyncCron(subdomain, accessToken);
-    res.json({ ok: true, ...result });
+    res.json({ ok: true, ...result, incoming_recovery: recovered });
   } catch (err) {
     req.log?.error({ err }, "Cron learning: error");
     res.status(500).json({ error: "cron_failed" });

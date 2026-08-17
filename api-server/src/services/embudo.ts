@@ -112,6 +112,74 @@ export async function fetchLead(
   }
 }
 
+export async function findUnsortedUidForLead(
+  subdomain: string,
+  accessToken: string,
+  leadId: string | number
+): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://${subdomain}.kommo.com/api/v4/leads/unsorted?limit=250`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      _embedded?: { unsorted?: Array<{ uid?: string; lead_id?: number | string }> };
+    };
+    const needle = String(leadId);
+    const row = (data._embedded?.unsorted ?? []).find((u) => String(u.lead_id ?? "") === needle);
+    return row?.uid ?? null;
+  } catch (err) {
+    logger.warn({ err, leadId }, "findUnsortedUidForLead: error listando Incoming Leads");
+    return null;
+  }
+}
+
+/**
+ * Acepta un Incoming Lead (unsorted) y lo pone en Datos e Intereses para que Lucy trabaje.
+ */
+export async function acceptUnsortedLead(
+  subdomain: string,
+  accessToken: string,
+  uid: string,
+  statusId: number = ETAPA.DATOS_E_INTERESES
+): Promise<number | null> {
+  try {
+    const res = await fetch(
+      `https://${subdomain}.kommo.com/api/v4/leads/unsorted/${encodeURIComponent(uid)}/accept`,
+      {
+        method: "POST",
+        headers: kommoHeaders(accessToken),
+        body: JSON.stringify({ status_id: statusId }),
+      }
+    );
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      logger.warn({ uid, httpStatus: res.status, errText }, "acceptUnsortedLead: Kommo rechazó accept");
+      return null;
+    }
+    const data = (await res.json()) as { _embedded?: { leads?: Array<{ id?: number }> } };
+    const acceptedLeadId = data._embedded?.leads?.[0]?.id ?? null;
+    logger.info({ uid, leadId: acceptedLeadId, statusId }, "Embudo: Incoming Lead aceptado → Datos e Intereses");
+    return acceptedLeadId;
+  } catch (err) {
+    logger.warn({ err, uid }, "acceptUnsortedLead: excepción");
+    return null;
+  }
+}
+
+/** Si el lead sigue en Incoming Leads (unsorted), lo acepta. No-op si ya está en el embudo. */
+export async function acceptUnsortedForLeadId(
+  subdomain: string,
+  accessToken: string,
+  leadId: string | number
+): Promise<boolean> {
+  const uid = await findUnsortedUidForLead(subdomain, accessToken, leadId);
+  if (!uid) return false;
+  const accepted = await acceptUnsortedLead(subdomain, accessToken, uid);
+  return accepted != null;
+}
+
 export async function moverEtapa(
   subdomain: string,
   accessToken: string,
@@ -330,20 +398,26 @@ export async function enviarMensaje(
 
 // ─── Lógica de embudo ─────────────────────────────────────────────────────────
 
+/** Etapas donde Lucy no escribe (el equipo ya tomó el lead). */
+const ETAPAS_LUCY_SILENCIO = new Set<number>([
+  ETAPA.HUMANO_TRABAJA,
+  ETAPA.COTIZACION_REALIZADA,
+  ETAPA.CLIENTE_PERDIDO,
+]);
+
 /**
  * Verifica si Lucy debe responder a este lead.
- * Lucy está activa si:
- *  1. La etapa es una de las permitidas (Leads Entrantes, Datos e Intereses, No Contesta)
- *  2. El lead NO tiene el tag "lucy_desactivada"
- *
- * En el resto de etapas (Humano Trabaja, Cotización, Seguimientos, etc.) Lucy
- * NO escribe — salvo la excepción de contacto de emergencia (ver processBatch).
- * Aunque no escriba, siempre vigila el chat y puede actualizar datos en CRM.
+ * Calla solo en Humano Trabaja / Cotización / Perdido o con tag lucy_desactivada.
+ * Incoming Leads (unsorted) y etapas nuevas del embudo sí las atiende.
  */
 export function lucyDebeResponder(statusId: number, tags: string[]): boolean {
-  if (!ETAPAS_LUCY_ACTIVA.has(statusId)) return false;
   if (tags.includes("lucy_desactivada")) return false;
+  if (ETAPAS_LUCY_SILENCIO.has(statusId)) return false;
   return true;
+}
+
+export function lucyEtapaEsSilencioFuerte(statusId: number, tags: string[]): boolean {
+  return tags.includes("lucy_desactivada") || ETAPAS_LUCY_SILENCIO.has(statusId);
 }
 
 /** Etapas donde Lucy está en silencio (solo vigila; no cotiza ni avanza el flujo). */

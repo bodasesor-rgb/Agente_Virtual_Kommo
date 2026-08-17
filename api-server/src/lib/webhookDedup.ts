@@ -70,6 +70,8 @@ export function markWebhookMessageProcessed(key: string): void {
 export function isIncomingClientMessage(message: Record<string, unknown>): boolean {
   const msgType = String(message["type"] ?? "").toLowerCase();
   if (msgType === "outgoing") return false;
+  // Kommo marca el chat del cliente como incoming; no filtrar por author.type.
+  if (msgType === "incoming") return true;
 
   const author = message["author"];
   if (typeof author === "object" && author !== null) {

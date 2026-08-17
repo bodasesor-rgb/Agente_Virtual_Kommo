@@ -146,7 +146,7 @@ import {
   extractEmpresaFromText,
   scrubClientFieldsForProveedor,
 } from "../lib/proveedorHandoff.js";
-import { resolveProveedorEtapa, ETAPA } from "../services/embudo.js";
+import { resolveProveedorEtapa, ETAPA, lucyDebeResponder } from "../services/embudo.js";
 import { prepareLucyExtraction } from "../lucyTurnProcessor.js";
 import {
   buildFirstInteractionMessage,
@@ -331,6 +331,15 @@ import {
   isIncomingClientMessage,
   resetWebhookDedupForTests,
 } from "../lib/webhookDedup.js";
+import {
+  extractKommoIncomingMessage,
+  extractKommoEntityId,
+  extractKommoChatId,
+  extractKommoMessageText,
+  extractKommoUnsortedAdd,
+  isChatUnsortedCategory,
+} from "../lib/kommoWebhookParse.js";
+import { isWithinLookback } from "../services/incomingLeadRecovery.js";
 import type { ExtractedData } from "../types.js";
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
@@ -1567,6 +1576,78 @@ async function runAll(): Promise<void> {
       attachment: { type: "picture", link: imgUrl },
     });
     assert.equal(fallbackKey, `media:chat-2:${imgUrl}`);
+  });
+
+  await test("27b. Webhook Incoming Leads — payload Kommo oficial + unsorted", () => {
+    const official = {
+      add: [
+        {
+          id: "9402b05b-91c0-4daa-a8a6-34b411881f4c",
+          chat_id: "dfa7f0e5-79bb-4b3d-9647-2f492075e419",
+          talk_id: "172",
+          text: "Hi!",
+          entity_type: "lead",
+          element_id: "50296276",
+          type: "incoming",
+          author: { type: "external" },
+          origin: "waba",
+        },
+      ],
+    };
+    const msg = extractKommoIncomingMessage(official);
+    assert.ok(msg);
+    assert.equal(extractKommoEntityId(msg), "50296276");
+    assert.equal(extractKommoChatId(msg), "dfa7f0e5-79bb-4b3d-9647-2f492075e419");
+    assert.equal(extractKommoMessageText(msg), "Hi!");
+    assert.ok(isIncomingClientMessage(msg));
+
+    const nested = {
+      message: {
+        add: [
+          {
+            chat_id: "chat-9",
+            entity_id: 111,
+            type: "incoming",
+            message: { type: "text", text: "Quiero cotizar" },
+          },
+        ],
+      },
+    };
+    const nestedMsg = extractKommoIncomingMessage(nested);
+    assert.equal(extractKommoMessageText(nestedMsg), "Quiero cotizar");
+    assert.equal(extractKommoEntityId(nestedMsg), 111);
+
+    const formStyle = {
+      message: {
+        add: {
+          "0": {
+            chat_id: "c1",
+            element_id: "99",
+            text: "Hola",
+            type: "incoming",
+          },
+        },
+      },
+    };
+    const formMsg = extractKommoIncomingMessage(formStyle);
+    assert.equal(extractKommoChatId(formMsg), "c1");
+    assert.equal(extractKommoEntityId(formMsg), "99");
+
+    const unsorted = extractKommoUnsortedAdd({
+      unsorted: { add: [{ uid: "abc", category: "chats", lead_id: "26900111" }] },
+    });
+    assert.equal(unsorted?.["uid"], "abc");
+    assert.ok(isChatUnsortedCategory("chats"));
+    assert.ok(!isChatUnsortedCategory("forms"));
+
+    assert.ok(lucyDebeResponder(72336719, []));
+    assert.ok(lucyDebeResponder(99999999, []), "Incoming/status nuevo: Lucy debe contestar");
+    assert.equal(lucyDebeResponder(105583875, []), false, "Humano Trabaja: silencio");
+    assert.equal(lucyDebeResponder(72336719, ["lucy_desactivada"]), false);
+
+    const now = Date.now();
+    assert.ok(isWithinLookback(Math.floor((now - 2 * 3600 * 1000) / 1000), 15 * 3600 * 1000, now));
+    assert.ok(!isWithinLookback(Math.floor((now - 20 * 3600 * 1000) / 1000), 15 * 3600 * 1000, now));
   });
 
   await test("28. Lucy V7 — pedido/entrega, número ambiguo, orden fecha→ubicación→correo", () => {
@@ -3279,6 +3360,11 @@ async function runAll(): Promise<void> {
     assert.ok(/handleLucyInactiveInbound/.test(kommoSrc));
     assert.ok(/buildSilentWatchPatchPayload/.test(kommoSrc));
     assert.ok(/clientNeedsEmergencyContact/.test(kommoSrc));
+    assert.ok(/extractKommoIncomingMessage/.test(kommoSrc), "webhook debe parsear payload oficial Kommo");
+    assert.ok(/acceptUnsortedForLeadId/.test(kommoSrc), "Lucy debe aceptar Incoming Leads");
+    assert.ok(/processKommoWebhookAfterAck/.test(kommoSrc), "ACK 200 antes de voz/visión o Kommo desactiva el webhook");
+    assert.ok(/Kommo exige HTTP 2xx/.test(kommoSrc));
+    assert.ok(/acceptUnsortedLead/.test(embudoSrc));
     assert.ok(/lucyEstaEnSilencio|lucyDebeResponder/.test(embudoSrc));
     assert.ok(/Humano Trabaja/.test(embudoSrc) || /HUMANO_TRABAJA/.test(embudoSrc));
   });

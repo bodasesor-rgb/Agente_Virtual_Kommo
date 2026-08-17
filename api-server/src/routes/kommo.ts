@@ -111,7 +111,9 @@ import {
 import {
   fetchLead,
   lucyDebeResponder,
+  lucyEtapaEsSilencioFuerte,
   tieneInformacionCompleta,
+  moverEtapa,
   moverAHumanoTrabaja,
   moverAZonaProveedores,
   recuperarDeNoContesta,
@@ -123,8 +125,21 @@ import {
   agregarTag,
   agregarNota,
   limpiarCampoRespuesta,
+  acceptUnsortedLead,
+  acceptUnsortedForLeadId,
   ETAPA,
 } from "../services/embudo.js";
+import {
+  extractKommoIncomingMessage,
+  extractKommoEntityId,
+  extractKommoChatId,
+  extractKommoTalkId,
+  extractKommoUnsortedAdd,
+  extractKommoTalkAdd,
+  extractKommoMessageText,
+  isChatUnsortedCategory,
+  webhookBodyShape,
+} from "../lib/kommoWebhookParse.js";
 import { deliverLucyOutbound } from "../services/kommoMirror.js";
 import { captureInboundWhileLucyInactive, setLearningPhase } from "../services/chatIngest.js";
 import { syncHumanPhaseLead } from "../services/learningSync.js";
@@ -210,6 +225,10 @@ function extractChannelOriginFromMessage(msg: KommoMessageEntry | null | undefin
 interface KommoWebhookBody {
   account?: { subdomain?: string };
   message?: { add?: KommoMessageEntry[] };
+  messages?: { add?: KommoMessageEntry[] };
+  add?: KommoMessageEntry[] | Record<string, KommoMessageEntry>;
+  unsorted?: { add?: Array<Record<string, unknown>> };
+  talk?: { add?: Array<Record<string, unknown>> };
 }
 
 interface KommoChatMessage {
@@ -1504,7 +1523,27 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // ══════════════════════════════════════════════════════════════════════
     // PASO 0: Verificar si Lucy debe responder (embudo + tag)
     // ══════════════════════════════════════════════════════════════════════
-    const leadKommo = await fetchLead(subdomain, accessToken, entityId);
+    let leadKommo = await fetchLead(subdomain, accessToken, entityId);
+
+    // Incoming Leads (unsorted) no salen de esa bandeja hasta ACCEPT.
+    // Si Lucy no acepta, el lead se queda ahí y parece que "no hace el proceso".
+    if (leadKommo && !lucyEtapaEsSilencioFuerte(leadKommo.status_id, leadKommo.tags)) {
+      const alreadyWorking =
+        leadKommo.status_id === ETAPA.DATOS_E_INTERESES ||
+        leadKommo.status_id === ETAPA.NO_CONTESTA;
+      if (!alreadyWorking) {
+        const accepted = await acceptUnsortedForLeadId(subdomain, accessToken, entityId);
+        if (accepted) {
+          leadKommo = (await fetchLead(subdomain, accessToken, entityId)) ?? leadKommo;
+        } else if (leadKommo.status_id === ETAPA.LEADS_ENTRANTES) {
+          const moved = await moverEtapa(subdomain, accessToken, entityId, ETAPA.DATOS_E_INTERESES);
+          if (moved) {
+            log.info({ entityId }, "Embudo: Incoming Leads → Datos e Intereses");
+            leadKommo = { ...leadKommo, status_id: ETAPA.DATOS_E_INTERESES };
+          }
+        }
+      }
+    }
 
     if (leadKommo) {
       // FIX: Si está en No Contesta y responde → recuperar ANTES del check de tag
@@ -2220,15 +2259,99 @@ router.get("/kommo/status", async (_req, res) => {
   }
 });
 
+function queueIncomingBatch(
+  opts: {
+    text: string;
+    entityId: string | number;
+    chatId: string;
+    talkId: string | null;
+    subdomain: string;
+    accessToken: string;
+    isVoice: boolean;
+    isImage: boolean;
+    channelOrigin: string | null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    log: any;
+  }
+): void {
+  const { text, entityId, chatId, talkId, subdomain, accessToken, isVoice, isImage, channelOrigin, log } = opts;
+  const existing = pendingBatches.get(chatId);
+
+  if (existing) {
+    clearTimeout(existing.timer);
+    existing.texts.push(text);
+    existing.entityId = entityId;
+    existing.talkId = talkId;
+    if (channelOrigin) existing.channelOrigin = channelOrigin;
+    existing.isVoice = existing.isVoice || isVoice;
+    existing.isImage = existing.isImage || isImage;
+    log.info({ chatId, buffered: existing.texts.length }, "Message added to pending batch");
+    existing.timer = setTimeout(() => {
+      pendingBatches.delete(chatId);
+      processBatch(existing, accessToken, log).catch((err: unknown) => {
+        log.error({ err }, "Error in processBatch");
+      });
+    }, DEBOUNCE_MS);
+    return;
+  }
+
+  const batch: PendingBatch = {
+    texts: [text],
+    entityId,
+    chatId,
+    talkId,
+    subdomain,
+    isVoice,
+    isImage,
+    channelOrigin,
+    timer: setTimeout(() => {
+      pendingBatches.delete(chatId);
+      processBatch(batch, accessToken, log).catch((err: unknown) => {
+        log.error({ err }, "Error in processBatch");
+      });
+    }, DEBOUNCE_MS),
+  };
+  pendingBatches.set(chatId, batch);
+  log.info(
+    { chatId, debounceMs: DEBOUNCE_MS, isVoice, isImage, channelOrigin },
+    "New batch started, waiting for more messages"
+  );
+}
+
+async function lastUserTextFromTalk(
+  subdomain: string,
+  accessToken: string,
+  talkId: string
+): Promise<string> {
+  const hist = await fetchKommoHistory(subdomain, accessToken, talkId);
+  const lastUser = [...(hist ?? [])].reverse().find((m) => m.role === "user");
+  return typeof lastUser?.content === "string" ? lastUser.content.trim() : "";
+}
+
 // ─── Webhook route ────────────────────────────────────────────────────────────
 // Kommo valida la URL con GET/HEAD antes de guardar el webhook.
 router.get("/kommo/webhook", (_req, res) => {
   res.json({ ok: true, service: "lucy-kommo-webhook" });
 });
 
-router.post("/kommo/webhook", async (req: Request, res: Response) => {
+router.head("/kommo/webhook", (_req, res) => {
+  res.status(200).end();
+});
+
+router.post("/kommo/webhook", (req: Request, res: Response) => {
+  // Kommo exige HTTP 2xx en ≤2s. Si no, cuenta "respuesta inválida" y DESACTIVA el webhook.
+  // Voz/visión/Gemini van DESPUÉS del ACK; nunca bloquear esta respuesta.
+  res.status(200).json({ ok: true });
+  void processKommoWebhookAfterAck(req).catch((err: unknown) => {
+    req.log.error({ err }, "Kommo webhook: error tras ACK");
+  });
+});
+
+async function processKommoWebhookAfterAck(req: Request): Promise<void> {
   const log = req.log;
   const body = req.body as KommoWebhookBody;
+  const rawBody = (req.body ?? {}) as Record<string, unknown>;
+  const shape = webhookBodyShape(rawBody);
 
   // Credentials needed upfront: audio download requires the access token
   const subdomain =
@@ -2236,24 +2359,24 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
     process.env["KOMMO_SUBDOMAIN"]?.trim().replace(/\s+/g, "").toLowerCase() || "";
   const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";
 
-  const firstMessage = body?.message?.add?.[0];
-  const entityId = firstMessage?.entity_id ?? null;
-  const chatId = firstMessage?.chat_id ?? null;
-  const talkId = firstMessage?.talk_id ?? null;
-  const channelOrigin = extractChannelOriginFromMessage(firstMessage);
+  const firstMessage = extractKommoIncomingMessage(rawBody);
+  const entityId = extractKommoEntityId(firstMessage);
+  const chatId = extractKommoChatId(firstMessage);
+  const talkId = extractKommoTalkId(firstMessage);
+  const channelOrigin = extractChannelOriginFromMessage(
+    firstMessage as unknown as KommoMessageEntry | null
+  );
 
-  if (firstMessage && !isIncomingClientMessage(firstMessage as unknown as Record<string, unknown>)) {
-    log.info({ entityId, chatId, type: firstMessage.type }, "Webhook ignorado — mensaje saliente o interno");
-    res.status(200).json({ ok: true, skipped: "outgoing_or_internal" });
+  log.info({ shape, entityId, chatId, talkId }, "Kommo webhook shape");
+
+  if (firstMessage && !isIncomingClientMessage(firstMessage)) {
+    log.info({ entityId, chatId, type: firstMessage["type"] }, "Webhook ignorado — mensaje saliente o interno");
     return;
   }
 
-  const dedupKey = firstMessage
-    ? webhookMessageKey(firstMessage as unknown as Record<string, unknown>)
-    : null;
+  const dedupKey = firstMessage ? webhookMessageKey(firstMessage) : null;
   if (dedupKey && isDuplicateWebhookMessage(dedupKey)) {
     log.info({ dedupKey, entityId, chatId }, "Webhook duplicado ignorado — sin Vision ni nota");
-    res.status(200).json({ ok: true, skipped: "duplicate_message" });
     return;
   }
   if (dedupKey) markWebhookMessageProcessed(dedupKey);
@@ -2261,9 +2384,9 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
   // Resolve text: transcribes audio via Whisper (nota de voz) or analiza la
   // imagen con Vision cuando el mensaje trae un attachment de ese tipo.
   const messageData = firstMessage
-    ? await processMessage(firstMessage as unknown as Record<string, unknown>, accessToken, log)
+    ? await processMessage(firstMessage, accessToken, log)
     : { text: "", isVoice: false, isImage: false, mediaNote: null };
-  const text = messageData.text.trim();
+  const text = (messageData.text || extractKommoMessageText(firstMessage)).trim();
   const isVoice = messageData.isVoice;
   const isImage = messageData.isImage;
 
@@ -2291,70 +2414,100 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
     );
   }
 
-  if (!text || !chatId || !entityId) {
-    // Log the full raw message so we can diagnose unrecognized voice/media structures
-    if (firstMessage && !text) {
-      log.warn(
-        { rawMessage: firstMessage },
-        "Webhook recibido con texto vacío — posible nota de voz/imagen no detectada o tipo de media no soportado"
-      );
+  if (text && chatId && entityId) {
+    if (!subdomain || !accessToken) {
+      log.error("Missing subdomain or access token");
+      return;
     }
-    res.status(200).json({ ok: true, skipped: "Missing text, chat_id or entity_id" });
-    return;
-  }
-
-  // Respond immediately — never let Kommo time out
-  res.json({ ok: true });
-
-  if (!subdomain || !accessToken) {
-    log.error("Missing subdomain or access token");
-    return;
-  }
-
-  // Debounce: accumulate messages from the same chat
-  const existing = pendingBatches.get(chatId);
-
-  if (existing) {
-    clearTimeout(existing.timer);
-    existing.texts.push(text);
-    existing.entityId = entityId;
-    existing.talkId = talkId;
-    if (channelOrigin) existing.channelOrigin = channelOrigin;
-    existing.isVoice = existing.isVoice || isVoice; // sticky: if any message in batch was voice
-    existing.isImage = existing.isImage || isImage; // sticky: if any message in batch was an image
-    log.info({ chatId, buffered: existing.texts.length }, "Message added to pending batch");
-    existing.timer = setTimeout(() => {
-      pendingBatches.delete(chatId);
-      processBatch(existing, accessToken, log).catch((err) => {
-        log.error({ err }, "Error in processBatch");
-      });
-    }, DEBOUNCE_MS);
-  } else {
-    const timer = setTimeout(() => {
-      pendingBatches.delete(chatId);
-      processBatch(batch, accessToken, log).catch((err) => {
-        log.error({ err }, "Error in processBatch");
-      });
-    }, DEBOUNCE_MS);
-
-    const batch: PendingBatch = {
-      texts: [text],
+    queueIncomingBatch({
+      text,
       entityId,
       chatId,
       talkId,
       subdomain,
+      accessToken,
       isVoice,
       isImage,
       channelOrigin,
-      timer,
-    };
-    pendingBatches.set(chatId, batch);
-    log.info(
-      { chatId, debounceMs: DEBOUNCE_MS, isVoice, isImage, channelOrigin },
-      "New batch started, waiting for more messages"
-    );
+      log,
+    });
+    return;
   }
-});
+
+  const unsorted = extractKommoUnsortedAdd(rawBody);
+  if (unsorted && isChatUnsortedCategory(unsorted["category"])) {
+    const uid = String(unsorted["uid"] ?? "").trim();
+    const unsortedLeadId = extractKommoEntityId(unsorted);
+    log.info({ uid, unsortedLeadId, category: unsorted["category"] }, "Webhook Incoming Lead (unsorted)");
+    if (uid && subdomain && accessToken) {
+      void (async () => {
+        const acceptedId = await acceptUnsortedLead(subdomain, accessToken, uid);
+        const leadId = acceptedId ?? unsortedLeadId;
+        if (!leadId) return;
+        const lead = await fetchLead(subdomain, accessToken, leadId);
+        const cid = lead?.chatId;
+        if (!cid) {
+          log.warn({ leadId }, "Incoming Lead aceptado pero sin chat_id — Lucy no puede escribir aún");
+          return;
+        }
+        const userText =
+          (talkId ? await lastUserTextFromTalk(subdomain, accessToken, talkId) : "") ||
+          extractKommoMessageText(unsorted) ||
+          "Hola";
+        queueIncomingBatch({
+          text: userText,
+          entityId: leadId,
+          chatId: cid,
+          talkId: talkId,
+          subdomain,
+          accessToken,
+          isVoice: false,
+          isImage: false,
+          channelOrigin: null,
+          log,
+        });
+      })().catch((err: unknown) => log.warn({ err }, "unsorted_accept falló"));
+    }
+    return;
+  }
+
+  const talkAdd = extractKommoTalkAdd(rawBody);
+  if (talkAdd) {
+    const talkEntity = extractKommoEntityId(talkAdd);
+    const talkChat = extractKommoChatId(talkAdd);
+    const talkIdNew = extractKommoTalkId(talkAdd);
+    log.info({ talkEntity, talkChat, talkIdNew }, "Webhook talk.add");
+    if (talkEntity && talkChat && subdomain && accessToken) {
+      void (async () => {
+        await acceptUnsortedForLeadId(subdomain, accessToken, talkEntity);
+        const userText =
+          (talkIdNew ? await lastUserTextFromTalk(subdomain, accessToken, talkIdNew) : "") || "Hola";
+        queueIncomingBatch({
+          text: userText,
+          entityId: talkEntity,
+          chatId: talkChat,
+          talkId: talkIdNew,
+          subdomain,
+          accessToken,
+          isVoice: false,
+          isImage: false,
+          channelOrigin: null,
+          log,
+        });
+      })().catch((err: unknown) => log.warn({ err }, "talk_add falló"));
+    }
+    return;
+  }
+
+  if (firstMessage && !text) {
+    log.warn(
+      { rawMessage: firstMessage, shape },
+      "Webhook recibido con texto vacío — posible nota de voz/imagen no detectada o tipo de media no soportado"
+    );
+  } else {
+    log.warn({ shape }, "Webhook Kommo sin mensaje procesable");
+  }
+}
 
 // ─── Salesbot webhook route (synchronous — Kommo waits for response) ──────────
 // Configure in Kommo Salesbot: action "Llamar webhook" → POST /api/kommo/salesbot
@@ -2606,7 +2759,9 @@ router.get("/kommo/pipeline-change", (_req, res) => {
   res.json({ ok: true, service: "lucy-kommo-pipeline-change" });
 });
 
-router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
+router.post("/kommo/pipeline-change", (req: Request, res: Response) => {
+  res.status(200).json({ ok: true });
+  void (async () => {
   const log = req.log;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const body = req.body as Record<string, any>;
@@ -2621,7 +2776,6 @@ router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
 
   if (!leadId || !newStatusId) {
     log.warn({ body }, "Pipeline-change: no se pudo extraer leadId o statusId");
-    res.json({ ok: true, skipped: "missing_fields" });
     return;
   }
 
@@ -2674,8 +2828,7 @@ router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
       log.error({ err, leadId }, "Pipeline-change: error programando seguimiento");
     }
   }
-
-  res.json({ ok: true });
+  })().catch((err: unknown) => req.log.error({ err }, "Pipeline-change: error tras ACK"));
 });
 
 // ─── Cron endpoints (para UptimeRobot u otro servicio externo) ───────────────
@@ -2725,6 +2878,22 @@ router.get("/kommo/cron/ventanas24h", async (req: Request, res: Response) => {
     res.json({ ok: true });
   } catch (err) {
     req.log.error({ err }, "Cron ventanas24h: error");
+    res.status(500).json({ error: "cron_failed" });
+  }
+});
+
+router.get("/kommo/cron/recover-incoming", async (req: Request, res: Response) => {
+  if (!assertCronAuthorized(req, res)) return;
+  const subdomain = process.env["KOMMO_SUBDOMAIN"]?.trim().replace(/\s+/g, "").toLowerCase() ?? "";
+  const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";
+  const hours = Number(req.query.hours ?? 15);
+  try {
+    const { recoverStuckIncomingLeads } = await import("../services/incomingLeadRecovery.js");
+    const result = await recoverStuckIncomingLeads({ subdomain, accessToken, hours });
+    req.log.info(result, "Cron recover-incoming terminado");
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    req.log.error({ err }, "Cron recover-incoming: error");
     res.status(500).json({ error: "cron_failed" });
   }
 });

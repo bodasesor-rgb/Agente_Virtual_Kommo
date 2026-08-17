@@ -277,9 +277,15 @@ export async function processMessage(
     };
   }
 
+  const nested = message["message"];
+  const nestedText =
+    nested && typeof nested === "object"
+      ? String((nested as Record<string, unknown>)["text"] ?? "")
+      : "";
   const text =
     (typeof message["text"] === "string" && message["text"]) ||
     (typeof message["message"] === "string" && message["message"]) ||
+    nestedText ||
     "";
   return { text, isVoice: false, isImage: false, mediaNote: null };
 }
