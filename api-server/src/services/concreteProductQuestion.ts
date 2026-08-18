@@ -82,12 +82,23 @@ export function clientAsksForPhotos(message?: string): boolean {
 export function clientAsksAboutLighting(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  return (
-    /\b(luz|luces|iluminaci[oó]n|iluminada?s?|leds?|luminarias?)\b/i.test(t) &&
-    (/\b(carpa|toldo|lona|pista|tarima|montaje|cuenta|cuentan|tienen|tienes|incluye|trae)\b/i.test(
+  // A15383: percusión LED / mariachi / baile ≠ iluminación de carpa o pista.
+  if (
+    /\b(percusi[oó]n|mariachis?|baile\s+regional|folkl[oó]rico|entretenimiento|espect[aá]culos?|robots?\s*leds?)\b/i.test(
       t
-    ) ||
-      /\?/.test(message))
+    )
+  ) {
+    return false;
+  }
+  const hasLightWord = /\b(luz|luces|iluminaci[oó]n|iluminada?s?|luminarias?)\b/i.test(t);
+  const ledAsVenueLight =
+    /\bleds?\b/i.test(t) &&
+    /\b(carpa|toldo|lona|pista|tarima|montaje|iluminaci)\b/i.test(t);
+  if (!hasLightWord && !ledAsVenueLight) return false;
+  return (
+    /\b(carpa|toldo|lona|pista|tarima|montaje|cuenta|cuentan|tienen|tienes|incluye|trae)\b/i.test(
+      t
+    ) || /\?/.test(message)
   );
 }
 

@@ -73,6 +73,7 @@ import {
   isReferentialPriorAnswer,
   clientComplainsAboutRepeat,
   recoverCorreoFromUserTexts,
+  recoverZonaFromUserTexts,
   isRichQuoteBrief,
   clientAsksToRereadBrief,
   clientAsksDistributorPricing,
@@ -175,6 +176,7 @@ import {
   buildPostCierrePaymentHandoffReply,
   clientAsksPaymentOrQuoteDelivery,
   dedupeTransitionsInMessage,
+  collapseRepeatedSentences,
   stripPrematureCelebrationFluff,
   buildStandardClosingMessage,
   buildMultiServicePackageReply,
@@ -11162,7 +11164,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.35 — primer turno banquete: catálogo + pregunta embudo (Allison A15370) ───
   await test("133. V9.35 — banquete Torreón primer turno pide fecha/invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.40");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.41");
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -11186,7 +11188,7 @@ async function runAll(): Promise<void> {
       history: [{ role: "user", content: "Hola, me interesa cotizar: Banquete 3 Tiempos Torreón" }],
     });
     assert.ok(
-      /fecha|cu[aá]ndo|d[ií]a|invitados|correo|e-?mail/i.test(reply),
+      /fecha|cu[aá]ndo|d[ií]a|invitados|correo|e-?mail|cu[aá]nt[oa]s|personas/i.test(reply),
       `debe pedir dato del embudo: ${reply.slice(0, 500)}`
     );
     assert.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
@@ -11194,7 +11196,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.36 — no cortar el chat (Isai A15378) ───
   await test("134. V9.36 — Isai: no cierra, no confunde nombre con ciudad, urgencia ≠ teléfono", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.40");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.41");
     assert.equal(parseZonaFromText("Isai Moreno"), null);
     assert.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -11321,7 +11323,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.40");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.41");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
@@ -11398,7 +11400,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("135. V9.38 — comprobante en imagen: primer pago Anticipo, segundo Liquidación", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.40");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.41");
     assert.equal(FIELD_ANTICIPO, 1049322);
     assert.equal(FIELD_LIQUIDACION, 1049324);
 
@@ -11470,7 +11472,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("136. V9.40 — A15380 invitados no se saltan; Coyoacán+colonia; Claro no es nombre", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.40");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.41");
     const horario = "hola si se haría el 26 de septiembre pero aún no tenemos definido el horario";
     assert.equal(parseInvitadosFromText(horario), null, "horario pendiente ≠ invitados");
     const caps = scanConversationForCaptures([], horario, new Set(["Nombre del cliente"]));
@@ -11580,6 +11582,157 @@ async function runAll(): Promise<void> {
       new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"])
     );
     assert.equal(taquizaNext, "invitados");
+  });
+
+  await test("138. V9.41 — A15383 Kelia: ciudad, banquetes, LED≠luz, no spam (todas las ramas)", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.41");
+
+    const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
+    assert.match(hornoMty, /horno\s*3/i, hornoMty);
+    assert.match(hornoMty, /monterrey/i, hornoMty);
+    assert.ok(isVenueWithoutCity("Horno 3"));
+    assert.ok(!isUsableDireccionEvento("Horno 3"));
+    assert.ok(isUsableDireccionEvento(hornoMty));
+    assert.ok(isUsableDireccionEvento("Monterrey"));
+    assert.match(recoverZonaFromUserTexts(["En horno 3 Monterrey"], "Monterrey") ?? "", /monterrey/i);
+
+    assert.equal(parsePresupuestoFromText("Si 5 de octubre 2027"), null);
+    assert.match(parsePresupuestoFromText("Opción completa por favor") ?? "", /propong/i);
+    assert.equal(parseInvitadosFromText("Me gustaría menú de tres tiempos - high end"), null);
+    assert.ok(isUnusableTipoEventoReply("Hola Lucy"));
+    assert.ok(!isUnusableTipoEventoReply("Es un evento corporativo"));
+
+    const tipoCaps = captureContextualAnswer(
+      [{ role: "assistant", content: "¿Qué tipo de evento tienen planeado realizar?" }],
+      "Hola Lucy",
+      new Set(["Nombre del cliente"])
+    );
+    assert.equal(tipoCaps.find((c) => c.label === "Tipo de evento"), undefined);
+
+    const spam =
+      "Platícame qué te gustaría armar para el evento. Platícame qué te gustaría armar para el evento. Platícame qué te gustaría armar para el evento. Platícame qué te gustaría armar para el evento.";
+    const collapsed = collapseRepeatedSentences(spam);
+    assert.equal((collapsed.match(/Platícame/gi) ?? []).length, 1, collapsed);
+
+    const mariachiMsg =
+      "Si me gustaría algún baile regional, los de percusión con led, algún grupo más básico, manejan mariachis?";
+    assert.equal(clientAsksAboutLighting(mariachiMsg), false);
+    assert.ok(clientMentionsEntertainment(mariachiMsg));
+    assert.ok(parseServicesFromText(mariachiMsg).some((s) => /mariachi|baile regional|robots led/i.test(s)));
+
+    const banquetQ = "En cuanto a banquetes que opciones manejan?";
+    assert.ok(parseServicesFromText(banquetQ).includes("Banquete Formal"));
+    const banquetAck = buildGuardServiceAck(banquetQ);
+    assert.ok(!/\*En cuanto a banquetes/i.test(banquetAck), banquetAck.slice(0, 240));
+    assert.ok(/formal|mexicano|tiempos/i.test(banquetAck), banquetAck.slice(0, 400));
+    const banquetGuard = runGuards({
+      aiResponse:
+        "¡Claro! *En cuanto a banquetes que opciones manejan?* la anoto para tu cotización. Para *comida* del evento, ¿qué te gustaría?",
+      extracted: emptyExtracted({
+        nombre: "Kelia Zazueta",
+        tipo_evento: "evento corporativo",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: banquetQ,
+      history: [
+        {
+          role: "assistant",
+          content: "¿Qué te gustaría revisar primero para empezar a armar tu propuesta?",
+        },
+      ],
+    });
+    assert.ok(!/\*En cuanto a banquetes/i.test(banquetGuard), banquetGuard.slice(0, 280));
+    assert.ok(/formal|mexicano|tiempos|banquete/i.test(banquetGuard), banquetGuard.slice(0, 400));
+    assert.ok(
+      clientChoseBanqueteFormal(
+        "Me gustaría menú de tres tiempos - considerando que es un perfil de cliente high end"
+      )
+    );
+
+    const mergedSvc = mergeServiceRequirements("Banquete Formal", mariachiMsg, 6) ?? "";
+    assert.match(mergedSvc, /banquete/i);
+    assert.ok(/mariachi|baile|animaci|robots/i.test(mergedSvc), mergedSvc);
+
+    const filledCity = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Fecha y horario",
+      "Lugar/dirección del evento",
+      "Correo electrónico",
+      "Número de invitados",
+    ]);
+    const extractedCity = emptyExtracted({
+      nombre: "Kelia Zazueta",
+      tipo_evento: "evento corporativo",
+      requerimientos_evento: "Banquete Formal",
+      fecha_horario: "5 de octubre 2027",
+      direccion_evento: "Horno 3, Monterrey",
+      correo: "kelia.zazueta@dmsmexico.com",
+      num_invitados: 40,
+    });
+    const noCityAgain = runGuards({
+      aiResponse: "Perfecto. Kelia, ¿ya tienen ciudad del evento?",
+      extracted: extractedCity,
+      filledSet: filledCity,
+      readyForClosing: false,
+      currentMessage: "40 aproximadamente",
+      history: [
+        { role: "user", content: "En horno 3 Monterrey" },
+        { role: "assistant", content: "¿Me confirmas la *ciudad* del evento?" },
+        { role: "user", content: "Monterrey" },
+        { role: "assistant", content: "¿cuántos invitados tienen contemplados aproximadamente?" },
+      ],
+    });
+    assert.ok(!/ciudad del evento|en qu[eé] ciudad/i.test(noCityAgain), noCityAgain.slice(0, 400));
+
+    const entReply = runGuards({
+      aiResponse: "Buena pregunta sobre iluminación — eso lo confirmo con nuestro equipo para darte el dato exacto.",
+      extracted: emptyExtracted({
+        nombre: "Kelia Zazueta",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Banquete Formal",
+        fecha_horario: "5 de octubre 2027",
+        direccion_evento: "Horno 3, Monterrey",
+        correo: "kelia.zazueta@dmsmexico.com",
+        num_invitados: 40,
+      }),
+      filledSet: new Set(filledCity),
+      readyForClosing: false,
+      currentMessage: mariachiMsg,
+      history: [{ role: "assistant", content: "¿Buscas show en vivo, hora loca, o ya tienes un formato en mente?" }],
+    });
+    assert.ok(!/iluminaci[oó]n/i.test(entReply), entReply.slice(0, 400));
+    assert.ok(/mariachi|baile regional|percusi|entretenimiento/i.test(entReply), entReply.slice(0, 400));
+
+    const tiemposReply = runGuards({
+      aiResponse: "¿Quieres que te dé detalles de alguno?",
+      extracted: emptyExtracted({
+        nombre: "Kelia Zazueta",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Banquete Formal",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage:
+        "Me gustaría menú de tres tiempos - considerando que es un perfil de cliente high end",
+      history: [
+        {
+          role: "assistant",
+          content: "Para comida del evento, ¿qué te gustaría? Banquete formal o algo más casual.",
+        },
+      ],
+    });
+    assert.ok(/formal|mexicano|tiempos|\$/i.test(tiemposReply), tiemposReply.slice(0, 500));
+    assert.ok(
+      /fecha|cu[aá]ndo|d[ií]a|invitados|correo|e-?mail|cu[aá]nt[oa]s|personas/i.test(tiemposReply),
+      `3 tiempos debe seguir el embudo: ${tiemposReply.slice(-280)}`
+    );
+    assert.ok((tiemposReply.match(/Platícame/gi) ?? []).length <= 1);
+
+    const nameSpam = dedupeTransitionsInMessage("Perfecto, Kelia. Listo. Kelia, ¿en qué ciudad sería?");
+    assert.ok(!/Listo\.\s*Kelia/i.test(nameSpam), nameSpam);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

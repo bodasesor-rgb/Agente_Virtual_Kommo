@@ -64,7 +64,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   // A15210: bare "mexicano" en "desayuno temático mexicano" ≠ Banquete Mexicano.
   // Banquete: "banquete mexicano", "mexicano N tiempos", o "mexicano" suelto (elección de menú).
   ["Banquete Mexicano", /\bbanquete\s+mexicano\b|\bmexicano\s+\d\s*tiempos?\b|\b\d\s*tiempos?\s+mexicanos?\b/i],
-  ["Banquete Formal", /\b(banquete\s+formal|banquete)\b/i],
+  ["Banquete Formal", /\b(banquete\s+formal|banquetes?)\b/i],
   // Barras específicas ANTES de genéricas (A14934 Barra Yucateca).
   ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
   // "americano" (bebida) ≠ Barra Americana (A14970).
@@ -108,6 +108,8 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Menú Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/iu],
   ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
   ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
+  ["Mariachi", /\bmariachis?\b/i],
+  ["Baile regional", /\bbaile\s+regional\b|\bfolkl[oó]rico\b/i],
   ["Animación / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|shows?|pixel|espejos|l[aá]ser|laser)\b/i],
   // A15003 Juan: photo booth / cabina de fotos (entretenimiento).
   ["Photo Booth", /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i],
@@ -117,7 +119,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   // A14988 Ernesto: bailarinas / dancers = entretenimiento (no oferta genérica Nivel 1).
   ["Bailarinas", /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i],
   // A14962: robots LED / batucada = entretenimiento, NUNCA banquete.
-  ["Robots LED", /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i],
+  ["Robots LED", /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b|\bpercusi[oó]n.{0,24}leds?\b|\bleds?.{0,24}percusi[oó]n\b/i],
   ["Batucada", /\bbatucada\b|\bambienta(?:r|ci[oó]n)\b.{0,40}\bbatucada\b|\bbatucada\b.{0,40}\bambient/i],
   ["Maestro de ceremonias", /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador(\s+de\s+eventos?)?)\b/i],
   ["Iluminación", /\biluminaci[oó]n\b/i],
@@ -1003,7 +1005,10 @@ export function clientMentionsEntertainment(message?: string): boolean {
     /\bshows?\b/i.test(t) ||
     /\bgrupo\s+vers[aá]til\b/i.test(t) ||
     /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t) ||
-    /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t) ||
+    /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento|espect[aá]culos?)\b/i.test(t) ||
+    /\bmariachis?\b|\bbaile\s+regional\b|\bfolkl[oó]rico\b/i.test(t) ||
+    /\bpercusi[oó]n.{0,24}leds?\b|\bleds?.{0,24}percusi[oó]n\b/i.test(t) ||
+    /\bgrupo\s+(vers[aá]til|b[aá]sico|m[aá]s\s+b[aá]sico)\b/i.test(t) ||
     /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t) ||
     /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(shows?|maestro|animaci)/i.test(t) ||
     // A14962 Vane: batucada / robots LED / ambientación de show
@@ -1086,6 +1091,7 @@ export function clientMentionsLedRobotsOrBatucada(message?: string): boolean {
   return (
     /\bbatucada\b/i.test(message) ||
     /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(message) ||
+    /\bpercusi[oó]n.{0,24}leds?\b|\bleds?.{0,24}percusi[oó]n\b/i.test(message) ||
     /\bambienta(?:r|ci[oó]n)\b.{0,50}\bbatucada\b/i.test(message)
   );
 }
@@ -1849,9 +1855,14 @@ export function extractVenueNameHint(text: string | null | undefined): string | 
   const t = (text ?? "").trim();
   if (!t) return null;
   const m = t.match(VENUE_NAME_PATTERN);
-  if (!m?.[1]) return null;
-  const venue = m[1].trim().replace(/[.,;:]+$/g, "").trim();
-  return venue.length >= 4 ? venue : null;
+  if (m?.[1]) {
+    const venue = m[1].trim().replace(/[.,;:]+$/g, "").trim();
+    if (venue.length >= 4) return venue;
+  }
+  // A15383: Horno 3 (Fundidora / Monterrey) no está en salon|hotel|hacienda.
+  const horno = t.match(/\bhorno\s*(\d+)\b/i);
+  if (horno) return `Horno ${horno[1]}`;
+  return null;
 }
 
 /**
@@ -1861,7 +1872,7 @@ export function extractVenueNameHint(text: string | null | undefined): string | 
 export function isVenueWithoutCity(text: string | null | undefined): boolean {
   const t = (text ?? "").trim();
   if (!t) return false;
-  if (hasCityOrMetroSignal(t)) return false;
+  if (hasCityOrMetroSignal(t) || KNOWN_ZONES.test(t)) return false;
   if (
     /\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club|expo|centro\s+(de\s+)?(convenciones|cultural)|venue)\b/i.test(
       t
@@ -1869,6 +1880,8 @@ export function isVenueWithoutCity(text: string | null | undefined): boolean {
   ) {
     return true;
   }
+  // A15383: "Horno 3" es recinto, no ciudad.
+  if (/\bhorno\s*\d+\b/i.test(t)) return true;
   return false;
 }
 
@@ -2738,6 +2751,22 @@ export function clientComplainsAboutRepeat(message?: string | null): boolean {
   );
 }
 
+/** Recupera ciudad/zona del historial (A15383: Horno 3 + Monterrey no se pierde). */
+export function recoverZonaFromUserTexts(
+  texts: string[],
+  currentMessage?: string | null
+): string | null {
+  const blob = [...texts, currentMessage ?? ""].filter(Boolean);
+  let best: string | null = null;
+  for (const msg of blob) {
+    const z = parseZonaFromText(msg);
+    if (!z || !isUsableDireccionEvento(z)) continue;
+    if (!hasCityOrMetroSignal(z) && !KNOWN_ZONES.test(z)) continue;
+    best = mergeZonaDetail(best, z);
+  }
+  return best && isUsableDireccionEvento(best) ? best : null;
+}
+
 /** Recupera correo del historial / mensaje (campo no durable en Kommo). */
 export function recoverCorreoFromUserTexts(
   texts: string[],
@@ -2769,6 +2798,15 @@ export function isUnusableTipoEventoReply(text: string | null | undefined): bool
   ) {
     return true;
   }
+  // A15383: "Hola Lucy" / saludos no son tipo de evento.
+  if (
+    isGreetingOnlyMessage(t) ||
+    /^(hola|hello|hi|hey)[,!]?\s+lucy\b/i.test(t) ||
+    /^(hola|hello|hi|hey|buenas?|buen\s+d[ií]a)(\s+lucy)?[\s.!]*$/i.test(n)
+  ) {
+    return true;
+  }
+  if (/\?/.test(t) && t.length <= 80 && !parseTipoEventoFromText(t)) return true;
   if (clientComplainsAboutRepeat(t) || isReferentialPriorAnswer(t)) return true;
   if (parseCorreoFromText(t)) return true;
   return false;
@@ -2839,6 +2877,17 @@ function messageIsAboutScheduleOrPlaceNotGuests(text: string): boolean {
 export function parseInvitadosFromText(text: string, opts?: InvitadosParseOptions): string | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
+
+  // A15383: "menú de tres tiempos" / "Horno 3" ≠ 3 invitados.
+  if (
+    /\b(\d|dos|tres|cuatro)\s*tiempos?\b/i.test(trimmed) &&
+    !/\b(personas?|invitados?|pax|guests?)\b/i.test(trimmed)
+  ) {
+    return null;
+  }
+  if (/\bhorno\s*\d+\b/i.test(trimmed) && !/\b(personas?|invitados?|pax)\b/i.test(trimmed)) {
+    return null;
+  }
 
   // "N personas/invitados" siempre, aunque el brief también nombre servicios.
   const numMatchEarly = trimmed.match(
@@ -3293,7 +3342,15 @@ export function parseZonaFromText(text: string): string | null {
 
   if (KNOWN_ZONES.test(trimmed)) {
     const m = trimmed.match(KNOWN_ZONES);
-    if (m && isUsableDireccionEvento(m[0]!.trim())) return m[0]!.trim();
+    if (m && isUsableDireccionEvento(m[0]!.trim())) {
+      const city = m[0]!.trim();
+      const venue = extractVenueNameHint(trimmed);
+      if (venue && !KNOWN_ZONES.test(venue) && !hasCityOrMetroSignal(venue)) {
+        const composed = mergeZonaDetail(venue, city);
+        if (composed && isUsableDireccionEvento(composed)) return composed;
+      }
+      return city;
+    }
   }
 
   // "colonia Roma", "delegación Coyoacán", "alcaldía Benito Juárez", "fraccionamiento X"
@@ -3490,7 +3547,7 @@ export function isServiceLabelNotTipoEvento(label: string | null | undefined): b
 export function parseFechaFromText(text: string): string | null {
   const trimmed = text.trim();
   const fechaMatch = trimmed.match(
-    /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+de\s+\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
+    /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
   );
   if (fechaMatch) {
     const base = fechaMatch[1]!;
@@ -3648,6 +3705,7 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
   if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
   if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t)) return true;
   if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t)) return true;
+  if (/\bopci[oó]n\s+completa\b/i.test(t) || /\bpropuesta\s+completa\b/i.test(t)) return true;
   // A15298: "Me gustaría una propuesta mamita" / "Por favor una propuesta"
   // = que el equipo arme cotización (waiver), no un monto.
   if (
@@ -3808,6 +3866,14 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
   }
 
   if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(trimmed)) {
+    return "Sin definir (cliente pidió que propongamos)";
+  }
+
+  // A15383: "Opción completa por favor" = que el equipo arme la propuesta.
+  if (
+    /\bopci[oó]n\s+completa\b/i.test(trimmed) ||
+    /\bpropuesta\s+completa\b/i.test(trimmed)
+  ) {
     return "Sin definir (cliente pidió que propongamos)";
   }
 
@@ -4052,19 +4118,19 @@ export function captureContextualAnswer(
   }
 
   const zonaFromMsg = parseZonaFromText(msg);
-  const msgIsLocation =
-    !carpaVariant &&
-    asked !== "nombre" &&
-    asked !== "correo" &&
+  const msgLooksLikePlace =
     !!zonaFromMsg &&
     isUsableDireccionEvento(zonaFromMsg) &&
-    !looksLikePersonFullName(msg) &&
     (isLikelyUbicacionNotNombre(msg) ||
       asked === "zona" ||
       /^en\s+/i.test(msg.trim()) ||
-      (msg.trim().split(/\s+/).length <= 4 &&
-        !!zonaFromMsg &&
+      (msg.trim().split(/\s+/).length <= 8 &&
         (hasCityOrMetroSignal(msg) || KNOWN_ZONES.test(msg))));
+  const msgIsLocation =
+    !carpaVariant &&
+    asked !== "nombre" &&
+    msgLooksLikePlace &&
+    !looksLikePersonFullName(msg);
 
   if (msgIsLocation && zonaFromMsg && !filledSet.has("Lugar/dirección del evento")) {
     captures.push({ label: "Lugar/dirección del evento", value: zonaFromMsg });

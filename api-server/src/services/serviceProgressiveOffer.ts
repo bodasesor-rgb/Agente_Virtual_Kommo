@@ -481,7 +481,11 @@ export function clientChoseBanqueteFormal(text: string | null | undefined): bool
   return (
     /\b(quiero|busco|prefiero|mejor|me\s+late|el|un|una)?\s*(banquete|formal)\b/i.test(t) ||
     /^(banquete|formal|el\s+banquete|m[aá]s\s+formal)[\s.!]*$/i.test(t) ||
-    /\bbanquete\s+(formal|mexicano|kosher|navide)/i.test(t)
+    /\bbanquete\s+(formal|mexicano|kosher|navide)/i.test(t) ||
+    // A15383: "menú de tres tiempos" / high-end en contexto de comida = Banquete Formal.
+    /\b(men[uú]\s+de\s+)?(\d|dos|tres|cuatro)\s*tiempos?\b/i.test(t) ||
+    (/\b(high\s*end|high-end|premium)\b/i.test(t) &&
+      /\b(men[uú]|tiempos?|banquete|comida|perfil\s+de\s+cliente)\b/i.test(t))
   );
 }
 

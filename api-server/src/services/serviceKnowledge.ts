@@ -51,7 +51,11 @@ const EVENT_CONTEXT_PATTERN =
 export function serviceLabelFromQuery(query: string): string {
   const trimmed = query.trim();
   if (!trimmed) return "ese servicio";
-  return parsePrimaryService(trimmed) ?? trimmed.slice(0, 80);
+  const parsed = parsePrimaryService(trimmed);
+  if (parsed) return parsed;
+  // A15383: nunca citar la pregunta del cliente como SKU (*¿qué opciones manejan?*).
+  if (/[¿?]/.test(trimmed) || trimmed.length > 60) return "ese servicio";
+  return trimmed.slice(0, 80);
 }
 
 export function isDubiousNonEventRequest(query: string): boolean {
@@ -320,7 +324,13 @@ export function buildGuardServiceAck(query: string): string {
     );
   }
 
-  // A15165: show / animación — no Level-2 vacío; orientar + hub.
+  // A15383: "¿qué opciones de banquetes manejan?" → menú real, no Level-2 citando la pregunta.
+  if (
+    /\bbanquetes?\b/i.test(query) &&
+    /\b(opciones?|manejan|tienen|ofrecen|men[uú]|qu[eé]\s+incluye)\b/i.test(query)
+  ) {
+    return buildProgressiveOptionsMenu("banquete", query);
+  }
   if (
     /\bshows?\b|\banimaci[oó]n\b|\bhora\s+loca\b|\bentretenimiento\b/i.test(query)
   ) {

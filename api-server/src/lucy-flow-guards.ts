@@ -177,6 +177,8 @@ import {
   clientAsksBanqueteVsTaquiza,
   parseCorreoFromText,
   recoverCorreoFromUserTexts,
+  recoverZonaFromUserTexts,
+  isUnusableTipoEventoReply,
   isReferentialPriorAnswer,
   clientComplainsAboutRepeat,
   clientMentionsCatering,
@@ -365,6 +367,11 @@ export function syncFilledFromExtracted(filledSet: Set<string>, extracted: Extra
     } else {
       filledSet.add("Lugar/dirección del evento");
     }
+  }
+  const presStr = String(extracted.presupuesto ?? "").trim();
+  if (/^(19|20)\d{2}$/.test(presStr)) {
+    extracted.presupuesto = null;
+    filledSet.delete("Presupuesto (MXN)");
   }
   if (extracted.fecha_horario?.trim()) filledSet.add("Fecha y horario");
   if (extracted.num_invitados) filledSet.add("Número de invitados");
@@ -1472,7 +1479,12 @@ function buildEntertainmentSalesReply(
   const wantsMc = /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(
     msg
   );
-  const wantsRobots = /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(msg);
+  const wantsRobots =
+    /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b|\bpercusi[oó]n.{0,24}leds?\b/i.test(
+      msg
+    );
+  const wantsMariachi = /\bmariachis?\b/i.test(msg);
+  const wantsRegionalDance = /\bbaile\s+regional\b|\bfolkl[oó]rico\b/i.test(msg);
   const wantsBatucada = /\bbatucada\b/i.test(msg);
   // A14988: bailarinas / dancers para concierto u otro evento.
   const wantsBailarinas = /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(msg);
@@ -1489,6 +1501,8 @@ function buildEntertainmentSalesReply(
     (services.length ? services.join(", ") : null) ||
     (wantsPhotoBooth ? "Photo Booth" : null) ||
     specialActLabel ||
+    (wantsMariachi ? "Mariachi" : null) ||
+    (wantsRegionalDance ? "Baile regional" : null) ||
     (wantsBailarinas ? "Bailarinas" : null) ||
     (wantsRobots ? "Robots LED" : null) ||
     (wantsBatucada ? "Batucada" : null) ||
@@ -1505,6 +1519,15 @@ function buildEntertainmentSalesReply(
   if (wantsPhotoBooth) {
     intro = `Perfecto — anoto *Photo Booth* (cabina de fotos) para ${eventLabel}.`;
     ideas = "El equipo te confirma modelos, props, fondo y tiempo de renta.";
+  } else if (wantsMariachi || wantsRegionalDance) {
+    const bits = [
+      wantsRegionalDance ? "baile regional" : null,
+      wantsRobots ? "percusión con LED" : null,
+      wantsMariachi ? "mariachi" : null,
+    ].filter(Boolean);
+    intro = `Sí — para ${eventLabel} manejamos ${bits.join(", ")} y grupos versátiles.`;
+    ideas =
+      "El equipo arma formato y duración según el perfil VIP. Te dejo el catálogo de entretenimiento para que veas opciones.";
   } else if (wantsSpecialAct) {
     const act = specialActLabel || "ese show / acto";
     intro = `Perfecto — anoto *${act}* para ${eventLabel}.`;
@@ -1542,11 +1565,20 @@ function buildEntertainmentSalesReply(
       ...services,
       ...(wantsPhotoBooth ? ["Photo Booth"] : []),
       ...(wantsSpecialAct && specialActLabel ? [specialActLabel] : []),
+      ...(wantsMariachi ? ["Mariachi"] : []),
+      ...(wantsRegionalDance ? ["Baile regional"] : []),
       ...(wantsBailarinas ? ["Bailarinas", "Animación / Hora loca"] : []),
       ...(wantsRobots ? ["Robots LED"] : []),
       ...(wantsBatucada ? ["Batucada"] : []),
       ...(wantsMc ? ["Maestro de ceremonias"] : []),
-      ...(!wantsPhotoBooth && !wantsSpecialAct && !wantsBailarinas && !wantsRobots && !wantsBatucada && !wantsMc
+      ...(!wantsPhotoBooth &&
+      !wantsSpecialAct &&
+      !wantsMariachi &&
+      !wantsRegionalDance &&
+      !wantsBailarinas &&
+      !wantsRobots &&
+      !wantsBatucada &&
+      !wantsMc
         ? ["Animación / Hora loca", "show"]
         : []),
     ],
@@ -2280,6 +2312,15 @@ export function dedupeTransitionsInMessage(mensaje: string): string {
   out = out.replace(
     /(¡?Mucho gusto,\s*[^!]{1,40}!)\s*(?:¡?\s*)?(?:Qu[eé]\s+emoción|Qu[eé]\s+padre|Qu[eé]\s+bonito|Felicidades)(?:\s*,\s*(?:felicidades|qu[eé]\s+emoción))?[^.?!]{0,40}[.!]?\s*/gi,
     "$1 "
+  );
+  // A15383: "Perfecto, Kelia. Listo. Kelia, ¿en qué ciudad?"
+  out = out.replace(
+    /\b(Perfecto|Excelente|Genial|Listo|Claro),\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+(?:Listo|Perfecto)\.\s+\2[,.]/gi,
+    "$1, $2."
+  );
+  out = out.replace(
+    /\b(Perfecto|Excelente|Genial|Listo),\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+\2[,.]/gi,
+    "$1, $2."
   );
   return out.replace(/\s{2,}/g, " ").trim();
 }
@@ -3179,11 +3220,12 @@ function justAnsweredReqContext(currentMessage: string, aiResponse: string): boo
 /** Si hay texto útil sin pregunta, añade la pregunta pendiente en lugar de reemplazar todo. */
 /** Si el mensaje pregunta el mismo campo dos veces, deja solo la primera. */
 function collapseDuplicateFieldQuestions(mensaje: string, field: PendingField): string {
-  const blocks = mensaje
+  const collapsed = collapseRepeatedSentences(mensaje);
+  const blocks = collapsed
     .split(/\n{2,}/)
     .map((b) => b.trim())
     .filter(Boolean);
-  if (blocks.length <= 1) return mensaje.trim();
+  if (blocks.length <= 1) return collapsed.trim();
   let seen = false;
   const kept: string[] = [];
   for (const block of blocks) {
@@ -3194,6 +3236,91 @@ function collapseDuplicateFieldQuestions(mensaje: string, field: PendingField): 
     kept.push(block);
   }
   return kept.join("\n\n").trim();
+}
+
+/** A15383: GPT a veces pega la misma frase 4 veces en un solo WhatsApp. */
+export function collapseRepeatedSentences(mensaje: string): string {
+  if (!mensaje?.trim()) return mensaje;
+  let out = mensaje;
+  out = out.replace(/([^.!?\n]{12,180}[.!?])(?:\s*\1)+/gi, "$1");
+  out = out.replace(/([^.!?\n]{16,140})(?:\s+\1){1,8}/gi, "$1");
+  return out.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/** CTA de catálogo/venta: no cuenta como pregunta de invitados/fecha/correo. */
+const SALES_CTA_NOT_FUNNEL =
+  /detalles de alguno|cu[aá]l te late|cu[aá]l te interesa|cu[aá]l variante|revisar primero|te detallo ambas/i;
+
+function lastQuestionAsksForField(mensaje: string, field: PendingField): boolean {
+  const qs = mensaje
+    .split(/(?<=[?])/)
+    .map((p) => p.trim())
+    .filter((p) => p.includes("?"));
+  const last = qs[qs.length - 1];
+  if (!last) return false;
+  if (SALES_CTA_NOT_FUNNEL.test(last)) return false;
+  return FIELD_ASK_PATTERNS[field].test(last);
+}
+
+/**
+ * A15383 / V9.41: catálogo, 3 tiempos o CTA vacío no deben salir sin el siguiente
+ * dato del embudo. Se llama también en early-return de appliedDirectReply/Sales.
+ */
+function ensureFunnelAfterSalesReply(
+  mensaje: string,
+  filledSet: Set<string>,
+  extracted: ExtractedData,
+  ctx: NaturalQuestionContext,
+  currentMessage: string | null | undefined,
+  history: OpenAI.Chat.ChatCompletionMessageParam[]
+): string {
+  let out = collapseRepeatedSentences(dedupeTransitionsInMessage(mensaje));
+
+  if (
+    /quieres que te d[eé] detalles de alguno/i.test(out) &&
+    currentMessage &&
+    clientChoseBanqueteFormal(currentMessage)
+  ) {
+    const shortEmptyCta =
+      !isProgressiveOptionsMenuReply(out) &&
+      !/bodasesor\.com\/catalogos/i.test(out) &&
+      out.replace(/\s+/g, " ").trim().length < 180;
+    if (shortEmptyCta) {
+      out = `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete", currentMessage)}`.trim();
+    }
+  }
+
+  if (
+    /la anoto para tu cotizaci[oó]n/i.test(out) &&
+    currentMessage &&
+    /\bbanquetes?\b/i.test(currentMessage) &&
+    /\b(opciones?|manejan|tienen)\b/i.test(currentMessage)
+  ) {
+    out = buildGuardServiceAck(currentMessage);
+  }
+
+  const pending = getNextPendingField(extracted, filledSet);
+  if (!pending || pending === "requerimientos" || pending === "nombre") return out;
+
+  if (pending === "invitados" && lastQuestionAsksForField(out, "fecha") && !lastQuestionAsksForField(out, "invitados")) {
+    out = out
+      .split(/\n+/)
+      .filter((line) => !mensajeAsksForField(line, "fecha"))
+      .join("\n")
+      .trim();
+  }
+
+  if (lastQuestionAsksForField(out, pending)) return out;
+
+  const nextQ = buildNaturalQuestion(pending, ctx);
+  if (!nextQ || out.includes(nextQ)) return out;
+
+  if (/¿?\s*quieres que te d[eé] detalles de alguno\??\s*$/i.test(out.trim())) {
+    return out
+      .replace(/\n*\s*¿?\s*Quieres que te d[eé] detalles de alguno\??\s*$/i, `\n\n${nextQ}`)
+      .trim();
+  }
+  return `${out.trim()}\n\n${nextQ}`;
 }
 
 function mergeWithPendingQuestion(
@@ -3363,6 +3490,7 @@ export function sanitizeOutboundMessage(
   ctx: NaturalQuestionContext,
   log?: { warn: (obj: unknown, msg?: string) => void }
 ): string {
+  mensaje = collapseRepeatedSentences(mensaje);
   // Menú progresivo (opciones antes de detalle): no pisar con correo/embudo.
   // Contiene "banquete"/"servicios" y FIELD_ASK_PATTERNS.requerimientos lo confunde.
   // Sí pedimos nombre si aún falta (primer contacto).
@@ -4592,6 +4720,36 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
+  // A15383: ciudad (Monterrey / Horno 3 + ciudad) no se pierde entre webhooks.
+  {
+    const zonaNow = currentMessage ? parseZonaFromText(currentMessage) : null;
+    const recoveredZona =
+      (zonaNow && isUsableDireccionEvento(zonaNow) ? zonaNow : null) ||
+      recoverZonaFromUserTexts(collectUserTexts(presHistory, currentMessage), currentMessage);
+    if (recoveredZona && isUsableDireccionEvento(recoveredZona)) {
+      const mergedZona = mergeZonaDetail(extracted.direccion_evento, recoveredZona);
+      if (mergedZona && isUsableDireccionEvento(mergedZona)) {
+        extracted.direccion_evento = mergedZona;
+        filledSet.add("Lugar/dirección del evento");
+      }
+    }
+    if (
+      extracted.num_invitados &&
+      extracted.num_invitados <= 4 &&
+      /\b(\d|dos|tres|cuatro)\s*tiempos?\b/i.test(
+        `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
+      ) &&
+      !/\b(personas?|invitados?|pax)\b/i.test(currentMessage ?? "")
+    ) {
+      extracted.num_invitados = null;
+      filledSet.delete("Número de invitados");
+    }
+    if (extracted.tipo_evento && isUnusableTipoEventoReply(extracted.tipo_evento)) {
+      extracted.tipo_evento = null;
+      filledSet.delete("Tipo de evento");
+    }
+  }
+
   // A15007: "A este" / "ya me preguntaste" → resolver al campo pedido, no reiniciar.
   {
     const lastAsstEarly = [...presHistory]
@@ -5321,9 +5479,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         collapseDuplicatedInclusionReply(pdfOnly),
         serviceHintEarly || currentMessage || ""
       );
+      const pendingPdf = getNextPendingField(extracted, filledSet);
+      const withFunnel =
+        pendingPdf && pendingPdf !== "requerimientos" && pendingPdf !== "nombre"
+          ? `${withLink}\n\n${buildNaturalQuestion(pendingPdf, ctx)}`
+          : withLink;
       log?.info({ entityId }, "GUARD: inclusiones — PDF aprendido (return temprano)");
       return normalizeAdvisorReferences(
-        withLink,
+        withFunnel,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
@@ -5943,11 +6106,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
     // Evitar URL duplicada si el detalle Sheet ya trae el mismo catálogo.
     const detailHasLink = /bodasesor\.com\/catalogos/i.test(detail ?? "");
+    const pendingTiempos = getNextPendingField(extracted, filledSet);
+    const closingQ =
+      pendingTiempos && pendingTiempos !== "requerimientos" && pendingTiempos !== "nombre"
+        ? buildNaturalQuestion(pendingTiempos, ctx)
+        : SERVICE_NIVEL_DETAIL_CTA;
     mensaje = detail
       ? detailHasLink
-        ? `${ack} Anoto *${label}*.\n\n${detail}\n\n${SERVICE_NIVEL_DETAIL_CTA}`
-        : `${ack} Anoto *${label}*.\n\n${detail}\n\n${link}\n\n${SERVICE_NIVEL_DETAIL_CTA}`
-      : `${ack} Anoto *${label}*.\n\n${link}\n\n${SERVICE_NIVEL_DETAIL_CTA}`;
+        ? `${ack} Anoto *${label}*.\n\n${detail}\n\n${closingQ}`
+        : `${ack} Anoto *${label}*.\n\n${detail}\n\n${link}\n\n${closingQ}`
+      : `${ack} Anoto *${label}*.\n\n${link}\n\n${closingQ}`;
     appliedDirectReply = true;
     appliedSalesReply = true;
     log?.info({ entityId, label }, "GUARD: variante banquete por tiempos + detalle/link");
@@ -7534,6 +7702,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           "GUARD: V9.40 — venta/cierre no salta tipo de alimentos ni embudo"
         );
       }
+      mensaje = ensureFunnelAfterSalesReply(
+        mensaje,
+        filledSet,
+        extracted,
+        ctx,
+        currentMessage,
+        presHistory
+      );
     }
     return normalizeAdvisorReferences(
       mensaje,
@@ -7854,6 +8030,22 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
+  // A15383: catálogo o venta no saltan invitados hacia fecha.
+  if (
+    !cierreYaEnviado &&
+    getNextPendingField(extracted, filledSet) === "invitados" &&
+    mensajeAsksForField(mensaje, "fecha") &&
+    !mensajeAsksForField(mensaje, "invitados")
+  ) {
+    const withoutFecha = mensaje
+      .split(/\n+/)
+      .filter((line) => !mensajeAsksForField(line, "fecha"))
+      .join("\n")
+      .trim();
+    mensaje = mergeWithPendingQuestion(withoutFecha, filledSet, extracted, ctx);
+    log?.info({ entityId }, "GUARD: V9.41 — invitados antes de fecha");
+  }
+
   if (
     !cierreYaEnviado &&
     !appliedSalesReply &&
@@ -7999,6 +8191,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       ) {
         mensaje = `${mensaje}\n\n${pickVariant("nombre", history, entityId)}`.trim();
       }
+    }
+    if (!cierreYaEnviado && !trulyReadyForClosing) {
+      mensaje = ensureFunnelAfterSalesReply(
+        mensaje,
+        filledSet,
+        extracted,
+        ctx,
+        currentMessage,
+        presHistory
+      );
     }
     return normalizeAdvisorReferences(mensaje, extracted.nombre);
   }
@@ -8376,7 +8578,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: quitó bloque genérico fijo del cierre");
   }
 
-  mensaje = dedupeTransitionsInMessage(mensaje);
+  mensaje = ensureFunnelAfterSalesReply(
+    mensaje,
+    filledSet,
+    extracted,
+    ctx,
+    currentMessage,
+    presHistory
+  );
   // A15308: sin "qué emoción / felicidades" tras solo el nombre (todas las ramas).
   mensaje = stripPrematureCelebrationFluff(mensaje, {
     currentMessage,
@@ -8716,6 +8925,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         : `${ack} ${nextQ}`;
       log?.info({ entityId, pending: pendingDead }, "GUARD: V9.36 — corte de chat → sigue embudo");
     }
+  }
+
+  if (!cierreYaEnviado) {
+    mensaje = ensureFunnelAfterSalesReply(
+      mensaje,
+      filledSet,
+      extracted,
+      ctx,
+      currentMessage,
+      presHistory
+    );
   }
 
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
