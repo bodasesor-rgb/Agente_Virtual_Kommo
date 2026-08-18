@@ -128366,7 +128366,7 @@ function clientAsksForFoodMenu(message) {
 function clientMentionsEntertainment(message) {
   if (!message?.trim()) return false;
   const t10 = message.toLowerCase();
-  return /\bshows?\b/i.test(t10) || /\bgrupo\s+vers[aá]til\b/i.test(t10) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t10) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t10) || /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t10) || /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(shows?|maestro|animaci)/i.test(t10) || // A14962 Vane: batucada / robots LED / ambientación de show
+  return /\bshows?\b/i.test(t10) || /\bgrupo\s+vers[aá]til\b/i.test(t10) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t10) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento|espect[aá]culos?)\b/i.test(t10) || /\bmariachis?\b|\bbaile\s+regional\b|\bfolkl[oó]rico\b/i.test(t10) || /\bpercusi[oó]n.{0,24}leds?\b|\bleds?.{0,24}percusi[oó]n\b/i.test(t10) || /\bgrupo\s+(vers[aá]til|b[aá]sico|m[aá]s\s+b[aá]sico)\b/i.test(t10) || /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t10) || /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(shows?|maestro|animaci)/i.test(t10) || // A14962 Vane: batucada / robots LED / ambientación de show
   /\bbatucada\b/i.test(t10) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t10) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|shows?|robots?|leds?)\b/i.test(t10) || // A14988 Ernesto: bailarinas para concierto
   /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(t10) || // A15003 Juan: photo booth / cabina
   /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
@@ -128411,7 +128411,7 @@ function clientConfirmsOfferReview(message) {
 }
 function clientMentionsLedRobotsOrBatucada(message) {
   if (!message?.trim()) return false;
-  return /\bbatucada\b/i.test(message) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(message) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\bbatucada\b/i.test(message);
+  return /\bbatucada\b/i.test(message) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(message) || /\bpercusi[oó]n.{0,24}leds?\b|\bleds?.{0,24}percusi[oó]n\b/i.test(message) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\bbatucada\b/i.test(message);
 }
 function clientDeclinesMoreServices(message) {
   if (!message?.trim()) return false;
@@ -128797,19 +128797,24 @@ function extractVenueNameHint(text2) {
   const t10 = (text2 ?? "").trim();
   if (!t10) return null;
   const m10 = t10.match(VENUE_NAME_PATTERN);
-  if (!m10?.[1]) return null;
-  const venue = m10[1].trim().replace(/[.,;:]+$/g, "").trim();
-  return venue.length >= 4 ? venue : null;
+  if (m10?.[1]) {
+    const venue = m10[1].trim().replace(/[.,;:]+$/g, "").trim();
+    if (venue.length >= 4) return venue;
+  }
+  const horno = t10.match(/\bhorno\s*(\d+)\b/i);
+  if (horno) return `Horno ${horno[1]}`;
+  return null;
 }
 function isVenueWithoutCity(text2) {
   const t10 = (text2 ?? "").trim();
   if (!t10) return false;
-  if (hasCityOrMetroSignal(t10)) return false;
+  if (hasCityOrMetroSignal(t10) || KNOWN_ZONES.test(t10)) return false;
   if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club|expo|centro\s+(de\s+)?(convenciones|cultural)|venue)\b/i.test(
     t10
   )) {
     return true;
   }
+  if (/\bhorno\s*\d+\b/i.test(t10)) return true;
   return false;
 }
 function looksLikeDiscourseNotPlace(text2) {
@@ -129311,6 +129316,17 @@ function clientComplainsAboutRepeat(message) {
     t10
   ) || /\bya\s+(te\s+)?(lo\s+)?(dije|mencion[eé]|coment[eé])\b/i.test(t10) || /\beso\s+ya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t10) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(t10) || /\b(otra\s+vez|de\s+nuevo)\s+(me\s+)?preguntas?\b/i.test(t10) || /\bya\s+respond[ií]\b/i.test(t10);
 }
+function recoverZonaFromUserTexts(texts, currentMessage) {
+  const blob = [...texts, currentMessage ?? ""].filter(Boolean);
+  let best = null;
+  for (const msg of blob) {
+    const z10 = parseZonaFromText(msg);
+    if (!z10 || !isUsableDireccionEvento(z10)) continue;
+    if (!hasCityOrMetroSignal(z10) && !KNOWN_ZONES.test(z10)) continue;
+    best = mergeZonaDetail(best, z10);
+  }
+  return best && isUsableDireccionEvento(best) ? best : null;
+}
 function recoverCorreoFromUserTexts(texts, currentMessage) {
   const blob = [...texts, currentMessage ?? ""].filter(Boolean).join("\n");
   return parseCorreoFromText(blob);
@@ -129322,6 +129338,10 @@ function isUnusableTipoEventoReply(text2) {
   if (/^(lo\s+)?(acabo|acabe)\s+de\s+(mencionar|decir|comentar|explicar)(lo)?$/.test(n10) || /^(ya\s+)?(lo\s+)?(dije|mencione|comente|te\s+dije|te\s+lo\s+dije)$/.test(n10) || /^(como\s+)?(te\s+)?(dije|mencione|arriba|antes|hace\s+rato)$/.test(n10) || /^(igual|lo\s+mismo|idem|ya\s+te\s+dije|eso|eso\s+mismo|lo\s+de\s+arriba)$/.test(n10) || /^ya\s+(te\s+)?(lo\s+)?(dije|mencione|comente)$/.test(n10)) {
     return true;
   }
+  if (isGreetingOnlyMessage(t10) || /^(hola|hello|hi|hey)[,!]?\s+lucy\b/i.test(t10) || /^(hola|hello|hi|hey|buenas?|buen\s+d[ií]a)(\s+lucy)?[\s.!]*$/i.test(n10)) {
+    return true;
+  }
+  if (/\?/.test(t10) && t10.length <= 80 && !parseTipoEventoFromText(t10)) return true;
   if (clientComplainsAboutRepeat(t10) || isReferentialPriorAnswer(t10)) return true;
   if (parseCorreoFromText(t10)) return true;
   return false;
@@ -129367,6 +129387,12 @@ function messageIsAboutScheduleOrPlaceNotGuests(text2) {
 function parseInvitadosFromText(text2, opts) {
   const trimmed = text2.trim();
   if (!trimmed) return null;
+  if (/\b(\d|dos|tres|cuatro)\s*tiempos?\b/i.test(trimmed) && !/\b(personas?|invitados?|pax|guests?)\b/i.test(trimmed)) {
+    return null;
+  }
+  if (/\bhorno\s*\d+\b/i.test(trimmed) && !/\b(personas?|invitados?|pax)\b/i.test(trimmed)) {
+    return null;
+  }
   const numMatchEarly = trimmed.match(
     /\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i
   );
@@ -129666,7 +129692,15 @@ function parseZonaFromText(text2) {
   }
   if (KNOWN_ZONES.test(trimmed)) {
     const m10 = trimmed.match(KNOWN_ZONES);
-    if (m10 && isUsableDireccionEvento(m10[0].trim())) return m10[0].trim();
+    if (m10 && isUsableDireccionEvento(m10[0].trim())) {
+      const city = m10[0].trim();
+      const venue = extractVenueNameHint(trimmed);
+      if (venue && !KNOWN_ZONES.test(venue) && !hasCityOrMetroSignal(venue)) {
+        const composed2 = mergeZonaDetail(venue, city);
+        if (composed2 && isUsableDireccionEvento(composed2)) return composed2;
+      }
+      return city;
+    }
   }
   const coloniaMatch = trimmed.match(
     /\b((?:colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+[A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{1,28})/i
@@ -129787,7 +129821,7 @@ function isServiceLabelNotTipoEvento(label) {
 function parseFechaFromText(text2) {
   const trimmed = text2.trim();
   const fechaMatch = trimmed.match(
-    /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+de\s+\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
+    /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
   );
   if (fechaMatch) {
     const base = fechaMatch[1];
@@ -129875,6 +129909,7 @@ function detectPresupuestoRefusal(text2) {
   if (/^(no|nop)[\s.,!]*$/i.test(t10)) return true;
   if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t10)) return true;
   if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t10)) return true;
+  if (/\bopci[oó]n\s+completa\b/i.test(t10) || /\bpropuesta\s+completa\b/i.test(t10)) return true;
   if (t10.length <= 100 && /\b(una\s+)?propuesta\b/i.test(t10) && !/\bpresupuesto\s+(de|estimado|aprox)/i.test(t10) && !/\$\s*\d|\b\d{3,}\s*(mil|pesos|mxn)\b/i.test(t10)) {
     return true;
   }
@@ -129949,6 +129984,9 @@ function parsePresupuestoFromText(text2, opts) {
     return "Sin definir (cliente pidi\xF3 que propongamos)";
   }
   if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(trimmed)) {
+    return "Sin definir (cliente pidi\xF3 que propongamos)";
+  }
+  if (/\bopci[oó]n\s+completa\b/i.test(trimmed) || /\bpropuesta\s+completa\b/i.test(trimmed)) {
     return "Sin definir (cliente pidi\xF3 que propongamos)";
   }
   if (/\b(que\s+(me\s+)?propongan|el\s+equipo\s+(me\s+)?propong|ustedes\s+(me\s+)?propong)/i.test(
@@ -130112,7 +130150,8 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
     captures.push({ label: "Requerimientos o servicios", value: carpaVariant });
   }
   const zonaFromMsg = parseZonaFromText(msg);
-  const msgIsLocation = !carpaVariant && asked !== "nombre" && asked !== "correo" && !!zonaFromMsg && isUsableDireccionEvento(zonaFromMsg) && !looksLikePersonFullName(msg) && (isLikelyUbicacionNotNombre(msg) || asked === "zona" || /^en\s+/i.test(msg.trim()) || msg.trim().split(/\s+/).length <= 4 && !!zonaFromMsg && (hasCityOrMetroSignal(msg) || KNOWN_ZONES.test(msg)));
+  const msgLooksLikePlace = !!zonaFromMsg && isUsableDireccionEvento(zonaFromMsg) && (isLikelyUbicacionNotNombre(msg) || asked === "zona" || /^en\s+/i.test(msg.trim()) || msg.trim().split(/\s+/).length <= 8 && (hasCityOrMetroSignal(msg) || KNOWN_ZONES.test(msg)));
+  const msgIsLocation = !carpaVariant && asked !== "nombre" && msgLooksLikePlace && !looksLikePersonFullName(msg);
   if (msgIsLocation && zonaFromMsg && !filledSet.has("Lugar/direcci\xF3n del evento")) {
     captures.push({ label: "Lugar/direcci\xF3n del evento", value: zonaFromMsg });
   }
@@ -130480,7 +130519,7 @@ var init_conversation_understanding = __esm({
       // A15210: bare "mexicano" en "desayuno temático mexicano" ≠ Banquete Mexicano.
       // Banquete: "banquete mexicano", "mexicano N tiempos", o "mexicano" suelto (elección de menú).
       ["Banquete Mexicano", /\bbanquete\s+mexicano\b|\bmexicano\s+\d\s*tiempos?\b|\b\d\s*tiempos?\s+mexicanos?\b/i],
-      ["Banquete Formal", /\b(banquete\s+formal|banquete)\b/i],
+      ["Banquete Formal", /\b(banquete\s+formal|banquetes?)\b/i],
       // Barras específicas ANTES de genéricas (A14934 Barra Yucateca).
       ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
       // "americano" (bebida) ≠ Barra Americana (A14970).
@@ -130524,6 +130563,8 @@ var init_conversation_understanding = __esm({
       ["Men\xFA Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/iu],
       ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
       ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
+      ["Mariachi", /\bmariachis?\b/i],
+      ["Baile regional", /\bbaile\s+regional\b|\bfolkl[oó]rico\b/i],
       ["Animaci\xF3n / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|shows?|pixel|espejos|l[aá]ser|laser)\b/i],
       // A15003 Juan: photo booth / cabina de fotos (entretenimiento).
       ["Photo Booth", /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i],
@@ -130533,7 +130574,7 @@ var init_conversation_understanding = __esm({
       // A14988 Ernesto: bailarinas / dancers = entretenimiento (no oferta genérica Nivel 1).
       ["Bailarinas", /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i],
       // A14962: robots LED / batucada = entretenimiento, NUNCA banquete.
-      ["Robots LED", /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i],
+      ["Robots LED", /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b|\bpercusi[oó]n.{0,24}leds?\b|\bleds?.{0,24}percusi[oó]n\b/i],
       ["Batucada", /\bbatucada\b|\bambienta(?:r|ci[oó]n)\b.{0,40}\bbatucada\b|\bbatucada\b.{0,40}\bambient/i],
       ["Maestro de ceremonias", /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador(\s+de\s+eventos?)?)\b/i],
       ["Iluminaci\xF3n", /\biluminaci[oó]n\b/i],
@@ -131737,7 +131778,8 @@ function clientChoseBanqueteFormal(text2) {
   if (/\b(casual|barra\s+de|taquiza|pizza|pasta|sushi|pozole|panini|catering\s+casual)\b/i.test(t10) && !/\bbanquete\b|\bformal\b/i.test(t10)) {
     return false;
   }
-  return /\b(quiero|busco|prefiero|mejor|me\s+late|el|un|una)?\s*(banquete|formal)\b/i.test(t10) || /^(banquete|formal|el\s+banquete|m[aá]s\s+formal)[\s.!]*$/i.test(t10) || /\bbanquete\s+(formal|mexicano|kosher|navide)/i.test(t10);
+  return /\b(quiero|busco|prefiero|mejor|me\s+late|el|un|una)?\s*(banquete|formal)\b/i.test(t10) || /^(banquete|formal|el\s+banquete|m[aá]s\s+formal)[\s.!]*$/i.test(t10) || /\bbanquete\s+(formal|mexicano|kosher|navide)/i.test(t10) || // A15383: "menú de tres tiempos" / high-end en contexto de comida = Banquete Formal.
+  /\b(men[uú]\s+de\s+)?(\d|dos|tres|cuatro)\s*tiempos?\b/i.test(t10) || /\b(high\s*end|high-end|premium)\b/i.test(t10) && /\b(men[uú]|tiempos?|banquete|comida|perfil\s+de\s+cliente)\b/i.test(t10);
 }
 function clientChoseCateringCasual(text2) {
   const t10 = text2?.trim() ?? "";
@@ -132432,9 +132474,17 @@ function clientAsksForPhotos(message) {
 function clientAsksAboutLighting(message) {
   if (!message?.trim()) return false;
   const t10 = message.toLowerCase();
-  return /\b(luz|luces|iluminaci[oó]n|iluminada?s?|leds?|luminarias?)\b/i.test(t10) && (/\b(carpa|toldo|lona|pista|tarima|montaje|cuenta|cuentan|tienen|tienes|incluye|trae)\b/i.test(
+  if (/\b(percusi[oó]n|mariachis?|baile\s+regional|folkl[oó]rico|entretenimiento|espect[aá]culos?|robots?\s*leds?)\b/i.test(
     t10
-  ) || /\?/.test(message));
+  )) {
+    return false;
+  }
+  const hasLightWord = /\b(luz|luces|iluminaci[oó]n|iluminada?s?|luminarias?)\b/i.test(t10);
+  const ledAsVenueLight = /\bleds?\b/i.test(t10) && /\b(carpa|toldo|lona|pista|tarima|montaje|iluminaci)\b/i.test(t10);
+  if (!hasLightWord && !ledAsVenueLight) return false;
+  return /\b(carpa|toldo|lona|pista|tarima|montaje|cuenta|cuentan|tienen|tienes|incluye|trae)\b/i.test(
+    t10
+  ) || /\?/.test(message);
 }
 function clientAsksConcreteProductQuestion(message) {
   if (!message?.trim()) return false;
@@ -132530,7 +132580,10 @@ var init_concreteProductQuestion = __esm({
 function serviceLabelFromQuery(query) {
   const trimmed = query.trim();
   if (!trimmed) return "ese servicio";
-  return parsePrimaryService(trimmed) ?? trimmed.slice(0, 80);
+  const parsed = parsePrimaryService(trimmed);
+  if (parsed) return parsed;
+  if (/[¿?]/.test(trimmed) || trimmed.length > 60) return "ese servicio";
+  return trimmed.slice(0, 80);
 }
 function isDubiousNonEventRequest(query) {
   const t10 = query.trim();
@@ -132700,6 +132753,9 @@ function buildGuardServiceAck(query) {
   }
   if (/\bcanap/i.test(query)) {
     return "\xA1Claro! Anoto *Canap\xE9s* para tu cotizaci\xF3n. Es una estaci\xF3n de bocadillos finos para recepci\xF3n o cocktail. \xBFQuieres que te detalle opciones e inclusiones, o seguimos con los datos del evento?";
+  }
+  if (/\bbanquetes?\b/i.test(query) && /\b(opciones?|manejan|tienen|ofrecen|men[uú]|qu[eé]\s+incluye)\b/i.test(query)) {
+    return buildProgressiveOptionsMenu("banquete", query);
   }
   if (/\bshows?\b|\banimaci[oó]n\b|\bhora\s+loca\b|\bentretenimiento\b/i.test(query)) {
     return `Claro \u2014 manejamos *shows*, animaci\xF3n y performance (hora loca, shows en vivo y activaciones). Cada propuesta se arma al concepto del evento. Te dejo el cat\xE1logo general:
@@ -156811,6 +156867,11 @@ function syncFilledFromExtracted(filledSet, extracted) {
       filledSet.add("Lugar/direcci\xF3n del evento");
     }
   }
+  const presStr = String(extracted.presupuesto ?? "").trim();
+  if (/^(19|20)\d{2}$/.test(presStr)) {
+    extracted.presupuesto = null;
+    filledSet.delete("Presupuesto (MXN)");
+  }
   if (extracted.fecha_horario?.trim()) filledSet.add("Fecha y horario");
   if (extracted.num_invitados) filledSet.add("N\xFAmero de invitados");
   if (hasPresupuestoValue(extracted)) filledSet.add("Presupuesto (MXN)");
@@ -157481,7 +157542,11 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
   const wantsMc = /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(
     msg
   );
-  const wantsRobots = /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(msg);
+  const wantsRobots = /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b|\bpercusi[oó]n.{0,24}leds?\b/i.test(
+    msg
+  );
+  const wantsMariachi = /\bmariachis?\b/i.test(msg);
+  const wantsRegionalDance = /\bbaile\s+regional\b|\bfolkl[oó]rico\b/i.test(msg);
   const wantsBatucada = /\bbatucada\b/i.test(msg);
   const wantsBailarinas = /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(msg);
   const wantsPhotoBooth = /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
@@ -157490,7 +157555,7 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
   const specialActLabel = parseSpecialLiveActLabel(msg);
   const wantsSpecialAct = !!specialActLabel || clientMentionsSpecialLiveAct(msg);
   const services = parseServicesFromText(msg);
-  const label = (services.length ? services.join(", ") : null) || (wantsPhotoBooth ? "Photo Booth" : null) || specialActLabel || (wantsBailarinas ? "Bailarinas" : null) || (wantsRobots ? "Robots LED" : null) || (wantsBatucada ? "Batucada" : null) || (wantsMc ? "Maestro de ceremonias y show" : "Animaci\xF3n / Hora loca y shows");
+  const label = (services.length ? services.join(", ") : null) || (wantsPhotoBooth ? "Photo Booth" : null) || specialActLabel || (wantsMariachi ? "Mariachi" : null) || (wantsRegionalDance ? "Baile regional" : null) || (wantsBailarinas ? "Bailarinas" : null) || (wantsRobots ? "Robots LED" : null) || (wantsBatucada ? "Batucada" : null) || (wantsMc ? "Maestro de ceremonias y show" : "Animaci\xF3n / Hora loca y shows");
   if (filledSet) {
     filledSet.add("Requerimientos o servicios");
     const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
@@ -157501,6 +157566,14 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
   if (wantsPhotoBooth) {
     intro = `Perfecto \u2014 anoto *Photo Booth* (cabina de fotos) para ${eventLabel}.`;
     ideas = "El equipo te confirma modelos, props, fondo y tiempo de renta.";
+  } else if (wantsMariachi || wantsRegionalDance) {
+    const bits = [
+      wantsRegionalDance ? "baile regional" : null,
+      wantsRobots ? "percusi\xF3n con LED" : null,
+      wantsMariachi ? "mariachi" : null
+    ].filter(Boolean);
+    intro = `S\xED \u2014 para ${eventLabel} manejamos ${bits.join(", ")} y grupos vers\xE1tiles.`;
+    ideas = "El equipo arma formato y duraci\xF3n seg\xFAn el perfil VIP. Te dejo el cat\xE1logo de entretenimiento para que veas opciones.";
   } else if (wantsSpecialAct) {
     const act = specialActLabel || "ese show / acto";
     intro = `Perfecto \u2014 anoto *${act}* para ${eventLabel}.`;
@@ -157529,11 +157602,13 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
       ...services,
       ...wantsPhotoBooth ? ["Photo Booth"] : [],
       ...wantsSpecialAct && specialActLabel ? [specialActLabel] : [],
+      ...wantsMariachi ? ["Mariachi"] : [],
+      ...wantsRegionalDance ? ["Baile regional"] : [],
       ...wantsBailarinas ? ["Bailarinas", "Animaci\xF3n / Hora loca"] : [],
       ...wantsRobots ? ["Robots LED"] : [],
       ...wantsBatucada ? ["Batucada"] : [],
       ...wantsMc ? ["Maestro de ceremonias"] : [],
-      ...!wantsPhotoBooth && !wantsSpecialAct && !wantsBailarinas && !wantsRobots && !wantsBatucada && !wantsMc ? ["Animaci\xF3n / Hora loca", "show"] : []
+      ...!wantsPhotoBooth && !wantsSpecialAct && !wantsMariachi && !wantsRegionalDance && !wantsBailarinas && !wantsRobots && !wantsBatucada && !wantsMc ? ["Animaci\xF3n / Hora loca", "show"] : []
     ],
     extracted,
     history,
@@ -158022,6 +158097,14 @@ function dedupeTransitionsInMessage(mensaje) {
   out2 = out2.replace(
     /(¡?Mucho gusto,\s*[^!]{1,40}!)\s*(?:¡?\s*)?(?:Qu[eé]\s+emoción|Qu[eé]\s+padre|Qu[eé]\s+bonito|Felicidades)(?:\s*,\s*(?:felicidades|qu[eé]\s+emoción))?[^.?!]{0,40}[.!]?\s*/gi,
     "$1 "
+  );
+  out2 = out2.replace(
+    /\b(Perfecto|Excelente|Genial|Listo|Claro),\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+(?:Listo|Perfecto)\.\s+\2[,.]/gi,
+    "$1, $2."
+  );
+  out2 = out2.replace(
+    /\b(Perfecto|Excelente|Genial|Listo),\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+\2[,.]/gi,
+    "$1, $2."
   );
   return out2.replace(/\s{2,}/g, " ").trim();
 }
@@ -158564,8 +158647,9 @@ function justAnsweredReqContext(currentMessage, aiResponse) {
   return aiResponse.length > 40 && !/^\s*¿/.test(aiResponse);
 }
 function collapseDuplicateFieldQuestions(mensaje, field) {
-  const blocks = mensaje.split(/\n{2,}/).map((b10) => b10.trim()).filter(Boolean);
-  if (blocks.length <= 1) return mensaje.trim();
+  const collapsed = collapseRepeatedSentences(mensaje);
+  const blocks = collapsed.split(/\n{2,}/).map((b10) => b10.trim()).filter(Boolean);
+  if (blocks.length <= 1) return collapsed.trim();
   let seen = false;
   const kept = [];
   for (const block of blocks) {
@@ -158576,6 +158660,48 @@ function collapseDuplicateFieldQuestions(mensaje, field) {
     kept.push(block);
   }
   return kept.join("\n\n").trim();
+}
+function collapseRepeatedSentences(mensaje) {
+  if (!mensaje?.trim()) return mensaje;
+  let out2 = mensaje;
+  out2 = out2.replace(/([^.!?\n]{12,180}[.!?])(?:\s*\1)+/gi, "$1");
+  out2 = out2.replace(/([^.!?\n]{16,140})(?:\s+\1){1,8}/gi, "$1");
+  return out2.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+function lastQuestionAsksForField(mensaje, field) {
+  const qs2 = mensaje.split(/(?<=[?])/).map((p10) => p10.trim()).filter((p10) => p10.includes("?"));
+  const last = qs2[qs2.length - 1];
+  if (!last) return false;
+  if (SALES_CTA_NOT_FUNNEL.test(last)) return false;
+  return FIELD_ASK_PATTERNS[field].test(last);
+}
+function ensureFunnelAfterSalesReply(mensaje, filledSet, extracted, ctx, currentMessage, history) {
+  let out2 = collapseRepeatedSentences(dedupeTransitionsInMessage(mensaje));
+  if (/quieres que te d[eé] detalles de alguno/i.test(out2) && currentMessage && clientChoseBanqueteFormal(currentMessage)) {
+    const shortEmptyCta = !isProgressiveOptionsMenuReply(out2) && !/bodasesor\.com\/catalogos/i.test(out2) && out2.replace(/\s+/g, " ").trim().length < 180;
+    if (shortEmptyCta) {
+      out2 = `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete", currentMessage)}`.trim();
+    }
+  }
+  if (/la anoto para tu cotizaci[oó]n/i.test(out2) && currentMessage && /\bbanquetes?\b/i.test(currentMessage) && /\b(opciones?|manejan|tienen)\b/i.test(currentMessage)) {
+    out2 = buildGuardServiceAck(currentMessage);
+  }
+  const pending = getNextPendingField(extracted, filledSet);
+  if (!pending || pending === "requerimientos" || pending === "nombre") return out2;
+  if (pending === "invitados" && lastQuestionAsksForField(out2, "fecha") && !lastQuestionAsksForField(out2, "invitados")) {
+    out2 = out2.split(/\n+/).filter((line2) => !mensajeAsksForField(line2, "fecha")).join("\n").trim();
+  }
+  if (lastQuestionAsksForField(out2, pending)) return out2;
+  const nextQ = buildNaturalQuestion(pending, ctx);
+  if (!nextQ || out2.includes(nextQ)) return out2;
+  if (/¿?\s*quieres que te d[eé] detalles de alguno\??\s*$/i.test(out2.trim())) {
+    return out2.replace(/\n*\s*¿?\s*Quieres que te d[eé] detalles de alguno\??\s*$/i, `
+
+${nextQ}`).trim();
+  }
+  return `${out2.trim()}
+
+${nextQ}`;
 }
 function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
   const pending = getNextPendingField(extracted, filledSet);
@@ -158674,6 +158800,7 @@ function redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx) {
   return mensaje;
 }
 function sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log) {
+  mensaje = collapseRepeatedSentences(mensaje);
   if (isProgressiveOptionsMenuReply(mensaje)) {
     const body2 = mensaje.trim();
     if (!isFieldSatisfied("nombre", filledSet, extracted) && !mensajeAsksForField(body2, "nombre")) {
@@ -159415,6 +159542,27 @@ function applyLucyMessageGuards(input) {
     }
   }
   {
+    const zonaNow = currentMessage ? parseZonaFromText(currentMessage) : null;
+    const recoveredZona = (zonaNow && isUsableDireccionEvento(zonaNow) ? zonaNow : null) || recoverZonaFromUserTexts(collectUserTexts(presHistory, currentMessage), currentMessage);
+    if (recoveredZona && isUsableDireccionEvento(recoveredZona)) {
+      const mergedZona = mergeZonaDetail(extracted.direccion_evento, recoveredZona);
+      if (mergedZona && isUsableDireccionEvento(mergedZona)) {
+        extracted.direccion_evento = mergedZona;
+        filledSet.add("Lugar/direcci\xF3n del evento");
+      }
+    }
+    if (extracted.num_invitados && extracted.num_invitados <= 4 && /\b(\d|dos|tres|cuatro)\s*tiempos?\b/i.test(
+      `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
+    ) && !/\b(personas?|invitados?|pax)\b/i.test(currentMessage ?? "")) {
+      extracted.num_invitados = null;
+      filledSet.delete("N\xFAmero de invitados");
+    }
+    if (extracted.tipo_evento && isUnusableTipoEventoReply(extracted.tipo_evento)) {
+      extracted.tipo_evento = null;
+      filledSet.delete("Tipo de evento");
+    }
+  }
+  {
     const lastAsstEarly = [...presHistory].reverse().find((m10) => m10.role === "assistant" && typeof m10.content === "string");
     const askedEarly = lastAsstEarly ? inferLucyAskedField(lastAsstEarly.content) : null;
     const msgEarly = currentMessage?.trim() ?? "";
@@ -159899,9 +160047,13 @@ ${multiPackageDumpEarly}`,
           collapseDuplicatedInclusionReply(pdfOnly),
           serviceHintEarly || currentMessage || ""
         );
+        const pendingPdf = getNextPendingField(extracted, filledSet);
+        const withFunnel = pendingPdf && pendingPdf !== "requerimientos" && pendingPdf !== "nombre" ? `${withLink}
+
+${buildNaturalQuestion(pendingPdf, ctx)}` : withLink;
         log?.info({ entityId }, "GUARD: inclusiones \u2014 PDF aprendido (return temprano)");
         return normalizeAdvisorReferences(
-          withLink,
+          withFunnel,
           extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
         );
       }
@@ -160282,21 +160434,23 @@ ${mapped}`.trim() : buildCatalogWebLinkReply({
     const display = getDisplayName(extracted, whatsappDisplayName);
     const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
     const detailHasLink = /bodasesor\.com\/catalogos/i.test(detail ?? "");
+    const pendingTiempos = getNextPendingField(extracted, filledSet);
+    const closingQ = pendingTiempos && pendingTiempos !== "requerimientos" && pendingTiempos !== "nombre" ? buildNaturalQuestion(pendingTiempos, ctx) : SERVICE_NIVEL_DETAIL_CTA;
     mensaje = detail ? detailHasLink ? `${ack} Anoto *${label}*.
 
 ${detail}
 
-${SERVICE_NIVEL_DETAIL_CTA}` : `${ack} Anoto *${label}*.
+${closingQ}` : `${ack} Anoto *${label}*.
 
 ${detail}
 
 ${link}
 
-${SERVICE_NIVEL_DETAIL_CTA}` : `${ack} Anoto *${label}*.
+${closingQ}` : `${ack} Anoto *${label}*.
 
 ${link}
 
-${SERVICE_NIVEL_DETAIL_CTA}`;
+${closingQ}`;
     appliedDirectReply = true;
     appliedSalesReply = true;
     log?.info({ entityId, label }, "GUARD: variante banquete por tiempos + detalle/link");
@@ -161401,6 +161555,14 @@ ${nextQ}`;
           "GUARD: V9.40 \u2014 venta/cierre no salta tipo de alimentos ni embudo"
         );
       }
+      mensaje = ensureFunnelAfterSalesReply(
+        mensaje,
+        filledSet,
+        extracted,
+        ctx,
+        currentMessage,
+        presHistory
+      );
     }
     return normalizeAdvisorReferences(
       mensaje,
@@ -161624,6 +161786,11 @@ ${nextQ}`;
       log?.info({ entityId }, "GUARD: forzar ubicaci\xF3n antes de avance/cierre");
     }
   }
+  if (!cierreYaEnviado && getNextPendingField(extracted, filledSet) === "invitados" && mensajeAsksForField(mensaje, "fecha") && !mensajeAsksForField(mensaje, "invitados")) {
+    const withoutFecha = mensaje.split(/\n+/).filter((line2) => !mensajeAsksForField(line2, "fecha")).join("\n").trim();
+    mensaje = mergeWithPendingQuestion(withoutFecha, filledSet, extracted, ctx);
+    log?.info({ entityId }, "GUARD: V9.41 \u2014 invitados antes de fecha");
+  }
   if (!cierreYaEnviado && !appliedSalesReply && needsAlimentosTipoClarification(extracted.requerimientos_evento) && !isAlimentosModoMenuReply(mensaje) && !isProgressiveOptionsMenuReply(mensaje)) {
     const pendingFood = getNextPendingField(extracted, filledSet);
     if (pendingFood === "requerimientos") {
@@ -161710,6 +161877,16 @@ ${buildNaturalQuestion(pendingFinal, ctx)}` : fromCatalog;
 
 ${pickVariant("nombre", history, entityId)}`.trim();
       }
+    }
+    if (!cierreYaEnviado && !trulyReadyForClosing) {
+      mensaje = ensureFunnelAfterSalesReply(
+        mensaje,
+        filledSet,
+        extracted,
+        ctx,
+        currentMessage,
+        presHistory
+      );
     }
     return normalizeAdvisorReferences(mensaje, extracted.nombre);
   }
@@ -161965,7 +162142,14 @@ ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
     mensaje = mensaje.replace(/Por cierto,?[^.]*bebidas[^.]*\./gi, "").replace(/tambi[eé]n manejamos bebidas[^.]*\./gi, "").replace(/\n{3,}/g, "\n\n").trim();
     log?.info({ entityId }, "GUARD: quit\xF3 bloque gen\xE9rico fijo del cierre");
   }
-  mensaje = dedupeTransitionsInMessage(mensaje);
+  mensaje = ensureFunnelAfterSalesReply(
+    mensaje,
+    filledSet,
+    extracted,
+    ctx,
+    currentMessage,
+    presHistory
+  );
   mensaje = stripPrematureCelebrationFluff(mensaje, {
     currentMessage,
     tipoEvento: extracted.tipo_evento
@@ -162166,6 +162350,16 @@ ${nextQ}` : `${ack} ${nextQ}`;
       log?.info({ entityId, pending: pendingDead }, "GUARD: V9.36 \u2014 corte de chat \u2192 sigue embudo");
     }
   }
+  if (!cierreYaEnviado) {
+    mensaje = ensureFunnelAfterSalesReply(
+      mensaje,
+      filledSet,
+      extracted,
+      ctx,
+      currentMessage,
+      presHistory
+    );
+  }
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 function stripClientServiceConfusionNotes(text2) {
@@ -162228,7 +162422,7 @@ function stripImageAnnotation(text2) {
   }
   return text2.replace(/\[imagen\s+adjunta:[^\]]*\]/gi, "").replace(/\[imagen\s+respuesta\s+cliente\]:\s*[^\n]*/gi, "").replace(/\[imagen\s+nota\s+interna\]:\s*[^\n]*/gi, "").replace(/\[imagen\s+intent\]:\s*[^\n]*/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
-var EMAIL_WAIVED_LABEL, WHATSAPP_NOMBRE_NOTE, EMAIL_REFUSAL_PATTERN, CLOSING_CORE_FIELDS, LUCY_INTRO, SERVICIOS_CATALOGO_HINT_ADICIONAL, OTRO_SERVICIO_ASK_PATTERN, CORREO_MAX_ASKS, FIELD_ASK_PATTERNS, CLOSING_SIGNATURE, INVITADOS_UNAVAILABLE_VALUE, PISTA_TARIMA_VARIANTS, LUCY_TRANSITIONS, TRANSITION_START_PATTERN, FIELD_ORDER, MINIMAL_SERVICE_PATTERN;
+var EMAIL_WAIVED_LABEL, WHATSAPP_NOMBRE_NOTE, EMAIL_REFUSAL_PATTERN, CLOSING_CORE_FIELDS, LUCY_INTRO, SERVICIOS_CATALOGO_HINT_ADICIONAL, OTRO_SERVICIO_ASK_PATTERN, CORREO_MAX_ASKS, FIELD_ASK_PATTERNS, CLOSING_SIGNATURE, INVITADOS_UNAVAILABLE_VALUE, PISTA_TARIMA_VARIANTS, LUCY_TRANSITIONS, TRANSITION_START_PATTERN, FIELD_ORDER, SALES_CTA_NOT_FUNNEL, MINIMAL_SERVICE_PATTERN;
 var init_lucy_flow_guards = __esm({
   "src/lucy-flow-guards.ts"() {
     "use strict";
@@ -162361,6 +162555,7 @@ var init_lucy_flow_guards = __esm({
       "correo",
       "presupuesto"
     ];
+    SALES_CTA_NOT_FUNNEL = /detalles de alguno|cu[aá]l te late|cu[aá]l te interesa|cu[aá]l variante|revisar primero|te detallo ambas/i;
     MINIMAL_SERVICE_PATTERN = /\b(solo\s+)?(mesas?\s+y\s+sillas?|sillas?\s+y\s+mesas?|renta\s+de\s+(mesas?|sillas?)|solo\s+(mesas?|sillas?|mobiliario))\b/i;
   }
 });
@@ -226586,7 +226781,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.40";
+var LUCY_PROMPT_VERSION = "V9.41";
 
 // src/lib/buildMeta.ts
 var cached = null;
