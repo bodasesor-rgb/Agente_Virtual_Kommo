@@ -71,6 +71,7 @@ import {
   ensureCatalogWebLink,
   attachAvailableSheetDetail,
   messageHasSheetServiceDetail,
+  looksLikeNivelOptionsDump,
   enrichBareNivelOffer,
   messageOffersLevelsWithoutInclusions,
   getCatalogWebHubDeliveryUrl,
@@ -1884,13 +1885,14 @@ function buildProgressiveDetailAfterMenu(opts: {
     buildCatalogServiceDetailAnswer(detailQuery) ||
     buildCatalogPriceAnswer(detailQuery) ||
     attachAvailableSheetDetail(detailQuery, detailQuery);
+  const usableDetail = detail && !looksLikeNivelOptionsDump(detail) ? detail : null;
   // A14975: no re-listar niveles ni duplicar el mismo URL; servicio + general.
   const body = withServiceAndGeneralCatalogLinks(
-    detail || `Anoto *${detailQuery}*.`,
+    usableDetail || `Anoto *${detailQuery}*.`,
     detailQuery,
     detailQuery
   );
-  if (detail) {
+  if (usableDetail) {
     return `${pickTransition(history)} Te detallo *${detailQuery}*:\n\n${body}`.trim();
   }
   return `${pickTransition(history)} ${body}`.trim();
@@ -3264,6 +3266,52 @@ function lastQuestionAsksForField(mensaje: string, field: PendingField): boolean
 }
 
 /**
+ * V9.43: si el cliente ya eligió un producto y Lucy re-lista el menú, sustituir por el detalle.
+ */
+function rewriteRepeatedProductMenu(
+  mensaje: string,
+  currentMessage: string | null | undefined,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  extracted: ExtractedData,
+  filledSet: Set<string>,
+  ctx: NaturalQuestionContext
+): string {
+  if (!currentMessage?.trim() || !looksLikeNivelOptionsDump(mensaje)) return mensaje;
+  const lastAsst = [...history]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string");
+  const lastAsstText =
+    lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : null;
+  const pick =
+    extractNumberedNivelFromLastAssistant(currentMessage, lastAsstText) ||
+    extractCatalogNivelFromText(currentMessage, lastAsstText) ||
+    resolveProgressiveDetailQuery({
+      currentMessage,
+      serviceHint: extracted.requerimientos_evento,
+      history,
+    });
+  if (!pick || /^coffee\s*break$/i.test(pick.trim()) || pick.length < 4) return mensaje;
+  const wants =
+    clientWantsServiceDetail(currentMessage, history) ||
+    isCatalogLevelSelection(currentMessage, lastAsstText) ||
+    !!extractNumberedNivelFromLastAssistant(currentMessage, lastAsstText);
+  if (!wants) return mensaje;
+  const detail =
+    buildCatalogServiceDetailAnswer(pick) ||
+    buildCatalogPriceAnswer(pick) ||
+    attachAvailableSheetDetail(pick, pick);
+  if (!detail || looksLikeNivelOptionsDump(detail)) return mensaje;
+  const display = getDisplayName(extracted, ctx.whatsappName);
+  const pending = getNextPendingField(extracted, filledSet);
+  const nextQ =
+    pending && pending !== "requerimientos" && pending !== "nombre"
+      ? buildNaturalQuestion(pending, ctx)
+      : "";
+  const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
+  return `${ack} Te detallo *${pick}*:\n\n${detail}${nextQ ? `\n\n${nextQ}` : ""}`.trim();
+}
+
+/**
  * A15383 / V9.41: catálogo, 3 tiempos o CTA vacío no deben salir sin el siguiente
  * dato del embudo. Se llama también en early-return de appliedDirectReply/Sales.
  */
@@ -3284,6 +3332,9 @@ function ensureFunnelAfterSalesReply(
   ) {
     return out;
   }
+
+  // V9.43: eligió un producto / pidió detalle → no repetir el menú de niveles.
+  out = rewriteRepeatedProductMenu(out, currentMessage, history, extracted, filledSet, ctx);
 
   if (
     /quieres que te d[eé] detalles de alguno/i.test(out) &&

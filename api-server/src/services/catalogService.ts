@@ -439,6 +439,79 @@ function uniqueNiveles(rows: SheetCatalogRow[]): string[] {
   return [...new Set(rows.map((r) => r.nivel.trim()).filter(Boolean))];
 }
 
+/**
+ * True si el texto es un menú de niveles/paquetes (no el detalle de UNO).
+ * V9.43: tras elegir un producto no hay que repetir este dump.
+ */
+export function looksLikeNivelOptionsDump(text: string | null | undefined): boolean {
+  if (!text?.trim()) return false;
+  const t = text;
+  if (/manejamos estos (niveles|paquetes)/i.test(t)) return true;
+  if (
+    /quieres que te d[eé] detalles de alguno/i.test(t) &&
+    /\n\s*1\.\s*\*/.test(t) &&
+    /\n\s*[2-9]\.\s*\*/.test(t)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Si el query nombra un nivel/SKU concreto, devuelve ESA fila — no toda la familia.
+ * "Coffee Break 4" / "Tradicional" no deben listar el menú entero.
+ */
+function pickRowMatchingSpecificNivel(
+  rows: SheetCatalogRow[],
+  query: string
+): SheetCatalogRow | null {
+  if (!rows.length || !query.trim()) return null;
+  const q = normalizeForMatch(query).replace(/\s+/g, " ").trim();
+  if (!q) return null;
+
+  const coffeeN =
+    q.match(/\bcoffe{1,2}e?\s*break\s*([1-9])\b/) || q.match(/\bcoffee\s*break\s*([1-9])\b/);
+  if (coffeeN?.[1]) {
+    const n = coffeeN[1]!;
+    const hit = rows.find((r) => {
+      const nivel = normalizeForMatch(extractNivelLabel(r));
+      const svc = normalizeForMatch(r.servicio);
+      return (
+        nivel === `coffee break ${n}` ||
+        nivel.includes(`coffee break ${n}`) ||
+        (nivel === n && /coffee|coffe/.test(svc))
+      );
+    });
+    if (hit) return hit;
+  }
+
+  const hits: SheetCatalogRow[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const nivel = normalizeForMatch(extractNivelLabel(row)).replace(/\s+/g, " ").trim();
+    if (nivel.length < 4) continue;
+    if (q === nivel || (q.includes(nivel) && q.length >= nivel.length)) {
+      const key = `${row.servicio}|${row.nivel}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        hits.push(row);
+      }
+    }
+  }
+  if (hits.length === 1) return hits[0]!;
+  if (hits.length > 1) {
+    hits.sort(
+      (a, b) =>
+        normalizeForMatch(extractNivelLabel(b)).length -
+        normalizeForMatch(extractNivelLabel(a)).length
+    );
+    const best = normalizeForMatch(extractNivelLabel(hits[0]!));
+    const same = hits.filter((h) => normalizeForMatch(extractNivelLabel(h)) === best);
+    if (same.length === 1) return same[0]!;
+  }
+  return null;
+}
+
 /** True si la fila del Sheet corresponde al servicio que el cliente pidió por nombre. */
 export function rowMatchesServiceLabel(row: SheetCatalogRow, label: string): boolean {
   const normLabel = normalizeForMatch(label).replace(/\s+/g, "");
@@ -636,6 +709,19 @@ export function resolveCatalogQuery(query: string): CatalogMatchResult | null {
     if (nivelRows.length) matchedRows = nivelRows;
   }
 
+  const specificNivelRow = pickRowMatchingSpecificNivel(
+    matchedRows.length ? matchedRows : rows,
+    trimmed
+  );
+  if (specificNivelRow) {
+    return {
+      kind: "service_nivel",
+      serviceName: specificNivelRow.servicio,
+      nivel: specificNivelRow.nivel,
+      rows: [specificNivelRow],
+    };
+  }
+
   const servicios = uniqueServicios(matchedRows);
   if (!servicios.length) return null;
 
@@ -830,6 +916,8 @@ function buildServiceNivelChoiceAnswer(
   const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
   const svcRows = result.rows.filter((r) => r.servicio === svc || result.rows.length <= 6);
   const rowsForChoice = (svcRows.length ? svcRows : result.rows).slice(0, 8);
+  const specific = query ? pickRowMatchingSpecificNivel(rowsForChoice, query) : null;
+  if (specific) return buildExactRowDetailAnswer(specific);
   const niveles = uniqueNiveles(rowsForChoice);
   const q = query ?? "";
 
@@ -2200,8 +2288,10 @@ export function buildCatalogServiceDetailAnswer(query: string): string | null {
       }
     } else if (/\b(tradicional|premium|b[aá]sic)\b/i.test(query)) {
       const fromPdf = buildPdfInclusionReply(query);
-      if (fromPdf) return fromPdf;
+      if (fromPdf && !looksLikeNivelOptionsDump(fromPdf)) return fromPdf;
     }
+    const specific = pickRowMatchingSpecificNivel(resolved.rows, query);
+    if (specific) return buildExactRowDetailAnswer(specific);
     return buildServiceNivelChoiceAnswer(resolved, query);
   }
 

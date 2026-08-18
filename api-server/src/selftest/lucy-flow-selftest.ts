@@ -266,6 +266,7 @@ import {
   ensureCatalogWebLink,
   attachAvailableSheetDetail,
   messageHasSheetServiceDetail,
+  looksLikeNivelOptionsDump,
   buildSoloVsCompletoModeAnswer,
   buildCompletoNivelesTeaser,
   serviceHasSoloVsCompleto,
@@ -11164,7 +11165,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.35 — primer turno banquete: catálogo + pregunta embudo (Allison A15370) ───
   await test("133. V9.35 — banquete Torreón primer turno pide fecha/invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.42");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.43");
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -11196,7 +11197,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.36 — no cortar el chat (Isai A15378) ───
   await test("134. V9.36 — Isai: no cierra, no confunde nombre con ciudad, urgencia ≠ teléfono", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.42");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.43");
     assert.equal(parseZonaFromText("Isai Moreno"), null);
     assert.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -11323,7 +11324,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.42");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.43");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
@@ -11400,7 +11401,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("135. V9.38 — comprobante en imagen: primer pago Anticipo, segundo Liquidación", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.42");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.43");
     assert.equal(FIELD_ANTICIPO, 1049322);
     assert.equal(FIELD_LIQUIDACION, 1049324);
 
@@ -11472,7 +11473,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("136. V9.40 — A15380 invitados no se saltan; Coyoacán+colonia; Claro no es nombre", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.42");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.43");
     const horario = "hola si se haría el 26 de septiembre pero aún no tenemos definido el horario";
     assert.equal(parseInvitadosFromText(horario), null, "horario pendiente ≠ invitados");
     const caps = scanConversationForCaptures([], horario, new Set(["Nombre del cliente"]));
@@ -11585,7 +11586,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("138. V9.41 — A15383 Kelia: ciudad, banquetes, LED≠luz, no spam (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.42");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.43");
 
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert.match(hornoMty, /horno\s*3/i, hornoMty);
@@ -11737,7 +11738,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.42 — A15391 Mariana: Coffee Break 4, "4. nombre", handoff, horario ≠ menú ───
   await test("139. V9.42 — A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.42");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.43");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -11829,6 +11830,49 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/55\s*4008\s*0373/i.test(handoff), handoff.slice(0, 400));
     assert.ok(!/invitados|cu[aá]nt[oa]s|ciudad del evento|en qu[eé] ciudad/i.test(handoff), handoff.slice(0, 400));
+  });
+
+  await test("140. V9.43 — detalle de un producto no re-lista el menú (todas las ramas)", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.43");
+    setCatalogSnapshotForTests(
+      parseSheetCatalogCsv(
+        [
+          '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Link catalogo","Que Incluye","Sinonimos"',
+          '"Coffee Break","Coffee Break 1","$120.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Café, galletas y agua"',
+          '"Coffee Break","Coffee Break 4","$350.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estación completa CB4"',
+          '"Coffee Break","Coffee Break 5","$400.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estación completa CB5"',
+          '"Taquiza","Basico","$750.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","Tacos básicos"',
+          '"Taquiza","Tradicional","$800.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","Tacos tradicionales y salsas"',
+          '"Taquiza","Premium","$850.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","Tacos premium y bartender"',
+        ].join("\n")
+      )
+    );
+    const cb4 = buildCatalogServiceDetailAnswer("Coffee Break 4") ?? "";
+    assert.ok(!looksLikeNivelOptionsDump(cb4), cb4.slice(0, 400));
+    assert.match(cb4, /350|CB4|Coffee Break 4/i, cb4.slice(0, 400));
+
+    const trad = buildCatalogServiceDetailAnswer("Taquiza Tradicional") ?? "";
+    assert.ok(!looksLikeNivelOptionsDump(trad), trad.slice(0, 400));
+    assert.match(trad, /tradicional|800/i, trad.slice(0, 400));
+
+    const dump =
+      "Claro que sí. Te detallo *Coffee Break 4*:\n\nPara *Coffee Break* manejamos estos niveles:\n\n1. *Coffee Break 4* — $350.00 /pp\n2. *Coffee Break 1* — $120.00 /pp\n\n¿Quieres que te dé detalles de alguno?";
+    assert.ok(looksLikeNivelOptionsDump(dump));
+    const menu = buildProgressiveOptionsMenu("coffee_break");
+    const rewritten = runGuards({
+      aiResponse: dump,
+      extracted: emptyExtracted({
+        nombre: "Mariana",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Coffee Break",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "coffe break 4",
+      history: [{ role: "assistant", content: menu }],
+    });
+    assert.ok(!looksLikeNivelOptionsDump(rewritten), rewritten.slice(0, 500));
+    assert.ok(/Coffee Break 4|350|CB4/i.test(rewritten), rewritten.slice(0, 500));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
