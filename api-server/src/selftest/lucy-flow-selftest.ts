@@ -317,7 +317,7 @@ import {
 } from "../services/serviceKnowledge.js";
 import { formatForWhatsApp } from "../lib/formatForWhatsApp.js";
 import { isVoiceNote, getVoiceNoteUrl } from "../services/voiceProcessor.js";
-import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests, parseVisionImageJson, formatImageTurnText, formatImageTeamNote, extractImageClientReply, looksLikeImageInternalSummary, clientCaptionForServiceParse } from "../services/imageProcessor.js";
+import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests, parseVisionImageJson, formatImageTurnText, formatImageTeamNote, extractImageClientReply, looksLikeImageInternalSummary, clientCaptionForServiceParse, parseAmountMxn, normalizePaymentMethod, rewriteImageTurnClientReply } from "../services/imageProcessor.js";
 import {
   resolveCatalogWebSlug,
   getCatalogWebUrlForQuery,
@@ -341,6 +341,14 @@ import {
   isChatUnsortedCategory,
 } from "../lib/kommoWebhookParse.js";
 import { isWithinLookback } from "../services/incomingLeadRecovery.js";
+import {
+  FIELD_ANTICIPO,
+  FIELD_LIQUIDACION,
+  nextPaymentSlot,
+  paymentFieldValue,
+  clientReplyForPaymentSlot,
+  kommoValueIsFilled,
+} from "../services/paymentReceiptCrm.js";
 import type { ExtractedData } from "../types.js";
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
@@ -2467,6 +2475,8 @@ async function runAll(): Promise<void> {
         intent: "comprobante_pago",
         internal_description: "Captura SPEI por $5000 a cuenta ****1234",
         client_reply: "¡Gracias por tu pago! Lo registro y el equipo da seguimiento.",
+        amount_mxn: 5000,
+        payment_method: "transferencia",
       })
     )!;
     const replyPago = runGuards({
@@ -2479,6 +2489,8 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/gracias por tu pago|registro|seguimiento/i.test(replyPago), replyPago);
     assert.ok(!/CLABE|\*\*\*\*1234|Veo una transferencia/i.test(replyPago), replyPago);
+    assert.equal(pago.amountMxn, 5000);
+    assert.equal(pago.paymentMethod, "transferencia");
   });
 
   await test("50. Offer temprano — boda: OpenAI propone, no 'qué servicios quieres'", () => {
@@ -3369,6 +3381,7 @@ async function runAll(): Promise<void> {
     assert.ok(/extractKommoIncomingMessage/.test(kommoSrc), "webhook debe parsear payload oficial Kommo");
     assert.ok(/acceptUnsortedForLeadId/.test(kommoSrc), "Lucy debe aceptar Incoming Leads");
     assert.ok(/processKommoWebhookAfterAck/.test(kommoSrc), "ACK 200 antes de voz/visión o Kommo desactiva el webhook");
+    assert.ok(/applyPaymentReceiptToLead/.test(kommoSrc), "comprobante imagen debe llenar Anticipo/Liquidación");
     assert.ok(/Kommo exige HTTP 2xx/.test(kommoSrc));
     assert.ok(/acceptUnsortedLead/.test(embudoSrc));
     assert.ok(/lucyEstaEnSilencio|lucyDebeResponder/.test(embudoSrc));
@@ -11125,7 +11138,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.35 — primer turno banquete: catálogo + pregunta embudo (Allison A15370) ───
   await test("133. V9.35 — banquete Torreón primer turno pide fecha/invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.37");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.38");
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -11157,7 +11170,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.36 — no cortar el chat (Isai A15378) ───
   await test("134. V9.36 — Isai: no cierra, no confunde nombre con ciudad, urgencia ≠ teléfono", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.37");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.38");
     assert.equal(parseZonaFromText("Isai Moreno"), null);
     assert.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -11284,7 +11297,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.37");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.38");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
@@ -11358,6 +11371,78 @@ async function runAll(): Promise<void> {
         else process.env[k] = v;
       }
     }
+  });
+
+  await test("135. V9.38 — comprobante en imagen: primer pago Anticipo, segundo Liquidación", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.38");
+    assert.equal(FIELD_ANTICIPO, 1049322);
+    assert.equal(FIELD_LIQUIDACION, 1049324);
+
+    assert.equal(nextPaymentSlot(null, null), "anticipo");
+    assert.equal(nextPaymentSlot("", null), "anticipo");
+    assert.equal(nextPaymentSlot(0, null), "anticipo");
+    assert.equal(nextPaymentSlot(4500, null), "liquidacion");
+    assert.equal(nextPaymentSlot("Transferencia", ""), "liquidacion");
+    assert.equal(nextPaymentSlot(4500, 4500), null);
+    assert.equal(kommoValueIsFilled(0), false);
+    assert.equal(kommoValueIsFilled("5000"), true);
+
+    assert.equal(paymentFieldValue({ amountMxn: 4500, method: "transferencia" }), 4500);
+    assert.equal(paymentFieldValue({ amountMxn: null, method: "efectivo" }), "Efectivo");
+    assert.ok(/anticipo/i.test(clientReplyForPaymentSlot("anticipo")));
+    assert.ok(/liquidaci[oó]n/i.test(clientReplyForPaymentSlot("liquidacion")));
+
+    assert.equal(parseAmountMxn(7800), 7800);
+    assert.equal(parseAmountMxn("5,000.00"), 5000);
+    assert.equal(normalizePaymentMethod("SPEI BBVA"), "transferencia");
+    assert.equal(normalizePaymentMethod("pago en efectivo"), "efectivo");
+
+    const spei = parseVisionImageJson(
+      JSON.stringify({
+        intent: "comprobante_pago",
+        internal_description: "SPEI $7800",
+        client_reply: "¡Gracias por tu pago!",
+        amount_mxn: 7800,
+        payment_method: "transferencia",
+      })
+    )!;
+    assert.equal(spei.intent, "comprobante_pago");
+    assert.equal(spei.amountMxn, 7800);
+    const cash = parseVisionImageJson(
+      JSON.stringify({
+        intent: "comprobante_pago",
+        internal_description: "Ticket caja $2000 efectivo",
+        client_reply: "¡Gracias por tu pago!",
+        payment_method: "efectivo",
+      })
+    )!;
+    assert.equal(cash.paymentMethod, "efectivo");
+    assert.equal(cash.amountMxn, 2000, "monto desde descripción si JSON no lo trae");
+
+    const montaje = parseVisionImageJson(
+      JSON.stringify({
+        intent: "montaje_referencia",
+        internal_description: "Mesas rústicas",
+        client_reply: "Lo anoto",
+        amount_mxn: 9999,
+      })
+    )!;
+    assert.equal(montaje.amountMxn, null, "foto que no es comprobante no llena pago");
+
+    const rewritten = rewriteImageTurnClientReply(
+      formatImageTurnText(spei),
+      clientReplyForPaymentSlot("anticipo")
+    );
+    assert.ok(/registré tu anticipo/i.test(rewritten));
+    assert.ok(!/7800/.test(extractImageClientReply(rewritten) ?? ""));
+
+    const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+    const paySrc = readFileSync(path.join(apiRoot, "src/services/paymentReceiptCrm.ts"), "utf8");
+    const imgSrc = readFileSync(path.join(apiRoot, "src/services/imageProcessor.ts"), "utf8");
+    assert.ok(/1049322/.test(paySrc));
+    assert.ok(/1049324/.test(paySrc));
+    assert.ok(/comprobante_pago/.test(imgSrc));
+    assert.ok(/amount_mxn/.test(imgSrc));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

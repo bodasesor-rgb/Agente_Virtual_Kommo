@@ -121345,6 +121345,29 @@ var FALLBACK_REPLIES = {
   otro: "Recib\xED tu imagen. \xBFMe confirmas qu\xE9 te gustar\xEDa de esta foto para tu evento?",
   no_claro: "Recib\xED tu imagen. \xBFMe confirmas qu\xE9 te gustar\xEDa de esta foto?"
 };
+function parseAmountMxn(raw) {
+  if (typeof raw === "number" && Number.isFinite(raw) && raw >= 1 && raw <= 2e7) {
+    return Math.round(raw);
+  }
+  const s6 = String(raw ?? "").trim();
+  if (!s6) return null;
+  const m5 = s6.replace(/\s/g, "").match(/(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/);
+  if (!m5?.[1]) return null;
+  const n4 = Number(m5[1].replace(/,/g, ""));
+  if (!Number.isFinite(n4) || n4 < 1 || n4 > 2e7) return null;
+  return Math.round(n4);
+}
+function parseAmountFromDescription(desc2) {
+  const m5 = desc2.match(/(?:\$|mxn|monto|importe)\s*:?\s*([\d.,]+)/i);
+  return m5?.[1] ? parseAmountMxn(m5[1]) : null;
+}
+function normalizePaymentMethod(raw) {
+  const s6 = String(raw ?? "").trim().toLowerCase();
+  if (/transfer|spei|dep[oó]sit|banc/.test(s6)) return "transferencia";
+  if (/efectivo|cash|caja/.test(s6)) return "efectivo";
+  if (/\bticket\b/.test(s6) && !/spei|transfer/.test(s6)) return "efectivo";
+  return "otro";
+}
 function normalizeIntent(raw) {
   const s6 = String(raw ?? "").trim().toLowerCase().replace(/\s+/g, "_");
   if (VALID_INTENTS.has(s6)) return s6;
@@ -121364,14 +121387,20 @@ function looksLikeImageInternalSummary(text2) {
   if (!text2?.trim()) return false;
   return looksLikeOwnerDescription(text2) || /\[Imagen nota interna\]/i.test(text2);
 }
-function buildAnalysisFromParts(intentRaw, internalRaw, clientRaw) {
+function buildAnalysisFromParts(intentRaw, internalRaw, clientRaw, amountRaw, methodRaw) {
   const intent = normalizeIntent(intentRaw);
   const internalDescription = String(internalRaw ?? "").trim().slice(0, 500) || "Imagen recibida sin detalle.";
   let clientReply = String(clientRaw ?? "").trim().slice(0, 400);
   if (!clientReply || looksLikeOwnerDescription(clientReply)) {
     clientReply = FALLBACK_REPLIES[intent];
   }
-  return { intent, internalDescription, clientReply };
+  const amountMxn = intent === "comprobante_pago" ? parseAmountMxn(amountRaw) ?? parseAmountFromDescription(internalDescription) : null;
+  let paymentMethod = null;
+  if (intent === "comprobante_pago") {
+    const fromJson = normalizePaymentMethod(methodRaw);
+    paymentMethod = fromJson !== "otro" ? fromJson : normalizePaymentMethod(internalDescription);
+  }
+  return { intent, internalDescription, clientReply, amountMxn, paymentMethod };
 }
 function parseVisionImageJson(raw) {
   const trimmed = raw.trim();
@@ -121382,7 +121411,9 @@ function parseVisionImageJson(raw) {
     return buildAnalysisFromParts(
       parsed.intent ?? parsed.Intent,
       parsed.internal_description ?? parsed.internalDescription ?? parsed.description,
-      parsed.client_reply ?? parsed.clientReply ?? parsed.reply
+      parsed.client_reply ?? parsed.clientReply ?? parsed.reply,
+      parsed.amount_mxn ?? parsed.amountMxn ?? parsed.monto ?? parsed.monto_mxn,
+      parsed.payment_method ?? parsed.paymentMethod ?? parsed.metodo
     );
   } catch {
     return null;
@@ -121402,10 +121433,26 @@ ${parts2.join("\n")}`;
   }
   return parts2.join("\n");
 }
-function formatImageTeamNote(analysis) {
-  return `Intent: ${analysis.intent}
-Respuesta enviada al cliente: ${analysis.clientReply}
-Ref. equipo (no enviar): ${analysis.internalDescription}`;
+function formatImageTeamNote(analysis, caption) {
+  const parts2 = [
+    `Intent: ${analysis.intent}`,
+    `Respuesta enviada al cliente: ${analysis.clientReply}`,
+    `Ref. equipo (no enviar): ${analysis.internalDescription}`
+  ];
+  if (analysis.intent === "comprobante_pago") {
+    const amount = analysis.amountMxn != null ? `$${analysis.amountMxn.toLocaleString("es-MX")}` : "sin monto";
+    parts2.push(`Pago: ${amount} \xB7 ${analysis.paymentMethod ?? "otro"}`);
+  }
+  if (caption?.trim()) parts2.push(`Caption: ${caption.trim().slice(0, 180)}`);
+  return parts2.join("\n");
+}
+function rewriteImageTurnClientReply(turnText, clientReply) {
+  if (!turnText.trim()) return `${IMAGE_ACTION_MARKER} ${clientReply}`;
+  if (/\[Imagen respuesta cliente\]:/i.test(turnText)) {
+    return turnText.replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/i, `${IMAGE_ACTION_MARKER} ${clientReply}`);
+  }
+  return `${turnText}
+${IMAGE_ACTION_MARKER} ${clientReply}`;
 }
 function extractImageClientReply(text2) {
   if (!text2) return null;
@@ -136968,8 +137015,45 @@ function isWithinLookback(createdAt, lookbackMs, now = Date.now()) {
   return ms >= now - lookbackMs;
 }
 
+// src/services/paymentReceiptCrm.ts
+await init_embudo();
+var FIELD_ANTICIPO = 1049322;
+var FIELD_LIQUIDACION = 1049324;
+function kommoValueIsFilled(raw) {
+  if (raw == null || raw === "") return false;
+  if (typeof raw === "number") return Number.isFinite(raw) && raw !== 0;
+  if (typeof raw === "string") {
+    const t3 = raw.trim();
+    if (!t3 || t3 === "-" || t3 === "0") return false;
+    return true;
+  }
+  if (typeof raw === "object" && raw !== null && "value" in raw) {
+    return kommoValueIsFilled(raw.value);
+  }
+  return true;
+}
+function nextPaymentSlot(anticipoRaw, liquidacionRaw) {
+  if (!kommoValueIsFilled(anticipoRaw)) return "anticipo";
+  if (!kommoValueIsFilled(liquidacionRaw)) return "liquidacion";
+  return null;
+}
+function paymentFieldValue(receipt) {
+  if (receipt.amountMxn != null && receipt.amountMxn >= 1) {
+    return receipt.amountMxn;
+  }
+  if (receipt.method === "efectivo") return "Efectivo";
+  if (receipt.method === "transferencia") return "Transferencia";
+  return "Comprobante";
+}
+function clientReplyForPaymentSlot(slot) {
+  if (slot === "anticipo") {
+    return "\xA1Gracias! Ya registr\xE9 tu anticipo y el equipo da seguimiento.";
+  }
+  return "\xA1Gracias! Ya registr\xE9 la liquidaci\xF3n y el equipo da seguimiento.";
+}
+
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.37";
+var LUCY_PROMPT_VERSION = "V9.38";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -138780,7 +138864,9 @@ async function runAll() {
       JSON.stringify({
         intent: "comprobante_pago",
         internal_description: "Captura SPEI por $5000 a cuenta ****1234",
-        client_reply: "\xA1Gracias por tu pago! Lo registro y el equipo da seguimiento."
+        client_reply: "\xA1Gracias por tu pago! Lo registro y el equipo da seguimiento.",
+        amount_mxn: 5e3,
+        payment_method: "transferencia"
       })
     );
     const replyPago = runGuards({
@@ -138793,6 +138879,8 @@ async function runAll() {
     });
     assert2.ok(/gracias por tu pago|registro|seguimiento/i.test(replyPago), replyPago);
     assert2.ok(!/CLABE|\*\*\*\*1234|Veo una transferencia/i.test(replyPago), replyPago);
+    assert2.equal(pago.amountMxn, 5e3);
+    assert2.equal(pago.paymentMethod, "transferencia");
   });
   await test("50. Offer temprano \u2014 boda: OpenAI propone, no 'qu\xE9 servicios quieres'", () => {
     assert2.ok(isDryRequerimientosAsk("\xBFQu\xE9 servicios te gustar\xEDa cotizar?"));
@@ -139603,6 +139691,7 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(/extractKommoIncomingMessage/.test(kommoSrc), "webhook debe parsear payload oficial Kommo");
     assert2.ok(/acceptUnsortedForLeadId/.test(kommoSrc), "Lucy debe aceptar Incoming Leads");
     assert2.ok(/processKommoWebhookAfterAck/.test(kommoSrc), "ACK 200 antes de voz/visi\xF3n o Kommo desactiva el webhook");
+    assert2.ok(/applyPaymentReceiptToLead/.test(kommoSrc), "comprobante imagen debe llenar Anticipo/Liquidaci\xF3n");
     assert2.ok(/Kommo exige HTTP 2xx/.test(kommoSrc));
     assert2.ok(/acceptUnsortedLead/.test(embudoSrc));
     assert2.ok(/lucyEstaEnSilencio|lucyDebeResponder/.test(embudoSrc));
@@ -146500,7 +146589,7 @@ ${golfText}`,
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
   await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.37");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.38");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -146529,7 +146618,7 @@ ${golfText}`,
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
   await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.37");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.38");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -146647,7 +146736,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.37");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.38");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,
@@ -146716,6 +146805,70 @@ ${golfText}`,
         else process.env[k4] = v3;
       }
     }
+  });
+  await test("135. V9.38 \u2014 comprobante en imagen: primer pago Anticipo, segundo Liquidaci\xF3n", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.38");
+    assert2.equal(FIELD_ANTICIPO, 1049322);
+    assert2.equal(FIELD_LIQUIDACION, 1049324);
+    assert2.equal(nextPaymentSlot(null, null), "anticipo");
+    assert2.equal(nextPaymentSlot("", null), "anticipo");
+    assert2.equal(nextPaymentSlot(0, null), "anticipo");
+    assert2.equal(nextPaymentSlot(4500, null), "liquidacion");
+    assert2.equal(nextPaymentSlot("Transferencia", ""), "liquidacion");
+    assert2.equal(nextPaymentSlot(4500, 4500), null);
+    assert2.equal(kommoValueIsFilled(0), false);
+    assert2.equal(kommoValueIsFilled("5000"), true);
+    assert2.equal(paymentFieldValue({ amountMxn: 4500, method: "transferencia" }), 4500);
+    assert2.equal(paymentFieldValue({ amountMxn: null, method: "efectivo" }), "Efectivo");
+    assert2.ok(/anticipo/i.test(clientReplyForPaymentSlot("anticipo")));
+    assert2.ok(/liquidaci[oó]n/i.test(clientReplyForPaymentSlot("liquidacion")));
+    assert2.equal(parseAmountMxn(7800), 7800);
+    assert2.equal(parseAmountMxn("5,000.00"), 5e3);
+    assert2.equal(normalizePaymentMethod("SPEI BBVA"), "transferencia");
+    assert2.equal(normalizePaymentMethod("pago en efectivo"), "efectivo");
+    const spei = parseVisionImageJson(
+      JSON.stringify({
+        intent: "comprobante_pago",
+        internal_description: "SPEI $7800",
+        client_reply: "\xA1Gracias por tu pago!",
+        amount_mxn: 7800,
+        payment_method: "transferencia"
+      })
+    );
+    assert2.equal(spei.intent, "comprobante_pago");
+    assert2.equal(spei.amountMxn, 7800);
+    const cash = parseVisionImageJson(
+      JSON.stringify({
+        intent: "comprobante_pago",
+        internal_description: "Ticket caja $2000 efectivo",
+        client_reply: "\xA1Gracias por tu pago!",
+        payment_method: "efectivo"
+      })
+    );
+    assert2.equal(cash.paymentMethod, "efectivo");
+    assert2.equal(cash.amountMxn, 2e3, "monto desde descripci\xF3n si JSON no lo trae");
+    const montaje = parseVisionImageJson(
+      JSON.stringify({
+        intent: "montaje_referencia",
+        internal_description: "Mesas r\xFAsticas",
+        client_reply: "Lo anoto",
+        amount_mxn: 9999
+      })
+    );
+    assert2.equal(montaje.amountMxn, null, "foto que no es comprobante no llena pago");
+    const rewritten = rewriteImageTurnClientReply(
+      formatImageTurnText(spei),
+      clientReplyForPaymentSlot("anticipo")
+    );
+    assert2.ok(/registré tu anticipo/i.test(rewritten));
+    assert2.ok(!/7800/.test(extractImageClientReply(rewritten) ?? ""));
+    const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
+    const paySrc = readFileSync5(path6.join(apiRoot, "src/services/paymentReceiptCrm.ts"), "utf8");
+    const imgSrc = readFileSync5(path6.join(apiRoot, "src/services/imageProcessor.ts"), "utf8");
+    assert2.ok(/1049322/.test(paySrc));
+    assert2.ok(/1049324/.test(paySrc));
+    assert2.ok(/comprobante_pago/.test(imgSrc));
+    assert2.ok(/amount_mxn/.test(imgSrc));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

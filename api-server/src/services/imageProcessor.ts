@@ -21,12 +21,17 @@ export type ImageIntent =
   | "otro"
   | "no_claro";
 
+export type PaymentMethod = "transferencia" | "efectivo" | "otro";
+
 export interface ImageAnalysis {
   intent: ImageIntent;
   /** Descripción técnica solo para logs / nota interna en Kommo. */
   internalDescription: string;
   /** Respuesta lista para el cliente: confirma, liga a servicio, agradece, o pregunta. */
   clientReply: string;
+  /** Monto visible en un comprobante (sin CLABE ni cuentas). */
+  amountMxn?: number | null;
+  paymentMethod?: PaymentMethod | null;
 }
 
 const imageAnalysisCache = new Map<string, { analysis: ImageAnalysis; at: number }>();
@@ -185,20 +190,25 @@ const VISION_PROMPT =
   "Habla como en un chat: menciona 1-2 detalles concretos de LA FOTO y dile cómo lo ayudas (cotización, estilo, servicio).\n\n" +
   "Clasifica intent como UNO de:\n" +
   "- montaje_referencia: foto de montaje, mesas/sillas, decoración o estilo de referencia\n" +
-  "- comprobante_pago: captura de transferencia, SPEI, ticket o comprobante de pago\n" +
+  "- comprobante_pago: captura de transferencia, SPEI, ticket de caja o foto de pago en efectivo\n" +
   "- comida_producto: comida, menú, taquiza, pastel, bebida u otro producto de catering\n" +
   "- lugar_evento: foto del salón, jardín o venue del evento\n" +
   "- documento: INE, contrato u otro documento\n" +
   "- otro: relacionado con el evento pero no encaja arriba\n" +
   "- no_claro: no se entiende qué quiere el cliente con la foto\n\n" +
-  "Responde SOLO JSON válido (sin markdown) con exactamente estas claves:\n" +
-  '{"intent":"...","internal_description":"muy breve para el equipo (max 12 palabras)","client_reply":"2-3 oraciones AL CLIENTE sobre su foto"}\n\n' +
+  "Responde SOLO JSON válido (sin markdown) con estas claves:\n" +
+  '{"intent":"...","internal_description":"muy breve para el equipo (max 12 palabras)","client_reply":"2-3 oraciones AL CLIENTE sobre su foto","amount_mxn":null,"payment_method":"otro"}\n\n' +
+  "Si intent es comprobante_pago:\n" +
+  "- amount_mxn = monto en pesos (número, sin comas). null si no se lee.\n" +
+  "- payment_method = transferencia (SPEI, depósito, app bancaria) o efectivo (ticket de caja, pago en efectivo) u otro.\n" +
+  "- NUNCA copies CLABE, cuentas, NIP ni números de tarjeta en ningún campo.\n" +
+  "Si NO es comprobante: amount_mxn null y payment_method otro.\n\n" +
   "Reglas para client_reply (ES LO IMPORTANTE):\n" +
   "- Es la respuesta que el cliente leerá en WhatsApp.\n" +
   "- Debe sonar a conversación: 'Vi que… / Me encanta el estilo… / Anoto… / ¿Quieres…?'\n" +
   "- Nombra algo concreto que salga en la foto (color, tipo de mesa, plato, jardín, etc.).\n" +
   "- montaje_referencia: confirma que pueden armar ese estilo/mobiliario y anótalo.\n" +
-  "- comprobante_pago: agradece el pago y di que el equipo da seguimiento (sin leer datos sensibles).\n" +
+  "- comprobante_pago: agradece el pago y di que el equipo da seguimiento (sin leer datos sensibles ni el monto).\n" +
   "- comida_producto: nombra el platillo/estilo de la foto. Si el caption ya dice un servicio (ej. barra de pastas), confirma ESE servicio. NO inventes alternativas (taquiza, banquete) si la foto o el caption ya son claros.\n" +
   "- lugar_evento: reconoce el espacio y confirma si ahí sería el evento.\n" +
   "- documento: confirma recepción sin leer datos sensibles.\n" +
@@ -218,6 +228,34 @@ const FALLBACK_REPLIES: Record<ImageIntent, string> = {
   otro: "Recibí tu imagen. ¿Me confirmas qué te gustaría de esta foto para tu evento?",
   no_claro: "Recibí tu imagen. ¿Me confirmas qué te gustaría de esta foto?",
 };
+
+export function parseAmountMxn(raw: unknown): number | null {
+  if (typeof raw === "number" && Number.isFinite(raw) && raw >= 1 && raw <= 20_000_000) {
+    return Math.round(raw);
+  }
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+  const m = s.replace(/\s/g, "").match(/(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/);
+  if (!m?.[1]) return null;
+  const n = Number(m[1].replace(/,/g, ""));
+  if (!Number.isFinite(n) || n < 1 || n > 20_000_000) return null;
+  return Math.round(n);
+}
+
+function parseAmountFromDescription(desc: string): number | null {
+  const m = desc.match(/(?:\$|mxn|monto|importe)\s*:?\s*([\d.,]+)/i);
+  return m?.[1] ? parseAmountMxn(m[1]) : null;
+}
+
+export function normalizePaymentMethod(raw: unknown): PaymentMethod {
+  const s = String(raw ?? "")
+    .trim()
+    .toLowerCase();
+  if (/transfer|spei|dep[oó]sit|banc/.test(s)) return "transferencia";
+  if (/efectivo|cash|caja/.test(s)) return "efectivo";
+  if (/\bticket\b/.test(s) && !/spei|transfer/.test(s)) return "efectivo";
+  return "otro";
+}
 
 function normalizeIntent(raw: unknown): ImageIntent {
   const s = String(raw ?? "")
@@ -252,7 +290,9 @@ export function looksLikeImageInternalSummary(text: string | null | undefined): 
 export function buildAnalysisFromParts(
   intentRaw: unknown,
   internalRaw: unknown,
-  clientRaw: unknown
+  clientRaw: unknown,
+  amountRaw?: unknown,
+  methodRaw?: unknown
 ): ImageAnalysis {
   const intent = normalizeIntent(intentRaw);
   const internalDescription =
@@ -263,7 +303,16 @@ export function buildAnalysisFromParts(
   if (!clientReply || looksLikeOwnerDescription(clientReply)) {
     clientReply = FALLBACK_REPLIES[intent];
   }
-  return { intent, internalDescription, clientReply };
+  const amountMxn =
+    intent === "comprobante_pago"
+      ? parseAmountMxn(amountRaw) ?? parseAmountFromDescription(internalDescription)
+      : null;
+  let paymentMethod: PaymentMethod | null = null;
+  if (intent === "comprobante_pago") {
+    const fromJson = normalizePaymentMethod(methodRaw);
+    paymentMethod = fromJson !== "otro" ? fromJson : normalizePaymentMethod(internalDescription);
+  }
+  return { intent, internalDescription, clientReply, amountMxn, paymentMethod };
 }
 
 export function parseVisionImageJson(raw: string): ImageAnalysis | null {
@@ -275,7 +324,9 @@ export function parseVisionImageJson(raw: string): ImageAnalysis | null {
     return buildAnalysisFromParts(
       parsed.intent ?? parsed.Intent,
       parsed.internal_description ?? parsed.internalDescription ?? parsed.description,
-      parsed.client_reply ?? parsed.clientReply ?? parsed.reply
+      parsed.client_reply ?? parsed.clientReply ?? parsed.reply,
+      parsed.amount_mxn ?? parsed.amountMxn ?? parsed.monto ?? parsed.monto_mxn,
+      parsed.payment_method ?? parsed.paymentMethod ?? parsed.metodo
     );
   } catch {
     return null;
@@ -408,12 +459,27 @@ export function formatImageTurnText(
 }
 
 /** Nota corta para el equipo en Kommo (no es el mensaje al cliente). */
-export function formatImageTeamNote(analysis: ImageAnalysis): string {
-  return (
-    `Intent: ${analysis.intent}\n` +
-    `Respuesta enviada al cliente: ${analysis.clientReply}\n` +
-    `Ref. equipo (no enviar): ${analysis.internalDescription}`
-  );
+export function formatImageTeamNote(analysis: ImageAnalysis, caption?: string | null): string {
+  const parts = [
+    `Intent: ${analysis.intent}`,
+    `Respuesta enviada al cliente: ${analysis.clientReply}`,
+    `Ref. equipo (no enviar): ${analysis.internalDescription}`,
+  ];
+  if (analysis.intent === "comprobante_pago") {
+    const amount =
+      analysis.amountMxn != null ? `$${analysis.amountMxn.toLocaleString("es-MX")}` : "sin monto";
+    parts.push(`Pago: ${amount} · ${analysis.paymentMethod ?? "otro"}`);
+  }
+  if (caption?.trim()) parts.push(`Caption: ${caption.trim().slice(0, 180)}`);
+  return parts.join("\n");
+}
+
+export function rewriteImageTurnClientReply(turnText: string, clientReply: string): string {
+  if (!turnText.trim()) return `${IMAGE_ACTION_MARKER} ${clientReply}`;
+  if (/\[Imagen respuesta cliente\]:/i.test(turnText)) {
+    return turnText.replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/i, `${IMAGE_ACTION_MARKER} ${clientReply}`);
+  }
+  return `${turnText}\n${IMAGE_ACTION_MARKER} ${clientReply}`;
 }
 
 export function extractImageClientReply(text: string | null | undefined): string | null {

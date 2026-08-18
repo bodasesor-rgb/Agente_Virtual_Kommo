@@ -213,6 +213,8 @@ export interface ProcessedMessage {
   /** Respuesta accionable al cliente cuando el mensaje es una imagen. */
   imageClientReply?: string | null;
   imageIntent?: ImageAnalysis["intent"] | null;
+  amountMxn?: number | null;
+  paymentMethod?: ImageAnalysis["paymentMethod"];
 }
 
 export async function processMessage(
@@ -259,6 +261,8 @@ export async function processMessage(
           mediaNote: formatImageTeamNote(analysis, caption),
           imageClientReply: analysis.clientReply,
           imageIntent: analysis.intent,
+          amountMxn: analysis.amountMxn ?? null,
+          paymentMethod: analysis.paymentMethod ?? null,
         };
       }
     } else {

@@ -41,6 +41,11 @@ import { calculateLeadScore, detectStage } from "../services/leadScoring.js";
 import { detectIntent, analyzeSentiment, detectObjection } from "../services/intentDetection.js";
 import { processMessage, getVoiceAcknowledgment } from "../services/voiceProcessor.js";
 import {
+  applyPaymentReceiptToLead,
+  clientReplyForPaymentSlot,
+} from "../services/paymentReceiptCrm.js";
+import { rewriteImageTurnClientReply } from "../services/imageProcessor.js";
+import {
   isDuplicateWebhookMessage,
   isIncomingClientMessage,
   markWebhookMessageProcessed,
@@ -2386,9 +2391,35 @@ async function processKommoWebhookAfterAck(req: Request): Promise<void> {
   const messageData = firstMessage
     ? await processMessage(firstMessage, accessToken, log)
     : { text: "", isVoice: false, isImage: false, mediaNote: null };
-  const text = (messageData.text || extractKommoMessageText(firstMessage)).trim();
+  let text = (messageData.text || extractKommoMessageText(firstMessage)).trim();
   const isVoice = messageData.isVoice;
   const isImage = messageData.isImage;
+
+  if (
+    isImage &&
+    messageData.imageIntent === "comprobante_pago" &&
+    entityId &&
+    subdomain &&
+    accessToken
+  ) {
+    try {
+      const applied = await applyPaymentReceiptToLead({
+        subdomain,
+        accessToken,
+        leadId: entityId,
+        receipt: {
+          amountMxn: messageData.amountMxn ?? null,
+          method: messageData.paymentMethod ?? "otro",
+        },
+        log,
+      });
+      if (applied) {
+        text = rewriteImageTurnClientReply(text, clientReplyForPaymentSlot(applied.slot));
+      }
+    } catch (err) {
+      log.warn({ err, entityId }, "Pago imagen: no se pudo escribir Anticipo/Liquidación");
+    }
+  }
 
   log.info(
     {
