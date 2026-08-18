@@ -11,6 +11,7 @@ import {
   isLikelyNotPersonNameMessage,
   isLikelyUbicacionNotNombre,
   isQuoteIntentMessage,
+  looksLikePersonFullName,
   sanitizeCrmNombre,
   sanitizeDisplayName,
 } from "./contact-name.js";
@@ -1333,15 +1334,30 @@ export function clientRequestsCallback(message?: string): boolean {
   );
 }
 
+/** Cliente apura tiempos ("me urge", "no sea mañana") — no es pedido de teléfono. */
+export function clientSignalsUrgency(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return (
+    /\b(me\s+urge|es\s+urgente|de\s+urgencia|faltan\s+pocos\s+d[ií]as|pocos\s+d[ií]as)\b/i.test(t) ||
+    /\bno\s+sea\s+ma[nñ]ana\b/i.test(t) ||
+    /\bnecesito\s+saber\s+si\s+(pueden|pueden\s+o\s+no|se\s+puede)\b/i.test(t)
+  );
+}
+
 /** Cliente pregunta por teléfonos de contacto o pide que lo marquen. */
 export function clientAsksPhone(message?: string): boolean {
   if (!message?.trim()) return false;
   if (clientRequestsCallback(message)) return true;
   const t = message.toLowerCase();
+  // "me urge" / plazos ≠ pedir el número de ventas.
+  if (clientSignalsUrgency(message) && !/\btel[eé]fono|\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas)|\bllamar|\bmarcar\b/i.test(t)) {
+    return false;
+  }
   return (
     /\btel[eé]fono/i.test(t) ||
     /\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas|gerencia)/i.test(t) ||
-    /\b(llamar|marcar|contestar|contestan|nadie\s+contesta|me\s+urge)\b/i.test(t) ||
+    /\b(llamar|marcar|contestar|contestan|nadie\s+contesta)\b/i.test(t) ||
     /\bwhatsapp\s+(de\s+)?(ventas|gerencia|corporativo|bodasesor)/i.test(t) ||
     /\btienen\s+whatsapp/i.test(t)
   );
@@ -2943,6 +2959,10 @@ export function isUsableDireccionEvento(value: string | null | undefined): boole
   if (isLikelyProductNameNotLocation(t)) return false;
   if (JUNK_DIRECCION_PATTERN.test(t)) return false;
   if (isNonLocationBusinessPhrase(t)) return false;
+  // "Isai Moreno" / nombre+apellido ≠ ciudad (A15378).
+  if (looksLikePersonFullName(t) && !hasCityOrMetroSignal(t) && !KNOWN_ZONES.test(t)) {
+    return false;
+  }
   if (looksLikeThemeColorNotLocation(t)) return false;
   if (looksLikeDiscourseNotPlace(t)) return false;
   // A14995 Hortensia: "donde estan" / pregunta de sede ≠ ubicación del evento.
@@ -3306,6 +3326,7 @@ export function parseZonaFromText(text: string): string | null {
     shortPlace &&
     shortPlace.split(/\s+/).length <= 4 &&
     shortPlace.length <= 48 &&
+    (hasCityOrMetroSignal(shortPlace) || KNOWN_ZONES.test(shortPlace)) &&
     isUsableDireccionEvento(shortPlace)
   ) {
     return shortPlace;
@@ -3553,6 +3574,16 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
   if (!t) return false;
   // RFQ largo con datos del evento ≠ "no tengo presupuesto".
   if (isRichQuoteBrief(t)) return false;
+  // Canal WhatsApp / rechazo de correo ≠ waiver de presupuesto (Isai A15378).
+  if (
+    !/\bpresupuesto\b/i.test(t) &&
+    (/\b(por\s+este\s+medio|por\s+whatsapp|aqu[ií]\s+por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|no\s+tengo(\s+un?)?\s+correo)\b/i.test(
+      t
+    ) ||
+      /\bno\s+s[eé]\s+puede\b/i.test(t))
+  ) {
+    return false;
+  }
 
   if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
   if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t)) return true;
@@ -3621,7 +3652,7 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
     /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t) ||
     /\bt[uú]\s+m[aá]ndame\b/i.test(t) ||
     /\bsi\s+quieres\s+vemos\b/i.test(t) ||
-    /\b(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s|$|[.,!?])/i.test(t) ||
+    /\b(no\s+s[eé](?!\s+puede)|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s*$|[.,!?]|\s+(cu[aá]nto|a[uú]n|si)\b)/i.test(t) ||
     /\ba[uú]n\s+no\s+(?:s[eé]|lo\s+s[eé]|s[eé]\s+cu[aá]nto)/i.test(t) ||
     /\btodav[ií]a\s+no\b/i.test(t) ||
     /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t) ||
@@ -3963,12 +3994,17 @@ export function captureContextualAnswer(
   const zonaFromMsg = parseZonaFromText(msg);
   const msgIsLocation =
     !carpaVariant &&
+    asked !== "nombre" &&
+    asked !== "correo" &&
     !!zonaFromMsg &&
     isUsableDireccionEvento(zonaFromMsg) &&
+    !looksLikePersonFullName(msg) &&
     (isLikelyUbicacionNotNombre(msg) ||
       asked === "zona" ||
       /^en\s+/i.test(msg.trim()) ||
-      (msg.trim().split(/\s+/).length <= 4 && !!zonaFromMsg));
+      (msg.trim().split(/\s+/).length <= 4 &&
+        !!zonaFromMsg &&
+        (hasCityOrMetroSignal(msg) || KNOWN_ZONES.test(msg))));
 
   if (msgIsLocation && zonaFromMsg && !filledSet.has("Lugar/dirección del evento")) {
     captures.push({ label: "Lugar/dirección del evento", value: zonaFromMsg });

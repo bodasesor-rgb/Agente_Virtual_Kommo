@@ -128310,11 +128310,19 @@ function clientRequestsCallback(message) {
   const t10 = message.toLowerCase();
   return /\b(m[aá]rquenme|marquenme|ll[aá]menme|llamarme|me\s+marcan|me\s+llaman)\b/i.test(t10) || /\bme\s+pueden\s+(marcar|llamar)\b/i.test(t10) || /\b(pueden|pueden\s+ustedes)\s+(marcar|llamar)\b/i.test(t10) || /\batenci[oó]n\s+personalizada\b/i.test(t10) || /\bque\s+me\s+(marquen|llamen)\b/i.test(t10) || /\bnecesito\s+que\s+me\s+(marquen|llamen)\b/i.test(t10);
 }
+function clientSignalsUrgency(message) {
+  if (!message?.trim()) return false;
+  const t10 = message.toLowerCase();
+  return /\b(me\s+urge|es\s+urgente|de\s+urgencia|faltan\s+pocos\s+d[ií]as|pocos\s+d[ií]as)\b/i.test(t10) || /\bno\s+sea\s+ma[nñ]ana\b/i.test(t10) || /\bnecesito\s+saber\s+si\s+(pueden|pueden\s+o\s+no|se\s+puede)\b/i.test(t10);
+}
 function clientAsksPhone(message) {
   if (!message?.trim()) return false;
   if (clientRequestsCallback(message)) return true;
   const t10 = message.toLowerCase();
-  return /\btel[eé]fono/i.test(t10) || /\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas|gerencia)/i.test(t10) || /\b(llamar|marcar|contestar|contestan|nadie\s+contesta|me\s+urge)\b/i.test(t10) || /\bwhatsapp\s+(de\s+)?(ventas|gerencia|corporativo|bodasesor)/i.test(t10) || /\btienen\s+whatsapp/i.test(t10);
+  if (clientSignalsUrgency(message) && !/\btel[eé]fono|\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas)|\bllamar|\bmarcar\b/i.test(t10)) {
+    return false;
+  }
+  return /\btel[eé]fono/i.test(t10) || /\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas|gerencia)/i.test(t10) || /\b(llamar|marcar|contestar|contestan|nadie\s+contesta)\b/i.test(t10) || /\bwhatsapp\s+(de\s+)?(ventas|gerencia|corporativo|bodasesor)/i.test(t10) || /\btienen\s+whatsapp/i.test(t10);
 }
 function isRichQuoteBrief(text2) {
   const t10 = text2?.trim() ?? "";
@@ -129229,6 +129237,9 @@ function isUsableDireccionEvento(value) {
   if (isLikelyProductNameNotLocation(t10)) return false;
   if (JUNK_DIRECCION_PATTERN.test(t10)) return false;
   if (isNonLocationBusinessPhrase(t10)) return false;
+  if (looksLikePersonFullName(t10) && !hasCityOrMetroSignal(t10) && !KNOWN_ZONES.test(t10)) {
+    return false;
+  }
   if (looksLikeThemeColorNotLocation(t10)) return false;
   if (looksLikeDiscourseNotPlace(t10)) return false;
   if (looksLikeCompanyLocationQuestionFragment(t10)) return false;
@@ -129449,7 +129460,7 @@ function parseZonaFromText(text2) {
     if (lugar && isUsableDireccionEvento(lugar)) return lugar;
   }
   const shortPlace = trimmed.replace(/^(es\s+en\s+|en\s+|ser[ií]a\s+en\s+)/i, "").trim().replace(/[.,;:]+$/g, "").trim();
-  if (shortPlace && shortPlace.split(/\s+/).length <= 4 && shortPlace.length <= 48 && isUsableDireccionEvento(shortPlace)) {
+  if (shortPlace && shortPlace.split(/\s+/).length <= 4 && shortPlace.length <= 48 && (hasCityOrMetroSignal(shortPlace) || KNOWN_ZONES.test(shortPlace)) && isUsableDireccionEvento(shortPlace)) {
     return shortPlace;
   }
   return null;
@@ -129603,6 +129614,11 @@ function detectPresupuestoRefusal(text2) {
   const t10 = text2?.trim() ?? "";
   if (!t10) return false;
   if (isRichQuoteBrief(t10)) return false;
+  if (!/\bpresupuesto\b/i.test(t10) && (/\b(por\s+este\s+medio|por\s+whatsapp|aqu[ií]\s+por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|no\s+tengo(\s+un?)?\s+correo)\b/i.test(
+    t10
+  ) || /\bno\s+s[eé]\s+puede\b/i.test(t10))) {
+    return false;
+  }
   if (/^(no|nop)[\s.,!]*$/i.test(t10)) return true;
   if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t10)) return true;
   if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t10)) return true;
@@ -129626,7 +129642,7 @@ function detectPresupuestoRefusal(text2) {
   if (/\bno\s+se\b/.test(norm2) && /\b(cual|nivel|opcion|variante|paquete|incluir|incluye|podria\s+ser)\b/.test(norm2)) {
     return false;
   }
-  return /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t10) || /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t10) || /\bt[uú]\s+m[aá]ndame\b/i.test(t10) || /\bsi\s+quieres\s+vemos\b/i.test(t10) || /\b(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s|$|[.,!?])/i.test(t10) || /\ba[uú]n\s+no\s+(?:s[eé]|lo\s+s[eé]|s[eé]\s+cu[aá]nto)/i.test(t10) || /\btodav[ií]a\s+no\b/i.test(t10) || /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t10) || /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t10) || /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t10) || /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t10) || /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t10) || /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t10) || /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t10) || /\b(el\s+)?equipo\s+(me\s+)?propong/i.test(t10);
+  return /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t10) || /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t10) || /\bt[uú]\s+m[aá]ndame\b/i.test(t10) || /\bsi\s+quieres\s+vemos\b/i.test(t10) || /\b(no\s+s[eé](?!\s+puede)|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s*$|[.,!?]|\s+(cu[aá]nto|a[uú]n|si)\b)/i.test(t10) || /\ba[uú]n\s+no\s+(?:s[eé]|lo\s+s[eé]|s[eé]\s+cu[aá]nto)/i.test(t10) || /\btodav[ií]a\s+no\b/i.test(t10) || /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t10) || /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t10) || /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t10) || /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t10) || /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t10) || /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t10) || /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t10) || /\b(el\s+)?equipo\s+(me\s+)?propong/i.test(t10);
 }
 function isPresupuestoResuelto(filledSet, texts = [], history) {
   if (filledSet.has("Presupuesto (MXN)")) return true;
@@ -129843,7 +129859,7 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
     captures.push({ label: "Requerimientos o servicios", value: carpaVariant });
   }
   const zonaFromMsg = parseZonaFromText(msg);
-  const msgIsLocation = !carpaVariant && !!zonaFromMsg && isUsableDireccionEvento(zonaFromMsg) && (isLikelyUbicacionNotNombre(msg) || asked === "zona" || /^en\s+/i.test(msg.trim()) || msg.trim().split(/\s+/).length <= 4 && !!zonaFromMsg);
+  const msgIsLocation = !carpaVariant && asked !== "nombre" && asked !== "correo" && !!zonaFromMsg && isUsableDireccionEvento(zonaFromMsg) && !looksLikePersonFullName(msg) && (isLikelyUbicacionNotNombre(msg) || asked === "zona" || /^en\s+/i.test(msg.trim()) || msg.trim().split(/\s+/).length <= 4 && !!zonaFromMsg && (hasCityOrMetroSignal(msg) || KNOWN_ZONES.test(msg)));
   if (msgIsLocation && zonaFromMsg && !filledSet.has("Lugar/direcci\xF3n del evento")) {
     captures.push({ label: "Lugar/direcci\xF3n del evento", value: zonaFromMsg });
   }
@@ -156527,9 +156543,14 @@ function syncFilledFromExtracted(filledSet, extracted) {
   if (extracted.tipo_evento?.trim()) filledSet.add("Tipo de evento");
   if (isValidRequerimientosValue(extracted.requerimientos_evento)) {
     filledSet.add("Requerimientos o servicios");
+  } else if (extracted.requerimientos_evento?.trim()) {
+    filledSet.delete("Requerimientos o servicios");
   }
   if (extracted.direccion_evento?.trim()) {
-    if (!isUsableDireccionEvento(extracted.direccion_evento) || isLikelyProductNameNotLocation(extracted.direccion_evento)) {
+    if (!isUsableDireccionEvento(extracted.direccion_evento) || isLikelyProductNameNotLocation(extracted.direccion_evento) || looksLikePersonFullName(extracted.direccion_evento) && !hasCityOrMetroSignal(extracted.direccion_evento)) {
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/direcci\xF3n del evento");
+    } else if (extracted.nombre && namesAreLikelySamePerson(extracted.nombre, extracted.direccion_evento)) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/direcci\xF3n del evento");
     } else {
@@ -156646,6 +156667,11 @@ function isValidRequerimientosValue(value) {
   if (!trimmed) return false;
   if (isGenericQuoteIntentRequerimiento(trimmed) || isQuoteIntentMessage(trimmed)) return false;
   if (isGreetingOnlyMessage(trimmed)) return false;
+  if (/\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b/i.test(
+    trimmed
+  ) && !/\b(formal|mexicano|\d\s*tiempos?|taquiza|coffee\s*break)\b/i.test(trimmed)) {
+    return false;
+  }
   if (/^(hola|buen[oa]s?\b|me\s+llamo|soy|mi\s+nombre\s+es)\b/i.test(trimmed) && parseServicesFromText(trimmed).length === 0 && !isServiceRelatedMessage(trimmed)) {
     return false;
   }
@@ -158938,7 +158964,7 @@ function looksLikeDeadEndAck(mensaje) {
   const t10 = (mensaje || "").trim();
   if (!t10) return true;
   if (/\?/.test(t10)) return false;
-  if (/ya tengo todo|paso (estos )?datos|cotizaci[oó]n personalizada|nuestro equipo (ya )?(tiene|sigue)|si necesitas algo m[aá]s|con gusto te apoyo/i.test(
+  if (/ya tengo todo|paso (estos )?datos|cotizaci[oó]n personalizada|nuestro equipo (ya )?(tiene|sigue)/i.test(
     t10
   )) {
     return false;
@@ -159054,7 +159080,6 @@ function applyLucyMessageGuards(input) {
     extracted,
     filledSet,
     readyForClosing,
-    cierreYaEnviado,
     emailRefusedThisTurn,
     history,
     currentMessage,
@@ -159064,6 +159089,7 @@ function applyLucyMessageGuards(input) {
     entityId,
     forceFirstPresentation
   } = input;
+  let { cierreYaEnviado } = input;
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
   syncFilledFromExtracted(filledSet, extracted);
@@ -159082,6 +159108,10 @@ function applyLucyMessageGuards(input) {
     collectUserTexts(presHistory, currentMessage),
     presHistory
   );
+  if (cierreYaEnviado && getNextPendingField(extracted, filledSet)) {
+    cierreYaEnviado = false;
+    log?.info({ entityId }, "GUARD: V9.36 \u2014 cierre prematuro, se reabre el chat");
+  }
   const dimensionsNow = parseSpaceDimensions(currentMessage ?? "");
   if (dimensionsNow && (clientMentionsCarpas(extracted.requerimientos_evento ?? "") || clientMentionsPistaTarima(extracted.requerimientos_evento ?? ""))) {
     const req = extracted.requerimientos_evento?.trim() || "Servicio";
@@ -160326,7 +160356,9 @@ ${catalog}`,
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje \u2014 RFQ largo (ack + cat\xE1logo + nombre)");
-  } else if (currentMessage && detectPresupuestoRefusal(currentMessage) && !isRichQuoteBrief(currentMessage)) {
+  } else if (currentMessage && detectPresupuestoRefusal(currentMessage) && !isRichQuoteBrief(currentMessage) && inferLucyAskedField(
+    [...presHistory].reverse().find((m10) => m10.role === "assistant" && typeof m10.content === "string")?.content
+  ) !== "correo" && !detectEmailRefusal([currentMessage])) {
     if (!filledSet.has("Presupuesto (MXN)")) {
       applyPresupuestoWaiver(
         filledSet,
@@ -160492,6 +160524,17 @@ ${catalog}`,
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo \u2014 se contin\xFAa el flujo");
+  } else if (clientSignalsUrgency(currentMessage) && !clientAsksPhone(currentMessage)) {
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    const fechaHint = extracted.fecha_horario?.trim() ? ` Para el *${extracted.fecha_horario.trim()}* confirmamos disponibilidad en cuanto tengamos el resto de datos.` : " Confirmamos disponibilidad en cuanto tengamos el resto de datos.";
+    mensaje = [
+      pickTransition(presHistory),
+      `Entendido, lo vemos con prioridad.${fechaHint}`,
+      nextQ
+    ].filter(Boolean).join(" ").trim();
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: V9.36 \u2014 urgencia, mantiene el chat vivo");
   } else if (clientAsksPhone(currentMessage) || clientRequestsCallback(currentMessage)) {
     const phoneAnswer = buildPhoneAnswer();
     const callbackNote = clientRequestsCallback(currentMessage) ? "\n\nUn asesor te puede atender por ah\xED." : "";
@@ -161816,14 +161859,16 @@ ${buildNaturalQuestion(pending, ctx)}` : ack;
     }
   }
   mensaje = stripClientServiceConfusionNotes(mensaje);
-  if (!cierreYaEnviado && !trulyReadyForClosing && looksLikeDeadEndAck(mensaje)) {
+  if (!cierreYaEnviado && !trulyReadyForClosing) {
     const pendingDead = getNextPendingField(extracted, filledSet);
-    if (pendingDead) {
+    if (pendingDead && (looksLikeDeadEndAck(mensaje) || responseLooksLikePrematureClose(mensaje))) {
       const nextQ = buildNaturalQuestion(pendingDead, ctx);
-      mensaje = `${mensaje.trim()}
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
+      mensaje = looksLikeDeadEndAck(mensaje) && !responseLooksLikePrematureClose(mensaje) ? `${mensaje.trim()}
 
-${nextQ}`;
-      log?.info({ entityId, pending: pendingDead }, "GUARD: dead-end ack \u2192 embudo");
+${nextQ}` : `${ack} ${nextQ}`;
+      log?.info({ entityId, pending: pendingDead }, "GUARD: V9.36 \u2014 corte de chat \u2192 sigue embudo");
     }
   }
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
@@ -161910,7 +161955,7 @@ var init_lucy_flow_guards = __esm({
     init_conversation_understanding();
     EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
     WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp \u2014 el cliente no lo escribi\xF3)";
-    EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
+    EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
     CLOSING_CORE_FIELDS = [
       "Nombre del cliente",
       "Tipo de evento",
@@ -226245,7 +226290,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.35";
+var LUCY_PROMPT_VERSION = "V9.36";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -228640,9 +228685,13 @@ Otras reglas:
 - NUNCA digas "\xBFSeguimos con el siguiente dato del evento?". Si falta un dato,
   haz ESA pregunta concreta (fecha, zona, correo, invitados\u2026).
 - NUNCA termines un turno solo con "Perfecto, ya lo tengo anotado" (ni "lo anoto",
-  "ya tengo lo principal"). Eso corta el chat. T\xFA NO cierras la conversaci\xF3n:
-  acusa en una frase y pide el siguiente dato faltante. Solo cierra cuando el
-  checklist est\xE9 completo o el cliente se despida.
+  "ya tengo lo principal", "ya tengo todo" si a\xFAn faltan datos). Eso corta el chat.
+  T\xFA NO cierras la conversaci\xF3n: acusa en una frase y pide el siguiente dato faltante.
+  Solo cierra cuando el checklist est\xE9 completo o el cliente se despida.
+- "Me urge" / "no sea ma\xF1ana" / "faltan pocos d\xEDas" NO es pedido de tel\xE9fono:
+  confirma que lo ves con prioridad y sigue pidiendo lo que falte (invitados, ciudad\u2026).
+- Si el cliente prefiere WhatsApp o no tiene correo, acusa y SIGUE el embudo.
+  No lo interpretes como "no hay presupuesto" ni cierres el chat.
 - Si el cliente eligi\xF3 un SKU (sala/mesa) o dijo "s\xED" para continuar: anota y
   pregunta el siguiente faltante. No mandes otro cat\xE1logo al azar.
 - Correos propios (capybaraeventos@, bodasesor@) son NUESTROS: no los guardes.

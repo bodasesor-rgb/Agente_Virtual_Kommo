@@ -20,6 +20,7 @@ import {
   parseCorreoFromText,
   isServiceLabelNotTipoEvento,
   clientAsksPhone,
+  clientSignalsUrgency,
   clientRequestsCallback,
   clientAsksForRecommendations,
   parsePrimaryService,
@@ -11119,7 +11120,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.35 — primer turno banquete: catálogo + pregunta embudo (Allison A15370) ───
   await test("133. V9.35 — banquete Torreón primer turno pide fecha/invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.35");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.36");
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -11147,6 +11148,81 @@ async function runAll(): Promise<void> {
       `debe pedir dato del embudo: ${reply.slice(0, 500)}`
     );
     assert.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
+  });
+
+  // ─── V9.36 — no cortar el chat (Isai A15378) ───
+  await test("134. V9.36 — Isai: no cierra, no confunde nombre con ciudad, urgencia ≠ teléfono", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.36");
+    assert.equal(parseZonaFromText("Isai Moreno"), null);
+    assert.ok(!isUsableDireccionEvento("Isai Moreno"));
+    assert.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
+    assert.ok(!detectPresupuestoRefusal("Por este medio por favor no tengo correo"));
+    assert.ok(detectEmailRefusal(["Por este medio por favor no tengo correo"]));
+    assert.ok(detectEmailRefusal(["A Qui por WhatsApp no se puede"]));
+    assert.ok(!clientAsksPhone("Nada más que no sea mañana porque ya me urge faltan pocos días y necesito saber si pueden o no"));
+    assert.ok(clientSignalsUrgency("Nada más que no sea mañana porque ya me urge faltan pocos días"));
+    assert.ok(!isValidRequerimientosValue("banquetes o catering"));
+    assert.ok(isValidRequerimientosValue("banquete"));
+
+    const filled = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Fecha y horario",
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Isai Moreno",
+      tipo_evento: "evento con catering",
+      requerimientos_evento: "banquetes o catering",
+      fecha_horario: "30 de agosto",
+      direccion_evento: "Isai Moreno",
+    });
+    const replyEmail = runGuards({
+      aiResponse: "Perfecto, ya tengo todo. He tomado nota para enviárselos a nuestro equipo.",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      cierreYaEnviado: false,
+      currentMessage: "Por este medio por favor no tengo correo",
+      history: [
+        { role: "assistant", content: "¿Me compartes un correo para enviarte los detalles?" },
+        { role: "user", content: "Por este medio por favor no tengo correo" },
+      ],
+    });
+    assert.ok(!/ya tengo todo/i.test(replyEmail), replyEmail.slice(0, 400));
+    assert.ok(
+      /banquete|casual|catering|invitados|ciudad|ubicaci|correo/i.test(replyEmail) ||
+        replyEmail.includes("?"),
+      `debe seguir preguntando: ${replyEmail.slice(0, 400)}`
+    );
+
+    const filledUrg = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Fecha y horario",
+      EMAIL_WAIVED_LABEL,
+    ]);
+    const extractedUrg = emptyExtracted({
+      nombre: "Isai Moreno",
+      tipo_evento: "evento con catering",
+      requerimientos_evento: "banquetes o catering",
+      fecha_horario: "30 de agosto",
+      direccion_evento: "Ecatepec",
+    });
+    const replyUrg = runGuards({
+      aiResponse: "Claro, te paso los números:\nVentas: 55 4008 0373",
+      extracted: extractedUrg,
+      filledSet: filledUrg,
+      readyForClosing: false,
+      cierreYaEnviado: true,
+      currentMessage:
+        "Nada más que no sea mañana porque ya me urge faltan pocos días y necesito saber si pueden o no",
+      history: [
+        { role: "assistant", content: "Perfecto, ya tengo todo. Con esta información voy a solicitar a nuestro equipo que prepare una cotización personalizada para ti." },
+        { role: "user", content: "Nada más que no sea mañana porque ya me urge" },
+      ],
+    });
+    assert.ok(!/55 4008 0373|te paso los n[uú]meros/i.test(replyUrg), replyUrg.slice(0, 400));
+    assert.ok(/\?/i.test(replyUrg), `urgencia debe seguir el chat: ${replyUrg.slice(0, 400)}`);
   });
 
   // ─── V9.34 — Valle de Bravo / Mesa Rica; mesa rica ≠ mobiliario ───
@@ -11203,7 +11279,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.35");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.36");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,

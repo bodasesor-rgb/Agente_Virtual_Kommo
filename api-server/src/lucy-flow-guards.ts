@@ -13,6 +13,7 @@ import {
   namesAreLikelySamePerson,
   isLikelyNotPersonNameMessage,
   isLikelyUbicacionNotNombre,
+  looksLikePersonFullName,
   clientAsksCompanyIdentity,
   buildCompanyIdentityReply,
 } from "./contact-name.js";
@@ -136,6 +137,7 @@ import {
   clientAsksAboutTeam,
   clientAsksForHumanAdvisor,
   clientAsksPhone,
+  clientSignalsUrgency,
   clientAsksLocation,
   clientMentionsItalianTheme,
   isAmbiguousShortNumber,
@@ -230,7 +232,7 @@ export const BODASESOR_EMAIL = "hola@bodasesor.com";
 export const WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp — el cliente no lo escribió)";
 
 const EMAIL_REFUSAL_PATTERN =
-  /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
+  /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
 
 /** Campos clave de cierre (correo es importante pero opcional si prefiere WhatsApp). */
 export const CLOSING_CORE_FIELDS = [
@@ -338,13 +340,23 @@ export function syncFilledFromExtracted(filledSet: Set<string>, extracted: Extra
   if (extracted.tipo_evento?.trim()) filledSet.add("Tipo de evento");
   if (isValidRequerimientosValue(extracted.requerimientos_evento)) {
     filledSet.add("Requerimientos o servicios");
+  } else if (extracted.requerimientos_evento?.trim()) {
+    filledSet.delete("Requerimientos o servicios");
   }
   // Solo invalidar zona si extracted trae un valor NO usable (salón/edificio/medidas/producto).
   // Si extracted viene vacío, respetar lo ya marcado en CRM/filledSet.
   if (extracted.direccion_evento?.trim()) {
     if (
       !isUsableDireccionEvento(extracted.direccion_evento) ||
-      isLikelyProductNameNotLocation(extracted.direccion_evento)
+      isLikelyProductNameNotLocation(extracted.direccion_evento) ||
+      (looksLikePersonFullName(extracted.direccion_evento) &&
+        !hasCityOrMetroSignal(extracted.direccion_evento))
+    ) {
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/dirección del evento");
+    } else if (
+      extracted.nombre &&
+      namesAreLikelySamePerson(extracted.nombre, extracted.direccion_evento)
     ) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/dirección del evento");
@@ -517,6 +529,15 @@ export function isValidRequerimientosValue(value: string | null | undefined): bo
   // "Quiero una cotización" / intención genérica ≠ servicio real (Núria A14894).
   if (isGenericQuoteIntentRequerimiento(trimmed) || isQuoteIntentMessage(trimmed)) return false;
   if (isGreetingOnlyMessage(trimmed)) return false;
+  // "banquetes o catering" sigue vago: hay que elegir formal vs casual (Isai A15378).
+  if (
+    /\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b/i.test(
+      trimmed
+    ) &&
+    !/\b(formal|mexicano|\d\s*tiempos?|taquiza|coffee\s*break)\b/i.test(trimmed)
+  ) {
+    return false;
+  }
   // "Hola soy Ana" / solo nombre ≠ requerimientos.
   if (
     /^(hola|buen[oa]s?\b|me\s+llamo|soy|mi\s+nombre\s+es)\b/i.test(trimmed) &&
@@ -4240,9 +4261,10 @@ export function looksLikeDeadEndAck(mensaje: string): boolean {
   const t = (mensaje || "").trim();
   if (!t) return true;
   if (/\?/.test(t)) return false;
-  // Cierre / handoff legítimo
+  // Cierre / handoff con "ya tengo todo" no es un ack muerto si hay `?`;
+  // sin pregunta, applyLucyMessageGuards reabre el embudo si faltan datos.
   if (
-    /ya tengo todo|paso (estos )?datos|cotizaci[oó]n personalizada|nuestro equipo (ya )?(tiene|sigue)|si necesitas algo m[aá]s|con gusto te apoyo/i.test(
+    /ya tengo todo|paso (estos )?datos|cotizaci[oó]n personalizada|nuestro equipo (ya )?(tiene|sigue)/i.test(
       t
     )
   ) {
@@ -4460,7 +4482,6 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     extracted,
     filledSet,
     readyForClosing,
-    cierreYaEnviado,
     emailRefusedThisTurn,
     history,
     currentMessage,
@@ -4470,6 +4491,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     entityId,
     forceFirstPresentation,
   } = input;
+  let { cierreYaEnviado } = input;
 
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
@@ -4491,6 +4513,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     collectUserTexts(presHistory, currentMessage),
     presHistory
   );
+
+  // V9.36: si Lucy "cerró" pero aún faltan datos reales, reabre el embudo.
+  if (cierreYaEnviado && getNextPendingField(extracted, filledSet)) {
+    cierreYaEnviado = false;
+    log?.info({ entityId }, "GUARD: V9.36 — cierre prematuro, se reabre el chat");
+  }
 
   // Captura estructural antes de cualquier rama: una respuesta "3 x 4" completa
   // carpa/pista/tarima y evita que el cierre vuelva a pedir las medidas.
@@ -6389,7 +6417,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (
     currentMessage &&
     detectPresupuestoRefusal(currentMessage) &&
-    !isRichQuoteBrief(currentMessage)
+    !isRichQuoteBrief(currentMessage) &&
+    inferLucyAskedField(
+      [...presHistory]
+        .reverse()
+        .find((m) => m.role === "assistant" && typeof m.content === "string")
+        ?.content as string | undefined
+    ) !== "correo" &&
+    !detectEmailRefusal([currentMessage])
   ) {
     if (!filledSet.has("Presupuesto (MXN)")) {
       applyPresupuestoWaiver(
@@ -6632,6 +6667,22 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo — se continúa el flujo");
+  } else if (clientSignalsUrgency(currentMessage) && !clientAsksPhone(currentMessage)) {
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    const fechaHint = extracted.fecha_horario?.trim()
+      ? ` Para el *${extracted.fecha_horario.trim()}* confirmamos disponibilidad en cuanto tengamos el resto de datos.`
+      : " Confirmamos disponibilidad en cuanto tengamos el resto de datos.";
+    mensaje = [
+      pickTransition(presHistory),
+      `Entendido, lo vemos con prioridad.${fechaHint}`,
+      nextQ,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: V9.36 — urgencia, mantiene el chat vivo");
   } else if (clientAsksPhone(currentMessage) || clientRequestsCallback(currentMessage)) {
     const phoneAnswer = buildPhoneAnswer();
     const callbackNote = clientRequestsCallback(currentMessage)
@@ -8588,13 +8639,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   // Nunca hablarle al cliente en meta ("No confundir con…"): es nota interna.
   mensaje = stripClientServiceConfusionNotes(mensaje);
 
-  // V9.26: última red — nunca salir con solo "ya lo tengo anotado" si falta embudo.
-  if (!cierreYaEnviado && !trulyReadyForClosing && looksLikeDeadEndAck(mensaje)) {
+  // V9.26 / V9.36: nunca salir con ack muerto ni "ya tengo todo" si falta embudo.
+  if (!cierreYaEnviado && !trulyReadyForClosing) {
     const pendingDead = getNextPendingField(extracted, filledSet);
-    if (pendingDead) {
+    if (pendingDead && (looksLikeDeadEndAck(mensaje) || responseLooksLikePrematureClose(mensaje))) {
       const nextQ = buildNaturalQuestion(pendingDead, ctx);
-      mensaje = `${mensaje.trim()}\n\n${nextQ}`;
-      log?.info({ entityId, pending: pendingDead }, "GUARD: dead-end ack → embudo");
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
+      mensaje = looksLikeDeadEndAck(mensaje) && !responseLooksLikePrematureClose(mensaje)
+        ? `${mensaje.trim()}\n\n${nextQ}`
+        : `${ack} ${nextQ}`;
+      log?.info({ entityId, pending: pendingDead }, "GUARD: V9.36 — corte de chat → sigue embudo");
     }
   }
 
