@@ -2807,7 +2807,20 @@ export function looksLikeNameAnswerMessage(text: string | null | undefined): boo
   return true;
 }
 
-export function parseInvitadosFromText(text: string): string | null {
+export interface InvitadosParseOptions {
+  /** Lucy acaba de preguntar cuántos invitados (permite "no sé" / "aún no"). */
+  askedInvitados?: boolean;
+}
+
+function messageIsAboutScheduleOrPlaceNotGuests(text: string): boolean {
+  return (
+    /\b(horario|hora|fecha|d[ií]a|mes|ciudad|colonia|alcald[ií]a|delegaci[oó]n|correo|e-?mail|ubicaci[oó]n|direcci[oó]n|sal[oó]n|lugar)\b/i.test(
+      text
+    ) || MONTH_PATTERN.test(text)
+  );
+}
+
+export function parseInvitadosFromText(text: string, opts?: InvitadosParseOptions): string | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
 
@@ -2864,12 +2877,29 @@ export function parseInvitadosFromText(text: string): string | null {
 
   if (isServiceRelatedMessage(trimmed)) return null;
 
+  // "aún no tenemos el horario" / "26 de septiembre" NO es afluencia desconocida (A15380).
   if (
     /\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+(?:lo\s+)?sabemos|no\s+(?:te\s+)?(?:lo\s+)?(?:puedo|podr[ií]a)\s+(?:decir|confirmar)|van\s+viendo)\b/i.test(
       trimmed
     )
   ) {
-    return "Sin definir (cliente indicó aproximación pendiente)";
+    const guestWords = /\b(invitados?|personas?|gente|afluencia|asistentes?|pax|cu[aá]nt[oa]s)\b/i.test(
+      trimmed
+    );
+    const otherField = messageIsAboutScheduleOrPlaceNotGuests(trimmed);
+    if (guestWords && !otherField) {
+      return "Sin definir (cliente indicó aproximación pendiente)";
+    }
+    if (otherField && !guestWords) {
+      return null;
+    }
+    if (opts?.askedInvitados && !otherField) {
+      return "Sin definir (cliente indicó aproximación pendiente)";
+    }
+    // "No sé aún" / "no tenemos ese dato" cortos, sin fecha/ciudad.
+    if (!otherField && trimmed.split(/\s+/).length <= 14) {
+      return "Sin definir (cliente indicó aproximación pendiente)";
+    }
   }
 
   // "entre 90 y 100" — guarda el mayor de los dos números
@@ -4138,7 +4168,7 @@ export function captureContextualAnswer(
   }
 
   if (!filledSet.has("Número de invitados") && asked === "invitados") {
-    const inv = parseInvitadosFromText(msg);
+    const inv = parseInvitadosFromText(msg, { askedInvitados: true });
     if (inv) captures.push({ label: "Número de invitados", value: inv });
   }
   // A14934: "40" tras "¿cuántos invitados…?" aunque inferLucyAskedField priorice otro campo.

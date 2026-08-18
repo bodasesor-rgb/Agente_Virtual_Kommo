@@ -402,7 +402,7 @@ const FIELD_NAME: Record<number, string> = {
 };
 
 // ─── Required fields in order — flujo paso a paso ─────────────────────────────
-// Nombre → Correo (opcional) → Tipo de evento → Requerimientos → Invitados → Zona → Fecha → Presupuesto
+// Nombre → Tipo → Requerimientos → Invitados → Fecha → Zona → Correo → Presupuesto
 const REQUIRED_FIELDS_ORDERED: Array<{ label: string; question: string }> = [
   { label: "Nombre del cliente",         question: "¿Me regalas tu nombre para iniciar?" },
   { label: "Correo electrónico",         question: "¿A qué correo te lo envío?" },

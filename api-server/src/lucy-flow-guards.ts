@@ -2363,7 +2363,8 @@ export interface NaturalQuestionContext {
 }
 
 /**
- * Siguiente dato del embudo en orden de conversación natural (V9.13).
+ * Siguiente dato del embudo en orden de conversación natural (V9.39).
+ * Invitados va justo después de servicios (A15380: no dejarlo al final ni confundirlo con "aún no hay horario").
  * Correo va después de tipo/servicios/fecha/ubicación — no justo tras el nombre.
  */
 export function getNextPendingField(
@@ -2380,6 +2381,9 @@ export function getNextPendingField(
     isValidRequerimientosValue(extracted.requerimientos_evento);
   if (!hasReq) return "requerimientos";
 
+  const hasInv = filled.has("Número de invitados") || !!extracted.num_invitados;
+  if (!hasInv) return "invitados";
+
   const hasFecha = filled.has("Fecha y horario") || !!extracted.fecha_horario?.trim();
   if (!hasFecha) return "fecha";
 
@@ -2390,8 +2394,6 @@ export function getNextPendingField(
 
   if (!isEmailSatisfied(filled, extracted)) return "correo";
 
-  const hasInv = filled.has("Número de invitados") || !!extracted.num_invitados;
-  if (!hasInv) return "invitados";
   if (!filled.has("Presupuesto (MXN)") && !hasPresupuestoValue(extracted)) return "presupuesto";
   return null;
 }
@@ -2874,10 +2876,10 @@ const FIELD_ORDER: PendingField[] = [
   "nombre",
   "tipo_evento",
   "requerimientos",
+  "invitados",
   "fecha",
   "zona",
   "correo",
-  "invitados",
   "presupuesto",
 ];
 
@@ -3325,8 +3327,8 @@ function redirectIfAskingFilledField(
     "tipo_evento",
     "requerimientos",
     "invitados",
-    "zona",
     "fecha",
+    "zona",
     "presupuesto",
   ];
   for (const field of fields) {
@@ -4394,11 +4396,8 @@ function mensajeAsksWrongField(
   const pending = getNextPendingField(extracted, filledSet);
   if (!pending) return false;
 
-  const fieldOrder: PendingField[] = FIELD_ORDER;
-  const pendingIdx = fieldOrder.indexOf(pending);
-
-  for (let i = pendingIdx + 1; i < fieldOrder.length; i++) {
-    const field = fieldOrder[i]!;
+  for (const field of FIELD_ORDER) {
+    if (field === pending) continue;
     if (mensajeAsksForField(mensaje, field)) return true;
   }
   return false;
@@ -7772,11 +7771,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  // Ubicación requerida antes de correo/invitados/presupuesto/cierre.
-  // V9.13: fecha va ANTES que zona — no interceptar preguntas de fecha ni
-  // respuestas de servicio (carpas/medidas/incluye).
-  // Usar isFieldSatisfied (no solo filledSet): si extracted ya tiene Querétaro,
-  // no volver a preguntar zona (Núria A14894).
+  // No saltar invitados/fecha/zona: si el pending es uno de esos, pregunta ESE dato.
+  // V9.39: invitados va antes que fecha/zona — no "robar" la pregunta hacia ubicación.
   if (
     !cierreYaEnviado &&
     !clientAsksInclusion(currentMessage) &&
@@ -7792,12 +7788,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       mensajeAsksForField(mensaje, "invitados"))
   ) {
     const pending = getNextPendingField(extracted, filledSet);
-    if (pending === "fecha") {
+    if (pending === "invitados" && !mensajeAsksForField(mensaje, "invitados")) {
+      mensaje = buildNaturalQuestion("invitados", ctx);
+      log?.info({ entityId }, "GUARD: forzar invitados antes de fecha/ubicación/cierre");
+    } else if (pending === "fecha") {
       if (!mensajeAsksForField(mensaje, "fecha")) {
         mensaje = buildNaturalQuestion("fecha", ctx);
         log?.info({ entityId }, "GUARD: forzar fecha antes de ubicación/cierre");
       }
-    } else if (pending === "zona" || !mensajeAsksForField(mensaje, "zona")) {
+    } else if (pending === "zona" && !mensajeAsksForField(mensaje, "zona")) {
       mensaje = buildNaturalQuestion("zona", ctx);
       log?.info({ entityId }, "GUARD: forzar ubicación antes de avance/cierre");
     }

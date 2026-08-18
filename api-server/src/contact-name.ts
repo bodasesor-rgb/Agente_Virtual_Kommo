@@ -19,7 +19,7 @@ const PLACEHOLDER_PATTERNS = [
 
 /** Saludos y frases que NO son nombres de persona. */
 const GREETING_NAME_PATTERN =
-  /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo)$/i;
+  /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo|claro)$/i;
 
 /** Cap&Bara / Bodasesor / Lucy — preguntas de canal, no nombre del cliente. */
 const COMPANY_OR_CHANNEL_PATTERN =
@@ -258,7 +258,16 @@ export function isPlaceholderLeadName(name: string | null | undefined): boolean 
   return PLACEHOLDER_PATTERNS.some((p) => p.test(trimmed));
 }
 
-/** Primer nombre legible para saludos (Mucho gusto, María). */
+function stripLeadingNameFillers(name: string): string {
+  let out = name.trim();
+  const filler = /^(claro|ok(?:ay)?|vale|bueno|pues|mira|hola|eh+|este)\s+/i;
+  for (let i = 0; i < 3; i++) {
+    const next = out.replace(filler, "").trim();
+    if (next === out) break;
+    out = next;
+  }
+  return out;
+}
 export function sanitizeDisplayName(name: string | null | undefined): string | null {
   const raw = name?.trim() ?? "";
   if (!raw || isPlaceholderLeadName(raw)) return null;
@@ -266,11 +275,13 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
   if (isGreetingOnlyMessage(raw)) return null;
 
   const stripped = stripPresentationPrefixLocal(raw);
-  const cleaned = stripped
-    .replace(/^Lead:\s*/i, "")
-    .replace(/[~_]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const cleaned = stripLeadingNameFillers(
+    stripped
+      .replace(/^Lead:\s*/i, "")
+      .replace(/[~_]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   if (isGreetingOnlyMessage(cleaned)) return null;
@@ -368,16 +379,18 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
   }
 
   const stripped = stripPresentationPrefixLocal(raw);
-  const cleaned = stripped
-    .replace(/^Lead:\s*/i, "")
-    .replace(/[~_]+/g, " ")
-    // A14947: "Alexandra Es Boda" / "Alexandra\nEs boda" → solo el nombre.
-    .replace(
-      /\b(es\s+)?(una?\s+)?(boda|xv\s*a[nñ]os?|cumplea[nñ]os|bautizo|baby\s*shower|aniversario|graduaci[oó]n|evento\s+corporativo)\b/gi,
-      " "
-    )
-    .replace(/\s+/g, " ")
-    .trim();
+  const cleaned = stripLeadingNameFillers(
+    stripped
+      .replace(/^Lead:\s*/i, "")
+      .replace(/[~_]+/g, " ")
+      // A14947: "Alexandra Es Boda" / "Alexandra\nEs boda" → solo el nombre.
+      .replace(
+        /\b(es\s+)?(una?\s+)?(boda|xv\s*a[nñ]os?|cumplea[nñ]os|bautizo|baby\s*shower|aniversario|graduaci[oó]n|evento\s+corporativo)\b/gi,
+        " "
+      )
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   if (isGreetingOnlyMessage(cleaned)) return null;

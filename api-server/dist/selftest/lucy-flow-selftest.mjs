@@ -107805,7 +107805,7 @@ var PLACEHOLDER_PATTERNS = [
   /^cliente$/i,
   /^\d+$/
 ];
-var GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo)$/i;
+var GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo|claro)$/i;
 var COMPANY_OR_CHANNEL_PATTERN = /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
 var BOT_OR_META_NAME_TOKEN = /^(lucy|llamo|llam[oó]|bodasesor|capybara|salesbot)$/i;
 function isRepeatComplaintAsName(text2) {
@@ -107933,13 +107933,25 @@ function isPlaceholderLeadName(name2) {
   if (PHONE_LIKE.test(trimmed.replace(/\s/g, ""))) return true;
   return PLACEHOLDER_PATTERNS.some((p4) => p4.test(trimmed));
 }
+function stripLeadingNameFillers(name2) {
+  let out2 = name2.trim();
+  const filler = /^(claro|ok(?:ay)?|vale|bueno|pues|mira|hola|eh+|este)\s+/i;
+  for (let i5 = 0; i5 < 3; i5++) {
+    const next = out2.replace(filler, "").trim();
+    if (next === out2) break;
+    out2 = next;
+  }
+  return out2;
+}
 function sanitizeDisplayName(name2) {
   const raw = name2?.trim() ?? "";
   if (!raw || isPlaceholderLeadName(raw)) return null;
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
   const stripped = stripPresentationPrefixLocal(raw);
-  const cleaned = stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
+  const cleaned = stripLeadingNameFillers(
+    stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim()
+  );
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   if (isGreetingOnlyMessage(cleaned)) return null;
   const firstToken = cleaned.split(/\s+/)[0] ?? "";
@@ -107994,10 +108006,12 @@ function sanitizeCrmNombre(name2) {
     }).join(" ");
   }
   const stripped = stripPresentationPrefixLocal(raw);
-  const cleaned = stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(
-    /\b(es\s+)?(una?\s+)?(boda|xv\s*a[nñ]os?|cumplea[nñ]os|bautizo|baby\s*shower|aniversario|graduaci[oó]n|evento\s+corporativo)\b/gi,
-    " "
-  ).replace(/\s+/g, " ").trim();
+  const cleaned = stripLeadingNameFillers(
+    stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(
+      /\b(es\s+)?(una?\s+)?(boda|xv\s*a[nñ]os?|cumplea[nñ]os|bautizo|baby\s*shower|aniversario|graduaci[oó]n|evento\s+corporativo)\b/gi,
+      " "
+    ).replace(/\s+/g, " ").trim()
+  );
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   if (isGreetingOnlyMessage(cleaned)) return null;
   if (isLikelyUbicacionNotNombre(cleaned)) return null;
@@ -123290,7 +123304,12 @@ function looksLikeNameAnswerMessage(text2) {
   }
   return true;
 }
-function parseInvitadosFromText(text2) {
+function messageIsAboutScheduleOrPlaceNotGuests(text2) {
+  return /\b(horario|hora|fecha|d[ií]a|mes|ciudad|colonia|alcald[ií]a|delegaci[oó]n|correo|e-?mail|ubicaci[oó]n|direcci[oó]n|sal[oó]n|lugar)\b/i.test(
+    text2
+  ) || MONTH_PATTERN.test(text2);
+}
+function parseInvitadosFromText(text2, opts) {
   const trimmed = text2.trim();
   if (!trimmed) return null;
   const numMatchEarly = trimmed.match(
@@ -123330,7 +123349,22 @@ function parseInvitadosFromText(text2) {
   if (/\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+(?:lo\s+)?sabemos|no\s+(?:te\s+)?(?:lo\s+)?(?:puedo|podr[ií]a)\s+(?:decir|confirmar)|van\s+viendo)\b/i.test(
     trimmed
   )) {
-    return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
+    const guestWords = /\b(invitados?|personas?|gente|afluencia|asistentes?|pax|cu[aá]nt[oa]s)\b/i.test(
+      trimmed
+    );
+    const otherField = messageIsAboutScheduleOrPlaceNotGuests(trimmed);
+    if (guestWords && !otherField) {
+      return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
+    }
+    if (otherField && !guestWords) {
+      return null;
+    }
+    if (opts?.askedInvitados && !otherField) {
+      return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
+    }
+    if (!otherField && trimmed.split(/\s+/).length <= 14) {
+      return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
+    }
   }
   const rangoMatch = trimmed.match(/\bentre\s+(\d+)\s+y\s+(\d+)\b/i);
   if (rangoMatch) {
@@ -124112,7 +124146,7 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
     }
   }
   if (!filledSet.has("N\xFAmero de invitados") && asked === "invitados") {
-    const inv = parseInvitadosFromText(msg);
+    const inv = parseInvitadosFromText(msg, { askedInvitados: true });
     if (inv) captures.push({ label: "N\xFAmero de invitados", value: inv });
   }
   if (!filledSet.has("N\xFAmero de invitados") && asked !== "invitados" && lastLucy && /invitados|cu[aá]ntos\s+invit|asistir[aá]n/i.test(lastLucy) && /^\d{2,4}$/.test(msg)) {
@@ -131245,13 +131279,13 @@ function getNextPendingField(extracted, filledSet) {
   if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
   const hasReq = filled.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
   if (!hasReq) return "requerimientos";
+  const hasInv = filled.has("N\xFAmero de invitados") || !!extracted.num_invitados;
+  if (!hasInv) return "invitados";
   const hasFecha = filled.has("Fecha y horario") || !!extracted.fecha_horario?.trim();
   if (!hasFecha) return "fecha";
   const hasZona = filled.has("Lugar/direcci\xF3n del evento") || isUsableDireccionEvento(extracted.direccion_evento);
   if (!hasZona) return "zona";
   if (!isEmailSatisfied(filled, extracted)) return "correo";
-  const hasInv = filled.has("N\xFAmero de invitados") || !!extracted.num_invitados;
-  if (!hasInv) return "invitados";
   if (!filled.has("Presupuesto (MXN)") && !hasPresupuestoValue(extracted)) return "presupuesto";
   return null;
 }
@@ -131554,10 +131588,10 @@ var FIELD_ORDER = [
   "nombre",
   "tipo_evento",
   "requerimientos",
+  "invitados",
   "fecha",
   "zona",
   "correo",
-  "invitados",
   "presupuesto"
 ];
 function mensajeAsksForFilledField(mensaje, filledSet, extracted) {
@@ -131817,8 +131851,8 @@ function redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx) {
     "tipo_evento",
     "requerimientos",
     "invitados",
-    "zona",
     "fecha",
+    "zona",
     "presupuesto"
   ];
   for (const field of fields) {
@@ -132463,10 +132497,8 @@ function mensajeAsksWrongField(mensaje, filledSet, extracted) {
   if (!mensaje.includes("?")) return false;
   const pending = getNextPendingField(extracted, filledSet);
   if (!pending) return false;
-  const fieldOrder = FIELD_ORDER;
-  const pendingIdx = fieldOrder.indexOf(pending);
-  for (let i5 = pendingIdx + 1; i5 < fieldOrder.length; i5++) {
-    const field = fieldOrder[i5];
+  for (const field of FIELD_ORDER) {
+    if (field === pending) continue;
     if (mensajeAsksForField(mensaje, field)) return true;
   }
   return false;
@@ -134748,12 +134780,15 @@ ${nextQ}`;
   }
   if (!cierreYaEnviado && !clientAsksInclusion(currentMessage) && !clientAsksServiceInfo(currentMessage) && !appliedDirectReply && !appliedSalesReply && !/\bincluye\s*:|bodasesor\.com\/catalogos|medidas?\s+aproximad/i.test(mensaje) && !isFieldSatisfied2("zona", filledSet, extracted) && (responseLooksLikePrematureClose(mensaje) || trulyReadyForClosing || mensajeAsksForField(mensaje, "presupuesto") || mensajeAsksForField(mensaje, "correo") || mensajeAsksForField(mensaje, "invitados"))) {
     const pending = getNextPendingField(extracted, filledSet);
-    if (pending === "fecha") {
+    if (pending === "invitados" && !mensajeAsksForField(mensaje, "invitados")) {
+      mensaje = buildNaturalQuestion("invitados", ctx);
+      log?.info({ entityId }, "GUARD: forzar invitados antes de fecha/ubicaci\xF3n/cierre");
+    } else if (pending === "fecha") {
       if (!mensajeAsksForField(mensaje, "fecha")) {
         mensaje = buildNaturalQuestion("fecha", ctx);
         log?.info({ entityId }, "GUARD: forzar fecha antes de ubicaci\xF3n/cierre");
       }
-    } else if (pending === "zona" || !mensajeAsksForField(mensaje, "zona")) {
+    } else if (pending === "zona" && !mensajeAsksForField(mensaje, "zona")) {
       mensaje = buildNaturalQuestion("zona", ctx);
       log?.info({ entityId }, "GUARD: forzar ubicaci\xF3n antes de avance/cierre");
     }
@@ -136034,10 +136069,10 @@ Orden natural de conversaci\xF3n (salta lo ya capturado):
 1. Nombre del cliente
 2. Tipo de evento (qu\xE9 van a celebrar)
 3. Servicios / requerimientos
-4. Fecha y hora
-5. Direcci\xF3n o ubicaci\xF3n / sal\xF3n
-6. Correo electr\xF3nico \u2014 para cotizaciones y cat\xE1logos
-7. N\xFAmero de invitados
+4. N\xFAmero de invitados \u2014 no lo dejes al final; no confundas "a\xFAn no hay horario" con afluencia
+5. Fecha y hora
+6. Direcci\xF3n o ubicaci\xF3n / sal\xF3n (ciudad basta; colonia o sal\xF3n si ya lo tienen)
+7. Correo electr\xF3nico \u2014 para cotizaciones y cat\xE1logos
 8. Presupuesto (o "que el equipo proponga" / "por definir")
 
 Regla del correo: p\xEDdelo de forma natural cuando toque. Si el cliente duda o
@@ -137053,7 +137088,7 @@ function clientReplyForPaymentSlot(slot) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.38";
+var LUCY_PROMPT_VERSION = "V9.39";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -138174,7 +138209,7 @@ async function runAll() {
       "Tipo de evento",
       "Requerimientos o servicios"
     ]);
-    assert2.equal(getNextPendingField(emptyExtracted(), filled), "fecha");
+    assert2.equal(getNextPendingField(emptyExtracted(), filled), "invitados");
     const pedidoMsg = "Solo quiero 50 rollos de sushi y que me los dejen en mi casa, \xBFcu\xE1nto?";
     const pedidoEx = emptyExtracted();
     const pedidoReply = runGuards({
@@ -145328,6 +145363,27 @@ ${golfText}`,
           "Lugar/direcci\xF3n del evento"
         ])
       ),
+      "invitados"
+    );
+    assert2.equal(
+      getNextPendingField(
+        emptyExtracted({
+          nombre: "Ana",
+          tipo_evento: "boda",
+          requerimientos_evento: "banquete",
+          fecha_horario: "20 de septiembre",
+          direccion_evento: "Coyoac\xE1n CDMX",
+          num_invitados: 80
+        }),
+        /* @__PURE__ */ new Set([
+          "Nombre del cliente",
+          "Tipo de evento",
+          "Requerimientos o servicios",
+          "Fecha y horario",
+          "Lugar/direcci\xF3n del evento",
+          "N\xFAmero de invitados"
+        ])
+      ),
       "correo"
     );
     const first = buildFirstInteractionMessage({
@@ -146589,7 +146645,7 @@ ${golfText}`,
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
   await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.38");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.39");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -146618,7 +146674,7 @@ ${golfText}`,
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
   await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.38");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.39");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -146736,7 +146792,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.38");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.39");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,
@@ -146807,7 +146863,7 @@ ${golfText}`,
     }
   });
   await test("135. V9.38 \u2014 comprobante en imagen: primer pago Anticipo, segundo Liquidaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.38");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.39");
     assert2.equal(FIELD_ANTICIPO, 1049322);
     assert2.equal(FIELD_LIQUIDACION, 1049324);
     assert2.equal(nextPaymentSlot(null, null), "anticipo");
@@ -146869,6 +146925,61 @@ ${golfText}`,
     assert2.ok(/1049324/.test(paySrc));
     assert2.ok(/comprobante_pago/.test(imgSrc));
     assert2.ok(/amount_mxn/.test(imgSrc));
+  });
+  await test("136. V9.39 \u2014 A15380 invitados no se saltan; Coyoac\xE1n cuenta; Claro no es nombre", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.39");
+    const horario = "hola si se har\xEDa el 26 de septiembre pero a\xFAn no tenemos definido el horario";
+    assert2.equal(parseInvitadosFromText(horario), null, "horario pendiente \u2260 invitados");
+    const caps = scanConversationForCaptures([], horario, /* @__PURE__ */ new Set(["Nombre del cliente"]));
+    assert2.equal(caps.find((c4) => c4.label === "N\xFAmero de invitados"), void 0);
+    assert2.ok(isUsableDireccionEvento("Coyoac\xE1n"));
+    assert2.ok(isUsableDireccionEvento("es en Coyoac\xE1n la colonia es educaci\xF3n") || parseZonaFromText("es en Coyoac\xE1n la colonia es educaci\xF3n"));
+    assert2.match(parseZonaFromText("es en Coyoac\xE1n la colonia es educaci\xF3n") ?? "", /coyoac/i);
+    assert2.equal(sanitizeCrmNombre("Claro Aura Vargas"), "Aura Vargas");
+    assert2.equal(sanitizeDisplayName("Claro Aura Vargas"), "Aura");
+    const afterReq = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios"
+    ]);
+    assert2.equal(getNextPendingField(emptyExtracted({ nombre: "Aura", tipo_evento: "reuni\xF3n familiar", requerimientos_evento: "alimentos" }), afterReq), "invitados");
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Fecha y horario",
+      "Lugar/direcci\xF3n del evento",
+      "Correo electr\xF3nico"
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Aura Vargas",
+      tipo_evento: "reuni\xF3n familiar",
+      requerimientos_evento: "Alimentos",
+      fecha_horario: "26 de septiembre",
+      direccion_evento: "Coyoac\xE1n, colonia Educaci\xF3n",
+      correo: "aura.elling237@gmail.com"
+    });
+    assert2.equal(getNextPendingField(extracted, filled), "invitados");
+    const close = runGuards({
+      aiResponse: "Perfecto, ya tengo todo. He anotado el servicio de Alimentos y voy a compartir esta informaci\xF3n con el equipo para que puedan prepararte una cotizaci\xF3n personalizada.",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "CDMX*",
+      history: [{ role: "assistant", content: "\xBFMe compartes un correo para enviarte los detalles?" }]
+    });
+    assert2.ok(!/ya tengo todo/i.test(close), close.slice(0, 400));
+    assert2.ok(/invitados|personas|cu[aá]nt/i.test(close), close.slice(0, 400));
+    const cityAgain = runGuards({
+      aiResponse: "Gracias por tu correo, Claro. \xBFEn qu\xE9 ciudad lo arman?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "aura.elling237@gmail.com",
+      history: [{ role: "assistant", content: "\xBFMe compartes un correo para enviarte los detalles?" }]
+    });
+    assert2.ok(!/ciudad lo arman|en qu[eé] ciudad/i.test(cityAgain), cityAgain.slice(0, 400));
+    assert2.ok(/invitados|personas|cu[aá]nt/i.test(cityAgain), cityAgain.slice(0, 400));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

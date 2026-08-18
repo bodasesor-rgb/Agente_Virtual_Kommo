@@ -126971,13 +126971,25 @@ function isPlaceholderLeadName(name2) {
   if (PHONE_LIKE.test(trimmed.replace(/\s/g, ""))) return true;
   return PLACEHOLDER_PATTERNS.some((p10) => p10.test(trimmed));
 }
+function stripLeadingNameFillers(name2) {
+  let out2 = name2.trim();
+  const filler = /^(claro|ok(?:ay)?|vale|bueno|pues|mira|hola|eh+|este)\s+/i;
+  for (let i10 = 0; i10 < 3; i10++) {
+    const next = out2.replace(filler, "").trim();
+    if (next === out2) break;
+    out2 = next;
+  }
+  return out2;
+}
 function sanitizeDisplayName(name2) {
   const raw = name2?.trim() ?? "";
   if (!raw || isPlaceholderLeadName(raw)) return null;
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
   const stripped = stripPresentationPrefixLocal(raw);
-  const cleaned = stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
+  const cleaned = stripLeadingNameFillers(
+    stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim()
+  );
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   if (isGreetingOnlyMessage(cleaned)) return null;
   const firstToken = cleaned.split(/\s+/)[0] ?? "";
@@ -127032,10 +127044,12 @@ function sanitizeCrmNombre(name2) {
     }).join(" ");
   }
   const stripped = stripPresentationPrefixLocal(raw);
-  const cleaned = stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(
-    /\b(es\s+)?(una?\s+)?(boda|xv\s*a[nñ]os?|cumplea[nñ]os|bautizo|baby\s*shower|aniversario|graduaci[oó]n|evento\s+corporativo)\b/gi,
-    " "
-  ).replace(/\s+/g, " ").trim();
+  const cleaned = stripLeadingNameFillers(
+    stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(
+      /\b(es\s+)?(una?\s+)?(boda|xv\s*a[nñ]os?|cumplea[nñ]os|bautizo|baby\s*shower|aniversario|graduaci[oó]n|evento\s+corporativo)\b/gi,
+      " "
+    ).replace(/\s+/g, " ").trim()
+  );
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   if (isGreetingOnlyMessage(cleaned)) return null;
   if (isLikelyUbicacionNotNombre(cleaned)) return null;
@@ -127145,7 +127159,7 @@ var init_contact_name = __esm({
       /^cliente$/i,
       /^\d+$/
     ];
-    GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo)$/i;
+    GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo|claro)$/i;
     COMPANY_OR_CHANNEL_PATTERN = /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
     BOT_OR_META_NAME_TOKEN = /^(lucy|llamo|llam[oó]|bodasesor|capybara|salesbot)$/i;
     CATALOG_LEVEL_OR_BRAND_NAME = /^(premium|b[aá]sic[ao]|tradicional|solo\s*alimentos?|deluxe|vip|gold|silver|platinum|business|premium\s*events?)$/i;
@@ -129186,7 +129200,12 @@ function looksLikeNameAnswerMessage(text2) {
   }
   return true;
 }
-function parseInvitadosFromText(text2) {
+function messageIsAboutScheduleOrPlaceNotGuests(text2) {
+  return /\b(horario|hora|fecha|d[ií]a|mes|ciudad|colonia|alcald[ií]a|delegaci[oó]n|correo|e-?mail|ubicaci[oó]n|direcci[oó]n|sal[oó]n|lugar)\b/i.test(
+    text2
+  ) || MONTH_PATTERN.test(text2);
+}
+function parseInvitadosFromText(text2, opts) {
   const trimmed = text2.trim();
   if (!trimmed) return null;
   const numMatchEarly = trimmed.match(
@@ -129226,7 +129245,22 @@ function parseInvitadosFromText(text2) {
   if (/\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+(?:lo\s+)?sabemos|no\s+(?:te\s+)?(?:lo\s+)?(?:puedo|podr[ií]a)\s+(?:decir|confirmar)|van\s+viendo)\b/i.test(
     trimmed
   )) {
-    return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
+    const guestWords = /\b(invitados?|personas?|gente|afluencia|asistentes?|pax|cu[aá]nt[oa]s)\b/i.test(
+      trimmed
+    );
+    const otherField = messageIsAboutScheduleOrPlaceNotGuests(trimmed);
+    if (guestWords && !otherField) {
+      return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
+    }
+    if (otherField && !guestWords) {
+      return null;
+    }
+    if (opts?.askedInvitados && !otherField) {
+      return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
+    }
+    if (!otherField && trimmed.split(/\s+/).length <= 14) {
+      return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
+    }
   }
   const rangoMatch = trimmed.match(/\bentre\s+(\d+)\s+y\s+(\d+)\b/i);
   if (rangoMatch) {
@@ -129991,7 +130025,7 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
     }
   }
   if (!filledSet.has("N\xFAmero de invitados") && asked === "invitados") {
-    const inv = parseInvitadosFromText(msg);
+    const inv = parseInvitadosFromText(msg, { askedInvitados: true });
     if (inv) captures.push({ label: "N\xFAmero de invitados", value: inv });
   }
   if (!filledSet.has("N\xFAmero de invitados") && asked !== "invitados" && lastLucy && /invitados|cu[aá]ntos\s+invit|asistir[aá]n/i.test(lastLucy) && /^\d{2,4}$/.test(msg)) {
@@ -157880,13 +157914,13 @@ function getNextPendingField(extracted, filledSet) {
   if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
   const hasReq = filled.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
   if (!hasReq) return "requerimientos";
+  const hasInv = filled.has("N\xFAmero de invitados") || !!extracted.num_invitados;
+  if (!hasInv) return "invitados";
   const hasFecha = filled.has("Fecha y horario") || !!extracted.fecha_horario?.trim();
   if (!hasFecha) return "fecha";
   const hasZona = filled.has("Lugar/direcci\xF3n del evento") || isUsableDireccionEvento(extracted.direccion_evento);
   if (!hasZona) return "zona";
   if (!isEmailSatisfied(filled, extracted)) return "correo";
-  const hasInv = filled.has("N\xFAmero de invitados") || !!extracted.num_invitados;
-  if (!hasInv) return "invitados";
   if (!filled.has("Presupuesto (MXN)") && !hasPresupuestoValue(extracted)) return "presupuesto";
   return null;
 }
@@ -158454,8 +158488,8 @@ function redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx) {
     "tipo_evento",
     "requerimientos",
     "invitados",
-    "zona",
     "fecha",
+    "zona",
     "presupuesto"
   ];
   for (const field of fields) {
@@ -159094,10 +159128,8 @@ function mensajeAsksWrongField(mensaje, filledSet, extracted) {
   if (!mensaje.includes("?")) return false;
   const pending = getNextPendingField(extracted, filledSet);
   if (!pending) return false;
-  const fieldOrder = FIELD_ORDER;
-  const pendingIdx = fieldOrder.indexOf(pending);
-  for (let i10 = pendingIdx + 1; i10 < fieldOrder.length; i10++) {
-    const field = fieldOrder[i10];
+  for (const field of FIELD_ORDER) {
+    if (field === pending) continue;
     if (mensajeAsksForField(mensaje, field)) return true;
   }
   return false;
@@ -161379,12 +161411,15 @@ ${nextQ}`;
   }
   if (!cierreYaEnviado && !clientAsksInclusion(currentMessage) && !clientAsksServiceInfo(currentMessage) && !appliedDirectReply && !appliedSalesReply && !/\bincluye\s*:|bodasesor\.com\/catalogos|medidas?\s+aproximad/i.test(mensaje) && !isFieldSatisfied("zona", filledSet, extracted) && (responseLooksLikePrematureClose(mensaje) || trulyReadyForClosing || mensajeAsksForField(mensaje, "presupuesto") || mensajeAsksForField(mensaje, "correo") || mensajeAsksForField(mensaje, "invitados"))) {
     const pending = getNextPendingField(extracted, filledSet);
-    if (pending === "fecha") {
+    if (pending === "invitados" && !mensajeAsksForField(mensaje, "invitados")) {
+      mensaje = buildNaturalQuestion("invitados", ctx);
+      log?.info({ entityId }, "GUARD: forzar invitados antes de fecha/ubicaci\xF3n/cierre");
+    } else if (pending === "fecha") {
       if (!mensajeAsksForField(mensaje, "fecha")) {
         mensaje = buildNaturalQuestion("fecha", ctx);
         log?.info({ entityId }, "GUARD: forzar fecha antes de ubicaci\xF3n/cierre");
       }
-    } else if (pending === "zona" || !mensajeAsksForField(mensaje, "zona")) {
+    } else if (pending === "zona" && !mensajeAsksForField(mensaje, "zona")) {
       mensaje = buildNaturalQuestion("zona", ctx);
       log?.info({ entityId }, "GUARD: forzar ubicaci\xF3n antes de avance/cierre");
     }
@@ -162113,10 +162148,10 @@ var init_lucy_flow_guards = __esm({
       "nombre",
       "tipo_evento",
       "requerimientos",
+      "invitados",
       "fecha",
       "zona",
       "correo",
-      "invitados",
       "presupuesto"
     ];
     MINIMAL_SERVICE_PATTERN = /\b(solo\s+)?(mesas?\s+y\s+sillas?|sillas?\s+y\s+mesas?|renta\s+de\s+(mesas?|sillas?)|solo\s+(mesas?|sillas?|mobiliario))\b/i;
@@ -226344,7 +226379,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.38";
+var LUCY_PROMPT_VERSION = "V9.39";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -228860,10 +228895,10 @@ Orden natural de conversaci\xF3n (salta lo ya capturado):
 1. Nombre del cliente
 2. Tipo de evento (qu\xE9 van a celebrar)
 3. Servicios / requerimientos
-4. Fecha y hora
-5. Direcci\xF3n o ubicaci\xF3n / sal\xF3n
-6. Correo electr\xF3nico \u2014 para cotizaciones y cat\xE1logos
-7. N\xFAmero de invitados
+4. N\xFAmero de invitados \u2014 no lo dejes al final; no confundas "a\xFAn no hay horario" con afluencia
+5. Fecha y hora
+6. Direcci\xF3n o ubicaci\xF3n / sal\xF3n (ciudad basta; colonia o sal\xF3n si ya lo tienen)
+7. Correo electr\xF3nico \u2014 para cotizaciones y cat\xE1logos
 8. Presupuesto (o "que el equipo proponga" / "por definir")
 
 Regla del correo: p\xEDdelo de forma natural cuando toque. Si el cliente duda o

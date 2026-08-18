@@ -109,10 +109,10 @@ Orden natural de conversación (salta lo ya capturado):
 1. Nombre del cliente
 2. Tipo de evento (qué van a celebrar)
 3. Servicios / requerimientos
-4. Fecha y hora
-5. Dirección o ubicación / salón
-6. Correo electrónico — para cotizaciones y catálogos
-7. Número de invitados
+4. Número de invitados — no lo dejes al final; no confundas "aún no hay horario" con afluencia
+5. Fecha y hora
+6. Dirección o ubicación / salón (ciudad basta; colonia o salón si ya lo tienen)
+7. Correo electrónico — para cotizaciones y catálogos
 8. Presupuesto (o "que el equipo proponga" / "por definir")
 
 Regla del correo: pídelo de forma natural cuando toque. Si el cliente duda o
