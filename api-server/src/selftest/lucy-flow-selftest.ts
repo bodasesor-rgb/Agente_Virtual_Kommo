@@ -11164,7 +11164,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.35 — primer turno banquete: catálogo + pregunta embudo (Allison A15370) ───
   await test("133. V9.35 — banquete Torreón primer turno pide fecha/invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.41");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.42");
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -11196,7 +11196,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.36 — no cortar el chat (Isai A15378) ───
   await test("134. V9.36 — Isai: no cierra, no confunde nombre con ciudad, urgencia ≠ teléfono", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.41");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.42");
     assert.equal(parseZonaFromText("Isai Moreno"), null);
     assert.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -11323,7 +11323,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.41");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.42");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
@@ -11400,7 +11400,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("135. V9.38 — comprobante en imagen: primer pago Anticipo, segundo Liquidación", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.41");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.42");
     assert.equal(FIELD_ANTICIPO, 1049322);
     assert.equal(FIELD_LIQUIDACION, 1049324);
 
@@ -11472,7 +11472,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("136. V9.40 — A15380 invitados no se saltan; Coyoacán+colonia; Claro no es nombre", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.41");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.42");
     const horario = "hola si se haría el 26 de septiembre pero aún no tenemos definido el horario";
     assert.equal(parseInvitadosFromText(horario), null, "horario pendiente ≠ invitados");
     const caps = scanConversationForCaptures([], horario, new Set(["Nombre del cliente"]));
@@ -11585,7 +11585,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("138. V9.41 — A15383 Kelia: ciudad, banquetes, LED≠luz, no spam (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.41");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.42");
 
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert.match(hornoMty, /horno\s*3/i, hornoMty);
@@ -11733,6 +11733,102 @@ async function runAll(): Promise<void> {
 
     const nameSpam = dedupeTransitionsInMessage("Perfecto, Kelia. Listo. Kelia, ¿en qué ciudad sería?");
     assert.ok(!/Listo\.\s*Kelia/i.test(nameSpam), nameSpam);
+  });
+
+  // ─── V9.42 — A15391 Mariana: Coffee Break 4, "4. nombre", handoff, horario ≠ menú ───
+  await test("139. V9.42 — A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.42");
+    const menu = buildProgressiveOptionsMenu("coffee_break");
+    assert.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
+    assert.ok(isCatalogLevelSelection("4. mariana", menu));
+    assert.equal(
+      resolveProgressiveDetailQuery({
+        currentMessage: "4. mariana",
+        serviceHint: "Coffee Break",
+        history: [{ role: "assistant", content: menu }],
+      }),
+      "Coffee Break 4"
+    );
+    assert.ok(
+      !clientWantsServiceDetail("dia no, horario 9-12 y despues 3-4pm", [
+        { role: "assistant", content: menu },
+      ])
+    );
+    assert.match(parseFechaFromText("dia no, horario 9-12 y despues 3-4pm") ?? "", /9-12|horario/i);
+    assert.ok(clientAsksForHumanAdvisor("comunicame con una persona"));
+    assert.ok(clientAsksForHumanAdvisor("comunicame con un asesor"));
+
+    setCatalogSnapshotForTests(
+      parseSheetCatalogCsv(
+        [
+          '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Link catalogo","Que Incluye","Sinonimos"',
+          '"Coffee Break","Coffee Break 1","$120.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Café, galletas y agua"',
+          '"Coffee Break","Coffee Break 2","$200.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Café, pan dulce y fruta"',
+          '"Coffee Break","Coffee Break 3","$280.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Café premium y snacks"',
+          '"Coffee Break","Coffee Break 4","$350.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estación completa CB4"',
+          '"Coffee Break","Coffee Break 5","$400.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estación completa CB5"',
+        ].join("\n")
+      )
+    );
+    const cb4Detail = buildCatalogServiceDetailAnswer("Coffee Break 4") ?? "";
+    assert.match(cb4Detail, /350|CB4|Coffee Break 4/i, cb4Detail.slice(0, 400));
+    assert.ok(
+      !/manejamos estos niveles[\s\S]*Coffee Break 1[\s\S]*Coffee Break 5/i.test(cb4Detail),
+      cb4Detail.slice(0, 500)
+    );
+
+    const hist: OpenAI.Chat.ChatCompletionMessageParam[] = [{ role: "assistant", content: menu }];
+    const pickCompound = runGuards({
+      aiResponse: "De acuerdo. ¿Quieres que te dé detalles de alguno?",
+      extracted: emptyExtracted({
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Coffee Break",
+      }),
+      filledSet: new Set(["Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "4. mariana",
+      history: hist,
+      whatsappDisplayName: "Mariana Ogarrio",
+    });
+    assert.ok(!/^de acuerdo\.\s*¿quieres que te d[eé] detalles de alguno/i.test(pickCompound.trim()));
+    assert.ok(/Coffee Break 4|350|CB4|incluye/i.test(pickCompound), pickCompound.slice(0, 500));
+    assert.ok(!/Coffee Break 1[\s\S]{0,80}Coffee Break 2[\s\S]{0,80}Coffee Break 3/i.test(pickCompound));
+
+    const pickCb4 = runGuards({
+      aiResponse: "Claro que sí. Te detallo Coffee Break 4. Para Coffee Break manejamos estos niveles…",
+      extracted: emptyExtracted({
+        nombre: "Mariana",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Coffee Break",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "coffe break 4",
+      history: hist,
+    });
+    assert.ok(/Coffee Break 4|350|CB4|estación completa/i.test(pickCb4), pickCb4.slice(0, 500));
+    assert.ok(
+      !/manejamos estos niveles[\s\S]*Coffee Break 1[\s\S]*Coffee Break 5/i.test(pickCb4),
+      pickCb4.slice(0, 500)
+    );
+
+    const handoff = runGuards({
+      aiResponse: "Con gusto. ¿Tienen un estimado de invitados?",
+      extracted: emptyExtracted({
+        nombre: "Mariana",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Coffee Break 4",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "comunicame con una persona",
+      history: [
+        ...hist,
+        { role: "assistant", content: "Te detallo Coffee Break 4. ¿Quieres que te dé detalles de alguno?" },
+      ],
+    });
+    assert.ok(/55\s*4008\s*0373/i.test(handoff), handoff.slice(0, 400));
+    assert.ok(!/invitados|cu[aá]nt[oa]s|ciudad del evento|en qu[eé] ciudad/i.test(handoff), handoff.slice(0, 400));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -1544,6 +1544,14 @@ export function clientAsksForHumanAdvisor(message?: string): boolean {
   }
   // En lote debounce: "Juan\nHablar con un agente"
   if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano)\b/im.test(tNoPp)) return true;
+  // A15391: "comunicame con una persona" / "pásame con un asesor"
+  if (
+    /\b(?:comun[ií]ca(?:me|nos)?|p[aá]sa(?:me)?|conecta(?:me)?|canal[ií]za(?:me)?)\s+con\s+(un\s+|una\s+|alg[uú]n\s+|alguna\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(
+      tNoPp
+    )
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -3590,6 +3598,14 @@ export function parseFechaFromText(text: string): string | null {
 
   if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
     return trimmed.slice(0, 80);
+  }
+
+  // A15391: "día no, horario 9-12 y después 3-4pm"
+  if (
+    /\b(d[ií]a\s+no|sin\s+d[ií]a|a[uú]n\s+no\s+(hay|tenemos)\s+d[ií]a|horario)\b/i.test(trimmed) &&
+    /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–a]|hasta)\s*\d{1,2}/i.test(trimmed)
+  ) {
+    return trimmed.replace(/\s+/g, " ").trim().slice(0, 80);
   }
 
   return null;

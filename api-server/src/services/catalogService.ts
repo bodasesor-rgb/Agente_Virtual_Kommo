@@ -367,6 +367,10 @@ function parseCatalogQueryFilters(query: string): CatalogQueryFilters {
   else if (/\bbasic[ao]\b/.test(t)) nivel = "Basica";
   else if (/\btradicional\b/.test(t)) nivel = "Tradicional";
   else if (/\bsolo\s*alimentos\b/.test(t)) nivel = "Solo Alimentos";
+  else {
+    const coffeeN = t.match(/\bcoffe{1,2}e?\s*break\s*([1-9])\b/) || t.match(/\bcoffee\s*break\s*([1-9])\b/);
+    if (coffeeN?.[1]) nivel = `Coffee Break ${coffeeN[1]}`;
+  }
 
   return {
     banquete: /\bbanquete\b/.test(t),
@@ -562,6 +566,13 @@ function matchesNivelFilter(row: SheetCatalogRow, filters: CatalogQueryFilters, 
   if (/\bpremium\b/.test(q) && /\bpremium\b/.test(nivelHay)) return true;
   if (/\bbasic[ao]\b/.test(q) && /\bbasic[ao]\b/.test(nivelHay)) return true;
   if (/\btradicional\b/.test(q) && /\btradicional\b/.test(nivelHay)) return true;
+  const coffeeN = q.match(/\bcoffe{1,2}e?\s*break\s*([1-9])\b/) || q.match(/\bcoffee\s*break\s*([1-9])\b/);
+  if (coffeeN?.[1]) {
+    const n = coffeeN[1];
+    if (nivelHay.includes(`coffee break ${n}`) || nivelHay === n || new RegExp(`\\b${n}\\b`).test(nivelHay)) {
+      return /coffee|coffe|break/.test(nivelHay) || /coffee|coffe/.test(svcHay);
+    }
+  }
   return false;
 }
 
@@ -616,7 +627,9 @@ export function resolveCatalogQuery(query: string): CatalogMatchResult | null {
     filters.nivel ||
     filters.cuatroTiempos ||
     filters.tresTiempos ||
-    /\bpremium\b|\bbasic[ao]\b|\btradicional\b|\bservicio\s+completo\b|\bpor\s+pieza\b/i.test(query)
+    /\bpremium\b|\bbasic[ao]\b|\btradicional\b|\bservicio\s+completo\b|\bpor\s+pieza\b|\bcoffe{1,2}e?\s*break\s*[1-9]\b|\bcoffee\s*break\s*[1-9]\b/i.test(
+      query
+    )
   );
   if (hasNivelFilter) {
     const nivelRows = matchedRows.filter((r) => matchesNivelFilter(r, filters, query));
@@ -2127,12 +2140,21 @@ export function buildCatalogServiceDetailAnswer(query: string): string | null {
   }
 
   // Inclusión / detalle de nivel concreto: PDF primero (qué incluye), con $ del Sheet si difiere.
+  // A15391: Coffee Break N — no devolver el dump de los 5 paquetes si el PDF es genérico.
   if (
     clientAsksInclusion(query) ||
     /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic)/i.test(query)
   ) {
     const fromPdf = buildPdfInclusionReply(query);
-    if (fromPdf) return fromPdf;
+    const coffeeN = query.match(/\bcoffe{1,2}e?\s*break\s*([1-9])\b|\bcoffee\s*break\s*([1-9])\b/i);
+    const n = coffeeN?.[1] || coffeeN?.[2];
+    const pdfIsGenericCoffeeDump =
+      !!n &&
+      !!fromPdf &&
+      (/manejamos estos niveles/i.test(fromPdf) ||
+        (/coffee\s*break\s*1/i.test(fromPdf) && /coffee\s*break\s*5/i.test(fromPdf))) &&
+      !new RegExp(`incluye[\\s\\S]{0,80}coffee\\s*break\\s*${n}\\b`, "i").test(fromPdf);
+    if (fromPdf && !pdfIsGenericCoffeeDump) return fromPdf;
   }
 
   const resolved = resolveCatalogQuery(query);
@@ -2167,9 +2189,15 @@ export function buildCatalogServiceDetailAnswer(query: string): string | null {
     // Nivel concreto ausente en PDF → precios Sheet, nunca PDF de otro nivel.
     if (/\bcoffee\s*break\s*\d/.test(query)) {
       const fromPdf = buildPdfInclusionReply(query);
-      if (fromPdf) return fromPdf;
+      const pdfIsGeneric =
+        !!fromPdf &&
+        (/manejamos estos niveles/i.test(fromPdf) ||
+          (/coffee\s*break\s*1/i.test(fromPdf) && /coffee\s*break\s*5/i.test(fromPdf)));
+      if (fromPdf && !pdfIsGeneric) return fromPdf;
       const priced = buildCatalogPriceAnswer(query);
-      if (priced) return priced;
+      if (priced && !(/manejamos estos niveles/i.test(priced) && /coffee\s*break\s*1/i.test(priced))) {
+        return priced;
+      }
     } else if (/\b(tradicional|premium|b[aá]sic)\b/i.test(query)) {
       const fromPdf = buildPdfInclusionReply(query);
       if (fromPdf) return fromPdf;

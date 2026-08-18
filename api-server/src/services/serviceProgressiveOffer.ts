@@ -10,7 +10,11 @@
  */
 
 import type { OpenAI } from "openai";
-import { clientAsksForCatalog } from "../conversation-understanding.js";
+import {
+  clientAsksForCatalog,
+  extractCatalogNivelFromText,
+  extractNumberedNivelFromLastAssistant,
+} from "../conversation-understanding.js";
 
 /** CTA único para TODAS las ramas (niveles Sheet + menús progresivos). A14982. */
 export const SERVICE_NIVEL_DETAIL_CTA = "¿Quieres que te dé detalles de alguno?";
@@ -761,6 +765,15 @@ export function clientWantsServiceDetail(
   const t = text?.trim() ?? "";
   if (!t) return false;
   const n = fold(t);
+  // A15391: horario/fecha/handoff no es "opción 9" del menú Coffee Break.
+  if (
+    /\b(horario|hora|d[ií]a\s+no|sin\s+d[ií]a|fecha|invitados|personas|ciudad|correo|e-?mail|comun[ií]ca(?:me|nos)?|p[aá]same\s+con)\b/i.test(
+      t
+    ) ||
+    /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–]|a|hasta)\s*\d{1,2}(?:\s*(?:am|pm|hrs?|horas?))?/i.test(t)
+  ) {
+    return false;
+  }
   if (
     /^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas|el\s+detalle|detallame|detállame|m[aá]ndame\s+(la\s+)?info|dame\s+(la\s+)?info|quiero\s+(ver\s+)?(el\s+)?detalle)[\s.!]*$/i.test(
       t
@@ -1055,6 +1068,18 @@ export function resolveProgressiveDetailQuery(opts: {
 }): string | null {
   const msg = opts.currentMessage?.trim() ?? "";
   const hint = opts.serviceHint?.trim() ?? "";
+  const lastAsst = [...opts.history]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string");
+  const lastAsstText =
+    lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : null;
+  const numberedPick =
+    extractNumberedNivelFromLastAssistant(msg, lastAsstText) ||
+    extractCatalogNivelFromText(msg, lastAsstText);
+  if (numberedPick && /coffee\s*break\s*[1-9]|coffe/i.test(numberedPick + (lastAsstText ?? ""))) {
+    return numberedPick;
+  }
+  if (numberedPick && lastAsstText) return numberedPick;
   const userBlob = [
     ...opts.history
       .filter((m) => m.role === "user" && typeof m.content === "string")

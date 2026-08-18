@@ -144,6 +144,7 @@ import {
   isAmbiguousShortNumber,
   isCatalogLevelSelection,
   extractCatalogNivelFromText,
+  extractNumberedNivelFromLastAssistant,
   sanitizeExtractedAmbiguousNumbers,
   clientDeclinesMoreServices,
   clientWantsFoodOnlyQuote,
@@ -3276,6 +3277,14 @@ function ensureFunnelAfterSalesReply(
 ): string {
   let out = collapseRepeatedSentences(dedupeTransitionsInMessage(mensaje));
 
+  // A15391: handoff a asesor — no pedir ciudad/invitados encima de los teléfonos.
+  if (
+    clientAsksForHumanAdvisor(currentMessage) ||
+    /55\s*4008\s*0373|canalizo con un asesor|Ya dejé tu caso listo para el equipo/i.test(out)
+  ) {
+    return out;
+  }
+
   if (
     /quieres que te d[eé] detalles de alguno/i.test(out) &&
     currentMessage &&
@@ -6120,17 +6129,25 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedSalesReply = true;
     log?.info({ entityId, label }, "GUARD: variante banquete por tiempos + detalle/link");
   } else if (
-    isCatalogLevelSelection(
-      currentMessage,
-      lastAssistantMsg && typeof lastAssistantMsg.content === "string"
-        ? (lastAssistantMsg.content as string)
-        : null
-    ) &&
-    // V8.68: si acabamos de ofrecer menú de opciones, el nivel va a detalle+link.
-    !(
-      historyOfferedServiceOptionsMenu(presHistory) &&
-      clientWantsServiceDetail(currentMessage, presHistory)
-    )
+    (() => {
+      const lastAsstSel =
+        lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+          ? (lastAssistantMsg.content as string)
+          : null;
+      if (!isCatalogLevelSelection(currentMessage, lastAsstSel)) return false;
+      const pickedNivel =
+        extractCatalogNivelFromText(currentMessage, lastAsstSel) ||
+        extractNumberedNivelFromLastAssistant(currentMessage, lastAsstSel);
+      // "sí / dale" tras menú → rama progresiva. Paquete concreto (CB4, "4. mariana") SÍ entra aquí.
+      if (
+        historyOfferedServiceOptionsMenu(presHistory) &&
+        clientWantsServiceDetail(currentMessage, presHistory) &&
+        !pickedNivel
+      ) {
+        return false;
+      }
+      return true;
+    })()
   ) {
     // A14934/A14949: nivel Básica/Premium o paquete numerado "Coffee Break 5".
     const lastAsst =
