@@ -122603,6 +122603,11 @@ function clientAsksForHumanAdvisor(message) {
     return true;
   }
   if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano)\b/im.test(tNoPp)) return true;
+  if (/\b(?:comun[ií]ca(?:me|nos)?|p[aá]sa(?:me)?|conecta(?:me)?|canal[ií]za(?:me)?)\s+con\s+(un\s+|una\s+|alg[uú]n\s+|alguna\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(
+    tNoPp
+  )) {
+    return true;
+  }
   return false;
 }
 function clientNeedsEmergencyContact(message) {
@@ -123871,6 +123876,9 @@ function parseFechaFromText(text2) {
   }
   if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
     return trimmed.slice(0, 80);
+  }
+  if (/\b(d[ií]a\s+no|sin\s+d[ií]a|a[uú]n\s+no\s+(hay|tenemos)\s+d[ií]a|horario)\b/i.test(trimmed) && /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–a]|hasta)\s*\d{1,2}/i.test(trimmed)) {
+    return trimmed.replace(/\s+/g, " ").trim().slice(0, 80);
   }
   return null;
 }
@@ -127511,6 +127519,11 @@ function clientWantsServiceDetail(text2, history) {
   const t3 = text2?.trim() ?? "";
   if (!t3) return false;
   const n4 = fold3(t3);
+  if (/\b(horario|hora|d[ií]a\s+no|sin\s+d[ií]a|fecha|invitados|personas|ciudad|correo|e-?mail|comun[ií]ca(?:me|nos)?|p[aá]same\s+con)\b/i.test(
+    t3
+  ) || /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–]|a|hasta)\s*\d{1,2}(?:\s*(?:am|pm|hrs?|horas?))?/i.test(t3)) {
+    return false;
+  }
   if (/^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas|el\s+detalle|detallame|detállame|m[aá]ndame\s+(la\s+)?info|dame\s+(la\s+)?info|quiero\s+(ver\s+)?(el\s+)?detalle)[\s.!]*$/i.test(
     t3
   )) {
@@ -127668,6 +127681,13 @@ function shouldOfferOptionsBeforeDetail(opts) {
 function resolveProgressiveDetailQuery(opts) {
   const msg = opts.currentMessage?.trim() ?? "";
   const hint = opts.serviceHint?.trim() ?? "";
+  const lastAsst = [...opts.history].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
+  const lastAsstText = lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : null;
+  const numberedPick = extractNumberedNivelFromLastAssistant(msg, lastAsstText) || extractCatalogNivelFromText(msg, lastAsstText);
+  if (numberedPick && /coffee\s*break\s*[1-9]|coffe/i.test(numberedPick + (lastAsstText ?? ""))) {
+    return numberedPick;
+  }
+  if (numberedPick && lastAsstText) return numberedPick;
   const userBlob = [
     ...opts.history.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content).slice(-6),
     msg,
@@ -128162,6 +128182,10 @@ function parseCatalogQueryFilters(query) {
   else if (/\bbasic[ao]\b/.test(t3)) nivel = "Basica";
   else if (/\btradicional\b/.test(t3)) nivel = "Tradicional";
   else if (/\bsolo\s*alimentos\b/.test(t3)) nivel = "Solo Alimentos";
+  else {
+    const coffeeN = t3.match(/\bcoffe{1,2}e?\s*break\s*([1-9])\b/) || t3.match(/\bcoffee\s*break\s*([1-9])\b/);
+    if (coffeeN?.[1]) nivel = `Coffee Break ${coffeeN[1]}`;
+  }
   return {
     banquete: /\bbanquete\b/.test(t3),
     taquiza: /\btaquiza\b/.test(t3),
@@ -128307,6 +128331,13 @@ function matchesNivelFilter(row, filters, query) {
   if (/\bpremium\b/.test(q2) && /\bpremium\b/.test(nivelHay)) return true;
   if (/\bbasic[ao]\b/.test(q2) && /\bbasic[ao]\b/.test(nivelHay)) return true;
   if (/\btradicional\b/.test(q2) && /\btradicional\b/.test(nivelHay)) return true;
+  const coffeeN = q2.match(/\bcoffe{1,2}e?\s*break\s*([1-9])\b/) || q2.match(/\bcoffee\s*break\s*([1-9])\b/);
+  if (coffeeN?.[1]) {
+    const n4 = coffeeN[1];
+    if (nivelHay.includes(`coffee break ${n4}`) || nivelHay === n4 || new RegExp(`\\b${n4}\\b`).test(nivelHay)) {
+      return /coffee|coffe|break/.test(nivelHay) || /coffee|coffe/.test(svcHay);
+    }
+  }
   return false;
 }
 function simplifyServiceNamesForList(servicios) {
@@ -128345,7 +128376,9 @@ function resolveCatalogQuery(query) {
   const top = scored[0].score;
   const minScore = filters.nivel || filters.cuatroTiempos || filters.tresTiempos ? top - 1 : top - 3;
   let matchedRows = scored.filter((item) => item.score >= minScore).map((item) => item.row);
-  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasic[ao]\b|\btradicional\b|\bservicio\s+completo\b|\bpor\s+pieza\b/i.test(query));
+  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasic[ao]\b|\btradicional\b|\bservicio\s+completo\b|\bpor\s+pieza\b|\bcoffe{1,2}e?\s*break\s*[1-9]\b|\bcoffee\s*break\s*[1-9]\b/i.test(
+    query
+  ));
   if (hasNivelFilter) {
     const nivelRows = matchedRows.filter((r4) => matchesNivelFilter(r4, filters, query));
     if (nivelRows.length) matchedRows = nivelRows;
@@ -129419,7 +129452,10 @@ function buildCatalogServiceDetailAnswer(query) {
   }
   if (clientAsksInclusion(query) || /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic)/i.test(query)) {
     const fromPdf = buildPdfInclusionReply(query);
-    if (fromPdf) return fromPdf;
+    const coffeeN = query.match(/\bcoffe{1,2}e?\s*break\s*([1-9])\b|\bcoffee\s*break\s*([1-9])\b/i);
+    const n4 = coffeeN?.[1] || coffeeN?.[2];
+    const pdfIsGenericCoffeeDump = !!n4 && !!fromPdf && (/manejamos estos niveles/i.test(fromPdf) || /coffee\s*break\s*1/i.test(fromPdf) && /coffee\s*break\s*5/i.test(fromPdf)) && !new RegExp(`incluye[\\s\\S]{0,80}coffee\\s*break\\s*${n4}\\b`, "i").test(fromPdf);
+    if (fromPdf && !pdfIsGenericCoffeeDump) return fromPdf;
   }
   const resolved = resolveCatalogQuery(query);
   if (!resolved) return null;
@@ -129445,9 +129481,12 @@ function buildCatalogServiceDetailAnswer(query) {
     }
     if (/\bcoffee\s*break\s*\d/.test(query)) {
       const fromPdf = buildPdfInclusionReply(query);
-      if (fromPdf) return fromPdf;
+      const pdfIsGeneric = !!fromPdf && (/manejamos estos niveles/i.test(fromPdf) || /coffee\s*break\s*1/i.test(fromPdf) && /coffee\s*break\s*5/i.test(fromPdf));
+      if (fromPdf && !pdfIsGeneric) return fromPdf;
       const priced = buildCatalogPriceAnswer(query);
-      if (priced) return priced;
+      if (priced && !(/manejamos estos niveles/i.test(priced) && /coffee\s*break\s*1/i.test(priced))) {
+        return priced;
+      }
     } else if (/\b(tradicional|premium|b[aá]sic)\b/i.test(query)) {
       const fromPdf = buildPdfInclusionReply(query);
       if (fromPdf) return fromPdf;
@@ -131939,6 +131978,9 @@ function lastQuestionAsksForField(mensaje, field) {
 }
 function ensureFunnelAfterSalesReply(mensaje, filledSet, extracted, ctx, currentMessage, history) {
   let out2 = collapseRepeatedSentences(dedupeTransitionsInMessage(mensaje));
+  if (clientAsksForHumanAdvisor(currentMessage) || /55\s*4008\s*0373|canalizo con un asesor|Ya dejé tu caso listo para el equipo/i.test(out2)) {
+    return out2;
+  }
   if (/quieres que te d[eé] detalles de alguno/i.test(out2) && currentMessage && clientChoseBanqueteFormal(currentMessage)) {
     const shortEmptyCta = !isProgressiveOptionsMenuReply(out2) && !/bodasesor\.com\/catalogos/i.test(out2) && out2.replace(/\s+/g, " ").trim().length < 180;
     if (shortEmptyCta) {
@@ -133722,11 +133764,15 @@ ${closingQ}`;
     appliedDirectReply = true;
     appliedSalesReply = true;
     log?.info({ entityId, label }, "GUARD: variante banquete por tiempos + detalle/link");
-  } else if (isCatalogLevelSelection(
-    currentMessage,
-    lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
-  ) && // V8.68: si acabamos de ofrecer menú de opciones, el nivel va a detalle+link.
-  !(historyOfferedServiceOptionsMenu(presHistory) && clientWantsServiceDetail(currentMessage, presHistory))) {
+  } else if ((() => {
+    const lastAsstSel = lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null;
+    if (!isCatalogLevelSelection(currentMessage, lastAsstSel)) return false;
+    const pickedNivel = extractCatalogNivelFromText(currentMessage, lastAsstSel) || extractNumberedNivelFromLastAssistant(currentMessage, lastAsstSel);
+    if (historyOfferedServiceOptionsMenu(presHistory) && clientWantsServiceDetail(currentMessage, presHistory) && !pickedNivel) {
+      return false;
+    }
+    return true;
+  })()) {
     const lastAsst = lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null;
     const nivel = extractCatalogNivelFromText(currentMessage, lastAsst) ?? currentMessage.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
     const emailNow = filterClientEmail(parseCorreoFromText(currentMessage ?? ""));
@@ -137393,7 +137439,7 @@ function clientReplyForPaymentSlot(slot) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.41";
+var LUCY_PROMPT_VERSION = "V9.42";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -146950,7 +146996,7 @@ ${golfText}`,
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
   await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.41");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.42");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -146979,7 +147025,7 @@ ${golfText}`,
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
   await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.41");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.42");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -147097,7 +147143,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.41");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.42");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,
@@ -147168,7 +147214,7 @@ ${golfText}`,
     }
   });
   await test("135. V9.38 \u2014 comprobante en imagen: primer pago Anticipo, segundo Liquidaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.41");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.42");
     assert2.equal(FIELD_ANTICIPO, 1049322);
     assert2.equal(FIELD_LIQUIDACION, 1049324);
     assert2.equal(nextPaymentSlot(null, null), "anticipo");
@@ -147232,7 +147278,7 @@ ${golfText}`,
     assert2.ok(/amount_mxn/.test(imgSrc));
   });
   await test("136. V9.40 \u2014 A15380 invitados no se saltan; Coyoac\xE1n+colonia; Claro no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.41");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.42");
     const horario = "hola si se har\xEDa el 26 de septiembre pero a\xFAn no tenemos definido el horario";
     assert2.equal(parseInvitadosFromText(horario), null, "horario pendiente \u2260 invitados");
     const caps = scanConversationForCaptures([], horario, /* @__PURE__ */ new Set(["Nombre del cliente"]));
@@ -147335,7 +147381,7 @@ ${golfText}`,
     assert2.equal(taquizaNext, "invitados");
   });
   await test("138. V9.41 \u2014 A15383 Kelia: ciudad, banquetes, LED\u2260luz, no spam (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.41");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.42");
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert2.match(hornoMty, /horno\s*3/i, hornoMty);
     assert2.match(hornoMty, /monterrey/i, hornoMty);
@@ -147468,6 +147514,96 @@ ${golfText}`,
     assert2.ok((tiemposReply.match(/Platícame/gi) ?? []).length <= 1);
     const nameSpam = dedupeTransitionsInMessage("Perfecto, Kelia. Listo. Kelia, \xBFen qu\xE9 ciudad ser\xEDa?");
     assert2.ok(!/Listo\.\s*Kelia/i.test(nameSpam), nameSpam);
+  });
+  await test("139. V9.42 \u2014 A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.42");
+    const menu = buildProgressiveOptionsMenu("coffee_break");
+    assert2.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
+    assert2.ok(isCatalogLevelSelection("4. mariana", menu));
+    assert2.equal(
+      resolveProgressiveDetailQuery({
+        currentMessage: "4. mariana",
+        serviceHint: "Coffee Break",
+        history: [{ role: "assistant", content: menu }]
+      }),
+      "Coffee Break 4"
+    );
+    assert2.ok(
+      !clientWantsServiceDetail("dia no, horario 9-12 y despues 3-4pm", [
+        { role: "assistant", content: menu }
+      ])
+    );
+    assert2.match(parseFechaFromText("dia no, horario 9-12 y despues 3-4pm") ?? "", /9-12|horario/i);
+    assert2.ok(clientAsksForHumanAdvisor("comunicame con una persona"));
+    assert2.ok(clientAsksForHumanAdvisor("comunicame con un asesor"));
+    setCatalogSnapshotForTests(
+      parseSheetCatalogCsv(
+        [
+          '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye","Sinonimos"',
+          '"Coffee Break","Coffee Break 1","$120.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9, galletas y agua"',
+          '"Coffee Break","Coffee Break 2","$200.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9, pan dulce y fruta"',
+          '"Coffee Break","Coffee Break 3","$280.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9 premium y snacks"',
+          '"Coffee Break","Coffee Break 4","$350.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estaci\xF3n completa CB4"',
+          '"Coffee Break","Coffee Break 5","$400.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estaci\xF3n completa CB5"'
+        ].join("\n")
+      )
+    );
+    const cb4Detail = buildCatalogServiceDetailAnswer("Coffee Break 4") ?? "";
+    assert2.match(cb4Detail, /350|CB4|Coffee Break 4/i, cb4Detail.slice(0, 400));
+    assert2.ok(
+      !/manejamos estos niveles[\s\S]*Coffee Break 1[\s\S]*Coffee Break 5/i.test(cb4Detail),
+      cb4Detail.slice(0, 500)
+    );
+    const hist = [{ role: "assistant", content: menu }];
+    const pickCompound = runGuards({
+      aiResponse: "De acuerdo. \xBFQuieres que te d\xE9 detalles de alguno?",
+      extracted: emptyExtracted({
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Coffee Break"
+      }),
+      filledSet: /* @__PURE__ */ new Set(["Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "4. mariana",
+      history: hist,
+      whatsappDisplayName: "Mariana Ogarrio"
+    });
+    assert2.ok(!/^de acuerdo\.\s*¿quieres que te d[eé] detalles de alguno/i.test(pickCompound.trim()));
+    assert2.ok(/Coffee Break 4|350|CB4|incluye/i.test(pickCompound), pickCompound.slice(0, 500));
+    assert2.ok(!/Coffee Break 1[\s\S]{0,80}Coffee Break 2[\s\S]{0,80}Coffee Break 3/i.test(pickCompound));
+    const pickCb4 = runGuards({
+      aiResponse: "Claro que s\xED. Te detallo Coffee Break 4. Para Coffee Break manejamos estos niveles\u2026",
+      extracted: emptyExtracted({
+        nombre: "Mariana",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Coffee Break"
+      }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "coffe break 4",
+      history: hist
+    });
+    assert2.ok(/Coffee Break 4|350|CB4|estación completa/i.test(pickCb4), pickCb4.slice(0, 500));
+    assert2.ok(
+      !/manejamos estos niveles[\s\S]*Coffee Break 1[\s\S]*Coffee Break 5/i.test(pickCb4),
+      pickCb4.slice(0, 500)
+    );
+    const handoff = runGuards({
+      aiResponse: "Con gusto. \xBFTienen un estimado de invitados?",
+      extracted: emptyExtracted({
+        nombre: "Mariana",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Coffee Break 4"
+      }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "comunicame con una persona",
+      history: [
+        ...hist,
+        { role: "assistant", content: "Te detallo Coffee Break 4. \xBFQuieres que te d\xE9 detalles de alguno?" }
+      ]
+    });
+    assert2.ok(/55\s*4008\s*0373/i.test(handoff), handoff.slice(0, 400));
+    assert2.ok(!/invitados|cu[aá]nt[oa]s|ciudad del evento|en qu[eé] ciudad/i.test(handoff), handoff.slice(0, 400));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

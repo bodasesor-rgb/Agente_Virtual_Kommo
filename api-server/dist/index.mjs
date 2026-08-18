@@ -128635,6 +128635,11 @@ function clientAsksForHumanAdvisor(message) {
     return true;
   }
   if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano)\b/im.test(tNoPp)) return true;
+  if (/\b(?:comun[ií]ca(?:me|nos)?|p[aá]sa(?:me)?|conecta(?:me)?|canal[ií]za(?:me)?)\s+con\s+(un\s+|una\s+|alg[uú]n\s+|alguna\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(
+    tNoPp
+  )) {
+    return true;
+  }
   return false;
 }
 function clientNeedsEmergencyContact(message) {
@@ -129853,6 +129858,9 @@ function parseFechaFromText(text2) {
   }
   if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
     return trimmed.slice(0, 80);
+  }
+  if (/\b(d[ií]a\s+no|sin\s+d[ií]a|a[uú]n\s+no\s+(hay|tenemos)\s+d[ií]a|horario)\b/i.test(trimmed) && /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–a]|hasta)\s*\d{1,2}/i.test(trimmed)) {
+    return trimmed.replace(/\s+/g, " ").trim().slice(0, 80);
   }
   return null;
 }
@@ -131932,6 +131940,11 @@ function clientWantsServiceDetail(text2, history) {
   const t10 = text2?.trim() ?? "";
   if (!t10) return false;
   const n10 = fold3(t10);
+  if (/\b(horario|hora|d[ií]a\s+no|sin\s+d[ií]a|fecha|invitados|personas|ciudad|correo|e-?mail|comun[ií]ca(?:me|nos)?|p[aá]same\s+con)\b/i.test(
+    t10
+  ) || /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–]|a|hasta)\s*\d{1,2}(?:\s*(?:am|pm|hrs?|horas?))?/i.test(t10)) {
+    return false;
+  }
   if (/^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas|el\s+detalle|detallame|detállame|m[aá]ndame\s+(la\s+)?info|dame\s+(la\s+)?info|quiero\s+(ver\s+)?(el\s+)?detalle)[\s.!]*$/i.test(
     t10
   )) {
@@ -132089,6 +132102,13 @@ function shouldOfferOptionsBeforeDetail(opts) {
 function resolveProgressiveDetailQuery(opts) {
   const msg = opts.currentMessage?.trim() ?? "";
   const hint = opts.serviceHint?.trim() ?? "";
+  const lastAsst = [...opts.history].reverse().find((m10) => m10.role === "assistant" && typeof m10.content === "string");
+  const lastAsstText = lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : null;
+  const numberedPick = extractNumberedNivelFromLastAssistant(msg, lastAsstText) || extractCatalogNivelFromText(msg, lastAsstText);
+  if (numberedPick && /coffee\s*break\s*[1-9]|coffe/i.test(numberedPick + (lastAsstText ?? ""))) {
+    return numberedPick;
+  }
+  if (numberedPick && lastAsstText) return numberedPick;
   const userBlob = [
     ...opts.history.filter((m10) => m10.role === "user" && typeof m10.content === "string").map((m10) => m10.content).slice(-6),
     msg,
@@ -133040,6 +133060,10 @@ function parseCatalogQueryFilters(query) {
   else if (/\bbasic[ao]\b/.test(t10)) nivel = "Basica";
   else if (/\btradicional\b/.test(t10)) nivel = "Tradicional";
   else if (/\bsolo\s*alimentos\b/.test(t10)) nivel = "Solo Alimentos";
+  else {
+    const coffeeN = t10.match(/\bcoffe{1,2}e?\s*break\s*([1-9])\b/) || t10.match(/\bcoffee\s*break\s*([1-9])\b/);
+    if (coffeeN?.[1]) nivel = `Coffee Break ${coffeeN[1]}`;
+  }
   return {
     banquete: /\bbanquete\b/.test(t10),
     taquiza: /\btaquiza\b/.test(t10),
@@ -133163,6 +133187,13 @@ function matchesNivelFilter(row, filters, query) {
   if (/\bpremium\b/.test(q10) && /\bpremium\b/.test(nivelHay)) return true;
   if (/\bbasic[ao]\b/.test(q10) && /\bbasic[ao]\b/.test(nivelHay)) return true;
   if (/\btradicional\b/.test(q10) && /\btradicional\b/.test(nivelHay)) return true;
+  const coffeeN = q10.match(/\bcoffe{1,2}e?\s*break\s*([1-9])\b/) || q10.match(/\bcoffee\s*break\s*([1-9])\b/);
+  if (coffeeN?.[1]) {
+    const n10 = coffeeN[1];
+    if (nivelHay.includes(`coffee break ${n10}`) || nivelHay === n10 || new RegExp(`\\b${n10}\\b`).test(nivelHay)) {
+      return /coffee|coffe|break/.test(nivelHay) || /coffee|coffe/.test(svcHay);
+    }
+  }
   return false;
 }
 function simplifyServiceNamesForList(servicios) {
@@ -133201,7 +133232,9 @@ function resolveCatalogQuery(query) {
   const top = scored[0].score;
   const minScore = filters.nivel || filters.cuatroTiempos || filters.tresTiempos ? top - 1 : top - 3;
   let matchedRows = scored.filter((item) => item.score >= minScore).map((item) => item.row);
-  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasic[ao]\b|\btradicional\b|\bservicio\s+completo\b|\bpor\s+pieza\b/i.test(query));
+  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasic[ao]\b|\btradicional\b|\bservicio\s+completo\b|\bpor\s+pieza\b|\bcoffe{1,2}e?\s*break\s*[1-9]\b|\bcoffee\s*break\s*[1-9]\b/i.test(
+    query
+  ));
   if (hasNivelFilter) {
     const nivelRows = matchedRows.filter((r10) => matchesNivelFilter(r10, filters, query));
     if (nivelRows.length) matchedRows = nivelRows;
@@ -134250,7 +134283,10 @@ function buildCatalogServiceDetailAnswer(query) {
   }
   if (clientAsksInclusion(query) || /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic)/i.test(query)) {
     const fromPdf = buildPdfInclusionReply(query);
-    if (fromPdf) return fromPdf;
+    const coffeeN = query.match(/\bcoffe{1,2}e?\s*break\s*([1-9])\b|\bcoffee\s*break\s*([1-9])\b/i);
+    const n10 = coffeeN?.[1] || coffeeN?.[2];
+    const pdfIsGenericCoffeeDump = !!n10 && !!fromPdf && (/manejamos estos niveles/i.test(fromPdf) || /coffee\s*break\s*1/i.test(fromPdf) && /coffee\s*break\s*5/i.test(fromPdf)) && !new RegExp(`incluye[\\s\\S]{0,80}coffee\\s*break\\s*${n10}\\b`, "i").test(fromPdf);
+    if (fromPdf && !pdfIsGenericCoffeeDump) return fromPdf;
   }
   const resolved = resolveCatalogQuery(query);
   if (!resolved) return null;
@@ -134276,9 +134312,12 @@ function buildCatalogServiceDetailAnswer(query) {
     }
     if (/\bcoffee\s*break\s*\d/.test(query)) {
       const fromPdf = buildPdfInclusionReply(query);
-      if (fromPdf) return fromPdf;
+      const pdfIsGeneric = !!fromPdf && (/manejamos estos niveles/i.test(fromPdf) || /coffee\s*break\s*1/i.test(fromPdf) && /coffee\s*break\s*5/i.test(fromPdf));
+      if (fromPdf && !pdfIsGeneric) return fromPdf;
       const priced = buildCatalogPriceAnswer(query);
-      if (priced) return priced;
+      if (priced && !(/manejamos estos niveles/i.test(priced) && /coffee\s*break\s*1/i.test(priced))) {
+        return priced;
+      }
     } else if (/\b(tradicional|premium|b[aá]sic)\b/i.test(query)) {
       const fromPdf = buildPdfInclusionReply(query);
       if (fromPdf) return fromPdf;
@@ -158677,6 +158716,9 @@ function lastQuestionAsksForField(mensaje, field) {
 }
 function ensureFunnelAfterSalesReply(mensaje, filledSet, extracted, ctx, currentMessage, history) {
   let out2 = collapseRepeatedSentences(dedupeTransitionsInMessage(mensaje));
+  if (clientAsksForHumanAdvisor(currentMessage) || /55\s*4008\s*0373|canalizo con un asesor|Ya dejé tu caso listo para el equipo/i.test(out2)) {
+    return out2;
+  }
   if (/quieres que te d[eé] detalles de alguno/i.test(out2) && currentMessage && clientChoseBanqueteFormal(currentMessage)) {
     const shortEmptyCta = !isProgressiveOptionsMenuReply(out2) && !/bodasesor\.com\/catalogos/i.test(out2) && out2.replace(/\s+/g, " ").trim().length < 180;
     if (shortEmptyCta) {
@@ -160454,11 +160496,15 @@ ${closingQ}`;
     appliedDirectReply = true;
     appliedSalesReply = true;
     log?.info({ entityId, label }, "GUARD: variante banquete por tiempos + detalle/link");
-  } else if (isCatalogLevelSelection(
-    currentMessage,
-    lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
-  ) && // V8.68: si acabamos de ofrecer menú de opciones, el nivel va a detalle+link.
-  !(historyOfferedServiceOptionsMenu(presHistory) && clientWantsServiceDetail(currentMessage, presHistory))) {
+  } else if ((() => {
+    const lastAsstSel = lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null;
+    if (!isCatalogLevelSelection(currentMessage, lastAsstSel)) return false;
+    const pickedNivel = extractCatalogNivelFromText(currentMessage, lastAsstSel) || extractNumberedNivelFromLastAssistant(currentMessage, lastAsstSel);
+    if (historyOfferedServiceOptionsMenu(presHistory) && clientWantsServiceDetail(currentMessage, presHistory) && !pickedNivel) {
+      return false;
+    }
+    return true;
+  })()) {
     const lastAsst = lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null;
     const nivel = extractCatalogNivelFromText(currentMessage, lastAsst) ?? currentMessage.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
     const emailNow = filterClientEmail(parseCorreoFromText(currentMessage ?? ""));
@@ -226781,7 +226827,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.41";
+var LUCY_PROMPT_VERSION = "V9.42";
 
 // src/lib/buildMeta.ts
 var cached = null;
