@@ -21,6 +21,7 @@ import {
   isUnusableTipoEventoReply,
 } from "./conversation-understanding.js";
 import { enrichExtractedFromText } from "./services/summaryService.js";
+import { enrichExtractedDireccionWithMaps } from "./services/geoResolve.js";
 import { sanitizeCrmNombre } from "./contact-name.js";
 import { buildDynamicPrompt, buildStaticSystemPrompt, buildDynamicTurnContext } from "./services/promptBuilder.js";
 import {
@@ -289,6 +290,8 @@ export async function generateLucyOutbound(
     );
     return { mensajeParaCliente: reply, aiResponse: reply };
   }
+
+  await enrichExtractedDireccionWithMaps(extracted, messageText).catch(() => undefined);
 
   const trainingExamples = await getTrainingExamples();
   const fewShotMax = getLucyFewShotMax();

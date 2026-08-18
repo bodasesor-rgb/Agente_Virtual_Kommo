@@ -42,6 +42,7 @@ import {
   parseWebLeadBrief,
   applyWebLeadBrief,
   isVagueFoodTerm,
+  needsAlimentosTipoClarification,
   clientAsksForFoodMenu,
   parseServicesFromText,
   parseCentrosDeMesaRequirement,
@@ -189,6 +190,7 @@ import {
   detectEmailRefusal,
   EMAIL_WAIVED_LABEL,
   getNextPendingField,
+  isFieldSatisfied,
   isReadyForClosing,
   mensajeAsksForFilledField,
   mensajeAsksForField,
@@ -275,6 +277,7 @@ import {
   parseMobiliarioRentItems,
 } from "../services/serviceKnowledge.js";
 import { isMobiliarioRentalPedido } from "../modoServicio.js";
+import { composeEventLocation } from "../services/geoResolve.js";
 import { resolveServiceFocusFromText, expandQueryWithServiceSynonyms } from "../services/serviceSynonyms.js";
 import {
   classifyKommoOrigin,
@@ -11034,7 +11037,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.29 — empresa / espacio / ratito ≠ dirección (todas las ramas) ───
   await test("129. V9.29 — empresa/espacio/ratito no cierran dirección", () => {
-    assert.ok(/^V9\.(29|3\d)$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     for (const junk of [
       "nuestra empresa, un ratito",
       "nuestra empresa",
@@ -11102,7 +11105,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.30 — mínimo ciudad; salón solo no cierra ───
   await test("130. V9.30 — ubicación mínima es ciudad (salón solo no basta)", () => {
-    assert.ok(/^V9\.(3[0-9])$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(hasCityOrMetroSignal("CDMX"));
     assert.ok(hasCityOrMetroSignal("Querétaro"));
     assert.ok(hasCityOrMetroSignal("colonia Roma"));
@@ -11159,7 +11162,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.35 — primer turno banquete: catálogo + pregunta embudo (Allison A15370) ───
   await test("133. V9.35 — banquete Torreón primer turno pide fecha/invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.39");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.40");
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -11191,7 +11194,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.36 — no cortar el chat (Isai A15378) ───
   await test("134. V9.36 — Isai: no cierra, no confunde nombre con ciudad, urgencia ≠ teléfono", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.39");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.40");
     assert.equal(parseZonaFromText("Isai Moreno"), null);
     assert.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -11266,7 +11269,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.34 — Valle de Bravo / Mesa Rica; mesa rica ≠ mobiliario ───
   await test("132. V9.34 — Valle de Bravo y mesa rica (Sara A15370)", () => {
-    assert.ok(/^V9\.(3[4-9])$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(hasCityOrMetroSignal("Valle de Bravo"));
     assert.ok(isUsableDireccionEvento("Valle de Bravo"));
     assert.equal(parseZonaFromText("Valle de bravo"), "Valle de bravo");
@@ -11318,7 +11321,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.39");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.40");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
@@ -11395,7 +11398,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("135. V9.38 — comprobante en imagen: primer pago Anticipo, segundo Liquidación", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.39");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.40");
     assert.equal(FIELD_ANTICIPO, 1049322);
     assert.equal(FIELD_LIQUIDACION, 1049324);
 
@@ -11466,26 +11469,45 @@ async function runAll(): Promise<void> {
     assert.ok(/amount_mxn/.test(imgSrc));
   });
 
-  await test("136. V9.39 — A15380 invitados no se saltan; Coyoacán cuenta; Claro no es nombre", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.39");
+  await test("136. V9.40 — A15380 invitados no se saltan; Coyoacán+colonia; Claro no es nombre", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.40");
     const horario = "hola si se haría el 26 de septiembre pero aún no tenemos definido el horario";
     assert.equal(parseInvitadosFromText(horario), null, "horario pendiente ≠ invitados");
     const caps = scanConversationForCaptures([], horario, new Set(["Nombre del cliente"]));
     assert.equal(caps.find((c) => c.label === "Número de invitados"), undefined);
 
     assert.ok(isUsableDireccionEvento("Coyoacán"));
-    assert.ok(isUsableDireccionEvento("es en Coyoacán la colonia es educación") || parseZonaFromText("es en Coyoacán la colonia es educación"));
-    assert.match(parseZonaFromText("es en Coyoacán la colonia es educación") ?? "", /coyoac/i);
+    const coyEdu = parseZonaFromText("es en Coyoacán la colonia es educación") ?? "";
+    assert.match(coyEdu, /coyoac/i);
+    assert.match(coyEdu, /educaci/i);
+    assert.match(coyEdu, /cdmx/i);
+    assert.match(composeEventLocation("es en Coyoacán la colonia es educación") ?? "", /educaci/i);
 
     assert.equal(sanitizeCrmNombre("Claro Aura Vargas"), "Aura Vargas");
     assert.equal(sanitizeDisplayName("Claro Aura Vargas"), "Aura");
+
+    assert.ok(needsAlimentosTipoClarification("alimentos"));
+    assert.ok(needsAlimentosTipoClarification("servicio de alimentos"));
+    assert.ok(!isValidRequerimientosValue("alimentos"));
+    assert.ok(isValidRequerimientosValue("taquiza"));
 
     const afterReq = new Set([
       "Nombre del cliente",
       "Tipo de evento",
       "Requerimientos o servicios",
     ]);
-    assert.equal(getNextPendingField(emptyExtracted({ nombre: "Aura", tipo_evento: "reunión familiar", requerimientos_evento: "alimentos" }), afterReq), "invitados");
+    assert.equal(
+      getNextPendingField(
+        emptyExtracted({
+          nombre: "Aura",
+          tipo_evento: "reunión familiar",
+          requerimientos_evento: "alimentos",
+        }),
+        afterReq
+      ),
+      "requerimientos",
+      "alimentos genérico no cierra servicios"
+    );
 
     const filled = new Set([
       "Nombre del cliente",
@@ -11500,10 +11522,10 @@ async function runAll(): Promise<void> {
       tipo_evento: "reunión familiar",
       requerimientos_evento: "Alimentos",
       fecha_horario: "26 de septiembre",
-      direccion_evento: "Coyoacán, colonia Educación",
+      direccion_evento: "colonia Educación, Coyoacán, CDMX",
       correo: "aura.elling237@gmail.com",
     });
-    assert.equal(getNextPendingField(extracted, filled), "invitados");
+    assert.equal(getNextPendingField(extracted, filled), "requerimientos");
     const close = runGuards({
       aiResponse:
         "Perfecto, ya tengo todo. He anotado el servicio de Alimentos y voy a compartir esta información con el equipo para que puedan prepararte una cotización personalizada.",
@@ -11514,7 +11536,7 @@ async function runAll(): Promise<void> {
       history: [{ role: "assistant", content: "¿Me compartes un correo para enviarte los detalles?" }],
     });
     assert.ok(!/ya tengo todo/i.test(close), close.slice(0, 400));
-    assert.ok(/invitados|personas|cu[aá]nt/i.test(close), close.slice(0, 400));
+    assert.ok(/banquete|casual|taquiza|pizzas|pastas|sushi/i.test(close), close.slice(0, 400));
 
     const cityAgain = runGuards({
       aiResponse: "Gracias por tu correo, Claro. ¿En qué ciudad lo arman?",
@@ -11525,7 +11547,39 @@ async function runAll(): Promise<void> {
       history: [{ role: "assistant", content: "¿Me compartes un correo para enviarte los detalles?" }],
     });
     assert.ok(!/ciudad lo arman|en qu[eé] ciudad/i.test(cityAgain), cityAgain.slice(0, 400));
-    assert.ok(/invitados|personas|cu[aá]nt/i.test(cityAgain), cityAgain.slice(0, 400));
+    assert.ok(/banquete|casual|taquiza|pizzas|pastas|sushi/i.test(cityAgain), cityAgain.slice(0, 400));
+  });
+
+  await test("137. V9.40 — servicio de alimentos ofrece tipos (todas las ramas)", () => {
+    assert.ok(isVagueFoodTerm("Pues mira principalmente me interesa el servicio de alimentos"));
+    const reply = runGuards({
+      aiResponse: "¿Ya hay día y hora, o siguen viendo opciones?",
+      extracted: emptyExtracted({
+        nombre: "Aura Vargas",
+        tipo_evento: "reunión familiar",
+        requerimientos_evento: "Alimentos",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "Pues mira principalmente me interesa el servicio de alimentos",
+      history: [
+        { role: "assistant", content: "¿Qué van a celebrar?" },
+        { role: "user", content: "es una reunión familiar" },
+        { role: "assistant", content: "Anoto tu reunión familiar. ¿Qué te gustaría revisar primero?" },
+      ],
+    });
+    assert.ok(!/d[ií]a y hora|fecha/i.test(reply), reply.slice(0, 500));
+    assert.ok(/banquete/i.test(reply) && /casual|taquiza|pizzas|pastas/i.test(reply), reply.slice(0, 500));
+
+    const taquizaNext = getNextPendingField(
+      emptyExtracted({
+        nombre: "Aura",
+        tipo_evento: "reunión familiar",
+        requerimientos_evento: "Taquiza",
+      }),
+      new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"])
+    );
+    assert.equal(taquizaNext, "invitados");
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

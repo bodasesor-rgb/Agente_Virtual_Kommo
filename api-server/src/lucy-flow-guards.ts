@@ -104,6 +104,7 @@ import {
   buildCateringCasualMenu,
   buildProgressiveOptionsMenu,
   historyOfferedAlimentosModoMenu,
+  isAlimentosModoMenuReply,
   clientChoseBanqueteFormal,
   clientChoseCateringCasual,
   historyOfferedMobiliarioPieceMenu,
@@ -206,6 +207,7 @@ import {
   applyLocationCorrectionToAddress,
   recoverClienteNombreFromHistory,
   isVagueFoodTerm,
+  needsAlimentosTipoClarification,
   clientAsksForFoodMenu,
   isGettingReadyContext,
   parseWebLeadBrief,
@@ -538,6 +540,8 @@ export function isValidRequerimientosValue(value: string | null | undefined): bo
   ) {
     return false;
   }
+  // V9.40 A15380: "alimentos" / "comida" sin estilo ≠ requerimientos cerrados.
+  if (needsAlimentosTipoClarification(trimmed)) return false;
   // "Hola soy Ana" / solo nombre ≠ requerimientos.
   if (
     /^(hola|buen[oa]s?\b|me\s+llamo|soy|mi\s+nombre\s+es)\b/i.test(trimmed) &&
@@ -2376,10 +2380,7 @@ export function getNextPendingField(
   if (!isFieldSatisfied("nombre", filled, extracted)) return "nombre";
   if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
 
-  const hasReq =
-    filled.has("Requerimientos o servicios") ||
-    isValidRequerimientosValue(extracted.requerimientos_evento);
-  if (!hasReq) return "requerimientos";
+  if (!isFieldSatisfied("requerimientos", filled, extracted)) return "requerimientos";
 
   const hasInv = filled.has("Número de invitados") || !!extracted.num_invitados;
   if (!hasInv) return "invitados";
@@ -2838,6 +2839,7 @@ export function isFieldSatisfied(
     case "tipo_evento":
       return hasTipoEvento(filledSet, extracted);
     case "requerimientos":
+      if (needsAlimentosTipoClarification(extracted.requerimientos_evento)) return false;
       return (
         filledSet.has("Requerimientos o servicios") ||
         isValidRequerimientosValue(extracted.requerimientos_evento)
@@ -2917,6 +2919,13 @@ function shouldPreferAiResponse(
   const trimmed = aiResponse.trim();
   if (!trimmed) return false;
   if (trimmed.length < 20) return false;
+  if (
+    isVagueFoodTerm(currentMessage) &&
+    !isAlimentosModoMenuReply(trimmed) &&
+    !/\b(banquete|taquiza|casual|barra de pastas|pizzas|sushi|brunch|desayuno)\b/i.test(trimmed)
+  ) {
+    return false;
+  }
   if (responseLooksLikePrematureClose(trimmed)) return false;
   if (responseHasInventedPrice(trimmed, currentMessage)) return false;
   if (mensajeAsksForFilledField(trimmed, filledSet, extracted)) return false;
@@ -3502,6 +3511,14 @@ export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionCo
   }
 
   if (field === "requerimientos") {
+    if (
+      needsAlimentosTipoClarification(ctx.extracted.requerimientos_evento) ||
+      isVagueFoodTerm(ctx.currentMessage)
+    ) {
+      if (!historyOfferedAlimentosModoMenu(history)) {
+        return `${pickTransition(history)} ${buildAlimentosModoMenu()}`.trim();
+      }
+    }
     return buildRequerimientosQuestion(ctx.extracted, history, ctx.currentMessage, ctx.entityId);
   }
 
@@ -3528,6 +3545,23 @@ export function buildRequerimientosQuestion(
   currentMessage?: string,
   entityId?: string | number
 ): string {
+  if (
+    needsAlimentosTipoClarification(extracted.requerimientos_evento) ||
+    isVagueFoodTerm(currentMessage)
+  ) {
+    if (historyOfferedAlimentosModoMenu(history)) {
+      if (clientChoseBanqueteFormal(currentMessage)) {
+        return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
+      }
+      if (clientChoseCateringCasual(currentMessage)) {
+        return `${pickTransition(history)} ${buildCateringCasualMenu()}`.trim();
+      }
+    }
+    if (!historyOfferedAlimentosModoMenu(history) && !historyOfferedServiceOptionsMenu(history)) {
+      return `${pickTransition(history)} ${buildAlimentosModoMenu()}`.trim();
+    }
+  }
+
   const userText = collectUserTexts(history, currentMessage).join(" ");
   const fromExtracted =
     isValidRequerimientosValue(extracted.requerimientos_evento)
@@ -3595,6 +3629,7 @@ export function requerimientosNeedsFollowUp(
 ): boolean {
   const req = extracted.requerimientos_evento?.trim() ?? "";
   if (requiredServiceDimensionsMissing(extracted)) return true;
+  if (needsAlimentosTipoClarification(req)) return true;
   if (filledSet.has("Requerimientos o servicios")) return false;
   if (!req) return true;
   return !isValidRequerimientosValue(req);
@@ -7483,6 +7518,23 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   if (appliedDirectReply) {
+    if (!cierreYaEnviado && !trulyReadyForClosing) {
+      const pendingDirect = getNextPendingField(extracted, filledSet);
+      if (
+        pendingDirect &&
+        (responseLooksLikePrematureClose(mensaje) ||
+          (pendingDirect === "requerimientos" &&
+            needsAlimentosTipoClarification(extracted.requerimientos_evento) &&
+            !isAlimentosModoMenuReply(mensaje) &&
+            !isProgressiveOptionsMenuReply(mensaje)))
+      ) {
+        mensaje = buildNaturalQuestion(pendingDirect, ctx);
+        log?.info(
+          { entityId, pending: pendingDirect },
+          "GUARD: V9.40 — venta/cierre no salta tipo de alimentos ni embudo"
+        );
+      }
+    }
     return normalizeAdvisorReferences(
       mensaje,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
@@ -7799,6 +7851,20 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     } else if (pending === "zona" && !mensajeAsksForField(mensaje, "zona")) {
       mensaje = buildNaturalQuestion("zona", ctx);
       log?.info({ entityId }, "GUARD: forzar ubicación antes de avance/cierre");
+    }
+  }
+
+  if (
+    !cierreYaEnviado &&
+    !appliedSalesReply &&
+    needsAlimentosTipoClarification(extracted.requerimientos_evento) &&
+    !isAlimentosModoMenuReply(mensaje) &&
+    !isProgressiveOptionsMenuReply(mensaje)
+  ) {
+    const pendingFood = getNextPendingField(extracted, filledSet);
+    if (pendingFood === "requerimientos") {
+      mensaje = buildNaturalQuestion("requerimientos", ctx);
+      log?.info({ entityId }, "GUARD: V9.40 — forzar tipo de alimentos antes de seguir");
     }
   }
 

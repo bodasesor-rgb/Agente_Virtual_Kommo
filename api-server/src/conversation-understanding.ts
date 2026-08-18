@@ -24,6 +24,7 @@ import {
   serviceIsDeclined,
   stripThemeColorsFromZona,
 } from "./services/serviceDecline.js";
+import { composeEventLocation } from "./services/geoResolve.js";
 
 export type UnderstandingField =
   | "nombre"
@@ -713,6 +714,21 @@ export function isGettingReadyContext(text: string | null | undefined): boolean 
   if (!text?.trim()) return false;
   return /\b(getting\s*ready|nos\s+arreglamos|arreglo\s+de\s+novia|donde\s+nos\s+arreglamos|d[ií]a\s+de\s+la\s+boda\s+en\s+casa)\b/i.test(
     text
+  );
+}
+
+/**
+ * "Alimentos" / "comida" / "catering" sin estilo concreto (banquete, taquiza, pizzas…).
+ * No cierra requerimientos: hay que ofrecer tipos y capturar cuál quiere.
+ */
+export function needsAlimentosTipoClarification(value: string | null | undefined): boolean {
+  const t = value?.trim() ?? "";
+  if (!t) return false;
+  if (hasSpecificFoodService(t)) return false;
+  if (/\b(brunch|desayunos?|comida\s+corrida|puestos?\s+de\s+comida)\b/i.test(t)) return false;
+  return (
+    /\b(alimentos?|comidas?|catering|banquetes?|algo\s+de\s+comer)\b/i.test(t) &&
+    !/\bcomida\s+corrida\b/i.test(t)
   );
 }
 
@@ -3239,6 +3255,20 @@ export function parseZonaFromText(text: string): string | null {
   // A14995: "En donde están ubicados?" NUNCA es dirección del evento.
   if (clientAsksLocation(trimmed) || looksLikeCompanyLocationQuestionFragment(trimmed)) {
     return null;
+  }
+
+  // V9.40: colonia + alcaldía en el mismo mensaje (A15380 Educación / Coyoacán).
+  const composed = composeEventLocation(trimmed);
+  if (
+    composed &&
+    /\bcolonia\b/i.test(composed) &&
+    /cdmx/i.test(composed) &&
+    isUsableDireccionEvento(composed)
+  ) {
+    return composed;
+  }
+  if (/\bvalle\s+de\s+bravo\b/i.test(trimmed) && /\bmesa\s+rica\b/i.test(trimmed)) {
+    return "valle de bravo";
   }
 
   // A15298: "Lugar: Centro Cultural El Rule, ubicado junto a…"

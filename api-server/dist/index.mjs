@@ -127804,6 +127804,158 @@ var init_serviceDecline = __esm({
   }
 });
 
+// src/services/geoResolve.ts
+function fold2(s10) {
+  return s10.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+function addPart(parts2, raw) {
+  const t10 = raw?.trim().replace(/[.,;:]+$/g, "").replace(/\s+/g, " ");
+  if (!t10 || t10.length < 2) return;
+  const key = fold2(t10);
+  if (/^(es|la|el|de|del|en)$/i.test(t10)) return;
+  for (let i10 = 0; i10 < parts2.length; i10++) {
+    const pk2 = fold2(parts2[i10]);
+    if (pk2 === key || pk2.includes(key)) return;
+    if (key.includes(pk2) && t10.length > parts2[i10].length) {
+      parts2[i10] = t10;
+      return;
+    }
+  }
+  parts2.push(t10);
+}
+function appendCdmxIfNeeded(joined) {
+  if (!joined) return joined;
+  if (CDMX_CITY.test(joined)) return joined;
+  if (CDMX_ALCALDIAS.test(joined)) {
+    return `${joined}, CDMX`;
+  }
+  return joined;
+}
+function composeEventLocation(text2) {
+  const trimmed = (text2 ?? "").replace(/\s+/g, " ").trim();
+  if (!trimmed) return null;
+  const parts2 = [];
+  const colonia = trimmed.match(
+    /\bcolonia\s+(?:es\s+)?([A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ.-]{1,28})/i
+  );
+  if (colonia?.[1] && !/^(es|la|el|de|del)$/i.test(colonia[1].trim())) {
+    addPart(parts2, `colonia ${colonia[1].trim()}`);
+  }
+  const alcaldia = trimmed.match(CDMX_ALCALDIAS);
+  if (alcaldia?.[0]) addPart(parts2, alcaldia[0]);
+  const city = trimmed.match(CDMX_CITY);
+  if (city?.[0]) addPart(parts2, /cdmx|d\.?\s*f/i.test(city[0]) ? "CDMX" : city[0]);
+  if (parts2.length === 0) return null;
+  const joined = parts2.join(", ");
+  if (CDMX_ALCALDIAS.test(joined)) {
+    return appendCdmxIfNeeded(joined);
+  }
+  return joined;
+}
+function enrichDireccionLocal(value) {
+  const t10 = value?.trim();
+  if (!t10) return null;
+  const composed = composeEventLocation(t10);
+  if (composed && composed.length >= t10.length) return composed;
+  return appendCdmxIfNeeded(t10);
+}
+function mergeAddr(a10, b10) {
+  const prev = a10?.trim() ?? "";
+  const next = b10?.trim() ?? "";
+  if (!next) return prev || null;
+  if (!prev) return next;
+  if (fold2(prev).includes(fold2(next))) return prev;
+  if (fold2(next).includes(fold2(prev))) return next;
+  return `${prev}, ${next}`;
+}
+function direccionNeedsMapsLookup(text2) {
+  const t10 = (text2 ?? "").trim();
+  if (!t10) return false;
+  if (CDMX_CITY.test(t10) || CDMX_ALCALDIAS.test(t10)) return false;
+  if (/\b(monterrey|guadalajara|puebla|quer[eé]taro|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|jiutepec|morelos)\b/i.test(
+    t10
+  )) {
+    return false;
+  }
+  return /\bcolonia\b/i.test(t10) || /\b(calle|av\.?|avenida|blvd)\b/i.test(t10) || /\b(sal[oó]n|hacienda|hotel|club(\s+de\s+golf)?)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]/i.test(t10);
+}
+function mapsKey() {
+  return process.env.GOOGLE_MAPS_API_KEY?.trim() || process.env.MAPS_API_KEY?.trim() || null;
+}
+async function geocodeGoogle(query) {
+  const key = mapsKey();
+  if (!key) return null;
+  const url2 = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&region=mx&language=es&key=${encodeURIComponent(key)}`;
+  const res = await fetch(url2, { signal: AbortSignal.timeout(2500) });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const hit = data.results?.[0];
+  if (!hit?.formatted_address) return null;
+  const city = hit.address_components?.find(
+    (c10) => c10.types?.some((t10) => t10 === "locality" || t10 === "administrative_area_level_1")
+  )?.long_name;
+  return { formatted: hit.formatted_address, city };
+}
+async function geocodeNominatim(query) {
+  const url2 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&countrycodes=mx&limit=1`;
+  const res = await fetch(url2, {
+    signal: AbortSignal.timeout(2500),
+    headers: {
+      "User-Agent": "Lucy-Bodasesor/1.0 (eventos; geocode de sedes)",
+      Accept: "application/json"
+    }
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const hit = data[0];
+  if (!hit?.display_name) return null;
+  const city = hit.address?.city || hit.address?.town || hit.address?.state;
+  return { formatted: hit.display_name, city };
+}
+async function lookupDireccionInMaps(query) {
+  const q10 = query.trim();
+  if (q10.length < 4 || q10.length > 120) return null;
+  const cacheKey = fold2(q10);
+  if (mapsCache.has(cacheKey)) return mapsCache.get(cacheKey) ?? null;
+  let hit = null;
+  try {
+    hit = await geocodeGoogle(`${q10}, M\xE9xico`) ?? await geocodeNominatim(`${q10}, M\xE9xico`);
+  } catch {
+    hit = null;
+  }
+  mapsCache.set(cacheKey, hit);
+  return hit;
+}
+async function enrichExtractedDireccionWithMaps(extracted, messageText) {
+  const msg = messageText?.trim() ?? "";
+  const localFromMsg = composeEventLocation(msg);
+  if (localFromMsg) {
+    extracted.direccion_evento = mergeAddr(extracted.direccion_evento, localFromMsg);
+  } else if (extracted.direccion_evento) {
+    extracted.direccion_evento = enrichDireccionLocal(extracted.direccion_evento);
+  }
+  const current = extracted.direccion_evento?.trim() ?? "";
+  const lookupQ = current || msg;
+  if (!direccionNeedsMapsLookup(lookupQ)) return;
+  const hit = await lookupDireccionInMaps(lookupQ);
+  if (!hit) return;
+  const cityBit = hit.city?.trim();
+  if (cityBit && current && !fold2(current).includes(fold2(cityBit))) {
+    extracted.direccion_evento = mergeAddr(current, cityBit);
+  } else if (!current && hit.formatted) {
+    extracted.direccion_evento = hit.formatted.split(",").slice(0, 3).join(",").trim();
+  }
+}
+var CDMX_ALCALDIAS, CDMX_CITY, mapsCache;
+var init_geoResolve = __esm({
+  "src/services/geoResolve.ts"() {
+    "use strict";
+    CDMX_ALCALDIAS = /\b(alvaro\s+obregon|[aá]lvaro\s+obreg[oó]n|azcapotzalco|benito\s+ju[aá]rez|coyoac[aá]n|cuajimalpa|cuauht[eé]moc|gustavo\s+a\.?\s*madero|iztacalco|iztapalapa|magdalena\s+contreras|miguel\s+hidalgo|milpa\s+alta|tl[aá]huac|tlalpan|venustiano\s+carranza|xochimilco)\b/i;
+    CDMX_CITY = /\b(cdmx|ciudad\s+de\s+m[eé]xico|\bdf\b|d\.?\s*f\.?)\b/i;
+    mapsCache = /* @__PURE__ */ new Map();
+  }
+});
+
 // src/conversation-understanding.ts
 function parseTipoEventoLabeled(text2) {
   const m10 = text2.match(/\bTipo\s+de\s+evento\s*:\s*([^\n.]{3,60})/i);
@@ -128056,6 +128208,13 @@ function isGettingReadyContext(text2) {
   return /\b(getting\s*ready|nos\s+arreglamos|arreglo\s+de\s+novia|donde\s+nos\s+arreglamos|d[ií]a\s+de\s+la\s+boda\s+en\s+casa)\b/i.test(
     text2
   );
+}
+function needsAlimentosTipoClarification(value) {
+  const t10 = value?.trim() ?? "";
+  if (!t10) return false;
+  if (hasSpecificFoodService(t10)) return false;
+  if (/\b(brunch|desayunos?|comida\s+corrida|puestos?\s+de\s+comida)\b/i.test(t10)) return false;
+  return /\b(alimentos?|comidas?|catering|banquetes?|algo\s+de\s+comer)\b/i.test(t10) && !/\bcomida\s+corrida\b/i.test(t10);
 }
 function hasSpecificFoodService(text2) {
   if (/\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b|\bbanquetes?\s+o\s+catering\b/i.test(
@@ -129481,6 +129640,13 @@ function parseZonaFromText(text2) {
   if (clientAsksLocation(trimmed) || looksLikeCompanyLocationQuestionFragment(trimmed)) {
     return null;
   }
+  const composed = composeEventLocation(trimmed);
+  if (composed && /\bcolonia\b/i.test(composed) && /cdmx/i.test(composed) && isUsableDireccionEvento(composed)) {
+    return composed;
+  }
+  if (/\bvalle\s+de\s+bravo\b/i.test(trimmed) && /\bmesa\s+rica\b/i.test(trimmed)) {
+    return "valle de bravo";
+  }
   const lugarLabel = trimmed.match(/\bLugar\s*:\s*([^\n,]{4,80})(?:,|\n|$)/i);
   if (lugarLabel?.[1]) {
     const venue = lugarLabel[1].trim().replace(/\s+/g, " ");
@@ -130290,6 +130456,7 @@ var init_conversation_understanding = __esm({
     init_client_email();
     init_bodasesorAdvisor();
     init_serviceDecline();
+    init_geoResolve();
     LUCY_FIELD_ASK_PATTERNS = {
       nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
       correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
@@ -131543,7 +131710,7 @@ function banqueteDetailQuery(text2) {
   if (tiempos3) return "Banquete Formal 3 tiempos";
   return "banquete";
 }
-function fold2(s10) {
+function fold3(s10) {
   return s10.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
 }
 function buildAlimentosModoMenu() {
@@ -131672,7 +131839,7 @@ function buildMobiliarioPieceFollowUp(piece) {
   ].join("\n");
 }
 function catalogNivelLabelFromText(text2) {
-  const t10 = fold2(text2 ?? "");
+  const t10 = fold3(text2 ?? "");
   if (!t10) return null;
   if (/\bsolo\s+alimentos?\b/.test(t10)) return "Solo Alimentos";
   if (/\bservicio\s+completo\b/.test(t10) || /(?:^|\s)completo(?:\s|$)/.test(t10)) {
@@ -131722,7 +131889,7 @@ function isBareProgressiveAffirmation(text2) {
 function clientWantsServiceDetail(text2, history) {
   const t10 = text2?.trim() ?? "";
   if (!t10) return false;
-  const n10 = fold2(t10);
+  const n10 = fold3(t10);
   if (/^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas|el\s+detalle|detallame|detállame|m[aá]ndame\s+(la\s+)?info|dame\s+(la\s+)?info|quiero\s+(ver\s+)?(el\s+)?detalle)[\s.!]*$/i.test(
     t10
   )) {
@@ -156759,6 +156926,7 @@ function isValidRequerimientosValue(value) {
   ) && !/\b(formal|mexicano|\d\s*tiempos?|taquiza|coffee\s*break)\b/i.test(trimmed)) {
     return false;
   }
+  if (needsAlimentosTipoClarification(trimmed)) return false;
   if (/^(hola|buen[oa]s?\b|me\s+llamo|soy|mi\s+nombre\s+es)\b/i.test(trimmed) && parseServicesFromText(trimmed).length === 0 && !isServiceRelatedMessage(trimmed)) {
     return false;
   }
@@ -157912,8 +158080,7 @@ function getNextPendingField(extracted, filledSet) {
   const filled = filledSet ?? /* @__PURE__ */ new Set();
   if (!isFieldSatisfied("nombre", filled, extracted)) return "nombre";
   if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
-  const hasReq = filled.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
-  if (!hasReq) return "requerimientos";
+  if (!isFieldSatisfied("requerimientos", filled, extracted)) return "requerimientos";
   const hasInv = filled.has("N\xFAmero de invitados") || !!extracted.num_invitados;
   if (!hasInv) return "invitados";
   const hasFecha = filled.has("Fecha y horario") || !!extracted.fecha_horario?.trim();
@@ -158207,6 +158374,7 @@ function isFieldSatisfied(field, filledSet, extracted) {
     case "tipo_evento":
       return hasTipoEvento(filledSet, extracted);
     case "requerimientos":
+      if (needsAlimentosTipoClarification(extracted.requerimientos_evento)) return false;
       return filledSet.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
     case "invitados":
       return filledSet.has("N\xFAmero de invitados") || !!extracted.num_invitados;
@@ -158243,6 +158411,9 @@ function shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage
   const trimmed = aiResponse.trim();
   if (!trimmed) return false;
   if (trimmed.length < 20) return false;
+  if (isVagueFoodTerm(currentMessage) && !isAlimentosModoMenuReply(trimmed) && !/\b(banquete|taquiza|casual|barra de pastas|pizzas|sushi|brunch|desayuno)\b/i.test(trimmed)) {
+    return false;
+  }
   if (responseLooksLikePrematureClose(trimmed)) return false;
   if (responseHasInventedPrice(trimmed, currentMessage)) return false;
   if (mensajeAsksForFilledField(trimmed, filledSet, extracted)) return false;
@@ -158587,6 +158758,11 @@ function buildNaturalQuestion(field, ctx) {
     return pickVariant("correo", history, ctx.entityId);
   }
   if (field === "requerimientos") {
+    if (needsAlimentosTipoClarification(ctx.extracted.requerimientos_evento) || isVagueFoodTerm(ctx.currentMessage)) {
+      if (!historyOfferedAlimentosModoMenu(history)) {
+        return `${pickTransition(history)} ${buildAlimentosModoMenu()}`.trim();
+      }
+    }
     return buildRequerimientosQuestion(ctx.extracted, history, ctx.currentMessage, ctx.entityId);
   }
   if (field === "tipo_evento") {
@@ -158602,6 +158778,19 @@ function buildNaturalQuestion(field, ctx) {
   return prefix ? `${prefix}${variant}` : variant;
 }
 function buildRequerimientosQuestion(extracted, history, currentMessage, entityId) {
+  if (needsAlimentosTipoClarification(extracted.requerimientos_evento) || isVagueFoodTerm(currentMessage)) {
+    if (historyOfferedAlimentosModoMenu(history)) {
+      if (clientChoseBanqueteFormal(currentMessage)) {
+        return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
+      }
+      if (clientChoseCateringCasual(currentMessage)) {
+        return `${pickTransition(history)} ${buildCateringCasualMenu()}`.trim();
+      }
+    }
+    if (!historyOfferedAlimentosModoMenu(history) && !historyOfferedServiceOptionsMenu(history)) {
+      return `${pickTransition(history)} ${buildAlimentosModoMenu()}`.trim();
+    }
+  }
   const userText = collectUserTexts(history, currentMessage).join(" ");
   const fromExtracted = isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento.trim() : null;
   const service = fromExtracted ?? findMentionedService(userText);
@@ -158646,6 +158835,7 @@ function buildRequiredServiceDimensionsQuestion(extracted) {
 function requerimientosNeedsFollowUp(extracted, filledSet) {
   const req = extracted.requerimientos_evento?.trim() ?? "";
   if (requiredServiceDimensionsMissing(extracted)) return true;
+  if (needsAlimentosTipoClarification(req)) return true;
   if (filledSet.has("Requerimientos o servicios")) return false;
   if (!req) return true;
   return !isValidRequerimientosValue(req);
@@ -161202,6 +161392,16 @@ ${nextQ}`;
     log?.info({ entityId }, "GUARD: bloqueando cierre \u2014 faltan medidas obligatorias");
   }
   if (appliedDirectReply) {
+    if (!cierreYaEnviado && !trulyReadyForClosing) {
+      const pendingDirect = getNextPendingField(extracted, filledSet);
+      if (pendingDirect && (responseLooksLikePrematureClose(mensaje) || pendingDirect === "requerimientos" && needsAlimentosTipoClarification(extracted.requerimientos_evento) && !isAlimentosModoMenuReply(mensaje) && !isProgressiveOptionsMenuReply(mensaje))) {
+        mensaje = buildNaturalQuestion(pendingDirect, ctx);
+        log?.info(
+          { entityId, pending: pendingDirect },
+          "GUARD: V9.40 \u2014 venta/cierre no salta tipo de alimentos ni embudo"
+        );
+      }
+    }
     return normalizeAdvisorReferences(
       mensaje,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
@@ -161422,6 +161622,13 @@ ${nextQ}`;
     } else if (pending === "zona" && !mensajeAsksForField(mensaje, "zona")) {
       mensaje = buildNaturalQuestion("zona", ctx);
       log?.info({ entityId }, "GUARD: forzar ubicaci\xF3n antes de avance/cierre");
+    }
+  }
+  if (!cierreYaEnviado && !appliedSalesReply && needsAlimentosTipoClarification(extracted.requerimientos_evento) && !isAlimentosModoMenuReply(mensaje) && !isProgressiveOptionsMenuReply(mensaje)) {
+    const pendingFood = getNextPendingField(extracted, filledSet);
+    if (pendingFood === "requerimientos") {
+      mensaje = buildNaturalQuestion("requerimientos", ctx);
+      log?.info({ entityId }, "GUARD: V9.40 \u2014 forzar tipo de alimentos antes de seguir");
     }
   }
   if (mensajeAsksWrongField(mensaje, filledSet, extracted) && !isInformativeClientAnswer(currentMessage) && !appliedSalesReply) {
@@ -226379,7 +226586,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.39";
+var LUCY_PROMPT_VERSION = "V9.40";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -228788,6 +228995,7 @@ function scrubClientFieldsForProveedor(extracted) {
 // src/lucyTurnProcessor.ts
 init_modoServicio();
 init_conversation_understanding();
+init_geoResolve();
 init_contact_name();
 
 // src/lucy-prompt.ts
@@ -228897,7 +229105,9 @@ Orden natural de conversaci\xF3n (salta lo ya capturado):
 3. Servicios / requerimientos
 4. N\xFAmero de invitados \u2014 no lo dejes al final; no confundas "a\xFAn no hay horario" con afluencia
 5. Fecha y hora
-6. Direcci\xF3n o ubicaci\xF3n / sal\xF3n (ciudad basta; colonia o sal\xF3n si ya lo tienen)
+6. Direcci\xF3n o ubicaci\xF3n / sal\xF3n (anota TODO lo que diga: ciudad, alcald\xEDa, colonia, calle).
+   Si da colonia + alcald\xEDa (ej. Coyoac\xE1n / Educaci\xF3n), NO vuelvas a pedir la ciudad.
+   Si la direcci\xF3n viene incompleta, compl\xE9tala con la zona conocida (alcald\xEDa CDMX \u2192 CDMX).
 7. Correo electr\xF3nico \u2014 para cotizaciones y cat\xE1logos
 8. Presupuesto (o "que el equipo proponga" / "por definir")
 
@@ -228955,8 +229165,10 @@ revisar primero. Adapta al tipo de evento. NUNCA te limites a 2\u20133 cosas al 
 
 ### Cuando ya nombr\xF3 categor\xEDa o servicio
 NO repitas el abanico. Descubre antes de detallar:
-- "banquete" / "catering" / "comida" / "tu men\xFA" \u2192 \xBFalgo m\xE1s formal (banquete) o casual
-  (estaciones: pastas, pizzas, taquiza\u2026)? Nunca vuelques todos los banquetes Kosher/Navide\xF1os.
+- "banquete" / "catering" / "comida" / "alimentos" / "tu men\xFA" \u2192 ofrece tipos
+  (formal vs casual: banquete a la mesa, o estaciones: pastas, pizzas, taquiza, sushi\u2026)
+  y ESPERA a que elijan. NUNCA pases a fecha/invitados/cierre con solo "Alimentos".
+  Nunca vuelques todos los banquetes Kosher/Navide\xF1os.
 - "barra italiana" \u2192 pastas y pizzas (NO Barras Americana/Yucateca ni solo "la anoto").
 - "mobiliario" sin pieza \u2192 \xBFmesas, sillas, periqueras, salas\u2026?
 - Ya eligi\xF3 pieza/opci\xF3n \u2192 3\u20135 modelos o niveles + pregunta cu\xE1l detallas.
@@ -228982,7 +229194,8 @@ No vuelques niveles de cada SKU salvo que pidan detalle de uno.
 
 ### Comprensi\xF3n
 - Usa sentido com\xFAn: tema italiano \u2192 pastas/pizzas; pozolada \u2192 pozole; etc.
-- Palabra general ("comida") \u2260 servicio espec\xEDfico: ofrece opciones, no asumas.
+- Palabra general ("comida", "alimentos", "catering") \u2260 servicio espec\xEDfico: ofrece
+  banquete formal vs estaciones casuales y consigue el tipo. No lo dejes abierto.
 - Servicio fuera de lista \u2192 ac\xE9ptalo, an\xF3talo y avanza. Nunca "no lo tenemos".
 - Robots LED, batucada, shows = ENTRETENIMIENTO. No respondas con banquete.
 - Precio distribuidor / mayoreo \u2192 el equipo cotiza; no des precio de lista.
@@ -230183,6 +230396,7 @@ async function generateLucyOutbound(input) {
     );
     return { mensajeParaCliente: reply, aiResponse: reply };
   }
+  await enrichExtractedDireccionWithMaps(extracted, messageText).catch(() => void 0);
   const trainingExamples2 = await getTrainingExamples();
   const fewShotMax = getLucyFewShotMax();
   const fewShot = fewShotMax > 0 ? trainingExamples2.slice(0, fewShotMax).flatMap((ex2) => [
