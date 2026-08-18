@@ -128232,6 +128232,53 @@ function uniqueServicios(rows) {
 function uniqueNiveles(rows) {
   return [...new Set(rows.map((r4) => r4.nivel.trim()).filter(Boolean))];
 }
+function looksLikeNivelOptionsDump(text2) {
+  if (!text2?.trim()) return false;
+  const t3 = text2;
+  if (/manejamos estos (niveles|paquetes)/i.test(t3)) return true;
+  if (/quieres que te d[eé] detalles de alguno/i.test(t3) && /\n\s*1\.\s*\*/.test(t3) && /\n\s*[2-9]\.\s*\*/.test(t3)) {
+    return true;
+  }
+  return false;
+}
+function pickRowMatchingSpecificNivel(rows, query) {
+  if (!rows.length || !query.trim()) return null;
+  const q2 = normalizeForMatch(query).replace(/\s+/g, " ").trim();
+  if (!q2) return null;
+  const coffeeN = q2.match(/\bcoffe{1,2}e?\s*break\s*([1-9])\b/) || q2.match(/\bcoffee\s*break\s*([1-9])\b/);
+  if (coffeeN?.[1]) {
+    const n4 = coffeeN[1];
+    const hit = rows.find((r4) => {
+      const nivel = normalizeForMatch(extractNivelLabel(r4));
+      const svc = normalizeForMatch(r4.servicio);
+      return nivel === `coffee break ${n4}` || nivel.includes(`coffee break ${n4}`) || nivel === n4 && /coffee|coffe/.test(svc);
+    });
+    if (hit) return hit;
+  }
+  const hits = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const row of rows) {
+    const nivel = normalizeForMatch(extractNivelLabel(row)).replace(/\s+/g, " ").trim();
+    if (nivel.length < 4) continue;
+    if (q2 === nivel || q2.includes(nivel) && q2.length >= nivel.length) {
+      const key = `${row.servicio}|${row.nivel}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        hits.push(row);
+      }
+    }
+  }
+  if (hits.length === 1) return hits[0];
+  if (hits.length > 1) {
+    hits.sort(
+      (a3, b4) => normalizeForMatch(extractNivelLabel(b4)).length - normalizeForMatch(extractNivelLabel(a3)).length
+    );
+    const best = normalizeForMatch(extractNivelLabel(hits[0]));
+    const same = hits.filter((h4) => normalizeForMatch(extractNivelLabel(h4)) === best);
+    if (same.length === 1) return same[0];
+  }
+  return null;
+}
 function rowMatchesServiceLabel(row, label) {
   const normLabel = normalizeForMatch(label).replace(/\s+/g, "");
   const normSvc = normalizeForMatch(row.servicio).replace(/\s+/g, "");
@@ -128383,6 +128430,18 @@ function resolveCatalogQuery(query) {
     const nivelRows = matchedRows.filter((r4) => matchesNivelFilter(r4, filters, query));
     if (nivelRows.length) matchedRows = nivelRows;
   }
+  const specificNivelRow = pickRowMatchingSpecificNivel(
+    matchedRows.length ? matchedRows : rows,
+    trimmed
+  );
+  if (specificNivelRow) {
+    return {
+      kind: "service_nivel",
+      serviceName: specificNivelRow.servicio,
+      nivel: specificNivelRow.nivel,
+      rows: [specificNivelRow]
+    };
+  }
   const servicios = uniqueServicios(matchedRows);
   if (!servicios.length) return null;
   if (hasNivelFilter && matchedRows.length === 1) {
@@ -128514,6 +128573,8 @@ function buildServiceNivelChoiceAnswer(result, query) {
   const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
   const svcRows = result.rows.filter((r4) => r4.servicio === svc || result.rows.length <= 6);
   const rowsForChoice = (svcRows.length ? svcRows : result.rows).slice(0, 8);
+  const specific = query ? pickRowMatchingSpecificNivel(rowsForChoice, query) : null;
+  if (specific) return buildExactRowDetailAnswer(specific);
   const niveles = uniqueNiveles(rowsForChoice);
   const q2 = query ?? "";
   if (niveles.length <= 1) {
@@ -129489,8 +129550,10 @@ function buildCatalogServiceDetailAnswer(query) {
       }
     } else if (/\b(tradicional|premium|b[aá]sic)\b/i.test(query)) {
       const fromPdf = buildPdfInclusionReply(query);
-      if (fromPdf) return fromPdf;
+      if (fromPdf && !looksLikeNivelOptionsDump(fromPdf)) return fromPdf;
     }
+    const specific = pickRowMatchingSpecificNivel(resolved.rows, query);
+    if (specific) return buildExactRowDetailAnswer(specific);
     return buildServiceNivelChoiceAnswer(resolved, query);
   }
   const priceAnswer = buildCatalogPriceAnswer(query);
@@ -131115,12 +131178,13 @@ ${body3}`.trim();
     if (merged) extracted.requerimientos_evento = merged;
   }
   const detail = buildCatalogServiceDetailAnswer(detailQuery) || buildCatalogPriceAnswer(detailQuery) || attachAvailableSheetDetail(detailQuery, detailQuery);
+  const usableDetail = detail && !looksLikeNivelOptionsDump(detail) ? detail : null;
   const body2 = withServiceAndGeneralCatalogLinks(
-    detail || `Anoto *${detailQuery}*.`,
+    usableDetail || `Anoto *${detailQuery}*.`,
     detailQuery,
     detailQuery
   );
-  if (detail) {
+  if (usableDetail) {
     return `${pickTransition(history)} Te detallo *${detailQuery}*:
 
 ${body2}`.trim();
@@ -131976,11 +132040,36 @@ function lastQuestionAsksForField(mensaje, field) {
   if (SALES_CTA_NOT_FUNNEL.test(last)) return false;
   return FIELD_ASK_PATTERNS[field].test(last);
 }
+function rewriteRepeatedProductMenu(mensaje, currentMessage, history, extracted, filledSet, ctx) {
+  if (!currentMessage?.trim() || !looksLikeNivelOptionsDump(mensaje)) return mensaje;
+  const lastAsst = [...history].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
+  const lastAsstText = lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : null;
+  const pick = extractNumberedNivelFromLastAssistant(currentMessage, lastAsstText) || extractCatalogNivelFromText(currentMessage, lastAsstText) || resolveProgressiveDetailQuery({
+    currentMessage,
+    serviceHint: extracted.requerimientos_evento,
+    history
+  });
+  if (!pick || /^coffee\s*break$/i.test(pick.trim()) || pick.length < 4) return mensaje;
+  const wants = clientWantsServiceDetail(currentMessage, history) || isCatalogLevelSelection(currentMessage, lastAsstText) || !!extractNumberedNivelFromLastAssistant(currentMessage, lastAsstText);
+  if (!wants) return mensaje;
+  const detail = buildCatalogServiceDetailAnswer(pick) || buildCatalogPriceAnswer(pick) || attachAvailableSheetDetail(pick, pick);
+  if (!detail || looksLikeNivelOptionsDump(detail)) return mensaje;
+  const display = getDisplayName(extracted, ctx.whatsappName);
+  const pending = getNextPendingField(extracted, filledSet);
+  const nextQ = pending && pending !== "requerimientos" && pending !== "nombre" ? buildNaturalQuestion(pending, ctx) : "";
+  const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
+  return `${ack} Te detallo *${pick}*:
+
+${detail}${nextQ ? `
+
+${nextQ}` : ""}`.trim();
+}
 function ensureFunnelAfterSalesReply(mensaje, filledSet, extracted, ctx, currentMessage, history) {
   let out2 = collapseRepeatedSentences(dedupeTransitionsInMessage(mensaje));
   if (clientAsksForHumanAdvisor(currentMessage) || /55\s*4008\s*0373|canalizo con un asesor|Ya dejé tu caso listo para el equipo/i.test(out2)) {
     return out2;
   }
+  out2 = rewriteRepeatedProductMenu(out2, currentMessage, history, extracted, filledSet, ctx);
   if (/quieres que te d[eé] detalles de alguno/i.test(out2) && currentMessage && clientChoseBanqueteFormal(currentMessage)) {
     const shortEmptyCta = !isProgressiveOptionsMenuReply(out2) && !/bodasesor\.com\/catalogos/i.test(out2) && out2.replace(/\s+/g, " ").trim().length < 180;
     if (shortEmptyCta) {
@@ -137439,7 +137528,7 @@ function clientReplyForPaymentSlot(slot) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.42";
+var LUCY_PROMPT_VERSION = "V9.43";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -146996,7 +147085,7 @@ ${golfText}`,
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
   await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.42");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.43");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -147025,7 +147114,7 @@ ${golfText}`,
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
   await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.42");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.43");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -147143,7 +147232,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.42");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.43");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,
@@ -147214,7 +147303,7 @@ ${golfText}`,
     }
   });
   await test("135. V9.38 \u2014 comprobante en imagen: primer pago Anticipo, segundo Liquidaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.42");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.43");
     assert2.equal(FIELD_ANTICIPO, 1049322);
     assert2.equal(FIELD_LIQUIDACION, 1049324);
     assert2.equal(nextPaymentSlot(null, null), "anticipo");
@@ -147278,7 +147367,7 @@ ${golfText}`,
     assert2.ok(/amount_mxn/.test(imgSrc));
   });
   await test("136. V9.40 \u2014 A15380 invitados no se saltan; Coyoac\xE1n+colonia; Claro no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.42");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.43");
     const horario = "hola si se har\xEDa el 26 de septiembre pero a\xFAn no tenemos definido el horario";
     assert2.equal(parseInvitadosFromText(horario), null, "horario pendiente \u2260 invitados");
     const caps = scanConversationForCaptures([], horario, /* @__PURE__ */ new Set(["Nombre del cliente"]));
@@ -147381,7 +147470,7 @@ ${golfText}`,
     assert2.equal(taquizaNext, "invitados");
   });
   await test("138. V9.41 \u2014 A15383 Kelia: ciudad, banquetes, LED\u2260luz, no spam (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.42");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.43");
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert2.match(hornoMty, /horno\s*3/i, hornoMty);
     assert2.match(hornoMty, /monterrey/i, hornoMty);
@@ -147516,7 +147605,7 @@ ${golfText}`,
     assert2.ok(!/Listo\.\s*Kelia/i.test(nameSpam), nameSpam);
   });
   await test("139. V9.42 \u2014 A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.42");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.43");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert2.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert2.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -147604,6 +147693,45 @@ ${golfText}`,
     });
     assert2.ok(/55\s*4008\s*0373/i.test(handoff), handoff.slice(0, 400));
     assert2.ok(!/invitados|cu[aá]nt[oa]s|ciudad del evento|en qu[eé] ciudad/i.test(handoff), handoff.slice(0, 400));
+  });
+  await test("140. V9.43 \u2014 detalle de un producto no re-lista el men\xFA (todas las ramas)", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.43");
+    setCatalogSnapshotForTests(
+      parseSheetCatalogCsv(
+        [
+          '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye","Sinonimos"',
+          '"Coffee Break","Coffee Break 1","$120.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9, galletas y agua"',
+          '"Coffee Break","Coffee Break 4","$350.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estaci\xF3n completa CB4"',
+          '"Coffee Break","Coffee Break 5","$400.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estaci\xF3n completa CB5"',
+          '"Taquiza","Basico","$750.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","Tacos b\xE1sicos"',
+          '"Taquiza","Tradicional","$800.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","Tacos tradicionales y salsas"',
+          '"Taquiza","Premium","$850.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","Tacos premium y bartender"'
+        ].join("\n")
+      )
+    );
+    const cb4 = buildCatalogServiceDetailAnswer("Coffee Break 4") ?? "";
+    assert2.ok(!looksLikeNivelOptionsDump(cb4), cb4.slice(0, 400));
+    assert2.match(cb4, /350|CB4|Coffee Break 4/i, cb4.slice(0, 400));
+    const trad = buildCatalogServiceDetailAnswer("Taquiza Tradicional") ?? "";
+    assert2.ok(!looksLikeNivelOptionsDump(trad), trad.slice(0, 400));
+    assert2.match(trad, /tradicional|800/i, trad.slice(0, 400));
+    const dump = "Claro que s\xED. Te detallo *Coffee Break 4*:\n\nPara *Coffee Break* manejamos estos niveles:\n\n1. *Coffee Break 4* \u2014 $350.00 /pp\n2. *Coffee Break 1* \u2014 $120.00 /pp\n\n\xBFQuieres que te d\xE9 detalles de alguno?";
+    assert2.ok(looksLikeNivelOptionsDump(dump));
+    const menu = buildProgressiveOptionsMenu("coffee_break");
+    const rewritten = runGuards({
+      aiResponse: dump,
+      extracted: emptyExtracted({
+        nombre: "Mariana",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Coffee Break"
+      }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "coffe break 4",
+      history: [{ role: "assistant", content: menu }]
+    });
+    assert2.ok(!looksLikeNivelOptionsDump(rewritten), rewritten.slice(0, 500));
+    assert2.ok(/Coffee Break 4|350|CB4/i.test(rewritten), rewritten.slice(0, 500));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

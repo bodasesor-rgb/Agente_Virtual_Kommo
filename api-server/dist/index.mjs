@@ -133088,6 +133088,53 @@ function uniqueServicios(rows) {
 function uniqueNiveles(rows) {
   return [...new Set(rows.map((r10) => r10.nivel.trim()).filter(Boolean))];
 }
+function looksLikeNivelOptionsDump(text2) {
+  if (!text2?.trim()) return false;
+  const t10 = text2;
+  if (/manejamos estos (niveles|paquetes)/i.test(t10)) return true;
+  if (/quieres que te d[eé] detalles de alguno/i.test(t10) && /\n\s*1\.\s*\*/.test(t10) && /\n\s*[2-9]\.\s*\*/.test(t10)) {
+    return true;
+  }
+  return false;
+}
+function pickRowMatchingSpecificNivel(rows, query) {
+  if (!rows.length || !query.trim()) return null;
+  const q10 = normalizeForMatch(query).replace(/\s+/g, " ").trim();
+  if (!q10) return null;
+  const coffeeN = q10.match(/\bcoffe{1,2}e?\s*break\s*([1-9])\b/) || q10.match(/\bcoffee\s*break\s*([1-9])\b/);
+  if (coffeeN?.[1]) {
+    const n10 = coffeeN[1];
+    const hit = rows.find((r10) => {
+      const nivel = normalizeForMatch(extractNivelLabel(r10));
+      const svc = normalizeForMatch(r10.servicio);
+      return nivel === `coffee break ${n10}` || nivel.includes(`coffee break ${n10}`) || nivel === n10 && /coffee|coffe/.test(svc);
+    });
+    if (hit) return hit;
+  }
+  const hits = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const row of rows) {
+    const nivel = normalizeForMatch(extractNivelLabel(row)).replace(/\s+/g, " ").trim();
+    if (nivel.length < 4) continue;
+    if (q10 === nivel || q10.includes(nivel) && q10.length >= nivel.length) {
+      const key = `${row.servicio}|${row.nivel}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        hits.push(row);
+      }
+    }
+  }
+  if (hits.length === 1) return hits[0];
+  if (hits.length > 1) {
+    hits.sort(
+      (a10, b10) => normalizeForMatch(extractNivelLabel(b10)).length - normalizeForMatch(extractNivelLabel(a10)).length
+    );
+    const best = normalizeForMatch(extractNivelLabel(hits[0]));
+    const same = hits.filter((h10) => normalizeForMatch(extractNivelLabel(h10)) === best);
+    if (same.length === 1) return same[0];
+  }
+  return null;
+}
 function rowMatchesServiceLabel(row, label) {
   const normLabel = normalizeForMatch(label).replace(/\s+/g, "");
   const normSvc = normalizeForMatch(row.servicio).replace(/\s+/g, "");
@@ -133239,6 +133286,18 @@ function resolveCatalogQuery(query) {
     const nivelRows = matchedRows.filter((r10) => matchesNivelFilter(r10, filters, query));
     if (nivelRows.length) matchedRows = nivelRows;
   }
+  const specificNivelRow = pickRowMatchingSpecificNivel(
+    matchedRows.length ? matchedRows : rows,
+    trimmed
+  );
+  if (specificNivelRow) {
+    return {
+      kind: "service_nivel",
+      serviceName: specificNivelRow.servicio,
+      nivel: specificNivelRow.nivel,
+      rows: [specificNivelRow]
+    };
+  }
   const servicios = uniqueServicios(matchedRows);
   if (!servicios.length) return null;
   if (hasNivelFilter && matchedRows.length === 1) {
@@ -133369,6 +133428,8 @@ function buildServiceNivelChoiceAnswer(result, query) {
   const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
   const svcRows = result.rows.filter((r10) => r10.servicio === svc || result.rows.length <= 6);
   const rowsForChoice = (svcRows.length ? svcRows : result.rows).slice(0, 8);
+  const specific = query ? pickRowMatchingSpecificNivel(rowsForChoice, query) : null;
+  if (specific) return buildExactRowDetailAnswer(specific);
   const niveles = uniqueNiveles(rowsForChoice);
   const q10 = query ?? "";
   if (niveles.length <= 1) {
@@ -134320,8 +134381,10 @@ function buildCatalogServiceDetailAnswer(query) {
       }
     } else if (/\b(tradicional|premium|b[aá]sic)\b/i.test(query)) {
       const fromPdf = buildPdfInclusionReply(query);
-      if (fromPdf) return fromPdf;
+      if (fromPdf && !looksLikeNivelOptionsDump(fromPdf)) return fromPdf;
     }
+    const specific = pickRowMatchingSpecificNivel(resolved.rows, query);
+    if (specific) return buildExactRowDetailAnswer(specific);
     return buildServiceNivelChoiceAnswer(resolved, query);
   }
   const priceAnswer = buildCatalogPriceAnswer(query);
@@ -157861,12 +157924,13 @@ ${body3}`.trim();
     if (merged) extracted.requerimientos_evento = merged;
   }
   const detail = buildCatalogServiceDetailAnswer(detailQuery) || buildCatalogPriceAnswer(detailQuery) || attachAvailableSheetDetail(detailQuery, detailQuery);
+  const usableDetail = detail && !looksLikeNivelOptionsDump(detail) ? detail : null;
   const body2 = withServiceAndGeneralCatalogLinks(
-    detail || `Anoto *${detailQuery}*.`,
+    usableDetail || `Anoto *${detailQuery}*.`,
     detailQuery,
     detailQuery
   );
-  if (detail) {
+  if (usableDetail) {
     return `${pickTransition(history)} Te detallo *${detailQuery}*:
 
 ${body2}`.trim();
@@ -158714,11 +158778,36 @@ function lastQuestionAsksForField(mensaje, field) {
   if (SALES_CTA_NOT_FUNNEL.test(last)) return false;
   return FIELD_ASK_PATTERNS[field].test(last);
 }
+function rewriteRepeatedProductMenu(mensaje, currentMessage, history, extracted, filledSet, ctx) {
+  if (!currentMessage?.trim() || !looksLikeNivelOptionsDump(mensaje)) return mensaje;
+  const lastAsst = [...history].reverse().find((m10) => m10.role === "assistant" && typeof m10.content === "string");
+  const lastAsstText = lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : null;
+  const pick = extractNumberedNivelFromLastAssistant(currentMessage, lastAsstText) || extractCatalogNivelFromText(currentMessage, lastAsstText) || resolveProgressiveDetailQuery({
+    currentMessage,
+    serviceHint: extracted.requerimientos_evento,
+    history
+  });
+  if (!pick || /^coffee\s*break$/i.test(pick.trim()) || pick.length < 4) return mensaje;
+  const wants = clientWantsServiceDetail(currentMessage, history) || isCatalogLevelSelection(currentMessage, lastAsstText) || !!extractNumberedNivelFromLastAssistant(currentMessage, lastAsstText);
+  if (!wants) return mensaje;
+  const detail = buildCatalogServiceDetailAnswer(pick) || buildCatalogPriceAnswer(pick) || attachAvailableSheetDetail(pick, pick);
+  if (!detail || looksLikeNivelOptionsDump(detail)) return mensaje;
+  const display = getDisplayName(extracted, ctx.whatsappName);
+  const pending = getNextPendingField(extracted, filledSet);
+  const nextQ = pending && pending !== "requerimientos" && pending !== "nombre" ? buildNaturalQuestion(pending, ctx) : "";
+  const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
+  return `${ack} Te detallo *${pick}*:
+
+${detail}${nextQ ? `
+
+${nextQ}` : ""}`.trim();
+}
 function ensureFunnelAfterSalesReply(mensaje, filledSet, extracted, ctx, currentMessage, history) {
   let out2 = collapseRepeatedSentences(dedupeTransitionsInMessage(mensaje));
   if (clientAsksForHumanAdvisor(currentMessage) || /55\s*4008\s*0373|canalizo con un asesor|Ya dejé tu caso listo para el equipo/i.test(out2)) {
     return out2;
   }
+  out2 = rewriteRepeatedProductMenu(out2, currentMessage, history, extracted, filledSet, ctx);
   if (/quieres que te d[eé] detalles de alguno/i.test(out2) && currentMessage && clientChoseBanqueteFormal(currentMessage)) {
     const shortEmptyCta = !isProgressiveOptionsMenuReply(out2) && !/bodasesor\.com\/catalogos/i.test(out2) && out2.replace(/\s+/g, " ").trim().length < 180;
     if (shortEmptyCta) {
@@ -226827,7 +226916,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.42";
+var LUCY_PROMPT_VERSION = "V9.43";
 
 // src/lib/buildMeta.ts
 var cached = null;
