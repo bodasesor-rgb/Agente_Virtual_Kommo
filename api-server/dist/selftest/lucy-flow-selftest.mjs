@@ -107714,7 +107714,8 @@ function resolveProveedorEtapa() {
 function lucyDebeResponder(statusId, tags) {
   if (tags.includes("lucy_desactivada")) return false;
   if (ETAPAS_LUCY_SILENCIO.has(statusId)) return false;
-  return true;
+  if (!statusId) return true;
+  return ETAPAS_LUCY_ACTIVA.has(statusId);
 }
 var ETAPA, PIPELINE_ID, ETAPAS_LUCY_ACTIVA, MS_INACTIVIDAD, MS_SEGUIMIENTO, MS_VENTANA_MIN, MS_VENTANA_MAX, ETAPAS_LUCY_SILENCIO;
 var init_embudo = __esm({
@@ -136968,7 +136969,7 @@ function isWithinLookback(createdAt, lookbackMs, now = Date.now()) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.36";
+var LUCY_PROMPT_VERSION = "V9.37";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -138060,8 +138061,13 @@ async function runAll() {
     assert2.ok(isChatUnsortedCategory("chats"));
     assert2.ok(!isChatUnsortedCategory("forms"));
     assert2.ok(lucyDebeResponder(72336719, []));
-    assert2.ok(lucyDebeResponder(99999999, []), "Incoming/status nuevo: Lucy debe contestar");
+    assert2.ok(lucyDebeResponder(80344783, []), "Datos e Intereses");
+    assert2.ok(lucyDebeResponder(105583415, []), "No Contesta");
+    assert2.ok(lucyDebeResponder(0, []), "Incoming unsorted sin status");
+    assert2.equal(lucyDebeResponder(99999999, []), false, "otro filtro: Lucy no habla");
     assert2.equal(lucyDebeResponder(105583875, []), false, "Humano Trabaja: silencio");
+    assert2.equal(lucyDebeResponder(72336827, []), false, "Cotizaci\xF3n: silencio");
+    assert2.equal(lucyDebeResponder(143, []), false, "Perdido: silencio");
     assert2.equal(lucyDebeResponder(72336719, ["lucy_desactivada"]), false);
     const now = Date.now();
     assert2.ok(isWithinLookback(Math.floor((now - 2 * 3600 * 1e3) / 1e3), 15 * 3600 * 1e3, now));
@@ -146494,7 +146500,7 @@ ${golfText}`,
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
   await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.36");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.37");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -146523,7 +146529,7 @@ ${golfText}`,
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
   await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.36");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.37");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -146641,7 +146647,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.36");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.37");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,

@@ -1642,8 +1642,13 @@ async function runAll(): Promise<void> {
     assert.ok(!isChatUnsortedCategory("forms"));
 
     assert.ok(lucyDebeResponder(72336719, []));
-    assert.ok(lucyDebeResponder(99999999, []), "Incoming/status nuevo: Lucy debe contestar");
+    assert.ok(lucyDebeResponder(80344783, []), "Datos e Intereses");
+    assert.ok(lucyDebeResponder(105583415, []), "No Contesta");
+    assert.ok(lucyDebeResponder(0, []), "Incoming unsorted sin status");
+    assert.equal(lucyDebeResponder(99999999, []), false, "otro filtro: Lucy no habla");
     assert.equal(lucyDebeResponder(105583875, []), false, "Humano Trabaja: silencio");
+    assert.equal(lucyDebeResponder(72336827, []), false, "Cotización: silencio");
+    assert.equal(lucyDebeResponder(143, []), false, "Perdido: silencio");
     assert.equal(lucyDebeResponder(72336719, ["lucy_desactivada"]), false);
 
     const now = Date.now();
@@ -11120,7 +11125,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.35 — primer turno banquete: catálogo + pregunta embudo (Allison A15370) ───
   await test("133. V9.35 — banquete Torreón primer turno pide fecha/invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.36");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.37");
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -11152,7 +11157,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.36 — no cortar el chat (Isai A15378) ───
   await test("134. V9.36 — Isai: no cierra, no confunde nombre con ciudad, urgencia ≠ teléfono", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.36");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.37");
     assert.equal(parseZonaFromText("Isai Moreno"), null);
     assert.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -11279,7 +11284,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.36");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.37");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,

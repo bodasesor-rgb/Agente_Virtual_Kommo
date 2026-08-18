@@ -407,13 +407,15 @@ const ETAPAS_LUCY_SILENCIO = new Set<number>([
 
 /**
  * Verifica si Lucy debe responder a este lead.
- * Calla solo en Humano Trabaja / Cotización / Perdido o con tag lucy_desactivada.
- * Incoming Leads (unsorted) y etapas nuevas del embudo sí las atiende.
+ * Solo etapas de captura: Incoming / Leads Entrantes, Datos e Intereses y No Contesta.
+ * En el resto (Humano Trabaja, Cotización, Seguimientos, Perdido, etc.) no escribe.
  */
 export function lucyDebeResponder(statusId: number, tags: string[]): boolean {
   if (tags.includes("lucy_desactivada")) return false;
   if (ETAPAS_LUCY_SILENCIO.has(statusId)) return false;
-  return true;
+  // status 0 / vacío = Incoming Leads (unsorted) antes de aceptar.
+  if (!statusId) return true;
+  return ETAPAS_LUCY_ACTIVA.has(statusId);
 }
 
 export function lucyEtapaEsSilencioFuerte(statusId: number, tags: string[]): boolean {

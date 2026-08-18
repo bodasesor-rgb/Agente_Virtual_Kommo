@@ -179355,7 +179355,8 @@ async function enviarMensaje(subdomain, accessToken, talkId, texto) {
 function lucyDebeResponder(statusId, tags) {
   if (tags.includes("lucy_desactivada")) return false;
   if (ETAPAS_LUCY_SILENCIO.has(statusId)) return false;
-  return true;
+  if (!statusId) return true;
+  return ETAPAS_LUCY_ACTIVA.has(statusId);
 }
 function lucyEtapaEsSilencioFuerte(statusId, tags) {
   return tags.includes("lucy_desactivada") || ETAPAS_LUCY_SILENCIO.has(statusId);
@@ -226290,7 +226291,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.36";
+var LUCY_PROMPT_VERSION = "V9.37";
 
 // src/lib/buildMeta.ts
 var cached = null;
