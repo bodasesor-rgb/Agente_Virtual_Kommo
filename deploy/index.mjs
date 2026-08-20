@@ -128826,6 +128826,7 @@ function looksLikeDiscourseNotPlace(text2) {
   const t10 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
   if (!t10) return true;
   if (JUNK_DIRECCION_PATTERN.test(t10)) return true;
+  if (looksLikeMealTimeNotLocation(t10)) return true;
   if (hasGeoLocationSignal(t10) || KNOWN_ZONES.test(t10)) return false;
   const lower2 = t10.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
   if (/\b(es|son|esta|estan|esta|estan|quiero|necesito|busco|tengo|hay|muy|mas|mas|importante|necesario|urgente|parece|creo|pienso)\b/.test(
@@ -129305,6 +129306,53 @@ function parseTipoEventoFromText(text2) {
   }
   return parseTipoEventoLabeled(text2);
 }
+function clientSaidReunionNotXv(text2) {
+  const t10 = (text2 ?? "").trim();
+  if (!t10) return false;
+  if (/\b(quincea[nñ]era|xv\s*a[nñ]os?|\bmis\s+xv\b|\bmis\s+15\b)/i.test(t10)) {
+    return false;
+  }
+  return /\breun[ií][oó]n(es)?\s+de\s+(\d{1,2}|quince|veinte|veinti\w+|treinta|cuarenta|cincuenta)\s*a[nñ]os?\b/i.test(
+    t10
+  ) || /\b(aniversario|reencuentro)\s+(de\s+)?(\d{1,2}\s*a[nñ]os?|laboral|escolar|generacional)\b/i.test(t10);
+}
+function parseReunionAniosLabel(text2) {
+  const t10 = (text2 ?? "").trim();
+  if (!t10 || !clientSaidReunionNotXv(t10)) return null;
+  const m10 = t10.match(
+    /\breun[ií][oó]n(es)?\s+de\s+(\d{1,2}|quince|veinte|veinti\w+|treinta|cuarenta|cincuenta)\s*a[nñ]os?\b/i
+  );
+  if (m10?.[0]) return m10[0].replace(/\s+/g, " ").trim();
+  const a10 = t10.match(/\b(aniversario|reencuentro)\s+(de\s+)?(\d{1,2}\s*a[nñ]os?)\b/i);
+  if (a10?.[0]) return a10[0].replace(/\s+/g, " ").trim();
+  return "reuni\xF3n";
+}
+function looksLikeMealTimeNotLocation(text2) {
+  const t10 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t10) return false;
+  const n10 = t10.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ");
+  const meal = /\bhora\s+de\s+(comida|cena|desayuno|almuerzo|lunch|brunch|fomida|comidita)\b/.test(n10) || /^(en\s+)?(hora\s+de\s+)?(comida|cena|desayuno|almuerzo|lunch|brunch|fomida)$/.test(n10) || /\ben\s+hora\s+de\s+\w{3,20}$/.test(n10);
+  return meal;
+}
+function isMealTimeOnlySchedule(text2) {
+  const t10 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t10) return false;
+  if (looksLikeMealTimeNotLocation(t10) && t10.split(/\s+/).length <= 6) {
+    if (/\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
+      t10
+    )) {
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+function isUsableFechaHorario(value) {
+  const t10 = (value ?? "").trim();
+  if (!t10) return false;
+  if (isMealTimeOnlySchedule(t10)) return false;
+  return true;
+}
 function isReferentialPriorAnswer(message) {
   if (!message?.trim()) return false;
   const n10 = message.trim().normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
@@ -129508,6 +129556,7 @@ function isUsableDireccionEvento(value) {
   const t10 = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
   if (!t10) return false;
   if (isDimensionText(t10)) return false;
+  if (looksLikeMealTimeNotLocation(t10)) return false;
   if (isVagueVenueOnly(t10)) return false;
   if (isLocationDeferralOrVagueWorkplace(t10)) return false;
   if (isVenueWithoutCity(t10)) return false;
@@ -129666,6 +129715,7 @@ function parseZonaFromText(text2) {
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
   if (isDimensionText(trimmed)) return null;
+  if (looksLikeMealTimeNotLocation(trimmed)) return null;
   if (isLikelyProductNameNotLocation(trimmed)) return null;
   if (/\bsala\s*:/i.test(trimmed)) return null;
   if (clientAsksLocation(trimmed) || looksLikeCompanyLocationQuestionFragment(trimmed)) {
@@ -129722,9 +129772,9 @@ function parseZonaFromText(text2) {
     lugar = lugar.split(/\s+(?:para|con|por|donde|cuando|porque|que|y\s+también|tipo\s+de)\b/i)[0].trim().replace(/[.,;:]+$/g, "").trim();
     const sinArticulo = lugar.replace(/^(el|la|los|las)\s+/i, "").trim();
     const candidato = sinArticulo || lugar;
-    if (candidato && !MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !isVagueVenueOnly(candidato) && !isNonLocationBusinessPhrase(candidato) && !looksLikeDiscourseNotPlace(candidato) && !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje|color|noche|tarde|vivo|realidad|serio|importante)\b/i.test(
+    if (candidato && !MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !isVagueVenueOnly(candidato) && !isNonLocationBusinessPhrase(candidato) && !looksLikeDiscourseNotPlace(candidato) && !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje|color|noche|tarde|vivo|realidad|serio|importante|hora)\b/i.test(
       candidato
-    ) && !/^color\b/i.test(candidato) && isUsableDireccionEvento(candidato)) {
+    ) && !looksLikeMealTimeNotLocation(candidato) && !/^color\b/i.test(candidato) && isUsableDireccionEvento(candidato)) {
       return candidato;
     }
   }
@@ -129825,6 +129875,7 @@ function isServiceLabelNotTipoEvento(label) {
 }
 function parseFechaFromText(text2) {
   const trimmed = text2.trim();
+  if (isMealTimeOnlySchedule(trimmed)) return null;
   const fechaMatch = trimmed.match(
     /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
   );
@@ -130722,6 +130773,12 @@ var init_conversation_understanding = __esm({
       [/\b(torneo(\s+de\s+golf)?|torneo\s+de\s+golf|golf|stand\s+en\s+campo)\b/i, "evento corporativo"],
       [/\b(boda|bodas|matrimonio|casamiento|nupcial)\b/i, "boda"],
       [/\b(baby\s*shower)\b/i, "baby shower"],
+      // A15443 Rosario: "reunión de 15 años" ≠ XV / quinceañera.
+      [
+        /\breun[ií][oó]n(es)?\s+de\s+(\d{1,2}|quince|veinte|veinti\w+|treinta|cuarenta|cincuenta)\s*a[nñ]os?\b/i,
+        "reuni\xF3n"
+      ],
+      [/\b(aniversario(\s+de\s+\d{1,2}\s*a[nñ]os?)?|reencuentro)\b/i, "aniversario"],
       [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV a\xF1os"],
       [/\b(fin\s+de\s+a[nñ]o|fiesta\s+de\s+empresa|eventos?\s+de\s+empresa|de\s+empresa)\b/i, "evento corporativo"],
       [/\b(eventos?\s+corporativos?|convenci[oó]n(es)?|conferencias?|corporativos?)\b/i, "evento corporativo"],
@@ -156959,7 +157016,7 @@ function syncFilledFromExtracted(filledSet, extracted) {
     filledSet.delete("Requerimientos o servicios");
   }
   if (extracted.direccion_evento?.trim()) {
-    if (!isUsableDireccionEvento(extracted.direccion_evento) || isLikelyProductNameNotLocation(extracted.direccion_evento) || looksLikePersonFullName(extracted.direccion_evento) && !hasCityOrMetroSignal(extracted.direccion_evento)) {
+    if (!isUsableDireccionEvento(extracted.direccion_evento) || looksLikeMealTimeNotLocation(extracted.direccion_evento) || isLikelyProductNameNotLocation(extracted.direccion_evento) || looksLikePersonFullName(extracted.direccion_evento) && !hasCityOrMetroSignal(extracted.direccion_evento)) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/direcci\xF3n del evento");
     } else if (extracted.nombre && namesAreLikelySamePerson(extracted.nombre, extracted.direccion_evento)) {
@@ -156974,7 +157031,14 @@ function syncFilledFromExtracted(filledSet, extracted) {
     extracted.presupuesto = null;
     filledSet.delete("Presupuesto (MXN)");
   }
-  if (extracted.fecha_horario?.trim()) filledSet.add("Fecha y horario");
+  if (extracted.fecha_horario?.trim()) {
+    if (!isUsableFechaHorario(extracted.fecha_horario) || isMealTimeOnlySchedule(extracted.fecha_horario)) {
+      extracted.fecha_horario = null;
+      filledSet.delete("Fecha y horario");
+    } else {
+      filledSet.add("Fecha y horario");
+    }
+  }
   if (extracted.num_invitados) filledSet.add("N\xFAmero de invitados");
   if (hasPresupuestoValue(extracted)) filledSet.add("Presupuesto (MXN)");
 }
@@ -158269,7 +158333,13 @@ function getNextPendingField(extracted, filledSet) {
   if (!isFieldSatisfied("requerimientos", filled, extracted)) return "requerimientos";
   const hasInv = filled.has("N\xFAmero de invitados") || !!extracted.num_invitados;
   if (!hasInv) return "invitados";
-  const hasFecha = filled.has("Fecha y horario") || !!extracted.fecha_horario?.trim();
+  if (extracted.fecha_horario?.trim() && !isUsableFechaHorario(extracted.fecha_horario)) {
+    filled.delete("Fecha y horario");
+  }
+  if (extracted.direccion_evento?.trim() && (!isUsableDireccionEvento(extracted.direccion_evento) || looksLikeMealTimeNotLocation(extracted.direccion_evento))) {
+    filled.delete("Lugar/direcci\xF3n del evento");
+  }
+  const hasFecha = filled.has("Fecha y horario") || isUsableFechaHorario(extracted.fecha_horario);
   if (!hasFecha) return "fecha";
   const hasZona = filled.has("Lugar/direcci\xF3n del evento") || isUsableDireccionEvento(extracted.direccion_evento);
   if (!hasZona) return "zona";
@@ -159609,7 +159679,6 @@ function buildNameMismatchReplyIfNeeded(currentMessage, extracted, filledSet, wh
 }
 function applyLucyMessageGuards(input) {
   const {
-    aiResponse,
     extracted,
     filledSet,
     readyForClosing,
@@ -159623,9 +159692,32 @@ function applyLucyMessageGuards(input) {
     forceFirstPresentation
   } = input;
   let { cierreYaEnviado } = input;
+  let aiResponse = input.aiResponse;
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
   syncFilledFromExtracted(filledSet, extracted);
+  if (extracted.direccion_evento && (looksLikeMealTimeNotLocation(extracted.direccion_evento) || !isUsableDireccionEvento(extracted.direccion_evento))) {
+    extracted.direccion_evento = null;
+    filledSet.delete("Lugar/direcci\xF3n del evento");
+  }
+  if (extracted.fecha_horario && !isUsableFechaHorario(extracted.fecha_horario)) {
+    extracted.fecha_horario = null;
+    filledSet.delete("Fecha y horario");
+  }
+  {
+    const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
+    if (clientSaidReunionNotXv(userBlob) || clientSaidReunionNotXv(currentMessage)) {
+      const label = parseReunionAniosLabel(currentMessage) || parseReunionAniosLabel(userBlob) || "reuni\xF3n";
+      if (/xv|quince/i.test(extracted.tipo_evento ?? "") || !extracted.tipo_evento?.trim()) {
+        extracted.tipo_evento = label;
+        filledSet.add("Tipo de evento");
+      }
+      if (/xv\s*a[nñ]os?|quincea[nñ]era|\btus\s+xv\b/i.test(aiResponse)) {
+        aiResponse = aiResponse.replace(/\btus\s+XV\s*a[nñ]os?\b/gi, `tu ${label}`).replace(/\bXV\s*a[nñ]os?\b/gi, label).replace(/\bquincea[nñ]era\b/gi, label);
+        log?.info({ entityId, label }, "GUARD: A15443 \u2014 reuni\xF3n de N a\xF1os \u2260 XV (aiResponse)");
+      }
+    }
+  }
   if (extracted.direccion_evento) {
     if (looksLikeThemeColorNotLocation(extracted.direccion_evento)) {
       extracted.direccion_evento = null;
@@ -160560,7 +160652,7 @@ ${mapped}`.trim() : buildCatalogWebLinkReply({
     filledSet.add("Requerimientos o servicios");
     const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
     if (merged) extracted.requerimientos_evento = merged;
-    const detail = buildCatalogPriceAnswer(label) || buildCatalogServiceDetailAnswer(label) || resolveCatalogInclusionReply(label, label);
+    const detail = buildSoloVsCompletoOfferIfApplicable(label) || buildCatalogPriceAnswer(label) || buildCatalogServiceDetailAnswer(label) || resolveCatalogInclusionReply(label, label);
     const link = buildCatalogWebLinkReply({ query: label, serviceHint: label });
     const display = getDisplayName(extracted, whatsappDisplayName);
     const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
@@ -162470,6 +162562,33 @@ ${buildNaturalQuestion(pending, ctx)}` : ack;
       const fixHint = currentMessage && /\bcanap|catering|bocadillo|banquete|taquiza/i.test(currentMessage) ? currentMessage : extracted.requerimientos_evento || currentMessage || "canap\xE9s";
       mensaje = buildGuardServiceAck(fixHint);
       log?.info({ entityId }, "GUARD: A15204 \u2014 comida \u2260 mobiliario, dump reemplazado");
+    }
+  }
+  {
+    const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
+    if ((clientSaidReunionNotXv(userBlob) || clientSaidReunionNotXv(currentMessage)) && /xv\s*a[nñ]os?|quincea[nñ]era|\btus\s+xv\b/i.test(mensaje)) {
+      const label = parseReunionAniosLabel(currentMessage) || parseReunionAniosLabel(userBlob) || extracted.tipo_evento || "reuni\xF3n";
+      mensaje = mensaje.replace(/\btus\s+XV\s*a[nñ]os?\b/gi, `tu ${label}`).replace(/\bXV\s*a[nñ]os?\b/gi, label).replace(/\bquincea[nñ]era\b/gi, label);
+      if (/xv|quince/i.test(extracted.tipo_evento ?? "")) {
+        extracted.tipo_evento = label;
+      }
+      log?.info({ entityId, label }, "GUARD: A15443 \u2014 reuni\xF3n de N a\xF1os \u2260 XV");
+    }
+  }
+  if (/tenemos dos caminos/i.test(mensaje) && /1\.\s*\*?Solo alimentos/i.test(mensaje) && !/2\.\s*\*?Servicio completo/i.test(mensaje)) {
+    const svcHint = extracted.requerimientos_evento?.trim() || (currentMessage ? resolveDetailQueryForFamily("banquete", currentMessage) : null) || "Banquete Formal 3 tiempos";
+    const full = buildSoloVsCompletoOfferIfApplicable(svcHint);
+    if (full) {
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const ack = display ? `Perfecto, ${display}. Anoto *${svcHint}*.` : `Perfecto. Anoto *${svcHint}*.`;
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending && pending !== "requerimientos" && pending !== "nombre" ? buildNaturalQuestion(pending, ctx) : "";
+      mensaje = `${ack}
+
+${full}${nextQ ? `
+
+${nextQ}` : ""}`.trim();
+      log?.info({ entityId }, "GUARD: A15443 \u2014 complet\xF3 men\xFA solo vs completo");
     }
   }
   mensaje = stripClientServiceConfusionNotes(mensaje);
@@ -226916,7 +227035,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.43";
+var LUCY_PROMPT_VERSION = "V9.44";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -229127,6 +229246,10 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
   if (out2.direccion_evento && (!isUsableDireccionEvento(out2.direccion_evento) || looksLikeCompanyLocationQuestionFragment(out2.direccion_evento) || isLikelyProductNameNotLocation(out2.direccion_evento))) {
     out2.direccion_evento = null;
     applied.push("zona-unusable-cleared");
+  }
+  if (out2.fecha_horario && !isUsableFechaHorario(out2.fecha_horario)) {
+    out2.fecha_horario = null;
+    applied.push("fecha-meal-only-cleared");
   }
   return { extracted: out2, applied };
 }
