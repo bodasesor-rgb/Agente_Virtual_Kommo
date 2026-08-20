@@ -12,6 +12,7 @@ import {
 } from "./contact-name.js";
 import {
   isUsableDireccionEvento,
+  isUsableFechaHorario,
   parsePresupuestoFromText,
   parseZonaFromText,
   looksLikeGuestCountRange,
@@ -172,6 +173,12 @@ export function applyCrmWriteInvariants(
   ) {
     out.direccion_evento = null;
     applied.push("zona-unusable-cleared");
+  }
+
+  // A15443: "hora de comida" no es fecha del evento.
+  if (out.fecha_horario && !isUsableFechaHorario(out.fecha_horario)) {
+    out.fecha_horario = null;
+    applied.push("fecha-meal-only-cleared");
   }
 
   return { extracted: out, applied };

@@ -228,6 +228,11 @@ import {
   isGenericQuoteIntentRequerimiento,
   clientAsksCafeOrCateringChoice,
   looksLikeNameAnswerMessage,
+  looksLikeMealTimeNotLocation,
+  isMealTimeOnlySchedule,
+  isUsableFechaHorario,
+  clientSaidReunionNotXv,
+  parseReunionAniosLabel,
   FECHA_MAX_ASKS,
   FECHA_AUTO_WAIVER,
 } from "./conversation-understanding.js";
@@ -354,6 +359,7 @@ export function syncFilledFromExtracted(filledSet: Set<string>, extracted: Extra
   if (extracted.direccion_evento?.trim()) {
     if (
       !isUsableDireccionEvento(extracted.direccion_evento) ||
+      looksLikeMealTimeNotLocation(extracted.direccion_evento) ||
       isLikelyProductNameNotLocation(extracted.direccion_evento) ||
       (looksLikePersonFullName(extracted.direccion_evento) &&
         !hasCityOrMetroSignal(extracted.direccion_evento))
@@ -375,7 +381,15 @@ export function syncFilledFromExtracted(filledSet: Set<string>, extracted: Extra
     extracted.presupuesto = null;
     filledSet.delete("Presupuesto (MXN)");
   }
-  if (extracted.fecha_horario?.trim()) filledSet.add("Fecha y horario");
+  // A15443: "hora de comida" no cierra Fecha; pedir día real.
+  if (extracted.fecha_horario?.trim()) {
+    if (!isUsableFechaHorario(extracted.fecha_horario) || isMealTimeOnlySchedule(extracted.fecha_horario)) {
+      extracted.fecha_horario = null;
+      filledSet.delete("Fecha y horario");
+    } else {
+      filledSet.add("Fecha y horario");
+    }
+  }
   if (extracted.num_invitados) filledSet.add("Número de invitados");
   if (hasPresupuestoValue(extracted)) filledSet.add("Presupuesto (MXN)");
 }
@@ -2429,7 +2443,20 @@ export function getNextPendingField(
   const hasInv = filled.has("Número de invitados") || !!extracted.num_invitados;
   if (!hasInv) return "invitados";
 
-  const hasFecha = filled.has("Fecha y horario") || !!extracted.fecha_horario?.trim();
+  // A15443: basura "hora de comida" no debe marcar fecha/zona como listas.
+  if (extracted.fecha_horario?.trim() && !isUsableFechaHorario(extracted.fecha_horario)) {
+    filled.delete("Fecha y horario");
+  }
+  if (
+    extracted.direccion_evento?.trim() &&
+    (!isUsableDireccionEvento(extracted.direccion_evento) ||
+      looksLikeMealTimeNotLocation(extracted.direccion_evento))
+  ) {
+    filled.delete("Lugar/dirección del evento");
+  }
+
+  const hasFecha =
+    filled.has("Fecha y horario") || isUsableFechaHorario(extracted.fecha_horario);
   if (!hasFecha) return "fecha";
 
   const hasZona =
@@ -4700,7 +4727,6 @@ function buildNameMismatchReplyIfNeeded(
 
 export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const {
-    aiResponse,
     extracted,
     filledSet,
     readyForClosing,
@@ -4714,11 +4740,46 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     forceFirstPresentation,
   } = input;
   let { cierreYaEnviado } = input;
+  let aiResponse = input.aiResponse;
 
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
 
   syncFilledFromExtracted(filledSet, extracted);
+  // A15443: "hora de comida/fomida" nunca es ciudad ni fecha completa.
+  if (
+    extracted.direccion_evento &&
+    (looksLikeMealTimeNotLocation(extracted.direccion_evento) ||
+      !isUsableDireccionEvento(extracted.direccion_evento))
+  ) {
+    extracted.direccion_evento = null;
+    filledSet.delete("Lugar/dirección del evento");
+  }
+  if (extracted.fecha_horario && !isUsableFechaHorario(extracted.fecha_horario)) {
+    extracted.fecha_horario = null;
+    filledSet.delete("Fecha y horario");
+  }
+  // A15443: "reunión de 15 años" ≠ XV — corregir CRM y el texto saliente (también early-return).
+  {
+    const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
+    if (clientSaidReunionNotXv(userBlob) || clientSaidReunionNotXv(currentMessage)) {
+      const label =
+        parseReunionAniosLabel(currentMessage) ||
+        parseReunionAniosLabel(userBlob) ||
+        "reunión";
+      if (/xv|quince/i.test(extracted.tipo_evento ?? "") || !extracted.tipo_evento?.trim()) {
+        extracted.tipo_evento = label;
+        filledSet.add("Tipo de evento");
+      }
+      if (/xv\s*a[nñ]os?|quincea[nñ]era|\btus\s+xv\b/i.test(aiResponse)) {
+        aiResponse = aiResponse
+          .replace(/\btus\s+XV\s*a[nñ]os?\b/gi, `tu ${label}`)
+          .replace(/\bXV\s*a[nñ]os?\b/gi, label)
+          .replace(/\bquincea[nñ]era\b/gi, label);
+        log?.info({ entityId, label }, "GUARD: A15443 — reunión de N años ≠ XV (aiResponse)");
+      }
+    }
+  }
   // A15295: colores de temática (foto) nunca deben vivir en zona.
   if (extracted.direccion_evento) {
     if (looksLikeThemeColorNotLocation(extracted.direccion_evento)) {
@@ -6158,6 +6219,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
     if (merged) extracted.requerimientos_evento = merged;
     const detail =
+      buildSoloVsCompletoOfferIfApplicable(label) ||
       buildCatalogPriceAnswer(label) ||
       buildCatalogServiceDetailAnswer(label) ||
       resolveCatalogInclusionReply(label, label);
@@ -8975,6 +9037,53 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           : extracted.requerimientos_evento || currentMessage || "canapés";
       mensaje = buildGuardServiceAck(fixHint);
       log?.info({ entityId }, "GUARD: A15204 — comida ≠ mobiliario, dump reemplazado");
+    }
+  }
+
+  // A15443: "reunión de 15 años" ≠ XV — GPT no debe anotar quinceañera.
+  {
+    const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
+    if (
+      (clientSaidReunionNotXv(userBlob) || clientSaidReunionNotXv(currentMessage)) &&
+      /xv\s*a[nñ]os?|quincea[nñ]era|\btus\s+xv\b/i.test(mensaje)
+    ) {
+      const label =
+        parseReunionAniosLabel(currentMessage) ||
+        parseReunionAniosLabel(userBlob) ||
+        extracted.tipo_evento ||
+        "reunión";
+      mensaje = mensaje
+        .replace(/\btus\s+XV\s*a[nñ]os?\b/gi, `tu ${label}`)
+        .replace(/\bXV\s*a[nñ]os?\b/gi, label)
+        .replace(/\bquincea[nñ]era\b/gi, label);
+      if (/xv|quince/i.test(extracted.tipo_evento ?? "")) {
+        extracted.tipo_evento = label;
+      }
+      log?.info({ entityId, label }, "GUARD: A15443 — reunión de N años ≠ XV");
+    }
+  }
+
+  // A15443: "dos caminos" incompleto (solo opción 1) → menú completo solo vs completo.
+  if (
+    /tenemos dos caminos/i.test(mensaje) &&
+    /1\.\s*\*?Solo alimentos/i.test(mensaje) &&
+    !/2\.\s*\*?Servicio completo/i.test(mensaje)
+  ) {
+    const svcHint =
+      extracted.requerimientos_evento?.trim() ||
+      (currentMessage ? resolveDetailQueryForFamily("banquete", currentMessage) : null) ||
+      "Banquete Formal 3 tiempos";
+    const full = buildSoloVsCompletoOfferIfApplicable(svcHint);
+    if (full) {
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const ack = display ? `Perfecto, ${display}. Anoto *${svcHint}*.` : `Perfecto. Anoto *${svcHint}*.`;
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ =
+        pending && pending !== "requerimientos" && pending !== "nombre"
+          ? buildNaturalQuestion(pending, ctx)
+          : "";
+      mensaje = `${ack}\n\n${full}${nextQ ? `\n\n${nextQ}` : ""}`.trim();
+      log?.info({ entityId }, "GUARD: A15443 — completó menú solo vs completo");
     }
   }
 

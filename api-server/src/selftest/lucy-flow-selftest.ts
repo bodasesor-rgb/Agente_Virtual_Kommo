@@ -54,6 +54,11 @@ import {
   hasCityOrMetroSignal,
   extractVenueNameHint,
   isUsableDireccionEvento,
+  looksLikeMealTimeNotLocation,
+  isMealTimeOnlySchedule,
+  isUsableFechaHorario,
+  clientSaidReunionNotXv,
+  parseReunionAniosLabel,
   sanitizeExtractedAmbiguousNumbers,
   clientAsksForCatalog,
   clientAsksGenericMenuCatalog,
@@ -11165,7 +11170,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.35 — primer turno banquete: catálogo + pregunta embudo (Allison A15370) ───
   await test("133. V9.35 — banquete Torreón primer turno pide fecha/invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.43");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -11197,7 +11202,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.36 — no cortar el chat (Isai A15378) ───
   await test("134. V9.36 — Isai: no cierra, no confunde nombre con ciudad, urgencia ≠ teléfono", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.43");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
     assert.equal(parseZonaFromText("Isai Moreno"), null);
     assert.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -11324,7 +11329,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.43");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
@@ -11401,7 +11406,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("135. V9.38 — comprobante en imagen: primer pago Anticipo, segundo Liquidación", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.43");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
     assert.equal(FIELD_ANTICIPO, 1049322);
     assert.equal(FIELD_LIQUIDACION, 1049324);
 
@@ -11473,7 +11478,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("136. V9.40 — A15380 invitados no se saltan; Coyoacán+colonia; Claro no es nombre", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.43");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
     const horario = "hola si se haría el 26 de septiembre pero aún no tenemos definido el horario";
     assert.equal(parseInvitadosFromText(horario), null, "horario pendiente ≠ invitados");
     const caps = scanConversationForCaptures([], horario, new Set(["Nombre del cliente"]));
@@ -11586,7 +11591,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("138. V9.41 — A15383 Kelia: ciudad, banquetes, LED≠luz, no spam (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.43");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
 
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert.match(hornoMty, /horno\s*3/i, hornoMty);
@@ -11738,7 +11743,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.42 — A15391 Mariana: Coffee Break 4, "4. nombre", handoff, horario ≠ menú ───
   await test("139. V9.42 — A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.43");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -11833,7 +11838,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("140. V9.43 — detalle de un producto no re-lista el menú (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.43");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -11873,6 +11878,131 @@ async function runAll(): Promise<void> {
     });
     assert.ok(!looksLikeNivelOptionsDump(rewritten), rewritten.slice(0, 500));
     assert.ok(/Coffee Break 4|350|CB4/i.test(rewritten), rewritten.slice(0, 500));
+  });
+
+  // ─── V9.44 — A15443 Rosario: reunión≠XV, hora comida≠ubicación, no cierra sin ciudad ───
+  await test("141. V9.44 — A15443 Rosario: reunión, hora comida, ciudad obligatoria", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
+
+    assert.equal(parseTipoEventoFromText("una reunión de 15 años"), "reunión");
+    assert.ok(clientSaidReunionNotXv("una reunión de 15 años"));
+    assert.ok(!clientSaidReunionNotXv("mis XV años"));
+    assert.match(parseReunionAniosLabel("una reunión de 15 años") ?? "", /15\s*a[nñ]os/i);
+
+    assert.equal(parseZonaFromText("banquete de tres tiempos en hora de fomida"), null);
+    assert.equal(parseZonaFromText("banquete de tres tiempos en hora de comida"), null);
+    assert.ok(looksLikeMealTimeNotLocation("hora de fomida"));
+    assert.ok(looksLikeMealTimeNotLocation("hora de comida"));
+    assert.ok(!isUsableDireccionEvento("hora de fomida"));
+    assert.ok(!isUsableDireccionEvento("hora de comida"));
+    assert.equal(parseFechaFromText("hora de comida"), null);
+    assert.ok(isMealTimeOnlySchedule("hora de comida"));
+    assert.ok(!isUsableFechaHorario("hora de comida"));
+
+    const xvReply = runGuards({
+      aiResponse: "Anoto tus XV años, Rosario. Para orientarte mejor, ¿qué servicios tienes en mente?",
+      extracted: emptyExtracted({ nombre: "Rosario", tipo_evento: "XV años" }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: "una reunión de 15 años",
+      history: [
+        { role: "assistant", content: "¡Mucho gusto, Rosario! ¿Qué van a celebrar?" },
+        { role: "user", content: "una reunión de 15 años" },
+      ],
+    });
+    assert.ok(!/XV\s*a[nñ]os|quincea[nñ]era/i.test(xvReply), xvReply.slice(0, 400));
+    assert.ok(/reun/i.test(xvReply), xvReply.slice(0, 400));
+
+    const filled = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Número de invitados",
+      "Fecha y horario",
+      "Lugar/dirección del evento",
+      "Correo electrónico",
+      "Presupuesto (MXN)",
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Rosario",
+      tipo_evento: "reunión de 15 años",
+      requerimientos_evento: "Banquete Formal 3 tiempos",
+      num_invitados: 50,
+      fecha_horario: "hora de comida",
+      direccion_evento: "hora de fomida",
+      correo: "no compartió (sigue por WhatsApp)",
+      presupuesto: "Sin definir (cliente indicó que no tiene)",
+    });
+    assert.equal(getNextPendingField(extracted, filled), "fecha");
+    assert.ok(!filled.has("Fecha y horario"));
+    assert.ok(!filled.has("Lugar/dirección del evento"));
+
+    const premature = runGuards({
+      aiResponse:
+        "Perfecto, ya tengo todo. He anotado que el servicio será Banquete Formal. Con esta información, nuestro equipo preparará una cotización personalizada para ti.",
+      extracted: emptyExtracted({
+        nombre: "Rosario",
+        tipo_evento: "reunión",
+        requerimientos_evento: "Banquete Formal 3 tiempos",
+        num_invitados: 50,
+        fecha_horario: "hora de comida",
+        direccion_evento: "hora de fomida",
+        presupuesto: "Sin definir (cliente indicó que no tiene)",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Número de invitados",
+        "Fecha y horario",
+        "Lugar/dirección del evento",
+        "Correo electrónico",
+        "Presupuesto (MXN)",
+      ]),
+      readyForClosing: true,
+      currentMessage: "no",
+      history: [
+        { role: "assistant", content: "¿Manejan algún presupuesto estimado?" },
+        { role: "user", content: "no" },
+      ],
+    });
+    assert.ok(!/ya tengo todo/i.test(premature), premature.slice(0, 500));
+    assert.ok(
+      /fecha|d[ií]a|horario|cu[aá]ndo|ciudad|ubicaci|d[oó]nde|en qu[eé] ciudad/i.test(premature),
+      premature.slice(0, 500)
+    );
+
+    setCatalogSnapshotForTests(
+      parseSheetCatalogCsv(
+        [
+          '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Link catalogo","Que Incluye","Sinonimos"',
+          '"Banquete Formal 3 tiempos","Solo Alimentos","$450.00","$13,500.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Entrada, fuerte y postre"',
+          '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Básico completo"',
+          '"Banquete Formal 3 tiempos","Tradicional","$830.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Tradicional completo"',
+          '"Banquete Formal 3 tiempos","Premium","$950.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Premium completo"',
+        ].join("\n")
+      )
+    );
+    const incomplete =
+      "Perfecto, Rosario. Anoto *Banquete Formal 3 tiempos*. Para *Banquete Formal 3 tiempos* tenemos dos caminos: 1. *Solo alimentos* — $450.00 /pp (solo la comida)\nhttps://bodasesor.com/catalogos/banquete-formal";
+    const fixedMenu = runGuards({
+      aiResponse: incomplete,
+      extracted: emptyExtracted({
+        nombre: "Rosario",
+        tipo_evento: "reunión",
+        requerimientos_evento: "Banquete Formal 3 tiempos",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "banquete de tres tiempos en hora de fomida",
+      history: [{ role: "user", content: "banquete de tres tiempos en hora de fomida" }],
+    });
+    assert.ok(/Servicio completo|solo alimentos/i.test(fixedMenu), fixedMenu.slice(0, 600));
+    assert.ok(/2\.\s*\*?Servicio completo/i.test(fixedMenu), fixedMenu.slice(0, 600));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

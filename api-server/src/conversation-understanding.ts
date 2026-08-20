@@ -264,6 +264,12 @@ const TIPO_EVENTO_PATTERNS: Array<[RegExp, string]> = [
   [/\b(torneo(\s+de\s+golf)?|torneo\s+de\s+golf|golf|stand\s+en\s+campo)\b/i, "evento corporativo"],
   [/\b(boda|bodas|matrimonio|casamiento|nupcial)\b/i, "boda"],
   [/\b(baby\s*shower)\b/i, "baby shower"],
+  // A15443 Rosario: "reunión de 15 años" ≠ XV / quinceañera.
+  [
+    /\breun[ií][oó]n(es)?\s+de\s+(\d{1,2}|quince|veinte|veinti\w+|treinta|cuarenta|cincuenta)\s*a[nñ]os?\b/i,
+    "reunión",
+  ],
+  [/\b(aniversario(\s+de\s+\d{1,2}\s*a[nñ]os?)?|reencuentro)\b/i, "aniversario"],
   [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV años"],
   [/\b(fin\s+de\s+a[nñ]o|fiesta\s+de\s+empresa|eventos?\s+de\s+empresa|de\s+empresa)\b/i, "evento corporativo"],
   [/\b(eventos?\s+corporativos?|convenci[oó]n(es)?|conferencias?|corporativos?)\b/i, "evento corporativo"],
@@ -1905,6 +1911,7 @@ export function looksLikeDiscourseNotPlace(text: string | null | undefined): boo
   const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
   if (!t) return true;
   if (JUNK_DIRECCION_PATTERN.test(t)) return true;
+  if (looksLikeMealTimeNotLocation(t)) return true;
   if (hasGeoLocationSignal(t) || KNOWN_ZONES.test(t)) return false;
   const lower = t
     .toLowerCase()
@@ -2707,6 +2714,86 @@ export function parseTipoEventoFromText(text: string): string | null {
 }
 
 /**
+ * A15443: "reunión de 15 años" / "reencuentro de 20 años" — NUNCA XV.
+ * GPT a menudo confunde "15 años" con quinceañera.
+ */
+export function clientSaidReunionNotXv(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  if (/\b(quincea[nñ]era|xv\s*a[nñ]os?|\bmis\s+xv\b|\bmis\s+15\b)/i.test(t)) {
+    return false;
+  }
+  return (
+    /\breun[ií][oó]n(es)?\s+de\s+(\d{1,2}|quince|veinte|veinti\w+|treinta|cuarenta|cincuenta)\s*a[nñ]os?\b/i.test(
+      t
+    ) ||
+    /\b(aniversario|reencuentro)\s+(de\s+)?(\d{1,2}\s*a[nñ]os?|laboral|escolar|generacional)\b/i.test(t)
+  );
+}
+
+/** Extrae etiqueta usable: "reunión de 15 años". */
+export function parseReunionAniosLabel(text: string | null | undefined): string | null {
+  const t = (text ?? "").trim();
+  if (!t || !clientSaidReunionNotXv(t)) return null;
+  const m = t.match(
+    /\breun[ií][oó]n(es)?\s+de\s+(\d{1,2}|quince|veinte|veinti\w+|treinta|cuarenta|cincuenta)\s*a[nñ]os?\b/i
+  );
+  if (m?.[0]) return m[0].replace(/\s+/g, " ").trim();
+  const a = t.match(/\b(aniversario|reencuentro)\s+(de\s+)?(\d{1,2}\s*a[nñ]os?)\b/i);
+  if (a?.[0]) return a[0].replace(/\s+/g, " ").trim();
+  return "reunión";
+}
+
+/**
+ * "hora de comida/cena/desayuno" (y typo fomida) — horario de servicio, NO dirección.
+ * A15443 Rosario: "banquete… en hora de fomida" → Ubicación: hora de fomida.
+ */
+export function looksLikeMealTimeNotLocation(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t) return false;
+  const n = t
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+  // Typo frecuente: fomida → comida.
+  const meal =
+    /\bhora\s+de\s+(comida|cena|desayuno|almuerzo|lunch|brunch|fomida|comidita)\b/.test(n) ||
+    /^(en\s+)?(hora\s+de\s+)?(comida|cena|desayuno|almuerzo|lunch|brunch|fomida)$/.test(n) ||
+    /\ben\s+hora\s+de\s+\w{3,20}$/.test(n);
+  return meal;
+}
+
+/**
+ * Solo "hora de comida" / meal schedule sin día — no cierra el campo Fecha.
+ * A15443: Fecha/horario quedó en "hora de comida" y saltó la fecha real.
+ */
+export function isMealTimeOnlySchedule(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t) return false;
+  if (looksLikeMealTimeNotLocation(t) && t.split(/\s+/).length <= 6) {
+    // Si también hay día/mes/fecha concreta, sí cuenta.
+    if (
+      /\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
+        t
+      )
+    ) {
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+/** Fecha usable para embudo: waiver OK; solo "hora de comida" NO. */
+export function isUsableFechaHorario(value: string | null | undefined): boolean {
+  const t = (value ?? "").trim();
+  if (!t) return false;
+  if (isMealTimeOnlySchedule(t)) return false;
+  return true;
+}
+
+/**
  * Cliente apunta al dato ya dado: "a este", "ese", "el mismo", "el de antes".
  * A15007 Osiris — no tratar como vacío / "Sigo aquí".
  */
@@ -3056,6 +3143,7 @@ export function isUsableDireccionEvento(value: string | null | undefined): boole
   const t = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
   if (!t) return false;
   if (isDimensionText(t)) return false;
+  if (looksLikeMealTimeNotLocation(t)) return false;
   if (isVagueVenueOnly(t)) return false;
   if (isLocationDeferralOrVagueWorkplace(t)) return false;
   if (isVenueWithoutCity(t)) return false;
@@ -3306,6 +3394,8 @@ export function parseZonaFromText(text: string): string | null {
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
   if (isDimensionText(trimmed)) return null;
+  // A15443: "en hora de comida/fomida" ≠ zona del evento.
+  if (looksLikeMealTimeNotLocation(trimmed)) return null;
   // "sala: Luxor Rosa" / producto de mobiliario ≠ zona del evento.
   if (isLikelyProductNameNotLocation(trimmed)) return null;
   if (/\bsala\s*:/i.test(trimmed)) return null;
@@ -3395,9 +3485,10 @@ export function parseZonaFromText(text: string): string | null {
       !isVagueVenueOnly(candidato) &&
       !isNonLocationBusinessPhrase(candidato) &&
       !looksLikeDiscourseNotPlace(candidato) &&
-      !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje|color|noche|tarde|vivo|realidad|serio|importante)\b/i.test(
+      !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje|color|noche|tarde|vivo|realidad|serio|importante|hora)\b/i.test(
         candidato
       ) &&
+      !looksLikeMealTimeNotLocation(candidato) &&
       !/^color\b/i.test(candidato) &&
       isUsableDireccionEvento(candidato)
     ) {
@@ -3554,6 +3645,8 @@ export function isServiceLabelNotTipoEvento(label: string | null | undefined): b
 
 export function parseFechaFromText(text: string): string | null {
   const trimmed = text.trim();
+  // A15443: "hora de comida" sola no es fecha del evento (sigue pidiendo día).
+  if (isMealTimeOnlySchedule(trimmed)) return null;
   const fechaMatch = trimmed.match(
     /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
   );
