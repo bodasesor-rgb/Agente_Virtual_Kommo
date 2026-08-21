@@ -459,10 +459,17 @@ export function formatImageTurnText(
 }
 
 /** Nota corta para el equipo en Kommo (no es el mensaje al cliente). */
-export function formatImageTeamNote(analysis: ImageAnalysis, caption?: string | null): string {
+export function formatImageTeamNote(
+  analysis: ImageAnalysis,
+  caption?: string | null,
+  opts?: { notifiedClient?: boolean }
+): string {
+  const notified = opts?.notifiedClient !== false;
   const parts = [
     `Intent: ${analysis.intent}`,
-    `Respuesta enviada al cliente: ${analysis.clientReply}`,
+    notified
+      ? `Respuesta enviada al cliente: ${analysis.clientReply}`
+      : `Respuesta al cliente: NO enviada (Lucy en silencio / post–Humano Trabaja). Vision: ${analysis.clientReply}`,
     `Ref. equipo (no enviar): ${analysis.internalDescription}`,
   ];
   if (analysis.intent === "comprobante_pago") {
@@ -472,6 +479,18 @@ export function formatImageTeamNote(analysis: ImageAnalysis, caption?: string | 
   }
   if (caption?.trim()) parts.push(`Caption: ${caption.trim().slice(0, 180)}`);
   return parts.join("\n");
+}
+
+/**
+ * V9.46: en silencio quita la respuesta al cliente del turno, deja intent/caption
+ * para CRM y comprobantes.
+ */
+export function stripImageClientReplyForSilence(text: string | null | undefined): string {
+  if (!text?.trim()) return "";
+  return text
+    .replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export function rewriteImageTurnClientReply(turnText: string, clientReply: string): string {

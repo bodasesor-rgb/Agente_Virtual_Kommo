@@ -158,7 +158,7 @@ import {
   extractEmpresaFromText,
   scrubClientFieldsForProveedor,
 } from "../lib/proveedorHandoff.js";
-import { resolveProveedorEtapa, ETAPA, lucyDebeResponder } from "../services/embudo.js";
+import { resolveProveedorEtapa, ETAPA, lucyDebeResponder, lucyDebeResponderImagenAlCliente } from "../services/embudo.js";
 import { prepareLucyExtraction } from "../lucyTurnProcessor.js";
 import {
   buildFirstInteractionMessage,
@@ -332,7 +332,7 @@ import {
 } from "../services/serviceKnowledge.js";
 import { formatForWhatsApp } from "../lib/formatForWhatsApp.js";
 import { isVoiceNote, getVoiceNoteUrl } from "../services/voiceProcessor.js";
-import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests, parseVisionImageJson, formatImageTurnText, formatImageTeamNote, extractImageClientReply, looksLikeImageInternalSummary, clientCaptionForServiceParse, parseAmountMxn, normalizePaymentMethod, rewriteImageTurnClientReply } from "../services/imageProcessor.js";
+import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests, parseVisionImageJson, formatImageTurnText, formatImageTeamNote, extractImageClientReply, stripImageClientReplyForSilence, looksLikeImageInternalSummary, clientCaptionForServiceParse, parseAmountMxn, normalizePaymentMethod, rewriteImageTurnClientReply } from "../services/imageProcessor.js";
 import {
   resolveCatalogWebSlug,
   getCatalogWebUrlForQuery,
@@ -11174,7 +11174,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.35 — primer turno banquete: catálogo + pregunta embudo (Allison A15370) ───
   await test("133. V9.35 — banquete Torreón primer turno pide fecha/invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -11206,7 +11206,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.36 — no cortar el chat (Isai A15378) ───
   await test("134. V9.36 — Isai: no cierra, no confunde nombre con ciudad, urgencia ≠ teléfono", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
     assert.equal(parseZonaFromText("Isai Moreno"), null);
     assert.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -11333,7 +11333,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
@@ -11410,7 +11410,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("135. V9.38 — comprobante en imagen: primer pago Anticipo, segundo Liquidación", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
     assert.equal(FIELD_ANTICIPO, 1049322);
     assert.equal(FIELD_LIQUIDACION, 1049324);
 
@@ -11482,7 +11482,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("136. V9.40 — A15380 invitados no se saltan; Coyoacán+colonia; Claro no es nombre", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
     const horario = "hola si se haría el 26 de septiembre pero aún no tenemos definido el horario";
     assert.equal(parseInvitadosFromText(horario), null, "horario pendiente ≠ invitados");
     const caps = scanConversationForCaptures([], horario, new Set(["Nombre del cliente"]));
@@ -11595,7 +11595,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("138. V9.41 — A15383 Kelia: ciudad, banquetes, LED≠luz, no spam (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
 
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert.match(hornoMty, /horno\s*3/i, hornoMty);
@@ -11747,7 +11747,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.42 — A15391 Mariana: Coffee Break 4, "4. nombre", handoff, horario ≠ menú ───
   await test("139. V9.42 — A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -11842,7 +11842,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("140. V9.43 — detalle de un producto no re-lista el menú (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -11886,7 +11886,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.44 — A15443 Rosario: reunión≠XV, hora comida≠ubicación, no cierra sin ciudad ───
   await test("141. V9.44 — A15443 Rosario: reunión, hora comida, ciudad obligatoria", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
 
     assert.equal(parseTipoEventoFromText("una reunión de 15 años"), "reunión");
     assert.ok(clientSaidReunionNotXv("una reunión de 15 años"));
@@ -12011,7 +12011,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.45 — A15419 Stephanie: fecha≠frase, horario≠día, silent-watch limpio ───
   await test("142. V9.45 — A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
 
     assert.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
@@ -12095,6 +12095,54 @@ async function runAll(): Promise<void> {
     assert.ok(/horario|13:00/i.test(clockReply), clockReply.slice(0, 400));
     assert.ok(/d[ií]a|fecha|cu[aá]ndo/i.test(clockReply), clockReply.slice(0, 400));
     assert.ok(!/ya tengo todo/i.test(clockReply));
+  });
+
+  // ─── V9.46 — imágenes: responder solo en embudo; post–Humano Trabaja lee pero no WhatsApp ───
+  await test("143. V9.46 — imagen solo embudo; silencio lee depósito sin WhatsApp", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
+    assert.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
+    assert.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
+    assert.equal(lucyDebeResponderImagenAlCliente(ETAPA.COTIZACION_REALIZADA, []), false);
+    assert.equal(
+      lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, ["lucy_desactivada"]),
+      false
+    );
+
+    const turn = formatImageTurnText(
+      {
+        intent: "comprobante_pago",
+        internalDescription: "SPEI 5000",
+        clientReply: "¡Gracias por tu pago!",
+        amountMxn: 5000,
+        paymentMethod: "transferencia",
+      },
+      "aqui el deposito"
+    );
+    assert.ok(extractImageClientReply(turn));
+    const silenced = stripImageClientReplyForSilence(turn);
+    assert.ok(!extractImageClientReply(silenced), silenced);
+    assert.ok(/aqui el deposito|comprobante_pago/i.test(silenced), silenced);
+
+    const noteSilent = formatImageTeamNote(
+      {
+        intent: "montaje_referencia",
+        internalDescription: "mesas rusticas",
+        clientReply: "Me encanta el estilo",
+        amountMxn: null,
+        paymentMethod: null,
+      },
+      null,
+      { notifiedClient: false }
+    );
+    assert.ok(/NO enviada|silencio/i.test(noteSilent), noteSilent);
+    assert.ok(!/^Respuesta enviada al cliente:/m.test(noteSilent));
+
+    const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+    const kommoSrc = readFileSync(path.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    assert.ok(/lucyDebeResponderImagenAlCliente/.test(kommoSrc));
+    assert.ok(/stripImageClientReplyForSilence/.test(kommoSrc));
+    assert.ok(/sin WhatsApp al cliente|leída en silencio/i.test(kommoSrc));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

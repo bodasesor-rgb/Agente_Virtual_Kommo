@@ -263,10 +263,16 @@ Contacto (solo si lo piden):
 Voz e imagen ya llegan procesadas. Responde normal. Nunca describas técnicamente
 una foto al cliente ni repitas marcadores [Imagen …].
 
+Imágenes: solo respondes al cliente mientras el lead está en tu embudo (Incoming /
+Datos e Intereses / No Contesta). Tras Humano Trabaja / cotización / seguimientos
+NO contestas la foto al cliente; el sistema igual la lee (depósitos → Anticipo/
+Liquidación) y deja nota al equipo.
+
 ===================================================================
 ## HUMANO TRABAJA Y ETAPAS POSTERIORES
 ===================================================================
 En Humano Trabaja / cotización / seguimientos: silencio al cliente, pero lee el
 chat y anota cambios de datos. Excepción: si pide ayuda/emergencia o teléfono
-humano → pasa teléfonos de ventas/gerencia.
+humano → pasa teléfonos de ventas/gerencia. Las imágenes se leen siempre (pago)
+pero no se responde al cliente.
 `;

@@ -418,6 +418,14 @@ export function lucyDebeResponder(statusId: number, tags: string[]): boolean {
   return ETAPAS_LUCY_ACTIVA.has(statusId);
 }
 
+/**
+ * V9.46: respuesta al cliente sobre una imagen SOLO en embudo activo.
+ * Tras Humano Trabaja / cotización / silencio: lee la foto (depósito→CRM) pero no escribe al cliente.
+ */
+export function lucyDebeResponderImagenAlCliente(statusId: number, tags: string[]): boolean {
+  return lucyDebeResponder(statusId, tags);
+}
+
 export function lucyEtapaEsSilencioFuerte(statusId: number, tags: string[]): boolean {
   return tags.includes("lucy_desactivada") || ETAPAS_LUCY_SILENCIO.has(statusId);
 }

@@ -44,7 +44,29 @@ import {
   applyPaymentReceiptToLead,
   clientReplyForPaymentSlot,
 } from "../services/paymentReceiptCrm.js";
-import { rewriteImageTurnClientReply } from "../services/imageProcessor.js";
+import { rewriteImageTurnClientReply, stripImageClientReplyForSilence, extractImageClientReply, extractImageIntent } from "../services/imageProcessor.js";
+import {
+  fetchLead,
+  lucyDebeResponder,
+  lucyDebeResponderImagenAlCliente,
+  lucyEtapaEsSilencioFuerte,
+  tieneInformacionCompleta,
+  moverEtapa,
+  moverAHumanoTrabaja,
+  moverAZonaProveedores,
+  recuperarDeNoContesta,
+  programarSeguimiento,
+  procesarSeguimientosPendientes,
+  verificarLeadsInactivos,
+  verificarVentanas24h,
+  reactivarLucy,
+  agregarTag,
+  agregarNota,
+  limpiarCampoRespuesta,
+  acceptUnsortedLead,
+  acceptUnsortedForLeadId,
+  ETAPA,
+} from "../services/embudo.js";
 import {
   isDuplicateWebhookMessage,
   isIncomingClientMessage,
@@ -113,27 +135,6 @@ import {
   fetchContactPhone,
   fetchContactDisplayName,
 } from "../services/whatsappDirectSender.js";
-import {
-  fetchLead,
-  lucyDebeResponder,
-  lucyEtapaEsSilencioFuerte,
-  tieneInformacionCompleta,
-  moverEtapa,
-  moverAHumanoTrabaja,
-  moverAZonaProveedores,
-  recuperarDeNoContesta,
-  programarSeguimiento,
-  procesarSeguimientosPendientes,
-  verificarLeadsInactivos,
-  verificarVentanas24h,
-  reactivarLucy,
-  agregarTag,
-  agregarNota,
-  limpiarCampoRespuesta,
-  acceptUnsortedLead,
-  acceptUnsortedForLeadId,
-  ETAPA,
-} from "../services/embudo.js";
 import {
   extractKommoIncomingMessage,
   extractKommoEntityId,
@@ -1276,7 +1277,8 @@ function buildPatchPayload(
 /**
  * Lucy en silencio (Humano Trabaja / Cotización / seguimientos):
  * 1) Siempre lee el chat y actualiza CRM si hay cambios de datos.
- * 2) Solo escribe si el cliente pide contacto/ayuda de emergencia → teléfonos.
+ * 2) Imágenes: Vision ya corrió upstream; aquí NO se responde al cliente (solo CRM/nota).
+ * 3) Solo escribe si el cliente pide contacto/ayuda de emergencia → teléfonos.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function handleLucyInactiveInbound(opts: {
@@ -1291,11 +1293,16 @@ async function handleLucyInactiveInbound(opts: {
 }): Promise<"emergency_sent" | "watched"> {
   const { entityId, chatId, talkId, text, subdomain, accessToken, log } = opts;
 
+  const imageIntent = extractImageIntent(text);
+  const hasImageTurn = !!extractImageClientReply(text) || !!imageIntent;
+  // En silencio: vigilar caption/intent sin la "respuesta al cliente" de Vision.
+  const watchText = hasImageTurn ? stripImageClientReplyForSilence(text) : text;
+
   void captureInboundWhileLucyInactive({
     kommoLeadId: String(entityId),
     chatId,
     talkId,
-    text,
+    text: watchText,
     subdomain,
     accessToken,
   }).catch((err: unknown) => log.warn({ err, entityId }, "Captura en fase humana falló"));
@@ -1312,12 +1319,12 @@ async function handleLucyInactiveInbound(opts: {
     const fullHistory = getHistory(histKey);
     const { extracted } = await prepareLucyExtraction({
       fullHistory,
-      messageText: text,
+      messageText: watchText,
       crmLines,
       extractFn: extractData,
     });
     const silentPayload = buildSilentWatchPatchPayload(
-      text,
+      watchText,
       extracted,
       silentLeadName,
       crmLines
@@ -1358,8 +1365,17 @@ async function handleLucyInactiveInbound(opts: {
     log.warn({ err, entityId }, "Embudo: vigilancia silenciosa falló (no crítico)");
   }
 
+  if (hasImageTurn) {
+    log.info(
+      { entityId, imageIntent },
+      "Embudo: V9.46 — imagen leída en silencio; no se responde al cliente"
+    );
+  }
+
   // Única escritura permitida en silencio: contactos de emergencia.
-  if (!clientNeedsEmergencyContact(text)) {
+  // Caption de imagen puede pedir emergencia; el marcador Vision solo no cuenta.
+  const emergencyProbe = stripImageClientReplyForSilence(text) || text;
+  if (!clientNeedsEmergencyContact(emergencyProbe)) {
     return "watched";
   }
 
@@ -2395,6 +2411,22 @@ async function processKommoWebhookAfterAck(req: Request): Promise<void> {
   const isVoice = messageData.isVoice;
   const isImage = messageData.isImage;
 
+  // V9.46: siempre leer imagen / registrar depósito; solo agradecer al cliente en embudo activo.
+  let replyImageToClient = true;
+  if (isImage && entityId && subdomain && accessToken) {
+    try {
+      const leadForImage = await fetchLead(subdomain, accessToken, entityId);
+      if (leadForImage) {
+        replyImageToClient = lucyDebeResponderImagenAlCliente(
+          leadForImage.status_id,
+          leadForImage.tags
+        );
+      }
+    } catch (err) {
+      log.warn({ err, entityId }, "Imagen: no se pudo leer etapa del lead (se asume embudo activo)");
+    }
+  }
+
   if (
     isImage &&
     messageData.imageIntent === "comprobante_pago" &&
@@ -2413,12 +2445,20 @@ async function processKommoWebhookAfterAck(req: Request): Promise<void> {
         },
         log,
       });
-      if (applied) {
+      if (applied && replyImageToClient) {
         text = rewriteImageTurnClientReply(text, clientReplyForPaymentSlot(applied.slot));
+      } else if (applied && !replyImageToClient) {
+        text = stripImageClientReplyForSilence(text);
+        log.info(
+          { entityId, slot: applied.slot },
+          "Pago imagen: CRM actualizado en silencio — sin WhatsApp al cliente"
+        );
       }
     } catch (err) {
       log.warn({ err, entityId }, "Pago imagen: no se pudo escribir Anticipo/Liquidación");
     }
+  } else if (isImage && !replyImageToClient) {
+    text = stripImageClientReplyForSilence(text);
   }
 
   log.info(
@@ -2430,6 +2470,7 @@ async function processKommoWebhookAfterAck(req: Request): Promise<void> {
       channelOrigin,
       isVoice,
       isImage,
+      replyImageToClient,
     },
     "Kommo webhook received"
   );
@@ -2437,10 +2478,19 @@ async function processKommoWebhookAfterAck(req: Request): Promise<void> {
   // Nota interna en Kommo con la transcripción/descripción — visible para el
   // equipo humano aunque no abran el audio/imagen desde WhatsApp.
   if (messageData.mediaNote && entityId && subdomain && accessToken) {
+    let noteBody = messageData.mediaNote;
+    if (isImage && !replyImageToClient) {
+      noteBody = noteBody.replace(
+        /Respuesta enviada al cliente:/i,
+        "Respuesta al cliente: NO enviada (Lucy en silencio / post–Humano Trabaja). Vision:"
+      );
+    }
     const label = isVoice
       ? "Nota de voz (transcripción automática)"
-      : "Foto del cliente — respuesta de Lucy (ref. equipo, no es el resumen del chat)";
-    void agregarNota(subdomain, accessToken, entityId, `${label}:\n\n${messageData.mediaNote}`).catch(
+      : replyImageToClient
+        ? "Foto del cliente — respuesta de Lucy (ref. equipo, no es el resumen del chat)"
+        : "Foto del cliente — leída en silencio (depósito/CRM; sin WhatsApp al cliente)";
+    void agregarNota(subdomain, accessToken, entityId, `${label}:\n\n${noteBody}`).catch(
       (err: unknown) => log.warn({ err, entityId }, "No se pudo agregar nota interna de media")
     );
   }
