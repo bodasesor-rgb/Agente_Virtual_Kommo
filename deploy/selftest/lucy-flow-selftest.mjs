@@ -123358,10 +123358,93 @@ function isMealTimeOnlySchedule(text2) {
   }
   return false;
 }
+function isClockTimeOnlySchedule(text2) {
+  const t3 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t3 || t3.length > 60) return false;
+  if (MONTH_PATTERN.test(t3)) return false;
+  if (/\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
+    t3
+  )) {
+    return false;
+  }
+  const clock = /^(de\s+)?\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}(?::\d{2})?\s*(?:hrs?|horas?)?$/i.test(
+    t3
+  ) || /^(horario\s*:?\s*)?\d{1,2}:\d{2}\s*(?:a|[-–]|hasta)\s*\d{1,2}:\d{2}\s*(?:hrs?|horas?)?$/i.test(
+    t3
+  );
+  return clock;
+}
+function looksLikeFechaDiscourseJunk(text2) {
+  const t3 = (text2 ?? "").trim();
+  if (!t3) return false;
+  if (t3.length > 55 && MONTH_PATTERN.test(t3)) {
+    if (/\b(únicamente|unicamente|por\s+favor|observaciones?|cotizaci|sigue\s+siendo|corrige|cambia|quitar|vi[aá]ticos)\b/i.test(
+      t3
+    )) {
+      return true;
+    }
+    if (t3.split(/\s+/).length >= 8) return true;
+  }
+  return false;
+}
+function extractFechaCorrectionFragment(text2) {
+  const t3 = (text2 ?? "").trim();
+  if (!t3) return null;
+  const dayMonth = t3.match(
+    /\b(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)\b/i
+  );
+  if (dayMonth?.[1]) return dayMonth[1].replace(/\s+/g, " ").trim();
+  const sigue = t3.match(
+    /\b(?:sigue\s+siendo|sigue\s+en|es\s+en|ser[ií]a\s+en|queda\s+en|corrige\s+a|cambia\s+a|en\s+vez\s+de\s+\w+\s+(?:pon|usa|deja))\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+  );
+  if (sigue?.[1]) {
+    const m5 = sigue[1];
+    return m5.charAt(0).toUpperCase() + m5.slice(1).toLowerCase();
+  }
+  if (looksLikeFechaDiscourseJunk(t3) || /\bsigue\s+siendo\b/i.test(t3)) {
+    const month = t3.match(
+      /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+    );
+    if (month?.[1]) {
+      const m5 = month[1];
+      return m5.charAt(0).toUpperCase() + m5.slice(1).toLowerCase();
+    }
+  }
+  return null;
+}
+function mergeFechaHorario(existing, incoming) {
+  const prev = (existing ?? "").trim();
+  const next = (incoming ?? "").trim();
+  if (!next) return prev || null;
+  if (!prev) return next;
+  if (/^sin\s+definir/i.test(next)) return next;
+  if (/^sin\s+definir/i.test(prev)) return next;
+  const clockRe = /\b(\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}(?::\d{2})?\s*(?:hrs?|horas?)?)/i;
+  const prevClock = prev.match(clockRe)?.[1]?.trim() ?? null;
+  const nextClock = next.match(clockRe)?.[1]?.trim() ?? null;
+  const prevHasDay = MONTH_PATTERN.test(prev) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+)/i.test(prev);
+  const nextHasDay = MONTH_PATTERN.test(next) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+)/i.test(next);
+  if (nextHasDay && prevClock && !nextClock) {
+    return `${next}, ${prevClock}`;
+  }
+  if (isClockTimeOnlySchedule(next) && prevHasDay && !prevClock) {
+    return `${prev}, ${next}`;
+  }
+  if (nextHasDay) return nextClock && !prevClock ? next : next;
+  if (isClockTimeOnlySchedule(next)) return prevHasDay ? `${prev.replace(clockRe, "").replace(/,\s*$/, "").trim()}, ${next}` : next;
+  return next;
+}
 function isUsableFechaHorario(value) {
   const t3 = (value ?? "").trim();
   if (!t3) return false;
   if (isMealTimeOnlySchedule(t3)) return false;
+  if (isClockTimeOnlySchedule(t3)) return false;
+  if (looksLikeFechaDiscourseJunk(t3)) return false;
+  if (t3.split(/\s+/).length >= 10 && !/\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+    t3
+  )) {
+    return false;
+  }
   return true;
 }
 function isReferentialPriorAnswer(message) {
@@ -123599,7 +123682,10 @@ function isUsableDireccionEvento(value) {
 function clientCorrectsLocation(text2) {
   const t3 = (text2 ?? "").trim();
   if (!t3) return false;
-  return /\bme\s+equivoqu[eé]/i.test(t3) || /\bno\s+es\s+en\s+(el\s+)?piso\b/i.test(t3) || /\bno\s+es\s+(en\s+)?(la\s+)?(torre|piso|edificio)\b/i.test(t3) || /\b(es\s+en\s+)?otra\s+ubicaci[oó]n\b/i.test(t3) || /\bcambi[oó]\s+(de\s+)?(ubicaci[oó]n|lugar|direcci[oó]n)\b/i.test(t3) || /\bes\s+un\s+patio\b/i.test(t3) || /\bpatio\s+techado\b/i.test(t3);
+  return /\bme\s+equivoqu[eé]/i.test(t3) || /\bno\s+es\s+en\s+(el\s+)?piso\b/i.test(t3) || /\bno\s+es\s+(en\s+)?(la\s+)?(torre|piso|edificio)\b/i.test(t3) || /\b(es\s+en\s+)?otra\s+ubicaci[oó]n\b/i.test(t3) || /\bcambi[oó]\s+(de\s+)?(ubicaci[oó]n|lugar|direcci[oó]n)\b/i.test(t3) || /\bes\s+un\s+patio\b/i.test(t3) || /\bpatio\s+techado\b/i.test(t3) || // A15419: "el evento es en CDMX" / "no Puebla… es en CDMX"
+  /\bel\s+evento\s+(es|ser[ií]a|queda)\s+en\b/i.test(t3) || /\bno\s+(es\s+)?(en\s+)?(puebla|monterrey|guadalajara|quer[eé]taro)\b.{0,80}\b(cdmx|ciudad\s+de\s+m[eé]xico)\b/i.test(
+    t3
+  ) || /\b(cdmx|ciudad\s+de\s+m[eé]xico)\b.{0,40}\bno\s+(en\s+)?(puebla|otro\s+estado)\b/i.test(t3);
 }
 function isVenueSpaceDetail(text2) {
   const t3 = (text2 ?? "").trim();
@@ -123731,6 +123817,16 @@ function parseZonaFromText(text2) {
   if (/\bsala\s*:/i.test(trimmed)) return null;
   if (clientAsksLocation(trimmed) || looksLikeCompanyLocationQuestionFragment(trimmed)) {
     return null;
+  }
+  const eventoEsEn = trimmed.match(
+    /\bel\s+evento\s+(?:es|ser[ií]a|queda|ser[aá])\s+en\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{1,40})/i
+  );
+  if (eventoEsEn?.[1]) {
+    let lugar = eventoEsEn[1].trim().replace(/[.,;:]+$/g, "").split(/\s+(?:y|,|entonces|pero|no|porque)\b/i)[0].trim().replace(/^(el|la|los|las)\s+/i, "").trim();
+    if (/^cdmx$/i.test(lugar) || /^df$/i.test(lugar)) lugar = "Ciudad de M\xE9xico";
+    if (lugar && (KNOWN_ZONES.test(lugar) || isUsableDireccionEvento(lugar))) {
+      return lugar;
+    }
   }
   const composed = composeEventLocation(trimmed);
   if (composed && /\bcolonia\b/i.test(composed) && /cdmx/i.test(composed) && isUsableDireccionEvento(composed)) {
@@ -123900,6 +123996,7 @@ function isServiceLabelNotTipoEvento(label) {
 function parseFechaFromText(text2) {
   const trimmed = text2.trim();
   if (isMealTimeOnlySchedule(trimmed)) return null;
+  if (isClockTimeOnlySchedule(trimmed)) return null;
   const fechaMatch = trimmed.match(
     /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
   );
@@ -123908,6 +124005,8 @@ function parseFechaFromText(text2) {
     const hora = fechaMatch[2];
     return hora ? `${base} a las ${hora}${hora.includes(":") ? "" : ":00"} horas` : base;
   }
+  const correction = extractFechaCorrectionFragment(trimmed);
+  if (correction) return correction;
   if (/\b(todav[ií]a\s+la\s+vamos\s+a\s+definir|todav[ií]a\s+(no\s+)?la\s+van?\s+a\s+definir|vamos\s+a\s+definir|siguen\s+viendo\s+opciones?|a[uú]n\s+sin\s+fecha|la\s+fecha\s+(a[uú]n\s+)?no\s+est[aá]|a[uú]n\s+no\s+(la\s+)?defin|no\s+tenemos\s+(fecha|d[ií]a)|sin\s+definir\s+(a[uú]n|todav[ií]a)|todav[ií]a\s+no\s+sabemos)\b/i.test(
     trimmed
   )) {
@@ -123916,6 +124015,12 @@ function parseFechaFromText(text2) {
   if (/\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|a[uú]n\s+no\s+tenemos\s+fecha|todav[ií]a\s+no|por\s+definir)\b/i.test(
     trimmed
   )) {
+    if (trimmed.length > 50 || looksLikeFechaDiscourseJunk(trimmed)) {
+      const short = trimmed.match(
+        /\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|por\s+definir)\b/i
+      );
+      return short?.[1] ?? "Sin definir (pendiente)";
+    }
     return trimmed.slice(0, 80);
   }
   const weekdayDate = trimmed.match(
@@ -123932,10 +124037,22 @@ function parseFechaFromText(text2) {
     return day.slice(0, 80);
   }
   if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
+    if (looksLikeFechaDiscourseJunk(trimmed) || trimmed.length > 40 || trimmed.split(/\s+/).length > 5) {
+      const month = trimmed.match(
+        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+      );
+      if (month?.[1]) {
+        const m5 = month[1];
+        return m5.charAt(0).toUpperCase() + m5.slice(1).toLowerCase();
+      }
+    }
     return trimmed.slice(0, 80);
   }
-  if (/\b(d[ií]a\s+no|sin\s+d[ií]a|a[uú]n\s+no\s+(hay|tenemos)\s+d[ií]a|horario)\b/i.test(trimmed) && /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–a]|hasta)\s*\d{1,2}/i.test(trimmed)) {
+  if (/\b(d[ií]a\s+no|sin\s+d[ií]a|a[uú]n\s+no\s+(hay|tenemos)\s+d[ií]a)\b/i.test(trimmed) && /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–a]|hasta)\s*\d{1,2}/i.test(trimmed)) {
     return trimmed.replace(/\s+/g, " ").trim().slice(0, 80);
+  }
+  if (/\bhorario\b/i.test(trimmed) && /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–a]|hasta)\s*\d{1,2}/i.test(trimmed) && !MONTH_PATTERN.test(trimmed) && !/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(trimmed)) {
+    return null;
   }
   return null;
 }
@@ -130212,9 +130329,13 @@ function syncFilledFromExtracted(filledSet, extracted) {
     filledSet.delete("Presupuesto (MXN)");
   }
   if (extracted.fecha_horario?.trim()) {
-    if (!isUsableFechaHorario(extracted.fecha_horario) || isMealTimeOnlySchedule(extracted.fecha_horario)) {
-      extracted.fecha_horario = null;
-      filledSet.delete("Fecha y horario");
+    if (!isUsableFechaHorario(extracted.fecha_horario)) {
+      if (isClockTimeOnlySchedule(extracted.fecha_horario) || isMealTimeOnlySchedule(extracted.fecha_horario)) {
+        filledSet.delete("Fecha y horario");
+      } else {
+        extracted.fecha_horario = null;
+        filledSet.delete("Fecha y horario");
+      }
     } else {
       filledSet.add("Fecha y horario");
     }
@@ -133397,11 +133518,12 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
     const lucyAskedFecha = inferLucyAskedField(lastFechaTxt) === "fecha" || /d[ií]a u horario|para cu[aá]ndo|fecha/i.test(lastFechaTxt);
     const fechaPending = getNextPendingField(extracted, filledSet) === "fecha";
     const looksLikeFechaOnly = !!fechaNow && !parseFurnitureCatalogSkuFromText(currentMessage ?? "") && !parseCorreoFromText(currentMessage ?? "") && (lucyAskedFecha || fechaPending || /^(el\s+)?\d{1,2}\s+de\s+\w+/i.test((currentMessage ?? "").trim()));
-    if (!cierreYaEnviado && fechaNow && looksLikeFechaOnly && !filledSet.has("Fecha y horario")) {
+    if (!cierreYaEnviado && fechaNow && looksLikeFechaOnly && isUsableFechaHorario(fechaNow) && !filledSet.has("Fecha y horario")) {
       const withTime = (currentMessage ?? "").match(
         /\b(?:a\s+partir\s+de|a\s+las)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?|horas?)?)/i
       );
-      extracted.fecha_horario = withTime ? `${fechaNow} a partir de ${withTime[1].trim()}` : fechaNow;
+      const stamped = withTime ? `${fechaNow} a partir de ${withTime[1].trim()}` : fechaNow;
+      extracted.fecha_horario = mergeFechaHorario(extracted.fecha_horario, stamped) ?? stamped;
       filledSet.add("Fecha y horario");
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
@@ -133413,6 +133535,18 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
       return normalizeAdvisorReferences(
         nextQ ? `${ack} ${nextQ}` : ack,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+    if (!cierreYaEnviado && currentMessage && (lucyAskedFecha || fechaPending) && isClockTimeOnlySchedule(currentMessage) && !filledSet.has("Fecha y horario")) {
+      extracted.fecha_horario = currentMessage.trim().replace(/\s+/g, " ").slice(0, 40);
+      filledSet.delete("Fecha y horario");
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const ack = display ? `Entendido, ${display}. Anoto el horario *${extracted.fecha_horario}*.` : `Entendido. Anoto el horario *${extracted.fecha_horario}*.`;
+      const nextQ = buildNaturalQuestion("fecha", ctx);
+      log?.info({ entityId }, "GUARD: A15419 \u2014 horario sin d\xEDa \u2192 pide fecha");
+      return normalizeAdvisorReferences(
+        `${ack} ${nextQ || "\xBFQu\xE9 d\xEDa ser\xEDa el evento?"}`.trim(),
+        extracted.nombre ?? display
       );
     }
   }
@@ -135155,13 +135289,12 @@ ${nextQ}`;
     }
   }
   const fechaFromMsg = currentMessage ? parseFechaFromText(currentMessage) : null;
-  if (fechaFromMsg && !filledSet.has("Fecha y horario")) {
-    if (!extracted.fecha_horario?.trim()) {
-      const withTime = (currentMessage ?? "").match(
-        /\b(?:a\s+partir\s+de|a\s+las)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?|horas?)?)/i
-      );
-      extracted.fecha_horario = withTime ? `${fechaFromMsg} a partir de ${withTime[1].trim()}` : fechaFromMsg;
-    }
+  if (fechaFromMsg && isUsableFechaHorario(fechaFromMsg) && !filledSet.has("Fecha y horario")) {
+    const withTime = (currentMessage ?? "").match(
+      /\b(?:a\s+partir\s+de|a\s+las)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?|horas?)?)/i
+    );
+    const stamped = withTime ? `${fechaFromMsg} a partir de ${withTime[1].trim()}` : fechaFromMsg;
+    extracted.fecha_horario = mergeFechaHorario(extracted.fecha_horario, stamped) ?? stamped;
     filledSet.add("Fecha y horario");
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
       mensaje = buildClosing(
@@ -135181,6 +135314,8 @@ ${nextQ}`;
       mensaje = nextQ ?? "Entendido, sin problema con la fecha.";
       log?.info({ entityId }, "GUARD: fecha pendiente \u2014 continuar flujo");
     }
+  } else if (fechaFromMsg && !isUsableFechaHorario(fechaFromMsg) && looksLikeFechaDiscourseJunk(currentMessage ?? "")) {
+    filledSet.delete("Fecha y horario");
   }
   if (filledSet.has("Tipo de evento") && mensajeAsksForField(mensaje, "tipo_evento") && !trulyReadyForClosing) {
     const pending = getNextPendingField(extracted, filledSet);
@@ -135973,11 +136108,15 @@ function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLine
     });
   }
   const fechaFromMsg = parseFechaFromText(msg);
-  if (fechaFromMsg) {
-    customFields.push({
-      field_id: SILENT_WATCH_FIELD.fecha_horario,
-      values: [{ value: cap255(fechaFromMsg) }]
-    });
+  if (fechaFromMsg && isUsableFechaHorario(fechaFromMsg)) {
+    const crmFecha = crmStoredValue(crmLines, "Fecha y horario");
+    const mergedFecha = mergeFechaHorario(crmFecha, fechaFromMsg) ?? fechaFromMsg;
+    if (isUsableFechaHorario(mergedFecha) && mergedFecha !== (crmFecha ?? "").trim()) {
+      customFields.push({
+        field_id: SILENT_WATCH_FIELD.fecha_horario,
+        values: [{ value: cap255(mergedFecha) }]
+      });
+    }
   }
   const invRaw = parseInvitadosFromText(msg);
   const invitados = invRaw ? parseInt(invRaw, 10) : null;
@@ -137651,7 +137790,7 @@ function clientReplyForPaymentSlot(slot) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.44";
+var LUCY_PROMPT_VERSION = "V9.45";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -147208,7 +147347,7 @@ ${golfText}`,
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
   await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -147237,7 +147376,7 @@ ${golfText}`,
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
   await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -147355,7 +147494,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,
@@ -147426,7 +147565,7 @@ ${golfText}`,
     }
   });
   await test("135. V9.38 \u2014 comprobante en imagen: primer pago Anticipo, segundo Liquidaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
     assert2.equal(FIELD_ANTICIPO, 1049322);
     assert2.equal(FIELD_LIQUIDACION, 1049324);
     assert2.equal(nextPaymentSlot(null, null), "anticipo");
@@ -147490,7 +147629,7 @@ ${golfText}`,
     assert2.ok(/amount_mxn/.test(imgSrc));
   });
   await test("136. V9.40 \u2014 A15380 invitados no se saltan; Coyoac\xE1n+colonia; Claro no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
     const horario = "hola si se har\xEDa el 26 de septiembre pero a\xFAn no tenemos definido el horario";
     assert2.equal(parseInvitadosFromText(horario), null, "horario pendiente \u2260 invitados");
     const caps = scanConversationForCaptures([], horario, /* @__PURE__ */ new Set(["Nombre del cliente"]));
@@ -147593,7 +147732,7 @@ ${golfText}`,
     assert2.equal(taquizaNext, "invitados");
   });
   await test("138. V9.41 \u2014 A15383 Kelia: ciudad, banquetes, LED\u2260luz, no spam (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert2.match(hornoMty, /horno\s*3/i, hornoMty);
     assert2.match(hornoMty, /monterrey/i, hornoMty);
@@ -147728,7 +147867,7 @@ ${golfText}`,
     assert2.ok(!/Listo\.\s*Kelia/i.test(nameSpam), nameSpam);
   });
   await test("139. V9.42 \u2014 A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert2.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert2.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -147818,7 +147957,7 @@ ${golfText}`,
     assert2.ok(!/invitados|cu[aá]nt[oa]s|ciudad del evento|en qu[eé] ciudad/i.test(handoff), handoff.slice(0, 400));
   });
   await test("140. V9.43 \u2014 detalle de un producto no re-lista el men\xFA (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -147857,7 +147996,7 @@ ${golfText}`,
     assert2.ok(/Coffee Break 4|350|CB4/i.test(rewritten), rewritten.slice(0, 500));
   });
   await test("141. V9.44 \u2014 A15443 Rosario: reuni\xF3n, hora comida, ciudad obligatoria", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
     assert2.equal(parseTipoEventoFromText("una reuni\xF3n de 15 a\xF1os"), "reuni\xF3n");
     assert2.ok(clientSaidReunionNotXv("una reuni\xF3n de 15 a\xF1os"));
     assert2.ok(!clientSaidReunionNotXv("mis XV a\xF1os"));
@@ -147970,6 +148109,80 @@ ${golfText}`,
     });
     assert2.ok(/Servicio completo|solo alimentos/i.test(fixedMenu), fixedMenu.slice(0, 600));
     assert2.ok(/2\.\s*\*?Servicio completo/i.test(fixedMenu), fixedMenu.slice(0, 600));
+  });
+  await test("142. V9.45 \u2014 A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert2.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
+    assert2.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
+    assert2.ok(!isUsableFechaHorario("13:00 a 20:00 hrs"));
+    const junkMsg = "\xDAnicamente ser\xEDa lo de la fecha de evento sigue siendo septiembre por favor";
+    assert2.ok(looksLikeFechaDiscourseJunk(junkMsg));
+    assert2.equal(parseFechaFromText(junkMsg), "Septiembre");
+    assert2.ok(isUsableFechaHorario("Septiembre"));
+    assert2.ok(!isUsableFechaHorario(junkMsg));
+    assert2.match(extractFechaCorrectionFragment(junkMsg) ?? "", /septiembre/i);
+    assert2.equal(parseFechaFromText("el evento ser\xEDa el 10 de diciembre"), "10 de diciembre");
+    assert2.match(
+      mergeFechaHorario("13:00 a 20:00 hrs", "10 de diciembre") ?? "",
+      /10 de diciembre.*13:00/i
+    );
+    assert2.match(
+      mergeFechaHorario("10 de diciembre", "Septiembre") ?? "",
+      /Septiembre/i
+    );
+    const silentJunk = buildSilentWatchPatchPayload(
+      junkMsg,
+      emptyExtracted({ nombre: "Stephanie Gama", fecha_horario: "10 de diciembre" }),
+      "Stephanie Gama",
+      ["- Fecha y horario: 10 de diciembre"]
+    );
+    assert2.ok(silentJunk, "debe PATCH con mes limpio");
+    const fechaFields = silentJunk["custom_fields_values"] ?? [];
+    const fechaVal = String(
+      fechaFields.find((f6) => f6.field_id === 1048778)?.values?.[0]?.value ?? ""
+    );
+    assert2.match(fechaVal, /^Septiembre$/i);
+    assert2.ok(!/Únicamente|por favor/i.test(fechaVal), fechaVal);
+    const silentClock = buildSilentWatchPatchPayload(
+      "13:00 a 20:00 hrs",
+      emptyExtracted({ nombre: "Stephanie" }),
+      "Stephanie",
+      []
+    );
+    assert2.equal(silentClock, null, "horario solo no escribe fecha en CRM");
+    assert2.ok(
+      clientCorrectsLocation(
+        "Y menciona algo de vi\xE1ticos a puebla, el evento es en cdmx."
+      )
+    );
+    const zonaFix = parseZonaFromText(
+      "Y menciona algo de vi\xE1ticos a puebla, el evento es en cdmx."
+    );
+    assert2.ok(zonaFix && /cdmx|ciudad\s+de\s+m[eé]xico/i.test(zonaFix), String(zonaFix));
+    const clockReply = runGuards({
+      aiResponse: "Entendido. \xBFEn qu\xE9 ciudad lo arman?",
+      extracted: emptyExtracted({
+        nombre: "Stephanie Gama",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Circo para eventos",
+        num_invitados: 140
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "N\xFAmero de invitados"
+      ]),
+      readyForClosing: false,
+      currentMessage: "13:00 a 20:00 hrs",
+      history: [
+        { role: "assistant", content: "Claro. Stephanie, \xBFtienen d\xEDa u horario ya definido?" },
+        { role: "user", content: "13:00 a 20:00 hrs" }
+      ]
+    });
+    assert2.ok(/horario|13:00/i.test(clockReply), clockReply.slice(0, 400));
+    assert2.ok(/d[ií]a|fecha|cu[aá]ndo/i.test(clockReply), clockReply.slice(0, 400));
+    assert2.ok(!/ya tengo todo/i.test(clockReply));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
