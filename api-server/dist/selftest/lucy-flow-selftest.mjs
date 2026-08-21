@@ -107717,6 +107717,9 @@ function lucyDebeResponder(statusId, tags) {
   if (!statusId) return true;
   return ETAPAS_LUCY_ACTIVA.has(statusId);
 }
+function lucyDebeResponderImagenAlCliente(statusId, tags) {
+  return lucyDebeResponder(statusId, tags);
+}
 var ETAPA, PIPELINE_ID, ETAPAS_LUCY_ACTIVA, MS_INACTIVIDAD, MS_SEGUIMIENTO, MS_VENTANA_MIN, MS_VENTANA_MAX, ETAPAS_LUCY_SILENCIO;
 var init_embudo = __esm({
   async "src/services/embudo.ts"() {
@@ -121447,10 +121450,11 @@ ${parts2.join("\n")}`;
   }
   return parts2.join("\n");
 }
-function formatImageTeamNote(analysis, caption) {
+function formatImageTeamNote(analysis, caption, opts) {
+  const notified = opts?.notifiedClient !== false;
   const parts2 = [
     `Intent: ${analysis.intent}`,
-    `Respuesta enviada al cliente: ${analysis.clientReply}`,
+    notified ? `Respuesta enviada al cliente: ${analysis.clientReply}` : `Respuesta al cliente: NO enviada (Lucy en silencio / post\u2013Humano Trabaja). Vision: ${analysis.clientReply}`,
     `Ref. equipo (no enviar): ${analysis.internalDescription}`
   ];
   if (analysis.intent === "comprobante_pago") {
@@ -121459,6 +121463,10 @@ function formatImageTeamNote(analysis, caption) {
   }
   if (caption?.trim()) parts2.push(`Caption: ${caption.trim().slice(0, 180)}`);
   return parts2.join("\n");
+}
+function stripImageClientReplyForSilence(text2) {
+  if (!text2?.trim()) return "";
+  return text2.replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/gi, "").replace(/\n{3,}/g, "\n\n").trim();
 }
 function rewriteImageTurnClientReply(turnText, clientReply) {
   if (!turnText.trim()) return `${IMAGE_ACTION_MARKER} ${clientReply}`;
@@ -136920,12 +136928,18 @@ Contacto (solo si lo piden):
 Voz e imagen ya llegan procesadas. Responde normal. Nunca describas t\xE9cnicamente
 una foto al cliente ni repitas marcadores [Imagen \u2026].
 
+Im\xE1genes: solo respondes al cliente mientras el lead est\xE1 en tu embudo (Incoming /
+Datos e Intereses / No Contesta). Tras Humano Trabaja / cotizaci\xF3n / seguimientos
+NO contestas la foto al cliente; el sistema igual la lee (dep\xF3sitos \u2192 Anticipo/
+Liquidaci\xF3n) y deja nota al equipo.
+
 ===================================================================
 ## HUMANO TRABAJA Y ETAPAS POSTERIORES
 ===================================================================
 En Humano Trabaja / cotizaci\xF3n / seguimientos: silencio al cliente, pero lee el
 chat y anota cambios de datos. Excepci\xF3n: si pide ayuda/emergencia o tel\xE9fono
-humano \u2192 pasa tel\xE9fonos de ventas/gerencia.
+humano \u2192 pasa tel\xE9fonos de ventas/gerencia. Las im\xE1genes se leen siempre (pago)
+pero no se responde al cliente.
 `;
 
 // src/services/lucyRedaction.ts
@@ -137790,7 +137804,7 @@ function clientReplyForPaymentSlot(slot) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.45";
+var LUCY_PROMPT_VERSION = "V9.46";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -147347,7 +147361,7 @@ ${golfText}`,
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
   await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -147376,7 +147390,7 @@ ${golfText}`,
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
   await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -147494,7 +147508,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,
@@ -147565,7 +147579,7 @@ ${golfText}`,
     }
   });
   await test("135. V9.38 \u2014 comprobante en imagen: primer pago Anticipo, segundo Liquidaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
     assert2.equal(FIELD_ANTICIPO, 1049322);
     assert2.equal(FIELD_LIQUIDACION, 1049324);
     assert2.equal(nextPaymentSlot(null, null), "anticipo");
@@ -147629,7 +147643,7 @@ ${golfText}`,
     assert2.ok(/amount_mxn/.test(imgSrc));
   });
   await test("136. V9.40 \u2014 A15380 invitados no se saltan; Coyoac\xE1n+colonia; Claro no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
     const horario = "hola si se har\xEDa el 26 de septiembre pero a\xFAn no tenemos definido el horario";
     assert2.equal(parseInvitadosFromText(horario), null, "horario pendiente \u2260 invitados");
     const caps = scanConversationForCaptures([], horario, /* @__PURE__ */ new Set(["Nombre del cliente"]));
@@ -147732,7 +147746,7 @@ ${golfText}`,
     assert2.equal(taquizaNext, "invitados");
   });
   await test("138. V9.41 \u2014 A15383 Kelia: ciudad, banquetes, LED\u2260luz, no spam (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert2.match(hornoMty, /horno\s*3/i, hornoMty);
     assert2.match(hornoMty, /monterrey/i, hornoMty);
@@ -147867,7 +147881,7 @@ ${golfText}`,
     assert2.ok(!/Listo\.\s*Kelia/i.test(nameSpam), nameSpam);
   });
   await test("139. V9.42 \u2014 A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert2.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert2.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -147957,7 +147971,7 @@ ${golfText}`,
     assert2.ok(!/invitados|cu[aá]nt[oa]s|ciudad del evento|en qu[eé] ciudad/i.test(handoff), handoff.slice(0, 400));
   });
   await test("140. V9.43 \u2014 detalle de un producto no re-lista el men\xFA (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -147996,7 +148010,7 @@ ${golfText}`,
     assert2.ok(/Coffee Break 4|350|CB4/i.test(rewritten), rewritten.slice(0, 500));
   });
   await test("141. V9.44 \u2014 A15443 Rosario: reuni\xF3n, hora comida, ciudad obligatoria", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
     assert2.equal(parseTipoEventoFromText("una reuni\xF3n de 15 a\xF1os"), "reuni\xF3n");
     assert2.ok(clientSaidReunionNotXv("una reuni\xF3n de 15 a\xF1os"));
     assert2.ok(!clientSaidReunionNotXv("mis XV a\xF1os"));
@@ -148111,7 +148125,7 @@ ${golfText}`,
     assert2.ok(/2\.\s*\*?Servicio completo/i.test(fixedMenu), fixedMenu.slice(0, 600));
   });
   await test("142. V9.45 \u2014 A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.45");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
     assert2.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert2.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
     assert2.ok(!isUsableFechaHorario("13:00 a 20:00 hrs"));
@@ -148183,6 +148197,49 @@ ${golfText}`,
     assert2.ok(/horario|13:00/i.test(clockReply), clockReply.slice(0, 400));
     assert2.ok(/d[ií]a|fecha|cu[aá]ndo/i.test(clockReply), clockReply.slice(0, 400));
     assert2.ok(!/ya tengo todo/i.test(clockReply));
+  });
+  await test("143. V9.46 \u2014 imagen solo embudo; silencio lee dep\xF3sito sin WhatsApp", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
+    assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
+    assert2.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
+    assert2.equal(lucyDebeResponderImagenAlCliente(ETAPA.COTIZACION_REALIZADA, []), false);
+    assert2.equal(
+      lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, ["lucy_desactivada"]),
+      false
+    );
+    const turn = formatImageTurnText(
+      {
+        intent: "comprobante_pago",
+        internalDescription: "SPEI 5000",
+        clientReply: "\xA1Gracias por tu pago!",
+        amountMxn: 5e3,
+        paymentMethod: "transferencia"
+      },
+      "aqui el deposito"
+    );
+    assert2.ok(extractImageClientReply(turn));
+    const silenced = stripImageClientReplyForSilence(turn);
+    assert2.ok(!extractImageClientReply(silenced), silenced);
+    assert2.ok(/aqui el deposito|comprobante_pago/i.test(silenced), silenced);
+    const noteSilent = formatImageTeamNote(
+      {
+        intent: "montaje_referencia",
+        internalDescription: "mesas rusticas",
+        clientReply: "Me encanta el estilo",
+        amountMxn: null,
+        paymentMethod: null
+      },
+      null,
+      { notifiedClient: false }
+    );
+    assert2.ok(/NO enviada|silencio/i.test(noteSilent), noteSilent);
+    assert2.ok(!/^Respuesta enviada al cliente:/m.test(noteSilent));
+    const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
+    const kommoSrc = readFileSync5(path6.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    assert2.ok(/lucyDebeResponderImagenAlCliente/.test(kommoSrc));
+    assert2.ok(/stripImageClientReplyForSilence/.test(kommoSrc));
+    assert2.ok(/sin WhatsApp al cliente|leída en silencio/i.test(kommoSrc));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

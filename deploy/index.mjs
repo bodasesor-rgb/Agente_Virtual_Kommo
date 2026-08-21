@@ -127551,10 +127551,11 @@ ${parts2.join("\n")}`;
   }
   return parts2.join("\n");
 }
-function formatImageTeamNote(analysis, caption) {
+function formatImageTeamNote(analysis, caption, opts) {
+  const notified = opts?.notifiedClient !== false;
   const parts2 = [
     `Intent: ${analysis.intent}`,
-    `Respuesta enviada al cliente: ${analysis.clientReply}`,
+    notified ? `Respuesta enviada al cliente: ${analysis.clientReply}` : `Respuesta al cliente: NO enviada (Lucy en silencio / post\u2013Humano Trabaja). Vision: ${analysis.clientReply}`,
     `Ref. equipo (no enviar): ${analysis.internalDescription}`
   ];
   if (analysis.intent === "comprobante_pago") {
@@ -127563,6 +127564,10 @@ function formatImageTeamNote(analysis, caption) {
   }
   if (caption?.trim()) parts2.push(`Caption: ${caption.trim().slice(0, 180)}`);
   return parts2.join("\n");
+}
+function stripImageClientReplyForSilence(text2) {
+  if (!text2?.trim()) return "";
+  return text2.replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/gi, "").replace(/\n{3,}/g, "\n\n").trim();
 }
 function rewriteImageTurnClientReply(turnText, clientReply) {
   if (!turnText.trim()) return `${IMAGE_ACTION_MARKER} ${clientReply}`;
@@ -164156,6 +164161,9 @@ function lucyDebeResponder(statusId, tags) {
   if (ETAPAS_LUCY_SILENCIO.has(statusId)) return false;
   if (!statusId) return true;
   return ETAPAS_LUCY_ACTIVA.has(statusId);
+}
+function lucyDebeResponderImagenAlCliente(statusId, tags) {
+  return lucyDebeResponder(statusId, tags);
 }
 function lucyEtapaEsSilencioFuerte(statusId, tags) {
   return tags.includes("lucy_desactivada") || ETAPAS_LUCY_SILENCIO.has(statusId);
@@ -227170,7 +227178,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.45";
+var LUCY_PROMPT_VERSION = "V9.46";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -229137,6 +229145,7 @@ async function applyPaymentReceiptToLeadUnlocked(opts) {
 
 // src/routes/kommo.ts
 init_imageProcessor();
+await init_embudo();
 
 // src/lib/webhookDedup.ts
 var TTL_MS = 24 * 60 * 60 * 1e3;
@@ -229845,12 +229854,18 @@ Contacto (solo si lo piden):
 Voz e imagen ya llegan procesadas. Responde normal. Nunca describas t\xE9cnicamente
 una foto al cliente ni repitas marcadores [Imagen \u2026].
 
+Im\xE1genes: solo respondes al cliente mientras el lead est\xE1 en tu embudo (Incoming /
+Datos e Intereses / No Contesta). Tras Humano Trabaja / cotizaci\xF3n / seguimientos
+NO contestas la foto al cliente; el sistema igual la lee (dep\xF3sitos \u2192 Anticipo/
+Liquidaci\xF3n) y deja nota al equipo.
+
 ===================================================================
 ## HUMANO TRABAJA Y ETAPAS POSTERIORES
 ===================================================================
 En Humano Trabaja / cotizaci\xF3n / seguimientos: silencio al cliente, pero lee el
 chat y anota cambios de datos. Excepci\xF3n: si pide ayuda/emergencia o tel\xE9fono
-humano \u2192 pasa tel\xE9fonos de ventas/gerencia.
+humano \u2192 pasa tel\xE9fonos de ventas/gerencia. Las im\xE1genes se leen siempre (pago)
+pero no se responde al cliente.
 `;
 
 // src/services/promptBuilder.ts
@@ -231123,7 +231138,6 @@ async function generateLucyOutbound(input) {
 // src/routes/kommo.ts
 init_conversation_understanding();
 init_whatsappDirectSender();
-await init_embudo();
 
 // src/lib/kommoWebhookParse.ts
 function asRecord(value) {
@@ -232222,11 +232236,14 @@ function buildPatchPayload(extracted, mergedLines, conversationText, currentLead
 }
 async function handleLucyInactiveInbound(opts) {
   const { entityId, chatId, talkId, text: text2, subdomain, accessToken, log } = opts;
+  const imageIntent = extractImageIntent(text2);
+  const hasImageTurn = !!extractImageClientReply(text2) || !!imageIntent;
+  const watchText = hasImageTurn ? stripImageClientReplyForSilence(text2) : text2;
   void captureInboundWhileLucyInactive({
     kommoLeadId: String(entityId),
     chatId,
     talkId,
-    text: text2,
+    text: watchText,
     subdomain,
     accessToken
   }).catch((err2) => log.warn({ err: err2, entityId }, "Captura en fase humana fall\xF3"));
@@ -232241,12 +232258,12 @@ async function handleLucyInactiveInbound(opts) {
     const fullHistory = getHistory(histKey);
     const { extracted } = await prepareLucyExtraction({
       fullHistory,
-      messageText: text2,
+      messageText: watchText,
       crmLines,
       extractFn: extractData
     });
     const silentPayload = buildSilentWatchPatchPayload(
-      text2,
+      watchText,
       extracted,
       silentLeadName,
       crmLines
@@ -232286,7 +232303,14 @@ async function handleLucyInactiveInbound(opts) {
   } catch (err2) {
     log.warn({ err: err2, entityId }, "Embudo: vigilancia silenciosa fall\xF3 (no cr\xEDtico)");
   }
-  if (!clientNeedsEmergencyContact(text2)) {
+  if (hasImageTurn) {
+    log.info(
+      { entityId, imageIntent },
+      "Embudo: V9.46 \u2014 imagen le\xEDda en silencio; no se responde al cliente"
+    );
+  }
+  const emergencyProbe = stripImageClientReplyForSilence(text2) || text2;
+  if (!clientNeedsEmergencyContact(emergencyProbe)) {
     return "watched";
   }
   const emergencyMsg = buildEmergencyContactAnswer();
@@ -232970,6 +232994,20 @@ async function processKommoWebhookAfterAck(req) {
   let text2 = (messageData.text || extractKommoMessageText(firstMessage)).trim();
   const isVoice = messageData.isVoice;
   const isImage = messageData.isImage;
+  let replyImageToClient = true;
+  if (isImage && entityId && subdomain && accessToken) {
+    try {
+      const leadForImage = await fetchLead(subdomain, accessToken, entityId);
+      if (leadForImage) {
+        replyImageToClient = lucyDebeResponderImagenAlCliente(
+          leadForImage.status_id,
+          leadForImage.tags
+        );
+      }
+    } catch (err2) {
+      log.warn({ err: err2, entityId }, "Imagen: no se pudo leer etapa del lead (se asume embudo activo)");
+    }
+  }
   if (isImage && messageData.imageIntent === "comprobante_pago" && entityId && subdomain && accessToken) {
     try {
       const applied = await applyPaymentReceiptToLead({
@@ -232982,12 +233020,20 @@ async function processKommoWebhookAfterAck(req) {
         },
         log
       });
-      if (applied) {
+      if (applied && replyImageToClient) {
         text2 = rewriteImageTurnClientReply(text2, clientReplyForPaymentSlot(applied.slot));
+      } else if (applied && !replyImageToClient) {
+        text2 = stripImageClientReplyForSilence(text2);
+        log.info(
+          { entityId, slot: applied.slot },
+          "Pago imagen: CRM actualizado en silencio \u2014 sin WhatsApp al cliente"
+        );
       }
     } catch (err2) {
       log.warn({ err: err2, entityId }, "Pago imagen: no se pudo escribir Anticipo/Liquidaci\xF3n");
     }
+  } else if (isImage && !replyImageToClient) {
+    text2 = stripImageClientReplyForSilence(text2);
   }
   log.info(
     {
@@ -232997,15 +233043,23 @@ async function processKommoWebhookAfterAck(req) {
       talkId,
       channelOrigin,
       isVoice,
-      isImage
+      isImage,
+      replyImageToClient
     },
     "Kommo webhook received"
   );
   if (messageData.mediaNote && entityId && subdomain && accessToken) {
-    const label = isVoice ? "Nota de voz (transcripci\xF3n autom\xE1tica)" : "Foto del cliente \u2014 respuesta de Lucy (ref. equipo, no es el resumen del chat)";
+    let noteBody = messageData.mediaNote;
+    if (isImage && !replyImageToClient) {
+      noteBody = noteBody.replace(
+        /Respuesta enviada al cliente:/i,
+        "Respuesta al cliente: NO enviada (Lucy en silencio / post\u2013Humano Trabaja). Vision:"
+      );
+    }
+    const label = isVoice ? "Nota de voz (transcripci\xF3n autom\xE1tica)" : replyImageToClient ? "Foto del cliente \u2014 respuesta de Lucy (ref. equipo, no es el resumen del chat)" : "Foto del cliente \u2014 le\xEDda en silencio (dep\xF3sito/CRM; sin WhatsApp al cliente)";
     void agregarNota(subdomain, accessToken, entityId, `${label}:
 
-${messageData.mediaNote}`).catch(
+${noteBody}`).catch(
       (err2) => log.warn({ err: err2, entityId }, "No se pudo agregar nota interna de media")
     );
   }
