@@ -56,7 +56,11 @@ import {
   isUsableDireccionEvento,
   looksLikeMealTimeNotLocation,
   isMealTimeOnlySchedule,
+  isClockTimeOnlySchedule,
   isUsableFechaHorario,
+  mergeFechaHorario,
+  looksLikeFechaDiscourseJunk,
+  extractFechaCorrectionFragment,
   clientSaidReunionNotXv,
   parseReunionAniosLabel,
   sanitizeExtractedAmbiguousNumbers,
@@ -11170,7 +11174,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.35 — primer turno banquete: catálogo + pregunta embudo (Allison A15370) ───
   await test("133. V9.35 — banquete Torreón primer turno pide fecha/invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -11202,7 +11206,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.36 — no cortar el chat (Isai A15378) ───
   await test("134. V9.36 — Isai: no cierra, no confunde nombre con ciudad, urgencia ≠ teléfono", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
     assert.equal(parseZonaFromText("Isai Moreno"), null);
     assert.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -11329,7 +11333,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
@@ -11406,7 +11410,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("135. V9.38 — comprobante en imagen: primer pago Anticipo, segundo Liquidación", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
     assert.equal(FIELD_ANTICIPO, 1049322);
     assert.equal(FIELD_LIQUIDACION, 1049324);
 
@@ -11478,7 +11482,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("136. V9.40 — A15380 invitados no se saltan; Coyoacán+colonia; Claro no es nombre", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
     const horario = "hola si se haría el 26 de septiembre pero aún no tenemos definido el horario";
     assert.equal(parseInvitadosFromText(horario), null, "horario pendiente ≠ invitados");
     const caps = scanConversationForCaptures([], horario, new Set(["Nombre del cliente"]));
@@ -11591,7 +11595,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("138. V9.41 — A15383 Kelia: ciudad, banquetes, LED≠luz, no spam (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
 
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert.match(hornoMty, /horno\s*3/i, hornoMty);
@@ -11743,7 +11747,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.42 — A15391 Mariana: Coffee Break 4, "4. nombre", handoff, horario ≠ menú ───
   await test("139. V9.42 — A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -11838,7 +11842,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("140. V9.43 — detalle de un producto no re-lista el menú (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -11882,7 +11886,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.44 — A15443 Rosario: reunión≠XV, hora comida≠ubicación, no cierra sin ciudad ───
   await test("141. V9.44 — A15443 Rosario: reunión, hora comida, ciudad obligatoria", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.44");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
 
     assert.equal(parseTipoEventoFromText("una reunión de 15 años"), "reunión");
     assert.ok(clientSaidReunionNotXv("una reunión de 15 años"));
@@ -12003,6 +12007,94 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/Servicio completo|solo alimentos/i.test(fixedMenu), fixedMenu.slice(0, 600));
     assert.ok(/2\.\s*\*?Servicio completo/i.test(fixedMenu), fixedMenu.slice(0, 600));
+  });
+
+  // ─── V9.45 — A15419 Stephanie: fecha≠frase, horario≠día, silent-watch limpio ───
+  await test("142. V9.45 — A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.45");
+
+    assert.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
+    assert.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
+    assert.ok(!isUsableFechaHorario("13:00 a 20:00 hrs"));
+
+    const junkMsg =
+      "Únicamente sería lo de la fecha de evento sigue siendo septiembre por favor";
+    assert.ok(looksLikeFechaDiscourseJunk(junkMsg));
+    assert.equal(parseFechaFromText(junkMsg), "Septiembre");
+    assert.ok(isUsableFechaHorario("Septiembre"));
+    assert.ok(!isUsableFechaHorario(junkMsg));
+    assert.match(extractFechaCorrectionFragment(junkMsg) ?? "", /septiembre/i);
+
+    assert.equal(parseFechaFromText("el evento sería el 10 de diciembre"), "10 de diciembre");
+    assert.match(
+      mergeFechaHorario("13:00 a 20:00 hrs", "10 de diciembre") ?? "",
+      /10 de diciembre.*13:00/i
+    );
+    assert.match(
+      mergeFechaHorario("10 de diciembre", "Septiembre") ?? "",
+      /Septiembre/i
+    );
+
+    const silentJunk = buildSilentWatchPatchPayload(
+      junkMsg,
+      emptyExtracted({ nombre: "Stephanie Gama", fecha_horario: "10 de diciembre" }),
+      "Stephanie Gama",
+      ["- Fecha y horario: 10 de diciembre"]
+    );
+    assert.ok(silentJunk, "debe PATCH con mes limpio");
+    const fechaFields =
+      (silentJunk!["custom_fields_values"] as Array<{
+        field_id: number;
+        values: Array<{ value: unknown }>;
+      }>) ?? [];
+    const fechaVal = String(
+      fechaFields.find((f) => f.field_id === 1048778)?.values?.[0]?.value ?? ""
+    );
+    assert.match(fechaVal, /^Septiembre$/i);
+    assert.ok(!/Únicamente|por favor/i.test(fechaVal), fechaVal);
+
+    const silentClock = buildSilentWatchPatchPayload(
+      "13:00 a 20:00 hrs",
+      emptyExtracted({ nombre: "Stephanie" }),
+      "Stephanie",
+      []
+    );
+    assert.equal(silentClock, null, "horario solo no escribe fecha en CRM");
+
+    assert.ok(
+      clientCorrectsLocation(
+        "Y menciona algo de viáticos a puebla, el evento es en cdmx."
+      )
+    );
+    const zonaFix = parseZonaFromText(
+      "Y menciona algo de viáticos a puebla, el evento es en cdmx."
+    );
+    assert.ok(zonaFix && /cdmx|ciudad\s+de\s+m[eé]xico/i.test(zonaFix), String(zonaFix));
+
+    const clockReply = runGuards({
+      aiResponse: "Entendido. ¿En qué ciudad lo arman?",
+      extracted: emptyExtracted({
+        nombre: "Stephanie Gama",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Circo para eventos",
+        num_invitados: 140,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Número de invitados",
+      ]),
+      readyForClosing: false,
+      currentMessage: "13:00 a 20:00 hrs",
+      history: [
+        { role: "assistant", content: "Claro. Stephanie, ¿tienen día u horario ya definido?" },
+        { role: "user", content: "13:00 a 20:00 hrs" },
+      ],
+    });
+    assert.ok(/horario|13:00/i.test(clockReply), clockReply.slice(0, 400));
+    assert.ok(/d[ií]a|fecha|cu[aá]ndo/i.test(clockReply), clockReply.slice(0, 400));
+    assert.ok(!/ya tengo todo/i.test(clockReply));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -20,6 +20,8 @@ import {
   parseTipoEventoFromText,
   mergeServiceRequirements,
   isUsableDireccionEvento,
+  isUsableFechaHorario,
+  mergeFechaHorario,
   shouldReplaceCrmDireccion,
   applyLocationCorrectionToAddress,
   clientCorrectsLocation,
@@ -75,11 +77,15 @@ export function buildSilentWatchPatchPayload(
   }
 
   const fechaFromMsg = parseFechaFromText(msg);
-  if (fechaFromMsg) {
-    customFields.push({
-      field_id: SILENT_WATCH_FIELD.fecha_horario,
-      values: [{ value: cap255(fechaFromMsg) }],
-    });
+  if (fechaFromMsg && isUsableFechaHorario(fechaFromMsg)) {
+    const crmFecha = crmStoredValue(crmLines, "Fecha y horario");
+    const mergedFecha = mergeFechaHorario(crmFecha, fechaFromMsg) ?? fechaFromMsg;
+    if (isUsableFechaHorario(mergedFecha) && mergedFecha !== (crmFecha ?? "").trim()) {
+      customFields.push({
+        field_id: SILENT_WATCH_FIELD.fecha_horario,
+        values: [{ value: cap255(mergedFecha) }],
+      });
+    }
   }
 
   const invRaw = parseInvitadosFromText(msg);

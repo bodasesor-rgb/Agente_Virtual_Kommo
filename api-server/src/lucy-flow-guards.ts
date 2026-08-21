@@ -230,7 +230,10 @@ import {
   looksLikeNameAnswerMessage,
   looksLikeMealTimeNotLocation,
   isMealTimeOnlySchedule,
+  isClockTimeOnlySchedule,
   isUsableFechaHorario,
+  mergeFechaHorario,
+  looksLikeFechaDiscourseJunk,
   clientSaidReunionNotXv,
   parseReunionAniosLabel,
   FECHA_MAX_ASKS,
@@ -381,11 +384,20 @@ export function syncFilledFromExtracted(filledSet: Set<string>, extracted: Extra
     extracted.presupuesto = null;
     filledSet.delete("Presupuesto (MXN)");
   }
-  // A15443: "hora de comida" no cierra Fecha; pedir día real.
+  // A15443 / A15419: "hora de comida" / "13:00–20:00" / discurso no cierran Fecha.
   if (extracted.fecha_horario?.trim()) {
-    if (!isUsableFechaHorario(extracted.fecha_horario) || isMealTimeOnlySchedule(extracted.fecha_horario)) {
-      extracted.fecha_horario = null;
-      filledSet.delete("Fecha y horario");
+    if (!isUsableFechaHorario(extracted.fecha_horario)) {
+      // Conservar horario suelto como nota blanda, pero no marcar el campo.
+      if (
+        isClockTimeOnlySchedule(extracted.fecha_horario) ||
+        isMealTimeOnlySchedule(extracted.fecha_horario)
+      ) {
+        // se deja el valor para merge posterior, pero se quita del filledSet
+        filledSet.delete("Fecha y horario");
+      } else {
+        extracted.fecha_horario = null;
+        filledSet.delete("Fecha y horario");
+      }
     } else {
       filledSet.add("Fecha y horario");
     }
@@ -2443,7 +2455,7 @@ export function getNextPendingField(
   const hasInv = filled.has("Número de invitados") || !!extracted.num_invitados;
   if (!hasInv) return "invitados";
 
-  // A15443: basura "hora de comida" no debe marcar fecha/zona como listas.
+  // A15443: basura "hora de comida" / horario suelto / discurso no deben marcar fecha/zona.
   if (extracted.fecha_horario?.trim() && !isUsableFechaHorario(extracted.fecha_horario)) {
     filled.delete("Fecha y horario");
   }
@@ -5408,15 +5420,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       !cierreYaEnviado &&
       fechaNow &&
       looksLikeFechaOnly &&
+      isUsableFechaHorario(fechaNow) &&
       !filledSet.has("Fecha y horario")
     ) {
-      // Conservar horario si lo dijo ("a partir de 4:00 pm").
+      // Conservar horario si lo dijo ("a partir de 4:00 pm") o si ya había solo reloj.
       const withTime = (currentMessage ?? "").match(
         /\b(?:a\s+partir\s+de|a\s+las)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?|horas?)?)/i
       );
-      extracted.fecha_horario = withTime
+      const stamped = withTime
         ? `${fechaNow} a partir de ${withTime[1]!.trim()}`
         : fechaNow;
+      extracted.fecha_horario =
+        mergeFechaHorario(extracted.fecha_horario, stamped) ?? stamped;
       filledSet.add("Fecha y horario");
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
@@ -5428,6 +5443,27 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       return normalizeAdvisorReferences(
         nextQ ? `${ack} ${nextQ}` : ack,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+    // A15419: solo dio horario ("13:00 a 20:00") tras pregunta de fecha → guardar y pedir día.
+    if (
+      !cierreYaEnviado &&
+      currentMessage &&
+      (lucyAskedFecha || fechaPending) &&
+      isClockTimeOnlySchedule(currentMessage) &&
+      !filledSet.has("Fecha y horario")
+    ) {
+      extracted.fecha_horario = currentMessage.trim().replace(/\s+/g, " ").slice(0, 40);
+      filledSet.delete("Fecha y horario");
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const ack = display
+        ? `Entendido, ${display}. Anoto el horario *${extracted.fecha_horario}*.`
+        : `Entendido. Anoto el horario *${extracted.fecha_horario}*.`;
+      const nextQ = buildNaturalQuestion("fecha", ctx);
+      log?.info({ entityId }, "GUARD: A15419 — horario sin día → pide fecha");
+      return normalizeAdvisorReferences(
+        `${ack} ${nextQ || "¿Qué día sería el evento?"}`.trim(),
+        extracted.nombre ?? display
       );
     }
   }
@@ -7957,16 +7993,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   const fechaFromMsg = currentMessage ? parseFechaFromText(currentMessage) : null;
-  if (fechaFromMsg && !filledSet.has("Fecha y horario")) {
+  if (fechaFromMsg && isUsableFechaHorario(fechaFromMsg) && !filledSet.has("Fecha y horario")) {
     // A15297: anotar siempre que el mensaje traiga fecha usable (no solo si GPT preguntó fecha).
-    if (!extracted.fecha_horario?.trim()) {
-      const withTime = (currentMessage ?? "").match(
-        /\b(?:a\s+partir\s+de|a\s+las)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?|horas?)?)/i
-      );
-      extracted.fecha_horario = withTime
-        ? `${fechaFromMsg} a partir de ${withTime[1]!.trim()}`
-        : fechaFromMsg;
-    }
+    const withTime = (currentMessage ?? "").match(
+      /\b(?:a\s+partir\s+de|a\s+las)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?|horas?)?)/i
+    );
+    const stamped = withTime
+      ? `${fechaFromMsg} a partir de ${withTime[1]!.trim()}`
+      : fechaFromMsg;
+    extracted.fecha_horario =
+      mergeFechaHorario(extracted.fecha_horario, stamped) ?? stamped;
     filledSet.add("Fecha y horario");
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
       mensaje = buildClosing(
@@ -7989,6 +8025,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       mensaje = nextQ ?? "Entendido, sin problema con la fecha.";
       log?.info({ entityId }, "GUARD: fecha pendiente — continuar flujo");
     }
+  } else if (
+    fechaFromMsg &&
+    !isUsableFechaHorario(fechaFromMsg) &&
+    looksLikeFechaDiscourseJunk(currentMessage ?? "")
+  ) {
+    // A15419: no marcar filled con basura; si el parser extrajo mes limpio vía parseFecha, ya es usable.
+    filledSet.delete("Fecha y horario");
   }
 
   if (filledSet.has("Tipo de evento") && mensajeAsksForField(mensaje, "tipo_evento") && !trulyReadyForClosing) {

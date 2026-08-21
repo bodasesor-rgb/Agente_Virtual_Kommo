@@ -2785,11 +2785,128 @@ export function isMealTimeOnlySchedule(text: string | null | undefined): boolean
   return false;
 }
 
-/** Fecha usable para embudo: waiver OK; solo "hora de comida" NO. */
+/**
+ * Solo rango horario ("13:00 a 20:00 hrs") sin día/mes — no cierra Fecha.
+ * A15419 Stephanie: anotó horario y saltó el día del calendario.
+ */
+export function isClockTimeOnlySchedule(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t || t.length > 60) return false;
+  if (MONTH_PATTERN.test(t)) return false;
+  if (
+    /\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
+      t
+    )
+  ) {
+    return false;
+  }
+  const clock =
+    /^(de\s+)?\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}(?::\d{2})?\s*(?:hrs?|horas?)?$/i.test(
+      t
+    ) ||
+    /^(horario\s*:?\s*)?\d{1,2}:\d{2}\s*(?:a|[-–]|hasta)\s*\d{1,2}:\d{2}\s*(?:hrs?|horas?)?$/i.test(
+      t
+    );
+  return clock;
+}
+
+/**
+ * Frase larga de corrección/discurso con un mes embutido — no guardar el mensaje entero.
+ * A15419: "Únicamente… sigue siendo septiembre por favor" → CRM basura.
+ */
+export function looksLikeFechaDiscourseJunk(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  if (t.length > 55 && MONTH_PATTERN.test(t)) {
+    if (
+      /\b(únicamente|unicamente|por\s+favor|observaciones?|cotizaci|sigue\s+siendo|corrige|cambia|quitar|vi[aá]ticos)\b/i.test(
+        t
+      )
+    ) {
+      return true;
+    }
+    if (t.split(/\s+/).length >= 8) return true;
+  }
+  return false;
+}
+
+/** Extrae mes o fecha corta desde una frase de corrección. */
+export function extractFechaCorrectionFragment(text: string | null | undefined): string | null {
+  const t = (text ?? "").trim();
+  if (!t) return null;
+  const dayMonth = t.match(
+    /\b(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)\b/i
+  );
+  if (dayMonth?.[1]) return dayMonth[1].replace(/\s+/g, " ").trim();
+  const sigue = t.match(
+    /\b(?:sigue\s+siendo|sigue\s+en|es\s+en|ser[ií]a\s+en|queda\s+en|corrige\s+a|cambia\s+a|en\s+vez\s+de\s+\w+\s+(?:pon|usa|deja))\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+  );
+  if (sigue?.[1]) {
+    const m = sigue[1]!;
+    return m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
+  }
+  if (looksLikeFechaDiscourseJunk(t) || /\bsigue\s+siendo\b/i.test(t)) {
+    const month = t.match(
+      /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+    );
+    if (month?.[1]) {
+      const m = month[1]!;
+      return m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
+    }
+  }
+  return null;
+}
+
+/** Une día/mes nuevo con horario previo (o viceversa). */
+export function mergeFechaHorario(
+  existing: string | null | undefined,
+  incoming: string | null | undefined
+): string | null {
+  const prev = (existing ?? "").trim();
+  const next = (incoming ?? "").trim();
+  if (!next) return prev || null;
+  if (!prev) return next;
+  if (/^sin\s+definir/i.test(next)) return next;
+  if (/^sin\s+definir/i.test(prev)) return next;
+
+  const clockRe =
+    /\b(\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}(?::\d{2})?\s*(?:hrs?|horas?)?)/i;
+  const prevClock = prev.match(clockRe)?.[1]?.trim() ?? null;
+  const nextClock = next.match(clockRe)?.[1]?.trim() ?? null;
+  const prevHasDay =
+    MONTH_PATTERN.test(prev) ||
+    /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+)/i.test(prev);
+  const nextHasDay =
+    MONTH_PATTERN.test(next) ||
+    /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+)/i.test(next);
+
+  if (nextHasDay && prevClock && !nextClock) {
+    return `${next}, ${prevClock}`;
+  }
+  if (isClockTimeOnlySchedule(next) && prevHasDay && !prevClock) {
+    return `${prev}, ${next}`;
+  }
+  if (nextHasDay) return nextClock && !prevClock ? next : next;
+  if (isClockTimeOnlySchedule(next)) return prevHasDay ? `${prev.replace(clockRe, "").replace(/,\s*$/, "").trim()}, ${next}` : next;
+  return next;
+}
+
+/** Fecha usable para embudo: waiver OK; solo horario/comida/discurso NO. */
 export function isUsableFechaHorario(value: string | null | undefined): boolean {
   const t = (value ?? "").trim();
   if (!t) return false;
   if (isMealTimeOnlySchedule(t)) return false;
+  if (isClockTimeOnlySchedule(t)) return false;
+  if (looksLikeFechaDiscourseJunk(t)) return false;
+  // Frase conversacional sin ancla de fecha corta.
+  if (
+    t.split(/\s+/).length >= 10 &&
+    !/\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+      t
+    )
+  ) {
+    return false;
+  }
   return true;
 }
 
@@ -3194,7 +3311,13 @@ export function clientCorrectsLocation(text: string | null | undefined): boolean
     /\b(es\s+en\s+)?otra\s+ubicaci[oó]n\b/i.test(t) ||
     /\bcambi[oó]\s+(de\s+)?(ubicaci[oó]n|lugar|direcci[oó]n)\b/i.test(t) ||
     /\bes\s+un\s+patio\b/i.test(t) ||
-    /\bpatio\s+techado\b/i.test(t)
+    /\bpatio\s+techado\b/i.test(t) ||
+    // A15419: "el evento es en CDMX" / "no Puebla… es en CDMX"
+    /\bel\s+evento\s+(es|ser[ií]a|queda)\s+en\b/i.test(t) ||
+    /\bno\s+(es\s+)?(en\s+)?(puebla|monterrey|guadalajara|quer[eé]taro)\b.{0,80}\b(cdmx|ciudad\s+de\s+m[eé]xico)\b/i.test(
+      t
+    ) ||
+    /\b(cdmx|ciudad\s+de\s+m[eé]xico)\b.{0,40}\bno\s+(en\s+)?(puebla|otro\s+estado)\b/i.test(t)
   );
 }
 
@@ -3402,6 +3525,24 @@ export function parseZonaFromText(text: string): string | null {
   // A14995: "En donde están ubicados?" NUNCA es dirección del evento.
   if (clientAsksLocation(trimmed) || looksLikeCompanyLocationQuestionFragment(trimmed)) {
     return null;
+  }
+
+  // A15419: "viáticos a Puebla… el evento es en CDMX" → CDMX (no Puebla).
+  const eventoEsEn = trimmed.match(
+    /\bel\s+evento\s+(?:es|ser[ií]a|queda|ser[aá])\s+en\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{1,40})/i
+  );
+  if (eventoEsEn?.[1]) {
+    let lugar = eventoEsEn[1]!
+      .trim()
+      .replace(/[.,;:]+$/g, "")
+      .split(/\s+(?:y|,|entonces|pero|no|porque)\b/i)[0]!
+      .trim()
+      .replace(/^(el|la|los|las)\s+/i, "")
+      .trim();
+    if (/^cdmx$/i.test(lugar) || /^df$/i.test(lugar)) lugar = "Ciudad de México";
+    if (lugar && (KNOWN_ZONES.test(lugar) || isUsableDireccionEvento(lugar))) {
+      return lugar;
+    }
   }
 
   // V9.40: colonia + alcaldía en el mismo mensaje (A15380 Educación / Coyoacán).
@@ -3647,6 +3788,9 @@ export function parseFechaFromText(text: string): string | null {
   const trimmed = text.trim();
   // A15443: "hora de comida" sola no es fecha del evento (sigue pidiendo día).
   if (isMealTimeOnlySchedule(trimmed)) return null;
+  // A15419: "13:00 a 20:00 hrs" solo = horario, no cierra día.
+  if (isClockTimeOnlySchedule(trimmed)) return null;
+
   const fechaMatch = trimmed.match(
     /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
   );
@@ -3655,6 +3799,10 @@ export function parseFechaFromText(text: string): string | null {
     const hora = fechaMatch[2];
     return hora ? `${base} a las ${hora}${hora.includes(":") ? "" : ":00"} horas` : base;
   }
+
+  // A15419: "sigue siendo septiembre" / frase larga → solo el fragmento usable.
+  const correction = extractFechaCorrectionFragment(trimmed);
+  if (correction) return correction;
 
   if (
     /\b(todav[ií]a\s+la\s+vamos\s+a\s+definir|todav[ií]a\s+(no\s+)?la\s+van?\s+a\s+definir|vamos\s+a\s+definir|siguen\s+viendo\s+opciones?|a[uú]n\s+sin\s+fecha|la\s+fecha\s+(a[uú]n\s+)?no\s+est[aá]|a[uú]n\s+no\s+(la\s+)?defin|no\s+tenemos\s+(fecha|d[ií]a)|sin\s+definir\s+(a[uú]n|todav[ií]a)|todav[ií]a\s+no\s+sabemos)\b/i.test(
@@ -3669,6 +3817,13 @@ export function parseFechaFromText(text: string): string | null {
       trimmed
     )
   ) {
+    // No devolver el mensaje entero si es discurso largo.
+    if (trimmed.length > 50 || looksLikeFechaDiscourseJunk(trimmed)) {
+      const short = trimmed.match(
+        /\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|por\s+definir)\b/i
+      );
+      return short?.[1] ?? "Sin definir (pendiente)";
+    }
     return trimmed.slice(0, 80);
   }
 
@@ -3690,15 +3845,34 @@ export function parseFechaFromText(text: string): string | null {
   }
 
   if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
+    // Nunca guardar el mensaje completo: solo el mes (o "en septiembre").
+    if (looksLikeFechaDiscourseJunk(trimmed) || trimmed.length > 40 || trimmed.split(/\s+/).length > 5) {
+      const month = trimmed.match(
+        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+      );
+      if (month?.[1]) {
+        const m = month[1]!;
+        return m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
+      }
+    }
     return trimmed.slice(0, 80);
   }
 
   // A15391: "día no, horario 9-12 y después 3-4pm"
   if (
-    /\b(d[ií]a\s+no|sin\s+d[ií]a|a[uú]n\s+no\s+(hay|tenemos)\s+d[ií]a|horario)\b/i.test(trimmed) &&
+    /\b(d[ií]a\s+no|sin\s+d[ií]a|a[uú]n\s+no\s+(hay|tenemos)\s+d[ií]a)\b/i.test(trimmed) &&
     /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–a]|hasta)\s*\d{1,2}/i.test(trimmed)
   ) {
     return trimmed.replace(/\s+/g, " ").trim().slice(0, 80);
+  }
+  // Horario suelto con la palabra "horario" pero sin día → no es fecha completa.
+  if (
+    /\bhorario\b/i.test(trimmed) &&
+    /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–a]|hasta)\s*\d{1,2}/i.test(trimmed) &&
+    !MONTH_PATTERN.test(trimmed) &&
+    !/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(trimmed)
+  ) {
+    return null;
   }
 
   return null;
