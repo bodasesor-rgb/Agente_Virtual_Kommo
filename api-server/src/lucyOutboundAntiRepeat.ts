@@ -24,6 +24,7 @@ import {
   clientAsksServiceInfo,
   clientAsksForRecommendations,
   clientAsksForCatalog,
+  clientAsksDimensionRecommendation,
   parseServicesFromText,
   SERVICE_HINT,
   isReferentialPriorAnswer,
@@ -40,6 +41,9 @@ import {
   buildNaturalQuestion,
   isReadyForClosing,
   looksLikeDeadEndAck,
+  requiredServiceDimensionsMissing,
+  buildDimensionRecommendationReply,
+  buildRequiredServiceDimensionsQuestion,
   type PendingField,
 } from "./lucy-flow-guards.js";
 import { filterClientEmail, looksLikeValidClientEmail } from "./client-email.js";
@@ -442,6 +446,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     clientAsksServiceInfo(input.currentMessage) ||
     clientMentionsEntertainment(input.currentMessage) ||
     clientAsksForRecommendations(input.currentMessage) ||
+    clientAsksDimensionRecommendation(input.currentMessage) ||
     clientAsksForCatalog(input.currentMessage) ||
     clientAsksInclusion(input.currentMessage) ||
     clientAsksPrice(input.currentMessage) ||
@@ -691,10 +696,20 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
             if (display && !mensaje.includes(display)) {
               mensaje = `Entendido, ${display}. ${mensaje}`;
             }
-          } else if (isReadyForClosing(filled)) {
+          } else if (
+            isReadyForClosing(filled) &&
+            !requiredServiceDimensionsMissing(extractedFull)
+          ) {
             mensaje = display
               ? `Entendido, ${display}. Ya tengo lo principal.`
               : "Entendido. Ya tengo lo principal.";
+          } else if (requiredServiceDimensionsMissing(extractedFull)) {
+            const dimReply = buildDimensionRecommendationReply(
+              extractedFull,
+              input.currentMessage
+            );
+            mensaje =
+              dimReply ?? buildRequiredServiceDimensionsQuestion(extractedFull);
           } else {
             mensaje = display
               ? `Entendido, ${display}. ¿Me confirmas la fecha, zona, invitados o presupuesto que aún falte?`

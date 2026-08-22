@@ -23,6 +23,8 @@ import {
   clientSignalsUrgency,
   clientRequestsCallback,
   clientAsksForRecommendations,
+  clientAsksDimensionRecommendation,
+  recommendPistaDimensionsForGuests,
   parsePrimaryService,
   scanConversationForCaptures,
   captureContextualAnswer,
@@ -180,6 +182,7 @@ import {
   applyPresupuestoWaiver,
   buildPhoneAnswer,
   buildRecommendationsReply,
+  buildDimensionRecommendationReply,
   buildPostCierreThanksReply,
   buildPostCierreCallbackAck,
   buildPostCierrePaymentHandoffReply,
@@ -11174,7 +11177,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.35 — primer turno banquete: catálogo + pregunta embudo (Allison A15370) ───
   await test("133. V9.35 — banquete Torreón primer turno pide fecha/invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -11206,7 +11209,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.36 — no cortar el chat (Isai A15378) ───
   await test("134. V9.36 — Isai: no cierra, no confunde nombre con ciudad, urgencia ≠ teléfono", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
     assert.equal(parseZonaFromText("Isai Moreno"), null);
     assert.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -11333,7 +11336,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
@@ -11410,7 +11413,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("135. V9.38 — comprobante en imagen: primer pago Anticipo, segundo Liquidación", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
     assert.equal(FIELD_ANTICIPO, 1049322);
     assert.equal(FIELD_LIQUIDACION, 1049324);
 
@@ -11482,7 +11485,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("136. V9.40 — A15380 invitados no se saltan; Coyoacán+colonia; Claro no es nombre", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
     const horario = "hola si se haría el 26 de septiembre pero aún no tenemos definido el horario";
     assert.equal(parseInvitadosFromText(horario), null, "horario pendiente ≠ invitados");
     const caps = scanConversationForCaptures([], horario, new Set(["Nombre del cliente"]));
@@ -11595,7 +11598,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("138. V9.41 — A15383 Kelia: ciudad, banquetes, LED≠luz, no spam (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
 
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert.match(hornoMty, /horno\s*3/i, hornoMty);
@@ -11747,7 +11750,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.42 — A15391 Mariana: Coffee Break 4, "4. nombre", handoff, horario ≠ menú ───
   await test("139. V9.42 — A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -11842,7 +11845,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("140. V9.43 — detalle de un producto no re-lista el menú (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -11886,7 +11889,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.44 — A15443 Rosario: reunión≠XV, hora comida≠ubicación, no cierra sin ciudad ───
   await test("141. V9.44 — A15443 Rosario: reunión, hora comida, ciudad obligatoria", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
 
     assert.equal(parseTipoEventoFromText("una reunión de 15 años"), "reunión");
     assert.ok(clientSaidReunionNotXv("una reunión de 15 años"));
@@ -12011,7 +12014,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.45 — A15419 Stephanie: fecha≠frase, horario≠día, silent-watch limpio ───
   await test("142. V9.45 — A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
 
     assert.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
@@ -12097,9 +12100,9 @@ async function runAll(): Promise<void> {
     assert.ok(!/ya tengo todo/i.test(clockReply));
   });
 
-  // ─── V9.46 — imágenes: responder solo en embudo; post–Humano Trabaja lee pero no WhatsApp ───
-  await test("143. V9.46 — imagen solo embudo; silencio lee depósito sin WhatsApp", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.46");
+  // ─── V9.47 — imágenes: responder solo en embudo; post–Humano Trabaja lee pero no WhatsApp ───
+  await test("143. V9.47 — imagen solo embudo; silencio lee depósito sin WhatsApp", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
     assert.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
     assert.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
     assert.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
@@ -12143,6 +12146,85 @@ async function runAll(): Promise<void> {
     assert.ok(/lucyDebeResponderImagenAlCliente/.test(kommoSrc));
     assert.ok(/stripImageClientReplyForSilence/.test(kommoSrc));
     assert.ok(/sin WhatsApp al cliente|leída en silencio/i.test(kommoSrc));
+  });
+
+  // ─── V9.47 — A15478 Isabel: recomendación de medidas según invitados ───
+  await test("144. V9.47 — A15478 Isabel: recomienda tamaño pista según invitados", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
+    const ask =
+      "Me puedes recomendar el tamaño pensando en la cantidad de invitados?";
+    assert.ok(clientAsksDimensionRecommendation(ask));
+
+    const rec = recommendPistaDimensionsForGuests(120, "XV años");
+    assert.ok(/6m\s*x\s*8m|8m\s*x\s*8m/i.test(rec.dims), rec.dims);
+
+    const extracted = emptyExtracted({
+      nombre: "Isabel",
+      correo: "ijactthar@gmail.com",
+      tipo_evento: "XV años",
+      requerimientos_evento:
+        "Banquete Formal, DJ, pista iluminada, animadores, barra de snacks, cóctel de bienvenida",
+      direccion_evento: "Lomas Verdes, Zona Esmeralda, Satélite",
+      fecha_horario: "27 de noviembre de 2027",
+      num_invitados: 120,
+      presupuesto: 1,
+    });
+    const allCore = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+      "Número de invitados",
+      "Presupuesto (MXN)",
+    ]);
+
+    const dimReply = buildDimensionRecommendationReply(extracted, ask);
+    assert.ok(dimReply && /6m|8m|referencia/i.test(dimReply), dimReply ?? "");
+
+    const guarded = runGuards({
+      aiResponse: "Entendido, Isabel. Ya tengo lo principal.",
+      extracted,
+      filledSet: allCore,
+      readyForClosing: true,
+      currentMessage: ask,
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo × ancho). ¿Cuánto debe medir?",
+        },
+      ],
+    });
+    assert.ok(/6m|8m|referencia|invitad/i.test(guarded), guarded);
+    assert.ok(!/ya tengo lo principal/i.test(guarded), guarded);
+    assert.ok(/\?/.test(guarded), guarded);
+
+    const anti = applyLucyGlobalAntiRepetition({
+      mensaje:
+        "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo × ancho). ¿Cuánto debe medir?",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo × ancho). ¿Cuánto debe medir?",
+        },
+        { role: "user", content: ask },
+        {
+          role: "assistant",
+          content:
+            "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo × ancho). ¿Cuánto debe medir?",
+        },
+      ],
+      filledSet: allCore,
+      extracted,
+      currentMessage: ask,
+      cierreYaEnviado: false,
+      clientName: "Isabel",
+    });
+    assert.ok(/6m|8m|referencia|medidas/i.test(anti.mensaje), anti.mensaje);
+    assert.ok(!/ya tengo lo principal/i.test(anti.mensaje), anti.mensaje);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -161,6 +161,8 @@ Lee el mensaje y responde DIRECTO lo que preguntó, en ese mismo turno.
 - "qué tienen de X" / "¿cuentan con X?" → SÍ/NO con detalle breve y pregunta si
   lo sumamos. NUNCA digas solo "lo anoto".
 - Carpas, pista o tarima → pide medidas aproximadas (y tipo si aún no lo dijeron).
+  Si piden recomendación según invitados, da una referencia razonable (p. ej. pista
+  8m×8m para ~120 invitados en XV/boda) y pregunta si les late o si ya tienen el espacio medido.
 
 ===================================================================
 ## 6. OFRECER CON CRITERIO (no bombardear)

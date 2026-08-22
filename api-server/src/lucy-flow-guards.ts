@@ -158,6 +158,9 @@ import {
   clientConfirmsOfferReview,
   clientMentionsLedRobotsOrBatucada,
   clientMentionsPistaTarima,
+  clientAsksDimensionRecommendation,
+  recommendPistaDimensionsForGuests,
+  recommendCarpaDimensionsForGuests,
   clientMentionsCarpas,
   clientAsksServiceInfo,
   parseSalaProductFromText,
@@ -2478,6 +2481,8 @@ export function getNextPendingField(
 
   if (!isEmailSatisfied(filled, extracted)) return "correo";
 
+  if (requiredServiceDimensionsMissing(extracted)) return "requerimientos";
+
   if (!filled.has("Presupuesto (MXN)") && !hasPresupuestoValue(extracted)) return "presupuesto";
   return null;
 }
@@ -3847,6 +3852,51 @@ export function buildRequiredServiceDimensionsQuestion(extracted: ExtractedData)
   return (
     "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima " +
     "(largo × ancho). ¿Cuánto debe medir?"
+  );
+}
+
+/** A15478: cliente pide tamaño recomendado (p. ej. según invitados) — no repetir pregunta vacía. */
+export function buildDimensionRecommendationReply(
+  extracted: ExtractedData,
+  currentMessage?: string
+): string | null {
+  if (!clientAsksDimensionRecommendation(currentMessage)) return null;
+
+  const req = extracted.requerimientos_evento?.trim() ?? "";
+  const histHint = currentMessage ?? "";
+  const wantsPista =
+    clientMentionsPistaTarima(req) || clientMentionsPistaTarima(histHint);
+  const wantsCarpa = clientMentionsCarpas(req) || clientMentionsCarpas(histHint);
+  if (!wantsPista && !wantsCarpa) return null;
+
+  const guests = extracted.num_invitados ?? 0;
+  const guestLabel = guests > 0 ? `~${guests} invitados` : "tu número de invitados";
+  const first = extracted.nombre?.trim().split(/\s+/)[0];
+  const greet = first ? `${first}, ` : "";
+
+  const pistaFocus =
+    wantsPista &&
+    (!wantsCarpa || /pista|tarima|baile|tama[nñ]o|medida/i.test(currentMessage ?? ""));
+
+  if (pistaFocus) {
+    const rec = recommendPistaDimensionsForGuests(guests, extracted.tipo_evento);
+    if (!parseSpaceDimensions(req)) {
+      extracted.requerimientos_evento = `${req || "Pista de baile"} (ref. ${rec.dims})`;
+    }
+    return (
+      `${greet}para ${guestLabel}, como referencia suele ir bien una pista de *${rec.dims}* ` +
+      `(${rec.rationale}). Si el salón es más compacto podemos bajar un tamaño; ` +
+      `si quieren pista amplia, subimos un escalón. ¿Te late esa medida o ya tienes el espacio medido?`
+    );
+  }
+
+  const carpaDims = recommendCarpaDimensionsForGuests(guests);
+  if (!parseSpaceDimensions(req)) {
+    extracted.requerimientos_evento = `${req || "Carpas"} (ref. ${carpaDims})`;
+  }
+  return (
+    `${greet}para ${guestLabel} con mesas redondas y pasillos, como referencia suele ir una carpa de *${carpaDims}* ` +
+    `(depende del acomodo y si llevan pista). ¿Tienes medidas del jardín o armamos la propuesta con esa base?`
   );
 }
 
@@ -5262,6 +5312,24 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       body,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
     );
+  }
+
+  // A15478: "¿me recomiendas el tamaño según invitados?" — referencia real, no ack vacío.
+  if (
+    !cierreYaEnviado &&
+    currentMessage?.trim() &&
+    clientAsksDimensionRecommendation(currentMessage) &&
+    requiredServiceDimensionsMissing(extracted)
+  ) {
+    const dimReply = buildDimensionRecommendationReply(extracted, currentMessage);
+    if (dimReply) {
+      filledSet.add("Requerimientos o servicios");
+      log?.info({ entityId, guests: extracted.num_invitados }, "GUARD: A15478 — recomendación de medidas");
+      return normalizeAdvisorReferences(
+        `${pickTransition(presHistory)} ${dimReply}`,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
   }
 
   // A15286: pregunta concreta (fotos/luz/capacidad/catálogo typo) — ANTES de
@@ -9052,9 +9120,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     !cierreYaEnviado &&
     requiredServiceDimensionsMissing(extracted) &&
     isReadyForClosing(filledSet) &&
-    responseLooksLikePrematureClose(mensaje)
+    (responseLooksLikePrematureClose(mensaje) || looksLikeDeadEndAck(mensaje))
   ) {
-    mensaje = buildRequiredServiceDimensionsQuestion(extracted);
+    const dimReply = buildDimensionRecommendationReply(extracted, currentMessage);
+    mensaje = dimReply ?? buildRequiredServiceDimensionsQuestion(extracted);
     log?.info({ entityId }, "GUARD: cierre final reemplazado por medidas obligatorias");
   }
 

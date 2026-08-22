@@ -3495,6 +3495,72 @@ export function parseSpaceDimensions(text: string): string | null {
   return null;
 }
 
+export interface SpaceDimensionRecommendation {
+  dims: string;
+  rationale: string;
+}
+
+/** Cliente pide que le propongan medidas/tamaño (p. ej. según invitados). */
+export function clientAsksDimensionRecommendation(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return (
+    /recomend\w*\s+(?:el\s+)?(?:tama[nñ]o|medida)/i.test(t) ||
+    /qu[eé]\s+(?:tama[nñ]o|medida)\s+me\s+recomiend/i.test(t) ||
+    /(?:tama[nñ]o|medida).{0,50}(?:invitad|personas?|gente)/i.test(t) ||
+    /(?:invitad|personas?|gente).{0,50}(?:tama[nñ]o|medida)/i.test(t) ||
+    /me\s+propon\w*\s+(?:un\s+)?(?:tama[nñ]o|medida)/i.test(t) ||
+    /seg[uú]n\s+(?:la\s+)?(?:cantidad\s+de\s+)?(?:invitad|personas?)/i.test(t) ||
+    /pensando\s+en\s+(?:la\s+)?(?:cantidad\s+de\s+)?(?:invitad|personas?)/i.test(t) ||
+    /(?:cu[aá]nto|qu[eé]\s+medidas?).{0,40}deber[ií]a\s+(?:medir|ser)/i.test(t) ||
+    /prefiero\s+que\s+me\s+propong/i.test(t)
+  );
+}
+
+const STANDARD_PISTA_SIZES: Array<{ w: number; h: number; area: number }> = [
+  { w: 4, h: 4, area: 16 },
+  { w: 5, h: 5, area: 25 },
+  { w: 6, h: 6, area: 36 },
+  { w: 6, h: 8, area: 48 },
+  { w: 8, h: 8, area: 64 },
+  { w: 6, h: 10, area: 60 },
+  { w: 8, h: 10, area: 80 },
+  { w: 10, h: 10, area: 100 },
+];
+
+function pickStandardPistaSize(targetAreaM2: number): { w: number; h: number } {
+  const pick =
+    STANDARD_PISTA_SIZES.find((s) => s.area >= targetAreaM2) ??
+    STANDARD_PISTA_SIZES[STANDARD_PISTA_SIZES.length - 1]!;
+  return { w: pick.w, h: pick.h };
+}
+
+/** Referencia de pista/tarima según invitados (no todos bailan a la vez). */
+export function recommendPistaDimensionsForGuests(
+  guests: number,
+  tipoEvento?: string | null
+): SpaceDimensionRecommendation {
+  const tipo = (tipoEvento ?? "").toLowerCase();
+  const danceRatio = /xv|quince|boda|fiesta|graduaci|cumplea/i.test(tipo) ? 0.55 : 0.45;
+  const areaM2 = Math.max(16, Math.ceil(guests * danceRatio * 0.9));
+  const { w, h } = pickStandardPistaSize(areaM2);
+  const guestLabel = guests > 0 ? `~${guests} invitados` : "tu evento";
+  return {
+    dims: `${w}m x ${h}m`,
+    rationale: `referencia para ${guestLabel} (no todos bailan al mismo tiempo)`,
+  };
+}
+
+/** Referencia de carpa según invitados sentados + pasillos. */
+export function recommendCarpaDimensionsForGuests(guests: number): string {
+  if (guests <= 0) return "6m x 9m";
+  if (guests <= 40) return "6m x 9m";
+  if (guests <= 80) return "9m x 12m";
+  if (guests <= 120) return "12m x 15m";
+  if (guests <= 180) return "15m x 18m";
+  return "15m x 21m o más";
+}
+
 /** Cliente pide pista de baile o tarima. */
 export function clientMentionsPistaTarima(message?: string): boolean {
   if (!message?.trim()) return false;
