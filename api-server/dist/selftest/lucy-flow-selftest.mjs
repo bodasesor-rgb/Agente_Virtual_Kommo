@@ -123806,6 +123806,44 @@ function parseSpaceDimensions(text2) {
   if (m32) return `${m32[1]}m x ${m32[2]}m`;
   return null;
 }
+function clientAsksDimensionRecommendation(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  return /recomend\w*\s+(?:el\s+)?(?:tama[nñ]o|medida)/i.test(t3) || /qu[eé]\s+(?:tama[nñ]o|medida)\s+me\s+recomiend/i.test(t3) || /(?:tama[nñ]o|medida).{0,50}(?:invitad|personas?|gente)/i.test(t3) || /(?:invitad|personas?|gente).{0,50}(?:tama[nñ]o|medida)/i.test(t3) || /me\s+propon\w*\s+(?:un\s+)?(?:tama[nñ]o|medida)/i.test(t3) || /seg[uú]n\s+(?:la\s+)?(?:cantidad\s+de\s+)?(?:invitad|personas?)/i.test(t3) || /pensando\s+en\s+(?:la\s+)?(?:cantidad\s+de\s+)?(?:invitad|personas?)/i.test(t3) || /(?:cu[aá]nto|qu[eé]\s+medidas?).{0,40}deber[ií]a\s+(?:medir|ser)/i.test(t3) || /prefiero\s+que\s+me\s+propong/i.test(t3);
+}
+var STANDARD_PISTA_SIZES = [
+  { w: 4, h: 4, area: 16 },
+  { w: 5, h: 5, area: 25 },
+  { w: 6, h: 6, area: 36 },
+  { w: 6, h: 8, area: 48 },
+  { w: 8, h: 8, area: 64 },
+  { w: 6, h: 10, area: 60 },
+  { w: 8, h: 10, area: 80 },
+  { w: 10, h: 10, area: 100 }
+];
+function pickStandardPistaSize(targetAreaM2) {
+  const pick = STANDARD_PISTA_SIZES.find((s6) => s6.area >= targetAreaM2) ?? STANDARD_PISTA_SIZES[STANDARD_PISTA_SIZES.length - 1];
+  return { w: pick.w, h: pick.h };
+}
+function recommendPistaDimensionsForGuests(guests, tipoEvento) {
+  const tipo = (tipoEvento ?? "").toLowerCase();
+  const danceRatio = /xv|quince|boda|fiesta|graduaci|cumplea/i.test(tipo) ? 0.55 : 0.45;
+  const areaM2 = Math.max(16, Math.ceil(guests * danceRatio * 0.9));
+  const { w: w4, h: h4 } = pickStandardPistaSize(areaM2);
+  const guestLabel = guests > 0 ? `~${guests} invitados` : "tu evento";
+  return {
+    dims: `${w4}m x ${h4}m`,
+    rationale: `referencia para ${guestLabel} (no todos bailan al mismo tiempo)`
+  };
+}
+function recommendCarpaDimensionsForGuests(guests) {
+  if (guests <= 0) return "6m x 9m";
+  if (guests <= 40) return "6m x 9m";
+  if (guests <= 80) return "9m x 12m";
+  if (guests <= 120) return "12m x 15m";
+  if (guests <= 180) return "15m x 18m";
+  return "15m x 21m o m\xE1s";
+}
 function clientMentionsPistaTarima(message) {
   if (!message?.trim()) return false;
   return /\bpista(\s+de\s+baile)?\b|\btarima/i.test(message);
@@ -131740,6 +131778,7 @@ function getNextPendingField(extracted, filledSet) {
   const hasZona = filled.has("Lugar/direcci\xF3n del evento") || isUsableDireccionEvento(extracted.direccion_evento);
   if (!hasZona) return "zona";
   if (!isEmailSatisfied(filled, extracted)) return "correo";
+  if (requiredServiceDimensionsMissing(extracted)) return "requerimientos";
   if (!filled.has("Presupuesto (MXN)") && !hasPresupuestoValue(extracted)) return "presupuesto";
   return null;
 }
@@ -132554,6 +132593,31 @@ function buildRequiredServiceDimensionsQuestion(extracted) {
     return "Antes de cerrar la solicitud necesito las medidas aproximadas de la carpa (largo \xD7 ancho) o del \xE1rea que quieres cubrir. \xBFCu\xE1nto mide?";
   }
   return "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \xD7 ancho). \xBFCu\xE1nto debe medir?";
+}
+function buildDimensionRecommendationReply(extracted, currentMessage) {
+  if (!clientAsksDimensionRecommendation(currentMessage)) return null;
+  const req = extracted.requerimientos_evento?.trim() ?? "";
+  const histHint = currentMessage ?? "";
+  const wantsPista = clientMentionsPistaTarima(req) || clientMentionsPistaTarima(histHint);
+  const wantsCarpa = clientMentionsCarpas(req) || clientMentionsCarpas(histHint);
+  if (!wantsPista && !wantsCarpa) return null;
+  const guests = extracted.num_invitados ?? 0;
+  const guestLabel = guests > 0 ? `~${guests} invitados` : "tu n\xFAmero de invitados";
+  const first = extracted.nombre?.trim().split(/\s+/)[0];
+  const greet = first ? `${first}, ` : "";
+  const pistaFocus = wantsPista && (!wantsCarpa || /pista|tarima|baile|tama[nñ]o|medida/i.test(currentMessage ?? ""));
+  if (pistaFocus) {
+    const rec = recommendPistaDimensionsForGuests(guests, extracted.tipo_evento);
+    if (!parseSpaceDimensions(req)) {
+      extracted.requerimientos_evento = `${req || "Pista de baile"} (ref. ${rec.dims})`;
+    }
+    return `${greet}para ${guestLabel}, como referencia suele ir bien una pista de *${rec.dims}* (${rec.rationale}). Si el sal\xF3n es m\xE1s compacto podemos bajar un tama\xF1o; si quieren pista amplia, subimos un escal\xF3n. \xBFTe late esa medida o ya tienes el espacio medido?`;
+  }
+  const carpaDims = recommendCarpaDimensionsForGuests(guests);
+  if (!parseSpaceDimensions(req)) {
+    extracted.requerimientos_evento = `${req || "Carpas"} (ref. ${carpaDims})`;
+  }
+  return `${greet}para ${guestLabel} con mesas redondas y pasillos, como referencia suele ir una carpa de *${carpaDims}* (depende del acomodo y si llevan pista). \xBFTienes medidas del jard\xEDn o armamos la propuesta con esa base?`;
 }
 function requerimientosNeedsFollowUp(extracted, filledSet) {
   const req = extracted.requerimientos_evento?.trim() ?? "";
@@ -133428,6 +133492,17 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
       body2,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
     );
+  }
+  if (!cierreYaEnviado && currentMessage?.trim() && clientAsksDimensionRecommendation(currentMessage) && requiredServiceDimensionsMissing(extracted)) {
+    const dimReply = buildDimensionRecommendationReply(extracted, currentMessage);
+    if (dimReply) {
+      filledSet.add("Requerimientos o servicios");
+      log?.info({ entityId, guests: extracted.num_invitados }, "GUARD: A15478 \u2014 recomendaci\xF3n de medidas");
+      return normalizeAdvisorReferences(
+        `${pickTransition(presHistory)} ${dimReply}`,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
   }
   if (!cierreYaEnviado && currentMessage?.trim() && !isRichQuoteBrief(currentMessage) && !extractImageClientReply(currentMessage) && clientAsksConcreteProductQuestion(currentMessage)) {
     const serviceHintConcrete = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) || findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
@@ -135960,8 +136035,9 @@ ${buildNaturalQuestion(pending, ctx)}` : ack;
     log?.info({ entityId }, "GUARD: A15009 \u2014 reemplaz\xF3 Sigo aqu\xED residual");
   }
   mensaje = dedupeCatalogUrlsInMessage(mensaje);
-  if (!cierreYaEnviado && requiredServiceDimensionsMissing(extracted) && isReadyForClosing(filledSet) && responseLooksLikePrematureClose(mensaje)) {
-    mensaje = buildRequiredServiceDimensionsQuestion(extracted);
+  if (!cierreYaEnviado && requiredServiceDimensionsMissing(extracted) && isReadyForClosing(filledSet) && (responseLooksLikePrematureClose(mensaje) || looksLikeDeadEndAck(mensaje))) {
+    const dimReply = buildDimensionRecommendationReply(extracted, currentMessage);
+    mensaje = dimReply ?? buildRequiredServiceDimensionsQuestion(extracted);
     log?.info({ entityId }, "GUARD: cierre final reemplazado por medidas obligatorias");
   }
   {
@@ -136439,7 +136515,7 @@ function applyLucyGlobalAntiRepetition(input) {
   const isCatalogDetailReply = /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|manejamos estos niveles|cu[aá]l nivel prefieres|\*precio:\*|\b(b[aá]sic|tradicional|premium).{0,40}\$\s*\d|Según el catálogo que ya tenemos|¿Te late este nivel/i.test(
     mensaje
   ) || isEntertainmentCatalog || clientAffirmingCatalog;
-  const clientAskingInfo = clientAsksServiceInfo(input.currentMessage) || clientMentionsEntertainment(input.currentMessage) || clientAsksForRecommendations(input.currentMessage) || clientAsksForCatalog(input.currentMessage) || clientAsksInclusion(input.currentMessage) || clientAsksPrice(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage) || // A15168: "opción 1" / "ver las opciones" no debe colapsar a "Seguimos…".
+  const clientAskingInfo = clientAsksServiceInfo(input.currentMessage) || clientMentionsEntertainment(input.currentMessage) || clientAsksForRecommendations(input.currentMessage) || clientAsksDimensionRecommendation(input.currentMessage) || clientAsksForCatalog(input.currentMessage) || clientAsksInclusion(input.currentMessage) || clientAsksPrice(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage) || // A15168: "opción 1" / "ver las opciones" no debe colapsar a "Seguimos…".
   /\b(opci[oó]n(?:es)?\s*[1-9]|paquete\s*[1-9]|ver\s+(las\s+)?opciones|muestr\w*\s+(las\s+)?opciones)\b/i.test(
     input.currentMessage ?? ""
   ) || /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|info|coffee\s*break|coffe\s*break|fotos?|carpa|luz|iluminaci)\b/i.test(
@@ -136617,8 +136693,14 @@ ${q2}` : q2;
             if (display && !mensaje.includes(display)) {
               mensaje = `Entendido, ${display}. ${mensaje}`;
             }
-          } else if (isReadyForClosing(filled)) {
+          } else if (isReadyForClosing(filled) && !requiredServiceDimensionsMissing(extractedFull)) {
             mensaje = display ? `Entendido, ${display}. Ya tengo lo principal.` : "Entendido. Ya tengo lo principal.";
+          } else if (requiredServiceDimensionsMissing(extractedFull)) {
+            const dimReply = buildDimensionRecommendationReply(
+              extractedFull,
+              input.currentMessage
+            );
+            mensaje = dimReply ?? buildRequiredServiceDimensionsQuestion(extractedFull);
           } else {
             mensaje = display ? `Entendido, ${display}. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?` : "Entendido. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?";
           }
@@ -136826,6 +136908,8 @@ Lee el mensaje y responde DIRECTO lo que pregunt\xF3, en ese mismo turno.
 - "qu\xE9 tienen de X" / "\xBFcuentan con X?" \u2192 S\xCD/NO con detalle breve y pregunta si
   lo sumamos. NUNCA digas solo "lo anoto".
 - Carpas, pista o tarima \u2192 pide medidas aproximadas (y tipo si a\xFAn no lo dijeron).
+  Si piden recomendaci\xF3n seg\xFAn invitados, da una referencia razonable (p. ej. pista
+  8m\xD78m para ~120 invitados en XV/boda) y pregunta si les late o si ya tienen el espacio medido.
 
 ===================================================================
 ## 6. OFRECER CON CRITERIO (no bombardear)
@@ -137804,7 +137888,7 @@ function clientReplyForPaymentSlot(slot) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.46";
+var LUCY_PROMPT_VERSION = "V9.47";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -147361,7 +147445,7 @@ ${golfText}`,
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
   await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -147390,7 +147474,7 @@ ${golfText}`,
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
   await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -147508,7 +147592,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,
@@ -147579,7 +147663,7 @@ ${golfText}`,
     }
   });
   await test("135. V9.38 \u2014 comprobante en imagen: primer pago Anticipo, segundo Liquidaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
     assert2.equal(FIELD_ANTICIPO, 1049322);
     assert2.equal(FIELD_LIQUIDACION, 1049324);
     assert2.equal(nextPaymentSlot(null, null), "anticipo");
@@ -147643,7 +147727,7 @@ ${golfText}`,
     assert2.ok(/amount_mxn/.test(imgSrc));
   });
   await test("136. V9.40 \u2014 A15380 invitados no se saltan; Coyoac\xE1n+colonia; Claro no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
     const horario = "hola si se har\xEDa el 26 de septiembre pero a\xFAn no tenemos definido el horario";
     assert2.equal(parseInvitadosFromText(horario), null, "horario pendiente \u2260 invitados");
     const caps = scanConversationForCaptures([], horario, /* @__PURE__ */ new Set(["Nombre del cliente"]));
@@ -147746,7 +147830,7 @@ ${golfText}`,
     assert2.equal(taquizaNext, "invitados");
   });
   await test("138. V9.41 \u2014 A15383 Kelia: ciudad, banquetes, LED\u2260luz, no spam (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert2.match(hornoMty, /horno\s*3/i, hornoMty);
     assert2.match(hornoMty, /monterrey/i, hornoMty);
@@ -147881,7 +147965,7 @@ ${golfText}`,
     assert2.ok(!/Listo\.\s*Kelia/i.test(nameSpam), nameSpam);
   });
   await test("139. V9.42 \u2014 A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert2.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert2.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -147971,7 +148055,7 @@ ${golfText}`,
     assert2.ok(!/invitados|cu[aá]nt[oa]s|ciudad del evento|en qu[eé] ciudad/i.test(handoff), handoff.slice(0, 400));
   });
   await test("140. V9.43 \u2014 detalle de un producto no re-lista el men\xFA (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -148010,7 +148094,7 @@ ${golfText}`,
     assert2.ok(/Coffee Break 4|350|CB4/i.test(rewritten), rewritten.slice(0, 500));
   });
   await test("141. V9.44 \u2014 A15443 Rosario: reuni\xF3n, hora comida, ciudad obligatoria", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
     assert2.equal(parseTipoEventoFromText("una reuni\xF3n de 15 a\xF1os"), "reuni\xF3n");
     assert2.ok(clientSaidReunionNotXv("una reuni\xF3n de 15 a\xF1os"));
     assert2.ok(!clientSaidReunionNotXv("mis XV a\xF1os"));
@@ -148125,7 +148209,7 @@ ${golfText}`,
     assert2.ok(/2\.\s*\*?Servicio completo/i.test(fixedMenu), fixedMenu.slice(0, 600));
   });
   await test("142. V9.45 \u2014 A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
     assert2.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert2.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
     assert2.ok(!isUsableFechaHorario("13:00 a 20:00 hrs"));
@@ -148198,8 +148282,8 @@ ${golfText}`,
     assert2.ok(/d[ií]a|fecha|cu[aá]ndo/i.test(clockReply), clockReply.slice(0, 400));
     assert2.ok(!/ya tengo todo/i.test(clockReply));
   });
-  await test("143. V9.46 \u2014 imagen solo embudo; silencio lee dep\xF3sito sin WhatsApp", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.46");
+  await test("143. V9.47 \u2014 imagen solo embudo; silencio lee dep\xF3sito sin WhatsApp", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
     assert2.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
@@ -148240,6 +148324,72 @@ ${golfText}`,
     assert2.ok(/lucyDebeResponderImagenAlCliente/.test(kommoSrc));
     assert2.ok(/stripImageClientReplyForSilence/.test(kommoSrc));
     assert2.ok(/sin WhatsApp al cliente|leída en silencio/i.test(kommoSrc));
+  });
+  await test("144. V9.47 \u2014 A15478 Isabel: recomienda tama\xF1o pista seg\xFAn invitados", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
+    const ask = "Me puedes recomendar el tama\xF1o pensando en la cantidad de invitados?";
+    assert2.ok(clientAsksDimensionRecommendation(ask));
+    const rec = recommendPistaDimensionsForGuests(120, "XV a\xF1os");
+    assert2.ok(/6m\s*x\s*8m|8m\s*x\s*8m/i.test(rec.dims), rec.dims);
+    const extracted = emptyExtracted({
+      nombre: "Isabel",
+      correo: "ijactthar@gmail.com",
+      tipo_evento: "XV a\xF1os",
+      requerimientos_evento: "Banquete Formal, DJ, pista iluminada, animadores, barra de snacks, c\xF3ctel de bienvenida",
+      direccion_evento: "Lomas Verdes, Zona Esmeralda, Sat\xE9lite",
+      fecha_horario: "27 de noviembre de 2027",
+      num_invitados: 120,
+      presupuesto: 1
+    });
+    const allCore = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Correo electr\xF3nico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/direcci\xF3n del evento",
+      "Fecha y horario",
+      "N\xFAmero de invitados",
+      "Presupuesto (MXN)"
+    ]);
+    const dimReply = buildDimensionRecommendationReply(extracted, ask);
+    assert2.ok(dimReply && /6m|8m|referencia/i.test(dimReply), dimReply ?? "");
+    const guarded = runGuards({
+      aiResponse: "Entendido, Isabel. Ya tengo lo principal.",
+      extracted,
+      filledSet: allCore,
+      readyForClosing: true,
+      currentMessage: ask,
+      history: [
+        {
+          role: "assistant",
+          content: "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \xD7 ancho). \xBFCu\xE1nto debe medir?"
+        }
+      ]
+    });
+    assert2.ok(/6m|8m|referencia|invitad/i.test(guarded), guarded);
+    assert2.ok(!/ya tengo lo principal/i.test(guarded), guarded);
+    assert2.ok(/\?/.test(guarded), guarded);
+    const anti = applyLucyGlobalAntiRepetition({
+      mensaje: "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \xD7 ancho). \xBFCu\xE1nto debe medir?",
+      history: [
+        {
+          role: "assistant",
+          content: "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \xD7 ancho). \xBFCu\xE1nto debe medir?"
+        },
+        { role: "user", content: ask },
+        {
+          role: "assistant",
+          content: "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \xD7 ancho). \xBFCu\xE1nto debe medir?"
+        }
+      ],
+      filledSet: allCore,
+      extracted,
+      currentMessage: ask,
+      cierreYaEnviado: false,
+      clientName: "Isabel"
+    });
+    assert2.ok(/6m|8m|referencia|medidas/i.test(anti.mensaje), anti.mensaje);
+    assert2.ok(!/ya tengo lo principal/i.test(anti.mensaje), anti.mensaje);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

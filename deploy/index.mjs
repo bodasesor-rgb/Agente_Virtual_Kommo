@@ -129792,6 +129792,34 @@ function parseSpaceDimensions(text2) {
   if (m33) return `${m33[1]}m x ${m33[2]}m`;
   return null;
 }
+function clientAsksDimensionRecommendation(message) {
+  if (!message?.trim()) return false;
+  const t10 = message.toLowerCase();
+  return /recomend\w*\s+(?:el\s+)?(?:tama[nñ]o|medida)/i.test(t10) || /qu[eé]\s+(?:tama[nñ]o|medida)\s+me\s+recomiend/i.test(t10) || /(?:tama[nñ]o|medida).{0,50}(?:invitad|personas?|gente)/i.test(t10) || /(?:invitad|personas?|gente).{0,50}(?:tama[nñ]o|medida)/i.test(t10) || /me\s+propon\w*\s+(?:un\s+)?(?:tama[nñ]o|medida)/i.test(t10) || /seg[uú]n\s+(?:la\s+)?(?:cantidad\s+de\s+)?(?:invitad|personas?)/i.test(t10) || /pensando\s+en\s+(?:la\s+)?(?:cantidad\s+de\s+)?(?:invitad|personas?)/i.test(t10) || /(?:cu[aá]nto|qu[eé]\s+medidas?).{0,40}deber[ií]a\s+(?:medir|ser)/i.test(t10) || /prefiero\s+que\s+me\s+propong/i.test(t10);
+}
+function pickStandardPistaSize(targetAreaM2) {
+  const pick = STANDARD_PISTA_SIZES.find((s10) => s10.area >= targetAreaM2) ?? STANDARD_PISTA_SIZES[STANDARD_PISTA_SIZES.length - 1];
+  return { w: pick.w, h: pick.h };
+}
+function recommendPistaDimensionsForGuests(guests, tipoEvento) {
+  const tipo = (tipoEvento ?? "").toLowerCase();
+  const danceRatio = /xv|quince|boda|fiesta|graduaci|cumplea/i.test(tipo) ? 0.55 : 0.45;
+  const areaM2 = Math.max(16, Math.ceil(guests * danceRatio * 0.9));
+  const { w: w10, h: h10 } = pickStandardPistaSize(areaM2);
+  const guestLabel = guests > 0 ? `~${guests} invitados` : "tu evento";
+  return {
+    dims: `${w10}m x ${h10}m`,
+    rationale: `referencia para ${guestLabel} (no todos bailan al mismo tiempo)`
+  };
+}
+function recommendCarpaDimensionsForGuests(guests) {
+  if (guests <= 0) return "6m x 9m";
+  if (guests <= 40) return "6m x 9m";
+  if (guests <= 80) return "9m x 12m";
+  if (guests <= 120) return "12m x 15m";
+  if (guests <= 180) return "15m x 18m";
+  return "15m x 21m o m\xE1s";
+}
 function clientMentionsPistaTarima(message) {
   if (!message?.trim()) return false;
   return /\bpista(\s+de\s+baile)?\b|\btarima/i.test(message);
@@ -130668,7 +130696,7 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     extracted.requerimientos_evento = null;
   }
 }
-var LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, STAFF_OR_ADDON_SERVICE, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
+var LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, STAFF_OR_ADDON_SERVICE, STANDARD_PISTA_SIZES, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
 var init_conversation_understanding = __esm({
   "src/conversation-understanding.ts"() {
     "use strict";
@@ -130967,6 +130995,16 @@ var init_conversation_understanding = __esm({
     VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue)\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.'-]{1,48})/i;
     JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
     STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
+    STANDARD_PISTA_SIZES = [
+      { w: 4, h: 4, area: 16 },
+      { w: 5, h: 5, area: 25 },
+      { w: 6, h: 6, area: 36 },
+      { w: 6, h: 8, area: 48 },
+      { w: 8, h: 8, area: 64 },
+      { w: 6, h: 10, area: 60 },
+      { w: 8, h: 10, area: 80 },
+      { w: 10, h: 10, area: 100 }
+    ];
     SERVICE_LABELS_NOT_TIPO = /^(brunch|banquete|taquiza|desayuno|catering|pista de baile|dj|mobiliario|bebidas?)$/i;
     CORREO_DICTADO_STOPWORDS = /* @__PURE__ */ new Set([
       "es",
@@ -158470,6 +158508,7 @@ function getNextPendingField(extracted, filledSet) {
   const hasZona = filled.has("Lugar/direcci\xF3n del evento") || isUsableDireccionEvento(extracted.direccion_evento);
   if (!hasZona) return "zona";
   if (!isEmailSatisfied(filled, extracted)) return "correo";
+  if (requiredServiceDimensionsMissing(extracted)) return "requerimientos";
   if (!filled.has("Presupuesto (MXN)") && !hasPresupuestoValue(extracted)) return "presupuesto";
   return null;
 }
@@ -159285,6 +159324,31 @@ function buildRequiredServiceDimensionsQuestion(extracted) {
     return "Antes de cerrar la solicitud necesito las medidas aproximadas de la carpa (largo \xD7 ancho) o del \xE1rea que quieres cubrir. \xBFCu\xE1nto mide?";
   }
   return "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \xD7 ancho). \xBFCu\xE1nto debe medir?";
+}
+function buildDimensionRecommendationReply(extracted, currentMessage) {
+  if (!clientAsksDimensionRecommendation(currentMessage)) return null;
+  const req = extracted.requerimientos_evento?.trim() ?? "";
+  const histHint = currentMessage ?? "";
+  const wantsPista = clientMentionsPistaTarima(req) || clientMentionsPistaTarima(histHint);
+  const wantsCarpa = clientMentionsCarpas(req) || clientMentionsCarpas(histHint);
+  if (!wantsPista && !wantsCarpa) return null;
+  const guests = extracted.num_invitados ?? 0;
+  const guestLabel = guests > 0 ? `~${guests} invitados` : "tu n\xFAmero de invitados";
+  const first = extracted.nombre?.trim().split(/\s+/)[0];
+  const greet = first ? `${first}, ` : "";
+  const pistaFocus = wantsPista && (!wantsCarpa || /pista|tarima|baile|tama[nñ]o|medida/i.test(currentMessage ?? ""));
+  if (pistaFocus) {
+    const rec = recommendPistaDimensionsForGuests(guests, extracted.tipo_evento);
+    if (!parseSpaceDimensions(req)) {
+      extracted.requerimientos_evento = `${req || "Pista de baile"} (ref. ${rec.dims})`;
+    }
+    return `${greet}para ${guestLabel}, como referencia suele ir bien una pista de *${rec.dims}* (${rec.rationale}). Si el sal\xF3n es m\xE1s compacto podemos bajar un tama\xF1o; si quieren pista amplia, subimos un escal\xF3n. \xBFTe late esa medida o ya tienes el espacio medido?`;
+  }
+  const carpaDims = recommendCarpaDimensionsForGuests(guests);
+  if (!parseSpaceDimensions(req)) {
+    extracted.requerimientos_evento = `${req || "Carpas"} (ref. ${carpaDims})`;
+  }
+  return `${greet}para ${guestLabel} con mesas redondas y pasillos, como referencia suele ir una carpa de *${carpaDims}* (depende del acomodo y si llevan pista). \xBFTienes medidas del jard\xEDn o armamos la propuesta con esa base?`;
 }
 function requerimientosNeedsFollowUp(extracted, filledSet) {
   const req = extracted.requerimientos_evento?.trim() ?? "";
@@ -160153,6 +160217,17 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
       body2,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
     );
+  }
+  if (!cierreYaEnviado && currentMessage?.trim() && clientAsksDimensionRecommendation(currentMessage) && requiredServiceDimensionsMissing(extracted)) {
+    const dimReply = buildDimensionRecommendationReply(extracted, currentMessage);
+    if (dimReply) {
+      filledSet.add("Requerimientos o servicios");
+      log?.info({ entityId, guests: extracted.num_invitados }, "GUARD: A15478 \u2014 recomendaci\xF3n de medidas");
+      return normalizeAdvisorReferences(
+        `${pickTransition(presHistory)} ${dimReply}`,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
   }
   if (!cierreYaEnviado && currentMessage?.trim() && !isRichQuoteBrief(currentMessage) && !extractImageClientReply(currentMessage) && clientAsksConcreteProductQuestion(currentMessage)) {
     const serviceHintConcrete = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) || findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
@@ -162685,8 +162760,9 @@ ${buildNaturalQuestion(pending, ctx)}` : ack;
     log?.info({ entityId }, "GUARD: A15009 \u2014 reemplaz\xF3 Sigo aqu\xED residual");
   }
   mensaje = dedupeCatalogUrlsInMessage(mensaje);
-  if (!cierreYaEnviado && requiredServiceDimensionsMissing(extracted) && isReadyForClosing(filledSet) && responseLooksLikePrematureClose(mensaje)) {
-    mensaje = buildRequiredServiceDimensionsQuestion(extracted);
+  if (!cierreYaEnviado && requiredServiceDimensionsMissing(extracted) && isReadyForClosing(filledSet) && (responseLooksLikePrematureClose(mensaje) || looksLikeDeadEndAck(mensaje))) {
+    const dimReply = buildDimensionRecommendationReply(extracted, currentMessage);
+    mensaje = dimReply ?? buildRequiredServiceDimensionsQuestion(extracted);
     log?.info({ entityId }, "GUARD: cierre final reemplazado por medidas obligatorias");
   }
   {
@@ -227178,7 +227254,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.46";
+var LUCY_PROMPT_VERSION = "V9.47";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -229752,6 +229828,8 @@ Lee el mensaje y responde DIRECTO lo que pregunt\xF3, en ese mismo turno.
 - "qu\xE9 tienen de X" / "\xBFcuentan con X?" \u2192 S\xCD/NO con detalle breve y pregunta si
   lo sumamos. NUNCA digas solo "lo anoto".
 - Carpas, pista o tarima \u2192 pide medidas aproximadas (y tipo si a\xFAn no lo dijeron).
+  Si piden recomendaci\xF3n seg\xFAn invitados, da una referencia razonable (p. ej. pista
+  8m\xD78m para ~120 invitados en XV/boda) y pregunta si les late o si ya tienen el espacio medido.
 
 ===================================================================
 ## 6. OFRECER CON CRITERIO (no bombardear)
@@ -230517,7 +230595,7 @@ function applyLucyGlobalAntiRepetition(input) {
   const isCatalogDetailReply = /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|manejamos estos niveles|cu[aá]l nivel prefieres|\*precio:\*|\b(b[aá]sic|tradicional|premium).{0,40}\$\s*\d|Según el catálogo que ya tenemos|¿Te late este nivel/i.test(
     mensaje
   ) || isEntertainmentCatalog || clientAffirmingCatalog;
-  const clientAskingInfo = clientAsksServiceInfo(input.currentMessage) || clientMentionsEntertainment(input.currentMessage) || clientAsksForRecommendations(input.currentMessage) || clientAsksForCatalog(input.currentMessage) || clientAsksInclusion(input.currentMessage) || clientAsksPrice(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage) || // A15168: "opción 1" / "ver las opciones" no debe colapsar a "Seguimos…".
+  const clientAskingInfo = clientAsksServiceInfo(input.currentMessage) || clientMentionsEntertainment(input.currentMessage) || clientAsksForRecommendations(input.currentMessage) || clientAsksDimensionRecommendation(input.currentMessage) || clientAsksForCatalog(input.currentMessage) || clientAsksInclusion(input.currentMessage) || clientAsksPrice(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage) || // A15168: "opción 1" / "ver las opciones" no debe colapsar a "Seguimos…".
   /\b(opci[oó]n(?:es)?\s*[1-9]|paquete\s*[1-9]|ver\s+(las\s+)?opciones|muestr\w*\s+(las\s+)?opciones)\b/i.test(
     input.currentMessage ?? ""
   ) || /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|info|coffee\s*break|coffe\s*break|fotos?|carpa|luz|iluminaci)\b/i.test(
@@ -230695,8 +230773,14 @@ ${q10}` : q10;
             if (display && !mensaje.includes(display)) {
               mensaje = `Entendido, ${display}. ${mensaje}`;
             }
-          } else if (isReadyForClosing(filled)) {
+          } else if (isReadyForClosing(filled) && !requiredServiceDimensionsMissing(extractedFull)) {
             mensaje = display ? `Entendido, ${display}. Ya tengo lo principal.` : "Entendido. Ya tengo lo principal.";
+          } else if (requiredServiceDimensionsMissing(extractedFull)) {
+            const dimReply = buildDimensionRecommendationReply(
+              extractedFull,
+              input.currentMessage
+            );
+            mensaje = dimReply ?? buildRequiredServiceDimensionsQuestion(extractedFull);
           } else {
             mensaje = display ? `Entendido, ${display}. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?` : "Entendido. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?";
           }
