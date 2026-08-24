@@ -107811,6 +107811,22 @@ var PLACEHOLDER_PATTERNS = [
 var GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo|claro)$/i;
 var COMPANY_OR_CHANNEL_PATTERN = /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
 var BOT_OR_META_NAME_TOKEN = /^(lucy|llamo|llam[oó]|bodasesor|capybara|salesbot)$/i;
+var COURTESY_NAME_TOKEN = /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto)$/i;
+var MUCHO_GUSTO_SUFFIX = /\s+mucho\s+gusto\b/gi;
+var MUCHO_GUSTO_LEADING = /^mucho\s+gusto,?\s+/i;
+function isMuchoGustoNameReply(text2) {
+  const t3 = text2?.trim() ?? "";
+  if (!t3) return false;
+  return /^(?:soy\s+|me\s+llamo\s+)?[A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{0,30}(?:\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{0,30})?\s+mucho\s+gusto\s*[.!]?\s*$/i.test(
+    t3
+  );
+}
+function stripMuchoGustoSalutation(raw) {
+  let out2 = raw.trim();
+  out2 = out2.replace(MUCHO_GUSTO_LEADING, "").trim();
+  out2 = out2.replace(MUCHO_GUSTO_SUFFIX, "").trim();
+  return out2;
+}
 function isRepeatComplaintAsName(text2) {
   return /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé])\b/i.test(text2) || /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(text2) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(text2) || /\bya\s+respond[ií]\b/i.test(text2);
 }
@@ -107862,6 +107878,7 @@ function looksLikePersonFullName(text2) {
   if (!t3) return false;
   const parts2 = t3.split(/\s+/);
   if (parts2.length < 2 || parts2.length > 5) return false;
+  if (/\bmucho\s+gusto\b/i.test(t3)) return false;
   return parts2.every((part) => {
     const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     if (NAME_STOPWORDS.test(letters)) return false;
@@ -107882,6 +107899,7 @@ function isLikelyNotPersonNameMessage(text2) {
     return true;
   }
   if (isGreetingOnlyMessage(t3) || isQuoteIntentMessage(t3) || isAffirmativeOnlyMessage(t3)) return true;
+  if (isMuchoGustoNameReply(t3)) return false;
   if (/^(s[ií][,.]?\s*)?(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)([.!?]|$)/i.test(
     t3
   )) {
@@ -107947,7 +107965,7 @@ function stripLeadingNameFillers(name2) {
   return out2;
 }
 function sanitizeDisplayName(name2) {
-  const raw = name2?.trim() ?? "";
+  const raw = stripMuchoGustoSalutation(name2?.trim() ?? "");
   if (!raw || isPlaceholderLeadName(raw)) return null;
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
@@ -107974,7 +107992,7 @@ function sanitizeDisplayName(name2) {
   return firstName2.charAt(0).toUpperCase() + firstName2.slice(1).toLowerCase();
 }
 function sanitizeCrmNombre(name2) {
-  const raw = name2?.trim() ?? "";
+  const raw = stripMuchoGustoSalutation(name2?.trim() ?? "");
   if (!raw || isPlaceholderLeadName(raw) || isQuoteIntentMessage(raw)) return null;
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
@@ -107992,7 +108010,7 @@ function sanitizeCrmNombre(name2) {
     }
     const maybeRepair = stripPresentationPrefixLocal(raw).replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim().split(/\s+/).filter((part) => {
       const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
-      return letters.length >= 2 && !BOT_OR_META_NAME_TOKEN.test(letters) && !HANDOFF_OR_META_NAME_TOKEN.test(letters) && !CATALOG_LEVEL_OR_BRAND_NAME.test(letters) && !GREETING_NAME_PATTERN.test(letters) && !PRICE_OR_SERVICE_NAME_TOKEN.test(letters) && !SENTENCE_VERB_PATTERN.test(letters) && !/^(la|el|los|las|de|del|para|por|un|una|con|sin|tipo|bar)$/i.test(letters);
+      return letters.length >= 2 && !BOT_OR_META_NAME_TOKEN.test(letters) && !COURTESY_NAME_TOKEN.test(letters) && !HANDOFF_OR_META_NAME_TOKEN.test(letters) && !CATALOG_LEVEL_OR_BRAND_NAME.test(letters) && !GREETING_NAME_PATTERN.test(letters) && !PRICE_OR_SERVICE_NAME_TOKEN.test(letters) && !SENTENCE_VERB_PATTERN.test(letters) && !/^(la|el|los|las|de|del|para|por|un|una|con|sin|tipo|bar)$/i.test(letters);
     });
     if (maybeRepair.length === 0 || maybeRepair.length === raw.split(/\s+/).length) {
       return null;
@@ -108023,6 +108041,7 @@ function sanitizeCrmNombre(name2) {
     const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     if (!letters) return false;
     if (BOT_OR_META_NAME_TOKEN.test(letters)) return false;
+    if (COURTESY_NAME_TOKEN.test(letters)) return false;
     if (HANDOFF_OR_META_NAME_TOKEN.test(letters)) return false;
     if (CATALOG_LEVEL_OR_BRAND_NAME.test(letters)) return false;
     if (/^(boda|xv|cumpleanos|bautizo|aniversario|graduacion|es|una|un)$/i.test(letters)) return false;
@@ -137888,7 +137907,7 @@ function clientReplyForPaymentSlot(slot) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.47";
+var LUCY_PROMPT_VERSION = "V9.48";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -147445,7 +147464,7 @@ ${golfText}`,
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
   await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.48");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -147474,7 +147493,7 @@ ${golfText}`,
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
   await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.48");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -147592,7 +147611,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.48");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,
@@ -147663,7 +147682,7 @@ ${golfText}`,
     }
   });
   await test("135. V9.38 \u2014 comprobante en imagen: primer pago Anticipo, segundo Liquidaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.48");
     assert2.equal(FIELD_ANTICIPO, 1049322);
     assert2.equal(FIELD_LIQUIDACION, 1049324);
     assert2.equal(nextPaymentSlot(null, null), "anticipo");
@@ -147727,7 +147746,7 @@ ${golfText}`,
     assert2.ok(/amount_mxn/.test(imgSrc));
   });
   await test("136. V9.40 \u2014 A15380 invitados no se saltan; Coyoac\xE1n+colonia; Claro no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.48");
     const horario = "hola si se har\xEDa el 26 de septiembre pero a\xFAn no tenemos definido el horario";
     assert2.equal(parseInvitadosFromText(horario), null, "horario pendiente \u2260 invitados");
     const caps = scanConversationForCaptures([], horario, /* @__PURE__ */ new Set(["Nombre del cliente"]));
@@ -147830,7 +147849,7 @@ ${golfText}`,
     assert2.equal(taquizaNext, "invitados");
   });
   await test("138. V9.41 \u2014 A15383 Kelia: ciudad, banquetes, LED\u2260luz, no spam (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.48");
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert2.match(hornoMty, /horno\s*3/i, hornoMty);
     assert2.match(hornoMty, /monterrey/i, hornoMty);
@@ -147965,7 +147984,7 @@ ${golfText}`,
     assert2.ok(!/Listo\.\s*Kelia/i.test(nameSpam), nameSpam);
   });
   await test("139. V9.42 \u2014 A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.48");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert2.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert2.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -148055,7 +148074,7 @@ ${golfText}`,
     assert2.ok(!/invitados|cu[aá]nt[oa]s|ciudad del evento|en qu[eé] ciudad/i.test(handoff), handoff.slice(0, 400));
   });
   await test("140. V9.43 \u2014 detalle de un producto no re-lista el men\xFA (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.48");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -148094,7 +148113,7 @@ ${golfText}`,
     assert2.ok(/Coffee Break 4|350|CB4/i.test(rewritten), rewritten.slice(0, 500));
   });
   await test("141. V9.44 \u2014 A15443 Rosario: reuni\xF3n, hora comida, ciudad obligatoria", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.48");
     assert2.equal(parseTipoEventoFromText("una reuni\xF3n de 15 a\xF1os"), "reuni\xF3n");
     assert2.ok(clientSaidReunionNotXv("una reuni\xF3n de 15 a\xF1os"));
     assert2.ok(!clientSaidReunionNotXv("mis XV a\xF1os"));
@@ -148209,7 +148228,7 @@ ${golfText}`,
     assert2.ok(/2\.\s*\*?Servicio completo/i.test(fixedMenu), fixedMenu.slice(0, 600));
   });
   await test("142. V9.45 \u2014 A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.48");
     assert2.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert2.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
     assert2.ok(!isUsableFechaHorario("13:00 a 20:00 hrs"));
@@ -148282,8 +148301,8 @@ ${golfText}`,
     assert2.ok(/d[ií]a|fecha|cu[aá]ndo/i.test(clockReply), clockReply.slice(0, 400));
     assert2.ok(!/ya tengo todo/i.test(clockReply));
   });
-  await test("143. V9.47 \u2014 imagen solo embudo; silencio lee dep\xF3sito sin WhatsApp", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
+  await test("143. V9.48 \u2014 imagen solo embudo; silencio lee dep\xF3sito sin WhatsApp", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.48");
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
     assert2.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
@@ -148325,8 +148344,8 @@ ${golfText}`,
     assert2.ok(/stripImageClientReplyForSilence/.test(kommoSrc));
     assert2.ok(/sin WhatsApp al cliente|leída en silencio/i.test(kommoSrc));
   });
-  await test("144. V9.47 \u2014 A15478 Isabel: recomienda tama\xF1o pista seg\xFAn invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.47");
+  await test("144. V9.48 \u2014 A15478 Isabel: recomienda tama\xF1o pista seg\xFAn invitados", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.48");
     const ask = "Me puedes recomendar el tama\xF1o pensando en la cantidad de invitados?";
     assert2.ok(clientAsksDimensionRecommendation(ask));
     const rec = recommendPistaDimensionsForGuests(120, "XV a\xF1os");
@@ -148390,6 +148409,40 @@ ${golfText}`,
     });
     assert2.ok(/6m|8m|referencia|medidas/i.test(anti.mensaje), anti.mensaje);
     assert2.ok(!/ya tengo lo principal/i.test(anti.mensaje), anti.mensaje);
+  });
+  await test("146. V9.48 \u2014 A15494 Paola: mucho gusto no es apellido", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.48");
+    const reply = "Paola mucho gusto";
+    assert2.ok(isMuchoGustoNameReply(reply));
+    assert2.equal(sanitizeCrmNombre(reply), "Paola");
+    assert2.equal(sanitizeCrmNombre("Paola Mucho Gusto"), "Paola");
+    assert2.equal(sanitizeDisplayName("Paola Mucho Gusto"), "Paola");
+    assert2.ok(!looksLikePersonFullName("Paola mucho gusto"));
+    assert2.equal(
+      recoverClienteNombreFromHistory(
+        [
+          { role: "assistant", content: "\xBFMe regalas tu nombre?" },
+          { role: "user", content: reply }
+        ],
+        reply
+      ),
+      "Paola"
+    );
+    assert2.equal(resolveKommoLeadNamePatch("Paola Mucho Gusto", "Paola"), "Paola");
+    assert2.equal(resolveKommoLeadNamePatch("Paola", "Paola Mucho Gusto"), null);
+    assert2.equal(pickBetterNombre("Paola Mucho Gusto", "Paola"), "Paola");
+    const guarded = runGuards({
+      aiResponse: "\xA1Mucho gusto, Paola Mucho Gusto! \xBFQu\xE9 van a celebrar?",
+      extracted: emptyExtracted(),
+      filledSet: /* @__PURE__ */ new Set(),
+      readyForClosing: false,
+      currentMessage: reply,
+      history: [
+        { role: "assistant", content: "\xBFMe regalas tu nombre?" }
+      ]
+    });
+    assert2.ok(/mucho gusto,\s*Paola[^M]/i.test(guarded), guarded);
+    assert2.ok(!/Mucho Gusto!/i.test(guarded.replace(/mucho gusto,\s*Paola/i, "")), guarded);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

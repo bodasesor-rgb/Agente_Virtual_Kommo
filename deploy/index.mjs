@@ -126851,6 +126851,19 @@ var init_lucyInfoPriceCache = __esm({
 });
 
 // src/contact-name.ts
+function isMuchoGustoNameReply(text2) {
+  const t10 = text2?.trim() ?? "";
+  if (!t10) return false;
+  return /^(?:soy\s+|me\s+llamo\s+)?[A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{0,30}(?:\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{0,30})?\s+mucho\s+gusto\s*[.!]?\s*$/i.test(
+    t10
+  );
+}
+function stripMuchoGustoSalutation(raw) {
+  let out2 = raw.trim();
+  out2 = out2.replace(MUCHO_GUSTO_LEADING, "").trim();
+  out2 = out2.replace(MUCHO_GUSTO_SUFFIX, "").trim();
+  return out2;
+}
 function isRepeatComplaintAsName(text2) {
   return /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé])\b/i.test(text2) || /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(text2) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(text2) || /\bya\s+respond[ií]\b/i.test(text2);
 }
@@ -126897,6 +126910,7 @@ function looksLikePersonFullName(text2) {
   if (!t10) return false;
   const parts2 = t10.split(/\s+/);
   if (parts2.length < 2 || parts2.length > 5) return false;
+  if (/\bmucho\s+gusto\b/i.test(t10)) return false;
   return parts2.every((part) => {
     const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     if (NAME_STOPWORDS.test(letters)) return false;
@@ -126917,6 +126931,7 @@ function isLikelyNotPersonNameMessage(text2) {
     return true;
   }
   if (isGreetingOnlyMessage(t10) || isQuoteIntentMessage(t10) || isAffirmativeOnlyMessage(t10)) return true;
+  if (isMuchoGustoNameReply(t10)) return false;
   if (/^(s[ií][,.]?\s*)?(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)([.!?]|$)/i.test(
     t10
   )) {
@@ -126982,7 +126997,7 @@ function stripLeadingNameFillers(name2) {
   return out2;
 }
 function sanitizeDisplayName(name2) {
-  const raw = name2?.trim() ?? "";
+  const raw = stripMuchoGustoSalutation(name2?.trim() ?? "");
   if (!raw || isPlaceholderLeadName(raw)) return null;
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
@@ -127009,7 +127024,7 @@ function sanitizeDisplayName(name2) {
   return firstName2.charAt(0).toUpperCase() + firstName2.slice(1).toLowerCase();
 }
 function sanitizeCrmNombre(name2) {
-  const raw = name2?.trim() ?? "";
+  const raw = stripMuchoGustoSalutation(name2?.trim() ?? "");
   if (!raw || isPlaceholderLeadName(raw) || isQuoteIntentMessage(raw)) return null;
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
@@ -127027,7 +127042,7 @@ function sanitizeCrmNombre(name2) {
     }
     const maybeRepair = stripPresentationPrefixLocal(raw).replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim().split(/\s+/).filter((part) => {
       const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
-      return letters.length >= 2 && !BOT_OR_META_NAME_TOKEN.test(letters) && !HANDOFF_OR_META_NAME_TOKEN.test(letters) && !CATALOG_LEVEL_OR_BRAND_NAME.test(letters) && !GREETING_NAME_PATTERN.test(letters) && !PRICE_OR_SERVICE_NAME_TOKEN.test(letters) && !SENTENCE_VERB_PATTERN.test(letters) && !/^(la|el|los|las|de|del|para|por|un|una|con|sin|tipo|bar)$/i.test(letters);
+      return letters.length >= 2 && !BOT_OR_META_NAME_TOKEN.test(letters) && !COURTESY_NAME_TOKEN.test(letters) && !HANDOFF_OR_META_NAME_TOKEN.test(letters) && !CATALOG_LEVEL_OR_BRAND_NAME.test(letters) && !GREETING_NAME_PATTERN.test(letters) && !PRICE_OR_SERVICE_NAME_TOKEN.test(letters) && !SENTENCE_VERB_PATTERN.test(letters) && !/^(la|el|los|las|de|del|para|por|un|una|con|sin|tipo|bar)$/i.test(letters);
     });
     if (maybeRepair.length === 0 || maybeRepair.length === raw.split(/\s+/).length) {
       return null;
@@ -127058,6 +127073,7 @@ function sanitizeCrmNombre(name2) {
     const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     if (!letters) return false;
     if (BOT_OR_META_NAME_TOKEN.test(letters)) return false;
+    if (COURTESY_NAME_TOKEN.test(letters)) return false;
     if (HANDOFF_OR_META_NAME_TOKEN.test(letters)) return false;
     if (CATALOG_LEVEL_OR_BRAND_NAME.test(letters)) return false;
     if (/^(boda|xv|cumpleanos|bautizo|aniversario|graduacion|es|una|un)$/i.test(letters)) return false;
@@ -127144,7 +127160,7 @@ function pickBetterNombre(candidate, existing) {
 function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
   return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
 }
-var PHONE_LIKE, PLACEHOLDER_PATTERNS, GREETING_NAME_PATTERN, COMPANY_OR_CHANNEL_PATTERN, BOT_OR_META_NAME_TOKEN, CATALOG_LEVEL_OR_BRAND_NAME, SENTENCE_VERB_PATTERN, HANDOFF_OR_META_NAME_TOKEN, PRICE_OR_SERVICE_NAME_TOKEN, NAME_STOPWORDS;
+var PHONE_LIKE, PLACEHOLDER_PATTERNS, GREETING_NAME_PATTERN, COMPANY_OR_CHANNEL_PATTERN, BOT_OR_META_NAME_TOKEN, COURTESY_NAME_TOKEN, MUCHO_GUSTO_SUFFIX, MUCHO_GUSTO_LEADING, CATALOG_LEVEL_OR_BRAND_NAME, SENTENCE_VERB_PATTERN, HANDOFF_OR_META_NAME_TOKEN, PRICE_OR_SERVICE_NAME_TOKEN, NAME_STOPWORDS;
 var init_contact_name = __esm({
   "src/contact-name.ts"() {
     "use strict";
@@ -127162,6 +127178,9 @@ var init_contact_name = __esm({
     GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo|claro)$/i;
     COMPANY_OR_CHANNEL_PATTERN = /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
     BOT_OR_META_NAME_TOKEN = /^(lucy|llamo|llam[oó]|bodasesor|capybara|salesbot)$/i;
+    COURTESY_NAME_TOKEN = /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto)$/i;
+    MUCHO_GUSTO_SUFFIX = /\s+mucho\s+gusto\b/gi;
+    MUCHO_GUSTO_LEADING = /^mucho\s+gusto,?\s+/i;
     CATALOG_LEVEL_OR_BRAND_NAME = /^(premium|b[aá]sic[ao]|tradicional|solo\s*alimentos?|deluxe|vip|gold|silver|platinum|business|premium\s*events?)$/i;
     SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|hablar|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale|manda|m[aá]nda|mandame|m[aá]ndame|mandamelo|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|pasa|p[aá]same|conocer)\b/i;
     HANDOFF_OR_META_NAME_TOKEN = /^(hablar|asesor|agente|humano|persona|ejecutivo|equipo|conmigo|contigo|por|favor)$/i;
@@ -227254,7 +227273,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.47";
+var LUCY_PROMPT_VERSION = "V9.48";
 
 // src/lib/buildMeta.ts
 var cached = null;
