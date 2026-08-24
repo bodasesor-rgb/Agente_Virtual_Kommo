@@ -60,6 +60,7 @@ import {
   looksLikeMealTimeNotLocation,
   isMealTimeOnlySchedule,
   isClockTimeOnlySchedule,
+  isSimpleClockTime,
   isUsableFechaHorario,
   mergeFechaHorario,
   looksLikeFechaDiscourseJunk,
@@ -87,6 +88,10 @@ import {
   recoverCorreoFromUserTexts,
   recoverZonaFromUserTexts,
   isRichQuoteBrief,
+  isEquipmentListRfq,
+  parseEquipmentRfqLineItems,
+  mergeEquipmentRfqIntoRequirements,
+  clientSaidAperturaNegocio,
   clientAsksToRereadBrief,
   clientAsksDistributorPricing,
   buildRichBriefAcknowledgment,
@@ -187,6 +192,8 @@ import {
   applyLucyMessageGuards,
   applyEmailWaiver,
   applyInvitadosWaiver,
+  detectInvitadosUnavailable,
+  syncRichBriefIntoExtracted,
   applyPresupuestoWaiver,
   buildPhoneAnswer,
   buildRecommendationsReply,
@@ -214,6 +221,7 @@ import {
   getNextPendingField,
   syncFilledFromExtracted,
   syncInvitadosFromHistory,
+  syncHorarioFromHistory,
   isFieldSatisfied,
   isReadyForClosing,
   mensajeAsksForFilledField,
@@ -11191,7 +11199,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.35 — primer turno banquete: catálogo + pregunta embudo (Allison A15370) ───
   await test("133. V9.35 — banquete Torreón primer turno pide fecha/invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.51");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -11223,7 +11231,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.36 — no cortar el chat (Isai A15378) ───
   await test("134. V9.36 — Isai: no cierra, no confunde nombre con ciudad, urgencia ≠ teléfono", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.51");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
     assert.equal(parseZonaFromText("Isai Moreno"), null);
     assert.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -11350,7 +11358,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.51");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
@@ -11427,7 +11435,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("135. V9.38 — comprobante en imagen: primer pago Anticipo, segundo Liquidación", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.51");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
     assert.equal(FIELD_ANTICIPO, 1049322);
     assert.equal(FIELD_LIQUIDACION, 1049324);
 
@@ -11499,7 +11507,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("136. V9.40 — A15380 invitados no se saltan; Coyoacán+colonia; Claro no es nombre", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.51");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
     const horario = "hola si se haría el 26 de septiembre pero aún no tenemos definido el horario";
     assert.equal(parseInvitadosFromText(horario), null, "horario pendiente ≠ invitados");
     const caps = scanConversationForCaptures([], horario, new Set(["Nombre del cliente"]));
@@ -11612,7 +11620,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("138. V9.41 — A15383 Kelia: ciudad, banquetes, LED≠luz, no spam (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.51");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
 
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert.match(hornoMty, /horno\s*3/i, hornoMty);
@@ -11764,7 +11772,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.42 — A15391 Mariana: Coffee Break 4, "4. nombre", handoff, horario ≠ menú ───
   await test("139. V9.42 — A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.51");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -11859,7 +11867,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("140. V9.43 — detalle de un producto no re-lista el menú (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.51");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -11903,7 +11911,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.44 — A15443 Rosario: reunión≠XV, hora comida≠ubicación, no cierra sin ciudad ───
   await test("141. V9.44 — A15443 Rosario: reunión, hora comida, ciudad obligatoria", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.51");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
 
     assert.equal(parseTipoEventoFromText("una reunión de 15 años"), "reunión");
     assert.ok(clientSaidReunionNotXv("una reunión de 15 años"));
@@ -12028,7 +12036,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.45 — A15419 Stephanie: fecha≠frase, horario≠día, silent-watch limpio ───
   await test("142. V9.45 — A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.51");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
 
     assert.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
@@ -12116,7 +12124,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.49 — imágenes: responder solo en embudo; post–Humano Trabaja lee pero no WhatsApp ───
   await test("143. V9.49 — imagen solo embudo; silencio lee depósito sin WhatsApp", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.51");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
     assert.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
     assert.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
     assert.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
@@ -12164,7 +12172,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.49 — A15478 Isabel: recomendación de medidas según invitados ───
   await test("144. V9.49 — A15478 Isabel: recomienda tamaño pista según invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.51");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
     const ask =
       "Me puedes recomendar el tamaño pensando en la cantidad de invitados?";
     assert.ok(clientAsksDimensionRecommendation(ask));
@@ -12243,7 +12251,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.49 — A15494 Paola: "mucho gusto" no es apellido ───
   await test("146. V9.49 — A15494 Paola: mucho gusto no es apellido", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.51");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
     const reply = "Paola mucho gusto";
     assert.ok(isMuchoGustoNameReply(reply));
     assert.equal(sanitizeCrmNombre(reply), "Paola");
@@ -12282,7 +12290,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.49 — A15503 Good: loza/vajilla ≠ mesa de postres ───
   await test("147. V9.49 — A15503 Good: loza y plato postre = vajilla, no postres", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.51");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
     const brief =
       "Hola, me interesa cotizar un servicio\n" +
       "Quiere loza para un evento para 50 personas\n" +
@@ -12320,13 +12328,18 @@ async function runAll(): Promise<void> {
 
   // ─── V9.50 — fecha (1048778) y horario (1049358) separados en CRM ───
   await test("148. V9.50 — fecha y horario en campos CRM separados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.51");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
 
     const split = splitCombinedFechaHorario("15 de agosto, 5:00 p.m.");
     assert.equal(split.fecha, "15 de agosto");
     assert.ok(split.horario && /5:00/i.test(split.horario));
 
     assert.equal(parseHorarioFromText("13:00 a 20:00 hrs"), "13:00 a 20:00 hrs");
+    assert.equal(parseHorarioFromText("4 pm"), "4 pm");
+    assert.equal(parseHorarioFromText("4pm"), "4pm");
+    assert.equal(parseHorarioFromText("A las 16:00 hrs"), "16:00 hrs");
+    assert.equal(parseHorarioFromText("A las 4 de la tarde"), "4 de la tarde");
+    assert.ok(isSimpleClockTime("4 pm"));
     assert.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
 
     const migrated = migrateLegacyCrmFechaHorarioLines([
@@ -12362,7 +12375,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.51 — A15508 Betiana: "40 invitadas" + no repetir invitados ───
   await test("149. V9.51 — A15508 Betiana: 40 invitadas y anti-repetición", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.51");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
     assert.equal(parseInvitadosFromText("40 sillas, 40 invitadas"), "40");
     assert.equal(parseInvitadosFromText("40 invitadas"), "40");
     assert.equal(
@@ -12408,6 +12421,134 @@ async function runAll(): Promise<void> {
       ],
     });
     assert.ok(!/estimado de invitados|cu[aá]ntos invitados/i.test(guarded), guarded);
+  });
+
+  // ─── V9.52 — A15509 Gaby: apertura negocio, PINOTEPA, equipo completo, "aún no" ───
+  await test("150. V9.52 — A15509 Gaby: apertura, RFQ equipo, aún no invitados", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(parseTipoEventoFromText("Sería para la apertura de un negocio"), "apertura de negocio");
+    assert.ok(clientSaidAperturaNegocio("Sería para la apertura de un negocio"));
+
+    const rfq = [
+      "PINOTEPA:",
+      "",
+      "2 mesas (tablones)",
+      "30 sillas tipo tiffany",
+      "1 bocina",
+      "2 micrófonos",
+      "1 podium",
+      "",
+      "El evento es el dia 14 de septiembre",
+    ].join("\n");
+
+    assert.ok(isEquipmentListRfq(rfq));
+    assert.ok(isRichQuoteBrief(rfq));
+    assert.equal(parseZonaFromText(rfq), "PINOTEPA");
+    const items = parseEquipmentRfqLineItems(rfq);
+    assert.ok(items.some((i) => /bocina/i.test(i)));
+    assert.ok(items.some((i) => /micr[oó]fono/i.test(i)));
+    assert.ok(items.some((i) => /podium/i.test(i)));
+
+    const extracted = emptyExtracted({
+      requerimientos_evento: "Audio y sonido, Iluminación, Video",
+    });
+    const filled = new Set(["Requerimientos o servicios"]);
+    syncRichBriefIntoExtracted(extracted, filled, rfq);
+    assert.equal(extracted.direccion_evento, "PINOTEPA");
+    assert.ok(/14 de septiembre/i.test(extracted.fecha_evento ?? ""));
+    assert.ok(/bocina|micr[oó]fono|podium/i.test(extracted.requerimientos_evento ?? ""));
+
+    assert.equal(
+      parseInvitadosFromText("Aún no", { askedInvitados: true }),
+      "Sin definir (cliente indicó aproximación pendiente)"
+    );
+    assert.ok(
+      detectInvitadosUnavailable(["Aún no"], [
+        { role: "assistant", content: "¿Cuántos invitados tienen contemplados?" },
+      ])
+    );
+
+    const bodaFix = runGuards({
+      aiResponse:
+        "¡Mucho gusto, Gaby! Anoto tu boda el 14 de septiembre con audio e iluminación. ¿Cuántos invitados?",
+      extracted: emptyExtracted({ nombre: "Gaby", tipo_evento: "boda" }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: "Sería para la apertura de un negocio",
+      history: [
+        { role: "user", content: rfq },
+        { role: "assistant", content: "¿Cuántos invitados?" },
+      ],
+    });
+    assert.ok(!/\bboda\b/i.test(bodaFix), bodaFix);
+
+    const invWaive = runGuards({
+      aiResponse:
+        "Con gusto. ¿Más o menos para cuántas personas sería?\n\nPerfecto, Gaby. No te preocupes por el número de invitados por ahora. ¿Tienes correo?",
+      extracted: emptyExtracted({ nombre: "Gaby", tipo_evento: "apertura de negocio" }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "Aún no",
+      history: [
+        { role: "assistant", content: "¿Cuántos invitados tienen contemplados?" },
+        { role: "user", content: "Sería para la apertura de un negocio" },
+      ],
+    });
+    assert.ok(!/cu[aá]ntas personas|estimado de invitados/i.test(invWaive), invWaive);
+  });
+
+  // ─── V9.53 — A15516 Ccam: horario 4pm / 16:00 sin repetir pregunta ───
+  await test("151. V9.53 — A15516 Ccam: captura horario pm y anti-repetición", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+
+    const extracted = emptyExtracted({
+      nombre: "Ccam",
+      tipo_evento: "XV años",
+      requerimientos_evento: "Carpas",
+      fecha_evento: "9 de enero",
+      num_invitados: 50,
+      direccion_evento: null,
+    });
+    const filled = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      CRM_FECHA_LABEL,
+      "Número de invitados",
+    ]);
+    const history: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "assistant", content: "¿En qué horario lo planean?" },
+    ];
+
+    syncHorarioFromHistory(filled, extracted, history, "4 pm");
+    assert.equal(extracted.horario_evento, "4 pm");
+    assert.ok(filled.has(CRM_HORARIO_LABEL));
+    assert.notEqual(getNextPendingField(extracted, filled), "horario");
+
+    const guarded = runGuards({
+      aiResponse: "Perfecto, Ccam. ¿A qué hora sería el evento?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "4 pm",
+      history,
+    });
+    assert.ok(!/a qu[eé] hora|horario lo planean/i.test(guarded), guarded);
+    assert.ok(!/Sigo aqu[ií]/i.test(guarded), guarded);
+
+    const guarded2 = runGuards({
+      aiResponse: "¿En qué horario lo planean?",
+      extracted: emptyExtracted({
+        nombre: "Ccam",
+        tipo_evento: "XV años",
+        fecha_evento: "9 de enero",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento", CRM_FECHA_LABEL]),
+      readyForClosing: false,
+      currentMessage: "A las 4 de la tarde",
+      history: [{ role: "assistant", content: "¿En qué horario lo planean?" }],
+    });
+    assert.ok(!/horario/i.test(guarded2) || /anoto|perfecto|invitados|ciudad|correo/i.test(guarded2), guarded2);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

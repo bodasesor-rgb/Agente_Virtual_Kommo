@@ -157,7 +157,10 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ],
   ["Carpas", /\b(carpa|carpas|toldo)\b/i],
   ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
-  ["Audio y sonido", /\b(audio|microfon[ií]a|sonido|bocinas|amplificaci[oó]n)\b/i],
+  [
+    "Audio y sonido",
+    /\b(audio|microfon[ií]a|micr[oó]fonos?|sonido|bocinas?|podium|podios?|amplificaci[oó]n)\b/i,
+  ],
   ["Estructuras", /\bestructuras?\b/i],
   ["Inflables", /\binflable/i],
   ["Softplay", /\bsoft\s*play\b/i],
@@ -274,6 +277,16 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
 };
 
 const TIPO_EVENTO_PATTERNS: Array<[RegExp, string]> = [
+  // A15509 Gaby: apertura/inauguración de negocio — antes de boda (GPT no debe inferir boda).
+  [
+    /\b(apertura|inauguraci[oó]n)\s+(de\s+)?(un\s+)?(negocio|local|tienda|sucursal|empresa|plaza|centro\s+comercial)\b/i,
+    "apertura de negocio",
+  ],
+  [
+    /\b(apertura|inauguraci[oó]n)\s+(de\s+)?(un\s+)?evento\b/i,
+    "evento corporativo",
+  ],
+  [/\b(apertura|inauguraci[oó]n)\b/i, "apertura de negocio"],
   [/\b(expo(sición)?|feria|stand\s+de|congreso)\b/i, "evento corporativo"],
   // A14985 Lilian: torneo de golf / stand en campo.
   [/\b(torneo(\s+de\s+golf)?|torneo\s+de\s+golf|golf|stand\s+en\s+campo)\b/i, "evento corporativo"],
@@ -1429,8 +1442,49 @@ export function clientAsksPhone(message?: string): boolean {
  * Brief / RFQ largo con varios datos (fecha, zona, invitados, servicios, cotización).
  * No debe tratarse como rechazo de presupuesto ni como pregunta de precio de un SKU.
  */
+/** RFQ con lista numerada de mobiliario/audio (A15509 PINOTEPA + mesas/sillas/bocina). */
+export function parseEquipmentRfqLineItems(text: string): string[] {
+  const items: string[] = [];
+  for (const m of text.matchAll(
+    /\b(\d+)\s*(mesas?(?:\s*\([^)]+\))?|sillas?(?:\s+tipo\s+\w+)?|bocinas?|micr[oó]fonos?|podium|podios?|tarimas?|carpas?|periqueras?|bancos?)\b/gi
+  )) {
+    items.push(`${m[1]} ${m[2]!.trim().toLowerCase()}`);
+  }
+  return [...new Set(items)];
+}
+
+export function isEquipmentListRfq(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (t.length < 60) return false;
+  const items = parseEquipmentRfqLineItems(t);
+  if (items.length >= 3) return true;
+  if (items.length >= 2) {
+    return (
+      /\b(el\s+)?evento\s+es\s+el\b/i.test(t) ||
+      /\b\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)/i.test(
+        t
+      )
+    );
+  }
+  return false;
+}
+
+/** Une servicios parseados con ítems numerados del RFQ (mesas, bocina, micrófonos…). */
+export function mergeEquipmentRfqIntoRequirements(
+  existing: string | null | undefined,
+  text: string | null | undefined,
+  max = 8
+): string | null {
+  const services = mergeServiceRequirements(existing, text, max);
+  const lineItems = text?.trim() ? parseEquipmentRfqLineItems(text) : [];
+  if (!lineItems.length) return services;
+  const parts = [...(services ? services.split(/,\s*/) : []), ...lineItems];
+  return [...new Set(parts.map((p) => p.trim()).filter(Boolean))].slice(0, max).join(", ");
+}
+
 export function isRichQuoteBrief(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
+  if (isEquipmentListRfq(t)) return true;
   if (t.length < 100) return false;
 
   // RFQ estructurado (Fecha:/Lugar:/Tipo:…) — frecuente en WhatsApp B2B.
@@ -2612,12 +2666,18 @@ export function buildRichBriefAcknowledgment(text: string): string {
       : "De acuerdo, revisé con detalle tu solicitud de cotización.";
 
   // A14987: picnic/periqueras/bancos con cantidades — no solo "Mobiliario".
+  const equipSummary =
+    parseEquipmentRfqLineItems(text).length >= 2
+      ? parseEquipmentRfqLineItems(text).join(", ")
+      : null;
   const mobItems = text.match(
     /(\d+\s+mesas?\s+tipo\s+picnic|\d+\s+picnic|\d+\s+periqueras?|\d+\s+bancos?)/gi
   );
-  const mobSummary = mobItems?.length
-    ? [...new Set(mobItems.map((m) => m.trim().toLowerCase()))].join(", ")
-    : null;
+  const mobSummary = equipSummary
+    ? equipSummary
+    : mobItems?.length
+      ? [...new Set(mobItems.map((m) => m.trim().toLowerCase()))].join(", ")
+      : null;
 
   // No hardcodear menús de un cliente (Alejandra): resume lo que el brief trae.
   if (hasThreeMenus && services.length >= 1) {
@@ -2778,6 +2838,22 @@ export function parseTipoEventoFromText(text: string): string | null {
 }
 
 /**
+ * A15509: cliente dijo apertura/inauguración de negocio — GPT no debe inferir boda.
+ */
+export function clientSaidAperturaNegocio(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  if (/\b(boda|matrimonio|casamiento|nupcial|quincea[nñ]era|xv\s*a[nñ]os?)\b/i.test(t)) {
+    return false;
+  }
+  return (
+    /\b(apertura|inauguraci[oó]n)\s+(de\s+)?(un\s+)?(negocio|local|tienda|sucursal|empresa|plaza)\b/i.test(
+      t
+    ) || /\bapertura\s+de\s+un\s+negocio\b/i.test(t)
+  );
+}
+
+/**
  * A15443: "reunión de 15 años" / "reencuentro de 20 años" — NUNCA XV.
  * GPT a menudo confunde "15 años" con quinceañera.
  */
@@ -2850,12 +2926,43 @@ export function isMealTimeOnlySchedule(text: string | null | undefined): boolean
 }
 
 /**
+ * Hora suelta sin rango ni fecha: "4 pm", "16:00 hrs", "A las 4 de la tarde".
+ * A15516 Ccam: Lucy no capturaba horario y repetía la pregunta.
+ */
+export function isSimpleClockTime(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t || t.length > 50) return false;
+  if (MONTH_PATTERN.test(t)) return false;
+  if (
+    /\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
+      t
+    )
+  ) {
+    return false;
+  }
+  if (
+    /^(?:a\s+las\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)?$/i.test(t)
+  ) {
+    return true;
+  }
+  if (
+    /^(?:a\s+las\s+)?\d{1,2}(?::\d{2})?\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana)(?:\s*(?:hrs?|horas?))?$/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Solo rango horario ("13:00 a 20:00 hrs") sin día/mes — no cierra Fecha.
  * A15419 Stephanie: anotó horario y saltó el día del calendario.
  */
 export function isClockTimeOnlySchedule(text: string | null | undefined): boolean {
   const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
   if (!t || t.length > 60) return false;
+  if (isSimpleClockTime(t)) return true;
   if (MONTH_PATTERN.test(t)) return false;
   if (
     /\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
@@ -2976,13 +3083,18 @@ export function syncLegacyFechaHorarioField(
   );
 }
 
+/** Normaliza captura de horario (sin prefijo "a las"). */
+function normalizeHorarioCapture(text: string): string {
+  return text.replace(/^a\s+las\s+/i, "").trim().slice(0, 80);
+}
+
 /** Extrae horario de un mensaje (sin día). */
 export function parseHorarioFromText(text: string): string | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
   const clean = trimmed.replace(/[.,;:¡!¿?]+$/g, "").trim();
 
-  if (isClockTimeOnlySchedule(clean)) return clean;
+  if (isClockTimeOnlySchedule(clean)) return normalizeHorarioCapture(clean);
   if (isMealTimeOnlySchedule(clean)) return clean;
 
   const horarioLabel = clean.match(/\bhorario\s*:?\s*(.+)$/i);
@@ -2990,13 +3102,21 @@ export function parseHorarioFromText(text: string): string | null {
     return horarioLabel[1].trim().slice(0, 80);
   }
 
-  const atTime = clean.match(
-    /\b(?:a\s+las|a\s+partir\s+de)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)?)\b/i
+  const aLasPhrase = clean.match(
+    /^a\s+las\s+(\d{1,2}(?::\d{2})?(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?)\s*(?:hrs?|horas?)?$/i
   );
-  if (atTime?.[0]) {
+  if (aLasPhrase?.[1]) return normalizeHorarioCapture(aLasPhrase[0]);
+
+  const atTime = clean.match(
+    /\b(?:a\s+las|a\s+partir\s+de)\s+(\d{1,2}(?::\d{2})?(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?(?:\s*(?:hrs?|horas?|am|pm|a\.?\s*m\.?|p\.?\s*m\.?))?)\b/i
+  );
+  if (atTime?.[1]) {
     const withoutTime = clean.replace(atTime[0], "").trim();
-    if (parseFechaFromText(withoutTime) || MONTH_PATTERN.test(withoutTime)) {
-      return atTime[0].replace(/^a\s+(?:las|partir\s+de)\s+/i, "").trim();
+    if (!withoutTime || parseFechaFromText(withoutTime) || MONTH_PATTERN.test(withoutTime)) {
+      if (/de\s+la\s+(tarde|noche|ma[nñ]ana)/i.test(clean) && !/de\s+la/i.test(atTime[1])) {
+        return normalizeHorarioCapture(clean);
+      }
+      return normalizeHorarioCapture(atTime[1]);
     }
   }
 
@@ -3017,10 +3137,10 @@ export function parseHorarioFromText(text: string): string | null {
 
   if (
     /\b(tarde|noche|mediod[ií]a|ma[nñ]ana)\b/i.test(clean) &&
-    clean.split(/\s+/).length <= 5 &&
+    clean.split(/\s+/).length <= 7 &&
     !MONTH_PATTERN.test(clean)
   ) {
-    return clean.slice(0, 40);
+    return normalizeHorarioCapture(clean).slice(0, 40);
   }
 
   if (
@@ -3072,6 +3192,7 @@ export function isUsableHorarioEvento(value: string | null | undefined): boolean
   if (/^sin\s+definir/i.test(t)) return true;
   if (isClockTimeOnlySchedule(t)) return true;
   if (isMealTimeOnlySchedule(t)) return true;
+  if (isSimpleClockTime(t)) return true;
   if (looksLikeMealTimeNotLocation(t) && t.split(/\s+/).length <= 6) return true;
   if (/\b\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}/i.test(t)) return true;
   if (/\b(?:a\s+las|desde\s+las)\s+\d/i.test(t)) return true;
@@ -3338,6 +3459,15 @@ function messageIsAboutScheduleOrPlaceNotGuests(text: string): boolean {
 export function parseInvitadosFromText(text: string, opts?: InvitadosParseOptions): string | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
+
+  // A15509: "Aún no" tras pregunta de invitados = dato pendiente, no re-preguntar.
+  if (
+    opts?.askedInvitados &&
+    (/^a[uú]n\s+no[,.]?\s*$/i.test(trimmed) ||
+      (/\ba[uú]n\s+no\b/i.test(trimmed) && trimmed.split(/\s+/).length <= 4))
+  ) {
+    return "Sin definir (cliente indicó aproximación pendiente)";
+  }
 
   // A15383: "menú de tres tiempos" / "Horno 3" ≠ 3 invitados.
   if (
@@ -3882,6 +4012,19 @@ export function parseZonaFromText(text: string): string | null {
   }
   if (/\bvalle\s+de\s+bravo\b/i.test(trimmed) && /\bmesa\s+rica\b/i.test(trimmed)) {
     return "valle de bravo";
+  }
+
+  // A15509: encabezado "PINOTEPA:" / "OAXACA:" en RFQ WhatsApp (sin etiqueta Lugar:).
+  const placeHeader = trimmed.match(/^([A-Za-zÁÉÍÓÚ][A-Za-záéíóúñÁÉÍÓÚ\s.-]{2,35})\s*:\s*/);
+  if (placeHeader?.[1]) {
+    const place = placeHeader[1].trim();
+    if (
+      place.length >= 3 &&
+      !/^(tipo|fecha|horario|lugar|servicios|requerimientos|ubicaci[oó]n)$/i.test(place) &&
+      isUsableDireccionEvento(place)
+    ) {
+      return place;
+    }
   }
 
   // A15298: "Lugar: Centro Cultural El Rule, ubicado junto a…"

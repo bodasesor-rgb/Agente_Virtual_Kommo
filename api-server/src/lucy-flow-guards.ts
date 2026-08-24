@@ -248,6 +248,10 @@ import {
   looksLikeFechaDiscourseJunk,
   clientSaidReunionNotXv,
   parseReunionAniosLabel,
+  clientSaidAperturaNegocio,
+  isEquipmentListRfq,
+  mergeEquipmentRfqIntoRequirements,
+  parseEquipmentRfqLineItems,
   FECHA_MAX_ASKS,
   FECHA_AUTO_WAIVER,
 } from "./conversation-understanding.js";
@@ -478,7 +482,7 @@ export function syncRichBriefIntoExtracted(
       filledSet.add("Tipo de evento");
     }
   }
-  const mergedReq = mergeServiceRequirements(
+  const mergedReq = mergeEquipmentRfqIntoRequirements(
     extracted.requerimientos_evento,
     text,
     8
@@ -714,6 +718,10 @@ export function detectInvitadosUnavailable(
 
   if (texts.some((text) => explicitUnknown.test(text) && guestContext.test(text))) return true;
   if (texts.some((text) => sponsorContext.test(text) && explicitUnknown.test(text))) return true;
+  const aunNo =
+    /^a[uú]n\s+no[,.]?\s*$/i.test(last) ||
+    (/\ba[uú]n\s+no\b/i.test(last) && last.split(/\s+/).length <= 4);
+  if (askedInvitados && aunNo) return true;
   return askedInvitados && (explicitUnknown.test(last) || sponsorContext.test(last));
 }
 
@@ -753,6 +761,26 @@ export function syncInvitadosFromHistory(
   return true;
 }
 
+export function syncHorarioFromHistory(
+  filledSet: Set<string>,
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
+): boolean {
+  if (isFieldSatisfied("horario", filledSet, extracted)) return false;
+  const texts = collectUserTexts(history, currentMessage);
+  for (let i = texts.length - 1; i >= 0; i--) {
+    const h = parseHorarioFromText(texts[i]!);
+    if (h && isUsableHorarioEvento(h)) {
+      extracted.horario_evento = h;
+      filledSet.add(CRM_HORARIO_LABEL);
+      syncLegacyFechaHorarioField(extracted);
+      return true;
+    }
+  }
+  return false;
+}
+
 function blockResolvedInvitadosAsk(
   mensaje: string,
   filledSet: Set<string>,
@@ -783,6 +811,8 @@ function blockResolvedInvitadosAsk(
       null;
     if (fromHist && /^\d+$/.test(fromHist)) {
       extracted.num_invitados = Number(fromHist);
+      filledSet.add("Número de invitados");
+    } else if (fromHist && /sin definir/i.test(fromHist)) {
       filledSet.add("Número de invitados");
     }
   }
@@ -4892,6 +4922,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   syncFilledFromExtracted(filledSet, extracted);
   syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage);
+  syncHorarioFromHistory(filledSet, extracted, presHistory, currentMessage);
   // A15443: "hora de comida/fomida" nunca es ciudad ni fecha completa.
   if (
     extracted.direccion_evento &&
@@ -4928,6 +4959,27 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           .replace(/\bXV\s*a[nñ]os?\b/gi, label)
           .replace(/\bquincea[nñ]era\b/gi, label);
         log?.info({ entityId, label }, "GUARD: A15443 — reunión de N años ≠ XV (aiResponse)");
+      }
+    }
+  }
+  // A15509: apertura de negocio — corregir "boda" inventado por GPT.
+  {
+    const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
+    if (clientSaidAperturaNegocio(userBlob) || clientSaidAperturaNegocio(currentMessage)) {
+      const tipo =
+        parseTipoEventoFromText(currentMessage ?? "") ||
+        parseTipoEventoFromText(userBlob) ||
+        "apertura de negocio";
+      if (!extracted.tipo_evento?.trim() || /\bboda\b/i.test(extracted.tipo_evento)) {
+        extracted.tipo_evento = tipo;
+        filledSet.add("Tipo de evento");
+      }
+      if (/\bboda\b|\bmatrimonio\b/i.test(aiResponse)) {
+        aiResponse = aiResponse
+          .replace(/\btu\s+boda\b/gi, "tu apertura de negocio")
+          .replace(/\bboda\b/gi, "apertura de negocio")
+          .replace(/\bmatrimonio\b/gi, "apertura de negocio");
+        log?.info({ entityId, tipo }, "GUARD: A15509 — apertura de negocio ≠ boda (aiResponse)");
       }
     }
   }
@@ -5344,11 +5396,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   if (
     !cierreYaEnviado &&
     currentMessage &&
-    isRichQuoteBrief(currentMessage) &&
+    (isRichQuoteBrief(currentMessage) || isEquipmentListRfq(currentMessage)) &&
     !(
       isMobiliarioRentalPedido(currentMessage) &&
       parseMobiliarioRentItems(currentMessage).length >= 1 &&
-      parseServicesFromText(currentMessage).filter((s) => !/mobiliario/i.test(s)).length === 0
+      parseServicesFromText(currentMessage).filter((s) => !/mobiliario/i.test(s)).length === 0 &&
+      !isEquipmentListRfq(currentMessage)
     )
   ) {
     // Primer contacto: intro aunque el brief ya traiga correo (A15007 lo llena antes).
@@ -5628,23 +5681,26 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       (isClockTimeOnlySchedule(currentMessage) || isMealTimeOnlySchedule(currentMessage) || horarioNow) &&
       !filledSet.has(CRM_HORARIO_LABEL)
     ) {
-      extracted.horario_evento = (horarioNow ?? currentMessage.trim()).replace(/\s+/g, " ").slice(0, 80);
+      extracted.horario_evento = (
+        horarioNow ??
+        parseHorarioFromText(currentMessage ?? "") ??
+        currentMessage.trim()
+      )
+        .replace(/\s+/g, " ")
+        .slice(0, 80);
       filledSet.add(CRM_HORARIO_LABEL);
       syncLegacyFechaHorarioField(extracted);
       const display = getDisplayName(extracted, whatsappDisplayName);
       const ack = display
-        ? `Entendido, ${display}. Anoto el horario *${extracted.horario_evento}*.`
-        : `Entendido. Anoto el horario *${extracted.horario_evento}*.`;
+        ? `Perfecto, ${display}. Anoto el horario *${extracted.horario_evento}*.`
+        : `Perfecto. Anoto el horario *${extracted.horario_evento}*.`;
       const pendingAfterHorario = getNextPendingField(extracted, filledSet);
-      const nextQ =
-        pendingAfterHorario === "fecha"
-          ? buildNaturalQuestion("fecha", ctx)
-          : pendingAfterHorario
-            ? buildNaturalQuestion(pendingAfterHorario, ctx)
-            : null;
-      log?.info({ entityId }, "GUARD: A15419 — horario sin día → pide fecha");
+      const nextQ = pendingAfterHorario
+        ? buildNaturalQuestion(pendingAfterHorario, ctx)
+        : null;
+      log?.info({ entityId, pending: pendingAfterHorario }, "GUARD: A15419 — horario capturado + embudo");
       return normalizeAdvisorReferences(
-        `${ack} ${nextQ || "¿Qué día sería el evento?"}`.trim(),
+        nextQ ? `${ack} ${nextQ}` : ack,
         extracted.nombre ?? display
       );
     }
@@ -6710,7 +6766,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       isMobiliarioRentalPedido(currentMessage) &&
       !clientMentionsCarpas(currentMessage) &&
       parseMobiliarioRentItems(currentMessage ?? "").length >= 1 &&
-      servicesFromCurrentMessage.filter((s) => !/mobiliario/i.test(s)).length === 0
+      servicesFromCurrentMessage.filter((s) => !/mobiliario/i.test(s)).length === 0 &&
+      !isEquipmentListRfq(currentMessage)
     ) {
       if (
         extracted.direccion_evento &&
