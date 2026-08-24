@@ -128207,7 +128207,9 @@ function parseWebLeadBrief(text2) {
   if (seriaMatch) {
     const fechaPart = seriaMatch[1].trim();
     const lugarPart = seriaMatch[2].trim();
-    result.fecha_horario = parseFechaFromText(fechaPart) ?? fechaPart;
+    result.fecha_evento = parseFechaFromText(fechaPart) ?? fechaPart;
+    const horarioPart = parseHorarioFromText(fechaPart);
+    if (horarioPart) result.horario_evento = horarioPart;
     result.direccion_evento = parseZonaFromText(lugarPart) ?? lugarPart;
   }
   const invMatch = t10.match(/para\s+(\d{1,4})\s*(?:personas?|invitados?|pax|gente)/i);
@@ -128239,8 +128241,11 @@ function applyWebLeadBrief(extracted, text2) {
     );
     if (merged) extracted.requerimientos_evento = merged;
   }
-  if (!extracted.fecha_horario?.trim() && brief.fecha_horario) {
-    extracted.fecha_horario = brief.fecha_horario;
+  if (!extracted.fecha_evento?.trim() && brief.fecha_horario) {
+    const { fecha, horario } = splitCombinedFechaHorario(brief.fecha_horario);
+    if (fecha) extracted.fecha_evento = fecha;
+    if (horario) extracted.horario_evento = horario;
+    syncLegacyFechaHorarioField(extracted);
   }
   if (!isUsableDireccionEvento(extracted.direccion_evento) && brief.direccion_evento && isUsableDireccionEvento(brief.direccion_evento)) {
     extracted.direccion_evento = brief.direccion_evento;
@@ -128989,6 +128994,7 @@ function inferLucyAskedField(lastLucyMessage) {
     "invitados",
     "zona",
     "fecha",
+    "horario",
     "presupuesto"
   ];
   for (const field of priority) {
@@ -129467,27 +129473,120 @@ function extractFechaCorrectionFragment(text2) {
   }
   return null;
 }
-function mergeFechaHorario(existing, incoming) {
-  const prev = (existing ?? "").trim();
-  const next = (incoming ?? "").trim();
-  if (!next) return prev || null;
-  if (!prev) return next;
-  if (/^sin\s+definir/i.test(next)) return next;
-  if (/^sin\s+definir/i.test(prev)) return next;
-  const clockRe = /\b(\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}(?::\d{2})?\s*(?:hrs?|horas?)?)/i;
-  const prevClock = prev.match(clockRe)?.[1]?.trim() ?? null;
-  const nextClock = next.match(clockRe)?.[1]?.trim() ?? null;
-  const prevHasDay = MONTH_PATTERN.test(prev) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+)/i.test(prev);
-  const nextHasDay = MONTH_PATTERN.test(next) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+)/i.test(next);
-  if (nextHasDay && prevClock && !nextClock) {
-    return `${next}, ${prevClock}`;
+function combinedScheduleDisplay(fecha, horario) {
+  const f10 = (fecha ?? "").trim();
+  const h10 = (horario ?? "").trim();
+  if (f10 && h10) return `${f10}, ${h10}`;
+  return f10 || h10 || null;
+}
+function syncLegacyFechaHorarioField(extracted) {
+  extracted.fecha_horario = combinedScheduleDisplay(
+    extracted.fecha_evento,
+    extracted.horario_evento
+  );
+}
+function parseHorarioFromText(text2) {
+  const trimmed = text2.trim();
+  if (!trimmed) return null;
+  const clean = trimmed.replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (isClockTimeOnlySchedule(clean)) return clean;
+  if (isMealTimeOnlySchedule(clean)) return clean;
+  const horarioLabel = clean.match(/\bhorario\s*:?\s*(.+)$/i);
+  if (horarioLabel?.[1] && /\d/.test(horarioLabel[1])) {
+    return horarioLabel[1].trim().slice(0, 80);
   }
-  if (isClockTimeOnlySchedule(next) && prevHasDay && !prevClock) {
-    return `${prev}, ${next}`;
+  const atTime = clean.match(
+    /\b(?:a\s+las|a\s+partir\s+de)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)?)\b/i
+  );
+  if (atTime?.[0]) {
+    const withoutTime = clean.replace(atTime[0], "").trim();
+    if (parseFechaFromText(withoutTime) || MONTH_PATTERN.test(withoutTime)) {
+      return atTime[0].replace(/^a\s+(?:las|partir\s+de)\s+/i, "").trim();
+    }
   }
-  if (nextHasDay) return nextClock && !prevClock ? next : next;
-  if (isClockTimeOnlySchedule(next)) return prevHasDay ? `${prev.replace(clockRe, "").replace(/,\s*$/, "").trim()}, ${next}` : next;
-  return next;
+  const range = clean.match(
+    /\b(\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}(?::\d{2})?\s*(?:hrs?|horas?|am|pm)?)\b/i
+  );
+  if (range?.[1]) {
+    const withoutRange = clean.replace(range[1], "").trim();
+    if (parseFechaFromText(withoutRange) || MONTH_PATTERN.test(withoutRange) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(withoutRange)) {
+      return range[1].trim();
+    }
+    if (!parseFechaFromText(clean)) return range[1].trim();
+  }
+  if (/\b(tarde|noche|mediod[ií]a|ma[nñ]ana)\b/i.test(clean) && clean.split(/\s+/).length <= 5 && !MONTH_PATTERN.test(clean)) {
+    return clean.slice(0, 40);
+  }
+  if (/\b(sin\s+horario|por\s+definir|a[uú]n\s+no\s+(sabemos|tenemos)\s+horario|todav[ií]a\s+no\s+(sabemos|tenemos))\b/i.test(
+    clean
+  )) {
+    return "Sin definir (pendiente)";
+  }
+  return null;
+}
+function splitCombinedFechaHorario(combined) {
+  const t10 = combined.trim();
+  if (!t10) return { fecha: null, horario: null };
+  if (/^sin\s+definir/i.test(t10)) return { fecha: t10, horario: null };
+  if (isClockTimeOnlySchedule(t10) || isMealTimeOnlySchedule(t10)) {
+    return { fecha: null, horario: t10 };
+  }
+  const fecha = parseFechaFromText(t10);
+  const horario = parseHorarioFromText(t10);
+  if (fecha && horario) {
+    const f10 = fecha.replace(/\s+a\s+las\s+\d.+$/i, "").trim();
+    return { fecha: f10 || fecha, horario };
+  }
+  if (fecha && isUsableFechaHorario(fecha)) return { fecha, horario: null };
+  if (horario) return { fecha: null, horario };
+  if (isUsableFechaHorario(t10)) return { fecha: t10, horario: null };
+  if (isUsableHorarioEvento(t10)) return { fecha: null, horario: t10 };
+  return { fecha: t10, horario: null };
+}
+function isUsableFechaEvento(value) {
+  return isUsableFechaHorario(value);
+}
+function isUsableHorarioEvento(value) {
+  const t10 = (value ?? "").trim();
+  if (!t10) return false;
+  if (/^sin\s+definir/i.test(t10)) return true;
+  if (isClockTimeOnlySchedule(t10)) return true;
+  if (isMealTimeOnlySchedule(t10)) return true;
+  if (looksLikeMealTimeNotLocation(t10) && t10.split(/\s+/).length <= 6) return true;
+  if (/\b\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}/i.test(t10)) return true;
+  if (/\b(?:a\s+las|desde\s+las)\s+\d/i.test(t10)) return true;
+  if (/\b(tarde|noche|mediod[ií]a|ma[nñ]ana)\b/i.test(t10) && t10.split(/\s+/).length <= 5) {
+    return true;
+  }
+  return false;
+}
+function hydrateScheduleFields(extracted) {
+  if (extracted.fecha_evento?.trim() || extracted.horario_evento?.trim()) {
+    syncLegacyFechaHorarioField(extracted);
+    return;
+  }
+  const legacy = extracted.fecha_horario?.trim();
+  if (!legacy) return;
+  const { fecha, horario } = splitCombinedFechaHorario(legacy);
+  if (fecha) extracted.fecha_evento = fecha;
+  if (horario) extracted.horario_evento = horario;
+  syncLegacyFechaHorarioField(extracted);
+}
+function migrateLegacyCrmFechaHorarioLines(lines) {
+  const out2 = [];
+  for (const line2 of lines) {
+    const m10 = line2.match(/^(-?\s*)Fecha y horario:\s*(.+)$/i);
+    if (!m10) {
+      out2.push(line2);
+      continue;
+    }
+    const prefix = m10[1] ?? "- ";
+    const { fecha, horario } = splitCombinedFechaHorario(m10[2].trim());
+    if (fecha) out2.push(`${prefix}${CRM_FECHA_LABEL}: ${fecha}`);
+    if (horario) out2.push(`${prefix}${CRM_HORARIO_LABEL}: ${horario}`);
+    if (!fecha && !horario) out2.push(line2);
+  }
+  return out2;
 }
 function isUsableFechaHorario(value) {
   const t10 = (value ?? "").trim();
@@ -130692,10 +130791,15 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     const tipo = parseTipoEventoFromText(conversationText);
     if (tipo) extracted.tipo_evento = tipo;
   }
-  if (!extracted.fecha_horario?.trim()) {
+  if (!extracted.fecha_evento?.trim()) {
     const fecha = parseFechaFromText(conversationText);
-    if (fecha) extracted.fecha_horario = fecha;
+    if (fecha) extracted.fecha_evento = fecha;
   }
+  if (!extracted.horario_evento?.trim()) {
+    const horario = parseHorarioFromText(conversationText);
+    if (horario) extracted.horario_evento = horario;
+  }
+  syncLegacyFechaHorarioField(extracted);
   if (!extracted.num_invitados) {
     const inv = parseInvitadosFromText(conversationText);
     if (inv) extracted.num_invitados = parseInt(inv, 10);
@@ -130757,7 +130861,7 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     extracted.requerimientos_evento = null;
   }
 }
-var LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, STAFF_OR_ADDON_SERVICE, STANDARD_PISTA_SIZES, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
+var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, STAFF_OR_ADDON_SERVICE, STANDARD_PISTA_SIZES, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
 var init_conversation_understanding = __esm({
   "src/conversation-understanding.ts"() {
     "use strict";
@@ -130766,6 +130870,9 @@ var init_conversation_understanding = __esm({
     init_bodasesorAdvisor();
     init_serviceDecline();
     init_geoResolve();
+    CRM_FECHA_LABEL = "Fecha del evento";
+    CRM_HORARIO_LABEL = "Horario del evento";
+    LEGACY_CRM_FECHA_HORARIO_LABEL = "Fecha y horario";
     LUCY_FIELD_ASK_PATTERNS = {
       nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
       correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
@@ -130776,7 +130883,8 @@ var init_conversation_understanding = __esm({
       ),
       invitados: /invitados|personas|gente|pax|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an|asistir[aá]n/i,
       zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n|es)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n|venue|sede|colonia|municipio/i,
-      fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo|qu[eé]\s+d[ií]a/i,
+      fecha: /(?:^|[\s,.])fecha(?:[\s,.]|$)|cu[aá]ndo\s+(ser[ií]a|es|tienen|tengan)|d[ií]a\s+(del\s+evento|tienen|tengan|definido)|agenda|definiendo|opciones\s+de\s+fecha|para\s+qu[eé]\s+d[ií]a|qu[eé]\s+d[ií]a|siguen\s+sin\s+fecha|ya\s+tienen\s+fecha/i,
+      horario: /horario|a\s+qu[eé]\s+hora|qu[eé]\s+hora|desde\s+qu[eé]\s+hora|(?:^|[\s,.])hora(?:[\s,.]|$)|\bhrs?\b|\d{1,2}:\d{2}/i,
       presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto|cu[aá]nto\s+cuesta|precio\s+total|para\s+la\s+comida|menos\s+de|hasta\s+\$?|opciones\s+de\s+precio/i
     };
     BODASESOR_SERVICE_PATTERNS = [
@@ -157236,6 +157344,15 @@ function hasPresupuestoValue(extracted) {
   return String(p10).trim().length > 0;
 }
 function syncFilledFromExtracted(filledSet, extracted) {
+  hydrateScheduleFields(extracted);
+  if (filledSet.has(LEGACY_CRM_FECHA_HORARIO_LABEL)) {
+    if (!filledSet.has(CRM_FECHA_LABEL) && isUsableFechaEvento(extracted.fecha_evento ?? extracted.fecha_horario)) {
+      filledSet.add(CRM_FECHA_LABEL);
+    }
+    if (!filledSet.has(CRM_HORARIO_LABEL) && isUsableHorarioEvento(extracted.horario_evento)) {
+      filledSet.add(CRM_HORARIO_LABEL);
+    }
+  }
   if (sanitizeCrmNombre(extracted.nombre)) filledSet.add("Nombre del cliente");
   const email = filterClientEmail(extracted.correo);
   if (email && looksLikeValidClientEmail(email)) filledSet.add("Correo electr\xF3nico");
@@ -157261,18 +157378,24 @@ function syncFilledFromExtracted(filledSet, extracted) {
     extracted.presupuesto = null;
     filledSet.delete("Presupuesto (MXN)");
   }
-  if (extracted.fecha_horario?.trim()) {
-    if (!isUsableFechaHorario(extracted.fecha_horario)) {
-      if (isClockTimeOnlySchedule(extracted.fecha_horario) || isMealTimeOnlySchedule(extracted.fecha_horario)) {
-        filledSet.delete("Fecha y horario");
-      } else {
-        extracted.fecha_horario = null;
-        filledSet.delete("Fecha y horario");
-      }
+  hydrateScheduleFields(extracted);
+  if (extracted.fecha_evento?.trim()) {
+    if (!isUsableFechaEvento(extracted.fecha_evento)) {
+      extracted.fecha_evento = null;
+      filledSet.delete(CRM_FECHA_LABEL);
     } else {
-      filledSet.add("Fecha y horario");
+      filledSet.add(CRM_FECHA_LABEL);
     }
   }
+  if (extracted.horario_evento?.trim()) {
+    if (!isUsableHorarioEvento(extracted.horario_evento)) {
+      extracted.horario_evento = null;
+      filledSet.delete(CRM_HORARIO_LABEL);
+    } else {
+      filledSet.add(CRM_HORARIO_LABEL);
+    }
+  }
+  syncLegacyFechaHorarioField(extracted);
   if (extracted.num_invitados) filledSet.add("N\xFAmero de invitados");
   if (hasPresupuestoValue(extracted)) filledSet.add("Presupuesto (MXN)");
 }
@@ -157286,13 +157409,21 @@ function syncRichBriefIntoExtracted(extracted, filledSet, message) {
       filledSet.add("Lugar/direcci\xF3n del evento");
     }
   }
-  if (!extracted.fecha_horario?.trim()) {
+  if (!extracted.fecha_evento?.trim()) {
     const f10 = parseFechaFromText(text2);
-    if (f10) {
-      extracted.fecha_horario = f10;
-      filledSet.add("Fecha y horario");
+    if (f10 && isUsableFechaEvento(f10)) {
+      extracted.fecha_evento = f10;
+      filledSet.add(CRM_FECHA_LABEL);
     }
   }
+  if (!extracted.horario_evento?.trim()) {
+    const h10 = parseHorarioFromText(text2);
+    if (h10 && isUsableHorarioEvento(h10)) {
+      extracted.horario_evento = h10;
+      filledSet.add(CRM_HORARIO_LABEL);
+    }
+  }
+  syncLegacyFechaHorarioField(extracted);
   if (!extracted.num_invitados) {
     const inv = parseInvitadosFromText(text2);
     if (inv) {
@@ -157367,8 +157498,13 @@ function getQuestionVariants() {
     ],
     fecha: [
       "\xBFYa tienen fecha o todav\xEDa la van definiendo?",
-      "\xBFPara cu\xE1ndo ser\xEDa el evento?",
-      "\xBFYa hay d\xEDa y hora, o siguen viendo opciones?"
+      "\xBFPara qu\xE9 d\xEDa ser\xEDa el evento?",
+      "\xBFQu\xE9 d\xEDa tienen en mente?"
+    ],
+    horario: [
+      "\xBFA qu\xE9 hora ser\xEDa el evento?",
+      "\xBFYa tienen horario definido?",
+      "\xBFEn qu\xE9 horario lo planean?"
     ],
     presupuesto: [
       "\xBFTienen alg\xFAn rango de presupuesto en mente?",
@@ -157540,7 +157676,12 @@ function isEmailSatisfied(filledSet, extracted) {
   return !!(email && looksLikeValidClientEmail(email));
 }
 function isReadyForClosing(filledSet) {
-  return CLOSING_CORE_FIELDS.every((label) => filledSet.has(label)) && isEmailSatisfied(filledSet);
+  const hasSchedule = filledSet.has(CRM_FECHA_LABEL) && filledSet.has(CRM_HORARIO_LABEL) || filledSet.has(LEGACY_CRM_FECHA_HORARIO_LABEL);
+  const coreOk = CLOSING_CORE_FIELDS.every((label) => {
+    if (label === CRM_FECHA_LABEL || label === CRM_HORARIO_LABEL) return hasSchedule;
+    return filledSet.has(label);
+  });
+  return coreOk && isEmailSatisfied(filledSet);
 }
 function stripCatalogBlockShared(text2) {
   let result = text2.replace(
@@ -158567,14 +158708,20 @@ function getNextPendingField(extracted, filledSet) {
   if (!isFieldSatisfied("requerimientos", filled, extracted)) return "requerimientos";
   const hasInv = filled.has("N\xFAmero de invitados") || !!extracted.num_invitados;
   if (!hasInv) return "invitados";
-  if (extracted.fecha_horario?.trim() && !isUsableFechaHorario(extracted.fecha_horario)) {
-    filled.delete("Fecha y horario");
+  hydrateScheduleFields(extracted);
+  if (extracted.fecha_evento?.trim() && !isUsableFechaEvento(extracted.fecha_evento)) {
+    filled.delete(CRM_FECHA_LABEL);
+  }
+  if (extracted.horario_evento?.trim() && !isUsableHorarioEvento(extracted.horario_evento)) {
+    filled.delete(CRM_HORARIO_LABEL);
   }
   if (extracted.direccion_evento?.trim() && (!isUsableDireccionEvento(extracted.direccion_evento) || looksLikeMealTimeNotLocation(extracted.direccion_evento))) {
     filled.delete("Lugar/direcci\xF3n del evento");
   }
-  const hasFecha = filled.has("Fecha y horario") || isUsableFechaHorario(extracted.fecha_horario);
+  const hasFecha = filled.has(CRM_FECHA_LABEL) || isUsableFechaEvento(extracted.fecha_evento);
   if (!hasFecha) return "fecha";
+  const hasHorario = filled.has(CRM_HORARIO_LABEL) || isUsableHorarioEvento(extracted.horario_evento);
+  if (!hasHorario) return "horario";
   const hasZona = filled.has("Lugar/direcci\xF3n del evento") || isUsableDireccionEvento(extracted.direccion_evento);
   if (!hasZona) return "zona";
   if (!isEmailSatisfied(filled, extracted)) return "correo";
@@ -158872,7 +159019,9 @@ function isFieldSatisfied(field, filledSet, extracted) {
     case "zona":
       return filledSet.has("Lugar/direcci\xF3n del evento") || isUsableDireccionEvento(extracted.direccion_evento);
     case "fecha":
-      return filledSet.has("Fecha y horario") || !!extracted.fecha_horario?.trim();
+      return filledSet.has(CRM_FECHA_LABEL) || isUsableFechaEvento(extracted.fecha_evento);
+    case "horario":
+      return filledSet.has(CRM_HORARIO_LABEL) || isUsableHorarioEvento(extracted.horario_evento);
     case "presupuesto":
       return filledSet.has("Presupuesto (MXN)") || hasPresupuestoValue(extracted);
   }
@@ -159960,10 +160109,15 @@ function applyLucyMessageGuards(input) {
     extracted.direccion_evento = null;
     filledSet.delete("Lugar/direcci\xF3n del evento");
   }
-  if (extracted.fecha_horario && !isUsableFechaHorario(extracted.fecha_horario)) {
-    extracted.fecha_horario = null;
-    filledSet.delete("Fecha y horario");
+  if (extracted.fecha_evento && !isUsableFechaEvento(extracted.fecha_evento)) {
+    extracted.fecha_evento = null;
+    filledSet.delete(CRM_FECHA_LABEL);
   }
+  if (extracted.horario_evento && !isUsableHorarioEvento(extracted.horario_evento)) {
+    extracted.horario_evento = null;
+    filledSet.delete(CRM_HORARIO_LABEL);
+  }
+  syncLegacyFechaHorarioField(extracted);
   {
     const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
     if (clientSaidReunionNotXv(userBlob) || clientSaidReunionNotXv(currentMessage)) {
@@ -160369,13 +160523,19 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
       if (extracted.requerimientos_evento) {
         filledSet.add("Requerimientos o servicios");
       }
-      if (!extracted.fecha_horario?.trim()) {
+      if (!extracted.fecha_evento?.trim()) {
         const fechaNow = parseFechaFromText(currentMessage);
-        if (fechaNow) {
-          extracted.fecha_horario = fechaNow;
-          filledSet.add("Fecha y horario");
+        if (fechaNow && isUsableFechaEvento(fechaNow)) {
+          extracted.fecha_evento = fechaNow;
+          filledSet.add(CRM_FECHA_LABEL);
         }
       }
+      const horarioSku = parseHorarioFromText(currentMessage ?? "");
+      if (horarioSku && isUsableHorarioEvento(horarioSku) && !extracted.horario_evento?.trim()) {
+        extracted.horario_evento = horarioSku;
+        filledSet.add(CRM_HORARIO_LABEL);
+      }
+      syncLegacyFechaHorarioField(extracted);
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
       const ack = `Perfecto, anoto *${sku}* para tu cotizaci\xF3n.`;
@@ -160395,19 +160555,24 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
     const fechaNow = currentMessage ? parseFechaFromText(currentMessage) : null;
     const lucyAskedFecha = inferLucyAskedField(lastFechaTxt) === "fecha" || /d[ií]a u horario|para cu[aá]ndo|fecha/i.test(lastFechaTxt);
     const fechaPending = getNextPendingField(extracted, filledSet) === "fecha";
-    const looksLikeFechaOnly = !!fechaNow && !parseFurnitureCatalogSkuFromText(currentMessage ?? "") && !parseCorreoFromText(currentMessage ?? "") && (lucyAskedFecha || fechaPending || /^(el\s+)?\d{1,2}\s+de\s+\w+/i.test((currentMessage ?? "").trim()));
-    if (!cierreYaEnviado && fechaNow && looksLikeFechaOnly && isUsableFechaHorario(fechaNow) && !filledSet.has("Fecha y horario")) {
-      const withTime = (currentMessage ?? "").match(
-        /\b(?:a\s+partir\s+de|a\s+las)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?|horas?)?)/i
-      );
-      const stamped = withTime ? `${fechaNow} a partir de ${withTime[1].trim()}` : fechaNow;
-      extracted.fecha_horario = mergeFechaHorario(extracted.fecha_horario, stamped) ?? stamped;
-      filledSet.add("Fecha y horario");
+    const horarioNow = currentMessage ? parseHorarioFromText(currentMessage) : null;
+    const lucyAskedHorario = inferLucyAskedField(lastFechaTxt) === "horario";
+    const horarioPending = getNextPendingField(extracted, filledSet) === "horario";
+    const looksLikeFechaOnly = !!fechaNow && !horarioNow && !parseFurnitureCatalogSkuFromText(currentMessage ?? "") && !parseCorreoFromText(currentMessage ?? "") && (lucyAskedFecha || fechaPending || /^(el\s+)?\d{1,2}\s+de\s+\w+/i.test((currentMessage ?? "").trim()));
+    if (!cierreYaEnviado && fechaNow && looksLikeFechaOnly && isUsableFechaEvento(fechaNow) && !filledSet.has(CRM_FECHA_LABEL)) {
+      extracted.fecha_evento = fechaNow;
+      filledSet.add(CRM_FECHA_LABEL);
+      const horarioExtra = parseHorarioFromText(currentMessage ?? "");
+      if (horarioExtra && isUsableHorarioEvento(horarioExtra)) {
+        extracted.horario_evento = horarioExtra;
+        filledSet.add(CRM_HORARIO_LABEL);
+      }
+      syncLegacyFechaHorarioField(extracted);
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-      const ack = `Perfecto, anoto la fecha: *${extracted.fecha_horario}*.`;
+      const ack = `Perfecto, anoto la fecha: *${extracted.fecha_evento}*.`;
       log?.info(
-        { entityId, fecha: extracted.fecha_horario, pending },
+        { entityId, fecha: extracted.fecha_evento, pending },
         "GUARD: A15297 \u2014 fecha capturada + embudo real"
       );
       return normalizeAdvisorReferences(
@@ -160415,12 +160580,14 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
-    if (!cierreYaEnviado && currentMessage && (lucyAskedFecha || fechaPending) && isClockTimeOnlySchedule(currentMessage) && !filledSet.has("Fecha y horario")) {
-      extracted.fecha_horario = currentMessage.trim().replace(/\s+/g, " ").slice(0, 40);
-      filledSet.delete("Fecha y horario");
+    if (!cierreYaEnviado && currentMessage && (lucyAskedHorario || horarioPending || lucyAskedFecha || fechaPending) && (isClockTimeOnlySchedule(currentMessage) || isMealTimeOnlySchedule(currentMessage) || horarioNow) && !filledSet.has(CRM_HORARIO_LABEL)) {
+      extracted.horario_evento = (horarioNow ?? currentMessage.trim()).replace(/\s+/g, " ").slice(0, 80);
+      filledSet.add(CRM_HORARIO_LABEL);
+      syncLegacyFechaHorarioField(extracted);
       const display = getDisplayName(extracted, whatsappDisplayName);
-      const ack = display ? `Entendido, ${display}. Anoto el horario *${extracted.fecha_horario}*.` : `Entendido. Anoto el horario *${extracted.fecha_horario}*.`;
-      const nextQ = buildNaturalQuestion("fecha", ctx);
+      const ack = display ? `Entendido, ${display}. Anoto el horario *${extracted.horario_evento}*.` : `Entendido. Anoto el horario *${extracted.horario_evento}*.`;
+      const pendingAfterHorario = getNextPendingField(extracted, filledSet);
+      const nextQ = pendingAfterHorario === "fecha" ? buildNaturalQuestion("fecha", ctx) : pendingAfterHorario ? buildNaturalQuestion(pendingAfterHorario, ctx) : null;
       log?.info({ entityId }, "GUARD: A15419 \u2014 horario sin d\xEDa \u2192 pide fecha");
       return normalizeAdvisorReferences(
         `${ack} ${nextQ || "\xBFQu\xE9 d\xEDa ser\xEDa el evento?"}`.trim(),
@@ -161467,7 +161634,7 @@ ${catalog}`,
   } else if (clientSignalsUrgency(currentMessage) && !clientAsksPhone(currentMessage)) {
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-    const fechaHint = extracted.fecha_horario?.trim() ? ` Para el *${extracted.fecha_horario.trim()}* confirmamos disponibilidad en cuanto tengamos el resto de datos.` : " Confirmamos disponibilidad en cuanto tengamos el resto de datos.";
+    const fechaHint = extracted.fecha_evento?.trim() ? ` Para el *${extracted.fecha_evento.trim()}* confirmamos disponibilidad en cuanto tengamos el resto de datos.` : " Confirmamos disponibilidad en cuanto tengamos el resto de datos.";
     mensaje = [
       pickTransition(presHistory),
       `Entendido, lo vemos con prioridad.${fechaHint}`,
@@ -162145,7 +162312,7 @@ ${nextQ}`;
     );
     log?.info({ entityId }, "GUARD: tope de preguntas presupuesto \u2014 auto-waiver");
   }
-  if (filledSet.has("Fecha y horario") && mensajeAsksForField(mensaje, "fecha")) {
+  if (filledSet.has(CRM_FECHA_LABEL) && mensajeAsksForField(mensaje, "fecha")) {
     if (trulyReadyForClosing && !cierreYaEnviado) {
       mensaje = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
@@ -162166,14 +162333,23 @@ ${nextQ}`;
       }
     }
   }
+  if (filledSet.has(CRM_HORARIO_LABEL) && mensajeAsksForField(mensaje, "horario")) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    if (nextQ && !mensajeAsksForField(nextQ, "horario")) {
+      mensaje = nextQ;
+      log?.info({ entityId }, "GUARD: horario ya capturado \u2014 no repetir pregunta");
+    }
+  }
   const fechaFromMsg = currentMessage ? parseFechaFromText(currentMessage) : null;
-  if (fechaFromMsg && isUsableFechaHorario(fechaFromMsg) && !filledSet.has("Fecha y horario")) {
-    const withTime = (currentMessage ?? "").match(
-      /\b(?:a\s+partir\s+de|a\s+las)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?|horas?)?)/i
-    );
-    const stamped = withTime ? `${fechaFromMsg} a partir de ${withTime[1].trim()}` : fechaFromMsg;
-    extracted.fecha_horario = mergeFechaHorario(extracted.fecha_horario, stamped) ?? stamped;
-    filledSet.add("Fecha y horario");
+  const horarioFromMsg = currentMessage ? parseHorarioFromText(currentMessage) : null;
+  if (fechaFromMsg && isUsableFechaEvento(fechaFromMsg) && !filledSet.has(CRM_FECHA_LABEL)) {
+    extracted.fecha_evento = fechaFromMsg;
+    filledSet.add(CRM_FECHA_LABEL);
+    if (horarioFromMsg && isUsableHorarioEvento(horarioFromMsg)) {
+      extracted.horario_evento = horarioFromMsg;
+      filledSet.add(CRM_HORARIO_LABEL);
+    }
+    syncLegacyFechaHorarioField(extracted);
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
       mensaje = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
@@ -162192,8 +162368,24 @@ ${nextQ}`;
       mensaje = nextQ ?? "Entendido, sin problema con la fecha.";
       log?.info({ entityId }, "GUARD: fecha pendiente \u2014 continuar flujo");
     }
-  } else if (fechaFromMsg && !isUsableFechaHorario(fechaFromMsg) && looksLikeFechaDiscourseJunk(currentMessage ?? "")) {
-    filledSet.delete("Fecha y horario");
+  } else if (horarioFromMsg && isUsableHorarioEvento(horarioFromMsg) && !filledSet.has(CRM_HORARIO_LABEL)) {
+    extracted.horario_evento = horarioFromMsg;
+    filledSet.add(CRM_HORARIO_LABEL);
+    syncLegacyFechaHorarioField(extracted);
+    if (mensajeAsksForField(mensaje, "horario") || /quieres que te d[eé] detalles|siguiente dato del evento/i.test(mensaje)) {
+      const nextQ = nextFieldQuestion(
+        extracted,
+        filledSet,
+        whatsappDisplayName,
+        history,
+        currentMessage,
+        entityId
+      );
+      mensaje = nextQ ?? "Entendido, anoto el horario.";
+      log?.info({ entityId }, "GUARD: horario capturado en turno \u2014 continuar flujo");
+    }
+  } else if (fechaFromMsg && !isUsableFechaEvento(fechaFromMsg) && looksLikeFechaDiscourseJunk(currentMessage ?? "")) {
+    filledSet.delete(CRM_FECHA_LABEL);
   }
   if (filledSet.has("Tipo de evento") && mensajeAsksForField(mensaje, "tipo_evento") && !trulyReadyForClosing) {
     const pending = getNextPendingField(extracted, filledSet);
@@ -162523,8 +162715,9 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     log?.info({ entityId, zonaAsks }, "GUARD: pregunta de zona \u2014 variante alterna");
   }
   if (mensajeAsksForField(mensaje, "fecha") && countLucyFieldAsks(presHistory, "fecha") >= FECHA_MAX_ASKS && !isFieldSatisfied("fecha", filledSet, extracted)) {
-    filledSet.add("Fecha y horario");
-    if (!extracted.fecha_horario?.trim()) extracted.fecha_horario = FECHA_AUTO_WAIVER;
+    filledSet.add(CRM_FECHA_LABEL);
+    if (!extracted.fecha_evento?.trim()) extracted.fecha_evento = FECHA_AUTO_WAIVER;
+    syncLegacyFechaHorarioField(extracted);
     const nextQ = nextFieldQuestion(
       extracted,
       filledSet,
@@ -162550,10 +162743,11 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     const lastFechaAsk = [...presHistory].reverse().find(
       (m10) => m10.role === "assistant" && typeof m10.content === "string" && mensajeAsksForField(m10.content, "fecha")
     )?.content;
-    const variant = nombre ? `${pickTransition(presHistory)} ${nombre}, \xBFtienen d\xEDa u horario ya definido?` : `${pickTransition(presHistory)} \xBFTienen d\xEDa u horario ya definido?`;
+    const variant = nombre ? `${pickTransition(presHistory)} ${nombre}, \xBFtienen ya el d\xEDa del evento?` : `${pickTransition(presHistory)} \xBFTienen ya el d\xEDa del evento?`;
     if (lastFechaAsk && textOverlapRatio(variant, lastFechaAsk) >= 0.72) {
-      filledSet.add("Fecha y horario");
-      if (!extracted.fecha_horario?.trim()) extracted.fecha_horario = FECHA_AUTO_WAIVER;
+      filledSet.add(CRM_FECHA_LABEL);
+      if (!extracted.fecha_evento?.trim()) extracted.fecha_evento = FECHA_AUTO_WAIVER;
+      syncLegacyFechaHorarioField(extracted);
       const nextQ = nextFieldQuestion(
         extracted,
         filledSet,
@@ -162990,7 +163184,8 @@ var init_lucy_flow_guards = __esm({
       "Tipo de evento",
       "Requerimientos o servicios",
       "Lugar/direcci\xF3n del evento",
-      "Fecha y horario",
+      CRM_FECHA_LABEL,
+      CRM_HORARIO_LABEL,
       "N\xFAmero de invitados",
       "Presupuesto (MXN)"
     ];
@@ -163009,7 +163204,8 @@ var init_lucy_flow_guards = __esm({
       ),
       invitados: /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
       zona: /ciudad|direcci[oó]n\s+exacta|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
-      fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|definido|definir|siguen\s+viendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
+      fecha: /(?:^|[\s,.])fecha(?:[\s,.]|$)|cu[aá]ndo\s+(ser[ií]a|es|tienen|tengan)|d[ií]a\s+(del\s+evento|tienen|tengan|definido)|agenda|definiendo|definido|definir|siguen\s+viendo|opciones\s+de\s+fecha|para\s+qu[eé]\s+d[ií]a|qu[eé]\s+d[ií]a|siguen\s+sin\s+fecha|ya\s+tienen\s+fecha/i,
+      horario: /horario|a\s+qu[eé]\s+hora|qu[eé]\s+hora|desde\s+qu[eé]\s+hora|(?:^|[\s,.])hora(?:[\s,.]|$)|\bhrs?\b|\d{1,2}:\d{2}/i,
       presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i
     };
     CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
@@ -163091,6 +163287,7 @@ var init_lucy_flow_guards = __esm({
       "requerimientos",
       "invitados",
       "fecha",
+      "horario",
       "zona",
       "correo",
       "presupuesto"
@@ -227324,7 +227521,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.49";
+var LUCY_PROMPT_VERSION = "V9.50";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -228501,9 +228698,9 @@ function calculateLeadScore(context) {
   } else if (text2 && mencionaPresupuestoTexto(text2)) {
     budgetScore = 20;
   }
-  if (context.extracted.fecha_horario) {
-    const fechaText = context.extracted.fecha_horario.toLowerCase();
-    const dateMatch = context.extracted.fecha_horario.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
+  if (context.extracted.fecha_evento ?? context.extracted.fecha_horario) {
+    const fechaText = (context.extracted.fecha_evento ?? context.extracted.fecha_horario ?? "").toLowerCase();
+    const dateMatch = (context.extracted.fecha_evento ?? context.extracted.fecha_horario ?? "").match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
     if (dateMatch) {
       try {
         const eventDate = new Date(dateMatch[0]);
@@ -228553,7 +228750,7 @@ function calculateLeadScore(context) {
     context.extracted.correo,
     context.extracted.telefono,
     context.extracted.tipo_evento,
-    context.extracted.fecha_horario,
+    context.extracted.fecha_evento ?? context.extracted.fecha_horario,
     context.extracted.num_invitados,
     context.extracted.direccion_evento,
     context.extracted.requerimientos_evento,
@@ -228708,10 +228905,10 @@ function preguntaOpcionesPremium(texto) {
 }
 function detectStage(context) {
   const { extracted, messageCount } = context;
-  if (extracted.nombre && extracted.correo && extracted.fecha_horario && extracted.presupuesto) {
+  if (extracted.nombre && extracted.correo && (extracted.fecha_evento ?? extracted.fecha_horario) && extracted.presupuesto) {
     return "closing";
   }
-  if (extracted.presupuesto && extracted.fecha_horario) {
+  if (extracted.presupuesto && (extracted.fecha_evento ?? extracted.fecha_horario)) {
     return "negotiation";
   }
   if (extracted.tipo_evento && extracted.num_invitados) {
@@ -229403,6 +229600,7 @@ function sanitizeKommoCrmLines(lines) {
   out2 = purgeOwnCompanyEmailLines(out2);
   out2 = purgeDimensionUbicacionLines(out2);
   out2 = purgeRequerimientosEqualsTipoLines(out2);
+  out2 = migrateLegacyCrmFechaHorarioLines(out2);
   return out2;
 }
 function sanitizeExtractedFromExternal(extracted, conversationText) {
@@ -229423,6 +229621,7 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
   ) || /^cotizaci[oó]n$/i.test(out2.requerimientos_evento.trim()))) {
     out2.requerimientos_evento = null;
   }
+  hydrateScheduleFields(out2);
   return out2;
 }
 
@@ -229537,9 +229736,18 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
     out2.direccion_evento = null;
     applied.push("zona-unusable-cleared");
   }
+  hydrateScheduleFields(out2);
+  if (out2.fecha_evento && !isUsableFechaEvento(out2.fecha_evento)) {
+    out2.fecha_evento = null;
+    applied.push("fecha-meal-only-cleared");
+  }
+  if (out2.horario_evento && !isUsableHorarioEvento(out2.horario_evento)) {
+    out2.horario_evento = null;
+    applied.push("horario-unusable-cleared");
+  }
   if (out2.fecha_horario && !isUsableFechaHorario(out2.fecha_horario)) {
     out2.fecha_horario = null;
-    applied.push("fecha-meal-only-cleared");
+    applied.push("fecha-legacy-cleared");
   }
   return { extracted: out2, applied };
 }
@@ -229602,8 +229810,11 @@ function pendingFields(mergedLines, extracted) {
   if (!isUsableResumenUbicacion(pickFromMergedLines(mergedLines, /Lugar\/dirección/i)) && !isUsableResumenUbicacion(extracted.direccion_evento)) {
     pending.push("ubicaci\xF3n");
   }
-  if (!pickFromMergedLines(mergedLines, /Fecha y horario/i) && !extracted.fecha_horario?.trim()) {
+  if (!pickFromMergedLines(mergedLines, /Fecha del evento/i) && !extracted.fecha_evento?.trim()) {
     pending.push("fecha");
+  }
+  if (!pickFromMergedLines(mergedLines, /Horario del evento/i) && !extracted.horario_evento?.trim()) {
+    pending.push("horario");
   }
   if (!pickFromMergedLines(mergedLines, /Número de invitados/i) && !extracted.num_invitados) {
     pending.push("invitados");
@@ -229618,7 +229829,9 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   const correo = pickFromMergedLines(mergedLines, /Correo electrónico/i) || extracted.correo?.trim() || null;
   const emailWaived = mergedLines.some((l10) => /continuar por whatsapp/i.test(l10));
   const evento = pickFromMergedLines(mergedLines, /Tipo de evento/i) || extracted.tipo_evento?.trim() || null;
-  const fecha = pickFromMergedLines(mergedLines, /Fecha y horario/i) || extracted.fecha_horario?.trim() || null;
+  const fecha = pickFromMergedLines(mergedLines, /Fecha del evento/i) || extracted.fecha_evento?.trim() || pickFromMergedLines(mergedLines, /Fecha y horario/i) || extracted.fecha_horario?.trim() || null;
+  const horario = pickFromMergedLines(mergedLines, /Horario del evento/i) || extracted.horario_evento?.trim() || null;
+  const fechaResumen = horario && fecha ? `${fecha}, ${horario}` : fecha;
   const invitados = pickFromMergedLines(mergedLines, /Número de invitados/i) || (extracted.num_invitados !== null && extracted.num_invitados > 0 ? String(extracted.num_invitados) : null);
   const ubicacionRaw = pickFromMergedLines(mergedLines, /Lugar\/dirección/i) || extracted.direccion_evento?.trim() || null;
   const ubicacion = isUsableResumenUbicacion(ubicacionRaw) ? ubicacionRaw : null;
@@ -229671,7 +229884,7 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   if (correo) lineas.push(`\u2022 Correo: ${correo}`);
   else if (emailWaived) lineas.push("\u2022 Correo: no comparti\xF3 (sigue por WhatsApp)");
   if (ubicacion) lineas.push(`\u2022 Ubicaci\xF3n: ${ubicacion}`);
-  if (fecha) lineas.push(`\u2022 Fecha/horario: ${fecha}`);
+  if (fechaResumen) lineas.push(`\u2022 Fecha/horario: ${fechaResumen}`);
   if (ppto) lineas.push(`\u2022 Presupuesto: ${ppto}`);
   lineas.push("");
   if (pendientes.length) {
@@ -229725,6 +229938,8 @@ function scrubClientFieldsForProveedor(extracted) {
   out2.tipo_evento = null;
   out2.num_invitados = null;
   out2.presupuesto = null;
+  out2.fecha_evento = null;
+  out2.horario_evento = null;
   out2.fecha_horario = null;
   if (!out2.empresa?.trim()) {
     const fromReq = out2.requerimientos_evento?.match(
@@ -230428,6 +230643,7 @@ var FIELD_ORDER2 = [
   "invitados",
   "zona",
   "fecha",
+  "horario",
   "presupuesto"
 ];
 var ALGO_MAS_PATTERN = /\b(algo\s+m[aá]s|hay\s+algo\s+m[aá]s|alg[uú]n\s+otro\s+servicio|quieres\s+agregar|deseas\s+agregar)\b/i;
@@ -230464,6 +230680,8 @@ function asExtracted(partial) {
     presupuesto: partial?.presupuesto ?? null,
     direccion_evento: partial?.direccion_evento ?? null,
     requerimientos_evento: partial?.requerimientos_evento ?? null,
+    fecha_evento: partial?.fecha_evento ?? null,
+    horario_evento: partial?.horario_evento ?? null,
     fecha_horario: partial?.fecha_horario ?? null,
     num_invitados: partial?.num_invitados ?? null,
     tipo_evento: partial?.tipo_evento ?? null,
@@ -230514,9 +230732,17 @@ function syncFilledFromCurrentAnswer(field, message, filled, extracted, inputExt
     case "fecha": {
       const fecha = parseFechaFromText(t10);
       if (!fecha) return;
-      filled.add("Fecha y horario");
-      extracted.fecha_horario = fecha;
-      if (inputExtracted) inputExtracted.fecha_horario = fecha;
+      filled.add("Fecha del evento");
+      extracted.fecha_evento = fecha;
+      if (inputExtracted) inputExtracted.fecha_evento = fecha;
+      return;
+    }
+    case "horario": {
+      const horario = parseHorarioFromText(t10);
+      if (!horario) return;
+      filled.add("Horario del evento");
+      extracted.horario_evento = horario;
+      if (inputExtracted) inputExtracted.horario_evento = horario;
       return;
     }
     case "presupuesto": {
@@ -230934,6 +231160,8 @@ async function finalizeLucyOutboundMessage(input) {
         presupuesto: input.extracted.presupuesto ?? null,
         direccion_evento: input.extracted.direccion_evento ?? null,
         requerimientos_evento: input.extracted.requerimientos_evento ?? null,
+        fecha_evento: input.extracted.fecha_evento ?? null,
+        horario_evento: input.extracted.horario_evento ?? null,
         fecha_horario: input.extracted.fecha_horario ?? null,
         num_invitados: input.extracted.num_invitados ?? null,
         tipo_evento: input.extracted.tipo_evento ?? null,
@@ -231591,7 +231819,8 @@ init_conversation_understanding();
 var SILENT_WATCH_FIELD = {
   direccion_evento: 1048774,
   requerimientos_evento: 1048776,
-  fecha_horario: 1048778,
+  fecha_evento: 1048778,
+  horario_evento: 1049358,
   num_invitados: 1048780,
   tipo_evento: 1048782
 };
@@ -231611,13 +231840,22 @@ function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLine
     });
   }
   const fechaFromMsg = parseFechaFromText(msg);
-  if (fechaFromMsg && isUsableFechaHorario(fechaFromMsg)) {
-    const crmFecha = crmStoredValue(crmLines, "Fecha y horario");
-    const mergedFecha = mergeFechaHorario(crmFecha, fechaFromMsg) ?? fechaFromMsg;
-    if (isUsableFechaHorario(mergedFecha) && mergedFecha !== (crmFecha ?? "").trim()) {
+  if (fechaFromMsg && isUsableFechaEvento(fechaFromMsg)) {
+    const crmFecha = crmStoredValue(crmLines, CRM_FECHA_LABEL);
+    if (fechaFromMsg !== (crmFecha ?? "").trim()) {
       customFields.push({
-        field_id: SILENT_WATCH_FIELD.fecha_horario,
-        values: [{ value: cap255(mergedFecha) }]
+        field_id: SILENT_WATCH_FIELD.fecha_evento,
+        values: [{ value: cap255(fechaFromMsg) }]
+      });
+    }
+  }
+  const horarioFromMsg = parseHorarioFromText(msg);
+  if (horarioFromMsg && isUsableHorarioEvento(horarioFromMsg)) {
+    const crmHorario = crmStoredValue(crmLines, CRM_HORARIO_LABEL);
+    if (horarioFromMsg !== (crmHorario ?? "").trim()) {
+      customFields.push({
+        field_id: SILENT_WATCH_FIELD.horario_evento,
+        values: [{ value: cap255(horarioFromMsg) }]
       });
     }
   }
@@ -231639,53 +231877,20 @@ function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLine
   const services = parseServicesFromText(msg);
   if (services.length > 0) {
     const crmReq = crmStoredValue(crmLines, "Requerimientos o servicios");
-    const merged = mergeServiceRequirements(
-      crmReq || extracted.requerimientos_evento,
-      services.join(", "),
-      6
-    );
-    const prevCount = parseServicesFromText(crmReq || extracted.requerimientos_evento || "").length;
-    const nextCount = merged ? parseServicesFromText(merged).length : 0;
-    if (merged && nextCount > prevCount) {
+    const merged = mergeServiceRequirements(crmReq, msg, 6);
+    if (merged && merged !== (crmReq ?? "").trim()) {
       customFields.push({
         field_id: SILENT_WATCH_FIELD.requerimientos_evento,
         values: [{ value: cap255(merged) }]
       });
     }
   }
-  const nombreCandidate = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
-  let nombrePatch = null;
-  if (nombreCandidate) {
-    const invNombre = applyCrmWriteInvariants(
-      { ...extracted, nombre: nombreCandidate, direccion_evento: null },
-      [msg]
-    );
-    if (invNombre.extracted.nombre) {
-      nombrePatch = resolveKommoLeadNamePatch(currentLeadName, invNombre.extracted.nombre);
-    }
-  }
-  if (customFields.length === 0 && !nombrePatch) return null;
-  if (zonaFromMsg) {
-    const invZona = applyCrmWriteInvariants(
-      {
-        ...extracted,
-        direccion_evento: zonaFromMsg,
-        nombre: null
-      },
-      [msg]
-    );
-    if (!invZona.extracted.direccion_evento) {
-      const idx = customFields.findIndex(
-        (f10) => f10.field_id === SILENT_WATCH_FIELD.direccion_evento
-      );
-      if (idx >= 0) customFields.splice(idx, 1);
-    }
-  }
-  if (customFields.length === 0 && !nombrePatch) return null;
-  const payload = {};
-  if (customFields.length > 0) payload["custom_fields_values"] = customFields;
+  const inv = applyCrmWriteInvariants(extracted, [msg]);
+  const payload = { custom_fields_values: customFields };
+  const fromExtract = sanitizeCrmNombre(inv.extracted.nombre) ?? sanitizeDisplayName(inv.extracted.nombre);
+  const nombrePatch = resolveKommoLeadNamePatch(currentLeadName, fromExtract ?? null);
   if (nombrePatch) payload["name"] = cap255(nombrePatch);
-  return payload;
+  return customFields.length || payload["name"] ? payload : null;
 }
 
 // src/routes/kommo.ts
@@ -231698,7 +231903,8 @@ var FIELD = {
   // Texto largo — respuesta completa de Lucy
   direccion_evento: 1048774,
   requerimientos_evento: 1048776,
-  fecha_horario: 1048778,
+  fecha_evento: 1048778,
+  horario_evento: 1049358,
   num_invitados: 1048780,
   tipo_evento: 1048782,
   presupuesto: 1048784
@@ -231748,6 +231954,8 @@ async function extractData(history, latestUserText, crmAlreadyFilled = "") {
     presupuesto: null,
     direccion_evento: null,
     requerimientos_evento: null,
+    fecha_evento: null,
+    horario_evento: null,
     fecha_horario: null,
     num_invitados: null,
     tipo_evento: null,
@@ -231776,7 +231984,8 @@ Campos a extraer:
 - presupuesto: cantidad en MXN si es cliente (n\xFAmero entero o null, NO string)
 - direccion_evento: lugar o direcci\xF3n del evento si es CLIENTE (string o null). Si es PROVEEDOR, el venue propio NO va aqu\xED \u2192 null
 - requerimientos_evento: para CLIENTE: servicios o requerimientos; para PROVEEDOR: qu\xE9 ofrece / invitaci\xF3n a alianza (string o null)
-- fecha_horario: fecha y/u horario del evento si es cliente (string o null)
+- fecha_evento: solo d\xEDa o fecha del evento si es cliente (string o null). Ej. "15 de agosto", "septiembre", "Sin definir". NO incluyas hora aqu\xED.
+- horario_evento: solo horario del evento si es cliente (string o null). Ej. "13:00 a 20:00 hrs", "5:00 p.m.", "hora de comida". NO incluyas el d\xEDa aqu\xED.
 - num_invitados: n\xFAmero de invitados si es cliente (n\xFAmero entero o null, NO string). Un n\xFAmero suelto ambiguo ("el 5", "5") sin contexto de personas/pax \u2192 null
 - modo_servicio: "pedido_entrega" si pide producto/entrega/para llevar; "servicio_montado" si pide barra/meseros en el evento; null si no aplica o no queda claro
 - tipo_evento: tipo de evento si es cliente: "boda", "XV a\xF1os", "cumplea\xF1os", "corporativo", etc. (string o null). PROVEEDOR \u2192 null
@@ -231789,13 +231998,16 @@ Ante la duda \u2192 cliente.
 NO uses correos de Bodasesor (capybaraeventos@gmail.com, bodasesor@gmail.com) como correo del cliente \u2014 esos son nuestros.
 
 Ejemplo CLIENTE \u2014 "Me llamo Ana P\xE9rez, quiero una boda para 100 personas":
-{"tipo_contacto":"cliente","nombre":"Ana P\xE9rez","empresa":null,"telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":null,"fecha_horario":null,"num_invitados":100,"tipo_evento":"boda","modo_servicio":null}
+{"tipo_contacto":"cliente","nombre":"Ana P\xE9rez","empresa":null,"telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":null,"fecha_evento":null,"horario_evento":null,"fecha_horario":null,"num_invitados":100,"tipo_evento":"boda","modo_servicio":null}
+
+Ejemplo CLIENTE \u2014 "Ser\xEDa el 20 de noviembre de 7pm a 11pm":
+{"tipo_contacto":"cliente","nombre":null,"empresa":null,"telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":null,"fecha_evento":"20 de noviembre","horario_evento":"7pm a 11pm","fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
 
 Ejemplo PROVEEDOR \u2014 "Hola, soy Mar\xEDa L\xF3pez de Flores del Valle, ofrecemos arreglos florales para eventos":
-{"tipo_contacto":"proveedor","nombre":"Mar\xEDa L\xF3pez","empresa":"Flores del Valle","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"arreglos florales para eventos","fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
+{"tipo_contacto":"proveedor","nombre":"Mar\xEDa L\xF3pez","empresa":"Flores del Valle","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"arreglos florales para eventos","fecha_evento":null,"horario_evento":null,"fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
 
 Ejemplo ALIANZA/VENUE \u2014 "Te escribe Lety, ejecutiva de ventas en Hacienda Los Arc\xE1ngeles, te invito a registrarte en nuestra red de aliados comerciales":
-{"tipo_contacto":"proveedor","nombre":"Lety","empresa":"Hacienda Los Arc\xE1ngeles","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"Invitaci\xF3n a red de aliados comerciales / venue","fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
+{"tipo_contacto":"proveedor","nombre":"Lety","empresa":"Hacienda Los Arc\xE1ngeles","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"Invitaci\xF3n a red de aliados comerciales / venue","fecha_evento":null,"horario_evento":null,"fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
 
 Reglas estrictas:
 - SOLO extrae lo que el contacto dijo, nunca lo que Lucy pregunt\xF3.
@@ -231818,13 +232030,15 @@ Reglas estrictas:
     const raw = completion.text || "{}";
     const parsed = JSON.parse(raw);
     const tipoContacto = ["cliente", "proveedor", "incierto"].includes(parsed.tipo_contacto) ? parsed.tipo_contacto : null;
-    return {
+    const result = {
       nombre: parsed.nombre ?? null,
       telefono: parsed.telefono ?? null,
       correo: parsed.correo ?? null,
       presupuesto: typeof parsed.presupuesto === "number" ? parsed.presupuesto : null,
       direccion_evento: parsed.direccion_evento ?? null,
       requerimientos_evento: parsed.requerimientos_evento ?? null,
+      fecha_evento: parsed.fecha_evento ?? parsed.fecha_horario ?? null,
+      horario_evento: parsed.horario_evento ?? null,
       fecha_horario: parsed.fecha_horario ?? null,
       num_invitados: typeof parsed.num_invitados === "number" ? parsed.num_invitados : null,
       tipo_evento: parsed.tipo_evento ?? null,
@@ -231832,6 +232046,8 @@ Reglas estrictas:
       empresa: parsed.empresa ?? null,
       modo_servicio: parsed.modo_servicio === "pedido_entrega" || parsed.modo_servicio === "servicio_montado" ? parsed.modo_servicio : null
     };
+    hydrateScheduleFields(result);
+    return result;
   } catch {
     return empty;
   }
@@ -231839,7 +232055,8 @@ Reglas estrictas:
 var FIELD_NAME = {
   [FIELD.direccion_evento]: "Lugar/direcci\xF3n del evento",
   [FIELD.requerimientos_evento]: "Requerimientos o servicios",
-  [FIELD.fecha_horario]: "Fecha y horario",
+  [FIELD.fecha_evento]: CRM_FECHA_LABEL,
+  [FIELD.horario_evento]: CRM_HORARIO_LABEL,
   [FIELD.num_invitados]: "N\xFAmero de invitados",
   [FIELD.tipo_evento]: "Tipo de evento",
   [FIELD.presupuesto]: "Presupuesto (MXN)"
@@ -231886,7 +232103,7 @@ function purgeDimensionAsUbicacion(mergedLines, filledSet, extracted) {
   }
 }
 function crmSuggestsOngoingConversation(filledLabels) {
-  return filledLabels.has("Nombre del cliente") || filledLabels.has("Correo electr\xF3nico") || filledLabels.has("Tipo de evento") || filledLabels.has("Requerimientos o servicios") || filledLabels.has("N\xFAmero de invitados") || filledLabels.has("Lugar/direcci\xF3n del evento") || filledLabels.has("Fecha y horario");
+  return filledLabels.has("Nombre del cliente") || filledLabels.has("Correo electr\xF3nico") || filledLabels.has("Tipo de evento") || filledLabels.has("Requerimientos o servicios") || filledLabels.has("N\xFAmero de invitados") || filledLabels.has("Lugar/direcci\xF3n del evento") || filledLabels.has(CRM_FECHA_LABEL) || filledLabels.has(CRM_HORARIO_LABEL);
 }
 function purgeInvalidNombre(mergedLines, filledSet, extracted) {
   const idx = mergedLines.findIndex((l10) => /^-?\s*Nombre del cliente:/i.test(l10));
@@ -232053,7 +232270,8 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
   const extractionMap = [
     { label: "Lugar/direcci\xF3n del evento", value: extracted.direccion_evento },
     { label: "Requerimientos o servicios", value: extracted.requerimientos_evento },
-    { label: "Fecha y horario", value: extracted.fecha_horario },
+    { label: CRM_FECHA_LABEL, value: extracted.fecha_evento },
+    { label: CRM_HORARIO_LABEL, value: extracted.horario_evento },
     {
       label: "N\xFAmero de invitados",
       value: isAmbiguousShortNumber(currentMessage, { lastAskedField: lastAskedInv }) ? null : extracted.num_invitados
@@ -232354,8 +232572,12 @@ function buildPatchPayload(extracted, mergedLines, conversationText, currentLead
   const reqForCrm = reqStored ?? (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null);
   if (isValidExtractedString(reqForCrm) && reqForCrm !== "Info pendiente")
     customFields.push({ field_id: FIELD.requerimientos_evento, values: [{ value: cap2552(reqForCrm) }] });
-  if (isValidExtractedString(extracted.fecha_horario))
-    customFields.push({ field_id: FIELD.fecha_horario, values: [{ value: cap2552(extracted.fecha_horario) }] });
+  const fechaForCrm = crmStoredValue(mergedLines, CRM_FECHA_LABEL) ?? extracted.fecha_evento;
+  if (isValidExtractedString(fechaForCrm) && isUsableFechaEvento(fechaForCrm))
+    customFields.push({ field_id: FIELD.fecha_evento, values: [{ value: cap2552(fechaForCrm) }] });
+  const horarioForCrm = crmStoredValue(mergedLines, CRM_HORARIO_LABEL) ?? extracted.horario_evento;
+  if (isValidExtractedString(horarioForCrm) && isUsableHorarioEvento(horarioForCrm))
+    customFields.push({ field_id: FIELD.horario_evento, values: [{ value: cap2552(horarioForCrm) }] });
   if (extracted.num_invitados !== null && extracted.num_invitados > 0)
     customFields.push({ field_id: FIELD.num_invitados, values: [{ value: String(extracted.num_invitados) }] });
   const tipoEventoForCrm = crmStoredValue(mergedLines, "Tipo de evento") ?? extracted.tipo_evento;
@@ -232799,7 +233021,7 @@ async function processBatch(batch, accessToken, log) {
         source: "lucy_flow"
       }
     ]).catch((dbErr) => log.warn({ dbErr }, "No se pudieron guardar mensajes en BD (no cr\xEDtico)"));
-    const parsedEventDate = safeParseDate(extracted.fecha_horario);
+    const parsedEventDate = safeParseDate(extracted.fecha_evento ?? extracted.fecha_horario);
     void db.update(conversations).set({
       clientName: sanitizeDisplayName(extracted.nombre) ?? whatsappDisplayName ?? conversation.clientName,
       clientEmail: extracted.correo || conversation.clientEmail,
@@ -232916,7 +233138,7 @@ Ofrece: ${extracted.requerimientos_evento ?? "-"}
               nombre: extracted.nombre,
               correo: extracted.correo || conversation.clientEmail,
               tipo_evento: extracted.tipo_evento,
-              fecha_evento: extracted.fecha_horario,
+              fecha_evento: extracted.fecha_evento ?? extracted.fecha_horario,
               num_invitados: extracted.num_invitados,
               direccion: extracted.direccion_evento,
               presupuesto: extracted.presupuesto
@@ -233628,7 +233850,8 @@ router3.post("/kommo/lucy/activar/:leadId", async (req, res) => {
 var SIMULATOR_CF_TO_KOMMO = {
   cf_direccion: FIELD.direccion_evento,
   cf_requerimiento: FIELD.requerimientos_evento,
-  cf_fecha_horario: FIELD.fecha_horario,
+  cf_fecha_evento: FIELD.fecha_evento,
+  cf_horario_evento: FIELD.horario_evento,
   cf_num_invitados: FIELD.num_invitados,
   cf_tipo_evento: FIELD.tipo_evento,
   cf_presupuesto: FIELD.presupuesto
@@ -233688,8 +233911,10 @@ function mapExtractedToSimulatorFields(extracted, reply, mergedLines = []) {
   if (isValidExtractedString(direccionForCf)) fields.cf_direccion = direccionForCf;
   const reqForCf = crmStoredValue(mergedLines, "Requerimientos o servicios") ?? extracted.requerimientos_evento;
   if (isValidExtractedString(reqForCf)) fields.cf_requerimiento = reqForCf;
-  const fechaForCf = crmStoredValue(mergedLines, "Fecha y horario") ?? extracted.fecha_horario;
-  if (isValidExtractedString(fechaForCf)) fields.cf_fecha_horario = fechaForCf;
+  const fechaForCf = crmStoredValue(mergedLines, CRM_FECHA_LABEL) ?? extracted.fecha_evento;
+  if (isValidExtractedString(fechaForCf)) fields.cf_fecha_evento = fechaForCf;
+  const horarioForCf = crmStoredValue(mergedLines, CRM_HORARIO_LABEL) ?? extracted.horario_evento;
+  if (isValidExtractedString(horarioForCf)) fields.cf_horario_evento = horarioForCf;
   const invLine = crmStoredValue(mergedLines, "N\xFAmero de invitados");
   if (invLine && /^\d+$/.test(invLine.trim())) {
     fields.cf_num_invitados = parseInt(invLine.trim(), 10);

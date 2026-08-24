@@ -63,9 +63,9 @@ export function calculateLeadScore(context: ScoringContext): LeadScore {
   // ═══════════════════════════════════════════════════════════════════════
   // 2. TEMPORALIDAD / URGENCIA (0-30)
   // ═══════════════════════════════════════════════════════════════════════
-  if (context.extracted.fecha_horario) {
-    const fechaText = context.extracted.fecha_horario.toLowerCase();
-    const dateMatch = context.extracted.fecha_horario.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
+  if (context.extracted.fecha_evento ?? context.extracted.fecha_horario) {
+    const fechaText = (context.extracted.fecha_evento ?? context.extracted.fecha_horario ?? "").toLowerCase();
+    const dateMatch = (context.extracted.fecha_evento ?? context.extracted.fecha_horario ?? "").match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
 
     if (dateMatch) {
       try {
@@ -128,7 +128,7 @@ export function calculateLeadScore(context: ScoringContext): LeadScore {
     context.extracted.correo,
     context.extracted.telefono,
     context.extracted.tipo_evento,
-    context.extracted.fecha_horario,
+    context.extracted.fecha_evento ?? context.extracted.fecha_horario,
     context.extracted.num_invitados,
     context.extracted.direccion_evento,
     context.extracted.requerimientos_evento,
@@ -399,10 +399,10 @@ export function detectUrgency(text: string): { isUrgent: boolean; reason: string
 export function detectStage(context: ScoringContext): string {
   const { extracted, messageCount } = context;
 
-  if (extracted.nombre && extracted.correo && extracted.fecha_horario && extracted.presupuesto) {
+  if (extracted.nombre && extracted.correo && (extracted.fecha_evento ?? extracted.fecha_horario) && extracted.presupuesto) {
     return "closing";
   }
-  if (extracted.presupuesto && extracted.fecha_horario) {
+  if (extracted.presupuesto && (extracted.fecha_evento ?? extracted.fecha_horario)) {
     return "negotiation";
   }
   if (extracted.tipo_evento && extracted.num_invitados) {

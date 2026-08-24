@@ -15,26 +15,30 @@ import {
 import {
   parseZonaFromText,
   parseFechaFromText,
+  parseHorarioFromText,
   parseInvitadosFromText,
   parseServicesFromText,
   parseTipoEventoFromText,
   mergeServiceRequirements,
   isUsableDireccionEvento,
-  isUsableFechaHorario,
-  mergeFechaHorario,
+  isUsableFechaEvento,
+  isUsableHorarioEvento,
   shouldReplaceCrmDireccion,
   applyLocationCorrectionToAddress,
   clientCorrectsLocation,
   isVenueSpaceDetail,
   isServiceLabelNotTipoEvento,
   isUnusableTipoEventoReply,
+  CRM_FECHA_LABEL,
+  CRM_HORARIO_LABEL,
 } from "./conversation-understanding.js";
 
 /** IDs Kommo usados por el PATCH silencioso. */
 export const SILENT_WATCH_FIELD = {
   direccion_evento: 1048774,
   requerimientos_evento: 1048776,
-  fecha_horario: 1048778,
+  fecha_evento: 1048778,
+  horario_evento: 1049358,
   num_invitados: 1048780,
   tipo_evento: 1048782,
 } as const;
@@ -77,13 +81,23 @@ export function buildSilentWatchPatchPayload(
   }
 
   const fechaFromMsg = parseFechaFromText(msg);
-  if (fechaFromMsg && isUsableFechaHorario(fechaFromMsg)) {
-    const crmFecha = crmStoredValue(crmLines, "Fecha y horario");
-    const mergedFecha = mergeFechaHorario(crmFecha, fechaFromMsg) ?? fechaFromMsg;
-    if (isUsableFechaHorario(mergedFecha) && mergedFecha !== (crmFecha ?? "").trim()) {
+  if (fechaFromMsg && isUsableFechaEvento(fechaFromMsg)) {
+    const crmFecha = crmStoredValue(crmLines, CRM_FECHA_LABEL);
+    if (fechaFromMsg !== (crmFecha ?? "").trim()) {
       customFields.push({
-        field_id: SILENT_WATCH_FIELD.fecha_horario,
-        values: [{ value: cap255(mergedFecha) }],
+        field_id: SILENT_WATCH_FIELD.fecha_evento,
+        values: [{ value: cap255(fechaFromMsg) }],
+      });
+    }
+  }
+
+  const horarioFromMsg = parseHorarioFromText(msg);
+  if (horarioFromMsg && isUsableHorarioEvento(horarioFromMsg)) {
+    const crmHorario = crmStoredValue(crmLines, CRM_HORARIO_LABEL);
+    if (horarioFromMsg !== (crmHorario ?? "").trim()) {
+      customFields.push({
+        field_id: SILENT_WATCH_FIELD.horario_evento,
+        values: [{ value: cap255(horarioFromMsg) }],
       });
     }
   }
@@ -109,18 +123,11 @@ export function buildSilentWatchPatchPayload(
     });
   }
 
-  // Requerimientos: solo etiquetas de servicio parseadas (nunca el mensaje crudo).
   const services = parseServicesFromText(msg);
   if (services.length > 0) {
     const crmReq = crmStoredValue(crmLines, "Requerimientos o servicios");
-    const merged = mergeServiceRequirements(
-      crmReq || extracted.requerimientos_evento,
-      services.join(", "),
-      6
-    );
-    const prevCount = parseServicesFromText(crmReq || extracted.requerimientos_evento || "").length;
-    const nextCount = merged ? parseServicesFromText(merged).length : 0;
-    if (merged && nextCount > prevCount) {
+    const merged = mergeServiceRequirements(crmReq, msg, 6);
+    if (merged && merged !== (crmReq ?? "").trim()) {
       customFields.push({
         field_id: SILENT_WATCH_FIELD.requerimientos_evento,
         values: [{ value: cap255(merged) }],
@@ -128,44 +135,13 @@ export function buildSilentWatchPatchPayload(
     }
   }
 
-  // Nombre: solo si extract trajo nombre limpio — NUNCA sanitizar el mensaje entero.
-  const nombreCandidate =
-    sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
-  let nombrePatch: string | null = null;
-  if (nombreCandidate) {
-    const invNombre = applyCrmWriteInvariants(
-      { ...extracted, nombre: nombreCandidate, direccion_evento: null },
-      [msg]
-    );
-    if (invNombre.extracted.nombre) {
-      nombrePatch = resolveKommoLeadNamePatch(currentLeadName, invNombre.extracted.nombre);
-    }
-  }
+  const inv = applyCrmWriteInvariants(extracted, [msg]);
+  const payload: Record<string, unknown> = { custom_fields_values: customFields };
 
-  if (customFields.length === 0 && !nombrePatch) return null;
-
-  // Invariantes: tumbar zona si quedó inválida.
-  if (zonaFromMsg) {
-    const invZona = applyCrmWriteInvariants(
-      {
-        ...extracted,
-        direccion_evento: zonaFromMsg,
-        nombre: null,
-      },
-      [msg]
-    );
-    if (!invZona.extracted.direccion_evento) {
-      const idx = customFields.findIndex(
-        (f) => f.field_id === SILENT_WATCH_FIELD.direccion_evento
-      );
-      if (idx >= 0) customFields.splice(idx, 1);
-    }
-  }
-
-  if (customFields.length === 0 && !nombrePatch) return null;
-
-  const payload: Record<string, unknown> = {};
-  if (customFields.length > 0) payload["custom_fields_values"] = customFields;
+  const fromExtract =
+    sanitizeCrmNombre(inv.extracted.nombre) ?? sanitizeDisplayName(inv.extracted.nombre);
+  const nombrePatch = resolveKommoLeadNamePatch(currentLeadName, fromExtract ?? null);
   if (nombrePatch) payload["name"] = cap255(nombrePatch);
-  return payload;
+
+  return customFields.length || payload["name"] ? payload : null;
 }

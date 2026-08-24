@@ -13,6 +13,9 @@ import {
 import {
   isUsableDireccionEvento,
   isUsableFechaHorario,
+  isUsableFechaEvento,
+  isUsableHorarioEvento,
+  hydrateScheduleFields,
   parsePresupuestoFromText,
   parseZonaFromText,
   looksLikeGuestCountRange,
@@ -176,9 +179,18 @@ export function applyCrmWriteInvariants(
   }
 
   // A15443: "hora de comida" no es fecha del evento.
+  hydrateScheduleFields(out);
+  if (out.fecha_evento && !isUsableFechaEvento(out.fecha_evento)) {
+    out.fecha_evento = null;
+    applied.push("fecha-meal-only-cleared");
+  }
+  if (out.horario_evento && !isUsableHorarioEvento(out.horario_evento)) {
+    out.horario_evento = null;
+    applied.push("horario-unusable-cleared");
+  }
   if (out.fecha_horario && !isUsableFechaHorario(out.fecha_horario)) {
     out.fecha_horario = null;
-    applied.push("fecha-meal-only-cleared");
+    applied.push("fecha-legacy-cleared");
   }
 
   return { extracted: out, applied };

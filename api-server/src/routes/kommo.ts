@@ -129,6 +129,13 @@ import {
   parseServicesFromText,
   mergeServiceRequirements,
   isUsableDireccionEvento,
+  CRM_FECHA_LABEL,
+  CRM_HORARIO_LABEL,
+  hydrateScheduleFields,
+  syncLegacyFechaHorarioField,
+  combinedScheduleDisplay,
+  isUsableFechaEvento,
+  isUsableHorarioEvento,
 } from "../conversation-understanding.js";
 import type { ExtractedData } from "../types.js";
 import {
@@ -164,7 +171,8 @@ const FIELD = {
   respuesta_ia_largo:     1048786, // Texto largo — respuesta completa de Lucy
   direccion_evento:       1048774,
   requerimientos_evento:  1048776,
-  fecha_horario:          1048778,
+  fecha_evento:           1048778,
+  horario_evento:         1049358,
   num_invitados:          1048780,
   tipo_evento:            1048782,
   presupuesto:            1048784,
@@ -292,7 +300,7 @@ async function extractData(
   const empty: ExtractedData = {
     nombre: null, telefono: null, correo: null,
     presupuesto: null, direccion_evento: null,
-    requerimientos_evento: null, fecha_horario: null,
+    requerimientos_evento: null, fecha_evento: null, horario_evento: null, fecha_horario: null,
     num_invitados: null, tipo_evento: null,
     tipo_contacto: null, empresa: null,
     modo_servicio: null,
@@ -319,7 +327,8 @@ Campos a extraer:
 - presupuesto: cantidad en MXN si es cliente (número entero o null, NO string)
 - direccion_evento: lugar o dirección del evento si es CLIENTE (string o null). Si es PROVEEDOR, el venue propio NO va aquí → null
 - requerimientos_evento: para CLIENTE: servicios o requerimientos; para PROVEEDOR: qué ofrece / invitación a alianza (string o null)
-- fecha_horario: fecha y/u horario del evento si es cliente (string o null)
+- fecha_evento: solo día o fecha del evento si es cliente (string o null). Ej. "15 de agosto", "septiembre", "Sin definir". NO incluyas hora aquí.
+- horario_evento: solo horario del evento si es cliente (string o null). Ej. "13:00 a 20:00 hrs", "5:00 p.m.", "hora de comida". NO incluyas el día aquí.
 - num_invitados: número de invitados si es cliente (número entero o null, NO string). Un número suelto ambiguo ("el 5", "5") sin contexto de personas/pax → null
 - modo_servicio: "pedido_entrega" si pide producto/entrega/para llevar; "servicio_montado" si pide barra/meseros en el evento; null si no aplica o no queda claro
 - tipo_evento: tipo de evento si es cliente: "boda", "XV años", "cumpleaños", "corporativo", etc. (string o null). PROVEEDOR → null
@@ -332,13 +341,16 @@ Ante la duda → cliente.
 NO uses correos de Bodasesor (capybaraeventos@gmail.com, bodasesor@gmail.com) como correo del cliente — esos son nuestros.
 
 Ejemplo CLIENTE — "Me llamo Ana Pérez, quiero una boda para 100 personas":
-{"tipo_contacto":"cliente","nombre":"Ana Pérez","empresa":null,"telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":null,"fecha_horario":null,"num_invitados":100,"tipo_evento":"boda","modo_servicio":null}
+{"tipo_contacto":"cliente","nombre":"Ana Pérez","empresa":null,"telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":null,"fecha_evento":null,"horario_evento":null,"fecha_horario":null,"num_invitados":100,"tipo_evento":"boda","modo_servicio":null}
+
+Ejemplo CLIENTE — "Sería el 20 de noviembre de 7pm a 11pm":
+{"tipo_contacto":"cliente","nombre":null,"empresa":null,"telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":null,"fecha_evento":"20 de noviembre","horario_evento":"7pm a 11pm","fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
 
 Ejemplo PROVEEDOR — "Hola, soy María López de Flores del Valle, ofrecemos arreglos florales para eventos":
-{"tipo_contacto":"proveedor","nombre":"María López","empresa":"Flores del Valle","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"arreglos florales para eventos","fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
+{"tipo_contacto":"proveedor","nombre":"María López","empresa":"Flores del Valle","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"arreglos florales para eventos","fecha_evento":null,"horario_evento":null,"fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
 
 Ejemplo ALIANZA/VENUE — "Te escribe Lety, ejecutiva de ventas en Hacienda Los Arcángeles, te invito a registrarte en nuestra red de aliados comerciales":
-{"tipo_contacto":"proveedor","nombre":"Lety","empresa":"Hacienda Los Arcángeles","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"Invitación a red de aliados comerciales / venue","fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
+{"tipo_contacto":"proveedor","nombre":"Lety","empresa":"Hacienda Los Arcángeles","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"Invitación a red de aliados comerciales / venue","fecha_evento":null,"horario_evento":null,"fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
 
 Reglas estrictas:
 - SOLO extrae lo que el contacto dijo, nunca lo que Lucy preguntó.
@@ -370,13 +382,15 @@ Reglas estrictas:
       ? parsed.tipo_contacto
       : null) as "cliente" | "proveedor" | "incierto" | null;
 
-    return {
+    const result: ExtractedData = {
       nombre:                parsed.nombre ?? null,
       telefono:              parsed.telefono ?? null,
       correo:                parsed.correo ?? null,
       presupuesto:           typeof parsed.presupuesto === "number" ? parsed.presupuesto : null,
       direccion_evento:      parsed.direccion_evento ?? null,
       requerimientos_evento: parsed.requerimientos_evento ?? null,
+      fecha_evento:          parsed.fecha_evento ?? parsed.fecha_horario ?? null,
+      horario_evento:        parsed.horario_evento ?? null,
       fecha_horario:         parsed.fecha_horario ?? null,
       num_invitados:         typeof parsed.num_invitados === "number" ? parsed.num_invitados : null,
       tipo_evento:           parsed.tipo_evento ?? null,
@@ -387,6 +401,8 @@ Reglas estrictas:
           ? parsed.modo_servicio
           : null,
     };
+    hydrateScheduleFields(result);
+    return result;
   } catch {
     return empty;
   }
@@ -396,7 +412,8 @@ Reglas estrictas:
 const FIELD_NAME: Record<number, string> = {
   [FIELD.direccion_evento]:      "Lugar/dirección del evento",
   [FIELD.requerimientos_evento]: "Requerimientos o servicios",
-  [FIELD.fecha_horario]:         "Fecha y horario",
+  [FIELD.fecha_evento]:          CRM_FECHA_LABEL,
+  [FIELD.horario_evento]:        CRM_HORARIO_LABEL,
   [FIELD.num_invitados]:         "Número de invitados",
   [FIELD.tipo_evento]:           "Tipo de evento",
   [FIELD.presupuesto]:           "Presupuesto (MXN)",
@@ -411,7 +428,8 @@ const REQUIRED_FIELDS_ORDERED: Array<{ label: string; question: string }> = [
   { label: "Requerimientos o servicios", question: "¿Qué tienes pensado para tu evento?" },
   { label: "Número de invitados",        question: "¿Cuántos invitados tienes contemplados para tu evento?" },
   { label: "Lugar/dirección del evento", question: "¿En qué ciudad sería tu evento, si tienes dirección exacta sería mejor?" },
-  { label: "Fecha y horario",            question: "¿Ya tienen fecha definida o siguen sin fecha?" },
+  { label: CRM_FECHA_LABEL,            question: "¿Ya tienen fecha o todavía la van definiendo?" },
+  { label: CRM_HORARIO_LABEL,          question: "¿A qué hora sería el evento?" },
   { label: "Presupuesto (MXN)",          question: "¿Tienes algún presupuesto estimado para tu evento?" },
 ];
 
@@ -453,7 +471,9 @@ function buildLeadCalificadoNota(
   const nombre    = extracted.nombre           ?? fromLines(/Nombre del cliente/i);
   const correo    = extracted.correo           ?? fromLines(/Correo electrónico/i);
   const evento    = extracted.tipo_evento      ?? fromLines(/Tipo de evento/i);
-  const fecha     = extracted.fecha_horario    ?? fromLines(/Fecha y horario/i);
+  const fecha     = extracted.fecha_evento    ?? fromLines(/Fecha del evento/i);
+  const horario   = extracted.horario_evento  ?? fromLines(/Horario del evento/i);
+  const fechaDisplay = combinedScheduleDisplay(fecha, horario) ?? fromLines(/Fecha y horario/i);
   const invitados = extracted.num_invitados    ?? fromLines(/Número de invitados/i);
   const ubicacion = extracted.direccion_evento ?? fromLines(/Lugar\/dirección/i);
   const ppto      = extracted.presupuesto      ?? fromLines(/Presupuesto/i);
@@ -466,7 +486,8 @@ function buildLeadCalificadoNota(
     nombre    ? `- Nombre: ${nombre}`        : null,
     correo    ? `- Correo: ${correo}`        : null,
     evento    ? `- Evento: ${evento}`        : null,
-    fecha     ? `- Fecha: ${fecha}`          : null,
+    fechaDisplay ? `- Fecha: ${fechaDisplay}`          : null,
+    horario      ? `- Horario: ${horario}`             : null,
     invitados ? `- Invitados: ${invitados}`  : null,
     ubicacion ? `- Ubicación: ${ubicacion}`  : null,
     ppto      ? `- Presupuesto: $${ppto}`    : null,
@@ -553,7 +574,8 @@ function crmSuggestsOngoingConversation(filledLabels: Set<string>): boolean {
     filledLabels.has("Requerimientos o servicios") ||
     filledLabels.has("Número de invitados") ||
     filledLabels.has("Lugar/dirección del evento") ||
-    filledLabels.has("Fecha y horario")
+    filledLabels.has(CRM_FECHA_LABEL) ||
+    filledLabels.has(CRM_HORARIO_LABEL)
   );
 }
 
@@ -815,7 +837,8 @@ function buildCrmContext(
   const extractionMap: Array<{ label: string; value: string | number | null | undefined }> = [
     { label: "Lugar/dirección del evento", value: extracted.direccion_evento },
     { label: "Requerimientos o servicios", value: extracted.requerimientos_evento },
-    { label: "Fecha y horario",            value: extracted.fecha_horario },
+    { label: CRM_FECHA_LABEL,            value: extracted.fecha_evento },
+    { label: CRM_HORARIO_LABEL,          value: extracted.horario_evento },
     {
       label: "Número de invitados",
       value: isAmbiguousShortNumber(currentMessage, { lastAskedField: lastAskedInv })
@@ -1226,8 +1249,14 @@ function buildPatchPayload(
       : null);
   if (isValidExtractedString(reqForCrm) && reqForCrm !== "Info pendiente")
     customFields.push({ field_id: FIELD.requerimientos_evento, values: [{ value: cap255(reqForCrm) }] });
-  if (isValidExtractedString(extracted.fecha_horario))
-    customFields.push({ field_id: FIELD.fecha_horario, values: [{ value: cap255(extracted.fecha_horario) }] });
+  const fechaForCrm =
+    crmStoredValue(mergedLines, CRM_FECHA_LABEL) ?? extracted.fecha_evento;
+  if (isValidExtractedString(fechaForCrm) && isUsableFechaEvento(fechaForCrm))
+    customFields.push({ field_id: FIELD.fecha_evento, values: [{ value: cap255(fechaForCrm) }] });
+  const horarioForCrm =
+    crmStoredValue(mergedLines, CRM_HORARIO_LABEL) ?? extracted.horario_evento;
+  if (isValidExtractedString(horarioForCrm) && isUsableHorarioEvento(horarioForCrm))
+    customFields.push({ field_id: FIELD.horario_evento, values: [{ value: cap255(horarioForCrm) }] });
   if (extracted.num_invitados !== null && extracted.num_invitados > 0)
     customFields.push({ field_id: FIELD.num_invitados, values: [{ value: String(extracted.num_invitados) }] });
 
@@ -1456,7 +1485,9 @@ async function maybeFireWelcomeEmail(opts: { subdomain: string; accessToken: str
     };
 
     const tipo_evento   = getField(FIELD.tipo_evento);
-    const fecha_horario = getField(FIELD.fecha_horario);
+    const fecha_evento  = getField(FIELD.fecha_evento);
+    const horario_evento = getField(FIELD.horario_evento);
+    const fecha_horario = combinedScheduleDisplay(fecha_evento, horario_evento);
     const num_invitados_raw = cfv.find((x) => x.field_id === FIELD.num_invitados)?.values[0]?.value;
     const num_invitados = num_invitados_raw !== undefined && num_invitados_raw !== null
       ? Number(num_invitados_raw)
@@ -1950,7 +1981,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // ══════════════════════════════════════════════════════════════════════
     // PASO 10: Actualizar conversación en BD (fire-and-forget)
     // ══════════════════════════════════════════════════════════════════════
-    const parsedEventDate = safeParseDate(extracted.fecha_horario);
+    const parsedEventDate = safeParseDate(extracted.fecha_evento ?? extracted.fecha_horario);
     void db.update(conversations)
       .set({
         clientName:
@@ -2100,7 +2131,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
               nombre: extracted.nombre,
               correo: extracted.correo || conversation.clientEmail,
               tipo_evento: extracted.tipo_evento,
-              fecha_evento: extracted.fecha_horario,
+              fecha_evento: extracted.fecha_evento ?? extracted.fecha_horario,
               num_invitados: extracted.num_invitados,
               direccion: extracted.direccion_evento,
               presupuesto: extracted.presupuesto,
@@ -3029,7 +3060,8 @@ interface SimulatorLeadPayload {
 const SIMULATOR_CF_TO_KOMMO: Record<string, number> = {
   cf_direccion: FIELD.direccion_evento,
   cf_requerimiento: FIELD.requerimientos_evento,
-  cf_fecha_horario: FIELD.fecha_horario,
+  cf_fecha_evento: FIELD.fecha_evento,
+  cf_horario_evento: FIELD.horario_evento,
   cf_num_invitados: FIELD.num_invitados,
   cf_tipo_evento: FIELD.tipo_evento,
   cf_presupuesto: FIELD.presupuesto,
@@ -3111,8 +3143,10 @@ function mapExtractedToSimulatorFields(
   if (isValidExtractedString(direccionForCf)) fields.cf_direccion = direccionForCf;
   const reqForCf = crmStoredValue(mergedLines, "Requerimientos o servicios") ?? extracted.requerimientos_evento;
   if (isValidExtractedString(reqForCf)) fields.cf_requerimiento = reqForCf;
-  const fechaForCf = crmStoredValue(mergedLines, "Fecha y horario") ?? extracted.fecha_horario;
-  if (isValidExtractedString(fechaForCf)) fields.cf_fecha_horario = fechaForCf;
+  const fechaForCf = crmStoredValue(mergedLines, CRM_FECHA_LABEL) ?? extracted.fecha_evento;
+  if (isValidExtractedString(fechaForCf)) fields.cf_fecha_evento = fechaForCf;
+  const horarioForCf = crmStoredValue(mergedLines, CRM_HORARIO_LABEL) ?? extracted.horario_evento;
+  if (isValidExtractedString(horarioForCf)) fields.cf_horario_evento = horarioForCf;
   const invLine = crmStoredValue(mergedLines, "Número de invitados");
   if (invLine && /^\d+$/.test(invLine.trim())) {
     fields.cf_num_invitados = parseInt(invLine.trim(), 10);

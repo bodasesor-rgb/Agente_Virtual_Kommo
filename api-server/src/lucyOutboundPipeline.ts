@@ -95,6 +95,8 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
         presupuesto: input.extracted.presupuesto ?? null,
         direccion_evento: input.extracted.direccion_evento ?? null,
         requerimientos_evento: input.extracted.requerimientos_evento ?? null,
+        fecha_evento: input.extracted.fecha_evento ?? null,
+        horario_evento: input.extracted.horario_evento ?? null,
         fecha_horario: input.extracted.fecha_horario ?? null,
         num_invitados: input.extracted.num_invitados ?? null,
         tipo_evento: input.extracted.tipo_evento ?? null,

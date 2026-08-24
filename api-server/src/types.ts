@@ -8,6 +8,11 @@ export interface ExtractedData {
   presupuesto: number | null;
   direccion_evento: string | null;
   requerimientos_evento: string | null;
+  /** Kommo 1048778 — solo día/fecha del evento. */
+  fecha_evento: string | null;
+  /** Kommo 1049358 — solo horario del evento. */
+  horario_evento: string | null;
+  /** Vista combinada legacy / resúmenes; derivada de fecha_evento + horario_evento. */
   fecha_horario: string | null;
   num_invitados: number | null;
   tipo_evento: string | null;

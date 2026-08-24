@@ -116,6 +116,12 @@ import {
   applyLocationCorrectionToCrm,
   extractNumberedNivelFromLastAssistant,
   parseNumberedNivelesFromAssistant,
+  splitCombinedFechaHorario,
+  parseHorarioFromText,
+  migrateLegacyCrmFechaHorarioLines,
+  hydrateScheduleFields,
+  CRM_FECHA_LABEL,
+  CRM_HORARIO_LABEL,
 } from "../conversation-understanding.js";
 import {
   applyCrmWriteInvariants,
@@ -205,6 +211,7 @@ import {
   detectEmailRefusal,
   EMAIL_WAIVED_LABEL,
   getNextPendingField,
+  syncFilledFromExtracted,
   isFieldSatisfied,
   isReadyForClosing,
   mensajeAsksForFilledField,
@@ -424,13 +431,15 @@ async function test(name: string, fn: () => void | Promise<void>): Promise<void>
 }
 
 function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
-  return {
+  const base: ExtractedData = {
     nombre: null,
     telefono: null,
     correo: null,
     presupuesto: null,
     direccion_evento: null,
     requerimientos_evento: null,
+    fecha_evento: null,
+    horario_evento: null,
     fecha_horario: null,
     num_invitados: null,
     tipo_evento: null,
@@ -439,6 +448,8 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
     modo_servicio: null,
     ...overrides,
   };
+  hydrateScheduleFields(base);
+  return base;
 }
 
 function mockClosing(servicios: string | null | undefined, clientName?: string | null): string {
@@ -11178,7 +11189,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.35 — primer turno banquete: catálogo + pregunta embudo (Allison A15370) ───
   await test("133. V9.35 — banquete Torreón primer turno pide fecha/invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.49");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.50");
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -11210,7 +11221,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.36 — no cortar el chat (Isai A15378) ───
   await test("134. V9.36 — Isai: no cierra, no confunde nombre con ciudad, urgencia ≠ teléfono", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.49");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.50");
     assert.equal(parseZonaFromText("Isai Moreno"), null);
     assert.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -11337,7 +11348,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.49");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.50");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
@@ -11414,7 +11425,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("135. V9.38 — comprobante en imagen: primer pago Anticipo, segundo Liquidación", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.49");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.50");
     assert.equal(FIELD_ANTICIPO, 1049322);
     assert.equal(FIELD_LIQUIDACION, 1049324);
 
@@ -11486,7 +11497,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("136. V9.40 — A15380 invitados no se saltan; Coyoacán+colonia; Claro no es nombre", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.49");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.50");
     const horario = "hola si se haría el 26 de septiembre pero aún no tenemos definido el horario";
     assert.equal(parseInvitadosFromText(horario), null, "horario pendiente ≠ invitados");
     const caps = scanConversationForCaptures([], horario, new Set(["Nombre del cliente"]));
@@ -11599,7 +11610,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("138. V9.41 — A15383 Kelia: ciudad, banquetes, LED≠luz, no spam (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.49");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.50");
 
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert.match(hornoMty, /horno\s*3/i, hornoMty);
@@ -11751,7 +11762,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.42 — A15391 Mariana: Coffee Break 4, "4. nombre", handoff, horario ≠ menú ───
   await test("139. V9.42 — A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.49");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.50");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -11846,7 +11857,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("140. V9.43 — detalle de un producto no re-lista el menú (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.49");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.50");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -11890,7 +11901,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.44 — A15443 Rosario: reunión≠XV, hora comida≠ubicación, no cierra sin ciudad ───
   await test("141. V9.44 — A15443 Rosario: reunión, hora comida, ciudad obligatoria", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.49");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.50");
 
     assert.equal(parseTipoEventoFromText("una reunión de 15 años"), "reunión");
     assert.ok(clientSaidReunionNotXv("una reunión de 15 años"));
@@ -12015,7 +12026,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.45 — A15419 Stephanie: fecha≠frase, horario≠día, silent-watch limpio ───
   await test("142. V9.45 — A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.49");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.50");
 
     assert.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
@@ -12103,7 +12114,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.49 — imágenes: responder solo en embudo; post–Humano Trabaja lee pero no WhatsApp ───
   await test("143. V9.49 — imagen solo embudo; silencio lee depósito sin WhatsApp", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.49");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.50");
     assert.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
     assert.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
     assert.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
@@ -12151,7 +12162,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.49 — A15478 Isabel: recomendación de medidas según invitados ───
   await test("144. V9.49 — A15478 Isabel: recomienda tamaño pista según invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.49");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.50");
     const ask =
       "Me puedes recomendar el tamaño pensando en la cantidad de invitados?";
     assert.ok(clientAsksDimensionRecommendation(ask));
@@ -12230,7 +12241,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.49 — A15494 Paola: "mucho gusto" no es apellido ───
   await test("146. V9.49 — A15494 Paola: mucho gusto no es apellido", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.49");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.50");
     const reply = "Paola mucho gusto";
     assert.ok(isMuchoGustoNameReply(reply));
     assert.equal(sanitizeCrmNombre(reply), "Paola");
@@ -12269,7 +12280,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.49 — A15503 Good: loza/vajilla ≠ mesa de postres ───
   await test("147. V9.49 — A15503 Good: loza y plato postre = vajilla, no postres", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.49");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.50");
     const brief =
       "Hola, me interesa cotizar un servicio\n" +
       "Quiere loza para un evento para 50 personas\n" +
@@ -12303,6 +12314,48 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/postres|dulces/i.test(declineGuard), declineGuard);
     assert.ok(!/mobiliario/i.test(declineGuard), declineGuard);
+  });
+
+  // ─── V9.50 — fecha (1048778) y horario (1049358) separados en CRM ───
+  await test("148. V9.50 — fecha y horario en campos CRM separados", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.50");
+
+    const split = splitCombinedFechaHorario("15 de agosto, 5:00 p.m.");
+    assert.equal(split.fecha, "15 de agosto");
+    assert.ok(split.horario && /5:00/i.test(split.horario));
+
+    assert.equal(parseHorarioFromText("13:00 a 20:00 hrs"), "13:00 a 20:00 hrs");
+    assert.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
+
+    const migrated = migrateLegacyCrmFechaHorarioLines([
+      "- Fecha y horario: 20 de noviembre, 7pm a 11pm",
+    ]);
+    assert.ok(migrated.some((l) => l.includes(CRM_FECHA_LABEL) && /20 de noviembre/i.test(l)));
+    assert.ok(migrated.some((l) => l.includes(CRM_HORARIO_LABEL) && /7pm/i.test(l)));
+
+    const filled = new Set<string>();
+    const extracted = emptyExtracted({ horario_evento: "13:00 a 20:00 hrs" });
+    syncFilledFromExtracted(filled, extracted);
+    assert.ok(filled.has(CRM_HORARIO_LABEL));
+    assert.ok(!filled.has(CRM_FECHA_LABEL));
+
+    assert.equal(getNextPendingField(extracted, filled), "fecha");
+
+    const extracted2 = emptyExtracted({ fecha_evento: "15 de agosto" });
+    const filled2 = new Set<string>([CRM_FECHA_LABEL]);
+    syncFilledFromExtracted(filled2, extracted2);
+    assert.equal(getNextPendingField(extracted2, filled2), "horario");
+
+    const silent = buildSilentWatchPatchPayload(
+      "13:00 a 20:00 hrs",
+      emptyExtracted(),
+      null,
+      []
+    );
+    assert.ok(silent);
+    const cf = (silent as { custom_fields_values?: Array<{ field_id: number }> }).custom_fields_values ?? [];
+    assert.ok(cf.some((f) => f.field_id === 1049358));
+    assert.ok(!cf.some((f) => f.field_id === 1048778));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

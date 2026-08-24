@@ -169,8 +169,17 @@ function pendingFields(mergedLines: string[], extracted: ExtractedData): string[
   ) {
     pending.push("ubicación");
   }
-  if (!pickFromMergedLines(mergedLines, /Fecha y horario/i) && !extracted.fecha_horario?.trim()) {
+  if (
+    !pickFromMergedLines(mergedLines, /Fecha del evento/i) &&
+    !extracted.fecha_evento?.trim()
+  ) {
     pending.push("fecha");
+  }
+  if (
+    !pickFromMergedLines(mergedLines, /Horario del evento/i) &&
+    !extracted.horario_evento?.trim()
+  ) {
+    pending.push("horario");
   }
   if (!pickFromMergedLines(mergedLines, /Número de invitados/i) && !extracted.num_invitados) {
     pending.push("invitados");
@@ -194,7 +203,17 @@ export function buildResumenClienteLargo(
   const correo = pickFromMergedLines(mergedLines, /Correo electrónico/i) || extracted.correo?.trim() || null;
   const emailWaived = mergedLines.some((l) => /continuar por whatsapp/i.test(l));
   const evento = pickFromMergedLines(mergedLines, /Tipo de evento/i) || extracted.tipo_evento?.trim() || null;
-  const fecha = pickFromMergedLines(mergedLines, /Fecha y horario/i) || extracted.fecha_horario?.trim() || null;
+  const fecha =
+    pickFromMergedLines(mergedLines, /Fecha del evento/i) ||
+    extracted.fecha_evento?.trim() ||
+    pickFromMergedLines(mergedLines, /Fecha y horario/i) ||
+    extracted.fecha_horario?.trim() ||
+    null;
+  const horario =
+    pickFromMergedLines(mergedLines, /Horario del evento/i) ||
+    extracted.horario_evento?.trim() ||
+    null;
+  const fechaResumen = horario && fecha ? `${fecha}, ${horario}` : fecha;
   const invitados =
     pickFromMergedLines(mergedLines, /Número de invitados/i) ||
     (extracted.num_invitados !== null && extracted.num_invitados > 0 ? String(extracted.num_invitados) : null);
@@ -275,7 +294,7 @@ export function buildResumenClienteLargo(
   if (correo) lineas.push(`• Correo: ${correo}`);
   else if (emailWaived) lineas.push("• Correo: no compartió (sigue por WhatsApp)");
   if (ubicacion) lineas.push(`• Ubicación: ${ubicacion}`);
-  if (fecha) lineas.push(`• Fecha/horario: ${fecha}`);
+  if (fechaResumen) lineas.push(`• Fecha/horario: ${fechaResumen}`);
   if (ppto) lineas.push(`• Presupuesto: ${ppto}`);
   lineas.push("");
 

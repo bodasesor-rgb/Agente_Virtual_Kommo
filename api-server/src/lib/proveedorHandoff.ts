@@ -65,6 +65,8 @@ export function scrubClientFieldsForProveedor(extracted: ExtractedData): Extract
   out.tipo_evento = null;
   out.num_invitados = null;
   out.presupuesto = null;
+  out.fecha_evento = null;
+  out.horario_evento = null;
   out.fecha_horario = null;
   if (!out.empresa?.trim()) {
     const fromReq = out.requerimientos_evento?.match(

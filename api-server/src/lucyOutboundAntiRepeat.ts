@@ -13,6 +13,7 @@ import {
   parseCorreoFromText,
   parseTipoEventoFromText,
   parseFechaFromText,
+  parseHorarioFromText,
   parsePresupuestoFromText,
   parseZonaFromText,
   isUsableDireccionEvento,
@@ -56,6 +57,7 @@ const FIELD_ORDER: PendingField[] = [
   "invitados",
   "zona",
   "fecha",
+  "horario",
   "presupuesto",
 ];
 
@@ -137,6 +139,8 @@ function asExtracted(partial?: Partial<ExtractedData> | null): ExtractedData {
     presupuesto: partial?.presupuesto ?? null,
     direccion_evento: partial?.direccion_evento ?? null,
     requerimientos_evento: partial?.requerimientos_evento ?? null,
+    fecha_evento: partial?.fecha_evento ?? null,
+    horario_evento: partial?.horario_evento ?? null,
     fecha_horario: partial?.fecha_horario ?? null,
     num_invitados: partial?.num_invitados ?? null,
     tipo_evento: partial?.tipo_evento ?? null,
@@ -204,9 +208,17 @@ function syncFilledFromCurrentAnswer(
     case "fecha": {
       const fecha = parseFechaFromText(t);
       if (!fecha) return;
-      filled.add("Fecha y horario");
-      extracted.fecha_horario = fecha;
-      if (inputExtracted) inputExtracted.fecha_horario = fecha;
+      filled.add("Fecha del evento");
+      extracted.fecha_evento = fecha;
+      if (inputExtracted) inputExtracted.fecha_evento = fecha;
+      return;
+    }
+    case "horario": {
+      const horario = parseHorarioFromText(t);
+      if (!horario) return;
+      filled.add("Horario del evento");
+      extracted.horario_evento = horario;
+      if (inputExtracted) inputExtracted.horario_evento = horario;
       return;
     }
     case "presupuesto": {

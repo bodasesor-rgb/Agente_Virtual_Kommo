@@ -34,7 +34,13 @@ export type UnderstandingField =
   | "invitados"
   | "zona"
   | "fecha"
+  | "horario"
   | "presupuesto";
+
+/** Etiquetas CRM Kommo (1048778 fecha, 1049358 horario). */
+export const CRM_FECHA_LABEL = "Fecha del evento";
+export const CRM_HORARIO_LABEL = "Horario del evento";
+export const LEGACY_CRM_FECHA_HORARIO_LABEL = "Fecha y horario";
 
 /** Patrones cuando Lucy preguntó por un dato (no exige signo de interrogación). */
 export const LUCY_FIELD_ASK_PATTERNS: Record<UnderstandingField, RegExp> = {
@@ -48,7 +54,10 @@ export const LUCY_FIELD_ASK_PATTERNS: Record<UnderstandingField, RegExp> = {
   invitados:
     /invitados|personas|gente|pax|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an|asistir[aá]n/i,
   zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n|es)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n|venue|sede|colonia|municipio/i,
-  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo|qu[eé]\s+d[ií]a/i,
+  fecha:
+    /(?:^|[\s,.])fecha(?:[\s,.]|$)|cu[aá]ndo\s+(ser[ií]a|es|tienen|tengan)|d[ií]a\s+(del\s+evento|tienen|tengan|definido)|agenda|definiendo|opciones\s+de\s+fecha|para\s+qu[eé]\s+d[ií]a|qu[eé]\s+d[ií]a|siguen\s+sin\s+fecha|ya\s+tienen\s+fecha/i,
+  horario:
+    /horario|a\s+qu[eé]\s+hora|qu[eé]\s+hora|desde\s+qu[eé]\s+hora|(?:^|[\s,.])hora(?:[\s,.]|$)|\bhrs?\b|\d{1,2}:\d{2}/i,
   presupuesto:
     /presupuesto|estimado|rango|inversi[oó]n|budget|monto|cu[aá]nto\s+cuesta|precio\s+total|para\s+la\s+comida|menos\s+de|hasta\s+\$?|opciones\s+de\s+precio/i,
 };
@@ -686,7 +695,9 @@ export function parseWebLeadBrief(text: string): WebLeadBrief | null {
   if (seriaMatch) {
     const fechaPart = seriaMatch[1]!.trim();
     const lugarPart = seriaMatch[2]!.trim();
-    result.fecha_horario = parseFechaFromText(fechaPart) ?? fechaPart;
+    result.fecha_evento = parseFechaFromText(fechaPart) ?? fechaPart;
+    const horarioPart = parseHorarioFromText(fechaPart);
+    if (horarioPart) result.horario_evento = horarioPart;
     result.direccion_evento = parseZonaFromText(lugarPart) ?? lugarPart;
   }
 
@@ -723,8 +734,11 @@ export function applyWebLeadBrief(extracted: ExtractedData, text: string): boole
     );
     if (merged) extracted.requerimientos_evento = merged;
   }
-  if (!extracted.fecha_horario?.trim() && brief.fecha_horario) {
-    extracted.fecha_horario = brief.fecha_horario;
+  if (!extracted.fecha_evento?.trim() && brief.fecha_horario) {
+    const { fecha, horario } = splitCombinedFechaHorario(brief.fecha_horario);
+    if (fecha) extracted.fecha_evento = fecha;
+    if (horario) extracted.horario_evento = horario;
+    syncLegacyFechaHorarioField(extracted);
   }
   if (
     !isUsableDireccionEvento(extracted.direccion_evento) &&
@@ -2144,6 +2158,7 @@ export function inferLucyAskedField(lastLucyMessage: string | null | undefined):
     "invitados",
     "zona",
     "fecha",
+    "horario",
     "presupuesto",
   ];
 
@@ -2938,6 +2953,164 @@ export function mergeFechaHorario(
   if (nextHasDay) return nextClock && !prevClock ? next : next;
   if (isClockTimeOnlySchedule(next)) return prevHasDay ? `${prev.replace(clockRe, "").replace(/,\s*$/, "").trim()}, ${next}` : next;
   return next;
+}
+
+/** Combina fecha + horario para resúmenes y compatibilidad legacy. */
+export function combinedScheduleDisplay(
+  fecha: string | null | undefined,
+  horario: string | null | undefined
+): string | null {
+  const f = (fecha ?? "").trim();
+  const h = (horario ?? "").trim();
+  if (f && h) return `${f}, ${h}`;
+  return f || h || null;
+}
+
+/** Sincroniza fecha_horario legacy desde los dos campos CRM. */
+export function syncLegacyFechaHorarioField(
+  extracted: Pick<ExtractedData, "fecha_evento" | "horario_evento" | "fecha_horario">
+): void {
+  extracted.fecha_horario = combinedScheduleDisplay(
+    extracted.fecha_evento,
+    extracted.horario_evento
+  );
+}
+
+/** Extrae horario de un mensaje (sin día). */
+export function parseHorarioFromText(text: string): string | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  const clean = trimmed.replace(/[.,;:¡!¿?]+$/g, "").trim();
+
+  if (isClockTimeOnlySchedule(clean)) return clean;
+  if (isMealTimeOnlySchedule(clean)) return clean;
+
+  const horarioLabel = clean.match(/\bhorario\s*:?\s*(.+)$/i);
+  if (horarioLabel?.[1] && /\d/.test(horarioLabel[1])) {
+    return horarioLabel[1].trim().slice(0, 80);
+  }
+
+  const atTime = clean.match(
+    /\b(?:a\s+las|a\s+partir\s+de)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)?)\b/i
+  );
+  if (atTime?.[0]) {
+    const withoutTime = clean.replace(atTime[0], "").trim();
+    if (parseFechaFromText(withoutTime) || MONTH_PATTERN.test(withoutTime)) {
+      return atTime[0].replace(/^a\s+(?:las|partir\s+de)\s+/i, "").trim();
+    }
+  }
+
+  const range = clean.match(
+    /\b(\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}(?::\d{2})?\s*(?:hrs?|horas?|am|pm)?)\b/i
+  );
+  if (range?.[1]) {
+    const withoutRange = clean.replace(range[1], "").trim();
+    if (
+      parseFechaFromText(withoutRange) ||
+      MONTH_PATTERN.test(withoutRange) ||
+      /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(withoutRange)
+    ) {
+      return range[1].trim();
+    }
+    if (!parseFechaFromText(clean)) return range[1].trim();
+  }
+
+  if (
+    /\b(tarde|noche|mediod[ií]a|ma[nñ]ana)\b/i.test(clean) &&
+    clean.split(/\s+/).length <= 5 &&
+    !MONTH_PATTERN.test(clean)
+  ) {
+    return clean.slice(0, 40);
+  }
+
+  if (
+    /\b(sin\s+horario|por\s+definir|a[uú]n\s+no\s+(sabemos|tenemos)\s+horario|todav[ií]a\s+no\s+(sabemos|tenemos))\b/i.test(
+      clean
+    )
+  ) {
+    return "Sin definir (pendiente)";
+  }
+
+  return null;
+}
+
+/** Parte un valor CRM legacy combinado en fecha y horario. */
+export function splitCombinedFechaHorario(combined: string): {
+  fecha: string | null;
+  horario: string | null;
+} {
+  const t = combined.trim();
+  if (!t) return { fecha: null, horario: null };
+  if (/^sin\s+definir/i.test(t)) return { fecha: t, horario: null };
+
+  if (isClockTimeOnlySchedule(t) || isMealTimeOnlySchedule(t)) {
+    return { fecha: null, horario: t };
+  }
+
+  const fecha = parseFechaFromText(t);
+  const horario = parseHorarioFromText(t);
+  if (fecha && horario) {
+    const f = fecha.replace(/\s+a\s+las\s+\d.+$/i, "").trim();
+    return { fecha: f || fecha, horario };
+  }
+  if (fecha && isUsableFechaHorario(fecha)) return { fecha, horario: null };
+  if (horario) return { fecha: null, horario };
+  if (isUsableFechaHorario(t)) return { fecha: t, horario: null };
+  if (isUsableHorarioEvento(t)) return { fecha: null, horario: t };
+  return { fecha: t, horario: null };
+}
+
+/** Fecha usable para embudo (solo día/mes; no horario suelto). */
+export function isUsableFechaEvento(value: string | null | undefined): boolean {
+  return isUsableFechaHorario(value);
+}
+
+/** Horario usable: reloj, comida, tarde/noche o pendiente. */
+export function isUsableHorarioEvento(value: string | null | undefined): boolean {
+  const t = (value ?? "").trim();
+  if (!t) return false;
+  if (/^sin\s+definir/i.test(t)) return true;
+  if (isClockTimeOnlySchedule(t)) return true;
+  if (isMealTimeOnlySchedule(t)) return true;
+  if (looksLikeMealTimeNotLocation(t) && t.split(/\s+/).length <= 6) return true;
+  if (/\b\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}/i.test(t)) return true;
+  if (/\b(?:a\s+las|desde\s+las)\s+\d/i.test(t)) return true;
+  if (/\b(tarde|noche|mediod[ií]a|ma[nñ]ana)\b/i.test(t) && t.split(/\s+/).length <= 5) {
+    return true;
+  }
+  return false;
+}
+
+/** Hidrata fecha_evento/horario_evento desde CRM legacy o combinado. */
+export function hydrateScheduleFields(extracted: ExtractedData): void {
+  if (extracted.fecha_evento?.trim() || extracted.horario_evento?.trim()) {
+    syncLegacyFechaHorarioField(extracted);
+    return;
+  }
+  const legacy = extracted.fecha_horario?.trim();
+  if (!legacy) return;
+  const { fecha, horario } = splitCombinedFechaHorario(legacy);
+  if (fecha) extracted.fecha_evento = fecha;
+  if (horario) extracted.horario_evento = horario;
+  syncLegacyFechaHorarioField(extracted);
+}
+
+/** Migra líneas CRM legacy "- Fecha y horario:" → fecha + horario separados. */
+export function migrateLegacyCrmFechaHorarioLines(lines: string[]): string[] {
+  const out: string[] = [];
+  for (const line of lines) {
+    const m = line.match(/^(-?\s*)Fecha y horario:\s*(.+)$/i);
+    if (!m) {
+      out.push(line);
+      continue;
+    }
+    const prefix = m[1] ?? "- ";
+    const { fecha, horario } = splitCombinedFechaHorario(m[2]!.trim());
+    if (fecha) out.push(`${prefix}${CRM_FECHA_LABEL}: ${fecha}`);
+    if (horario) out.push(`${prefix}${CRM_HORARIO_LABEL}: ${horario}`);
+    if (!fecha && !horario) out.push(line);
+  }
+  return out;
 }
 
 /** Fecha usable para embudo: waiver OK; solo horario/comida/discurso NO. */
@@ -4921,10 +5094,15 @@ export function enrichExtractedFromConversation(
     if (tipo) extracted.tipo_evento = tipo;
   }
 
-  if (!extracted.fecha_horario?.trim()) {
+  if (!extracted.fecha_evento?.trim()) {
     const fecha = parseFechaFromText(conversationText);
-    if (fecha) extracted.fecha_horario = fecha;
+    if (fecha) extracted.fecha_evento = fecha;
   }
+  if (!extracted.horario_evento?.trim()) {
+    const horario = parseHorarioFromText(conversationText);
+    if (horario) extracted.horario_evento = horario;
+  }
+  syncLegacyFechaHorarioField(extracted);
 
   if (!extracted.num_invitados) {
     const inv = parseInvitadosFromText(conversationText);

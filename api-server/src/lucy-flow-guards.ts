@@ -235,6 +235,14 @@ import {
   isMealTimeOnlySchedule,
   isClockTimeOnlySchedule,
   isUsableFechaHorario,
+  isUsableFechaEvento,
+  isUsableHorarioEvento,
+  parseHorarioFromText,
+  CRM_FECHA_LABEL,
+  CRM_HORARIO_LABEL,
+  LEGACY_CRM_FECHA_HORARIO_LABEL,
+  hydrateScheduleFields,
+  syncLegacyFechaHorarioField,
   mergeFechaHorario,
   looksLikeFechaDiscourseJunk,
   clientSaidReunionNotXv,
@@ -257,7 +265,8 @@ export const CLOSING_CORE_FIELDS = [
   "Tipo de evento",
   "Requerimientos o servicios",
   "Lugar/dirección del evento",
-  "Fecha y horario",
+  CRM_FECHA_LABEL,
+  CRM_HORARIO_LABEL,
   "Número de invitados",
   "Presupuesto (MXN)",
 ] as const;
@@ -351,6 +360,16 @@ function hasPresupuestoValue(extracted: ExtractedData): boolean {
 export const CORREO_MAX_ASKS = 2;
 
 export function syncFilledFromExtracted(filledSet: Set<string>, extracted: ExtractedData): void {
+  hydrateScheduleFields(extracted);
+  // Compat: tests/CRM viejos con etiqueta combinada.
+  if (filledSet.has(LEGACY_CRM_FECHA_HORARIO_LABEL)) {
+    if (!filledSet.has(CRM_FECHA_LABEL) && isUsableFechaEvento(extracted.fecha_evento ?? extracted.fecha_horario)) {
+      filledSet.add(CRM_FECHA_LABEL);
+    }
+    if (!filledSet.has(CRM_HORARIO_LABEL) && isUsableHorarioEvento(extracted.horario_evento)) {
+      filledSet.add(CRM_HORARIO_LABEL);
+    }
+  }
   if (sanitizeCrmNombre(extracted.nombre)) filledSet.add("Nombre del cliente");
   const email = filterClientEmail(extracted.correo);
   if (email && looksLikeValidClientEmail(email)) filledSet.add("Correo electrónico");
@@ -387,24 +406,25 @@ export function syncFilledFromExtracted(filledSet: Set<string>, extracted: Extra
     extracted.presupuesto = null;
     filledSet.delete("Presupuesto (MXN)");
   }
-  // A15443 / A15419: "hora de comida" / "13:00–20:00" / discurso no cierran Fecha.
-  if (extracted.fecha_horario?.trim()) {
-    if (!isUsableFechaHorario(extracted.fecha_horario)) {
-      // Conservar horario suelto como nota blanda, pero no marcar el campo.
-      if (
-        isClockTimeOnlySchedule(extracted.fecha_horario) ||
-        isMealTimeOnlySchedule(extracted.fecha_horario)
-      ) {
-        // se deja el valor para merge posterior, pero se quita del filledSet
-        filledSet.delete("Fecha y horario");
-      } else {
-        extracted.fecha_horario = null;
-        filledSet.delete("Fecha y horario");
-      }
+  // A15443 / A15419: horario suelto / discurso no cierran Fecha; van a Horario.
+  hydrateScheduleFields(extracted);
+  if (extracted.fecha_evento?.trim()) {
+    if (!isUsableFechaEvento(extracted.fecha_evento)) {
+      extracted.fecha_evento = null;
+      filledSet.delete(CRM_FECHA_LABEL);
     } else {
-      filledSet.add("Fecha y horario");
+      filledSet.add(CRM_FECHA_LABEL);
     }
   }
+  if (extracted.horario_evento?.trim()) {
+    if (!isUsableHorarioEvento(extracted.horario_evento)) {
+      extracted.horario_evento = null;
+      filledSet.delete(CRM_HORARIO_LABEL);
+    } else {
+      filledSet.add(CRM_HORARIO_LABEL);
+    }
+  }
+  syncLegacyFechaHorarioField(extracted);
   if (extracted.num_invitados) filledSet.add("Número de invitados");
   if (hasPresupuestoValue(extracted)) filledSet.add("Presupuesto (MXN)");
 }
@@ -428,13 +448,21 @@ export function syncRichBriefIntoExtracted(
       filledSet.add("Lugar/dirección del evento");
     }
   }
-  if (!extracted.fecha_horario?.trim()) {
+  if (!extracted.fecha_evento?.trim()) {
     const f = parseFechaFromText(text);
-    if (f) {
-      extracted.fecha_horario = f;
-      filledSet.add("Fecha y horario");
+    if (f && isUsableFechaEvento(f)) {
+      extracted.fecha_evento = f;
+      filledSet.add(CRM_FECHA_LABEL);
     }
   }
+  if (!extracted.horario_evento?.trim()) {
+    const h = parseHorarioFromText(text);
+    if (h && isUsableHorarioEvento(h)) {
+      extracted.horario_evento = h;
+      filledSet.add(CRM_HORARIO_LABEL);
+    }
+  }
+  syncLegacyFechaHorarioField(extracted);
   if (!extracted.num_invitados) {
     const inv = parseInvitadosFromText(text);
     if (inv) {
@@ -498,6 +526,7 @@ export type PendingField =
   | "invitados"
   | "zona"
   | "fecha"
+  | "horario"
   | "presupuesto";
 
 function getQuestionVariants(): Record<PendingField, string[]> {
@@ -535,8 +564,13 @@ function getQuestionVariants(): Record<PendingField, string[]> {
   ],
   fecha: [
     "¿Ya tienen fecha o todavía la van definiendo?",
-    "¿Para cuándo sería el evento?",
-    "¿Ya hay día y hora, o siguen viendo opciones?",
+    "¿Para qué día sería el evento?",
+    "¿Qué día tienen en mente?",
+  ],
+  horario: [
+    "¿A qué hora sería el evento?",
+    "¿Ya tienen horario definido?",
+    "¿En qué horario lo planean?",
   ],
   presupuesto: [
     "¿Tienen algún rango de presupuesto en mente?",
@@ -559,7 +593,10 @@ const FIELD_ASK_PATTERNS: Record<PendingField, RegExp> = {
   invitados:
     /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
   zona: /ciudad|direcci[oó]n\s+exacta|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
-  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|definido|definir|siguen\s+viendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
+  fecha:
+    /(?:^|[\s,.])fecha(?:[\s,.]|$)|cu[aá]ndo\s+(ser[ií]a|es|tienen|tengan)|d[ií]a\s+(del\s+evento|tienen|tengan|definido)|agenda|definiendo|definido|definir|siguen\s+viendo|opciones\s+de\s+fecha|para\s+qu[eé]\s+d[ií]a|qu[eé]\s+d[ií]a|siguen\s+sin\s+fecha|ya\s+tienen\s+fecha/i,
+  horario:
+    /horario|a\s+qu[eé]\s+hora|qu[eé]\s+hora|desde\s+qu[eé]\s+hora|(?:^|[\s,.])hora(?:[\s,.]|$)|\bhrs?\b|\d{1,2}:\d{2}/i,
   presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i,
 };
 
@@ -859,7 +896,14 @@ export function isEmailSatisfied(filledSet: Set<string>, extracted?: ExtractedDa
 }
 
 export function isReadyForClosing(filledSet: Set<string>): boolean {
-  return CLOSING_CORE_FIELDS.every((label) => filledSet.has(label)) && isEmailSatisfied(filledSet);
+  const hasSchedule =
+    (filledSet.has(CRM_FECHA_LABEL) && filledSet.has(CRM_HORARIO_LABEL)) ||
+    filledSet.has(LEGACY_CRM_FECHA_HORARIO_LABEL);
+  const coreOk = CLOSING_CORE_FIELDS.every((label) => {
+    if (label === CRM_FECHA_LABEL || label === CRM_HORARIO_LABEL) return hasSchedule;
+    return filledSet.has(label);
+  });
+  return coreOk && isEmailSatisfied(filledSet);
 }
 
 /**
@@ -2459,8 +2503,12 @@ export function getNextPendingField(
   if (!hasInv) return "invitados";
 
   // A15443: basura "hora de comida" / horario suelto / discurso no deben marcar fecha/zona.
-  if (extracted.fecha_horario?.trim() && !isUsableFechaHorario(extracted.fecha_horario)) {
-    filled.delete("Fecha y horario");
+  hydrateScheduleFields(extracted);
+  if (extracted.fecha_evento?.trim() && !isUsableFechaEvento(extracted.fecha_evento)) {
+    filled.delete(CRM_FECHA_LABEL);
+  }
+  if (extracted.horario_evento?.trim() && !isUsableHorarioEvento(extracted.horario_evento)) {
+    filled.delete(CRM_HORARIO_LABEL);
   }
   if (
     extracted.direccion_evento?.trim() &&
@@ -2471,8 +2519,12 @@ export function getNextPendingField(
   }
 
   const hasFecha =
-    filled.has("Fecha y horario") || isUsableFechaHorario(extracted.fecha_horario);
+    filled.has(CRM_FECHA_LABEL) || isUsableFechaEvento(extracted.fecha_evento);
   if (!hasFecha) return "fecha";
+
+  const hasHorario =
+    filled.has(CRM_HORARIO_LABEL) || isUsableHorarioEvento(extracted.horario_evento);
+  if (!hasHorario) return "horario";
 
   const hasZona =
     filled.has("Lugar/dirección del evento") ||
@@ -2940,7 +2992,13 @@ export function isFieldSatisfied(
         isUsableDireccionEvento(extracted.direccion_evento)
       );
     case "fecha":
-      return filledSet.has("Fecha y horario") || !!extracted.fecha_horario?.trim();
+      return (
+        filledSet.has(CRM_FECHA_LABEL) || isUsableFechaEvento(extracted.fecha_evento)
+      );
+    case "horario":
+      return (
+        filledSet.has(CRM_HORARIO_LABEL) || isUsableHorarioEvento(extracted.horario_evento)
+      );
     case "presupuesto":
       return filledSet.has("Presupuesto (MXN)") || hasPresupuestoValue(extracted);
   }
@@ -2968,6 +3026,7 @@ const FIELD_ORDER: PendingField[] = [
   "requerimientos",
   "invitados",
   "fecha",
+  "horario",
   "zona",
   "correo",
   "presupuesto",
@@ -4817,10 +4876,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     extracted.direccion_evento = null;
     filledSet.delete("Lugar/dirección del evento");
   }
-  if (extracted.fecha_horario && !isUsableFechaHorario(extracted.fecha_horario)) {
-    extracted.fecha_horario = null;
-    filledSet.delete("Fecha y horario");
+  if (extracted.fecha_evento && !isUsableFechaEvento(extracted.fecha_evento)) {
+    extracted.fecha_evento = null;
+    filledSet.delete(CRM_FECHA_LABEL);
   }
+  if (extracted.horario_evento && !isUsableHorarioEvento(extracted.horario_evento)) {
+    extracted.horario_evento = null;
+    filledSet.delete(CRM_HORARIO_LABEL);
+  }
+  syncLegacyFechaHorarioField(extracted);
   // A15443: "reunión de 15 años" ≠ XV — corregir CRM y el texto saliente (también early-return).
   {
     const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
@@ -5440,13 +5504,19 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         filledSet.add("Requerimientos o servicios");
       }
       // También capturar fecha si vino en el mismo turno / historial cercano.
-      if (!extracted.fecha_horario?.trim()) {
+      if (!extracted.fecha_evento?.trim()) {
         const fechaNow = parseFechaFromText(currentMessage);
-        if (fechaNow) {
-          extracted.fecha_horario = fechaNow;
-          filledSet.add("Fecha y horario");
+        if (fechaNow && isUsableFechaEvento(fechaNow)) {
+          extracted.fecha_evento = fechaNow;
+          filledSet.add(CRM_FECHA_LABEL);
         }
       }
+      const horarioSku = parseHorarioFromText(currentMessage ?? "");
+      if (horarioSku && isUsableHorarioEvento(horarioSku) && !extracted.horario_evento?.trim()) {
+        extracted.horario_evento = horarioSku;
+        filledSet.add(CRM_HORARIO_LABEL);
+      }
+      syncLegacyFechaHorarioField(extracted);
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ = pending
         ? buildNaturalQuestion(pending, ctx)
@@ -5477,8 +5547,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       inferLucyAskedField(lastFechaTxt) === "fecha" ||
       /d[ií]a u horario|para cu[aá]ndo|fecha/i.test(lastFechaTxt);
     const fechaPending = getNextPendingField(extracted, filledSet) === "fecha";
+    const horarioNow = currentMessage ? parseHorarioFromText(currentMessage) : null;
+    const lucyAskedHorario = inferLucyAskedField(lastFechaTxt) === "horario";
+    const horarioPending = getNextPendingField(extracted, filledSet) === "horario";
     const looksLikeFechaOnly =
       !!fechaNow &&
+      !horarioNow &&
       !parseFurnitureCatalogSkuFromText(currentMessage ?? "") &&
       !parseCorreoFromText(currentMessage ?? "") &&
       (lucyAskedFecha ||
@@ -5488,24 +5562,22 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       !cierreYaEnviado &&
       fechaNow &&
       looksLikeFechaOnly &&
-      isUsableFechaHorario(fechaNow) &&
-      !filledSet.has("Fecha y horario")
+      isUsableFechaEvento(fechaNow) &&
+      !filledSet.has(CRM_FECHA_LABEL)
     ) {
-      // Conservar horario si lo dijo ("a partir de 4:00 pm") o si ya había solo reloj.
-      const withTime = (currentMessage ?? "").match(
-        /\b(?:a\s+partir\s+de|a\s+las)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?|horas?)?)/i
-      );
-      const stamped = withTime
-        ? `${fechaNow} a partir de ${withTime[1]!.trim()}`
-        : fechaNow;
-      extracted.fecha_horario =
-        mergeFechaHorario(extracted.fecha_horario, stamped) ?? stamped;
-      filledSet.add("Fecha y horario");
+      extracted.fecha_evento = fechaNow;
+      filledSet.add(CRM_FECHA_LABEL);
+      const horarioExtra = parseHorarioFromText(currentMessage ?? "");
+      if (horarioExtra && isUsableHorarioEvento(horarioExtra)) {
+        extracted.horario_evento = horarioExtra;
+        filledSet.add(CRM_HORARIO_LABEL);
+      }
+      syncLegacyFechaHorarioField(extracted);
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-      const ack = `Perfecto, anoto la fecha: *${extracted.fecha_horario}*.`;
+      const ack = `Perfecto, anoto la fecha: *${extracted.fecha_evento}*.`;
       log?.info(
-        { entityId, fecha: extracted.fecha_horario, pending },
+        { entityId, fecha: extracted.fecha_evento, pending },
         "GUARD: A15297 — fecha capturada + embudo real"
       );
       return normalizeAdvisorReferences(
@@ -5513,21 +5585,28 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
-    // A15419: solo dio horario ("13:00 a 20:00") tras pregunta de fecha → guardar y pedir día.
+    // A15419: solo dio horario ("13:00 a 20:00") → guardar horario y pedir día si falta.
     if (
       !cierreYaEnviado &&
       currentMessage &&
-      (lucyAskedFecha || fechaPending) &&
-      isClockTimeOnlySchedule(currentMessage) &&
-      !filledSet.has("Fecha y horario")
+      (lucyAskedHorario || horarioPending || lucyAskedFecha || fechaPending) &&
+      (isClockTimeOnlySchedule(currentMessage) || isMealTimeOnlySchedule(currentMessage) || horarioNow) &&
+      !filledSet.has(CRM_HORARIO_LABEL)
     ) {
-      extracted.fecha_horario = currentMessage.trim().replace(/\s+/g, " ").slice(0, 40);
-      filledSet.delete("Fecha y horario");
+      extracted.horario_evento = (horarioNow ?? currentMessage.trim()).replace(/\s+/g, " ").slice(0, 80);
+      filledSet.add(CRM_HORARIO_LABEL);
+      syncLegacyFechaHorarioField(extracted);
       const display = getDisplayName(extracted, whatsappDisplayName);
       const ack = display
-        ? `Entendido, ${display}. Anoto el horario *${extracted.fecha_horario}*.`
-        : `Entendido. Anoto el horario *${extracted.fecha_horario}*.`;
-      const nextQ = buildNaturalQuestion("fecha", ctx);
+        ? `Entendido, ${display}. Anoto el horario *${extracted.horario_evento}*.`
+        : `Entendido. Anoto el horario *${extracted.horario_evento}*.`;
+      const pendingAfterHorario = getNextPendingField(extracted, filledSet);
+      const nextQ =
+        pendingAfterHorario === "fecha"
+          ? buildNaturalQuestion("fecha", ctx)
+          : pendingAfterHorario
+            ? buildNaturalQuestion(pendingAfterHorario, ctx)
+            : null;
       log?.info({ entityId }, "GUARD: A15419 — horario sin día → pide fecha");
       return normalizeAdvisorReferences(
         `${ack} ${nextQ || "¿Qué día sería el evento?"}`.trim(),
@@ -7106,8 +7185,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (clientSignalsUrgency(currentMessage) && !clientAsksPhone(currentMessage)) {
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-    const fechaHint = extracted.fecha_horario?.trim()
-      ? ` Para el *${extracted.fecha_horario.trim()}* confirmamos disponibilidad en cuanto tengamos el resto de datos.`
+    const fechaHint = extracted.fecha_evento?.trim()
+      ? ` Para el *${extracted.fecha_evento.trim()}* confirmamos disponibilidad en cuanto tengamos el resto de datos.`
       : " Confirmamos disponibilidad en cuanto tengamos el resto de datos.";
     mensaje = [
       pickTransition(presHistory),
@@ -8038,7 +8117,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: tope de preguntas presupuesto — auto-waiver");
   }
 
-  if (filledSet.has("Fecha y horario") && mensajeAsksForField(mensaje, "fecha")) {
+  if (filledSet.has(CRM_FECHA_LABEL) && mensajeAsksForField(mensaje, "fecha")) {
     if (trulyReadyForClosing && !cierreYaEnviado) {
       mensaje = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
@@ -8060,18 +8139,24 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
+  if (filledSet.has(CRM_HORARIO_LABEL) && mensajeAsksForField(mensaje, "horario")) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    if (nextQ && !mensajeAsksForField(nextQ, "horario")) {
+      mensaje = nextQ;
+      log?.info({ entityId }, "GUARD: horario ya capturado — no repetir pregunta");
+    }
+  }
+
   const fechaFromMsg = currentMessage ? parseFechaFromText(currentMessage) : null;
-  if (fechaFromMsg && isUsableFechaHorario(fechaFromMsg) && !filledSet.has("Fecha y horario")) {
-    // A15297: anotar siempre que el mensaje traiga fecha usable (no solo si GPT preguntó fecha).
-    const withTime = (currentMessage ?? "").match(
-      /\b(?:a\s+partir\s+de|a\s+las)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?|horas?)?)/i
-    );
-    const stamped = withTime
-      ? `${fechaFromMsg} a partir de ${withTime[1]!.trim()}`
-      : fechaFromMsg;
-    extracted.fecha_horario =
-      mergeFechaHorario(extracted.fecha_horario, stamped) ?? stamped;
-    filledSet.add("Fecha y horario");
+  const horarioFromMsg = currentMessage ? parseHorarioFromText(currentMessage) : null;
+  if (fechaFromMsg && isUsableFechaEvento(fechaFromMsg) && !filledSet.has(CRM_FECHA_LABEL)) {
+    extracted.fecha_evento = fechaFromMsg;
+    filledSet.add(CRM_FECHA_LABEL);
+    if (horarioFromMsg && isUsableHorarioEvento(horarioFromMsg)) {
+      extracted.horario_evento = horarioFromMsg;
+      filledSet.add(CRM_HORARIO_LABEL);
+    }
+    syncLegacyFechaHorarioField(extracted);
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
       mensaje = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
@@ -8094,12 +8179,34 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       log?.info({ entityId }, "GUARD: fecha pendiente — continuar flujo");
     }
   } else if (
+    horarioFromMsg &&
+    isUsableHorarioEvento(horarioFromMsg) &&
+    !filledSet.has(CRM_HORARIO_LABEL)
+  ) {
+    extracted.horario_evento = horarioFromMsg;
+    filledSet.add(CRM_HORARIO_LABEL);
+    syncLegacyFechaHorarioField(extracted);
+    if (
+      mensajeAsksForField(mensaje, "horario") ||
+      /quieres que te d[eé] detalles|siguiente dato del evento/i.test(mensaje)
+    ) {
+      const nextQ = nextFieldQuestion(
+        extracted,
+        filledSet,
+        whatsappDisplayName,
+        history,
+        currentMessage,
+        entityId
+      );
+      mensaje = nextQ ?? "Entendido, anoto el horario.";
+      log?.info({ entityId }, "GUARD: horario capturado en turno — continuar flujo");
+    }
+  } else if (
     fechaFromMsg &&
-    !isUsableFechaHorario(fechaFromMsg) &&
+    !isUsableFechaEvento(fechaFromMsg) &&
     looksLikeFechaDiscourseJunk(currentMessage ?? "")
   ) {
-    // A15419: no marcar filled con basura; si el parser extrajo mes limpio vía parseFecha, ya es usable.
-    filledSet.delete("Fecha y horario");
+    filledSet.delete(CRM_FECHA_LABEL);
   }
 
   if (filledSet.has("Tipo de evento") && mensajeAsksForField(mensaje, "tipo_evento") && !trulyReadyForClosing) {
@@ -8619,8 +8726,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     !isFieldSatisfied("fecha", filledSet, extracted)
   ) {
     // Ya preguntamos fecha suficiente veces: no repetir, avanzar o waiver.
-    filledSet.add("Fecha y horario");
-    if (!extracted.fecha_horario?.trim()) extracted.fecha_horario = FECHA_AUTO_WAIVER;
+    filledSet.add(CRM_FECHA_LABEL);
+    if (!extracted.fecha_evento?.trim()) extracted.fecha_evento = FECHA_AUTO_WAIVER;
+    syncLegacyFechaHorarioField(extracted);
     const nextQ = nextFieldQuestion(
       extracted,
       filledSet,
@@ -8658,12 +8766,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           mensajeAsksForField(m.content as string, "fecha")
       )?.content as string | undefined;
     const variant = nombre
-      ? `${pickTransition(presHistory)} ${nombre}, ¿tienen día u horario ya definido?`
-      : `${pickTransition(presHistory)} ¿Tienen día u horario ya definido?`;
+      ? `${pickTransition(presHistory)} ${nombre}, ¿tienen ya el día del evento?`
+      : `${pickTransition(presHistory)} ¿Tienen ya el día del evento?`;
     // Si la variante sigue casi idéntica a la pregunta previa, no reenviar otra fecha.
     if (lastFechaAsk && textOverlapRatio(variant, lastFechaAsk) >= 0.72) {
-      filledSet.add("Fecha y horario");
-      if (!extracted.fecha_horario?.trim()) extracted.fecha_horario = FECHA_AUTO_WAIVER;
+      filledSet.add(CRM_FECHA_LABEL);
+      if (!extracted.fecha_evento?.trim()) extracted.fecha_evento = FECHA_AUTO_WAIVER;
+      syncLegacyFechaHorarioField(extracted);
       const nextQ = nextFieldQuestion(
         extracted,
         filledSet,

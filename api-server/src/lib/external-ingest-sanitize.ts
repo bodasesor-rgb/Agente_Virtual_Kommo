@@ -17,6 +17,8 @@ import {
   isLocationDeferralOrVagueWorkplace,
   isUsableDireccionEvento,
   looksLikeCompanyLocationQuestionFragment,
+  migrateLegacyCrmFechaHorarioLines,
+  hydrateScheduleFields,
 } from "../conversation-understanding.js";
 
 function lineLabel(line: string): string {
@@ -83,6 +85,7 @@ export function sanitizeKommoCrmLines(lines: string[]): string[] {
   out = purgeOwnCompanyEmailLines(out);
   out = purgeDimensionUbicacionLines(out);
   out = purgeRequerimientosEqualsTipoLines(out);
+  out = migrateLegacyCrmFechaHorarioLines(out);
   return out;
 }
 
@@ -134,6 +137,8 @@ export function sanitizeExtractedFromExternal(
   ) {
     out.requerimientos_evento = null;
   }
+
+  hydrateScheduleFields(out);
 
   return out;
 }
