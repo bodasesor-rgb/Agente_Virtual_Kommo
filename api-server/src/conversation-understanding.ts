@@ -91,8 +91,8 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Carrito de Snacks", /\bcarrito\s+de\s+snacks?\b|\bcarrito\s+de\s+snaks?\b/i],
   ["Paletas de Hielo y Helados", /\bpaletas?(\s+de\s+hielo)?\b|\bhelados?\b/i],
   ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
-  // No robar "dulces" suelto (eso es Mesa de dulces).
-  ["Mesa de postres", /\bmesa\s+de\s+postres\b|\bpostres?\b/i],
+  // A15503: "plato postre" = vajilla, no servicio de postres.
+  ["Mesa de postres", /\bmesa\s+de\s+postres?\b|\bpostres?\s+(?:y|con|para|de\s+mesa)\b/i],
   ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
   ["Canapés", /\bcanap[eé]s?(?!\p{L})/iu],
   ["Bocadillos", /\bbocadillos?\b/i],
@@ -126,7 +126,10 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   // Antes de Decoración / Pantallas: "decoración aérea" y LED wall no deben robarse.
   ["Colgantes Premium", /\bcolgantes?(?:\s+premium)?\b|\bwisteria\b|\bdecoraci[oó]n\s+a[eé]rea\b/i],
   ["Entelados para Techo", /\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b/i],
-  ["Vajillas", /\bvajillas?\b|\bcuberter[ií]a\b|\bcristaler[ií]a\b/i],
+  [
+    "Vajillas",
+    /\bvajillas?\b|\bloza\b|\bcubiertos?\b|\bcuberter[ií]a\b|\bcristaler[ií]a\b|\bplato\s+trinche\b|\bplatos?\s+trinche\b|\bplato\s+postre\b|\bplatos?\s+postre\b|\b(cuchara|tenedor|cuchillo)s?\s+(?:postre|trinche)?\b/i,
+  ],
   ["Video", /\bvideo\b|\bled\s*wall\b/i],
   // A15190: centros de mesa = floral/decorativo, NUNCA mobiliario (antes de Decoración/Mobiliario).
   [
@@ -168,7 +171,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|loza|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -219,6 +222,9 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
   colgante: "Colgantes Premium",
   vajilla: "Vajillas",
   vajillas: "Vajillas",
+  loza: "Vajillas",
+  cubiertos: "Vajillas",
+  cubierto: "Vajillas",
   mocteles: "Mócteles",
   mócteles: "Mócteles",
   video: "Video",
@@ -686,6 +692,20 @@ export function parseWebLeadBrief(text: string): WebLeadBrief | null {
 
   const invMatch = t.match(/para\s+(\d{1,4})\s*(?:personas?|invitados?|pax|gente)/i);
   if (invMatch) result.num_invitados = parseInt(invMatch[1]!, 10);
+
+  const servicesFromFull = parseServicesFromText(t);
+  if (servicesFromFull.length) {
+    if (!result.requerimientos_evento) {
+      result.requerimientos_evento = servicesFromFull.slice(0, 6).join(", ");
+    } else {
+      const merged = mergeServiceRequirements(
+        result.requerimientos_evento,
+        servicesFromFull.join(", "),
+        6
+      );
+      if (merged) result.requerimientos_evento = merged;
+    }
+  }
 
   return Object.keys(result).length > 0 ? result : null;
 }
@@ -2163,7 +2183,24 @@ export function parseCentrosDeMesaRequirement(text: string | null | undefined): 
   return "Centros de mesa";
 }
 
+/** A15503: loza / plato postre / cubiertos = renta de vajilla, no mesa de postres dulces. */
+export function isTablewareRequestText(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  return /\b(loza|vajillas?|cubiertos?|cuberter[ií]a|cristaler[ií]a|plato\s+trinche|platos?\s+trinche|plato\s+postre|platos?\s+postre|\b(cuchara|tenedor|cuchillo)s?\b)/i.test(
+    t
+  );
+}
+
 export function parseServicesFromText(text: string): string[] {
+  const t = text.trim();
+  if (
+    /\b(únicamente|unicamente|solo|solamente)\s+(vajillas?|loza|cubiertos?)\b/i.test(t) ||
+    /\b(únicamente|unicamente)\s+vajilla\b/i.test(t)
+  ) {
+    return dedupeServiceHierarchy(["Vajillas"], t);
+  }
+
   const found: string[] = [];
   const lower = text.toLowerCase();
   // A15295: si declina una familia, no parsear esos SKUs del mismo mensaje.
@@ -2189,6 +2226,7 @@ export function parseServicesFromText(text: string): string[] {
     if (label === "Comida" && !hasMealListContext) continue;
     // Snack corporativo solo en menú multi-tiempo; con antojitos → Puestos de Comida.
     if (label === "Snack" && (snackIsAntojito || !hasCorporateMealList)) continue;
+    if (label === "Mesa de postres" && isTablewareRequestText(text)) continue;
     if (pattern.test(text) || pattern.test(lower)) found.push(label);
   }
 
@@ -2276,6 +2314,17 @@ export function parseServicesFromText(text: string): string[] {
     declined.length > 0
       ? found.filter((s) => !serviceIsDeclined(s, declined))
       : found;
+
+  if (isTablewareRequestText(text)) {
+    const withoutDulces = filtered.filter(
+      (s) => !/mesa\s+de\s+(postres?|dulces?|quesos?)/i.test(s)
+    );
+    if (!withoutDulces.some((s) => /vajilla/i.test(s))) {
+      withoutDulces.push("Vajillas");
+    }
+    return dedupeServiceHierarchy([...new Set(withoutDulces)], text);
+  }
+
   return dedupeServiceHierarchy([...new Set(filtered)], text);
 }
 

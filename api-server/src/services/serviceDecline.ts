@@ -5,6 +5,7 @@
  * debe QUITAR la familia del CRM, no re-anotar ni tirar catálogo.
  */
 import { clientCaptionForServiceParse } from "./imageProcessor.js";
+import { isTablewareRequestText } from "../conversation-understanding.js";
 
 /** Familias de servicio que el cliente puede rechazar explícitamente. */
 export type DeclinedServiceFamily =
@@ -23,13 +24,23 @@ const FAMILY_SERVICE_RE: Record<DeclinedServiceFamily, RegExp> = {
     /^(Alimentos|Comida)$|banquete|taquiza|catering|pizzas?|barra\s+de\s+(pizzas?|pastas?|alimentos|sushi)|brunch|parrillada|sushi|canap|bocadillo|coffee\s*break|puestos?\s+de\s+comida|desayuno|paella|pozole|pasta/i,
   bebidas:
     /bebidas?|barra\s+de\s+bebidas|coctel|m[oó]cteles|mixolog|barra\s+de\s+caf[eé]/i,
-  mobiliario: /mobiliario|sillas?|mesas?(?!\s+de)|periqueras?|salas?\s+lounge|tiffany/i,
+  mobiliario: /mobiliario|sillas?|mesas?(?!\s+de\s+(postres?|dulces?|quesos?|imperial))|periqueras?|salas?\s+lounge|tiffany/i,
   carpas: /carpas?|toldos?|lonas?/i,
   decoracion: /decoraci[oó]n|centros?\s+de\s+mesa|florister|globos?|tem[aá]tica/i,
   entretenimiento: /show|dj\b|entretenimiento|hora\s+loca|photobooth|photo\s*booth|bailarinas|batucada|robots?/i,
   pista: /pista|tarima/i,
   dulces: /mesa\s+de\s+dulces|postres?|cupcakes?|bet[uú]n|candy/i,
 };
+
+/** "mesa de postre" al declinar ≠ mobiliario (mesas/sillas). */
+function isMesaDulcesDeclinePhrase(t: string): boolean {
+  return (
+    /\bno\s+(?:quiero|necesito|pedimos|pido)\s+mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t) ||
+    /\bno\s+(?:quiero|necesito)\s+(postres?|dulces?)\b/i.test(t) ||
+    /\bsin\s+mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t) ||
+    /\bqu[ií]ta(le|me)?\s+(?:la\s+)?mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t)
+  );
+}
 
 /** Palabras que el cliente usa al rechazar cada familia. */
 const FAMILY_DECLINE_WORDS: Record<DeclinedServiceFamily, string> = {
@@ -41,7 +52,7 @@ const FAMILY_DECLINE_WORDS: Record<DeclinedServiceFamily, string> = {
   decoracion: "decoraci[oó]n|centros?\\s+de\\s+mesa|flores?|globos?",
   entretenimiento: "show|dj|entretenimiento|hora\\s+loca|photobooth|photo\\s*booth",
   pista: "pista|tarima",
-  dulces: "mesa\\s+de\\s+dulces|postres?|dulces?|cupcakes?",
+  dulces: "mesa\\s+de\\s+dulces|mesa\\s+de\\s+postres?|postres?|dulces?|cupcakes?",
 };
 
 function captionOf(message?: string | null): string {
@@ -82,7 +93,13 @@ export function clientDeclinesServiceFamilies(
     out.add("alimentos");
   }
 
+  // A15503: "no necesito mesa de postre" → dulces (no confundir mesa≠mobiliario).
+  if (isMesaDulcesDeclinePhrase(t) && !isTablewareRequestText(t)) {
+    out.add("dulces");
+  }
+
   for (const family of Object.keys(FAMILY_DECLINE_WORDS) as DeclinedServiceFamily[]) {
+    if (family === "mobiliario" && isMesaDulcesDeclinePhrase(t)) continue;
     const words = FAMILY_DECLINE_WORDS[family];
     const reNoQuiero = new RegExp(
       `\\b(no|nop)(?:\\s+pero|\\s+peor)?\\s+(quiero|necesito|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,

@@ -14,6 +14,7 @@ import {
   clientAsksForCatalog,
   extractCatalogNivelFromText,
   extractNumberedNivelFromLastAssistant,
+  isTablewareRequestText,
 } from "../conversation-understanding.js";
 
 /** CTA único para TODAS las ramas (niveles Sheet + menús progresivos). A14982. */
@@ -351,7 +352,9 @@ const FAMILIES: FamilyDef[] = [
     detailQueryFromText: (text) => {
       if (/carrito/i.test(text)) return "Carrito de Snacks";
       if (/queso/i.test(text)) return "Mesa de quesos";
-      if (/postre/i.test(text)) return "Mesa de postres";
+      if (/postre/i.test(text) && !/\b(plato|platos?)\s+postre\b/i.test(text)) {
+        return "Mesa de postres";
+      }
       return "Mesa de dulces";
     },
     buildMenu: () =>
@@ -554,7 +557,7 @@ export function parseMobiliarioPieceChoice(text: string | null | undefined): str
   }
   if (/\b(periqueras?)\b/i.test(t)) return "periqueras";
   if (/\b(salas?\s+lounge|lounge)\b/i.test(t)) return "salas lounge";
-  if (/\b(vajillas?|manteler[ií]a)\b/i.test(t)) return "vajillas";
+  if (/\b(vajillas?|loza|manteler[ií]a|cubiertos?)\b/i.test(t)) return "vajillas";
   if (/\b(entelados?)\b/i.test(t)) return "entelados";
   if (/\b(colgantes?)\b/i.test(t)) return "colgantes";
   if (/\bsillas?\b/i.test(t)) return "sillas";
@@ -827,6 +830,7 @@ export function detectProgressiveFamily(
 ): ProgressiveFamily | null {
   const t = text?.trim() ?? "";
   if (!t) return null;
+  if (isTablewareRequestText(t)) return "mobiliario";
 
   const matches = FAMILIES.filter((fam) => fam.familyPattern.test(t));
   if (!matches.length) return null;
