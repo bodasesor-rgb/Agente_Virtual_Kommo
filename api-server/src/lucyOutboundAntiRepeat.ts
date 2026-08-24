@@ -180,7 +180,7 @@ function syncFilledFromCurrentAnswer(
   const t = message.trim();
   switch (field) {
     case "invitados": {
-      const inv = parseInvitadosFromText(t);
+      const inv = parseInvitadosFromText(t, { askedInvitados: true });
       if (!inv) return;
       const n = parseInt(inv, 10);
       if (!Number.isFinite(n)) return;

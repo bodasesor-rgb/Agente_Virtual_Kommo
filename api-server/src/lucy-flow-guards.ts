@@ -196,6 +196,7 @@ import {
   parseFechaFromText,
   parseTipoEventoFromText,
   parseInvitadosFromText,
+  recoverInvitadosFromUserTexts,
   parseZonaFromText,
   mergeZonaDetail,
   parseServicesFromText,
@@ -464,7 +465,7 @@ export function syncRichBriefIntoExtracted(
   }
   syncLegacyFechaHorarioField(extracted);
   if (!extracted.num_invitados) {
-    const inv = parseInvitadosFromText(text);
+    const inv = parseInvitadosFromText(text, { mobiliarioRenta: true });
     if (inv) {
       extracted.num_invitados = Number(inv) || (inv as unknown as number);
       filledSet.add("Número de invitados");
@@ -730,6 +731,28 @@ export function applyInvitadosWaiver(
   filledSet.add("Número de invitados");
 }
 
+export function syncInvitadosFromHistory(
+  filledSet: Set<string>,
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
+): boolean {
+  if (isFieldSatisfied("invitados", filledSet, extracted)) return false;
+  const mobiliario =
+    /\b(mobiliario|sillas?|crossback|tiffany|periquera)\b/i.test(
+      extracted.requerimientos_evento ?? ""
+    );
+  const n = recoverInvitadosFromUserTexts(
+    collectUserTexts(history, currentMessage),
+    currentMessage,
+    { mobiliarioRenta: mobiliario }
+  );
+  if (!n) return false;
+  extracted.num_invitados = n;
+  filledSet.add("Número de invitados");
+  return true;
+}
+
 function blockResolvedInvitadosAsk(
   mensaje: string,
   filledSet: Set<string>,
@@ -750,11 +773,12 @@ function blockResolvedInvitadosAsk(
     history
   );
   // A15286: si el historial ya trae "N personas", sincronizar antes de re-preguntar.
+  syncInvitadosFromHistory(filledSet, extracted, history, currentMessage);
   if (!isFieldSatisfied("invitados", filledSet, extracted)) {
     const fromHist =
-      parseInvitadosFromText(currentMessage ?? "") ||
+      parseInvitadosFromText(currentMessage ?? "", { askedInvitados: true }) ||
       collectUserTexts(history, currentMessage)
-        .map((t) => parseInvitadosFromText(t))
+        .map((t) => parseInvitadosFromText(t, { askedInvitados: true }))
         .find(Boolean) ||
       null;
     if (fromHist && /^\d+$/.test(fromHist)) {
@@ -4867,6 +4891,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const presHistory = input.presentationHistory ?? history;
 
   syncFilledFromExtracted(filledSet, extracted);
+  syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage);
   // A15443: "hora de comida/fomida" nunca es ciudad ni fecha completa.
   if (
     extracted.direccion_evento &&
@@ -5009,6 +5034,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const referential = isReferentialPriorAnswer(msgEarly);
     const complains = clientComplainsAboutRepeat(msgEarly);
     if (msgEarly && (referential || complains)) {
+      syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage);
       // A15164: recuperar nombre del historial antes del ack (nunca re-preguntar nombre).
       if (!isFieldSatisfied("nombre", filledSet, extracted)) {
         const recoveredNombre = recoverClienteNombreFromHistory(presHistory, undefined);
@@ -5034,6 +5060,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
             { entityId, recovered, askedEarly },
             "GUARD: A15212 — correo recuperado tras referencia/queja"
           );
+        }
+      }
+      // A15508: recuperar invitados del historial tras queja/referencia.
+      if (!isFieldSatisfied("invitados", filledSet, extracted)) {
+        if (
+          syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage)
+        ) {
+          log?.info({ entityId, n: extracted.num_invitados }, "GUARD: A15508 — invitados recuperados tras queja");
         }
       }
       // Medidas ya dadas en historial (carpas/pista).
@@ -5073,7 +5107,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         (lastAsst &&
           /invitados|cu[aá]ntos|asistir[aá]n/i.test(lastAsst.content as string)))
     ) {
-      const inv = parseInvitadosFromText(currentMessage);
+      const inv = parseInvitadosFromText(currentMessage, { askedInvitados: true });
       if (inv) {
         const n = parseInt(inv, 10);
         if (Number.isFinite(n) && n >= 1) {
@@ -5092,6 +5126,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     currentMessage &&
     (isReferentialPriorAnswer(currentMessage) || clientComplainsAboutRepeat(currentMessage))
   ) {
+    syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage);
     const pending = getNextPendingField(extracted, filledSet);
     const nombre = getDisplayName(extracted, whatsappDisplayName);
     const ack = nombre
@@ -8030,7 +8065,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
   }
 
-  if (filledSet.has("Número de invitados") && mensajeAsksForField(mensaje, "invitados")) {
+  if (mensajeAsksForField(mensaje, "invitados")) {
     mensaje = blockResolvedInvitadosAsk(
       mensaje,
       filledSet,

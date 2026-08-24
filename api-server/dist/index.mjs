@@ -129613,7 +129613,7 @@ function isReferentialPriorAnswer(message) {
 function clientComplainsAboutRepeat(message) {
   if (!message?.trim()) return false;
   const t10 = message.trim();
-  return /\bya\s+me\s+(hab[ií]as|habias|hab[ií]a|habia|hab[eé]is)?\s*preguntad/i.test(t10) || /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t10) || /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé]|pase|compart[ií]|he\s+enviado|he\s+mandado|he\s+dado)\b/i.test(
+  return /\bya\s+me\s+(hab[ií]as|habias|hab[ií]a|habia|hab[eé]is)?\s*preguntad/i.test(t10) || /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t10) || /\bperd[oó]n\b[\s\S]{0,40}\bya\s+(me\s+)?preguntaste\b/i.test(t10) || /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé]|pase|compart[ií]|he\s+enviado|he\s+mandado|he\s+dado)\b/i.test(
     t10
   ) || /\bya\s+(te\s+)?(lo\s+)?(dije|mencion[eé]|coment[eé])\b/i.test(t10) || /\beso\s+ya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t10) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(t10) || /\b(otra\s+vez|de\s+nuevo)\s+(me\s+)?preguntas?\b/i.test(t10) || /\bya\s+respond[ií]\b/i.test(t10);
 }
@@ -129680,6 +129680,21 @@ function looksLikeNameAnswerMessage(text2) {
   }
   return true;
 }
+function recoverInvitadosFromUserTexts(texts, currentMessage, opts) {
+  const merged = [...texts, currentMessage?.trim() ?? ""].filter(Boolean);
+  for (let i10 = merged.length - 1; i10 >= 0; i10--) {
+    const inv = parseInvitadosFromText(merged[i10], {
+      askedInvitados: true,
+      mobiliarioRenta: opts?.mobiliarioRenta,
+      ...opts
+    });
+    if (inv && /^\d+$/.test(inv)) {
+      const n10 = parseInt(inv, 10);
+      if (n10 >= 1 && n10 <= 5e3) return n10;
+    }
+  }
+  return null;
+}
 function messageIsAboutScheduleOrPlaceNotGuests(text2) {
   return /\b(horario|hora|fecha|d[ií]a|mes|ciudad|colonia|alcald[ií]a|delegaci[oó]n|correo|e-?mail|ubicaci[oó]n|direcci[oó]n|sal[oó]n|lugar)\b/i.test(
     text2
@@ -129688,20 +129703,20 @@ function messageIsAboutScheduleOrPlaceNotGuests(text2) {
 function parseInvitadosFromText(text2, opts) {
   const trimmed = text2.trim();
   if (!trimmed) return null;
-  if (/\b(\d|dos|tres|cuatro)\s*tiempos?\b/i.test(trimmed) && !/\b(personas?|invitados?|pax|guests?)\b/i.test(trimmed)) {
+  if (/\b(\d|dos|tres|cuatro)\s*tiempos?\b/i.test(trimmed) && !/\b(personas?|invitados?|invitadas?|pax|guests?)\b/i.test(trimmed)) {
     return null;
   }
-  if (/\bhorno\s*\d+\b/i.test(trimmed) && !/\b(personas?|invitados?|pax)\b/i.test(trimmed)) {
+  if (/\bhorno\s*\d+\b/i.test(trimmed) && !/\b(personas?|invitados?|invitadas?|pax)\b/i.test(trimmed)) {
     return null;
   }
   const numMatchEarly = trimmed.match(
-    /\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i
+    new RegExp(`\\b(\\d+)\\s*(${GUEST_COUNT_WORDS})\\b`, "i")
   );
   if (numMatchEarly) return numMatchEarly[1];
   if (/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(trimmed) && trimmed.split(/\s+/).length <= 14) {
     return null;
   }
-  if (isCatalogLevelSelection(trimmed) && trimmed.split(/\s+/).length <= 10 && !/\b(personas?|invitados?|pax|guests?)\b/i.test(trimmed)) {
+  if (isCatalogLevelSelection(trimmed) && trimmed.split(/\s+/).length <= 10 && !/\b(personas?|invitados?|invitadas?|pax|guests?)\b/i.test(trimmed)) {
     return null;
   }
   const kidsAdults = trimmed.match(
@@ -129722,7 +129737,15 @@ function parseInvitadosFromText(text2, opts) {
       return String(nums[0] + nums[1]);
     }
   }
-  if (NON_GUEST_UNIT_PATTERN.test(trimmed)) return null;
+  if (NON_GUEST_UNIT_PATTERN.test(trimmed)) {
+    if (opts?.askedInvitados || opts?.mobiliarioRenta) {
+      const chairQty = trimmed.match(/\b(\d{1,4})\s*sillas?\b/i);
+      if (chairQty && !new RegExp(`\\b\\d+\\s*(${GUEST_COUNT_WORDS})\\b`, "i").test(trimmed)) {
+        return chairQty[1];
+      }
+    }
+    return null;
+  }
   const approxSuffix = trimmed.match(
     /^(\d{1,4})\s*(?:aprox(?:imadamente)?|aproximados?|personas?\s+aprox)\.?$/i
   );
@@ -129731,7 +129754,7 @@ function parseInvitadosFromText(text2, opts) {
   if (/\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+(?:lo\s+)?sabemos|no\s+(?:te\s+)?(?:lo\s+)?(?:puedo|podr[ií]a)\s+(?:decir|confirmar)|van\s+viendo)\b/i.test(
     trimmed
   )) {
-    const guestWords = /\b(invitados?|personas?|gente|afluencia|asistentes?|pax|cu[aá]nt[oa]s)\b/i.test(
+    const guestWords = /\b(invitados?|invitadas?|personas?|gente|afluencia|asistentes?|pax|cu[aá]nt[oa]s)\b/i.test(
       trimmed
     );
     const otherField = messageIsAboutScheduleOrPlaceNotGuests(trimmed);
@@ -129766,7 +129789,9 @@ function parseInvitadosFromText(text2, opts) {
       }
     }
   }
-  const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i);
+  const numMatch = trimmed.match(
+    new RegExp(`\\b(\\d+)\\s*(${GUEST_COUNT_WORDS})\\b`, "i")
+  );
   if (numMatch) return numMatch[1];
   const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como|unos?|unas?)\s+(\d+)\b/i);
   if (paraMatch) {
@@ -129781,7 +129806,7 @@ function parseInvitadosFromText(text2, opts) {
   );
   if (aproxMatch) return aproxMatch[1];
   const writtenMatch = trimmed.match(
-    /\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|doscientos|trescientos|cuatrocientos|quinientos)\s+(personas?|invitados?)\b/i
+    /\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|doscientos|trescientos|cuatrocientos|quinientos)\s+(personas?|invitados?|invitadas?)\b/i
   );
   if (writtenMatch) {
     return WRITTEN_NUMBERS[writtenMatch[1].toLowerCase()] ?? null;
@@ -130861,7 +130886,7 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     extracted.requerimientos_evento = null;
   }
 }
-var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, STAFF_OR_ADDON_SERVICE, STANDARD_PISTA_SIZES, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
+var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, STAFF_OR_ADDON_SERVICE, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
 var init_conversation_understanding = __esm({
   "src/conversation-understanding.ts"() {
     "use strict";
@@ -131170,6 +131195,7 @@ var init_conversation_understanding = __esm({
     VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue)\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.'-]{1,48})/i;
     JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
     STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
+    GUEST_COUNT_WORDS = "personas?|invitados?|invitadas?|pax|guests?|gentes?|cabezas?";
     STANDARD_PISTA_SIZES = [
       { w: 4, h: 4, area: 16 },
       { w: 5, h: 5, area: 25 },
@@ -157425,7 +157451,7 @@ function syncRichBriefIntoExtracted(extracted, filledSet, message) {
   }
   syncLegacyFechaHorarioField(extracted);
   if (!extracted.num_invitados) {
-    const inv = parseInvitadosFromText(text2);
+    const inv = parseInvitadosFromText(text2, { mobiliarioRenta: true });
     if (inv) {
       extracted.num_invitados = Number(inv) || inv;
       filledSet.add("N\xFAmero de invitados");
@@ -157577,6 +157603,21 @@ function applyInvitadosWaiver(filledSet, mergedLines, texts, history = []) {
   }
   filledSet.add("N\xFAmero de invitados");
 }
+function syncInvitadosFromHistory(filledSet, extracted, history, currentMessage) {
+  if (isFieldSatisfied("invitados", filledSet, extracted)) return false;
+  const mobiliario = /\b(mobiliario|sillas?|crossback|tiffany|periquera)\b/i.test(
+    extracted.requerimientos_evento ?? ""
+  );
+  const n10 = recoverInvitadosFromUserTexts(
+    collectUserTexts(history, currentMessage),
+    currentMessage,
+    { mobiliarioRenta: mobiliario }
+  );
+  if (!n10) return false;
+  extracted.num_invitados = n10;
+  filledSet.add("N\xFAmero de invitados");
+  return true;
+}
 function blockResolvedInvitadosAsk(mensaje, filledSet, extracted, history, currentMessage, buildClosing, cierreYaEnviado, whatsappDisplayName, entityId, log) {
   if (!mensajeAsksForField(mensaje, "invitados")) return mensaje;
   applyInvitadosWaiver(
@@ -157585,8 +157626,9 @@ function blockResolvedInvitadosAsk(mensaje, filledSet, extracted, history, curre
     collectUserTexts(history, currentMessage),
     history
   );
+  syncInvitadosFromHistory(filledSet, extracted, history, currentMessage);
   if (!isFieldSatisfied("invitados", filledSet, extracted)) {
-    const fromHist = parseInvitadosFromText(currentMessage ?? "") || collectUserTexts(history, currentMessage).map((t10) => parseInvitadosFromText(t10)).find(Boolean) || null;
+    const fromHist = parseInvitadosFromText(currentMessage ?? "", { askedInvitados: true }) || collectUserTexts(history, currentMessage).map((t10) => parseInvitadosFromText(t10, { askedInvitados: true })).find(Boolean) || null;
     if (fromHist && /^\d+$/.test(fromHist)) {
       extracted.num_invitados = Number(fromHist);
       filledSet.add("N\xFAmero de invitados");
@@ -160105,6 +160147,7 @@ function applyLucyMessageGuards(input) {
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
   syncFilledFromExtracted(filledSet, extracted);
+  syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage);
   if (extracted.direccion_evento && (looksLikeMealTimeNotLocation(extracted.direccion_evento) || !isUsableDireccionEvento(extracted.direccion_evento))) {
     extracted.direccion_evento = null;
     filledSet.delete("Lugar/direcci\xF3n del evento");
@@ -160206,6 +160249,7 @@ function applyLucyMessageGuards(input) {
     const referential = isReferentialPriorAnswer(msgEarly);
     const complains = clientComplainsAboutRepeat(msgEarly);
     if (msgEarly && (referential || complains)) {
+      syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage);
       if (!isFieldSatisfied("nombre", filledSet, extracted)) {
         const recoveredNombre = recoverClienteNombreFromHistory(presHistory, void 0);
         if (recoveredNombre) {
@@ -160231,6 +160275,11 @@ function applyLucyMessageGuards(input) {
           );
         }
       }
+      if (!isFieldSatisfied("invitados", filledSet, extracted)) {
+        if (syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage)) {
+          log?.info({ entityId, n: extracted.num_invitados }, "GUARD: A15508 \u2014 invitados recuperados tras queja");
+        }
+      }
       if (askedEarly === "requerimientos" || lastAsstEarly && /medidas/i.test(lastAsstEarly.content)) {
         const histDims = collectUserTexts(presHistory, void 0).map((t10) => parseSpaceDimensions(t10)).find(Boolean);
         if (histDims && /carpa/i.test(extracted.requerimientos_evento ?? "")) {
@@ -160249,7 +160298,7 @@ function applyLucyMessageGuards(input) {
     const lastAsst = [...presHistory].reverse().find((m10) => m10.role === "assistant" && typeof m10.content === "string");
     const askedNow = lastAsst ? inferLucyAskedField(lastAsst.content) : null;
     if (currentMessage && !filledSet.has("N\xFAmero de invitados") && !extracted.num_invitados && (askedNow === "invitados" || lastAsst && /invitados|cu[aá]ntos|asistir[aá]n/i.test(lastAsst.content))) {
-      const inv = parseInvitadosFromText(currentMessage);
+      const inv = parseInvitadosFromText(currentMessage, { askedInvitados: true });
       if (inv) {
         const n10 = parseInt(inv, 10);
         if (Number.isFinite(n10) && n10 >= 1) {
@@ -160261,6 +160310,7 @@ function applyLucyMessageGuards(input) {
     }
   }
   if (!cierreYaEnviado && currentMessage && (isReferentialPriorAnswer(currentMessage) || clientComplainsAboutRepeat(currentMessage))) {
+    syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage);
     const pending = getNextPendingField(extracted, filledSet);
     const nombre = getDisplayName(extracted, whatsappDisplayName);
     const ack = nombre ? `Perfecto, ${nombre}. Ya lo tengo anotado.` : "Perfecto. Ya lo tengo anotado.";
@@ -162247,7 +162297,7 @@ ${nextQ}`;
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
     );
   }
-  if (filledSet.has("N\xFAmero de invitados") && mensajeAsksForField(mensaje, "invitados")) {
+  if (mensajeAsksForField(mensaje, "invitados")) {
     mensaje = blockResolvedInvitadosAsk(
       mensaje,
       filledSet,
@@ -227521,7 +227571,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.50";
+var LUCY_PROMPT_VERSION = "V9.51";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -230704,7 +230754,7 @@ function syncFilledFromCurrentAnswer(field, message, filled, extracted, inputExt
   const t10 = message.trim();
   switch (field) {
     case "invitados": {
-      const inv = parseInvitadosFromText(t10);
+      const inv = parseInvitadosFromText(t10, { askedInvitados: true });
       if (!inv) return;
       const n10 = parseInt(inv, 10);
       if (!Number.isFinite(n10)) return;

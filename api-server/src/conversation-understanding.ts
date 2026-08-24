@@ -3174,6 +3174,7 @@ export function clientComplainsAboutRepeat(message?: string | null): boolean {
   return (
     /\bya\s+me\s+(hab[ií]as|habias|hab[ií]a|habia|hab[eé]is)?\s*preguntad/i.test(t) ||
     /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t) ||
+    /\bperd[oó]n\b[\s\S]{0,40}\bya\s+(me\s+)?preguntaste\b/i.test(t) ||
     /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé]|pase|compart[ií]|he\s+enviado|he\s+mandado|he\s+dado)\b/i.test(
       t
     ) ||
@@ -3298,6 +3299,32 @@ export function looksLikeNameAnswerMessage(text: string | null | undefined): boo
 export interface InvitadosParseOptions {
   /** Lucy acaba de preguntar cuántos invitados (permite "no sé" / "aún no"). */
   askedInvitados?: boolean;
+  /** Renta de sillas/mobiliario — "40 sillas" ≈ 40 personas si no hay otro dato. */
+  mobiliarioRenta?: boolean;
+}
+
+const GUEST_COUNT_WORDS =
+  "personas?|invitados?|invitadas?|pax|guests?|gentes?|cabezas?";
+
+/** Recupera invitados ya dichos en el historial (A15508 Betiana). */
+export function recoverInvitadosFromUserTexts(
+  texts: string[],
+  currentMessage?: string | null,
+  opts?: InvitadosParseOptions
+): number | null {
+  const merged = [...texts, currentMessage?.trim() ?? ""].filter(Boolean);
+  for (let i = merged.length - 1; i >= 0; i--) {
+    const inv = parseInvitadosFromText(merged[i]!, {
+      askedInvitados: true,
+      mobiliarioRenta: opts?.mobiliarioRenta,
+      ...opts,
+    });
+    if (inv && /^\d+$/.test(inv)) {
+      const n = parseInt(inv, 10);
+      if (n >= 1 && n <= 5000) return n;
+    }
+  }
+  return null;
 }
 
 function messageIsAboutScheduleOrPlaceNotGuests(text: string): boolean {
@@ -3315,17 +3342,17 @@ export function parseInvitadosFromText(text: string, opts?: InvitadosParseOption
   // A15383: "menú de tres tiempos" / "Horno 3" ≠ 3 invitados.
   if (
     /\b(\d|dos|tres|cuatro)\s*tiempos?\b/i.test(trimmed) &&
-    !/\b(personas?|invitados?|pax|guests?)\b/i.test(trimmed)
+    !/\b(personas?|invitados?|invitadas?|pax|guests?)\b/i.test(trimmed)
   ) {
     return null;
   }
-  if (/\bhorno\s*\d+\b/i.test(trimmed) && !/\b(personas?|invitados?|pax)\b/i.test(trimmed)) {
+  if (/\bhorno\s*\d+\b/i.test(trimmed) && !/\b(personas?|invitados?|invitadas?|pax)\b/i.test(trimmed)) {
     return null;
   }
 
-  // "N personas/invitados" siempre, aunque el brief también nombre servicios.
+  // "N personas/invitados/invitadas" — prioridad sobre "N sillas" en el mismo mensaje (A15508).
   const numMatchEarly = trimmed.match(
-    /\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i
+    new RegExp(`\\b(\\d+)\\s*(${GUEST_COUNT_WORDS})\\b`, "i")
   );
   if (numMatchEarly) return numMatchEarly[1]!;
 
@@ -3339,7 +3366,7 @@ export function parseInvitadosFromText(text: string, opts?: InvitadosParseOption
   if (
     isCatalogLevelSelection(trimmed) &&
     trimmed.split(/\s+/).length <= 10 &&
-    !/\b(personas?|invitados?|pax|guests?)\b/i.test(trimmed)
+    !/\b(personas?|invitados?|invitadas?|pax|guests?)\b/i.test(trimmed)
   ) {
     return null;
   }
@@ -3365,8 +3392,16 @@ export function parseInvitadosFromText(text: string, opts?: InvitadosParseOption
     }
   }
 
-  // "Serían 4 salas" / "10 mesas" / "2 carpas" ≠ invitados (María A14906).
-  if (NON_GUEST_UNIT_PATTERN.test(trimmed)) return null;
+  // "Serían 4 salas" / "10 mesas" / "2 carpas" ≠ invitados — salvo renta de sillas (A15508).
+  if (NON_GUEST_UNIT_PATTERN.test(trimmed)) {
+    if (opts?.askedInvitados || opts?.mobiliarioRenta) {
+      const chairQty = trimmed.match(/\b(\d{1,4})\s*sillas?\b/i);
+      if (chairQty && !new RegExp(`\\b\\d+\\s*(${GUEST_COUNT_WORDS})\\b`, "i").test(trimmed)) {
+        return chairQty[1]!;
+      }
+    }
+    return null;
+  }
 
   // Respuesta breve tras la pregunta: "15 aprox" / "15 aproximadamente".
   const approxSuffix = trimmed.match(
@@ -3382,7 +3417,7 @@ export function parseInvitadosFromText(text: string, opts?: InvitadosParseOption
       trimmed
     )
   ) {
-    const guestWords = /\b(invitados?|personas?|gente|afluencia|asistentes?|pax|cu[aá]nt[oa]s)\b/i.test(
+    const guestWords = /\b(invitados?|invitadas?|personas?|gente|afluencia|asistentes?|pax|cu[aá]nt[oa]s)\b/i.test(
       trimmed
     );
     const otherField = messageIsAboutScheduleOrPlaceNotGuests(trimmed);
@@ -3423,7 +3458,9 @@ export function parseInvitadosFromText(text: string, opts?: InvitadosParseOption
     }
   }
 
-  const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i);
+  const numMatch = trimmed.match(
+    new RegExp(`\\b(\\d+)\\s*(${GUEST_COUNT_WORDS})\\b`, "i")
+  );
   if (numMatch) return numMatch[1]!;
 
   const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como|unos?|unas?)\s+(\d+)\b/i);
@@ -3443,7 +3480,7 @@ export function parseInvitadosFromText(text: string, opts?: InvitadosParseOption
   if (aproxMatch) return aproxMatch[1]!;
 
   const writtenMatch = trimmed.match(
-    /\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|doscientos|trescientos|cuatrocientos|quinientos)\s+(personas?|invitados?)\b/i
+    /\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|doscientos|trescientos|cuatrocientos|quinientos)\s+(personas?|invitados?|invitadas?)\b/i
   );
   if (writtenMatch) {
     return WRITTEN_NUMBERS[writtenMatch[1]!.toLowerCase()] ?? null;
