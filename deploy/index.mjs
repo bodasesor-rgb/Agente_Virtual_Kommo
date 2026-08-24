@@ -127683,6 +127683,9 @@ Reglas para client_reply (ES LO IMPORTANTE):
 });
 
 // src/services/serviceDecline.ts
+function isMesaDulcesDeclinePhrase(t10) {
+  return /\bno\s+(?:quiero|necesito|pedimos|pido)\s+mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t10) || /\bno\s+(?:quiero|necesito)\s+(postres?|dulces?)\b/i.test(t10) || /\bsin\s+mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t10) || /\bqu[ií]ta(le|me)?\s+(?:la\s+)?mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t10);
+}
 function captionOf(message) {
   if (!message?.trim()) return "";
   return (clientCaptionForServiceParse(message) || message).trim();
@@ -127700,7 +127703,11 @@ function clientDeclinesServiceFamilies(message) {
   if (/\b(yo\s+)?(ya\s+)?les?\s+voy\s+a\s+dar\b/i.test(t10) && !/\b(correo|tel[eé]fono|whatsapp|datos|nombre|ubicaci|direcci[oó]n)\b/i.test(t10)) {
     out2.add("alimentos");
   }
+  if (isMesaDulcesDeclinePhrase(t10) && !isTablewareRequestText(t10)) {
+    out2.add("dulces");
+  }
   for (const family of Object.keys(FAMILY_DECLINE_WORDS)) {
+    if (family === "mobiliario" && isMesaDulcesDeclinePhrase(t10)) continue;
     const words = FAMILY_DECLINE_WORDS[family];
     const reNoQuiero = new RegExp(
       `\\b(no|nop)(?:\\s+pero|\\s+peor)?\\s+(quiero|necesito|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
@@ -127805,10 +127812,11 @@ var init_serviceDecline = __esm({
   "src/services/serviceDecline.ts"() {
     "use strict";
     init_imageProcessor();
+    init_conversation_understanding();
     FAMILY_SERVICE_RE = {
       alimentos: /^(Alimentos|Comida)$|banquete|taquiza|catering|pizzas?|barra\s+de\s+(pizzas?|pastas?|alimentos|sushi)|brunch|parrillada|sushi|canap|bocadillo|coffee\s*break|puestos?\s+de\s+comida|desayuno|paella|pozole|pasta/i,
       bebidas: /bebidas?|barra\s+de\s+bebidas|coctel|m[oó]cteles|mixolog|barra\s+de\s+caf[eé]/i,
-      mobiliario: /mobiliario|sillas?|mesas?(?!\s+de)|periqueras?|salas?\s+lounge|tiffany/i,
+      mobiliario: /mobiliario|sillas?|mesas?(?!\s+de\s+(postres?|dulces?|quesos?|imperial))|periqueras?|salas?\s+lounge|tiffany/i,
       carpas: /carpas?|toldos?|lonas?/i,
       decoracion: /decoraci[oó]n|centros?\s+de\s+mesa|florister|globos?|tem[aá]tica/i,
       entretenimiento: /show|dj\b|entretenimiento|hora\s+loca|photobooth|photo\s*booth|bailarinas|batucada|robots?/i,
@@ -127823,7 +127831,7 @@ var init_serviceDecline = __esm({
       decoracion: "decoraci[o\xF3]n|centros?\\s+de\\s+mesa|flores?|globos?",
       entretenimiento: "show|dj|entretenimiento|hora\\s+loca|photobooth|photo\\s*booth",
       pista: "pista|tarima",
-      dulces: "mesa\\s+de\\s+dulces|postres?|dulces?|cupcakes?"
+      dulces: "mesa\\s+de\\s+dulces|mesa\\s+de\\s+postres?|postres?|dulces?|cupcakes?"
     };
   }
 });
@@ -128204,6 +128212,19 @@ function parseWebLeadBrief(text2) {
   }
   const invMatch = t10.match(/para\s+(\d{1,4})\s*(?:personas?|invitados?|pax|gente)/i);
   if (invMatch) result.num_invitados = parseInt(invMatch[1], 10);
+  const servicesFromFull = parseServicesFromText(t10);
+  if (servicesFromFull.length) {
+    if (!result.requerimientos_evento) {
+      result.requerimientos_evento = servicesFromFull.slice(0, 6).join(", ");
+    } else {
+      const merged = mergeServiceRequirements(
+        result.requerimientos_evento,
+        servicesFromFull.join(", "),
+        6
+      );
+      if (merged) result.requerimientos_evento = merged;
+    }
+  }
   return Object.keys(result).length > 0 ? result : null;
 }
 function applyWebLeadBrief(extracted, text2) {
@@ -128993,7 +129014,18 @@ function parseCentrosDeMesaRequirement(text2) {
   }
   return "Centros de mesa";
 }
+function isTablewareRequestText(text2) {
+  const t10 = text2?.trim() ?? "";
+  if (!t10) return false;
+  return /\b(loza|vajillas?|cubiertos?|cuberter[ií]a|cristaler[ií]a|plato\s+trinche|platos?\s+trinche|plato\s+postre|platos?\s+postre|\b(cuchara|tenedor|cuchillo)s?\b)/i.test(
+    t10
+  );
+}
 function parseServicesFromText(text2) {
+  const t10 = text2.trim();
+  if (/\b(únicamente|unicamente|solo|solamente)\s+(vajillas?|loza|cubiertos?)\b/i.test(t10) || /\b(únicamente|unicamente)\s+vajilla\b/i.test(t10)) {
+    return dedupeServiceHierarchy(["Vajillas"], t10);
+  }
   const found = [];
   const lower2 = text2.toLowerCase();
   const declined = clientDeclinesServiceFamilies(text2);
@@ -129003,6 +129035,7 @@ function parseServicesFromText(text2) {
   for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
     if (label === "Comida" && !hasMealListContext) continue;
     if (label === "Snack" && (snackIsAntojito || !hasCorporateMealList)) continue;
+    if (label === "Mesa de postres" && isTablewareRequestText(text2)) continue;
     if (pattern.test(text2) || pattern.test(lower2)) found.push(label);
   }
   if (!found.includes("Banquete Mexicano") && /\bmexicano\b/i.test(text2) && !/\b(desayuno|brunch|tem[aá]tico)\b/i.test(text2) && (/^mexicano[\s.,!]*$/i.test(text2.trim()) || /\b(banquete|formal|tiempos|comida\s+mexicana|men[uú]\s+mexicano)\b/i.test(text2))) {
@@ -129049,6 +129082,15 @@ function parseServicesFromText(text2) {
     found.push("Alimentos");
   }
   const filtered = declined.length > 0 ? found.filter((s10) => !serviceIsDeclined(s10, declined)) : found;
+  if (isTablewareRequestText(text2)) {
+    const withoutDulces = filtered.filter(
+      (s10) => !/mesa\s+de\s+(postres?|dulces?|quesos?)/i.test(s10)
+    );
+    if (!withoutDulces.some((s10) => /vajilla/i.test(s10))) {
+      withoutDulces.push("Vajillas");
+    }
+    return dedupeServiceHierarchy([...new Set(withoutDulces)], text2);
+  }
   return dedupeServiceHierarchy([...new Set(filtered)], text2);
 }
 function formatServicesList(services) {
@@ -130774,8 +130816,8 @@ var init_conversation_understanding = __esm({
       ["Carrito de Snacks", /\bcarrito\s+de\s+snacks?\b|\bcarrito\s+de\s+snaks?\b/i],
       ["Paletas de Hielo y Helados", /\bpaletas?(\s+de\s+hielo)?\b|\bhelados?\b/i],
       ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
-      // No robar "dulces" suelto (eso es Mesa de dulces).
-      ["Mesa de postres", /\bmesa\s+de\s+postres\b|\bpostres?\b/i],
+      // A15503: "plato postre" = vajilla, no servicio de postres.
+      ["Mesa de postres", /\bmesa\s+de\s+postres?\b|\bpostres?\s+(?:y|con|para|de\s+mesa)\b/i],
       ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
       ["Canap\xE9s", /\bcanap[eé]s?(?!\p{L})/iu],
       ["Bocadillos", /\bbocadillos?\b/i],
@@ -130809,7 +130851,10 @@ var init_conversation_understanding = __esm({
       // Antes de Decoración / Pantallas: "decoración aérea" y LED wall no deben robarse.
       ["Colgantes Premium", /\bcolgantes?(?:\s+premium)?\b|\bwisteria\b|\bdecoraci[oó]n\s+a[eé]rea\b/i],
       ["Entelados para Techo", /\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b/i],
-      ["Vajillas", /\bvajillas?\b|\bcuberter[ií]a\b|\bcristaler[ií]a\b/i],
+      [
+        "Vajillas",
+        /\bvajillas?\b|\bloza\b|\bcubiertos?\b|\bcuberter[ií]a\b|\bcristaler[ií]a\b|\bplato\s+trinche\b|\bplatos?\s+trinche\b|\bplato\s+postre\b|\bplatos?\s+postre\b|\b(cuchara|tenedor|cuchillo)s?\s+(?:postre|trinche)?\b/i
+      ],
       ["Video", /\bvideo\b|\bled\s*wall\b/i],
       // A15190: centros de mesa = floral/decorativo, NUNCA mobiliario (antes de Decoración/Mobiliario).
       [
@@ -130848,7 +130893,7 @@ var init_conversation_understanding = __esm({
       ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
       ["Mesa imperial", /\bmesa\s+imperial\b/i]
     ];
-    SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+    SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|loza|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
     SHORT_SERVICE_ALIASES = {
       pista: "pista de baile",
       tarima: "pista de baile",
@@ -130898,6 +130943,9 @@ var init_conversation_understanding = __esm({
       colgante: "Colgantes Premium",
       vajilla: "Vajillas",
       vajillas: "Vajillas",
+      loza: "Vajillas",
+      cubiertos: "Vajillas",
+      cubierto: "Vajillas",
       mocteles: "M\xF3cteles",
       m\u00F3cteles: "M\xF3cteles",
       video: "Video",
@@ -132065,7 +132113,7 @@ function parseMobiliarioPieceChoice(text2) {
   }
   if (/\b(periqueras?)\b/i.test(t10)) return "periqueras";
   if (/\b(salas?\s+lounge|lounge)\b/i.test(t10)) return "salas lounge";
-  if (/\b(vajillas?|manteler[ií]a)\b/i.test(t10)) return "vajillas";
+  if (/\b(vajillas?|loza|manteler[ií]a|cubiertos?)\b/i.test(t10)) return "vajillas";
   if (/\b(entelados?)\b/i.test(t10)) return "entelados";
   if (/\b(colgantes?)\b/i.test(t10)) return "colgantes";
   if (/\bsillas?\b/i.test(t10)) return "sillas";
@@ -132216,6 +132264,7 @@ function clientWantsServiceDetail(text2, history) {
 function detectProgressiveFamily(text2) {
   const t10 = text2?.trim() ?? "";
   if (!t10) return null;
+  if (isTablewareRequestText(t10)) return "mobiliario";
   const matches = FAMILIES.filter((fam) => fam.familyPattern.test(t10));
   if (!matches.length) return null;
   if (matches.length === 1) return matches[0].family;
@@ -132573,7 +132622,9 @@ var init_serviceProgressiveOffer = __esm({
         detailQueryFromText: (text2) => {
           if (/carrito/i.test(text2)) return "Carrito de Snacks";
           if (/queso/i.test(text2)) return "Mesa de quesos";
-          if (/postre/i.test(text2)) return "Mesa de postres";
+          if (/postre/i.test(text2) && !/\b(plato|platos?)\s+postre\b/i.test(text2)) {
+            return "Mesa de postres";
+          }
           return "Mesa de dulces";
         },
         buildMenu: () => [
@@ -227273,7 +227324,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.48";
+var LUCY_PROMPT_VERSION = "V9.49";
 
 // src/lib/buildMeta.ts
 var cached = null;
