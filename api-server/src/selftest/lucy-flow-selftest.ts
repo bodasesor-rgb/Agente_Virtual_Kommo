@@ -147,7 +147,7 @@ import {
   clientAsksForPhotos,
 } from "../services/concreteProductQuestion.js";
 import { buildDynamicPrompt } from "../services/promptBuilder.js";
-import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, looksLikePersonFullName, clientAsksCompanyIdentity, buildCompanyIdentityReply, shouldUpdateName, resolveKommoLeadNamePatch } from "../contact-name.js";
+import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, looksLikePersonFullName, clientAsksCompanyIdentity, buildCompanyIdentityReply, shouldUpdateName, resolveKommoLeadNamePatch, isMuchoGustoNameReply } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
 import {
   resolveTipoContacto,
@@ -11177,7 +11177,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.35 — primer turno banquete: catálogo + pregunta embudo (Allison A15370) ───
   await test("133. V9.35 — banquete Torreón primer turno pide fecha/invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.48");
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -11209,7 +11209,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.36 — no cortar el chat (Isai A15378) ───
   await test("134. V9.36 — Isai: no cierra, no confunde nombre con ciudad, urgencia ≠ teléfono", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.48");
     assert.equal(parseZonaFromText("Isai Moreno"), null);
     assert.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -11336,7 +11336,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.48");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
@@ -11413,7 +11413,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("135. V9.38 — comprobante en imagen: primer pago Anticipo, segundo Liquidación", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.48");
     assert.equal(FIELD_ANTICIPO, 1049322);
     assert.equal(FIELD_LIQUIDACION, 1049324);
 
@@ -11485,7 +11485,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("136. V9.40 — A15380 invitados no se saltan; Coyoacán+colonia; Claro no es nombre", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.48");
     const horario = "hola si se haría el 26 de septiembre pero aún no tenemos definido el horario";
     assert.equal(parseInvitadosFromText(horario), null, "horario pendiente ≠ invitados");
     const caps = scanConversationForCaptures([], horario, new Set(["Nombre del cliente"]));
@@ -11598,7 +11598,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("138. V9.41 — A15383 Kelia: ciudad, banquetes, LED≠luz, no spam (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.48");
 
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert.match(hornoMty, /horno\s*3/i, hornoMty);
@@ -11750,7 +11750,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.42 — A15391 Mariana: Coffee Break 4, "4. nombre", handoff, horario ≠ menú ───
   await test("139. V9.42 — A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.48");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -11845,7 +11845,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("140. V9.43 — detalle de un producto no re-lista el menú (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.48");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -11889,7 +11889,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.44 — A15443 Rosario: reunión≠XV, hora comida≠ubicación, no cierra sin ciudad ───
   await test("141. V9.44 — A15443 Rosario: reunión, hora comida, ciudad obligatoria", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.48");
 
     assert.equal(parseTipoEventoFromText("una reunión de 15 años"), "reunión");
     assert.ok(clientSaidReunionNotXv("una reunión de 15 años"));
@@ -12014,7 +12014,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.45 — A15419 Stephanie: fecha≠frase, horario≠día, silent-watch limpio ───
   await test("142. V9.45 — A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.48");
 
     assert.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
@@ -12100,9 +12100,9 @@ async function runAll(): Promise<void> {
     assert.ok(!/ya tengo todo/i.test(clockReply));
   });
 
-  // ─── V9.47 — imágenes: responder solo en embudo; post–Humano Trabaja lee pero no WhatsApp ───
-  await test("143. V9.47 — imagen solo embudo; silencio lee depósito sin WhatsApp", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
+  // ─── V9.48 — imágenes: responder solo en embudo; post–Humano Trabaja lee pero no WhatsApp ───
+  await test("143. V9.48 — imagen solo embudo; silencio lee depósito sin WhatsApp", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.48");
     assert.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
     assert.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
     assert.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
@@ -12148,9 +12148,9 @@ async function runAll(): Promise<void> {
     assert.ok(/sin WhatsApp al cliente|leída en silencio/i.test(kommoSrc));
   });
 
-  // ─── V9.47 — A15478 Isabel: recomendación de medidas según invitados ───
-  await test("144. V9.47 — A15478 Isabel: recomienda tamaño pista según invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.47");
+  // ─── V9.48 — A15478 Isabel: recomendación de medidas según invitados ───
+  await test("144. V9.48 — A15478 Isabel: recomienda tamaño pista según invitados", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.48");
     const ask =
       "Me puedes recomendar el tamaño pensando en la cantidad de invitados?";
     assert.ok(clientAsksDimensionRecommendation(ask));
@@ -12225,6 +12225,45 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/6m|8m|referencia|medidas/i.test(anti.mensaje), anti.mensaje);
     assert.ok(!/ya tengo lo principal/i.test(anti.mensaje), anti.mensaje);
+  });
+
+  // ─── V9.48 — A15494 Paola: "mucho gusto" no es apellido ───
+  await test("146. V9.48 — A15494 Paola: mucho gusto no es apellido", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.48");
+    const reply = "Paola mucho gusto";
+    assert.ok(isMuchoGustoNameReply(reply));
+    assert.equal(sanitizeCrmNombre(reply), "Paola");
+    assert.equal(sanitizeCrmNombre("Paola Mucho Gusto"), "Paola");
+    assert.equal(sanitizeDisplayName("Paola Mucho Gusto"), "Paola");
+    assert.ok(!looksLikePersonFullName("Paola mucho gusto"));
+
+    assert.equal(
+      recoverClienteNombreFromHistory(
+        [
+          { role: "assistant", content: "¿Me regalas tu nombre?" },
+          { role: "user", content: reply },
+        ],
+        reply
+      ),
+      "Paola"
+    );
+
+    assert.equal(resolveKommoLeadNamePatch("Paola Mucho Gusto", "Paola"), "Paola");
+    assert.equal(resolveKommoLeadNamePatch("Paola", "Paola Mucho Gusto"), null);
+    assert.equal(pickBetterNombre("Paola Mucho Gusto", "Paola"), "Paola");
+
+    const guarded = runGuards({
+      aiResponse: "¡Mucho gusto, Paola Mucho Gusto! ¿Qué van a celebrar?",
+      extracted: emptyExtracted(),
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage: reply,
+      history: [
+        { role: "assistant", content: "¿Me regalas tu nombre?" },
+      ],
+    });
+    assert.ok(/mucho gusto,\s*Paola[^M]/i.test(guarded), guarded);
+    assert.ok(!/Mucho Gusto!/i.test(guarded.replace(/mucho gusto,\s*Paola/i, "")), guarded);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

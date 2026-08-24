@@ -33,6 +33,29 @@ const COMPANY_OR_CHANNEL_PATTERN =
 const BOT_OR_META_NAME_TOKEN =
   /^(lucy|llamo|llam[oó]|bodasesor|capybara|salesbot)$/i;
 
+/** Saludos de cortesía que NO son apellido (A15494: "Paola mucho gusto"). */
+const COURTESY_NAME_TOKEN =
+  /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto)$/i;
+
+const MUCHO_GUSTO_SUFFIX = /\s+mucho\s+gusto\b/gi;
+const MUCHO_GUSTO_LEADING = /^mucho\s+gusto,?\s+/i;
+
+/** Cliente responde al saludo con su nombre + "mucho gusto" (no es apellido). */
+export function isMuchoGustoNameReply(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  return /^(?:soy\s+|me\s+llamo\s+)?[A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{0,30}(?:\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{0,30})?\s+mucho\s+gusto\s*[.!]?\s*$/i.test(
+    t
+  );
+}
+
+function stripMuchoGustoSalutation(raw: string): string {
+  let out = raw.trim();
+  out = out.replace(MUCHO_GUSTO_LEADING, "").trim();
+  out = out.replace(MUCHO_GUSTO_SUFFIX, "").trim();
+  return out;
+}
+
 /** Quejas de repetición — nunca son nombre (A15164: "Ya te lo dije 3 veces"). */
 function isRepeatComplaintAsName(text: string): boolean {
   return (
@@ -137,6 +160,7 @@ export function looksLikePersonFullName(text: string | null | undefined): boolea
   if (!t) return false;
   const parts = t.split(/\s+/);
   if (parts.length < 2 || parts.length > 5) return false;
+  if (/\bmucho\s+gusto\b/i.test(t)) return false;
   return parts.every((part) => {
     const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     if (NAME_STOPWORDS.test(letters)) return false;
@@ -171,6 +195,7 @@ export function isLikelyNotPersonNameMessage(text: string | null | undefined): b
     return true;
   }
   if (isGreetingOnlyMessage(t) || isQuoteIntentMessage(t) || isAffirmativeOnlyMessage(t)) return true;
+  if (isMuchoGustoNameReply(t)) return false;
   // A15169: "Sí mándamelo" / "mándamelo" / "envíamelo" — pedido de envío, no nombre.
   if (
     /^(s[ií][,.]?\s*)?(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)([.!?]|$)/i.test(
@@ -269,7 +294,7 @@ function stripLeadingNameFillers(name: string): string {
   return out;
 }
 export function sanitizeDisplayName(name: string | null | undefined): string | null {
-  const raw = name?.trim() ?? "";
+  const raw = stripMuchoGustoSalutation(name?.trim() ?? "");
   if (!raw || isPlaceholderLeadName(raw)) return null;
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
@@ -309,7 +334,7 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
 
 /** Nombre completo para CRM (conserva apellido cuando viene de WhatsApp/Kommo). */
 export function sanitizeCrmNombre(name: string | null | undefined): string | null {
-  const raw = name?.trim() ?? "";
+  const raw = stripMuchoGustoSalutation(name?.trim() ?? "");
   if (!raw || isPlaceholderLeadName(raw) || isQuoteIntentMessage(raw)) return null;
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
@@ -350,6 +375,7 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
         return (
           letters.length >= 2 &&
           !BOT_OR_META_NAME_TOKEN.test(letters) &&
+          !COURTESY_NAME_TOKEN.test(letters) &&
           !HANDOFF_OR_META_NAME_TOKEN.test(letters) &&
           !CATALOG_LEVEL_OR_BRAND_NAME.test(letters) &&
           !GREETING_NAME_PATTERN.test(letters) &&
@@ -401,6 +427,7 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
     const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     if (!letters) return false;
     if (BOT_OR_META_NAME_TOKEN.test(letters)) return false;
+    if (COURTESY_NAME_TOKEN.test(letters)) return false;
     if (HANDOFF_OR_META_NAME_TOKEN.test(letters)) return false;
     if (CATALOG_LEVEL_OR_BRAND_NAME.test(letters)) return false;
     if (/^(boda|xv|cumpleanos|bautizo|aniversario|graduacion|es|una|un)$/i.test(letters)) return false;
