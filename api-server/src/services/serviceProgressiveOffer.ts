@@ -897,6 +897,11 @@ export function shouldOfferOptionsBeforeDetail(opts: {
   const blob = `${msg} ${opts.serviceHint ?? ""}`.trim();
   if (!blob) return null;
 
+  // A15547: "qué incluye" → detalle del catálogo, no re-preguntar "detalles de alguno".
+  if (/\bqu[eé]\s+incluye\b|\bqu[eé]\s+trae\b|\bque\s+incluye\b/i.test(msg)) {
+    return null;
+  }
+
   // A15251: "¿incluye bebidas/meseros?" → detalle del catálogo, no menú de familia.
   // A15286: pregunta concreta (fotos/luz/capacidad/catálogo) → no menú.
   if (

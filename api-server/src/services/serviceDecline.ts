@@ -60,6 +60,95 @@ function captionOf(message?: string | null): string {
   return (clientCaptionForServiceParse(message) || message).trim();
 }
 
+/** A15550: el salón/venue ya incluye mobiliario, vajilla o mesero. */
+export function isVenueProvidesContext(message?: string | null): boolean {
+  const t = captionOf(message).toLowerCase();
+  if (!t) return false;
+  return (
+    /\b(sal[oó]n|venue|lugar|local|sitio)\b.{0,48}\b(suministra|provee|incluye|trae|cuenta\s+con|ya\s+tiene)\b/i.test(
+      t
+    ) ||
+    /\b(suministra|provee|incluye|trae|cuenta\s+con)\b.{0,72}\b(mesas?|sillas?|manteler|platos?|vasos?|meseros?|vajillas?)\b/i.test(
+      t
+    ) ||
+    /\bya\s+hay\b.{0,96}\b(mesas?|sillas?|manteler|platos?|vasos?|cubiertos?|vajillas?|meseros?)\b/i.test(
+      t
+    ) ||
+    /\b(escrib[ií]|mencion[eé]|dije|envi[eé]|informaci[oó]n\s+que\s+te\s+envi[eé])\b.{0,72}\b(ya\s+hay|suministra|incluye|manteler|mesas?|sillas?)\b/i.test(
+      t
+    )
+  );
+}
+
+/** Labels CRM a excluir cuando el salón ya los provee. */
+export function venueProvidedServiceLabels(message?: string | null): string[] {
+  const t = captionOf(message);
+  if (!t || !isVenueProvidesContext(t)) return [];
+  const out: string[] = [];
+  if (/\b(mesas?|sillas?|periqueras?|mobiliario)\b/i.test(t)) out.push("Mobiliario");
+  if (/\b(meseros?|staff\s+de\s+servicio|personal\s+de\s+servicio)\b/i.test(t)) {
+    out.push("Meseros");
+  }
+  if (
+    /\b(vajillas?|loza|platos?|vasos?|cubiertos?|cuberter[ií]a|cristaler[ií]a|manteler[ií]a)\b/i.test(
+      t
+    )
+  ) {
+    out.push("Vajillas");
+  }
+  // A15550: salón equipado (mesas/vajilla) → meseros del venue, no Bodasesor.
+  if (
+    (out.includes("Mobiliario") || out.includes("Vajillas")) &&
+    (/\bmeseros?\b/i.test(t) || /\bya\s+hay\b/i.test(t) || /\bsuministra\b/i.test(t))
+  ) {
+    out.push("Meseros");
+  }
+  return [...new Set(out)];
+}
+
+function serviceMatchesVenueLabel(serviceLabel: string, venueLabel: string): boolean {
+  const s = serviceLabel.trim();
+  const v = venueLabel.trim();
+  if (!s || !v) return false;
+  if (new RegExp(`^${v}$`, "i").test(s)) return true;
+  if (v === "Mobiliario" && /^Mobiliario$/i.test(s)) return true;
+  if (v === "Meseros" && /^Meseros$/i.test(s)) return true;
+  if (v === "Vajillas" && /^Vajillas$/i.test(s)) return true;
+  return false;
+}
+
+export function removeVenueProvidedFromRequirements(
+  existing: string | null | undefined,
+  message?: string | null
+): string | null {
+  const labels = venueProvidedServiceLabels(message);
+  if (!labels.length) return existing?.trim() || null;
+  if (!existing?.trim()) return null;
+  const parts = existing
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter((s) => !labels.some((l) => serviceMatchesVenueLabel(s, l)));
+  return parts.length ? parts.join(", ") : null;
+}
+
+export function buildVenueProvidedAck(message?: string | null): string {
+  const t = captionOf(message).toLowerCase();
+  const parts: string[] = [];
+  if (/\b(mesas?|sillas?)\b/i.test(t)) parts.push("mesas y sillas");
+  if (/\bmanteler[ií]a\b/i.test(t)) parts.push("mantelería");
+  if (/\b(platos?|vasos?|cubiertos?|vajillas?|loza)\b/i.test(t)) parts.push("vajilla y loza");
+  if (/\bmeseros?\b/i.test(t)) parts.push("mesero");
+  if (!parts.length) {
+    return "Entendido — anoto lo que el salón ya incluye; no lo sumamos a tu cotización.";
+  }
+  const list =
+    parts.length === 1
+      ? parts[0]!
+      : `${parts.slice(0, -1).join(", ")} y ${parts[parts.length - 1]}`;
+  return `Entendido — el salón ya incluye ${list}; no lo sumamos a tu cotización.`;
+}
+
 /**
  * Familias que el cliente está rechazando / pidiendo quitar en este mensaje.
  */
@@ -101,6 +190,13 @@ export function clientDeclinesServiceFamilies(
   // A15539: "DJ no", "bartender sí, DJ no", "capra sí" estilo checklist.
   if (/\bdj\s+no\b|\bno\s*,?\s*dj\b|\bdj\s*,?\s*no\b/i.test(t)) {
     out.add("entretenimiento");
+  }
+
+  // A15550: salón ya incluye mobiliario/vajilla/mesero → no es pedido de Bodasesor.
+  if (isVenueProvidesContext(t)) {
+    for (const label of venueProvidedServiceLabels(t)) {
+      if (label === "Mobiliario") out.add("mobiliario");
+    }
   }
 
   for (const family of Object.keys(FAMILY_DECLINE_WORDS) as DeclinedServiceFamily[]) {

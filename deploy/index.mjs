@@ -127690,6 +127690,67 @@ function captionOf(message) {
   if (!message?.trim()) return "";
   return (clientCaptionForServiceParse(message) || message).trim();
 }
+function isVenueProvidesContext(message) {
+  const t10 = captionOf(message).toLowerCase();
+  if (!t10) return false;
+  return /\b(sal[oó]n|venue|lugar|local|sitio)\b.{0,48}\b(suministra|provee|incluye|trae|cuenta\s+con|ya\s+tiene)\b/i.test(
+    t10
+  ) || /\b(suministra|provee|incluye|trae|cuenta\s+con)\b.{0,72}\b(mesas?|sillas?|manteler|platos?|vasos?|meseros?|vajillas?)\b/i.test(
+    t10
+  ) || /\bya\s+hay\b.{0,96}\b(mesas?|sillas?|manteler|platos?|vasos?|cubiertos?|vajillas?|meseros?)\b/i.test(
+    t10
+  ) || /\b(escrib[ií]|mencion[eé]|dije|envi[eé]|informaci[oó]n\s+que\s+te\s+envi[eé])\b.{0,72}\b(ya\s+hay|suministra|incluye|manteler|mesas?|sillas?)\b/i.test(
+    t10
+  );
+}
+function venueProvidedServiceLabels(message) {
+  const t10 = captionOf(message);
+  if (!t10 || !isVenueProvidesContext(t10)) return [];
+  const out2 = [];
+  if (/\b(mesas?|sillas?|periqueras?|mobiliario)\b/i.test(t10)) out2.push("Mobiliario");
+  if (/\b(meseros?|staff\s+de\s+servicio|personal\s+de\s+servicio)\b/i.test(t10)) {
+    out2.push("Meseros");
+  }
+  if (/\b(vajillas?|loza|platos?|vasos?|cubiertos?|cuberter[ií]a|cristaler[ií]a|manteler[ií]a)\b/i.test(
+    t10
+  )) {
+    out2.push("Vajillas");
+  }
+  if ((out2.includes("Mobiliario") || out2.includes("Vajillas")) && (/\bmeseros?\b/i.test(t10) || /\bya\s+hay\b/i.test(t10) || /\bsuministra\b/i.test(t10))) {
+    out2.push("Meseros");
+  }
+  return [...new Set(out2)];
+}
+function serviceMatchesVenueLabel(serviceLabel, venueLabel) {
+  const s10 = serviceLabel.trim();
+  const v10 = venueLabel.trim();
+  if (!s10 || !v10) return false;
+  if (new RegExp(`^${v10}$`, "i").test(s10)) return true;
+  if (v10 === "Mobiliario" && /^Mobiliario$/i.test(s10)) return true;
+  if (v10 === "Meseros" && /^Meseros$/i.test(s10)) return true;
+  if (v10 === "Vajillas" && /^Vajillas$/i.test(s10)) return true;
+  return false;
+}
+function removeVenueProvidedFromRequirements(existing, message) {
+  const labels = venueProvidedServiceLabels(message);
+  if (!labels.length) return existing?.trim() || null;
+  if (!existing?.trim()) return null;
+  const parts2 = existing.split(",").map((s10) => s10.trim()).filter(Boolean).filter((s10) => !labels.some((l10) => serviceMatchesVenueLabel(s10, l10)));
+  return parts2.length ? parts2.join(", ") : null;
+}
+function buildVenueProvidedAck(message) {
+  const t10 = captionOf(message).toLowerCase();
+  const parts2 = [];
+  if (/\b(mesas?|sillas?)\b/i.test(t10)) parts2.push("mesas y sillas");
+  if (/\bmanteler[ií]a\b/i.test(t10)) parts2.push("manteler\xEDa");
+  if (/\b(platos?|vasos?|cubiertos?|vajillas?|loza)\b/i.test(t10)) parts2.push("vajilla y loza");
+  if (/\bmeseros?\b/i.test(t10)) parts2.push("mesero");
+  if (!parts2.length) {
+    return "Entendido \u2014 anoto lo que el sal\xF3n ya incluye; no lo sumamos a tu cotizaci\xF3n.";
+  }
+  const list = parts2.length === 1 ? parts2[0] : `${parts2.slice(0, -1).join(", ")} y ${parts2[parts2.length - 1]}`;
+  return `Entendido \u2014 el sal\xF3n ya incluye ${list}; no lo sumamos a tu cotizaci\xF3n.`;
+}
 function clientDeclinesServiceFamilies(message) {
   const t10 = captionOf(message).toLowerCase();
   if (!t10) return [];
@@ -127708,6 +127769,11 @@ function clientDeclinesServiceFamilies(message) {
   }
   if (/\bdj\s+no\b|\bno\s*,?\s*dj\b|\bdj\s*,?\s*no\b/i.test(t10)) {
     out2.add("entretenimiento");
+  }
+  if (isVenueProvidesContext(t10)) {
+    for (const label of venueProvidedServiceLabels(t10)) {
+      if (label === "Mobiliario") out2.add("mobiliario");
+    }
   }
   for (const family of Object.keys(FAMILY_DECLINE_WORDS)) {
     if (family === "mobiliario" && isMesaDulcesDeclinePhrase(t10)) continue;
@@ -128477,6 +128543,11 @@ function clientDeclinesMoreServices(message) {
   return /^(no|nop)[\s.,!]*$/i.test(t10) || /\bsolo\s+(con\s+)?eso\b/i.test(t10) || /\bsolo\s+ese\b/i.test(t10) || /\bsolamente\s+eso\b/i.test(t10) || /\bnada\s+m[aá]s\b/i.test(t10) || /\bno\s+quiero\s+nada\s+m[aá]s\b/i.test(t10) || /\bno\s+quiero\s+(nada\s+)?m[aá]s\b/i.test(t10) || /\bning[uú]n[a]?\b/i.test(t10) || /\bning[uú]n\s+otro\b/i.test(t10) || /\bninguno\s+de\s+(esos|ellos|estos)\b/i.test(t10) || /\bno[.\s,¡!]+gracias\b/i.test(t10) || /\bno\s+gracias\b/i.test(t10) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t10) || /\beso\s+es\s+todo\b/i.test(t10) || /\bes\s+todo\b/i.test(t10) || /\bya\s+no\b/i.test(t10) || /\bno\s+m[aá]s\b/i.test(t10) || /\blisto\s+as[ií]\b/i.test(t10) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t10) || /\bno\s+me\s+interesa\b/i.test(t10) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t10) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t10) || /\bpor\s+ahora\s+no\b/i.test(t10) || // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
   /\bsolo\s+quiero\b/i.test(t10) && !/\bcomida\b|\bcotiz/i.test(t10) || /\bquiero\s+solo\b/i.test(t10) && !/\bcomida\b|\bcotiz/i.test(t10);
 }
+function clientSoftDeclinesLead(message) {
+  if (!message?.trim()) return false;
+  const t10 = message.trim().toLowerCase();
+  return /\bme\s+pongo\s+en\s+contacto\b/i.test(t10) || /\bsi\s+(?:nos|me)\s+interesa\b/i.test(t10) || /\bcuando\s+(?:nos|me)\s+interese\b/i.test(t10) || /\blo\s+evalu(o|amos|ar[eé])\b/i.test(t10) || /\bpor\s+ahora\b/i.test(t10) && /\bgracias\b/i.test(t10);
+}
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
   const t10 = message.toLowerCase();
@@ -129147,8 +129218,16 @@ function parseServicesFromText(text2) {
   if (/\b(alimentos?|comidas?)\b/i.test(text2) && !clientAsksCafeOrCateringChoice(text2) && !declined.includes("alimentos") && !found.some((s10) => /alimento|banquete|taquiza|catering|comida|barra\s+de\s+alimentos/i.test(s10))) {
     found.push("Alimentos");
   }
-  const filtered = declined.length > 0 ? found.filter((s10) => !serviceIsDeclined(s10, declined)) : found;
-  if (isTablewareRequestText(text2)) {
+  let filtered = declined.length > 0 ? found.filter((s10) => !serviceIsDeclined(s10, declined)) : found;
+  if (isVenueProvidesContext(text2)) {
+    const venueExclude = venueProvidedServiceLabels(text2);
+    if (venueExclude.length) {
+      filtered = filtered.filter(
+        (s10) => !venueExclude.some((ex2) => new RegExp(`^${ex2}$`, "i").test(s10.trim()))
+      );
+    }
+  }
+  if (isTablewareRequestText(text2) && !isVenueProvidesContext(text2)) {
     const withoutDulces = filtered.filter(
       (s10) => !/mesa\s+de\s+(postres?|dulces?|quesos?)/i.test(s10)
     );
@@ -129303,7 +129382,9 @@ function mergeServiceRequirements(existing, text2, max = 6) {
     }
     return null;
   }
-  return merged.join(", ");
+  const joined = merged.join(", ");
+  const blob = `${existingClean ?? ""} ${text2 ?? ""}`.trim();
+  return removeVenueProvidedFromRequirements(joined, blob) ?? joined;
 }
 function buildMultiServiceAck(services) {
   const list = formatServicesList(services);
@@ -131104,7 +131185,7 @@ var init_conversation_understanding = __esm({
       // A15210: bare "mexicano" en "desayuno temático mexicano" ≠ Banquete Mexicano.
       // Banquete: "banquete mexicano", "mexicano N tiempos", o "mexicano" suelto (elección de menú).
       ["Banquete Mexicano", /\bbanquete\s+mexicano\b|\bmexicano\s+\d\s*tiempos?\b|\b\d\s*tiempos?\s+mexicanos?\b/i],
-      ["Banquete Formal", /\b(banquete\s+formal|banquetes?)\b/i],
+      ["Banquete Formal", /\b(banquete\s+formal|banquetes?|bufet\b|buffet\b)\b/i],
       // Barras específicas ANTES de genéricas (A14934 Barra Yucateca).
       ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
       // "americano" (bebida) ≠ Barra Americana (A14970).
@@ -132631,6 +132712,9 @@ function shouldOfferOptionsBeforeDetail(opts) {
   const msg = opts.currentMessage?.trim() ?? "";
   const blob = `${msg} ${opts.serviceHint ?? ""}`.trim();
   if (!blob) return null;
+  if (/\bqu[eé]\s+incluye\b|\bqu[eé]\s+trae\b|\bque\s+incluye\b/i.test(msg)) {
+    return null;
+  }
   if (/\b(incluye|inclue|incluyen|trae|tiene|tienen|viene|vienen)\b.{0,48}\b(bebidas?|refrescos?|meseros?|vajilla|cristaler[ií]a|alcohol|montaje|chef)\b/i.test(
     msg
   ) || /\bsi\b.{0,40}\bincluye\b.{0,40}\b(bebidas?|meseros?|vajilla)\b/i.test(msg) || clientAsksForCatalog(msg) || /\b(fotos?|fotograf|iluminaci|cuenta\s+con\s+luz|mesas?\s+por\s+carpa|c+t?a+l+[oó]+g+)/i.test(
@@ -134157,7 +134241,20 @@ function queryWantsCompletoMode(q10) {
 function queryWantsSpecificCompletoNivel(q10) {
   return /\b(b[aá]sic[oa]?|tradicional|premium)\b/i.test(q10);
 }
-function buildSoloVsCompletoModeAnswer(svc, rows) {
+function buildSoloVsCompletoModeAnswer(svc, _rows) {
+  return withCatalogOfferQuestion(
+    [
+      `Para *${svc}* tenemos dos caminos:`,
+      "",
+      "1. *Solo alimentos* (solo la comida)",
+      "2. *Servicio completo* (incluye bebidas, mobiliario y meseros)",
+      "",
+      "\xBFCu\xE1l te late m\xE1s?"
+    ].join("\n"),
+    svc
+  );
+}
+function buildSoloVsCompletoModeAnswerWithPrices(svc, rows) {
   const soloRow = findNivelRow(rows, /solo\s+alimentos/i);
   const basicoRow = findNivelRow(rows, /\bb[aá]sic/i) || rows.filter((r10) => isCompletoPackageNivelLabel(extractNivelLabel(r10))).sort((a10, b10) => {
     const pa2 = parseFloat((a10.precio ?? "").replace(/[^\d.]/g, "")) || 0;
@@ -134183,14 +134280,14 @@ function buildCompletoNivelesTeaser(svc, rows) {
   const pretty = completo.slice(0, 3).map((n10) => `*${n10.replace(/^Basico$/i, "B\xE1sico")}*`).join(", ");
   const basicoRow = findNivelRow(rows, /\bb[aá]sic/i);
   const desde = formatRowPriceShort(basicoRow);
-  const desdeBit = desde ? ` Arrancan desde ${desde}.` : "";
   return withCatalogOfferQuestion(
     [
       `Perfecto. En *servicio completo* de *${svc}* manejamos ${Math.min(completo.length, 3)} niveles (${pretty}).`,
-      `Lo que cambia entre uno y otro es el nivel de montaje, la cantidad de meseros, la decoraci\xF3n y las bebidas.${desdeBit}`,
+      "Lo que cambia entre uno y otro es el nivel de montaje, la cantidad de meseros, la decoraci\xF3n y las bebidas.",
+      clientAsksPrice(`${svc} servicio completo`) && desde ? ` Arrancan desde ${desde}.` : "",
       "",
       SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n"),
+    ].filter(Boolean).join("\n"),
     svc
   );
 }
@@ -134212,6 +134309,24 @@ function buildSoloVsCompletoOfferIfApplicable(query) {
     return buildCompletoNivelesTeaser(svc, rows);
   }
   return buildSoloVsCompletoModeAnswer(svc, rows);
+}
+function stripUnrequestedSoloCompletoPrices(text2, opts) {
+  if (!text2?.trim()) return text2;
+  const msg = opts?.currentMessage ?? "";
+  if (clientAsksPrice(msg) || clientAsksPrice(text2)) return text2;
+  if (!/tenemos dos caminos/i.test(text2) || !/\$\s*\d/.test(text2)) return text2;
+  if (!/1\.\s*\*?Solo alimentos/i.test(text2) || !/2\.\s*\*?Servicio completo/i.test(text2)) {
+    return text2;
+  }
+  const hint = opts?.serviceHint?.trim();
+  if (!hint) return text2;
+  const infoOnly = buildSoloVsCompletoOfferIfApplicable(hint);
+  if (!infoOnly || /\$\s*\d/.test(infoOnly)) return text2;
+  const replaced = text2.replace(
+    /Para\s+\*[^*]+\*\s+tenemos dos caminos:[\s\S]*?¿Cu[aá]l te late m[aá]s\??/i,
+    infoOnly.trim()
+  );
+  return replaced !== text2 ? replaced.replace(/\s{2,}/g, " ").trim() : text2;
 }
 function messageOffersLevelsWithoutInclusions(text2) {
   if (!text2?.trim()) return false;
@@ -134828,7 +134943,7 @@ function buildCatalogPriceAnswer(query) {
         if (queryWantsCompletoMode(query)) {
           return withLink(buildCompletoNivelesTeaser(baseName2, unique2));
         }
-        return withLink(buildSoloVsCompletoModeAnswer(baseName2, unique2));
+        return withLink(buildSoloVsCompletoModeAnswerWithPrices(baseName2, unique2));
       }
       const priceLines2 = unique2.slice(0, 6).map((row) => {
         const parsed = parseRowNotes(row.notas);
@@ -134861,7 +134976,7 @@ ${priceLines2}${inclusionBlock2}
     if (queryWantsCompletoMode(query)) {
       return withLink(buildCompletoNivelesTeaser(baseName, unique));
     }
-    return withLink(buildSoloVsCompletoModeAnswer(baseName, unique));
+    return withLink(buildSoloVsCompletoModeAnswerWithPrices(baseName, unique));
   }
   const priceLines = unique.filter((r10) => r10.tienePrecio && r10.precio).slice(0, 6).map((row) => {
     const parsed = parseRowNotes(row.notas);
@@ -158741,15 +158856,21 @@ Cat\xE1logo:
 https://bodasesor.com/catalogos/coffee-break`;
         }
       } else {
-        const station = resolveSoloVsCompletoStationLabel(
-          currentMessage,
-          optionsFirst.family
-        ) || resolveSoloVsCompletoStationLabel(
-          mentionedService || serviceLabel || crmService,
-          optionsFirst.family
-        );
-        const sheetMode = station ? buildSoloVsCompletoOfferIfApplicable(station) : null;
-        if (sheetMode) menu = sheetMode;
+        if (!/bodasesor\.com\/catalogos/i.test(menu)) {
+          const station = resolveSoloVsCompletoStationLabel(
+            currentMessage,
+            optionsFirst.family
+          ) || resolveSoloVsCompletoStationLabel(
+            mentionedService || serviceLabel || crmService,
+            optionsFirst.family
+          );
+          const webUrl = station && getCatalogWebUrlForQuery(station) || getCatalogWebUrlForQuery(serviceLabel ?? "") || null;
+          if (webUrl && !menu.includes(webUrl)) {
+            menu = `${menu}
+
+Cat\xE1logo: ${webUrl}`;
+          }
+        }
       }
       return appendNext(`${pickTransition(history)} ${menu}`.trim(), serviceLabel);
     }
@@ -159165,10 +159286,7 @@ ${buildPackageCatalogOfferBlock(multiServices, userText)}` : vagueFoodFirst ? `
 
 ${buildAlimentosModoMenu()}` : progressiveFirst ? `
 
-${(() => {
-    const station = resolveSoloVsCompletoStationLabel(svcHint ?? "", progressiveFirst.family) || resolveSoloVsCompletoStationLabel(svcHint ?? "");
-    return (station ? buildSoloVsCompletoOfferIfApplicable(station) : null) || progressiveFirst.menu;
-  })()}` : sheetDetail ? `
+${progressiveFirst.menu}` : sheetDetail ? `
 
 ${sheetDetail}` : "";
   if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
@@ -159945,6 +160063,10 @@ function buildPostCierreThanksReply(clientName) {
   const nombre = sanitizeDisplayName(clientName);
   return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
 }
+function buildSoftLeadDeclineReply(clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  return nombre ? `Perfecto, ${nombre}. Quedo a tu disposici\xF3n por si decides avanzar con nosotros. \xA1Que tengas un excelente d\xEDa!` : "Perfecto. Quedo a tu disposici\xF3n por si decides avanzar con nosotros. \xA1Que tengas un excelente d\xEDa!";
+}
 function buildPostCierrePaymentHandoffReply(clientName) {
   const nombre = sanitizeDisplayName(clientName);
   const hi2 = nombre ? `${nombre}, ` : "";
@@ -160067,9 +160189,14 @@ function buildDeferredKnownServiceOffer(opts) {
     serviceHint: svc
   });
   if (optionsFirst) {
+    let menu = optionsFirst.menu;
     const station = resolveSoloVsCompletoStationLabel(svc, optionsFirst.family) || resolveSoloVsCompletoStationLabel(svc);
-    const sheetMode = station ? buildSoloVsCompletoOfferIfApplicable(station) : null;
-    const menu = sheetMode || optionsFirst.menu;
+    const webUrl = station && getCatalogWebUrlForQuery(station) || getCatalogWebUrlForQuery(svc) || null;
+    if (webUrl && !/bodasesor\.com\/catalogos/i.test(menu) && !menu.includes(webUrl)) {
+      menu = `${menu}
+
+Cat\xE1logo: ${webUrl}`;
+    }
     let body3 = `${intro} ${menu}`.trim();
     const pending2 = getNextPendingField(extracted, filledSet);
     if (pending2 && pending2 !== "requerimientos" && pending2 !== "nombre") {
@@ -161033,6 +161160,35 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
     log?.info({ entityId }, "GUARD: A15539 \u2014 carpa? mid-flujo");
     return normalizeAdvisorReferences(body2, display);
   }
+  if (!cierreYaEnviado && currentMessage?.trim() && isVenueProvidesContext(currentMessage)) {
+    const venueLabels = venueProvidedServiceLabels(currentMessage);
+    if (venueLabels.length > 0) {
+      const before = extracted.requerimientos_evento;
+      extracted.requerimientos_evento = removeVenueProvidedFromRequirements(
+        extracted.requerimientos_evento,
+        currentMessage
+      );
+      const mergedVenue = removeVenueProvidedFromRequirements(
+        mergeServiceRequirements(
+          extracted.requerimientos_evento,
+          clientCaptionForServiceParse(currentMessage) || currentMessage,
+          6
+        ),
+        currentMessage
+      );
+      extracted.requerimientos_evento = mergedVenue;
+      if (mergedVenue) filledSet.add("Requerimientos o servicios");
+      else filledSet.delete("Requerimientos o servicios");
+      const ack = buildVenueProvidedAck(currentMessage);
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : pending === "requerimientos" ? "\xBFQu\xE9 servicios te gustar\xEDa que coticemos para tu evento?" : null;
+      log?.info({ entityId, venueLabels, before }, "GUARD: A15550 \u2014 sal\xF3n ya incluye (return temprano)");
+      return normalizeAdvisorReferences(
+        nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
   {
     const recentUserForDecline = collectUserTexts(presHistory, void 0).slice(-4);
     const declineFamilies = clientDeclinesServiceFamiliesWithContext(
@@ -161395,6 +161551,12 @@ Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
     mensaje = buildPostCierrePaymentHandoffReply(extracted.nombre);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: A15016 \u2014 post-cierre pago/anticipo \u2192 equipo");
+  } else if (clientSoftDeclinesLead(currentMessage)) {
+    mensaje = buildSoftLeadDeclineReply(
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A15547 \u2014 cliente pospone; cierre amable sin correo");
   } else if (clientAsksForHumanAdvisor(currentMessage)) {
     mensaje = buildHumanAdvisorHandoffAnswer(extracted.nombre);
     appliedDirectReply = true;
@@ -163503,6 +163665,10 @@ ${buildNaturalQuestion(pending, ctx)}` : ack;
       log?.info({ entityId, label }, "GUARD: A15443 \u2014 reuni\xF3n de N a\xF1os \u2260 XV");
     }
   }
+  mensaje = stripUnrequestedSoloCompletoPrices(mensaje, {
+    serviceHint: extracted.requerimientos_evento?.trim() || parsePrimaryService(currentMessage ?? "") || findMentionedService(currentMessage ?? ""),
+    currentMessage
+  });
   if (/tenemos dos caminos/i.test(mensaje) && /1\.\s*\*?Solo alimentos/i.test(mensaje) && !/2\.\s*\*?Servicio completo/i.test(mensaje)) {
     const svcHint = extracted.requerimientos_evento?.trim() || (currentMessage ? resolveDetailQueryForFamily("banquete", currentMessage) : null) || "Banquete Formal 3 tiempos";
     const full = buildSoloVsCompletoOfferIfApplicable(svcHint);
@@ -227969,7 +228135,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.55";
+var LUCY_PROMPT_VERSION = "V9.57";
 
 // src/lib/buildMeta.ts
 var cached = null;

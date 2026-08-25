@@ -19,10 +19,13 @@ import { filterClientEmail } from "./client-email.js";
 import { getAdvisorName, LEGACY_ADVISOR_NAMES } from "./lib/bodasesorAdvisor.js";
 import {
   clientDeclinesServiceFamilies,
+  isVenueProvidesContext,
   looksLikeThemeColorNotLocation,
   removeDeclinedFamiliesFromRequirements,
+  removeVenueProvidedFromRequirements,
   serviceIsDeclined,
   stripThemeColorsFromZona,
+  venueProvidedServiceLabels,
 } from "./services/serviceDecline.js";
 import { composeEventLocation } from "./services/geoResolve.js";
 
@@ -73,7 +76,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   // A15210: bare "mexicano" en "desayuno temático mexicano" ≠ Banquete Mexicano.
   // Banquete: "banquete mexicano", "mexicano N tiempos", o "mexicano" suelto (elección de menú).
   ["Banquete Mexicano", /\bbanquete\s+mexicano\b|\bmexicano\s+\d\s*tiempos?\b|\b\d\s*tiempos?\s+mexicanos?\b/i],
-  ["Banquete Formal", /\b(banquete\s+formal|banquetes?)\b/i],
+  ["Banquete Formal", /\b(banquete\s+formal|banquetes?|bufet\b|buffet\b)\b/i],
   // Barras específicas ANTES de genéricas (A14934 Barra Yucateca).
   ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
   // "americano" (bebida) ≠ Barra Americana (A14970).
@@ -1192,6 +1195,19 @@ export function clientDeclinesMoreServices(message?: string | null): boolean {
     // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
     (/\bsolo\s+quiero\b/i.test(t) && !/\bcomida\b|\bcotiz/i.test(t)) ||
     (/\bquiero\s+solo\b/i.test(t) && !/\bcomida\b|\bcotiz/i.test(t))
+  );
+}
+
+/** Cliente pospone o declina suavemente (volverá si le interesa). A15547 Marisol. */
+export function clientSoftDeclinesLead(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim().toLowerCase();
+  return (
+    /\bme\s+pongo\s+en\s+contacto\b/i.test(t) ||
+    /\bsi\s+(?:nos|me)\s+interesa\b/i.test(t) ||
+    /\bcuando\s+(?:nos|me)\s+interese\b/i.test(t) ||
+    /\blo\s+evalu(o|amos|ar[eé])\b/i.test(t) ||
+    (/\bpor\s+ahora\b/i.test(t) && /\bgracias\b/i.test(t))
   );
 }
 
@@ -2442,12 +2458,22 @@ export function parseServicesFromText(text: string): string[] {
     found.push("Alimentos");
   }
 
-  const filtered =
+  let filtered =
     declined.length > 0
       ? found.filter((s) => !serviceIsDeclined(s, declined))
       : found;
 
-  if (isTablewareRequestText(text)) {
+  // A15550: salón ya incluye mesas/vajilla/mesero → no parsear como pedido.
+  if (isVenueProvidesContext(text)) {
+    const venueExclude = venueProvidedServiceLabels(text);
+    if (venueExclude.length) {
+      filtered = filtered.filter(
+        (s) => !venueExclude.some((ex) => new RegExp(`^${ex}$`, "i").test(s.trim()))
+      );
+    }
+  }
+
+  if (isTablewareRequestText(text) && !isVenueProvidesContext(text)) {
     const withoutDulces = filtered.filter(
       (s) => !/mesa\s+de\s+(postres?|dulces?|quesos?)/i.test(s)
     );
@@ -2666,7 +2692,6 @@ export function mergeServiceRequirements(
     if (declined.length > 0) {
       return existingClean?.trim() || null;
     }
-    // Nunca degradar a intención de cotización / saludo (A14924: "Quiero hacer una cotizacion").
     const fallback = existingClean?.trim() || text?.trim() || "";
     if (!fallback) return null;
     if (
@@ -2682,7 +2707,9 @@ export function mergeServiceRequirements(
     }
     return null;
   }
-  return merged.join(", ");
+  const joined = merged.join(", ");
+  const blob = `${existingClean ?? ""} ${text ?? ""}`.trim();
+  return removeVenueProvidedFromRequirements(joined, blob) ?? joined;
 }
 
 /** Ack cuando el cliente pidió varios servicios en un brief. */

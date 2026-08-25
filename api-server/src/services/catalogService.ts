@@ -1044,8 +1044,26 @@ function queryWantsSpecificCompletoNivel(q: string): boolean {
   return /\b(b[aá]sic[oa]?|tradicional|premium)\b/i.test(q);
 }
 
-/** Menú corto: solo alimentos (precio) vs servicio completo (desde Básico). */
+/** Menú corto: solo alimentos vs servicio completo SIN precios (información primero). */
 export function buildSoloVsCompletoModeAnswer(
+  svc: string,
+  _rows: SheetCatalogRow[]
+): string {
+  return withCatalogOfferQuestion(
+    [
+      `Para *${svc}* tenemos dos caminos:`,
+      "",
+      "1. *Solo alimentos* (solo la comida)",
+      "2. *Servicio completo* (incluye bebidas, mobiliario y meseros)",
+      "",
+      "¿Cuál te late más?",
+    ].join("\n"),
+    svc
+  );
+}
+
+/** Mismo menú pero CON precios del Sheet — solo cuando el cliente pide precio/cotización. */
+export function buildSoloVsCompletoModeAnswerWithPrices(
   svc: string,
   rows: SheetCatalogRow[]
 ): string {
@@ -1087,15 +1105,19 @@ export function buildCompletoNivelesTeaser(
     .join(", ");
   const basicoRow = findNivelRow(rows, /\bb[aá]sic/i);
   const desde = formatRowPriceShort(basicoRow);
-  const desdeBit = desde ? ` Arrancan desde ${desde}.` : "";
 
   return withCatalogOfferQuestion(
     [
       `Perfecto. En *servicio completo* de *${svc}* manejamos ${Math.min(completo.length, 3)} niveles (${pretty}).`,
-      `Lo que cambia entre uno y otro es el nivel de montaje, la cantidad de meseros, la decoración y las bebidas.${desdeBit}`,
+      "Lo que cambia entre uno y otro es el nivel de montaje, la cantidad de meseros, la decoración y las bebidas.",
+      clientAsksPrice(`${svc} servicio completo`) && desde
+        ? ` Arrancan desde ${desde}.`
+        : "",
       "",
       SERVICE_NIVEL_DETAIL_CTA,
-    ].join("\n"),
+    ]
+      .filter(Boolean)
+      .join("\n"),
     svc
   );
 }
@@ -1127,6 +1149,34 @@ export function buildSoloVsCompletoOfferIfApplicable(query: string): string | nu
     return buildCompletoNivelesTeaser(svc, rows);
   }
   return buildSoloVsCompletoModeAnswer(svc, rows);
+}
+
+/** V9.56 / A15547: menú solo/completo con $ → info sin precios (salvo que pidan cotización). */
+export function stripUnrequestedSoloCompletoPrices(
+  text: string,
+  opts?: { serviceHint?: string | null; currentMessage?: string | null }
+): string {
+  if (!text?.trim()) return text;
+  const msg = opts?.currentMessage ?? "";
+  if (clientAsksPrice(msg) || clientAsksPrice(text)) return text;
+  if (!/tenemos dos caminos/i.test(text) || !/\$\s*\d/.test(text)) return text;
+  if (
+    !/1\.\s*\*?Solo alimentos/i.test(text) ||
+    !/2\.\s*\*?Servicio completo/i.test(text)
+  ) {
+    return text;
+  }
+
+  const hint = opts?.serviceHint?.trim();
+  if (!hint) return text;
+  const infoOnly = buildSoloVsCompletoOfferIfApplicable(hint);
+  if (!infoOnly || /\$\s*\d/.test(infoOnly)) return text;
+
+  const replaced = text.replace(
+    /Para\s+\*[^*]+\*\s+tenemos dos caminos:[\s\S]*?¿Cu[aá]l te late m[aá]s\??/i,
+    infoOnly.trim()
+  );
+  return replaced !== text ? replaced.replace(/\s{2,}/g, " ").trim() : text;
 }
 
 /** Detecta oferta de niveles solo con nombres/precios (sin explicar Incluye). */
@@ -2054,7 +2104,7 @@ export function buildCatalogPriceAnswer(query: string): string | null {
         if (queryWantsCompletoMode(query)) {
           return withLink(buildCompletoNivelesTeaser(baseName, unique));
         }
-        return withLink(buildSoloVsCompletoModeAnswer(baseName, unique));
+        return withLink(buildSoloVsCompletoModeAnswerWithPrices(baseName, unique));
       }
       const priceLines = unique
         .slice(0, 6)
@@ -2089,7 +2139,7 @@ export function buildCatalogPriceAnswer(query: string): string | null {
     if (queryWantsCompletoMode(query)) {
       return withLink(buildCompletoNivelesTeaser(baseName, unique));
     }
-    return withLink(buildSoloVsCompletoModeAnswer(baseName, unique));
+    return withLink(buildSoloVsCompletoModeAnswerWithPrices(baseName, unique));
   }
   const priceLines = unique
     .filter((r) => r.tienePrecio && r.precio)

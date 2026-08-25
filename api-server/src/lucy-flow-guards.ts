@@ -80,6 +80,7 @@ import {
   resolveCatalogWebLink,
   toDeliverableCatalogUrl,
   buildSoloVsCompletoOfferIfApplicable,
+  stripUnrequestedSoloCompletoPrices,
 } from "./services/catalogService.js";
 import { getCatalogWebUrlForQuery } from "./services/catalogWebKnowledge.js";
 import { resolveServiceFocusFromText } from "./services/serviceSynonyms.js";
@@ -120,12 +121,16 @@ import {
 } from "./services/concreteProductQuestion.js";
 import {
   buildServiceDeclineAck,
+  buildVenueProvidedAck,
   clientDeclinesAnyService,
   clientDeclinesServiceFamilies,
   clientDeclinesServiceFamiliesWithContext,
+  isVenueProvidesContext,
   looksLikeThemeColorNotLocation,
   removeDeclinedFamiliesFromRequirements,
+  removeVenueProvidedFromRequirements,
   stripThemeColorsFromZona,
+  venueProvidedServiceLabels,
 } from "./services/serviceDecline.js";
 import {
   extractImageClientReply,
@@ -148,6 +153,7 @@ import {
   extractNumberedNivelFromLastAssistant,
   sanitizeExtractedAmbiguousNumbers,
   clientDeclinesMoreServices,
+  clientSoftDeclinesLead,
   clientWantsFoodOnlyQuote,
   dedupeServiceHierarchy,
   looksLikeConflictingFoodAlternatives,
@@ -2185,18 +2191,25 @@ function buildFoodSalesReply(
           menu = `${menu}\n\nCatálogo:\nhttps://bodasesor.com/catalogos/coffee-break`;
         }
       } else {
-        // V9.28: estaciones Solo+completo → embudo con precios del Sheet.
-        const station =
-          resolveSoloVsCompletoStationLabel(
-            currentMessage,
-            optionsFirst.family
-          ) ||
-          resolveSoloVsCompletoStationLabel(
-            mentionedService || serviceLabel || crmService,
-            optionsFirst.family
-          );
-        const sheetMode = station ? buildSoloVsCompletoOfferIfApplicable(station) : null;
-        if (sheetMode) menu = sheetMode;
+        // V9.28: catálogo web; precios solo si el cliente los pide explícitamente.
+        if (!/bodasesor\.com\/catalogos/i.test(menu)) {
+          const station =
+            resolveSoloVsCompletoStationLabel(
+              currentMessage,
+              optionsFirst.family
+            ) ||
+            resolveSoloVsCompletoStationLabel(
+              mentionedService || serviceLabel || crmService,
+              optionsFirst.family
+            );
+          const webUrl =
+            (station && getCatalogWebUrlForQuery(station)) ||
+            getCatalogWebUrlForQuery(serviceLabel ?? "") ||
+            null;
+          if (webUrl && !menu.includes(webUrl)) {
+            menu = `${menu}\n\nCatálogo: ${webUrl}`;
+          }
+        }
       }
       return appendNext(`${pickTransition(history)} ${menu}`.trim(), serviceLabel);
     }
@@ -2854,17 +2867,7 @@ export function buildFirstInteractionMessage(
     : vagueFoodFirst
       ? `\n\n${buildAlimentosModoMenu()}`
       : progressiveFirst
-        ? `\n\n${
-            (() => {
-              const station =
-                resolveSoloVsCompletoStationLabel(svcHint ?? "", progressiveFirst.family) ||
-                resolveSoloVsCompletoStationLabel(svcHint ?? "");
-              return (
-                (station ? buildSoloVsCompletoOfferIfApplicable(station) : null) ||
-                progressiveFirst.menu
-              );
-            })()
-          }`
+        ? `\n\n${progressiveFirst.menu}`
         : sheetDetail
           ? `\n\n${sheetDetail}`
           : "";
@@ -4205,6 +4208,14 @@ export function buildPostCierreThanksReply(clientName?: string | null): string {
     : "¡Con gusto! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.";
 }
 
+/** A15547: cliente pospone — cierre amable sin re-pedir correo. */
+export function buildSoftLeadDeclineReply(clientName?: string | null): string {
+  const nombre = sanitizeDisplayName(clientName);
+  return nombre
+    ? `Perfecto, ${nombre}. Quedo a tu disposición por si decides avanzar con nosotros. ¡Que tengas un excelente día!`
+    : "Perfecto. Quedo a tu disposición por si decides avanzar con nosotros. ¡Que tengas un excelente día!";
+}
+
 export function buildPostCierrePaymentHandoffReply(clientName?: string | null): string {
   const nombre = sanitizeDisplayName(clientName);
   const hi = nombre ? `${nombre}, ` : "";
@@ -4403,12 +4414,17 @@ export function buildDeferredKnownServiceOffer(opts: {
     serviceHint: svc,
   });
   if (optionsFirst) {
-    // V9.28: si el Sheet tiene precios, usa el embudo con $ (todas las estaciones).
+    let menu = optionsFirst.menu;
     const station =
       resolveSoloVsCompletoStationLabel(svc, optionsFirst.family) ||
       resolveSoloVsCompletoStationLabel(svc);
-    const sheetMode = station ? buildSoloVsCompletoOfferIfApplicable(station) : null;
-    const menu = sheetMode || optionsFirst.menu;
+    const webUrl =
+      (station && getCatalogWebUrlForQuery(station)) ||
+      getCatalogWebUrlForQuery(svc) ||
+      null;
+    if (webUrl && !/bodasesor\.com\/catalogos/i.test(menu) && !menu.includes(webUrl)) {
+      menu = `${menu}\n\nCatálogo: ${webUrl}`;
+    }
     let body = `${intro} ${menu}`.trim();
     const pending = getNextPendingField(extracted, filledSet);
     if (pending && pending !== "requerimientos" && pending !== "nombre") {
@@ -5939,6 +5955,43 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     return normalizeAdvisorReferences(body, display);
   }
 
+  // A15550: salón ya incluye mesas/vajilla/mesero → quitar del CRM + ack (antes de re-anotar).
+  if (!cierreYaEnviado && currentMessage?.trim() && isVenueProvidesContext(currentMessage)) {
+    const venueLabels = venueProvidedServiceLabels(currentMessage);
+    if (venueLabels.length > 0) {
+      const before = extracted.requerimientos_evento;
+      extracted.requerimientos_evento = removeVenueProvidedFromRequirements(
+        extracted.requerimientos_evento,
+        currentMessage
+      );
+      const mergedVenue = removeVenueProvidedFromRequirements(
+        mergeServiceRequirements(
+          extracted.requerimientos_evento,
+          clientCaptionForServiceParse(currentMessage) || currentMessage,
+          6
+        ),
+        currentMessage
+      );
+      extracted.requerimientos_evento = mergedVenue;
+      if (mergedVenue) filledSet.add("Requerimientos o servicios");
+      else filledSet.delete("Requerimientos o servicios");
+
+      const ack = buildVenueProvidedAck(currentMessage);
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ =
+        pending && pending !== "requerimientos"
+          ? buildNaturalQuestion(pending, ctx)
+          : pending === "requerimientos"
+            ? "¿Qué servicios te gustaría que coticemos para tu evento?"
+            : null;
+      log?.info({ entityId, venueLabels, before }, "GUARD: A15550 — salón ya incluye (return temprano)");
+      return normalizeAdvisorReferences(
+        nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
+
   // A15295 (todas las ramas): "no quiero comida / quítale alimentos" → quitar + ack + embudo.
   // Debe ir ANTES de isVagueFoodTerm / catálogo pizza / re-anotar Alimentos.
   {
@@ -6478,6 +6531,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildPostCierrePaymentHandoffReply(extracted.nombre);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: A15016 — post-cierre pago/anticipo → equipo");
+  } else if (clientSoftDeclinesLead(currentMessage)) {
+    mensaje = buildSoftLeadDeclineReply(
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A15547 — cliente pospone; cierre amable sin correo");
   } else if (clientAsksForHumanAdvisor(currentMessage)) {
     // A15000 Itzel: "prefiero hablar con un asesor" — handoff, no seguir embudo.
     mensaje = buildHumanAdvisorHandoffAnswer(extracted.nombre);
@@ -9632,6 +9691,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   // A15443: "dos caminos" incompleto (solo opción 1) → menú completo solo vs completo.
+  mensaje = stripUnrequestedSoloCompletoPrices(mensaje, {
+    serviceHint:
+      extracted.requerimientos_evento?.trim() ||
+      parsePrimaryService(currentMessage ?? "") ||
+      findMentionedService(currentMessage ?? ""),
+    currentMessage,
+  });
   if (
     /tenemos dos caminos/i.test(mensaje) &&
     /1\.\s*\*?Solo alimentos/i.test(mensaje) &&
