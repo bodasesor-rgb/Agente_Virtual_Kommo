@@ -23,6 +23,7 @@ import {
   clientDeclinesMoreServices,
   clientAsksForHumanAdvisor,
   clientAsksServiceInfo,
+  clientAsksNamedServiceDetail,
   clientAsksForRecommendations,
   clientAsksForCatalog,
   clientAsksDimensionRecommendation,
@@ -456,6 +457,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   // A15286: tampoco ante fotos/luz/capacidad/??? ni typos de catálogo.
   const clientAskingInfo =
     clientAsksServiceInfo(input.currentMessage) ||
+    clientAsksNamedServiceDetail(input.currentMessage) ||
     clientMentionsEntertainment(input.currentMessage) ||
     clientAsksForRecommendations(input.currentMessage) ||
     clientAsksDimensionRecommendation(input.currentMessage) ||
@@ -467,7 +469,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     /\b(opci[oó]n(?:es)?\s*[1-9]|paquete\s*[1-9]|ver\s+(las\s+)?opciones|muestr\w*\s+(las\s+)?opciones)\b/i.test(
       input.currentMessage ?? ""
     ) ||
-    /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|info|coffee\s*break|coffe\s*break|fotos?|carpa|luz|iluminaci)\b/i.test(
+    /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|info|coffee\s*break|coffe\s*break|fotos?|carpa|luz|iluminaci|detalle|detalles|vajilla|audio)\b/i.test(
       input.currentMessage ?? ""
     );
 

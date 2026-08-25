@@ -1214,10 +1214,32 @@ export function clientMentionsCatering(message?: string): boolean {
   );
 }
 
+/**
+ * A15486: "Detalles de banquete formal" / "Más detalles de mesa de dulces" /
+ * "Detalle de Canapés" — pide ficha del SKU, no cierre ni catálogo genérico.
+ */
+export function clientAsksNamedServiceDetail(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  if (
+    !/\b(m[aá]s\s+)?detalles?\s+(de|del|sobre|para)\b/i.test(t) &&
+    !/\b(m[aá]s\s+)?detalle\b/i.test(t)
+  ) {
+    return false;
+  }
+  return (
+    parseServicesFromText(t).length > 0 ||
+    isServiceRelatedMessage(t) ||
+    isTablewareRequestText(t)
+  );
+}
+
 /** Cliente pide información, precio o detalle de un servicio concreto. */
 export function clientAsksServiceInfo(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
+  // A15486: "Detalles de X" / "Más detalle" con SKU nombrado.
+  if (clientAsksNamedServiceDetail(message)) return true;
   // A15212: "qué snaks/bocadillos tienen" aunque falle el match de servicio por typo.
   const asksWhatTypes =
     /\bqu[eé]\s+(tipo\s+de\s+)?(snacks?|snaks?|bocadillos?|antojitos?|puestos?)\b/i.test(t) ||
@@ -1237,6 +1259,33 @@ export function clientAsksServiceInfo(message?: string): boolean {
     // A14938: "¿Hacen las pizzas en el evento?" / preparan / cocinan / montan.
     /\b(hacen|preparan|cocinan|sirven|montan|elaboran)\b.{0,60}\?/i.test(t)
   );
+}
+
+/**
+ * A15486 Génesis: plantilla de promo (CierreRapido / pedido mínimo / hora CDMX)
+ * NO es un RFQ real — no capturar 35 pax ni Ciudad de México del timezone.
+ */
+export function isPromoTemplateMessage(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t || t.length < 40) return false;
+  const promoSignal =
+    /\b(promo|c[oó]digo|cierre\s+r[aá]pido|cierrerapido)\b/i.test(t) ||
+    /\bc[oó]digo\s*:\s*\w+/i.test(t);
+  const metaSignal =
+    /\bpedido\s+m[ií]nimo\b/i.test(t) ||
+    /\bhorario\s+en\s+que\s+env[ií]o\b/i.test(t) ||
+    /\bhora\s+ciudad\s+de\s+m[eé]xico\b/i.test(t);
+  if (!(promoSignal && metaSignal)) return false;
+  // Si también trae venue/fecha real de evento (no el stamp de la promo), no anular.
+  if (
+    /\b(ex\s+hacienda|hacienda|sal[oó]n|san\s+miguel|boda\s+en|xv\s+en)\b/i.test(t) &&
+    /\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+      t
+    )
+  ) {
+    return false;
+  }
+  return true;
 }
 
 /** Unidades que NO son invitados ("4 salas", "10 mesas", "2 carpas"). */
@@ -1485,6 +1534,8 @@ export function mergeEquipmentRfqIntoRequirements(
 export function isRichQuoteBrief(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (isEquipmentListRfq(t)) return true;
+  // A15486: plantilla promo ≠ RFQ (no capturar 35 pax / CDMX del timezone).
+  if (isPromoTemplateMessage(t)) return false;
   if (t.length < 100) return false;
 
   // RFQ estructurado (Fecha:/Lugar:/Tipo:…) — frecuente en WhatsApp B2B.
@@ -1802,6 +1853,10 @@ export function clientAffirmsCatalogOffer(
   }
   const t = message.trim().toLowerCase();
   if (clientAsksForCatalog(message)) return true;
+  // A15486: "Más detalle" / "Más detalles" tras oferta de catálogo.
+  if (/^m[aá]s\s+detalles?[\s.!]*$/i.test(t) || /^con\s+m[aá]s\s+detalle[\s.!]*$/i.test(t)) {
+    return true;
+  }
   // "Sí", "Si por favor", "claro que sí", "mande por favor", "sí mándamelo", etc.
   if (
     /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|p[aá]samelo)([.!?]|\s|$)/i.test(
@@ -1886,7 +1941,7 @@ const MONTH_PATTERN =
   /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
 
 const KNOWN_ZONES =
-  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n)\b/i;
+  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende)\b/i;
 
 /** Fragmentos (sin artículo) que NO son ubicación, aunque vengan tras "en …". */
 const NON_LOCATION_WORDS =
@@ -3460,6 +3515,19 @@ export function parseInvitadosFromText(text: string, opts?: InvitadosParseOption
   const trimmed = text.trim();
   if (!trimmed) return null;
 
+  // A15486: "Pedido mínimo: 35 personas" de plantilla promo ≠ afluencia del evento.
+  if (
+    /\bpedido\s+m[ií]nimo\b/i.test(trimmed) &&
+    !/\b(ser[ií]an?|somos|invitados?|asistentes?|para\s+\d+\s+personas)\b/i.test(
+      trimmed.replace(/\bpedido\s+m[ií]nimo\s*:?\s*\d+\s*personas?\b/gi, " ")
+    )
+  ) {
+    const withoutMin = trimmed.replace(/\bpedido\s+m[ií]nimo\s*:?\s*\d+\s*personas?\b/gi, " ").trim();
+    if (!withoutMin || withoutMin.length < 8) return null;
+    // Seguir parseando el resto del mensaje (p. ej. "50 invitados" real).
+    return parseInvitadosFromText(withoutMin, opts);
+  }
+
   // A15509: "Aún no" tras pregunta de invitados = dato pendiente, no re-preguntar.
   if (
     opts?.askedInvitados &&
@@ -3648,6 +3716,9 @@ export function isDimensionText(text: string | null | undefined): boolean {
 export function isUsableDireccionEvento(value: string | null | undefined): boolean {
   const t = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
   if (!t) return false;
+  // A15486: "PDF" / archivo ≠ sede.
+  if (/^(pdf|excel|word|archivo|documento)s?$/i.test(t)) return false;
+  if (/,?\s*pdf\s*$/i.test(t) && !KNOWN_ZONES.test(t.replace(/,?\s*pdf\s*$/i, ""))) return false;
   if (isDimensionText(t)) return false;
   if (looksLikeMealTimeNotLocation(t)) return false;
   if (isVagueVenueOnly(t)) return false;
@@ -3962,7 +4033,14 @@ export function parseZonaFromText(text: string): string | null {
     .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  const trimmed = withoutEmails;
+  // A15486: quitar stamp de timezone y "PDF" de pedidos de archivo.
+  const trimmed = withoutEmails
+    .replace(/\(?\s*hora\s+ciudad\s+de\s+m[eé]xico\s*\)?/gi, " ")
+    .replace(/\bhorario\s+en\s+que\s+env[ií]o\s+este\s+mensaje\s*:?[^\n]*/gi, " ")
+    .replace(/\bcotizaci[oó]n(es)?\s+en\s+pdf\b/gi, " ")
+    .replace(/\b(en\s+)?pdf\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!trimmed) return null;
   // Mensaje que es solo un email (tras limpiar queda vacío) ya se filtró.
   // Si el texto original era únicamente un correo, no hay zona.
@@ -3972,6 +4050,14 @@ export function parseZonaFromText(text: string): string | null {
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
   if (isDimensionText(trimmed)) return null;
+  // A15486: plantilla promo — no tomar CDMX del timezone.
+  if (isPromoTemplateMessage(text)) {
+    const realVenue = trimmed.match(
+      /\ben\s+(San\s+Miguel\s+de\s+Allende|Ex\s+Hacienda\s+[^\n.]{3,40}|[A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+){0,3})\b/i
+    );
+    if (realVenue?.[1] && isUsableDireccionEvento(realVenue[1])) return realVenue[1].trim();
+    return null;
+  }
   // A15443: "en hora de comida/fomida" ≠ zona del evento.
   if (looksLikeMealTimeNotLocation(trimmed)) return null;
   // "sala: Luxor Rosa" / producto de mobiliario ≠ zona del evento.
@@ -4375,14 +4461,27 @@ export function mergeZonaDetail(
   if (looksLikeThemeColorNotLocation(nextRaw)) {
     return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
   }
-  const prev = stripThemeColorsFromZona(prevRaw) || prevRaw;
-  const next = stripThemeColorsFromZona(nextRaw) || nextRaw;
+  // A15486: nunca pegar "PDF" / formato de archivo a la ubicación.
+  if (/^(pdf|excel|word|archivo|documento)s?$/i.test(nextRaw)) {
+    return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
+  }
+  const prev =
+    (stripThemeColorsFromZona(prevRaw) || prevRaw).replace(/,?\s*pdf\s*$/i, "").trim();
+  const next =
+    (stripThemeColorsFromZona(nextRaw) || nextRaw).replace(/,?\s*pdf\s*$/i, "").trim();
   if (!next) return prev || null;
   if (!prev) return next;
   if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
   if (next.toLowerCase().includes(prev.toLowerCase())) return next;
   // Evita duplicar si son casi iguales.
   if (textOverlapLoose(prev, next) >= 0.85) return prev.length >= next.length ? prev : next;
+  // A15486: San Miguel / venue real reemplaza CDMX de plantilla promo.
+  if (
+    /\bsan\s+miguel|hacienda|allende\b/i.test(next) &&
+    /^(ciudad\s+de\s+m[eé]xico|cdmx)$/i.test(prev)
+  ) {
+    return next;
+  }
   return `${prev}, ${next}`;
 }
 
@@ -4653,6 +4752,15 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
 
   if (/\b(poquito|lo\s+que\s+sea\s+necesario|flexible|lo\s+que\s+se\s+necesite)\b/i.test(trimmed)) {
     return "Flexible (sin monto fijo)";
+  }
+
+  // A15486: "no hay límite de presupuesto" ≠ año 2027.
+  if (
+    /\bno\s+hay\s+l[ií]mite(\s+de\s+presupuesto)?\b/i.test(trimmed) ||
+    /\bsin\s+l[ií]mite(\s+de\s+presupuesto)?\b/i.test(trimmed) ||
+    /\bpresupuesto\s+sin\s+l[ií]mite\b/i.test(trimmed)
+  ) {
+    return "Sin límite (cliente indicó flexibilidad)";
   }
 
   if (opts?.askedField === "presupuesto" && /^(no|nop)[\s.,!]*$/i.test(trimmed)) {

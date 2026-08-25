@@ -91,6 +91,9 @@ import {
   isEquipmentListRfq,
   parseEquipmentRfqLineItems,
   mergeEquipmentRfqIntoRequirements,
+  isPromoTemplateMessage,
+  clientAsksNamedServiceDetail,
+  isTablewareRequestText,
   clientSaidAperturaNegocio,
   clientAsksToRereadBrief,
   clientAsksDistributorPricing,
@@ -11199,7 +11202,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.35 — primer turno banquete: catálogo + pregunta embudo (Allison A15370) ───
   await test("133. V9.35 — banquete Torreón primer turno pide fecha/invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -11231,7 +11234,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.36 — no cortar el chat (Isai A15378) ───
   await test("134. V9.36 — Isai: no cierra, no confunde nombre con ciudad, urgencia ≠ teléfono", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
     assert.equal(parseZonaFromText("Isai Moreno"), null);
     assert.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -11358,7 +11361,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.32 — corte de costo Gemini ───
   await test("131. V9.32 — unified turn + cache off + history trim + static system", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
 
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
@@ -11435,7 +11438,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("135. V9.38 — comprobante en imagen: primer pago Anticipo, segundo Liquidación", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
     assert.equal(FIELD_ANTICIPO, 1049322);
     assert.equal(FIELD_LIQUIDACION, 1049324);
 
@@ -11507,7 +11510,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("136. V9.40 — A15380 invitados no se saltan; Coyoacán+colonia; Claro no es nombre", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
     const horario = "hola si se haría el 26 de septiembre pero aún no tenemos definido el horario";
     assert.equal(parseInvitadosFromText(horario), null, "horario pendiente ≠ invitados");
     const caps = scanConversationForCaptures([], horario, new Set(["Nombre del cliente"]));
@@ -11620,7 +11623,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("138. V9.41 — A15383 Kelia: ciudad, banquetes, LED≠luz, no spam (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
 
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert.match(hornoMty, /horno\s*3/i, hornoMty);
@@ -11772,7 +11775,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.42 — A15391 Mariana: Coffee Break 4, "4. nombre", handoff, horario ≠ menú ───
   await test("139. V9.42 — A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -11867,7 +11870,7 @@ async function runAll(): Promise<void> {
   });
 
   await test("140. V9.43 — detalle de un producto no re-lista el menú (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -11911,7 +11914,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.44 — A15443 Rosario: reunión≠XV, hora comida≠ubicación, no cierra sin ciudad ───
   await test("141. V9.44 — A15443 Rosario: reunión, hora comida, ciudad obligatoria", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
 
     assert.equal(parseTipoEventoFromText("una reunión de 15 años"), "reunión");
     assert.ok(clientSaidReunionNotXv("una reunión de 15 años"));
@@ -12036,7 +12039,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.45 — A15419 Stephanie: fecha≠frase, horario≠día, silent-watch limpio ───
   await test("142. V9.45 — A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
 
     assert.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
@@ -12124,7 +12127,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.49 — imágenes: responder solo en embudo; post–Humano Trabaja lee pero no WhatsApp ───
   await test("143. V9.49 — imagen solo embudo; silencio lee depósito sin WhatsApp", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
     assert.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
     assert.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
     assert.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
@@ -12172,7 +12175,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.49 — A15478 Isabel: recomendación de medidas según invitados ───
   await test("144. V9.49 — A15478 Isabel: recomienda tamaño pista según invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
     const ask =
       "Me puedes recomendar el tamaño pensando en la cantidad de invitados?";
     assert.ok(clientAsksDimensionRecommendation(ask));
@@ -12251,7 +12254,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.49 — A15494 Paola: "mucho gusto" no es apellido ───
   await test("146. V9.49 — A15494 Paola: mucho gusto no es apellido", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
     const reply = "Paola mucho gusto";
     assert.ok(isMuchoGustoNameReply(reply));
     assert.equal(sanitizeCrmNombre(reply), "Paola");
@@ -12290,7 +12293,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.49 — A15503 Good: loza/vajilla ≠ mesa de postres ───
   await test("147. V9.49 — A15503 Good: loza y plato postre = vajilla, no postres", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
     const brief =
       "Hola, me interesa cotizar un servicio\n" +
       "Quiere loza para un evento para 50 personas\n" +
@@ -12328,7 +12331,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.50 — fecha (1048778) y horario (1049358) separados en CRM ───
   await test("148. V9.50 — fecha y horario en campos CRM separados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
 
     const split = splitCombinedFechaHorario("15 de agosto, 5:00 p.m.");
     assert.equal(split.fecha, "15 de agosto");
@@ -12375,7 +12378,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.51 — A15508 Betiana: "40 invitadas" + no repetir invitados ───
   await test("149. V9.51 — A15508 Betiana: 40 invitadas y anti-repetición", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
     assert.equal(parseInvitadosFromText("40 sillas, 40 invitadas"), "40");
     assert.equal(parseInvitadosFromText("40 invitadas"), "40");
     assert.equal(
@@ -12425,7 +12428,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.52 — A15509 Gaby: apertura negocio, PINOTEPA, equipo completo, "aún no" ───
   await test("150. V9.52 — A15509 Gaby: apertura, RFQ equipo, aún no invitados", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
     assert.equal(parseTipoEventoFromText("Sería para la apertura de un negocio"), "apertura de negocio");
     assert.ok(clientSaidAperturaNegocio("Sería para la apertura de un negocio"));
 
@@ -12499,7 +12502,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.53 — A15516 Ccam: horario 4pm / 16:00 sin repetir pregunta ───
   await test("151. V9.53 — A15516 Ccam: captura horario pm y anti-repetición", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.53");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
 
     const extracted = emptyExtracted({
       nombre: "Ccam",
@@ -12549,6 +12552,131 @@ async function runAll(): Promise<void> {
       history: [{ role: "assistant", content: "¿En qué horario lo planean?" }],
     });
     assert.ok(!/horario/i.test(guarded2) || /anoto|perfecto|invitados|ciudad|correo/i.test(guarded2), guarded2);
+  });
+
+  // ─── V9.54 — A15486 Génesis: promo, vajilla, detalles, presupuesto año, PDF ───
+  await test("152. V9.54 — A15486 Génesis: promo/vajilla/detalles/presupuesto/PDF", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.54");
+
+    const promo = [
+      "Hola, escribo por la promo de cierre rápido (10% de descuento).",
+      "Código: CierreRapido",
+      "Pedido mínimo: 35 personas.",
+      "Horario en que envío este mensaje: 22 ago 2026, 5:37 p.m. (hora Ciudad de México).",
+      "Me gustaría cotizar un evento.",
+    ].join("\n");
+    assert.ok(isPromoTemplateMessage(promo));
+    assert.ok(!isRichQuoteBrief(promo));
+    assert.equal(parseInvitadosFromText(promo), null);
+    assert.equal(parseZonaFromText(promo), null);
+
+    const vajillaMsg =
+      "Me gustaría Cotizar la vajilla para una boda en San Miguel de Allende en Ex Hacienda la Petaca.\n\n15 de mayo del 2027.\n\n50 invitados";
+    assert.ok(isTablewareRequestText(vajillaMsg));
+    assert.ok(parseServicesFromText(vajillaMsg).includes("Vajillas"));
+    assert.ok(/San Miguel|Petaca|Allende/i.test(parseZonaFromText(vajillaMsg) ?? ""));
+    assert.equal(parseInvitadosFromText(vajillaMsg), "50");
+    assert.ok(/15 de mayo/i.test(parseFechaFromText(vajillaMsg) ?? ""));
+
+    assert.equal(
+      parsePresupuestoFromText("No, no hay límite de presupuesto. Esto es lo que tengo en mente", {
+        askedField: "presupuesto",
+      }),
+      "Sin límite (cliente indicó flexibilidad)"
+    );
+    assert.equal(parsePresupuestoFromText("2027"), null);
+    assert.equal(parsePresupuestoFromText("2027", { askedField: "presupuesto" }), null);
+
+    const yearCleared = applyCrmWriteInvariants(
+      emptyExtracted({ presupuesto: 2027, fecha_evento: "15 de mayo del 2027" }),
+      ["15 de mayo del 2027", "No, no hay límite de presupuesto"]
+    );
+    assert.equal(yearCleared.extracted.presupuesto, null);
+
+    const pdfZona = applyCrmWriteInvariants(
+      emptyExtracted({ direccion_evento: "Ciudad de México, PDF" }),
+      ["Me podría enviar las cotizaciones en PDF por favor"]
+    );
+    assert.ok(!/pdf/i.test(pdfZona.extracted.direccion_evento ?? ""));
+
+    assert.ok(clientAsksNamedServiceDetail("Detalles de banquete formal"));
+    assert.ok(clientAsksNamedServiceDetail("Más detalles de mesa de dulces"));
+    assert.ok(clientAsksServiceInfo("Detalles de banquete formal"));
+    assert.ok(clientAsksPaymentOrQuoteDelivery("Me podría enviar las cotizaciones en PDF por favor"));
+
+    const vajillaReply = runGuards({
+      aiResponse: "• Mesas\n• Sillas\n• Periqueras",
+      extracted: emptyExtracted({ nombre: "Génesis" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: vajillaMsg,
+      history: [{ role: "assistant", content: "¿Me regalas tu nombre?" }],
+    });
+    assert.ok(!/^\s*•\s*Mesas/i.test(vajillaReply), vajillaReply.slice(0, 300));
+    assert.ok(/vajilla|loza|cristaler/i.test(vajillaReply) || /San Miguel|boda|correo|nombre/i.test(vajillaReply), vajillaReply.slice(0, 400));
+
+    const detailReply = runGuards({
+      aiResponse: "¡Con gusto, Génesis! Aquí seguimos cuando lo necesites.",
+      extracted: emptyExtracted({
+        nombre: "Génesis",
+        tipo_evento: "boda",
+        requerimientos_evento: "Banquete Formal, Vajillas, Centros de mesa",
+        direccion_evento: "San Miguel de Allende",
+        fecha_evento: "15 de mayo del 2027",
+        num_invitados: 50,
+        correo: "genesis.valdez.ramos@gmail.com",
+        presupuesto: "Sin límite (cliente indicó flexibilidad)",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+        CRM_FECHA_LABEL,
+        CRM_HORARIO_LABEL,
+        "Número de invitados",
+        "Correo electrónico",
+        "Presupuesto (MXN)",
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Detalles de banquete formal",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto, ya tengo todo. Quedó anotado *Banquete Formal, Vajillas*.",
+        },
+      ],
+    });
+    assert.ok(!/Aqu[ií] seguimos cuando lo necesites/i.test(detailReply), detailReply.slice(0, 300));
+    assert.ok(
+      /banquete|nivel|precio|incluye|tradicional|premium|cat[aá]logo/i.test(detailReply),
+      detailReply.slice(0, 400)
+    );
+
+    const masDetalle = runGuards({
+      aiResponse: "Según el catálogo que ya tenemos de *Banquete Formal Bodasesor*...",
+      extracted: emptyExtracted({
+        nombre: "Génesis",
+        requerimientos_evento: "Banquete Formal, Vajillas, Iluminación, Audio y sonido",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Más detalle",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Perfecto, veo que necesitas Iluminación y Audio y sonido. Te dejo el catálogo general:\nhttps://bodasesor.com/catalogos ¿Quieres que te mande el catálogo con más detalle?",
+        },
+      ],
+    });
+    assert.ok(!/Banquete Formal Bodasesor/i.test(masDetalle), masDetalle.slice(0, 400));
+    assert.ok(
+      /[Ii]luminaci|[Aa]udio|sonido|cat[aá]logo/i.test(masDetalle),
+      masDetalle.slice(0, 400)
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

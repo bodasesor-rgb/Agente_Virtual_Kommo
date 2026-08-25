@@ -213,6 +213,7 @@ import {
   clientCorrectsLocation,
   isVenueSpaceDetail,
   applyLocationCorrectionToAddress,
+  shouldReplaceCrmDireccion,
   recoverClienteNombreFromHistory,
   isVagueFoodTerm,
   needsAlimentosTipoClarification,
@@ -252,6 +253,9 @@ import {
   isEquipmentListRfq,
   mergeEquipmentRfqIntoRequirements,
   parseEquipmentRfqLineItems,
+  clientAsksNamedServiceDetail,
+  isPromoTemplateMessage,
+  isTablewareRequestText,
   FECHA_MAX_ASKS,
   FECHA_AUTO_WAIVER,
 } from "./conversation-understanding.js";
@@ -445,6 +449,18 @@ export function syncRichBriefIntoExtracted(
 ): void {
   const text = message?.trim() ?? "";
   if (!text) return;
+  // A15486: plantilla promo — no volcar pedido mínimo / timezone a CRM.
+  if (isPromoTemplateMessage(text)) {
+    if (!isEmailSatisfied(filledSet, extracted)) {
+      const correo = filterClientEmail(parseCorreoFromText(text));
+      if (correo && looksLikeValidClientEmail(correo)) {
+        extracted.correo = correo;
+        filledSet.add("Correo electrónico");
+      }
+    }
+    syncFilledFromExtracted(filledSet, extracted);
+    return;
+  }
 
   if (!isUsableDireccionEvento(extracted.direccion_evento)) {
     const zonaBrief = parseZonaFromText(text);
@@ -4173,7 +4189,11 @@ export function clientAsksPaymentOrQuoteDelivery(message?: string): boolean {
     /\b(donde|dónde|a\s+d[oó]nde)\s+(mando|deposit|transfer|pag)/i.test(t) ||
     /\b(manda|env[ií]a|pasa).{0,30}\b(presupuesto|cotizaci[oó]n|datos\s+de\s+pago)\b/i.test(t) ||
     /\b(presupuesto|cotizaci[oó]n).{0,40}\b(anticipo|pago|transfer)/i.test(t) ||
-    /\bdatos\s+(para\s+el\s+)?pago\b/i.test(t)
+    /\bdatos\s+(para\s+el\s+)?pago\b/i.test(t) ||
+    // A15486: "cotizaciones en PDF" / "envíame la cotización en PDF"
+    /\bcotizaci[oó]n(es)?\s+(en\s+)?pdf\b/i.test(t) ||
+    /\b(manda|env[ií]a|env[ií]e|pasa|enviar).{0,40}\bcotizaci[oó]n(es)?.{0,20}\bpdf\b/i.test(t) ||
+    /\bpdf\b.{0,30}\bcotizaci[oó]n/i.test(t)
   );
 }
 
@@ -5225,6 +5245,153 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       body,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
     );
+  }
+
+  // A15486: "Detalles de banquete formal" / "Más detalles de mesa de dulces"
+  // — SIEMPRE ficha del SKU (también post-cierre). Nunca "Aquí seguimos" ni re-cierre.
+  if (
+    currentMessage &&
+    clientAsksNamedServiceDetail(currentMessage) &&
+    !clientAsksPaymentOrQuoteDelivery(currentMessage)
+  ) {
+    const named = preferPrimaryCatalogService(parseServicesFromText(currentMessage));
+    const detailQuery = named || currentMessage.trim();
+    if (named) {
+      const merged = mergeServiceRequirements(extracted.requerimientos_evento, named, 8);
+      if (merged) {
+        extracted.requerimientos_evento = merged;
+        filledSet.add("Requerimientos o servicios");
+      }
+    }
+    const detail =
+      buildFoodSalesReply(
+        extracted,
+        history,
+        entityId,
+        currentMessage,
+        filledSet,
+        ctx
+      ) ||
+      buildCatalogServiceDetailAnswer(detailQuery) ||
+      buildCatalogPriceAnswer(detailQuery) ||
+      buildGuardServiceAck(currentMessage);
+    const link = buildCatalogWebLinkReply({ query: detailQuery, serviceHint: detailQuery });
+    const body =
+      detail && /nivel|precio|manejamos|incluye|\$|opciones|caminos/i.test(detail)
+        ? /bodasesor\.com\/catalogos/i.test(detail)
+          ? detail
+          : `${detail}\n\n${link}`
+        : `${detail}\n\n${link}\n\n¿Cuál nivel te late?`;
+    log?.info(
+      { entityId, named, cierreYaEnviado },
+      "GUARD: A15486 — detalle nombrado de servicio (pre/post cierre)"
+    );
+    return normalizeAdvisorReferences(
+      body.trim(),
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+  }
+
+  // A15486: vajilla ≠ menú de mesas/sillas (mobiliario).
+  if (
+    currentMessage &&
+    isTablewareRequestText(currentMessage) &&
+    !/\b(mesas?|sillas?|periqueras?|lounge)\b/i.test(currentMessage)
+  ) {
+    const merged = mergeServiceRequirements(extracted.requerimientos_evento, "Vajillas", 8);
+    if (merged) {
+      extracted.requerimientos_evento = merged;
+      filledSet.add("Requerimientos o servicios");
+    }
+    if (!extracted.tipo_evento?.trim()) {
+      const tipo = parseTipoEventoFromText(currentMessage);
+      if (tipo) {
+        extracted.tipo_evento = tipo;
+        filledSet.add("Tipo de evento");
+      }
+    }
+    const zonaNow = parseZonaFromText(currentMessage);
+    if (zonaNow && isUsableDireccionEvento(zonaNow)) {
+      const mergedZona = mergeZonaDetail(extracted.direccion_evento, zonaNow);
+      if (mergedZona && shouldReplaceCrmDireccion(extracted.direccion_evento, mergedZona)) {
+        extracted.direccion_evento = mergedZona;
+        filledSet.add("Lugar/dirección del evento");
+      } else if (!extracted.direccion_evento?.trim()) {
+        extracted.direccion_evento = zonaNow;
+        filledSet.add("Lugar/dirección del evento");
+      }
+    }
+    if (!extracted.fecha_evento?.trim()) {
+      const f = parseFechaFromText(currentMessage);
+      if (f && isUsableFechaEvento(f)) {
+        extracted.fecha_evento = f;
+        filledSet.add(CRM_FECHA_LABEL);
+      }
+    }
+    if (!extracted.num_invitados) {
+      const inv = parseInvitadosFromText(currentMessage);
+      if (inv && /^\d+$/.test(inv)) {
+        extracted.num_invitados = Number(inv);
+        filledSet.add("Número de invitados");
+      }
+    }
+    syncLegacyFechaHorarioField(extracted);
+    const ack =
+      buildGuardServiceAck(currentMessage) ||
+      "Claro. Anoto *vajillas* para tu evento; el equipo te confirma líneas, piezas y montaje.";
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ =
+      !cierreYaEnviado && pending && pending !== "requerimientos"
+        ? buildNaturalQuestion(pending, ctx)
+        : null;
+    const body = nextQ && !ack.includes(nextQ) ? `${ack}\n\n${nextQ}` : ack;
+    log?.info({ entityId }, "GUARD: A15486 — vajilla (no menú mesas/sillas)");
+    return normalizeAdvisorReferences(
+      body,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+  }
+
+  // A15486: "Más detalle" tras oferta de catálogo → ficha del servicio ofertado (no Banquete del CRM).
+  if (
+    currentMessage &&
+    /^m[aá]s\s+detalles?[\s.!]*$/i.test(currentMessage.trim())
+  ) {
+    const lastCatAsst = [...presHistory]
+      .reverse()
+      .find((m) => m.role === "assistant" && typeof m.content === "string");
+    const lastCatTxt =
+      lastCatAsst && typeof lastCatAsst.content === "string"
+        ? (lastCatAsst.content as string)
+        : "";
+    if (assistantOfferedCatalogDetail(lastCatTxt)) {
+      const fromLast = parseServicesFromText(lastCatTxt);
+      const detailQuery =
+        preferPrimaryCatalogService(fromLast) ||
+        fromLast[0] ||
+        preferPrimaryCatalogService(parseServicesFromText(extracted.requerimientos_evento ?? "")) ||
+        "tu cotización";
+      const detail =
+        buildFoodSalesReply(
+          extracted,
+          history,
+          entityId,
+          detailQuery,
+          filledSet,
+          ctx
+        ) ||
+        buildCatalogServiceDetailAnswer(detailQuery) ||
+        buildCatalogPriceAnswer(detailQuery) ||
+        buildPackageCatalogOfferBlock(fromLast.length ? fromLast : [detailQuery], detailQuery);
+      log?.info(
+        { entityId, detailQuery, cierreYaEnviado },
+        "GUARD: A15486 — más detalle del servicio ofertado"
+      );
+      return normalizeAdvisorReferences(
+        detail,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
   }
 
   // A15210: corrección de ubicación (piso/torre/patio/otra) — actualizar y pedir dirección exacta.
@@ -6426,18 +6593,28 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       .join(" ")
       .trim();
     const serviceHint = hintParts.join(" ") || null;
-    // A15169: servicios SOLO del texto del cliente (no CRM/LLM inventado).
-    // "catálogo de menú" sin SKU → hub general, nunca Barra de pizzas.
-    const userNamedServices = parseServicesFromText(historyHint);
+    // A15486: "Más detalle" tras oferta de audio/iluminación → esos servicios, no Banquete del CRM.
+    const lastAsstServices =
+      lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+        ? parseServicesFromText(lastAssistantMsg.content as string)
+        : [];
+    const userNamedServices = [
+      ...parseServicesFromText(historyHint),
+      ...lastAsstServices,
+    ];
     const mappedServices = wantFull
       ? []
       : collectServicesForCatalogOffer({
-          services: userNamedServices,
-          // No usar extracted.requerimientos si el usuario no nombró servicio:
-          // el extractor a veces alucina un SKU (A15169 → pizzas).
+          services: [...new Set(userNamedServices)],
+          // Preferir servicios del último pitch de Lucy si el cliente solo dijo "más detalle".
           extracted:
             userNamedServices.length > 0
-              ? extracted
+              ? {
+                  requerimientos_evento:
+                    lastAsstServices.length > 0
+                      ? lastAsstServices.join(", ")
+                      : extracted.requerimientos_evento,
+                }
               : { requerimientos_evento: null },
           history: presHistory,
           currentMessage,
@@ -7755,8 +7932,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     allowSalesReplyOverride &&
     clientAsksServiceInfo(currentMessage) &&
     isServiceRelatedMessage(currentMessage) &&
-    !clientAsksPrice(currentMessage) &&
-    !cierreYaEnviado
+    !clientAsksPrice(currentMessage)
+    // A15486: también post-cierre (antes bloqueaba con !cierreYaEnviado)
   ) {
     // Preferir oferta con niveles + pregunta de catálogo (como food-sales),
     // no solo un ack corto que salta al embudo.

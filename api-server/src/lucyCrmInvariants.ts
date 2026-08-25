@@ -40,7 +40,7 @@ export function userJustifiesPresupuesto(userTexts: string[]): boolean {
     const pres = parsePresupuestoFromText(t, { askedField: null });
     if (!pres) continue;
     // Waiver / sin monto fijo sí cuenta como “respondió presupuesto”.
-    if (/sin definir|econ[oó]mic|flexible|opciones|propong/i.test(pres)) return true;
+    if (/sin definir|econ[oó]mic|flexible|opciones|propong|l[ií]mite/i.test(pres)) return true;
     const n = parseInt(pres.replace(/[^\d]/g, ""), 10);
     if (!isNaN(n) && n > 0) return true;
   }
@@ -107,6 +107,21 @@ export function applyCrmWriteInvariants(
   if (out.presupuesto !== null && out.presupuesto !== undefined) {
     const presStr = String(out.presupuesto).trim();
     const digits = presStr.replace(/[^\d]/g, "");
+    const yearNum = parseInt(digits, 10);
+    // A15486: año del evento (2027) nunca es presupuesto — aunque el cliente habló de presupuesto aparte.
+    if (digits.length === 4 && yearNum >= 1990 && yearNum <= 2100) {
+      const yearAsMoney = userTexts.some((t) => {
+        const p = parsePresupuestoFromText(t, { askedField: "presupuesto" });
+        if (!p) return false;
+        if (/l[ií]mite|flexible|sin definir|econ[oó]mic|propong/i.test(p)) return false;
+        const n = parseInt(p.replace(/[^\d]/g, ""), 10);
+        return n === yearNum && /\$|mil|pesos|mxn|inversi[oó]n/i.test(t);
+      });
+      if (!yearAsMoney) {
+        out.presupuesto = null;
+        applied.push("presupuesto-calendar-year-cleared");
+      }
+    }
     // A15016: dígitos del correo (israel241268@…) ≠ presupuesto.
     const fromEmailLocal = userTexts.some((t) => {
       const emails = t.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? [];
@@ -167,7 +182,20 @@ export function applyCrmWriteInvariants(
     }
   }
 
-  // 3) Dirección basura (producto / cotización / "dónde están" / Catedral carpa) — todas las ramas.
+  // 3) Dirección basura (producto / cotización / "dónde están" / Catedral carpa / PDF) — todas las ramas.
+  if (out.direccion_evento) {
+    const cleanedZona = String(out.direccion_evento)
+      .replace(/,?\s*pdf\s*$/i, "")
+      .replace(/\bpdf\b/gi, "")
+      .replace(/\s+,/g, ",")
+      .replace(/,\s*$/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (cleanedZona !== String(out.direccion_evento).trim()) {
+      out.direccion_evento = cleanedZona || null;
+      applied.push("zona-pdf-stripped");
+    }
+  }
   if (
     out.direccion_evento &&
     (!isUsableDireccionEvento(out.direccion_evento) ||
