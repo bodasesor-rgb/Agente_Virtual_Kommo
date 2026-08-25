@@ -1708,7 +1708,8 @@ export type SpecificInclusionItem =
   | "cristaleria"
   | "montaje"
   | "chef"
-  | "alcohol";
+  | "alcohol"
+  | "mobiliario";
 
 const INCLUSION_ITEM_PATTERNS: Record<SpecificInclusionItem, RegExp> = {
   bebidas:
@@ -1719,6 +1720,7 @@ const INCLUSION_ITEM_PATTERNS: Record<SpecificInclusionItem, RegExp> = {
   montaje: /\bmontaje\b|\binstalaci[oó]n\b/i,
   chef: /\bchefs?\b|\bpersonal\s+de\s+cocina\b/i,
   alcohol: /\balcohol\b|\bborra\s+libre\b|\bopen\s*bar\b|\blicor/i,
+  mobiliario: /\bmobiliario\b|\bmobilairio\b|\bmesas?\s+y\s+sillas?\b/i,
 };
 
 /** Evidencia en texto de catálogo de que el ítem SÍ va incluido. */
@@ -1739,6 +1741,7 @@ function inclusionEvidenceRegex(
   if (item === "cristaleria") return /\bcristaler[ií]a\b|\bhighball\b|\bcopas?\b/i;
   if (item === "montaje") return /\bmontaje\b|\binstalaci[oó]n\b/i;
   if (item === "chef") return /\bchefs?\b|\bpersonal\s+de\s+cocina\b/i;
+  if (item === "mobiliario") return /\bmobiliario\b|\bsillas?\b|\bmesas?\b|\bmanteler/i;
   return /\balcohol\b|\bopen\s*bar\b|\bbarra\s+libre\b|\blicor|\btequila|\bwhisky/i;
 }
 
@@ -1851,6 +1854,20 @@ export function buildSpecificInclusionItemReply(
 ): string | null {
   const item = clientAsksSpecificInclusionItem(query);
   if (!item) return null;
+
+  // A15539: "el servicio completo incluye mobiliario, correcto?"
+  if (item === "mobiliario" && /\bservicio\s+completo\b/i.test(query)) {
+    const svc =
+      resolveInclusionServiceLabel(query, serviceHint) ||
+      parsePrimaryService(serviceHint ?? "") ||
+      "tu paquete";
+    return [
+      `Sí, correcto: en *servicio completo* de *${svc}* va incluido el *mobiliario* (junto con bebidas y meseros).`,
+      "La opción *solo alimentos* es solo la comida, sin mobiliario.",
+      "¿Te late el servicio completo, o prefieres solo alimentos?",
+    ].join(" ");
+  }
+
   const service = resolveInclusionServiceLabel(query, serviceHint);
   if (!service) return null;
 

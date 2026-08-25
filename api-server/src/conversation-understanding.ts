@@ -155,7 +155,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
     "Mobiliario",
     /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|periqueras?)\b|(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+(?:de\s|rica\b|imperial\b))/i,
   ],
-  ["Carpas", /\b(carpa|carpas|toldo)\b/i],
+  ["Carpas", /\b(carpa|carpas|capra|capras|toldo)\b/i],
   ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
   [
     "Audio y sonido",
@@ -167,7 +167,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Meseros", /\b(meseros?|staff|personal\s+de\s+servicio)\b/i],
   ["DJ", /\bdj\b/i],
   ["Mixología", /\bmixolog[ií]a\b/i],
-  ["Coctelería", /\bcocteler[ií]a\b/i],
+  ["Coctelería", /\b(cocteler[ií]a|bartender|bar\s*tender|barmen|barman)\b/i],
   ["Mócteles", /\bm[oó]cteles?\b/i],
   ["Pastas", /\bpastas?\b/i],
   ["Pizzas", /\bpizza/i],
@@ -303,8 +303,9 @@ const TIPO_EVENTO_PATTERNS: Array<[RegExp, string]> = [
   [/\b(eventos?\s+corporativos?|convenci[oó]n(es)?|conferencias?|corporativos?)\b/i, "evento corporativo"],
   [/\b(cumplea[nñ]os?|cumple)\b/i, "cumpleaños"],
   [/\b(bautizos?)\b/i, "bautizo"],
+  [/\bprimera\s+comuni[oó]n\b/i, "primera comunión"],
+  [/\b(comuni[oó]n)\b/i, "primera comunión"],
   [/\b(graduaci[oó]n(es)?)\b/i, "graduación"],
-  [/\b(comuni[oó]n)\b/i, "celebración"],
   // Fiesta / celebración / reunión familiar (A15000 Itzel: "Reunión familiar").
   [/\b(fiesta|celebraci[oó]n(es)?(\s+familiares?)?|reun[ií][oó]n(es)?\s+(social|familiar(es)?))\b/i, "fiesta"],
   [/\b(reun[ií][oó]n\s+familiar|celebraci[oó]n\s+familiar)\b/i, "fiesta"],
@@ -805,6 +806,8 @@ function hasSpecificFoodService(text: string): boolean {
 export function isVagueFoodTerm(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
+  // A15539: "comida a las 2:00" / "cocktail a las 12" = horario, no menú vago.
+  if (isScheduleLabeledClock(t)) return false;
   // A15295: "no quiero alimentos/comida" ≠ pedir menú vago.
   if (clientDeclinesServiceFamilies(t).includes("alimentos")) return false;
   // A15302: "me regalas tu menú" (con o sin tipo de evento en el mismo mensaje).
@@ -1434,7 +1437,8 @@ export function clientAffirmsEmbudoContinue(
 export function clientMentionsCarpas(message?: string): boolean {
   if (!message?.trim()) return false;
   return (
-    /\bcarpas?\b|\btoldos?\b|\blonas?\b/i.test(message) || !!parseCarpaVariantFromText(message)
+    /\bcarpas?\b|\bcapras?\b|\btoldos?\b|\blonas?\b/i.test(message) ||
+    !!parseCarpaVariantFromText(message)
   );
 }
 
@@ -1454,7 +1458,11 @@ export function clientRequestsCallback(message?: string): boolean {
     /\b(pueden|pueden\s+ustedes)\s+(marcar|llamar)\b/i.test(t) ||
     /\batenci[oó]n\s+personalizada\b/i.test(t) ||
     /\bque\s+me\s+(marquen|llamen)\b/i.test(t) ||
-    /\bnecesito\s+que\s+me\s+(marquen|llamen)\b/i.test(t)
+    /\bnecesito\s+que\s+me\s+(marquen|llamen)\b/i.test(t) ||
+    // A15539 Jorge: "que me llamen si están interesados"
+    /\b(llamen|marquen)\s+si\s+(est[aá]n|estan)\s+interesados?\b/i.test(t) ||
+    /\bme\s+(pueden\s+)?llamar\s+si\b/i.test(t) ||
+    /\beste\s+es\s+mi\s+tel(e[eé]?fono)?\b/i.test(t)
   );
 }
 
@@ -1941,7 +1949,7 @@ const MONTH_PATTERN =
   /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
 
 const KNOWN_ZONES =
-  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende)\b/i;
+  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende)\b/i;
 
 /** Fragmentos (sin artículo) que NO son ubicación, aunque vengan tras "en …". */
 const NON_LOCATION_WORDS =
@@ -1995,7 +2003,7 @@ export function hasCityOrMetroSignal(text: string | null | undefined): boolean {
   }
   // Ciudades / estados frecuentes fuera de KNOWN_ZONES (respuesta corta = ciudad).
   if (
-    /\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica)\b/i.test(
+    /\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica|atlixco|cholula|tehuac[aá]n)\b/i.test(
       t
     )
   ) {
@@ -2943,9 +2951,42 @@ export function parseReunionAniosLabel(text: string | null | undefined): string 
  * "hora de comida/cena/desayuno" (y typo fomida) — horario de servicio, NO dirección.
  * A15443 Rosario: "banquete… en hora de fomida" → Ubicación: hora de fomida.
  */
+/**
+ * A15539: "cocktail a las 12:00" / "comida a las 2:00" / "a medio día" = horario del evento,
+ * NO pedido de menú de comida.
+ */
+export function isScheduleLabeledClock(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t || t.length > 120) return false;
+  if (
+    /^(a\s+)?medio\s*d[ií]a$/i.test(t) ||
+    /^a\s+mediod[ií]a$/i.test(t) ||
+    /^(por\s+la\s+)?(ma[nñ]ana|tarde|noche)$/i.test(t)
+  ) {
+    return true;
+  }
+  // "cocktail/cóctel/comida/cena a las 12:00" (con o sin varios renglones).
+  if (
+    /\b(cocktail|c[oó]ctel|comida|cena|desayuno|brunch|almuerzo|recepci[oó]n)\s+(a\s+las\s+)?\d{1,2}(?::\d{2})?\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  // Varias líneas de horario etiquetado.
+  const labeledClocks = (
+    t.match(
+      /\b(cocktail|c[oó]ctel|comida|cena|desayuno|brunch)\s+(a\s+las\s+)?\d{1,2}(?::\d{2})?/gi
+    ) ?? []
+  ).length;
+  return labeledClocks >= 1 && t.split(/\s+/).length <= 20;
+}
+
 export function looksLikeMealTimeNotLocation(text: string | null | undefined): boolean {
   const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
   if (!t) return false;
+  // Horario etiquetado con reloj ≠ "hora de comida" basura de zona.
+  if (isScheduleLabeledClock(t) && /\d/.test(t)) return false;
   const n = t
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
@@ -2966,6 +3007,7 @@ export function looksLikeMealTimeNotLocation(text: string | null | undefined): b
 export function isMealTimeOnlySchedule(text: string | null | undefined): boolean {
   const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
   if (!t) return false;
+  if (isScheduleLabeledClock(t)) return true;
   if (looksLikeMealTimeNotLocation(t) && t.split(/\s+/).length <= 6) {
     // Si también hay día/mes/fecha concreta, sí cuenta.
     if (
@@ -2995,6 +3037,7 @@ export function isSimpleClockTime(text: string | null | undefined): boolean {
   ) {
     return false;
   }
+  if (/^(a\s+)?medio\s*d[ií]a$/i.test(t) || /^a\s+mediod[ií]a$/i.test(t)) return true;
   if (
     /^(?:a\s+las\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)?$/i.test(t)
   ) {
@@ -3152,6 +3195,18 @@ export function parseHorarioFromText(text: string): string | null {
   if (isClockTimeOnlySchedule(clean)) return normalizeHorarioCapture(clean);
   if (isMealTimeOnlySchedule(clean)) return clean;
 
+  // A15539: "cocktail a las 12:00" + "comida a las 2:00" → un solo horario usable.
+  if (isScheduleLabeledClock(clean)) {
+    const parts = [
+      ...clean.matchAll(
+        /\b((?:cocktail|c[oó]ctel|comida|cena|desayuno|brunch)\s+(?:a\s+las\s+)?\d{1,2}(?::\d{2})?)/gi
+      ),
+    ].map((m) => m[1]!.trim());
+    if (parts.length >= 1) return parts.join("; ").slice(0, 100);
+    if (/medio\s*d[ií]a/i.test(clean)) return "a medio día";
+    return clean.slice(0, 80);
+  }
+
   const horarioLabel = clean.match(/\bhorario\s*:?\s*(.+)$/i);
   if (horarioLabel?.[1] && /\d/.test(horarioLabel[1])) {
     return horarioLabel[1].trim().slice(0, 80);
@@ -3191,7 +3246,7 @@ export function parseHorarioFromText(text: string): string | null {
   }
 
   if (
-    /\b(tarde|noche|mediod[ií]a|ma[nñ]ana)\b/i.test(clean) &&
+    /\b(tarde|noche|mediod[ií]a|medio\s*d[ií]a|ma[nñ]ana)\b/i.test(clean) &&
     clean.split(/\s+/).length <= 7 &&
     !MONTH_PATTERN.test(clean)
   ) {
@@ -3248,6 +3303,7 @@ export function isUsableHorarioEvento(value: string | null | undefined): boolean
   if (isClockTimeOnlySchedule(t)) return true;
   if (isMealTimeOnlySchedule(t)) return true;
   if (isSimpleClockTime(t)) return true;
+  if (isScheduleLabeledClock(t)) return true;
   if (looksLikeMealTimeNotLocation(t) && t.split(/\s+/).length <= 6) return true;
   if (/\b\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}/i.test(t)) return true;
   if (/\b(?:a\s+las|desde\s+las)\s+\d/i.test(t)) return true;
@@ -3785,7 +3841,17 @@ export function clientCorrectsLocation(text: string | null | undefined): boolean
 export function isVenueSpaceDetail(text: string | null | undefined): boolean {
   const t = (text ?? "").trim();
   if (!t) return false;
-  return /^(el\s+|un\s+|una\s+)?(patio(\s+techado)?|techado|jard[ií]n|azotea|rooftop|terraza)[\s.,!]*$/i.test(
+  // A15539: "será en un jardín" / "en un jardín" / "jardín"
+  if (
+    /\b(ser[aá]|ser[ií]a|es|queda|va\s+a\s+ser)\s+(en\s+)?(un\s+|una\s+)?(patio(\s+techado)?|techado|jard[ií]n|azotea|rooftop|terraza)\b/i.test(
+      t
+    ) &&
+    t.split(/\s+/).length <= 10 &&
+    !parseZonaFromText(t)
+  ) {
+    return true;
+  }
+  return /^(el\s+|un\s+|una\s+|en\s+(un\s+|una\s+)?)?(patio(\s+techado)?|techado|jard[ií]n|azotea|rooftop|terraza)[\s.,!]*$/i.test(
     t
   );
 }
@@ -3804,7 +3870,18 @@ export function applyLocationCorrectionToAddress(
 
   const corrects = clientCorrectsLocation(msg);
   const spaceDetail = isVenueSpaceDetail(msg);
-  if (!corrects && !(spaceDetail && prev)) return null;
+  // A15539: "será en un jardín" sin ciudad previa → anotar detalle y seguir.
+  if (!corrects && !spaceDetail) return null;
+  if (!corrects && spaceDetail && !prev) {
+    if (/\bjard[ií]n\b/i.test(msg)) return "jardín";
+    if (/\bpatio(\s+techado)?\b/i.test(msg)) {
+      return /\btechado\b/i.test(msg) ? "patio techado" : "patio";
+    }
+    if (/\b(azotea|rooftop|terraza)\b/i.test(msg)) {
+      return msg.match(/\b(azotea|rooftop|terraza)\b/i)?.[1] ?? "terraza";
+    }
+    return null;
+  }
 
   let zoneFromMsg = parseZonaFromText(msg);
   // "no es en el piso 15… también es en polanco" → polanco

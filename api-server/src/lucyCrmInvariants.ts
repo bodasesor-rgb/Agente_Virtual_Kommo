@@ -221,7 +221,26 @@ export function applyCrmWriteInvariants(
     applied.push("fecha-legacy-cleared");
   }
 
+  // A15539: nunca escribir teléfonos de Bodasesor en el contacto del cliente.
+  if (out.telefono && isBodasesorCompanyPhone(out.telefono)) {
+    out.telefono = null;
+    applied.push("telefono-company-cleared");
+  }
+
   return { extracted: out, applied };
+}
+
+/** Teléfonos públicos de Bodasesor (ventas / gerencia) — no son del lead. */
+export function isBodasesorCompanyPhone(value: string | null | undefined): boolean {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (!digits) return false;
+  const core = digits.replace(/^52/, "");
+  return (
+    core === "5540080373" ||
+    core === "5646710585" ||
+    digits.endsWith("5540080373") ||
+    digits.endsWith("5646710585")
+  );
 }
 
 /** Quita líneas CRM de presupuesto sin respaldo del cliente. */

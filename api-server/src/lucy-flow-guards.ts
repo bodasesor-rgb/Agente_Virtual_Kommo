@@ -236,6 +236,7 @@ import {
   looksLikeMealTimeNotLocation,
   isMealTimeOnlySchedule,
   isClockTimeOnlySchedule,
+  isScheduleLabeledClock,
   isUsableFechaHorario,
   isUsableFechaEvento,
   isUsableHorarioEvento,
@@ -5398,8 +5399,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   if (
     !cierreYaEnviado &&
     currentMessage &&
-    isUsableDireccionEvento(extracted.direccion_evento) &&
-    (clientCorrectsLocation(currentMessage) || isVenueSpaceDetail(currentMessage))
+    (clientCorrectsLocation(currentMessage) || isVenueSpaceDetail(currentMessage)) &&
+    (isUsableDireccionEvento(extracted.direccion_evento) || isVenueSpaceDetail(currentMessage))
   ) {
     const nextDir = applyLocationCorrectionToAddress(
       extracted.direccion_evento,
@@ -5407,7 +5408,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
     if (nextDir) {
       extracted.direccion_evento = nextDir;
-      filledSet.add("Lugar/dirección del evento");
+      // A15539: "jardín"/"patio" solos no cierran ciudad.
+      if (isUsableDireccionEvento(nextDir) && !isVagueVenueOnly(nextDir) && !isVenueWithoutCity(nextDir)) {
+        filledSet.add("Lugar/dirección del evento");
+      } else {
+        filledSet.delete("Lugar/dirección del evento");
+      }
     }
     const display = getDisplayName(extracted, whatsappDisplayName);
     const needsExactAddress =
@@ -5428,9 +5434,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       body = [
         display ? `Perfecto, ${display}.` : "Perfecto.",
         `Anoto *${nextDir}*.`,
-        getNextPendingField(extracted, filledSet)
-          ? buildNaturalQuestion(getNextPendingField(extracted, filledSet)!, ctx)
-          : null,
+        !hasCityOrMetroSignal(nextDir) && !isFieldSatisfied("zona", filledSet, extracted)
+          ? "¿Me confirmas la *ciudad* del evento?"
+          : getNextPendingField(extracted, filledSet)
+            ? buildNaturalQuestion(getNextPendingField(extracted, filledSet)!, ctx)
+            : null,
       ]
         .filter(Boolean)
         .join(" ");
@@ -5517,7 +5525,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  // A14938: "en Tlalnepantla" con pizzas ya pedidas — anotar zona, no inventar taquiza.
+  // A14938 / A15539: ciudad corta ("Atlixco") → ack + embudo (no menú de comida).
   if (
     !cierreYaEnviado &&
     currentMessage &&
@@ -5526,33 +5534,49 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       return (
         !!z &&
         currentMessage.trim().split(/\s+/).length <= 6 &&
-        (/^en\s+/i.test(currentMessage.trim()) || isLikelyUbicacionNotNombre(currentMessage))
+        (/^en\s+/i.test(currentMessage.trim()) ||
+          isLikelyUbicacionNotNombre(currentMessage) ||
+          /^[A-Za-zÁÉÍÓÚáéíóúñÑ][A-Za-zÁÉÍÓÚáéíóúñÑ\s.-]{2,40}$/i.test(currentMessage.trim()))
       );
     })()
   ) {
     const zonaNow = parseZonaFromText(currentMessage)!;
-    if (!isUsableDireccionEvento(extracted.direccion_evento)) {
-      extracted.direccion_evento = zonaNow;
+    if (!isUsableDireccionEvento(extracted.direccion_evento) || shouldReplaceCrmDireccion(extracted.direccion_evento, zonaNow)) {
+      extracted.direccion_evento = mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
       filledSet.add("Lugar/dirección del evento");
     }
     const wantsPizza =
       /pizza/i.test(extracted.requerimientos_evento ?? "") ||
-      /pizza/i.test(
-        collectUserTexts(presHistory, currentMessage).join(" ")
-      );
-    if (wantsPizza) {
-      const pending = getNextPendingField(extracted, filledSet);
-      const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-      const display = getDisplayName(extracted, whatsappDisplayName);
+      /pizza/i.test(collectUserTexts(presHistory, currentMessage).join(" "));
+    const primarySvc =
+      preferPrimaryCatalogService(parseServicesFromText(extracted.requerimientos_evento ?? "")) ||
+      null;
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const svcNote = wantsPizza
+      ? "Seguimos con la cotización de *pizzas* para tu evento."
+      : primarySvc
+        ? `Seguimos con *${primarySvc}* y lo demás que platicamos.`
+        : null;
+    // Si Lucy acababa de pedir ciudad, o el mensaje es solo topónimo → forzar ack (no AI menú).
+    const lastAsstCity = [...presHistory]
+      .reverse()
+      .find((m) => m.role === "assistant" && typeof m.content === "string");
+    const lucyAskedCity =
+      lastAsstCity &&
+      typeof lastAsstCity.content === "string" &&
+      /ciudad|ubicaci[oó]n|d[oó]nde|sal[oó]n|colonia/i.test(lastAsstCity.content);
+    if (wantsPizza || lucyAskedCity || (primarySvc && currentMessage.trim().split(/\s+/).length <= 3)) {
       const body = [
         display ? `Perfecto, ${display}.` : "Perfecto.",
-        `Anoto la ubicación en *${zonaNow}*.`,
-        "Seguimos con la cotización de *pizzas* para tu evento.",
+        `Anoto la ubicación en *${extracted.direccion_evento ?? zonaNow}*.`,
+        svcNote,
         nextQ,
       ]
         .filter(Boolean)
         .join(" ");
-      log?.info({ entityId, zonaNow }, "GUARD: zona + pizzas — ack sin taquiza");
+      log?.info({ entityId, zonaNow }, "GUARD: A15539 — ciudad corta → ack + embudo");
       return normalizeAdvisorReferences(body, display);
     }
   }
@@ -5841,20 +5865,33 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       );
     }
     // A15419: solo dio horario ("13:00 a 20:00") → guardar horario y pedir día si falta.
+    // A15539: "cocktail a las 12 / comida a las 2 / a medio día" aunque Lucy no preguntó horario.
+    // Nota: syncHorarioFromHistory puede haber marcado CRM_HORARIO_LABEL en este mismo turno;
+    // igual hay que ACK (si no, cae a menú de comida por la palabra "comida").
     if (
       !cierreYaEnviado &&
       currentMessage &&
-      (lucyAskedHorario || horarioPending || lucyAskedFecha || fechaPending) &&
-      (isClockTimeOnlySchedule(currentMessage) || isMealTimeOnlySchedule(currentMessage) || horarioNow) &&
-      !filledSet.has(CRM_HORARIO_LABEL)
+      (lucyAskedHorario ||
+        horarioPending ||
+        lucyAskedFecha ||
+        fechaPending ||
+        isScheduleLabeledClock(currentMessage)) &&
+      (isClockTimeOnlySchedule(currentMessage) ||
+        isMealTimeOnlySchedule(currentMessage) ||
+        isScheduleLabeledClock(currentMessage) ||
+        !!horarioNow)
     ) {
-      extracted.horario_evento = (
+      const parsedHorario = (
         horarioNow ??
         parseHorarioFromText(currentMessage ?? "") ??
         currentMessage.trim()
       )
         .replace(/\s+/g, " ")
         .slice(0, 80);
+      if (!parsedHorario || !isUsableHorarioEvento(parsedHorario)) {
+        /* no-op: no es horario usable */
+      } else {
+      extracted.horario_evento = parsedHorario;
       filledSet.add(CRM_HORARIO_LABEL);
       syncLegacyFechaHorarioField(extracted);
       const display = getDisplayName(extracted, whatsappDisplayName);
@@ -5870,7 +5907,36 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         nextQ ? `${ack} ${nextQ}` : ack,
         extracted.nombre ?? display
       );
+      }
     }
+  }
+
+  // A15539: "carpa?" / "capra?" mid-flujo → anotar Carpas + embudo (no ignorar).
+  if (
+    !cierreYaEnviado &&
+    currentMessage &&
+    /^(capras?|carpas?)\s*\??$/i.test(currentMessage.trim())
+  ) {
+    const merged = mergeServiceRequirements(extracted.requerimientos_evento, "Carpas", 6);
+    if (merged) {
+      extracted.requerimientos_evento = merged;
+      filledSet.add("Requerimientos o servicios");
+    }
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ =
+      pending && pending !== "requerimientos"
+        ? buildNaturalQuestion(pending, ctx)
+        : "¿Me compartes las medidas del espacio (o del jardín) para la carpa?";
+    const body = [
+      display ? `Sí, ${display}.` : "Sí.",
+      "Manejamos *carpas* para jardín o terraza.",
+      nextQ,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    log?.info({ entityId }, "GUARD: A15539 — carpa? mid-flujo");
+    return normalizeAdvisorReferences(body, display);
   }
 
   // A15295 (todas las ramas): "no quiero comida / quítale alimentos" → quitar + ack + embudo.
@@ -5897,16 +5963,26 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       if (after) filledSet.add("Requerimientos o servicios");
       else filledSet.delete("Requerimientos o servicios");
 
-      const ack = buildServiceDeclineAck(declineFamilies);
+      // A15539: "bartender sí, DJ no, carpa sí" → anotar lo pedido + sin DJ.
+      const kept = after ? parseServicesFromText(after) : [];
+      const checklistMix =
+        kept.length > 0 &&
+        declineFamilies.includes("entretenimiento") &&
+        /\bdj\s+no\b|\bno\s*,?\s*dj\b/i.test(currentMessage);
+      const ack = checklistMix
+        ? `Perfecto: anoto *${formatServicesList(kept)}*; sin DJ.`
+        : buildServiceDeclineAck(declineFamilies);
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ =
         pending && pending !== "requerimientos"
           ? buildNaturalQuestion(pending, ctx)
           : pending === "requerimientos"
-            ? "¿Qué más te gustaría incluir en la cotización (sin alimentos, si así lo prefieres)?"
+            ? checklistMix
+              ? "¿Algo más para la cotización?"
+              : "¿Qué más te gustaría incluir en la cotización (sin alimentos, si así lo prefieres)?"
             : null;
       log?.info(
-        { entityId, families: declineFamilies },
+        { entityId, families: declineFamilies, checklistMix },
         "GUARD: A15295 — declina familia de servicio (return temprano)"
       );
       return normalizeAdvisorReferences(
@@ -7467,16 +7543,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       .trim();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: V9.36 — urgencia, mantiene el chat vivo");
-  } else if (clientAsksPhone(currentMessage) || clientRequestsCallback(currentMessage)) {
+  } else if (clientRequestsCallback(currentMessage)) {
+    // A15539: "que me llamen" / "este es mi tel" → handoff, no re-preguntar servicios.
+    mensaje = buildHumanAdvisorHandoffAnswer(extracted.nombre);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A15539 — callback / este es mi tel → handoff");
+  } else if (clientAsksPhone(currentMessage)) {
     const phoneAnswer = buildPhoneAnswer();
-    const callbackNote = clientRequestsCallback(currentMessage)
-      ? "\n\nUn asesor te puede atender por ahí."
-      : "";
     const pending = getNextPendingField(extracted, filledSet);
     mensaje =
-      needsNextStep && pending && pending !== "correo"
-        ? `${phoneAnswer}${callbackNote}\n\n${buildNaturalQuestion(pending, ctx)}`
-        : `${phoneAnswer}${callbackNote}`;
+      needsNextStep && pending && pending !== "correo" && pending !== "requerimientos"
+        ? `${phoneAnswer}\n\n${buildNaturalQuestion(pending, ctx)}`
+        : phoneAnswer;
     log?.info({ entityId }, "GUARD: cliente preguntó teléfonos / pidió llamada");
   } else if (
     // A15003: decline de extras con Photo Booth / entretenimiento ya en el hilo.

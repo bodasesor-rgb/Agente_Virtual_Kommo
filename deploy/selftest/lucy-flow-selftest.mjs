@@ -121519,7 +121519,7 @@ var FAMILY_SERVICE_RE = {
   alimentos: /^(Alimentos|Comida)$|banquete|taquiza|catering|pizzas?|barra\s+de\s+(pizzas?|pastas?|alimentos|sushi)|brunch|parrillada|sushi|canap|bocadillo|coffee\s*break|puestos?\s+de\s+comida|desayuno|paella|pozole|pasta/i,
   bebidas: /bebidas?|barra\s+de\s+bebidas|coctel|m[oó]cteles|mixolog|barra\s+de\s+caf[eé]/i,
   mobiliario: /mobiliario|sillas?|mesas?(?!\s+de\s+(postres?|dulces?|quesos?|imperial))|periqueras?|salas?\s+lounge|tiffany/i,
-  carpas: /carpas?|toldos?|lonas?/i,
+  carpas: /carpas?|capras?|toldos?|lonas?/i,
   decoracion: /decoraci[oó]n|centros?\s+de\s+mesa|florister|globos?|tem[aá]tica/i,
   entretenimiento: /show|dj\b|entretenimiento|hora\s+loca|photobooth|photo\s*booth|bailarinas|batucada|robots?/i,
   pista: /pista|tarima/i,
@@ -121532,7 +121532,7 @@ var FAMILY_DECLINE_WORDS = {
   alimentos: "comida|comidas|alimentos?|pizzas?|banquete|taquiza|catering|barra\\s+de\\s+pizzas?|brunch|parrillada|sushi|canap[e\xE9]s?|bocadillos?|coffee\\s*break",
   bebidas: "bebidas?|barra\\s+de\\s+bebidas|cocteler[i\xED]a|m[o\xF3]cteles?|mixolog[i\xED]a",
   mobiliario: "mobiliario|sillas?|mesas?|periqueras?|salas?",
-  carpas: "carpas?|toldos?|lonas?",
+  carpas: "carpas?|capras?|toldos?|lonas?",
   decoracion: "decoraci[o\xF3]n|centros?\\s+de\\s+mesa|flores?|globos?",
   entretenimiento: "show|dj|entretenimiento|hora\\s+loca|photobooth|photo\\s*booth",
   pista: "pista|tarima",
@@ -121557,6 +121557,9 @@ function clientDeclinesServiceFamilies(message) {
   }
   if (isMesaDulcesDeclinePhrase(t3) && !isTablewareRequestText(t3)) {
     out2.add("dulces");
+  }
+  if (/\bdj\s+no\b|\bno\s*,?\s*dj\b|\bdj\s*,?\s*no\b/i.test(t3)) {
+    out2.add("entretenimiento");
   }
   for (const family of Object.keys(FAMILY_DECLINE_WORDS)) {
     if (family === "mobiliario" && isMesaDulcesDeclinePhrase(t3)) continue;
@@ -121820,7 +121823,7 @@ var BODASESOR_SERVICE_PATTERNS = [
     "Mobiliario",
     /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|periqueras?)\b|(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+(?:de\s|rica\b|imperial\b))/i
   ],
-  ["Carpas", /\b(carpa|carpas|toldo)\b/i],
+  ["Carpas", /\b(carpa|carpas|capra|capras|toldo)\b/i],
   ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
   [
     "Audio y sonido",
@@ -121832,7 +121835,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Meseros", /\b(meseros?|staff|personal\s+de\s+servicio)\b/i],
   ["DJ", /\bdj\b/i],
   ["Mixolog\xEDa", /\bmixolog[ií]a\b/i],
-  ["Cocteler\xEDa", /\bcocteler[ií]a\b/i],
+  ["Cocteler\xEDa", /\b(cocteler[ií]a|bartender|bar\s*tender|barmen|barman)\b/i],
   ["M\xF3cteles", /\bm[oó]cteles?\b/i],
   ["Pastas", /\bpastas?\b/i],
   ["Pizzas", /\bpizza/i],
@@ -121964,8 +121967,9 @@ var TIPO_EVENTO_PATTERNS = [
   [/\b(eventos?\s+corporativos?|convenci[oó]n(es)?|conferencias?|corporativos?)\b/i, "evento corporativo"],
   [/\b(cumplea[nñ]os?|cumple)\b/i, "cumplea\xF1os"],
   [/\b(bautizos?)\b/i, "bautizo"],
+  [/\bprimera\s+comuni[oó]n\b/i, "primera comuni\xF3n"],
+  [/\b(comuni[oó]n)\b/i, "primera comuni\xF3n"],
   [/\b(graduaci[oó]n(es)?)\b/i, "graduaci\xF3n"],
-  [/\b(comuni[oó]n)\b/i, "celebraci\xF3n"],
   // Fiesta / celebración / reunión familiar (A15000 Itzel: "Reunión familiar").
   [/\b(fiesta|celebraci[oó]n(es)?(\s+familiares?)?|reun[ií][oó]n(es)?\s+(social|familiar(es)?))\b/i, "fiesta"],
   [/\b(reun[ií][oó]n\s+familiar|celebraci[oó]n\s+familiar)\b/i, "fiesta"],
@@ -122276,6 +122280,7 @@ function hasSpecificFoodService(text2) {
 function isVagueFoodTerm(text2) {
   const t3 = text2?.trim() ?? "";
   if (!t3) return false;
+  if (isScheduleLabeledClock(t3)) return false;
   if (clientDeclinesServiceFamilies(t3).includes("alimentos")) return false;
   if (clientAsksForFoodMenu(t3)) return true;
   if (clientAsksCafeOrCateringChoice(t3)) return true;
@@ -122600,12 +122605,13 @@ function clientAffirmsEmbudoContinue(message, lastAssistantText) {
 }
 function clientMentionsCarpas(message) {
   if (!message?.trim()) return false;
-  return /\bcarpas?\b|\btoldos?\b|\blonas?\b/i.test(message) || !!parseCarpaVariantFromText(message);
+  return /\bcarpas?\b|\bcapras?\b|\btoldos?\b|\blonas?\b/i.test(message) || !!parseCarpaVariantFromText(message);
 }
 function clientRequestsCallback(message) {
   if (!message?.trim()) return false;
   const t3 = message.toLowerCase();
-  return /\b(m[aá]rquenme|marquenme|ll[aá]menme|llamarme|me\s+marcan|me\s+llaman)\b/i.test(t3) || /\bme\s+pueden\s+(marcar|llamar)\b/i.test(t3) || /\b(pueden|pueden\s+ustedes)\s+(marcar|llamar)\b/i.test(t3) || /\batenci[oó]n\s+personalizada\b/i.test(t3) || /\bque\s+me\s+(marquen|llamen)\b/i.test(t3) || /\bnecesito\s+que\s+me\s+(marquen|llamen)\b/i.test(t3);
+  return /\b(m[aá]rquenme|marquenme|ll[aá]menme|llamarme|me\s+marcan|me\s+llaman)\b/i.test(t3) || /\bme\s+pueden\s+(marcar|llamar)\b/i.test(t3) || /\b(pueden|pueden\s+ustedes)\s+(marcar|llamar)\b/i.test(t3) || /\batenci[oó]n\s+personalizada\b/i.test(t3) || /\bque\s+me\s+(marquen|llamen)\b/i.test(t3) || /\bnecesito\s+que\s+me\s+(marquen|llamen)\b/i.test(t3) || // A15539 Jorge: "que me llamen si están interesados"
+  /\b(llamen|marquen)\s+si\s+(est[aá]n|estan)\s+interesados?\b/i.test(t3) || /\bme\s+(pueden\s+)?llamar\s+si\b/i.test(t3) || /\beste\s+es\s+mi\s+tel(e[eé]?fono)?\b/i.test(t3);
 }
 function clientSignalsUrgency(message) {
   if (!message?.trim()) return false;
@@ -122897,7 +122903,7 @@ var WRITTEN_NUMBERS = {
   quinientos: "500"
 };
 var MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
-var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende)\b/i;
+var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende)\b/i;
 var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
 function hasGeoLocationSignal(text2) {
   const t3 = text2.trim();
@@ -122929,7 +122935,7 @@ function hasCityOrMetroSignal(text2) {
   if (/\b(ciudad(\s+de)?|estado\s+de|edo\.?\s*m[eé]x|cdmx|d\.?\s*f\.?)\b/i.test(t3)) {
     return true;
   }
-  if (/\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica)\b/i.test(
+  if (/\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica|atlixco|cholula|tehuac[aá]n)\b/i.test(
     t3
   )) {
     return true;
@@ -123501,9 +123507,26 @@ function parseReunionAniosLabel(text2) {
   if (a3?.[0]) return a3[0].replace(/\s+/g, " ").trim();
   return "reuni\xF3n";
 }
+function isScheduleLabeledClock(text2) {
+  const t3 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t3 || t3.length > 120) return false;
+  if (/^(a\s+)?medio\s*d[ií]a$/i.test(t3) || /^a\s+mediod[ií]a$/i.test(t3) || /^(por\s+la\s+)?(ma[nñ]ana|tarde|noche)$/i.test(t3)) {
+    return true;
+  }
+  if (/\b(cocktail|c[oó]ctel|comida|cena|desayuno|brunch|almuerzo|recepci[oó]n)\s+(a\s+las\s+)?\d{1,2}(?::\d{2})?\b/i.test(
+    t3
+  )) {
+    return true;
+  }
+  const labeledClocks = (t3.match(
+    /\b(cocktail|c[oó]ctel|comida|cena|desayuno|brunch)\s+(a\s+las\s+)?\d{1,2}(?::\d{2})?/gi
+  ) ?? []).length;
+  return labeledClocks >= 1 && t3.split(/\s+/).length <= 20;
+}
 function looksLikeMealTimeNotLocation(text2) {
   const t3 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
   if (!t3) return false;
+  if (isScheduleLabeledClock(t3) && /\d/.test(t3)) return false;
   const n4 = t3.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ");
   const meal = /\bhora\s+de\s+(comida|cena|desayuno|almuerzo|lunch|brunch|fomida|comidita)\b/.test(n4) || /^(en\s+)?(hora\s+de\s+)?(comida|cena|desayuno|almuerzo|lunch|brunch|fomida)$/.test(n4) || /\ben\s+hora\s+de\s+\w{3,20}$/.test(n4);
   return meal;
@@ -123511,6 +123534,7 @@ function looksLikeMealTimeNotLocation(text2) {
 function isMealTimeOnlySchedule(text2) {
   const t3 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
   if (!t3) return false;
+  if (isScheduleLabeledClock(t3)) return true;
   if (looksLikeMealTimeNotLocation(t3) && t3.split(/\s+/).length <= 6) {
     if (/\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
       t3
@@ -123530,6 +123554,7 @@ function isSimpleClockTime(text2) {
   )) {
     return false;
   }
+  if (/^(a\s+)?medio\s*d[ií]a$/i.test(t3) || /^a\s+mediod[ií]a$/i.test(t3)) return true;
   if (/^(?:a\s+las\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)?$/i.test(t3)) {
     return true;
   }
@@ -123638,6 +123663,16 @@ function parseHorarioFromText(text2) {
   const clean = trimmed.replace(/[.,;:¡!¿?]+$/g, "").trim();
   if (isClockTimeOnlySchedule(clean)) return normalizeHorarioCapture(clean);
   if (isMealTimeOnlySchedule(clean)) return clean;
+  if (isScheduleLabeledClock(clean)) {
+    const parts2 = [
+      ...clean.matchAll(
+        /\b((?:cocktail|c[oó]ctel|comida|cena|desayuno|brunch)\s+(?:a\s+las\s+)?\d{1,2}(?::\d{2})?)/gi
+      )
+    ].map((m5) => m5[1].trim());
+    if (parts2.length >= 1) return parts2.join("; ").slice(0, 100);
+    if (/medio\s*d[ií]a/i.test(clean)) return "a medio d\xEDa";
+    return clean.slice(0, 80);
+  }
   const horarioLabel = clean.match(/\bhorario\s*:?\s*(.+)$/i);
   if (horarioLabel?.[1] && /\d/.test(horarioLabel[1])) {
     return horarioLabel[1].trim().slice(0, 80);
@@ -123668,7 +123703,7 @@ function parseHorarioFromText(text2) {
     }
     if (!parseFechaFromText(clean)) return range[1].trim();
   }
-  if (/\b(tarde|noche|mediod[ií]a|ma[nñ]ana)\b/i.test(clean) && clean.split(/\s+/).length <= 7 && !MONTH_PATTERN.test(clean)) {
+  if (/\b(tarde|noche|mediod[ií]a|medio\s*d[ií]a|ma[nñ]ana)\b/i.test(clean) && clean.split(/\s+/).length <= 7 && !MONTH_PATTERN.test(clean)) {
     return normalizeHorarioCapture(clean).slice(0, 40);
   }
   if (/\b(sin\s+horario|por\s+definir|a[uú]n\s+no\s+(sabemos|tenemos)\s+horario|todav[ií]a\s+no\s+(sabemos|tenemos))\b/i.test(
@@ -123707,6 +123742,7 @@ function isUsableHorarioEvento(value) {
   if (isClockTimeOnlySchedule(t3)) return true;
   if (isMealTimeOnlySchedule(t3)) return true;
   if (isSimpleClockTime(t3)) return true;
+  if (isScheduleLabeledClock(t3)) return true;
   if (looksLikeMealTimeNotLocation(t3) && t3.split(/\s+/).length <= 6) return true;
   if (/\b\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}/i.test(t3)) return true;
   if (/\b(?:a\s+las|desde\s+las)\s+\d/i.test(t3)) return true;
@@ -124037,7 +124073,12 @@ function clientCorrectsLocation(text2) {
 function isVenueSpaceDetail(text2) {
   const t3 = (text2 ?? "").trim();
   if (!t3) return false;
-  return /^(el\s+|un\s+|una\s+)?(patio(\s+techado)?|techado|jard[ií]n|azotea|rooftop|terraza)[\s.,!]*$/i.test(
+  if (/\b(ser[aá]|ser[ií]a|es|queda|va\s+a\s+ser)\s+(en\s+)?(un\s+|una\s+)?(patio(\s+techado)?|techado|jard[ií]n|azotea|rooftop|terraza)\b/i.test(
+    t3
+  ) && t3.split(/\s+/).length <= 10 && !parseZonaFromText(t3)) {
+    return true;
+  }
+  return /^(el\s+|un\s+|una\s+|en\s+(un\s+|una\s+)?)?(patio(\s+techado)?|techado|jard[ií]n|azotea|rooftop|terraza)[\s.,!]*$/i.test(
     t3
   );
 }
@@ -124047,7 +124088,17 @@ function applyLocationCorrectionToAddress(existing, message) {
   if (!msg) return null;
   const corrects = clientCorrectsLocation(msg);
   const spaceDetail = isVenueSpaceDetail(msg);
-  if (!corrects && !(spaceDetail && prev)) return null;
+  if (!corrects && !spaceDetail) return null;
+  if (!corrects && spaceDetail && !prev) {
+    if (/\bjard[ií]n\b/i.test(msg)) return "jard\xEDn";
+    if (/\bpatio(\s+techado)?\b/i.test(msg)) {
+      return /\btechado\b/i.test(msg) ? "patio techado" : "patio";
+    }
+    if (/\b(azotea|rooftop|terraza)\b/i.test(msg)) {
+      return msg.match(/\b(azotea|rooftop|terraza)\b/i)?.[1] ?? "terraza";
+    }
+    return null;
+  }
   let zoneFromMsg = parseZonaFromText(msg);
   if (!zoneFromMsg) {
     const m5 = msg.match(KNOWN_ZONES);
@@ -125228,7 +125279,17 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
     out2.fecha_horario = null;
     applied.push("fecha-legacy-cleared");
   }
+  if (out2.telefono && isBodasesorCompanyPhone(out2.telefono)) {
+    out2.telefono = null;
+    applied.push("telefono-company-cleared");
+  }
   return { extracted: out2, applied };
+}
+function isBodasesorCompanyPhone(value) {
+  const digits = String(value ?? "").replace(/\D/g, "");
+  if (!digits) return false;
+  const core = digits.replace(/^52/, "");
+  return core === "5540080373" || core === "5646710585" || digits.endsWith("5540080373") || digits.endsWith("5646710585");
 }
 function purgeUnjustifiedPresupuestoLines(lines, userTexts) {
   if (userJustifiesPresupuesto(userTexts)) return lines;
@@ -129772,7 +129833,8 @@ var INCLUSION_ITEM_PATTERNS = {
   cristaleria: /\bcristaler[ií]a\b/i,
   montaje: /\bmontaje\b|\binstalaci[oó]n\b/i,
   chef: /\bchefs?\b|\bpersonal\s+de\s+cocina\b/i,
-  alcohol: /\balcohol\b|\bborra\s+libre\b|\bopen\s*bar\b|\blicor/i
+  alcohol: /\balcohol\b|\bborra\s+libre\b|\bopen\s*bar\b|\blicor/i,
+  mobiliario: /\bmobiliario\b|\bmobilairio\b|\bmesas?\s+y\s+sillas?\b/i
 };
 function inclusionEvidenceRegex(item, serviceLabel) {
   if (item === "bebidas") {
@@ -129786,6 +129848,7 @@ function inclusionEvidenceRegex(item, serviceLabel) {
   if (item === "cristaleria") return /\bcristaler[ií]a\b|\bhighball\b|\bcopas?\b/i;
   if (item === "montaje") return /\bmontaje\b|\binstalaci[oó]n\b/i;
   if (item === "chef") return /\bchefs?\b|\bpersonal\s+de\s+cocina\b/i;
+  if (item === "mobiliario") return /\bmobiliario\b|\bsillas?\b|\bmesas?\b|\bmanteler/i;
   return /\balcohol\b|\bopen\s*bar\b|\bbarra\s+libre\b|\blicor|\btequila|\bwhisky/i;
 }
 function pdfWindowForNivel(service, nivel) {
@@ -129848,6 +129911,14 @@ function formatNivelPrice(row) {
 function buildSpecificInclusionItemReply(query, serviceHint) {
   const item = clientAsksSpecificInclusionItem(query);
   if (!item) return null;
+  if (item === "mobiliario" && /\bservicio\s+completo\b/i.test(query)) {
+    const svc = resolveInclusionServiceLabel(query, serviceHint) || parsePrimaryService(serviceHint ?? "") || "tu paquete";
+    return [
+      `S\xED, correcto: en *servicio completo* de *${svc}* va incluido el *mobiliario* (junto con bebidas y meseros).`,
+      "La opci\xF3n *solo alimentos* es solo la comida, sin mobiliario.",
+      "\xBFTe late el servicio completo, o prefieres solo alimentos?"
+    ].join(" ");
+  }
   const service = resolveInclusionServiceLabel(query, serviceHint);
   if (!service) return null;
   const evidence = inclusionEvidenceRegex(item, service);
@@ -133975,14 +134046,18 @@ ${nextQ}` : ack;
       );
     }
   }
-  if (!cierreYaEnviado && currentMessage && isUsableDireccionEvento(extracted.direccion_evento) && (clientCorrectsLocation(currentMessage) || isVenueSpaceDetail(currentMessage))) {
+  if (!cierreYaEnviado && currentMessage && (clientCorrectsLocation(currentMessage) || isVenueSpaceDetail(currentMessage)) && (isUsableDireccionEvento(extracted.direccion_evento) || isVenueSpaceDetail(currentMessage))) {
     const nextDir = applyLocationCorrectionToAddress(
       extracted.direccion_evento,
       currentMessage
     );
     if (nextDir) {
       extracted.direccion_evento = nextDir;
-      filledSet.add("Lugar/direcci\xF3n del evento");
+      if (isUsableDireccionEvento(nextDir) && !isVagueVenueOnly(nextDir) && !isVenueWithoutCity(nextDir)) {
+        filledSet.add("Lugar/direcci\xF3n del evento");
+      } else {
+        filledSet.delete("Lugar/direcci\xF3n del evento");
+      }
     }
     const display = getDisplayName(extracted, whatsappDisplayName);
     const needsExactAddress = /\botra\s+ubicaci[oó]n\b|\bno\s+es\s+en\s+(el\s+)?piso\b|\bme\s+equivoqu/i.test(
@@ -133999,7 +134074,7 @@ ${nextQ}` : ack;
       body2 = [
         display ? `Perfecto, ${display}.` : "Perfecto.",
         `Anoto *${nextDir}*.`,
-        getNextPendingField(extracted, filledSet) ? buildNaturalQuestion(getNextPendingField(extracted, filledSet), ctx) : null
+        !hasCityOrMetroSignal(nextDir) && !isFieldSatisfied("zona", filledSet, extracted) ? "\xBFMe confirmas la *ciudad* del evento?" : getNextPendingField(extracted, filledSet) ? buildNaturalQuestion(getNextPendingField(extracted, filledSet), ctx) : null
       ].filter(Boolean).join(" ");
     } else if (needsExactAddress) {
       body2 = [
@@ -134052,27 +134127,29 @@ ${nextQ}` : ack;
   }
   if (!cierreYaEnviado && currentMessage && (() => {
     const z3 = parseZonaFromText(currentMessage);
-    return !!z3 && currentMessage.trim().split(/\s+/).length <= 6 && (/^en\s+/i.test(currentMessage.trim()) || isLikelyUbicacionNotNombre(currentMessage));
+    return !!z3 && currentMessage.trim().split(/\s+/).length <= 6 && (/^en\s+/i.test(currentMessage.trim()) || isLikelyUbicacionNotNombre(currentMessage) || /^[A-Za-zÁÉÍÓÚáéíóúñÑ][A-Za-zÁÉÍÓÚáéíóúñÑ\s.-]{2,40}$/i.test(currentMessage.trim()));
   })()) {
     const zonaNow = parseZonaFromText(currentMessage);
-    if (!isUsableDireccionEvento(extracted.direccion_evento)) {
-      extracted.direccion_evento = zonaNow;
+    if (!isUsableDireccionEvento(extracted.direccion_evento) || shouldReplaceCrmDireccion(extracted.direccion_evento, zonaNow)) {
+      extracted.direccion_evento = mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
       filledSet.add("Lugar/direcci\xF3n del evento");
     }
-    const wantsPizza = /pizza/i.test(extracted.requerimientos_evento ?? "") || /pizza/i.test(
-      collectUserTexts(presHistory, currentMessage).join(" ")
-    );
-    if (wantsPizza) {
-      const pending = getNextPendingField(extracted, filledSet);
-      const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-      const display = getDisplayName(extracted, whatsappDisplayName);
+    const wantsPizza = /pizza/i.test(extracted.requerimientos_evento ?? "") || /pizza/i.test(collectUserTexts(presHistory, currentMessage).join(" "));
+    const primarySvc = preferPrimaryCatalogService(parseServicesFromText(extracted.requerimientos_evento ?? "")) || null;
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const svcNote = wantsPizza ? "Seguimos con la cotizaci\xF3n de *pizzas* para tu evento." : primarySvc ? `Seguimos con *${primarySvc}* y lo dem\xE1s que platicamos.` : null;
+    const lastAsstCity = [...presHistory].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
+    const lucyAskedCity = lastAsstCity && typeof lastAsstCity.content === "string" && /ciudad|ubicaci[oó]n|d[oó]nde|sal[oó]n|colonia/i.test(lastAsstCity.content);
+    if (wantsPizza || lucyAskedCity || primarySvc && currentMessage.trim().split(/\s+/).length <= 3) {
       const body2 = [
         display ? `Perfecto, ${display}.` : "Perfecto.",
-        `Anoto la ubicaci\xF3n en *${zonaNow}*.`,
-        "Seguimos con la cotizaci\xF3n de *pizzas* para tu evento.",
+        `Anoto la ubicaci\xF3n en *${extracted.direccion_evento ?? zonaNow}*.`,
+        svcNote,
         nextQ
       ].filter(Boolean).join(" ");
-      log?.info({ entityId, zonaNow }, "GUARD: zona + pizzas \u2014 ack sin taquiza");
+      log?.info({ entityId, zonaNow }, "GUARD: A15539 \u2014 ciudad corta \u2192 ack + embudo");
       return normalizeAdvisorReferences(body2, display);
     }
   }
@@ -134259,20 +134336,41 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
-    if (!cierreYaEnviado && currentMessage && (lucyAskedHorario || horarioPending || lucyAskedFecha || fechaPending) && (isClockTimeOnlySchedule(currentMessage) || isMealTimeOnlySchedule(currentMessage) || horarioNow) && !filledSet.has(CRM_HORARIO_LABEL)) {
-      extracted.horario_evento = (horarioNow ?? parseHorarioFromText(currentMessage ?? "") ?? currentMessage.trim()).replace(/\s+/g, " ").slice(0, 80);
-      filledSet.add(CRM_HORARIO_LABEL);
-      syncLegacyFechaHorarioField(extracted);
-      const display = getDisplayName(extracted, whatsappDisplayName);
-      const ack = display ? `Perfecto, ${display}. Anoto el horario *${extracted.horario_evento}*.` : `Perfecto. Anoto el horario *${extracted.horario_evento}*.`;
-      const pendingAfterHorario = getNextPendingField(extracted, filledSet);
-      const nextQ = pendingAfterHorario ? buildNaturalQuestion(pendingAfterHorario, ctx) : null;
-      log?.info({ entityId, pending: pendingAfterHorario }, "GUARD: A15419 \u2014 horario capturado + embudo");
-      return normalizeAdvisorReferences(
-        nextQ ? `${ack} ${nextQ}` : ack,
-        extracted.nombre ?? display
-      );
+    if (!cierreYaEnviado && currentMessage && (lucyAskedHorario || horarioPending || lucyAskedFecha || fechaPending || isScheduleLabeledClock(currentMessage)) && (isClockTimeOnlySchedule(currentMessage) || isMealTimeOnlySchedule(currentMessage) || isScheduleLabeledClock(currentMessage) || !!horarioNow)) {
+      const parsedHorario = (horarioNow ?? parseHorarioFromText(currentMessage ?? "") ?? currentMessage.trim()).replace(/\s+/g, " ").slice(0, 80);
+      if (!parsedHorario || !isUsableHorarioEvento(parsedHorario)) {
+      } else {
+        extracted.horario_evento = parsedHorario;
+        filledSet.add(CRM_HORARIO_LABEL);
+        syncLegacyFechaHorarioField(extracted);
+        const display = getDisplayName(extracted, whatsappDisplayName);
+        const ack = display ? `Perfecto, ${display}. Anoto el horario *${extracted.horario_evento}*.` : `Perfecto. Anoto el horario *${extracted.horario_evento}*.`;
+        const pendingAfterHorario = getNextPendingField(extracted, filledSet);
+        const nextQ = pendingAfterHorario ? buildNaturalQuestion(pendingAfterHorario, ctx) : null;
+        log?.info({ entityId, pending: pendingAfterHorario }, "GUARD: A15419 \u2014 horario capturado + embudo");
+        return normalizeAdvisorReferences(
+          nextQ ? `${ack} ${nextQ}` : ack,
+          extracted.nombre ?? display
+        );
+      }
     }
+  }
+  if (!cierreYaEnviado && currentMessage && /^(capras?|carpas?)\s*\??$/i.test(currentMessage.trim())) {
+    const merged = mergeServiceRequirements(extracted.requerimientos_evento, "Carpas", 6);
+    if (merged) {
+      extracted.requerimientos_evento = merged;
+      filledSet.add("Requerimientos o servicios");
+    }
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : "\xBFMe compartes las medidas del espacio (o del jard\xEDn) para la carpa?";
+    const body2 = [
+      display ? `S\xED, ${display}.` : "S\xED.",
+      "Manejamos *carpas* para jard\xEDn o terraza.",
+      nextQ
+    ].filter(Boolean).join(" ");
+    log?.info({ entityId }, "GUARD: A15539 \u2014 carpa? mid-flujo");
+    return normalizeAdvisorReferences(body2, display);
   }
   {
     const recentUserForDecline = collectUserTexts(presHistory, void 0).slice(-4);
@@ -134294,11 +134392,13 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
       extracted.requerimientos_evento = after;
       if (after) filledSet.add("Requerimientos o servicios");
       else filledSet.delete("Requerimientos o servicios");
-      const ack = buildServiceDeclineAck(declineFamilies);
+      const kept = after ? parseServicesFromText(after) : [];
+      const checklistMix = kept.length > 0 && declineFamilies.includes("entretenimiento") && /\bdj\s+no\b|\bno\s*,?\s*dj\b/i.test(currentMessage);
+      const ack = checklistMix ? `Perfecto: anoto *${formatServicesList(kept)}*; sin DJ.` : buildServiceDeclineAck(declineFamilies);
       const pending = getNextPendingField(extracted, filledSet);
-      const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : pending === "requerimientos" ? "\xBFQu\xE9 m\xE1s te gustar\xEDa incluir en la cotizaci\xF3n (sin alimentos, si as\xED lo prefieres)?" : null;
+      const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : pending === "requerimientos" ? checklistMix ? "\xBFAlgo m\xE1s para la cotizaci\xF3n?" : "\xBFQu\xE9 m\xE1s te gustar\xEDa incluir en la cotizaci\xF3n (sin alimentos, si as\xED lo prefieres)?" : null;
       log?.info(
-        { entityId, families: declineFamilies },
+        { entityId, families: declineFamilies, checklistMix },
         "GUARD: A15295 \u2014 declina familia de servicio (return temprano)"
       );
       return normalizeAdvisorReferences(
@@ -135326,13 +135426,16 @@ ${catalog}`,
     ].filter(Boolean).join(" ").trim();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: V9.36 \u2014 urgencia, mantiene el chat vivo");
-  } else if (clientAsksPhone(currentMessage) || clientRequestsCallback(currentMessage)) {
+  } else if (clientRequestsCallback(currentMessage)) {
+    mensaje = buildHumanAdvisorHandoffAnswer(extracted.nombre);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A15539 \u2014 callback / este es mi tel \u2192 handoff");
+  } else if (clientAsksPhone(currentMessage)) {
     const phoneAnswer = buildPhoneAnswer();
-    const callbackNote = clientRequestsCallback(currentMessage) ? "\n\nUn asesor te puede atender por ah\xED." : "";
     const pending = getNextPendingField(extracted, filledSet);
-    mensaje = needsNextStep && pending && pending !== "correo" ? `${phoneAnswer}${callbackNote}
+    mensaje = needsNextStep && pending && pending !== "correo" && pending !== "requerimientos" ? `${phoneAnswer}
 
-${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
+${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 tel\xE9fonos / pidi\xF3 llamada");
   } else if (
     // A15003: decline de extras con Photo Booth / entretenimiento ya en el hilo.
@@ -138560,7 +138663,7 @@ function clientReplyForPaymentSlot(slot) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.54";
+var LUCY_PROMPT_VERSION = "V9.55";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -148121,7 +148224,7 @@ ${golfText}`,
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
   await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -148150,7 +148253,7 @@ ${golfText}`,
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
   await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -148268,7 +148371,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,
@@ -148339,7 +148442,7 @@ ${golfText}`,
     }
   });
   await test("135. V9.38 \u2014 comprobante en imagen: primer pago Anticipo, segundo Liquidaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     assert2.equal(FIELD_ANTICIPO, 1049322);
     assert2.equal(FIELD_LIQUIDACION, 1049324);
     assert2.equal(nextPaymentSlot(null, null), "anticipo");
@@ -148403,7 +148506,7 @@ ${golfText}`,
     assert2.ok(/amount_mxn/.test(imgSrc));
   });
   await test("136. V9.40 \u2014 A15380 invitados no se saltan; Coyoac\xE1n+colonia; Claro no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     const horario = "hola si se har\xEDa el 26 de septiembre pero a\xFAn no tenemos definido el horario";
     assert2.equal(parseInvitadosFromText(horario), null, "horario pendiente \u2260 invitados");
     const caps = scanConversationForCaptures([], horario, /* @__PURE__ */ new Set(["Nombre del cliente"]));
@@ -148506,7 +148609,7 @@ ${golfText}`,
     assert2.equal(taquizaNext, "invitados");
   });
   await test("138. V9.41 \u2014 A15383 Kelia: ciudad, banquetes, LED\u2260luz, no spam (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert2.match(hornoMty, /horno\s*3/i, hornoMty);
     assert2.match(hornoMty, /monterrey/i, hornoMty);
@@ -148641,7 +148744,7 @@ ${golfText}`,
     assert2.ok(!/Listo\.\s*Kelia/i.test(nameSpam), nameSpam);
   });
   await test("139. V9.42 \u2014 A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert2.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert2.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -148731,7 +148834,7 @@ ${golfText}`,
     assert2.ok(!/invitados|cu[aá]nt[oa]s|ciudad del evento|en qu[eé] ciudad/i.test(handoff), handoff.slice(0, 400));
   });
   await test("140. V9.43 \u2014 detalle de un producto no re-lista el men\xFA (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -148770,7 +148873,7 @@ ${golfText}`,
     assert2.ok(/Coffee Break 4|350|CB4/i.test(rewritten), rewritten.slice(0, 500));
   });
   await test("141. V9.44 \u2014 A15443 Rosario: reuni\xF3n, hora comida, ciudad obligatoria", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     assert2.equal(parseTipoEventoFromText("una reuni\xF3n de 15 a\xF1os"), "reuni\xF3n");
     assert2.ok(clientSaidReunionNotXv("una reuni\xF3n de 15 a\xF1os"));
     assert2.ok(!clientSaidReunionNotXv("mis XV a\xF1os"));
@@ -148885,7 +148988,7 @@ ${golfText}`,
     assert2.ok(/2\.\s*\*?Servicio completo/i.test(fixedMenu), fixedMenu.slice(0, 600));
   });
   await test("142. V9.45 \u2014 A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     assert2.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert2.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
     assert2.ok(!isUsableFechaHorario("13:00 a 20:00 hrs"));
@@ -148959,7 +149062,7 @@ ${golfText}`,
     assert2.ok(!/ya tengo todo/i.test(clockReply));
   });
   await test("143. V9.49 \u2014 imagen solo embudo; silencio lee dep\xF3sito sin WhatsApp", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
     assert2.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
@@ -149002,7 +149105,7 @@ ${golfText}`,
     assert2.ok(/sin WhatsApp al cliente|leída en silencio/i.test(kommoSrc));
   });
   await test("144. V9.49 \u2014 A15478 Isabel: recomienda tama\xF1o pista seg\xFAn invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     const ask = "Me puedes recomendar el tama\xF1o pensando en la cantidad de invitados?";
     assert2.ok(clientAsksDimensionRecommendation(ask));
     const rec = recommendPistaDimensionsForGuests(120, "XV a\xF1os");
@@ -149068,7 +149171,7 @@ ${golfText}`,
     assert2.ok(!/ya tengo lo principal/i.test(anti.mensaje), anti.mensaje);
   });
   await test("146. V9.49 \u2014 A15494 Paola: mucho gusto no es apellido", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     const reply = "Paola mucho gusto";
     assert2.ok(isMuchoGustoNameReply(reply));
     assert2.equal(sanitizeCrmNombre(reply), "Paola");
@@ -149102,7 +149205,7 @@ ${golfText}`,
     assert2.ok(!/Mucho Gusto!/i.test(guarded.replace(/mucho gusto,\s*Paola/i, "")), guarded);
   });
   await test("147. V9.49 \u2014 A15503 Good: loza y plato postre = vajilla, no postres", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     const brief = "Hola, me interesa cotizar un servicio\nQuiere loza para un evento para 50 personas\nSer\xEDa:\nPlato trinche\nPlato postre\nCubiertos (cuchara, tenedor, cuchara postre).";
     assert2.ok(isTablewareRequestText(brief));
     const services = parseServicesFromText(brief);
@@ -149131,7 +149234,7 @@ ${golfText}`,
     assert2.ok(!/mobiliario/i.test(declineGuard), declineGuard);
   });
   await test("148. V9.50 \u2014 fecha y horario en campos CRM separados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     const split = splitCombinedFechaHorario("15 de agosto, 5:00 p.m.");
     assert2.equal(split.fecha, "15 de agosto");
     assert2.ok(split.horario && /5:00/i.test(split.horario));
@@ -149169,7 +149272,7 @@ ${golfText}`,
     assert2.ok(!cf.some((f6) => f6.field_id === 1048778));
   });
   await test("149. V9.51 \u2014 A15508 Betiana: 40 invitadas y anti-repetici\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     assert2.equal(parseInvitadosFromText("40 sillas, 40 invitadas"), "40");
     assert2.equal(parseInvitadosFromText("40 invitadas"), "40");
     assert2.equal(
@@ -149215,7 +149318,7 @@ ${golfText}`,
     assert2.ok(!/estimado de invitados|cu[aá]ntos invitados/i.test(guarded), guarded);
   });
   await test("150. V9.52 \u2014 A15509 Gaby: apertura, RFQ equipo, a\xFAn no invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     assert2.equal(parseTipoEventoFromText("Ser\xEDa para la apertura de un negocio"), "apertura de negocio");
     assert2.ok(clientSaidAperturaNegocio("Ser\xEDa para la apertura de un negocio"));
     const rfq = [
@@ -149279,7 +149382,7 @@ ${golfText}`,
     assert2.ok(!/cu[aá]ntas personas|estimado de invitados/i.test(invWaive), invWaive);
   });
   await test("151. V9.53 \u2014 A15516 Ccam: captura horario pm y anti-repetici\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     const extracted = emptyExtracted({
       nombre: "Ccam",
       tipo_evento: "XV a\xF1os",
@@ -149326,8 +149429,8 @@ ${golfText}`,
     });
     assert2.ok(!/horario/i.test(guarded2) || /anoto|perfecto|invitados|ciudad|correo/i.test(guarded2), guarded2);
   });
-  await test("152. V9.54 \u2014 A15486 G\xE9nesis: promo/vajilla/detalles/presupuesto/PDF", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.54");
+  await test("152. V9.55 \u2014 A15486 G\xE9nesis: promo/vajilla/detalles/presupuesto/PDF", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
     const promo = [
       "Hola, escribo por la promo de cierre r\xE1pido (10% de descuento).",
       "C\xF3digo: CierreRapido",
@@ -149437,6 +149540,165 @@ ${golfText}`,
       /[Ii]luminaci|[Aa]udio|sonido|cat[aá]logo/i.test(masDetalle),
       masDetalle.slice(0, 400)
     );
+  });
+  await test("153. V9.55 \u2014 A15539 Jorge: horario/carpa/DJ no/mobiliario/Atlixco/callback", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.55");
+    assert2.equal(parseTipoEventoFromText("primera comuni\xF3n"), "primera comuni\xF3n");
+    assert2.ok(isScheduleLabeledClock("a medio d\xEDa"));
+    assert2.ok(isScheduleLabeledClock("cocktail a las 12:00\ncomida a las 2:00"));
+    assert2.ok(!isVagueFoodTerm("comida a las 2:00"));
+    assert2.ok(/cocktail|12|comida|2/i.test(parseHorarioFromText("cocktail a las 12:00\ncomida a las 2:00") ?? ""));
+    assert2.equal(parseHorarioFromText("a medio d\xEDa"), "a medio d\xEDa");
+    assert2.ok(clientMentionsCarpas("carpa?"));
+    assert2.ok(clientMentionsCarpas("capra s\xED"));
+    assert2.ok(parseServicesFromText("necesito bar tender, DJ no, capra s\xED").includes("Cocteler\xEDa"));
+    assert2.ok(parseServicesFromText("necesito bar tender, DJ no, capra s\xED").includes("Carpas"));
+    assert2.ok(!parseServicesFromText("necesito bar tender, DJ no, capra s\xED").some((s6) => /^DJ$/i.test(s6)));
+    assert2.ok(clientDeclinesServiceFamilies("necesito bar tender, DJ no, capra s\xED").includes("entretenimiento"));
+    assert2.ok(/Atlixco/i.test(parseZonaFromText("atlixco") ?? ""));
+    assert2.ok(isVenueSpaceDetail("ser\xE1 en un jardin"));
+    assert2.ok(isVenueSpaceDetail("jard\xEDn"));
+    assert2.ok(clientRequestsCallback("que me llamen si est\xE1n interesados"));
+    assert2.ok(clientRequestsCallback("este es mi tel"));
+    assert2.ok(isBodasesorCompanyPhone("55 4008 0373"));
+    assert2.ok(isBodasesorCompanyPhone("+52 55 4008 0373"));
+    const phoneCleared = applyCrmWriteInvariants(
+      emptyExtracted({ telefono: "55 4008 0373" }),
+      ["este es mi tel"]
+    );
+    assert2.equal(phoneCleared.extracted.telefono, null);
+    const mobiliarioInc = buildSpecificInclusionItemReply(
+      "el servicio completo incluye mobiliario correcto?",
+      "Paella"
+    );
+    assert2.ok(mobiliarioInc && /mobiliario/i.test(mobiliarioInc) && /s[ií]|correcto|incluye/i.test(mobiliarioInc), mobiliarioInc ?? "");
+    const carpaQ = runGuards({
+      aiResponse: "\xBFQu\xE9 tipo de evento es?",
+      extracted: emptyExtracted({
+        nombre: "Jorge",
+        requerimientos_evento: "Paella",
+        num_invitados: 100
+      }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios", "N\xFAmero de invitados"]),
+      readyForClosing: false,
+      currentMessage: "carpa?",
+      history: [{ role: "assistant", content: "\xBFCu\xE1l te late m\xE1s?" }]
+    });
+    assert2.ok(/carpa/i.test(carpaQ), carpaQ.slice(0, 300));
+    assert2.ok(/Manejamos \*carpas\*|anoto.*[Cc]arpas/i.test(carpaQ), carpaQ.slice(0, 300));
+    assert2.ok(!/^\s*¿Qué tipo de evento es\?\s*$/i.test(carpaQ.trim()), carpaQ.slice(0, 300));
+    const horarioReply = runGuards({
+      aiResponse: "Con gusto. Claro. Para *comida* del evento, \xBFqu\xE9 te gustar\xEDa?",
+      extracted: emptyExtracted({
+        nombre: "Jorge",
+        tipo_evento: "primera comuni\xF3n",
+        requerimientos_evento: "Paella",
+        fecha_evento: "Marzo-Abril 2027",
+        num_invitados: 100
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        CRM_FECHA_LABEL,
+        "N\xFAmero de invitados"
+      ]),
+      readyForClosing: false,
+      currentMessage: "cocktail a las 12:00\ncomida a las 2:00",
+      history: [{ role: "assistant", content: "\xBFEn qu\xE9 horario lo planean?" }]
+    });
+    assert2.ok(/horario|12|cocktail|2/i.test(horarioReply), horarioReply.slice(0, 400));
+    assert2.ok(!/banquete|taquiza|casual/i.test(horarioReply), horarioReply.slice(0, 400));
+    const checklist = emptyExtracted({
+      nombre: "Jorge",
+      tipo_evento: "primera comuni\xF3n",
+      requerimientos_evento: "Paella, Mobiliario, Carpas",
+      num_invitados: 100
+    });
+    const djNo = runGuards({
+      aiResponse: "\xA1Claro! *DJ* la anoto para tu cotizaci\xF3n.",
+      extracted: checklist,
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "N\xFAmero de invitados"
+      ]),
+      readyForClosing: false,
+      currentMessage: "necesito bar tender, DJ no, capra s\xED",
+      history: [{ role: "assistant", content: "\xBFNecesitan alg\xFAn otro servicio?" }]
+    });
+    assert2.ok(!/\*DJ\*\s+la anoto|DJ.*anoto/i.test(djNo), djNo.slice(0, 400));
+    assert2.ok(/sin\s+DJ|no\s+incluimos\s+entretenimiento|Cocteler|bartender|carpa/i.test(djNo), djNo.slice(0, 400));
+    assert2.ok(
+      /Cocteler/i.test(checklist.requerimientos_evento ?? "") || /sin\s+DJ|Cocteler|carpa/i.test(djNo),
+      checklist.requerimientos_evento
+    );
+    assert2.ok(!/\bDJ\b/i.test(checklist.requerimientos_evento ?? "") || /sin\s+DJ/i.test(djNo));
+    const mobiliarioQ = runGuards({
+      aiResponse: "Perfecto, Jorge. S\xED, contamos con *mobiliario*. \xBFQu\xE9 es lo que buscas?",
+      extracted: emptyExtracted({
+        nombre: "Jorge",
+        requerimientos_evento: "Paella"
+      }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "el servicio completo incluye mobiliario correcto?",
+      history: [{ role: "assistant", content: "\xBFCu\xE1l te late m\xE1s? Solo alimentos o servicio completo" }]
+    });
+    assert2.ok(/incluye|correcto|s[ií]/i.test(mobiliarioQ) && /mobiliario/i.test(mobiliarioQ), mobiliarioQ.slice(0, 400));
+    assert2.ok(!/Qu[eé] es lo que buscas|Mesas\n|•\s*Sillas/i.test(mobiliarioQ), mobiliarioQ.slice(0, 400));
+    const ciudad = runGuards({
+      aiResponse: "Con gusto. Claro. Para *comida* del evento, \xBFqu\xE9 te gustar\xEDa? \u2022 Un *banquete*\u2026",
+      extracted: emptyExtracted({
+        nombre: "Jorge",
+        tipo_evento: "primera comuni\xF3n",
+        requerimientos_evento: "Paella, Mobiliario, Carpas, Cocteler\xEDa",
+        fecha_evento: "Marzo-Abril 2027",
+        horario_evento: "cocktail 12:00; comida 14:00",
+        num_invitados: 100,
+        direccion_evento: "jard\xEDn"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        CRM_FECHA_LABEL,
+        CRM_HORARIO_LABEL,
+        "N\xFAmero de invitados"
+      ]),
+      readyForClosing: false,
+      currentMessage: "atlixco",
+      history: [
+        {
+          role: "assistant",
+          content: "Listo, Jorge. Para cotizar bien necesito al menos la *ciudad* del evento. \xBFEn qu\xE9 ciudad est\xE1?"
+        }
+      ]
+    });
+    assert2.ok(/Atlixco/i.test(ciudad), ciudad.slice(0, 400));
+    assert2.ok(!/banquete|taquiza|¿qu[eé] te gustar[ií]a/i.test(ciudad), ciudad.slice(0, 400));
+    const callback = runGuards({
+      aiResponse: "Perfecto, Jorge. \xBFQu\xE9 servicios te gustar\xEDa ir armando?",
+      extracted: emptyExtracted({
+        nombre: "Jorge",
+        telefono: "+5212227391899",
+        requerimientos_evento: "Paella, Carpas, Cocteler\xEDa",
+        direccion_evento: "Atlixco",
+        num_invitados: 100
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Requerimientos o servicios",
+        "Lugar/direcci\xF3n del evento",
+        "N\xFAmero de invitados"
+      ]),
+      readyForClosing: false,
+      currentMessage: "que me llamen si est\xE1n interesados. este es mi tel",
+      history: [{ role: "assistant", content: "\xBFQu\xE9 necesitas cotizar?" }]
+    });
+    assert2.ok(/asesor|canalizo|55\s*4008/i.test(callback), callback.slice(0, 400));
+    assert2.ok(!/servicios te gustar[ií]a|ir armando/i.test(callback), callback.slice(0, 400));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

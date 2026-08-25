@@ -25,7 +25,7 @@ const FAMILY_SERVICE_RE: Record<DeclinedServiceFamily, RegExp> = {
   bebidas:
     /bebidas?|barra\s+de\s+bebidas|coctel|m[oó]cteles|mixolog|barra\s+de\s+caf[eé]/i,
   mobiliario: /mobiliario|sillas?|mesas?(?!\s+de\s+(postres?|dulces?|quesos?|imperial))|periqueras?|salas?\s+lounge|tiffany/i,
-  carpas: /carpas?|toldos?|lonas?/i,
+  carpas: /carpas?|capras?|toldos?|lonas?/i,
   decoracion: /decoraci[oó]n|centros?\s+de\s+mesa|florister|globos?|tem[aá]tica/i,
   entretenimiento: /show|dj\b|entretenimiento|hora\s+loca|photobooth|photo\s*booth|bailarinas|batucada|robots?/i,
   pista: /pista|tarima/i,
@@ -48,7 +48,7 @@ const FAMILY_DECLINE_WORDS: Record<DeclinedServiceFamily, string> = {
     "comida|comidas|alimentos?|pizzas?|banquete|taquiza|catering|barra\\s+de\\s+pizzas?|brunch|parrillada|sushi|canap[eé]s?|bocadillos?|coffee\\s*break",
   bebidas: "bebidas?|barra\\s+de\\s+bebidas|cocteler[ií]a|m[oó]cteles?|mixolog[ií]a",
   mobiliario: "mobiliario|sillas?|mesas?|periqueras?|salas?",
-  carpas: "carpas?|toldos?|lonas?",
+  carpas: "carpas?|capras?|toldos?|lonas?",
   decoracion: "decoraci[oó]n|centros?\\s+de\\s+mesa|flores?|globos?",
   entretenimiento: "show|dj|entretenimiento|hora\\s+loca|photobooth|photo\\s*booth",
   pista: "pista|tarima",
@@ -96,6 +96,11 @@ export function clientDeclinesServiceFamilies(
   // A15503: "no necesito mesa de postre" → dulces (no confundir mesa≠mobiliario).
   if (isMesaDulcesDeclinePhrase(t) && !isTablewareRequestText(t)) {
     out.add("dulces");
+  }
+
+  // A15539: "DJ no", "bartender sí, DJ no", "capra sí" estilo checklist.
+  if (/\bdj\s+no\b|\bno\s*,?\s*dj\b|\bdj\s*,?\s*no\b/i.test(t)) {
+    out.add("entretenimiento");
   }
 
   for (const family of Object.keys(FAMILY_DECLINE_WORDS) as DeclinedServiceFamily[]) {
