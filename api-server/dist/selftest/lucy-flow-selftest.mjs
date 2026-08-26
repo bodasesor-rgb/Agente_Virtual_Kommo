@@ -45,7 +45,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// node_modules/openai/internal/tslib.mjs
+// api-server/node_modules/openai/internal/tslib.mjs
 function __classPrivateFieldSet(receiver, state, value, kind, f6) {
   if (kind === "m")
     throw new TypeError("Private method is not writable");
@@ -63,14 +63,14 @@ function __classPrivateFieldGet(receiver, state, kind, f6) {
   return kind === "m" ? f6 : kind === "a" ? f6.call(receiver) : f6 ? f6.value : state.get(receiver);
 }
 var init_tslib = __esm({
-  "node_modules/openai/internal/tslib.mjs"() {
+  "api-server/node_modules/openai/internal/tslib.mjs"() {
   }
 });
 
-// node_modules/openai/internal/utils/uuid.mjs
+// api-server/node_modules/openai/internal/utils/uuid.mjs
 var uuid4;
 var init_uuid = __esm({
-  "node_modules/openai/internal/utils/uuid.mjs"() {
+  "api-server/node_modules/openai/internal/utils/uuid.mjs"() {
     uuid4 = function() {
       const { crypto: crypto2 } = globalThis;
       if (crypto2?.randomUUID) {
@@ -84,7 +84,7 @@ var init_uuid = __esm({
   }
 });
 
-// node_modules/openai/internal/errors.mjs
+// api-server/node_modules/openai/internal/errors.mjs
 function isAbortError(err2) {
   return typeof err2 === "object" && err2 !== null && // Spec-compliant fetch implementations
   ("name" in err2 && err2.name === "AbortError" || // Expo fetch
@@ -92,7 +92,7 @@ function isAbortError(err2) {
 }
 var castToError;
 var init_errors = __esm({
-  "node_modules/openai/internal/errors.mjs"() {
+  "api-server/node_modules/openai/internal/errors.mjs"() {
     castToError = (err2) => {
       if (err2 instanceof Error)
         return err2;
@@ -120,10 +120,10 @@ var init_errors = __esm({
   }
 });
 
-// node_modules/openai/core/error.mjs
+// api-server/node_modules/openai/core/error.mjs
 var OpenAIError, APIError, APIUserAbortError, APIConnectionError, APIConnectionTimeoutError, BadRequestError, AuthenticationError, PermissionDeniedError, NotFoundError, ConflictError, UnprocessableEntityError, RateLimitError, InternalServerError, LengthFinishReasonError, ContentFilterFinishReasonError, InvalidWebhookSignatureError, OAuthError, SubjectTokenProviderError;
 var init_error = __esm({
-  "node_modules/openai/core/error.mjs"() {
+  "api-server/node_modules/openai/core/error.mjs"() {
     init_errors();
     OpenAIError = class extends Error {
     };
@@ -260,7 +260,7 @@ var init_error = __esm({
   }
 });
 
-// node_modules/openai/internal/utils/values.mjs
+// api-server/node_modules/openai/internal/utils/values.mjs
 function maybeObj(x7) {
   if (typeof x7 !== "object") {
     return {};
@@ -282,7 +282,7 @@ function isObj(obj) {
 }
 var startsWithSchemeRegexp, isAbsoluteURL, isArray, isReadonlyArray, validatePositiveInteger, safeJSON;
 var init_values = __esm({
-  "node_modules/openai/internal/utils/values.mjs"() {
+  "api-server/node_modules/openai/internal/utils/values.mjs"() {
     init_error();
     startsWithSchemeRegexp = /^[a-z][a-z0-9+.-]*:/i;
     isAbsoluteURL = (url) => {
@@ -309,23 +309,23 @@ var init_values = __esm({
   }
 });
 
-// node_modules/openai/internal/utils/sleep.mjs
+// api-server/node_modules/openai/internal/utils/sleep.mjs
 var sleep;
 var init_sleep = __esm({
-  "node_modules/openai/internal/utils/sleep.mjs"() {
+  "api-server/node_modules/openai/internal/utils/sleep.mjs"() {
     sleep = (ms) => new Promise((resolve3) => setTimeout(resolve3, ms));
   }
 });
 
-// node_modules/openai/version.mjs
+// api-server/node_modules/openai/version.mjs
 var VERSION;
 var init_version = __esm({
-  "node_modules/openai/version.mjs"() {
+  "api-server/node_modules/openai/version.mjs"() {
     VERSION = "6.45.0";
   }
 });
 
-// node_modules/openai/internal/detect-platform.mjs
+// api-server/node_modules/openai/internal/detect-platform.mjs
 function getDetectedPlatform() {
   if (typeof Deno !== "undefined" && Deno.build != null) {
     return "deno";
@@ -363,7 +363,7 @@ function getBrowserInfo() {
 }
 var isRunningInBrowser, getPlatformProperties, normalizeArch, normalizePlatform, _platformHeaders, getPlatformHeaders;
 var init_detect_platform = __esm({
-  "node_modules/openai/internal/detect-platform.mjs"() {
+  "api-server/node_modules/openai/internal/detect-platform.mjs"() {
     init_version();
     isRunningInBrowser = () => {
       return (
@@ -464,7 +464,7 @@ var init_detect_platform = __esm({
   }
 });
 
-// node_modules/openai/internal/shims.mjs
+// api-server/node_modules/openai/internal/shims.mjs
 function getDefaultFetch() {
   if (typeof fetch !== "undefined") {
     return fetch;
@@ -536,14 +536,14 @@ async function CancelReadableStream(stream2) {
   await cancelPromise;
 }
 var init_shims = __esm({
-  "node_modules/openai/internal/shims.mjs"() {
+  "api-server/node_modules/openai/internal/shims.mjs"() {
   }
 });
 
-// node_modules/openai/internal/request-options.mjs
+// api-server/node_modules/openai/internal/request-options.mjs
 var FallbackEncoder;
 var init_request_options = __esm({
-  "node_modules/openai/internal/request-options.mjs"() {
+  "api-server/node_modules/openai/internal/request-options.mjs"() {
     FallbackEncoder = ({ headers, body: body2 }) => {
       return {
         bodyHeaders: {
@@ -555,10 +555,10 @@ var init_request_options = __esm({
   }
 });
 
-// node_modules/openai/internal/qs/formats.mjs
+// api-server/node_modules/openai/internal/qs/formats.mjs
 var default_format, default_formatter, formatters, RFC1738;
 var init_formats = __esm({
-  "node_modules/openai/internal/qs/formats.mjs"() {
+  "api-server/node_modules/openai/internal/qs/formats.mjs"() {
     default_format = "RFC3986";
     default_formatter = (v3) => String(v3);
     formatters = {
@@ -569,7 +569,7 @@ var init_formats = __esm({
   }
 });
 
-// node_modules/openai/internal/qs/utils.mjs
+// api-server/node_modules/openai/internal/qs/utils.mjs
 function is_buffer(obj) {
   if (!obj || typeof obj !== "object") {
     return false;
@@ -588,7 +588,7 @@ function maybe_map(val, fn2) {
 }
 var has, hex_table, limit, encode;
 var init_utils = __esm({
-  "node_modules/openai/internal/qs/utils.mjs"() {
+  "api-server/node_modules/openai/internal/qs/utils.mjs"() {
     init_formats();
     init_values();
     has = (obj, key) => (has = Object.hasOwn ?? Function.prototype.call.bind(Object.prototype.hasOwnProperty), has(obj, key));
@@ -655,7 +655,7 @@ var init_utils = __esm({
   }
 });
 
-// node_modules/openai/internal/qs/stringify.mjs
+// api-server/node_modules/openai/internal/qs/stringify.mjs
 function is_non_nullish_primitive(v3) {
   return typeof v3 === "string" || typeof v3 === "number" || typeof v3 === "boolean" || typeof v3 === "symbol" || typeof v3 === "bigint";
 }
@@ -895,7 +895,7 @@ function stringify(object, opts = {}) {
 }
 var array_prefix_generators, push_to_array, toISOString, defaults, sentinel;
 var init_stringify = __esm({
-  "node_modules/openai/internal/qs/stringify.mjs"() {
+  "api-server/node_modules/openai/internal/qs/stringify.mjs"() {
     init_utils();
     init_formats();
     init_values();
@@ -940,17 +940,17 @@ var init_stringify = __esm({
   }
 });
 
-// node_modules/openai/internal/utils/query.mjs
+// api-server/node_modules/openai/internal/utils/query.mjs
 function stringifyQuery(query) {
   return stringify(query, { arrayFormat: "brackets" });
 }
 var init_query = __esm({
-  "node_modules/openai/internal/utils/query.mjs"() {
+  "api-server/node_modules/openai/internal/utils/query.mjs"() {
     init_stringify();
   }
 });
 
-// node_modules/openai/internal/utils/bytes.mjs
+// api-server/node_modules/openai/internal/utils/bytes.mjs
 function concatBytes(buffers) {
   let length = 0;
   for (const buffer of buffers) {
@@ -974,11 +974,11 @@ function decodeUTF8(bytes) {
 }
 var encodeUTF8_, decodeUTF8_;
 var init_bytes = __esm({
-  "node_modules/openai/internal/utils/bytes.mjs"() {
+  "api-server/node_modules/openai/internal/utils/bytes.mjs"() {
   }
 });
 
-// node_modules/openai/internal/decoders/line.mjs
+// api-server/node_modules/openai/internal/decoders/line.mjs
 function findNewlineIndex(buffer, startIndex) {
   const newline = 10;
   const carriage = 13;
@@ -1010,7 +1010,7 @@ function findDoubleNewlineIndex(buffer) {
 }
 var _LineDecoder_buffer, _LineDecoder_carriageReturnIndex, LineDecoder;
 var init_line = __esm({
-  "node_modules/openai/internal/decoders/line.mjs"() {
+  "api-server/node_modules/openai/internal/decoders/line.mjs"() {
     init_tslib();
     init_bytes();
     LineDecoder = class {
@@ -1060,7 +1060,7 @@ var init_line = __esm({
   }
 });
 
-// node_modules/openai/internal/utils/log.mjs
+// api-server/node_modules/openai/internal/utils/log.mjs
 function noop() {
 }
 function makeLogFn(fnLevel, logger2, logLevel) {
@@ -1091,7 +1091,7 @@ function loggerFor(client2) {
 }
 var levelNumbers, parseLogLevel, noopLogger, cachedLoggers, formatRequestDetails;
 var init_log = __esm({
-  "node_modules/openai/internal/utils/log.mjs"() {
+  "api-server/node_modules/openai/internal/utils/log.mjs"() {
     init_values();
     levelNumbers = {
       off: 0,
@@ -1139,7 +1139,7 @@ var init_log = __esm({
   }
 });
 
-// node_modules/openai/core/streaming.mjs
+// api-server/node_modules/openai/core/streaming.mjs
 async function* _iterSSEMessages(response, controller) {
   if (!response.body) {
     controller.abort();
@@ -1194,7 +1194,7 @@ function partition(str2, delimiter) {
 }
 var _Stream_client, Stream, SSEDecoder;
 var init_streaming = __esm({
-  "node_modules/openai/core/streaming.mjs"() {
+  "api-server/node_modules/openai/core/streaming.mjs"() {
     init_tslib();
     init_error();
     init_shims();
@@ -1410,7 +1410,7 @@ var init_streaming = __esm({
   }
 });
 
-// node_modules/openai/internal/parse.mjs
+// api-server/node_modules/openai/internal/parse.mjs
 async function defaultParseResponse(client2, props) {
   const { response, requestLogID, retryOfRequestLogID, startTime } = props;
   const body2 = await (async () => {
@@ -1460,16 +1460,16 @@ function addRequestID(value, response) {
   });
 }
 var init_parse = __esm({
-  "node_modules/openai/internal/parse.mjs"() {
+  "api-server/node_modules/openai/internal/parse.mjs"() {
     init_streaming();
     init_log();
   }
 });
 
-// node_modules/openai/core/api-promise.mjs
+// api-server/node_modules/openai/core/api-promise.mjs
 var _APIPromise_client, APIPromise;
 var init_api_promise = __esm({
-  "node_modules/openai/core/api-promise.mjs"() {
+  "api-server/node_modules/openai/core/api-promise.mjs"() {
     init_tslib();
     init_parse();
     APIPromise = class _APIPromise extends Promise {
@@ -1535,10 +1535,10 @@ var init_api_promise = __esm({
   }
 });
 
-// node_modules/openai/core/pagination.mjs
+// api-server/node_modules/openai/core/pagination.mjs
 var _AbstractPage_client, AbstractPage, PagePromise, Page, CursorPage, ConversationCursorPage, NextCursorPage;
 var init_pagination = __esm({
-  "node_modules/openai/core/pagination.mjs"() {
+  "api-server/node_modules/openai/core/pagination.mjs"() {
     init_tslib();
     init_error();
     init_parse();
@@ -1705,10 +1705,10 @@ var init_pagination = __esm({
   }
 });
 
-// node_modules/openai/auth/workload-identity-auth.mjs
+// api-server/node_modules/openai/auth/workload-identity-auth.mjs
 var SUBJECT_TOKEN_TYPES, TOKEN_EXCHANGE_GRANT_TYPE, WorkloadIdentityAuth;
 var init_workload_identity_auth = __esm({
-  "node_modules/openai/auth/workload-identity-auth.mjs"() {
+  "api-server/node_modules/openai/auth/workload-identity-auth.mjs"() {
     init_shims();
     init_error();
     SUBJECT_TOKEN_TYPES = {
@@ -1804,7 +1804,7 @@ var init_workload_identity_auth = __esm({
   }
 });
 
-// node_modules/openai/internal/uploads.mjs
+// api-server/node_modules/openai/internal/uploads.mjs
 function makeFile(fileBits, fileName, options) {
   checkFileSupport();
   return new File(fileBits, fileName ?? "unknown_file", options);
@@ -1834,7 +1834,7 @@ function supportsFormData(fetchObject) {
 }
 var checkFileSupport, isAsyncIterable, maybeMultipartFormRequestOptions, multipartFormRequestOptions, supportsFormDataMap, createForm, isNamedBlob, isUploadable, hasUploadableValue, addFormValue;
 var init_uploads = __esm({
-  "node_modules/openai/internal/uploads.mjs"() {
+  "api-server/node_modules/openai/internal/uploads.mjs"() {
     init_shims();
     checkFileSupport = () => {
       if (typeof File === "undefined") {
@@ -1901,7 +1901,7 @@ var init_uploads = __esm({
   }
 });
 
-// node_modules/openai/internal/to-file.mjs
+// api-server/node_modules/openai/internal/to-file.mjs
 async function toFile(value, name2, options) {
   checkFileSupport();
   value = await value;
@@ -1951,7 +1951,7 @@ function propsForError(value) {
 }
 var isBlobLike, isFileLike, isResponseLike;
 var init_to_file = __esm({
-  "node_modules/openai/internal/to-file.mjs"() {
+  "api-server/node_modules/openai/internal/to-file.mjs"() {
     init_uploads();
     init_uploads();
     isBlobLike = (value) => value != null && typeof value === "object" && typeof value.size === "number" && typeof value.type === "string" && typeof value.text === "function" && typeof value.slice === "function" && typeof value.arrayBuffer === "function";
@@ -1960,17 +1960,17 @@ var init_to_file = __esm({
   }
 });
 
-// node_modules/openai/core/uploads.mjs
+// api-server/node_modules/openai/core/uploads.mjs
 var init_uploads2 = __esm({
-  "node_modules/openai/core/uploads.mjs"() {
+  "api-server/node_modules/openai/core/uploads.mjs"() {
     init_to_file();
   }
 });
 
-// node_modules/openai/core/resource.mjs
+// api-server/node_modules/openai/core/resource.mjs
 var APIResource;
 var init_resource = __esm({
-  "node_modules/openai/core/resource.mjs"() {
+  "api-server/node_modules/openai/core/resource.mjs"() {
     APIResource = class {
       constructor(client2) {
         this._client = client2;
@@ -1979,13 +1979,13 @@ var init_resource = __esm({
   }
 });
 
-// node_modules/openai/internal/utils/path.mjs
+// api-server/node_modules/openai/internal/utils/path.mjs
 function encodeURIPath(str2) {
   return str2.replace(/[^A-Za-z0-9\-._~!$&'()*+,;=:@]+/g, encodeURIComponent);
 }
 var EMPTY, createPathTagFunction, path;
 var init_path = __esm({
-  "node_modules/openai/internal/utils/path.mjs"() {
+  "api-server/node_modules/openai/internal/utils/path.mjs"() {
     init_error();
     EMPTY = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.create(null));
     createPathTagFunction = (pathEncoder = encodeURIPath) => function path7(statics, ...params) {
@@ -2040,10 +2040,10 @@ ${underline}`);
   }
 });
 
-// node_modules/openai/resources/chat/completions/messages.mjs
+// api-server/node_modules/openai/resources/chat/completions/messages.mjs
 var Messages;
 var init_messages = __esm({
-  "node_modules/openai/resources/chat/completions/messages.mjs"() {
+  "api-server/node_modules/openai/resources/chat/completions/messages.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -2069,14 +2069,14 @@ var init_messages = __esm({
   }
 });
 
-// node_modules/openai/error.mjs
+// api-server/node_modules/openai/error.mjs
 var init_error2 = __esm({
-  "node_modules/openai/error.mjs"() {
+  "api-server/node_modules/openai/error.mjs"() {
     init_error();
   }
 });
 
-// node_modules/openai/lib/parser.mjs
+// api-server/node_modules/openai/lib/parser.mjs
 function isChatCompletionFunctionTool(tool) {
   return tool !== void 0 && "function" in tool && tool.function !== void 0;
 }
@@ -2183,15 +2183,15 @@ function validateInputTools(tools) {
   }
 }
 var init_parser = __esm({
-  "node_modules/openai/lib/parser.mjs"() {
+  "api-server/node_modules/openai/lib/parser.mjs"() {
     init_error2();
   }
 });
 
-// node_modules/openai/lib/chatCompletionUtils.mjs
+// api-server/node_modules/openai/lib/chatCompletionUtils.mjs
 var isAssistantMessage, isToolMessage;
 var init_chatCompletionUtils = __esm({
-  "node_modules/openai/lib/chatCompletionUtils.mjs"() {
+  "api-server/node_modules/openai/lib/chatCompletionUtils.mjs"() {
     isAssistantMessage = (message) => {
       return message?.role === "assistant";
     };
@@ -2201,10 +2201,10 @@ var init_chatCompletionUtils = __esm({
   }
 });
 
-// node_modules/openai/lib/EventStream.mjs
+// api-server/node_modules/openai/lib/EventStream.mjs
 var _EventStream_instances, _EventStream_connectedPromise, _EventStream_resolveConnectedPromise, _EventStream_rejectConnectedPromise, _EventStream_endPromise, _EventStream_resolveEndPromise, _EventStream_rejectEndPromise, _EventStream_listeners, _EventStream_abortListeners, _EventStream_ended, _EventStream_errored, _EventStream_aborted, _EventStream_catchingPromiseCreated, _EventStream_removeAbortListeners, _EventStream_handleError, EventStream;
 var init_EventStream = __esm({
-  "node_modules/openai/lib/EventStream.mjs"() {
+  "api-server/node_modules/openai/lib/EventStream.mjs"() {
     init_tslib();
     init_error2();
     EventStream = class {
@@ -2401,19 +2401,19 @@ var init_EventStream = __esm({
   }
 });
 
-// node_modules/openai/lib/RunnableFunction.mjs
+// api-server/node_modules/openai/lib/RunnableFunction.mjs
 function isRunnableFunctionWithParse(fn2) {
   return typeof fn2.parse === "function";
 }
 var init_RunnableFunction = __esm({
-  "node_modules/openai/lib/RunnableFunction.mjs"() {
+  "api-server/node_modules/openai/lib/RunnableFunction.mjs"() {
   }
 });
 
-// node_modules/openai/lib/AbstractChatCompletionRunner.mjs
+// api-server/node_modules/openai/lib/AbstractChatCompletionRunner.mjs
 var _AbstractChatCompletionRunner_instances, _AbstractChatCompletionRunner_getFinalContent, _AbstractChatCompletionRunner_getFinalMessage, _AbstractChatCompletionRunner_getFinalFunctionToolCall, _AbstractChatCompletionRunner_getFinalFunctionToolCallResult, _AbstractChatCompletionRunner_calculateTotalUsage, _AbstractChatCompletionRunner_validateParams, _AbstractChatCompletionRunner_stringifyFunctionCallResult, DEFAULT_MAX_CHAT_COMPLETIONS, AbstractChatCompletionRunner;
 var init_AbstractChatCompletionRunner = __esm({
-  "node_modules/openai/lib/AbstractChatCompletionRunner.mjs"() {
+  "api-server/node_modules/openai/lib/AbstractChatCompletionRunner.mjs"() {
     init_tslib();
     init_error2();
     init_parser();
@@ -2707,10 +2707,10 @@ var init_AbstractChatCompletionRunner = __esm({
   }
 });
 
-// node_modules/openai/lib/ChatCompletionRunner.mjs
+// api-server/node_modules/openai/lib/ChatCompletionRunner.mjs
 var ChatCompletionRunner;
 var init_ChatCompletionRunner = __esm({
-  "node_modules/openai/lib/ChatCompletionRunner.mjs"() {
+  "api-server/node_modules/openai/lib/ChatCompletionRunner.mjs"() {
     init_AbstractChatCompletionRunner();
     init_chatCompletionUtils();
     ChatCompletionRunner = class _ChatCompletionRunner extends AbstractChatCompletionRunner {
@@ -2733,7 +2733,7 @@ var init_ChatCompletionRunner = __esm({
   }
 });
 
-// node_modules/openai/_vendor/partial-json-parser/parser.mjs
+// api-server/node_modules/openai/_vendor/partial-json-parser/parser.mjs
 function parseJSON(jsonString, allowPartial = Allow.ALL) {
   if (typeof jsonString !== "string") {
     throw new TypeError(`expecting str, got ${typeof jsonString}`);
@@ -2745,7 +2745,7 @@ function parseJSON(jsonString, allowPartial = Allow.ALL) {
 }
 var STR, NUM, ARR, OBJ, NULL, BOOL, NAN, INFINITY, MINUS_INFINITY, INF, SPECIAL, ATOM, COLLECTION, ALL, Allow, PartialJSON, MalformedJSON, _parseJSON, partialParse;
 var init_parser2 = __esm({
-  "node_modules/openai/_vendor/partial-json-parser/parser.mjs"() {
+  "api-server/node_modules/openai/_vendor/partial-json-parser/parser.mjs"() {
     STR = 1;
     NUM = 2;
     ARR = 4;
@@ -2950,14 +2950,14 @@ var init_parser2 = __esm({
   }
 });
 
-// node_modules/openai/streaming.mjs
+// api-server/node_modules/openai/streaming.mjs
 var init_streaming2 = __esm({
-  "node_modules/openai/streaming.mjs"() {
+  "api-server/node_modules/openai/streaming.mjs"() {
     init_streaming();
   }
 });
 
-// node_modules/openai/lib/ChatCompletionStream.mjs
+// api-server/node_modules/openai/lib/ChatCompletionStream.mjs
 function finalizeChatCompletion(snapshot2, params) {
   const { id, choices, created, model, system_fingerprint, ...rest } = snapshot2;
   const completion = {
@@ -3053,7 +3053,7 @@ function assertNever(_x) {
 }
 var _ChatCompletionStream_instances, _ChatCompletionStream_params, _ChatCompletionStream_choiceEventStates, _ChatCompletionStream_currentChatCompletionSnapshot, _ChatCompletionStream_beginRequest, _ChatCompletionStream_getChoiceEventState, _ChatCompletionStream_addChunk, _ChatCompletionStream_emitToolCallDoneEvent, _ChatCompletionStream_emitContentDoneEvents, _ChatCompletionStream_endRequest, _ChatCompletionStream_getAutoParseableResponseFormat, _ChatCompletionStream_accumulateChatCompletion, ChatCompletionStream;
 var init_ChatCompletionStream = __esm({
-  "node_modules/openai/lib/ChatCompletionStream.mjs"() {
+  "api-server/node_modules/openai/lib/ChatCompletionStream.mjs"() {
     init_tslib();
     init_parser2();
     init_error2();
@@ -3426,10 +3426,10 @@ var init_ChatCompletionStream = __esm({
   }
 });
 
-// node_modules/openai/lib/ChatCompletionStreamingRunner.mjs
+// api-server/node_modules/openai/lib/ChatCompletionStreamingRunner.mjs
 var ChatCompletionStreamingRunner;
 var init_ChatCompletionStreamingRunner = __esm({
-  "node_modules/openai/lib/ChatCompletionStreamingRunner.mjs"() {
+  "api-server/node_modules/openai/lib/ChatCompletionStreamingRunner.mjs"() {
     init_ChatCompletionStream();
     ChatCompletionStreamingRunner = class _ChatCompletionStreamingRunner extends ChatCompletionStream {
       static fromReadableStream(stream2) {
@@ -3453,10 +3453,10 @@ var init_ChatCompletionStreamingRunner = __esm({
   }
 });
 
-// node_modules/openai/resources/chat/completions/completions.mjs
+// api-server/node_modules/openai/resources/chat/completions/completions.mjs
 var Completions;
 var init_completions = __esm({
-  "node_modules/openai/resources/chat/completions/completions.mjs"() {
+  "api-server/node_modules/openai/resources/chat/completions/completions.mjs"() {
     init_resource();
     init_messages();
     init_messages();
@@ -3581,10 +3581,10 @@ var init_completions = __esm({
   }
 });
 
-// node_modules/openai/resources/chat/chat.mjs
+// api-server/node_modules/openai/resources/chat/chat.mjs
 var Chat;
 var init_chat = __esm({
-  "node_modules/openai/resources/chat/chat.mjs"() {
+  "api-server/node_modules/openai/resources/chat/chat.mjs"() {
     init_resource();
     init_completions();
     init_completions();
@@ -3598,33 +3598,33 @@ var init_chat = __esm({
   }
 });
 
-// node_modules/openai/resources/chat/completions/index.mjs
+// api-server/node_modules/openai/resources/chat/completions/index.mjs
 var init_completions2 = __esm({
-  "node_modules/openai/resources/chat/completions/index.mjs"() {
+  "api-server/node_modules/openai/resources/chat/completions/index.mjs"() {
     init_completions();
     init_completions();
     init_messages();
   }
 });
 
-// node_modules/openai/resources/chat/index.mjs
+// api-server/node_modules/openai/resources/chat/index.mjs
 var init_chat2 = __esm({
-  "node_modules/openai/resources/chat/index.mjs"() {
+  "api-server/node_modules/openai/resources/chat/index.mjs"() {
     init_chat();
     init_completions2();
   }
 });
 
-// node_modules/openai/resources/shared.mjs
+// api-server/node_modules/openai/resources/shared.mjs
 var init_shared = __esm({
-  "node_modules/openai/resources/shared.mjs"() {
+  "api-server/node_modules/openai/resources/shared.mjs"() {
   }
 });
 
-// node_modules/openai/resources/admin/organization/admin-api-keys.mjs
+// api-server/node_modules/openai/resources/admin/organization/admin-api-keys.mjs
 var AdminAPIKeys;
 var init_admin_api_keys = __esm({
-  "node_modules/openai/resources/admin/organization/admin-api-keys.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/admin-api-keys.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -3703,10 +3703,10 @@ var init_admin_api_keys = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/audit-logs.mjs
+// api-server/node_modules/openai/resources/admin/organization/audit-logs.mjs
 var AuditLogs;
 var init_audit_logs = __esm({
-  "node_modules/openai/resources/admin/organization/audit-logs.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/audit-logs.mjs"() {
     init_resource();
     init_pagination();
     AuditLogs = class extends APIResource {
@@ -3732,10 +3732,10 @@ var init_audit_logs = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/certificates.mjs
+// api-server/node_modules/openai/resources/admin/organization/certificates.mjs
 var Certificates;
 var init_certificates = __esm({
-  "node_modules/openai/resources/admin/organization/certificates.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/certificates.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -3877,10 +3877,10 @@ var init_certificates = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/data-retention.mjs
+// api-server/node_modules/openai/resources/admin/organization/data-retention.mjs
 var DataRetention;
 var init_data_retention = __esm({
-  "node_modules/openai/resources/admin/organization/data-retention.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/data-retention.mjs"() {
     init_resource();
     DataRetention = class extends APIResource {
       /**
@@ -3920,10 +3920,10 @@ var init_data_retention = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/invites.mjs
+// api-server/node_modules/openai/resources/admin/organization/invites.mjs
 var Invites;
 var init_invites = __esm({
-  "node_modules/openai/resources/admin/organization/invites.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/invites.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -4004,10 +4004,10 @@ var init_invites = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/roles.mjs
+// api-server/node_modules/openai/resources/admin/organization/roles.mjs
 var Roles;
 var init_roles = __esm({
-  "node_modules/openai/resources/admin/organization/roles.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -4101,10 +4101,10 @@ var init_roles = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/spend-alerts.mjs
+// api-server/node_modules/openai/resources/admin/organization/spend-alerts.mjs
 var SpendAlerts;
 var init_spend_alerts = __esm({
-  "node_modules/openai/resources/admin/organization/spend-alerts.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/spend-alerts.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -4212,10 +4212,10 @@ var init_spend_alerts = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/usage.mjs
+// api-server/node_modules/openai/resources/admin/organization/usage.mjs
 var Usage;
 var init_usage = __esm({
-  "node_modules/openai/resources/admin/organization/usage.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/usage.mjs"() {
     init_resource();
     Usage = class extends APIResource {
       /**
@@ -4420,10 +4420,10 @@ var init_usage = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/groups/roles.mjs
+// api-server/node_modules/openai/resources/admin/organization/groups/roles.mjs
 var Roles2;
 var init_roles2 = __esm({
-  "node_modules/openai/resources/admin/organization/groups/roles.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/groups/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -4505,10 +4505,10 @@ var init_roles2 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/groups/users.mjs
+// api-server/node_modules/openai/resources/admin/organization/groups/users.mjs
 var Users;
 var init_users = __esm({
-  "node_modules/openai/resources/admin/organization/groups/users.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/groups/users.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -4590,10 +4590,10 @@ var init_users = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/groups/groups.mjs
+// api-server/node_modules/openai/resources/admin/organization/groups/groups.mjs
 var Groups;
 var init_groups = __esm({
-  "node_modules/openai/resources/admin/organization/groups/groups.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/groups/groups.mjs"() {
     init_resource();
     init_roles2();
     init_roles2();
@@ -4699,10 +4699,10 @@ var init_groups = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/api-keys.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/api-keys.mjs
 var APIKeys;
 var init_api_keys = __esm({
-  "node_modules/openai/resources/admin/organization/projects/api-keys.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/api-keys.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -4768,10 +4768,10 @@ var init_api_keys = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/certificates.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/certificates.mjs
 var Certificates2;
 var init_certificates2 = __esm({
-  "node_modules/openai/resources/admin/organization/projects/certificates.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/certificates.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -4833,10 +4833,10 @@ var init_certificates2 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/data-retention.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/data-retention.mjs
 var DataRetention2;
 var init_data_retention2 = __esm({
-  "node_modules/openai/resources/admin/organization/projects/data-retention.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/data-retention.mjs"() {
     init_resource();
     init_path();
     DataRetention2 = class extends APIResource {
@@ -4880,10 +4880,10 @@ var init_data_retention2 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/hosted-tool-permissions.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/hosted-tool-permissions.mjs
 var HostedToolPermissions;
 var init_hosted_tool_permissions = __esm({
-  "node_modules/openai/resources/admin/organization/projects/hosted-tool-permissions.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/hosted-tool-permissions.mjs"() {
     init_resource();
     init_path();
     HostedToolPermissions = class extends APIResource {
@@ -4926,10 +4926,10 @@ var init_hosted_tool_permissions = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/model-permissions.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/model-permissions.mjs
 var ModelPermissions;
 var init_model_permissions = __esm({
-  "node_modules/openai/resources/admin/organization/projects/model-permissions.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/model-permissions.mjs"() {
     init_resource();
     init_path();
     ModelPermissions = class extends APIResource {
@@ -4990,10 +4990,10 @@ var init_model_permissions = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/rate-limits.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/rate-limits.mjs
 var RateLimits;
 var init_rate_limits = __esm({
-  "node_modules/openai/resources/admin/organization/projects/rate-limits.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/rate-limits.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -5038,10 +5038,10 @@ var init_rate_limits = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/roles.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/roles.mjs
 var Roles3;
 var init_roles3 = __esm({
-  "node_modules/openai/resources/admin/organization/projects/roles.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -5147,10 +5147,10 @@ var init_roles3 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/service-accounts.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/service-accounts.mjs
 var ServiceAccounts;
 var init_service_accounts = __esm({
-  "node_modules/openai/resources/admin/organization/projects/service-accounts.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/service-accounts.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -5249,10 +5249,10 @@ var init_service_accounts = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/spend-alerts.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/spend-alerts.mjs
 var SpendAlerts2;
 var init_spend_alerts2 = __esm({
-  "node_modules/openai/resources/admin/organization/projects/spend-alerts.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/spend-alerts.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -5371,10 +5371,10 @@ var init_spend_alerts2 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/groups/roles.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/groups/roles.mjs
 var Roles4;
 var init_roles4 = __esm({
-  "node_modules/openai/resources/admin/organization/projects/groups/roles.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/groups/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -5459,10 +5459,10 @@ var init_roles4 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/groups/groups.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/groups/groups.mjs
 var Groups2;
 var init_groups2 = __esm({
-  "node_modules/openai/resources/admin/organization/projects/groups/groups.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/groups/groups.mjs"() {
     init_resource();
     init_roles4();
     init_roles4();
@@ -5552,10 +5552,10 @@ var init_groups2 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/users/roles.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/users/roles.mjs
 var Roles5;
 var init_roles5 = __esm({
-  "node_modules/openai/resources/admin/organization/projects/users/roles.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/users/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -5640,10 +5640,10 @@ var init_roles5 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/users/users.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/users/users.mjs
 var Users2;
 var init_users2 = __esm({
-  "node_modules/openai/resources/admin/organization/projects/users/users.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/users/users.mjs"() {
     init_resource();
     init_roles5();
     init_roles5();
@@ -5756,10 +5756,10 @@ var init_users2 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/projects.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/projects.mjs
 var Projects;
 var init_projects = __esm({
-  "node_modules/openai/resources/admin/organization/projects/projects.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/projects.mjs"() {
     init_resource();
     init_api_keys();
     init_api_keys();
@@ -5905,10 +5905,10 @@ var init_projects = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/users/roles.mjs
+// api-server/node_modules/openai/resources/admin/organization/users/roles.mjs
 var Roles6;
 var init_roles6 = __esm({
-  "node_modules/openai/resources/admin/organization/users/roles.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/users/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -5990,10 +5990,10 @@ var init_roles6 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/users/users.mjs
+// api-server/node_modules/openai/resources/admin/organization/users/users.mjs
 var Users3;
 var init_users3 = __esm({
-  "node_modules/openai/resources/admin/organization/users/users.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/users/users.mjs"() {
     init_resource();
     init_roles6();
     init_roles6();
@@ -6074,10 +6074,10 @@ var init_users3 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/organization.mjs
+// api-server/node_modules/openai/resources/admin/organization/organization.mjs
 var Organization;
 var init_organization = __esm({
-  "node_modules/openai/resources/admin/organization/organization.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/organization.mjs"() {
     init_resource();
     init_admin_api_keys();
     init_admin_api_keys();
@@ -6131,10 +6131,10 @@ var init_organization = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/admin.mjs
+// api-server/node_modules/openai/resources/admin/admin.mjs
 var Admin;
 var init_admin = __esm({
-  "node_modules/openai/resources/admin/admin.mjs"() {
+  "api-server/node_modules/openai/resources/admin/admin.mjs"() {
     init_resource();
     init_organization();
     init_organization();
@@ -6148,7 +6148,7 @@ var init_admin = __esm({
   }
 });
 
-// node_modules/openai/internal/headers.mjs
+// api-server/node_modules/openai/internal/headers.mjs
 function* iterateHeaders(headers) {
   if (!headers)
     return;
@@ -6189,7 +6189,7 @@ function* iterateHeaders(headers) {
 }
 var brand_privateNullableHeaders, buildHeaders;
 var init_headers = __esm({
-  "node_modules/openai/internal/headers.mjs"() {
+  "api-server/node_modules/openai/internal/headers.mjs"() {
     init_values();
     brand_privateNullableHeaders = /* @__PURE__ */ Symbol("brand.privateNullableHeaders");
     buildHeaders = (newHeaders) => {
@@ -6217,10 +6217,10 @@ var init_headers = __esm({
   }
 });
 
-// node_modules/openai/resources/audio/speech.mjs
+// api-server/node_modules/openai/resources/audio/speech.mjs
 var Speech;
 var init_speech = __esm({
-  "node_modules/openai/resources/audio/speech.mjs"() {
+  "api-server/node_modules/openai/resources/audio/speech.mjs"() {
     init_resource();
     init_headers();
     Speech = class extends APIResource {
@@ -6254,10 +6254,10 @@ var init_speech = __esm({
   }
 });
 
-// node_modules/openai/resources/audio/transcriptions.mjs
+// api-server/node_modules/openai/resources/audio/transcriptions.mjs
 var Transcriptions;
 var init_transcriptions = __esm({
-  "node_modules/openai/resources/audio/transcriptions.mjs"() {
+  "api-server/node_modules/openai/resources/audio/transcriptions.mjs"() {
     init_resource();
     init_uploads();
     Transcriptions = class extends APIResource {
@@ -6274,10 +6274,10 @@ var init_transcriptions = __esm({
   }
 });
 
-// node_modules/openai/resources/audio/translations.mjs
+// api-server/node_modules/openai/resources/audio/translations.mjs
 var Translations;
 var init_translations = __esm({
-  "node_modules/openai/resources/audio/translations.mjs"() {
+  "api-server/node_modules/openai/resources/audio/translations.mjs"() {
     init_resource();
     init_uploads();
     Translations = class extends APIResource {
@@ -6288,10 +6288,10 @@ var init_translations = __esm({
   }
 });
 
-// node_modules/openai/resources/audio/audio.mjs
+// api-server/node_modules/openai/resources/audio/audio.mjs
 var Audio;
 var init_audio = __esm({
-  "node_modules/openai/resources/audio/audio.mjs"() {
+  "api-server/node_modules/openai/resources/audio/audio.mjs"() {
     init_resource();
     init_speech();
     init_speech();
@@ -6313,10 +6313,10 @@ var init_audio = __esm({
   }
 });
 
-// node_modules/openai/resources/batches.mjs
+// api-server/node_modules/openai/resources/batches.mjs
 var Batches;
 var init_batches = __esm({
-  "node_modules/openai/resources/batches.mjs"() {
+  "api-server/node_modules/openai/resources/batches.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -6358,10 +6358,10 @@ var init_batches = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/assistants.mjs
+// api-server/node_modules/openai/resources/beta/assistants.mjs
 var Assistants;
 var init_assistants = __esm({
-  "node_modules/openai/resources/beta/assistants.mjs"() {
+  "api-server/node_modules/openai/resources/beta/assistants.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -6434,10 +6434,10 @@ var init_assistants = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/realtime/sessions.mjs
+// api-server/node_modules/openai/resources/beta/realtime/sessions.mjs
 var Sessions;
 var init_sessions = __esm({
-  "node_modules/openai/resources/beta/realtime/sessions.mjs"() {
+  "api-server/node_modules/openai/resources/beta/realtime/sessions.mjs"() {
     init_resource();
     init_headers();
     Sessions = class extends APIResource {
@@ -6468,10 +6468,10 @@ var init_sessions = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/realtime/transcription-sessions.mjs
+// api-server/node_modules/openai/resources/beta/realtime/transcription-sessions.mjs
 var TranscriptionSessions;
 var init_transcription_sessions = __esm({
-  "node_modules/openai/resources/beta/realtime/transcription-sessions.mjs"() {
+  "api-server/node_modules/openai/resources/beta/realtime/transcription-sessions.mjs"() {
     init_resource();
     init_headers();
     TranscriptionSessions = class extends APIResource {
@@ -6502,10 +6502,10 @@ var init_transcription_sessions = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/realtime/realtime.mjs
+// api-server/node_modules/openai/resources/beta/realtime/realtime.mjs
 var Realtime;
 var init_realtime = __esm({
-  "node_modules/openai/resources/beta/realtime/realtime.mjs"() {
+  "api-server/node_modules/openai/resources/beta/realtime/realtime.mjs"() {
     init_resource();
     init_sessions();
     init_sessions();
@@ -6523,10 +6523,10 @@ var init_realtime = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/chatkit/sessions.mjs
+// api-server/node_modules/openai/resources/beta/chatkit/sessions.mjs
 var Sessions2;
 var init_sessions2 = __esm({
-  "node_modules/openai/resources/beta/chatkit/sessions.mjs"() {
+  "api-server/node_modules/openai/resources/beta/chatkit/sessions.mjs"() {
     init_resource();
     init_headers();
     init_path();
@@ -6573,10 +6573,10 @@ var init_sessions2 = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/chatkit/threads.mjs
+// api-server/node_modules/openai/resources/beta/chatkit/threads.mjs
 var Threads;
 var init_threads = __esm({
-  "node_modules/openai/resources/beta/chatkit/threads.mjs"() {
+  "api-server/node_modules/openai/resources/beta/chatkit/threads.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -6659,10 +6659,10 @@ var init_threads = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/chatkit/chatkit.mjs
+// api-server/node_modules/openai/resources/beta/chatkit/chatkit.mjs
 var ChatKit;
 var init_chatkit = __esm({
-  "node_modules/openai/resources/beta/chatkit/chatkit.mjs"() {
+  "api-server/node_modules/openai/resources/beta/chatkit/chatkit.mjs"() {
     init_resource();
     init_sessions2();
     init_sessions2();
@@ -6680,10 +6680,10 @@ var init_chatkit = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/threads/messages.mjs
+// api-server/node_modules/openai/resources/beta/threads/messages.mjs
 var Messages2;
 var init_messages2 = __esm({
-  "node_modules/openai/resources/beta/threads/messages.mjs"() {
+  "api-server/node_modules/openai/resources/beta/threads/messages.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -6759,10 +6759,10 @@ var init_messages2 = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/threads/runs/steps.mjs
+// api-server/node_modules/openai/resources/beta/threads/runs/steps.mjs
 var Steps;
 var init_steps = __esm({
-  "node_modules/openai/resources/beta/threads/runs/steps.mjs"() {
+  "api-server/node_modules/openai/resources/beta/threads/runs/steps.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -6800,10 +6800,10 @@ var init_steps = __esm({
   }
 });
 
-// node_modules/openai/internal/utils/base64.mjs
+// api-server/node_modules/openai/internal/utils/base64.mjs
 var toFloat32Array;
 var init_base64 = __esm({
-  "node_modules/openai/internal/utils/base64.mjs"() {
+  "api-server/node_modules/openai/internal/utils/base64.mjs"() {
     init_error();
     init_bytes();
     toFloat32Array = (base64Str) => {
@@ -6823,10 +6823,10 @@ var init_base64 = __esm({
   }
 });
 
-// node_modules/openai/internal/utils/env.mjs
+// api-server/node_modules/openai/internal/utils/env.mjs
 var readEnv;
 var init_env = __esm({
-  "node_modules/openai/internal/utils/env.mjs"() {
+  "api-server/node_modules/openai/internal/utils/env.mjs"() {
     readEnv = (env2) => {
       if (typeof globalThis.process !== "undefined") {
         return globalThis.process.env?.[env2]?.trim() || void 0;
@@ -6839,9 +6839,9 @@ var init_env = __esm({
   }
 });
 
-// node_modules/openai/internal/utils.mjs
+// api-server/node_modules/openai/internal/utils.mjs
 var init_utils2 = __esm({
-  "node_modules/openai/internal/utils.mjs"() {
+  "api-server/node_modules/openai/internal/utils.mjs"() {
     init_values();
     init_base64();
     init_env();
@@ -6852,12 +6852,12 @@ var init_utils2 = __esm({
   }
 });
 
-// node_modules/openai/lib/AssistantStream.mjs
+// api-server/node_modules/openai/lib/AssistantStream.mjs
 function assertNever2(_x) {
 }
 var _AssistantStream_instances, _a, _AssistantStream_events, _AssistantStream_runStepSnapshots, _AssistantStream_messageSnapshots, _AssistantStream_messageSnapshot, _AssistantStream_finalRun, _AssistantStream_currentContentIndex, _AssistantStream_currentContent, _AssistantStream_currentToolCallIndex, _AssistantStream_currentToolCall, _AssistantStream_currentEvent, _AssistantStream_currentRunSnapshot, _AssistantStream_currentRunStepSnapshot, _AssistantStream_addEvent, _AssistantStream_endRequest, _AssistantStream_handleMessage, _AssistantStream_handleRunStep, _AssistantStream_handleEvent, _AssistantStream_accumulateRunStep, _AssistantStream_accumulateMessage, _AssistantStream_accumulateContent, _AssistantStream_handleRun, AssistantStream;
 var init_AssistantStream = __esm({
-  "node_modules/openai/lib/AssistantStream.mjs"() {
+  "api-server/node_modules/openai/lib/AssistantStream.mjs"() {
     init_tslib();
     init_streaming2();
     init_error2();
@@ -7358,10 +7358,10 @@ var init_AssistantStream = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/threads/runs/runs.mjs
+// api-server/node_modules/openai/resources/beta/threads/runs/runs.mjs
 var Runs;
 var init_runs = __esm({
-  "node_modules/openai/resources/beta/threads/runs/runs.mjs"() {
+  "api-server/node_modules/openai/resources/beta/threads/runs/runs.mjs"() {
     init_resource();
     init_steps();
     init_steps();
@@ -7544,10 +7544,10 @@ var init_runs = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/threads/threads.mjs
+// api-server/node_modules/openai/resources/beta/threads/threads.mjs
 var Threads2;
 var init_threads2 = __esm({
-  "node_modules/openai/resources/beta/threads/threads.mjs"() {
+  "api-server/node_modules/openai/resources/beta/threads/threads.mjs"() {
     init_resource();
     init_messages2();
     init_messages2();
@@ -7643,10 +7643,10 @@ var init_threads2 = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/beta.mjs
+// api-server/node_modules/openai/resources/beta/beta.mjs
 var Beta;
 var init_beta = __esm({
-  "node_modules/openai/resources/beta/beta.mjs"() {
+  "api-server/node_modules/openai/resources/beta/beta.mjs"() {
     init_resource();
     init_assistants();
     init_assistants();
@@ -7672,10 +7672,10 @@ var init_beta = __esm({
   }
 });
 
-// node_modules/openai/resources/completions.mjs
+// api-server/node_modules/openai/resources/completions.mjs
 var Completions2;
 var init_completions3 = __esm({
-  "node_modules/openai/resources/completions.mjs"() {
+  "api-server/node_modules/openai/resources/completions.mjs"() {
     init_resource();
     Completions2 = class extends APIResource {
       create(body2, options) {
@@ -7690,10 +7690,10 @@ var init_completions3 = __esm({
   }
 });
 
-// node_modules/openai/resources/containers/files/content.mjs
+// api-server/node_modules/openai/resources/containers/files/content.mjs
 var Content;
 var init_content = __esm({
-  "node_modules/openai/resources/containers/files/content.mjs"() {
+  "api-server/node_modules/openai/resources/containers/files/content.mjs"() {
     init_resource();
     init_headers();
     init_path();
@@ -7714,10 +7714,10 @@ var init_content = __esm({
   }
 });
 
-// node_modules/openai/resources/containers/files/files.mjs
+// api-server/node_modules/openai/resources/containers/files/files.mjs
 var Files;
 var init_files = __esm({
-  "node_modules/openai/resources/containers/files/files.mjs"() {
+  "api-server/node_modules/openai/resources/containers/files/files.mjs"() {
     init_resource();
     init_content();
     init_content();
@@ -7775,10 +7775,10 @@ var init_files = __esm({
   }
 });
 
-// node_modules/openai/resources/containers/containers.mjs
+// api-server/node_modules/openai/resources/containers/containers.mjs
 var Containers;
 var init_containers = __esm({
-  "node_modules/openai/resources/containers/containers.mjs"() {
+  "api-server/node_modules/openai/resources/containers/containers.mjs"() {
     init_resource();
     init_files();
     init_files();
@@ -7830,10 +7830,10 @@ var init_containers = __esm({
   }
 });
 
-// node_modules/openai/resources/conversations/items.mjs
+// api-server/node_modules/openai/resources/conversations/items.mjs
 var Items;
 var init_items = __esm({
-  "node_modules/openai/resources/conversations/items.mjs"() {
+  "api-server/node_modules/openai/resources/conversations/items.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -7881,10 +7881,10 @@ var init_items = __esm({
   }
 });
 
-// node_modules/openai/resources/conversations/conversations.mjs
+// api-server/node_modules/openai/resources/conversations/conversations.mjs
 var Conversations;
 var init_conversations = __esm({
-  "node_modules/openai/resources/conversations/conversations.mjs"() {
+  "api-server/node_modules/openai/resources/conversations/conversations.mjs"() {
     init_resource();
     init_items();
     init_items();
@@ -7933,10 +7933,10 @@ var init_conversations = __esm({
   }
 });
 
-// node_modules/openai/resources/embeddings.mjs
+// api-server/node_modules/openai/resources/embeddings.mjs
 var Embeddings;
 var init_embeddings = __esm({
-  "node_modules/openai/resources/embeddings.mjs"() {
+  "api-server/node_modules/openai/resources/embeddings.mjs"() {
     init_resource();
     init_utils2();
     Embeddings = class extends APIResource {
@@ -7984,10 +7984,10 @@ var init_embeddings = __esm({
   }
 });
 
-// node_modules/openai/resources/evals/runs/output-items.mjs
+// api-server/node_modules/openai/resources/evals/runs/output-items.mjs
 var OutputItems;
 var init_output_items = __esm({
-  "node_modules/openai/resources/evals/runs/output-items.mjs"() {
+  "api-server/node_modules/openai/resources/evals/runs/output-items.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -8013,10 +8013,10 @@ var init_output_items = __esm({
   }
 });
 
-// node_modules/openai/resources/evals/runs/runs.mjs
+// api-server/node_modules/openai/resources/evals/runs/runs.mjs
 var Runs2;
 var init_runs2 = __esm({
-  "node_modules/openai/resources/evals/runs/runs.mjs"() {
+  "api-server/node_modules/openai/resources/evals/runs/runs.mjs"() {
     init_resource();
     init_output_items();
     init_output_items();
@@ -8084,10 +8084,10 @@ var init_runs2 = __esm({
   }
 });
 
-// node_modules/openai/resources/evals/evals.mjs
+// api-server/node_modules/openai/resources/evals/evals.mjs
 var Evals;
 var init_evals = __esm({
-  "node_modules/openai/resources/evals/evals.mjs"() {
+  "api-server/node_modules/openai/resources/evals/evals.mjs"() {
     init_resource();
     init_runs2();
     init_runs2();
@@ -8142,10 +8142,10 @@ var init_evals = __esm({
   }
 });
 
-// node_modules/openai/resources/files.mjs
+// api-server/node_modules/openai/resources/files.mjs
 var Files2;
 var init_files2 = __esm({
-  "node_modules/openai/resources/files.mjs"() {
+  "api-server/node_modules/openai/resources/files.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -8241,20 +8241,20 @@ var init_files2 = __esm({
   }
 });
 
-// node_modules/openai/resources/fine-tuning/methods.mjs
+// api-server/node_modules/openai/resources/fine-tuning/methods.mjs
 var Methods;
 var init_methods = __esm({
-  "node_modules/openai/resources/fine-tuning/methods.mjs"() {
+  "api-server/node_modules/openai/resources/fine-tuning/methods.mjs"() {
     init_resource();
     Methods = class extends APIResource {
     };
   }
 });
 
-// node_modules/openai/resources/fine-tuning/alpha/graders.mjs
+// api-server/node_modules/openai/resources/fine-tuning/alpha/graders.mjs
 var Graders;
 var init_graders = __esm({
-  "node_modules/openai/resources/fine-tuning/alpha/graders.mjs"() {
+  "api-server/node_modules/openai/resources/fine-tuning/alpha/graders.mjs"() {
     init_resource();
     Graders = class extends APIResource {
       /**
@@ -8309,10 +8309,10 @@ var init_graders = __esm({
   }
 });
 
-// node_modules/openai/resources/fine-tuning/alpha/alpha.mjs
+// api-server/node_modules/openai/resources/fine-tuning/alpha/alpha.mjs
 var Alpha;
 var init_alpha = __esm({
-  "node_modules/openai/resources/fine-tuning/alpha/alpha.mjs"() {
+  "api-server/node_modules/openai/resources/fine-tuning/alpha/alpha.mjs"() {
     init_resource();
     init_graders();
     init_graders();
@@ -8326,10 +8326,10 @@ var init_alpha = __esm({
   }
 });
 
-// node_modules/openai/resources/fine-tuning/checkpoints/permissions.mjs
+// api-server/node_modules/openai/resources/fine-tuning/checkpoints/permissions.mjs
 var Permissions;
 var init_permissions = __esm({
-  "node_modules/openai/resources/fine-tuning/checkpoints/permissions.mjs"() {
+  "api-server/node_modules/openai/resources/fine-tuning/checkpoints/permissions.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -8414,10 +8414,10 @@ var init_permissions = __esm({
   }
 });
 
-// node_modules/openai/resources/fine-tuning/checkpoints/checkpoints.mjs
+// api-server/node_modules/openai/resources/fine-tuning/checkpoints/checkpoints.mjs
 var Checkpoints;
 var init_checkpoints = __esm({
-  "node_modules/openai/resources/fine-tuning/checkpoints/checkpoints.mjs"() {
+  "api-server/node_modules/openai/resources/fine-tuning/checkpoints/checkpoints.mjs"() {
     init_resource();
     init_permissions();
     init_permissions();
@@ -8431,10 +8431,10 @@ var init_checkpoints = __esm({
   }
 });
 
-// node_modules/openai/resources/fine-tuning/jobs/checkpoints.mjs
+// api-server/node_modules/openai/resources/fine-tuning/jobs/checkpoints.mjs
 var Checkpoints2;
 var init_checkpoints2 = __esm({
-  "node_modules/openai/resources/fine-tuning/jobs/checkpoints.mjs"() {
+  "api-server/node_modules/openai/resources/fine-tuning/jobs/checkpoints.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -8459,10 +8459,10 @@ var init_checkpoints2 = __esm({
   }
 });
 
-// node_modules/openai/resources/fine-tuning/jobs/jobs.mjs
+// api-server/node_modules/openai/resources/fine-tuning/jobs/jobs.mjs
 var Jobs;
 var init_jobs = __esm({
-  "node_modules/openai/resources/fine-tuning/jobs/jobs.mjs"() {
+  "api-server/node_modules/openai/resources/fine-tuning/jobs/jobs.mjs"() {
     init_resource();
     init_checkpoints2();
     init_checkpoints2();
@@ -8598,10 +8598,10 @@ var init_jobs = __esm({
   }
 });
 
-// node_modules/openai/resources/fine-tuning/fine-tuning.mjs
+// api-server/node_modules/openai/resources/fine-tuning/fine-tuning.mjs
 var FineTuning;
 var init_fine_tuning = __esm({
-  "node_modules/openai/resources/fine-tuning/fine-tuning.mjs"() {
+  "api-server/node_modules/openai/resources/fine-tuning/fine-tuning.mjs"() {
     init_resource();
     init_methods();
     init_methods();
@@ -8627,20 +8627,20 @@ var init_fine_tuning = __esm({
   }
 });
 
-// node_modules/openai/resources/graders/grader-models.mjs
+// api-server/node_modules/openai/resources/graders/grader-models.mjs
 var GraderModels;
 var init_grader_models = __esm({
-  "node_modules/openai/resources/graders/grader-models.mjs"() {
+  "api-server/node_modules/openai/resources/graders/grader-models.mjs"() {
     init_resource();
     GraderModels = class extends APIResource {
     };
   }
 });
 
-// node_modules/openai/resources/graders/graders.mjs
+// api-server/node_modules/openai/resources/graders/graders.mjs
 var Graders2;
 var init_graders2 = __esm({
-  "node_modules/openai/resources/graders/graders.mjs"() {
+  "api-server/node_modules/openai/resources/graders/graders.mjs"() {
     init_resource();
     init_grader_models();
     init_grader_models();
@@ -8654,10 +8654,10 @@ var init_graders2 = __esm({
   }
 });
 
-// node_modules/openai/resources/images.mjs
+// api-server/node_modules/openai/resources/images.mjs
 var Images;
 var init_images = __esm({
-  "node_modules/openai/resources/images.mjs"() {
+  "api-server/node_modules/openai/resources/images.mjs"() {
     init_resource();
     init_uploads();
     Images = class extends APIResource {
@@ -8689,10 +8689,10 @@ var init_images = __esm({
   }
 });
 
-// node_modules/openai/resources/models.mjs
+// api-server/node_modules/openai/resources/models.mjs
 var Models;
 var init_models = __esm({
-  "node_modules/openai/resources/models.mjs"() {
+  "api-server/node_modules/openai/resources/models.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -8722,10 +8722,10 @@ var init_models = __esm({
   }
 });
 
-// node_modules/openai/resources/moderations.mjs
+// api-server/node_modules/openai/resources/moderations.mjs
 var Moderations;
 var init_moderations = __esm({
-  "node_modules/openai/resources/moderations.mjs"() {
+  "api-server/node_modules/openai/resources/moderations.mjs"() {
     init_resource();
     Moderations = class extends APIResource {
       /**
@@ -8739,10 +8739,10 @@ var init_moderations = __esm({
   }
 });
 
-// node_modules/openai/resources/realtime/calls.mjs
+// api-server/node_modules/openai/resources/realtime/calls.mjs
 var Calls;
 var init_calls = __esm({
-  "node_modules/openai/resources/realtime/calls.mjs"() {
+  "api-server/node_modules/openai/resources/realtime/calls.mjs"() {
     init_resource();
     init_headers();
     init_path();
@@ -8819,10 +8819,10 @@ var init_calls = __esm({
   }
 });
 
-// node_modules/openai/resources/realtime/client-secrets.mjs
+// api-server/node_modules/openai/resources/realtime/client-secrets.mjs
 var ClientSecrets;
 var init_client_secrets = __esm({
-  "node_modules/openai/resources/realtime/client-secrets.mjs"() {
+  "api-server/node_modules/openai/resources/realtime/client-secrets.mjs"() {
     init_resource();
     ClientSecrets = class extends APIResource {
       /**
@@ -8859,10 +8859,10 @@ var init_client_secrets = __esm({
   }
 });
 
-// node_modules/openai/resources/realtime/realtime.mjs
+// api-server/node_modules/openai/resources/realtime/realtime.mjs
 var Realtime2;
 var init_realtime2 = __esm({
-  "node_modules/openai/resources/realtime/realtime.mjs"() {
+  "api-server/node_modules/openai/resources/realtime/realtime.mjs"() {
     init_resource();
     init_calls();
     init_calls();
@@ -8880,7 +8880,7 @@ var init_realtime2 = __esm({
   }
 });
 
-// node_modules/openai/lib/ResponsesParser.mjs
+// api-server/node_modules/openai/lib/ResponsesParser.mjs
 function maybeParseResponse(response, params) {
   if (!params || !hasAutoParseableInput2(params)) {
     const parsed = {
@@ -9009,13 +9009,13 @@ function addOutputText(rsp) {
   rsp.output_text = texts.join("");
 }
 var init_ResponsesParser = __esm({
-  "node_modules/openai/lib/ResponsesParser.mjs"() {
+  "api-server/node_modules/openai/lib/ResponsesParser.mjs"() {
     init_error2();
     init_parser();
   }
 });
 
-// node_modules/openai/lib/responses/ResponseAccumulator.mjs
+// api-server/node_modules/openai/lib/responses/ResponseAccumulator.mjs
 function accumulateResponse(event, snapshot2) {
   if (!snapshot2) {
     if (event.type !== "response.created") {
@@ -9403,19 +9403,19 @@ function assertNever3(value) {
   throw new OpenAIError(`Unhandled response stream event: ${JSON.stringify(value)}`);
 }
 var init_ResponseAccumulator = __esm({
-  "node_modules/openai/lib/responses/ResponseAccumulator.mjs"() {
+  "api-server/node_modules/openai/lib/responses/ResponseAccumulator.mjs"() {
     init_error2();
     init_ResponsesParser();
   }
 });
 
-// node_modules/openai/lib/responses/ResponseStream.mjs
+// api-server/node_modules/openai/lib/responses/ResponseStream.mjs
 function finalizeResponse(snapshot2, params) {
   return maybeParseResponse(snapshot2, params);
 }
 var _ResponseStream_instances, _ResponseStream_params, _ResponseStream_currentResponseSnapshot, _ResponseStream_finalResponse, _ResponseStream_beginRequest, _ResponseStream_addEvent, _ResponseStream_endRequest, ResponseStream;
 var init_ResponseStream = __esm({
-  "node_modules/openai/lib/responses/ResponseStream.mjs"() {
+  "api-server/node_modules/openai/lib/responses/ResponseStream.mjs"() {
     init_tslib();
     init_error2();
     init_EventStream();
@@ -9588,10 +9588,10 @@ var init_ResponseStream = __esm({
   }
 });
 
-// node_modules/openai/resources/responses/input-items.mjs
+// api-server/node_modules/openai/resources/responses/input-items.mjs
 var InputItems;
 var init_input_items = __esm({
-  "node_modules/openai/resources/responses/input-items.mjs"() {
+  "api-server/node_modules/openai/resources/responses/input-items.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -9616,10 +9616,10 @@ var init_input_items = __esm({
   }
 });
 
-// node_modules/openai/resources/responses/input-tokens.mjs
+// api-server/node_modules/openai/resources/responses/input-tokens.mjs
 var InputTokens;
 var init_input_tokens = __esm({
-  "node_modules/openai/resources/responses/input-tokens.mjs"() {
+  "api-server/node_modules/openai/resources/responses/input-tokens.mjs"() {
     init_resource();
     InputTokens = class extends APIResource {
       /**
@@ -9644,10 +9644,10 @@ var init_input_tokens = __esm({
   }
 });
 
-// node_modules/openai/resources/responses/responses.mjs
+// api-server/node_modules/openai/resources/responses/responses.mjs
 var Responses;
 var init_responses = __esm({
-  "node_modules/openai/resources/responses/responses.mjs"() {
+  "api-server/node_modules/openai/resources/responses/responses.mjs"() {
     init_ResponsesParser();
     init_ResponseStream();
     init_resource();
@@ -9757,10 +9757,10 @@ var init_responses = __esm({
   }
 });
 
-// node_modules/openai/resources/skills/content.mjs
+// api-server/node_modules/openai/resources/skills/content.mjs
 var Content2;
 var init_content2 = __esm({
-  "node_modules/openai/resources/skills/content.mjs"() {
+  "api-server/node_modules/openai/resources/skills/content.mjs"() {
     init_resource();
     init_headers();
     init_path();
@@ -9780,10 +9780,10 @@ var init_content2 = __esm({
   }
 });
 
-// node_modules/openai/resources/skills/versions/content.mjs
+// api-server/node_modules/openai/resources/skills/versions/content.mjs
 var Content3;
 var init_content3 = __esm({
-  "node_modules/openai/resources/skills/versions/content.mjs"() {
+  "api-server/node_modules/openai/resources/skills/versions/content.mjs"() {
     init_resource();
     init_headers();
     init_path();
@@ -9804,10 +9804,10 @@ var init_content3 = __esm({
   }
 });
 
-// node_modules/openai/resources/skills/versions/versions.mjs
+// api-server/node_modules/openai/resources/skills/versions/versions.mjs
 var Versions;
 var init_versions = __esm({
-  "node_modules/openai/resources/skills/versions/versions.mjs"() {
+  "api-server/node_modules/openai/resources/skills/versions/versions.mjs"() {
     init_resource();
     init_content3();
     init_content3();
@@ -9860,10 +9860,10 @@ var init_versions = __esm({
   }
 });
 
-// node_modules/openai/resources/skills/skills.mjs
+// api-server/node_modules/openai/resources/skills/skills.mjs
 var Skills;
 var init_skills = __esm({
-  "node_modules/openai/resources/skills/skills.mjs"() {
+  "api-server/node_modules/openai/resources/skills/skills.mjs"() {
     init_resource();
     init_content2();
     init_content2();
@@ -9922,10 +9922,10 @@ var init_skills = __esm({
   }
 });
 
-// node_modules/openai/resources/uploads/parts.mjs
+// api-server/node_modules/openai/resources/uploads/parts.mjs
 var Parts;
 var init_parts = __esm({
-  "node_modules/openai/resources/uploads/parts.mjs"() {
+  "api-server/node_modules/openai/resources/uploads/parts.mjs"() {
     init_resource();
     init_uploads();
     init_path();
@@ -9950,10 +9950,10 @@ var init_parts = __esm({
   }
 });
 
-// node_modules/openai/resources/uploads/uploads.mjs
+// api-server/node_modules/openai/resources/uploads/uploads.mjs
 var Uploads;
 var init_uploads3 = __esm({
-  "node_modules/openai/resources/uploads/uploads.mjs"() {
+  "api-server/node_modules/openai/resources/uploads/uploads.mjs"() {
     init_resource();
     init_parts();
     init_parts();
@@ -10029,10 +10029,10 @@ var init_uploads3 = __esm({
   }
 });
 
-// node_modules/openai/lib/Util.mjs
+// api-server/node_modules/openai/lib/Util.mjs
 var allSettledWithThrow;
 var init_Util = __esm({
-  "node_modules/openai/lib/Util.mjs"() {
+  "api-server/node_modules/openai/lib/Util.mjs"() {
     allSettledWithThrow = async (promises) => {
       const results = await Promise.allSettled(promises);
       const rejected = results.filter((result) => result.status === "rejected");
@@ -10053,10 +10053,10 @@ var init_Util = __esm({
   }
 });
 
-// node_modules/openai/resources/vector-stores/file-batches.mjs
+// api-server/node_modules/openai/resources/vector-stores/file-batches.mjs
 var FileBatches;
 var init_file_batches = __esm({
-  "node_modules/openai/resources/vector-stores/file-batches.mjs"() {
+  "api-server/node_modules/openai/resources/vector-stores/file-batches.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -10189,10 +10189,10 @@ var init_file_batches = __esm({
   }
 });
 
-// node_modules/openai/resources/vector-stores/files.mjs
+// api-server/node_modules/openai/resources/vector-stores/files.mjs
 var Files3;
 var init_files3 = __esm({
-  "node_modules/openai/resources/vector-stores/files.mjs"() {
+  "api-server/node_modules/openai/resources/vector-stores/files.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -10340,10 +10340,10 @@ var init_files3 = __esm({
   }
 });
 
-// node_modules/openai/resources/vector-stores/vector-stores.mjs
+// api-server/node_modules/openai/resources/vector-stores/vector-stores.mjs
 var VectorStores;
 var init_vector_stores = __esm({
-  "node_modules/openai/resources/vector-stores/vector-stores.mjs"() {
+  "api-server/node_modules/openai/resources/vector-stores/vector-stores.mjs"() {
     init_resource();
     init_file_batches();
     init_file_batches();
@@ -10430,10 +10430,10 @@ var init_vector_stores = __esm({
   }
 });
 
-// node_modules/openai/resources/videos.mjs
+// api-server/node_modules/openai/resources/videos.mjs
 var Videos;
 var init_videos = __esm({
-  "node_modules/openai/resources/videos.mjs"() {
+  "api-server/node_modules/openai/resources/videos.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -10520,10 +10520,10 @@ var init_videos = __esm({
   }
 });
 
-// node_modules/openai/resources/webhooks/webhooks.mjs
+// api-server/node_modules/openai/resources/webhooks/webhooks.mjs
 var _Webhooks_instances, _Webhooks_validateSecret, _Webhooks_getRequiredHeader, Webhooks;
 var init_webhooks = __esm({
-  "node_modules/openai/resources/webhooks/webhooks.mjs"() {
+  "api-server/node_modules/openai/resources/webhooks/webhooks.mjs"() {
     init_tslib();
     init_error2();
     init_resource();
@@ -10605,23 +10605,23 @@ var init_webhooks = __esm({
   }
 });
 
-// node_modules/openai/resources/webhooks/index.mjs
+// api-server/node_modules/openai/resources/webhooks/index.mjs
 var init_webhooks2 = __esm({
-  "node_modules/openai/resources/webhooks/index.mjs"() {
+  "api-server/node_modules/openai/resources/webhooks/index.mjs"() {
     init_webhooks();
   }
 });
 
-// node_modules/openai/resources/webhooks.mjs
+// api-server/node_modules/openai/resources/webhooks.mjs
 var init_webhooks3 = __esm({
-  "node_modules/openai/resources/webhooks.mjs"() {
+  "api-server/node_modules/openai/resources/webhooks.mjs"() {
     init_webhooks2();
   }
 });
 
-// node_modules/openai/resources/index.mjs
+// api-server/node_modules/openai/resources/index.mjs
 var init_resources = __esm({
-  "node_modules/openai/resources/index.mjs"() {
+  "api-server/node_modules/openai/resources/index.mjs"() {
     init_chat2();
     init_shared();
     init_admin();
@@ -10649,7 +10649,7 @@ var init_resources = __esm({
   }
 });
 
-// node_modules/openai/internal/provider.mjs
+// api-server/node_modules/openai/internal/provider.mjs
 function configureProvider(provider) {
   const definition = providerDefinitions.get(provider);
   if (!definition) {
@@ -10659,7 +10659,7 @@ function configureProvider(provider) {
 }
 var providerDefinitionsKey, providerGlobal, existingProviderDefinitions, providerDefinitions;
 var init_provider = __esm({
-  "node_modules/openai/internal/provider.mjs"() {
+  "api-server/node_modules/openai/internal/provider.mjs"() {
     providerDefinitionsKey = /* @__PURE__ */ Symbol.for("openai.node.providerDefinitions.v1");
     providerGlobal = globalThis;
     existingProviderDefinitions = providerGlobal[providerDefinitionsKey];
@@ -10670,7 +10670,7 @@ var init_provider = __esm({
   }
 });
 
-// node_modules/openai/client.mjs
+// api-server/node_modules/openai/client.mjs
 function getConnectionErrorMessage(error) {
   if (isUndiciDispatcherVersionMismatchError(error)) {
     return `Connection error. This may be caused by passing an undici dispatcher, such as ProxyAgent, that is incompatible with the fetch implementation. If you are using undici's ProxyAgent, pass the fetch implementation from the same undici package: import { fetch, ProxyAgent } from 'undici'; new OpenAI({ fetch, fetchOptions: { dispatcher: new ProxyAgent(...) } });`;
@@ -10690,7 +10690,7 @@ function isUndiciDispatcherVersionMismatchError(error) {
 }
 var _OpenAI_instances, _a2, _OpenAI_encoder, _OpenAI_baseURLOverridden, WORKLOAD_IDENTITY_API_KEY_PLACEHOLDER, OpenAI;
 var init_client = __esm({
-  "node_modules/openai/client.mjs"() {
+  "api-server/node_modules/openai/client.mjs"() {
     init_tslib();
     init_uuid();
     init_values();
@@ -11368,9 +11368,9 @@ var init_client = __esm({
   }
 });
 
-// node_modules/openai/azure.mjs
+// api-server/node_modules/openai/azure.mjs
 var init_azure = __esm({
-  "node_modules/openai/azure.mjs"() {
+  "api-server/node_modules/openai/azure.mjs"() {
     init_headers();
     init_error2();
     init_utils2();
@@ -11378,9 +11378,9 @@ var init_azure = __esm({
   }
 });
 
-// node_modules/openai/bedrock.mjs
+// api-server/node_modules/openai/bedrock.mjs
 var init_bedrock = __esm({
-  "node_modules/openai/bedrock.mjs"() {
+  "api-server/node_modules/openai/bedrock.mjs"() {
     init_error2();
     init_client();
     init_headers();
@@ -11390,9 +11390,9 @@ var init_bedrock = __esm({
   }
 });
 
-// node_modules/openai/index.mjs
+// api-server/node_modules/openai/index.mjs
 var init_openai = __esm({
-  "node_modules/openai/index.mjs"() {
+  "api-server/node_modules/openai/index.mjs"() {
     init_client();
     init_uploads2();
     init_api_promise();
@@ -11404,9 +11404,9 @@ var init_openai = __esm({
   }
 });
 
-// node_modules/retry/lib/retry_operation.js
+// api-server/node_modules/retry/lib/retry_operation.js
 var require_retry_operation = __commonJS({
-  "node_modules/retry/lib/retry_operation.js"(exports2, module2) {
+  "api-server/node_modules/retry/lib/retry_operation.js"(exports2, module2) {
     function RetryOperation(timeouts, options) {
       if (typeof options === "boolean") {
         options = { forever: options };
@@ -11539,9 +11539,9 @@ var require_retry_operation = __commonJS({
   }
 });
 
-// node_modules/retry/lib/retry.js
+// api-server/node_modules/retry/lib/retry.js
 var require_retry = __commonJS({
-  "node_modules/retry/lib/retry.js"(exports2) {
+  "api-server/node_modules/retry/lib/retry.js"(exports2) {
     var RetryOperation = require_retry_operation();
     exports2.operation = function(options) {
       var timeouts = exports2.timeouts(options);
@@ -11625,16 +11625,16 @@ var require_retry = __commonJS({
   }
 });
 
-// node_modules/retry/index.js
+// api-server/node_modules/retry/index.js
 var require_retry2 = __commonJS({
-  "node_modules/retry/index.js"(exports2, module2) {
+  "api-server/node_modules/retry/index.js"(exports2, module2) {
     module2.exports = require_retry();
   }
 });
 
-// node_modules/p-retry/index.js
+// api-server/node_modules/p-retry/index.js
 var require_p_retry = __commonJS({
-  "node_modules/p-retry/index.js"(exports2, module2) {
+  "api-server/node_modules/p-retry/index.js"(exports2, module2) {
     "use strict";
     var retry2 = require_retry2();
     var networkErrorMsgs = [
@@ -11711,9 +11711,9 @@ var require_p_retry = __commonJS({
   }
 });
 
-// node_modules/extend/index.js
+// api-server/node_modules/extend/index.js
 var require_extend = __commonJS({
-  "node_modules/extend/index.js"(exports2, module2) {
+  "api-server/node_modules/extend/index.js"(exports2, module2) {
     "use strict";
     var hasOwn3 = Object.prototype.hasOwnProperty;
     var toStr = Object.prototype.toString;
@@ -11802,9 +11802,9 @@ var require_extend = __commonJS({
   }
 });
 
-// node_modules/gaxios/package.json
+// api-server/node_modules/gaxios/package.json
 var require_package = __commonJS({
-  "node_modules/gaxios/package.json"(exports2, module2) {
+  "api-server/node_modules/gaxios/package.json"(exports2, module2) {
     module2.exports = {
       name: "gaxios",
       version: "7.3.0",
@@ -11913,18 +11913,18 @@ var require_package = __commonJS({
   }
 });
 
-// node_modules/gaxios/build/cjs/src/util.cjs
+// api-server/node_modules/gaxios/build/cjs/src/util.cjs
 var require_util = __commonJS({
-  "node_modules/gaxios/build/cjs/src/util.cjs"(exports2, module2) {
+  "api-server/node_modules/gaxios/build/cjs/src/util.cjs"(exports2, module2) {
     "use strict";
     var pkg = require_package();
     module2.exports = { pkg };
   }
 });
 
-// node_modules/gaxios/build/cjs/src/common.js
+// api-server/node_modules/gaxios/build/cjs/src/common.js
 var require_common = __commonJS({
-  "node_modules/gaxios/build/cjs/src/common.js"(exports2) {
+  "api-server/node_modules/gaxios/build/cjs/src/common.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -12164,9 +12164,9 @@ var require_common = __commonJS({
   }
 });
 
-// node_modules/gaxios/build/cjs/src/retry.js
+// api-server/node_modules/gaxios/build/cjs/src/retry.js
 var require_retry3 = __commonJS({
-  "node_modules/gaxios/build/cjs/src/retry.js"(exports2) {
+  "api-server/node_modules/gaxios/build/cjs/src/retry.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getRetryConfig = getRetryConfig;
@@ -12269,9 +12269,9 @@ var require_retry3 = __commonJS({
   }
 });
 
-// node_modules/gaxios/build/cjs/src/interceptor.js
+// api-server/node_modules/gaxios/build/cjs/src/interceptor.js
 var require_interceptor = __commonJS({
-  "node_modules/gaxios/build/cjs/src/interceptor.js"(exports2) {
+  "api-server/node_modules/gaxios/build/cjs/src/interceptor.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.GaxiosInterceptorManager = void 0;
@@ -12281,9 +12281,9 @@ var require_interceptor = __commonJS({
   }
 });
 
-// node_modules/ms/index.js
+// api-server/node_modules/ms/index.js
 var require_ms = __commonJS({
-  "node_modules/ms/index.js"(exports2, module2) {
+  "api-server/node_modules/ms/index.js"(exports2, module2) {
     var s6 = 1e3;
     var m5 = s6 * 60;
     var h4 = m5 * 60;
@@ -12397,9 +12397,9 @@ var require_ms = __commonJS({
   }
 });
 
-// node_modules/debug/src/common.js
+// api-server/node_modules/debug/src/common.js
 var require_common2 = __commonJS({
-  "node_modules/debug/src/common.js"(exports2, module2) {
+  "api-server/node_modules/debug/src/common.js"(exports2, module2) {
     function setup(env2) {
       createDebug.debug = createDebug;
       createDebug.default = createDebug;
@@ -12574,9 +12574,9 @@ var require_common2 = __commonJS({
   }
 });
 
-// node_modules/debug/src/browser.js
+// api-server/node_modules/debug/src/browser.js
 var require_browser = __commonJS({
-  "node_modules/debug/src/browser.js"(exports2, module2) {
+  "api-server/node_modules/debug/src/browser.js"(exports2, module2) {
     exports2.formatArgs = formatArgs;
     exports2.save = save;
     exports2.load = load2;
@@ -12744,9 +12744,9 @@ var require_browser = __commonJS({
   }
 });
 
-// node_modules/debug/src/node.js
+// api-server/node_modules/debug/src/node.js
 var require_node = __commonJS({
-  "node_modules/debug/src/node.js"(exports2, module2) {
+  "api-server/node_modules/debug/src/node.js"(exports2, module2) {
     var tty = __require("tty");
     var util2 = __require("util");
     exports2.init = init2;
@@ -12918,9 +12918,9 @@ var require_node = __commonJS({
   }
 });
 
-// node_modules/debug/src/index.js
+// api-server/node_modules/debug/src/index.js
 var require_src = __commonJS({
-  "node_modules/debug/src/index.js"(exports2, module2) {
+  "api-server/node_modules/debug/src/index.js"(exports2, module2) {
     if (typeof process === "undefined" || process.type === "renderer" || process.browser === true || process.__nwjs) {
       module2.exports = require_browser();
     } else {
@@ -12929,9 +12929,9 @@ var require_src = __commonJS({
   }
 });
 
-// node_modules/gaxios/node_modules/agent-base/dist/helpers.js
+// api-server/node_modules/gaxios/node_modules/agent-base/dist/helpers.js
 var require_helpers = __commonJS({
-  "node_modules/gaxios/node_modules/agent-base/dist/helpers.js"(exports2) {
+  "api-server/node_modules/gaxios/node_modules/agent-base/dist/helpers.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o5, m5, k4, k22) {
       if (k22 === void 0) k22 = k4;
@@ -12999,9 +12999,9 @@ var require_helpers = __commonJS({
   }
 });
 
-// node_modules/gaxios/node_modules/agent-base/dist/index.js
+// api-server/node_modules/gaxios/node_modules/agent-base/dist/index.js
 var require_dist = __commonJS({
-  "node_modules/gaxios/node_modules/agent-base/dist/index.js"(exports2) {
+  "api-server/node_modules/gaxios/node_modules/agent-base/dist/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o5, m5, k4, k22) {
       if (k22 === void 0) k22 = k4;
@@ -13155,9 +13155,9 @@ var require_dist = __commonJS({
   }
 });
 
-// node_modules/gaxios/node_modules/https-proxy-agent/dist/parse-proxy-response.js
+// api-server/node_modules/gaxios/node_modules/https-proxy-agent/dist/parse-proxy-response.js
 var require_parse_proxy_response = __commonJS({
-  "node_modules/gaxios/node_modules/https-proxy-agent/dist/parse-proxy-response.js"(exports2) {
+  "api-server/node_modules/gaxios/node_modules/https-proxy-agent/dist/parse-proxy-response.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -13251,9 +13251,9 @@ var require_parse_proxy_response = __commonJS({
   }
 });
 
-// node_modules/gaxios/node_modules/https-proxy-agent/dist/index.js
+// api-server/node_modules/gaxios/node_modules/https-proxy-agent/dist/index.js
 var require_dist2 = __commonJS({
-  "node_modules/gaxios/node_modules/https-proxy-agent/dist/index.js"(exports2) {
+  "api-server/node_modules/gaxios/node_modules/https-proxy-agent/dist/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o5, m5, k4, k22) {
       if (k22 === void 0) k22 = k4;
@@ -13401,7 +13401,7 @@ var require_dist2 = __commonJS({
   }
 });
 
-// node_modules/data-uri-to-buffer/dist/index.js
+// api-server/node_modules/data-uri-to-buffer/dist/index.js
 function dataUriToBuffer(uri) {
   if (!/^data:/i.test(uri)) {
     throw new TypeError('`uri` does not appear to be a Data URI (must begin with "data:")');
@@ -13440,14 +13440,14 @@ function dataUriToBuffer(uri) {
 }
 var dist_default;
 var init_dist = __esm({
-  "node_modules/data-uri-to-buffer/dist/index.js"() {
+  "api-server/node_modules/data-uri-to-buffer/dist/index.js"() {
     dist_default = dataUriToBuffer;
   }
 });
 
-// node_modules/web-streams-polyfill/dist/ponyfill.es2018.js
+// api-server/node_modules/web-streams-polyfill/dist/ponyfill.es2018.js
 var require_ponyfill_es2018 = __commonJS({
-  "node_modules/web-streams-polyfill/dist/ponyfill.es2018.js"(exports2, module2) {
+  "api-server/node_modules/web-streams-polyfill/dist/ponyfill.es2018.js"(exports2, module2) {
     (function(global2, factory) {
       typeof exports2 === "object" && typeof module2 !== "undefined" ? factory(exports2) : typeof define === "function" && define.amd ? define(["exports"], factory) : (global2 = typeof globalThis !== "undefined" ? globalThis : global2 || self, factory(global2.WebStreamsPolyfill = {}));
     })(exports2, (function(exports3) {
@@ -17720,9 +17720,9 @@ var require_ponyfill_es2018 = __commonJS({
   }
 });
 
-// node_modules/fetch-blob/streams.cjs
+// api-server/node_modules/fetch-blob/streams.cjs
 var require_streams = __commonJS({
-  "node_modules/fetch-blob/streams.cjs"() {
+  "api-server/node_modules/fetch-blob/streams.cjs"() {
     var POOL_SIZE2 = 65536;
     if (!globalThis.ReadableStream) {
       try {
@@ -17766,7 +17766,7 @@ var require_streams = __commonJS({
   }
 });
 
-// node_modules/fetch-blob/index.js
+// api-server/node_modules/fetch-blob/index.js
 async function* toIterator(parts2, clone4 = true) {
   for (const part of parts2) {
     if ("stream" in part) {
@@ -17803,7 +17803,7 @@ async function* toIterator(parts2, clone4 = true) {
 }
 var import_streams, POOL_SIZE, _Blob, Blob3, fetch_blob_default;
 var init_fetch_blob = __esm({
-  "node_modules/fetch-blob/index.js"() {
+  "api-server/node_modules/fetch-blob/index.js"() {
     import_streams = __toESM(require_streams(), 1);
     POOL_SIZE = 65536;
     _Blob = class Blob2 {
@@ -17970,10 +17970,10 @@ var init_fetch_blob = __esm({
   }
 });
 
-// node_modules/fetch-blob/file.js
+// api-server/node_modules/fetch-blob/file.js
 var _File, File3, file_default;
 var init_file = __esm({
-  "node_modules/fetch-blob/file.js"() {
+  "api-server/node_modules/fetch-blob/file.js"() {
     init_fetch_blob();
     _File = class File2 extends fetch_blob_default {
       #lastModified = 0;
@@ -18014,7 +18014,7 @@ var init_file = __esm({
   }
 });
 
-// node_modules/formdata-polyfill/esm.min.js
+// api-server/node_modules/formdata-polyfill/esm.min.js
 function formDataToBlob(F5, B = fetch_blob_default) {
   var b4 = `${r()}${r()}`.replace(/\./g, "").slice(-28).padStart(32, "-"), c4 = [], p4 = `--${b4}\r
 Content-Disposition: form-data; name="`;
@@ -18030,7 +18030,7 @@ Content-Type: ${v3.type || "application/octet-stream"}\r
 }
 var t, i2, h, r, m, f, e, x, FormData2;
 var init_esm_min = __esm({
-  "node_modules/formdata-polyfill/esm.min.js"() {
+  "api-server/node_modules/formdata-polyfill/esm.min.js"() {
     init_fetch_blob();
     init_file();
     ({ toStringTag: t, iterator: i2, hasInstance: h } = Symbol);
@@ -18111,10 +18111,10 @@ var init_esm_min = __esm({
   }
 });
 
-// node_modules/node-fetch/src/errors/base.js
+// api-server/node_modules/node-fetch/src/errors/base.js
 var FetchBaseError;
 var init_base = __esm({
-  "node_modules/node-fetch/src/errors/base.js"() {
+  "api-server/node_modules/node-fetch/src/errors/base.js"() {
     FetchBaseError = class extends Error {
       constructor(message, type) {
         super(message);
@@ -18131,10 +18131,10 @@ var init_base = __esm({
   }
 });
 
-// node_modules/node-fetch/src/errors/fetch-error.js
+// api-server/node_modules/node-fetch/src/errors/fetch-error.js
 var FetchError;
 var init_fetch_error = __esm({
-  "node_modules/node-fetch/src/errors/fetch-error.js"() {
+  "api-server/node_modules/node-fetch/src/errors/fetch-error.js"() {
     init_base();
     FetchError = class extends FetchBaseError {
       /**
@@ -18153,10 +18153,10 @@ var init_fetch_error = __esm({
   }
 });
 
-// node_modules/node-fetch/src/utils/is.js
+// api-server/node_modules/node-fetch/src/utils/is.js
 var NAME, isURLSearchParameters, isBlob, isAbortSignal, isDomainOrSubdomain, isSameProtocol;
 var init_is = __esm({
-  "node_modules/node-fetch/src/utils/is.js"() {
+  "api-server/node_modules/node-fetch/src/utils/is.js"() {
     NAME = Symbol.toStringTag;
     isURLSearchParameters = (object) => {
       return typeof object === "object" && typeof object.append === "function" && typeof object.delete === "function" && typeof object.get === "function" && typeof object.getAll === "function" && typeof object.has === "function" && typeof object.set === "function" && typeof object.sort === "function" && object[NAME] === "URLSearchParams";
@@ -18180,9 +18180,9 @@ var init_is = __esm({
   }
 });
 
-// node_modules/node-domexception/index.js
+// api-server/node_modules/node-domexception/index.js
 var require_node_domexception = __commonJS({
-  "node_modules/node-domexception/index.js"(exports2, module2) {
+  "api-server/node_modules/node-domexception/index.js"(exports2, module2) {
     if (!globalThis.DOMException) {
       try {
         const { MessageChannel } = __require("worker_threads"), port = new MessageChannel().port1, ab = new ArrayBuffer();
@@ -18195,12 +18195,12 @@ var require_node_domexception = __commonJS({
   }
 });
 
-// node_modules/fetch-blob/from.js
+// api-server/node_modules/fetch-blob/from.js
 import { statSync, createReadStream, promises as fs2 } from "node:fs";
 import { basename } from "node:path";
 var import_node_domexception, stat, blobFromSync, blobFrom, fileFrom, fileFromSync, fromBlob, fromFile, BlobDataItem;
 var init_from = __esm({
-  "node_modules/fetch-blob/from.js"() {
+  "api-server/node_modules/fetch-blob/from.js"() {
     import_node_domexception = __toESM(require_node_domexception(), 1);
     init_file();
     init_fetch_blob();
@@ -18259,7 +18259,7 @@ var init_from = __esm({
   }
 });
 
-// node_modules/node-fetch/src/utils/multipart-parser.js
+// api-server/node_modules/node-fetch/src/utils/multipart-parser.js
 var multipart_parser_exports = {};
 __export(multipart_parser_exports, {
   toFormData: () => toFormData
@@ -18353,7 +18353,7 @@ async function toFormData(Body2, ct2) {
 }
 var s, S, f2, F, LF, CR, SPACE, HYPHEN, COLON, A, Z, lower, noop2, MultipartParser;
 var init_multipart_parser = __esm({
-  "node_modules/node-fetch/src/utils/multipart-parser.js"() {
+  "api-server/node_modules/node-fetch/src/utils/multipart-parser.js"() {
     init_from();
     init_esm_min();
     s = 0;
@@ -18621,7 +18621,7 @@ var init_multipart_parser = __esm({
   }
 });
 
-// node_modules/node-fetch/src/body.js
+// api-server/node_modules/node-fetch/src/body.js
 import Stream2, { PassThrough } from "node:stream";
 import { types, deprecate, promisify } from "node:util";
 import { Buffer as Buffer2 } from "node:buffer";
@@ -18671,7 +18671,7 @@ async function consumeBody(data) {
 }
 var pipeline, INTERNALS, Body, clone, getNonSpecFormDataBoundary, extractContentType, getTotalBytes, writeToStream;
 var init_body = __esm({
-  "node_modules/node-fetch/src/body.js"() {
+  "api-server/node_modules/node-fetch/src/body.js"() {
     init_fetch_blob();
     init_esm_min();
     init_fetch_error();
@@ -18879,7 +18879,7 @@ var init_body = __esm({
   }
 });
 
-// node_modules/node-fetch/src/headers.js
+// api-server/node_modules/node-fetch/src/headers.js
 import { types as types2 } from "node:util";
 import http from "node:http";
 function fromRawHeaders(headers = []) {
@@ -18902,7 +18902,7 @@ function fromRawHeaders(headers = []) {
 }
 var validateHeaderName, validateHeaderValue, Headers2;
 var init_headers2 = __esm({
-  "node_modules/node-fetch/src/headers.js"() {
+  "api-server/node_modules/node-fetch/src/headers.js"() {
     validateHeaderName = typeof http.validateHeaderName === "function" ? http.validateHeaderName : (name2) => {
       if (!/^[\^`\-\w!#$%&'*+.|~]+$/.test(name2)) {
         const error = new TypeError(`Header name must be a valid HTTP token [${name2}]`);
@@ -19070,10 +19070,10 @@ var init_headers2 = __esm({
   }
 });
 
-// node_modules/node-fetch/src/utils/is-redirect.js
+// api-server/node_modules/node-fetch/src/utils/is-redirect.js
 var redirectStatus, isRedirect;
 var init_is_redirect = __esm({
-  "node_modules/node-fetch/src/utils/is-redirect.js"() {
+  "api-server/node_modules/node-fetch/src/utils/is-redirect.js"() {
     redirectStatus = /* @__PURE__ */ new Set([301, 302, 303, 307, 308]);
     isRedirect = (code) => {
       return redirectStatus.has(code);
@@ -19081,10 +19081,10 @@ var init_is_redirect = __esm({
   }
 });
 
-// node_modules/node-fetch/src/response.js
+// api-server/node_modules/node-fetch/src/response.js
 var INTERNALS2, Response2;
 var init_response = __esm({
-  "node_modules/node-fetch/src/response.js"() {
+  "api-server/node_modules/node-fetch/src/response.js"() {
     init_headers2();
     init_body();
     init_is_redirect();
@@ -19207,10 +19207,10 @@ var init_response = __esm({
   }
 });
 
-// node_modules/node-fetch/src/utils/get-search.js
+// api-server/node_modules/node-fetch/src/utils/get-search.js
 var getSearch;
 var init_get_search = __esm({
-  "node_modules/node-fetch/src/utils/get-search.js"() {
+  "api-server/node_modules/node-fetch/src/utils/get-search.js"() {
     getSearch = (parsedURL) => {
       if (parsedURL.search) {
         return parsedURL.search;
@@ -19222,7 +19222,7 @@ var init_get_search = __esm({
   }
 });
 
-// node_modules/node-fetch/src/utils/referrer.js
+// api-server/node_modules/node-fetch/src/utils/referrer.js
 import { isIP } from "node:net";
 function stripURLForUseAsAReferrer(url, originOnly = false) {
   if (url == null) {
@@ -19351,7 +19351,7 @@ function parseReferrerPolicyFromHeader(headers) {
 }
 var ReferrerPolicy, DEFAULT_REFERRER_POLICY;
 var init_referrer = __esm({
-  "node_modules/node-fetch/src/utils/referrer.js"() {
+  "api-server/node_modules/node-fetch/src/utils/referrer.js"() {
     ReferrerPolicy = /* @__PURE__ */ new Set([
       "",
       "no-referrer",
@@ -19367,12 +19367,12 @@ var init_referrer = __esm({
   }
 });
 
-// node_modules/node-fetch/src/request.js
+// api-server/node_modules/node-fetch/src/request.js
 import { format as formatUrl } from "node:url";
 import { deprecate as deprecate2 } from "node:util";
 var INTERNALS3, isRequest, doBadDataWarn, Request2, getNodeRequestOptions;
 var init_request = __esm({
-  "node_modules/node-fetch/src/request.js"() {
+  "api-server/node_modules/node-fetch/src/request.js"() {
     init_headers2();
     init_body();
     init_is();
@@ -19572,10 +19572,10 @@ var init_request = __esm({
   }
 });
 
-// node_modules/node-fetch/src/errors/abort-error.js
+// api-server/node_modules/node-fetch/src/errors/abort-error.js
 var AbortError;
 var init_abort_error = __esm({
-  "node_modules/node-fetch/src/errors/abort-error.js"() {
+  "api-server/node_modules/node-fetch/src/errors/abort-error.js"() {
     init_base();
     AbortError = class extends FetchBaseError {
       constructor(message, type = "aborted") {
@@ -19585,7 +19585,7 @@ var init_abort_error = __esm({
   }
 });
 
-// node_modules/node-fetch/src/index.js
+// api-server/node_modules/node-fetch/src/index.js
 var src_exports = {};
 __export(src_exports, {
   AbortError: () => AbortError,
@@ -19871,7 +19871,7 @@ function fixResponseChunkedTransferBadEnding(request, errorCallback) {
 }
 var supportedSchemas;
 var init_src = __esm({
-  "node_modules/node-fetch/src/index.js"() {
+  "api-server/node_modules/node-fetch/src/index.js"() {
     init_dist();
     init_body();
     init_response();
@@ -19888,9 +19888,9 @@ var init_src = __esm({
   }
 });
 
-// node_modules/gaxios/build/cjs/src/gaxios.js
+// api-server/node_modules/gaxios/build/cjs/src/gaxios.js
 var require_gaxios = __commonJS({
-  "node_modules/gaxios/build/cjs/src/gaxios.js"(exports2) {
+  "api-server/node_modules/gaxios/build/cjs/src/gaxios.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -20362,9 +20362,9 @@ Content-Type: ${partContentType}\r
   }
 });
 
-// node_modules/gaxios/build/cjs/src/index.js
+// api-server/node_modules/gaxios/build/cjs/src/index.js
 var require_src2 = __commonJS({
-  "node_modules/gaxios/build/cjs/src/index.js"(exports2) {
+  "api-server/node_modules/gaxios/build/cjs/src/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o5, m5, k4, k22) {
       if (k22 === void 0) k22 = k4;
@@ -20401,9 +20401,9 @@ var require_src2 = __commonJS({
   }
 });
 
-// node_modules/bignumber.js/bignumber.js
+// api-server/node_modules/bignumber.js/bignumber.js
 var require_bignumber = __commonJS({
-  "node_modules/bignumber.js/bignumber.js"(exports2, module2) {
+  "api-server/node_modules/bignumber.js/bignumber.js"(exports2, module2) {
     (function(globalObject) {
       "use strict";
       var BigNumber, isNumeric = /^-?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i, mathceil = Math.ceil, mathfloor = Math.floor, bignumberError = "[BigNumber Error] ", tooManyDigits = bignumberError + "Number primitive has more than 15 significant digits: ", BASE = 1e14, LOG_BASE = 14, MAX_SAFE_INTEGER = 9007199254740991, POWS_TEN = [1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13], SQRT_BASE = 1e7, MAX = 1e9;
@@ -21752,9 +21752,9 @@ var require_bignumber = __commonJS({
   }
 });
 
-// node_modules/json-bigint/lib/stringify.js
+// api-server/node_modules/json-bigint/lib/stringify.js
 var require_stringify = __commonJS({
-  "node_modules/json-bigint/lib/stringify.js"(exports2, module2) {
+  "api-server/node_modules/json-bigint/lib/stringify.js"(exports2, module2) {
     var BigNumber = require_bignumber();
     var JSON2 = module2.exports;
     (function() {
@@ -21864,9 +21864,9 @@ var require_stringify = __commonJS({
   }
 });
 
-// node_modules/json-bigint/lib/parse.js
+// api-server/node_modules/json-bigint/lib/parse.js
 var require_parse = __commonJS({
-  "node_modules/json-bigint/lib/parse.js"(exports2, module2) {
+  "api-server/node_modules/json-bigint/lib/parse.js"(exports2, module2) {
     var BigNumber = null;
     var suspectProtoRx = /(?:_|\\u005[Ff])(?:_|\\u005[Ff])(?:p|\\u0070)(?:r|\\u0072)(?:o|\\u006[Ff])(?:t|\\u0074)(?:o|\\u006[Ff])(?:_|\\u005[Ff])(?:_|\\u005[Ff])/;
     var suspectConstructorRx = /(?:c|\\u0063)(?:o|\\u006[Ff])(?:n|\\u006[Ee])(?:s|\\u0073)(?:t|\\u0074)(?:r|\\u0072)(?:u|\\u0075)(?:c|\\u0063)(?:t|\\u0074)(?:o|\\u006[Ff])(?:r|\\u0072)/;
@@ -22145,9 +22145,9 @@ var require_parse = __commonJS({
   }
 });
 
-// node_modules/json-bigint/index.js
+// api-server/node_modules/json-bigint/index.js
 var require_json_bigint = __commonJS({
-  "node_modules/json-bigint/index.js"(exports2, module2) {
+  "api-server/node_modules/json-bigint/index.js"(exports2, module2) {
     var json_stringify = require_stringify().stringify;
     var json_parse = require_parse();
     module2.exports = function(options) {
@@ -22161,9 +22161,9 @@ var require_json_bigint = __commonJS({
   }
 });
 
-// node_modules/gcp-metadata/build/src/gcp-residency.js
+// api-server/node_modules/gcp-metadata/build/src/gcp-residency.js
 var require_gcp_residency = __commonJS({
-  "node_modules/gcp-metadata/build/src/gcp-residency.js"(exports2) {
+  "api-server/node_modules/gcp-metadata/build/src/gcp-residency.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.GCE_LINUX_BIOS_PATHS = void 0;
@@ -22216,9 +22216,9 @@ var require_gcp_residency = __commonJS({
   }
 });
 
-// node_modules/google-logging-utils/build/src/colours.js
+// api-server/node_modules/google-logging-utils/build/src/colours.js
 var require_colours = __commonJS({
-  "node_modules/google-logging-utils/build/src/colours.js"(exports2) {
+  "api-server/node_modules/google-logging-utils/build/src/colours.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Colours = void 0;
@@ -22277,9 +22277,9 @@ var require_colours = __commonJS({
   }
 });
 
-// node_modules/google-logging-utils/build/src/logging-utils.js
+// api-server/node_modules/google-logging-utils/build/src/logging-utils.js
 var require_logging_utils = __commonJS({
-  "node_modules/google-logging-utils/build/src/logging-utils.js"(exports2) {
+  "api-server/node_modules/google-logging-utils/build/src/logging-utils.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o5, m5, k4, k22) {
       if (k22 === void 0) k22 = k4;
@@ -22566,9 +22566,9 @@ var require_logging_utils = __commonJS({
   }
 });
 
-// node_modules/google-logging-utils/build/src/index.js
+// api-server/node_modules/google-logging-utils/build/src/index.js
 var require_src3 = __commonJS({
-  "node_modules/google-logging-utils/build/src/index.js"(exports2) {
+  "api-server/node_modules/google-logging-utils/build/src/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o5, m5, k4, k22) {
       if (k22 === void 0) k22 = k4;
@@ -22591,9 +22591,9 @@ var require_src3 = __commonJS({
   }
 });
 
-// node_modules/gcp-metadata/build/src/index.js
+// api-server/node_modules/gcp-metadata/build/src/index.js
 var require_src4 = __commonJS({
-  "node_modules/gcp-metadata/build/src/index.js"(exports2) {
+  "api-server/node_modules/gcp-metadata/build/src/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o5, m5, k4, k22) {
       if (k22 === void 0) k22 = k4;
@@ -22847,9 +22847,9 @@ var require_src4 = __commonJS({
   }
 });
 
-// node_modules/base64-js/index.js
+// api-server/node_modules/base64-js/index.js
 var require_base64_js = __commonJS({
-  "node_modules/base64-js/index.js"(exports2) {
+  "api-server/node_modules/base64-js/index.js"(exports2) {
     "use strict";
     exports2.byteLength = byteLength;
     exports2.toByteArray = toByteArray;
@@ -22948,9 +22948,9 @@ var require_base64_js = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/crypto/shared.js
+// api-server/node_modules/google-auth-library/build/src/crypto/shared.js
 var require_shared = __commonJS({
-  "node_modules/google-auth-library/build/src/crypto/shared.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/crypto/shared.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.fromArrayBufferToHex = fromArrayBufferToHex;
@@ -22963,9 +22963,9 @@ var require_shared = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/crypto/browser/crypto.js
+// api-server/node_modules/google-auth-library/build/src/crypto/browser/crypto.js
 var require_crypto = __commonJS({
-  "node_modules/google-auth-library/build/src/crypto/browser/crypto.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/crypto/browser/crypto.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.BrowserCrypto = void 0;
@@ -23059,9 +23059,9 @@ var require_crypto = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/crypto/node/crypto.js
+// api-server/node_modules/google-auth-library/build/src/crypto/node/crypto.js
 var require_crypto2 = __commonJS({
-  "node_modules/google-auth-library/build/src/crypto/node/crypto.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/crypto/node/crypto.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.NodeCrypto = void 0;
@@ -23128,9 +23128,9 @@ var require_crypto2 = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/crypto/crypto.js
+// api-server/node_modules/google-auth-library/build/src/crypto/crypto.js
 var require_crypto3 = __commonJS({
-  "node_modules/google-auth-library/build/src/crypto/crypto.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/crypto/crypto.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o5, m5, k4, k22) {
       if (k22 === void 0) k22 = k4;
@@ -23166,9 +23166,9 @@ var require_crypto3 = __commonJS({
   }
 });
 
-// node_modules/safe-buffer/index.js
+// api-server/node_modules/safe-buffer/index.js
 var require_safe_buffer = __commonJS({
-  "node_modules/safe-buffer/index.js"(exports2, module2) {
+  "api-server/node_modules/safe-buffer/index.js"(exports2, module2) {
     var buffer = __require("buffer");
     var Buffer4 = buffer.Buffer;
     function copyProps(src, dst) {
@@ -23224,9 +23224,9 @@ var require_safe_buffer = __commonJS({
   }
 });
 
-// node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js
+// api-server/node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js
 var require_param_bytes_for_alg = __commonJS({
-  "node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js"(exports2, module2) {
+  "api-server/node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js"(exports2, module2) {
     "use strict";
     function getParamSize(keySize) {
       var result = (keySize / 8 | 0) + (keySize % 8 === 0 ? 0 : 1);
@@ -23248,9 +23248,9 @@ var require_param_bytes_for_alg = __commonJS({
   }
 });
 
-// node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js
+// api-server/node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js
 var require_ecdsa_sig_formatter = __commonJS({
-  "node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js"(exports2, module2) {
+  "api-server/node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js"(exports2, module2) {
     "use strict";
     var Buffer4 = require_safe_buffer().Buffer;
     var getParamBytesForAlg = require_param_bytes_for_alg();
@@ -23388,9 +23388,9 @@ var require_ecdsa_sig_formatter = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/util.js
+// api-server/node_modules/google-auth-library/build/src/util.js
 var require_util2 = __commonJS({
-  "node_modules/google-auth-library/build/src/util.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/util.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.LRUCache = void 0;
@@ -23503,9 +23503,9 @@ var require_util2 = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/package.json
+// api-server/node_modules/google-auth-library/package.json
 var require_package2 = __commonJS({
-  "node_modules/google-auth-library/package.json"(exports2, module2) {
+  "api-server/node_modules/google-auth-library/package.json"(exports2, module2) {
     module2.exports = {
       name: "google-auth-library",
       version: "10.9.1",
@@ -23599,9 +23599,9 @@ var require_package2 = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/shared.cjs
+// api-server/node_modules/google-auth-library/build/src/shared.cjs
 var require_shared2 = __commonJS({
-  "node_modules/google-auth-library/build/src/shared.cjs"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/shared.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.USER_AGENT = exports2.PRODUCT_NAME = exports2.pkg = void 0;
@@ -23614,9 +23614,9 @@ var require_shared2 = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/authclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/authclient.js
 var require_authclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/authclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/authclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.AuthClient = exports2.DEFAULT_EAGER_REFRESH_THRESHOLD_MILLIS = exports2.DEFAULT_UNIVERSE = void 0;
@@ -23849,9 +23849,9 @@ var require_authclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/loginticket.js
+// api-server/node_modules/google-auth-library/build/src/auth/loginticket.js
 var require_loginticket = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/loginticket.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/loginticket.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.LoginTicket = void 0;
@@ -23901,9 +23901,9 @@ var require_loginticket = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/oauth2client.js
+// api-server/node_modules/google-auth-library/build/src/auth/oauth2client.js
 var require_oauth2client = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/oauth2client.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/oauth2client.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.OAuth2Client = exports2.ClientAuthentication = exports2.CertificateFormat = exports2.CodeChallengeMethod = void 0;
@@ -24582,9 +24582,9 @@ var require_oauth2client = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/computeclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/computeclient.js
 var require_computeclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/computeclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/computeclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Compute = void 0;
@@ -24674,9 +24674,9 @@ var require_computeclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/idtokenclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/idtokenclient.js
 var require_idtokenclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/idtokenclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/idtokenclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.IdTokenClient = void 0;
@@ -24720,9 +24720,9 @@ var require_idtokenclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/envDetect.js
+// api-server/node_modules/google-auth-library/build/src/auth/envDetect.js
 var require_envDetect = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/envDetect.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/envDetect.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.GCPEnv = void 0;
@@ -24797,9 +24797,9 @@ var require_envDetect = __commonJS({
   }
 });
 
-// node_modules/jws/lib/data-stream.js
+// api-server/node_modules/jws/lib/data-stream.js
 var require_data_stream = __commonJS({
-  "node_modules/jws/lib/data-stream.js"(exports2, module2) {
+  "api-server/node_modules/jws/lib/data-stream.js"(exports2, module2) {
     var Buffer4 = require_safe_buffer().Buffer;
     var Stream5 = __require("stream");
     var util2 = __require("util");
@@ -24845,9 +24845,9 @@ var require_data_stream = __commonJS({
   }
 });
 
-// node_modules/buffer-equal-constant-time/index.js
+// api-server/node_modules/buffer-equal-constant-time/index.js
 var require_buffer_equal_constant_time = __commonJS({
-  "node_modules/buffer-equal-constant-time/index.js"(exports2, module2) {
+  "api-server/node_modules/buffer-equal-constant-time/index.js"(exports2, module2) {
     "use strict";
     var Buffer4 = __require("buffer").Buffer;
     var SlowBuffer = __require("buffer").SlowBuffer;
@@ -24879,9 +24879,9 @@ var require_buffer_equal_constant_time = __commonJS({
   }
 });
 
-// node_modules/jwa/index.js
+// api-server/node_modules/jwa/index.js
 var require_jwa = __commonJS({
-  "node_modules/jwa/index.js"(exports2, module2) {
+  "api-server/node_modules/jwa/index.js"(exports2, module2) {
     var Buffer4 = require_safe_buffer().Buffer;
     var crypto2 = __require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
@@ -25103,9 +25103,9 @@ var require_jwa = __commonJS({
   }
 });
 
-// node_modules/jws/lib/tostring.js
+// api-server/node_modules/jws/lib/tostring.js
 var require_tostring = __commonJS({
-  "node_modules/jws/lib/tostring.js"(exports2, module2) {
+  "api-server/node_modules/jws/lib/tostring.js"(exports2, module2) {
     var Buffer4 = __require("buffer").Buffer;
     module2.exports = function toString2(obj) {
       if (typeof obj === "string")
@@ -25117,9 +25117,9 @@ var require_tostring = __commonJS({
   }
 });
 
-// node_modules/jws/lib/sign-stream.js
+// api-server/node_modules/jws/lib/sign-stream.js
 var require_sign_stream = __commonJS({
-  "node_modules/jws/lib/sign-stream.js"(exports2, module2) {
+  "api-server/node_modules/jws/lib/sign-stream.js"(exports2, module2) {
     var Buffer4 = require_safe_buffer().Buffer;
     var DataStream = require_data_stream();
     var jwa = require_jwa();
@@ -25192,9 +25192,9 @@ var require_sign_stream = __commonJS({
   }
 });
 
-// node_modules/jws/lib/verify-stream.js
+// api-server/node_modules/jws/lib/verify-stream.js
 var require_verify_stream = __commonJS({
-  "node_modules/jws/lib/verify-stream.js"(exports2, module2) {
+  "api-server/node_modules/jws/lib/verify-stream.js"(exports2, module2) {
     var Buffer4 = require_safe_buffer().Buffer;
     var DataStream = require_data_stream();
     var jwa = require_jwa();
@@ -25307,9 +25307,9 @@ var require_verify_stream = __commonJS({
   }
 });
 
-// node_modules/jws/index.js
+// api-server/node_modules/jws/index.js
 var require_jws = __commonJS({
-  "node_modules/jws/index.js"(exports2) {
+  "api-server/node_modules/jws/index.js"(exports2) {
     var SignStream = require_sign_stream();
     var VerifyStream = require_verify_stream();
     var ALGORITHMS = [
@@ -25340,9 +25340,9 @@ var require_jws = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/gtoken/jwsSign.js
+// api-server/node_modules/google-auth-library/build/src/gtoken/jwsSign.js
 var require_jwsSign = __commonJS({
-  "node_modules/google-auth-library/build/src/gtoken/jwsSign.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/gtoken/jwsSign.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildPayloadForJwsSign = buildPayloadForJwsSign;
@@ -25374,9 +25374,9 @@ var require_jwsSign = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/gtoken/getToken.js
+// api-server/node_modules/google-auth-library/build/src/gtoken/getToken.js
 var require_getToken = __commonJS({
-  "node_modules/google-auth-library/build/src/gtoken/getToken.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/gtoken/getToken.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getToken = getToken;
@@ -25418,9 +25418,9 @@ var require_getToken = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/gtoken/errorWithCode.js
+// api-server/node_modules/google-auth-library/build/src/gtoken/errorWithCode.js
 var require_errorWithCode = __commonJS({
-  "node_modules/google-auth-library/build/src/gtoken/errorWithCode.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/gtoken/errorWithCode.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ErrorWithCode = void 0;
@@ -25435,9 +25435,9 @@ var require_errorWithCode = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/gtoken/getCredentials.js
+// api-server/node_modules/google-auth-library/build/src/gtoken/getCredentials.js
 var require_getCredentials = __commonJS({
-  "node_modules/google-auth-library/build/src/gtoken/getCredentials.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/gtoken/getCredentials.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCredentials = getCredentials;
@@ -25536,9 +25536,9 @@ var require_getCredentials = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/gtoken/tokenHandler.js
+// api-server/node_modules/google-auth-library/build/src/gtoken/tokenHandler.js
 var require_tokenHandler = __commonJS({
-  "node_modules/google-auth-library/build/src/gtoken/tokenHandler.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/gtoken/tokenHandler.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.TokenHandler = void 0;
@@ -25627,9 +25627,9 @@ var require_tokenHandler = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/gtoken/revokeToken.js
+// api-server/node_modules/google-auth-library/build/src/gtoken/revokeToken.js
 var require_revokeToken = __commonJS({
-  "node_modules/google-auth-library/build/src/gtoken/revokeToken.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/gtoken/revokeToken.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.revokeToken = revokeToken;
@@ -25645,9 +25645,9 @@ var require_revokeToken = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/gtoken/googleToken.js
+// api-server/node_modules/google-auth-library/build/src/gtoken/googleToken.js
 var require_googleToken = __commonJS({
-  "node_modules/google-auth-library/build/src/gtoken/googleToken.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/gtoken/googleToken.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.GoogleToken = void 0;
@@ -25751,9 +25751,9 @@ var require_googleToken = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/jwtaccess.js
+// api-server/node_modules/google-auth-library/build/src/auth/jwtaccess.js
 var require_jwtaccess = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/jwtaccess.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/jwtaccess.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.JWTAccess = void 0;
@@ -25921,9 +25921,9 @@ var require_jwtaccess = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/jwtclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/jwtclient.js
 var require_jwtclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/jwtclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/jwtclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.JWT = void 0;
@@ -26193,9 +26193,9 @@ var require_jwtclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/refreshclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/refreshclient.js
 var require_refreshclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/refreshclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/refreshclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.UserRefreshClient = exports2.USER_REFRESH_ACCOUNT_TYPE = void 0;
@@ -26321,9 +26321,9 @@ var require_refreshclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/impersonated.js
+// api-server/node_modules/google-auth-library/build/src/auth/impersonated.js
 var require_impersonated = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/impersonated.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/impersonated.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Impersonated = exports2.IMPERSONATED_ACCOUNT_TYPE = void 0;
@@ -26500,9 +26500,9 @@ var require_impersonated = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/oauth2common.js
+// api-server/node_modules/google-auth-library/build/src/auth/oauth2common.js
 var require_oauth2common = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/oauth2common.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/oauth2common.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.OAuthClientAuthHandler = void 0;
@@ -26648,9 +26648,9 @@ var require_oauth2common = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/stscredentials.js
+// api-server/node_modules/google-auth-library/build/src/auth/stscredentials.js
 var require_stscredentials = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/stscredentials.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/stscredentials.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.StsCredentials = void 0;
@@ -26736,9 +26736,9 @@ var require_stscredentials = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/baseexternalclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/baseexternalclient.js
 var require_baseexternalclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/baseexternalclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/baseexternalclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.BaseExternalAccountClient = exports2.CLOUD_RESOURCE_MANAGER = exports2.EXTERNAL_ACCOUNT_TYPE = exports2.EXPIRATION_TIME_OFFSET = void 0;
@@ -27115,9 +27115,9 @@ var require_baseexternalclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/filesubjecttokensupplier.js
+// api-server/node_modules/google-auth-library/build/src/auth/filesubjecttokensupplier.js
 var require_filesubjecttokensupplier = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/filesubjecttokensupplier.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/filesubjecttokensupplier.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.FileSubjectTokenSupplier = void 0;
@@ -27180,9 +27180,9 @@ var require_filesubjecttokensupplier = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/urlsubjecttokensupplier.js
+// api-server/node_modules/google-auth-library/build/src/auth/urlsubjecttokensupplier.js
 var require_urlsubjecttokensupplier = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/urlsubjecttokensupplier.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/urlsubjecttokensupplier.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.UrlSubjectTokenSupplier = void 0;
@@ -27238,9 +27238,9 @@ var require_urlsubjecttokensupplier = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/certificatesubjecttokensupplier.js
+// api-server/node_modules/google-auth-library/build/src/auth/certificatesubjecttokensupplier.js
 var require_certificatesubjecttokensupplier = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/certificatesubjecttokensupplier.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/certificatesubjecttokensupplier.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.CertificateSubjectTokenSupplier = exports2.InvalidConfigurationError = exports2.CertificateSourceUnavailableError = exports2.CERTIFICATE_CONFIGURATION_ENV_VARIABLE = void 0;
@@ -27422,9 +27422,9 @@ var require_certificatesubjecttokensupplier = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/identitypoolclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/identitypoolclient.js
 var require_identitypoolclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/identitypoolclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/identitypoolclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.IdentityPoolClient = void 0;
@@ -27534,9 +27534,9 @@ var require_identitypoolclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/awsrequestsigner.js
+// api-server/node_modules/google-auth-library/build/src/auth/awsrequestsigner.js
 var require_awsrequestsigner = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/awsrequestsigner.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/awsrequestsigner.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.AwsRequestSigner = void 0;
@@ -27684,9 +27684,9 @@ ${credentialScope}
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/defaultawssecuritycredentialssupplier.js
+// api-server/node_modules/google-auth-library/build/src/auth/defaultawssecuritycredentialssupplier.js
 var require_defaultawssecuritycredentialssupplier = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/defaultawssecuritycredentialssupplier.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/defaultawssecuritycredentialssupplier.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.DefaultAwsSecurityCredentialsSupplier = void 0;
@@ -27839,9 +27839,9 @@ var require_defaultawssecuritycredentialssupplier = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/awsclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/awsclient.js
 var require_awsclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/awsclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/awsclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.AwsClient = void 0;
@@ -27953,9 +27953,9 @@ var require_awsclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/executable-response.js
+// api-server/node_modules/google-auth-library/build/src/auth/executable-response.js
 var require_executable_response = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/executable-response.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/executable-response.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.InvalidSubjectTokenError = exports2.InvalidMessageFieldError = exports2.InvalidCodeFieldError = exports2.InvalidTokenTypeFieldError = exports2.InvalidExpirationTimeFieldError = exports2.InvalidSuccessFieldError = exports2.InvalidVersionFieldError = exports2.ExecutableResponseError = exports2.ExecutableResponse = void 0;
@@ -28084,9 +28084,9 @@ var require_executable_response = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/pluggable-auth-handler.js
+// api-server/node_modules/google-auth-library/build/src/auth/pluggable-auth-handler.js
 var require_pluggable_auth_handler = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/pluggable-auth-handler.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/pluggable-auth-handler.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.PluggableAuthHandler = exports2.ExecutableError = void 0;
@@ -28225,9 +28225,9 @@ var require_pluggable_auth_handler = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/pluggable-auth-client.js
+// api-server/node_modules/google-auth-library/build/src/auth/pluggable-auth-client.js
 var require_pluggable_auth_client = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/pluggable-auth-client.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/pluggable-auth-client.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.PluggableAuthClient = exports2.ExecutableError = void 0;
@@ -28352,9 +28352,9 @@ var require_pluggable_auth_client = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/externalclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/externalclient.js
 var require_externalclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/externalclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/externalclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ExternalAccountClient = void 0;
@@ -28401,9 +28401,9 @@ var require_externalclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/externalAccountAuthorizedUserClient.js
+// api-server/node_modules/google-auth-library/build/src/auth/externalAccountAuthorizedUserClient.js
 var require_externalAccountAuthorizedUserClient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/externalAccountAuthorizedUserClient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/externalAccountAuthorizedUserClient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ExternalAccountAuthorizedUserClient = exports2.EXTERNAL_ACCOUNT_AUTHORIZED_USER_TYPE = void 0;
@@ -28588,9 +28588,9 @@ var require_externalAccountAuthorizedUserClient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/gdchclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/gdchclient.js
 var require_gdchclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/gdchclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/gdchclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.GdchClient = exports2.GDCH_SERVICE_ACCOUNT_TYPE = void 0;
@@ -28871,9 +28871,9 @@ var require_gdchclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/googleauth.js
+// api-server/node_modules/google-auth-library/build/src/auth/googleauth.js
 var require_googleauth = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/googleauth.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/googleauth.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.GoogleAuth = exports2.GoogleAuthExceptionMessages = void 0;
@@ -29679,9 +29679,9 @@ var require_googleauth = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/iam.js
+// api-server/node_modules/google-auth-library/build/src/auth/iam.js
 var require_iam = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/iam.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/iam.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.IAMAuth = void 0;
@@ -29715,9 +29715,9 @@ var require_iam = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/downscopedclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/downscopedclient.js
 var require_downscopedclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/downscopedclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/downscopedclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.DownscopedClient = exports2.EXPIRATION_TIME_OFFSET = exports2.MAX_ACCESS_BOUNDARY_RULES_COUNT = void 0;
@@ -29900,9 +29900,9 @@ var require_downscopedclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/passthrough.js
+// api-server/node_modules/google-auth-library/build/src/auth/passthrough.js
 var require_passthrough = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/passthrough.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/passthrough.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.PassThroughClient = void 0;
@@ -29945,9 +29945,9 @@ var require_passthrough = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/index.js
+// api-server/node_modules/google-auth-library/build/src/index.js
 var require_src5 = __commonJS({
-  "node_modules/google-auth-library/build/src/index.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o5, m5, k4, k22) {
       if (k22 === void 0) k22 = k4;
@@ -30081,9 +30081,9 @@ var require_src5 = __commonJS({
   }
 });
 
-// node_modules/ws/lib/constants.js
+// api-server/node_modules/ws/lib/constants.js
 var require_constants = __commonJS({
-  "node_modules/ws/lib/constants.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/constants.js"(exports2, module2) {
     "use strict";
     var BINARY_TYPES = ["nodebuffer", "arraybuffer", "fragments"];
     var hasBlob = typeof Blob !== "undefined";
@@ -30104,9 +30104,9 @@ var require_constants = __commonJS({
   }
 });
 
-// node_modules/ws/lib/buffer-util.js
+// api-server/node_modules/ws/lib/buffer-util.js
 var require_buffer_util = __commonJS({
-  "node_modules/ws/lib/buffer-util.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/buffer-util.js"(exports2, module2) {
     "use strict";
     var { EMPTY_BUFFER } = require_constants();
     var FastBuffer = Buffer[Symbol.species];
@@ -30179,9 +30179,9 @@ var require_buffer_util = __commonJS({
   }
 });
 
-// node_modules/ws/lib/limiter.js
+// api-server/node_modules/ws/lib/limiter.js
 var require_limiter = __commonJS({
-  "node_modules/ws/lib/limiter.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/limiter.js"(exports2, module2) {
     "use strict";
     var kDone = /* @__PURE__ */ Symbol("kDone");
     var kRun = /* @__PURE__ */ Symbol("kRun");
@@ -30229,9 +30229,9 @@ var require_limiter = __commonJS({
   }
 });
 
-// node_modules/ws/lib/permessage-deflate.js
+// api-server/node_modules/ws/lib/permessage-deflate.js
 var require_permessage_deflate = __commonJS({
-  "node_modules/ws/lib/permessage-deflate.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/permessage-deflate.js"(exports2, module2) {
     "use strict";
     var zlib2 = __require("zlib");
     var bufferUtil = require_buffer_util();
@@ -30612,9 +30612,9 @@ var require_permessage_deflate = __commonJS({
   }
 });
 
-// node_modules/ws/lib/validation.js
+// api-server/node_modules/ws/lib/validation.js
 var require_validation = __commonJS({
-  "node_modules/ws/lib/validation.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/validation.js"(exports2, module2) {
     "use strict";
     var { isUtf8 } = __require("buffer");
     var { hasBlob } = require_constants();
@@ -30813,9 +30813,9 @@ var require_validation = __commonJS({
   }
 });
 
-// node_modules/ws/lib/receiver.js
+// api-server/node_modules/ws/lib/receiver.js
 var require_receiver = __commonJS({
-  "node_modules/ws/lib/receiver.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/receiver.js"(exports2, module2) {
     "use strict";
     var { Writable } = __require("stream");
     var PerMessageDeflate2 = require_permessage_deflate();
@@ -31436,9 +31436,9 @@ var require_receiver = __commonJS({
   }
 });
 
-// node_modules/ws/lib/sender.js
+// api-server/node_modules/ws/lib/sender.js
 var require_sender = __commonJS({
-  "node_modules/ws/lib/sender.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/sender.js"(exports2, module2) {
     "use strict";
     var { Duplex } = __require("stream");
     var { randomFillSync } = __require("crypto");
@@ -31929,9 +31929,9 @@ var require_sender = __commonJS({
   }
 });
 
-// node_modules/ws/lib/event-target.js
+// api-server/node_modules/ws/lib/event-target.js
 var require_event_target = __commonJS({
-  "node_modules/ws/lib/event-target.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/event-target.js"(exports2, module2) {
     "use strict";
     var { kForOnEventAttribute, kListener } = require_constants();
     var kCode = /* @__PURE__ */ Symbol("kCode");
@@ -32158,9 +32158,9 @@ var require_event_target = __commonJS({
   }
 });
 
-// node_modules/ws/lib/extension.js
+// api-server/node_modules/ws/lib/extension.js
 var require_extension = __commonJS({
-  "node_modules/ws/lib/extension.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/extension.js"(exports2, module2) {
     "use strict";
     var { tokenChars } = require_validation();
     function push(dest, name2, elem) {
@@ -32311,9 +32311,9 @@ var require_extension = __commonJS({
   }
 });
 
-// node_modules/ws/lib/websocket.js
+// api-server/node_modules/ws/lib/websocket.js
 var require_websocket = __commonJS({
-  "node_modules/ws/lib/websocket.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/websocket.js"(exports2, module2) {
     "use strict";
     var EventEmitter = __require("events");
     var https2 = __require("https");
@@ -33207,9 +33207,9 @@ var require_websocket = __commonJS({
   }
 });
 
-// node_modules/ws/lib/stream.js
+// api-server/node_modules/ws/lib/stream.js
 var require_stream = __commonJS({
-  "node_modules/ws/lib/stream.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/stream.js"(exports2, module2) {
     "use strict";
     var WebSocket3 = require_websocket();
     var { Duplex } = __require("stream");
@@ -33305,9 +33305,9 @@ var require_stream = __commonJS({
   }
 });
 
-// node_modules/ws/lib/subprotocol.js
+// api-server/node_modules/ws/lib/subprotocol.js
 var require_subprotocol = __commonJS({
-  "node_modules/ws/lib/subprotocol.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/subprotocol.js"(exports2, module2) {
     "use strict";
     var { tokenChars } = require_validation();
     function parse(header) {
@@ -33350,9 +33350,9 @@ var require_subprotocol = __commonJS({
   }
 });
 
-// node_modules/ws/lib/websocket-server.js
+// api-server/node_modules/ws/lib/websocket-server.js
 var require_websocket_server = __commonJS({
-  "node_modules/ws/lib/websocket-server.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/websocket-server.js"(exports2, module2) {
     "use strict";
     var EventEmitter = __require("events");
     var http3 = __require("http");
@@ -33751,10 +33751,10 @@ var require_websocket_server = __commonJS({
   }
 });
 
-// node_modules/ws/wrapper.mjs
+// api-server/node_modules/ws/wrapper.mjs
 var import_stream, import_extension, import_permessage_deflate, import_receiver, import_sender, import_subprotocol, import_websocket, import_websocket_server;
 var init_wrapper = __esm({
-  "node_modules/ws/wrapper.mjs"() {
+  "api-server/node_modules/ws/wrapper.mjs"() {
     import_stream = __toESM(require_stream(), 1);
     import_extension = __toESM(require_extension(), 1);
     import_permessage_deflate = __toESM(require_permessage_deflate(), 1);
@@ -33766,7 +33766,7 @@ var init_wrapper = __esm({
   }
 });
 
-// node_modules/@google/genai/dist/node/index.mjs
+// api-server/node_modules/@google/genai/dist/node/index.mjs
 import { createWriteStream } from "fs";
 import * as fs3 from "fs/promises";
 import { writeFile } from "fs/promises";
@@ -48444,7 +48444,7 @@ function getApiKeyFromEnv() {
 }
 var import_p_retry, import_google_auth_library, _defaultBaseGeminiUrl, _defaultBaseVertexUrl, BaseModule, Outcome, Language, FunctionResponseScheduling, Type, AuthType, HttpElementLocation, ApiSpec, Environment, SafetyPolicy, PhishBlockThreshold, Behavior, DynamicRetrievalConfigMode, ThinkingLevel, PersonGeneration, ProminentPeople, HarmCategory, HarmBlockMethod, HarmBlockThreshold, FunctionCallingConfigMode, FinishReason, HarmProbability, HarmSeverity, UrlRetrievalStatus, BlockedReason, TrafficType, MediaModality, ModelStage, MediaResolution, Modality, Delivery, AspectRatio, ImageSize, TuningMode, AdapterSize, ResponseParseType, MatchOperation, ReinforcementTuningThinkingLevel, JobState, TuningJobState, AggregationMetric, PairwiseChoice, VideoOrientation, TuningSpeed, TuningTask, DocumentState, ServiceTier, PartMediaResolutionLevel, ToolType, ResourceScope, FeatureSelectionPreference, EmbeddingApiType, SafetyFilterLevel, ImagePromptLanguage, MaskReferenceMode, ControlReferenceType, SubjectReferenceType, EditMode, SegmentMode, VideoGenerationReferenceType, VideoGenerationMaskMode, VideoCompressionQuality, ImageResizeMode, TuningMethod, FileState, FileSource, TurnCompleteReason, VadSignalType, VoiceActivityType, StartSensitivity, EndSensitivity, ActivityHandling, TurnCoverage, Scale, MusicGenerationMode, LiveMusicPlaybackControl, HttpResponse, GenerateContentResponse, EmbedContentResponse, GenerateImagesResponse, EditImageResponse, UpscaleImageResponse, RecontextImageResponse, SegmentImageResponse, ListModelsResponse, DeleteModelResponse, CountTokensResponse, ComputeTokensResponse, GenerateVideosOperation, ListTuningJobsResponse, CancelTuningJobResponse, ValidateRewardResponse, DeleteCachedContentResponse, ListCachedContentsResponse, ListDocumentsResponse, ListFileSearchStoresResponse, UploadToFileSearchStoreResumableResponse, ImportFileOperation, ListFilesResponse, CreateFileResponse, DeleteFileResponse, RegisterFilesResponse, ListBatchJobsResponse, LiveServerMessage, LiveMusicServerMessage, UploadToFileSearchStoreOperation, PagedItem, Pager, Batches2, Caches, Chats, Chat2, ApiError, Files4, CONTENT_TYPE_HEADER, SERVER_TIMEOUT_HEADER, USER_AGENT_HEADER, GOOGLE_API_CLIENT_HEADER, SDK_VERSION, LIBRARY_LABEL, VERTEX_AI_API_DEFAULT_VERSION, GOOGLE_AI_API_DEFAULT_VERSION, MULTI_REGIONAL_LOCATIONS, DEFAULT_RETRY_ATTEMPTS, DEFAULT_RETRY_INITIAL_DELAY, DEFAULT_RETRY_MAX_DELAY, DEFAULT_RETRY_EXP_BASE, DEFAULT_RETRY_JITTER, DEFAULT_RETRY_HTTP_STATUS_CODES, ApiClient, MCP_LABEL, hasMcpToolUsageFromMcpToTool, McpCallableTool, LiveMusic, LiveMusicSession, FUNCTION_RESPONSE_REQUIRES_ID, Live, defaultLiveSendClientContentParamerters, Session, DEFAULT_MAX_REMOTE_CALLS, Models2, Operations, Tokens, Documents, FileSearchStores, envMemo, GoogleGenAISecurityProvider, GoogleGenAIAuthHook, HTTPClientError, UnexpectedClientError, InvalidRequestError, RequestAbortedError, RequestTimeoutError, ConnectionError, GoogleGenAiError, GeminiNextGenAPIClientError, APIError2, APIUserAbortError2, APIConnectionError2, APIConnectionTimeoutError2, BadRequestError2, AuthenticationError2, PermissionDeniedError2, NotFoundError2, ConflictError2, UnprocessableEntityError2, RateLimitError2, InternalServerError2, SDKHooks, hasOwn2, ServerList, SDK_METADATA, encodeForm, encodeSimple, encodeFormQuery, DEFAULT_FETCHER, HTTPClient, mediaParamSeparator, codeRangeRE$1, defaultBackoff, PermanentError, TemporaryError, codeRangeRE, gt, webWorkerLike, isBrowserLike, ClientSDK, jsonLikeContentTypeRE, jsonlLikeContentTypeRE, GoogleGenAiDefaultError, Stream4, CR2, LF2, BOUNDARIES, MAX_BOUNDARY_LEN, DEFAULT_CONTENT_TYPES, headerValRE, SecurityErrorCode, SecurityError, _a3, APIPromise2, Agents, Environments, CancelInteractionByIdServerError, CancelInteractionByIdClientError, CreateInteractionServerError, CreateInteractionClientError, DeleteInteractionServerError, DeleteInteractionClientError, GetInteractionByIdServerError, GetInteractionByIdClientError, Interactions, Triggers, Webhooks2, GoogleGenAI$1, LEGACY_LYRIA_MODELS, GeminiNextGenInteractions, GeminiNextGenAgents, GeminiNextGenWebhooks, GeminiNextGenTriggers, GeminiNextGenEnvironments, GOOGLE_API_KEY_HEADER, REQUIRED_VERTEX_AI_SCOPE, NodeAuth, NodeDownloader, NodeWebSocketFactory, NodeWebSocket, Tunings, MAX_CHUNK_SIZE, MAX_RETRY_COUNT, INITIAL_RETRY_DELAY_MS, DELAY_MULTIPLIER, X_GOOG_UPLOAD_STATUS_HEADER_FIELD, NodeUploader, NodeFiles, LANGUAGE_LABEL_PREFIX, GoogleGenAI2;
 var init_node = __esm({
-  "node_modules/@google/genai/dist/node/index.mjs"() {
+  "api-server/node_modules/@google/genai/dist/node/index.mjs"() {
     import_p_retry = __toESM(require_p_retry(), 1);
     import_google_auth_library = __toESM(require_src5(), 1);
     init_wrapper();
@@ -55982,7 +55982,7 @@ var init_node = __esm({
   }
 });
 
-// src/lib/openaiEnv.ts
+// api-server/src/lib/openaiEnv.ts
 function getOpenAiApiKey() {
   return process.env["OPEN_AI"]?.trim() || process.env["OPENAI_API_KEY"]?.trim() || "";
 }
@@ -55994,13 +55994,13 @@ function isOpenAiConfigured() {
 }
 var PLACEHOLDER_KEY;
 var init_openaiEnv = __esm({
-  "src/lib/openaiEnv.ts"() {
+  "api-server/src/lib/openaiEnv.ts"() {
     "use strict";
     PLACEHOLDER_KEY = "lucy-not-configured";
   }
 });
 
-// src/lib/llmEnv.ts
+// api-server/src/lib/llmEnv.ts
 function getGeminiApiKey() {
   return process.env["gemini_ia"]?.trim() || process.env["GEMINI_IA"]?.trim() || process.env["GEMINI_API_KEY"]?.trim() || process.env["GOOGLE_API_KEY"]?.trim() || process.env["GEMINI_KEY"]?.trim() || "";
 }
@@ -56058,7 +56058,7 @@ function llmConfigSummary() {
 }
 var DEFAULT_GEMINI_MODEL, DEFAULT_OPENAI_CHAT_MODEL, BLOCKED_IMAGE_GEN_MODEL, BLOCKED_TEXT_MODEL;
 var init_llmEnv = __esm({
-  "src/lib/llmEnv.ts"() {
+  "api-server/src/lib/llmEnv.ts"() {
     "use strict";
     init_openaiEnv();
     DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
@@ -56068,7 +56068,7 @@ var init_llmEnv = __esm({
   }
 });
 
-// src/lib/geminiContextCache.ts
+// api-server/src/lib/geminiContextCache.ts
 import { createHash } from "node:crypto";
 function getGeminiContextCacheStats() {
   return { ...stats };
@@ -56146,7 +56146,7 @@ async function getOrCreateSystemCache(ai, system, model = DEFAULT_GEMINI_MODEL) 
 }
 var MIN_CACHE_CHARS, DEFAULT_TTL_SEC, cacheByHash, stats;
 var init_geminiContextCache = __esm({
-  "src/lib/geminiContextCache.ts"() {
+  "api-server/src/lib/geminiContextCache.ts"() {
     "use strict";
     init_llmEnv();
     MIN_CACHE_CHARS = 3500;
@@ -56165,7 +56165,7 @@ var init_geminiContextCache = __esm({
   }
 });
 
-// src/lib/llmChat.ts
+// api-server/src/lib/llmChat.ts
 function getGeminiCallStats() {
   return {
     ...geminiCallStats,
@@ -56388,7 +56388,7 @@ function fromOpenAiMessages(messages2) {
 }
 var geminiCallStats, geminiClient, openaiClient;
 var init_llmChat = __esm({
-  "src/lib/llmChat.ts"() {
+  "api-server/src/lib/llmChat.ts"() {
     "use strict";
     init_openai();
     init_node();
@@ -56413,9 +56413,9 @@ var init_llmChat = __esm({
   }
 });
 
-// node_modules/omggif/omggif.js
+// api-server/node_modules/omggif/omggif.js
 var require_omggif = __commonJS({
-  "node_modules/omggif/omggif.js"(exports2) {
+  "api-server/node_modules/omggif/omggif.js"(exports2) {
     "use strict";
     function GifWriter(buf, width, height, gopts) {
       var p4 = 0;
@@ -56975,9 +56975,9 @@ var require_omggif = __commonJS({
   }
 });
 
-// node_modules/gifwrap/src/bitmapimage.js
+// api-server/node_modules/gifwrap/src/bitmapimage.js
 var require_bitmapimage = __commonJS({
-  "node_modules/gifwrap/src/bitmapimage.js"(exports2, module2) {
+  "api-server/node_modules/gifwrap/src/bitmapimage.js"(exports2, module2) {
     "use strict";
     var BitmapImage2 = class _BitmapImage {
       /**
@@ -57244,9 +57244,9 @@ var require_bitmapimage = __commonJS({
   }
 });
 
-// node_modules/gifwrap/src/gif.js
+// api-server/node_modules/gifwrap/src/gif.js
 var require_gif = __commonJS({
-  "node_modules/gifwrap/src/gif.js"(exports2) {
+  "api-server/node_modules/gifwrap/src/gif.js"(exports2) {
     "use strict";
     var Gif = class {
       // width - width of GIF in pixels
@@ -57306,9 +57306,9 @@ var require_gif = __commonJS({
   }
 });
 
-// node_modules/image-q/dist/cjs/image-q.cjs
+// api-server/node_modules/image-q/dist/cjs/image-q.cjs
 var require_image_q = __commonJS({
-  "node_modules/image-q/dist/cjs/image-q.cjs"(exports2, module2) {
+  "api-server/node_modules/image-q/dist/cjs/image-q.cjs"(exports2, module2) {
     var __defProp3 = Object.defineProperty;
     var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
     var __getOwnPropNames2 = Object.getOwnPropertyNames;
@@ -60068,9 +60068,9 @@ var require_image_q = __commonJS({
   }
 });
 
-// node_modules/gifwrap/src/gifframe.js
+// api-server/node_modules/gifwrap/src/gifframe.js
 var require_gifframe = __commonJS({
-  "node_modules/gifwrap/src/gifframe.js"(exports2) {
+  "api-server/node_modules/gifwrap/src/gifframe.js"(exports2) {
     "use strict";
     var BitmapImage2 = require_bitmapimage();
     var { GifError: GifError2 } = require_gif();
@@ -60171,9 +60171,9 @@ var require_gifframe = __commonJS({
   }
 });
 
-// node_modules/gifwrap/src/gifutil.js
+// api-server/node_modules/gifwrap/src/gifutil.js
 var require_gifutil = __commonJS({
-  "node_modules/gifwrap/src/gifutil.js"(exports2) {
+  "api-server/node_modules/gifwrap/src/gifutil.js"(exports2) {
     "use strict";
     var fs6 = __require("fs");
     var ImageQ = require_image_q();
@@ -60392,9 +60392,9 @@ var require_gifutil = __commonJS({
   }
 });
 
-// node_modules/gifwrap/src/gifcodec.js
+// api-server/node_modules/gifwrap/src/gifcodec.js
 var require_gifcodec = __commonJS({
-  "node_modules/gifwrap/src/gifcodec.js"(exports2) {
+  "api-server/node_modules/gifwrap/src/gifcodec.js"(exports2) {
     "use strict";
     var Omggif = require_omggif();
     var { Gif, GifError: GifError2 } = require_gif();
@@ -60757,9 +60757,9 @@ var require_gifcodec = __commonJS({
   }
 });
 
-// node_modules/gifwrap/src/index.js
+// api-server/node_modules/gifwrap/src/index.js
 var require_src6 = __commonJS({
-  "node_modules/gifwrap/src/index.js"(exports2, module2) {
+  "api-server/node_modules/gifwrap/src/index.js"(exports2, module2) {
     "use strict";
     var BitmapImage2 = require_bitmapimage();
     var { Gif, GifError: GifError2 } = require_gif();
@@ -60777,9 +60777,9 @@ var require_src6 = __commonJS({
   }
 });
 
-// node_modules/jpeg-js/lib/encoder.js
+// api-server/node_modules/jpeg-js/lib/encoder.js
 var require_encoder = __commonJS({
-  "node_modules/jpeg-js/lib/encoder.js"(exports2, module2) {
+  "api-server/node_modules/jpeg-js/lib/encoder.js"(exports2, module2) {
     var btoa2 = btoa2 || function(buf) {
       return Buffer.from(buf).toString("base64");
     };
@@ -61854,9 +61854,9 @@ var require_encoder = __commonJS({
   }
 });
 
-// node_modules/jpeg-js/lib/decoder.js
+// api-server/node_modules/jpeg-js/lib/decoder.js
 var require_decoder = __commonJS({
-  "node_modules/jpeg-js/lib/decoder.js"(exports2, module2) {
+  "api-server/node_modules/jpeg-js/lib/decoder.js"(exports2, module2) {
     var JpegImage = (function jpegImage() {
       "use strict";
       var dctZigZag = new Int32Array([
@@ -62916,9 +62916,9 @@ var require_decoder = __commonJS({
   }
 });
 
-// node_modules/jpeg-js/index.js
+// api-server/node_modules/jpeg-js/index.js
 var require_jpeg_js = __commonJS({
-  "node_modules/jpeg-js/index.js"(exports2, module2) {
+  "api-server/node_modules/jpeg-js/index.js"(exports2, module2) {
     var encode4 = require_encoder();
     var decode3 = require_decoder();
     module2.exports = {
@@ -62928,9 +62928,9 @@ var require_jpeg_js = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/chunkstream.js
+// api-server/node_modules/pngjs/lib/chunkstream.js
 var require_chunkstream = __commonJS({
-  "node_modules/pngjs/lib/chunkstream.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/chunkstream.js"(exports2, module2) {
     "use strict";
     var util2 = __require("util");
     var Stream5 = __require("stream");
@@ -63066,9 +63066,9 @@ var require_chunkstream = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/interlace.js
+// api-server/node_modules/pngjs/lib/interlace.js
 var require_interlace = __commonJS({
-  "node_modules/pngjs/lib/interlace.js"(exports2) {
+  "api-server/node_modules/pngjs/lib/interlace.js"(exports2) {
     "use strict";
     var imagePasses = [
       {
@@ -63149,9 +63149,9 @@ var require_interlace = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/paeth-predictor.js
+// api-server/node_modules/pngjs/lib/paeth-predictor.js
 var require_paeth_predictor = __commonJS({
-  "node_modules/pngjs/lib/paeth-predictor.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/paeth-predictor.js"(exports2, module2) {
     "use strict";
     module2.exports = function paethPredictor(left, above, upLeft) {
       let paeth = left + above - upLeft;
@@ -63169,9 +63169,9 @@ var require_paeth_predictor = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/filter-parse.js
+// api-server/node_modules/pngjs/lib/filter-parse.js
 var require_filter_parse = __commonJS({
-  "node_modules/pngjs/lib/filter-parse.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/filter-parse.js"(exports2, module2) {
     "use strict";
     var interlaceUtils = require_interlace();
     var paethPredictor = require_paeth_predictor();
@@ -63310,9 +63310,9 @@ var require_filter_parse = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/filter-parse-async.js
+// api-server/node_modules/pngjs/lib/filter-parse-async.js
 var require_filter_parse_async = __commonJS({
-  "node_modules/pngjs/lib/filter-parse-async.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/filter-parse-async.js"(exports2, module2) {
     "use strict";
     var util2 = __require("util");
     var ChunkStream = require_chunkstream();
@@ -63336,9 +63336,9 @@ var require_filter_parse_async = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/constants.js
+// api-server/node_modules/pngjs/lib/constants.js
 var require_constants2 = __commonJS({
-  "node_modules/pngjs/lib/constants.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/constants.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       PNG_SIGNATURE: [137, 80, 78, 71, 13, 10, 26, 10],
@@ -63371,9 +63371,9 @@ var require_constants2 = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/crc.js
+// api-server/node_modules/pngjs/lib/crc.js
 var require_crc = __commonJS({
-  "node_modules/pngjs/lib/crc.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/crc.js"(exports2, module2) {
     "use strict";
     var crcTable = [];
     (function() {
@@ -63411,9 +63411,9 @@ var require_crc = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/parser.js
+// api-server/node_modules/pngjs/lib/parser.js
 var require_parser = __commonJS({
-  "node_modules/pngjs/lib/parser.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/parser.js"(exports2, module2) {
     "use strict";
     var constants2 = require_constants2();
     var CrcCalculator = require_crc();
@@ -63632,9 +63632,9 @@ var require_parser = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/bitmapper.js
+// api-server/node_modules/pngjs/lib/bitmapper.js
 var require_bitmapper = __commonJS({
-  "node_modules/pngjs/lib/bitmapper.js"(exports2) {
+  "api-server/node_modules/pngjs/lib/bitmapper.js"(exports2) {
     "use strict";
     var interlaceUtils = require_interlace();
     var pixelBppMapper = [
@@ -63880,9 +63880,9 @@ var require_bitmapper = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/format-normaliser.js
+// api-server/node_modules/pngjs/lib/format-normaliser.js
 var require_format_normaliser = __commonJS({
-  "node_modules/pngjs/lib/format-normaliser.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/format-normaliser.js"(exports2, module2) {
     "use strict";
     function dePalette(indata, outdata, width, height, palette2) {
       let pxPos = 0;
@@ -63961,9 +63961,9 @@ var require_format_normaliser = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/parser-async.js
+// api-server/node_modules/pngjs/lib/parser-async.js
 var require_parser_async = __commonJS({
-  "node_modules/pngjs/lib/parser-async.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/parser-async.js"(exports2, module2) {
     "use strict";
     var util2 = __require("util");
     var zlib2 = __require("zlib");
@@ -64091,9 +64091,9 @@ var require_parser_async = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/bitpacker.js
+// api-server/node_modules/pngjs/lib/bitpacker.js
 var require_bitpacker = __commonJS({
-  "node_modules/pngjs/lib/bitpacker.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/bitpacker.js"(exports2, module2) {
     "use strict";
     var constants2 = require_constants2();
     module2.exports = function(dataIn, width, height, options) {
@@ -64241,9 +64241,9 @@ var require_bitpacker = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/filter-pack.js
+// api-server/node_modules/pngjs/lib/filter-pack.js
 var require_filter_pack = __commonJS({
-  "node_modules/pngjs/lib/filter-pack.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/filter-pack.js"(exports2, module2) {
     "use strict";
     var paethPredictor = require_paeth_predictor();
     function filterNone(pxData, pxPos, byteWidth, rawData, rawPos) {
@@ -64383,9 +64383,9 @@ var require_filter_pack = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/packer.js
+// api-server/node_modules/pngjs/lib/packer.js
 var require_packer = __commonJS({
-  "node_modules/pngjs/lib/packer.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/packer.js"(exports2, module2) {
     "use strict";
     var constants2 = require_constants2();
     var CrcStream = require_crc();
@@ -64483,9 +64483,9 @@ var require_packer = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/packer-async.js
+// api-server/node_modules/pngjs/lib/packer-async.js
 var require_packer_async = __commonJS({
-  "node_modules/pngjs/lib/packer-async.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/packer-async.js"(exports2, module2) {
     "use strict";
     var util2 = __require("util");
     var Stream5 = __require("stream");
@@ -64525,9 +64525,9 @@ var require_packer_async = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/sync-inflate.js
+// api-server/node_modules/pngjs/lib/sync-inflate.js
 var require_sync_inflate = __commonJS({
-  "node_modules/pngjs/lib/sync-inflate.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/sync-inflate.js"(exports2, module2) {
     "use strict";
     var assert3 = __require("assert").ok;
     var zlib2 = __require("zlib");
@@ -64662,9 +64662,9 @@ var require_sync_inflate = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/sync-reader.js
+// api-server/node_modules/pngjs/lib/sync-reader.js
 var require_sync_reader = __commonJS({
-  "node_modules/pngjs/lib/sync-reader.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/sync-reader.js"(exports2, module2) {
     "use strict";
     var SyncReader = module2.exports = function(buffer) {
       this._buffer = buffer;
@@ -64700,9 +64700,9 @@ var require_sync_reader = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/filter-parse-sync.js
+// api-server/node_modules/pngjs/lib/filter-parse-sync.js
 var require_filter_parse_sync = __commonJS({
-  "node_modules/pngjs/lib/filter-parse-sync.js"(exports2) {
+  "api-server/node_modules/pngjs/lib/filter-parse-sync.js"(exports2) {
     "use strict";
     var SyncReader = require_sync_reader();
     var Filter = require_filter_parse();
@@ -64724,9 +64724,9 @@ var require_filter_parse_sync = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/parser-sync.js
+// api-server/node_modules/pngjs/lib/parser-sync.js
 var require_parser_sync = __commonJS({
-  "node_modules/pngjs/lib/parser-sync.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/parser-sync.js"(exports2, module2) {
     "use strict";
     var hasSyncZlib = true;
     var zlib2 = __require("zlib");
@@ -64819,9 +64819,9 @@ var require_parser_sync = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/packer-sync.js
+// api-server/node_modules/pngjs/lib/packer-sync.js
 var require_packer_sync = __commonJS({
-  "node_modules/pngjs/lib/packer-sync.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/packer-sync.js"(exports2, module2) {
     "use strict";
     var hasSyncZlib = true;
     var zlib2 = __require("zlib");
@@ -64864,9 +64864,9 @@ var require_packer_sync = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/png-sync.js
+// api-server/node_modules/pngjs/lib/png-sync.js
 var require_png_sync = __commonJS({
-  "node_modules/pngjs/lib/png-sync.js"(exports2) {
+  "api-server/node_modules/pngjs/lib/png-sync.js"(exports2) {
     "use strict";
     var parse = require_parser_sync();
     var pack = require_packer_sync();
@@ -64879,9 +64879,9 @@ var require_png_sync = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/png.js
+// api-server/node_modules/pngjs/lib/png.js
 var require_png = __commonJS({
-  "node_modules/pngjs/lib/png.js"(exports2) {
+  "api-server/node_modules/pngjs/lib/png.js"(exports2) {
     "use strict";
     var util2 = __require("util");
     var Stream5 = __require("stream");
@@ -65016,9 +65016,9 @@ var require_png = __commonJS({
   }
 });
 
-// node_modules/pako/lib/utils/common.js
+// api-server/node_modules/pako/lib/utils/common.js
 var require_common3 = __commonJS({
-  "node_modules/pako/lib/utils/common.js"(exports2) {
+  "api-server/node_modules/pako/lib/utils/common.js"(exports2) {
     "use strict";
     var TYPED_OK = typeof Uint8Array !== "undefined" && typeof Uint16Array !== "undefined" && typeof Int32Array !== "undefined";
     function _has(obj, key) {
@@ -65107,9 +65107,9 @@ var require_common3 = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/trees.js
+// api-server/node_modules/pako/lib/zlib/trees.js
 var require_trees = __commonJS({
-  "node_modules/pako/lib/zlib/trees.js"(exports2) {
+  "api-server/node_modules/pako/lib/zlib/trees.js"(exports2) {
     "use strict";
     var utils2 = require_common3();
     var Z_FIXED = 4;
@@ -65749,9 +65749,9 @@ var require_trees = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/adler32.js
+// api-server/node_modules/pako/lib/zlib/adler32.js
 var require_adler32 = __commonJS({
-  "node_modules/pako/lib/zlib/adler32.js"(exports2, module2) {
+  "api-server/node_modules/pako/lib/zlib/adler32.js"(exports2, module2) {
     "use strict";
     function adler32(adler, buf, len, pos) {
       var s1 = adler & 65535 | 0, s22 = adler >>> 16 & 65535 | 0, n4 = 0;
@@ -65771,9 +65771,9 @@ var require_adler32 = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/crc32.js
+// api-server/node_modules/pako/lib/zlib/crc32.js
 var require_crc32 = __commonJS({
-  "node_modules/pako/lib/zlib/crc32.js"(exports2, module2) {
+  "api-server/node_modules/pako/lib/zlib/crc32.js"(exports2, module2) {
     "use strict";
     function makeTable() {
       var c4, table = [];
@@ -65799,9 +65799,9 @@ var require_crc32 = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/messages.js
+// api-server/node_modules/pako/lib/zlib/messages.js
 var require_messages = __commonJS({
-  "node_modules/pako/lib/zlib/messages.js"(exports2, module2) {
+  "api-server/node_modules/pako/lib/zlib/messages.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       2: "need dictionary",
@@ -65826,9 +65826,9 @@ var require_messages = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/deflate.js
+// api-server/node_modules/pako/lib/zlib/deflate.js
 var require_deflate = __commonJS({
-  "node_modules/pako/lib/zlib/deflate.js"(exports2) {
+  "api-server/node_modules/pako/lib/zlib/deflate.js"(exports2) {
     "use strict";
     var utils2 = require_common3();
     var trees = require_trees();
@@ -66875,9 +66875,9 @@ var require_deflate = __commonJS({
   }
 });
 
-// node_modules/pako/lib/utils/strings.js
+// api-server/node_modules/pako/lib/utils/strings.js
 var require_strings = __commonJS({
-  "node_modules/pako/lib/utils/strings.js"(exports2) {
+  "api-server/node_modules/pako/lib/utils/strings.js"(exports2) {
     "use strict";
     var utils2 = require_common3();
     var STR_APPLY_OK = true;
@@ -67017,9 +67017,9 @@ var require_strings = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/zstream.js
+// api-server/node_modules/pako/lib/zlib/zstream.js
 var require_zstream = __commonJS({
-  "node_modules/pako/lib/zlib/zstream.js"(exports2, module2) {
+  "api-server/node_modules/pako/lib/zlib/zstream.js"(exports2, module2) {
     "use strict";
     function ZStream() {
       this.input = null;
@@ -67039,9 +67039,9 @@ var require_zstream = __commonJS({
   }
 });
 
-// node_modules/pako/lib/deflate.js
+// api-server/node_modules/pako/lib/deflate.js
 var require_deflate2 = __commonJS({
-  "node_modules/pako/lib/deflate.js"(exports2) {
+  "api-server/node_modules/pako/lib/deflate.js"(exports2) {
     "use strict";
     var zlib_deflate = require_deflate();
     var utils2 = require_common3();
@@ -67200,9 +67200,9 @@ var require_deflate2 = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/inffast.js
+// api-server/node_modules/pako/lib/zlib/inffast.js
 var require_inffast = __commonJS({
-  "node_modules/pako/lib/zlib/inffast.js"(exports2, module2) {
+  "api-server/node_modules/pako/lib/zlib/inffast.js"(exports2, module2) {
     "use strict";
     var BAD = 30;
     var TYPE = 12;
@@ -67429,9 +67429,9 @@ var require_inffast = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/inftrees.js
+// api-server/node_modules/pako/lib/zlib/inftrees.js
 var require_inftrees = __commonJS({
-  "node_modules/pako/lib/zlib/inftrees.js"(exports2, module2) {
+  "api-server/node_modules/pako/lib/zlib/inftrees.js"(exports2, module2) {
     "use strict";
     var utils2 = require_common3();
     var MAXBITS = 15;
@@ -67745,9 +67745,9 @@ var require_inftrees = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/inflate.js
+// api-server/node_modules/pako/lib/zlib/inflate.js
 var require_inflate = __commonJS({
-  "node_modules/pako/lib/zlib/inflate.js"(exports2) {
+  "api-server/node_modules/pako/lib/zlib/inflate.js"(exports2) {
     "use strict";
     var utils2 = require_common3();
     var adler32 = require_adler32();
@@ -68984,9 +68984,9 @@ var require_inflate = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/constants.js
+// api-server/node_modules/pako/lib/zlib/constants.js
 var require_constants3 = __commonJS({
-  "node_modules/pako/lib/zlib/constants.js"(exports2, module2) {
+  "api-server/node_modules/pako/lib/zlib/constants.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       /* Allowed flush values; see deflate() and inflate() below for details */
@@ -69031,9 +69031,9 @@ var require_constants3 = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/gzheader.js
+// api-server/node_modules/pako/lib/zlib/gzheader.js
 var require_gzheader = __commonJS({
-  "node_modules/pako/lib/zlib/gzheader.js"(exports2, module2) {
+  "api-server/node_modules/pako/lib/zlib/gzheader.js"(exports2, module2) {
     "use strict";
     function GZheader() {
       this.text = 0;
@@ -69051,9 +69051,9 @@ var require_gzheader = __commonJS({
   }
 });
 
-// node_modules/pako/lib/inflate.js
+// api-server/node_modules/pako/lib/inflate.js
 var require_inflate2 = __commonJS({
-  "node_modules/pako/lib/inflate.js"(exports2) {
+  "api-server/node_modules/pako/lib/inflate.js"(exports2) {
     "use strict";
     var zlib_inflate = require_inflate();
     var utils2 = require_common3();
@@ -69225,9 +69225,9 @@ var require_inflate2 = __commonJS({
   }
 });
 
-// node_modules/pako/index.js
+// api-server/node_modules/pako/index.js
 var require_pako = __commonJS({
-  "node_modules/pako/index.js"(exports2, module2) {
+  "api-server/node_modules/pako/index.js"(exports2, module2) {
     "use strict";
     var assign = require_common3().assign;
     var deflate = require_deflate2();
@@ -69239,9 +69239,9 @@ var require_pako = __commonJS({
   }
 });
 
-// node_modules/utif2/UTIF.js
+// api-server/node_modules/utif2/UTIF.js
 var require_UTIF = __commonJS({
-  "node_modules/utif2/UTIF.js"(exports2, module2) {
+  "api-server/node_modules/utif2/UTIF.js"(exports2, module2) {
     (function() {
       var UTIF = {};
       if (typeof module2 == "object") {
@@ -72727,9 +72727,9 @@ var require_UTIF = __commonJS({
   }
 });
 
-// node_modules/ieee754/index.js
+// api-server/node_modules/ieee754/index.js
 var require_ieee754 = __commonJS({
-  "node_modules/ieee754/index.js"(exports2) {
+  "api-server/node_modules/ieee754/index.js"(exports2) {
     exports2.read = function(buffer, offset, isLE, mLen, nBytes) {
       var e3, m5;
       var eLen = nBytes * 8 - mLen - 1;
@@ -72810,9 +72810,9 @@ var require_ieee754 = __commonJS({
   }
 });
 
-// node_modules/token-types/lib/index.js
+// api-server/node_modules/token-types/lib/index.js
 var require_lib = __commonJS({
-  "node_modules/token-types/lib/index.js"(exports2) {
+  "api-server/node_modules/token-types/lib/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.AnsiStringType = exports2.StringType = exports2.BufferType = exports2.Uint8ArrayType = exports2.IgnoreType = exports2.Float80_LE = exports2.Float80_BE = exports2.Float64_LE = exports2.Float64_BE = exports2.Float32_LE = exports2.Float32_BE = exports2.Float16_LE = exports2.Float16_BE = exports2.INT64_BE = exports2.UINT64_BE = exports2.INT64_LE = exports2.UINT64_LE = exports2.INT32_LE = exports2.INT32_BE = exports2.INT24_BE = exports2.INT24_LE = exports2.INT16_LE = exports2.INT16_BE = exports2.INT8 = exports2.UINT32_BE = exports2.UINT32_LE = exports2.UINT24_BE = exports2.UINT24_LE = exports2.UINT16_BE = exports2.UINT16_LE = exports2.UINT8 = void 0;
@@ -73302,9 +73302,9 @@ var require_lib = __commonJS({
   }
 });
 
-// node_modules/peek-readable/lib/EndOfFileStream.js
+// api-server/node_modules/peek-readable/lib/EndOfFileStream.js
 var require_EndOfFileStream = __commonJS({
-  "node_modules/peek-readable/lib/EndOfFileStream.js"(exports2) {
+  "api-server/node_modules/peek-readable/lib/EndOfFileStream.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.EndOfStreamError = exports2.defaultMessages = void 0;
@@ -73318,9 +73318,9 @@ var require_EndOfFileStream = __commonJS({
   }
 });
 
-// node_modules/peek-readable/lib/Deferred.js
+// api-server/node_modules/peek-readable/lib/Deferred.js
 var require_Deferred = __commonJS({
-  "node_modules/peek-readable/lib/Deferred.js"(exports2) {
+  "api-server/node_modules/peek-readable/lib/Deferred.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Deferred = void 0;
@@ -73338,9 +73338,9 @@ var require_Deferred = __commonJS({
   }
 });
 
-// node_modules/peek-readable/lib/StreamReader.js
+// api-server/node_modules/peek-readable/lib/StreamReader.js
 var require_StreamReader = __commonJS({
-  "node_modules/peek-readable/lib/StreamReader.js"(exports2) {
+  "api-server/node_modules/peek-readable/lib/StreamReader.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.StreamReader = exports2.EndOfStreamError = void 0;
@@ -73468,9 +73468,9 @@ var require_StreamReader = __commonJS({
   }
 });
 
-// node_modules/peek-readable/lib/index.js
+// api-server/node_modules/peek-readable/lib/index.js
 var require_lib2 = __commonJS({
-  "node_modules/peek-readable/lib/index.js"(exports2) {
+  "api-server/node_modules/peek-readable/lib/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.StreamReader = exports2.EndOfStreamError = void 0;
@@ -73485,9 +73485,9 @@ var require_lib2 = __commonJS({
   }
 });
 
-// node_modules/strtok3/lib/AbstractTokenizer.js
+// api-server/node_modules/strtok3/lib/AbstractTokenizer.js
 var require_AbstractTokenizer = __commonJS({
-  "node_modules/strtok3/lib/AbstractTokenizer.js"(exports2) {
+  "api-server/node_modules/strtok3/lib/AbstractTokenizer.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.AbstractTokenizer = void 0;
@@ -73588,9 +73588,9 @@ var require_AbstractTokenizer = __commonJS({
   }
 });
 
-// node_modules/strtok3/lib/ReadStreamTokenizer.js
+// api-server/node_modules/strtok3/lib/ReadStreamTokenizer.js
 var require_ReadStreamTokenizer = __commonJS({
-  "node_modules/strtok3/lib/ReadStreamTokenizer.js"(exports2) {
+  "api-server/node_modules/strtok3/lib/ReadStreamTokenizer.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ReadStreamTokenizer = void 0;
@@ -73688,9 +73688,9 @@ var require_ReadStreamTokenizer = __commonJS({
   }
 });
 
-// node_modules/strtok3/lib/BufferTokenizer.js
+// api-server/node_modules/strtok3/lib/BufferTokenizer.js
 var require_BufferTokenizer = __commonJS({
-  "node_modules/strtok3/lib/BufferTokenizer.js"(exports2) {
+  "api-server/node_modules/strtok3/lib/BufferTokenizer.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.BufferTokenizer = void 0;
@@ -73747,9 +73747,9 @@ var require_BufferTokenizer = __commonJS({
   }
 });
 
-// node_modules/strtok3/lib/core.js
+// api-server/node_modules/strtok3/lib/core.js
 var require_core = __commonJS({
-  "node_modules/strtok3/lib/core.js"(exports2) {
+  "api-server/node_modules/strtok3/lib/core.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.fromBuffer = exports2.fromStream = exports2.EndOfStreamError = void 0;
@@ -73771,9 +73771,9 @@ var require_core = __commonJS({
   }
 });
 
-// node_modules/file-type/util.js
+// api-server/node_modules/file-type/util.js
 var require_util3 = __commonJS({
-  "node_modules/file-type/util.js"(exports2) {
+  "api-server/node_modules/file-type/util.js"(exports2) {
     "use strict";
     exports2.stringToBytes = (string) => [...string].map((character) => character.charCodeAt(0));
     exports2.tarHeaderChecksumMatches = (buffer, offset = 0) => {
@@ -73799,9 +73799,9 @@ var require_util3 = __commonJS({
   }
 });
 
-// node_modules/file-type/supported.js
+// api-server/node_modules/file-type/supported.js
 var require_supported = __commonJS({
-  "node_modules/file-type/supported.js"(exports2, module2) {
+  "api-server/node_modules/file-type/supported.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       extensions: [
@@ -74087,9 +74087,9 @@ var require_supported = __commonJS({
   }
 });
 
-// node_modules/file-type/core.js
+// api-server/node_modules/file-type/core.js
 var require_core2 = __commonJS({
-  "node_modules/file-type/core.js"(exports, module) {
+  "api-server/node_modules/file-type/core.js"(exports, module) {
     "use strict";
     var Token = require_lib();
     var strtok3 = require_core();
@@ -75217,9 +75217,9 @@ var require_core2 = __commonJS({
   }
 });
 
-// node_modules/await-to-js/dist/await-to-js.umd.js
+// api-server/node_modules/await-to-js/dist/await-to-js.umd.js
 var require_await_to_js_umd = __commonJS({
-  "node_modules/await-to-js/dist/await-to-js.umd.js"(exports2, module2) {
+  "api-server/node_modules/await-to-js/dist/await-to-js.umd.js"(exports2, module2) {
     (function(global2, factory) {
       typeof exports2 === "object" && typeof module2 !== "undefined" ? factory(exports2) : typeof define === "function" && define.amd ? define(["exports"], factory) : factory(global2.awaitToJs = {});
     })(exports2, (function(exports3) {
@@ -75241,9 +75241,9 @@ var require_await_to_js_umd = __commonJS({
   }
 });
 
-// node_modules/mime/Mime.js
+// api-server/node_modules/mime/Mime.js
 var require_Mime = __commonJS({
-  "node_modules/mime/Mime.js"(exports2, module2) {
+  "api-server/node_modules/mime/Mime.js"(exports2, module2) {
     "use strict";
     function Mime() {
       this._types = /* @__PURE__ */ Object.create(null);
@@ -75295,25 +75295,25 @@ var require_Mime = __commonJS({
   }
 });
 
-// node_modules/mime/types/standard.js
+// api-server/node_modules/mime/types/standard.js
 var require_standard = __commonJS({
-  "node_modules/mime/types/standard.js"(exports2, module2) {
+  "api-server/node_modules/mime/types/standard.js"(exports2, module2) {
     module2.exports = { "application/andrew-inset": ["ez"], "application/applixware": ["aw"], "application/atom+xml": ["atom"], "application/atomcat+xml": ["atomcat"], "application/atomdeleted+xml": ["atomdeleted"], "application/atomsvc+xml": ["atomsvc"], "application/atsc-dwd+xml": ["dwd"], "application/atsc-held+xml": ["held"], "application/atsc-rsat+xml": ["rsat"], "application/bdoc": ["bdoc"], "application/calendar+xml": ["xcs"], "application/ccxml+xml": ["ccxml"], "application/cdfx+xml": ["cdfx"], "application/cdmi-capability": ["cdmia"], "application/cdmi-container": ["cdmic"], "application/cdmi-domain": ["cdmid"], "application/cdmi-object": ["cdmio"], "application/cdmi-queue": ["cdmiq"], "application/cu-seeme": ["cu"], "application/dash+xml": ["mpd"], "application/davmount+xml": ["davmount"], "application/docbook+xml": ["dbk"], "application/dssc+der": ["dssc"], "application/dssc+xml": ["xdssc"], "application/ecmascript": ["es", "ecma"], "application/emma+xml": ["emma"], "application/emotionml+xml": ["emotionml"], "application/epub+zip": ["epub"], "application/exi": ["exi"], "application/express": ["exp"], "application/fdt+xml": ["fdt"], "application/font-tdpfr": ["pfr"], "application/geo+json": ["geojson"], "application/gml+xml": ["gml"], "application/gpx+xml": ["gpx"], "application/gxf": ["gxf"], "application/gzip": ["gz"], "application/hjson": ["hjson"], "application/hyperstudio": ["stk"], "application/inkml+xml": ["ink", "inkml"], "application/ipfix": ["ipfix"], "application/its+xml": ["its"], "application/java-archive": ["jar", "war", "ear"], "application/java-serialized-object": ["ser"], "application/java-vm": ["class"], "application/javascript": ["js", "mjs"], "application/json": ["json", "map"], "application/json5": ["json5"], "application/jsonml+json": ["jsonml"], "application/ld+json": ["jsonld"], "application/lgr+xml": ["lgr"], "application/lost+xml": ["lostxml"], "application/mac-binhex40": ["hqx"], "application/mac-compactpro": ["cpt"], "application/mads+xml": ["mads"], "application/manifest+json": ["webmanifest"], "application/marc": ["mrc"], "application/marcxml+xml": ["mrcx"], "application/mathematica": ["ma", "nb", "mb"], "application/mathml+xml": ["mathml"], "application/mbox": ["mbox"], "application/mediaservercontrol+xml": ["mscml"], "application/metalink+xml": ["metalink"], "application/metalink4+xml": ["meta4"], "application/mets+xml": ["mets"], "application/mmt-aei+xml": ["maei"], "application/mmt-usd+xml": ["musd"], "application/mods+xml": ["mods"], "application/mp21": ["m21", "mp21"], "application/mp4": ["mp4s", "m4p"], "application/msword": ["doc", "dot"], "application/mxf": ["mxf"], "application/n-quads": ["nq"], "application/n-triples": ["nt"], "application/node": ["cjs"], "application/octet-stream": ["bin", "dms", "lrf", "mar", "so", "dist", "distz", "pkg", "bpk", "dump", "elc", "deploy", "exe", "dll", "deb", "dmg", "iso", "img", "msi", "msp", "msm", "buffer"], "application/oda": ["oda"], "application/oebps-package+xml": ["opf"], "application/ogg": ["ogx"], "application/omdoc+xml": ["omdoc"], "application/onenote": ["onetoc", "onetoc2", "onetmp", "onepkg"], "application/oxps": ["oxps"], "application/p2p-overlay+xml": ["relo"], "application/patch-ops-error+xml": ["xer"], "application/pdf": ["pdf"], "application/pgp-encrypted": ["pgp"], "application/pgp-signature": ["asc", "sig"], "application/pics-rules": ["prf"], "application/pkcs10": ["p10"], "application/pkcs7-mime": ["p7m", "p7c"], "application/pkcs7-signature": ["p7s"], "application/pkcs8": ["p8"], "application/pkix-attr-cert": ["ac"], "application/pkix-cert": ["cer"], "application/pkix-crl": ["crl"], "application/pkix-pkipath": ["pkipath"], "application/pkixcmp": ["pki"], "application/pls+xml": ["pls"], "application/postscript": ["ai", "eps", "ps"], "application/provenance+xml": ["provx"], "application/pskc+xml": ["pskcxml"], "application/raml+yaml": ["raml"], "application/rdf+xml": ["rdf", "owl"], "application/reginfo+xml": ["rif"], "application/relax-ng-compact-syntax": ["rnc"], "application/resource-lists+xml": ["rl"], "application/resource-lists-diff+xml": ["rld"], "application/rls-services+xml": ["rs"], "application/route-apd+xml": ["rapd"], "application/route-s-tsid+xml": ["sls"], "application/route-usd+xml": ["rusd"], "application/rpki-ghostbusters": ["gbr"], "application/rpki-manifest": ["mft"], "application/rpki-roa": ["roa"], "application/rsd+xml": ["rsd"], "application/rss+xml": ["rss"], "application/rtf": ["rtf"], "application/sbml+xml": ["sbml"], "application/scvp-cv-request": ["scq"], "application/scvp-cv-response": ["scs"], "application/scvp-vp-request": ["spq"], "application/scvp-vp-response": ["spp"], "application/sdp": ["sdp"], "application/senml+xml": ["senmlx"], "application/sensml+xml": ["sensmlx"], "application/set-payment-initiation": ["setpay"], "application/set-registration-initiation": ["setreg"], "application/shf+xml": ["shf"], "application/sieve": ["siv", "sieve"], "application/smil+xml": ["smi", "smil"], "application/sparql-query": ["rq"], "application/sparql-results+xml": ["srx"], "application/srgs": ["gram"], "application/srgs+xml": ["grxml"], "application/sru+xml": ["sru"], "application/ssdl+xml": ["ssdl"], "application/ssml+xml": ["ssml"], "application/swid+xml": ["swidtag"], "application/tei+xml": ["tei", "teicorpus"], "application/thraud+xml": ["tfi"], "application/timestamped-data": ["tsd"], "application/toml": ["toml"], "application/trig": ["trig"], "application/ttml+xml": ["ttml"], "application/ubjson": ["ubj"], "application/urc-ressheet+xml": ["rsheet"], "application/urc-targetdesc+xml": ["td"], "application/voicexml+xml": ["vxml"], "application/wasm": ["wasm"], "application/widget": ["wgt"], "application/winhlp": ["hlp"], "application/wsdl+xml": ["wsdl"], "application/wspolicy+xml": ["wspolicy"], "application/xaml+xml": ["xaml"], "application/xcap-att+xml": ["xav"], "application/xcap-caps+xml": ["xca"], "application/xcap-diff+xml": ["xdf"], "application/xcap-el+xml": ["xel"], "application/xcap-ns+xml": ["xns"], "application/xenc+xml": ["xenc"], "application/xhtml+xml": ["xhtml", "xht"], "application/xliff+xml": ["xlf"], "application/xml": ["xml", "xsl", "xsd", "rng"], "application/xml-dtd": ["dtd"], "application/xop+xml": ["xop"], "application/xproc+xml": ["xpl"], "application/xslt+xml": ["*xsl", "xslt"], "application/xspf+xml": ["xspf"], "application/xv+xml": ["mxml", "xhvml", "xvml", "xvm"], "application/yang": ["yang"], "application/yin+xml": ["yin"], "application/zip": ["zip"], "audio/3gpp": ["*3gpp"], "audio/adpcm": ["adp"], "audio/amr": ["amr"], "audio/basic": ["au", "snd"], "audio/midi": ["mid", "midi", "kar", "rmi"], "audio/mobile-xmf": ["mxmf"], "audio/mp3": ["*mp3"], "audio/mp4": ["m4a", "mp4a"], "audio/mpeg": ["mpga", "mp2", "mp2a", "mp3", "m2a", "m3a"], "audio/ogg": ["oga", "ogg", "spx", "opus"], "audio/s3m": ["s3m"], "audio/silk": ["sil"], "audio/wav": ["wav"], "audio/wave": ["*wav"], "audio/webm": ["weba"], "audio/xm": ["xm"], "font/collection": ["ttc"], "font/otf": ["otf"], "font/ttf": ["ttf"], "font/woff": ["woff"], "font/woff2": ["woff2"], "image/aces": ["exr"], "image/apng": ["apng"], "image/avif": ["avif"], "image/bmp": ["bmp"], "image/cgm": ["cgm"], "image/dicom-rle": ["drle"], "image/emf": ["emf"], "image/fits": ["fits"], "image/g3fax": ["g3"], "image/gif": ["gif"], "image/heic": ["heic"], "image/heic-sequence": ["heics"], "image/heif": ["heif"], "image/heif-sequence": ["heifs"], "image/hej2k": ["hej2"], "image/hsj2": ["hsj2"], "image/ief": ["ief"], "image/jls": ["jls"], "image/jp2": ["jp2", "jpg2"], "image/jpeg": ["jpeg", "jpg", "jpe"], "image/jph": ["jph"], "image/jphc": ["jhc"], "image/jpm": ["jpm"], "image/jpx": ["jpx", "jpf"], "image/jxr": ["jxr"], "image/jxra": ["jxra"], "image/jxrs": ["jxrs"], "image/jxs": ["jxs"], "image/jxsc": ["jxsc"], "image/jxsi": ["jxsi"], "image/jxss": ["jxss"], "image/ktx": ["ktx"], "image/ktx2": ["ktx2"], "image/png": ["png"], "image/sgi": ["sgi"], "image/svg+xml": ["svg", "svgz"], "image/t38": ["t38"], "image/tiff": ["tif", "tiff"], "image/tiff-fx": ["tfx"], "image/webp": ["webp"], "image/wmf": ["wmf"], "message/disposition-notification": ["disposition-notification"], "message/global": ["u8msg"], "message/global-delivery-status": ["u8dsn"], "message/global-disposition-notification": ["u8mdn"], "message/global-headers": ["u8hdr"], "message/rfc822": ["eml", "mime"], "model/3mf": ["3mf"], "model/gltf+json": ["gltf"], "model/gltf-binary": ["glb"], "model/iges": ["igs", "iges"], "model/mesh": ["msh", "mesh", "silo"], "model/mtl": ["mtl"], "model/obj": ["obj"], "model/step+xml": ["stpx"], "model/step+zip": ["stpz"], "model/step-xml+zip": ["stpxz"], "model/stl": ["stl"], "model/vrml": ["wrl", "vrml"], "model/x3d+binary": ["*x3db", "x3dbz"], "model/x3d+fastinfoset": ["x3db"], "model/x3d+vrml": ["*x3dv", "x3dvz"], "model/x3d+xml": ["x3d", "x3dz"], "model/x3d-vrml": ["x3dv"], "text/cache-manifest": ["appcache", "manifest"], "text/calendar": ["ics", "ifb"], "text/coffeescript": ["coffee", "litcoffee"], "text/css": ["css"], "text/csv": ["csv"], "text/html": ["html", "htm", "shtml"], "text/jade": ["jade"], "text/jsx": ["jsx"], "text/less": ["less"], "text/markdown": ["markdown", "md"], "text/mathml": ["mml"], "text/mdx": ["mdx"], "text/n3": ["n3"], "text/plain": ["txt", "text", "conf", "def", "list", "log", "in", "ini"], "text/richtext": ["rtx"], "text/rtf": ["*rtf"], "text/sgml": ["sgml", "sgm"], "text/shex": ["shex"], "text/slim": ["slim", "slm"], "text/spdx": ["spdx"], "text/stylus": ["stylus", "styl"], "text/tab-separated-values": ["tsv"], "text/troff": ["t", "tr", "roff", "man", "me", "ms"], "text/turtle": ["ttl"], "text/uri-list": ["uri", "uris", "urls"], "text/vcard": ["vcard"], "text/vtt": ["vtt"], "text/xml": ["*xml"], "text/yaml": ["yaml", "yml"], "video/3gpp": ["3gp", "3gpp"], "video/3gpp2": ["3g2"], "video/h261": ["h261"], "video/h263": ["h263"], "video/h264": ["h264"], "video/iso.segment": ["m4s"], "video/jpeg": ["jpgv"], "video/jpm": ["*jpm", "jpgm"], "video/mj2": ["mj2", "mjp2"], "video/mp2t": ["ts"], "video/mp4": ["mp4", "mp4v", "mpg4"], "video/mpeg": ["mpeg", "mpg", "mpe", "m1v", "m2v"], "video/ogg": ["ogv"], "video/quicktime": ["qt", "mov"], "video/webm": ["webm"] };
   }
 });
 
-// node_modules/mime/lite.js
+// api-server/node_modules/mime/lite.js
 var require_lite = __commonJS({
-  "node_modules/mime/lite.js"(exports2, module2) {
+  "api-server/node_modules/mime/lite.js"(exports2, module2) {
     "use strict";
     var Mime = require_Mime();
     module2.exports = new Mime(require_standard());
   }
 });
 
-// node_modules/exif-parser/lib/jpeg.js
+// api-server/node_modules/exif-parser/lib/jpeg.js
 var require_jpeg = __commonJS({
-  "node_modules/exif-parser/lib/jpeg.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/lib/jpeg.js"(exports2, module2) {
     module2.exports = {
       parseSections: function(stream2, iterator) {
         var len, markerType;
@@ -75389,9 +75389,9 @@ var require_jpeg = __commonJS({
   }
 });
 
-// node_modules/exif-parser/lib/exif.js
+// api-server/node_modules/exif-parser/lib/exif.js
 var require_exif = __commonJS({
-  "node_modules/exif-parser/lib/exif.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/lib/exif.js"(exports2, module2) {
     function readExifValue(format, stream2) {
       switch (format) {
         case 1:
@@ -75547,9 +75547,9 @@ var require_exif = __commonJS({
   }
 });
 
-// node_modules/exif-parser/lib/date.js
+// api-server/node_modules/exif-parser/lib/date.js
 var require_date = __commonJS({
-  "node_modules/exif-parser/lib/date.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/lib/date.js"(exports2, module2) {
     function parseNumber(s6) {
       return parseInt(s6, 10);
     }
@@ -75605,9 +75605,9 @@ var require_date = __commonJS({
   }
 });
 
-// node_modules/exif-parser/lib/simplify.js
+// api-server/node_modules/exif-parser/lib/simplify.js
 var require_simplify = __commonJS({
-  "node_modules/exif-parser/lib/simplify.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/lib/simplify.js"(exports2, module2) {
     var exif = require_exif();
     var date2 = require_date();
     var degreeTags = [
@@ -75691,9 +75691,9 @@ var require_simplify = __commonJS({
   }
 });
 
-// node_modules/exif-parser/lib/exif-tags.js
+// api-server/node_modules/exif-parser/lib/exif-tags.js
 var require_exif_tags = __commonJS({
-  "node_modules/exif-parser/lib/exif-tags.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/lib/exif-tags.js"(exports2, module2) {
     module2.exports = {
       exif: {
         1: "InteropIndex",
@@ -76164,9 +76164,9 @@ var require_exif_tags = __commonJS({
   }
 });
 
-// node_modules/exif-parser/lib/parser.js
+// api-server/node_modules/exif-parser/lib/parser.js
 var require_parser2 = __commonJS({
-  "node_modules/exif-parser/lib/parser.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/lib/parser.js"(exports2, module2) {
     var jpeg2 = require_jpeg();
     var exif = require_exif();
     var simplify = require_simplify();
@@ -76353,9 +76353,9 @@ var require_parser2 = __commonJS({
   }
 });
 
-// node_modules/exif-parser/lib/dom-bufferstream.js
+// api-server/node_modules/exif-parser/lib/dom-bufferstream.js
 var require_dom_bufferstream = __commonJS({
-  "node_modules/exif-parser/lib/dom-bufferstream.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/lib/dom-bufferstream.js"(exports2, module2) {
     function DOMBufferStream(arrayBuffer, offset, length, bigEndian, global2, parentOffset) {
       this.global = global2;
       offset = offset || 0;
@@ -76452,9 +76452,9 @@ var require_dom_bufferstream = __commonJS({
   }
 });
 
-// node_modules/exif-parser/lib/bufferstream.js
+// api-server/node_modules/exif-parser/lib/bufferstream.js
 var require_bufferstream = __commonJS({
-  "node_modules/exif-parser/lib/bufferstream.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/lib/bufferstream.js"(exports2, module2) {
     function BufferStream(buffer, offset, length, bigEndian) {
       this.buffer = buffer;
       this.offset = offset || 0;
@@ -76544,9 +76544,9 @@ var require_bufferstream = __commonJS({
   }
 });
 
-// node_modules/exif-parser/index.js
+// api-server/node_modules/exif-parser/index.js
 var require_exif_parser = __commonJS({
-  "node_modules/exif-parser/index.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/index.js"(exports2, module2) {
     var Parser = require_parser2();
     function getGlobal() {
       return (1, eval)("this");
@@ -76566,9 +76566,9 @@ var require_exif_parser = __commonJS({
   }
 });
 
-// node_modules/any-base/src/converter.js
+// api-server/node_modules/any-base/src/converter.js
 var require_converter = __commonJS({
-  "node_modules/any-base/src/converter.js"(exports2, module2) {
+  "api-server/node_modules/any-base/src/converter.js"(exports2, module2) {
     "use strict";
     function Converter(srcAlphabet, dstAlphabet) {
       if (!srcAlphabet || !dstAlphabet || !srcAlphabet.length || !dstAlphabet.length) {
@@ -76618,9 +76618,9 @@ var require_converter = __commonJS({
   }
 });
 
-// node_modules/any-base/index.js
+// api-server/node_modules/any-base/index.js
 var require_any_base = __commonJS({
-  "node_modules/any-base/index.js"(exports2, module2) {
+  "api-server/node_modules/any-base/index.js"(exports2, module2) {
     var Converter = require_converter();
     function anyBase2(srcAlphabet, dstAlphabet) {
       var converter = new Converter(srcAlphabet, dstAlphabet);
@@ -76636,9 +76636,9 @@ var require_any_base = __commonJS({
   }
 });
 
-// node_modules/parse-bmfont-ascii/index.js
+// api-server/node_modules/parse-bmfont-ascii/index.js
 var require_parse_bmfont_ascii = __commonJS({
-  "node_modules/parse-bmfont-ascii/index.js"(exports2, module2) {
+  "api-server/node_modules/parse-bmfont-ascii/index.js"(exports2, module2) {
     module2.exports = function parseBMFontAscii(data) {
       if (!data)
         throw new Error("no data provided");
@@ -76730,9 +76730,9 @@ var require_parse_bmfont_ascii = __commonJS({
   }
 });
 
-// node_modules/xml2js/lib/defaults.js
+// api-server/node_modules/xml2js/lib/defaults.js
 var require_defaults = __commonJS({
-  "node_modules/xml2js/lib/defaults.js"(exports2) {
+  "api-server/node_modules/xml2js/lib/defaults.js"(exports2) {
     (function() {
       exports2.defaults = {
         "0.1": {
@@ -76806,9 +76806,9 @@ var require_defaults = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/Utility.js
+// api-server/node_modules/xmlbuilder/lib/Utility.js
 var require_Utility = __commonJS({
-  "node_modules/xmlbuilder/lib/Utility.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/Utility.js"(exports2, module2) {
     (function() {
       var assign, getValue2, isArray2, isEmpty, isFunction, isObject, isPlainObject2, slice = [].slice, hasProp = {}.hasOwnProperty;
       assign = function() {
@@ -76877,9 +76877,9 @@ var require_Utility = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDOMImplementation.js
+// api-server/node_modules/xmlbuilder/lib/XMLDOMImplementation.js
 var require_XMLDOMImplementation = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDOMImplementation.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDOMImplementation.js"(exports2, module2) {
     (function() {
       var XMLDOMImplementation;
       module2.exports = XMLDOMImplementation = (function() {
@@ -76906,9 +76906,9 @@ var require_XMLDOMImplementation = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDOMErrorHandler.js
+// api-server/node_modules/xmlbuilder/lib/XMLDOMErrorHandler.js
 var require_XMLDOMErrorHandler = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDOMErrorHandler.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDOMErrorHandler.js"(exports2, module2) {
     (function() {
       var XMLDOMErrorHandler;
       module2.exports = XMLDOMErrorHandler = (function() {
@@ -76923,9 +76923,9 @@ var require_XMLDOMErrorHandler = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDOMStringList.js
+// api-server/node_modules/xmlbuilder/lib/XMLDOMStringList.js
 var require_XMLDOMStringList = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDOMStringList.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDOMStringList.js"(exports2, module2) {
     (function() {
       var XMLDOMStringList;
       module2.exports = XMLDOMStringList = (function() {
@@ -76949,9 +76949,9 @@ var require_XMLDOMStringList = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDOMConfiguration.js
+// api-server/node_modules/xmlbuilder/lib/XMLDOMConfiguration.js
 var require_XMLDOMConfiguration = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDOMConfiguration.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDOMConfiguration.js"(exports2, module2) {
     (function() {
       var XMLDOMConfiguration, XMLDOMErrorHandler, XMLDOMStringList;
       XMLDOMErrorHandler = require_XMLDOMErrorHandler();
@@ -77008,9 +77008,9 @@ var require_XMLDOMConfiguration = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/NodeType.js
+// api-server/node_modules/xmlbuilder/lib/NodeType.js
 var require_NodeType = __commonJS({
-  "node_modules/xmlbuilder/lib/NodeType.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/NodeType.js"(exports2, module2) {
     (function() {
       module2.exports = {
         Element: 1,
@@ -77035,9 +77035,9 @@ var require_NodeType = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLAttribute.js
+// api-server/node_modules/xmlbuilder/lib/XMLAttribute.js
 var require_XMLAttribute = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLAttribute.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLAttribute.js"(exports2, module2) {
     (function() {
       var NodeType, XMLAttribute, XMLNode;
       NodeType = require_NodeType();
@@ -77131,9 +77131,9 @@ var require_XMLAttribute = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLNamedNodeMap.js
+// api-server/node_modules/xmlbuilder/lib/XMLNamedNodeMap.js
 var require_XMLNamedNodeMap = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLNamedNodeMap.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLNamedNodeMap.js"(exports2, module2) {
     (function() {
       var XMLNamedNodeMap;
       module2.exports = XMLNamedNodeMap = (function() {
@@ -77181,9 +77181,9 @@ var require_XMLNamedNodeMap = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLElement.js
+// api-server/node_modules/xmlbuilder/lib/XMLElement.js
 var require_XMLElement = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLElement.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLElement.js"(exports2, module2) {
     (function() {
       var NodeType, XMLAttribute, XMLElement, XMLNamedNodeMap, XMLNode, getValue2, isFunction, isObject, ref, extend = function(child, parent) {
         for (var key in parent) {
@@ -77448,9 +77448,9 @@ var require_XMLElement = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLCharacterData.js
+// api-server/node_modules/xmlbuilder/lib/XMLCharacterData.js
 var require_XMLCharacterData = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLCharacterData.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLCharacterData.js"(exports2, module2) {
     (function() {
       var XMLCharacterData, XMLNode, extend = function(child, parent) {
         for (var key in parent) {
@@ -77525,9 +77525,9 @@ var require_XMLCharacterData = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLCData.js
+// api-server/node_modules/xmlbuilder/lib/XMLCData.js
 var require_XMLCData = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLCData.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLCData.js"(exports2, module2) {
     (function() {
       var NodeType, XMLCData, XMLCharacterData, extend = function(child, parent) {
         for (var key in parent) {
@@ -77566,9 +77566,9 @@ var require_XMLCData = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLComment.js
+// api-server/node_modules/xmlbuilder/lib/XMLComment.js
 var require_XMLComment = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLComment.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLComment.js"(exports2, module2) {
     (function() {
       var NodeType, XMLCharacterData, XMLComment, extend = function(child, parent) {
         for (var key in parent) {
@@ -77607,9 +77607,9 @@ var require_XMLComment = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDeclaration.js
+// api-server/node_modules/xmlbuilder/lib/XMLDeclaration.js
 var require_XMLDeclaration = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDeclaration.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDeclaration.js"(exports2, module2) {
     (function() {
       var NodeType, XMLDeclaration, XMLNode, isObject, extend = function(child, parent) {
         for (var key in parent) {
@@ -77655,9 +77655,9 @@ var require_XMLDeclaration = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDTDAttList.js
+// api-server/node_modules/xmlbuilder/lib/XMLDTDAttList.js
 var require_XMLDTDAttList = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDTDAttList.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDTDAttList.js"(exports2, module2) {
     (function() {
       var NodeType, XMLDTDAttList, XMLNode, extend = function(child, parent) {
         for (var key in parent) {
@@ -77716,9 +77716,9 @@ var require_XMLDTDAttList = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDTDEntity.js
+// api-server/node_modules/xmlbuilder/lib/XMLDTDEntity.js
 var require_XMLDTDEntity = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDTDEntity.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDTDEntity.js"(exports2, module2) {
     (function() {
       var NodeType, XMLDTDEntity, XMLNode, isObject, extend = function(child, parent) {
         for (var key in parent) {
@@ -77812,9 +77812,9 @@ var require_XMLDTDEntity = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDTDElement.js
+// api-server/node_modules/xmlbuilder/lib/XMLDTDElement.js
 var require_XMLDTDElement = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDTDElement.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDTDElement.js"(exports2, module2) {
     (function() {
       var NodeType, XMLDTDElement, XMLNode, extend = function(child, parent) {
         for (var key in parent) {
@@ -77856,9 +77856,9 @@ var require_XMLDTDElement = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDTDNotation.js
+// api-server/node_modules/xmlbuilder/lib/XMLDTDNotation.js
 var require_XMLDTDNotation = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDTDNotation.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDTDNotation.js"(exports2, module2) {
     (function() {
       var NodeType, XMLDTDNotation, XMLNode, extend = function(child, parent) {
         for (var key in parent) {
@@ -77912,9 +77912,9 @@ var require_XMLDTDNotation = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDocType.js
+// api-server/node_modules/xmlbuilder/lib/XMLDocType.js
 var require_XMLDocType = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDocType.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDocType.js"(exports2, module2) {
     (function() {
       var NodeType, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDocType, XMLNamedNodeMap, XMLNode, isObject, extend = function(child, parent) {
         for (var key in parent) {
@@ -78081,9 +78081,9 @@ var require_XMLDocType = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLRaw.js
+// api-server/node_modules/xmlbuilder/lib/XMLRaw.js
 var require_XMLRaw = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLRaw.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLRaw.js"(exports2, module2) {
     (function() {
       var NodeType, XMLNode, XMLRaw, extend = function(child, parent) {
         for (var key in parent) {
@@ -78121,9 +78121,9 @@ var require_XMLRaw = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLText.js
+// api-server/node_modules/xmlbuilder/lib/XMLText.js
 var require_XMLText = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLText.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLText.js"(exports2, module2) {
     (function() {
       var NodeType, XMLCharacterData, XMLText, extend = function(child, parent) {
         for (var key in parent) {
@@ -78191,9 +78191,9 @@ var require_XMLText = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLProcessingInstruction.js
+// api-server/node_modules/xmlbuilder/lib/XMLProcessingInstruction.js
 var require_XMLProcessingInstruction = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLProcessingInstruction.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLProcessingInstruction.js"(exports2, module2) {
     (function() {
       var NodeType, XMLCharacterData, XMLProcessingInstruction, extend = function(child, parent) {
         for (var key in parent) {
@@ -78244,9 +78244,9 @@ var require_XMLProcessingInstruction = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDummy.js
+// api-server/node_modules/xmlbuilder/lib/XMLDummy.js
 var require_XMLDummy = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDummy.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDummy.js"(exports2, module2) {
     (function() {
       var NodeType, XMLDummy, XMLNode, extend = function(child, parent) {
         for (var key in parent) {
@@ -78280,9 +78280,9 @@ var require_XMLDummy = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLNodeList.js
+// api-server/node_modules/xmlbuilder/lib/XMLNodeList.js
 var require_XMLNodeList = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLNodeList.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLNodeList.js"(exports2, module2) {
     (function() {
       var XMLNodeList;
       module2.exports = XMLNodeList = (function() {
@@ -78306,9 +78306,9 @@ var require_XMLNodeList = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/DocumentPosition.js
+// api-server/node_modules/xmlbuilder/lib/DocumentPosition.js
 var require_DocumentPosition = __commonJS({
-  "node_modules/xmlbuilder/lib/DocumentPosition.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/DocumentPosition.js"(exports2, module2) {
     (function() {
       module2.exports = {
         Disconnected: 1,
@@ -78322,9 +78322,9 @@ var require_DocumentPosition = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLNode.js
+// api-server/node_modules/xmlbuilder/lib/XMLNode.js
 var require_XMLNode = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLNode.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLNode.js"(exports2, module2) {
     (function() {
       var DocumentPosition, NodeType, XMLCData, XMLComment, XMLDeclaration, XMLDocType, XMLDummy, XMLElement, XMLNamedNodeMap, XMLNode, XMLNodeList, XMLProcessingInstruction, XMLRaw, XMLText, getValue2, isEmpty, isFunction, isObject, ref1, hasProp = {}.hasOwnProperty;
       ref1 = require_Utility(), isObject = ref1.isObject, isFunction = ref1.isFunction, isEmpty = ref1.isEmpty, getValue2 = ref1.getValue;
@@ -79015,9 +79015,9 @@ var require_XMLNode = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLStringifier.js
+// api-server/node_modules/xmlbuilder/lib/XMLStringifier.js
 var require_XMLStringifier = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLStringifier.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLStringifier.js"(exports2, module2) {
     (function() {
       var XMLStringifier, bind = function(fn2, me3) {
         return function() {
@@ -79230,9 +79230,9 @@ var require_XMLStringifier = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/WriterState.js
+// api-server/node_modules/xmlbuilder/lib/WriterState.js
 var require_WriterState = __commonJS({
-  "node_modules/xmlbuilder/lib/WriterState.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/WriterState.js"(exports2, module2) {
     (function() {
       module2.exports = {
         None: 0,
@@ -79244,9 +79244,9 @@ var require_WriterState = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLWriterBase.js
+// api-server/node_modules/xmlbuilder/lib/XMLWriterBase.js
 var require_XMLWriterBase = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLWriterBase.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLWriterBase.js"(exports2, module2) {
     (function() {
       var NodeType, WriterState, XMLCData, XMLComment, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDeclaration, XMLDocType, XMLDummy, XMLElement, XMLProcessingInstruction, XMLRaw, XMLText, XMLWriterBase, assign, hasProp = {}.hasOwnProperty;
       assign = require_Utility().assign;
@@ -79639,9 +79639,9 @@ var require_XMLWriterBase = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLStringWriter.js
+// api-server/node_modules/xmlbuilder/lib/XMLStringWriter.js
 var require_XMLStringWriter = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLStringWriter.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLStringWriter.js"(exports2, module2) {
     (function() {
       var XMLStringWriter, XMLWriterBase, extend = function(child, parent) {
         for (var key in parent) {
@@ -79681,9 +79681,9 @@ var require_XMLStringWriter = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDocument.js
+// api-server/node_modules/xmlbuilder/lib/XMLDocument.js
 var require_XMLDocument = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDocument.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDocument.js"(exports2, module2) {
     (function() {
       var NodeType, XMLDOMConfiguration, XMLDOMImplementation, XMLDocument, XMLNode, XMLStringWriter, XMLStringifier, isPlainObject2, extend = function(child, parent) {
         for (var key in parent) {
@@ -79888,9 +79888,9 @@ var require_XMLDocument = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDocumentCB.js
+// api-server/node_modules/xmlbuilder/lib/XMLDocumentCB.js
 var require_XMLDocumentCB = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDocumentCB.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDocumentCB.js"(exports2, module2) {
     (function() {
       var NodeType, WriterState, XMLAttribute, XMLCData, XMLComment, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDeclaration, XMLDocType, XMLDocument, XMLDocumentCB, XMLElement, XMLProcessingInstruction, XMLRaw, XMLStringWriter, XMLStringifier, XMLText, getValue2, isFunction, isObject, isPlainObject2, ref, hasProp = {}.hasOwnProperty;
       ref = require_Utility(), isObject = ref.isObject, isFunction = ref.isFunction, isPlainObject2 = ref.isPlainObject, getValue2 = ref.getValue;
@@ -80354,9 +80354,9 @@ var require_XMLDocumentCB = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLStreamWriter.js
+// api-server/node_modules/xmlbuilder/lib/XMLStreamWriter.js
 var require_XMLStreamWriter = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLStreamWriter.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLStreamWriter.js"(exports2, module2) {
     (function() {
       var NodeType, WriterState, XMLStreamWriter, XMLWriterBase, extend = function(child, parent) {
         for (var key in parent) {
@@ -80521,9 +80521,9 @@ var require_XMLStreamWriter = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/index.js
+// api-server/node_modules/xmlbuilder/lib/index.js
 var require_lib3 = __commonJS({
-  "node_modules/xmlbuilder/lib/index.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/index.js"(exports2, module2) {
     (function() {
       var NodeType, WriterState, XMLDOMImplementation, XMLDocument, XMLDocumentCB, XMLStreamWriter, XMLStringWriter, assign, isFunction, ref;
       ref = require_Utility(), assign = ref.assign, isFunction = ref.isFunction;
@@ -80575,9 +80575,9 @@ var require_lib3 = __commonJS({
   }
 });
 
-// node_modules/xml2js/lib/builder.js
+// api-server/node_modules/xml2js/lib/builder.js
 var require_builder = __commonJS({
-  "node_modules/xml2js/lib/builder.js"(exports2) {
+  "api-server/node_modules/xml2js/lib/builder.js"(exports2) {
     (function() {
       "use strict";
       var builder, defaults3, escapeCDATA, requiresCDATA, wrapCDATA, hasProp = {}.hasOwnProperty;
@@ -80696,9 +80696,9 @@ var require_builder = __commonJS({
   }
 });
 
-// node_modules/sax/lib/sax.js
+// api-server/node_modules/sax/lib/sax.js
 var require_sax = __commonJS({
-  "node_modules/sax/lib/sax.js"(exports2) {
+  "api-server/node_modules/sax/lib/sax.js"(exports2) {
     (function(sax) {
       sax.parser = function(strict, opt) {
         return new SAXParser(strict, opt);
@@ -82290,9 +82290,9 @@ var require_sax = __commonJS({
   }
 });
 
-// node_modules/xml2js/lib/bom.js
+// api-server/node_modules/xml2js/lib/bom.js
 var require_bom = __commonJS({
-  "node_modules/xml2js/lib/bom.js"(exports2) {
+  "api-server/node_modules/xml2js/lib/bom.js"(exports2) {
     (function() {
       "use strict";
       exports2.stripBOM = function(str2) {
@@ -82306,9 +82306,9 @@ var require_bom = __commonJS({
   }
 });
 
-// node_modules/xml2js/lib/processors.js
+// api-server/node_modules/xml2js/lib/processors.js
 var require_processors = __commonJS({
-  "node_modules/xml2js/lib/processors.js"(exports2) {
+  "api-server/node_modules/xml2js/lib/processors.js"(exports2) {
     (function() {
       "use strict";
       var prefixMatch;
@@ -82338,9 +82338,9 @@ var require_processors = __commonJS({
   }
 });
 
-// node_modules/xml2js/lib/parser.js
+// api-server/node_modules/xml2js/lib/parser.js
 var require_parser3 = __commonJS({
-  "node_modules/xml2js/lib/parser.js"(exports2) {
+  "api-server/node_modules/xml2js/lib/parser.js"(exports2) {
     (function() {
       "use strict";
       var bom, defaults3, events, isEmpty, processItem, processors, sax, setImmediate2, bind = function(fn2, me3) {
@@ -82720,9 +82720,9 @@ var require_parser3 = __commonJS({
   }
 });
 
-// node_modules/xml2js/lib/xml2js.js
+// api-server/node_modules/xml2js/lib/xml2js.js
 var require_xml2js = __commonJS({
-  "node_modules/xml2js/lib/xml2js.js"(exports2) {
+  "api-server/node_modules/xml2js/lib/xml2js.js"(exports2) {
     (function() {
       "use strict";
       var builder, defaults3, parser, processors, extend = function(child, parent) {
@@ -82758,9 +82758,9 @@ var require_xml2js = __commonJS({
   }
 });
 
-// node_modules/parse-bmfont-xml/lib/parse-attribs.js
+// api-server/node_modules/parse-bmfont-xml/lib/parse-attribs.js
 var require_parse_attribs = __commonJS({
-  "node_modules/parse-bmfont-xml/lib/parse-attribs.js"(exports2, module2) {
+  "api-server/node_modules/parse-bmfont-xml/lib/parse-attribs.js"(exports2, module2) {
     var GLYPH_DESIGNER_ERROR = "chasrset";
     module2.exports = function parseAttributes(obj) {
       obj = Object.assign({}, obj);
@@ -82786,9 +82786,9 @@ var require_parse_attribs = __commonJS({
   }
 });
 
-// node_modules/parse-bmfont-xml/lib/index.js
+// api-server/node_modules/parse-bmfont-xml/lib/index.js
 var require_lib4 = __commonJS({
-  "node_modules/parse-bmfont-xml/lib/index.js"(exports2, module2) {
+  "api-server/node_modules/parse-bmfont-xml/lib/index.js"(exports2, module2) {
     var xml2js = require_xml2js();
     var parseAttributes = require_parse_attribs();
     module2.exports = function parseBMFontXML(data) {
@@ -82832,9 +82832,9 @@ var require_lib4 = __commonJS({
   }
 });
 
-// node_modules/parse-bmfont-binary/index.js
+// api-server/node_modules/parse-bmfont-binary/index.js
 var require_parse_bmfont_binary = __commonJS({
-  "node_modules/parse-bmfont-binary/index.js"(exports2, module2) {
+  "api-server/node_modules/parse-bmfont-binary/index.js"(exports2, module2) {
     var HEADER2 = [66, 77, 70];
     module2.exports = function readBMFontBinary(buf) {
       if (buf.length < 6)
@@ -82978,9 +82978,9 @@ var require_parse_bmfont_binary = __commonJS({
   }
 });
 
-// node_modules/pixelmatch/index.js
+// api-server/node_modules/pixelmatch/index.js
 var require_pixelmatch = __commonJS({
-  "node_modules/pixelmatch/index.js"(exports2, module2) {
+  "api-server/node_modules/pixelmatch/index.js"(exports2, module2) {
     "use strict";
     module2.exports = pixelmatch;
     var defaultOptions = {
@@ -83154,7 +83154,7 @@ var require_pixelmatch = __commonJS({
   }
 });
 
-// src/services/learningPairFilter.ts
+// api-server/src/services/learningPairFilter.ts
 function isUsefulLearningPair(pair) {
   const user = pair.user_message?.trim() ?? "";
   const resp = pair.suggested_response?.trim() ?? "";
@@ -83170,14 +83170,14 @@ function isUsefulLearningPair(pair) {
   return true;
 }
 var init_learningPairFilter = __esm({
-  "src/services/learningPairFilter.ts"() {
+  "api-server/src/services/learningPairFilter.ts"() {
     "use strict";
   }
 });
 
-// ../lib/db/node_modules/postgres-array/index.js
+// lib/db/node_modules/postgres-array/index.js
 var require_postgres_array = __commonJS({
-  "../lib/db/node_modules/postgres-array/index.js"(exports2) {
+  "lib/db/node_modules/postgres-array/index.js"(exports2) {
     "use strict";
     exports2.parse = function(source, transform) {
       return new ArrayParser(source, transform).parse();
@@ -83269,9 +83269,9 @@ var require_postgres_array = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-types/lib/arrayParser.js
+// lib/db/node_modules/pg-types/lib/arrayParser.js
 var require_arrayParser = __commonJS({
-  "../lib/db/node_modules/pg-types/lib/arrayParser.js"(exports2, module2) {
+  "lib/db/node_modules/pg-types/lib/arrayParser.js"(exports2, module2) {
     var array = require_postgres_array();
     module2.exports = {
       create: function(source, transform) {
@@ -83285,9 +83285,9 @@ var require_arrayParser = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/postgres-date/index.js
+// lib/db/node_modules/postgres-date/index.js
 var require_postgres_date = __commonJS({
-  "../lib/db/node_modules/postgres-date/index.js"(exports2, module2) {
+  "lib/db/node_modules/postgres-date/index.js"(exports2, module2) {
     "use strict";
     var DATE_TIME = /(\d{1,})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(\.\d{1,})?.*?( BC)?$/;
     var DATE = /^(\d{1,})-(\d{2})-(\d{2})( BC)?$/;
@@ -83372,9 +83372,9 @@ var require_postgres_date = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/xtend/mutable.js
+// lib/db/node_modules/xtend/mutable.js
 var require_mutable = __commonJS({
-  "../lib/db/node_modules/xtend/mutable.js"(exports2, module2) {
+  "lib/db/node_modules/xtend/mutable.js"(exports2, module2) {
     module2.exports = extend;
     var hasOwnProperty = Object.prototype.hasOwnProperty;
     function extend(target) {
@@ -83391,9 +83391,9 @@ var require_mutable = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/postgres-interval/index.js
+// lib/db/node_modules/postgres-interval/index.js
 var require_postgres_interval = __commonJS({
-  "../lib/db/node_modules/postgres-interval/index.js"(exports2, module2) {
+  "lib/db/node_modules/postgres-interval/index.js"(exports2, module2) {
     "use strict";
     var extend = require_mutable();
     module2.exports = PostgresInterval;
@@ -83482,9 +83482,9 @@ var require_postgres_interval = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/postgres-bytea/index.js
+// lib/db/node_modules/postgres-bytea/index.js
 var require_postgres_bytea = __commonJS({
-  "../lib/db/node_modules/postgres-bytea/index.js"(exports2, module2) {
+  "lib/db/node_modules/postgres-bytea/index.js"(exports2, module2) {
     "use strict";
     var bufferFrom = Buffer.from || Buffer;
     module2.exports = function parseBytea(input) {
@@ -83518,9 +83518,9 @@ var require_postgres_bytea = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-types/lib/textParsers.js
+// lib/db/node_modules/pg-types/lib/textParsers.js
 var require_textParsers = __commonJS({
-  "../lib/db/node_modules/pg-types/lib/textParsers.js"(exports2, module2) {
+  "lib/db/node_modules/pg-types/lib/textParsers.js"(exports2, module2) {
     var array = require_postgres_array();
     var arrayParser = require_arrayParser();
     var parseDate = require_postgres_date();
@@ -83718,9 +83718,9 @@ var require_textParsers = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-int8/index.js
+// lib/db/node_modules/pg-int8/index.js
 var require_pg_int8 = __commonJS({
-  "../lib/db/node_modules/pg-int8/index.js"(exports2, module2) {
+  "lib/db/node_modules/pg-int8/index.js"(exports2, module2) {
     "use strict";
     var BASE = 1e6;
     function readInt8(buffer) {
@@ -83798,9 +83798,9 @@ var require_pg_int8 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-types/lib/binaryParsers.js
+// lib/db/node_modules/pg-types/lib/binaryParsers.js
 var require_binaryParsers = __commonJS({
-  "../lib/db/node_modules/pg-types/lib/binaryParsers.js"(exports2, module2) {
+  "lib/db/node_modules/pg-types/lib/binaryParsers.js"(exports2, module2) {
     var parseInt64 = require_pg_int8();
     var parseBits = function(data, bits, offset, invert, callback) {
       offset = offset || 0;
@@ -83998,9 +83998,9 @@ var require_binaryParsers = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-types/lib/builtins.js
+// lib/db/node_modules/pg-types/lib/builtins.js
 var require_builtins = __commonJS({
-  "../lib/db/node_modules/pg-types/lib/builtins.js"(exports2, module2) {
+  "lib/db/node_modules/pg-types/lib/builtins.js"(exports2, module2) {
     module2.exports = {
       BOOL: 16,
       BYTEA: 17,
@@ -84066,9 +84066,9 @@ var require_builtins = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-types/index.js
+// lib/db/node_modules/pg-types/index.js
 var require_pg_types = __commonJS({
-  "../lib/db/node_modules/pg-types/index.js"(exports2) {
+  "lib/db/node_modules/pg-types/index.js"(exports2) {
     var textParsers = require_textParsers();
     var binaryParsers = require_binaryParsers();
     var arrayParser = require_arrayParser();
@@ -84107,9 +84107,9 @@ var require_pg_types = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/defaults.js
+// lib/db/node_modules/pg/lib/defaults.js
 var require_defaults2 = __commonJS({
-  "../lib/db/node_modules/pg/lib/defaults.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/defaults.js"(exports2, module2) {
     "use strict";
     var user;
     try {
@@ -84176,9 +84176,9 @@ var require_defaults2 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/utils.js
+// lib/db/node_modules/pg/lib/utils.js
 var require_utils = __commonJS({
-  "../lib/db/node_modules/pg/lib/utils.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/utils.js"(exports2, module2) {
     "use strict";
     var defaults3 = require_defaults2();
     var { isDate } = __require("util/types");
@@ -84324,9 +84324,9 @@ var require_utils = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/crypto/utils.js
+// lib/db/node_modules/pg/lib/crypto/utils.js
 var require_utils2 = __commonJS({
-  "../lib/db/node_modules/pg/lib/crypto/utils.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/crypto/utils.js"(exports2, module2) {
     var nodeCrypto = __require("crypto");
     module2.exports = {
       postgresMd5PasswordHash,
@@ -84375,9 +84375,9 @@ var require_utils2 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/crypto/cert-signatures.js
+// lib/db/node_modules/pg/lib/crypto/cert-signatures.js
 var require_cert_signatures = __commonJS({
-  "../lib/db/node_modules/pg/lib/crypto/cert-signatures.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/crypto/cert-signatures.js"(exports2, module2) {
     function x509Error(msg, cert) {
       return new Error("SASL channel binding: " + msg + " when parsing public certificate " + cert.toString("base64"));
     }
@@ -84488,9 +84488,9 @@ var require_cert_signatures = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/crypto/sasl.js
+// lib/db/node_modules/pg/lib/crypto/sasl.js
 var require_sasl = __commonJS({
-  "../lib/db/node_modules/pg/lib/crypto/sasl.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/crypto/sasl.js"(exports2, module2) {
     "use strict";
     var crypto2 = require_utils2();
     var { signatureAlgorithmHashFromCertificate } = require_cert_signatures();
@@ -84673,9 +84673,9 @@ var require_sasl = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/type-overrides.js
+// lib/db/node_modules/pg/lib/type-overrides.js
 var require_type_overrides = __commonJS({
-  "../lib/db/node_modules/pg/lib/type-overrides.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/type-overrides.js"(exports2, module2) {
     "use strict";
     var types5 = require_pg_types();
     function TypeOverrides2(userTypes) {
@@ -84708,9 +84708,9 @@ var require_type_overrides = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-connection-string/index.js
+// lib/db/node_modules/pg-connection-string/index.js
 var require_pg_connection_string = __commonJS({
-  "../lib/db/node_modules/pg-connection-string/index.js"(exports2, module2) {
+  "lib/db/node_modules/pg-connection-string/index.js"(exports2, module2) {
     "use strict";
     function parse(str2, options = {}) {
       if (str2.charAt(0) === "/") {
@@ -84896,9 +84896,9 @@ See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode de
   }
 });
 
-// ../lib/db/node_modules/pg/lib/connection-parameters.js
+// lib/db/node_modules/pg/lib/connection-parameters.js
 var require_connection_parameters = __commonJS({
-  "../lib/db/node_modules/pg/lib/connection-parameters.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/connection-parameters.js"(exports2, module2) {
     "use strict";
     var dns = __require("dns");
     var defaults3 = require_defaults2();
@@ -85047,9 +85047,9 @@ var require_connection_parameters = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/result.js
+// lib/db/node_modules/pg/lib/result.js
 var require_result = __commonJS({
-  "../lib/db/node_modules/pg/lib/result.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/result.js"(exports2, module2) {
     "use strict";
     var types5 = require_pg_types();
     var matchRegexp = /^([A-Za-z]+)(?: (\d+))?(?: (\d+))?/;
@@ -85138,9 +85138,9 @@ var require_result = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/query.js
+// lib/db/node_modules/pg/lib/query.js
 var require_query = __commonJS({
-  "../lib/db/node_modules/pg/lib/query.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/query.js"(exports2, module2) {
     "use strict";
     var { EventEmitter } = __require("events");
     var Result2 = require_result();
@@ -85337,9 +85337,9 @@ var require_query = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-protocol/dist/messages.js
+// lib/db/node_modules/pg-protocol/dist/messages.js
 var require_messages2 = __commonJS({
-  "../lib/db/node_modules/pg-protocol/dist/messages.js"(exports2) {
+  "lib/db/node_modules/pg-protocol/dist/messages.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.NoticeMessage = exports2.DataRowMessage = exports2.CommandCompleteMessage = exports2.ReadyForQueryMessage = exports2.NotificationResponseMessage = exports2.BackendKeyDataMessage = exports2.AuthenticationMD5Password = exports2.ParameterStatusMessage = exports2.ParameterDescriptionMessage = exports2.RowDescriptionMessage = exports2.Field = exports2.CopyResponse = exports2.CopyDataMessage = exports2.DatabaseError = exports2.copyDone = exports2.emptyQuery = exports2.replicationStart = exports2.portalSuspended = exports2.noData = exports2.closeComplete = exports2.bindComplete = exports2.parseComplete = void 0;
@@ -85502,9 +85502,9 @@ var require_messages2 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-protocol/dist/buffer-writer.js
+// lib/db/node_modules/pg-protocol/dist/buffer-writer.js
 var require_buffer_writer = __commonJS({
-  "../lib/db/node_modules/pg-protocol/dist/buffer-writer.js"(exports2) {
+  "lib/db/node_modules/pg-protocol/dist/buffer-writer.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Writer = void 0;
@@ -85606,9 +85606,9 @@ var require_buffer_writer = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-protocol/dist/serializer.js
+// lib/db/node_modules/pg-protocol/dist/serializer.js
 var require_serializer = __commonJS({
-  "../lib/db/node_modules/pg-protocol/dist/serializer.js"(exports2) {
+  "lib/db/node_modules/pg-protocol/dist/serializer.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.serialize = void 0;
@@ -85828,9 +85828,9 @@ var require_serializer = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-protocol/dist/buffer-reader.js
+// lib/db/node_modules/pg-protocol/dist/buffer-reader.js
 var require_buffer_reader = __commonJS({
-  "../lib/db/node_modules/pg-protocol/dist/buffer-reader.js"(exports2) {
+  "lib/db/node_modules/pg-protocol/dist/buffer-reader.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.BufferReader = void 0;
@@ -85887,9 +85887,9 @@ var require_buffer_reader = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-protocol/dist/parser.js
+// lib/db/node_modules/pg-protocol/dist/parser.js
 var require_parser4 = __commonJS({
-  "../lib/db/node_modules/pg-protocol/dist/parser.js"(exports2) {
+  "lib/db/node_modules/pg-protocol/dist/parser.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Parser = void 0;
@@ -86194,9 +86194,9 @@ var require_parser4 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-protocol/dist/index.js
+// lib/db/node_modules/pg-protocol/dist/index.js
 var require_dist3 = __commonJS({
-  "../lib/db/node_modules/pg-protocol/dist/index.js"(exports2) {
+  "lib/db/node_modules/pg-protocol/dist/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.DatabaseError = exports2.serialize = void 0;
@@ -86218,18 +86218,18 @@ var require_dist3 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-cloudflare/dist/empty.js
+// lib/db/node_modules/pg-cloudflare/dist/empty.js
 var require_empty = __commonJS({
-  "../lib/db/node_modules/pg-cloudflare/dist/empty.js"(exports2) {
+  "lib/db/node_modules/pg-cloudflare/dist/empty.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.default = {};
   }
 });
 
-// ../lib/db/node_modules/pg/lib/stream.js
+// lib/db/node_modules/pg/lib/stream.js
 var require_stream2 = __commonJS({
-  "../lib/db/node_modules/pg/lib/stream.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/stream.js"(exports2, module2) {
     var { getStream, getSecureStream } = getStreamFuncs();
     module2.exports = {
       /**
@@ -86293,9 +86293,9 @@ var require_stream2 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/connection.js
+// lib/db/node_modules/pg/lib/connection.js
 var require_connection = __commonJS({
-  "../lib/db/node_modules/pg/lib/connection.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/connection.js"(exports2, module2) {
     "use strict";
     var EventEmitter = __require("events").EventEmitter;
     var { parse, serialize } = require_dist3();
@@ -86490,9 +86490,9 @@ var require_connection = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/split2/index.js
+// lib/db/node_modules/split2/index.js
 var require_split2 = __commonJS({
-  "../lib/db/node_modules/split2/index.js"(exports2, module2) {
+  "lib/db/node_modules/split2/index.js"(exports2, module2) {
     "use strict";
     var { Transform } = __require("stream");
     var { StringDecoder } = __require("string_decoder");
@@ -86591,9 +86591,9 @@ var require_split2 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pgpass/lib/helper.js
+// lib/db/node_modules/pgpass/lib/helper.js
 var require_helper = __commonJS({
-  "../lib/db/node_modules/pgpass/lib/helper.js"(exports2, module2) {
+  "lib/db/node_modules/pgpass/lib/helper.js"(exports2, module2) {
     "use strict";
     var path7 = __require("path");
     var Stream5 = __require("stream").Stream;
@@ -86762,9 +86762,9 @@ var require_helper = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pgpass/lib/index.js
+// lib/db/node_modules/pgpass/lib/index.js
 var require_lib5 = __commonJS({
-  "../lib/db/node_modules/pgpass/lib/index.js"(exports2, module2) {
+  "lib/db/node_modules/pgpass/lib/index.js"(exports2, module2) {
     "use strict";
     var path7 = __require("path");
     var fs6 = __require("fs");
@@ -86783,9 +86783,9 @@ var require_lib5 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/client.js
+// lib/db/node_modules/pg/lib/client.js
 var require_client = __commonJS({
-  "../lib/db/node_modules/pg/lib/client.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/client.js"(exports2, module2) {
     var EventEmitter = __require("events").EventEmitter;
     var utils2 = require_utils();
     var nodeUtils = __require("util");
@@ -87425,9 +87425,9 @@ var require_client = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-pool/index.js
+// lib/db/node_modules/pg-pool/index.js
 var require_pg_pool = __commonJS({
-  "../lib/db/node_modules/pg-pool/index.js"(exports2, module2) {
+  "lib/db/node_modules/pg-pool/index.js"(exports2, module2) {
     "use strict";
     var EventEmitter = __require("events").EventEmitter;
     var NOOP = function() {
@@ -87851,9 +87851,9 @@ var require_pg_pool = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/native/query.js
+// lib/db/node_modules/pg/lib/native/query.js
 var require_query2 = __commonJS({
-  "../lib/db/node_modules/pg/lib/native/query.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/native/query.js"(exports2, module2) {
     "use strict";
     var EventEmitter = __require("events").EventEmitter;
     var util2 = __require("util");
@@ -87992,9 +87992,9 @@ var require_query2 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/native/client.js
+// lib/db/node_modules/pg/lib/native/client.js
 var require_client2 = __commonJS({
-  "../lib/db/node_modules/pg/lib/native/client.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/native/client.js"(exports2, module2) {
     var nodeUtils = __require("util");
     var Native;
     try {
@@ -88251,17 +88251,17 @@ var require_client2 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/native/index.js
+// lib/db/node_modules/pg/lib/native/index.js
 var require_native = __commonJS({
-  "../lib/db/node_modules/pg/lib/native/index.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/native/index.js"(exports2, module2) {
     "use strict";
     module2.exports = require_client2();
   }
 });
 
-// ../lib/db/node_modules/pg/lib/index.js
+// lib/db/node_modules/pg/lib/index.js
 var require_lib6 = __commonJS({
-  "../lib/db/node_modules/pg/lib/index.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/index.js"(exports2, module2) {
     "use strict";
     var Client2 = require_client();
     var defaults3 = require_defaults2();
@@ -88325,10 +88325,10 @@ var require_lib6 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/esm/index.mjs
+// lib/db/node_modules/pg/esm/index.mjs
 var import_lib, Client, Pool, Connection, types3, Query, DatabaseError, escapeIdentifier, escapeLiteral, Result, TypeOverrides, defaults2, esm_default;
 var init_esm = __esm({
-  "../lib/db/node_modules/pg/esm/index.mjs"() {
+  "lib/db/node_modules/pg/esm/index.mjs"() {
     import_lib = __toESM(require_lib6(), 1);
     Client = import_lib.default.Client;
     Pool = import_lib.default.Pool;
@@ -88345,7 +88345,7 @@ var init_esm = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/entity.js
+// lib/db/node_modules/drizzle-orm/entity.js
 function is(value, type) {
   if (!value || typeof value !== "object") {
     return false;
@@ -88371,15 +88371,15 @@ function is(value, type) {
 }
 var entityKind;
 var init_entity = __esm({
-  "../lib/db/node_modules/drizzle-orm/entity.js"() {
+  "lib/db/node_modules/drizzle-orm/entity.js"() {
     entityKind = /* @__PURE__ */ Symbol.for("drizzle:entityKind");
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/logger.js
+// lib/db/node_modules/drizzle-orm/logger.js
 var ConsoleLogWriter, DefaultLogger, NoopLogger;
 var init_logger = __esm({
-  "../lib/db/node_modules/drizzle-orm/logger.js"() {
+  "lib/db/node_modules/drizzle-orm/logger.js"() {
     init_entity();
     ConsoleLogWriter = class {
       static [entityKind] = "ConsoleLogWriter";
@@ -88413,10 +88413,10 @@ var init_logger = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/query-promise.js
+// lib/db/node_modules/drizzle-orm/query-promise.js
 var QueryPromise;
 var init_query_promise = __esm({
-  "../lib/db/node_modules/drizzle-orm/query-promise.js"() {
+  "lib/db/node_modules/drizzle-orm/query-promise.js"() {
     init_entity();
     QueryPromise = class {
       static [entityKind] = "QueryPromise";
@@ -88443,10 +88443,10 @@ var init_query_promise = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/column.js
+// lib/db/node_modules/drizzle-orm/column.js
 var Column;
 var init_column = __esm({
-  "../lib/db/node_modules/drizzle-orm/column.js"() {
+  "lib/db/node_modules/drizzle-orm/column.js"() {
     init_entity();
     Column = class {
       constructor(table, config) {
@@ -88500,10 +88500,10 @@ var init_column = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/column-builder.js
+// lib/db/node_modules/drizzle-orm/column-builder.js
 var ColumnBuilder;
 var init_column_builder = __esm({
-  "../lib/db/node_modules/drizzle-orm/column-builder.js"() {
+  "lib/db/node_modules/drizzle-orm/column-builder.js"() {
     init_entity();
     ColumnBuilder = class {
       static [entityKind] = "ColumnBuilder";
@@ -88609,18 +88609,18 @@ var init_column_builder = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/table.utils.js
+// lib/db/node_modules/drizzle-orm/table.utils.js
 var TableName;
 var init_table_utils = __esm({
-  "../lib/db/node_modules/drizzle-orm/table.utils.js"() {
+  "lib/db/node_modules/drizzle-orm/table.utils.js"() {
     TableName = /* @__PURE__ */ Symbol.for("drizzle:Name");
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/foreign-keys.js
+// lib/db/node_modules/drizzle-orm/pg-core/foreign-keys.js
 var ForeignKeyBuilder, ForeignKey;
 var init_foreign_keys = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/foreign-keys.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/foreign-keys.js"() {
     init_entity();
     init_table_utils();
     ForeignKeyBuilder = class {
@@ -88681,22 +88681,22 @@ var init_foreign_keys = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/tracing-utils.js
+// lib/db/node_modules/drizzle-orm/tracing-utils.js
 function iife(fn2, ...args2) {
   return fn2(...args2);
 }
 var init_tracing_utils = __esm({
-  "../lib/db/node_modules/drizzle-orm/tracing-utils.js"() {
+  "lib/db/node_modules/drizzle-orm/tracing-utils.js"() {
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/unique-constraint.js
+// lib/db/node_modules/drizzle-orm/pg-core/unique-constraint.js
 function uniqueKeyName(table, columns) {
   return `${table[TableName]}_${columns.join("_")}_unique`;
 }
 var UniqueConstraintBuilder, UniqueOnConstraintBuilder, UniqueConstraint;
 var init_unique_constraint = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/unique-constraint.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/unique-constraint.js"() {
     init_entity();
     init_table_utils();
     UniqueConstraintBuilder = class {
@@ -88747,7 +88747,7 @@ var init_unique_constraint = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/utils/array.js
+// lib/db/node_modules/drizzle-orm/pg-core/utils/array.js
 function parsePgArrayValue(arrayString, startFrom, inQuotes) {
   for (let i5 = startFrom; i5 < arrayString.length; i5++) {
     const char2 = arrayString[i5];
@@ -88823,14 +88823,14 @@ function makePgArray(array) {
   }).join(",")}}`;
 }
 var init_array = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/utils/array.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/utils/array.js"() {
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/common.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/common.js
 var PgColumnBuilder, PgColumn, ExtraConfigColumn, IndexedColumn, PgArrayBuilder, PgArray;
 var init_common = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/common.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/common.js"() {
     init_column_builder();
     init_column();
     init_entity();
@@ -89023,7 +89023,7 @@ var init_common = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/enum.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/enum.js
 function isPgEnum(obj) {
   return !!obj && typeof obj === "function" && isPgEnumSym in obj && obj[isPgEnumSym] === true;
 }
@@ -89053,7 +89053,7 @@ function pgEnumObjectWithSchema(enumName, values, schema) {
 }
 var PgEnumObjectColumnBuilder, PgEnumObjectColumn, isPgEnumSym, PgEnumColumnBuilder, PgEnumColumn;
 var init_enum = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/enum.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/enum.js"() {
     init_entity();
     init_common();
     PgEnumObjectColumnBuilder = class extends PgColumnBuilder {
@@ -89112,10 +89112,10 @@ var init_enum = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/subquery.js
+// lib/db/node_modules/drizzle-orm/subquery.js
 var Subquery, WithSubquery;
 var init_subquery = __esm({
-  "../lib/db/node_modules/drizzle-orm/subquery.js"() {
+  "lib/db/node_modules/drizzle-orm/subquery.js"() {
     init_entity();
     Subquery = class {
       static [entityKind] = "Subquery";
@@ -89139,18 +89139,18 @@ var init_subquery = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/version.js
+// lib/db/node_modules/drizzle-orm/version.js
 var version;
 var init_version2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/version.js"() {
+  "lib/db/node_modules/drizzle-orm/version.js"() {
     version = "0.45.2";
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/tracing.js
+// lib/db/node_modules/drizzle-orm/tracing.js
 var otel, rawTracer, tracer;
 var init_tracing = __esm({
-  "../lib/db/node_modules/drizzle-orm/tracing.js"() {
+  "lib/db/node_modules/drizzle-orm/tracing.js"() {
     init_tracing_utils();
     init_version2();
     tracer = {
@@ -89187,15 +89187,15 @@ var init_tracing = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/view-common.js
+// lib/db/node_modules/drizzle-orm/view-common.js
 var ViewBaseConfig;
 var init_view_common = __esm({
-  "../lib/db/node_modules/drizzle-orm/view-common.js"() {
+  "lib/db/node_modules/drizzle-orm/view-common.js"() {
     ViewBaseConfig = /* @__PURE__ */ Symbol.for("drizzle:ViewBaseConfig");
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/table.js
+// lib/db/node_modules/drizzle-orm/table.js
 function getTableName(table) {
   return table[TableName];
 }
@@ -89204,7 +89204,7 @@ function getTableUniqueName(table) {
 }
 var Schema, Columns, ExtraConfigColumns, OriginalName, BaseName, IsAlias, ExtraConfigBuilder, IsDrizzleTable, Table;
 var init_table = __esm({
-  "../lib/db/node_modules/drizzle-orm/table.js"() {
+  "lib/db/node_modules/drizzle-orm/table.js"() {
     init_entity();
     init_table_utils();
     Schema = /* @__PURE__ */ Symbol.for("drizzle:Schema");
@@ -89264,7 +89264,7 @@ var init_table = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/sql/sql.js
+// lib/db/node_modules/drizzle-orm/sql/sql.js
 function isSQLWrapper(value) {
   return value !== null && value !== void 0 && typeof value.getSQL === "function";
 }
@@ -89314,7 +89314,7 @@ function fillPlaceholders(params, values) {
 }
 var FakePrimitiveParam, StringChunk, SQL, Name, noopDecoder, noopEncoder, noopMapper, Param, Placeholder, IsDrizzleView, View;
 var init_sql = __esm({
-  "../lib/db/node_modules/drizzle-orm/sql/sql.js"() {
+  "lib/db/node_modules/drizzle-orm/sql/sql.js"() {
     init_entity();
     init_enum();
     init_subquery();
@@ -89670,7 +89670,7 @@ var init_sql = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/alias.js
+// lib/db/node_modules/drizzle-orm/alias.js
 function aliasedTable(table, tableAlias) {
   return new Proxy(table, new TableAliasProxyHandler(tableAlias, false));
 }
@@ -89699,7 +89699,7 @@ function mapColumnsInSQLToAlias(query, alias) {
 }
 var ColumnAliasProxyHandler, TableAliasProxyHandler, RelationTableAliasProxyHandler;
 var init_alias = __esm({
-  "../lib/db/node_modules/drizzle-orm/alias.js"() {
+  "lib/db/node_modules/drizzle-orm/alias.js"() {
     init_column();
     init_entity();
     init_sql();
@@ -89776,10 +89776,10 @@ var init_alias = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/selection-proxy.js
+// lib/db/node_modules/drizzle-orm/selection-proxy.js
 var SelectionProxyHandler;
 var init_selection_proxy = __esm({
-  "../lib/db/node_modules/drizzle-orm/selection-proxy.js"() {
+  "lib/db/node_modules/drizzle-orm/selection-proxy.js"() {
     init_alias();
     init_column();
     init_entity();
@@ -89855,7 +89855,7 @@ var init_selection_proxy = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/utils.js
+// lib/db/node_modules/drizzle-orm/utils.js
 function mapResultRow(columns, row, joinsNotNullableMap) {
   const nullifyMap = {};
   const result = columns.reduce(
@@ -90006,7 +90006,7 @@ function isConfig(data) {
 }
 var textDecoder;
 var init_utils3 = __esm({
-  "../lib/db/node_modules/drizzle-orm/utils.js"() {
+  "lib/db/node_modules/drizzle-orm/utils.js"() {
     init_column();
     init_entity();
     init_sql();
@@ -90017,10 +90017,10 @@ var init_utils3 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/int.common.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/int.common.js
 var PgIntColumnBaseBuilder;
 var init_int_common = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/int.common.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/int.common.js"() {
     init_entity();
     init_common();
     PgIntColumnBaseBuilder = class extends PgColumnBuilder {
@@ -90063,7 +90063,7 @@ var init_int_common = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/bigint.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/bigint.js
 function bigint(a3, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   if (config.mode === "number") {
@@ -90073,7 +90073,7 @@ function bigint(a3, b4) {
 }
 var PgBigInt53Builder, PgBigInt53, PgBigInt64Builder, PgBigInt64;
 var init_bigint = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/bigint.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/bigint.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -90126,7 +90126,7 @@ var init_bigint = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/bigserial.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/bigserial.js
 function bigserial(a3, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   if (config.mode === "number") {
@@ -90136,7 +90136,7 @@ function bigserial(a3, b4) {
 }
 var PgBigSerial53Builder, PgBigSerial53, PgBigSerial64Builder, PgBigSerial64;
 var init_bigserial = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/bigserial.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/bigserial.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -90194,13 +90194,13 @@ var init_bigserial = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/boolean.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/boolean.js
 function boolean(name2) {
   return new PgBooleanBuilder(name2 ?? "");
 }
 var PgBooleanBuilder, PgBoolean;
 var init_boolean = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/boolean.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/boolean.js"() {
     init_entity();
     init_common();
     PgBooleanBuilder = class extends PgColumnBuilder {
@@ -90222,14 +90222,14 @@ var init_boolean = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/char.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/char.js
 function char(a3, b4 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   return new PgCharBuilder(name2, config);
 }
 var PgCharBuilder, PgChar;
 var init_char = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/char.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/char.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -90259,13 +90259,13 @@ var init_char = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/cidr.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/cidr.js
 function cidr(name2) {
   return new PgCidrBuilder(name2 ?? "");
 }
 var PgCidrBuilder, PgCidr;
 var init_cidr = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/cidr.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/cidr.js"() {
     init_entity();
     init_common();
     PgCidrBuilder = class extends PgColumnBuilder {
@@ -90287,7 +90287,7 @@ var init_cidr = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/custom.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/custom.js
 function customType(customTypeParams) {
   return (a3, b4) => {
     const { name: name2, config } = getColumnNameAndConfig(a3, b4);
@@ -90296,7 +90296,7 @@ function customType(customTypeParams) {
 }
 var PgCustomColumnBuilder, PgCustomColumn;
 var init_custom = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/custom.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/custom.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -90339,10 +90339,10 @@ var init_custom = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/date.common.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/date.common.js
 var PgDateColumnBaseBuilder;
 var init_date_common = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/date.common.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/date.common.js"() {
     init_entity();
     init_sql();
     init_common();
@@ -90355,7 +90355,7 @@ var init_date_common = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/date.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/date.js
 function date(a3, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   if (config?.mode === "date") {
@@ -90365,7 +90365,7 @@ function date(a3, b4) {
 }
 var PgDateBuilder, PgDate, PgDateStringBuilder, PgDateString;
 var init_date = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/date.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/date.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -90419,13 +90419,13 @@ var init_date = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/double-precision.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/double-precision.js
 function doublePrecision(name2) {
   return new PgDoublePrecisionBuilder(name2 ?? "");
 }
 var PgDoublePrecisionBuilder, PgDoublePrecision;
 var init_double_precision = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/double-precision.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/double-precision.js"() {
     init_entity();
     init_common();
     PgDoublePrecisionBuilder = class extends PgColumnBuilder {
@@ -90456,13 +90456,13 @@ var init_double_precision = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/inet.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/inet.js
 function inet(name2) {
   return new PgInetBuilder(name2 ?? "");
 }
 var PgInetBuilder, PgInet;
 var init_inet = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/inet.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/inet.js"() {
     init_entity();
     init_common();
     PgInetBuilder = class extends PgColumnBuilder {
@@ -90484,13 +90484,13 @@ var init_inet = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/integer.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/integer.js
 function integer(name2) {
   return new PgIntegerBuilder(name2 ?? "");
 }
 var PgIntegerBuilder, PgInteger;
 var init_integer = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/integer.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/integer.js"() {
     init_entity();
     init_common();
     init_int_common();
@@ -90519,14 +90519,14 @@ var init_integer = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/interval.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/interval.js
 function interval(a3, b4 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   return new PgIntervalBuilder(name2, config);
 }
 var PgIntervalBuilder, PgInterval;
 var init_interval = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/interval.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/interval.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -90554,13 +90554,13 @@ var init_interval = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/json.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/json.js
 function json2(name2) {
   return new PgJsonBuilder(name2 ?? "");
 }
 var PgJsonBuilder, PgJson;
 var init_json = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/json.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/json.js"() {
     init_entity();
     init_common();
     PgJsonBuilder = class extends PgColumnBuilder {
@@ -90598,13 +90598,13 @@ var init_json = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/jsonb.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/jsonb.js
 function jsonb(name2) {
   return new PgJsonbBuilder(name2 ?? "");
 }
 var PgJsonbBuilder, PgJsonb;
 var init_jsonb = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/jsonb.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/jsonb.js"() {
     init_entity();
     init_common();
     PgJsonbBuilder = class extends PgColumnBuilder {
@@ -90642,7 +90642,7 @@ var init_jsonb = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/line.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/line.js
 function line(a3, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   if (!config?.mode || config.mode === "tuple") {
@@ -90652,7 +90652,7 @@ function line(a3, b4) {
 }
 var PgLineBuilder, PgLineTuple, PgLineABCBuilder, PgLineABC;
 var init_line2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/line.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/line.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -90711,13 +90711,13 @@ var init_line2 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr.js
 function macaddr(name2) {
   return new PgMacaddrBuilder(name2 ?? "");
 }
 var PgMacaddrBuilder, PgMacaddr;
 var init_macaddr = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr.js"() {
     init_entity();
     init_common();
     PgMacaddrBuilder = class extends PgColumnBuilder {
@@ -90739,13 +90739,13 @@ var init_macaddr = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr8.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr8.js
 function macaddr8(name2) {
   return new PgMacaddr8Builder(name2 ?? "");
 }
 var PgMacaddr8Builder, PgMacaddr8;
 var init_macaddr8 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr8.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr8.js"() {
     init_entity();
     init_common();
     PgMacaddr8Builder = class extends PgColumnBuilder {
@@ -90767,7 +90767,7 @@ var init_macaddr8 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/numeric.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/numeric.js
 function numeric(a3, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   const mode = config?.mode;
@@ -90775,7 +90775,7 @@ function numeric(a3, b4) {
 }
 var PgNumericBuilder, PgNumeric, PgNumericNumberBuilder, PgNumericNumber, PgNumericBigIntBuilder, PgNumericBigInt, decimal;
 var init_numeric = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/numeric.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/numeric.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -90893,7 +90893,7 @@ var init_numeric = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/point.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/point.js
 function point(a3, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   if (!config?.mode || config.mode === "tuple") {
@@ -90903,7 +90903,7 @@ function point(a3, b4) {
 }
 var PgPointTupleBuilder, PgPointTuple, PgPointObjectBuilder, PgPointObject;
 var init_point = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/point.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/point.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -90968,7 +90968,7 @@ var init_point = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js
 function hexToBytes(hex) {
   const bytes = [];
   for (let c4 = 0; c4 < hex.length; c4 += 2) {
@@ -91007,11 +91007,11 @@ function parseEWKB(hex) {
   throw new Error("Unsupported geometry type");
 }
 var init_utils4 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js"() {
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js
 function geometry(a3, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   if (!config?.mode || config.mode === "tuple") {
@@ -91021,7 +91021,7 @@ function geometry(a3, b4) {
 }
 var PgGeometryBuilder, PgGeometry, PgGeometryObjectBuilder, PgGeometryObject;
 var init_geometry = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -91080,13 +91080,13 @@ var init_geometry = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/real.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/real.js
 function real(name2) {
   return new PgRealBuilder(name2 ?? "");
 }
 var PgRealBuilder, PgReal;
 var init_real = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/real.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/real.js"() {
     init_entity();
     init_common();
     PgRealBuilder = class extends PgColumnBuilder {
@@ -91118,13 +91118,13 @@ var init_real = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/serial.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/serial.js
 function serial(name2) {
   return new PgSerialBuilder(name2 ?? "");
 }
 var PgSerialBuilder, PgSerial;
 var init_serial = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/serial.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/serial.js"() {
     init_entity();
     init_common();
     PgSerialBuilder = class extends PgColumnBuilder {
@@ -91148,13 +91148,13 @@ var init_serial = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/smallint.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/smallint.js
 function smallint(name2) {
   return new PgSmallIntBuilder(name2 ?? "");
 }
 var PgSmallIntBuilder, PgSmallInt;
 var init_smallint = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/smallint.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/smallint.js"() {
     init_entity();
     init_common();
     init_int_common();
@@ -91183,13 +91183,13 @@ var init_smallint = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/smallserial.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/smallserial.js
 function smallserial(name2) {
   return new PgSmallSerialBuilder(name2 ?? "");
 }
 var PgSmallSerialBuilder, PgSmallSerial;
 var init_smallserial = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/smallserial.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/smallserial.js"() {
     init_entity();
     init_common();
     PgSmallSerialBuilder = class extends PgColumnBuilder {
@@ -91216,14 +91216,14 @@ var init_smallserial = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/text.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/text.js
 function text(a3, b4 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   return new PgTextBuilder(name2, config);
 }
 var PgTextBuilder, PgText;
 var init_text = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/text.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/text.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -91248,14 +91248,14 @@ var init_text = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/time.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/time.js
 function time(a3, b4 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   return new PgTimeBuilder(name2, config.withTimezone ?? false, config.precision);
 }
 var PgTimeBuilder, PgTime;
 var init_time = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/time.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/time.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -91291,7 +91291,7 @@ var init_time = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/timestamp.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/timestamp.js
 function timestamp(a3, b4 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   if (config?.mode === "string") {
@@ -91301,7 +91301,7 @@ function timestamp(a3, b4 = {}) {
 }
 var PgTimestampBuilder, PgTimestamp, PgTimestampStringBuilder, PgTimestampString;
 var init_timestamp = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/timestamp.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/timestamp.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -91381,13 +91381,13 @@ var init_timestamp = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/uuid.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/uuid.js
 function uuid(name2) {
   return new PgUUIDBuilder(name2 ?? "");
 }
 var PgUUIDBuilder, PgUUID;
 var init_uuid2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/uuid.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/uuid.js"() {
     init_entity();
     init_sql();
     init_common();
@@ -91416,14 +91416,14 @@ var init_uuid2 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/varchar.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/varchar.js
 function varchar(a3, b4 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   return new PgVarcharBuilder(name2, config);
 }
 var PgVarcharBuilder, PgVarchar;
 var init_varchar = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/varchar.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/varchar.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -91453,14 +91453,14 @@ var init_varchar = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js
 function bit(a3, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   return new PgBinaryVectorBuilder(name2, config);
 }
 var PgBinaryVectorBuilder, PgBinaryVector;
 var init_bit = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -91488,14 +91488,14 @@ var init_bit = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js
 function halfvec(a3, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   return new PgHalfVectorBuilder(name2, config);
 }
 var PgHalfVectorBuilder, PgHalfVector;
 var init_halfvec = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -91529,14 +91529,14 @@ var init_halfvec = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js
 function sparsevec(a3, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   return new PgSparseVectorBuilder(name2, config);
 }
 var PgSparseVectorBuilder, PgSparseVector;
 var init_sparsevec = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -91564,14 +91564,14 @@ var init_sparsevec = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js
 function vector(a3, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a3, b4);
   return new PgVectorBuilder(name2, config);
 }
 var PgVectorBuilder, PgVector;
 var init_vector = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -91605,7 +91605,7 @@ var init_vector = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/all.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/all.js
 function getPgColumnBuilders() {
   return {
     bigint,
@@ -91643,7 +91643,7 @@ function getPgColumnBuilders() {
   };
 }
 var init_all = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/all.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/all.js"() {
     init_bigint();
     init_bigserial();
     init_boolean();
@@ -91679,7 +91679,7 @@ var init_all = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/table.js
+// lib/db/node_modules/drizzle-orm/pg-core/table.js
 function pgTableWithSchema(name2, columns, extraConfig, schema, baseName = name2) {
   const rawTable = new PgTable(name2, schema, baseName);
   const parsedColumns = typeof columns === "function" ? columns(getPgColumnBuilders()) : columns;
@@ -91715,7 +91715,7 @@ function pgTableWithSchema(name2, columns, extraConfig, schema, baseName = name2
 }
 var InlineForeignKeys, EnableRLS, PgTable, pgTable;
 var init_table2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/table.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/table.js"() {
     init_entity();
     init_table();
     init_all();
@@ -91743,10 +91743,10 @@ var init_table2 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/checks.js
+// lib/db/node_modules/drizzle-orm/pg-core/checks.js
 var CheckBuilder, Check;
 var init_checks = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/checks.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/checks.js"() {
     init_entity();
     CheckBuilder = class {
       constructor(name2, value) {
@@ -91773,9 +91773,9 @@ var init_checks = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/index.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/index.js
 var init_columns = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/index.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/index.js"() {
     init_bigint();
     init_bigserial();
     init_boolean();
@@ -91814,10 +91814,10 @@ var init_columns = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/indexes.js
+// lib/db/node_modules/drizzle-orm/pg-core/indexes.js
 var IndexBuilderOn, IndexBuilder, Index;
 var init_indexes = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/indexes.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/indexes.js"() {
     init_sql();
     init_entity();
     init_columns();
@@ -91928,10 +91928,10 @@ var init_indexes = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/policies.js
+// lib/db/node_modules/drizzle-orm/pg-core/policies.js
 var PgPolicy;
 var init_policies = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/policies.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/policies.js"() {
     init_entity();
     PgPolicy = class {
       constructor(name2, config) {
@@ -91960,10 +91960,10 @@ var init_policies = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/primary-keys.js
+// lib/db/node_modules/drizzle-orm/pg-core/primary-keys.js
 var PrimaryKeyBuilder, PrimaryKey;
 var init_primary_keys = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/primary-keys.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/primary-keys.js"() {
     init_entity();
     init_table2();
     PrimaryKeyBuilder = class {
@@ -91997,15 +91997,15 @@ var init_primary_keys = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/view-common.js
+// lib/db/node_modules/drizzle-orm/pg-core/view-common.js
 var PgViewConfig;
 var init_view_common2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/view-common.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/view-common.js"() {
     PgViewConfig = /* @__PURE__ */ Symbol.for("drizzle:PgViewConfig");
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/casing.js
+// lib/db/node_modules/drizzle-orm/casing.js
 function toSnakeCase(input) {
   const words = input.replace(/['\u2019]/g, "").match(/[\da-z]+|[A-Z]+(?![a-z])|[A-Z][\da-z]+/g) ?? [];
   return words.map((word) => word.toLowerCase()).join("_");
@@ -92022,7 +92022,7 @@ function noopCase(input) {
 }
 var CasingCache;
 var init_casing = __esm({
-  "../lib/db/node_modules/drizzle-orm/casing.js"() {
+  "lib/db/node_modules/drizzle-orm/casing.js"() {
     init_entity();
     init_table();
     CasingCache = class {
@@ -92064,10 +92064,10 @@ var init_casing = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/errors.js
+// lib/db/node_modules/drizzle-orm/errors.js
 var DrizzleError, DrizzleQueryError, TransactionRollbackError;
 var init_errors2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/errors.js"() {
+  "lib/db/node_modules/drizzle-orm/errors.js"() {
     init_entity();
     DrizzleError = class extends Error {
       static [entityKind] = "DrizzleError";
@@ -92097,7 +92097,7 @@ params: ${params}`);
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/sql/expressions/conditions.js
+// lib/db/node_modules/drizzle-orm/sql/expressions/conditions.js
 function bindIfParam(value, column) {
   if (isDriverValueEncoder(column) && !isSQLWrapper(value) && !is(value, Param) && !is(value, Placeholder) && !is(value, Column) && !is(value, Table) && !is(value, View)) {
     return new Param(value, column);
@@ -92195,7 +92195,7 @@ function notIlike(column, value) {
 }
 var eq, ne, gt2, gte, lt, lte;
 var init_conditions = __esm({
-  "../lib/db/node_modules/drizzle-orm/sql/expressions/conditions.js"() {
+  "lib/db/node_modules/drizzle-orm/sql/expressions/conditions.js"() {
     init_column();
     init_entity();
     init_table();
@@ -92221,7 +92221,7 @@ var init_conditions = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/sql/expressions/select.js
+// lib/db/node_modules/drizzle-orm/sql/expressions/select.js
 function asc(column) {
   return sql`${column} asc`;
 }
@@ -92229,20 +92229,20 @@ function desc(column) {
   return sql`${column} desc`;
 }
 var init_select = __esm({
-  "../lib/db/node_modules/drizzle-orm/sql/expressions/select.js"() {
+  "lib/db/node_modules/drizzle-orm/sql/expressions/select.js"() {
     init_sql();
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/sql/expressions/index.js
+// lib/db/node_modules/drizzle-orm/sql/expressions/index.js
 var init_expressions = __esm({
-  "../lib/db/node_modules/drizzle-orm/sql/expressions/index.js"() {
+  "lib/db/node_modules/drizzle-orm/sql/expressions/index.js"() {
     init_conditions();
     init_select();
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/relations.js
+// lib/db/node_modules/drizzle-orm/relations.js
 function getOperators() {
   return {
     and,
@@ -92452,7 +92452,7 @@ function mapRelationalRow(tablesConfig, tableConfig, row, buildQueryResultSelect
 }
 var Relation, Relations, One, Many;
 var init_relations = __esm({
-  "../lib/db/node_modules/drizzle-orm/relations.js"() {
+  "lib/db/node_modules/drizzle-orm/relations.js"() {
     init_table();
     init_column();
     init_entity();
@@ -92514,39 +92514,39 @@ var init_relations = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/sql/functions/aggregate.js
+// lib/db/node_modules/drizzle-orm/sql/functions/aggregate.js
 var init_aggregate = __esm({
-  "../lib/db/node_modules/drizzle-orm/sql/functions/aggregate.js"() {
+  "lib/db/node_modules/drizzle-orm/sql/functions/aggregate.js"() {
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/sql/functions/vector.js
+// lib/db/node_modules/drizzle-orm/sql/functions/vector.js
 var init_vector2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/sql/functions/vector.js"() {
+  "lib/db/node_modules/drizzle-orm/sql/functions/vector.js"() {
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/sql/functions/index.js
+// lib/db/node_modules/drizzle-orm/sql/functions/index.js
 var init_functions = __esm({
-  "../lib/db/node_modules/drizzle-orm/sql/functions/index.js"() {
+  "lib/db/node_modules/drizzle-orm/sql/functions/index.js"() {
     init_aggregate();
     init_vector2();
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/sql/index.js
+// lib/db/node_modules/drizzle-orm/sql/index.js
 var init_sql2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/sql/index.js"() {
+  "lib/db/node_modules/drizzle-orm/sql/index.js"() {
     init_expressions();
     init_functions();
     init_sql();
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/view-base.js
+// lib/db/node_modules/drizzle-orm/pg-core/view-base.js
 var PgViewBase;
 var init_view_base = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/view-base.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/view-base.js"() {
     init_entity();
     init_sql();
     PgViewBase = class extends View {
@@ -92555,10 +92555,10 @@ var init_view_base = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/dialect.js
+// lib/db/node_modules/drizzle-orm/pg-core/dialect.js
 var PgDialect;
 var init_dialect = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/dialect.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/dialect.js"() {
     init_alias();
     init_casing();
     init_column();
@@ -93680,10 +93680,10 @@ var init_dialect = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/query-builders/query-builder.js
+// lib/db/node_modules/drizzle-orm/query-builders/query-builder.js
 var TypedQueryBuilder;
 var init_query_builder = __esm({
-  "../lib/db/node_modules/drizzle-orm/query-builders/query-builder.js"() {
+  "lib/db/node_modules/drizzle-orm/query-builders/query-builder.js"() {
     init_entity();
     TypedQueryBuilder = class {
       static [entityKind] = "TypedQueryBuilder";
@@ -93695,7 +93695,7 @@ var init_query_builder = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.js
 function createSetOperator(type, isAll) {
   return (leftSelect, rightSelect, ...restSelects) => {
     const setOperators = [rightSelect, ...restSelects].map((select) => ({
@@ -93715,7 +93715,7 @@ function createSetOperator(type, isAll) {
 }
 var PgSelectBuilder, PgSelectQueryBuilderBase, PgSelectBase, getPgSetOperators, union, unionAll, intersect, intersectAll, except, exceptAll;
 var init_select2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.js"() {
     init_entity();
     init_view_base();
     init_query_builder();
@@ -94529,10 +94529,10 @@ var init_select2 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/query-builder.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/query-builder.js
 var QueryBuilder;
 var init_query_builder2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/query-builder.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/query-builder.js"() {
     init_entity();
     init_dialect();
     init_selection_proxy();
@@ -94626,7 +94626,7 @@ var init_query_builder2 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/view.js
+// lib/db/node_modules/drizzle-orm/pg-core/view.js
 function pgViewWithSchema(name2, selection, schema) {
   if (selection) {
     return new ManualViewBuilder(name2, selection, schema);
@@ -94641,7 +94641,7 @@ function pgMaterializedViewWithSchema(name2, selection, schema) {
 }
 var DefaultViewBuilderCore, ViewBuilder, ManualViewBuilder, MaterializedViewBuilderCore, MaterializedViewBuilder, ManualMaterializedViewBuilder, PgView, PgMaterializedViewConfig, PgMaterializedView;
 var init_view = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/view.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/view.js"() {
     init_entity();
     init_selection_proxy();
     init_utils3();
@@ -94875,7 +94875,7 @@ var init_view = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/utils.js
+// lib/db/node_modules/drizzle-orm/pg-core/utils.js
 function extractUsedTable(table) {
   if (is(table, PgTable)) {
     return [table[Schema] ? `${table[Schema]}.${table[Table.Symbol.BaseName]}` : table[Table.Symbol.BaseName]];
@@ -94889,7 +94889,7 @@ function extractUsedTable(table) {
   return [];
 }
 var init_utils5 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/utils.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/utils.js"() {
     init_entity();
     init_table2();
     init_sql();
@@ -94898,10 +94898,10 @@ var init_utils5 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/delete.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/delete.js
 var PgDeleteBase;
 var init_delete = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/delete.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/delete.js"() {
     init_entity();
     init_query_promise();
     init_selection_proxy();
@@ -95006,10 +95006,10 @@ var init_delete = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/insert.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/insert.js
 var PgInsertBuilder, PgInsertBase;
 var init_insert = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/insert.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/insert.js"() {
     init_entity();
     init_query_promise();
     init_selection_proxy();
@@ -95213,10 +95213,10 @@ var init_insert = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/refresh-materialized-view.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/refresh-materialized-view.js
 var PgRefreshMaterializedView;
 var init_refresh_materialized_view = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/refresh-materialized-view.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/refresh-materialized-view.js"() {
     init_entity();
     init_query_promise();
     init_tracing();
@@ -95275,16 +95275,16 @@ var init_refresh_materialized_view = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.types.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.types.js
 var init_select_types = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.types.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.types.js"() {
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/update.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/update.js
 var PgUpdateBuilder, PgUpdateBase;
 var init_update = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/update.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/update.js"() {
     init_entity();
     init_table2();
     init_query_promise();
@@ -95508,9 +95508,9 @@ var init_update = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/index.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/index.js
 var init_query_builders = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/index.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/index.js"() {
     init_delete();
     init_insert();
     init_query_builder2();
@@ -95521,10 +95521,10 @@ var init_query_builders = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/count.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/count.js
 var PgCountBuilder;
 var init_count = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/count.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/count.js"() {
     init_entity();
     init_sql();
     PgCountBuilder = class _PgCountBuilder extends SQL {
@@ -95579,10 +95579,10 @@ var init_count = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/query.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/query.js
 var RelationalQueryBuilder, PgRelationalQuery;
 var init_query2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/query.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/query.js"() {
     init_entity();
     init_query_promise();
     init_relations();
@@ -95701,10 +95701,10 @@ var init_query2 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/raw.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/raw.js
 var PgRaw;
 var init_raw = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/raw.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/raw.js"() {
     init_entity();
     init_query_promise();
     PgRaw = class extends QueryPromise {
@@ -95737,10 +95737,10 @@ var init_raw = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/db.js
+// lib/db/node_modules/drizzle-orm/pg-core/db.js
 var PgDatabase;
 var init_db = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/db.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/db.js"() {
     init_entity();
     init_query_builders();
     init_selection_proxy();
@@ -96030,7 +96030,7 @@ var init_db = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/cache/core/cache.js
+// lib/db/node_modules/drizzle-orm/cache/core/cache.js
 async function hashQuery(sql2, params) {
   const dataToHash = `${sql2}-${JSON.stringify(params)}`;
   const encoder = new TextEncoder();
@@ -96042,7 +96042,7 @@ async function hashQuery(sql2, params) {
 }
 var Cache, NoopCache;
 var init_cache = __esm({
-  "../lib/db/node_modules/drizzle-orm/cache/core/cache.js"() {
+  "lib/db/node_modules/drizzle-orm/cache/core/cache.js"() {
     init_entity();
     Cache = class {
       static [entityKind] = "Cache";
@@ -96063,23 +96063,23 @@ var init_cache = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/cache/core/index.js
+// lib/db/node_modules/drizzle-orm/cache/core/index.js
 var init_core = __esm({
-  "../lib/db/node_modules/drizzle-orm/cache/core/index.js"() {
+  "lib/db/node_modules/drizzle-orm/cache/core/index.js"() {
     init_cache();
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/alias.js
+// lib/db/node_modules/drizzle-orm/pg-core/alias.js
 var init_alias2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/alias.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/alias.js"() {
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/roles.js
+// lib/db/node_modules/drizzle-orm/pg-core/roles.js
 var PgRole;
 var init_roles7 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/roles.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/roles.js"() {
     init_entity();
     PgRole = class {
       constructor(name2, config) {
@@ -96107,13 +96107,13 @@ var init_roles7 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/sequence.js
+// lib/db/node_modules/drizzle-orm/pg-core/sequence.js
 function pgSequenceWithSchema(name2, options, schema) {
   return new PgSequence(name2, options, schema);
 }
 var PgSequence;
 var init_sequence = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/sequence.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/sequence.js"() {
     init_entity();
     PgSequence = class {
       constructor(seqName, seqOptions, schema) {
@@ -96126,10 +96126,10 @@ var init_sequence = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/schema.js
+// lib/db/node_modules/drizzle-orm/pg-core/schema.js
 var PgSchema;
 var init_schema = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/schema.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/schema.js"() {
     init_entity();
     init_sql();
     init_enum();
@@ -96170,10 +96170,10 @@ var init_schema = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/session.js
+// lib/db/node_modules/drizzle-orm/pg-core/session.js
 var PgPreparedQuery, PgSession, PgTransaction;
 var init_session = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/session.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/session.js"() {
     init_cache();
     init_entity();
     init_errors2();
@@ -96341,22 +96341,22 @@ var init_session = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/subquery.js
+// lib/db/node_modules/drizzle-orm/pg-core/subquery.js
 var init_subquery2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/subquery.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/subquery.js"() {
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/utils/index.js
+// lib/db/node_modules/drizzle-orm/pg-core/utils/index.js
 var init_utils6 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/utils/index.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/utils/index.js"() {
     init_array();
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/index.js
+// lib/db/node_modules/drizzle-orm/pg-core/index.js
 var init_pg_core = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/index.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/index.js"() {
     init_alias2();
     init_checks();
     init_columns();
@@ -96381,10 +96381,10 @@ var init_pg_core = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/node-postgres/session.js
+// lib/db/node_modules/drizzle-orm/node-postgres/session.js
 var Pool2, types4, NodePgPreparedQuery, NodePgSession, NodePgTransaction;
 var init_session2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/node-postgres/session.js"() {
+  "lib/db/node_modules/drizzle-orm/node-postgres/session.js"() {
     init_esm();
     init_core();
     init_entity();
@@ -96611,7 +96611,7 @@ var init_session2 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/node-postgres/driver.js
+// lib/db/node_modules/drizzle-orm/node-postgres/driver.js
 function construct(client2, config = {}) {
   const dialect = new PgDialect({ casing: config.casing });
   let logger2;
@@ -96661,7 +96661,7 @@ function drizzle(...params) {
 }
 var NodePgDriver, NodePgDatabase;
 var init_driver = __esm({
-  "../lib/db/node_modules/drizzle-orm/node-postgres/driver.js"() {
+  "lib/db/node_modules/drizzle-orm/node-postgres/driver.js"() {
     init_esm();
     init_entity();
     init_logger();
@@ -96696,18 +96696,18 @@ var init_driver = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/node-postgres/index.js
+// lib/db/node_modules/drizzle-orm/node-postgres/index.js
 var init_node_postgres = __esm({
-  "../lib/db/node_modules/drizzle-orm/node-postgres/index.js"() {
+  "lib/db/node_modules/drizzle-orm/node-postgres/index.js"() {
     init_driver();
     init_session2();
   }
 });
 
-// ../lib/db/node_modules/@electric-sql/pglite/dist/chunk-BTBUZ646.js
+// lib/db/node_modules/@electric-sql/pglite/dist/chunk-BTBUZ646.js
 var p2, i4, c3, f4, l2, s3, a2, _, d, D, F2, g, L2, P, n2, h2, R, x3, T2, U, u2;
 var init_chunk_BTBUZ646 = __esm({
-  "../lib/db/node_modules/@electric-sql/pglite/dist/chunk-BTBUZ646.js"() {
+  "lib/db/node_modules/@electric-sql/pglite/dist/chunk-BTBUZ646.js"() {
     p2 = Object.create;
     i4 = Object.defineProperty;
     c3 = Object.getOwnPropertyDescriptor;
@@ -96745,7 +96745,7 @@ var init_chunk_BTBUZ646 = __esm({
   }
 });
 
-// ../lib/db/node_modules/@electric-sql/pglite/dist/chunk-EADU5A67.js
+// lib/db/node_modules/@electric-sql/pglite/dist/chunk-EADU5A67.js
 function ue(e3, t3, n4) {
   if (e3 === null) return null;
   let r4 = n4?.[t3] ?? Se.parsers[t3];
@@ -96859,7 +96859,7 @@ function Nr(e3) {
 }
 var hn, ht, bt, be, ge, gt3, we, ve, Ge, wt, F3, We, At, xt, St, Ae, Dt, Bt, It, Mt, Rt, Tt, je, Qe, Et, Ct, Pt, Ut, Nt, Lt, Ot, kt, Vt, _e, ze, He, Ft, qe, xe, vt, Gt, Wt, jt, Qt, _t, zt, Ht, qt, Yt, $t, Kt, Jt, Xt, Zt, en, tn, nn, rn, sn, an, Ye, on, un, $e, Se, ln, cn, dn, fn, he, wn, Ue, Be, Ie, Me, Re, Te, Ee, Ce, Pe, v, G, W, j, Q, _2, E2, z, H, q, Y2, $, K, J, X, Z2, ee, te, ne2, zn, b, g2, U2, ce, N2, x4, le, P2, Xe, R2, m2, An, xn, Sn, Dn, Bn, In, Mn, Rn, L3, Tn, En, Cn, Pn, Un, Ne, Nn, Ln, On, kn, Vn, Fn, pe, vn, Gn, Wn, jn, O2, Le, Qn, M, w, fe, me, re, de, Oe, _n, Ze, et, A3, S2, D2, o2, l3, tt, nt, rt, st, it, at, ot, ke, ut, lt2, ct, pt, dt, ft, mt, yt, Ve, ye, Fe, se, k;
 var init_chunk_EADU5A67 = __esm({
-  "../lib/db/node_modules/@electric-sql/pglite/dist/chunk-EADU5A67.js"() {
+  "lib/db/node_modules/@electric-sql/pglite/dist/chunk-EADU5A67.js"() {
     init_chunk_BTBUZ646();
     hn = {};
     F2(hn, { ABSTIME: () => Et, ACLITEM: () => Vt, BIT: () => Wt, BOOL: () => be, BPCHAR: () => _e, BYTEA: () => ge, CHAR: () => gt3, CID: () => St, CIDR: () => Tt, CIRCLE: () => Ut, DATE: () => He, FLOAT4: () => je, FLOAT8: () => Qe, GTSVECTOR: () => rn, INET: () => kt, INT2: () => ve, INT4: () => Ge, INT8: () => we, INTERVAL: () => vt, JSON: () => Ae, JSONB: () => Ye, MACADDR: () => Ot, MACADDR8: () => Nt, MONEY: () => Lt, NUMERIC: () => Qt, OID: () => We, PATH: () => Mt, PG_DEPENDENCIES: () => en, PG_LSN: () => Xt, PG_NDISTINCT: () => Zt, PG_NODE_TREE: () => Bt, POLYGON: () => Rt, REFCURSOR: () => _t, REGCLASS: () => Yt, REGCONFIG: () => sn, REGDICTIONARY: () => an, REGNAMESPACE: () => on, REGOPER: () => Ht, REGOPERATOR: () => qt, REGPROC: () => wt, REGPROCEDURE: () => zt, REGROLE: () => un, REGTYPE: () => $t, RELTIME: () => Ct, SMGR: () => It, TEXT: () => F3, TID: () => At, TIME: () => Ft, TIMESTAMP: () => qe, TIMESTAMPTZ: () => xe, TIMETZ: () => Gt, TINTERVAL: () => Pt, TSQUERY: () => nn, TSVECTOR: () => tn, TXID_SNAPSHOT: () => Jt, UUID: () => Kt, VARBIT: () => jt, VARCHAR: () => ze, XID: () => xt, XML: () => Dt, arrayParser: () => yn, arraySerializer: () => Ke, parseType: () => ue, parsers: () => ln, serializers: () => cn, types: () => $e });
@@ -97454,7 +97454,7 @@ var init_chunk_EADU5A67 = __esm({
   }
 });
 
-// ../lib/db/node_modules/@electric-sql/pglite/dist/chunk-STOZMFXW.js
+// lib/db/node_modules/@electric-sql/pglite/dist/chunk-STOZMFXW.js
 function s4(t3, r4, ...e3) {
   let a3 = t3.length - 1, p4 = e3.length - 1;
   if (p4 !== -1) {
@@ -97489,17 +97489,17 @@ function g3(t3, ...r4) {
 }
 var o3;
 var init_chunk_STOZMFXW = __esm({
-  "../lib/db/node_modules/@electric-sql/pglite/dist/chunk-STOZMFXW.js"() {
+  "lib/db/node_modules/@electric-sql/pglite/dist/chunk-STOZMFXW.js"() {
     init_chunk_BTBUZ646();
     u2();
     o3 = { part: "part", container: "container" };
   }
 });
 
-// ../lib/db/node_modules/@electric-sql/pglite/dist/chunk-A7RFOIQ7.js
+// lib/db/node_modules/@electric-sql/pglite/dist/chunk-A7RFOIQ7.js
 var b2, u3, r3, l4, g4, h3, R3, z2;
 var init_chunk_A7RFOIQ7 = __esm({
-  "../lib/db/node_modules/@electric-sql/pglite/dist/chunk-A7RFOIQ7.js"() {
+  "lib/db/node_modules/@electric-sql/pglite/dist/chunk-A7RFOIQ7.js"() {
     init_chunk_EADU5A67();
     init_chunk_STOZMFXW();
     init_chunk_BTBUZ646();
@@ -97612,7 +97612,7 @@ var init_chunk_A7RFOIQ7 = __esm({
   }
 });
 
-// ../lib/db/node_modules/@electric-sql/pglite/dist/chunk-WGR4JCLS.js
+// lib/db/node_modules/@electric-sql/pglite/dist/chunk-WGR4JCLS.js
 async function H2(r4, e3, t3 = "pgdata", s6 = "auto") {
   let a3 = Br(r4, e3), [n4, o5] = await qr(a3, s6), i5 = t3 + (o5 ? ".tar.gz" : ".tar"), u4 = o5 ? "application/x-gzip" : "application/x-tar";
   return typeof File < "u" ? new File([n4], i5, { type: u4 }) : new Blob([n4], { type: u4 });
@@ -97703,7 +97703,7 @@ function sr(r4) {
 }
 var w2, x5, L4, er, nr, or2, g5, Hr, Vr, C3, ur, cr, pr, Zr;
 var init_chunk_WGR4JCLS = __esm({
-  "../lib/db/node_modules/@electric-sql/pglite/dist/chunk-WGR4JCLS.js"() {
+  "lib/db/node_modules/@electric-sql/pglite/dist/chunk-WGR4JCLS.js"() {
     init_chunk_BTBUZ646();
     w2 = D(($r, l5) => {
       "use strict";
@@ -98180,7 +98180,7 @@ var init_chunk_WGR4JCLS = __esm({
   }
 });
 
-// ../lib/db/node_modules/@electric-sql/pglite/dist/fs/nodefs.js
+// lib/db/node_modules/@electric-sql/pglite/dist/fs/nodefs.js
 var nodefs_exports = {};
 __export(nodefs_exports, {
   NodeFS: () => m3
@@ -98189,7 +98189,7 @@ import * as s5 from "fs";
 import * as o4 from "path";
 var m3;
 var init_nodefs = __esm({
-  "../lib/db/node_modules/@electric-sql/pglite/dist/fs/nodefs.js"() {
+  "lib/db/node_modules/@electric-sql/pglite/dist/fs/nodefs.js"() {
     init_chunk_WGR4JCLS();
     init_chunk_BTBUZ646();
     u2();
@@ -98210,14 +98210,14 @@ var init_nodefs = __esm({
   }
 });
 
-// ../lib/db/node_modules/@electric-sql/pglite/dist/fs/opfs-ahp.js
+// lib/db/node_modules/@electric-sql/pglite/dist/fs/opfs-ahp.js
 var opfs_ahp_exports = {};
 __export(opfs_ahp_exports, {
   OpfsAhpFS: () => L5
 });
 var $2, G2, T3, H3, v2, F4, M2, y3, b3, m4, x6, P3, D3, S3, n3, C4, O3, k2, w3, f5, I, W2, j2, L5, p3;
 var init_opfs_ahp = __esm({
-  "../lib/db/node_modules/@electric-sql/pglite/dist/fs/opfs-ahp.js"() {
+  "lib/db/node_modules/@electric-sql/pglite/dist/fs/opfs-ahp.js"() {
     init_chunk_WGR4JCLS();
     init_chunk_BTBUZ646();
     u2();
@@ -98516,7 +98516,7 @@ ${t3}`), i5 = h2(this, y3).getSize();
   }
 });
 
-// ../lib/db/node_modules/@electric-sql/pglite/dist/index.js
+// lib/db/node_modules/@electric-sql/pglite/dist/index.js
 async function ge2(e3) {
   if (Fe) {
     let t3 = await import("fs"), r4 = await import("zlib"), { Writable: a3 } = await import("stream"), { pipeline: o5 } = await import("stream/promises");
@@ -98591,7 +98591,7 @@ async function Ae2(e3, t3) {
 }
 var Ye2, Je2, He2, We2, ce3, je2, H4, Ie2, ee2, te2, Qe2, ke2, Te2, Y3, W3, j3, J2, $3, _e2, ie, me2, Z3, ae, oe, se2, V, G3, k3, K3, O4, qe2, re2, pe2, Ue2;
 var init_dist2 = __esm({
-  "../lib/db/node_modules/@electric-sql/pglite/dist/index.js"() {
+  "lib/db/node_modules/@electric-sql/pglite/dist/index.js"() {
     init_chunk_A7RFOIQ7();
     init_chunk_EADU5A67();
     init_chunk_WGR4JCLS();
@@ -102729,10 +102729,10 @@ ${n4}`), 0;
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pglite/session.js
+// lib/db/node_modules/drizzle-orm/pglite/session.js
 var PglitePreparedQuery, PgliteSession, PgliteTransaction;
 var init_session3 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pglite/session.js"() {
+  "lib/db/node_modules/drizzle-orm/pglite/session.js"() {
     init_entity();
     init_logger();
     init_pg_core();
@@ -102892,7 +102892,7 @@ var init_session3 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pglite/driver.js
+// lib/db/node_modules/drizzle-orm/pglite/driver.js
 function construct2(client2, config = {}) {
   const dialect = new PgDialect({ casing: config.casing });
   let logger2;
@@ -102943,7 +102943,7 @@ function drizzle2(...params) {
 }
 var PgliteDriver, PgliteDatabase;
 var init_driver2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pglite/driver.js"() {
+  "lib/db/node_modules/drizzle-orm/pglite/driver.js"() {
     init_dist2();
     init_entity();
     init_logger();
@@ -102978,15 +102978,15 @@ var init_driver2 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pglite/index.js
+// lib/db/node_modules/drizzle-orm/pglite/index.js
 var init_pglite = __esm({
-  "../lib/db/node_modules/drizzle-orm/pglite/index.js"() {
+  "lib/db/node_modules/drizzle-orm/pglite/index.js"() {
     init_driver2();
     init_session3();
   }
 });
 
-// ../lib/db/src/schema/index.ts
+// lib/db/src/schema/index.ts
 var schema_exports = {};
 __export(schema_exports, {
   conversations: () => conversations,
@@ -103002,7 +103002,7 @@ __export(schema_exports, {
 });
 var conversations, leadScores, messages, dailyMetrics, followUpEvents, users, trainingExamples, learningCandidates, knowledgeGaps, lucyInfoDocuments;
 var init_schema2 = __esm({
-  "../lib/db/src/schema/index.ts"() {
+  "lib/db/src/schema/index.ts"() {
     "use strict";
     init_pg_core();
     conversations = pgTable("conversations", {
@@ -103141,7 +103141,7 @@ var init_schema2 = __esm({
   }
 });
 
-// ../lib/db/src/local.ts
+// lib/db/src/local.ts
 import fs5 from "node:fs";
 import path5 from "node:path";
 function removeStalePostmasterPid() {
@@ -103186,7 +103186,7 @@ function isLocalDbMode() {
 }
 var LOCAL_DB_DIR, client, localDb, INIT_SQL, MIGRATION_SQL;
 var init_local = __esm({
-  "../lib/db/src/local.ts"() {
+  "lib/db/src/local.ts"() {
     "use strict";
     init_dist2();
     init_pglite();
@@ -103340,7 +103340,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS messages_kommo_message_id_idx ON messages (kom
   }
 });
 
-// ../lib/db/src/index.ts
+// lib/db/src/index.ts
 async function createDb() {
   if (isLocalDbMode()) {
     console.info("[db] Sin DATABASE_URL \u2192 usando base de datos local (PGlite)");
@@ -103351,7 +103351,7 @@ async function createDb() {
 }
 var Pool3, pool, db;
 var init_src2 = __esm({
-  async "../lib/db/src/index.ts"() {
+  async "lib/db/src/index.ts"() {
     "use strict";
     init_node_postgres();
     init_esm();
@@ -103364,9 +103364,9 @@ var init_src2 = __esm({
   }
 });
 
-// node_modules/pino-std-serializers/lib/err-helpers.js
+// api-server/node_modules/pino-std-serializers/lib/err-helpers.js
 var require_err_helpers = __commonJS({
-  "node_modules/pino-std-serializers/lib/err-helpers.js"(exports2, module2) {
+  "api-server/node_modules/pino-std-serializers/lib/err-helpers.js"(exports2, module2) {
     "use strict";
     var isErrorLike = (err2) => {
       return err2 && typeof err2.message === "string";
@@ -103421,9 +103421,9 @@ var require_err_helpers = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/lib/err-proto.js
+// api-server/node_modules/pino-std-serializers/lib/err-proto.js
 var require_err_proto = __commonJS({
-  "node_modules/pino-std-serializers/lib/err-proto.js"(exports2, module2) {
+  "api-server/node_modules/pino-std-serializers/lib/err-proto.js"(exports2, module2) {
     "use strict";
     var seen = /* @__PURE__ */ Symbol("circular-ref-tag");
     var rawSymbol = /* @__PURE__ */ Symbol("pino-raw-err-ref");
@@ -103472,9 +103472,9 @@ var require_err_proto = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/lib/err.js
+// api-server/node_modules/pino-std-serializers/lib/err.js
 var require_err = __commonJS({
-  "node_modules/pino-std-serializers/lib/err.js"(exports2, module2) {
+  "api-server/node_modules/pino-std-serializers/lib/err.js"(exports2, module2) {
     "use strict";
     module2.exports = errSerializer;
     var { messageWithCauses, stackWithCauses, isErrorLike } = require_err_helpers();
@@ -103512,9 +103512,9 @@ var require_err = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/lib/err-with-cause.js
+// api-server/node_modules/pino-std-serializers/lib/err-with-cause.js
 var require_err_with_cause = __commonJS({
-  "node_modules/pino-std-serializers/lib/err-with-cause.js"(exports2, module2) {
+  "api-server/node_modules/pino-std-serializers/lib/err-with-cause.js"(exports2, module2) {
     "use strict";
     module2.exports = errWithCauseSerializer;
     var { isErrorLike } = require_err_helpers();
@@ -103555,9 +103555,9 @@ var require_err_with_cause = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/lib/req.js
+// api-server/node_modules/pino-std-serializers/lib/req.js
 var require_req = __commonJS({
-  "node_modules/pino-std-serializers/lib/req.js"(exports2, module2) {
+  "api-server/node_modules/pino-std-serializers/lib/req.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       mapHttpRequest,
@@ -103650,9 +103650,9 @@ var require_req = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/lib/res.js
+// api-server/node_modules/pino-std-serializers/lib/res.js
 var require_res = __commonJS({
-  "node_modules/pino-std-serializers/lib/res.js"(exports2, module2) {
+  "api-server/node_modules/pino-std-serializers/lib/res.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       mapHttpResponse,
@@ -103699,9 +103699,9 @@ var require_res = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/index.js
+// api-server/node_modules/pino-std-serializers/index.js
 var require_pino_std_serializers = __commonJS({
-  "node_modules/pino-std-serializers/index.js"(exports2, module2) {
+  "api-server/node_modules/pino-std-serializers/index.js"(exports2, module2) {
     "use strict";
     var errSerializer = require_err();
     var errWithCauseSerializer = require_err_with_cause();
@@ -103736,9 +103736,9 @@ var require_pino_std_serializers = __commonJS({
   }
 });
 
-// node_modules/pino/lib/caller.js
+// api-server/node_modules/pino/lib/caller.js
 var require_caller = __commonJS({
-  "node_modules/pino/lib/caller.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/caller.js"(exports2, module2) {
     "use strict";
     function noOpPrepareStackTrace(_3, stack) {
       return stack;
@@ -103764,9 +103764,9 @@ var require_caller = __commonJS({
   }
 });
 
-// node_modules/@pinojs/redact/index.js
+// api-server/node_modules/@pinojs/redact/index.js
 var require_redact = __commonJS({
-  "node_modules/@pinojs/redact/index.js"(exports2, module2) {
+  "api-server/node_modules/@pinojs/redact/index.js"(exports2, module2) {
     "use strict";
     function deepClone(obj) {
       if (obj === null || typeof obj !== "object") {
@@ -104197,9 +104197,9 @@ var require_redact = __commonJS({
   }
 });
 
-// node_modules/pino/lib/symbols.js
+// api-server/node_modules/pino/lib/symbols.js
 var require_symbols = __commonJS({
-  "node_modules/pino/lib/symbols.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/symbols.js"(exports2, module2) {
     "use strict";
     var setLevelSym = /* @__PURE__ */ Symbol("pino.setLevel");
     var getLevelSym = /* @__PURE__ */ Symbol("pino.getLevel");
@@ -104268,9 +104268,9 @@ var require_symbols = __commonJS({
   }
 });
 
-// node_modules/pino/lib/redaction.js
+// api-server/node_modules/pino/lib/redaction.js
 var require_redaction = __commonJS({
-  "node_modules/pino/lib/redaction.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/redaction.js"(exports2, module2) {
     "use strict";
     var Redact = require_redact();
     var { redactFmtSym, wildcardFirstSym } = require_symbols();
@@ -104350,9 +104350,9 @@ var require_redaction = __commonJS({
   }
 });
 
-// node_modules/pino/lib/time.js
+// api-server/node_modules/pino/lib/time.js
 var require_time = __commonJS({
-  "node_modules/pino/lib/time.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/time.js"(exports2, module2) {
     "use strict";
     var nullTime = () => "";
     var epochTime = () => `,"time":${Date.now()}`;
@@ -104381,9 +104381,9 @@ var require_time = __commonJS({
   }
 });
 
-// node_modules/quick-format-unescaped/index.js
+// api-server/node_modules/quick-format-unescaped/index.js
 var require_quick_format_unescaped = __commonJS({
-  "node_modules/quick-format-unescaped/index.js"(exports2, module2) {
+  "api-server/node_modules/quick-format-unescaped/index.js"(exports2, module2) {
     "use strict";
     function tryStringify(o5) {
       try {
@@ -104500,9 +104500,9 @@ var require_quick_format_unescaped = __commonJS({
   }
 });
 
-// node_modules/atomic-sleep/index.js
+// api-server/node_modules/atomic-sleep/index.js
 var require_atomic_sleep = __commonJS({
-  "node_modules/atomic-sleep/index.js"(exports2, module2) {
+  "api-server/node_modules/atomic-sleep/index.js"(exports2, module2) {
     "use strict";
     if (typeof SharedArrayBuffer !== "undefined" && typeof Atomics !== "undefined") {
       let sleep3 = function(ms) {
@@ -104535,9 +104535,9 @@ var require_atomic_sleep = __commonJS({
   }
 });
 
-// node_modules/sonic-boom/index.js
+// api-server/node_modules/sonic-boom/index.js
 var require_sonic_boom = __commonJS({
-  "node_modules/sonic-boom/index.js"(exports2, module2) {
+  "api-server/node_modules/sonic-boom/index.js"(exports2, module2) {
     "use strict";
     var fs6 = __require("fs");
     var EventEmitter = __require("events");
@@ -105122,9 +105122,9 @@ var require_sonic_boom = __commonJS({
   }
 });
 
-// node_modules/on-exit-leak-free/index.js
+// api-server/node_modules/on-exit-leak-free/index.js
 var require_on_exit_leak_free = __commonJS({
-  "node_modules/on-exit-leak-free/index.js"(exports2, module2) {
+  "api-server/node_modules/on-exit-leak-free/index.js"(exports2, module2) {
     "use strict";
     var refs = {
       exit: [],
@@ -105216,9 +105216,9 @@ var require_on_exit_leak_free = __commonJS({
   }
 });
 
-// node_modules/thread-stream/package.json
+// api-server/node_modules/thread-stream/package.json
 var require_package3 = __commonJS({
-  "node_modules/thread-stream/package.json"(exports2, module2) {
+  "api-server/node_modules/thread-stream/package.json"(exports2, module2) {
     module2.exports = {
       name: "thread-stream",
       version: "3.1.0",
@@ -105279,9 +105279,9 @@ var require_package3 = __commonJS({
   }
 });
 
-// node_modules/thread-stream/lib/wait.js
+// api-server/node_modules/thread-stream/lib/wait.js
 var require_wait = __commonJS({
-  "node_modules/thread-stream/lib/wait.js"(exports2, module2) {
+  "api-server/node_modules/thread-stream/lib/wait.js"(exports2, module2) {
     "use strict";
     var MAX_TIMEOUT = 1e3;
     function wait(state, index, expected, timeout, done) {
@@ -105337,9 +105337,9 @@ var require_wait = __commonJS({
   }
 });
 
-// node_modules/thread-stream/lib/indexes.js
+// api-server/node_modules/thread-stream/lib/indexes.js
 var require_indexes = __commonJS({
-  "node_modules/thread-stream/lib/indexes.js"(exports2, module2) {
+  "api-server/node_modules/thread-stream/lib/indexes.js"(exports2, module2) {
     "use strict";
     var WRITE_INDEX = 4;
     var READ_INDEX = 8;
@@ -105350,9 +105350,9 @@ var require_indexes = __commonJS({
   }
 });
 
-// node_modules/thread-stream/index.js
+// api-server/node_modules/thread-stream/index.js
 var require_thread_stream = __commonJS({
-  "node_modules/thread-stream/index.js"(exports2, module2) {
+  "api-server/node_modules/thread-stream/index.js"(exports2, module2) {
     "use strict";
     var { version: version2 } = require_package3();
     var { EventEmitter } = __require("events");
@@ -105773,9 +105773,9 @@ var require_thread_stream = __commonJS({
   }
 });
 
-// node_modules/pino/lib/transport.js
+// api-server/node_modules/pino/lib/transport.js
 var require_transport = __commonJS({
-  "node_modules/pino/lib/transport.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/transport.js"(exports2, module2) {
     "use strict";
     var { createRequire } = __require("module");
     var getCallers = require_caller();
@@ -105904,9 +105904,9 @@ var require_transport = __commonJS({
   }
 });
 
-// node_modules/pino/lib/tools.js
+// api-server/node_modules/pino/lib/tools.js
 var require_tools = __commonJS({
-  "node_modules/pino/lib/tools.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/tools.js"(exports2, module2) {
     "use strict";
     var diagChan = __require("node:diagnostics_channel");
     var format = require_quick_format_unescaped();
@@ -106241,9 +106241,9 @@ var require_tools = __commonJS({
   }
 });
 
-// node_modules/pino/lib/constants.js
+// api-server/node_modules/pino/lib/constants.js
 var require_constants4 = __commonJS({
-  "node_modules/pino/lib/constants.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/constants.js"(exports2, module2) {
     var DEFAULT_LEVELS = {
       trace: 10,
       debug: 20,
@@ -106263,9 +106263,9 @@ var require_constants4 = __commonJS({
   }
 });
 
-// node_modules/pino/lib/levels.js
+// api-server/node_modules/pino/lib/levels.js
 var require_levels = __commonJS({
-  "node_modules/pino/lib/levels.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/levels.js"(exports2, module2) {
     "use strict";
     var {
       lsCacheSym,
@@ -106456,17 +106456,17 @@ var require_levels = __commonJS({
   }
 });
 
-// node_modules/pino/lib/meta.js
+// api-server/node_modules/pino/lib/meta.js
 var require_meta = __commonJS({
-  "node_modules/pino/lib/meta.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/meta.js"(exports2, module2) {
     "use strict";
     module2.exports = { version: "9.14.0" };
   }
 });
 
-// node_modules/pino/lib/proto.js
+// api-server/node_modules/pino/lib/proto.js
 var require_proto = __commonJS({
-  "node_modules/pino/lib/proto.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/proto.js"(exports2, module2) {
     "use strict";
     var { EventEmitter } = __require("node:events");
     var {
@@ -106695,9 +106695,9 @@ var require_proto = __commonJS({
   }
 });
 
-// node_modules/safe-stable-stringify/index.js
+// api-server/node_modules/safe-stable-stringify/index.js
 var require_safe_stable_stringify = __commonJS({
-  "node_modules/safe-stable-stringify/index.js"(exports2, module2) {
+  "api-server/node_modules/safe-stable-stringify/index.js"(exports2, module2) {
     "use strict";
     var { hasOwnProperty } = Object.prototype;
     var stringify2 = configure();
@@ -107291,9 +107291,9 @@ ${originalIndentation}`;
   }
 });
 
-// node_modules/pino/lib/multistream.js
+// api-server/node_modules/pino/lib/multistream.js
 var require_multistream = __commonJS({
-  "node_modules/pino/lib/multistream.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/multistream.js"(exports2, module2) {
     "use strict";
     var metadata2 = /* @__PURE__ */ Symbol.for("pino.metadata");
     var { DEFAULT_LEVELS } = require_constants4();
@@ -107459,9 +107459,9 @@ var require_multistream = __commonJS({
   }
 });
 
-// node_modules/pino/pino.js
+// api-server/node_modules/pino/pino.js
 var require_pino = __commonJS({
-  "node_modules/pino/pino.js"(exports2, module2) {
+  "api-server/node_modules/pino/pino.js"(exports2, module2) {
     function pinoBundlerAbsolutePath(p4) {
       try {
         const path7 = __require("path");
@@ -107679,10 +107679,10 @@ var require_pino = __commonJS({
   }
 });
 
-// src/lib/logger.ts
+// api-server/src/lib/logger.ts
 var import_pino, isProduction, logger;
 var init_logger2 = __esm({
-  "src/lib/logger.ts"() {
+  "api-server/src/lib/logger.ts"() {
     "use strict";
     import_pino = __toESM(require_pino(), 1);
     isProduction = process.env.NODE_ENV === "production";
@@ -107703,7 +107703,7 @@ var init_logger2 = __esm({
   }
 });
 
-// src/services/embudo.ts
+// api-server/src/services/embudo.ts
 function resolveProveedorEtapa() {
   const statusRaw = process.env["KOMMO_PROVEEDOR_STATUS_ID"]?.trim();
   const pipelineRaw = process.env["KOMMO_PROVEEDOR_PIPELINE_ID"]?.trim();
@@ -107722,7 +107722,7 @@ function lucyDebeResponderImagenAlCliente(statusId, tags) {
 }
 var ETAPA, PIPELINE_ID, ETAPAS_LUCY_ACTIVA, MS_INACTIVIDAD, MS_SEGUIMIENTO, MS_VENTANA_MIN, MS_VENTANA_MAX, ETAPAS_LUCY_SILENCIO;
 var init_embudo = __esm({
-  async "src/services/embudo.ts"() {
+  async "api-server/src/services/embudo.ts"() {
     "use strict";
     await init_src2();
     init_logger2();
@@ -107752,20 +107752,20 @@ var init_embudo = __esm({
   }
 });
 
-// src/lib/trainingPaths.ts
+// api-server/src/lib/trainingPaths.ts
 import { join as join3, dirname as dirname2 } from "path";
 import { fileURLToPath as fileURLToPath4 } from "url";
 var moduleDir;
 var init_trainingPaths = __esm({
-  "src/lib/trainingPaths.ts"() {
+  "api-server/src/lib/trainingPaths.ts"() {
     "use strict";
     moduleDir = dirname2(fileURLToPath4(import.meta.url));
   }
 });
 
-// src/services/trainingStore.ts
+// api-server/src/services/trainingStore.ts
 var init_trainingStore = __esm({
-  async "src/services/trainingStore.ts"() {
+  async "api-server/src/services/trainingStore.ts"() {
     "use strict";
     await init_src2();
     init_trainingPaths();
@@ -107773,7 +107773,7 @@ var init_trainingStore = __esm({
   }
 });
 
-// src/services/kommoTalks.ts
+// api-server/src/services/kommoTalks.ts
 function classifyKommoOrigin(origin) {
   const o5 = (origin ?? "").trim().toLowerCase();
   if (!o5) return "unknown";
@@ -107787,16 +107787,16 @@ function usesKommoExternalSend(channel) {
   return channel === "facebook" || channel === "instagram" || channel === "telegram" || channel === "other";
 }
 var init_kommoTalks = __esm({
-  "src/services/kommoTalks.ts"() {
+  "api-server/src/services/kommoTalks.ts"() {
     "use strict";
     init_logger2();
   }
 });
 
-// src/selftest/lucy-flow-selftest.ts
+// api-server/src/selftest/lucy-flow-selftest.ts
 import assert2 from "node:assert/strict";
 
-// src/contact-name.ts
+// api-server/src/contact-name.ts
 var PHONE_LIKE = /^\+?\d[\d\s\-().]{7,}$/;
 var PLACEHOLDER_PATTERNS = [
   /^nuevo\s+lead$/i,
@@ -108129,7 +108129,7 @@ function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
   return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
 }
 
-// src/client-email.ts
+// api-server/src/client-email.ts
 var OWN_EMAILS = new Set(
   [
     "capybaraeventos@gmail.com",
@@ -108170,7 +108170,7 @@ function buildEmailConfirmationPrompt(email) {
   return `\xBFMe confirmas tu correo? Lo le\xED como ${email.trim()}, quiero anotarlo bien.`;
 }
 
-// src/lib/bodasesorAdvisor.ts
+// api-server/src/lib/bodasesorAdvisor.ts
 var LEGACY_ADVISOR_NAMES = ["Rodrigo"];
 function getAdvisorName() {
   return process.env["BODASESOR_ADVISOR_NAME"]?.trim() || process.env["KOMMO_ADVISOR_NAME"]?.trim() || "Alejandro";
@@ -108249,11 +108249,11 @@ function stripInternalCrmBlock(mensaje) {
   return "";
 }
 
-// src/services/imageProcessor.ts
+// api-server/src/services/imageProcessor.ts
 init_llmChat();
 init_llmEnv();
 
-// node_modules/bmp-ts/dist/esm/header-types.js
+// api-server/node_modules/bmp-ts/dist/esm/header-types.js
 var HeaderTypes;
 (function(HeaderTypes2) {
   HeaderTypes2[HeaderTypes2["BITMAP_INFO_HEADER"] = 40] = "BITMAP_INFO_HEADER";
@@ -108264,7 +108264,7 @@ var HeaderTypes;
 })(HeaderTypes || (HeaderTypes = {}));
 var header_types_default = HeaderTypes;
 
-// node_modules/bmp-ts/dist/esm/mask-color.js
+// api-server/node_modules/bmp-ts/dist/esm/mask-color.js
 function maskColor(maskRed, maskGreen, maskBlue, maskAlpha) {
   const maskRedR = ~maskRed + 1 & maskRed;
   const maskGreenR = ~maskGreen + 1 & maskGreen;
@@ -108282,7 +108282,7 @@ function maskColor(maskRed, maskGreen, maskBlue, maskAlpha) {
   };
 }
 
-// node_modules/bmp-ts/dist/esm/types.js
+// api-server/node_modules/bmp-ts/dist/esm/types.js
 var BmpCompression;
 (function(BmpCompression2) {
   BmpCompression2[BmpCompression2["NONE"] = 0] = "NONE";
@@ -108292,7 +108292,7 @@ var BmpCompression;
   BmpCompression2[BmpCompression2["BI_ALPHA_BIT_FIELDS"] = 6] = "BI_ALPHA_BIT_FIELDS";
 })(BmpCompression || (BmpCompression = {}));
 
-// node_modules/bmp-ts/dist/esm/decoder.js
+// api-server/node_modules/bmp-ts/dist/esm/decoder.js
 var BmpDecoder = class {
   // Header
   flag;
@@ -108656,7 +108656,7 @@ var BmpDecoder = class {
   }
 };
 
-// node_modules/bmp-ts/dist/esm/encoder.js
+// api-server/node_modules/bmp-ts/dist/esm/encoder.js
 function createInteger(numbers) {
   return numbers.reduce((final, n4) => final << 1 | n4, 0);
 }
@@ -108910,7 +108910,7 @@ var BmpEncoder = class {
   }
 };
 
-// node_modules/bmp-ts/dist/esm/index.js
+// api-server/node_modules/bmp-ts/dist/esm/index.js
 function decode(bmpData, options) {
   return new BmpDecoder(bmpData, options);
 }
@@ -108918,7 +108918,7 @@ function encode2(imgData) {
   return new BmpEncoder(imgData);
 }
 
-// node_modules/tinycolor2/esm/tinycolor.js
+// api-server/node_modules/tinycolor2/esm/tinycolor.js
 function _typeof(obj) {
   "@babel/helpers - typeof";
   return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(obj2) {
@@ -109883,7 +109883,7 @@ function validateWCAG2Parms(parms) {
   };
 }
 
-// node_modules/@jimp/utils/dist/esm/index.js
+// api-server/node_modules/@jimp/utils/dist/esm/index.js
 function clone3(image2) {
   const newBitmap = {
     width: image2.bitmap.width,
@@ -109980,7 +109980,7 @@ function cssColorToHex(cssColor) {
   return parseInt(tinycolor(cssColor).toHex8(), 16);
 }
 
-// node_modules/@jimp/js-bmp/dist/esm/index.js
+// api-server/node_modules/@jimp/js-bmp/dist/esm/index.js
 function encode3(image2, options = {}) {
   scan({ bitmap: image2 }, 0, 0, image2.width, image2.height, function(_3, __, index) {
     const red = image2.data[index + 0];
@@ -110022,7 +110022,7 @@ function bmp() {
   };
 }
 
-// node_modules/@jimp/js-gif/dist/esm/index.js
+// api-server/node_modules/@jimp/js-gif/dist/esm/index.js
 var import_omggif = __toESM(require_omggif(), 1);
 var import_gifwrap = __toESM(require_src6(), 1);
 function gif() {
@@ -110049,7 +110049,7 @@ function gif() {
   };
 }
 
-// node_modules/@jimp/js-jpeg/dist/esm/index.js
+// api-server/node_modules/@jimp/js-jpeg/dist/esm/index.js
 var import_jpeg_js = __toESM(require_jpeg_js(), 1);
 function jpeg() {
   return {
@@ -110059,10 +110059,10 @@ function jpeg() {
   };
 }
 
-// node_modules/@jimp/js-png/dist/esm/index.js
+// api-server/node_modules/@jimp/js-png/dist/esm/index.js
 var import_pngjs = __toESM(require_png(), 1);
 
-// node_modules/@jimp/js-png/dist/esm/constants.js
+// api-server/node_modules/@jimp/js-png/dist/esm/constants.js
 var PNGFilterType;
 (function(PNGFilterType2) {
   PNGFilterType2[PNGFilterType2["AUTO"] = -1] = "AUTO";
@@ -110080,7 +110080,7 @@ var PNGColorType;
   PNGColorType2[PNGColorType2["COLOR_ALPHA"] = 6] = "COLOR_ALPHA";
 })(PNGColorType || (PNGColorType = {}));
 
-// node_modules/@jimp/js-png/dist/esm/index.js
+// api-server/node_modules/@jimp/js-png/dist/esm/index.js
 function png() {
   return {
     mime: "image/png",
@@ -110111,7 +110111,7 @@ function png() {
   };
 }
 
-// node_modules/@jimp/js-tiff/dist/esm/index.js
+// api-server/node_modules/@jimp/js-tiff/dist/esm/index.js
 var import_utif2 = __toESM(require_UTIF(), 1);
 function getDimensionValue(dimension) {
   if (typeof dimension === "number") {
@@ -110157,7 +110157,7 @@ function tiff() {
   };
 }
 
-// node_modules/zod/v3/external.js
+// api-server/node_modules/zod/v3/external.js
 var external_exports = {};
 __export(external_exports, {
   BRAND: () => BRAND,
@@ -110269,7 +110269,7 @@ __export(external_exports, {
   void: () => voidType
 });
 
-// node_modules/zod/v3/helpers/util.js
+// api-server/node_modules/zod/v3/helpers/util.js
 var util;
 (function(util2) {
   util2.assertEqual = (_3) => {
@@ -110403,7 +110403,7 @@ var getParsedType = (data) => {
   }
 };
 
-// node_modules/zod/v3/ZodError.js
+// api-server/node_modules/zod/v3/ZodError.js
 var ZodIssueCode = util.arrayToEnum([
   "invalid_type",
   "invalid_literal",
@@ -110521,7 +110521,7 @@ ZodError.create = (issues) => {
   return error;
 };
 
-// node_modules/zod/v3/locales/en.js
+// api-server/node_modules/zod/v3/locales/en.js
 var errorMap = (issue, _ctx) => {
   let message;
   switch (issue.code) {
@@ -110624,7 +110624,7 @@ var errorMap = (issue, _ctx) => {
 };
 var en_default = errorMap;
 
-// node_modules/zod/v3/errors.js
+// api-server/node_modules/zod/v3/errors.js
 var overrideErrorMap = en_default;
 function setErrorMap(map) {
   overrideErrorMap = map;
@@ -110633,7 +110633,7 @@ function getErrorMap() {
   return overrideErrorMap;
 }
 
-// node_modules/zod/v3/helpers/parseUtil.js
+// api-server/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
   const { data, path: path7, errorMaps, issueData } = params;
   const fullPath = [...path7, ...issueData.path || []];
@@ -110743,14 +110743,14 @@ var isDirty = (x7) => x7.status === "dirty";
 var isValid2 = (x7) => x7.status === "valid";
 var isAsync = (x7) => typeof Promise !== "undefined" && x7 instanceof Promise;
 
-// node_modules/zod/v3/helpers/errorUtil.js
+// api-server/node_modules/zod/v3/helpers/errorUtil.js
 var errorUtil;
 (function(errorUtil2) {
   errorUtil2.errToObj = (message) => typeof message === "string" ? { message } : message || {};
   errorUtil2.toString = (message) => typeof message === "string" ? message : message?.message;
 })(errorUtil || (errorUtil = {}));
 
-// node_modules/zod/v3/types.js
+// api-server/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
   constructor(parent, value, path7, key) {
     this._cachedPath = [];
@@ -114198,10 +114198,10 @@ var coerce = {
 };
 var NEVER = INVALID;
 
-// node_modules/zod/index.js
+// api-server/node_modules/zod/index.js
 var zod_default = external_exports;
 
-// node_modules/@jimp/types/dist/esm/index.js
+// api-server/node_modules/@jimp/types/dist/esm/index.js
 var Edge;
 (function(Edge2) {
   Edge2[Edge2["EXTEND"] = 1] = "EXTEND";
@@ -114216,7 +114216,7 @@ var JimpClassSchema = external_exports.object({
   })
 });
 
-// node_modules/@jimp/plugin-blit/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-blit/dist/esm/index.js
 var BlitOptionsSchemaComplex = external_exports.object({
   src: JimpClassSchema,
   /** the x position to blit the image */
@@ -114302,7 +114302,7 @@ var methods = {
   }
 };
 
-// node_modules/@jimp/plugin-blur/dist/esm/blur-tables.js
+// api-server/node_modules/@jimp/plugin-blur/dist/esm/blur-tables.js
 var mulTable = [
   1,
   57,
@@ -114822,7 +114822,7 @@ var shgTable = [
   18
 ];
 
-// node_modules/@jimp/plugin-blur/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-blur/dist/esm/index.js
 var methods2 = {
   /**
    * A fast blur algorithm that produces similar effect to a Gaussian blur - but MUCH quicker
@@ -115001,7 +115001,7 @@ var methods2 = {
   }
 };
 
-// node_modules/@jimp/plugin-circle/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-circle/dist/esm/index.js
 var CircleOptionsSchema = external_exports.object({
   /** the x position to draw the circle */
   x: external_exports.number().optional(),
@@ -115043,7 +115043,7 @@ var methods3 = {
   }
 };
 
-// node_modules/@jimp/plugin-color/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-color/dist/esm/index.js
 var ConvolutionMatrixSchema = external_exports.array(external_exports.number()).min(1).array();
 var ConvolutionComplexOptionsSchema = external_exports.object({
   /** a matrix to weight the neighbors sum */
@@ -115703,20 +115703,20 @@ var methods4 = {
   }
 };
 
-// node_modules/@jimp/core/dist/esm/index.js
+// api-server/node_modules/@jimp/core/dist/esm/index.js
 var import_core = __toESM(require_core2(), 1);
 var import_await_to_js = __toESM(require_await_to_js_umd(), 1);
 
-// node_modules/@jimp/file-ops/dist/esm/index.js
+// api-server/node_modules/@jimp/file-ops/dist/esm/index.js
 import { promises as fs4 } from "fs";
 import { existsSync } from "fs";
 var readFile = fs4.readFile;
 var writeFile2 = fs4.writeFile;
 
-// node_modules/@jimp/core/dist/esm/index.js
+// api-server/node_modules/@jimp/core/dist/esm/index.js
 var import_lite = __toESM(require_lite(), 1);
 
-// node_modules/@jimp/core/dist/esm/utils/constants.js
+// api-server/node_modules/@jimp/core/dist/esm/utils/constants.js
 var HorizontalAlign;
 (function(HorizontalAlign2) {
   HorizontalAlign2[HorizontalAlign2["LEFT"] = 1] = "LEFT";
@@ -115744,7 +115744,7 @@ var BlendMode;
   BlendMode2["EXCLUSION"] = "exclusion";
 })(BlendMode || (BlendMode = {}));
 
-// node_modules/@jimp/core/dist/esm/utils/composite-modes.js
+// api-server/node_modules/@jimp/core/dist/esm/utils/composite-modes.js
 var composite_modes_exports = {};
 __export(composite_modes_exports, {
   add: () => add,
@@ -115916,7 +115916,7 @@ var names2 = [
   exclusion
 ];
 
-// node_modules/@jimp/core/dist/esm/utils/composite.js
+// api-server/node_modules/@jimp/core/dist/esm/utils/composite.js
 function composite(baseImage, src, x7 = 0, y4 = 0, options = {}) {
   if (!(src instanceof baseImage.constructor)) {
     throw new Error("The source must be a Jimp image");
@@ -115965,7 +115965,7 @@ function composite(baseImage, src, x7 = 0, y4 = 0, options = {}) {
   return baseImage;
 }
 
-// node_modules/@jimp/core/dist/esm/utils/image-bitmap.js
+// api-server/node_modules/@jimp/core/dist/esm/utils/image-bitmap.js
 var import_exif_parser = __toESM(require_exif_parser(), 1);
 function getExifOrientation(img) {
   const _exif = img._exif;
@@ -116047,7 +116047,7 @@ async function attemptExifRotate(image2, buffer) {
   }
 }
 
-// node_modules/@jimp/core/dist/esm/index.js
+// api-server/node_modules/@jimp/core/dist/esm/index.js
 var emptyBitmap = {
   data: Buffer.alloc(0),
   width: 0,
@@ -116519,7 +116519,7 @@ function createJimp({ plugins: pluginsArg, formats: formatsArg } = {}) {
   return CustomJimp;
 }
 
-// node_modules/@jimp/plugin-resize/dist/esm/constants.js
+// api-server/node_modules/@jimp/plugin-resize/dist/esm/constants.js
 var ResizeStrategy;
 (function(ResizeStrategy2) {
   ResizeStrategy2["NEAREST_NEIGHBOR"] = "nearestNeighbor";
@@ -116529,7 +116529,7 @@ var ResizeStrategy;
   ResizeStrategy2["BEZIER"] = "bezierInterpolation";
 })(ResizeStrategy || (ResizeStrategy = {}));
 
-// node_modules/@jimp/plugin-resize/dist/esm/modules/resize.js
+// api-server/node_modules/@jimp/plugin-resize/dist/esm/modules/resize.js
 function Resize(widthOriginal, heightOriginal, targetWidth, targetHeight, blendAlpha, interpolationPass, resizeCallback) {
   this.widthOriginal = Math.abs(Math.floor(widthOriginal) || 0);
   this.heightOriginal = Math.abs(Math.floor(heightOriginal) || 0);
@@ -116862,7 +116862,7 @@ Resize.prototype.generateUint8Buffer = function(bufferLength) {
 };
 var resize_default = Resize;
 
-// node_modules/@jimp/plugin-resize/dist/esm/modules/resize2.js
+// api-server/node_modules/@jimp/plugin-resize/dist/esm/modules/resize2.js
 var operations = {
   nearestNeighbor(src, dst) {
     const wSrc = src.width;
@@ -117043,7 +117043,7 @@ var operations = {
   }
 };
 
-// node_modules/@jimp/plugin-resize/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-resize/dist/esm/index.js
 var ResizeOptionsSchema = external_exports.union([
   external_exports.object({
     /** the width to resize the image to */
@@ -117161,7 +117161,7 @@ var methods5 = {
   }
 };
 
-// node_modules/@jimp/plugin-contain/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-contain/dist/esm/index.js
 var ContainOptionsSchema = external_exports.object({
   /** the width to resize the image to */
   w: external_exports.number(),
@@ -117212,7 +117212,7 @@ var methods6 = {
   }
 };
 
-// node_modules/@jimp/plugin-crop/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-crop/dist/esm/index.js
 var CropOptionsSchema = external_exports.object({
   /** the x position to crop form */
   x: external_exports.number(),
@@ -117393,7 +117393,7 @@ var methods7 = {
   }
 };
 
-// node_modules/@jimp/plugin-cover/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-cover/dist/esm/index.js
 var CoverOptionsSchema = external_exports.object({
   /** the width to resize the image to */
   w: external_exports.number(),
@@ -117440,7 +117440,7 @@ var methods8 = {
   }
 };
 
-// node_modules/@jimp/plugin-displace/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-displace/dist/esm/index.js
 var DisplaceOptionsSchema = external_exports.object({
   /** the source Jimp instance */
   map: JimpClassSchema,
@@ -117477,7 +117477,7 @@ var methods9 = {
   }
 };
 
-// node_modules/@jimp/plugin-dither/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-dither/dist/esm/index.js
 var methods10 = {
   /**
    * Apply a ordered dithering effect.
@@ -117520,7 +117520,7 @@ var methods10 = {
   }
 };
 
-// node_modules/@jimp/plugin-fisheye/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-fisheye/dist/esm/index.js
 var FisheyeOptionsSchema = external_exports.object({
   /** the radius of the circle */
   radius: external_exports.number().min(0).optional()
@@ -117558,7 +117558,7 @@ var methods11 = {
   }
 };
 
-// node_modules/@jimp/plugin-flip/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-flip/dist/esm/index.js
 var FlipOptionsSchema = external_exports.object({
   /** if true the image will be flipped horizontally */
   horizontal: external_exports.boolean().optional(),
@@ -117594,10 +117594,10 @@ var methods12 = {
   }
 };
 
-// node_modules/@jimp/plugin-hash/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-hash/dist/esm/index.js
 var import_any_base = __toESM(require_any_base(), 1);
 
-// node_modules/@jimp/plugin-hash/dist/esm/phash.js
+// api-server/node_modules/@jimp/plugin-hash/dist/esm/phash.js
 var ImagePHash = class {
   size;
   smallerSize;
@@ -117684,7 +117684,7 @@ function applyDCT(f6, size) {
 }
 var phash_default = ImagePHash;
 
-// node_modules/@jimp/plugin-hash/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-hash/dist/esm/index.js
 var alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$_";
 var maxHashLength = [NaN, NaN];
 for (let i5 = 2; i5 < 65; i5++) {
@@ -117750,7 +117750,7 @@ var methods13 = {
   }
 };
 
-// node_modules/@jimp/plugin-mask/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-mask/dist/esm/index.js
 var MaskOptionsObjectSchema = external_exports.object({
   src: JimpClassSchema,
   /** the x position to draw the image */
@@ -117807,7 +117807,7 @@ var methods14 = {
   }
 };
 
-// node_modules/@jimp/plugin-print/dist/esm/measure-text.js
+// api-server/node_modules/@jimp/plugin-print/dist/esm/measure-text.js
 function measureText(font, text2) {
   let x7 = 0;
   for (let i5 = 0; i5 < text2.length; i5++) {
@@ -117872,7 +117872,7 @@ function measureTextHeight(font, text2, maxWidth) {
   return lines.length * font.common.lineHeight;
 }
 
-// node_modules/@jimp/plugin-print/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-print/dist/esm/index.js
 var PrintOptionsSchema = external_exports.object({
   /** the x position to draw the image */
   x: external_exports.number(),
@@ -118007,7 +118007,7 @@ var methods15 = {
   }
 };
 
-// node_modules/@jimp/plugin-rotate/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-rotate/dist/esm/index.js
 var RotateOptionsSchema = external_exports.union([
   external_exports.number(),
   external_exports.object({
@@ -118168,7 +118168,7 @@ var methods16 = {
   }
 };
 
-// node_modules/@jimp/plugin-threshold/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-threshold/dist/esm/index.js
 var ThresholdOptionsSchema = external_exports.object({
   /** A number auto limited between 0 - 255 */
   max: external_exports.number().min(0).max(255),
@@ -118212,7 +118212,7 @@ var methods17 = {
   }
 };
 
-// node_modules/image-q/dist/esm/image-q.mjs
+// api-server/node_modules/image-q/dist/esm/image-q.mjs
 var __defProp2 = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp2(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __export2 = (target, all) => {
@@ -120877,7 +120877,7 @@ function paletteQuantizationToPaletteQuantizer(distanceCalculator, paletteQuanti
   }
 }
 
-// node_modules/@jimp/plugin-quantize/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-quantize/dist/esm/index.js
 var QuantizeOptionsSchema = zod_default.object({
   colors: zod_default.number().optional(),
   colorDistanceFormula: zod_default.union([
@@ -120934,12 +120934,12 @@ var methods18 = {
   }
 };
 
-// node_modules/@jimp/plugin-print/dist/esm/load-bitmap-font.js
+// api-server/node_modules/@jimp/plugin-print/dist/esm/load-bitmap-font.js
 var import_parse_bmfont_ascii = __toESM(require_parse_bmfont_ascii(), 1);
 var import_parse_bmfont_xml = __toESM(require_lib4(), 1);
 var import_parse_bmfont_binary = __toESM(require_parse_bmfont_binary(), 1);
 
-// node_modules/simple-xml-to-json/lib/simpleXmlToJson.min.mjs
+// api-server/node_modules/simple-xml-to-json/lib/simpleXmlToJson.min.mjs
 function e2(e3) {
   return e3 && e3.__esModule && Object.prototype.hasOwnProperty.call(e3, "default") ? e3.default : e3;
 }
@@ -121165,16 +121165,16 @@ var A2 = e2((function() {
 var C = A2.convertXML;
 var L = A2.createAST;
 
-// node_modules/@jimp/plugin-print/dist/esm/load-bitmap-font.js
+// api-server/node_modules/@jimp/plugin-print/dist/esm/load-bitmap-font.js
 var { convertXML } = A2;
 var isWebWorker = typeof self !== "undefined" && self.document === void 0;
 var CharacterJimp = createJimp({ formats: [png] });
 var HEADER = Buffer.from([66, 77, 70, 3]);
 
-// node_modules/@jimp/diff/dist/esm/index.js
+// api-server/node_modules/@jimp/diff/dist/esm/index.js
 var import_pixelmatch = __toESM(require_pixelmatch(), 1);
 
-// node_modules/jimp/dist/esm/index.js
+// api-server/node_modules/jimp/dist/esm/index.js
 var defaultPlugins = [
   methods,
   methods2,
@@ -121208,7 +121208,7 @@ var Jimp = createJimp({
   plugins: defaultPlugins
 });
 
-// src/lib/imageCompress.ts
+// api-server/src/lib/imageCompress.ts
 var VISION_MAX_EDGE = 1024;
 var VISION_JPEG_QUALITY = 80;
 var compressStats = {
@@ -121258,7 +121258,7 @@ async function compressImageForVision(input, opts) {
   return result;
 }
 
-// src/services/imageProcessor.ts
+// api-server/src/services/imageProcessor.ts
 var IMAGE_TYPES = /* @__PURE__ */ new Set(["picture", "image", "photo"]);
 var IMAGE_CACHE_TTL_MS = 2 * 60 * 60 * 1e3;
 var IMAGE_CACHE_MAX = 500;
@@ -121514,7 +121514,7 @@ function extractImageIntent(text2) {
   return normalizeIntent(m5[1]);
 }
 
-// src/services/serviceDecline.ts
+// api-server/src/services/serviceDecline.ts
 var FAMILY_SERVICE_RE = {
   alimentos: /^(Alimentos|Comida)$|banquete|taquiza|catering|pizzas?|barra\s+de\s+(pizzas?|pastas?|alimentos|sushi)|brunch|parrillada|sushi|canap|bocadillo|coffee\s*break|puestos?\s+de\s+comida|desayuno|paella|pozole|pasta/i,
   bebidas: /bebidas?|barra\s+de\s+bebidas|coctel|m[oó]cteles|mixolog|barra\s+de\s+caf[eé]/i,
@@ -121729,7 +121729,7 @@ function stripThemeColorsFromZona(value) {
   return v3.trim() || null;
 }
 
-// src/services/geoResolve.ts
+// api-server/src/services/geoResolve.ts
 var CDMX_ALCALDIAS = /\b(alvaro\s+obregon|[aá]lvaro\s+obreg[oó]n|azcapotzalco|benito\s+ju[aá]rez|coyoac[aá]n|cuajimalpa|cuauht[eé]moc|gustavo\s+a\.?\s*madero|iztacalco|iztapalapa|magdalena\s+contreras|miguel\s+hidalgo|milpa\s+alta|tl[aá]huac|tlalpan|venustiano\s+carranza|xochimilco)\b/i;
 var CDMX_CITY = /\b(cdmx|ciudad\s+de\s+m[eé]xico|\bdf\b|d\.?\s*f\.?)\b/i;
 function fold(s6) {
@@ -121780,7 +121780,7 @@ function composeEventLocation(text2) {
   return joined;
 }
 
-// src/conversation-understanding.ts
+// api-server/src/conversation-understanding.ts
 var CRM_FECHA_LABEL = "Fecha del evento";
 var CRM_HORARIO_LABEL = "Horario del evento";
 var LEGACY_CRM_FECHA_HORARIO_LABEL = "Fecha y horario";
@@ -123626,9 +123626,11 @@ function isMealTimeOnlySchedule(text2) {
   }
   return false;
 }
+var CLOCK_AMPM = String.raw`(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)`;
+var CLOCK_TOKEN = String.raw`\d{1,2}(?::\d{2})?`;
 function isSimpleClockTime(text2) {
   const t3 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t3 || t3.length > 50) return false;
+  if (!t3 || t3.length > 70) return false;
   if (MONTH_PATTERN.test(t3)) return false;
   if (/\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
     t3
@@ -123636,7 +123638,10 @@ function isSimpleClockTime(text2) {
     return false;
   }
   if (/^(a\s+)?medio\s*d[ií]a$/i.test(t3) || /^a\s+mediod[ií]a$/i.test(t3)) return true;
-  if (/^(?:a\s+las\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)?$/i.test(t3)) {
+  if (new RegExp(
+    String.raw`^(?:a\s+las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t3)) {
     return true;
   }
   if (/^(?:a\s+las\s+)?\d{1,2}(?::\d{2})?\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana)(?:\s*(?:hrs?|horas?))?$/i.test(
@@ -123644,11 +123649,20 @@ function isSimpleClockTime(text2) {
   )) {
     return true;
   }
+  if (new RegExp(
+    String.raw`^(?:a\s+)?(?:partir|desde)\s+de\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t3) || new RegExp(
+    String.raw`^desde\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t3)) {
+    return true;
+  }
   return false;
 }
 function isClockTimeOnlySchedule(text2) {
   const t3 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t3 || t3.length > 60) return false;
+  if (!t3 || t3.length > 80) return false;
   if (isSimpleClockTime(t3)) return true;
   if (MONTH_PATTERN.test(t3)) return false;
   if (/\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
@@ -123656,11 +123670,13 @@ function isClockTimeOnlySchedule(text2) {
   )) {
     return false;
   }
-  const clock = /^(de\s+)?\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}(?::\d{2})?\s*(?:hrs?|horas?)?$/i.test(
-    t3
-  ) || /^(horario\s*:?\s*)?\d{1,2}:\d{2}\s*(?:a|[-–]|hasta)\s*\d{1,2}:\d{2}\s*(?:hrs?|horas?)?$/i.test(
-    t3
-  );
+  const clock = new RegExp(
+    String.raw`^(?:de\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t3) || new RegExp(
+    String.raw`^(?:horario\s*:?\s*)?${CLOCK_TOKEN}\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t3);
   return clock;
 }
 function looksLikeFechaDiscourseJunk(text2) {
@@ -123736,12 +123752,22 @@ function syncLegacyFechaHorarioField(extracted) {
   );
 }
 function normalizeHorarioCapture(text2) {
-  return text2.replace(/^a\s+las\s+/i, "").trim().slice(0, 80);
+  return text2.replace(/^a\s+las\s+/i, "").replace(/^(?:a\s+)?partir\s+de\s+(?:las\s+)?/i, "a partir de las ").replace(/^desde\s+(?:las\s+)?/i, "desde las ").replace(/\s+/g, " ").trim().slice(0, 80);
+}
+function clientDefersHorario(text2) {
+  const t3 = (text2 ?? "").trim();
+  if (!t3) return false;
+  return /\bno\s+(cuento|tengo|tenemos|contamos)\s+con\s+(el\s+)?horario\b/i.test(t3) || /\b(a[uú]n|todav[ií]a)\s+no\s+(tengo|tenemos|cuento|contamos|hay|s[eé])\s+(el\s+)?horario\b/i.test(
+    t3
+  ) || /\bhorario\s+(a[uú]n|todav[ií]a)\s+no\b/i.test(t3) || /\b(sin|no\s+tengo)\s+horario\s+(a[uú]n|definido|por\s+ahora|todav[ií]a)\b/i.test(t3) || /\bno\s+cuento\s+con\s+el\s+horario\b/i.test(t3) || /\bel\s+horario\s+(a[uú]n\s+)?(no\s+lo\s+tengo|est[aá]\s+por\s+definir|pendiente)\b/i.test(t3);
 }
 function parseHorarioFromText(text2) {
   const trimmed = text2.trim();
   if (!trimmed) return null;
   const clean = trimmed.replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (clientDefersHorario(clean)) {
+    return "Sin definir (pendiente)";
+  }
   if (isClockTimeOnlySchedule(clean)) return normalizeHorarioCapture(clean);
   if (isMealTimeOnlySchedule(clean)) return clean;
   if (isScheduleLabeledClock(clean)) {
@@ -123756,14 +123782,53 @@ function parseHorarioFromText(text2) {
   }
   const horarioLabel = clean.match(/\bhorario\s*:?\s*(.+)$/i);
   if (horarioLabel?.[1] && /\d/.test(horarioLabel[1])) {
-    return horarioLabel[1].trim().slice(0, 80);
+    const labeled = horarioLabel[1].trim();
+    if (clientDefersHorario(labeled)) return "Sin definir (pendiente)";
+    return labeled.slice(0, 80);
+  }
+  const rangeAmpm = clean.match(
+    new RegExp(
+      String.raw`\b((?:de\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (rangeAmpm?.[1]) {
+    const frag = rangeAmpm[1].trim();
+    const without = clean.replace(rangeAmpm[1], "").trim();
+    if (!without || parseFechaFromText(without) || MONTH_PATTERN.test(without) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(without) || /\b(evento|ser[ií]a|ser[aá]|es|planean|planeamos|tendr[ií]a|horario)\b/i.test(without)) {
+      return frag.replace(/^de\s+/i, "de ").slice(0, 80);
+    }
+  }
+  const aPartir = clean.match(
+    new RegExp(
+      String.raw`\b((?:a\s+)?partir\s+de\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (aPartir?.[1]) {
+    return normalizeHorarioCapture(aPartir[1]);
+  }
+  const desdeLas = clean.match(
+    new RegExp(
+      String.raw`\b(desde\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (desdeLas?.[1]) {
+    return normalizeHorarioCapture(desdeLas[1]);
   }
   const aLasPhrase = clean.match(
-    /^a\s+las\s+(\d{1,2}(?::\d{2})?(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?)\s*(?:hrs?|horas?)?$/i
+    new RegExp(
+      String.raw`^a\s+las\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?)\s*(?:${CLOCK_AMPM})?$`,
+      "i"
+    )
   );
   if (aLasPhrase?.[1]) return normalizeHorarioCapture(aLasPhrase[0]);
   const atTime = clean.match(
-    /\b(?:a\s+las|a\s+partir\s+de)\s+(\d{1,2}(?::\d{2})?(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?(?:\s*(?:hrs?|horas?|am|pm|a\.?\s*m\.?|p\.?\s*m\.?))?)\b/i
+    new RegExp(
+      String.raw`\b(?:a\s+las|a\s+partir\s+de(?:\s+las)?)\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?(?:\s*(?:${CLOCK_AMPM}))?)`,
+      "i"
+    )
   );
   if (atTime?.[1]) {
     const withoutTime = clean.replace(atTime[0], "").trim();
@@ -123775,7 +123840,10 @@ function parseHorarioFromText(text2) {
     }
   }
   const range = clean.match(
-    /\b(\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}(?::\d{2})?\s*(?:hrs?|horas?|am|pm)?)\b/i
+    new RegExp(
+      String.raw`\b(${CLOCK_TOKEN}\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
   );
   if (range?.[1]) {
     const withoutRange = clean.replace(range[1], "").trim();
@@ -123820,6 +123888,8 @@ function isUsableHorarioEvento(value) {
   const t3 = (value ?? "").trim();
   if (!t3) return false;
   if (/^sin\s+definir/i.test(t3)) return true;
+  if (/pendiente/i.test(t3) && /sin\s+definir|por\s+definir/i.test(t3)) return true;
+  if (/\ba\s+partir\s+de\s+(?:las\s+)?\d/i.test(t3)) return true;
   if (isClockTimeOnlySchedule(t3)) return true;
   if (isMealTimeOnlySchedule(t3)) return true;
   if (isSimpleClockTime(t3)) return true;
@@ -125217,7 +125287,7 @@ function enrichExtractedFromConversation(extracted, conversationText) {
   }
 }
 
-// src/lucyCrmInvariants.ts
+// api-server/src/lucyCrmInvariants.ts
 function userTextsBlob(userTexts) {
   return userTexts.filter(Boolean).join("\n");
 }
@@ -125377,10 +125447,10 @@ function purgeUnjustifiedPresupuestoLines(lines, userTexts) {
   return lines.filter((line2) => !/^-?\s*Presupuesto \(MXN\):/i.test(line2));
 }
 
-// src/selftest/lucy-flow-selftest.ts
+// api-server/src/selftest/lucy-flow-selftest.ts
 init_learningPairFilter();
 
-// src/modoServicio.ts
+// api-server/src/modoServicio.ts
 var PEDIDO_ENTREGA = /\b(para\s+llevar|a\s+domicilio|en\s+mi\s+casa|entrega|que\s+me\s+(los?\s+|las?\s+)?dejen|que\s+me\s+(los?\s+|las?\s+)?entreguen|solo\s+los?\s+rollos?|solo\s+el\s+producto|sin\s+montaje|pedido\s+de|un\s+pedido\s+de|cantidad\s+de\s+\d+|piezas?\s+de)\b/i;
 var SERVICIO_MONTADO = /\b(montado\s+en|en\s+el\s+evento|barra\s+en|estaci[oó]n\s+en|meseros|servicio\s+en\s+el|montaje\s+en|en\s+mi\s+evento|en\s+la\s+fiesta)\b/i;
 function detectModoServicio(text2) {
@@ -125418,7 +125488,7 @@ function buildPedidoEntregaReply(message) {
   return `Perfecto \u2014 lo tomo como *pedido/entrega a domicilio* (sin barra ni chefs en el evento). Para ${what}, nuestro equipo te arma la cotizaci\xF3n exacta seg\xFAn cantidad y zona de entrega. \xBFMe regalas tu nombre para pas\xE1rselo?`;
 }
 
-// src/tipoContacto.ts
+// api-server/src/tipoContacto.ts
 var PROVEEDOR_SELL = /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|soy\s+proveedor|quiero\s+venderles|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidor\s+de|mi\s+empresa\s+ofrece|vendo\s+.+\s+a\s+eventos)\b/i;
 var PROVEEDOR_ALLIANCE = /\b(red\s+de\s+aliados|aliados?\s+comerciales?|alianza\s+comercial|aliado\s+comercial|registrarte\s+en\s+nuestra\s+base|invitarte\s+a\s+registrarte|te\s+invito\s+a\s+registrarte|ser\s+parte\s+de\s+nuestra\s+red|sumarte\s+a\s+(nuestra\s+)?red|formar\s+parte\s+de\s+nuestra\s+red|proveedores?\s+aliados?|cat[aá]logo\s+de\s+proveedores|beneficios\s+y\s+tarifas.{0,80}(?:venue|hacienda|sal[oó]n)|ejecutiv[oa]\s+de\s+ventas\s+en\s+(?:hacienda|sal[oó]n|venue|hotel)|nuestro\s+venue|red\s+de\s+proveedores|quiero\s+ser\s+proveedor|ofrecerles\s+(nuestro|mis|nuestros)|los\s+invito\s+a\s+(conocer|registr|formar)|invitarlos\s+a\s+(nuestra|formar|registr))\b/i;
 var PROVEEDOR_OFFER = new RegExp(
@@ -125457,12 +125527,12 @@ function buildCompanyEmailConfirmReply() {
   return "S\xED, capybaraeventos@gmail.com es el correo de Bodasesor \u2014 tu solicitud ya nos lleg\xF3 bien. Para enviarte la cotizaci\xF3n personalizada, \xBFme compartes tu correo de trabajo?";
 }
 
-// src/services/lucyInfoPriceCache.ts
+// api-server/src/services/lucyInfoPriceCache.ts
 import { existsSync as existsSync2, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// src/services/serviceSynonyms.ts
+// api-server/src/services/serviceSynonyms.ts
 function norm(s6) {
   return s6.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -126420,7 +126490,7 @@ function loadSinonimosJson(raw) {
   return rows.length;
 }
 
-// src/services/lucyInfoPriceCache.ts
+// api-server/src/services/lucyInfoPriceCache.ts
 function cacheState() {
   const g6 = globalThis;
   if (!g6.__lucyInfoPriceCache) {
@@ -126842,7 +126912,7 @@ ${body2}
 ${ask}`;
 }
 
-// src/price-guard.ts
+// api-server/src/price-guard.ts
 var NO_LISTED_PRICE_PATTERN = /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|mesas?|sillas?|periqueras?|salas?\s*(lounge)?|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
 var LISTED_PRICE_PATTERN = /banquete|taquiza|parrillada|barra\s+(de\s+)?(bebidas?|alimentos?|caf[eé]|pizzas?|sushi|crepas?|mariscos?|pastas?)|mesa\s+de\s+dulces|cocteler[ií]a|mixolog[ií]a|coffee\s*break|brunch|paella|m[oó]cteles?|canap[eé]s|pozole|americana|kosher|navide[nñ]o/i;
 var dynamicListedPattern = null;
@@ -126978,7 +127048,7 @@ function sanitizeInventedPrices(mensaje, currentMessage, recentContext) {
   return safe;
 }
 
-// src/catalogo.ts
+// api-server/src/catalogo.ts
 var CATALOGO_BODASESOR = `
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 CAT\xC1LOGO BODASESOR 2026 \u2014 INFORMACI\xD3N COMPLETA
@@ -127307,7 +127377,7 @@ DJ y audio, pantallas LED, iluminaci\xF3n, fiesta infantil, carpas y lonas.
 \u2192 Responder: "Para [servicio], Alejandro te da los detalles y precio en tu cotizaci\xF3n."
 `;
 
-// src/services/googleSheetsCatalog.ts
+// api-server/src/services/googleSheetsCatalog.ts
 var HEADER_ALIASES = {
   servicio: "servicio",
   service: "servicio",
@@ -127603,7 +127673,7 @@ function parseRowNotes(notas) {
   return result;
 }
 
-// src/services/catalogWebKnowledge.ts
+// api-server/src/services/catalogWebKnowledge.ts
 import { readFileSync as readFileSync2 } from "node:fs";
 import path3 from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
@@ -127721,7 +127791,7 @@ function buildCatalogWebDetailHint(query) {
   return parts2.join("\n");
 }
 
-// src/services/serviceProgressiveOffer.ts
+// api-server/src/services/serviceProgressiveOffer.ts
 var SERVICE_NIVEL_DETAIL_CTA = "\xBFQuieres que te d\xE9 detalles de alguno?";
 function messageHasSoloCompletoNivelOrMode(text2) {
   const t3 = text2?.trim() ?? "";
@@ -128492,7 +128562,7 @@ function resolveProgressiveDetailQuery(opts) {
   return null;
 }
 
-// src/services/concreteProductQuestion.ts
+// api-server/src/services/concreteProductQuestion.ts
 var CATALOG_WORD_RE = /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b/i;
 function isCentrosDeMesaFloral(text2) {
   return /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(
@@ -128615,7 +128685,7 @@ function shouldSkipSalesMenuForConcreteQuestion(message) {
   return clientAsksConcreteProductQuestion(message);
 }
 
-// src/services/serviceKnowledge.ts
+// api-server/src/services/serviceKnowledge.ts
 var SERVICE_KNOWLEDGE_GOLDEN_RULE = "Que un servicio no est\xE9 en el cat\xE1logo significa que no tengo el precio a la mano, NO que no sepa qu\xE9 es. Acepta cualquier servicio de eventos, an\xF3talo y avanza. Nunca te quedes pidiendo 'otros servicios' ni repitas la misma pregunta por no tener el dato.";
 var NON_EVENT_REQUEST_PATTERN = /\b(seguro\s+de|abogad|plomer|electricista|internet\s+en\s+casa|plan\s+de\s+celular|lavad|reparaci[oó]n\s+de\s+(auto|celular)|vpn|software\s+de\s+contab|consulta\s+m[eé]dic|veterinar|notari|traducci[oó]n\s+oficial|impresi[oó]n\s+de\s+actas)\b/i;
 var EVENT_CONTEXT_PATTERN = /\b(evento|fiesta|boda|xv|quince|cumple|corporativ|celebraci[oó]n|banquete|taquiza|barra|renta|valet|pirotecnia|mesa\s+imperial|flor|decoraci|animaci|dj|mobiliario|carpa|iluminaci|pantalla|mesero|catering|invitados)\b/i;
@@ -128860,7 +128930,7 @@ function getServiceKnowledge(query) {
   };
 }
 
-// src/services/catalogService.ts
+// api-server/src/services/catalogService.ts
 import { readFileSync as readFileSync3, existsSync as existsSync3 } from "node:fs";
 import path4 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
@@ -130878,7 +130948,7 @@ function messageOffersCatalogLink(text2) {
   );
 }
 
-// src/lucy-flow-guards.ts
+// api-server/src/lucy-flow-guards.ts
 var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
 var WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp \u2014 el cliente no lo escribi\xF3)";
 var EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
@@ -134463,18 +134533,22 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
-    if (!cierreYaEnviado && currentMessage && (lucyAskedHorario || horarioPending || lucyAskedFecha || fechaPending || isScheduleLabeledClock(currentMessage)) && (isClockTimeOnlySchedule(currentMessage) || isMealTimeOnlySchedule(currentMessage) || isScheduleLabeledClock(currentMessage) || !!horarioNow)) {
-      const parsedHorario = (horarioNow ?? parseHorarioFromText(currentMessage ?? "") ?? currentMessage.trim()).replace(/\s+/g, " ").slice(0, 80);
+    const defersHorario = !!(currentMessage && clientDefersHorario(currentMessage));
+    const messageIsPrimarilyHorario = !!currentMessage && (defersHorario || isClockTimeOnlySchedule(currentMessage) || isSimpleClockTime(currentMessage.trim()) || isScheduleLabeledClock(currentMessage) || /^(el\s+evento\s+)?(ser[ií]a|es|ser[aá]|qued[oó]|arranca|inicia|empieza)\b/i.test(
+      currentMessage.trim()
+    ) && !!horarioNow);
+    if (!cierreYaEnviado && currentMessage && (lucyAskedHorario || horarioPending || defersHorario || messageIsPrimarilyHorario || (lucyAskedFecha || fechaPending) && !!horarioNow && messageIsPrimarilyHorario) && (defersHorario || isClockTimeOnlySchedule(currentMessage) || isMealTimeOnlySchedule(currentMessage) || isScheduleLabeledClock(currentMessage) || isSimpleClockTime(currentMessage.trim()) || !!horarioNow)) {
+      const parsedHorario = (defersHorario ? "Sin definir (pendiente)" : horarioNow ?? parseHorarioFromText(currentMessage ?? "") ?? currentMessage.trim()).replace(/\s+/g, " ").slice(0, 80);
       if (!parsedHorario || !isUsableHorarioEvento(parsedHorario)) {
       } else {
         extracted.horario_evento = parsedHorario;
         filledSet.add(CRM_HORARIO_LABEL);
         syncLegacyFechaHorarioField(extracted);
         const display = getDisplayName(extracted, whatsappDisplayName);
-        const ack = display ? `Perfecto, ${display}. Anoto el horario *${extracted.horario_evento}*.` : `Perfecto. Anoto el horario *${extracted.horario_evento}*.`;
+        const ack = defersHorario ? display ? `Entendido, ${display}. Dejamos el horario pendiente por ahora.` : "Entendido. Dejamos el horario pendiente por ahora." : display ? `Perfecto, ${display}. Anoto el horario *${extracted.horario_evento}*.` : `Perfecto. Anoto el horario *${extracted.horario_evento}*.`;
         const pendingAfterHorario = getNextPendingField(extracted, filledSet);
         const nextQ = pendingAfterHorario ? buildNaturalQuestion(pendingAfterHorario, ctx) : null;
-        log?.info({ entityId, pending: pendingAfterHorario }, "GUARD: A15419 \u2014 horario capturado + embudo");
+        log?.info({ entityId, pending: pendingAfterHorario, defersHorario }, "GUARD: A15419/A15566 \u2014 horario capturado + embudo");
         return normalizeAdvisorReferences(
           nextQ ? `${ack} ${nextQ}` : ack,
           extracted.nombre ?? display
@@ -137110,7 +137184,7 @@ function stripImageAnnotation(text2) {
   return text2.replace(/\[imagen\s+adjunta:[^\]]*\]/gi, "").replace(/\[imagen\s+respuesta\s+cliente\]:\s*[^\n]*/gi, "").replace(/\[imagen\s+nota\s+interna\]:\s*[^\n]*/gi, "").replace(/\[imagen\s+intent\]:\s*[^\n]*/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
 
-// src/silentWatchCrm.ts
+// api-server/src/silentWatchCrm.ts
 var SILENT_WATCH_FIELD = {
   direccion_evento: 1048774,
   requerimientos_evento: 1048776,
@@ -137188,7 +137262,7 @@ function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLine
   return customFields.length || payload["name"] ? payload : null;
 }
 
-// src/lucyOutboundAntiRepeat.ts
+// api-server/src/lucyOutboundAntiRepeat.ts
 var FIELD_ORDER2 = [
   "nombre",
   "correo",
@@ -137676,13 +137750,13 @@ ${q2}` : display && !q2.includes(display) ? `Perfecto, ${display}. ${q2}` : q2;
   return { mensaje: mensaje.trim(), applied };
 }
 
-// src/lib/formatForWhatsApp.ts
+// api-server/src/lib/formatForWhatsApp.ts
 function formatForWhatsApp(text2) {
   if (!text2?.trim()) return text2;
   return text2.replace(/\*\*(.+?)\*\*/g, "*$1*").replace(/^#{1,6}\s*/gm, "").replace(/^\s*[-*]\s+/gm, "\u2022 ").replace(/`{1,3}/g, "").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-// src/lucy-prompt.ts
+// api-server/src/lucy-prompt.ts
 var ADVISOR = getAdvisorName();
 var TEAM = advisorLabelForClient();
 var CATALOG_URL = "https://bodasesor.com/catalogos";
@@ -137956,7 +138030,7 @@ humano \u2192 pasa tel\xE9fonos de ventas/gerencia. Las im\xE1genes se leen siem
 pero no se responde al cliente.
 `;
 
-// src/services/lucyRedaction.ts
+// api-server/src/services/lucyRedaction.ts
 init_llmChat();
 init_llmEnv();
 async function refinarRespuestaCierre(_openai, borrador) {
@@ -137992,7 +138066,7 @@ function mergeExtractedPatch(target, patch) {
   }
 }
 
-// src/lucyOutboundPipeline.ts
+// api-server/src/lucyOutboundPipeline.ts
 async function finalizeLucyOutboundMessage(input) {
   let mensaje = input.mensaje;
   mensaje = await maybeRefinarMensajeCierre(input.openai, mensaje, {
@@ -138107,7 +138181,7 @@ ${keepQ}` : ack;
   return formatForWhatsApp(mensaje);
 }
 
-// src/services/promptBuilder.ts
+// api-server/src/services/promptBuilder.ts
 function buildStaticSystemPrompt() {
   return `${SYSTEM_PROMPT}
 
@@ -138225,7 +138299,7 @@ Ofrece propuesta para comparar. M\xE1ximo 2 l\xEDneas.`
   return modules[type] ?? "";
 }
 
-// src/lib/proveedorHandoff.ts
+// api-server/src/lib/proveedorHandoff.ts
 function extractEmpresaFromText(text2) {
   if (!text2?.trim()) return null;
   const patterns = [
@@ -138269,10 +138343,10 @@ function scrubClientFieldsForProveedor(extracted) {
   return out2;
 }
 
-// src/selftest/lucy-flow-selftest.ts
+// api-server/src/selftest/lucy-flow-selftest.ts
 await init_embudo();
 
-// src/services/summaryService.ts
+// api-server/src/services/summaryService.ts
 function isUsableResumenServicio(value) {
   const t3 = value?.trim() ?? "";
   if (!t3 || t3 === "Info pendiente") return false;
@@ -138405,20 +138479,20 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   return lineas.join("\n").slice(0, 8e3);
 }
 
-// src/services/lucyInfoStore.ts
+// api-server/src/services/lucyInfoStore.ts
 await init_src2();
 
-// src/services/lucyInfoSchema.ts
+// api-server/src/services/lucyInfoSchema.ts
 await init_src2();
 init_logger2();
 
-// src/services/lucyInfoStore.ts
+// api-server/src/services/lucyInfoStore.ts
 init_logger2();
 
-// src/lib/training.ts
+// api-server/src/lib/training.ts
 await init_trainingStore();
 
-// src/lib/lucyCostControls.ts
+// api-server/src/lib/lucyCostControls.ts
 function isLucyUnifiedLlmTurn() {
   const raw = (process.env["LUCY_UNIFIED_LLM_TURN"] ?? "1").trim().toLowerCase();
   return raw !== "0" && raw !== "false" && raw !== "off";
@@ -138447,7 +138521,7 @@ function lucyCostControlsSummary() {
   };
 }
 
-// src/lucyTurnProcessor.ts
+// api-server/src/lucyTurnProcessor.ts
 async function prepareLucyExtraction(input) {
   const { fullHistory, messageText, crmLines, extractFn } = input;
   const extracted = await extractFn(fullHistory, messageText, crmLines.join("\n"));
@@ -138489,7 +138563,7 @@ async function prepareLucyExtraction(input) {
   return { extracted, conversationText };
 }
 
-// src/lib/external-ingest-sanitize.ts
+// api-server/src/lib/external-ingest-sanitize.ts
 function lineValue(line2, label) {
   const re3 = new RegExp(`^-?\\s*${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:\\s*`, "i");
   return line2.replace(re3, "").trim();
@@ -138556,13 +138630,13 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
   return out2;
 }
 
-// src/selftest/lucy-flow-selftest.ts
+// api-server/src/selftest/lucy-flow-selftest.ts
 import { readFileSync as readFileSync5 } from "node:fs";
 import path6 from "node:path";
 import { fileURLToPath as fileURLToPath6 } from "node:url";
 init_kommoTalks();
 
-// src/services/voiceProcessor.ts
+// api-server/src/services/voiceProcessor.ts
 init_openai();
 init_openaiEnv();
 init_llmChat();
@@ -138625,7 +138699,7 @@ function getVoiceNoteUrl(message) {
   return null;
 }
 
-// src/lib/webhookDedup.ts
+// api-server/src/lib/webhookDedup.ts
 var TTL_MS = 24 * 60 * 60 * 1e3;
 var MAX_ENTRIES = 1e4;
 var processedAt = /* @__PURE__ */ new Map();
@@ -138692,7 +138766,7 @@ function resetWebhookDedupForTests() {
   processedAt.clear();
 }
 
-// src/lib/kommoWebhookParse.ts
+// api-server/src/lib/kommoWebhookParse.ts
 function asRecord(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : null;
 }
@@ -138752,10 +138826,10 @@ function isChatUnsortedCategory(category) {
   return /chat|whats|waba|telegram|facebook|instagram|messenger|sip/.test(c4);
 }
 
-// src/services/incomingLeadRecovery.ts
+// api-server/src/services/incomingLeadRecovery.ts
 init_logger2();
 
-// src/chat-history.ts
+// api-server/src/chat-history.ts
 import { readFileSync as readFileSync4, writeFileSync, existsSync as existsSync5 } from "fs";
 import { join as join4, dirname as dirname3 } from "path";
 import { fileURLToPath as fileURLToPath5 } from "url";
@@ -138772,17 +138846,17 @@ function load() {
 }
 var store = load();
 
-// src/services/kommoMirror.ts
+// api-server/src/services/kommoMirror.ts
 init_logger2();
 await init_embudo();
 init_kommoTalks();
 
-// src/services/whatsappDirectSender.ts
+// api-server/src/services/whatsappDirectSender.ts
 init_logger2();
 var WHATSAPP_TOKEN = process.env["WHATSAPP_TOKEN"];
 var PHONE_NUMBER_ID = process.env["PHONE_NUMBER_ID"];
 
-// src/services/incomingLeadRecovery.ts
+// api-server/src/services/incomingLeadRecovery.ts
 await init_embudo();
 function isWithinLookback(createdAt, lookbackMs, now = Date.now()) {
   const ts = Number(createdAt);
@@ -138791,7 +138865,7 @@ function isWithinLookback(createdAt, lookbackMs, now = Date.now()) {
   return ms >= now - lookbackMs;
 }
 
-// src/services/paymentReceiptCrm.ts
+// api-server/src/services/paymentReceiptCrm.ts
 await init_embudo();
 var FIELD_ANTICIPO = 1049322;
 var FIELD_LIQUIDACION = 1049324;
@@ -138828,10 +138902,10 @@ function clientReplyForPaymentSlot(slot) {
   return "\xA1Gracias! Ya registr\xE9 la liquidaci\xF3n y el equipo da seguimiento.";
 }
 
-// src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.57";
+// api-server/src/lib/lucyRelease.ts
+var LUCY_PROMPT_VERSION = "V9.58";
 
-// src/selftest/lucy-flow-selftest.ts
+// api-server/src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
 init_llmChat();
 init_geminiContextCache();
@@ -148391,7 +148465,7 @@ ${golfText}`,
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
   await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -148420,7 +148494,7 @@ ${golfText}`,
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
   await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -148538,7 +148612,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,
@@ -148609,7 +148683,7 @@ ${golfText}`,
     }
   });
   await test("135. V9.38 \u2014 comprobante en imagen: primer pago Anticipo, segundo Liquidaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     assert2.equal(FIELD_ANTICIPO, 1049322);
     assert2.equal(FIELD_LIQUIDACION, 1049324);
     assert2.equal(nextPaymentSlot(null, null), "anticipo");
@@ -148673,7 +148747,7 @@ ${golfText}`,
     assert2.ok(/amount_mxn/.test(imgSrc));
   });
   await test("136. V9.40 \u2014 A15380 invitados no se saltan; Coyoac\xE1n+colonia; Claro no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     const horario = "hola si se har\xEDa el 26 de septiembre pero a\xFAn no tenemos definido el horario";
     assert2.equal(parseInvitadosFromText(horario), null, "horario pendiente \u2260 invitados");
     const caps = scanConversationForCaptures([], horario, /* @__PURE__ */ new Set(["Nombre del cliente"]));
@@ -148776,7 +148850,7 @@ ${golfText}`,
     assert2.equal(taquizaNext, "invitados");
   });
   await test("138. V9.41 \u2014 A15383 Kelia: ciudad, banquetes, LED\u2260luz, no spam (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert2.match(hornoMty, /horno\s*3/i, hornoMty);
     assert2.match(hornoMty, /monterrey/i, hornoMty);
@@ -148911,7 +148985,7 @@ ${golfText}`,
     assert2.ok(!/Listo\.\s*Kelia/i.test(nameSpam), nameSpam);
   });
   await test("139. V9.42 \u2014 A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert2.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert2.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -149001,7 +149075,7 @@ ${golfText}`,
     assert2.ok(!/invitados|cu[aá]nt[oa]s|ciudad del evento|en qu[eé] ciudad/i.test(handoff), handoff.slice(0, 400));
   });
   await test("140. V9.43 \u2014 detalle de un producto no re-lista el men\xFA (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -149040,7 +149114,7 @@ ${golfText}`,
     assert2.ok(/Coffee Break 4|350|CB4/i.test(rewritten), rewritten.slice(0, 500));
   });
   await test("141. V9.44 \u2014 A15443 Rosario: reuni\xF3n, hora comida, ciudad obligatoria", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     assert2.equal(parseTipoEventoFromText("una reuni\xF3n de 15 a\xF1os"), "reuni\xF3n");
     assert2.ok(clientSaidReunionNotXv("una reuni\xF3n de 15 a\xF1os"));
     assert2.ok(!clientSaidReunionNotXv("mis XV a\xF1os"));
@@ -149155,7 +149229,7 @@ ${golfText}`,
     assert2.ok(/2\.\s*\*?Servicio completo/i.test(fixedMenu), fixedMenu.slice(0, 600));
   });
   await test("142. V9.45 \u2014 A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     assert2.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert2.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
     assert2.ok(!isUsableFechaHorario("13:00 a 20:00 hrs"));
@@ -149229,7 +149303,7 @@ ${golfText}`,
     assert2.ok(!/ya tengo todo/i.test(clockReply));
   });
   await test("143. V9.49 \u2014 imagen solo embudo; silencio lee dep\xF3sito sin WhatsApp", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
     assert2.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
@@ -149272,7 +149346,7 @@ ${golfText}`,
     assert2.ok(/sin WhatsApp al cliente|leída en silencio/i.test(kommoSrc));
   });
   await test("144. V9.49 \u2014 A15478 Isabel: recomienda tama\xF1o pista seg\xFAn invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     const ask = "Me puedes recomendar el tama\xF1o pensando en la cantidad de invitados?";
     assert2.ok(clientAsksDimensionRecommendation(ask));
     const rec = recommendPistaDimensionsForGuests(120, "XV a\xF1os");
@@ -149338,7 +149412,7 @@ ${golfText}`,
     assert2.ok(!/ya tengo lo principal/i.test(anti.mensaje), anti.mensaje);
   });
   await test("146. V9.49 \u2014 A15494 Paola: mucho gusto no es apellido", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     const reply = "Paola mucho gusto";
     assert2.ok(isMuchoGustoNameReply(reply));
     assert2.equal(sanitizeCrmNombre(reply), "Paola");
@@ -149372,7 +149446,7 @@ ${golfText}`,
     assert2.ok(!/Mucho Gusto!/i.test(guarded.replace(/mucho gusto,\s*Paola/i, "")), guarded);
   });
   await test("147. V9.49 \u2014 A15503 Good: loza y plato postre = vajilla, no postres", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     const brief = "Hola, me interesa cotizar un servicio\nQuiere loza para un evento para 50 personas\nSer\xEDa:\nPlato trinche\nPlato postre\nCubiertos (cuchara, tenedor, cuchara postre).";
     assert2.ok(isTablewareRequestText(brief));
     const services = parseServicesFromText(brief);
@@ -149401,7 +149475,7 @@ ${golfText}`,
     assert2.ok(!/mobiliario/i.test(declineGuard), declineGuard);
   });
   await test("148. V9.50 \u2014 fecha y horario en campos CRM separados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     const split = splitCombinedFechaHorario("15 de agosto, 5:00 p.m.");
     assert2.equal(split.fecha, "15 de agosto");
     assert2.ok(split.horario && /5:00/i.test(split.horario));
@@ -149439,7 +149513,7 @@ ${golfText}`,
     assert2.ok(!cf.some((f6) => f6.field_id === 1048778));
   });
   await test("149. V9.51 \u2014 A15508 Betiana: 40 invitadas y anti-repetici\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     assert2.equal(parseInvitadosFromText("40 sillas, 40 invitadas"), "40");
     assert2.equal(parseInvitadosFromText("40 invitadas"), "40");
     assert2.equal(
@@ -149485,7 +149559,7 @@ ${golfText}`,
     assert2.ok(!/estimado de invitados|cu[aá]ntos invitados/i.test(guarded), guarded);
   });
   await test("150. V9.52 \u2014 A15509 Gaby: apertura, RFQ equipo, a\xFAn no invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     assert2.equal(parseTipoEventoFromText("Ser\xEDa para la apertura de un negocio"), "apertura de negocio");
     assert2.ok(clientSaidAperturaNegocio("Ser\xEDa para la apertura de un negocio"));
     const rfq = [
@@ -149549,7 +149623,7 @@ ${golfText}`,
     assert2.ok(!/cu[aá]ntas personas|estimado de invitados/i.test(invWaive), invWaive);
   });
   await test("151. V9.53 \u2014 A15516 Ccam: captura horario pm y anti-repetici\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     const extracted = emptyExtracted({
       nombre: "Ccam",
       tipo_evento: "XV a\xF1os",
@@ -149597,7 +149671,7 @@ ${golfText}`,
     assert2.ok(!/horario/i.test(guarded2) || /anoto|perfecto|invitados|ciudad|correo/i.test(guarded2), guarded2);
   });
   await test("152. V9.55 \u2014 A15486 G\xE9nesis: promo/vajilla/detalles/presupuesto/PDF", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     const promo = [
       "Hola, escribo por la promo de cierre r\xE1pido (10% de descuento).",
       "C\xF3digo: CierreRapido",
@@ -149709,7 +149783,7 @@ ${golfText}`,
     );
   });
   await test("153. V9.55 \u2014 A15539 Jorge: horario/carpa/DJ no/mobiliario/Atlixco/callback", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     assert2.equal(parseTipoEventoFromText("primera comuni\xF3n"), "primera comuni\xF3n");
     assert2.ok(isScheduleLabeledClock("a medio d\xEDa"));
     assert2.ok(isScheduleLabeledClock("cocktail a las 12:00\ncomida a las 2:00"));
@@ -149868,7 +149942,7 @@ ${golfText}`,
     assert2.ok(!/servicios te gustar[ií]a|ir armando/i.test(callback), callback.slice(0, 400));
   });
   await test("154. V9.56 \u2014 A15547 Marisol: taquiza sin $, qu\xE9 incluye, pospone sin correo", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     const csv = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
       '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","5 guisados","https://bodasesor.com/catalogos/taquiza"',
@@ -149926,7 +150000,7 @@ ${golfText}`,
     assert2.ok(!/correo|e-?mail/i.test(soft), soft.slice(0, 400));
   });
   await test("155. V9.57 \u2014 A15550 Jos\xE9: sal\xF3n suministra \u2260 pedido; bufet \u2192 banquete", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.57");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
     const brief = "cotizaci\xF3n cumplea\xF1os 3 de octubre 50 personas Nezahualc\xF3yotl, el sal\xF3n suministra mesas, sillas, manteler\xEDa, platos, vasos y un mesero";
     assert2.ok(isVenueProvidesContext(brief));
     const parsed = parseServicesFromText(brief);
@@ -149943,6 +150017,53 @@ ${golfText}`,
     });
     assert2.ok(/sal[oó]n ya incluye/i.test(fix), fix.slice(0, 400));
     assert2.ok(!/necesitas.*vajillas/i.test(fix), fix.slice(0, 400));
+  });
+  await test("156. V9.58 \u2014 A15566 Lynn: de 3pm a 11pm, a partir de, sin horario a\xFAn", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.58");
+    assert2.ok(/3:00.*11:00/i.test(parseHorarioFromText("El evento ser\xEDa de 3:00 pm a 11:00 pm") ?? ""));
+    assert2.ok(/16:00|a partir/i.test(parseHorarioFromText("A partir de las 16:00 hrs") ?? ""));
+    assert2.ok(/15:00.*11:00/i.test(parseHorarioFromText("De 15:00 p.m a 11:00 p.m") ?? ""));
+    assert2.ok(clientDefersHorario("No cuento con el horario a\xFAn"));
+    assert2.ok(/sin definir|pendiente/i.test(parseHorarioFromText("No cuento con el horario a\xFAn") ?? ""));
+    const range = runGuards({
+      aiResponse: "\xBFEn qu\xE9 horario lo planean?",
+      extracted: emptyExtracted({
+        nombre: "Lynn",
+        tipo_evento: "XV a\xF1os",
+        requerimientos_evento: "Barra de pastas y ensaladas",
+        fecha_evento: "16 de enero 2027",
+        num_invitados: 100
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Fecha del evento",
+        "N\xFAmero de invitados"
+      ]),
+      readyForClosing: false,
+      currentMessage: "El evento ser\xEDa de 3:00 pm a 11:00 pm",
+      history: [{ role: "assistant", content: "\xBFEn qu\xE9 horario lo planean?" }]
+    });
+    assert2.ok(!/horario lo planean|Sigo aqu[ií]|confirmas ese dato/i.test(range), range.slice(0, 400));
+    assert2.ok(/3:00|11:00|anot/i.test(range), range.slice(0, 400));
+    const defer = runGuards({
+      aiResponse: "\xBFEn qu\xE9 horario lo planean?",
+      extracted: emptyExtracted({
+        nombre: "Lynn",
+        fecha_evento: "16 de enero 2027",
+        requerimientos_evento: "Barra de pastas y ensaladas"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Fecha del evento",
+        "Requerimientos o servicios"
+      ]),
+      readyForClosing: false,
+      currentMessage: "No cuento con el horario a\xFAn",
+      history: [{ role: "assistant", content: "\xBFEn qu\xE9 horario lo planean?" }]
+    });
+    assert2.ok(!/horario lo planean/i.test(defer), defer.slice(0, 400));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

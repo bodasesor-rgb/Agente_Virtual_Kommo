@@ -6846,22 +6846,22 @@ var init_from = __esm({
     init_file();
     init_fetch_blob();
     ({ stat } = fs);
-    blobFromSync = (path3, type) => fromBlob(statSync(path3), path3, type);
-    blobFrom = (path3, type) => stat(path3).then((stat2) => fromBlob(stat2, path3, type));
-    fileFrom = (path3, type) => stat(path3).then((stat2) => fromFile(stat2, path3, type));
-    fileFromSync = (path3, type) => fromFile(statSync(path3), path3, type);
-    fromBlob = (stat2, path3, type = "") => new fetch_blob_default([new BlobDataItem({
-      path: path3,
+    blobFromSync = (path2, type) => fromBlob(statSync(path2), path2, type);
+    blobFrom = (path2, type) => stat(path2).then((stat2) => fromBlob(stat2, path2, type));
+    fileFrom = (path2, type) => stat(path2).then((stat2) => fromFile(stat2, path2, type));
+    fileFromSync = (path2, type) => fromFile(statSync(path2), path2, type);
+    fromBlob = (stat2, path2, type = "") => new fetch_blob_default([new BlobDataItem({
+      path: path2,
       size: stat2.size,
       lastModified: stat2.mtimeMs,
       start: 0
     })], { type });
-    fromFile = (stat2, path3, type = "") => new file_default([new BlobDataItem({
-      path: path3,
+    fromFile = (stat2, path2, type = "") => new file_default([new BlobDataItem({
+      path: path2,
       size: stat2.size,
       lastModified: stat2.mtimeMs,
       start: 0
-    })], basename(path3), { type, lastModified: stat2.mtimeMs });
+    })], basename(path2), { type, lastModified: stat2.mtimeMs });
     BlobDataItem = class _BlobDataItem {
       #path;
       #start;
@@ -12042,7 +12042,7 @@ var require_util2 = __commonJS({
     exports2.getWellKnownCertificateConfigFileLocation = getWellKnownCertificateConfigFileLocation;
     var fs3 = __require("fs");
     var os = __require("os");
-    var path3 = __require("path");
+    var path2 = __require("path");
     var WELL_KNOWN_CERTIFICATE_CONFIG_FILE = "certificate_config.json";
     var CLOUDSDK_CONFIG_DIRECTORY = "gcloud";
     function snakeToCamel(str) {
@@ -12135,8 +12135,8 @@ var require_util2 = __commonJS({
       }
     }
     function getWellKnownCertificateConfigFileLocation() {
-      const configDir = process.env.CLOUDSDK_CONFIG || (_isWindows() ? path3.join(process.env.APPDATA || "", CLOUDSDK_CONFIG_DIRECTORY) : path3.join(process.env.HOME || "", ".config", CLOUDSDK_CONFIG_DIRECTORY));
-      return path3.join(configDir, WELL_KNOWN_CERTIFICATE_CONFIG_FILE);
+      const configDir = process.env.CLOUDSDK_CONFIG || (_isWindows() ? path2.join(process.env.APPDATA || "", CLOUDSDK_CONFIG_DIRECTORY) : path2.join(process.env.HOME || "", ".config", CLOUDSDK_CONFIG_DIRECTORY));
+      return path2.join(configDir, WELL_KNOWN_CERTIFICATE_CONFIG_FILE);
     }
     function _isWindows() {
       return os.platform().startsWith("win");
@@ -14082,7 +14082,7 @@ var require_getCredentials = __commonJS({
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCredentials = getCredentials;
-    var path3 = __require("path");
+    var path2 = __require("path");
     var fs3 = __require("fs");
     var util_1 = __require("util");
     var errorWithCode_1 = require_errorWithCode();
@@ -14154,7 +14154,7 @@ var require_getCredentials = __commonJS({
        * @returns An instance of a class that implements ICredentialsProvider.
        */
       static create(keyFilePath) {
-        const keyFileExtension = path3.extname(keyFilePath);
+        const keyFileExtension = path2.extname(keyFilePath);
         switch (keyFileExtension) {
           case ExtensionFiles.JSON:
             return new JsonCredentialsProvider(keyFilePath);
@@ -17523,7 +17523,7 @@ var require_googleauth = __commonJS({
     var gaxios_1 = require_src2();
     var gcpMetadata = require_src4();
     var os = __require("os");
-    var path3 = __require("path");
+    var path2 = __require("path");
     var crypto_1 = require_crypto3();
     var computeclient_1 = require_computeclient();
     var idtokenclient_1 = require_idtokenclient();
@@ -17808,19 +17808,19 @@ var require_googleauth = __commonJS({
         if (!configDir) {
           if (this._isWindows()) {
             if (process.env["APPDATA"]) {
-              configDir = path3.join(process.env["APPDATA"], "gcloud");
+              configDir = path2.join(process.env["APPDATA"], "gcloud");
             }
           } else {
             const home = process.env["HOME"];
             if (home) {
-              configDir = path3.join(home, ".config", "gcloud");
+              configDir = path2.join(home, ".config", "gcloud");
             }
           }
         }
         if (!configDir) {
           return null;
         }
-        const location = path3.join(configDir, "application_default_credentials.json");
+        const location = path2.join(configDir, "application_default_credentials.json");
         if (!fs3.existsSync(location)) {
           return null;
         }
@@ -18175,7 +18175,7 @@ var require_googleauth = __commonJS({
         if (this.jsonContent) {
           return this._cacheClientFromJSON(this.jsonContent, this.clientOptions);
         } else if (this.keyFilename) {
-          const filePath = path3.resolve(this.keyFilename);
+          const filePath = path2.resolve(this.keyFilename);
           const stream2 = fs3.createReadStream(filePath);
           return await this.fromStreamAsync(stream2, this.clientOptions);
         } else if (this.apiKey) {
@@ -26269,14 +26269,14 @@ var require_gifutil = __commonJS({
       jimpImage.bitmap.data = bitmapImageToShare.bitmap.data;
       return jimpImage;
     };
-    exports2.write = function(path3, frames, spec, encoder) {
+    exports2.write = function(path2, frames, spec, encoder) {
       encoder = encoder || defaultCodec;
-      const matches = path3.match(/\.[a-zA-Z]+$/);
+      const matches = path2.match(/\.[a-zA-Z]+$/);
       if (matches !== null && INVALID_SUFFIXES.includes(matches[0].toLowerCase())) {
-        throw new Error(`GIF '${path3}' has an unexpected suffix`);
+        throw new Error(`GIF '${path2}' has an unexpected suffix`);
       }
       return encoder.encodeGif(frames, spec).then((gif2) => {
-        return _writeBinary(path3, gif2.buffer).then(() => {
+        return _writeBinary(path2, gif2.buffer).then(() => {
           return gif2;
         });
       });
@@ -26348,9 +26348,9 @@ var require_gifutil = __commonJS({
         }
       }
     }
-    function _readBinary(path3) {
+    function _readBinary(path2) {
       return new Promise((resolve2, reject2) => {
-        fs3.readFile(path3, (err, buffer) => {
+        fs3.readFile(path2, (err, buffer) => {
           if (err) {
             return reject2(err);
           }
@@ -26358,9 +26358,9 @@ var require_gifutil = __commonJS({
         });
       });
     }
-    function _writeBinary(path3, buffer) {
+    function _writeBinary(path2, buffer) {
       return new Promise((resolve2, reject2) => {
-        fs3.writeFile(path3, buffer, (err) => {
+        fs3.writeFile(path2, buffer, (err) => {
           if (err) {
             return reject2(err);
           }
@@ -28339,9 +28339,9 @@ var require_decoder = __commonJS({
         return a2 < 0 ? 0 : a2 > 255 ? 255 : a2;
       }
       constructor.prototype = {
-        load: function load(path3) {
+        load: function load(path2) {
           var xhr = new XMLHttpRequest();
-          xhr.open("GET", path3, true);
+          xhr.open("GET", path2, true);
           xhr.responseType = "arraybuffer";
           xhr.onload = (function() {
             var data = new Uint8Array(xhr.response || xhr.mozResponseArrayBuffer);
@@ -41258,11 +41258,11 @@ var require_Mime = __commonJS({
         }
       }
     };
-    Mime.prototype.getType = function(path3) {
-      path3 = String(path3);
-      let last = path3.replace(/^.*[/\\]/, "").toLowerCase();
+    Mime.prototype.getType = function(path2) {
+      path2 = String(path2);
+      let last = path2.replace(/^.*[/\\]/, "").toLowerCase();
       let ext = last.replace(/^.*\./, "").toLowerCase();
-      let hasPath = last.length < path3.length;
+      let hasPath = last.length < path2.length;
       let hasDot = ext.length < last.length - 1;
       return (hasDot || !hasPath) && this._types[ext] || null;
     };
@@ -49133,1619 +49133,8 @@ var require_pixelmatch = __commonJS({
   }
 });
 
-// src/selftest/a15547-smoke.ts
+// src/selftest/a15566-smoke.ts
 import assert from "node:assert/strict";
-
-// src/services/googleSheetsCatalog.ts
-var HEADER_ALIASES = {
-  servicio: "servicio",
-  service: "servicio",
-  nombre: "servicio",
-  producto: "servicio",
-  categoria: "categoria",
-  categor\u00EDa: "categoria",
-  category: "categoria",
-  tipo: "categoria",
-  nivel: "nivel",
-  tier: "nivel",
-  paquete: "nivel",
-  "precio unitario": "precio",
-  precio: "precio",
-  price: "precio",
-  costo: "precio",
-  tarifa: "precio",
-  unidad: "unidad",
-  unit: "unidad",
-  pp: "unidad",
-  notas: "notas",
-  nota: "notas",
-  notes: "notas",
-  descripcion: "notas",
-  descripci\u00F3n: "notas",
-  detalle: "notas",
-  "que incluye": "notas",
-  extras: "notas",
-  sinonimos: "sinonimos",
-  sin\u00F3nimos: "sinonimos",
-  aliases: "sinonimos"
-};
-function deriveCatalogCategory(servicio) {
-  const s3 = servicio.toLowerCase();
-  if (/barra de bebida|cocteler|mixolog|m[oó]ctel/.test(s3)) return "Bebidas";
-  if (/banquete|taquiza|brunch|coffee|barra|comida|desayuno|canap|bocadillo|parrillada|pizza|sushi|crepa|marisco|pasta|paella|pozole|mesa de|carrito|snak/i.test(
-    s3
-  )) {
-    return "Alimentos";
-  }
-  if (/mobiliario|silla/.test(s3)) return "Mobiliario";
-  if (/dj|animaci|iluminaci|pantalla|audio|pista/.test(s3)) return "Entretenimiento";
-  return "Servicios";
-}
-function formatCatalogRowLabel(row) {
-  const svc = row.servicio.trim();
-  const nivel = row.nivel.trim();
-  if (!nivel || nivel.toLowerCase() === svc.toLowerCase()) return svc;
-  return `${svc} \u2014 ${nivel}`;
-}
-function normalizeHeader(h2) {
-  return h2.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
-}
-function parseCsvRows(text) {
-  const rows = [];
-  let row = [];
-  let cell = "";
-  let inQuotes = false;
-  for (let i3 = 0; i3 < text.length; i3++) {
-    const ch = text[i3];
-    const next = text[i3 + 1];
-    if (inQuotes) {
-      if (ch === '"' && next === '"') {
-        cell += '"';
-        i3++;
-      } else if (ch === '"') {
-        inQuotes = false;
-      } else {
-        cell += ch;
-      }
-      continue;
-    }
-    if (ch === '"') {
-      inQuotes = true;
-      continue;
-    }
-    if (ch === ",") {
-      row.push(cell);
-      cell = "";
-      continue;
-    }
-    if (ch === "\n" || ch === "\r" && next === "\n") {
-      row.push(cell);
-      cell = "";
-      if (row.some((c3) => c3.trim())) rows.push(row);
-      row = [];
-      if (ch === "\r") i3++;
-      continue;
-    }
-    cell += ch;
-  }
-  if (cell.length || row.length) {
-    row.push(cell);
-    if (row.some((c3) => c3.trim())) rows.push(row);
-  }
-  return rows;
-}
-function truthyPrecioFlag(raw) {
-  if (!raw?.trim()) return null;
-  const v = raw.trim().toLowerCase();
-  if (/^(s[ií]|yes|true|1|x|con\s+precio)$/.test(v)) return true;
-  if (/^(no|false|0|sin\s+precio|alejandro|cotizar)$/.test(v)) return false;
-  return null;
-}
-function rowHasPriceValue(precio) {
-  return /\$|\/pp|\/\s*pp|mil|pesos|mxn|\d/.test(precio);
-}
-function parseSheetCatalogCsv(csvText) {
-  const matrix = parseCsvRows(csvText);
-  if (matrix.length < 2) return [];
-  const headers = matrix[0].map(normalizeHeader);
-  const idx = {};
-  let tienePrecioCol = null;
-  let catalogoRevisadoCol = null;
-  let precioMinimoCol = null;
-  let linkCatalogoCol = null;
-  let extrasCol = null;
-  headers.forEach((h2, i3) => {
-    if (h2 === "tiene_precio" || h2 === "tiene precio" || h2 === "con_precio" || h2 === "listed_price") {
-      tienePrecioCol = i3;
-      return;
-    }
-    if (h2 === "catalogo revisado" || h2 === "catalogo_revisado") {
-      catalogoRevisadoCol = i3;
-      return;
-    }
-    if (h2 === "precio minimo de salida" || h2 === "precio minimo") {
-      precioMinimoCol = i3;
-      return;
-    }
-    if (h2 === "link catalogo" || h2 === "link_catalogo" || h2 === "link") {
-      linkCatalogoCol = i3;
-      return;
-    }
-    if (h2 === "extras") {
-      extrasCol = i3;
-      return;
-    }
-    const mapped = HEADER_ALIASES[h2];
-    if (mapped && idx[mapped] === void 0) idx[mapped] = i3;
-  });
-  if (idx.servicio === void 0) return [];
-  const rows = [];
-  for (const line of matrix.slice(1)) {
-    const get = (key) => {
-      const col = idx[key];
-      return col === void 0 ? "" : (line[col] ?? "").trim();
-    };
-    const servicioBase = get("servicio");
-    if (!servicioBase || /^#|comentario|ignore/i.test(servicioBase)) continue;
-    if (catalogoRevisadoCol !== null) {
-      const revisado = (line[catalogoRevisadoCol] ?? "").trim().toLowerCase();
-      if (revisado === "false" || revisado === "no" || revisado === "0") continue;
-    }
-    const servicio = servicioBase;
-    const nivelVal = get("nivel");
-    const categoria = get("categoria") || deriveCatalogCategory(servicioBase);
-    const precio = get("precio");
-    const flag = tienePrecioCol !== null ? truthyPrecioFlag(line[tienePrecioCol]) : null;
-    const tienePrecio = flag === true || flag === null && rowHasPriceValue(precio);
-    const notasParts = [];
-    const notasBase = get("notas");
-    if (notasBase) notasParts.push(notasBase);
-    if (precioMinimoCol !== null) {
-      const min = (line[precioMinimoCol] ?? "").trim();
-      if (min) notasParts.push(`M\xEDnimo de salida: ${min}`);
-    }
-    let linkCatalogo;
-    if (linkCatalogoCol !== null) {
-      const link = (line[linkCatalogoCol] ?? "").trim();
-      if (link && /^https?:\/\//i.test(link)) {
-        linkCatalogo = link;
-      }
-    }
-    if (extrasCol !== null) {
-      const extras = (line[extrasCol] ?? "").trim();
-      if (extras) notasParts.push(`Extras: ${extras}`);
-    }
-    let unidad = get("unidad");
-    if (!unidad && /\$/.test(precio)) unidad = "/pp";
-    rows.push({
-      servicio,
-      nivel: nivelVal,
-      categoria,
-      precio,
-      unidad,
-      notas: notasParts.join(" | "),
-      tienePrecio,
-      sinonimos: get("sinonimos") || void 0,
-      linkCatalogo
-    });
-  }
-  return rows;
-}
-function formatInclusionForWhatsApp(text, maxLen = 420) {
-  let cleaned = text.replace(/\s+/g, " ").replace(/ incluido\s+/gi, ". ").replace(/ servicio base incluye:/gi, " Incluye:").replace(/([a-záéíóúñ])([A-ZÁÉÍÓÚ])/g, "$1. $2").trim();
-  if (cleaned.length > maxLen) {
-    cleaned = `${cleaned.slice(0, maxLen - 1).trim()}\u2026`;
-  }
-  return cleaned;
-}
-function parseRowNotes(notas) {
-  const result = { inclusion: "", minimo: "", gammaLink: "", extras: "" };
-  if (!notas?.trim()) return result;
-  for (const part of notas.split("|").map((s3) => s3.trim())) {
-    if (!part) continue;
-    if (/^cat[aá]logo:\s*https?:/i.test(part)) {
-      result.gammaLink = part.replace(/^cat[aá]logo:\s*/i, "").trim();
-    } else if (/^m[ií]nimo de salida:/i.test(part)) {
-      result.minimo = part.replace(/^m[ií]nimo de salida:\s*/i, "").trim();
-    } else if (/^extras:/i.test(part)) {
-      result.extras = part.replace(/^extras:\s*/i, "").trim();
-    } else if (!result.inclusion) {
-      result.inclusion = formatInclusionForWhatsApp(part);
-    } else {
-      result.inclusion = formatInclusionForWhatsApp(`${result.inclusion} ${part}`);
-    }
-  }
-  if (result.extras) {
-    const extraText = formatInclusionForWhatsApp(result.extras, 180);
-    result.inclusion = result.inclusion ? `${result.inclusion} Extras: ${extraText}` : `Extras: ${extraText}`;
-  }
-  return result;
-}
-
-// src/services/lucyInfoPriceCache.ts
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-
-// src/services/serviceSynonyms.ts
-function norm(s3) {
-  return s3.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
-}
-var DEFAULT_SERVICE_SYNONYM_FAMILIES = [
-  {
-    key: "banquete_formal",
-    serviceHints: ["banquete formal", "banquete 3", "banquete 4", "banquete"],
-    aliases: [
-      "menu formal",
-      "men\xFA formal",
-      "comida servida",
-      "banquete sentado",
-      "menu de tiempos",
-      "men\xFA de tiempos",
-      "comida de plato",
-      "servicio a la mesa",
-      "comida formal",
-      "menu emplatado",
-      "men\xFA emplatado",
-      "cena formal",
-      "banquete de boda",
-      "banquete formal",
-      "banquete",
-      "4 tiempos",
-      "3 tiempos",
-      "plated",
-      "emplatado"
-    ],
-    excludeIf: ["mexicano", "navideno", "navide\xF1o", "kosher", "taquiza", "tacos"]
-  },
-  {
-    key: "banquete_kosher",
-    serviceHints: ["kosher"],
-    aliases: [
-      "kosher",
-      "kasher",
-      "comida kosher",
-      "comida judia",
-      "comida jud\xEDa",
-      "menu kosher",
-      "men\xFA kosher",
-      "certificado rabinico",
-      "certificado rab\xEDnico",
-      "supervision rabinica",
-      "supervisi\xF3n rab\xEDnica",
-      "banquete judio",
-      "banquete jud\xEDo",
-      "comida para evento judio",
-      "comida para evento jud\xEDo",
-      "cocina kosher"
-    ]
-  },
-  {
-    key: "banquete_mexicano",
-    serviceHints: ["banquete mexicano", "mexicano"],
-    aliases: [
-      "comida mexicana",
-      "menu mexicano",
-      "men\xFA mexicano",
-      "banquete tipico",
-      "banquete t\xEDpico",
-      "cena mexicana",
-      "comida tradicional",
-      "platillos mexicanos",
-      "buffet mexicano",
-      "banquete mexicano",
-      "fiesta mexicana",
-      "comida tipica",
-      "comida t\xEDpica"
-    ],
-    excludeIf: ["taquiza", "tacos", "antojitos", "yucateca"]
-  },
-  {
-    key: "banquete_navideno",
-    serviceHints: ["navideno", "navide\xF1o", "navidad"],
-    aliases: [
-      "cena navide\xF1a",
-      "cena navadena",
-      "posada",
-      "cena de fin de a\xF1o",
-      "cena de fin de ano",
-      "evento decembrino",
-      "pavo navide\xF1o",
-      "pavo navideno",
-      "cena de temporada",
-      "banquete de navidad",
-      "fiesta navide\xF1a",
-      "fiesta navadena",
-      "cena de diciembre",
-      "brindis navide\xF1o",
-      "brindis navideno",
-      "navidad"
-    ]
-  },
-  {
-    key: "barra_americana",
-    serviceHints: ["barra americana", "americana"],
-    aliases: [
-      "hamburguesas",
-      "hot dogs",
-      "hotdogs",
-      "alitas",
-      "comida americana",
-      "boneless",
-      "sliders",
-      "papas y hamburguesas",
-      "comida rapida gourmet",
-      "comida r\xE1pida gourmet",
-      "barra americana"
-    ]
-  },
-  {
-    key: "barra_bebidas_sin_alcohol",
-    serviceHints: ["barra de bebidas", "sin alcohol"],
-    aliases: [
-      "refrescos",
-      "aguas frescas",
-      "barra de refrescos",
-      "bebidas sin alcohol",
-      "vitroleros",
-      "solo bebidas",
-      "barra de aguas",
-      "sodas",
-      "bebidas para el evento",
-      "barra sin alcohol"
-    ],
-    excludeIf: ["open bar", "barra libre", "tragos", "licores", "alcohol"]
-  },
-  {
-    key: "barra_bebidas_alcohol",
-    serviceHints: ["barra de bebidas", "con alcohol", "bebidas con alcohol"],
-    aliases: [
-      "barra libre",
-      "open bar",
-      "bar",
-      "cocteleria con alcohol",
-      "cocteler\xEDa con alcohol",
-      "tragos",
-      "barra de licores",
-      "barra con alcohol",
-      "bebidas con alcohol",
-      "barra de tragos",
-      "servicio de bar",
-      "barra de bebidas",
-      // A14985 stand/golf: cerveza / whisky sin decir "barra".
-      "cerveza",
-      "cervezas",
-      "whisky",
-      "whiskey",
-      "tequila",
-      "vodka",
-      "licores"
-    ],
-    excludeIf: ["sin alcohol", "mocteles", "mocktail", "cafe", "caf\xE9"]
-  },
-  {
-    key: "barra_cafe",
-    serviceHints: ["barra de cafe", "barra de caf\xE9", "cafe"],
-    aliases: [
-      "cafeteria",
-      "cafeter\xEDa",
-      "barista",
-      "cafe gourmet",
-      "caf\xE9 gourmet",
-      "estacion de cafe",
-      "estaci\xF3n de caf\xE9",
-      "cafe de especialidad",
-      "caf\xE9 de especialidad",
-      "barra de cafe",
-      "barra de caf\xE9",
-      "cafe artesanal",
-      "caf\xE9 artesanal",
-      "carrito de cafe",
-      "carrito de caf\xE9",
-      "cafe para invitados",
-      "caf\xE9 para invitados",
-      "stand de cafe",
-      "stand de caf\xE9",
-      "coffee"
-    ],
-    excludeIf: ["coffee break", "coffeebreak", "receso", "junta"]
-  },
-  {
-    key: "coffee_break",
-    serviceHints: ["coffee break", "coffeebreak", "coffe break"],
-    aliases: [
-      "coffee break",
-      "coffeebreak",
-      "coffe break",
-      "receso de cafe",
-      "receso de caf\xE9",
-      "cafe para junta",
-      "caf\xE9 para junta",
-      "break corporativo",
-      "estacion de cafe y snacks",
-      "estaci\xF3n de caf\xE9 y snacks",
-      "pausa de cafe",
-      "pausa de caf\xE9",
-      "break de cafe",
-      "break de caf\xE9",
-      "receso corporativo",
-      "cafe y galletas",
-      "caf\xE9 y galletas"
-    ]
-  },
-  {
-    key: "barra_crepas",
-    serviceHints: ["crepas", "crepa"],
-    aliases: [
-      "crepas",
-      "creperia",
-      "creper\xEDa",
-      "crepes",
-      "waffles",
-      "postres calientes",
-      "estacion de crepas",
-      "estaci\xF3n de crepas",
-      "crepas dulces",
-      "crepas saladas",
-      "barra de crepas",
-      "crepas gourmet"
-    ]
-  },
-  {
-    key: "barra_mariscos",
-    serviceHints: ["mariscos"],
-    aliases: [
-      "mariscos",
-      "ceviches",
-      "aguachile",
-      "coctel de camaron",
-      "coctel de camar\xF3n",
-      "pescados y mariscos",
-      "barra de mar",
-      "ostiones",
-      "tostadas de mariscos",
-      "comida del mar",
-      "barra de mariscos"
-    ]
-  },
-  {
-    key: "barra_paninis",
-    serviceHints: ["paninis", "panini"],
-    aliases: [
-      "paninis",
-      "sandwiches",
-      "s\xE1ndwiches",
-      "sandwiches gourmet",
-      "s\xE1ndwiches gourmet",
-      "baguettes",
-      "molletes gourmet",
-      "sandwicheria",
-      "sandwicher\xEDa",
-      "tortas gourmet",
-      "paninos",
-      "barra de sandwiches",
-      "barra de s\xE1ndwiches",
-      "panini"
-    ]
-  },
-  {
-    key: "barra_pastas",
-    serviceHints: ["pastas", "ensaladas"],
-    aliases: [
-      "pastas",
-      "espagueti",
-      "estacion de pastas",
-      "estaci\xF3n de pastas",
-      "pasta italiana",
-      "ensaladas",
-      "barra de pastas",
-      "fettuccine",
-      "lasana",
-      "lasa\xF1a",
-      "pasta al momento",
-      "comida italiana",
-      "italiana"
-    ]
-  },
-  {
-    key: "barra_pizzas",
-    serviceHints: ["pizza", "pizzas"],
-    aliases: [
-      "pizzas",
-      "pizza artesanal",
-      "estacion de pizza",
-      "estaci\xF3n de pizza",
-      "horno de pizza",
-      "pizzas gourmet",
-      "barra de pizzas",
-      "pizza al momento",
-      "pizza italiana",
-      "pizzeria",
-      "pizzer\xEDa",
-      "pizza"
-    ]
-  },
-  {
-    key: "barra_sushi",
-    serviceHints: ["sushi", "poke"],
-    aliases: [
-      "sushi",
-      "rollos",
-      "poke",
-      "poke bowls",
-      "comida japonesa",
-      "makis",
-      "barra de sushi",
-      "sushi al momento",
-      "rollos japoneses",
-      "comida oriental",
-      "japones",
-      "japon\xE9s",
-      "nigiri",
-      "sashimi"
-    ]
-  },
-  {
-    key: "barra_yucateca",
-    serviceHints: ["yucateca", "yucatan"],
-    aliases: [
-      "comida yucateca",
-      "cochinita",
-      "cochinita pibil",
-      "panuchos",
-      "salbutes",
-      "comida del sureste",
-      "comida de yucatan",
-      "comida de yucat\xE1n",
-      "papadzules",
-      "barra yucateca",
-      "comida maya"
-    ]
-  },
-  {
-    key: "bocadillos",
-    serviceHints: ["bocadillos", "bocadillo"],
-    aliases: [
-      "botana",
-      "botanas",
-      "snacks",
-      "aperitivos",
-      "finger food",
-      "bocadillos",
-      "entradas",
-      "pasabocas",
-      "tentempies",
-      "tentempi\xE9s",
-      "comida para picar"
-    ],
-    excludeIf: ["canapes", "canap\xE9s", "carrito"]
-  },
-  {
-    key: "canapes",
-    serviceHints: ["canapes", "canap\xE9s"],
-    aliases: [
-      "canapes",
-      "canap\xE9s",
-      "bocaditos",
-      "entremeses",
-      "bocadillos finos",
-      "pasapalos",
-      "bocados gourmet",
-      "canape",
-      "canap\xE9",
-      "entradas frias",
-      "entradas fr\xEDas"
-    ]
-  },
-  {
-    key: "carrito_snacks",
-    serviceHints: ["carrito de snacks", "snacks"],
-    aliases: [
-      "carrito de botana",
-      "snacks",
-      "dulces y frituras",
-      "carrito de golosinas",
-      "botanas para llevar",
-      "estacion de snacks",
-      "estaci\xF3n de snacks",
-      "carrito de dulces",
-      "chucherias",
-      "chucher\xEDas",
-      "papitas y dulces",
-      "carrito de snacks"
-    ]
-  },
-  {
-    key: "cocteles_mixologia",
-    serviceHints: ["cocteles", "mixologia", "mixolog\xEDa", "cocteleria"],
-    aliases: [
-      "cocteles",
-      "c\xF3cteles",
-      "cocteleria",
-      "cocteler\xEDa",
-      "mixologia",
-      "mixolog\xEDa",
-      "bartender",
-      "cantinero",
-      "tragos de autor",
-      "cocktails",
-      "barra de cocteles",
-      "barra de c\xF3cteles",
-      "mixologo",
-      "mix\xF3logo",
-      "cocteles de autor",
-      "c\xF3cteles de autor"
-    ],
-    excludeIf: ["sin alcohol", "mocteles", "mocktail"]
-  },
-  {
-    key: "comida_corrida",
-    serviceHints: ["comida corrida", "corrida"],
-    aliases: [
-      "comida corrida",
-      "menu del dia",
-      "men\xFA del d\xEDa",
-      "comida economica",
-      "comida econ\xF3mica",
-      // NO: "comida corporativa" / "menu corporativo" — A14943 confundía evento de trabajo.
-      "comida sencilla",
-      "comida de oficina",
-      "menu ejecutivo",
-      "men\xFA ejecutivo"
-    ]
-  },
-  {
-    key: "desayuno_brunch",
-    serviceHints: ["desayuno", "brunch"],
-    aliases: [
-      "desayuno",
-      "brunch",
-      "almuerzo",
-      "desayuno buffet",
-      "getting ready",
-      "desayuno para evento",
-      "desayuno social",
-      "chilaquiles",
-      "huevos",
-      "brunch de boda"
-    ]
-  },
-  {
-    key: "cupcakes",
-    serviceHints: ["cupcakes", "cupcake", "bet\xFAn", "betun", "cupcakes y bet\xFAn"],
-    aliases: [
-      "cupcakes",
-      "panquecitos",
-      "pastelitos",
-      "muffins",
-      "cup cakes decorados",
-      "postrecitos",
-      "cupcakes personalizados",
-      "mini pasteles",
-      "ponquesitos",
-      "cupcakes tematicos",
-      "cupcakes tem\xE1ticos",
-      "betun",
-      "bet\xFAn",
-      "betunes",
-      "fondant",
-      "cupcakes y betun",
-      "cupcakes y bet\xFAn"
-    ]
-  },
-  {
-    key: "mesa_dulces",
-    serviceHints: ["mesa de dulces", "dulces"],
-    aliases: [
-      "mesa de dulces",
-      "candy bar",
-      "mesa de golosinas",
-      "dulcero",
-      "mesa de dulces mexicanos",
-      "barra de dulces",
-      "dulces para evento",
-      "mesa de caramelos",
-      "estacion de dulces",
-      "estaci\xF3n de dulces",
-      "candy"
-    ],
-    excludeIf: ["postres", "cupcakes", "helados"]
-  },
-  {
-    key: "mesa_postres",
-    serviceHints: ["mesa de postres", "postres"],
-    aliases: [
-      "mesa de postres",
-      "postres",
-      "reposteria",
-      "reposter\xEDa",
-      "mesa de pasteles",
-      "estacion de postres",
-      "estaci\xF3n de postres",
-      "dulces finos",
-      "postres para evento",
-      "pasteleria",
-      "pasteler\xEDa",
-      "mesa de dulces finos",
-      "barra de postres"
-    ]
-  },
-  {
-    key: "mesa_quesos",
-    serviceHints: ["mesa de quesos", "quesos"],
-    aliases: [
-      "tabla de quesos",
-      "mesa de quesos",
-      "quesos y carnes frias",
-      "quesos y carnes fr\xEDas",
-      "charcuteria",
-      "charcuter\xEDa",
-      "tabla de embutidos",
-      "quesos gourmet",
-      "tabla de fiambres",
-      "mesa de quesos y vinos",
-      "degustacion de quesos",
-      "degustaci\xF3n de quesos",
-      "tabla gourmet",
-      "grazing"
-    ]
-  },
-  {
-    key: "mocteles",
-    serviceHints: ["mocteles", "m\xF3cteles"],
-    aliases: [
-      "mocteles",
-      "m\xF3cteles",
-      "cocteles sin alcohol",
-      "c\xF3cteles sin alcohol",
-      "bebidas sin alcohol",
-      "cocteleria sin alcohol",
-      "cocteler\xEDa sin alcohol",
-      "tragos sin alcohol",
-      "barra de mocteles",
-      "barra de m\xF3cteles",
-      "bebidas de autor sin alcohol",
-      "cocteles virgenes",
-      "c\xF3cteles v\xEDrgenes",
-      "mixologia sin alcohol",
-      "mixolog\xEDa sin alcohol",
-      "mocktails",
-      "mocktail"
-    ]
-  },
-  {
-    key: "paella",
-    serviceHints: ["paella"],
-    aliases: [
-      "paella",
-      "arroz espanol",
-      "arroz espa\xF1ol",
-      "paella valenciana",
-      "paella de mariscos",
-      "arroz a la valenciana",
-      "comida espanola",
-      "comida espa\xF1ola",
-      "paella en vivo",
-      "paellera",
-      "arroz espanol al momento",
-      "arroz espa\xF1ol al momento",
-      "paellas"
-    ]
-  },
-  {
-    key: "paletas_helados",
-    serviceHints: ["paletas", "helados"],
-    aliases: [
-      "paletas",
-      "paletas de hielo",
-      "helados",
-      "nieves",
-      "sorbetes",
-      "carrito de helados",
-      "paletas artesanales",
-      "neveria",
-      "never\xEDa",
-      "paletas heladas",
-      "helado para evento"
-    ]
-  },
-  {
-    key: "parrillada_argentina",
-    serviceHints: ["parrillada argentina", "parillada argentina", "argentina"],
-    aliases: [
-      "asado argentino",
-      "cortes argentinos",
-      "parrilla argentina",
-      "carnes asadas",
-      "asador",
-      "parrillada argentina",
-      "parillada argentina",
-      "cortes finos",
-      "asador en vivo",
-      "carne al carbon",
-      "carne al carb\xF3n",
-      "parrilla de cortes",
-      "asado",
-      "carne asada",
-      "argentino"
-    ]
-  },
-  {
-    key: "taquiza",
-    serviceHints: ["taquiza"],
-    aliases: [
-      "taquiza",
-      "tacos",
-      "tacos de guisado",
-      "tacos de guisados",
-      "taquiza para evento",
-      "puesto de tacos",
-      "tacos al pastor",
-      "tacos de canasta",
-      "taquiza a domicilio",
-      "tacos de carne asada",
-      "taqueria",
-      "taquer\xEDa",
-      "estacion de tacos",
-      "estaci\xF3n de tacos",
-      "barra de tacos",
-      "guisados"
-    ],
-    excludeIf: [
-      "parrillada tacos",
-      "parrillada de tacos",
-      "parrillada argentina",
-      "asado argentino"
-    ]
-  },
-  {
-    key: "parrillada_tacos",
-    serviceHints: ["parrillada tacos"],
-    aliases: [
-      "parrillada tacos",
-      "parrillada de tacos",
-      "tacos a la parrilla",
-      "tacos parrillada",
-      "estacion de tacos a la parrilla",
-      "estaci\xF3n de tacos a la parrilla"
-    ],
-    excludeIf: ["parrillada argentina", "asado argentino", "argentina"]
-  },
-  {
-    key: "entelados_techo",
-    serviceHints: ["entelados para techo", "entelado", "entelados"],
-    aliases: [
-      "entelados",
-      "entelado",
-      "entelado para techo",
-      "entelados para techo",
-      "tela en techo",
-      "tela de techo",
-      "telas para techo",
-      "tela para techo",
-      "techo entelado",
-      "entelado de techo"
-    ],
-    excludeIf: ["colgante", "colgantes"]
-  },
-  {
-    key: "colgantes_premium",
-    serviceHints: ["colgantes premium", "colgantes"],
-    aliases: [
-      "colgantes",
-      "colgante",
-      "colgantes premium",
-      "decoracion colgante",
-      "decoraci\xF3n colgante",
-      "estructuras colgantes",
-      "flores colgantes",
-      "wisteria"
-    ],
-    excludeIf: ["entelado", "entelados", "tela en techo", "tela de techo"]
-  },
-  {
-    // A15190: floral/decorativo — nunca mesas/sillas de renta.
-    key: "centros_mesa",
-    serviceHints: ["centros de mesa", "centro de mesa"],
-    aliases: [
-      "centros de mesa",
-      "centro de mesa",
-      "centros de mesas",
-      "arreglos de mesa",
-      "arreglo de mesa",
-      "centros florales",
-      "centro floral",
-      "decoracion de mesas",
-      "decoraci\xF3n de mesas",
-      "flores para mesa",
-      "flores en mesa"
-    ],
-    excludeIf: [
-      "mobiliario",
-      "mesas y sillas",
-      "renta de mesas",
-      "mesa de dulces",
-      "mesa de postres",
-      "mesa de quesos",
-      "mesa imperial"
-    ]
-  },
-  {
-    key: "pozole_tostadas",
-    serviceHints: ["pozole", "tostadas"],
-    aliases: [
-      "pozole",
-      "tostadas",
-      "pozole rojo",
-      "pozole verde",
-      "pozole blanco",
-      "pozole y tostadas",
-      "pozolada",
-      "antojito mexicano",
-      "pozole para evento",
-      "tostadas de tinga",
-      "pozoleria",
-      "pozoler\xEDa"
-    ]
-  },
-  {
-    key: "antojitos",
-    serviceHints: ["antojitos", "puestos de comida"],
-    aliases: [
-      "antojitos",
-      "puesto de antojitos",
-      "esquites",
-      "elotes",
-      "quesadillas",
-      "kermes",
-      "kerm\xE9s",
-      "sopes",
-      "gorditas",
-      "garnachas",
-      "feria de antojitos",
-      "puestos de comida",
-      "street food",
-      // A14985: snack de stand.
-      "banderillas",
-      "banderilla",
-      "snack banderillas"
-    ]
-  }
-];
-var sheetSynonymIndex = /* @__PURE__ */ new Map();
-function registerSheetSynonyms(rows) {
-  const next = /* @__PURE__ */ new Map();
-  for (const row of rows) {
-    const svc = norm(row.servicio || "");
-    if (!svc) continue;
-    const raw = (row.sinonimos ?? "").trim();
-    if (!raw) continue;
-    const parts = raw.split(/[,;|/]/).map((p2) => p2.trim()).filter((p2) => p2.length >= 2);
-    if (!parts.length) continue;
-    const prev = next.get(svc) ?? [];
-    next.set(svc, [.../* @__PURE__ */ new Set([...prev, ...parts])]);
-  }
-  sheetSynonymIndex = next;
-}
-function parseSynonymList(raw) {
-  if (!raw?.trim()) return [];
-  return raw.split(/[,;|/]/).map((p2) => p2.trim()).filter((p2) => p2.length >= 2);
-}
-function synonymsForServiceName(servicio) {
-  const n2 = norm(servicio);
-  const out = /* @__PURE__ */ new Set();
-  for (const fam of DEFAULT_SERVICE_SYNONYM_FAMILIES) {
-    if (fam.serviceHints.some((h2) => n2.includes(norm(h2)) || norm(h2).includes(n2))) {
-      for (const a2 of fam.aliases) out.add(a2);
-    }
-  }
-  for (const [svc, aliases] of sheetSynonymIndex) {
-    if (n2.includes(svc) || svc.includes(n2)) {
-      for (const a2 of aliases) out.add(a2);
-    }
-  }
-  return [...out];
-}
-function synonymHaystackForService(servicio, sheetSinonimos) {
-  const parts = [
-    servicio,
-    sheetSinonimos ?? "",
-    ...synonymsForServiceName(servicio)
-  ];
-  return norm(parts.join(" "));
-}
-function expandQueryWithServiceSynonyms(query) {
-  const q = norm(query);
-  const baseTokens = q.split(" ").filter((w) => w.length >= 3);
-  const familyKeys = [];
-  const boostedHints = [];
-  const matchedServiceHints = [];
-  const extraTokens = new Set(baseTokens);
-  for (const fam of DEFAULT_SERVICE_SYNONYM_FAMILIES) {
-    if (fam.excludeIf?.some((ex) => q.includes(norm(ex)))) {
-      const specificHit = fam.aliases.some((a2) => {
-        const na = norm(a2);
-        return na.includes(" ") && q.includes(na);
-      });
-      if (!specificHit) continue;
-    }
-    const hit = fam.aliases.some((a2) => {
-      const na = norm(a2);
-      if (na.includes(" ")) return q.includes(na);
-      return new RegExp(`\\b${na}\\b`).test(q);
-    });
-    if (!hit) continue;
-    familyKeys.push(fam.key);
-    for (const h2 of fam.serviceHints) {
-      const nh = norm(h2);
-      boostedHints.push(nh);
-      matchedServiceHints.push(h2);
-      for (const t3 of nh.split(" ")) if (t3.length >= 3) extraTokens.add(t3);
-    }
-    for (const a2 of fam.aliases) {
-      for (const t3 of norm(a2).split(" ")) if (t3.length >= 3) extraTokens.add(t3);
-    }
-  }
-  for (const [svc, aliases] of sheetSynonymIndex) {
-    for (const a2 of aliases) {
-      const na = norm(a2);
-      const matched = na.includes(" ") ? q.includes(na) : new RegExp(`\\b${na}\\b`).test(q);
-      if (!matched) continue;
-      matchedServiceHints.push(svc);
-      boostedHints.push(svc);
-      for (const t3 of svc.split(" ")) if (t3.length >= 3) extraTokens.add(t3);
-      for (const t3 of na.split(" ")) if (t3.length >= 3) extraTokens.add(t3);
-    }
-  }
-  return {
-    tokens: [...extraTokens],
-    familyKeys: [...new Set(familyKeys)],
-    boostedHints: [...new Set(boostedHints)],
-    matchedServiceHints: [...new Set(matchedServiceHints)]
-  };
-}
-function synonymScoreForService(query, serviceLabel, sheetSinonimos) {
-  const expanded = expandQueryWithServiceSynonyms(query);
-  if (!expanded.familyKeys.length && !expanded.boostedHints.length) return 0;
-  const hay = synonymHaystackForService(serviceLabel, sheetSinonimos);
-  let score = 0;
-  for (const hint of expanded.boostedHints) {
-    if (hay.includes(hint)) score += hint.includes(" ") ? 22 : 14;
-  }
-  for (const hint of expanded.matchedServiceHints) {
-    if (hay.includes(norm(hint))) score += 10;
-  }
-  if (expanded.familyKeys.includes("taquiza") && /banquete/.test(hay) && !/taquiza/.test(hay)) {
-    score -= 25;
-  }
-  if (expanded.familyKeys.includes("banquete_formal") && /taquiza/.test(hay)) score -= 25;
-  if (expanded.familyKeys.includes("barra_sushi") && /banquete|taquiza/.test(hay) && !/sushi|poke/.test(hay)) {
-    score -= 25;
-  }
-  if (expanded.familyKeys.includes("banquete_mexicano") && /banquete/.test(hay) && !/mexicano/.test(hay)) {
-    score -= 20;
-  }
-  if (expanded.familyKeys.includes("coffee_break") && /barra de cafe|barra de café/.test(hay) && !/coffee/.test(hay)) {
-    score -= 5;
-  }
-  return score;
-}
-var FAMILY_DISPLAY = {
-  pozole_tostadas: {
-    label: "Pozole y Tostadas",
-    complements: ["Barras de bebidas", "Mobiliario"]
-  },
-  taquiza: {
-    label: "Taquiza",
-    complements: ["Barras de bebidas", "Mobiliario"]
-  },
-  parrillada_tacos: {
-    label: "Parrillada Tacos",
-    complements: ["Barras de bebidas", "Mobiliario"]
-  },
-  paella: {
-    label: "Paella",
-    complements: ["Barras de bebidas", "Mobiliario"]
-  },
-  parrillada_argentina: {
-    label: "Parrillada Argentina",
-    complements: ["Barras de bebidas", "Mobiliario"]
-  },
-  banquete_navideno: {
-    label: "Banquete Navide\xF1o",
-    complements: ["Barras de bebidas", "Mobiliario", "Mesa de dulces"]
-  },
-  entelados_techo: {
-    label: "Entelados para Techo",
-    complements: ["Colgantes Premium", "Iluminaci\xF3n"]
-  },
-  colgantes_premium: {
-    label: "Colgantes Premium",
-    complements: ["Entelados para Techo", "Iluminaci\xF3n"]
-  },
-  centros_mesa: {
-    label: "Centros de mesa",
-    complements: ["Iluminaci\xF3n", "Colgantes Premium", "Entelados para Techo"]
-  }
-};
-function resolveServiceFocusFromText(text) {
-  if (!text?.trim()) return null;
-  const expanded = expandQueryWithServiceSynonyms(text);
-  if (!expanded.familyKeys.length) return null;
-  const preferredOrder = [
-    "pozole_tostadas",
-    "parrillada_tacos",
-    "taquiza",
-    "paella",
-    "parrillada_argentina",
-    "banquete_navideno",
-    "barra_americana",
-    "barra_sushi",
-    "entelados_techo",
-    "colgantes_premium",
-    "centros_mesa"
-  ];
-  const familyKey = preferredOrder.find((k) => expanded.familyKeys.includes(k)) ?? expanded.familyKeys[0];
-  const fam = DEFAULT_SERVICE_SYNONYM_FAMILIES.find((f4) => f4.key === familyKey);
-  if (!fam) return null;
-  const display = FAMILY_DISPLAY[familyKey] ?? {
-    label: fam.serviceHints[0] ?? familyKey,
-    complements: ["Barras de bebidas", "Mobiliario"]
-  };
-  return {
-    familyKey,
-    label: display.label,
-    serviceHints: fam.serviceHints,
-    complements: display.complements
-  };
-}
-function loadSinonimosJson(raw) {
-  if (!raw || typeof raw !== "object") return 0;
-  const obj = raw;
-  const map = obj.sinonimos ?? obj.synonyms ?? obj;
-  if (!map || typeof map !== "object") return 0;
-  const rows = [];
-  for (const [servicio, aliases] of Object.entries(map)) {
-    if (servicio === "version" || servicio === "note") continue;
-    if (Array.isArray(aliases)) {
-      rows.push({ servicio, sinonimos: aliases.map(String).join(", ") });
-    } else if (typeof aliases === "string") {
-      rows.push({ servicio, sinonimos: aliases });
-    }
-  }
-  if (!rows.length) return 0;
-  const merged = new Map(sheetSynonymIndex);
-  for (const row of rows) {
-    const svc = norm(row.servicio);
-    const parts = parseSynonymList(row.sinonimos);
-    const prev = merged.get(svc) ?? [];
-    merged.set(svc, [.../* @__PURE__ */ new Set([...prev, ...parts])]);
-  }
-  sheetSynonymIndex = merged;
-  return rows.length;
-}
-
-// src/services/lucyInfoPriceCache.ts
-function cacheState() {
-  const g = globalThis;
-  if (!g.__lucyInfoPriceCache) {
-    g.__lucyInfoPriceCache = { docs: [], corpusFold: "" };
-  }
-  return g.__lucyInfoPriceCache;
-}
-function fold(text) {
-  return (text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ñ/g, "n");
-}
-function refreshLucyInfoPriceCache(input) {
-  const state = cacheState();
-  state.docs = (input || []).filter((d) => d?.content?.trim()).map((d) => ({
-    title: (d.title || "").trim() || "Cat\xE1logo",
-    content: d.content.trim(),
-    kind: d.kind
-  }));
-  state.corpusFold = fold(state.docs.map((d) => `${d.title}
-${d.content}`).join("\n\n"));
-}
-function extractPriceAmounts(text) {
-  const out = [];
-  const re = /\$\s*([\d]{1,3}(?:,[\d]{3})*(?:\.\d+)?|[\d]+(?:\.\d+)?)/g;
-  let m2;
-  while (m2 = re.exec(text || "")) {
-    const raw = m2[1].replace(/,/g, "");
-    const n2 = Number(raw);
-    if (!Number.isFinite(n2) || n2 < 10) continue;
-    out.push(String(Math.round(n2)));
-  }
-  return out;
-}
-function lucyInfoSupportsPriceClaim(mensaje) {
-  const { corpusFold } = cacheState();
-  if (!corpusFold || !mensaje?.trim()) return false;
-  const amounts = extractPriceAmounts(mensaje);
-  if (!amounts.length) return false;
-  let hits = 0;
-  for (const a2 of amounts) {
-    if (corpusFold.includes(a2)) hits += 1;
-    else if (a2.length >= 4 && corpusFold.includes(a2.replace(/(\d)(?=(\d{3})+$)/g, "$1,"))) hits += 1;
-  }
-  return hits >= 1 && hits >= Math.ceil(amounts.length * 0.4);
-}
-function scoreDoc(doc, tokens) {
-  if (!tokens.length) return 0;
-  const title = fold(doc.title);
-  const body = fold(doc.content);
-  let s3 = 0;
-  for (const tok of tokens) {
-    if (title.includes(tok)) s3 += 14;
-    if (body.slice(0, 900).includes(tok)) s3 += 5;
-    else if (body.includes(tok)) s3 += 1;
-  }
-  return s3;
-}
-var STRICT_PDF_SERVICE_FAMILIES = /* @__PURE__ */ new Set([
-  "barra_cafe",
-  "coffee_break",
-  "barra_americana",
-  "canapes",
-  "bocadillos",
-  "taquiza",
-  "paella",
-  "pozole_tostadas",
-  "barra_pizzas",
-  "barra_pastas",
-  "barra_sushi",
-  "barra_crepas",
-  "barra_yucateca",
-  "parrillada_tacos",
-  "parrillada_argentina",
-  "banquete_formal",
-  "banquete_mexicano",
-  "banquete_kosher",
-  "banquete_navideno"
-]);
-function isMobiliarioPdfTitle(title) {
-  const t3 = fold(title);
-  return /\bmesas?\b.*\bsillas?\b|\bsillas?\b.*\bmesas?\b/.test(t3) || /\bmobiliario\b|\bperiqueras?\b|\bsalas?\s+lounge\b|\bluxor\b/.test(t3);
-}
-function isFoodServiceQuery(text) {
-  const t3 = fold(text);
-  return /\b(canap|bocadillo|banquete|catering|taquiza|paella|pozole|pizza|pasta|sushi|crepa|coffee\s*break|barra\s+de|parrillada|brunch|desayuno|coctel|mixolog|moctel|americano|marisco|panini|yucateca)\b/.test(
-    t3
-  );
-}
-function strictPdfServiceFamily(text) {
-  const families = expandQueryWithServiceSynonyms(text).familyKeys;
-  return families.find((family) => STRICT_PDF_SERVICE_FAMILIES.has(family)) ?? null;
-}
-function pdfDocMatchesStrictQuery(query, docTitle) {
-  const strictFamily = strictPdfServiceFamily(query);
-  if (strictFamily) {
-    const docFamily = strictPdfServiceFamily(docTitle);
-    if (docFamily !== strictFamily) return false;
-  }
-  if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(docTitle)) return false;
-  return true;
-}
-function tokenize(text) {
-  const raw = fold(text).replace(/[^a-z0-9\s]/g, " ");
-  const stop = /* @__PURE__ */ new Set([
-    "de",
-    "del",
-    "la",
-    "el",
-    "los",
-    "las",
-    "un",
-    "una",
-    "y",
-    "o",
-    "en",
-    "para",
-    "por",
-    "con",
-    "que",
-    // "san" en "San Francisco" / "usan" / "descansan" ensuciaba el score PDF (A14964).
-    "san",
-    "soy",
-    "llamo",
-    "nombre",
-    "hola",
-    "buenos",
-    "buenas",
-    "dias",
-    "tardes",
-    "noches",
-    "precio",
-    "precios",
-    "cuanto",
-    "cuesta",
-    "costo",
-    "persona",
-    "personas",
-    "quiero",
-    "necesito",
-    "incluye",
-    "incluir",
-    "incluiria",
-    "detalle",
-    "descripcion",
-    "descripciones",
-    "cada",
-    "nivel",
-    "niveles",
-    "paquete",
-    "paquetes",
-    "dime",
-    "cual",
-    "cuales",
-    "trae",
-    "lleva",
-    "menu",
-    "opcion",
-    "opciones"
-  ]);
-  const out = [];
-  const seen = /* @__PURE__ */ new Set();
-  for (const t3 of raw.split(/\s+/)) {
-    if (t3.length < 3 || stop.has(t3) || seen.has(t3)) continue;
-    seen.add(t3);
-    out.push(t3);
-  }
-  for (const t3 of raw.split(/\s+/)) {
-    if (/^\d{1,2}$/.test(t3) && !seen.has(t3)) {
-      seen.add(t3);
-      out.push(t3);
-    }
-  }
-  return out.slice(0, 40);
-}
-function findInclusionSection(content, query, maxChars = 1100) {
-  if (!content?.trim()) return null;
-  const q = fold(query);
-  const c3 = content;
-  const f4 = fold(c3);
-  const anchors = [];
-  const cb = q.match(/coffee\s*break\s*(\d)/);
-  if (cb) {
-    const needle = `coffee break ${cb[1]}`;
-    if (!f4.includes(needle)) return null;
-    anchors.unshift(`coffee break ${cb[1]} \u2014`, `coffee break ${cb[1]}`, `cb${cb[1]}`);
-  }
-  if (/gourmet con sandwich|sandwich/.test(q) && /coffee|break/.test(q)) {
-    anchors.push("coffee break 5", "gourmet con sandwich");
-  }
-  const tiempos = q.match(/(\d)\s*tiempos?/);
-  const nivel = /\bpremium\b/.test(q) ? "premium" : /\bbasic|\bb[aá]sic/.test(q) ? "basico" : /\btradicional\b/.test(q) ? "tradicional" : "";
-  if (tiempos && /banquete|formal|mexicano/.test(q)) {
-    anchors.push(`menu ${tiempos[1]} tiempos ${nivel}`.trim());
-    anchors.push(`${tiempos[1]} tiempos ${nivel}`.trim());
-    if (nivel === "tradicional" && tiempos[1] === "3") {
-      anchors.unshift("tradicional $830 por persona", "tradicional $830");
-    }
-    if (nivel === "tradicional" && tiempos[1] === "4") {
-      anchors.unshift("tradicional $880 por persona", "tradicional $880");
-    }
-    if (nivel === "basico" && tiempos[1] === "3") {
-      anchors.unshift("basico $780 por persona", "basico $780");
-    }
-    if (nivel === "premium" && tiempos[1] === "3") {
-      anchors.unshift("premium $880 por persona", "premium $880");
-    }
-  }
-  if (/banquete/.test(q) && nivel) {
-    anchors.push(`tradicional $830`, `basico $780`, `premium $880`);
-  }
-  for (const tok of tokenize(query)) {
-    if (tok.length >= 4) anchors.push(tok);
-  }
-  let bestIdx = -1;
-  let bestScore = -1;
-  for (const a2 of anchors) {
-    const fa = fold(a2);
-    if (fa.length < 2) continue;
-    let from = 0;
-    while (from < f4.length) {
-      const i3 = f4.indexOf(fa, from);
-      if (i3 < 0) break;
-      let score = fa.length;
-      const window2 = f4.slice(Math.max(0, i3 - 40), i3 + 200);
-      if (/incluye|bebidas|alimentos|meseros|vajilla|persona/.test(window2)) score += 40;
-      if (/coffee break \d|menu \d tiempos|tradicional \$\d|basico \$\d|premium \$\d/.test(window2)) {
-        score += 30;
-      }
-      if (score > bestScore) {
-        bestScore = score;
-        bestIdx = i3;
-      }
-      from = i3 + fa.length;
-    }
-  }
-  if (bestIdx < 0) {
-    const dollar = c3.search(/\$\s*\d/);
-    if (dollar < 0) return null;
-    bestIdx = dollar;
-  }
-  const atHeading = /coffee break \d|tradicional \$\d|basico \$\d|premium \$\d|menu \d tiempos/i.test(
-    f4.slice(bestIdx, bestIdx + 48)
-  );
-  let start = atHeading ? bestIdx : Math.max(0, bestIdx - 40);
-  let end = Math.min(c3.length, start + maxChars);
-  const tail = c3.slice(Math.max(start, bestIdx) + 40, end);
-  const nextPkg = tail.search(
-    /Coffee Break \d|Men[uú] \d tiempos|B[aá]sico \$\s*\d|Tradicional \$\s*\d|Premium \$\s*\d|Ideal para:|Condiciones del Servicio/i
-  );
-  if (nextPkg > 200) {
-    end = Math.max(start, bestIdx) + 40 + nextPkg;
-  }
-  let slice = c3.slice(start, end).replace(/\s+/g, " ").trim();
-  slice = slice.replace(/^[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9🥐☕🍽*•]+/, "");
-  if (slice.length < 80) return null;
-  return slice.slice(0, maxChars);
-}
-function queryHasServicePdfAnchor(query) {
-  const q = fold(query);
-  return /\b(banquete|taquiza|coffee|break|barra|catering|pizza|pasta|sushi|dj|pista|tarima|crepas?|canapes?|queso|dulce|postre|paella|pozole|brunch|desayuno|cena|mesero|mobiliario|carpa|iluminaci|pantalla|incluye|precio|nivel|paquete|formal|tiempos|tradicional|premium|basico|bocadillos?|entradas?|vajilla|mixolog|coctel|helado|fruta|inflable|softplay|letras?|valet|pirotecnia)\b/.test(
-    q
-  );
-}
-function buildLucyInfoInclusionReply(query, maxChars = 1100) {
-  ensureCacheFromSeedSync();
-  const docs = cacheState().docs;
-  if (!docs.length || !query?.trim()) return null;
-  if (!queryHasServicePdfAnchor(query)) return null;
-  const tokens = tokenize(query);
-  if (!tokens.length) return null;
-  const ranked = [...docs].filter((doc) => pdfDocMatchesStrictQuery(query, doc.title)).map((d) => ({ d, s: scoreDoc(d, tokens) })).filter((x3) => x3.s >= 6).sort((a2, b) => b.s - a2.s);
-  if (!ranked.length) return null;
-  const serviceHints = [
-    "canapes",
-    "canap",
-    "coffee",
-    "cafe",
-    "banquete",
-    "taquiza",
-    "sushi",
-    "paella",
-    "pozole",
-    "pista",
-    "mobiliario",
-    "mesas y sillas",
-    "barra de cafe",
-    "barra americana",
-    "bocadillo"
-  ];
-  const qf = fold(query);
-  const preferred = ranked.filter((x3) => {
-    const title = fold(x3.d.title);
-    return serviceHints.some((h2) => qf.includes(h2) && title.includes(h2));
-  });
-  const pool = preferred.length ? preferred : ranked;
-  for (const { d } of pool.slice(0, 4)) {
-    const section = findInclusionSection(d.content, query, maxChars);
-    if (!section) continue;
-    const label = d.title.replace(/[-_]+/g, " ").replace(/\s+2026.*$/i, "").trim();
-    if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(label)) continue;
-    return `Seg\xFAn el cat\xE1logo que ya tenemos de *${label}*:
-
-${section}
-
-\xBFTe late este nivel o quieres que te detalle otro?`;
-  }
-  return null;
-}
-function collapseDuplicatedInclusionReply(text) {
-  if (!text?.trim()) return text;
-  const closeRe = /¿Te late este nivel o quieres que te detalle otro\?/i;
-  const m2 = closeRe.exec(text);
-  if (m2 && m2.index != null) {
-    const head = text.slice(0, m2.index + m2[0].length).trim();
-    const rest = text.slice(m2.index + m2[0].length).trim();
-    if (!rest || /Según el catálogo que ya tenemos/i.test(rest) || /Bebidas incluidas|Alimentos:|Meseros:|Vajilla|Coffee Break \d|Tradicional \$\s*\d|¿Te late este nivel/i.test(
-      rest
-    )) {
-      if (rest) return head;
-    }
-  }
-  const parts = text.split(/(?=Según el catálogo que ya tenemos de \*)/i).filter((p2) => p2.trim());
-  if (parts.length > 1 && /Según el catálogo que ya tenemos/i.test(parts[0])) {
-    return parts[0].trim();
-  }
-  return text.trim();
-}
-function ensureCacheFromSeedSync() {
-  if (cacheState().docs.length > 0) return;
-  try {
-    let moduleDir = "";
-    try {
-      moduleDir = dirname(fileURLToPath(import.meta.url));
-    } catch {
-    }
-    let argvDir = "";
-    try {
-      const entry = process.argv[1];
-      if (entry) argvDir = dirname(entry);
-    } catch {
-    }
-    const here = typeof __dirname === "string" && __dirname || moduleDir || argvDir || process.cwd();
-    const candidates = [
-      process.env["LUCY_INFO_SEED_PATH"]?.trim(),
-      join(here, "config", "lucy-info-seed.json"),
-      join(here, "lucy-info-seed.json"),
-      join(here, "data", "lucy-info-seed.json"),
-      join(moduleDir, "config", "lucy-info-seed.json"),
-      join(moduleDir, "lucy-info-seed.json"),
-      join(argvDir, "lucy-info-seed.json"),
-      join(argvDir, "config", "lucy-info-seed.json"),
-      join(process.cwd(), "config", "lucy-info-seed.json"),
-      join(process.cwd(), "lucy-info-seed.json"),
-      join(process.cwd(), "data", "lucy-info-seed.json"),
-      join(process.cwd(), "api-server", "config", "lucy-info-seed.json"),
-      join(process.cwd(), "api-server", "dist", "lucy-info-seed.json"),
-      join(process.cwd(), "deploy", "lucy-info-seed.json")
-    ].filter(Boolean);
-    for (const p2 of candidates) {
-      if (!existsSync(p2)) continue;
-      const raw = JSON.parse(readFileSync(p2, "utf8"));
-      const docs = (raw.documents || []).filter((d) => d?.content?.trim());
-      if (docs.length) {
-        refreshLucyInfoPriceCache(docs);
-        return;
-      }
-    }
-  } catch {
-  }
-}
-function extractPriceWindows(content, max = 8) {
-  const windows = [];
-  const re = /.{0,55}\$\s*[\d,.]+.{0,55}/g;
-  let m2;
-  while ((m2 = re.exec(content || "")) && windows.length < max) {
-    const w = m2[0].replace(/\s+/g, " ").trim();
-    if (w.length > 12) windows.push(w);
-  }
-  if (windows.length) return windows;
-  return (content || "").split(/\n+/).map((l2) => l2.trim()).filter((l2) => l2.length > 8 && /\$\s*\d/.test(l2)).slice(0, max);
-}
-function buildLucyInfoPriceSnippet(query, maxChars = 520) {
-  ensureCacheFromSeedSync();
-  const docs = cacheState().docs;
-  if (!docs.length || !query?.trim()) return null;
-  const tokens = tokenize(query);
-  if (!tokens.length) return null;
-  const ranked = [...docs].map((d) => ({ d, s: scoreDoc(d, tokens) })).filter((x3) => x3.s >= 8).sort((a2, b) => b.s - a2.s);
-  if (!ranked.length) return null;
-  const top = ranked[0].d;
-  const windows = extractPriceWindows(top.content, 10);
-  const scored = windows.map((l2) => {
-    const f4 = fold(l2);
-    let s3 = 0;
-    for (const tok of tokens) if (f4.includes(tok)) s3 += 3;
-    if (/\$\s*\d/.test(l2)) s3 += 1;
-    return { l: l2, s: s3 };
-  }).sort((a2, b) => b.s - a2.s);
-  const picked = (scored.some((x3) => x3.s > 1) ? scored.filter((x3) => x3.s > 1) : scored).map((x3) => x3.l).slice(0, 5);
-  if (!picked.length) return null;
-  const body = picked.join(" \xB7 ").slice(0, maxChars);
-  return `*${top.title}*: ${body}`;
-}
-function buildLucyInfoLearnedPriceReply(message) {
-  const focusedPista = /\b(pintada|led|iluminada|madera\s+premium|vinil|charol|logo|tarima\s+b[aá]sica|escenario|estrado)\b/i.test(
-    message
-  );
-  const snip = buildLucyInfoPriceSnippet(message, focusedPista ? 420 : 520);
-  if (!snip) return null;
-  const t3 = fold(message);
-  let ask = "\xBFLo agregamos a tu cotizaci\xF3n?";
-  if (/pista|tarima|baile/.test(t3)) {
-    ask = "\xBFQu\xE9 medidas aproximadas tiene el espacio?";
-  } else if (/periquera|mesa|silla|sala|mobiliario|lounge|luxor/.test(t3)) {
-    ask = "\xBFCu\xE1ntas piezas necesitas y para cu\xE1ndo?";
-  }
-  const body = snip.replace(/\s*¿Qué medidas aproximadas tiene el espacio\?\s*/gi, " ").trim();
-  return `Seg\xFAn el cat\xE1logo que ya cargamos en Aprendizaje:
-${body}
-${ask}`;
-}
 
 // src/contact-name.ts
 var PHONE_LIKE = /^\+?\d[\d\s\-().]{7,}$/;
@@ -57246,16 +55635,16 @@ var Models = class _Models extends BaseModule {
   async generateContentInternal(params) {
     var _a2, _b, _c, _d;
     let response;
-    let path3 = "";
+    let path2 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = generateContentParametersToVertex(this.apiClient, params);
-      path3 = formatMap("{model}:generateContent", body["_url"]);
+      path2 = formatMap("{model}:generateContent", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -57278,12 +55667,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = generateContentParametersToMldev(this.apiClient, params);
-      path3 = formatMap("{model}:generateContent", body["_url"]);
+      path2 = formatMap("{model}:generateContent", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -57309,17 +55698,17 @@ var Models = class _Models extends BaseModule {
   async generateContentStreamInternal(params) {
     var _a2, _b, _c, _d;
     let response;
-    let path3 = "";
+    let path2 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = generateContentParametersToVertex(this.apiClient, params);
-      path3 = formatMap("{model}:streamGenerateContent?alt=sse", body["_url"]);
+      path2 = formatMap("{model}:streamGenerateContent?alt=sse", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       const apiClient = this.apiClient;
       response = apiClient.requestStream({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -57355,13 +55744,13 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = generateContentParametersToMldev(this.apiClient, params);
-      path3 = formatMap("{model}:streamGenerateContent?alt=sse", body["_url"]);
+      path2 = formatMap("{model}:streamGenerateContent?alt=sse", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       const apiClient = this.apiClient;
       response = apiClient.requestStream({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -57421,17 +55810,17 @@ var Models = class _Models extends BaseModule {
   async embedContentInternal(params) {
     var _a2, _b, _c, _d;
     let response;
-    let path3 = "";
+    let path2 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = embedContentParametersPrivateToVertex(this.apiClient, params, params);
       const endpointUrl = tIsVertexEmbedContentModel(params.model) ? "{model}:embedContent" : "{model}:predict";
-      path3 = formatMap(endpointUrl, body["_url"]);
+      path2 = formatMap(endpointUrl, body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -57454,12 +55843,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = embedContentParametersPrivateToMldev(this.apiClient, params);
-      path3 = formatMap("{model}:batchEmbedContents", body["_url"]);
+      path2 = formatMap("{model}:batchEmbedContents", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -57488,16 +55877,16 @@ var Models = class _Models extends BaseModule {
   async generateImagesInternal(params) {
     var _a2, _b, _c, _d;
     let response;
-    let path3 = "";
+    let path2 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = generateImagesParametersToVertex(this.apiClient, params);
-      path3 = formatMap("{model}:predict", body["_url"]);
+      path2 = formatMap("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -57520,12 +55909,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = generateImagesParametersToMldev(this.apiClient, params);
-      path3 = formatMap("{model}:predict", body["_url"]);
+      path2 = formatMap("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -57554,16 +55943,16 @@ var Models = class _Models extends BaseModule {
   async editImageInternal(params) {
     var _a2, _b;
     let response;
-    let path3 = "";
+    let path2 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = editImageParametersInternalToVertex(this.apiClient, params);
-      path3 = formatMap("{model}:predict", body["_url"]);
+      path2 = formatMap("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -57594,16 +55983,16 @@ var Models = class _Models extends BaseModule {
   async upscaleImageInternal(params) {
     var _a2, _b;
     let response;
-    let path3 = "";
+    let path2 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = upscaleImageAPIParametersInternalToVertex(this.apiClient, params);
-      path3 = formatMap("{model}:predict", body["_url"]);
+      path2 = formatMap("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -57655,16 +56044,16 @@ var Models = class _Models extends BaseModule {
   async recontextImage(params) {
     var _a2, _b;
     let response;
-    let path3 = "";
+    let path2 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = recontextImageParametersToVertex(this.apiClient, params);
-      path3 = formatMap("{model}:predict", body["_url"]);
+      path2 = formatMap("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -57706,16 +56095,16 @@ var Models = class _Models extends BaseModule {
   async segmentImage(params) {
     var _a2, _b;
     let response;
-    let path3 = "";
+    let path2 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = segmentImageParametersToVertex(this.apiClient, params);
-      path3 = formatMap("{model}:predict", body["_url"]);
+      path2 = formatMap("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -57745,16 +56134,16 @@ var Models = class _Models extends BaseModule {
   async get(params) {
     var _a2, _b, _c, _d;
     let response;
-    let path3 = "";
+    let path2 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = getModelParametersToVertex(this.apiClient, params);
-      path3 = formatMap("{name}", body["_url"]);
+      path2 = formatMap("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -57769,12 +56158,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = getModelParametersToMldev(this.apiClient, params);
-      path3 = formatMap("{name}", body["_url"]);
+      path2 = formatMap("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -57792,16 +56181,16 @@ var Models = class _Models extends BaseModule {
   async listInternal(params) {
     var _a2, _b, _c, _d;
     let response;
-    let path3 = "";
+    let path2 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = listModelsParametersToVertex(this.apiClient, params);
-      path3 = formatMap("{models_url}", body["_url"]);
+      path2 = formatMap("{models_url}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -57824,12 +56213,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = listModelsParametersToMldev(this.apiClient, params);
-      path3 = formatMap("{models_url}", body["_url"]);
+      path2 = formatMap("{models_url}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -57872,16 +56261,16 @@ var Models = class _Models extends BaseModule {
   async update(params) {
     var _a2, _b, _c, _d;
     let response;
-    let path3 = "";
+    let path2 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = updateModelParametersToVertex(this.apiClient, params);
-      path3 = formatMap("{model}", body["_url"]);
+      path2 = formatMap("{model}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "PATCH",
@@ -57896,12 +56285,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = updateModelParametersToMldev(this.apiClient, params);
-      path3 = formatMap("{name}", body["_url"]);
+      path2 = formatMap("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "PATCH",
@@ -57930,16 +56319,16 @@ var Models = class _Models extends BaseModule {
   async delete(params) {
     var _a2, _b, _c, _d;
     let response;
-    let path3 = "";
+    let path2 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = deleteModelParametersToVertex(this.apiClient, params);
-      path3 = formatMap("{name}", body["_url"]);
+      path2 = formatMap("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "DELETE",
@@ -57962,12 +56351,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = deleteModelParametersToMldev(this.apiClient, params);
-      path3 = formatMap("{name}", body["_url"]);
+      path2 = formatMap("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "DELETE",
@@ -58009,16 +56398,16 @@ var Models = class _Models extends BaseModule {
   async countTokens(params) {
     var _a2, _b, _c, _d;
     let response;
-    let path3 = "";
+    let path2 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = countTokensParametersToVertex(this.apiClient, params);
-      path3 = formatMap("{model}:countTokens", body["_url"]);
+      path2 = formatMap("{model}:countTokens", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -58041,12 +56430,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = countTokensParametersToMldev(this.apiClient, params);
-      path3 = formatMap("{model}:countTokens", body["_url"]);
+      path2 = formatMap("{model}:countTokens", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -58090,16 +56479,16 @@ var Models = class _Models extends BaseModule {
   async computeTokens(params) {
     var _a2, _b;
     let response;
-    let path3 = "";
+    let path2 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = computeTokensParametersToVertex(this.apiClient, params);
-      path3 = formatMap("{model}:computeTokens", body["_url"]);
+      path2 = formatMap("{model}:computeTokens", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -58130,16 +56519,16 @@ var Models = class _Models extends BaseModule {
   async generateVideosInternal(params) {
     var _a2, _b, _c, _d;
     let response;
-    let path3 = "";
+    let path2 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = generateVideosParametersToVertex(this.apiClient, params);
-      path3 = formatMap("{model}:predictLongRunning", body["_url"]);
+      path2 = formatMap("{model}:predictLongRunning", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -58156,12 +56545,12 @@ var Models = class _Models extends BaseModule {
       });
     } else {
       const body = generateVideosParametersToMldev(this.apiClient, params);
-      path3 = formatMap("{model}:predictLongRunning", body["_url"]);
+      path2 = formatMap("{model}:predictLongRunning", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path3,
+        path: path2,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -60729,8 +59118,8 @@ function getErrorMap() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path3, errorMaps, issueData } = params;
-  const fullPath = [...path3, ...issueData.path || []];
+  const { data, path: path2, errorMaps, issueData } = params;
+  const fullPath = [...path2, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -60846,11 +59235,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path3, key) {
+  constructor(parent, value, path2, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path3;
+    this._path = path2;
     this._key = key;
   }
   get path() {
@@ -65803,7 +64192,7 @@ var import_await_to_js = __toESM(require_await_to_js_umd(), 1);
 
 // node_modules/@jimp/file-ops/dist/esm/index.js
 import { promises as fs2 } from "fs";
-import { existsSync as existsSync2 } from "fs";
+import { existsSync } from "fs";
 var readFile = fs2.readFile;
 var writeFile = fs2.writeFile;
 
@@ -66216,7 +64605,7 @@ function createJimp({ plugins: pluginsArg, formats: formatsArg } = {}) {
       if (Buffer.isBuffer(url) || url instanceof ArrayBuffer) {
         return this.fromBuffer(url);
       }
-      if (existsSync2(url)) {
+      if (existsSync(url)) {
         return this.fromBuffer(await readFile(url));
       }
       const [fetchErr, response] = await (0, import_await_to_js.to)(fetch(url));
@@ -66408,9 +64797,9 @@ function createJimp({ plugins: pluginsArg, formats: formatsArg } = {}) {
      * await image.write("test/output.png");
      * ```
      */
-    async write(path3, options) {
-      const mimeType = import_lite.default.getType(path3);
-      await writeFile(path3, await this.getBuffer(mimeType, options));
+    async write(path2, options) {
+      const mimeType = import_lite.default.getType(path2);
+      await writeFile(path2, await this.getBuffer(mimeType, options));
     }
     /**
      * Clone the image into a new Jimp instance.
@@ -71569,16 +69958,16 @@ function stripThemeColorsFromZona(value) {
 // src/services/geoResolve.ts
 var CDMX_ALCALDIAS = /\b(alvaro\s+obregon|[aá]lvaro\s+obreg[oó]n|azcapotzalco|benito\s+ju[aá]rez|coyoac[aá]n|cuajimalpa|cuauht[eé]moc|gustavo\s+a\.?\s*madero|iztacalco|iztapalapa|magdalena\s+contreras|miguel\s+hidalgo|milpa\s+alta|tl[aá]huac|tlalpan|venustiano\s+carranza|xochimilco)\b/i;
 var CDMX_CITY = /\b(cdmx|ciudad\s+de\s+m[eé]xico|\bdf\b|d\.?\s*f\.?)\b/i;
-function fold2(s3) {
+function fold(s3) {
   return s3.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 function addPart(parts, raw) {
   const t3 = raw?.trim().replace(/[.,;:]+$/g, "").replace(/\s+/g, " ");
   if (!t3 || t3.length < 2) return;
-  const key = fold2(t3);
+  const key = fold(t3);
   if (/^(es|la|el|de|del|en)$/i.test(t3)) return;
   for (let i3 = 0; i3 < parts.length; i3++) {
-    const pk = fold2(parts[i3]);
+    const pk = fold(parts[i3]);
     if (pk === key || pk.includes(key)) return;
     if (key.includes(pk) && t3.length > parts[i3].length) {
       parts[i3] = t3;
@@ -74662,23 +73051,1413 @@ function parsePresupuestoFromText(text, opts) {
   return null;
 }
 
+// src/modoServicio.ts
+var PEDIDO_ENTREGA = /\b(para\s+llevar|a\s+domicilio|en\s+mi\s+casa|entrega|que\s+me\s+(los?\s+|las?\s+)?dejen|que\s+me\s+(los?\s+|las?\s+)?entreguen|solo\s+los?\s+rollos?|solo\s+el\s+producto|sin\s+montaje|pedido\s+de|un\s+pedido\s+de|cantidad\s+de\s+\d+|piezas?\s+de)\b/i;
+var SERVICIO_MONTADO = /\b(montado\s+en|en\s+el\s+evento|barra\s+en|estaci[oó]n\s+en|meseros|servicio\s+en\s+el|montaje\s+en|en\s+mi\s+evento|en\s+la\s+fiesta)\b/i;
+function detectModoServicio(text) {
+  const t3 = text?.trim() ?? "";
+  if (!t3) return null;
+  if (PEDIDO_ENTREGA.test(t3)) return "pedido_entrega";
+  if (SERVICIO_MONTADO.test(t3)) return "servicio_montado";
+  return null;
+}
+function needsModoServicioClarification(text, current) {
+  if (current) return false;
+  const t3 = text?.trim() ?? "";
+  if (!t3) return false;
+  return /\b(\d+\s+rollos?|\d+\s+piezas?|\d+\s+platos?|quiero\s+\d+|necesito\s+\d+)\b/i.test(t3) && !PEDIDO_ENTREGA.test(t3) && !SERVICIO_MONTADO.test(t3);
+}
+function buildModoServicioClarificationQuestion() {
+  return "\xBFLo quieres montado en tu evento con barra y servicio, o solo la entrega del producto?";
+}
+function isMobiliarioRentalPedido(message) {
+  const t3 = message?.trim() ?? "";
+  if (!t3) return false;
+  return /\b(mesas?\s+tipo\s+picnic|picnic|periqueras?|bancos?|mobiliario|mesas?\s+y\s+sillas?)\b/i.test(
+    t3
+  );
+}
+function buildPedidoEntregaReply(message) {
+  const t3 = message?.trim() ?? "";
+  if (isMobiliarioRentalPedido(t3)) {
+    return `Perfecto \u2014 lo tomo como *entrega/recolecci\xF3n de mobiliario* (sin montaje en sitio). Nuestro equipo te arma la cotizaci\xF3n seg\xFAn cantidades, color y zona de entrega.`;
+  }
+  const qtyMatch = t3.match(/(\d+)\s*(rollos?|piezas?|platos?)/i);
+  const qtyLabel = qtyMatch ? `${qtyMatch[1]} ${qtyMatch[2]}` : null;
+  const product = /\bsushi\b/i.test(t3) ? "sushi" : /\bpizzas?\b/i.test(t3) ? "pizza" : /\bpoke\b/i.test(t3) ? "poke" : "producto";
+  const what = qtyLabel ? `${qtyLabel} de ${product}` : `tu pedido de ${product}`;
+  return `Perfecto \u2014 lo tomo como *pedido/entrega a domicilio* (sin barra ni chefs en el evento). Para ${what}, nuestro equipo te arma la cotizaci\xF3n exacta seg\xFAn cantidad y zona de entrega. \xBFMe regalas tu nombre para pas\xE1rselo?`;
+}
+
+// src/tipoContacto.ts
+var PROVEEDOR_SELL = /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|soy\s+proveedor|quiero\s+venderles|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidor\s+de|mi\s+empresa\s+ofrece|vendo\s+.+\s+a\s+eventos)\b/i;
+var PROVEEDOR_ALLIANCE = /\b(red\s+de\s+aliados|aliados?\s+comerciales?|alianza\s+comercial|aliado\s+comercial|registrarte\s+en\s+nuestra\s+base|invitarte\s+a\s+registrarte|te\s+invito\s+a\s+registrarte|ser\s+parte\s+de\s+nuestra\s+red|sumarte\s+a\s+(nuestra\s+)?red|formar\s+parte\s+de\s+nuestra\s+red|proveedores?\s+aliados?|cat[aá]logo\s+de\s+proveedores|beneficios\s+y\s+tarifas.{0,80}(?:venue|hacienda|sal[oó]n)|ejecutiv[oa]\s+de\s+ventas\s+en\s+(?:hacienda|sal[oó]n|venue|hotel)|nuestro\s+venue|red\s+de\s+proveedores|quiero\s+ser\s+proveedor|ofrecerles\s+(nuestro|mis|nuestros)|los\s+invito\s+a\s+(conocer|registr|formar)|invitarlos\s+a\s+(nuestra|formar|registr))\b/i;
+var PROVEEDOR_OFFER = new RegExp(
+  `(?:${PROVEEDOR_SELL.source})|(?:${PROVEEDOR_ALLIANCE.source})`,
+  "i"
+);
+function clientMentionsOwnCompanyEmail(text) {
+  if (!text?.trim()) return false;
+  return /\b(capybaraeventos@gmail\.com|bodasesor@gmail\.com|hola@bodasesor\.com)\b/i.test(text);
+}
+function clientAsksIfCompanyEmailCorrect(text) {
+  if (!text?.trim()) return false;
+  const t3 = text.toLowerCase();
+  return clientMentionsOwnCompanyEmail(text) || /es\s+el\s+correo\s+correcto|ese\s+correo\s+es\s+correcto|correo\s+correcto|es\s+ese\s+el\s+correo/i.test(
+    t3
+  );
+}
+function buildCompanyEmailConfirmReply() {
+  return "S\xED, capybaraeventos@gmail.com es el correo de Bodasesor \u2014 tu solicitud ya nos lleg\xF3 bien. Para enviarte la cotizaci\xF3n personalizada, \xBFme compartes tu correo de trabajo?";
+}
+
+// src/services/lucyInfoPriceCache.ts
+import { existsSync as existsSync2, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// src/services/serviceSynonyms.ts
+function norm(s3) {
+  return s3.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+var DEFAULT_SERVICE_SYNONYM_FAMILIES = [
+  {
+    key: "banquete_formal",
+    serviceHints: ["banquete formal", "banquete 3", "banquete 4", "banquete"],
+    aliases: [
+      "menu formal",
+      "men\xFA formal",
+      "comida servida",
+      "banquete sentado",
+      "menu de tiempos",
+      "men\xFA de tiempos",
+      "comida de plato",
+      "servicio a la mesa",
+      "comida formal",
+      "menu emplatado",
+      "men\xFA emplatado",
+      "cena formal",
+      "banquete de boda",
+      "banquete formal",
+      "banquete",
+      "4 tiempos",
+      "3 tiempos",
+      "plated",
+      "emplatado"
+    ],
+    excludeIf: ["mexicano", "navideno", "navide\xF1o", "kosher", "taquiza", "tacos"]
+  },
+  {
+    key: "banquete_kosher",
+    serviceHints: ["kosher"],
+    aliases: [
+      "kosher",
+      "kasher",
+      "comida kosher",
+      "comida judia",
+      "comida jud\xEDa",
+      "menu kosher",
+      "men\xFA kosher",
+      "certificado rabinico",
+      "certificado rab\xEDnico",
+      "supervision rabinica",
+      "supervisi\xF3n rab\xEDnica",
+      "banquete judio",
+      "banquete jud\xEDo",
+      "comida para evento judio",
+      "comida para evento jud\xEDo",
+      "cocina kosher"
+    ]
+  },
+  {
+    key: "banquete_mexicano",
+    serviceHints: ["banquete mexicano", "mexicano"],
+    aliases: [
+      "comida mexicana",
+      "menu mexicano",
+      "men\xFA mexicano",
+      "banquete tipico",
+      "banquete t\xEDpico",
+      "cena mexicana",
+      "comida tradicional",
+      "platillos mexicanos",
+      "buffet mexicano",
+      "banquete mexicano",
+      "fiesta mexicana",
+      "comida tipica",
+      "comida t\xEDpica"
+    ],
+    excludeIf: ["taquiza", "tacos", "antojitos", "yucateca"]
+  },
+  {
+    key: "banquete_navideno",
+    serviceHints: ["navideno", "navide\xF1o", "navidad"],
+    aliases: [
+      "cena navide\xF1a",
+      "cena navadena",
+      "posada",
+      "cena de fin de a\xF1o",
+      "cena de fin de ano",
+      "evento decembrino",
+      "pavo navide\xF1o",
+      "pavo navideno",
+      "cena de temporada",
+      "banquete de navidad",
+      "fiesta navide\xF1a",
+      "fiesta navadena",
+      "cena de diciembre",
+      "brindis navide\xF1o",
+      "brindis navideno",
+      "navidad"
+    ]
+  },
+  {
+    key: "barra_americana",
+    serviceHints: ["barra americana", "americana"],
+    aliases: [
+      "hamburguesas",
+      "hot dogs",
+      "hotdogs",
+      "alitas",
+      "comida americana",
+      "boneless",
+      "sliders",
+      "papas y hamburguesas",
+      "comida rapida gourmet",
+      "comida r\xE1pida gourmet",
+      "barra americana"
+    ]
+  },
+  {
+    key: "barra_bebidas_sin_alcohol",
+    serviceHints: ["barra de bebidas", "sin alcohol"],
+    aliases: [
+      "refrescos",
+      "aguas frescas",
+      "barra de refrescos",
+      "bebidas sin alcohol",
+      "vitroleros",
+      "solo bebidas",
+      "barra de aguas",
+      "sodas",
+      "bebidas para el evento",
+      "barra sin alcohol"
+    ],
+    excludeIf: ["open bar", "barra libre", "tragos", "licores", "alcohol"]
+  },
+  {
+    key: "barra_bebidas_alcohol",
+    serviceHints: ["barra de bebidas", "con alcohol", "bebidas con alcohol"],
+    aliases: [
+      "barra libre",
+      "open bar",
+      "bar",
+      "cocteleria con alcohol",
+      "cocteler\xEDa con alcohol",
+      "tragos",
+      "barra de licores",
+      "barra con alcohol",
+      "bebidas con alcohol",
+      "barra de tragos",
+      "servicio de bar",
+      "barra de bebidas",
+      // A14985 stand/golf: cerveza / whisky sin decir "barra".
+      "cerveza",
+      "cervezas",
+      "whisky",
+      "whiskey",
+      "tequila",
+      "vodka",
+      "licores"
+    ],
+    excludeIf: ["sin alcohol", "mocteles", "mocktail", "cafe", "caf\xE9"]
+  },
+  {
+    key: "barra_cafe",
+    serviceHints: ["barra de cafe", "barra de caf\xE9", "cafe"],
+    aliases: [
+      "cafeteria",
+      "cafeter\xEDa",
+      "barista",
+      "cafe gourmet",
+      "caf\xE9 gourmet",
+      "estacion de cafe",
+      "estaci\xF3n de caf\xE9",
+      "cafe de especialidad",
+      "caf\xE9 de especialidad",
+      "barra de cafe",
+      "barra de caf\xE9",
+      "cafe artesanal",
+      "caf\xE9 artesanal",
+      "carrito de cafe",
+      "carrito de caf\xE9",
+      "cafe para invitados",
+      "caf\xE9 para invitados",
+      "stand de cafe",
+      "stand de caf\xE9",
+      "coffee"
+    ],
+    excludeIf: ["coffee break", "coffeebreak", "receso", "junta"]
+  },
+  {
+    key: "coffee_break",
+    serviceHints: ["coffee break", "coffeebreak", "coffe break"],
+    aliases: [
+      "coffee break",
+      "coffeebreak",
+      "coffe break",
+      "receso de cafe",
+      "receso de caf\xE9",
+      "cafe para junta",
+      "caf\xE9 para junta",
+      "break corporativo",
+      "estacion de cafe y snacks",
+      "estaci\xF3n de caf\xE9 y snacks",
+      "pausa de cafe",
+      "pausa de caf\xE9",
+      "break de cafe",
+      "break de caf\xE9",
+      "receso corporativo",
+      "cafe y galletas",
+      "caf\xE9 y galletas"
+    ]
+  },
+  {
+    key: "barra_crepas",
+    serviceHints: ["crepas", "crepa"],
+    aliases: [
+      "crepas",
+      "creperia",
+      "creper\xEDa",
+      "crepes",
+      "waffles",
+      "postres calientes",
+      "estacion de crepas",
+      "estaci\xF3n de crepas",
+      "crepas dulces",
+      "crepas saladas",
+      "barra de crepas",
+      "crepas gourmet"
+    ]
+  },
+  {
+    key: "barra_mariscos",
+    serviceHints: ["mariscos"],
+    aliases: [
+      "mariscos",
+      "ceviches",
+      "aguachile",
+      "coctel de camaron",
+      "coctel de camar\xF3n",
+      "pescados y mariscos",
+      "barra de mar",
+      "ostiones",
+      "tostadas de mariscos",
+      "comida del mar",
+      "barra de mariscos"
+    ]
+  },
+  {
+    key: "barra_paninis",
+    serviceHints: ["paninis", "panini"],
+    aliases: [
+      "paninis",
+      "sandwiches",
+      "s\xE1ndwiches",
+      "sandwiches gourmet",
+      "s\xE1ndwiches gourmet",
+      "baguettes",
+      "molletes gourmet",
+      "sandwicheria",
+      "sandwicher\xEDa",
+      "tortas gourmet",
+      "paninos",
+      "barra de sandwiches",
+      "barra de s\xE1ndwiches",
+      "panini"
+    ]
+  },
+  {
+    key: "barra_pastas",
+    serviceHints: ["pastas", "ensaladas"],
+    aliases: [
+      "pastas",
+      "espagueti",
+      "estacion de pastas",
+      "estaci\xF3n de pastas",
+      "pasta italiana",
+      "ensaladas",
+      "barra de pastas",
+      "fettuccine",
+      "lasana",
+      "lasa\xF1a",
+      "pasta al momento",
+      "comida italiana",
+      "italiana"
+    ]
+  },
+  {
+    key: "barra_pizzas",
+    serviceHints: ["pizza", "pizzas"],
+    aliases: [
+      "pizzas",
+      "pizza artesanal",
+      "estacion de pizza",
+      "estaci\xF3n de pizza",
+      "horno de pizza",
+      "pizzas gourmet",
+      "barra de pizzas",
+      "pizza al momento",
+      "pizza italiana",
+      "pizzeria",
+      "pizzer\xEDa",
+      "pizza"
+    ]
+  },
+  {
+    key: "barra_sushi",
+    serviceHints: ["sushi", "poke"],
+    aliases: [
+      "sushi",
+      "rollos",
+      "poke",
+      "poke bowls",
+      "comida japonesa",
+      "makis",
+      "barra de sushi",
+      "sushi al momento",
+      "rollos japoneses",
+      "comida oriental",
+      "japones",
+      "japon\xE9s",
+      "nigiri",
+      "sashimi"
+    ]
+  },
+  {
+    key: "barra_yucateca",
+    serviceHints: ["yucateca", "yucatan"],
+    aliases: [
+      "comida yucateca",
+      "cochinita",
+      "cochinita pibil",
+      "panuchos",
+      "salbutes",
+      "comida del sureste",
+      "comida de yucatan",
+      "comida de yucat\xE1n",
+      "papadzules",
+      "barra yucateca",
+      "comida maya"
+    ]
+  },
+  {
+    key: "bocadillos",
+    serviceHints: ["bocadillos", "bocadillo"],
+    aliases: [
+      "botana",
+      "botanas",
+      "snacks",
+      "aperitivos",
+      "finger food",
+      "bocadillos",
+      "entradas",
+      "pasabocas",
+      "tentempies",
+      "tentempi\xE9s",
+      "comida para picar"
+    ],
+    excludeIf: ["canapes", "canap\xE9s", "carrito"]
+  },
+  {
+    key: "canapes",
+    serviceHints: ["canapes", "canap\xE9s"],
+    aliases: [
+      "canapes",
+      "canap\xE9s",
+      "bocaditos",
+      "entremeses",
+      "bocadillos finos",
+      "pasapalos",
+      "bocados gourmet",
+      "canape",
+      "canap\xE9",
+      "entradas frias",
+      "entradas fr\xEDas"
+    ]
+  },
+  {
+    key: "carrito_snacks",
+    serviceHints: ["carrito de snacks", "snacks"],
+    aliases: [
+      "carrito de botana",
+      "snacks",
+      "dulces y frituras",
+      "carrito de golosinas",
+      "botanas para llevar",
+      "estacion de snacks",
+      "estaci\xF3n de snacks",
+      "carrito de dulces",
+      "chucherias",
+      "chucher\xEDas",
+      "papitas y dulces",
+      "carrito de snacks"
+    ]
+  },
+  {
+    key: "cocteles_mixologia",
+    serviceHints: ["cocteles", "mixologia", "mixolog\xEDa", "cocteleria"],
+    aliases: [
+      "cocteles",
+      "c\xF3cteles",
+      "cocteleria",
+      "cocteler\xEDa",
+      "mixologia",
+      "mixolog\xEDa",
+      "bartender",
+      "cantinero",
+      "tragos de autor",
+      "cocktails",
+      "barra de cocteles",
+      "barra de c\xF3cteles",
+      "mixologo",
+      "mix\xF3logo",
+      "cocteles de autor",
+      "c\xF3cteles de autor"
+    ],
+    excludeIf: ["sin alcohol", "mocteles", "mocktail"]
+  },
+  {
+    key: "comida_corrida",
+    serviceHints: ["comida corrida", "corrida"],
+    aliases: [
+      "comida corrida",
+      "menu del dia",
+      "men\xFA del d\xEDa",
+      "comida economica",
+      "comida econ\xF3mica",
+      // NO: "comida corporativa" / "menu corporativo" — A14943 confundía evento de trabajo.
+      "comida sencilla",
+      "comida de oficina",
+      "menu ejecutivo",
+      "men\xFA ejecutivo"
+    ]
+  },
+  {
+    key: "desayuno_brunch",
+    serviceHints: ["desayuno", "brunch"],
+    aliases: [
+      "desayuno",
+      "brunch",
+      "almuerzo",
+      "desayuno buffet",
+      "getting ready",
+      "desayuno para evento",
+      "desayuno social",
+      "chilaquiles",
+      "huevos",
+      "brunch de boda"
+    ]
+  },
+  {
+    key: "cupcakes",
+    serviceHints: ["cupcakes", "cupcake", "bet\xFAn", "betun", "cupcakes y bet\xFAn"],
+    aliases: [
+      "cupcakes",
+      "panquecitos",
+      "pastelitos",
+      "muffins",
+      "cup cakes decorados",
+      "postrecitos",
+      "cupcakes personalizados",
+      "mini pasteles",
+      "ponquesitos",
+      "cupcakes tematicos",
+      "cupcakes tem\xE1ticos",
+      "betun",
+      "bet\xFAn",
+      "betunes",
+      "fondant",
+      "cupcakes y betun",
+      "cupcakes y bet\xFAn"
+    ]
+  },
+  {
+    key: "mesa_dulces",
+    serviceHints: ["mesa de dulces", "dulces"],
+    aliases: [
+      "mesa de dulces",
+      "candy bar",
+      "mesa de golosinas",
+      "dulcero",
+      "mesa de dulces mexicanos",
+      "barra de dulces",
+      "dulces para evento",
+      "mesa de caramelos",
+      "estacion de dulces",
+      "estaci\xF3n de dulces",
+      "candy"
+    ],
+    excludeIf: ["postres", "cupcakes", "helados"]
+  },
+  {
+    key: "mesa_postres",
+    serviceHints: ["mesa de postres", "postres"],
+    aliases: [
+      "mesa de postres",
+      "postres",
+      "reposteria",
+      "reposter\xEDa",
+      "mesa de pasteles",
+      "estacion de postres",
+      "estaci\xF3n de postres",
+      "dulces finos",
+      "postres para evento",
+      "pasteleria",
+      "pasteler\xEDa",
+      "mesa de dulces finos",
+      "barra de postres"
+    ]
+  },
+  {
+    key: "mesa_quesos",
+    serviceHints: ["mesa de quesos", "quesos"],
+    aliases: [
+      "tabla de quesos",
+      "mesa de quesos",
+      "quesos y carnes frias",
+      "quesos y carnes fr\xEDas",
+      "charcuteria",
+      "charcuter\xEDa",
+      "tabla de embutidos",
+      "quesos gourmet",
+      "tabla de fiambres",
+      "mesa de quesos y vinos",
+      "degustacion de quesos",
+      "degustaci\xF3n de quesos",
+      "tabla gourmet",
+      "grazing"
+    ]
+  },
+  {
+    key: "mocteles",
+    serviceHints: ["mocteles", "m\xF3cteles"],
+    aliases: [
+      "mocteles",
+      "m\xF3cteles",
+      "cocteles sin alcohol",
+      "c\xF3cteles sin alcohol",
+      "bebidas sin alcohol",
+      "cocteleria sin alcohol",
+      "cocteler\xEDa sin alcohol",
+      "tragos sin alcohol",
+      "barra de mocteles",
+      "barra de m\xF3cteles",
+      "bebidas de autor sin alcohol",
+      "cocteles virgenes",
+      "c\xF3cteles v\xEDrgenes",
+      "mixologia sin alcohol",
+      "mixolog\xEDa sin alcohol",
+      "mocktails",
+      "mocktail"
+    ]
+  },
+  {
+    key: "paella",
+    serviceHints: ["paella"],
+    aliases: [
+      "paella",
+      "arroz espanol",
+      "arroz espa\xF1ol",
+      "paella valenciana",
+      "paella de mariscos",
+      "arroz a la valenciana",
+      "comida espanola",
+      "comida espa\xF1ola",
+      "paella en vivo",
+      "paellera",
+      "arroz espanol al momento",
+      "arroz espa\xF1ol al momento",
+      "paellas"
+    ]
+  },
+  {
+    key: "paletas_helados",
+    serviceHints: ["paletas", "helados"],
+    aliases: [
+      "paletas",
+      "paletas de hielo",
+      "helados",
+      "nieves",
+      "sorbetes",
+      "carrito de helados",
+      "paletas artesanales",
+      "neveria",
+      "never\xEDa",
+      "paletas heladas",
+      "helado para evento"
+    ]
+  },
+  {
+    key: "parrillada_argentina",
+    serviceHints: ["parrillada argentina", "parillada argentina", "argentina"],
+    aliases: [
+      "asado argentino",
+      "cortes argentinos",
+      "parrilla argentina",
+      "carnes asadas",
+      "asador",
+      "parrillada argentina",
+      "parillada argentina",
+      "cortes finos",
+      "asador en vivo",
+      "carne al carbon",
+      "carne al carb\xF3n",
+      "parrilla de cortes",
+      "asado",
+      "carne asada",
+      "argentino"
+    ]
+  },
+  {
+    key: "taquiza",
+    serviceHints: ["taquiza"],
+    aliases: [
+      "taquiza",
+      "tacos",
+      "tacos de guisado",
+      "tacos de guisados",
+      "taquiza para evento",
+      "puesto de tacos",
+      "tacos al pastor",
+      "tacos de canasta",
+      "taquiza a domicilio",
+      "tacos de carne asada",
+      "taqueria",
+      "taquer\xEDa",
+      "estacion de tacos",
+      "estaci\xF3n de tacos",
+      "barra de tacos",
+      "guisados"
+    ],
+    excludeIf: [
+      "parrillada tacos",
+      "parrillada de tacos",
+      "parrillada argentina",
+      "asado argentino"
+    ]
+  },
+  {
+    key: "parrillada_tacos",
+    serviceHints: ["parrillada tacos"],
+    aliases: [
+      "parrillada tacos",
+      "parrillada de tacos",
+      "tacos a la parrilla",
+      "tacos parrillada",
+      "estacion de tacos a la parrilla",
+      "estaci\xF3n de tacos a la parrilla"
+    ],
+    excludeIf: ["parrillada argentina", "asado argentino", "argentina"]
+  },
+  {
+    key: "entelados_techo",
+    serviceHints: ["entelados para techo", "entelado", "entelados"],
+    aliases: [
+      "entelados",
+      "entelado",
+      "entelado para techo",
+      "entelados para techo",
+      "tela en techo",
+      "tela de techo",
+      "telas para techo",
+      "tela para techo",
+      "techo entelado",
+      "entelado de techo"
+    ],
+    excludeIf: ["colgante", "colgantes"]
+  },
+  {
+    key: "colgantes_premium",
+    serviceHints: ["colgantes premium", "colgantes"],
+    aliases: [
+      "colgantes",
+      "colgante",
+      "colgantes premium",
+      "decoracion colgante",
+      "decoraci\xF3n colgante",
+      "estructuras colgantes",
+      "flores colgantes",
+      "wisteria"
+    ],
+    excludeIf: ["entelado", "entelados", "tela en techo", "tela de techo"]
+  },
+  {
+    // A15190: floral/decorativo — nunca mesas/sillas de renta.
+    key: "centros_mesa",
+    serviceHints: ["centros de mesa", "centro de mesa"],
+    aliases: [
+      "centros de mesa",
+      "centro de mesa",
+      "centros de mesas",
+      "arreglos de mesa",
+      "arreglo de mesa",
+      "centros florales",
+      "centro floral",
+      "decoracion de mesas",
+      "decoraci\xF3n de mesas",
+      "flores para mesa",
+      "flores en mesa"
+    ],
+    excludeIf: [
+      "mobiliario",
+      "mesas y sillas",
+      "renta de mesas",
+      "mesa de dulces",
+      "mesa de postres",
+      "mesa de quesos",
+      "mesa imperial"
+    ]
+  },
+  {
+    key: "pozole_tostadas",
+    serviceHints: ["pozole", "tostadas"],
+    aliases: [
+      "pozole",
+      "tostadas",
+      "pozole rojo",
+      "pozole verde",
+      "pozole blanco",
+      "pozole y tostadas",
+      "pozolada",
+      "antojito mexicano",
+      "pozole para evento",
+      "tostadas de tinga",
+      "pozoleria",
+      "pozoler\xEDa"
+    ]
+  },
+  {
+    key: "antojitos",
+    serviceHints: ["antojitos", "puestos de comida"],
+    aliases: [
+      "antojitos",
+      "puesto de antojitos",
+      "esquites",
+      "elotes",
+      "quesadillas",
+      "kermes",
+      "kerm\xE9s",
+      "sopes",
+      "gorditas",
+      "garnachas",
+      "feria de antojitos",
+      "puestos de comida",
+      "street food",
+      // A14985: snack de stand.
+      "banderillas",
+      "banderilla",
+      "snack banderillas"
+    ]
+  }
+];
+var sheetSynonymIndex = /* @__PURE__ */ new Map();
+function synonymsForServiceName(servicio) {
+  const n2 = norm(servicio);
+  const out = /* @__PURE__ */ new Set();
+  for (const fam of DEFAULT_SERVICE_SYNONYM_FAMILIES) {
+    if (fam.serviceHints.some((h2) => n2.includes(norm(h2)) || norm(h2).includes(n2))) {
+      for (const a2 of fam.aliases) out.add(a2);
+    }
+  }
+  for (const [svc, aliases] of sheetSynonymIndex) {
+    if (n2.includes(svc) || svc.includes(n2)) {
+      for (const a2 of aliases) out.add(a2);
+    }
+  }
+  return [...out];
+}
+function synonymHaystackForService(servicio, sheetSinonimos) {
+  const parts = [
+    servicio,
+    sheetSinonimos ?? "",
+    ...synonymsForServiceName(servicio)
+  ];
+  return norm(parts.join(" "));
+}
+function expandQueryWithServiceSynonyms(query) {
+  const q = norm(query);
+  const baseTokens = q.split(" ").filter((w) => w.length >= 3);
+  const familyKeys = [];
+  const boostedHints = [];
+  const matchedServiceHints = [];
+  const extraTokens = new Set(baseTokens);
+  for (const fam of DEFAULT_SERVICE_SYNONYM_FAMILIES) {
+    if (fam.excludeIf?.some((ex) => q.includes(norm(ex)))) {
+      const specificHit = fam.aliases.some((a2) => {
+        const na = norm(a2);
+        return na.includes(" ") && q.includes(na);
+      });
+      if (!specificHit) continue;
+    }
+    const hit = fam.aliases.some((a2) => {
+      const na = norm(a2);
+      if (na.includes(" ")) return q.includes(na);
+      return new RegExp(`\\b${na}\\b`).test(q);
+    });
+    if (!hit) continue;
+    familyKeys.push(fam.key);
+    for (const h2 of fam.serviceHints) {
+      const nh = norm(h2);
+      boostedHints.push(nh);
+      matchedServiceHints.push(h2);
+      for (const t3 of nh.split(" ")) if (t3.length >= 3) extraTokens.add(t3);
+    }
+    for (const a2 of fam.aliases) {
+      for (const t3 of norm(a2).split(" ")) if (t3.length >= 3) extraTokens.add(t3);
+    }
+  }
+  for (const [svc, aliases] of sheetSynonymIndex) {
+    for (const a2 of aliases) {
+      const na = norm(a2);
+      const matched = na.includes(" ") ? q.includes(na) : new RegExp(`\\b${na}\\b`).test(q);
+      if (!matched) continue;
+      matchedServiceHints.push(svc);
+      boostedHints.push(svc);
+      for (const t3 of svc.split(" ")) if (t3.length >= 3) extraTokens.add(t3);
+      for (const t3 of na.split(" ")) if (t3.length >= 3) extraTokens.add(t3);
+    }
+  }
+  return {
+    tokens: [...extraTokens],
+    familyKeys: [...new Set(familyKeys)],
+    boostedHints: [...new Set(boostedHints)],
+    matchedServiceHints: [...new Set(matchedServiceHints)]
+  };
+}
+function synonymScoreForService(query, serviceLabel, sheetSinonimos) {
+  const expanded = expandQueryWithServiceSynonyms(query);
+  if (!expanded.familyKeys.length && !expanded.boostedHints.length) return 0;
+  const hay = synonymHaystackForService(serviceLabel, sheetSinonimos);
+  let score = 0;
+  for (const hint of expanded.boostedHints) {
+    if (hay.includes(hint)) score += hint.includes(" ") ? 22 : 14;
+  }
+  for (const hint of expanded.matchedServiceHints) {
+    if (hay.includes(norm(hint))) score += 10;
+  }
+  if (expanded.familyKeys.includes("taquiza") && /banquete/.test(hay) && !/taquiza/.test(hay)) {
+    score -= 25;
+  }
+  if (expanded.familyKeys.includes("banquete_formal") && /taquiza/.test(hay)) score -= 25;
+  if (expanded.familyKeys.includes("barra_sushi") && /banquete|taquiza/.test(hay) && !/sushi|poke/.test(hay)) {
+    score -= 25;
+  }
+  if (expanded.familyKeys.includes("banquete_mexicano") && /banquete/.test(hay) && !/mexicano/.test(hay)) {
+    score -= 20;
+  }
+  if (expanded.familyKeys.includes("coffee_break") && /barra de cafe|barra de café/.test(hay) && !/coffee/.test(hay)) {
+    score -= 5;
+  }
+  return score;
+}
+var FAMILY_DISPLAY = {
+  pozole_tostadas: {
+    label: "Pozole y Tostadas",
+    complements: ["Barras de bebidas", "Mobiliario"]
+  },
+  taquiza: {
+    label: "Taquiza",
+    complements: ["Barras de bebidas", "Mobiliario"]
+  },
+  parrillada_tacos: {
+    label: "Parrillada Tacos",
+    complements: ["Barras de bebidas", "Mobiliario"]
+  },
+  paella: {
+    label: "Paella",
+    complements: ["Barras de bebidas", "Mobiliario"]
+  },
+  parrillada_argentina: {
+    label: "Parrillada Argentina",
+    complements: ["Barras de bebidas", "Mobiliario"]
+  },
+  banquete_navideno: {
+    label: "Banquete Navide\xF1o",
+    complements: ["Barras de bebidas", "Mobiliario", "Mesa de dulces"]
+  },
+  entelados_techo: {
+    label: "Entelados para Techo",
+    complements: ["Colgantes Premium", "Iluminaci\xF3n"]
+  },
+  colgantes_premium: {
+    label: "Colgantes Premium",
+    complements: ["Entelados para Techo", "Iluminaci\xF3n"]
+  },
+  centros_mesa: {
+    label: "Centros de mesa",
+    complements: ["Iluminaci\xF3n", "Colgantes Premium", "Entelados para Techo"]
+  }
+};
+function resolveServiceFocusFromText(text) {
+  if (!text?.trim()) return null;
+  const expanded = expandQueryWithServiceSynonyms(text);
+  if (!expanded.familyKeys.length) return null;
+  const preferredOrder = [
+    "pozole_tostadas",
+    "parrillada_tacos",
+    "taquiza",
+    "paella",
+    "parrillada_argentina",
+    "banquete_navideno",
+    "barra_americana",
+    "barra_sushi",
+    "entelados_techo",
+    "colgantes_premium",
+    "centros_mesa"
+  ];
+  const familyKey = preferredOrder.find((k) => expanded.familyKeys.includes(k)) ?? expanded.familyKeys[0];
+  const fam = DEFAULT_SERVICE_SYNONYM_FAMILIES.find((f4) => f4.key === familyKey);
+  if (!fam) return null;
+  const display = FAMILY_DISPLAY[familyKey] ?? {
+    label: fam.serviceHints[0] ?? familyKey,
+    complements: ["Barras de bebidas", "Mobiliario"]
+  };
+  return {
+    familyKey,
+    label: display.label,
+    serviceHints: fam.serviceHints,
+    complements: display.complements
+  };
+}
+
+// src/services/lucyInfoPriceCache.ts
+function cacheState() {
+  const g = globalThis;
+  if (!g.__lucyInfoPriceCache) {
+    g.__lucyInfoPriceCache = { docs: [], corpusFold: "" };
+  }
+  return g.__lucyInfoPriceCache;
+}
+function fold2(text) {
+  return (text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ñ/g, "n");
+}
+function refreshLucyInfoPriceCache(input) {
+  const state = cacheState();
+  state.docs = (input || []).filter((d) => d?.content?.trim()).map((d) => ({
+    title: (d.title || "").trim() || "Cat\xE1logo",
+    content: d.content.trim(),
+    kind: d.kind
+  }));
+  state.corpusFold = fold2(state.docs.map((d) => `${d.title}
+${d.content}`).join("\n\n"));
+}
+function extractPriceAmounts(text) {
+  const out = [];
+  const re = /\$\s*([\d]{1,3}(?:,[\d]{3})*(?:\.\d+)?|[\d]+(?:\.\d+)?)/g;
+  let m2;
+  while (m2 = re.exec(text || "")) {
+    const raw = m2[1].replace(/,/g, "");
+    const n2 = Number(raw);
+    if (!Number.isFinite(n2) || n2 < 10) continue;
+    out.push(String(Math.round(n2)));
+  }
+  return out;
+}
+function lucyInfoSupportsPriceClaim(mensaje) {
+  const { corpusFold } = cacheState();
+  if (!corpusFold || !mensaje?.trim()) return false;
+  const amounts = extractPriceAmounts(mensaje);
+  if (!amounts.length) return false;
+  let hits = 0;
+  for (const a2 of amounts) {
+    if (corpusFold.includes(a2)) hits += 1;
+    else if (a2.length >= 4 && corpusFold.includes(a2.replace(/(\d)(?=(\d{3})+$)/g, "$1,"))) hits += 1;
+  }
+  return hits >= 1 && hits >= Math.ceil(amounts.length * 0.4);
+}
+function scoreDoc(doc, tokens) {
+  if (!tokens.length) return 0;
+  const title = fold2(doc.title);
+  const body = fold2(doc.content);
+  let s3 = 0;
+  for (const tok of tokens) {
+    if (title.includes(tok)) s3 += 14;
+    if (body.slice(0, 900).includes(tok)) s3 += 5;
+    else if (body.includes(tok)) s3 += 1;
+  }
+  return s3;
+}
+var STRICT_PDF_SERVICE_FAMILIES = /* @__PURE__ */ new Set([
+  "barra_cafe",
+  "coffee_break",
+  "barra_americana",
+  "canapes",
+  "bocadillos",
+  "taquiza",
+  "paella",
+  "pozole_tostadas",
+  "barra_pizzas",
+  "barra_pastas",
+  "barra_sushi",
+  "barra_crepas",
+  "barra_yucateca",
+  "parrillada_tacos",
+  "parrillada_argentina",
+  "banquete_formal",
+  "banquete_mexicano",
+  "banquete_kosher",
+  "banquete_navideno"
+]);
+function isMobiliarioPdfTitle(title) {
+  const t3 = fold2(title);
+  return /\bmesas?\b.*\bsillas?\b|\bsillas?\b.*\bmesas?\b/.test(t3) || /\bmobiliario\b|\bperiqueras?\b|\bsalas?\s+lounge\b|\bluxor\b/.test(t3);
+}
+function isFoodServiceQuery(text) {
+  const t3 = fold2(text);
+  return /\b(canap|bocadillo|banquete|catering|taquiza|paella|pozole|pizza|pasta|sushi|crepa|coffee\s*break|barra\s+de|parrillada|brunch|desayuno|coctel|mixolog|moctel|americano|marisco|panini|yucateca)\b/.test(
+    t3
+  );
+}
+function strictPdfServiceFamily(text) {
+  const families = expandQueryWithServiceSynonyms(text).familyKeys;
+  return families.find((family) => STRICT_PDF_SERVICE_FAMILIES.has(family)) ?? null;
+}
+function pdfDocMatchesStrictQuery(query, docTitle) {
+  const strictFamily = strictPdfServiceFamily(query);
+  if (strictFamily) {
+    const docFamily = strictPdfServiceFamily(docTitle);
+    if (docFamily !== strictFamily) return false;
+  }
+  if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(docTitle)) return false;
+  return true;
+}
+function tokenize(text) {
+  const raw = fold2(text).replace(/[^a-z0-9\s]/g, " ");
+  const stop = /* @__PURE__ */ new Set([
+    "de",
+    "del",
+    "la",
+    "el",
+    "los",
+    "las",
+    "un",
+    "una",
+    "y",
+    "o",
+    "en",
+    "para",
+    "por",
+    "con",
+    "que",
+    // "san" en "San Francisco" / "usan" / "descansan" ensuciaba el score PDF (A14964).
+    "san",
+    "soy",
+    "llamo",
+    "nombre",
+    "hola",
+    "buenos",
+    "buenas",
+    "dias",
+    "tardes",
+    "noches",
+    "precio",
+    "precios",
+    "cuanto",
+    "cuesta",
+    "costo",
+    "persona",
+    "personas",
+    "quiero",
+    "necesito",
+    "incluye",
+    "incluir",
+    "incluiria",
+    "detalle",
+    "descripcion",
+    "descripciones",
+    "cada",
+    "nivel",
+    "niveles",
+    "paquete",
+    "paquetes",
+    "dime",
+    "cual",
+    "cuales",
+    "trae",
+    "lleva",
+    "menu",
+    "opcion",
+    "opciones"
+  ]);
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const t3 of raw.split(/\s+/)) {
+    if (t3.length < 3 || stop.has(t3) || seen.has(t3)) continue;
+    seen.add(t3);
+    out.push(t3);
+  }
+  for (const t3 of raw.split(/\s+/)) {
+    if (/^\d{1,2}$/.test(t3) && !seen.has(t3)) {
+      seen.add(t3);
+      out.push(t3);
+    }
+  }
+  return out.slice(0, 40);
+}
+function findInclusionSection(content, query, maxChars = 1100) {
+  if (!content?.trim()) return null;
+  const q = fold2(query);
+  const c3 = content;
+  const f4 = fold2(c3);
+  const anchors = [];
+  const cb = q.match(/coffee\s*break\s*(\d)/);
+  if (cb) {
+    const needle = `coffee break ${cb[1]}`;
+    if (!f4.includes(needle)) return null;
+    anchors.unshift(`coffee break ${cb[1]} \u2014`, `coffee break ${cb[1]}`, `cb${cb[1]}`);
+  }
+  if (/gourmet con sandwich|sandwich/.test(q) && /coffee|break/.test(q)) {
+    anchors.push("coffee break 5", "gourmet con sandwich");
+  }
+  const tiempos = q.match(/(\d)\s*tiempos?/);
+  const nivel = /\bpremium\b/.test(q) ? "premium" : /\bbasic|\bb[aá]sic/.test(q) ? "basico" : /\btradicional\b/.test(q) ? "tradicional" : "";
+  if (tiempos && /banquete|formal|mexicano/.test(q)) {
+    anchors.push(`menu ${tiempos[1]} tiempos ${nivel}`.trim());
+    anchors.push(`${tiempos[1]} tiempos ${nivel}`.trim());
+    if (nivel === "tradicional" && tiempos[1] === "3") {
+      anchors.unshift("tradicional $830 por persona", "tradicional $830");
+    }
+    if (nivel === "tradicional" && tiempos[1] === "4") {
+      anchors.unshift("tradicional $880 por persona", "tradicional $880");
+    }
+    if (nivel === "basico" && tiempos[1] === "3") {
+      anchors.unshift("basico $780 por persona", "basico $780");
+    }
+    if (nivel === "premium" && tiempos[1] === "3") {
+      anchors.unshift("premium $880 por persona", "premium $880");
+    }
+  }
+  if (/banquete/.test(q) && nivel) {
+    anchors.push(`tradicional $830`, `basico $780`, `premium $880`);
+  }
+  for (const tok of tokenize(query)) {
+    if (tok.length >= 4) anchors.push(tok);
+  }
+  let bestIdx = -1;
+  let bestScore = -1;
+  for (const a2 of anchors) {
+    const fa = fold2(a2);
+    if (fa.length < 2) continue;
+    let from = 0;
+    while (from < f4.length) {
+      const i3 = f4.indexOf(fa, from);
+      if (i3 < 0) break;
+      let score = fa.length;
+      const window2 = f4.slice(Math.max(0, i3 - 40), i3 + 200);
+      if (/incluye|bebidas|alimentos|meseros|vajilla|persona/.test(window2)) score += 40;
+      if (/coffee break \d|menu \d tiempos|tradicional \$\d|basico \$\d|premium \$\d/.test(window2)) {
+        score += 30;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = i3;
+      }
+      from = i3 + fa.length;
+    }
+  }
+  if (bestIdx < 0) {
+    const dollar = c3.search(/\$\s*\d/);
+    if (dollar < 0) return null;
+    bestIdx = dollar;
+  }
+  const atHeading = /coffee break \d|tradicional \$\d|basico \$\d|premium \$\d|menu \d tiempos/i.test(
+    f4.slice(bestIdx, bestIdx + 48)
+  );
+  let start = atHeading ? bestIdx : Math.max(0, bestIdx - 40);
+  let end = Math.min(c3.length, start + maxChars);
+  const tail = c3.slice(Math.max(start, bestIdx) + 40, end);
+  const nextPkg = tail.search(
+    /Coffee Break \d|Men[uú] \d tiempos|B[aá]sico \$\s*\d|Tradicional \$\s*\d|Premium \$\s*\d|Ideal para:|Condiciones del Servicio/i
+  );
+  if (nextPkg > 200) {
+    end = Math.max(start, bestIdx) + 40 + nextPkg;
+  }
+  let slice = c3.slice(start, end).replace(/\s+/g, " ").trim();
+  slice = slice.replace(/^[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9🥐☕🍽*•]+/, "");
+  if (slice.length < 80) return null;
+  return slice.slice(0, maxChars);
+}
+function queryHasServicePdfAnchor(query) {
+  const q = fold2(query);
+  return /\b(banquete|taquiza|coffee|break|barra|catering|pizza|pasta|sushi|dj|pista|tarima|crepas?|canapes?|queso|dulce|postre|paella|pozole|brunch|desayuno|cena|mesero|mobiliario|carpa|iluminaci|pantalla|incluye|precio|nivel|paquete|formal|tiempos|tradicional|premium|basico|bocadillos?|entradas?|vajilla|mixolog|coctel|helado|fruta|inflable|softplay|letras?|valet|pirotecnia)\b/.test(
+    q
+  );
+}
+function buildLucyInfoInclusionReply(query, maxChars = 1100) {
+  ensureCacheFromSeedSync();
+  const docs = cacheState().docs;
+  if (!docs.length || !query?.trim()) return null;
+  if (!queryHasServicePdfAnchor(query)) return null;
+  const tokens = tokenize(query);
+  if (!tokens.length) return null;
+  const ranked = [...docs].filter((doc) => pdfDocMatchesStrictQuery(query, doc.title)).map((d) => ({ d, s: scoreDoc(d, tokens) })).filter((x3) => x3.s >= 6).sort((a2, b) => b.s - a2.s);
+  if (!ranked.length) return null;
+  const serviceHints = [
+    "canapes",
+    "canap",
+    "coffee",
+    "cafe",
+    "banquete",
+    "taquiza",
+    "sushi",
+    "paella",
+    "pozole",
+    "pista",
+    "mobiliario",
+    "mesas y sillas",
+    "barra de cafe",
+    "barra americana",
+    "bocadillo"
+  ];
+  const qf = fold2(query);
+  const preferred = ranked.filter((x3) => {
+    const title = fold2(x3.d.title);
+    return serviceHints.some((h2) => qf.includes(h2) && title.includes(h2));
+  });
+  const pool = preferred.length ? preferred : ranked;
+  for (const { d } of pool.slice(0, 4)) {
+    const section = findInclusionSection(d.content, query, maxChars);
+    if (!section) continue;
+    const label = d.title.replace(/[-_]+/g, " ").replace(/\s+2026.*$/i, "").trim();
+    if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(label)) continue;
+    return `Seg\xFAn el cat\xE1logo que ya tenemos de *${label}*:
+
+${section}
+
+\xBFTe late este nivel o quieres que te detalle otro?`;
+  }
+  return null;
+}
+function collapseDuplicatedInclusionReply(text) {
+  if (!text?.trim()) return text;
+  const closeRe = /¿Te late este nivel o quieres que te detalle otro\?/i;
+  const m2 = closeRe.exec(text);
+  if (m2 && m2.index != null) {
+    const head = text.slice(0, m2.index + m2[0].length).trim();
+    const rest = text.slice(m2.index + m2[0].length).trim();
+    if (!rest || /Según el catálogo que ya tenemos/i.test(rest) || /Bebidas incluidas|Alimentos:|Meseros:|Vajilla|Coffee Break \d|Tradicional \$\s*\d|¿Te late este nivel/i.test(
+      rest
+    )) {
+      if (rest) return head;
+    }
+  }
+  const parts = text.split(/(?=Según el catálogo que ya tenemos de \*)/i).filter((p2) => p2.trim());
+  if (parts.length > 1 && /Según el catálogo que ya tenemos/i.test(parts[0])) {
+    return parts[0].trim();
+  }
+  return text.trim();
+}
+function ensureCacheFromSeedSync() {
+  if (cacheState().docs.length > 0) return;
+  try {
+    let moduleDir = "";
+    try {
+      moduleDir = dirname(fileURLToPath(import.meta.url));
+    } catch {
+    }
+    let argvDir = "";
+    try {
+      const entry = process.argv[1];
+      if (entry) argvDir = dirname(entry);
+    } catch {
+    }
+    const here = typeof __dirname === "string" && __dirname || moduleDir || argvDir || process.cwd();
+    const candidates = [
+      process.env["LUCY_INFO_SEED_PATH"]?.trim(),
+      join(here, "config", "lucy-info-seed.json"),
+      join(here, "lucy-info-seed.json"),
+      join(here, "data", "lucy-info-seed.json"),
+      join(moduleDir, "config", "lucy-info-seed.json"),
+      join(moduleDir, "lucy-info-seed.json"),
+      join(argvDir, "lucy-info-seed.json"),
+      join(argvDir, "config", "lucy-info-seed.json"),
+      join(process.cwd(), "config", "lucy-info-seed.json"),
+      join(process.cwd(), "lucy-info-seed.json"),
+      join(process.cwd(), "data", "lucy-info-seed.json"),
+      join(process.cwd(), "api-server", "config", "lucy-info-seed.json"),
+      join(process.cwd(), "api-server", "dist", "lucy-info-seed.json"),
+      join(process.cwd(), "deploy", "lucy-info-seed.json")
+    ].filter(Boolean);
+    for (const p2 of candidates) {
+      if (!existsSync2(p2)) continue;
+      const raw = JSON.parse(readFileSync(p2, "utf8"));
+      const docs = (raw.documents || []).filter((d) => d?.content?.trim());
+      if (docs.length) {
+        refreshLucyInfoPriceCache(docs);
+        return;
+      }
+    }
+  } catch {
+  }
+}
+function extractPriceWindows(content, max = 8) {
+  const windows = [];
+  const re = /.{0,55}\$\s*[\d,.]+.{0,55}/g;
+  let m2;
+  while ((m2 = re.exec(content || "")) && windows.length < max) {
+    const w = m2[0].replace(/\s+/g, " ").trim();
+    if (w.length > 12) windows.push(w);
+  }
+  if (windows.length) return windows;
+  return (content || "").split(/\n+/).map((l2) => l2.trim()).filter((l2) => l2.length > 8 && /\$\s*\d/.test(l2)).slice(0, max);
+}
+function buildLucyInfoPriceSnippet(query, maxChars = 520) {
+  ensureCacheFromSeedSync();
+  const docs = cacheState().docs;
+  if (!docs.length || !query?.trim()) return null;
+  const tokens = tokenize(query);
+  if (!tokens.length) return null;
+  const ranked = [...docs].map((d) => ({ d, s: scoreDoc(d, tokens) })).filter((x3) => x3.s >= 8).sort((a2, b) => b.s - a2.s);
+  if (!ranked.length) return null;
+  const top = ranked[0].d;
+  const windows = extractPriceWindows(top.content, 10);
+  const scored = windows.map((l2) => {
+    const f4 = fold2(l2);
+    let s3 = 0;
+    for (const tok of tokens) if (f4.includes(tok)) s3 += 3;
+    if (/\$\s*\d/.test(l2)) s3 += 1;
+    return { l: l2, s: s3 };
+  }).sort((a2, b) => b.s - a2.s);
+  const picked = (scored.some((x3) => x3.s > 1) ? scored.filter((x3) => x3.s > 1) : scored).map((x3) => x3.l).slice(0, 5);
+  if (!picked.length) return null;
+  const body = picked.join(" \xB7 ").slice(0, maxChars);
+  return `*${top.title}*: ${body}`;
+}
+function buildLucyInfoLearnedPriceReply(message) {
+  const focusedPista = /\b(pintada|led|iluminada|madera\s+premium|vinil|charol|logo|tarima\s+b[aá]sica|escenario|estrado)\b/i.test(
+    message
+  );
+  const snip = buildLucyInfoPriceSnippet(message, focusedPista ? 420 : 520);
+  if (!snip) return null;
+  const t3 = fold2(message);
+  let ask = "\xBFLo agregamos a tu cotizaci\xF3n?";
+  if (/pista|tarima|baile/.test(t3)) {
+    ask = "\xBFQu\xE9 medidas aproximadas tiene el espacio?";
+  } else if (/periquera|mesa|silla|sala|mobiliario|lounge|luxor/.test(t3)) {
+    ask = "\xBFCu\xE1ntas piezas necesitas y para cu\xE1ndo?";
+  }
+  const body = snip.replace(/\s*¿Qué medidas aproximadas tiene el espacio\?\s*/gi, " ").trim();
+  return `Seg\xFAn el cat\xE1logo que ya cargamos en Aprendizaje:
+${body}
+${ask}`;
+}
+
 // src/price-guard.ts
 var NO_LISTED_PRICE_PATTERN = /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|mesas?|sillas?|periqueras?|salas?\s*(lounge)?|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
 var LISTED_PRICE_PATTERN = /banquete|taquiza|parrillada|barra\s+(de\s+)?(bebidas?|alimentos?|caf[eé]|pizzas?|sushi|crepas?|mariscos?|pastas?)|mesa\s+de\s+dulces|cocteler[ií]a|mixolog[ií]a|coffee\s*break|brunch|paella|m[oó]cteles?|canap[eé]s|pozole|americana|kosher|navide[nñ]o/i;
 var dynamicListedPattern = null;
 var dynamicNoListedPattern = null;
-function escapeRegex2(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-function buildServicePattern(labels) {
-  const terms = labels.map((label) => label.trim().toLowerCase()).filter((label) => label.length >= 2).map((label) => escapeRegex2(label).replace(/\s+/g, "\\s+"));
-  if (!terms.length) return null;
-  return new RegExp(`\\b(?:${terms.join("|")})\\b`, "i");
-}
-function setCatalogPriceIndex(priced, noPrice) {
-  dynamicListedPattern = buildServicePattern(priced);
-  dynamicNoListedPattern = buildServicePattern(noPrice);
-}
 var PRICE_CLAIM_PATTERN = /\$\s*[\d,.]+(?:\s*\/\s*pp)?|\b[\d,.]+\s*(?:mil|k)\b(?:\s*pesos?)?|\bentre\s*\$?\s*[\d,.]+\s*y\s*\$?\s*[\d,.]+|\bdesde\s*\$[\d,.]+|\b[\d,.]+\s*pesos?\b/i;
 var PRICE_QUESTION_PATTERN = /\bcu[aá]nto\s+cuesta|\bprecios?\b|\bcostos?\b|\bm[aá]s\s+o\s+menos\s+cu[aá]nto|\bcu[aá]nto\s+sale|\bcu[aá]nto\s+cobran|\btarifa\b|\bver\s+(los\s+)?precios?\b|\bpasar?(me)?\s+(los\s+)?precios?\b/i;
 function clientAsksPrice(message) {
@@ -74796,6 +74575,44 @@ function sanitizeInventedPrices(mensaje, currentMessage, recentContext) {
     return `${base} ${safe}`.trim();
   }
   return safe;
+}
+
+// src/services/googleSheetsCatalog.ts
+function formatCatalogRowLabel(row) {
+  const svc = row.servicio.trim();
+  const nivel = row.nivel.trim();
+  if (!nivel || nivel.toLowerCase() === svc.toLowerCase()) return svc;
+  return `${svc} \u2014 ${nivel}`;
+}
+function formatInclusionForWhatsApp(text, maxLen = 420) {
+  let cleaned = text.replace(/\s+/g, " ").replace(/ incluido\s+/gi, ". ").replace(/ servicio base incluye:/gi, " Incluye:").replace(/([a-záéíóúñ])([A-ZÁÉÍÓÚ])/g, "$1. $2").trim();
+  if (cleaned.length > maxLen) {
+    cleaned = `${cleaned.slice(0, maxLen - 1).trim()}\u2026`;
+  }
+  return cleaned;
+}
+function parseRowNotes(notas) {
+  const result = { inclusion: "", minimo: "", gammaLink: "", extras: "" };
+  if (!notas?.trim()) return result;
+  for (const part of notas.split("|").map((s3) => s3.trim())) {
+    if (!part) continue;
+    if (/^cat[aá]logo:\s*https?:/i.test(part)) {
+      result.gammaLink = part.replace(/^cat[aá]logo:\s*/i, "").trim();
+    } else if (/^m[ií]nimo de salida:/i.test(part)) {
+      result.minimo = part.replace(/^m[ií]nimo de salida:\s*/i, "").trim();
+    } else if (/^extras:/i.test(part)) {
+      result.extras = part.replace(/^extras:\s*/i, "").trim();
+    } else if (!result.inclusion) {
+      result.inclusion = formatInclusionForWhatsApp(part);
+    } else {
+      result.inclusion = formatInclusionForWhatsApp(`${result.inclusion} ${part}`);
+    }
+  }
+  if (result.extras) {
+    const extraText = formatInclusionForWhatsApp(result.extras, 180);
+    result.inclusion = result.inclusion ? `${result.inclusion} Extras: ${extraText}` : `Extras: ${extraText}`;
+  }
+  return result;
 }
 
 // src/services/catalogWebKnowledge.ts
@@ -76002,66 +75819,9 @@ ${getCatalogWebHubDeliveryUrl()}
 }
 
 // src/services/catalogService.ts
-import { readFileSync as readFileSync3, existsSync as existsSync3 } from "node:fs";
-import path2 from "node:path";
-import { fileURLToPath as fileURLToPath3 } from "node:url";
 var GENERIC_CATERING_MENU_MARKERS = /estas son las opciones m[aá]s pedidas|cu[aá]l te interesa\?\s*con eso te paso precios/i;
 var REFRESH_MS = Number(process.env["CATALOG_REFRESH_MINUTES"] ?? "10") * 6e4;
 var snapshot = null;
-function emptyStatus() {
-  return {
-    loaded: false,
-    lastRefresh: null,
-    lastError: null,
-    sources: {
-      sheets: false,
-      sheetsRows: 0,
-      sheetsUrl: null,
-      gamma: false,
-      gammaUrl: null,
-      staticFallback: true
-    },
-    pricedServicesCount: 0,
-    noPriceServicesCount: 0
-  };
-}
-function applyPriceIndex(rows) {
-  const priced = rows.filter((r3) => r3.tienePrecio && r3.precio).map((r3) => r3.servicio);
-  const noPrice = rows.filter((r3) => !r3.tienePrecio || !r3.precio).map((r3) => r3.servicio);
-  setCatalogPriceIndex(priced, noPrice);
-}
-function setCatalogSnapshotForTests(rows) {
-  const status = emptyStatus();
-  status.loaded = true;
-  status.sources.sheets = true;
-  status.sources.sheetsRows = rows.length;
-  status.pricedServicesCount = rows.filter((r3) => r3.tienePrecio && r3.precio).length;
-  snapshot = { rows, promptBlock: "", status };
-  applyPriceIndex(rows);
-  registerSheetSynonyms(
-    rows.map((r3) => ({ servicio: r3.servicio, sinonimos: r3.sinonimos ?? null }))
-  );
-  tryLoadSinonimosJsonFile();
-}
-function tryLoadSinonimosJsonFile() {
-  const candidates = [
-    path2.resolve(process.cwd(), "config/sinonimos.json"),
-    path2.resolve(process.cwd(), "data/sinonimos.json"),
-    path2.resolve(process.cwd(), "dist/data/sinonimos.json"),
-    path2.resolve(path2.dirname(fileURLToPath3(import.meta.url)), "../../config/sinonimos.json"),
-    path2.resolve(path2.dirname(fileURLToPath3(import.meta.url)), "../../data/sinonimos.json"),
-    path2.resolve(path2.dirname(fileURLToPath3(import.meta.url)), "../data/sinonimos.json")
-  ];
-  for (const p2 of candidates) {
-    if (!existsSync3(p2)) continue;
-    try {
-      const raw = JSON.parse(readFileSync3(p2, "utf8"));
-      const n2 = loadSinonimosJson(raw);
-      if (n2 > 0) return;
-    } catch {
-    }
-  }
-}
 function normalizeForMatch(value) {
   return value.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\btres\s*tiempos\b/g, "3 tiempos").replace(/\bcuatro\s*tiempos\b/g, "4 tiempos").replace(/\bdos\s*tiempos\b/g, "2 tiempos").trim();
 }
@@ -77700,66 +77460,6 @@ function messageOffersCatalogLink(text) {
   return /cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|\bCat[aá]logo(?:\s+de\s+\*[^*]+\*)?:\s*\n?\s*https?:\/\//i.test(
     text
   );
-}
-
-// src/modoServicio.ts
-var PEDIDO_ENTREGA = /\b(para\s+llevar|a\s+domicilio|en\s+mi\s+casa|entrega|que\s+me\s+(los?\s+|las?\s+)?dejen|que\s+me\s+(los?\s+|las?\s+)?entreguen|solo\s+los?\s+rollos?|solo\s+el\s+producto|sin\s+montaje|pedido\s+de|un\s+pedido\s+de|cantidad\s+de\s+\d+|piezas?\s+de)\b/i;
-var SERVICIO_MONTADO = /\b(montado\s+en|en\s+el\s+evento|barra\s+en|estaci[oó]n\s+en|meseros|servicio\s+en\s+el|montaje\s+en|en\s+mi\s+evento|en\s+la\s+fiesta)\b/i;
-function detectModoServicio(text) {
-  const t3 = text?.trim() ?? "";
-  if (!t3) return null;
-  if (PEDIDO_ENTREGA.test(t3)) return "pedido_entrega";
-  if (SERVICIO_MONTADO.test(t3)) return "servicio_montado";
-  return null;
-}
-function needsModoServicioClarification(text, current) {
-  if (current) return false;
-  const t3 = text?.trim() ?? "";
-  if (!t3) return false;
-  return /\b(\d+\s+rollos?|\d+\s+piezas?|\d+\s+platos?|quiero\s+\d+|necesito\s+\d+)\b/i.test(t3) && !PEDIDO_ENTREGA.test(t3) && !SERVICIO_MONTADO.test(t3);
-}
-function buildModoServicioClarificationQuestion() {
-  return "\xBFLo quieres montado en tu evento con barra y servicio, o solo la entrega del producto?";
-}
-function isMobiliarioRentalPedido(message) {
-  const t3 = message?.trim() ?? "";
-  if (!t3) return false;
-  return /\b(mesas?\s+tipo\s+picnic|picnic|periqueras?|bancos?|mobiliario|mesas?\s+y\s+sillas?)\b/i.test(
-    t3
-  );
-}
-function buildPedidoEntregaReply(message) {
-  const t3 = message?.trim() ?? "";
-  if (isMobiliarioRentalPedido(t3)) {
-    return `Perfecto \u2014 lo tomo como *entrega/recolecci\xF3n de mobiliario* (sin montaje en sitio). Nuestro equipo te arma la cotizaci\xF3n seg\xFAn cantidades, color y zona de entrega.`;
-  }
-  const qtyMatch = t3.match(/(\d+)\s*(rollos?|piezas?|platos?)/i);
-  const qtyLabel = qtyMatch ? `${qtyMatch[1]} ${qtyMatch[2]}` : null;
-  const product = /\bsushi\b/i.test(t3) ? "sushi" : /\bpizzas?\b/i.test(t3) ? "pizza" : /\bpoke\b/i.test(t3) ? "poke" : "producto";
-  const what = qtyLabel ? `${qtyLabel} de ${product}` : `tu pedido de ${product}`;
-  return `Perfecto \u2014 lo tomo como *pedido/entrega a domicilio* (sin barra ni chefs en el evento). Para ${what}, nuestro equipo te arma la cotizaci\xF3n exacta seg\xFAn cantidad y zona de entrega. \xBFMe regalas tu nombre para pas\xE1rselo?`;
-}
-
-// src/tipoContacto.ts
-var PROVEEDOR_SELL = /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|soy\s+proveedor|quiero\s+venderles|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidor\s+de|mi\s+empresa\s+ofrece|vendo\s+.+\s+a\s+eventos)\b/i;
-var PROVEEDOR_ALLIANCE = /\b(red\s+de\s+aliados|aliados?\s+comerciales?|alianza\s+comercial|aliado\s+comercial|registrarte\s+en\s+nuestra\s+base|invitarte\s+a\s+registrarte|te\s+invito\s+a\s+registrarte|ser\s+parte\s+de\s+nuestra\s+red|sumarte\s+a\s+(nuestra\s+)?red|formar\s+parte\s+de\s+nuestra\s+red|proveedores?\s+aliados?|cat[aá]logo\s+de\s+proveedores|beneficios\s+y\s+tarifas.{0,80}(?:venue|hacienda|sal[oó]n)|ejecutiv[oa]\s+de\s+ventas\s+en\s+(?:hacienda|sal[oó]n|venue|hotel)|nuestro\s+venue|red\s+de\s+proveedores|quiero\s+ser\s+proveedor|ofrecerles\s+(nuestro|mis|nuestros)|los\s+invito\s+a\s+(conocer|registr|formar)|invitarlos\s+a\s+(nuestra|formar|registr))\b/i;
-var PROVEEDOR_OFFER = new RegExp(
-  `(?:${PROVEEDOR_SELL.source})|(?:${PROVEEDOR_ALLIANCE.source})`,
-  "i"
-);
-function clientMentionsOwnCompanyEmail(text) {
-  if (!text?.trim()) return false;
-  return /\b(capybaraeventos@gmail\.com|bodasesor@gmail\.com|hola@bodasesor\.com)\b/i.test(text);
-}
-function clientAsksIfCompanyEmailCorrect(text) {
-  if (!text?.trim()) return false;
-  const t3 = text.toLowerCase();
-  return clientMentionsOwnCompanyEmail(text) || /es\s+el\s+correo\s+correcto|ese\s+correo\s+es\s+correcto|correo\s+correcto|es\s+ese\s+el\s+correo/i.test(
-    t3
-  );
-}
-function buildCompanyEmailConfirmReply() {
-  return "S\xED, capybaraeventos@gmail.com es el correo de Bodasesor \u2014 tu solicitud ya nos lleg\xF3 bien. Para enviarte la cotizaci\xF3n personalizada, \xBFme compartes tu correo de trabajo?";
 }
 
 // src/lucy-flow-guards.ts
@@ -83920,7 +83620,7 @@ function stripImageAnnotation(text) {
 // src/lib/lucyRelease.ts
 var LUCY_PROMPT_VERSION = "V9.58";
 
-// src/selftest/a15547-smoke.ts
+// src/selftest/a15566-smoke.ts
 function emptyExtracted(overrides = {}) {
   return {
     tipo_contacto: "cliente",
@@ -83954,112 +83654,91 @@ function runGuards(opts) {
     emailRefusedThisTurn: false
   });
 }
-var csv = [
-  '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
-  '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","5 guisados variados","https://bodasesor.com/catalogos/taquiza"',
-  '"Taquiza","Basico","$750.00","$22,500.00","TRUE","Basico completo con bebidas y meseros","https://bodasesor.com/catalogos/taquiza"',
-  '"Taquiza","Tradicional","$800.00","$24,000.00","TRUE","Trad completo","https://bodasesor.com/catalogos/taquiza"',
-  '"Taquiza","Premium","$850.00","$25,500.00","TRUE","Prem completo","https://bodasesor.com/catalogos/taquiza"'
-].join("\n");
-setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
 assert.equal(LUCY_PROMPT_VERSION, "V9.58");
-var noPriceMenu = buildSoloVsCompletoModeAnswer("Taquiza", parseSheetCatalogCsv(csv));
-assert.ok(/solo\s+alimentos/i.test(noPriceMenu), noPriceMenu.slice(0, 300));
-assert.ok(/servicio\s+completo/i.test(noPriceMenu), noPriceMenu.slice(0, 300));
-assert.ok(!/\$\s*\d/.test(noPriceMenu), `sin precios: ${noPriceMenu.slice(0, 400)}`);
-assert.equal(
-  shouldOfferOptionsBeforeDetail({
-    currentMessage: "que incluye",
-    history: [{ role: "assistant", content: noPriceMenu }],
-    serviceHint: "Taquiza"
+var cases = [
+  ["El evento ser\xEDa de 3:00 pm a 11:00 pm", /3:00\s*pm.*11:00\s*pm/i],
+  ["El evento es a partir de las 3:00 pm", /3:00\s*pm|a partir/i],
+  ["Partir de las 16:00 pm", /16:00/i],
+  ["De 15:00 p.m a 11:00 p.m", /15:00.*11:00/i],
+  ["El evento es a partir de las 15:00 hrs", /15:00/i],
+  ["A partir de las 16:00 hrs", /16:00/i],
+  ["A partir de las 16 hrs", /16\s*hrs/i],
+  ["No cuento con el horario a\xFAn", /sin definir|pendiente/i],
+  ["A las 4:00 pm", /4:00\s*pm|4:00/i],
+  ["de 3:00 pm a 11:00 pm", /3:00.*11:00/i]
+];
+for (const [msg, re] of cases) {
+  const h2 = parseHorarioFromText(msg);
+  assert.ok(h2 && re.test(h2), `fail "${msg}" => ${h2}`);
+  assert.ok(isUsableHorarioEvento(h2), `usable "${msg}" => ${h2}`);
+}
+assert.ok(clientDefersHorario("No cuento con el horario a\xFAn"));
+assert.ok(isClockTimeOnlySchedule("de 3:00 pm a 11:00 pm"));
+assert.ok(isSimpleClockTime("a partir de las 16:00 hrs"));
+assert.ok(isSimpleClockTime("A las 4:00 pm"));
+var rangeReply = runGuards({
+  aiResponse: "\xBFEn qu\xE9 horario lo planean?",
+  extracted: emptyExtracted({
+    nombre: "Lynn",
+    tipo_evento: "XV a\xF1os",
+    requerimientos_evento: "Barra de pastas y ensaladas",
+    num_invitados: 100,
+    fecha_evento: "16 de enero 2027"
   }),
-  null
+  filledSet: /* @__PURE__ */ new Set([
+    "Nombre del cliente",
+    "Tipo de evento",
+    "Requerimientos o servicios",
+    "N\xFAmero de invitados",
+    "Fecha del evento"
+  ]),
+  currentMessage: "El evento ser\xEDa de 3:00 pm a 11:00 pm",
+  history: [{ role: "assistant", content: "\xBFEn qu\xE9 horario lo planean?" }]
+});
+assert.ok(
+  !/horario lo planean|a qu[eé] hora|Sigo aqu[ií]|confirmas ese dato/i.test(rangeReply),
+  rangeReply.slice(0, 500)
 );
-assert.ok(clientSoftDeclinesLead("Gracias, me pongo en contacto si nos interesa"));
-var taquizaTurn = runGuards({
-  aiResponse: "Para *Taquiza* tenemos dos caminos:\n1. *Solo alimentos* \u2014 $300.00 /pp\n2. *Servicio completo* \u2014 desde $750.00 /pp\n\n\xBFCu\xE1l te late m\xE1s?",
+assert.ok(/3:00|11:00|horario|correo|ciudad|ubicaci/i.test(rangeReply), rangeReply.slice(0, 500));
+var deferReply = runGuards({
+  aiResponse: "\xBFEn qu\xE9 horario lo planean?",
   extracted: emptyExtracted({
-    nombre: "Marisol",
-    tipo_evento: "taquiza",
-    requerimientos_evento: "Taquiza",
-    num_invitados: 100,
-    fecha_evento: "31 de agosto",
-    horario_evento: "4:00 pm",
-    direccion_evento: "CDMX"
+    nombre: "Lynn",
+    tipo_evento: "XV a\xF1os",
+    requerimientos_evento: "Barra de pastas y ensaladas",
+    fecha_evento: "16 de enero 2027"
   }),
   filledSet: /* @__PURE__ */ new Set([
     "Nombre del cliente",
     "Tipo de evento",
     "Requerimientos o servicios",
-    "N\xFAmero de invitados",
-    "Fecha del evento",
-    "Horario del evento",
-    "Lugar/direcci\xF3n del evento"
+    "Fecha del evento"
   ]),
-  currentMessage: "taquiza para 100 personas para el lunes 31 de agosto a las 4:00 pm",
-  history: [
-    { role: "user", content: "Quiero hacer una cotizacion" },
-    { role: "assistant", content: "\xBFMe regalas tu nombre?" },
-    { role: "user", content: "Marisol" },
-    { role: "assistant", content: "\xBFQu\xE9 van a celebrar?" }
-  ]
+  currentMessage: "No cuento con el horario a\xFAn",
+  history: [{ role: "assistant", content: "\xBFEn qu\xE9 horario lo planean?" }]
 });
-assert.ok(/solo\s+alimentos/i.test(taquizaTurn) && /servicio\s+completo/i.test(taquizaTurn), taquizaTurn.slice(0, 500));
-assert.ok(!/\$\s*\d/.test(taquizaTurn), `Marisol sin precios: ${taquizaTurn.slice(0, 600)}`);
-var inclusionTurn = runGuards({
-  aiResponse: "Claro. \xBFQuieres que te d\xE9 detalles de alguno?",
+assert.ok(!/horario lo planean|a qu[eé] hora ser[ií]a/i.test(deferReply), deferReply.slice(0, 500));
+var aPartirReply = runGuards({
+  aiResponse: "Sigo aqu\xED, Lynn. Cuando puedas, \xBFme confirmas ese dato?",
   extracted: emptyExtracted({
-    nombre: "Marisol",
-    tipo_evento: "taquiza",
-    requerimientos_evento: "Taquiza",
-    num_invitados: 100,
-    fecha_evento: "31 de agosto",
-    horario_evento: "4:00 pm",
-    direccion_evento: "CDMX"
+    nombre: "Lynn",
+    fecha_evento: "16 de enero 2027",
+    requerimientos_evento: "Barra de pastas y ensaladas"
   }),
   filledSet: /* @__PURE__ */ new Set([
     "Nombre del cliente",
-    "Tipo de evento",
-    "Requerimientos o servicios",
-    "N\xFAmero de invitados",
     "Fecha del evento",
-    "Horario del evento",
-    "Lugar/direcci\xF3n del evento"
+    "Requerimientos o servicios"
   ]),
-  currentMessage: "que incluye",
-  history: [
-    { role: "assistant", content: noPriceMenu },
-    { role: "user", content: "CDMX" }
-  ]
+  currentMessage: "A partir de las 16:00 hrs",
+  history: [{ role: "assistant", content: "\xBFEn qu\xE9 horario lo planean?" }]
 });
-assert.ok(!/detalles de alguno/i.test(inclusionTurn), inclusionTurn.slice(0, 400));
-assert.ok(/incluye|guisados|taquiza|cat[aá]logo/i.test(inclusionTurn), inclusionTurn.slice(0, 500));
-var softDecline = runGuards({
-  aiResponse: "Perfecto, Marisol. \xBFA qu\xE9 correo te mando la informaci\xF3n?",
-  extracted: emptyExtracted({
-    nombre: "Marisol",
-    tipo_evento: "taquiza",
-    requerimientos_evento: "Taquiza",
-    num_invitados: 100,
-    fecha_evento: "31 de agosto",
-    horario_evento: "4:00 pm",
-    direccion_evento: "CDMX"
-  }),
-  filledSet: /* @__PURE__ */ new Set([
-    "Nombre del cliente",
-    "Tipo de evento",
-    "Requerimientos o servicios",
-    "N\xFAmero de invitados",
-    "Fecha del evento",
-    "Horario del evento",
-    "Lugar/direcci\xF3n del evento"
-  ]),
-  currentMessage: "Gracias, me pongo en contacto si nos interesa",
-  history: [{ role: "assistant", content: "\xBFA qu\xE9 correo te mando la informaci\xF3n?" }]
-});
-assert.ok(/quedo a tu disposici/i.test(softDecline), softDecline.slice(0, 400));
-assert.ok(!/correo|e-?mail/i.test(softDecline), softDecline.slice(0, 400));
-console.log("A15547 smoke OK \u2014", LUCY_PROMPT_VERSION);
+assert.ok(
+  !/Sigo aqu[ií]|confirmas ese dato|horario lo planean/i.test(aPartirReply),
+  aPartirReply.slice(0, 500)
+);
+assert.ok(/16:00|horario|anot/i.test(aPartirReply), aPartirReply.slice(0, 500));
+console.log("A15566 smoke OK \u2014", LUCY_PROMPT_VERSION);
 /*! Bundled license information:
 
 web-streams-polyfill/dist/ponyfill.es2018.js:

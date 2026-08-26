@@ -3049,13 +3049,20 @@ export function isMealTimeOnlySchedule(text: string | null | undefined): boolean
   return false;
 }
 
+/** Sufijo de hora: am/pm, a.m./p.m., hrs. A15566 Lynn. */
+const CLOCK_AMPM =
+  String.raw`(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)`;
+/** Una hora: 4, 4:00, 16:00 */
+const CLOCK_TOKEN = String.raw`\d{1,2}(?::\d{2})?`;
+
 /**
- * Hora suelta sin rango ni fecha: "4 pm", "16:00 hrs", "A las 4 de la tarde".
- * A15516 Ccam: Lucy no capturaba horario y repetía la pregunta.
+ * Hora suelta sin rango ni fecha: "4 pm", "16:00 hrs", "A las 4 de la tarde",
+ * "a partir de las 16:00", "A las 16 hrs".
+ * A15516 Ccam / A15566 Lynn: Lucy no capturaba horario y repetía la pregunta.
  */
 export function isSimpleClockTime(text: string | null | undefined): boolean {
   const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t || t.length > 50) return false;
+  if (!t || t.length > 70) return false;
   if (MONTH_PATTERN.test(t)) return false;
   if (
     /\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
@@ -3066,7 +3073,10 @@ export function isSimpleClockTime(text: string | null | undefined): boolean {
   }
   if (/^(a\s+)?medio\s*d[ií]a$/i.test(t) || /^a\s+mediod[ií]a$/i.test(t)) return true;
   if (
-    /^(?:a\s+las\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)?$/i.test(t)
+    new RegExp(
+      String.raw`^(?:a\s+las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+      "i"
+    ).test(t)
   ) {
     return true;
   }
@@ -3077,16 +3087,29 @@ export function isSimpleClockTime(text: string | null | undefined): boolean {
   ) {
     return true;
   }
+  // A15566: "a partir de las 4:00 pm" / "partir de las 16 hrs" / "desde las 15:00"
+  if (
+    new RegExp(
+      String.raw`^(?:a\s+)?(?:partir|desde)\s+de\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+      "i"
+    ).test(t) ||
+    new RegExp(
+      String.raw`^desde\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+      "i"
+    ).test(t)
+  ) {
+    return true;
+  }
   return false;
 }
 
 /**
- * Solo rango horario ("13:00 a 20:00 hrs") sin día/mes — no cierra Fecha.
- * A15419 Stephanie: anotó horario y saltó el día del calendario.
+ * Solo rango horario ("13:00 a 20:00 hrs", "3:00 pm a 11:00 pm") sin día/mes — no cierra Fecha.
+ * A15419 Stephanie / A15566 Lynn: anotó horario y saltó el día, o no capturó rangos con am/pm.
  */
 export function isClockTimeOnlySchedule(text: string | null | undefined): boolean {
   const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t || t.length > 60) return false;
+  if (!t || t.length > 80) return false;
   if (isSimpleClockTime(t)) return true;
   if (MONTH_PATTERN.test(t)) return false;
   if (
@@ -3097,12 +3120,14 @@ export function isClockTimeOnlySchedule(text: string | null | undefined): boolea
     return false;
   }
   const clock =
-    /^(de\s+)?\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}(?::\d{2})?\s*(?:hrs?|horas?)?$/i.test(
-      t
-    ) ||
-    /^(horario\s*:?\s*)?\d{1,2}:\d{2}\s*(?:a|[-–]|hasta)\s*\d{1,2}:\d{2}\s*(?:hrs?|horas?)?$/i.test(
-      t
-    );
+    new RegExp(
+      String.raw`^(?:de\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+      "i"
+    ).test(t) ||
+    new RegExp(
+      String.raw`^(?:horario\s*:?\s*)?${CLOCK_TOKEN}\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+      "i"
+    ).test(t);
   return clock;
 }
 
@@ -3210,14 +3235,40 @@ export function syncLegacyFechaHorarioField(
 
 /** Normaliza captura de horario (sin prefijo "a las"). */
 function normalizeHorarioCapture(text: string): string {
-  return text.replace(/^a\s+las\s+/i, "").trim().slice(0, 80);
+  return text
+    .replace(/^a\s+las\s+/i, "")
+    .replace(/^(?:a\s+)?partir\s+de\s+(?:las\s+)?/i, "a partir de las ")
+    .replace(/^desde\s+(?:las\s+)?/i, "desde las ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
 }
 
-/** Extrae horario de un mensaje (sin día). */
+/** A15566: cliente pospone horario ("no cuento con el horario aún"). */
+export function clientDefersHorario(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  return (
+    /\bno\s+(cuento|tengo|tenemos|contamos)\s+con\s+(el\s+)?horario\b/i.test(t) ||
+    /\b(a[uú]n|todav[ií]a)\s+no\s+(tengo|tenemos|cuento|contamos|hay|s[eé])\s+(el\s+)?horario\b/i.test(
+      t
+    ) ||
+    /\bhorario\s+(a[uú]n|todav[ií]a)\s+no\b/i.test(t) ||
+    /\b(sin|no\s+tengo)\s+horario\s+(a[uú]n|definido|por\s+ahora|todav[ií]a)\b/i.test(t) ||
+    /\bno\s+cuento\s+con\s+el\s+horario\b/i.test(t) ||
+    /\bel\s+horario\s+(a[uú]n\s+)?(no\s+lo\s+tengo|est[aá]\s+por\s+definir|pendiente)\b/i.test(t)
+  );
+}
+
+/** Extrae horario de un mensaje (sin día). A15566: rangos con am/pm y "a partir de". */
 export function parseHorarioFromText(text: string): string | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
   const clean = trimmed.replace(/[.,;:¡!¿?]+$/g, "").trim();
+
+  if (clientDefersHorario(clean)) {
+    return "Sin definir (pendiente)";
+  }
 
   if (isClockTimeOnlySchedule(clean)) return normalizeHorarioCapture(clean);
   if (isMealTimeOnlySchedule(clean)) return clean;
@@ -3236,16 +3287,65 @@ export function parseHorarioFromText(text: string): string | null {
 
   const horarioLabel = clean.match(/\bhorario\s*:?\s*(.+)$/i);
   if (horarioLabel?.[1] && /\d/.test(horarioLabel[1])) {
-    return horarioLabel[1].trim().slice(0, 80);
+    const labeled = horarioLabel[1].trim();
+    if (clientDefersHorario(labeled)) return "Sin definir (pendiente)";
+    return labeled.slice(0, 80);
+  }
+
+  // A15566: "de 3:00 pm a 11:00 pm" / "De 15:00 p.m a 11:00 p.m" (am/pm en ambos lados).
+  const rangeAmpm = clean.match(
+    new RegExp(
+      String.raw`\b((?:de\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (rangeAmpm?.[1]) {
+    const frag = rangeAmpm[1].trim();
+    const without = clean.replace(rangeAmpm[1], "").trim();
+    if (
+      !without ||
+      parseFechaFromText(without) ||
+      MONTH_PATTERN.test(without) ||
+      /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(without) ||
+      /\b(evento|ser[ií]a|ser[aá]|es|planean|planeamos|tendr[ií]a|horario)\b/i.test(without)
+    ) {
+      return frag.replace(/^de\s+/i, "de ").slice(0, 80);
+    }
+  }
+
+  // A15566: "a partir de las 3:00 pm" / "Partir de las 16:00" / "desde las 15:00 hrs"
+  const aPartir = clean.match(
+    new RegExp(
+      String.raw`\b((?:a\s+)?partir\s+de\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (aPartir?.[1]) {
+    return normalizeHorarioCapture(aPartir[1]);
+  }
+  const desdeLas = clean.match(
+    new RegExp(
+      String.raw`\b(desde\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (desdeLas?.[1]) {
+    return normalizeHorarioCapture(desdeLas[1]);
   }
 
   const aLasPhrase = clean.match(
-    /^a\s+las\s+(\d{1,2}(?::\d{2})?(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?)\s*(?:hrs?|horas?)?$/i
+    new RegExp(
+      String.raw`^a\s+las\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?)\s*(?:${CLOCK_AMPM})?$`,
+      "i"
+    )
   );
   if (aLasPhrase?.[1]) return normalizeHorarioCapture(aLasPhrase[0]);
 
   const atTime = clean.match(
-    /\b(?:a\s+las|a\s+partir\s+de)\s+(\d{1,2}(?::\d{2})?(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?(?:\s*(?:hrs?|horas?|am|pm|a\.?\s*m\.?|p\.?\s*m\.?))?)\b/i
+    new RegExp(
+      String.raw`\b(?:a\s+las|a\s+partir\s+de(?:\s+las)?)\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?(?:\s*(?:${CLOCK_AMPM}))?)`,
+      "i"
+    )
   );
   if (atTime?.[1]) {
     const withoutTime = clean.replace(atTime[0], "").trim();
@@ -3258,7 +3358,10 @@ export function parseHorarioFromText(text: string): string | null {
   }
 
   const range = clean.match(
-    /\b(\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}(?::\d{2})?\s*(?:hrs?|horas?|am|pm)?)\b/i
+    new RegExp(
+      String.raw`\b(${CLOCK_TOKEN}\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
   );
   if (range?.[1]) {
     const withoutRange = clean.replace(range[1], "").trim();
@@ -3327,6 +3430,9 @@ export function isUsableHorarioEvento(value: string | null | undefined): boolean
   const t = (value ?? "").trim();
   if (!t) return false;
   if (/^sin\s+definir/i.test(t)) return true;
+  if (/pendiente/i.test(t) && /sin\s+definir|por\s+definir/i.test(t)) return true;
+  // A15566: frases "a partir de las…" / rangos con am/pm ya normalizados.
+  if (/\ba\s+partir\s+de\s+(?:las\s+)?\d/i.test(t)) return true;
   if (isClockTimeOnlySchedule(t)) return true;
   if (isMealTimeOnlySchedule(t)) return true;
   if (isSimpleClockTime(t)) return true;

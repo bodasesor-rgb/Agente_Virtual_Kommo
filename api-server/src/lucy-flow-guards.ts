@@ -242,11 +242,13 @@ import {
   looksLikeMealTimeNotLocation,
   isMealTimeOnlySchedule,
   isClockTimeOnlySchedule,
+  isSimpleClockTime,
   isScheduleLabeledClock,
   isUsableFechaHorario,
   isUsableFechaEvento,
   isUsableHorarioEvento,
   parseHorarioFromText,
+  clientDefersHorario,
   CRM_FECHA_LABEL,
   CRM_HORARIO_LABEL,
   LEGACY_CRM_FECHA_HORARIO_LABEL,
@@ -5882,25 +5884,43 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
     // A15419: solo dio horario ("13:00 a 20:00") → guardar horario y pedir día si falta.
     // A15539: "cocktail a las 12 / comida a las 2 / a medio día" aunque Lucy no preguntó horario.
+    // A15566: rangos con am/pm, "a partir de las…", "no cuento con el horario aún".
     // Nota: syncHorarioFromHistory puede haber marcado CRM_HORARIO_LABEL en este mismo turno;
     // igual hay que ACK (si no, cae a menú de comida por la palabra "comida").
+    const defersHorario = !!(currentMessage && clientDefersHorario(currentMessage));
+    // A15566: capturar rangos/a-partir/waiver; NO secuestrar briefs ricos
+    // ("taquiza … a las 4:00 pm") solo porque traen una hora (regresión A15547).
+    const messageIsPrimarilyHorario =
+      !!currentMessage &&
+      (defersHorario ||
+        isClockTimeOnlySchedule(currentMessage) ||
+        isSimpleClockTime(currentMessage.trim()) ||
+        isScheduleLabeledClock(currentMessage) ||
+        (/^(el\s+evento\s+)?(ser[ií]a|es|ser[aá]|qued[oó]|arranca|inicia|empieza)\b/i.test(
+          currentMessage.trim()
+        ) &&
+          !!horarioNow));
     if (
       !cierreYaEnviado &&
       currentMessage &&
       (lucyAskedHorario ||
         horarioPending ||
-        lucyAskedFecha ||
-        fechaPending ||
-        isScheduleLabeledClock(currentMessage)) &&
-      (isClockTimeOnlySchedule(currentMessage) ||
+        defersHorario ||
+        messageIsPrimarilyHorario ||
+        ((lucyAskedFecha || fechaPending) && !!horarioNow && messageIsPrimarilyHorario)) &&
+      (defersHorario ||
+        isClockTimeOnlySchedule(currentMessage) ||
         isMealTimeOnlySchedule(currentMessage) ||
         isScheduleLabeledClock(currentMessage) ||
+        isSimpleClockTime(currentMessage.trim()) ||
         !!horarioNow)
     ) {
       const parsedHorario = (
-        horarioNow ??
-        parseHorarioFromText(currentMessage ?? "") ??
-        currentMessage.trim()
+        defersHorario
+          ? "Sin definir (pendiente)"
+          : horarioNow ??
+            parseHorarioFromText(currentMessage ?? "") ??
+            currentMessage.trim()
       )
         .replace(/\s+/g, " ")
         .slice(0, 80);
@@ -5911,14 +5931,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       filledSet.add(CRM_HORARIO_LABEL);
       syncLegacyFechaHorarioField(extracted);
       const display = getDisplayName(extracted, whatsappDisplayName);
-      const ack = display
-        ? `Perfecto, ${display}. Anoto el horario *${extracted.horario_evento}*.`
-        : `Perfecto. Anoto el horario *${extracted.horario_evento}*.`;
+      const ack = defersHorario
+        ? display
+          ? `Entendido, ${display}. Dejamos el horario pendiente por ahora.`
+          : "Entendido. Dejamos el horario pendiente por ahora."
+        : display
+          ? `Perfecto, ${display}. Anoto el horario *${extracted.horario_evento}*.`
+          : `Perfecto. Anoto el horario *${extracted.horario_evento}*.`;
       const pendingAfterHorario = getNextPendingField(extracted, filledSet);
       const nextQ = pendingAfterHorario
         ? buildNaturalQuestion(pendingAfterHorario, ctx)
         : null;
-      log?.info({ entityId, pending: pendingAfterHorario }, "GUARD: A15419 — horario capturado + embudo");
+      log?.info({ entityId, pending: pendingAfterHorario, defersHorario }, "GUARD: A15419/A15566 — horario capturado + embudo");
       return normalizeAdvisorReferences(
         nextQ ? `${ack} ${nextQ}` : ack,
         extracted.nombre ?? display

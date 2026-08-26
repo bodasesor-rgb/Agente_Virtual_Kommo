@@ -45,9 +45,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// node_modules/dotenv/lib/main.js
+// api-server/node_modules/dotenv/lib/main.js
 var require_main = __commonJS({
-  "node_modules/dotenv/lib/main.js"(exports2, module2) {
+  "api-server/node_modules/dotenv/lib/main.js"(exports2, module2) {
     var fs7 = __require("fs");
     var path7 = __require("path");
     var os2 = __require("os");
@@ -364,9 +364,9 @@ var require_main = __commonJS({
   }
 });
 
-// node_modules/dotenv/lib/env-options.js
+// api-server/node_modules/dotenv/lib/env-options.js
 var require_env_options = __commonJS({
-  "node_modules/dotenv/lib/env-options.js"(exports2, module2) {
+  "api-server/node_modules/dotenv/lib/env-options.js"(exports2, module2) {
     var options = {};
     if (process.env.DOTENV_CONFIG_ENCODING != null) {
       options.encoding = process.env.DOTENV_CONFIG_ENCODING;
@@ -390,9 +390,9 @@ var require_env_options = __commonJS({
   }
 });
 
-// node_modules/dotenv/lib/cli-options.js
+// api-server/node_modules/dotenv/lib/cli-options.js
 var require_cli_options = __commonJS({
-  "node_modules/dotenv/lib/cli-options.js"(exports2, module2) {
+  "api-server/node_modules/dotenv/lib/cli-options.js"(exports2, module2) {
     var re4 = /^dotenv_config_(encoding|path|quiet|debug|override|DOTENV_KEY)=(.+)$/;
     module2.exports = function optionMatcher(args2) {
       const options = args2.reduce(function(acc, cur) {
@@ -410,7 +410,7 @@ var require_cli_options = __commonJS({
   }
 });
 
-// src/lib/openaiEnv.ts
+// api-server/src/lib/openaiEnv.ts
 function getOpenAiApiKey() {
   return process.env["OPEN_AI"]?.trim() || process.env["OPENAI_API_KEY"]?.trim() || "";
 }
@@ -428,15 +428,15 @@ function ensureOpenAiApiKeyEnv() {
 }
 var PLACEHOLDER_KEY;
 var init_openaiEnv = __esm({
-  "src/lib/openaiEnv.ts"() {
+  "api-server/src/lib/openaiEnv.ts"() {
     "use strict";
     PLACEHOLDER_KEY = "lucy-not-configured";
   }
 });
 
-// node_modules/ms/index.js
+// api-server/node_modules/ms/index.js
 var require_ms = __commonJS({
-  "node_modules/ms/index.js"(exports2, module2) {
+  "api-server/node_modules/ms/index.js"(exports2, module2) {
     var s10 = 1e3;
     var m10 = s10 * 60;
     var h10 = m10 * 60;
@@ -550,9 +550,9 @@ var require_ms = __commonJS({
   }
 });
 
-// node_modules/debug/src/common.js
+// api-server/node_modules/debug/src/common.js
 var require_common = __commonJS({
-  "node_modules/debug/src/common.js"(exports2, module2) {
+  "api-server/node_modules/debug/src/common.js"(exports2, module2) {
     function setup(env2) {
       createDebug.debug = createDebug;
       createDebug.default = createDebug;
@@ -727,9 +727,9 @@ var require_common = __commonJS({
   }
 });
 
-// node_modules/debug/src/browser.js
+// api-server/node_modules/debug/src/browser.js
 var require_browser = __commonJS({
-  "node_modules/debug/src/browser.js"(exports2, module2) {
+  "api-server/node_modules/debug/src/browser.js"(exports2, module2) {
     exports2.formatArgs = formatArgs;
     exports2.save = save2;
     exports2.load = load2;
@@ -897,9 +897,9 @@ var require_browser = __commonJS({
   }
 });
 
-// node_modules/debug/src/node.js
+// api-server/node_modules/debug/src/node.js
 var require_node = __commonJS({
-  "node_modules/debug/src/node.js"(exports2, module2) {
+  "api-server/node_modules/debug/src/node.js"(exports2, module2) {
     var tty = __require("tty");
     var util6 = __require("util");
     exports2.init = init2;
@@ -1071,9 +1071,9 @@ var require_node = __commonJS({
   }
 });
 
-// node_modules/debug/src/index.js
+// api-server/node_modules/debug/src/index.js
 var require_src = __commonJS({
-  "node_modules/debug/src/index.js"(exports2, module2) {
+  "api-server/node_modules/debug/src/index.js"(exports2, module2) {
     if (typeof process === "undefined" || process.type === "renderer" || process.browser === true || process.__nwjs) {
       module2.exports = require_browser();
     } else {
@@ -1082,9 +1082,9 @@ var require_src = __commonJS({
   }
 });
 
-// node_modules/depd/index.js
+// api-server/node_modules/depd/index.js
 var require_depd = __commonJS({
-  "node_modules/depd/index.js"(exports2, module2) {
+  "api-server/node_modules/depd/index.js"(exports2, module2) {
     var relative = __require("path").relative;
     module2.exports = depd;
     var basePath = process.cwd();
@@ -1388,9 +1388,9 @@ var require_depd = __commonJS({
   }
 });
 
-// node_modules/setprototypeof/index.js
+// api-server/node_modules/setprototypeof/index.js
 var require_setprototypeof = __commonJS({
-  "node_modules/setprototypeof/index.js"(exports2, module2) {
+  "api-server/node_modules/setprototypeof/index.js"(exports2, module2) {
     "use strict";
     module2.exports = Object.setPrototypeOf || ({ __proto__: [] } instanceof Array ? setProtoOf : mixinProperties);
     function setProtoOf(obj, proto) {
@@ -1408,9 +1408,9 @@ var require_setprototypeof = __commonJS({
   }
 });
 
-// node_modules/statuses/codes.json
+// api-server/node_modules/statuses/codes.json
 var require_codes = __commonJS({
-  "node_modules/statuses/codes.json"(exports2, module2) {
+  "api-server/node_modules/statuses/codes.json"(exports2, module2) {
     module2.exports = {
       "100": "Continue",
       "101": "Switching Protocols",
@@ -1479,9 +1479,9 @@ var require_codes = __commonJS({
   }
 });
 
-// node_modules/statuses/index.js
+// api-server/node_modules/statuses/index.js
 var require_statuses = __commonJS({
-  "node_modules/statuses/index.js"(exports2, module2) {
+  "api-server/node_modules/statuses/index.js"(exports2, module2) {
     "use strict";
     var codes = require_codes();
     module2.exports = status;
@@ -1550,9 +1550,9 @@ var require_statuses = __commonJS({
   }
 });
 
-// node_modules/inherits/inherits_browser.js
+// api-server/node_modules/inherits/inherits_browser.js
 var require_inherits_browser = __commonJS({
-  "node_modules/inherits/inherits_browser.js"(exports2, module2) {
+  "api-server/node_modules/inherits/inherits_browser.js"(exports2, module2) {
     if (typeof Object.create === "function") {
       module2.exports = function inherits2(ctor, superCtor) {
         if (superCtor) {
@@ -1582,9 +1582,9 @@ var require_inherits_browser = __commonJS({
   }
 });
 
-// node_modules/inherits/inherits.js
+// api-server/node_modules/inherits/inherits.js
 var require_inherits = __commonJS({
-  "node_modules/inherits/inherits.js"(exports2, module2) {
+  "api-server/node_modules/inherits/inherits.js"(exports2, module2) {
     try {
       util6 = __require("util");
       if (typeof util6.inherits !== "function") throw "";
@@ -1596,9 +1596,9 @@ var require_inherits = __commonJS({
   }
 });
 
-// node_modules/toidentifier/index.js
+// api-server/node_modules/toidentifier/index.js
 var require_toidentifier = __commonJS({
-  "node_modules/toidentifier/index.js"(exports2, module2) {
+  "api-server/node_modules/toidentifier/index.js"(exports2, module2) {
     "use strict";
     module2.exports = toIdentifier;
     function toIdentifier(str2) {
@@ -1609,9 +1609,9 @@ var require_toidentifier = __commonJS({
   }
 });
 
-// node_modules/http-errors/index.js
+// api-server/node_modules/http-errors/index.js
 var require_http_errors = __commonJS({
-  "node_modules/http-errors/index.js"(exports2, module2) {
+  "api-server/node_modules/http-errors/index.js"(exports2, module2) {
     "use strict";
     var deprecate3 = require_depd()("http-errors");
     var setPrototypeOf = require_setprototypeof();
@@ -1773,9 +1773,9 @@ var require_http_errors = __commonJS({
   }
 });
 
-// node_modules/bytes/index.js
+// api-server/node_modules/bytes/index.js
 var require_bytes = __commonJS({
-  "node_modules/bytes/index.js"(exports2, module2) {
+  "api-server/node_modules/bytes/index.js"(exports2, module2) {
     "use strict";
     module2.exports = bytes;
     module2.exports.format = format;
@@ -1862,9 +1862,9 @@ var require_bytes = __commonJS({
   }
 });
 
-// node_modules/safer-buffer/safer.js
+// api-server/node_modules/safer-buffer/safer.js
 var require_safer = __commonJS({
-  "node_modules/safer-buffer/safer.js"(exports2, module2) {
+  "api-server/node_modules/safer-buffer/safer.js"(exports2, module2) {
     "use strict";
     var buffer = __require("buffer");
     var Buffer4 = buffer.Buffer;
@@ -1930,9 +1930,9 @@ var require_safer = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/lib/bom-handling.js
+// api-server/node_modules/iconv-lite/lib/bom-handling.js
 var require_bom_handling = __commonJS({
-  "node_modules/iconv-lite/lib/bom-handling.js"(exports2) {
+  "api-server/node_modules/iconv-lite/lib/bom-handling.js"(exports2) {
     "use strict";
     var BOMChar = "\uFEFF";
     exports2.PrependBOM = PrependBOMWrapper;
@@ -1976,9 +1976,9 @@ var require_bom_handling = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/lib/helpers/merge-exports.js
+// api-server/node_modules/iconv-lite/lib/helpers/merge-exports.js
 var require_merge_exports = __commonJS({
-  "node_modules/iconv-lite/lib/helpers/merge-exports.js"(exports2, module2) {
+  "api-server/node_modules/iconv-lite/lib/helpers/merge-exports.js"(exports2, module2) {
     "use strict";
     var hasOwn3 = typeof Object.hasOwn === "undefined" ? Function.call.bind(Object.prototype.hasOwnProperty) : Object.hasOwn;
     function mergeModules(target, module3) {
@@ -1992,9 +1992,9 @@ var require_merge_exports = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/internal.js
+// api-server/node_modules/iconv-lite/encodings/internal.js
 var require_internal = __commonJS({
-  "node_modules/iconv-lite/encodings/internal.js"(exports2, module2) {
+  "api-server/node_modules/iconv-lite/encodings/internal.js"(exports2, module2) {
     "use strict";
     var Buffer4 = require_safer().Buffer;
     module2.exports = {
@@ -2173,9 +2173,9 @@ var require_internal = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/utf32.js
+// api-server/node_modules/iconv-lite/encodings/utf32.js
 var require_utf32 = __commonJS({
-  "node_modules/iconv-lite/encodings/utf32.js"(exports2) {
+  "api-server/node_modules/iconv-lite/encodings/utf32.js"(exports2) {
     "use strict";
     var Buffer4 = require_safer().Buffer;
     exports2._utf32 = Utf32Codec;
@@ -2408,9 +2408,9 @@ var require_utf32 = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/utf16.js
+// api-server/node_modules/iconv-lite/encodings/utf16.js
 var require_utf16 = __commonJS({
-  "node_modules/iconv-lite/encodings/utf16.js"(exports2) {
+  "api-server/node_modules/iconv-lite/encodings/utf16.js"(exports2) {
     "use strict";
     var Buffer4 = require_safer().Buffer;
     exports2.utf16be = Utf16BECodec;
@@ -2551,9 +2551,9 @@ var require_utf16 = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/utf7.js
+// api-server/node_modules/iconv-lite/encodings/utf7.js
 var require_utf7 = __commonJS({
-  "node_modules/iconv-lite/encodings/utf7.js"(exports2) {
+  "api-server/node_modules/iconv-lite/encodings/utf7.js"(exports2) {
     "use strict";
     var Buffer4 = require_safer().Buffer;
     exports2.utf7 = Utf7Codec;
@@ -2769,9 +2769,9 @@ var require_utf7 = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/sbcs-codec.js
+// api-server/node_modules/iconv-lite/encodings/sbcs-codec.js
 var require_sbcs_codec = __commonJS({
-  "node_modules/iconv-lite/encodings/sbcs-codec.js"(exports2) {
+  "api-server/node_modules/iconv-lite/encodings/sbcs-codec.js"(exports2) {
     "use strict";
     var Buffer4 = require_safer().Buffer;
     exports2._sbcs = SBCSCodec;
@@ -2831,9 +2831,9 @@ var require_sbcs_codec = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/sbcs-data.js
+// api-server/node_modules/iconv-lite/encodings/sbcs-data.js
 var require_sbcs_data = __commonJS({
-  "node_modules/iconv-lite/encodings/sbcs-data.js"(exports2, module2) {
+  "api-server/node_modules/iconv-lite/encodings/sbcs-data.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       // Not supported by iconv, not sure why.
@@ -2986,9 +2986,9 @@ var require_sbcs_data = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/sbcs-data-generated.js
+// api-server/node_modules/iconv-lite/encodings/sbcs-data-generated.js
 var require_sbcs_data_generated = __commonJS({
-  "node_modules/iconv-lite/encodings/sbcs-data-generated.js"(exports2, module2) {
+  "api-server/node_modules/iconv-lite/encodings/sbcs-data-generated.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       "437": "cp437",
@@ -3441,9 +3441,9 @@ var require_sbcs_data_generated = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/dbcs-codec.js
+// api-server/node_modules/iconv-lite/encodings/dbcs-codec.js
 var require_dbcs_codec = __commonJS({
-  "node_modules/iconv-lite/encodings/dbcs-codec.js"(exports2) {
+  "api-server/node_modules/iconv-lite/encodings/dbcs-codec.js"(exports2) {
     "use strict";
     var Buffer4 = require_safer().Buffer;
     exports2._dbcs = DBCSCodec;
@@ -3901,9 +3901,9 @@ var require_dbcs_codec = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/tables/shiftjis.json
+// api-server/node_modules/iconv-lite/encodings/tables/shiftjis.json
 var require_shiftjis = __commonJS({
-  "node_modules/iconv-lite/encodings/tables/shiftjis.json"(exports2, module2) {
+  "api-server/node_modules/iconv-lite/encodings/tables/shiftjis.json"(exports2, module2) {
     module2.exports = [
       ["0", "\0", 128],
       ["a1", "\uFF61", 62],
@@ -4032,9 +4032,9 @@ var require_shiftjis = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/tables/eucjp.json
+// api-server/node_modules/iconv-lite/encodings/tables/eucjp.json
 var require_eucjp = __commonJS({
-  "node_modules/iconv-lite/encodings/tables/eucjp.json"(exports2, module2) {
+  "api-server/node_modules/iconv-lite/encodings/tables/eucjp.json"(exports2, module2) {
     module2.exports = [
       ["0", "\0", 127],
       ["8ea1", "\uFF61", 62],
@@ -4220,9 +4220,9 @@ var require_eucjp = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/tables/cp936.json
+// api-server/node_modules/iconv-lite/encodings/tables/cp936.json
 var require_cp936 = __commonJS({
-  "node_modules/iconv-lite/encodings/tables/cp936.json"(exports2, module2) {
+  "api-server/node_modules/iconv-lite/encodings/tables/cp936.json"(exports2, module2) {
     module2.exports = [
       ["0", "\0", 127, "\u20AC"],
       ["8140", "\u4E02\u4E04\u4E05\u4E06\u4E0F\u4E12\u4E17\u4E1F\u4E20\u4E21\u4E23\u4E26\u4E29\u4E2E\u4E2F\u4E31\u4E33\u4E35\u4E37\u4E3C\u4E40\u4E41\u4E42\u4E44\u4E46\u4E4A\u4E51\u4E55\u4E57\u4E5A\u4E5B\u4E62\u4E63\u4E64\u4E65\u4E67\u4E68\u4E6A", 5, "\u4E72\u4E74", 9, "\u4E7F", 6, "\u4E87\u4E8A"],
@@ -4490,9 +4490,9 @@ var require_cp936 = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/tables/gbk-added.json
+// api-server/node_modules/iconv-lite/encodings/tables/gbk-added.json
 var require_gbk_added = __commonJS({
-  "node_modules/iconv-lite/encodings/tables/gbk-added.json"(exports2, module2) {
+  "api-server/node_modules/iconv-lite/encodings/tables/gbk-added.json"(exports2, module2) {
     module2.exports = [
       ["a140", "\uE4C6", 62],
       ["a180", "\uE505", 32],
@@ -4552,16 +4552,16 @@ var require_gbk_added = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/tables/gb18030-ranges.json
+// api-server/node_modules/iconv-lite/encodings/tables/gb18030-ranges.json
 var require_gb18030_ranges = __commonJS({
-  "node_modules/iconv-lite/encodings/tables/gb18030-ranges.json"(exports2, module2) {
+  "api-server/node_modules/iconv-lite/encodings/tables/gb18030-ranges.json"(exports2, module2) {
     module2.exports = { uChars: [128, 165, 169, 178, 184, 216, 226, 235, 238, 244, 248, 251, 253, 258, 276, 284, 300, 325, 329, 334, 364, 463, 465, 467, 469, 471, 473, 475, 477, 506, 594, 610, 712, 716, 730, 930, 938, 962, 970, 1026, 1104, 1106, 8209, 8215, 8218, 8222, 8231, 8241, 8244, 8246, 8252, 8365, 8452, 8454, 8458, 8471, 8482, 8556, 8570, 8596, 8602, 8713, 8720, 8722, 8726, 8731, 8737, 8740, 8742, 8748, 8751, 8760, 8766, 8777, 8781, 8787, 8802, 8808, 8816, 8854, 8858, 8870, 8896, 8979, 9322, 9372, 9548, 9588, 9616, 9622, 9634, 9652, 9662, 9672, 9676, 9680, 9702, 9735, 9738, 9793, 9795, 11906, 11909, 11913, 11917, 11928, 11944, 11947, 11951, 11956, 11960, 11964, 11979, 12284, 12292, 12312, 12319, 12330, 12351, 12436, 12447, 12535, 12543, 12586, 12842, 12850, 12964, 13200, 13215, 13218, 13253, 13263, 13267, 13270, 13384, 13428, 13727, 13839, 13851, 14617, 14703, 14801, 14816, 14964, 15183, 15471, 15585, 16471, 16736, 17208, 17325, 17330, 17374, 17623, 17997, 18018, 18212, 18218, 18301, 18318, 18760, 18811, 18814, 18820, 18823, 18844, 18848, 18872, 19576, 19620, 19738, 19887, 40870, 59244, 59336, 59367, 59413, 59417, 59423, 59431, 59437, 59443, 59452, 59460, 59478, 59493, 63789, 63866, 63894, 63976, 63986, 64016, 64018, 64021, 64025, 64034, 64037, 64042, 65074, 65093, 65107, 65112, 65127, 65132, 65375, 65510, 65536], gbChars: [0, 36, 38, 45, 50, 81, 89, 95, 96, 100, 103, 104, 105, 109, 126, 133, 148, 172, 175, 179, 208, 306, 307, 308, 309, 310, 311, 312, 313, 341, 428, 443, 544, 545, 558, 741, 742, 749, 750, 805, 819, 820, 7922, 7924, 7925, 7927, 7934, 7943, 7944, 7945, 7950, 8062, 8148, 8149, 8152, 8164, 8174, 8236, 8240, 8262, 8264, 8374, 8380, 8381, 8384, 8388, 8390, 8392, 8393, 8394, 8396, 8401, 8406, 8416, 8419, 8424, 8437, 8439, 8445, 8482, 8485, 8496, 8521, 8603, 8936, 8946, 9046, 9050, 9063, 9066, 9076, 9092, 9100, 9108, 9111, 9113, 9131, 9162, 9164, 9218, 9219, 11329, 11331, 11334, 11336, 11346, 11361, 11363, 11366, 11370, 11372, 11375, 11389, 11682, 11686, 11687, 11692, 11694, 11714, 11716, 11723, 11725, 11730, 11736, 11982, 11989, 12102, 12336, 12348, 12350, 12384, 12393, 12395, 12397, 12510, 12553, 12851, 12962, 12973, 13738, 13823, 13919, 13933, 14080, 14298, 14585, 14698, 15583, 15847, 16318, 16434, 16438, 16481, 16729, 17102, 17122, 17315, 17320, 17402, 17418, 17859, 17909, 17911, 17915, 17916, 17936, 17939, 17961, 18664, 18703, 18814, 18962, 19043, 33469, 33470, 33471, 33484, 33485, 33490, 33497, 33501, 33505, 33513, 33520, 33536, 33550, 37845, 37921, 37948, 38029, 38038, 38064, 38065, 38066, 38069, 38075, 38076, 38078, 39108, 39109, 39113, 39114, 39115, 39116, 39265, 39394, 189e3] };
   }
 });
 
-// node_modules/iconv-lite/encodings/tables/cp949.json
+// api-server/node_modules/iconv-lite/encodings/tables/cp949.json
 var require_cp949 = __commonJS({
-  "node_modules/iconv-lite/encodings/tables/cp949.json"(exports2, module2) {
+  "api-server/node_modules/iconv-lite/encodings/tables/cp949.json"(exports2, module2) {
     module2.exports = [
       ["0", "\0", 127],
       ["8141", "\uAC02\uAC03\uAC05\uAC06\uAC0B", 4, "\uAC18\uAC1E\uAC1F\uAC21\uAC22\uAC23\uAC25", 6, "\uAC2E\uAC32\uAC33\uAC34"],
@@ -4838,9 +4838,9 @@ var require_cp949 = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/tables/cp950.json
+// api-server/node_modules/iconv-lite/encodings/tables/cp950.json
 var require_cp950 = __commonJS({
-  "node_modules/iconv-lite/encodings/tables/cp950.json"(exports2, module2) {
+  "api-server/node_modules/iconv-lite/encodings/tables/cp950.json"(exports2, module2) {
     module2.exports = [
       ["0", "\0", 127],
       ["a140", "\u3000\uFF0C\u3001\u3002\uFF0E\u2027\uFF1B\uFF1A\uFF1F\uFF01\uFE30\u2026\u2025\uFE50\uFE51\uFE52\xB7\uFE54\uFE55\uFE56\uFE57\uFF5C\u2013\uFE31\u2014\uFE33\u2574\uFE34\uFE4F\uFF08\uFF09\uFE35\uFE36\uFF5B\uFF5D\uFE37\uFE38\u3014\u3015\uFE39\uFE3A\u3010\u3011\uFE3B\uFE3C\u300A\u300B\uFE3D\uFE3E\u3008\u3009\uFE3F\uFE40\u300C\u300D\uFE41\uFE42\u300E\u300F\uFE43\uFE44\uFE59\uFE5A"],
@@ -5021,9 +5021,9 @@ var require_cp950 = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/tables/big5-added.json
+// api-server/node_modules/iconv-lite/encodings/tables/big5-added.json
 var require_big5_added = __commonJS({
-  "node_modules/iconv-lite/encodings/tables/big5-added.json"(exports2, module2) {
+  "api-server/node_modules/iconv-lite/encodings/tables/big5-added.json"(exports2, module2) {
     module2.exports = [
       ["8740", "\u43F0\u4C32\u4603\u45A6\u4578\u{27267}\u4D77\u45B3\u{27CB1}\u4CE2\u{27CC5}\u3B95\u4736\u4744\u4C47\u4C40\u{242BF}\u{23617}\u{27352}\u{26E8B}\u{270D2}\u4C57\u{2A351}\u474F\u45DA\u4C85\u{27C6C}\u4D07\u4AA4\u46A1\u{26B23}\u7225\u{25A54}\u{21A63}\u{23E06}\u{23F61}\u664D\u56FB"],
       ["8767", "\u7D95\u591D\u{28BB9}\u3DF4\u9734\u{27BEF}\u5BDB\u{21D5E}\u5AA4\u3625\u{29EB0}\u5AD1\u5BB7\u5CFC\u676E\u8593\u{29945}\u7461\u749D\u3875\u{21D53}\u{2369E}\u{26021}\u3EEC"],
@@ -5149,9 +5149,9 @@ var require_big5_added = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/dbcs-data.js
+// api-server/node_modules/iconv-lite/encodings/dbcs-data.js
 var require_dbcs_data = __commonJS({
-  "node_modules/iconv-lite/encodings/dbcs-data.js"(exports2, module2) {
+  "api-server/node_modules/iconv-lite/encodings/dbcs-data.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       // == Japanese/ShiftJIS ====================================================
@@ -5396,9 +5396,9 @@ var require_dbcs_data = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/encodings/index.js
+// api-server/node_modules/iconv-lite/encodings/index.js
 var require_encodings = __commonJS({
-  "node_modules/iconv-lite/encodings/index.js"(exports2, module2) {
+  "api-server/node_modules/iconv-lite/encodings/index.js"(exports2, module2) {
     "use strict";
     var mergeModules = require_merge_exports();
     var modules = [
@@ -5421,9 +5421,9 @@ var require_encodings = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/lib/streams.js
+// api-server/node_modules/iconv-lite/lib/streams.js
 var require_streams = __commonJS({
-  "node_modules/iconv-lite/lib/streams.js"(exports2, module2) {
+  "api-server/node_modules/iconv-lite/lib/streams.js"(exports2, module2) {
     "use strict";
     var Buffer4 = require_safer().Buffer;
     module2.exports = function(streamModule) {
@@ -5518,9 +5518,9 @@ var require_streams = __commonJS({
   }
 });
 
-// node_modules/iconv-lite/lib/index.js
+// api-server/node_modules/iconv-lite/lib/index.js
 var require_lib = __commonJS({
-  "node_modules/iconv-lite/lib/index.js"(exports2, module2) {
+  "api-server/node_modules/iconv-lite/lib/index.js"(exports2, module2) {
     "use strict";
     var Buffer4 = require_safer().Buffer;
     var bomHandling = require_bom_handling();
@@ -5650,9 +5650,9 @@ var require_lib = __commonJS({
   }
 });
 
-// node_modules/unpipe/index.js
+// api-server/node_modules/unpipe/index.js
 var require_unpipe = __commonJS({
-  "node_modules/unpipe/index.js"(exports2, module2) {
+  "api-server/node_modules/unpipe/index.js"(exports2, module2) {
     "use strict";
     module2.exports = unpipe;
     function hasPipeDataListeners(stream5) {
@@ -5688,9 +5688,9 @@ var require_unpipe = __commonJS({
   }
 });
 
-// node_modules/raw-body/index.js
+// api-server/node_modules/raw-body/index.js
 var require_raw_body = __commonJS({
-  "node_modules/raw-body/index.js"(exports2, module2) {
+  "api-server/node_modules/raw-body/index.js"(exports2, module2) {
     "use strict";
     var asyncHooks = tryRequireAsyncHooks();
     var bytes = require_bytes();
@@ -5877,9 +5877,9 @@ var require_raw_body = __commonJS({
   }
 });
 
-// node_modules/ee-first/index.js
+// api-server/node_modules/ee-first/index.js
 var require_ee_first = __commonJS({
-  "node_modules/ee-first/index.js"(exports2, module2) {
+  "api-server/node_modules/ee-first/index.js"(exports2, module2) {
     "use strict";
     module2.exports = first;
     function first(stuff, done) {
@@ -5933,9 +5933,9 @@ var require_ee_first = __commonJS({
   }
 });
 
-// node_modules/on-finished/index.js
+// api-server/node_modules/on-finished/index.js
 var require_on_finished = __commonJS({
-  "node_modules/on-finished/index.js"(exports2, module2) {
+  "api-server/node_modules/on-finished/index.js"(exports2, module2) {
     "use strict";
     module2.exports = onFinished;
     module2.exports.isFinished = isFinished;
@@ -6037,9 +6037,9 @@ var require_on_finished = __commonJS({
   }
 });
 
-// node_modules/type-is/node_modules/content-type/dist/index.js
+// api-server/node_modules/type-is/node_modules/content-type/dist/index.js
 var require_dist = __commonJS({
-  "node_modules/type-is/node_modules/content-type/dist/index.js"(exports2) {
+  "api-server/node_modules/type-is/node_modules/content-type/dist/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.format = format;
@@ -6168,9 +6168,9 @@ var require_dist = __commonJS({
   }
 });
 
-// node_modules/mime-db/db.json
+// api-server/node_modules/mime-db/db.json
 var require_db = __commonJS({
-  "node_modules/mime-db/db.json"(exports2, module2) {
+  "api-server/node_modules/mime-db/db.json"(exports2, module2) {
     module2.exports = {
       "application/1d-interleaved-parityfec": {
         source: "iana"
@@ -15516,16 +15516,16 @@ var require_db = __commonJS({
   }
 });
 
-// node_modules/mime-db/index.js
+// api-server/node_modules/mime-db/index.js
 var require_mime_db = __commonJS({
-  "node_modules/mime-db/index.js"(exports2, module2) {
+  "api-server/node_modules/mime-db/index.js"(exports2, module2) {
     module2.exports = require_db();
   }
 });
 
-// node_modules/mime-types/mimeScore.js
+// api-server/node_modules/mime-types/mimeScore.js
 var require_mimeScore = __commonJS({
-  "node_modules/mime-types/mimeScore.js"(exports2, module2) {
+  "api-server/node_modules/mime-types/mimeScore.js"(exports2, module2) {
     var FACET_SCORES = {
       "prs.": 100,
       "x-": 200,
@@ -15567,9 +15567,9 @@ var require_mimeScore = __commonJS({
   }
 });
 
-// node_modules/mime-types/index.js
+// api-server/node_modules/mime-types/index.js
 var require_mime_types = __commonJS({
-  "node_modules/mime-types/index.js"(exports2) {
+  "api-server/node_modules/mime-types/index.js"(exports2) {
     "use strict";
     var db3 = require_mime_db();
     var extname = __require("path").extname;
@@ -15673,9 +15673,9 @@ var require_mime_types = __commonJS({
   }
 });
 
-// node_modules/media-typer/index.js
+// api-server/node_modules/media-typer/index.js
 var require_media_typer = __commonJS({
-  "node_modules/media-typer/index.js"(exports2) {
+  "api-server/node_modules/media-typer/index.js"(exports2) {
     "use strict";
     var SUBTYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_.-]{0,126}$/;
     var TYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_-]{0,126}$/;
@@ -15743,9 +15743,9 @@ var require_media_typer = __commonJS({
   }
 });
 
-// node_modules/type-is/index.js
+// api-server/node_modules/type-is/index.js
 var require_type_is = __commonJS({
-  "node_modules/type-is/index.js"(exports2, module2) {
+  "api-server/node_modules/type-is/index.js"(exports2, module2) {
     "use strict";
     var contentType = require_dist();
     var mime2 = require_mime_types();
@@ -15834,9 +15834,9 @@ var require_type_is = __commonJS({
   }
 });
 
-// node_modules/body-parser/node_modules/content-type/dist/index.js
+// api-server/node_modules/body-parser/node_modules/content-type/dist/index.js
 var require_dist2 = __commonJS({
-  "node_modules/body-parser/node_modules/content-type/dist/index.js"(exports2) {
+  "api-server/node_modules/body-parser/node_modules/content-type/dist/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.format = format;
@@ -15965,9 +15965,9 @@ var require_dist2 = __commonJS({
   }
 });
 
-// node_modules/body-parser/lib/utils.js
+// api-server/node_modules/body-parser/lib/utils.js
 var require_utils = __commonJS({
-  "node_modules/body-parser/lib/utils.js"(exports2, module2) {
+  "api-server/node_modules/body-parser/lib/utils.js"(exports2, module2) {
     "use strict";
     var bytes = require_bytes();
     var contentType = require_dist2();
@@ -16017,9 +16017,9 @@ var require_utils = __commonJS({
   }
 });
 
-// node_modules/body-parser/lib/read.js
+// api-server/node_modules/body-parser/lib/read.js
 var require_read = __commonJS({
-  "node_modules/body-parser/lib/read.js"(exports2, module2) {
+  "api-server/node_modules/body-parser/lib/read.js"(exports2, module2) {
     "use strict";
     var createError = require_http_errors();
     var getBody = require_raw_body();
@@ -16175,9 +16175,9 @@ var require_read = __commonJS({
   }
 });
 
-// node_modules/body-parser/lib/types/json.js
+// api-server/node_modules/body-parser/lib/types/json.js
 var require_json = __commonJS({
-  "node_modules/body-parser/lib/types/json.js"(exports2, module2) {
+  "api-server/node_modules/body-parser/lib/types/json.js"(exports2, module2) {
     "use strict";
     var debug = require_src()("body-parser:json");
     var read = require_read();
@@ -16274,9 +16274,9 @@ var require_json = __commonJS({
   }
 });
 
-// node_modules/body-parser/lib/types/raw.js
+// api-server/node_modules/body-parser/lib/types/raw.js
 var require_raw = __commonJS({
-  "node_modules/body-parser/lib/types/raw.js"(exports2, module2) {
+  "api-server/node_modules/body-parser/lib/types/raw.js"(exports2, module2) {
     "use strict";
     var debug = require_src()("body-parser:raw");
     var read = require_read();
@@ -16296,9 +16296,9 @@ var require_raw = __commonJS({
   }
 });
 
-// node_modules/body-parser/lib/types/text.js
+// api-server/node_modules/body-parser/lib/types/text.js
 var require_text = __commonJS({
-  "node_modules/body-parser/lib/types/text.js"(exports2, module2) {
+  "api-server/node_modules/body-parser/lib/types/text.js"(exports2, module2) {
     "use strict";
     var debug = require_src()("body-parser:text");
     var read = require_read();
@@ -16313,24 +16313,24 @@ var require_text = __commonJS({
   }
 });
 
-// node_modules/es-errors/type.js
+// api-server/node_modules/es-errors/type.js
 var require_type = __commonJS({
-  "node_modules/es-errors/type.js"(exports2, module2) {
+  "api-server/node_modules/es-errors/type.js"(exports2, module2) {
     "use strict";
     module2.exports = TypeError;
   }
 });
 
-// node_modules/object-inspect/util.inspect.js
+// api-server/node_modules/object-inspect/util.inspect.js
 var require_util_inspect = __commonJS({
-  "node_modules/object-inspect/util.inspect.js"(exports2, module2) {
+  "api-server/node_modules/object-inspect/util.inspect.js"(exports2, module2) {
     module2.exports = __require("util").inspect;
   }
 });
 
-// node_modules/object-inspect/index.js
+// api-server/node_modules/object-inspect/index.js
 var require_object_inspect = __commonJS({
-  "node_modules/object-inspect/index.js"(exports2, module2) {
+  "api-server/node_modules/object-inspect/index.js"(exports2, module2) {
     var hasMap = typeof Map === "function" && Map.prototype;
     var mapSizeDescriptor = Object.getOwnPropertyDescriptor && hasMap ? Object.getOwnPropertyDescriptor(Map.prototype, "size") : null;
     var mapSize = hasMap && mapSizeDescriptor && typeof mapSizeDescriptor.get === "function" ? mapSizeDescriptor.get : null;
@@ -16859,9 +16859,9 @@ var require_object_inspect = __commonJS({
   }
 });
 
-// node_modules/side-channel-list/index.js
+// api-server/node_modules/side-channel-list/index.js
 var require_side_channel_list = __commonJS({
-  "node_modules/side-channel-list/index.js"(exports2, module2) {
+  "api-server/node_modules/side-channel-list/index.js"(exports2, module2) {
     "use strict";
     var inspect = require_object_inspect();
     var $TypeError = require_type();
@@ -16952,113 +16952,113 @@ var require_side_channel_list = __commonJS({
   }
 });
 
-// node_modules/es-object-atoms/index.js
+// api-server/node_modules/es-object-atoms/index.js
 var require_es_object_atoms = __commonJS({
-  "node_modules/es-object-atoms/index.js"(exports2, module2) {
+  "api-server/node_modules/es-object-atoms/index.js"(exports2, module2) {
     "use strict";
     module2.exports = Object;
   }
 });
 
-// node_modules/es-errors/index.js
+// api-server/node_modules/es-errors/index.js
 var require_es_errors = __commonJS({
-  "node_modules/es-errors/index.js"(exports2, module2) {
+  "api-server/node_modules/es-errors/index.js"(exports2, module2) {
     "use strict";
     module2.exports = Error;
   }
 });
 
-// node_modules/es-errors/eval.js
+// api-server/node_modules/es-errors/eval.js
 var require_eval = __commonJS({
-  "node_modules/es-errors/eval.js"(exports2, module2) {
+  "api-server/node_modules/es-errors/eval.js"(exports2, module2) {
     "use strict";
     module2.exports = EvalError;
   }
 });
 
-// node_modules/es-errors/range.js
+// api-server/node_modules/es-errors/range.js
 var require_range = __commonJS({
-  "node_modules/es-errors/range.js"(exports2, module2) {
+  "api-server/node_modules/es-errors/range.js"(exports2, module2) {
     "use strict";
     module2.exports = RangeError;
   }
 });
 
-// node_modules/es-errors/ref.js
+// api-server/node_modules/es-errors/ref.js
 var require_ref = __commonJS({
-  "node_modules/es-errors/ref.js"(exports2, module2) {
+  "api-server/node_modules/es-errors/ref.js"(exports2, module2) {
     "use strict";
     module2.exports = ReferenceError;
   }
 });
 
-// node_modules/es-errors/syntax.js
+// api-server/node_modules/es-errors/syntax.js
 var require_syntax = __commonJS({
-  "node_modules/es-errors/syntax.js"(exports2, module2) {
+  "api-server/node_modules/es-errors/syntax.js"(exports2, module2) {
     "use strict";
     module2.exports = SyntaxError;
   }
 });
 
-// node_modules/es-errors/uri.js
+// api-server/node_modules/es-errors/uri.js
 var require_uri = __commonJS({
-  "node_modules/es-errors/uri.js"(exports2, module2) {
+  "api-server/node_modules/es-errors/uri.js"(exports2, module2) {
     "use strict";
     module2.exports = URIError;
   }
 });
 
-// node_modules/math-intrinsics/abs.js
+// api-server/node_modules/math-intrinsics/abs.js
 var require_abs = __commonJS({
-  "node_modules/math-intrinsics/abs.js"(exports2, module2) {
+  "api-server/node_modules/math-intrinsics/abs.js"(exports2, module2) {
     "use strict";
     module2.exports = Math.abs;
   }
 });
 
-// node_modules/math-intrinsics/floor.js
+// api-server/node_modules/math-intrinsics/floor.js
 var require_floor = __commonJS({
-  "node_modules/math-intrinsics/floor.js"(exports2, module2) {
+  "api-server/node_modules/math-intrinsics/floor.js"(exports2, module2) {
     "use strict";
     module2.exports = Math.floor;
   }
 });
 
-// node_modules/math-intrinsics/max.js
+// api-server/node_modules/math-intrinsics/max.js
 var require_max = __commonJS({
-  "node_modules/math-intrinsics/max.js"(exports2, module2) {
+  "api-server/node_modules/math-intrinsics/max.js"(exports2, module2) {
     "use strict";
     module2.exports = Math.max;
   }
 });
 
-// node_modules/math-intrinsics/min.js
+// api-server/node_modules/math-intrinsics/min.js
 var require_min = __commonJS({
-  "node_modules/math-intrinsics/min.js"(exports2, module2) {
+  "api-server/node_modules/math-intrinsics/min.js"(exports2, module2) {
     "use strict";
     module2.exports = Math.min;
   }
 });
 
-// node_modules/math-intrinsics/pow.js
+// api-server/node_modules/math-intrinsics/pow.js
 var require_pow = __commonJS({
-  "node_modules/math-intrinsics/pow.js"(exports2, module2) {
+  "api-server/node_modules/math-intrinsics/pow.js"(exports2, module2) {
     "use strict";
     module2.exports = Math.pow;
   }
 });
 
-// node_modules/math-intrinsics/round.js
+// api-server/node_modules/math-intrinsics/round.js
 var require_round = __commonJS({
-  "node_modules/math-intrinsics/round.js"(exports2, module2) {
+  "api-server/node_modules/math-intrinsics/round.js"(exports2, module2) {
     "use strict";
     module2.exports = Math.round;
   }
 });
 
-// node_modules/math-intrinsics/isNaN.js
+// api-server/node_modules/math-intrinsics/isNaN.js
 var require_isNaN = __commonJS({
-  "node_modules/math-intrinsics/isNaN.js"(exports2, module2) {
+  "api-server/node_modules/math-intrinsics/isNaN.js"(exports2, module2) {
     "use strict";
     module2.exports = Number.isNaN || function isNaN2(a10) {
       return a10 !== a10;
@@ -17066,9 +17066,9 @@ var require_isNaN = __commonJS({
   }
 });
 
-// node_modules/math-intrinsics/sign.js
+// api-server/node_modules/math-intrinsics/sign.js
 var require_sign = __commonJS({
-  "node_modules/math-intrinsics/sign.js"(exports2, module2) {
+  "api-server/node_modules/math-intrinsics/sign.js"(exports2, module2) {
     "use strict";
     var $isNaN = require_isNaN();
     module2.exports = function sign(number) {
@@ -17080,17 +17080,17 @@ var require_sign = __commonJS({
   }
 });
 
-// node_modules/gopd/gOPD.js
+// api-server/node_modules/gopd/gOPD.js
 var require_gOPD = __commonJS({
-  "node_modules/gopd/gOPD.js"(exports2, module2) {
+  "api-server/node_modules/gopd/gOPD.js"(exports2, module2) {
     "use strict";
     module2.exports = Object.getOwnPropertyDescriptor;
   }
 });
 
-// node_modules/gopd/index.js
+// api-server/node_modules/gopd/index.js
 var require_gopd = __commonJS({
-  "node_modules/gopd/index.js"(exports2, module2) {
+  "api-server/node_modules/gopd/index.js"(exports2, module2) {
     "use strict";
     var $gOPD = require_gOPD();
     if ($gOPD) {
@@ -17104,9 +17104,9 @@ var require_gopd = __commonJS({
   }
 });
 
-// node_modules/es-define-property/index.js
+// api-server/node_modules/es-define-property/index.js
 var require_es_define_property = __commonJS({
-  "node_modules/es-define-property/index.js"(exports2, module2) {
+  "api-server/node_modules/es-define-property/index.js"(exports2, module2) {
     "use strict";
     var $defineProperty = Object.defineProperty || false;
     if ($defineProperty) {
@@ -17120,9 +17120,9 @@ var require_es_define_property = __commonJS({
   }
 });
 
-// node_modules/has-symbols/shams.js
+// api-server/node_modules/has-symbols/shams.js
 var require_shams = __commonJS({
-  "node_modules/has-symbols/shams.js"(exports2, module2) {
+  "api-server/node_modules/has-symbols/shams.js"(exports2, module2) {
     "use strict";
     module2.exports = function hasSymbols() {
       if (typeof Symbol !== "function" || typeof Object.getOwnPropertySymbols !== "function") {
@@ -17175,9 +17175,9 @@ var require_shams = __commonJS({
   }
 });
 
-// node_modules/has-symbols/index.js
+// api-server/node_modules/has-symbols/index.js
 var require_has_symbols = __commonJS({
-  "node_modules/has-symbols/index.js"(exports2, module2) {
+  "api-server/node_modules/has-symbols/index.js"(exports2, module2) {
     "use strict";
     var origSymbol = typeof Symbol !== "undefined" && Symbol;
     var hasSymbolSham = require_shams();
@@ -17199,26 +17199,26 @@ var require_has_symbols = __commonJS({
   }
 });
 
-// node_modules/get-proto/Reflect.getPrototypeOf.js
+// api-server/node_modules/get-proto/Reflect.getPrototypeOf.js
 var require_Reflect_getPrototypeOf = __commonJS({
-  "node_modules/get-proto/Reflect.getPrototypeOf.js"(exports2, module2) {
+  "api-server/node_modules/get-proto/Reflect.getPrototypeOf.js"(exports2, module2) {
     "use strict";
     module2.exports = typeof Reflect !== "undefined" && Reflect.getPrototypeOf || null;
   }
 });
 
-// node_modules/get-proto/Object.getPrototypeOf.js
+// api-server/node_modules/get-proto/Object.getPrototypeOf.js
 var require_Object_getPrototypeOf = __commonJS({
-  "node_modules/get-proto/Object.getPrototypeOf.js"(exports2, module2) {
+  "api-server/node_modules/get-proto/Object.getPrototypeOf.js"(exports2, module2) {
     "use strict";
     var $Object = require_es_object_atoms();
     module2.exports = $Object.getPrototypeOf || null;
   }
 });
 
-// node_modules/function-bind/implementation.js
+// api-server/node_modules/function-bind/implementation.js
 var require_implementation = __commonJS({
-  "node_modules/function-bind/implementation.js"(exports2, module2) {
+  "api-server/node_modules/function-bind/implementation.js"(exports2, module2) {
     "use strict";
     var ERROR_MESSAGE = "Function.prototype.bind called on incompatible ";
     var toStr = Object.prototype.toString;
@@ -17292,42 +17292,42 @@ var require_implementation = __commonJS({
   }
 });
 
-// node_modules/function-bind/index.js
+// api-server/node_modules/function-bind/index.js
 var require_function_bind = __commonJS({
-  "node_modules/function-bind/index.js"(exports2, module2) {
+  "api-server/node_modules/function-bind/index.js"(exports2, module2) {
     "use strict";
     var implementation = require_implementation();
     module2.exports = Function.prototype.bind || implementation;
   }
 });
 
-// node_modules/call-bind-apply-helpers/functionCall.js
+// api-server/node_modules/call-bind-apply-helpers/functionCall.js
 var require_functionCall = __commonJS({
-  "node_modules/call-bind-apply-helpers/functionCall.js"(exports2, module2) {
+  "api-server/node_modules/call-bind-apply-helpers/functionCall.js"(exports2, module2) {
     "use strict";
     module2.exports = Function.prototype.call;
   }
 });
 
-// node_modules/call-bind-apply-helpers/functionApply.js
+// api-server/node_modules/call-bind-apply-helpers/functionApply.js
 var require_functionApply = __commonJS({
-  "node_modules/call-bind-apply-helpers/functionApply.js"(exports2, module2) {
+  "api-server/node_modules/call-bind-apply-helpers/functionApply.js"(exports2, module2) {
     "use strict";
     module2.exports = Function.prototype.apply;
   }
 });
 
-// node_modules/call-bind-apply-helpers/reflectApply.js
+// api-server/node_modules/call-bind-apply-helpers/reflectApply.js
 var require_reflectApply = __commonJS({
-  "node_modules/call-bind-apply-helpers/reflectApply.js"(exports2, module2) {
+  "api-server/node_modules/call-bind-apply-helpers/reflectApply.js"(exports2, module2) {
     "use strict";
     module2.exports = typeof Reflect !== "undefined" && Reflect && Reflect.apply;
   }
 });
 
-// node_modules/call-bind-apply-helpers/actualApply.js
+// api-server/node_modules/call-bind-apply-helpers/actualApply.js
 var require_actualApply = __commonJS({
-  "node_modules/call-bind-apply-helpers/actualApply.js"(exports2, module2) {
+  "api-server/node_modules/call-bind-apply-helpers/actualApply.js"(exports2, module2) {
     "use strict";
     var bind2 = require_function_bind();
     var $apply = require_functionApply();
@@ -17337,9 +17337,9 @@ var require_actualApply = __commonJS({
   }
 });
 
-// node_modules/call-bind-apply-helpers/index.js
+// api-server/node_modules/call-bind-apply-helpers/index.js
 var require_call_bind_apply_helpers = __commonJS({
-  "node_modules/call-bind-apply-helpers/index.js"(exports2, module2) {
+  "api-server/node_modules/call-bind-apply-helpers/index.js"(exports2, module2) {
     "use strict";
     var bind2 = require_function_bind();
     var $TypeError = require_type();
@@ -17354,9 +17354,9 @@ var require_call_bind_apply_helpers = __commonJS({
   }
 });
 
-// node_modules/dunder-proto/get.js
+// api-server/node_modules/dunder-proto/get.js
 var require_get = __commonJS({
-  "node_modules/dunder-proto/get.js"(exports2, module2) {
+  "api-server/node_modules/dunder-proto/get.js"(exports2, module2) {
     "use strict";
     var callBind = require_call_bind_apply_helpers();
     var gOPD = require_gopd();
@@ -17385,9 +17385,9 @@ var require_get = __commonJS({
   }
 });
 
-// node_modules/get-proto/index.js
+// api-server/node_modules/get-proto/index.js
 var require_get_proto = __commonJS({
-  "node_modules/get-proto/index.js"(exports2, module2) {
+  "api-server/node_modules/get-proto/index.js"(exports2, module2) {
     "use strict";
     var reflectGetProto = require_Reflect_getPrototypeOf();
     var originalGetProto = require_Object_getPrototypeOf();
@@ -17405,9 +17405,9 @@ var require_get_proto = __commonJS({
   }
 });
 
-// node_modules/hasown/index.js
+// api-server/node_modules/hasown/index.js
 var require_hasown = __commonJS({
-  "node_modules/hasown/index.js"(exports2, module2) {
+  "api-server/node_modules/hasown/index.js"(exports2, module2) {
     "use strict";
     var call = Function.prototype.call;
     var $hasOwn = Object.prototype.hasOwnProperty;
@@ -17416,9 +17416,9 @@ var require_hasown = __commonJS({
   }
 });
 
-// node_modules/get-intrinsic/index.js
+// api-server/node_modules/get-intrinsic/index.js
 var require_get_intrinsic = __commonJS({
-  "node_modules/get-intrinsic/index.js"(exports2, module2) {
+  "api-server/node_modules/get-intrinsic/index.js"(exports2, module2) {
     "use strict";
     var undefined2;
     var $Object = require_es_object_atoms();
@@ -17747,9 +17747,9 @@ var require_get_intrinsic = __commonJS({
   }
 });
 
-// node_modules/call-bound/index.js
+// api-server/node_modules/call-bound/index.js
 var require_call_bound = __commonJS({
-  "node_modules/call-bound/index.js"(exports2, module2) {
+  "api-server/node_modules/call-bound/index.js"(exports2, module2) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBindBasic = require_call_bind_apply_helpers();
@@ -17770,9 +17770,9 @@ var require_call_bound = __commonJS({
   }
 });
 
-// node_modules/side-channel-map/index.js
+// api-server/node_modules/side-channel-map/index.js
 var require_side_channel_map = __commonJS({
-  "node_modules/side-channel-map/index.js"(exports2, module2) {
+  "api-server/node_modules/side-channel-map/index.js"(exports2, module2) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBound = require_call_bound();
@@ -17826,9 +17826,9 @@ var require_side_channel_map = __commonJS({
   }
 });
 
-// node_modules/side-channel-weakmap/index.js
+// api-server/node_modules/side-channel-weakmap/index.js
 var require_side_channel_weakmap = __commonJS({
-  "node_modules/side-channel-weakmap/index.js"(exports2, module2) {
+  "api-server/node_modules/side-channel-weakmap/index.js"(exports2, module2) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBound = require_call_bound();
@@ -17899,9 +17899,9 @@ var require_side_channel_weakmap = __commonJS({
   }
 });
 
-// node_modules/side-channel/index.js
+// api-server/node_modules/side-channel/index.js
 var require_side_channel = __commonJS({
-  "node_modules/side-channel/index.js"(exports2, module2) {
+  "api-server/node_modules/side-channel/index.js"(exports2, module2) {
     "use strict";
     var $TypeError = require_type();
     var inspect = require_object_inspect();
@@ -17939,9 +17939,9 @@ var require_side_channel = __commonJS({
   }
 });
 
-// node_modules/qs/lib/formats.js
+// api-server/node_modules/qs/lib/formats.js
 var require_formats = __commonJS({
-  "node_modules/qs/lib/formats.js"(exports2, module2) {
+  "api-server/node_modules/qs/lib/formats.js"(exports2, module2) {
     "use strict";
     var replace = String.prototype.replace;
     var percentTwenties = /%20/g;
@@ -17965,9 +17965,9 @@ var require_formats = __commonJS({
   }
 });
 
-// node_modules/qs/lib/utils.js
+// api-server/node_modules/qs/lib/utils.js
 var require_utils2 = __commonJS({
-  "node_modules/qs/lib/utils.js"(exports2, module2) {
+  "api-server/node_modules/qs/lib/utils.js"(exports2, module2) {
     "use strict";
     var formats = require_formats();
     var getSideChannel = require_side_channel();
@@ -18267,9 +18267,9 @@ var require_utils2 = __commonJS({
   }
 });
 
-// node_modules/qs/lib/stringify.js
+// api-server/node_modules/qs/lib/stringify.js
 var require_stringify = __commonJS({
-  "node_modules/qs/lib/stringify.js"(exports2, module2) {
+  "api-server/node_modules/qs/lib/stringify.js"(exports2, module2) {
     "use strict";
     var getSideChannel = require_side_channel();
     var utils2 = require_utils2();
@@ -18555,9 +18555,9 @@ var require_stringify = __commonJS({
   }
 });
 
-// node_modules/qs/lib/parse.js
+// api-server/node_modules/qs/lib/parse.js
 var require_parse = __commonJS({
-  "node_modules/qs/lib/parse.js"(exports2, module2) {
+  "api-server/node_modules/qs/lib/parse.js"(exports2, module2) {
     "use strict";
     var utils2 = require_utils2();
     var has2 = Object.prototype.hasOwnProperty;
@@ -18884,9 +18884,9 @@ var require_parse = __commonJS({
   }
 });
 
-// node_modules/qs/lib/index.js
+// api-server/node_modules/qs/lib/index.js
 var require_lib2 = __commonJS({
-  "node_modules/qs/lib/index.js"(exports2, module2) {
+  "api-server/node_modules/qs/lib/index.js"(exports2, module2) {
     "use strict";
     var stringify2 = require_stringify();
     var parse = require_parse();
@@ -18899,9 +18899,9 @@ var require_lib2 = __commonJS({
   }
 });
 
-// node_modules/body-parser/lib/types/urlencoded.js
+// api-server/node_modules/body-parser/lib/types/urlencoded.js
 var require_urlencoded = __commonJS({
-  "node_modules/body-parser/lib/types/urlencoded.js"(exports2, module2) {
+  "api-server/node_modules/body-parser/lib/types/urlencoded.js"(exports2, module2) {
     "use strict";
     var createError = require_http_errors();
     var debug = require_src()("body-parser:urlencoded");
@@ -18985,9 +18985,9 @@ var require_urlencoded = __commonJS({
   }
 });
 
-// node_modules/body-parser/index.js
+// api-server/node_modules/body-parser/index.js
 var require_body_parser = __commonJS({
-  "node_modules/body-parser/index.js"(exports2, module2) {
+  "api-server/node_modules/body-parser/index.js"(exports2, module2) {
     "use strict";
     exports2 = module2.exports = bodyParser;
     exports2.json = require_json();
@@ -19000,9 +19000,9 @@ var require_body_parser = __commonJS({
   }
 });
 
-// node_modules/merge-descriptors/index.js
+// api-server/node_modules/merge-descriptors/index.js
 var require_merge_descriptors = __commonJS({
-  "node_modules/merge-descriptors/index.js"(exports2, module2) {
+  "api-server/node_modules/merge-descriptors/index.js"(exports2, module2) {
     "use strict";
     function mergeDescriptors(destination, source, overwrite = true) {
       if (!destination) {
@@ -19024,9 +19024,9 @@ var require_merge_descriptors = __commonJS({
   }
 });
 
-// node_modules/encodeurl/index.js
+// api-server/node_modules/encodeurl/index.js
 var require_encodeurl = __commonJS({
-  "node_modules/encodeurl/index.js"(exports2, module2) {
+  "api-server/node_modules/encodeurl/index.js"(exports2, module2) {
     "use strict";
     module2.exports = encodeUrl;
     var ENCODE_CHARS_REGEXP = /(?:[^\x21\x23-\x3B\x3D\x3F-\x5F\x61-\x7A\x7C\x7E]|%(?:[^0-9A-Fa-f]|[0-9A-Fa-f][^0-9A-Fa-f]|$))+/g;
@@ -19038,9 +19038,9 @@ var require_encodeurl = __commonJS({
   }
 });
 
-// node_modules/escape-html/index.js
+// api-server/node_modules/escape-html/index.js
 var require_escape_html = __commonJS({
-  "node_modules/escape-html/index.js"(exports2, module2) {
+  "api-server/node_modules/escape-html/index.js"(exports2, module2) {
     "use strict";
     var matchHtmlRegExp = /["'&<>]/;
     module2.exports = escapeHtml;
@@ -19085,9 +19085,9 @@ var require_escape_html = __commonJS({
   }
 });
 
-// node_modules/parseurl/index.js
+// api-server/node_modules/parseurl/index.js
 var require_parseurl = __commonJS({
-  "node_modules/parseurl/index.js"(exports2, module2) {
+  "api-server/node_modules/parseurl/index.js"(exports2, module2) {
     "use strict";
     var url2 = __require("url");
     var parse = url2.parse;
@@ -19169,9 +19169,9 @@ var require_parseurl = __commonJS({
   }
 });
 
-// node_modules/finalhandler/index.js
+// api-server/node_modules/finalhandler/index.js
 var require_finalhandler = __commonJS({
-  "node_modules/finalhandler/index.js"(exports2, module2) {
+  "api-server/node_modules/finalhandler/index.js"(exports2, module2) {
     "use strict";
     var debug = require_src()("finalhandler");
     var encodeUrl = require_encodeurl();
@@ -19296,9 +19296,9 @@ var require_finalhandler = __commonJS({
   }
 });
 
-// node_modules/express/lib/view.js
+// api-server/node_modules/express/lib/view.js
 var require_view = __commonJS({
-  "node_modules/express/lib/view.js"(exports2, module2) {
+  "api-server/node_modules/express/lib/view.js"(exports2, module2) {
     "use strict";
     var debug = require_src()("express:view");
     var path7 = __require("node:path");
@@ -19390,9 +19390,9 @@ var require_view = __commonJS({
   }
 });
 
-// node_modules/content-type/index.js
+// api-server/node_modules/content-type/index.js
 var require_content_type = __commonJS({
-  "node_modules/content-type/index.js"(exports2) {
+  "api-server/node_modules/content-type/index.js"(exports2) {
     "use strict";
     var PARAM_REGEXP = /; *([!#$%&'*+.^_`|~0-9A-Za-z-]+) *= *("(?:[\u000b\u0020\u0021\u0023-\u005b\u005d-\u007e\u0080-\u00ff]|\\[\u000b\u0020-\u00ff])*"|[!#$%&'*+.^_`|~0-9A-Za-z-]+) */g;
     var TEXT_REGEXP = /^[\u000b\u0020-\u007e\u0080-\u00ff]+$/;
@@ -19494,9 +19494,9 @@ var require_content_type = __commonJS({
   }
 });
 
-// node_modules/etag/index.js
+// api-server/node_modules/etag/index.js
 var require_etag = __commonJS({
-  "node_modules/etag/index.js"(exports2, module2) {
+  "api-server/node_modules/etag/index.js"(exports2, module2) {
     "use strict";
     module2.exports = etag;
     var crypto5 = __require("crypto");
@@ -19536,9 +19536,9 @@ var require_etag = __commonJS({
   }
 });
 
-// node_modules/forwarded/index.js
+// api-server/node_modules/forwarded/index.js
 var require_forwarded = __commonJS({
-  "node_modules/forwarded/index.js"(exports2, module2) {
+  "api-server/node_modules/forwarded/index.js"(exports2, module2) {
     "use strict";
     module2.exports = forwarded;
     function forwarded(req) {
@@ -19583,9 +19583,9 @@ var require_forwarded = __commonJS({
   }
 });
 
-// node_modules/ipaddr.js/lib/ipaddr.js
+// api-server/node_modules/ipaddr.js/lib/ipaddr.js
 var require_ipaddr = __commonJS({
-  "node_modules/ipaddr.js/lib/ipaddr.js"(exports2, module2) {
+  "api-server/node_modules/ipaddr.js/lib/ipaddr.js"(exports2, module2) {
     (function() {
       var expandIPv6, ipaddr, ipv4Part, ipv4Regexes, ipv6Part, ipv6Regexes, matchCIDR, root, zoneIndex;
       ipaddr = {};
@@ -20205,9 +20205,9 @@ var require_ipaddr = __commonJS({
   }
 });
 
-// node_modules/proxy-addr/index.js
+// api-server/node_modules/proxy-addr/index.js
 var require_proxy_addr = __commonJS({
-  "node_modules/proxy-addr/index.js"(exports2, module2) {
+  "api-server/node_modules/proxy-addr/index.js"(exports2, module2) {
     "use strict";
     module2.exports = proxyaddr;
     module2.exports.all = alladdrs;
@@ -20364,9 +20364,9 @@ var require_proxy_addr = __commonJS({
   }
 });
 
-// node_modules/express/lib/utils.js
+// api-server/node_modules/express/lib/utils.js
 var require_utils3 = __commonJS({
-  "node_modules/express/lib/utils.js"(exports2) {
+  "api-server/node_modules/express/lib/utils.js"(exports2) {
     "use strict";
     var { METHODS } = __require("node:http");
     var contentType = require_content_type();
@@ -20491,9 +20491,9 @@ var require_utils3 = __commonJS({
   }
 });
 
-// node_modules/wrappy/wrappy.js
+// api-server/node_modules/wrappy/wrappy.js
 var require_wrappy = __commonJS({
-  "node_modules/wrappy/wrappy.js"(exports2, module2) {
+  "api-server/node_modules/wrappy/wrappy.js"(exports2, module2) {
     module2.exports = wrappy;
     function wrappy(fn3, cb2) {
       if (fn3 && cb2) return wrappy(fn3)(cb2);
@@ -20521,9 +20521,9 @@ var require_wrappy = __commonJS({
   }
 });
 
-// node_modules/once/once.js
+// api-server/node_modules/once/once.js
 var require_once = __commonJS({
-  "node_modules/once/once.js"(exports2, module2) {
+  "api-server/node_modules/once/once.js"(exports2, module2) {
     var wrappy = require_wrappy();
     module2.exports = wrappy(once);
     module2.exports.strict = wrappy(onceStrict);
@@ -20565,9 +20565,9 @@ var require_once = __commonJS({
   }
 });
 
-// node_modules/is-promise/index.js
+// api-server/node_modules/is-promise/index.js
 var require_is_promise = __commonJS({
-  "node_modules/is-promise/index.js"(exports2, module2) {
+  "api-server/node_modules/is-promise/index.js"(exports2, module2) {
     module2.exports = isPromise;
     module2.exports.default = isPromise;
     function isPromise(obj) {
@@ -20576,9 +20576,9 @@ var require_is_promise = __commonJS({
   }
 });
 
-// node_modules/path-to-regexp/dist/index.js
+// api-server/node_modules/path-to-regexp/dist/index.js
 var require_dist3 = __commonJS({
-  "node_modules/path-to-regexp/dist/index.js"(exports2) {
+  "api-server/node_modules/path-to-regexp/dist/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.PathError = exports2.TokenData = void 0;
@@ -20945,9 +20945,9 @@ var require_dist3 = __commonJS({
   }
 });
 
-// node_modules/router/lib/layer.js
+// api-server/node_modules/router/lib/layer.js
 var require_layer = __commonJS({
-  "node_modules/router/lib/layer.js"(exports2, module2) {
+  "api-server/node_modules/router/lib/layer.js"(exports2, module2) {
     "use strict";
     var isPromise = require_is_promise();
     var pathRegexp = require_dist3();
@@ -21095,9 +21095,9 @@ var require_layer = __commonJS({
   }
 });
 
-// node_modules/router/lib/route.js
+// api-server/node_modules/router/lib/route.js
 var require_route = __commonJS({
-  "node_modules/router/lib/route.js"(exports2, module2) {
+  "api-server/node_modules/router/lib/route.js"(exports2, module2) {
     "use strict";
     var debug = require_src()("router:route");
     var Layer = require_layer();
@@ -21215,9 +21215,9 @@ var require_route = __commonJS({
   }
 });
 
-// node_modules/router/index.js
+// api-server/node_modules/router/index.js
 var require_router = __commonJS({
-  "node_modules/router/index.js"(exports2, module2) {
+  "api-server/node_modules/router/index.js"(exports2, module2) {
     "use strict";
     var isPromise = require_is_promise();
     var Layer = require_layer();
@@ -21613,9 +21613,9 @@ var require_router = __commonJS({
   }
 });
 
-// node_modules/express/lib/application.js
+// api-server/node_modules/express/lib/application.js
 var require_application = __commonJS({
-  "node_modules/express/lib/application.js"(exports2, module2) {
+  "api-server/node_modules/express/lib/application.js"(exports2, module2) {
     "use strict";
     var finalhandler = require_finalhandler();
     var debug = require_src()("express:application");
@@ -21874,9 +21874,9 @@ var require_application = __commonJS({
   }
 });
 
-// node_modules/negotiator/lib/charset.js
+// api-server/node_modules/negotiator/lib/charset.js
 var require_charset = __commonJS({
-  "node_modules/negotiator/lib/charset.js"(exports2, module2) {
+  "api-server/node_modules/negotiator/lib/charset.js"(exports2, module2) {
     "use strict";
     module2.exports = preferredCharsets;
     module2.exports.preferredCharsets = preferredCharsets;
@@ -21961,9 +21961,9 @@ var require_charset = __commonJS({
   }
 });
 
-// node_modules/negotiator/lib/encoding.js
+// api-server/node_modules/negotiator/lib/encoding.js
 var require_encoding = __commonJS({
-  "node_modules/negotiator/lib/encoding.js"(exports2, module2) {
+  "api-server/node_modules/negotiator/lib/encoding.js"(exports2, module2) {
     "use strict";
     module2.exports = preferredEncodings;
     module2.exports.preferredEncodings = preferredEncodings;
@@ -22074,9 +22074,9 @@ var require_encoding = __commonJS({
   }
 });
 
-// node_modules/negotiator/lib/language.js
+// api-server/node_modules/negotiator/lib/language.js
 var require_language = __commonJS({
-  "node_modules/negotiator/lib/language.js"(exports2, module2) {
+  "api-server/node_modules/negotiator/lib/language.js"(exports2, module2) {
     "use strict";
     module2.exports = preferredLanguages;
     module2.exports.preferredLanguages = preferredLanguages;
@@ -22169,9 +22169,9 @@ var require_language = __commonJS({
   }
 });
 
-// node_modules/negotiator/lib/mediaType.js
+// api-server/node_modules/negotiator/lib/mediaType.js
 var require_mediaType = __commonJS({
-  "node_modules/negotiator/lib/mediaType.js"(exports2, module2) {
+  "api-server/node_modules/negotiator/lib/mediaType.js"(exports2, module2) {
     "use strict";
     module2.exports = preferredMediaTypes;
     module2.exports.preferredMediaTypes = preferredMediaTypes;
@@ -22331,9 +22331,9 @@ var require_mediaType = __commonJS({
   }
 });
 
-// node_modules/negotiator/index.js
+// api-server/node_modules/negotiator/index.js
 var require_negotiator = __commonJS({
-  "node_modules/negotiator/index.js"(exports2, module2) {
+  "api-server/node_modules/negotiator/index.js"(exports2, module2) {
     "use strict";
     var preferredCharsets = require_charset();
     var preferredEncodings = require_encoding();
@@ -22387,9 +22387,9 @@ var require_negotiator = __commonJS({
   }
 });
 
-// node_modules/accepts/index.js
+// api-server/node_modules/accepts/index.js
 var require_accepts = __commonJS({
-  "node_modules/accepts/index.js"(exports2, module2) {
+  "api-server/node_modules/accepts/index.js"(exports2, module2) {
     "use strict";
     var Negotiator = require_negotiator();
     var mime2 = require_mime_types();
@@ -22468,9 +22468,9 @@ var require_accepts = __commonJS({
   }
 });
 
-// node_modules/fresh/index.js
+// api-server/node_modules/fresh/index.js
 var require_fresh = __commonJS({
-  "node_modules/fresh/index.js"(exports2, module2) {
+  "api-server/node_modules/fresh/index.js"(exports2, module2) {
     "use strict";
     var CACHE_CONTROL_NO_CACHE_REGEXP = /(?:^|,)\s*?no-cache\s*?(?:,|$)/;
     module2.exports = fresh;
@@ -22540,9 +22540,9 @@ var require_fresh = __commonJS({
   }
 });
 
-// node_modules/range-parser/index.js
+// api-server/node_modules/range-parser/index.js
 var require_range_parser = __commonJS({
-  "node_modules/range-parser/index.js"(exports2, module2) {
+  "api-server/node_modules/range-parser/index.js"(exports2, module2) {
     "use strict";
     module2.exports = rangeParser;
     function rangeParser(size, str2, options) {
@@ -22633,9 +22633,9 @@ var require_range_parser = __commonJS({
   }
 });
 
-// node_modules/express/lib/request.js
+// api-server/node_modules/express/lib/request.js
 var require_request = __commonJS({
-  "node_modules/express/lib/request.js"(exports2, module2) {
+  "api-server/node_modules/express/lib/request.js"(exports2, module2) {
     "use strict";
     var accepts = require_accepts();
     var isIP2 = __require("node:net").isIP;
@@ -22781,9 +22781,9 @@ var require_request = __commonJS({
   }
 });
 
-// node_modules/content-disposition/index.js
+// api-server/node_modules/content-disposition/index.js
 var require_content_disposition = __commonJS({
-  "node_modules/content-disposition/index.js"(exports2, module2) {
+  "api-server/node_modules/content-disposition/index.js"(exports2, module2) {
     "use strict";
     module2.exports = contentDisposition;
     module2.exports.parse = parse;
@@ -22990,9 +22990,9 @@ var require_content_disposition = __commonJS({
   }
 });
 
-// node_modules/express/node_modules/cookie-signature/index.js
+// api-server/node_modules/express/node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
-  "node_modules/express/node_modules/cookie-signature/index.js"(exports2) {
+  "api-server/node_modules/express/node_modules/cookie-signature/index.js"(exports2) {
     var crypto5 = __require("crypto");
     exports2.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
@@ -23008,9 +23008,9 @@ var require_cookie_signature = __commonJS({
   }
 });
 
-// node_modules/cookie/index.js
+// api-server/node_modules/cookie/index.js
 var require_cookie = __commonJS({
-  "node_modules/cookie/index.js"(exports2) {
+  "api-server/node_modules/cookie/index.js"(exports2) {
     "use strict";
     exports2.parse = parse;
     exports2.serialize = serialize;
@@ -23174,9 +23174,9 @@ var require_cookie = __commonJS({
   }
 });
 
-// node_modules/send/index.js
+// api-server/node_modules/send/index.js
 var require_send = __commonJS({
-  "node_modules/send/index.js"(exports2, module2) {
+  "api-server/node_modules/send/index.js"(exports2, module2) {
     "use strict";
     var createError = require_http_errors();
     var debug = require_src()("send");
@@ -23657,9 +23657,9 @@ var require_send = __commonJS({
   }
 });
 
-// node_modules/vary/index.js
+// api-server/node_modules/vary/index.js
 var require_vary = __commonJS({
-  "node_modules/vary/index.js"(exports2, module2) {
+  "api-server/node_modules/vary/index.js"(exports2, module2) {
     "use strict";
     module2.exports = vary;
     module2.exports.append = append2;
@@ -23730,9 +23730,9 @@ var require_vary = __commonJS({
   }
 });
 
-// node_modules/express/lib/response.js
+// api-server/node_modules/express/lib/response.js
 var require_response = __commonJS({
-  "node_modules/express/lib/response.js"(exports2, module2) {
+  "api-server/node_modules/express/lib/response.js"(exports2, module2) {
     "use strict";
     var contentDisposition = require_content_disposition();
     var createError = require_http_errors();
@@ -24200,9 +24200,9 @@ var require_response = __commonJS({
   }
 });
 
-// node_modules/serve-static/index.js
+// api-server/node_modules/serve-static/index.js
 var require_serve_static = __commonJS({
-  "node_modules/serve-static/index.js"(exports2, module2) {
+  "api-server/node_modules/serve-static/index.js"(exports2, module2) {
     "use strict";
     var encodeUrl = require_encodeurl();
     var escapeHtml = require_escape_html();
@@ -24304,9 +24304,9 @@ var require_serve_static = __commonJS({
   }
 });
 
-// node_modules/express/lib/express.js
+// api-server/node_modules/express/lib/express.js
 var require_express = __commonJS({
-  "node_modules/express/lib/express.js"(exports2, module2) {
+  "api-server/node_modules/express/lib/express.js"(exports2, module2) {
     "use strict";
     var bodyParser = require_body_parser();
     var EventEmitter2 = __require("node:events").EventEmitter;
@@ -24344,17 +24344,17 @@ var require_express = __commonJS({
   }
 });
 
-// node_modules/express/index.js
+// api-server/node_modules/express/index.js
 var require_express2 = __commonJS({
-  "node_modules/express/index.js"(exports2, module2) {
+  "api-server/node_modules/express/index.js"(exports2, module2) {
     "use strict";
     module2.exports = require_express();
   }
 });
 
-// node_modules/object-assign/index.js
+// api-server/node_modules/object-assign/index.js
 var require_object_assign = __commonJS({
-  "node_modules/object-assign/index.js"(exports2, module2) {
+  "api-server/node_modules/object-assign/index.js"(exports2, module2) {
     "use strict";
     var getOwnPropertySymbols = Object.getOwnPropertySymbols;
     var hasOwnProperty2 = Object.prototype.hasOwnProperty;
@@ -24422,9 +24422,9 @@ var require_object_assign = __commonJS({
   }
 });
 
-// node_modules/cors/lib/index.js
+// api-server/node_modules/cors/lib/index.js
 var require_lib3 = __commonJS({
-  "node_modules/cors/lib/index.js"(exports2, module2) {
+  "api-server/node_modules/cors/lib/index.js"(exports2, module2) {
     (function() {
       "use strict";
       var assign = require_object_assign();
@@ -24630,9 +24630,9 @@ var require_lib3 = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/lib/err-helpers.js
+// api-server/node_modules/pino-std-serializers/lib/err-helpers.js
 var require_err_helpers = __commonJS({
-  "node_modules/pino-std-serializers/lib/err-helpers.js"(exports2, module2) {
+  "api-server/node_modules/pino-std-serializers/lib/err-helpers.js"(exports2, module2) {
     "use strict";
     var isErrorLike = (err2) => {
       return err2 && typeof err2.message === "string";
@@ -24687,9 +24687,9 @@ var require_err_helpers = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/lib/err-proto.js
+// api-server/node_modules/pino-std-serializers/lib/err-proto.js
 var require_err_proto = __commonJS({
-  "node_modules/pino-std-serializers/lib/err-proto.js"(exports2, module2) {
+  "api-server/node_modules/pino-std-serializers/lib/err-proto.js"(exports2, module2) {
     "use strict";
     var seen = /* @__PURE__ */ Symbol("circular-ref-tag");
     var rawSymbol = /* @__PURE__ */ Symbol("pino-raw-err-ref");
@@ -24738,9 +24738,9 @@ var require_err_proto = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/lib/err.js
+// api-server/node_modules/pino-std-serializers/lib/err.js
 var require_err = __commonJS({
-  "node_modules/pino-std-serializers/lib/err.js"(exports2, module2) {
+  "api-server/node_modules/pino-std-serializers/lib/err.js"(exports2, module2) {
     "use strict";
     module2.exports = errSerializer;
     var { messageWithCauses, stackWithCauses, isErrorLike } = require_err_helpers();
@@ -24778,9 +24778,9 @@ var require_err = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/lib/err-with-cause.js
+// api-server/node_modules/pino-std-serializers/lib/err-with-cause.js
 var require_err_with_cause = __commonJS({
-  "node_modules/pino-std-serializers/lib/err-with-cause.js"(exports2, module2) {
+  "api-server/node_modules/pino-std-serializers/lib/err-with-cause.js"(exports2, module2) {
     "use strict";
     module2.exports = errWithCauseSerializer;
     var { isErrorLike } = require_err_helpers();
@@ -24821,9 +24821,9 @@ var require_err_with_cause = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/lib/req.js
+// api-server/node_modules/pino-std-serializers/lib/req.js
 var require_req = __commonJS({
-  "node_modules/pino-std-serializers/lib/req.js"(exports2, module2) {
+  "api-server/node_modules/pino-std-serializers/lib/req.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       mapHttpRequest,
@@ -24916,9 +24916,9 @@ var require_req = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/lib/res.js
+// api-server/node_modules/pino-std-serializers/lib/res.js
 var require_res = __commonJS({
-  "node_modules/pino-std-serializers/lib/res.js"(exports2, module2) {
+  "api-server/node_modules/pino-std-serializers/lib/res.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       mapHttpResponse,
@@ -24965,9 +24965,9 @@ var require_res = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/index.js
+// api-server/node_modules/pino-std-serializers/index.js
 var require_pino_std_serializers = __commonJS({
-  "node_modules/pino-std-serializers/index.js"(exports2, module2) {
+  "api-server/node_modules/pino-std-serializers/index.js"(exports2, module2) {
     "use strict";
     var errSerializer = require_err();
     var errWithCauseSerializer = require_err_with_cause();
@@ -25002,9 +25002,9 @@ var require_pino_std_serializers = __commonJS({
   }
 });
 
-// node_modules/pino/lib/caller.js
+// api-server/node_modules/pino/lib/caller.js
 var require_caller = __commonJS({
-  "node_modules/pino/lib/caller.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/caller.js"(exports2, module2) {
     "use strict";
     function noOpPrepareStackTrace(_10, stack) {
       return stack;
@@ -25030,9 +25030,9 @@ var require_caller = __commonJS({
   }
 });
 
-// node_modules/@pinojs/redact/index.js
+// api-server/node_modules/@pinojs/redact/index.js
 var require_redact = __commonJS({
-  "node_modules/@pinojs/redact/index.js"(exports2, module2) {
+  "api-server/node_modules/@pinojs/redact/index.js"(exports2, module2) {
     "use strict";
     function deepClone(obj) {
       if (obj === null || typeof obj !== "object") {
@@ -25463,9 +25463,9 @@ var require_redact = __commonJS({
   }
 });
 
-// node_modules/pino/lib/symbols.js
+// api-server/node_modules/pino/lib/symbols.js
 var require_symbols = __commonJS({
-  "node_modules/pino/lib/symbols.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/symbols.js"(exports2, module2) {
     "use strict";
     var setLevelSym = /* @__PURE__ */ Symbol("pino.setLevel");
     var getLevelSym = /* @__PURE__ */ Symbol("pino.getLevel");
@@ -25534,9 +25534,9 @@ var require_symbols = __commonJS({
   }
 });
 
-// node_modules/pino/lib/redaction.js
+// api-server/node_modules/pino/lib/redaction.js
 var require_redaction = __commonJS({
-  "node_modules/pino/lib/redaction.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/redaction.js"(exports2, module2) {
     "use strict";
     var Redact = require_redact();
     var { redactFmtSym, wildcardFirstSym } = require_symbols();
@@ -25616,9 +25616,9 @@ var require_redaction = __commonJS({
   }
 });
 
-// node_modules/pino/lib/time.js
+// api-server/node_modules/pino/lib/time.js
 var require_time = __commonJS({
-  "node_modules/pino/lib/time.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/time.js"(exports2, module2) {
     "use strict";
     var nullTime = () => "";
     var epochTime = () => `,"time":${Date.now()}`;
@@ -25647,9 +25647,9 @@ var require_time = __commonJS({
   }
 });
 
-// node_modules/quick-format-unescaped/index.js
+// api-server/node_modules/quick-format-unescaped/index.js
 var require_quick_format_unescaped = __commonJS({
-  "node_modules/quick-format-unescaped/index.js"(exports2, module2) {
+  "api-server/node_modules/quick-format-unescaped/index.js"(exports2, module2) {
     "use strict";
     function tryStringify(o10) {
       try {
@@ -25766,9 +25766,9 @@ var require_quick_format_unescaped = __commonJS({
   }
 });
 
-// node_modules/atomic-sleep/index.js
+// api-server/node_modules/atomic-sleep/index.js
 var require_atomic_sleep = __commonJS({
-  "node_modules/atomic-sleep/index.js"(exports2, module2) {
+  "api-server/node_modules/atomic-sleep/index.js"(exports2, module2) {
     "use strict";
     if (typeof SharedArrayBuffer !== "undefined" && typeof Atomics !== "undefined") {
       let sleep6 = function(ms2) {
@@ -25801,9 +25801,9 @@ var require_atomic_sleep = __commonJS({
   }
 });
 
-// node_modules/sonic-boom/index.js
+// api-server/node_modules/sonic-boom/index.js
 var require_sonic_boom = __commonJS({
-  "node_modules/sonic-boom/index.js"(exports2, module2) {
+  "api-server/node_modules/sonic-boom/index.js"(exports2, module2) {
     "use strict";
     var fs7 = __require("fs");
     var EventEmitter2 = __require("events");
@@ -26388,9 +26388,9 @@ var require_sonic_boom = __commonJS({
   }
 });
 
-// node_modules/on-exit-leak-free/index.js
+// api-server/node_modules/on-exit-leak-free/index.js
 var require_on_exit_leak_free = __commonJS({
-  "node_modules/on-exit-leak-free/index.js"(exports2, module2) {
+  "api-server/node_modules/on-exit-leak-free/index.js"(exports2, module2) {
     "use strict";
     var refs = {
       exit: [],
@@ -26482,9 +26482,9 @@ var require_on_exit_leak_free = __commonJS({
   }
 });
 
-// node_modules/thread-stream/package.json
+// api-server/node_modules/thread-stream/package.json
 var require_package = __commonJS({
-  "node_modules/thread-stream/package.json"(exports2, module2) {
+  "api-server/node_modules/thread-stream/package.json"(exports2, module2) {
     module2.exports = {
       name: "thread-stream",
       version: "3.1.0",
@@ -26545,9 +26545,9 @@ var require_package = __commonJS({
   }
 });
 
-// node_modules/thread-stream/lib/wait.js
+// api-server/node_modules/thread-stream/lib/wait.js
 var require_wait = __commonJS({
-  "node_modules/thread-stream/lib/wait.js"(exports2, module2) {
+  "api-server/node_modules/thread-stream/lib/wait.js"(exports2, module2) {
     "use strict";
     var MAX_TIMEOUT = 1e3;
     function wait(state, index, expected, timeout, done) {
@@ -26603,9 +26603,9 @@ var require_wait = __commonJS({
   }
 });
 
-// node_modules/thread-stream/lib/indexes.js
+// api-server/node_modules/thread-stream/lib/indexes.js
 var require_indexes = __commonJS({
-  "node_modules/thread-stream/lib/indexes.js"(exports2, module2) {
+  "api-server/node_modules/thread-stream/lib/indexes.js"(exports2, module2) {
     "use strict";
     var WRITE_INDEX = 4;
     var READ_INDEX = 8;
@@ -26616,9 +26616,9 @@ var require_indexes = __commonJS({
   }
 });
 
-// node_modules/thread-stream/index.js
+// api-server/node_modules/thread-stream/index.js
 var require_thread_stream = __commonJS({
-  "node_modules/thread-stream/index.js"(exports2, module2) {
+  "api-server/node_modules/thread-stream/index.js"(exports2, module2) {
     "use strict";
     var { version: version3 } = require_package();
     var { EventEmitter: EventEmitter2 } = __require("events");
@@ -27039,9 +27039,9 @@ var require_thread_stream = __commonJS({
   }
 });
 
-// node_modules/pino/lib/transport.js
+// api-server/node_modules/pino/lib/transport.js
 var require_transport = __commonJS({
-  "node_modules/pino/lib/transport.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/transport.js"(exports2, module2) {
     "use strict";
     var { createRequire } = __require("module");
     var getCallers = require_caller();
@@ -27170,9 +27170,9 @@ var require_transport = __commonJS({
   }
 });
 
-// node_modules/pino/lib/tools.js
+// api-server/node_modules/pino/lib/tools.js
 var require_tools = __commonJS({
-  "node_modules/pino/lib/tools.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/tools.js"(exports2, module2) {
     "use strict";
     var diagChan = __require("node:diagnostics_channel");
     var format = require_quick_format_unescaped();
@@ -27507,9 +27507,9 @@ var require_tools = __commonJS({
   }
 });
 
-// node_modules/pino/lib/constants.js
+// api-server/node_modules/pino/lib/constants.js
 var require_constants = __commonJS({
-  "node_modules/pino/lib/constants.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/constants.js"(exports2, module2) {
     var DEFAULT_LEVELS = {
       trace: 10,
       debug: 20,
@@ -27529,9 +27529,9 @@ var require_constants = __commonJS({
   }
 });
 
-// node_modules/pino/lib/levels.js
+// api-server/node_modules/pino/lib/levels.js
 var require_levels = __commonJS({
-  "node_modules/pino/lib/levels.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/levels.js"(exports2, module2) {
     "use strict";
     var {
       lsCacheSym,
@@ -27722,17 +27722,17 @@ var require_levels = __commonJS({
   }
 });
 
-// node_modules/pino/lib/meta.js
+// api-server/node_modules/pino/lib/meta.js
 var require_meta = __commonJS({
-  "node_modules/pino/lib/meta.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/meta.js"(exports2, module2) {
     "use strict";
     module2.exports = { version: "9.14.0" };
   }
 });
 
-// node_modules/pino/lib/proto.js
+// api-server/node_modules/pino/lib/proto.js
 var require_proto = __commonJS({
-  "node_modules/pino/lib/proto.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/proto.js"(exports2, module2) {
     "use strict";
     var { EventEmitter: EventEmitter2 } = __require("node:events");
     var {
@@ -27961,9 +27961,9 @@ var require_proto = __commonJS({
   }
 });
 
-// node_modules/safe-stable-stringify/index.js
+// api-server/node_modules/safe-stable-stringify/index.js
 var require_safe_stable_stringify = __commonJS({
-  "node_modules/safe-stable-stringify/index.js"(exports2, module2) {
+  "api-server/node_modules/safe-stable-stringify/index.js"(exports2, module2) {
     "use strict";
     var { hasOwnProperty: hasOwnProperty2 } = Object.prototype;
     var stringify2 = configure();
@@ -28557,9 +28557,9 @@ ${originalIndentation}`;
   }
 });
 
-// node_modules/pino/lib/multistream.js
+// api-server/node_modules/pino/lib/multistream.js
 var require_multistream = __commonJS({
-  "node_modules/pino/lib/multistream.js"(exports2, module2) {
+  "api-server/node_modules/pino/lib/multistream.js"(exports2, module2) {
     "use strict";
     var metadata2 = /* @__PURE__ */ Symbol.for("pino.metadata");
     var { DEFAULT_LEVELS } = require_constants();
@@ -28725,9 +28725,9 @@ var require_multistream = __commonJS({
   }
 });
 
-// node_modules/pino/pino.js
+// api-server/node_modules/pino/pino.js
 var require_pino = __commonJS({
-  "node_modules/pino/pino.js"(exports2, module2) {
+  "api-server/node_modules/pino/pino.js"(exports2, module2) {
     function pinoBundlerAbsolutePath(p10) {
       try {
         const path7 = __require("path");
@@ -28945,9 +28945,9 @@ var require_pino = __commonJS({
   }
 });
 
-// node_modules/get-caller-file/index.js
+// api-server/node_modules/get-caller-file/index.js
 var require_get_caller_file = __commonJS({
-  "node_modules/get-caller-file/index.js"(exports2, module2) {
+  "api-server/node_modules/get-caller-file/index.js"(exports2, module2) {
     "use strict";
     module2.exports = function getCallerFile(position) {
       if (position === void 0) {
@@ -28969,9 +28969,9 @@ var require_get_caller_file = __commonJS({
   }
 });
 
-// node_modules/pino-http/logger.js
+// api-server/node_modules/pino-http/logger.js
 var require_logger = __commonJS({
-  "node_modules/pino-http/logger.js"(exports2, module2) {
+  "api-server/node_modules/pino-http/logger.js"(exports2, module2) {
     "use strict";
     var { pino: pino2, symbols: { stringifySym, chindingsSym } } = require_pino();
     var serializers = require_pino_std_serializers();
@@ -29193,7 +29193,7 @@ var require_logger = __commonJS({
   }
 });
 
-// src/lib/llmEnv.ts
+// api-server/src/lib/llmEnv.ts
 function getGeminiApiKey() {
   return process.env["gemini_ia"]?.trim() || process.env["GEMINI_IA"]?.trim() || process.env["GEMINI_API_KEY"]?.trim() || process.env["GOOGLE_API_KEY"]?.trim() || process.env["GEMINI_KEY"]?.trim() || "";
 }
@@ -29266,7 +29266,7 @@ function llmKeyPrefix() {
 }
 var DEFAULT_GEMINI_MODEL, DEFAULT_OPENAI_CHAT_MODEL, BLOCKED_IMAGE_GEN_MODEL, BLOCKED_TEXT_MODEL;
 var init_llmEnv = __esm({
-  "src/lib/llmEnv.ts"() {
+  "api-server/src/lib/llmEnv.ts"() {
     "use strict";
     init_openaiEnv();
     DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
@@ -29276,7 +29276,7 @@ var init_llmEnv = __esm({
   }
 });
 
-// node_modules/openai/internal/tslib.mjs
+// api-server/node_modules/openai/internal/tslib.mjs
 function __classPrivateFieldSet(receiver, state, value, kind, f10) {
   if (kind === "m")
     throw new TypeError("Private method is not writable");
@@ -29294,14 +29294,14 @@ function __classPrivateFieldGet(receiver, state, kind, f10) {
   return kind === "m" ? f10 : kind === "a" ? f10.call(receiver) : f10 ? f10.value : state.get(receiver);
 }
 var init_tslib = __esm({
-  "node_modules/openai/internal/tslib.mjs"() {
+  "api-server/node_modules/openai/internal/tslib.mjs"() {
   }
 });
 
-// node_modules/openai/internal/utils/uuid.mjs
+// api-server/node_modules/openai/internal/utils/uuid.mjs
 var uuid4;
 var init_uuid = __esm({
-  "node_modules/openai/internal/utils/uuid.mjs"() {
+  "api-server/node_modules/openai/internal/utils/uuid.mjs"() {
     uuid4 = function() {
       const { crypto: crypto5 } = globalThis;
       if (crypto5?.randomUUID) {
@@ -29315,7 +29315,7 @@ var init_uuid = __esm({
   }
 });
 
-// node_modules/openai/internal/errors.mjs
+// api-server/node_modules/openai/internal/errors.mjs
 function isAbortError(err2) {
   return typeof err2 === "object" && err2 !== null && // Spec-compliant fetch implementations
   ("name" in err2 && err2.name === "AbortError" || // Expo fetch
@@ -29323,7 +29323,7 @@ function isAbortError(err2) {
 }
 var castToError;
 var init_errors = __esm({
-  "node_modules/openai/internal/errors.mjs"() {
+  "api-server/node_modules/openai/internal/errors.mjs"() {
     castToError = (err2) => {
       if (err2 instanceof Error)
         return err2;
@@ -29351,10 +29351,10 @@ var init_errors = __esm({
   }
 });
 
-// node_modules/openai/core/error.mjs
+// api-server/node_modules/openai/core/error.mjs
 var OpenAIError, APIError, APIUserAbortError, APIConnectionError, APIConnectionTimeoutError, BadRequestError, AuthenticationError, PermissionDeniedError, NotFoundError, ConflictError, UnprocessableEntityError, RateLimitError, InternalServerError, LengthFinishReasonError, ContentFilterFinishReasonError, InvalidWebhookSignatureError, OAuthError, SubjectTokenProviderError;
 var init_error = __esm({
-  "node_modules/openai/core/error.mjs"() {
+  "api-server/node_modules/openai/core/error.mjs"() {
     init_errors();
     OpenAIError = class extends Error {
     };
@@ -29491,7 +29491,7 @@ var init_error = __esm({
   }
 });
 
-// node_modules/openai/internal/utils/values.mjs
+// api-server/node_modules/openai/internal/utils/values.mjs
 function maybeObj(x10) {
   if (typeof x10 !== "object") {
     return {};
@@ -29513,7 +29513,7 @@ function isObj(obj) {
 }
 var startsWithSchemeRegexp, isAbsoluteURL, isArray, isReadonlyArray, validatePositiveInteger, safeJSON;
 var init_values = __esm({
-  "node_modules/openai/internal/utils/values.mjs"() {
+  "api-server/node_modules/openai/internal/utils/values.mjs"() {
     init_error();
     startsWithSchemeRegexp = /^[a-z][a-z0-9+.-]*:/i;
     isAbsoluteURL = (url2) => {
@@ -29540,23 +29540,23 @@ var init_values = __esm({
   }
 });
 
-// node_modules/openai/internal/utils/sleep.mjs
+// api-server/node_modules/openai/internal/utils/sleep.mjs
 var sleep;
 var init_sleep = __esm({
-  "node_modules/openai/internal/utils/sleep.mjs"() {
+  "api-server/node_modules/openai/internal/utils/sleep.mjs"() {
     sleep = (ms2) => new Promise((resolve3) => setTimeout(resolve3, ms2));
   }
 });
 
-// node_modules/openai/version.mjs
+// api-server/node_modules/openai/version.mjs
 var VERSION;
 var init_version = __esm({
-  "node_modules/openai/version.mjs"() {
+  "api-server/node_modules/openai/version.mjs"() {
     VERSION = "6.45.0";
   }
 });
 
-// node_modules/openai/internal/detect-platform.mjs
+// api-server/node_modules/openai/internal/detect-platform.mjs
 function getDetectedPlatform() {
   if (typeof Deno !== "undefined" && Deno.build != null) {
     return "deno";
@@ -29594,7 +29594,7 @@ function getBrowserInfo() {
 }
 var isRunningInBrowser, getPlatformProperties, normalizeArch, normalizePlatform, _platformHeaders, getPlatformHeaders;
 var init_detect_platform = __esm({
-  "node_modules/openai/internal/detect-platform.mjs"() {
+  "api-server/node_modules/openai/internal/detect-platform.mjs"() {
     init_version();
     isRunningInBrowser = () => {
       return (
@@ -29695,7 +29695,7 @@ var init_detect_platform = __esm({
   }
 });
 
-// node_modules/openai/internal/shims.mjs
+// api-server/node_modules/openai/internal/shims.mjs
 function getDefaultFetch() {
   if (typeof fetch !== "undefined") {
     return fetch;
@@ -29767,14 +29767,14 @@ async function CancelReadableStream(stream5) {
   await cancelPromise;
 }
 var init_shims = __esm({
-  "node_modules/openai/internal/shims.mjs"() {
+  "api-server/node_modules/openai/internal/shims.mjs"() {
   }
 });
 
-// node_modules/openai/internal/request-options.mjs
+// api-server/node_modules/openai/internal/request-options.mjs
 var FallbackEncoder;
 var init_request_options = __esm({
-  "node_modules/openai/internal/request-options.mjs"() {
+  "api-server/node_modules/openai/internal/request-options.mjs"() {
     FallbackEncoder = ({ headers, body: body2 }) => {
       return {
         bodyHeaders: {
@@ -29786,10 +29786,10 @@ var init_request_options = __esm({
   }
 });
 
-// node_modules/openai/internal/qs/formats.mjs
+// api-server/node_modules/openai/internal/qs/formats.mjs
 var default_format, default_formatter, formatters, RFC1738;
 var init_formats = __esm({
-  "node_modules/openai/internal/qs/formats.mjs"() {
+  "api-server/node_modules/openai/internal/qs/formats.mjs"() {
     default_format = "RFC3986";
     default_formatter = (v10) => String(v10);
     formatters = {
@@ -29800,7 +29800,7 @@ var init_formats = __esm({
   }
 });
 
-// node_modules/openai/internal/qs/utils.mjs
+// api-server/node_modules/openai/internal/qs/utils.mjs
 function is_buffer(obj) {
   if (!obj || typeof obj !== "object") {
     return false;
@@ -29819,7 +29819,7 @@ function maybe_map(val, fn3) {
 }
 var has, hex_table, limit, encode;
 var init_utils = __esm({
-  "node_modules/openai/internal/qs/utils.mjs"() {
+  "api-server/node_modules/openai/internal/qs/utils.mjs"() {
     init_formats();
     init_values();
     has = (obj, key) => (has = Object.hasOwn ?? Function.prototype.call.bind(Object.prototype.hasOwnProperty), has(obj, key));
@@ -29886,7 +29886,7 @@ var init_utils = __esm({
   }
 });
 
-// node_modules/openai/internal/qs/stringify.mjs
+// api-server/node_modules/openai/internal/qs/stringify.mjs
 function is_non_nullish_primitive(v10) {
   return typeof v10 === "string" || typeof v10 === "number" || typeof v10 === "boolean" || typeof v10 === "symbol" || typeof v10 === "bigint";
 }
@@ -30126,7 +30126,7 @@ function stringify(object, opts = {}) {
 }
 var array_prefix_generators, push_to_array, toISOString, defaults, sentinel;
 var init_stringify = __esm({
-  "node_modules/openai/internal/qs/stringify.mjs"() {
+  "api-server/node_modules/openai/internal/qs/stringify.mjs"() {
     init_utils();
     init_formats();
     init_values();
@@ -30171,17 +30171,17 @@ var init_stringify = __esm({
   }
 });
 
-// node_modules/openai/internal/utils/query.mjs
+// api-server/node_modules/openai/internal/utils/query.mjs
 function stringifyQuery(query) {
   return stringify(query, { arrayFormat: "brackets" });
 }
 var init_query = __esm({
-  "node_modules/openai/internal/utils/query.mjs"() {
+  "api-server/node_modules/openai/internal/utils/query.mjs"() {
     init_stringify();
   }
 });
 
-// node_modules/openai/internal/utils/bytes.mjs
+// api-server/node_modules/openai/internal/utils/bytes.mjs
 function concatBytes(buffers) {
   let length = 0;
   for (const buffer of buffers) {
@@ -30205,11 +30205,11 @@ function decodeUTF8(bytes) {
 }
 var encodeUTF8_, decodeUTF8_;
 var init_bytes = __esm({
-  "node_modules/openai/internal/utils/bytes.mjs"() {
+  "api-server/node_modules/openai/internal/utils/bytes.mjs"() {
   }
 });
 
-// node_modules/openai/internal/decoders/line.mjs
+// api-server/node_modules/openai/internal/decoders/line.mjs
 function findNewlineIndex(buffer, startIndex) {
   const newline = 10;
   const carriage = 13;
@@ -30241,7 +30241,7 @@ function findDoubleNewlineIndex(buffer) {
 }
 var _LineDecoder_buffer, _LineDecoder_carriageReturnIndex, LineDecoder;
 var init_line = __esm({
-  "node_modules/openai/internal/decoders/line.mjs"() {
+  "api-server/node_modules/openai/internal/decoders/line.mjs"() {
     init_tslib();
     init_bytes();
     LineDecoder = class {
@@ -30291,7 +30291,7 @@ var init_line = __esm({
   }
 });
 
-// node_modules/openai/internal/utils/log.mjs
+// api-server/node_modules/openai/internal/utils/log.mjs
 function noop() {
 }
 function makeLogFn(fnLevel, logger2, logLevel) {
@@ -30322,7 +30322,7 @@ function loggerFor(client2) {
 }
 var levelNumbers, parseLogLevel, noopLogger, cachedLoggers, formatRequestDetails;
 var init_log = __esm({
-  "node_modules/openai/internal/utils/log.mjs"() {
+  "api-server/node_modules/openai/internal/utils/log.mjs"() {
     init_values();
     levelNumbers = {
       off: 0,
@@ -30370,7 +30370,7 @@ var init_log = __esm({
   }
 });
 
-// node_modules/openai/core/streaming.mjs
+// api-server/node_modules/openai/core/streaming.mjs
 async function* _iterSSEMessages(response, controller) {
   if (!response.body) {
     controller.abort();
@@ -30425,7 +30425,7 @@ function partition(str2, delimiter) {
 }
 var _Stream_client, Stream, SSEDecoder;
 var init_streaming = __esm({
-  "node_modules/openai/core/streaming.mjs"() {
+  "api-server/node_modules/openai/core/streaming.mjs"() {
     init_tslib();
     init_error();
     init_shims();
@@ -30641,7 +30641,7 @@ var init_streaming = __esm({
   }
 });
 
-// node_modules/openai/internal/parse.mjs
+// api-server/node_modules/openai/internal/parse.mjs
 async function defaultParseResponse(client2, props) {
   const { response, requestLogID, retryOfRequestLogID, startTime } = props;
   const body2 = await (async () => {
@@ -30691,16 +30691,16 @@ function addRequestID(value, response) {
   });
 }
 var init_parse = __esm({
-  "node_modules/openai/internal/parse.mjs"() {
+  "api-server/node_modules/openai/internal/parse.mjs"() {
     init_streaming();
     init_log();
   }
 });
 
-// node_modules/openai/core/api-promise.mjs
+// api-server/node_modules/openai/core/api-promise.mjs
 var _APIPromise_client, APIPromise;
 var init_api_promise = __esm({
-  "node_modules/openai/core/api-promise.mjs"() {
+  "api-server/node_modules/openai/core/api-promise.mjs"() {
     init_tslib();
     init_parse();
     APIPromise = class _APIPromise extends Promise {
@@ -30766,10 +30766,10 @@ var init_api_promise = __esm({
   }
 });
 
-// node_modules/openai/core/pagination.mjs
+// api-server/node_modules/openai/core/pagination.mjs
 var _AbstractPage_client, AbstractPage, PagePromise, Page, CursorPage, ConversationCursorPage, NextCursorPage;
 var init_pagination = __esm({
-  "node_modules/openai/core/pagination.mjs"() {
+  "api-server/node_modules/openai/core/pagination.mjs"() {
     init_tslib();
     init_error();
     init_parse();
@@ -30936,10 +30936,10 @@ var init_pagination = __esm({
   }
 });
 
-// node_modules/openai/auth/workload-identity-auth.mjs
+// api-server/node_modules/openai/auth/workload-identity-auth.mjs
 var SUBJECT_TOKEN_TYPES, TOKEN_EXCHANGE_GRANT_TYPE, WorkloadIdentityAuth;
 var init_workload_identity_auth = __esm({
-  "node_modules/openai/auth/workload-identity-auth.mjs"() {
+  "api-server/node_modules/openai/auth/workload-identity-auth.mjs"() {
     init_shims();
     init_error();
     SUBJECT_TOKEN_TYPES = {
@@ -31035,7 +31035,7 @@ var init_workload_identity_auth = __esm({
   }
 });
 
-// node_modules/openai/internal/uploads.mjs
+// api-server/node_modules/openai/internal/uploads.mjs
 function makeFile(fileBits, fileName, options) {
   checkFileSupport();
   return new File(fileBits, fileName ?? "unknown_file", options);
@@ -31065,7 +31065,7 @@ function supportsFormData(fetchObject) {
 }
 var checkFileSupport, isAsyncIterable, maybeMultipartFormRequestOptions, multipartFormRequestOptions, supportsFormDataMap, createForm, isNamedBlob, isUploadable, hasUploadableValue, addFormValue;
 var init_uploads = __esm({
-  "node_modules/openai/internal/uploads.mjs"() {
+  "api-server/node_modules/openai/internal/uploads.mjs"() {
     init_shims();
     checkFileSupport = () => {
       if (typeof File === "undefined") {
@@ -31132,7 +31132,7 @@ var init_uploads = __esm({
   }
 });
 
-// node_modules/openai/internal/to-file.mjs
+// api-server/node_modules/openai/internal/to-file.mjs
 async function toFile(value, name2, options) {
   checkFileSupport();
   value = await value;
@@ -31182,7 +31182,7 @@ function propsForError(value) {
 }
 var isBlobLike, isFileLike, isResponseLike;
 var init_to_file = __esm({
-  "node_modules/openai/internal/to-file.mjs"() {
+  "api-server/node_modules/openai/internal/to-file.mjs"() {
     init_uploads();
     init_uploads();
     isBlobLike = (value) => value != null && typeof value === "object" && typeof value.size === "number" && typeof value.type === "string" && typeof value.text === "function" && typeof value.slice === "function" && typeof value.arrayBuffer === "function";
@@ -31191,17 +31191,17 @@ var init_to_file = __esm({
   }
 });
 
-// node_modules/openai/core/uploads.mjs
+// api-server/node_modules/openai/core/uploads.mjs
 var init_uploads2 = __esm({
-  "node_modules/openai/core/uploads.mjs"() {
+  "api-server/node_modules/openai/core/uploads.mjs"() {
     init_to_file();
   }
 });
 
-// node_modules/openai/core/resource.mjs
+// api-server/node_modules/openai/core/resource.mjs
 var APIResource;
 var init_resource = __esm({
-  "node_modules/openai/core/resource.mjs"() {
+  "api-server/node_modules/openai/core/resource.mjs"() {
     APIResource = class {
       constructor(client2) {
         this._client = client2;
@@ -31210,13 +31210,13 @@ var init_resource = __esm({
   }
 });
 
-// node_modules/openai/internal/utils/path.mjs
+// api-server/node_modules/openai/internal/utils/path.mjs
 function encodeURIPath(str2) {
   return str2.replace(/[^A-Za-z0-9\-._~!$&'()*+,;=:@]+/g, encodeURIComponent);
 }
 var EMPTY, createPathTagFunction, path;
 var init_path = __esm({
-  "node_modules/openai/internal/utils/path.mjs"() {
+  "api-server/node_modules/openai/internal/utils/path.mjs"() {
     init_error();
     EMPTY = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.create(null));
     createPathTagFunction = (pathEncoder = encodeURIPath) => function path7(statics, ...params) {
@@ -31271,10 +31271,10 @@ ${underline}`);
   }
 });
 
-// node_modules/openai/resources/chat/completions/messages.mjs
+// api-server/node_modules/openai/resources/chat/completions/messages.mjs
 var Messages;
 var init_messages = __esm({
-  "node_modules/openai/resources/chat/completions/messages.mjs"() {
+  "api-server/node_modules/openai/resources/chat/completions/messages.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -31300,14 +31300,14 @@ var init_messages = __esm({
   }
 });
 
-// node_modules/openai/error.mjs
+// api-server/node_modules/openai/error.mjs
 var init_error2 = __esm({
-  "node_modules/openai/error.mjs"() {
+  "api-server/node_modules/openai/error.mjs"() {
     init_error();
   }
 });
 
-// node_modules/openai/lib/parser.mjs
+// api-server/node_modules/openai/lib/parser.mjs
 function isChatCompletionFunctionTool(tool) {
   return tool !== void 0 && "function" in tool && tool.function !== void 0;
 }
@@ -31414,15 +31414,15 @@ function validateInputTools(tools) {
   }
 }
 var init_parser = __esm({
-  "node_modules/openai/lib/parser.mjs"() {
+  "api-server/node_modules/openai/lib/parser.mjs"() {
     init_error2();
   }
 });
 
-// node_modules/openai/lib/chatCompletionUtils.mjs
+// api-server/node_modules/openai/lib/chatCompletionUtils.mjs
 var isAssistantMessage, isToolMessage;
 var init_chatCompletionUtils = __esm({
-  "node_modules/openai/lib/chatCompletionUtils.mjs"() {
+  "api-server/node_modules/openai/lib/chatCompletionUtils.mjs"() {
     isAssistantMessage = (message) => {
       return message?.role === "assistant";
     };
@@ -31432,10 +31432,10 @@ var init_chatCompletionUtils = __esm({
   }
 });
 
-// node_modules/openai/lib/EventStream.mjs
+// api-server/node_modules/openai/lib/EventStream.mjs
 var _EventStream_instances, _EventStream_connectedPromise, _EventStream_resolveConnectedPromise, _EventStream_rejectConnectedPromise, _EventStream_endPromise, _EventStream_resolveEndPromise, _EventStream_rejectEndPromise, _EventStream_listeners, _EventStream_abortListeners, _EventStream_ended, _EventStream_errored, _EventStream_aborted, _EventStream_catchingPromiseCreated, _EventStream_removeAbortListeners, _EventStream_handleError, EventStream;
 var init_EventStream = __esm({
-  "node_modules/openai/lib/EventStream.mjs"() {
+  "api-server/node_modules/openai/lib/EventStream.mjs"() {
     init_tslib();
     init_error2();
     EventStream = class {
@@ -31632,19 +31632,19 @@ var init_EventStream = __esm({
   }
 });
 
-// node_modules/openai/lib/RunnableFunction.mjs
+// api-server/node_modules/openai/lib/RunnableFunction.mjs
 function isRunnableFunctionWithParse(fn3) {
   return typeof fn3.parse === "function";
 }
 var init_RunnableFunction = __esm({
-  "node_modules/openai/lib/RunnableFunction.mjs"() {
+  "api-server/node_modules/openai/lib/RunnableFunction.mjs"() {
   }
 });
 
-// node_modules/openai/lib/AbstractChatCompletionRunner.mjs
+// api-server/node_modules/openai/lib/AbstractChatCompletionRunner.mjs
 var _AbstractChatCompletionRunner_instances, _AbstractChatCompletionRunner_getFinalContent, _AbstractChatCompletionRunner_getFinalMessage, _AbstractChatCompletionRunner_getFinalFunctionToolCall, _AbstractChatCompletionRunner_getFinalFunctionToolCallResult, _AbstractChatCompletionRunner_calculateTotalUsage, _AbstractChatCompletionRunner_validateParams, _AbstractChatCompletionRunner_stringifyFunctionCallResult, DEFAULT_MAX_CHAT_COMPLETIONS, AbstractChatCompletionRunner;
 var init_AbstractChatCompletionRunner = __esm({
-  "node_modules/openai/lib/AbstractChatCompletionRunner.mjs"() {
+  "api-server/node_modules/openai/lib/AbstractChatCompletionRunner.mjs"() {
     init_tslib();
     init_error2();
     init_parser();
@@ -31938,10 +31938,10 @@ var init_AbstractChatCompletionRunner = __esm({
   }
 });
 
-// node_modules/openai/lib/ChatCompletionRunner.mjs
+// api-server/node_modules/openai/lib/ChatCompletionRunner.mjs
 var ChatCompletionRunner;
 var init_ChatCompletionRunner = __esm({
-  "node_modules/openai/lib/ChatCompletionRunner.mjs"() {
+  "api-server/node_modules/openai/lib/ChatCompletionRunner.mjs"() {
     init_AbstractChatCompletionRunner();
     init_chatCompletionUtils();
     ChatCompletionRunner = class _ChatCompletionRunner extends AbstractChatCompletionRunner {
@@ -31964,7 +31964,7 @@ var init_ChatCompletionRunner = __esm({
   }
 });
 
-// node_modules/openai/_vendor/partial-json-parser/parser.mjs
+// api-server/node_modules/openai/_vendor/partial-json-parser/parser.mjs
 function parseJSON(jsonString, allowPartial = Allow.ALL) {
   if (typeof jsonString !== "string") {
     throw new TypeError(`expecting str, got ${typeof jsonString}`);
@@ -31976,7 +31976,7 @@ function parseJSON(jsonString, allowPartial = Allow.ALL) {
 }
 var STR, NUM, ARR, OBJ, NULL, BOOL, NAN, INFINITY, MINUS_INFINITY, INF, SPECIAL, ATOM, COLLECTION, ALL, Allow, PartialJSON, MalformedJSON, _parseJSON, partialParse;
 var init_parser2 = __esm({
-  "node_modules/openai/_vendor/partial-json-parser/parser.mjs"() {
+  "api-server/node_modules/openai/_vendor/partial-json-parser/parser.mjs"() {
     STR = 1;
     NUM = 2;
     ARR = 4;
@@ -32181,14 +32181,14 @@ var init_parser2 = __esm({
   }
 });
 
-// node_modules/openai/streaming.mjs
+// api-server/node_modules/openai/streaming.mjs
 var init_streaming2 = __esm({
-  "node_modules/openai/streaming.mjs"() {
+  "api-server/node_modules/openai/streaming.mjs"() {
     init_streaming();
   }
 });
 
-// node_modules/openai/lib/ChatCompletionStream.mjs
+// api-server/node_modules/openai/lib/ChatCompletionStream.mjs
 function finalizeChatCompletion(snapshot2, params) {
   const { id: id2, choices, created, model, system_fingerprint, ...rest } = snapshot2;
   const completion = {
@@ -32284,7 +32284,7 @@ function assertNever(_x2) {
 }
 var _ChatCompletionStream_instances, _ChatCompletionStream_params, _ChatCompletionStream_choiceEventStates, _ChatCompletionStream_currentChatCompletionSnapshot, _ChatCompletionStream_beginRequest, _ChatCompletionStream_getChoiceEventState, _ChatCompletionStream_addChunk, _ChatCompletionStream_emitToolCallDoneEvent, _ChatCompletionStream_emitContentDoneEvents, _ChatCompletionStream_endRequest, _ChatCompletionStream_getAutoParseableResponseFormat, _ChatCompletionStream_accumulateChatCompletion, ChatCompletionStream;
 var init_ChatCompletionStream = __esm({
-  "node_modules/openai/lib/ChatCompletionStream.mjs"() {
+  "api-server/node_modules/openai/lib/ChatCompletionStream.mjs"() {
     init_tslib();
     init_parser2();
     init_error2();
@@ -32657,10 +32657,10 @@ var init_ChatCompletionStream = __esm({
   }
 });
 
-// node_modules/openai/lib/ChatCompletionStreamingRunner.mjs
+// api-server/node_modules/openai/lib/ChatCompletionStreamingRunner.mjs
 var ChatCompletionStreamingRunner;
 var init_ChatCompletionStreamingRunner = __esm({
-  "node_modules/openai/lib/ChatCompletionStreamingRunner.mjs"() {
+  "api-server/node_modules/openai/lib/ChatCompletionStreamingRunner.mjs"() {
     init_ChatCompletionStream();
     ChatCompletionStreamingRunner = class _ChatCompletionStreamingRunner extends ChatCompletionStream {
       static fromReadableStream(stream5) {
@@ -32684,10 +32684,10 @@ var init_ChatCompletionStreamingRunner = __esm({
   }
 });
 
-// node_modules/openai/resources/chat/completions/completions.mjs
+// api-server/node_modules/openai/resources/chat/completions/completions.mjs
 var Completions;
 var init_completions = __esm({
-  "node_modules/openai/resources/chat/completions/completions.mjs"() {
+  "api-server/node_modules/openai/resources/chat/completions/completions.mjs"() {
     init_resource();
     init_messages();
     init_messages();
@@ -32812,10 +32812,10 @@ var init_completions = __esm({
   }
 });
 
-// node_modules/openai/resources/chat/chat.mjs
+// api-server/node_modules/openai/resources/chat/chat.mjs
 var Chat;
 var init_chat = __esm({
-  "node_modules/openai/resources/chat/chat.mjs"() {
+  "api-server/node_modules/openai/resources/chat/chat.mjs"() {
     init_resource();
     init_completions();
     init_completions();
@@ -32829,33 +32829,33 @@ var init_chat = __esm({
   }
 });
 
-// node_modules/openai/resources/chat/completions/index.mjs
+// api-server/node_modules/openai/resources/chat/completions/index.mjs
 var init_completions2 = __esm({
-  "node_modules/openai/resources/chat/completions/index.mjs"() {
+  "api-server/node_modules/openai/resources/chat/completions/index.mjs"() {
     init_completions();
     init_completions();
     init_messages();
   }
 });
 
-// node_modules/openai/resources/chat/index.mjs
+// api-server/node_modules/openai/resources/chat/index.mjs
 var init_chat2 = __esm({
-  "node_modules/openai/resources/chat/index.mjs"() {
+  "api-server/node_modules/openai/resources/chat/index.mjs"() {
     init_chat();
     init_completions2();
   }
 });
 
-// node_modules/openai/resources/shared.mjs
+// api-server/node_modules/openai/resources/shared.mjs
 var init_shared = __esm({
-  "node_modules/openai/resources/shared.mjs"() {
+  "api-server/node_modules/openai/resources/shared.mjs"() {
   }
 });
 
-// node_modules/openai/resources/admin/organization/admin-api-keys.mjs
+// api-server/node_modules/openai/resources/admin/organization/admin-api-keys.mjs
 var AdminAPIKeys;
 var init_admin_api_keys = __esm({
-  "node_modules/openai/resources/admin/organization/admin-api-keys.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/admin-api-keys.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -32934,10 +32934,10 @@ var init_admin_api_keys = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/audit-logs.mjs
+// api-server/node_modules/openai/resources/admin/organization/audit-logs.mjs
 var AuditLogs;
 var init_audit_logs = __esm({
-  "node_modules/openai/resources/admin/organization/audit-logs.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/audit-logs.mjs"() {
     init_resource();
     init_pagination();
     AuditLogs = class extends APIResource {
@@ -32963,10 +32963,10 @@ var init_audit_logs = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/certificates.mjs
+// api-server/node_modules/openai/resources/admin/organization/certificates.mjs
 var Certificates;
 var init_certificates = __esm({
-  "node_modules/openai/resources/admin/organization/certificates.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/certificates.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -33108,10 +33108,10 @@ var init_certificates = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/data-retention.mjs
+// api-server/node_modules/openai/resources/admin/organization/data-retention.mjs
 var DataRetention;
 var init_data_retention = __esm({
-  "node_modules/openai/resources/admin/organization/data-retention.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/data-retention.mjs"() {
     init_resource();
     DataRetention = class extends APIResource {
       /**
@@ -33151,10 +33151,10 @@ var init_data_retention = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/invites.mjs
+// api-server/node_modules/openai/resources/admin/organization/invites.mjs
 var Invites;
 var init_invites = __esm({
-  "node_modules/openai/resources/admin/organization/invites.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/invites.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -33235,10 +33235,10 @@ var init_invites = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/roles.mjs
+// api-server/node_modules/openai/resources/admin/organization/roles.mjs
 var Roles;
 var init_roles = __esm({
-  "node_modules/openai/resources/admin/organization/roles.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -33332,10 +33332,10 @@ var init_roles = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/spend-alerts.mjs
+// api-server/node_modules/openai/resources/admin/organization/spend-alerts.mjs
 var SpendAlerts;
 var init_spend_alerts = __esm({
-  "node_modules/openai/resources/admin/organization/spend-alerts.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/spend-alerts.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -33443,10 +33443,10 @@ var init_spend_alerts = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/usage.mjs
+// api-server/node_modules/openai/resources/admin/organization/usage.mjs
 var Usage;
 var init_usage = __esm({
-  "node_modules/openai/resources/admin/organization/usage.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/usage.mjs"() {
     init_resource();
     Usage = class extends APIResource {
       /**
@@ -33651,10 +33651,10 @@ var init_usage = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/groups/roles.mjs
+// api-server/node_modules/openai/resources/admin/organization/groups/roles.mjs
 var Roles2;
 var init_roles2 = __esm({
-  "node_modules/openai/resources/admin/organization/groups/roles.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/groups/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -33736,10 +33736,10 @@ var init_roles2 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/groups/users.mjs
+// api-server/node_modules/openai/resources/admin/organization/groups/users.mjs
 var Users;
 var init_users = __esm({
-  "node_modules/openai/resources/admin/organization/groups/users.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/groups/users.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -33821,10 +33821,10 @@ var init_users = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/groups/groups.mjs
+// api-server/node_modules/openai/resources/admin/organization/groups/groups.mjs
 var Groups;
 var init_groups = __esm({
-  "node_modules/openai/resources/admin/organization/groups/groups.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/groups/groups.mjs"() {
     init_resource();
     init_roles2();
     init_roles2();
@@ -33930,10 +33930,10 @@ var init_groups = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/api-keys.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/api-keys.mjs
 var APIKeys;
 var init_api_keys = __esm({
-  "node_modules/openai/resources/admin/organization/projects/api-keys.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/api-keys.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -33999,10 +33999,10 @@ var init_api_keys = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/certificates.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/certificates.mjs
 var Certificates2;
 var init_certificates2 = __esm({
-  "node_modules/openai/resources/admin/organization/projects/certificates.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/certificates.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -34064,10 +34064,10 @@ var init_certificates2 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/data-retention.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/data-retention.mjs
 var DataRetention2;
 var init_data_retention2 = __esm({
-  "node_modules/openai/resources/admin/organization/projects/data-retention.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/data-retention.mjs"() {
     init_resource();
     init_path();
     DataRetention2 = class extends APIResource {
@@ -34111,10 +34111,10 @@ var init_data_retention2 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/hosted-tool-permissions.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/hosted-tool-permissions.mjs
 var HostedToolPermissions;
 var init_hosted_tool_permissions = __esm({
-  "node_modules/openai/resources/admin/organization/projects/hosted-tool-permissions.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/hosted-tool-permissions.mjs"() {
     init_resource();
     init_path();
     HostedToolPermissions = class extends APIResource {
@@ -34157,10 +34157,10 @@ var init_hosted_tool_permissions = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/model-permissions.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/model-permissions.mjs
 var ModelPermissions;
 var init_model_permissions = __esm({
-  "node_modules/openai/resources/admin/organization/projects/model-permissions.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/model-permissions.mjs"() {
     init_resource();
     init_path();
     ModelPermissions = class extends APIResource {
@@ -34221,10 +34221,10 @@ var init_model_permissions = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/rate-limits.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/rate-limits.mjs
 var RateLimits;
 var init_rate_limits = __esm({
-  "node_modules/openai/resources/admin/organization/projects/rate-limits.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/rate-limits.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -34269,10 +34269,10 @@ var init_rate_limits = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/roles.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/roles.mjs
 var Roles3;
 var init_roles3 = __esm({
-  "node_modules/openai/resources/admin/organization/projects/roles.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -34378,10 +34378,10 @@ var init_roles3 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/service-accounts.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/service-accounts.mjs
 var ServiceAccounts;
 var init_service_accounts = __esm({
-  "node_modules/openai/resources/admin/organization/projects/service-accounts.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/service-accounts.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -34480,10 +34480,10 @@ var init_service_accounts = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/spend-alerts.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/spend-alerts.mjs
 var SpendAlerts2;
 var init_spend_alerts2 = __esm({
-  "node_modules/openai/resources/admin/organization/projects/spend-alerts.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/spend-alerts.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -34602,10 +34602,10 @@ var init_spend_alerts2 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/groups/roles.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/groups/roles.mjs
 var Roles4;
 var init_roles4 = __esm({
-  "node_modules/openai/resources/admin/organization/projects/groups/roles.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/groups/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -34690,10 +34690,10 @@ var init_roles4 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/groups/groups.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/groups/groups.mjs
 var Groups2;
 var init_groups2 = __esm({
-  "node_modules/openai/resources/admin/organization/projects/groups/groups.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/groups/groups.mjs"() {
     init_resource();
     init_roles4();
     init_roles4();
@@ -34783,10 +34783,10 @@ var init_groups2 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/users/roles.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/users/roles.mjs
 var Roles5;
 var init_roles5 = __esm({
-  "node_modules/openai/resources/admin/organization/projects/users/roles.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/users/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -34871,10 +34871,10 @@ var init_roles5 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/users/users.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/users/users.mjs
 var Users2;
 var init_users2 = __esm({
-  "node_modules/openai/resources/admin/organization/projects/users/users.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/users/users.mjs"() {
     init_resource();
     init_roles5();
     init_roles5();
@@ -34987,10 +34987,10 @@ var init_users2 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/projects/projects.mjs
+// api-server/node_modules/openai/resources/admin/organization/projects/projects.mjs
 var Projects;
 var init_projects = __esm({
-  "node_modules/openai/resources/admin/organization/projects/projects.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/projects/projects.mjs"() {
     init_resource();
     init_api_keys();
     init_api_keys();
@@ -35136,10 +35136,10 @@ var init_projects = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/users/roles.mjs
+// api-server/node_modules/openai/resources/admin/organization/users/roles.mjs
 var Roles6;
 var init_roles6 = __esm({
-  "node_modules/openai/resources/admin/organization/users/roles.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/users/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -35221,10 +35221,10 @@ var init_roles6 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/users/users.mjs
+// api-server/node_modules/openai/resources/admin/organization/users/users.mjs
 var Users3;
 var init_users3 = __esm({
-  "node_modules/openai/resources/admin/organization/users/users.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/users/users.mjs"() {
     init_resource();
     init_roles6();
     init_roles6();
@@ -35305,10 +35305,10 @@ var init_users3 = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/organization/organization.mjs
+// api-server/node_modules/openai/resources/admin/organization/organization.mjs
 var Organization;
 var init_organization = __esm({
-  "node_modules/openai/resources/admin/organization/organization.mjs"() {
+  "api-server/node_modules/openai/resources/admin/organization/organization.mjs"() {
     init_resource();
     init_admin_api_keys();
     init_admin_api_keys();
@@ -35362,10 +35362,10 @@ var init_organization = __esm({
   }
 });
 
-// node_modules/openai/resources/admin/admin.mjs
+// api-server/node_modules/openai/resources/admin/admin.mjs
 var Admin;
 var init_admin = __esm({
-  "node_modules/openai/resources/admin/admin.mjs"() {
+  "api-server/node_modules/openai/resources/admin/admin.mjs"() {
     init_resource();
     init_organization();
     init_organization();
@@ -35379,7 +35379,7 @@ var init_admin = __esm({
   }
 });
 
-// node_modules/openai/internal/headers.mjs
+// api-server/node_modules/openai/internal/headers.mjs
 function* iterateHeaders(headers) {
   if (!headers)
     return;
@@ -35420,7 +35420,7 @@ function* iterateHeaders(headers) {
 }
 var brand_privateNullableHeaders, buildHeaders;
 var init_headers = __esm({
-  "node_modules/openai/internal/headers.mjs"() {
+  "api-server/node_modules/openai/internal/headers.mjs"() {
     init_values();
     brand_privateNullableHeaders = /* @__PURE__ */ Symbol("brand.privateNullableHeaders");
     buildHeaders = (newHeaders) => {
@@ -35448,10 +35448,10 @@ var init_headers = __esm({
   }
 });
 
-// node_modules/openai/resources/audio/speech.mjs
+// api-server/node_modules/openai/resources/audio/speech.mjs
 var Speech;
 var init_speech = __esm({
-  "node_modules/openai/resources/audio/speech.mjs"() {
+  "api-server/node_modules/openai/resources/audio/speech.mjs"() {
     init_resource();
     init_headers();
     Speech = class extends APIResource {
@@ -35485,10 +35485,10 @@ var init_speech = __esm({
   }
 });
 
-// node_modules/openai/resources/audio/transcriptions.mjs
+// api-server/node_modules/openai/resources/audio/transcriptions.mjs
 var Transcriptions;
 var init_transcriptions = __esm({
-  "node_modules/openai/resources/audio/transcriptions.mjs"() {
+  "api-server/node_modules/openai/resources/audio/transcriptions.mjs"() {
     init_resource();
     init_uploads();
     Transcriptions = class extends APIResource {
@@ -35505,10 +35505,10 @@ var init_transcriptions = __esm({
   }
 });
 
-// node_modules/openai/resources/audio/translations.mjs
+// api-server/node_modules/openai/resources/audio/translations.mjs
 var Translations;
 var init_translations = __esm({
-  "node_modules/openai/resources/audio/translations.mjs"() {
+  "api-server/node_modules/openai/resources/audio/translations.mjs"() {
     init_resource();
     init_uploads();
     Translations = class extends APIResource {
@@ -35519,10 +35519,10 @@ var init_translations = __esm({
   }
 });
 
-// node_modules/openai/resources/audio/audio.mjs
+// api-server/node_modules/openai/resources/audio/audio.mjs
 var Audio;
 var init_audio = __esm({
-  "node_modules/openai/resources/audio/audio.mjs"() {
+  "api-server/node_modules/openai/resources/audio/audio.mjs"() {
     init_resource();
     init_speech();
     init_speech();
@@ -35544,10 +35544,10 @@ var init_audio = __esm({
   }
 });
 
-// node_modules/openai/resources/batches.mjs
+// api-server/node_modules/openai/resources/batches.mjs
 var Batches;
 var init_batches = __esm({
-  "node_modules/openai/resources/batches.mjs"() {
+  "api-server/node_modules/openai/resources/batches.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -35589,10 +35589,10 @@ var init_batches = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/assistants.mjs
+// api-server/node_modules/openai/resources/beta/assistants.mjs
 var Assistants;
 var init_assistants = __esm({
-  "node_modules/openai/resources/beta/assistants.mjs"() {
+  "api-server/node_modules/openai/resources/beta/assistants.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -35665,10 +35665,10 @@ var init_assistants = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/realtime/sessions.mjs
+// api-server/node_modules/openai/resources/beta/realtime/sessions.mjs
 var Sessions;
 var init_sessions = __esm({
-  "node_modules/openai/resources/beta/realtime/sessions.mjs"() {
+  "api-server/node_modules/openai/resources/beta/realtime/sessions.mjs"() {
     init_resource();
     init_headers();
     Sessions = class extends APIResource {
@@ -35699,10 +35699,10 @@ var init_sessions = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/realtime/transcription-sessions.mjs
+// api-server/node_modules/openai/resources/beta/realtime/transcription-sessions.mjs
 var TranscriptionSessions;
 var init_transcription_sessions = __esm({
-  "node_modules/openai/resources/beta/realtime/transcription-sessions.mjs"() {
+  "api-server/node_modules/openai/resources/beta/realtime/transcription-sessions.mjs"() {
     init_resource();
     init_headers();
     TranscriptionSessions = class extends APIResource {
@@ -35733,10 +35733,10 @@ var init_transcription_sessions = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/realtime/realtime.mjs
+// api-server/node_modules/openai/resources/beta/realtime/realtime.mjs
 var Realtime;
 var init_realtime = __esm({
-  "node_modules/openai/resources/beta/realtime/realtime.mjs"() {
+  "api-server/node_modules/openai/resources/beta/realtime/realtime.mjs"() {
     init_resource();
     init_sessions();
     init_sessions();
@@ -35754,10 +35754,10 @@ var init_realtime = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/chatkit/sessions.mjs
+// api-server/node_modules/openai/resources/beta/chatkit/sessions.mjs
 var Sessions2;
 var init_sessions2 = __esm({
-  "node_modules/openai/resources/beta/chatkit/sessions.mjs"() {
+  "api-server/node_modules/openai/resources/beta/chatkit/sessions.mjs"() {
     init_resource();
     init_headers();
     init_path();
@@ -35804,10 +35804,10 @@ var init_sessions2 = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/chatkit/threads.mjs
+// api-server/node_modules/openai/resources/beta/chatkit/threads.mjs
 var Threads;
 var init_threads = __esm({
-  "node_modules/openai/resources/beta/chatkit/threads.mjs"() {
+  "api-server/node_modules/openai/resources/beta/chatkit/threads.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -35890,10 +35890,10 @@ var init_threads = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/chatkit/chatkit.mjs
+// api-server/node_modules/openai/resources/beta/chatkit/chatkit.mjs
 var ChatKit;
 var init_chatkit = __esm({
-  "node_modules/openai/resources/beta/chatkit/chatkit.mjs"() {
+  "api-server/node_modules/openai/resources/beta/chatkit/chatkit.mjs"() {
     init_resource();
     init_sessions2();
     init_sessions2();
@@ -35911,10 +35911,10 @@ var init_chatkit = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/threads/messages.mjs
+// api-server/node_modules/openai/resources/beta/threads/messages.mjs
 var Messages2;
 var init_messages2 = __esm({
-  "node_modules/openai/resources/beta/threads/messages.mjs"() {
+  "api-server/node_modules/openai/resources/beta/threads/messages.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -35990,10 +35990,10 @@ var init_messages2 = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/threads/runs/steps.mjs
+// api-server/node_modules/openai/resources/beta/threads/runs/steps.mjs
 var Steps;
 var init_steps = __esm({
-  "node_modules/openai/resources/beta/threads/runs/steps.mjs"() {
+  "api-server/node_modules/openai/resources/beta/threads/runs/steps.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -36031,10 +36031,10 @@ var init_steps = __esm({
   }
 });
 
-// node_modules/openai/internal/utils/base64.mjs
+// api-server/node_modules/openai/internal/utils/base64.mjs
 var toFloat32Array;
 var init_base64 = __esm({
-  "node_modules/openai/internal/utils/base64.mjs"() {
+  "api-server/node_modules/openai/internal/utils/base64.mjs"() {
     init_error();
     init_bytes();
     toFloat32Array = (base64Str) => {
@@ -36054,10 +36054,10 @@ var init_base64 = __esm({
   }
 });
 
-// node_modules/openai/internal/utils/env.mjs
+// api-server/node_modules/openai/internal/utils/env.mjs
 var readEnv;
 var init_env = __esm({
-  "node_modules/openai/internal/utils/env.mjs"() {
+  "api-server/node_modules/openai/internal/utils/env.mjs"() {
     readEnv = (env2) => {
       if (typeof globalThis.process !== "undefined") {
         return globalThis.process.env?.[env2]?.trim() || void 0;
@@ -36070,9 +36070,9 @@ var init_env = __esm({
   }
 });
 
-// node_modules/openai/internal/utils.mjs
+// api-server/node_modules/openai/internal/utils.mjs
 var init_utils2 = __esm({
-  "node_modules/openai/internal/utils.mjs"() {
+  "api-server/node_modules/openai/internal/utils.mjs"() {
     init_values();
     init_base64();
     init_env();
@@ -36083,12 +36083,12 @@ var init_utils2 = __esm({
   }
 });
 
-// node_modules/openai/lib/AssistantStream.mjs
+// api-server/node_modules/openai/lib/AssistantStream.mjs
 function assertNever2(_x2) {
 }
 var _AssistantStream_instances, _a, _AssistantStream_events, _AssistantStream_runStepSnapshots, _AssistantStream_messageSnapshots, _AssistantStream_messageSnapshot, _AssistantStream_finalRun, _AssistantStream_currentContentIndex, _AssistantStream_currentContent, _AssistantStream_currentToolCallIndex, _AssistantStream_currentToolCall, _AssistantStream_currentEvent, _AssistantStream_currentRunSnapshot, _AssistantStream_currentRunStepSnapshot, _AssistantStream_addEvent, _AssistantStream_endRequest, _AssistantStream_handleMessage, _AssistantStream_handleRunStep, _AssistantStream_handleEvent, _AssistantStream_accumulateRunStep, _AssistantStream_accumulateMessage, _AssistantStream_accumulateContent, _AssistantStream_handleRun, AssistantStream;
 var init_AssistantStream = __esm({
-  "node_modules/openai/lib/AssistantStream.mjs"() {
+  "api-server/node_modules/openai/lib/AssistantStream.mjs"() {
     init_tslib();
     init_streaming2();
     init_error2();
@@ -36589,10 +36589,10 @@ var init_AssistantStream = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/threads/runs/runs.mjs
+// api-server/node_modules/openai/resources/beta/threads/runs/runs.mjs
 var Runs;
 var init_runs = __esm({
-  "node_modules/openai/resources/beta/threads/runs/runs.mjs"() {
+  "api-server/node_modules/openai/resources/beta/threads/runs/runs.mjs"() {
     init_resource();
     init_steps();
     init_steps();
@@ -36775,10 +36775,10 @@ var init_runs = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/threads/threads.mjs
+// api-server/node_modules/openai/resources/beta/threads/threads.mjs
 var Threads2;
 var init_threads2 = __esm({
-  "node_modules/openai/resources/beta/threads/threads.mjs"() {
+  "api-server/node_modules/openai/resources/beta/threads/threads.mjs"() {
     init_resource();
     init_messages2();
     init_messages2();
@@ -36874,10 +36874,10 @@ var init_threads2 = __esm({
   }
 });
 
-// node_modules/openai/resources/beta/beta.mjs
+// api-server/node_modules/openai/resources/beta/beta.mjs
 var Beta;
 var init_beta = __esm({
-  "node_modules/openai/resources/beta/beta.mjs"() {
+  "api-server/node_modules/openai/resources/beta/beta.mjs"() {
     init_resource();
     init_assistants();
     init_assistants();
@@ -36903,10 +36903,10 @@ var init_beta = __esm({
   }
 });
 
-// node_modules/openai/resources/completions.mjs
+// api-server/node_modules/openai/resources/completions.mjs
 var Completions2;
 var init_completions3 = __esm({
-  "node_modules/openai/resources/completions.mjs"() {
+  "api-server/node_modules/openai/resources/completions.mjs"() {
     init_resource();
     Completions2 = class extends APIResource {
       create(body2, options) {
@@ -36921,10 +36921,10 @@ var init_completions3 = __esm({
   }
 });
 
-// node_modules/openai/resources/containers/files/content.mjs
+// api-server/node_modules/openai/resources/containers/files/content.mjs
 var Content;
 var init_content = __esm({
-  "node_modules/openai/resources/containers/files/content.mjs"() {
+  "api-server/node_modules/openai/resources/containers/files/content.mjs"() {
     init_resource();
     init_headers();
     init_path();
@@ -36945,10 +36945,10 @@ var init_content = __esm({
   }
 });
 
-// node_modules/openai/resources/containers/files/files.mjs
+// api-server/node_modules/openai/resources/containers/files/files.mjs
 var Files;
 var init_files = __esm({
-  "node_modules/openai/resources/containers/files/files.mjs"() {
+  "api-server/node_modules/openai/resources/containers/files/files.mjs"() {
     init_resource();
     init_content();
     init_content();
@@ -37006,10 +37006,10 @@ var init_files = __esm({
   }
 });
 
-// node_modules/openai/resources/containers/containers.mjs
+// api-server/node_modules/openai/resources/containers/containers.mjs
 var Containers;
 var init_containers = __esm({
-  "node_modules/openai/resources/containers/containers.mjs"() {
+  "api-server/node_modules/openai/resources/containers/containers.mjs"() {
     init_resource();
     init_files();
     init_files();
@@ -37061,10 +37061,10 @@ var init_containers = __esm({
   }
 });
 
-// node_modules/openai/resources/conversations/items.mjs
+// api-server/node_modules/openai/resources/conversations/items.mjs
 var Items;
 var init_items = __esm({
-  "node_modules/openai/resources/conversations/items.mjs"() {
+  "api-server/node_modules/openai/resources/conversations/items.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -37112,10 +37112,10 @@ var init_items = __esm({
   }
 });
 
-// node_modules/openai/resources/conversations/conversations.mjs
+// api-server/node_modules/openai/resources/conversations/conversations.mjs
 var Conversations;
 var init_conversations = __esm({
-  "node_modules/openai/resources/conversations/conversations.mjs"() {
+  "api-server/node_modules/openai/resources/conversations/conversations.mjs"() {
     init_resource();
     init_items();
     init_items();
@@ -37164,10 +37164,10 @@ var init_conversations = __esm({
   }
 });
 
-// node_modules/openai/resources/embeddings.mjs
+// api-server/node_modules/openai/resources/embeddings.mjs
 var Embeddings;
 var init_embeddings = __esm({
-  "node_modules/openai/resources/embeddings.mjs"() {
+  "api-server/node_modules/openai/resources/embeddings.mjs"() {
     init_resource();
     init_utils2();
     Embeddings = class extends APIResource {
@@ -37215,10 +37215,10 @@ var init_embeddings = __esm({
   }
 });
 
-// node_modules/openai/resources/evals/runs/output-items.mjs
+// api-server/node_modules/openai/resources/evals/runs/output-items.mjs
 var OutputItems;
 var init_output_items = __esm({
-  "node_modules/openai/resources/evals/runs/output-items.mjs"() {
+  "api-server/node_modules/openai/resources/evals/runs/output-items.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -37244,10 +37244,10 @@ var init_output_items = __esm({
   }
 });
 
-// node_modules/openai/resources/evals/runs/runs.mjs
+// api-server/node_modules/openai/resources/evals/runs/runs.mjs
 var Runs2;
 var init_runs2 = __esm({
-  "node_modules/openai/resources/evals/runs/runs.mjs"() {
+  "api-server/node_modules/openai/resources/evals/runs/runs.mjs"() {
     init_resource();
     init_output_items();
     init_output_items();
@@ -37315,10 +37315,10 @@ var init_runs2 = __esm({
   }
 });
 
-// node_modules/openai/resources/evals/evals.mjs
+// api-server/node_modules/openai/resources/evals/evals.mjs
 var Evals;
 var init_evals = __esm({
-  "node_modules/openai/resources/evals/evals.mjs"() {
+  "api-server/node_modules/openai/resources/evals/evals.mjs"() {
     init_resource();
     init_runs2();
     init_runs2();
@@ -37373,10 +37373,10 @@ var init_evals = __esm({
   }
 });
 
-// node_modules/openai/resources/files.mjs
+// api-server/node_modules/openai/resources/files.mjs
 var Files2;
 var init_files2 = __esm({
-  "node_modules/openai/resources/files.mjs"() {
+  "api-server/node_modules/openai/resources/files.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -37472,20 +37472,20 @@ var init_files2 = __esm({
   }
 });
 
-// node_modules/openai/resources/fine-tuning/methods.mjs
+// api-server/node_modules/openai/resources/fine-tuning/methods.mjs
 var Methods;
 var init_methods = __esm({
-  "node_modules/openai/resources/fine-tuning/methods.mjs"() {
+  "api-server/node_modules/openai/resources/fine-tuning/methods.mjs"() {
     init_resource();
     Methods = class extends APIResource {
     };
   }
 });
 
-// node_modules/openai/resources/fine-tuning/alpha/graders.mjs
+// api-server/node_modules/openai/resources/fine-tuning/alpha/graders.mjs
 var Graders;
 var init_graders = __esm({
-  "node_modules/openai/resources/fine-tuning/alpha/graders.mjs"() {
+  "api-server/node_modules/openai/resources/fine-tuning/alpha/graders.mjs"() {
     init_resource();
     Graders = class extends APIResource {
       /**
@@ -37540,10 +37540,10 @@ var init_graders = __esm({
   }
 });
 
-// node_modules/openai/resources/fine-tuning/alpha/alpha.mjs
+// api-server/node_modules/openai/resources/fine-tuning/alpha/alpha.mjs
 var Alpha;
 var init_alpha = __esm({
-  "node_modules/openai/resources/fine-tuning/alpha/alpha.mjs"() {
+  "api-server/node_modules/openai/resources/fine-tuning/alpha/alpha.mjs"() {
     init_resource();
     init_graders();
     init_graders();
@@ -37557,10 +37557,10 @@ var init_alpha = __esm({
   }
 });
 
-// node_modules/openai/resources/fine-tuning/checkpoints/permissions.mjs
+// api-server/node_modules/openai/resources/fine-tuning/checkpoints/permissions.mjs
 var Permissions;
 var init_permissions = __esm({
-  "node_modules/openai/resources/fine-tuning/checkpoints/permissions.mjs"() {
+  "api-server/node_modules/openai/resources/fine-tuning/checkpoints/permissions.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -37645,10 +37645,10 @@ var init_permissions = __esm({
   }
 });
 
-// node_modules/openai/resources/fine-tuning/checkpoints/checkpoints.mjs
+// api-server/node_modules/openai/resources/fine-tuning/checkpoints/checkpoints.mjs
 var Checkpoints;
 var init_checkpoints = __esm({
-  "node_modules/openai/resources/fine-tuning/checkpoints/checkpoints.mjs"() {
+  "api-server/node_modules/openai/resources/fine-tuning/checkpoints/checkpoints.mjs"() {
     init_resource();
     init_permissions();
     init_permissions();
@@ -37662,10 +37662,10 @@ var init_checkpoints = __esm({
   }
 });
 
-// node_modules/openai/resources/fine-tuning/jobs/checkpoints.mjs
+// api-server/node_modules/openai/resources/fine-tuning/jobs/checkpoints.mjs
 var Checkpoints2;
 var init_checkpoints2 = __esm({
-  "node_modules/openai/resources/fine-tuning/jobs/checkpoints.mjs"() {
+  "api-server/node_modules/openai/resources/fine-tuning/jobs/checkpoints.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -37690,10 +37690,10 @@ var init_checkpoints2 = __esm({
   }
 });
 
-// node_modules/openai/resources/fine-tuning/jobs/jobs.mjs
+// api-server/node_modules/openai/resources/fine-tuning/jobs/jobs.mjs
 var Jobs;
 var init_jobs = __esm({
-  "node_modules/openai/resources/fine-tuning/jobs/jobs.mjs"() {
+  "api-server/node_modules/openai/resources/fine-tuning/jobs/jobs.mjs"() {
     init_resource();
     init_checkpoints2();
     init_checkpoints2();
@@ -37829,10 +37829,10 @@ var init_jobs = __esm({
   }
 });
 
-// node_modules/openai/resources/fine-tuning/fine-tuning.mjs
+// api-server/node_modules/openai/resources/fine-tuning/fine-tuning.mjs
 var FineTuning;
 var init_fine_tuning = __esm({
-  "node_modules/openai/resources/fine-tuning/fine-tuning.mjs"() {
+  "api-server/node_modules/openai/resources/fine-tuning/fine-tuning.mjs"() {
     init_resource();
     init_methods();
     init_methods();
@@ -37858,20 +37858,20 @@ var init_fine_tuning = __esm({
   }
 });
 
-// node_modules/openai/resources/graders/grader-models.mjs
+// api-server/node_modules/openai/resources/graders/grader-models.mjs
 var GraderModels;
 var init_grader_models = __esm({
-  "node_modules/openai/resources/graders/grader-models.mjs"() {
+  "api-server/node_modules/openai/resources/graders/grader-models.mjs"() {
     init_resource();
     GraderModels = class extends APIResource {
     };
   }
 });
 
-// node_modules/openai/resources/graders/graders.mjs
+// api-server/node_modules/openai/resources/graders/graders.mjs
 var Graders2;
 var init_graders2 = __esm({
-  "node_modules/openai/resources/graders/graders.mjs"() {
+  "api-server/node_modules/openai/resources/graders/graders.mjs"() {
     init_resource();
     init_grader_models();
     init_grader_models();
@@ -37885,10 +37885,10 @@ var init_graders2 = __esm({
   }
 });
 
-// node_modules/openai/resources/images.mjs
+// api-server/node_modules/openai/resources/images.mjs
 var Images;
 var init_images = __esm({
-  "node_modules/openai/resources/images.mjs"() {
+  "api-server/node_modules/openai/resources/images.mjs"() {
     init_resource();
     init_uploads();
     Images = class extends APIResource {
@@ -37920,10 +37920,10 @@ var init_images = __esm({
   }
 });
 
-// node_modules/openai/resources/models.mjs
+// api-server/node_modules/openai/resources/models.mjs
 var Models;
 var init_models = __esm({
-  "node_modules/openai/resources/models.mjs"() {
+  "api-server/node_modules/openai/resources/models.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -37953,10 +37953,10 @@ var init_models = __esm({
   }
 });
 
-// node_modules/openai/resources/moderations.mjs
+// api-server/node_modules/openai/resources/moderations.mjs
 var Moderations;
 var init_moderations = __esm({
-  "node_modules/openai/resources/moderations.mjs"() {
+  "api-server/node_modules/openai/resources/moderations.mjs"() {
     init_resource();
     Moderations = class extends APIResource {
       /**
@@ -37970,10 +37970,10 @@ var init_moderations = __esm({
   }
 });
 
-// node_modules/openai/resources/realtime/calls.mjs
+// api-server/node_modules/openai/resources/realtime/calls.mjs
 var Calls;
 var init_calls = __esm({
-  "node_modules/openai/resources/realtime/calls.mjs"() {
+  "api-server/node_modules/openai/resources/realtime/calls.mjs"() {
     init_resource();
     init_headers();
     init_path();
@@ -38050,10 +38050,10 @@ var init_calls = __esm({
   }
 });
 
-// node_modules/openai/resources/realtime/client-secrets.mjs
+// api-server/node_modules/openai/resources/realtime/client-secrets.mjs
 var ClientSecrets;
 var init_client_secrets = __esm({
-  "node_modules/openai/resources/realtime/client-secrets.mjs"() {
+  "api-server/node_modules/openai/resources/realtime/client-secrets.mjs"() {
     init_resource();
     ClientSecrets = class extends APIResource {
       /**
@@ -38090,10 +38090,10 @@ var init_client_secrets = __esm({
   }
 });
 
-// node_modules/openai/resources/realtime/realtime.mjs
+// api-server/node_modules/openai/resources/realtime/realtime.mjs
 var Realtime2;
 var init_realtime2 = __esm({
-  "node_modules/openai/resources/realtime/realtime.mjs"() {
+  "api-server/node_modules/openai/resources/realtime/realtime.mjs"() {
     init_resource();
     init_calls();
     init_calls();
@@ -38111,7 +38111,7 @@ var init_realtime2 = __esm({
   }
 });
 
-// node_modules/openai/lib/ResponsesParser.mjs
+// api-server/node_modules/openai/lib/ResponsesParser.mjs
 function maybeParseResponse(response, params) {
   if (!params || !hasAutoParseableInput2(params)) {
     const parsed = {
@@ -38240,13 +38240,13 @@ function addOutputText(rsp) {
   rsp.output_text = texts.join("");
 }
 var init_ResponsesParser = __esm({
-  "node_modules/openai/lib/ResponsesParser.mjs"() {
+  "api-server/node_modules/openai/lib/ResponsesParser.mjs"() {
     init_error2();
     init_parser();
   }
 });
 
-// node_modules/openai/lib/responses/ResponseAccumulator.mjs
+// api-server/node_modules/openai/lib/responses/ResponseAccumulator.mjs
 function accumulateResponse(event, snapshot2) {
   if (!snapshot2) {
     if (event.type !== "response.created") {
@@ -38634,19 +38634,19 @@ function assertNever3(value) {
   throw new OpenAIError(`Unhandled response stream event: ${JSON.stringify(value)}`);
 }
 var init_ResponseAccumulator = __esm({
-  "node_modules/openai/lib/responses/ResponseAccumulator.mjs"() {
+  "api-server/node_modules/openai/lib/responses/ResponseAccumulator.mjs"() {
     init_error2();
     init_ResponsesParser();
   }
 });
 
-// node_modules/openai/lib/responses/ResponseStream.mjs
+// api-server/node_modules/openai/lib/responses/ResponseStream.mjs
 function finalizeResponse(snapshot2, params) {
   return maybeParseResponse(snapshot2, params);
 }
 var _ResponseStream_instances, _ResponseStream_params, _ResponseStream_currentResponseSnapshot, _ResponseStream_finalResponse, _ResponseStream_beginRequest, _ResponseStream_addEvent, _ResponseStream_endRequest, ResponseStream;
 var init_ResponseStream = __esm({
-  "node_modules/openai/lib/responses/ResponseStream.mjs"() {
+  "api-server/node_modules/openai/lib/responses/ResponseStream.mjs"() {
     init_tslib();
     init_error2();
     init_EventStream();
@@ -38819,10 +38819,10 @@ var init_ResponseStream = __esm({
   }
 });
 
-// node_modules/openai/resources/responses/input-items.mjs
+// api-server/node_modules/openai/resources/responses/input-items.mjs
 var InputItems;
 var init_input_items = __esm({
-  "node_modules/openai/resources/responses/input-items.mjs"() {
+  "api-server/node_modules/openai/resources/responses/input-items.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -38847,10 +38847,10 @@ var init_input_items = __esm({
   }
 });
 
-// node_modules/openai/resources/responses/input-tokens.mjs
+// api-server/node_modules/openai/resources/responses/input-tokens.mjs
 var InputTokens;
 var init_input_tokens = __esm({
-  "node_modules/openai/resources/responses/input-tokens.mjs"() {
+  "api-server/node_modules/openai/resources/responses/input-tokens.mjs"() {
     init_resource();
     InputTokens = class extends APIResource {
       /**
@@ -38875,10 +38875,10 @@ var init_input_tokens = __esm({
   }
 });
 
-// node_modules/openai/resources/responses/responses.mjs
+// api-server/node_modules/openai/resources/responses/responses.mjs
 var Responses;
 var init_responses = __esm({
-  "node_modules/openai/resources/responses/responses.mjs"() {
+  "api-server/node_modules/openai/resources/responses/responses.mjs"() {
     init_ResponsesParser();
     init_ResponseStream();
     init_resource();
@@ -38988,10 +38988,10 @@ var init_responses = __esm({
   }
 });
 
-// node_modules/openai/resources/skills/content.mjs
+// api-server/node_modules/openai/resources/skills/content.mjs
 var Content2;
 var init_content2 = __esm({
-  "node_modules/openai/resources/skills/content.mjs"() {
+  "api-server/node_modules/openai/resources/skills/content.mjs"() {
     init_resource();
     init_headers();
     init_path();
@@ -39011,10 +39011,10 @@ var init_content2 = __esm({
   }
 });
 
-// node_modules/openai/resources/skills/versions/content.mjs
+// api-server/node_modules/openai/resources/skills/versions/content.mjs
 var Content3;
 var init_content3 = __esm({
-  "node_modules/openai/resources/skills/versions/content.mjs"() {
+  "api-server/node_modules/openai/resources/skills/versions/content.mjs"() {
     init_resource();
     init_headers();
     init_path();
@@ -39035,10 +39035,10 @@ var init_content3 = __esm({
   }
 });
 
-// node_modules/openai/resources/skills/versions/versions.mjs
+// api-server/node_modules/openai/resources/skills/versions/versions.mjs
 var Versions;
 var init_versions = __esm({
-  "node_modules/openai/resources/skills/versions/versions.mjs"() {
+  "api-server/node_modules/openai/resources/skills/versions/versions.mjs"() {
     init_resource();
     init_content3();
     init_content3();
@@ -39091,10 +39091,10 @@ var init_versions = __esm({
   }
 });
 
-// node_modules/openai/resources/skills/skills.mjs
+// api-server/node_modules/openai/resources/skills/skills.mjs
 var Skills;
 var init_skills = __esm({
-  "node_modules/openai/resources/skills/skills.mjs"() {
+  "api-server/node_modules/openai/resources/skills/skills.mjs"() {
     init_resource();
     init_content2();
     init_content2();
@@ -39153,10 +39153,10 @@ var init_skills = __esm({
   }
 });
 
-// node_modules/openai/resources/uploads/parts.mjs
+// api-server/node_modules/openai/resources/uploads/parts.mjs
 var Parts;
 var init_parts = __esm({
-  "node_modules/openai/resources/uploads/parts.mjs"() {
+  "api-server/node_modules/openai/resources/uploads/parts.mjs"() {
     init_resource();
     init_uploads();
     init_path();
@@ -39181,10 +39181,10 @@ var init_parts = __esm({
   }
 });
 
-// node_modules/openai/resources/uploads/uploads.mjs
+// api-server/node_modules/openai/resources/uploads/uploads.mjs
 var Uploads;
 var init_uploads3 = __esm({
-  "node_modules/openai/resources/uploads/uploads.mjs"() {
+  "api-server/node_modules/openai/resources/uploads/uploads.mjs"() {
     init_resource();
     init_parts();
     init_parts();
@@ -39260,10 +39260,10 @@ var init_uploads3 = __esm({
   }
 });
 
-// node_modules/openai/lib/Util.mjs
+// api-server/node_modules/openai/lib/Util.mjs
 var allSettledWithThrow;
 var init_Util = __esm({
-  "node_modules/openai/lib/Util.mjs"() {
+  "api-server/node_modules/openai/lib/Util.mjs"() {
     allSettledWithThrow = async (promises) => {
       const results = await Promise.allSettled(promises);
       const rejected = results.filter((result) => result.status === "rejected");
@@ -39284,10 +39284,10 @@ var init_Util = __esm({
   }
 });
 
-// node_modules/openai/resources/vector-stores/file-batches.mjs
+// api-server/node_modules/openai/resources/vector-stores/file-batches.mjs
 var FileBatches;
 var init_file_batches = __esm({
-  "node_modules/openai/resources/vector-stores/file-batches.mjs"() {
+  "api-server/node_modules/openai/resources/vector-stores/file-batches.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -39420,10 +39420,10 @@ var init_file_batches = __esm({
   }
 });
 
-// node_modules/openai/resources/vector-stores/files.mjs
+// api-server/node_modules/openai/resources/vector-stores/files.mjs
 var Files3;
 var init_files3 = __esm({
-  "node_modules/openai/resources/vector-stores/files.mjs"() {
+  "api-server/node_modules/openai/resources/vector-stores/files.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -39571,10 +39571,10 @@ var init_files3 = __esm({
   }
 });
 
-// node_modules/openai/resources/vector-stores/vector-stores.mjs
+// api-server/node_modules/openai/resources/vector-stores/vector-stores.mjs
 var VectorStores;
 var init_vector_stores = __esm({
-  "node_modules/openai/resources/vector-stores/vector-stores.mjs"() {
+  "api-server/node_modules/openai/resources/vector-stores/vector-stores.mjs"() {
     init_resource();
     init_file_batches();
     init_file_batches();
@@ -39661,10 +39661,10 @@ var init_vector_stores = __esm({
   }
 });
 
-// node_modules/openai/resources/videos.mjs
+// api-server/node_modules/openai/resources/videos.mjs
 var Videos;
 var init_videos = __esm({
-  "node_modules/openai/resources/videos.mjs"() {
+  "api-server/node_modules/openai/resources/videos.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -39751,10 +39751,10 @@ var init_videos = __esm({
   }
 });
 
-// node_modules/openai/resources/webhooks/webhooks.mjs
+// api-server/node_modules/openai/resources/webhooks/webhooks.mjs
 var _Webhooks_instances, _Webhooks_validateSecret, _Webhooks_getRequiredHeader, Webhooks;
 var init_webhooks = __esm({
-  "node_modules/openai/resources/webhooks/webhooks.mjs"() {
+  "api-server/node_modules/openai/resources/webhooks/webhooks.mjs"() {
     init_tslib();
     init_error2();
     init_resource();
@@ -39836,23 +39836,23 @@ var init_webhooks = __esm({
   }
 });
 
-// node_modules/openai/resources/webhooks/index.mjs
+// api-server/node_modules/openai/resources/webhooks/index.mjs
 var init_webhooks2 = __esm({
-  "node_modules/openai/resources/webhooks/index.mjs"() {
+  "api-server/node_modules/openai/resources/webhooks/index.mjs"() {
     init_webhooks();
   }
 });
 
-// node_modules/openai/resources/webhooks.mjs
+// api-server/node_modules/openai/resources/webhooks.mjs
 var init_webhooks3 = __esm({
-  "node_modules/openai/resources/webhooks.mjs"() {
+  "api-server/node_modules/openai/resources/webhooks.mjs"() {
     init_webhooks2();
   }
 });
 
-// node_modules/openai/resources/index.mjs
+// api-server/node_modules/openai/resources/index.mjs
 var init_resources = __esm({
-  "node_modules/openai/resources/index.mjs"() {
+  "api-server/node_modules/openai/resources/index.mjs"() {
     init_chat2();
     init_shared();
     init_admin();
@@ -39880,7 +39880,7 @@ var init_resources = __esm({
   }
 });
 
-// node_modules/openai/internal/provider.mjs
+// api-server/node_modules/openai/internal/provider.mjs
 function configureProvider(provider) {
   const definition = providerDefinitions.get(provider);
   if (!definition) {
@@ -39890,7 +39890,7 @@ function configureProvider(provider) {
 }
 var providerDefinitionsKey, providerGlobal, existingProviderDefinitions, providerDefinitions;
 var init_provider = __esm({
-  "node_modules/openai/internal/provider.mjs"() {
+  "api-server/node_modules/openai/internal/provider.mjs"() {
     providerDefinitionsKey = /* @__PURE__ */ Symbol.for("openai.node.providerDefinitions.v1");
     providerGlobal = globalThis;
     existingProviderDefinitions = providerGlobal[providerDefinitionsKey];
@@ -39901,7 +39901,7 @@ var init_provider = __esm({
   }
 });
 
-// node_modules/openai/client.mjs
+// api-server/node_modules/openai/client.mjs
 function getConnectionErrorMessage(error) {
   if (isUndiciDispatcherVersionMismatchError(error)) {
     return `Connection error. This may be caused by passing an undici dispatcher, such as ProxyAgent, that is incompatible with the fetch implementation. If you are using undici's ProxyAgent, pass the fetch implementation from the same undici package: import { fetch, ProxyAgent } from 'undici'; new OpenAI({ fetch, fetchOptions: { dispatcher: new ProxyAgent(...) } });`;
@@ -39921,7 +39921,7 @@ function isUndiciDispatcherVersionMismatchError(error) {
 }
 var _OpenAI_instances, _a2, _OpenAI_encoder, _OpenAI_baseURLOverridden, WORKLOAD_IDENTITY_API_KEY_PLACEHOLDER, OpenAI;
 var init_client = __esm({
-  "node_modules/openai/client.mjs"() {
+  "api-server/node_modules/openai/client.mjs"() {
     init_tslib();
     init_uuid();
     init_values();
@@ -40599,9 +40599,9 @@ var init_client = __esm({
   }
 });
 
-// node_modules/openai/azure.mjs
+// api-server/node_modules/openai/azure.mjs
 var init_azure = __esm({
-  "node_modules/openai/azure.mjs"() {
+  "api-server/node_modules/openai/azure.mjs"() {
     init_headers();
     init_error2();
     init_utils2();
@@ -40609,9 +40609,9 @@ var init_azure = __esm({
   }
 });
 
-// node_modules/openai/bedrock.mjs
+// api-server/node_modules/openai/bedrock.mjs
 var init_bedrock = __esm({
-  "node_modules/openai/bedrock.mjs"() {
+  "api-server/node_modules/openai/bedrock.mjs"() {
     init_error2();
     init_client();
     init_headers();
@@ -40621,9 +40621,9 @@ var init_bedrock = __esm({
   }
 });
 
-// node_modules/openai/index.mjs
+// api-server/node_modules/openai/index.mjs
 var init_openai = __esm({
-  "node_modules/openai/index.mjs"() {
+  "api-server/node_modules/openai/index.mjs"() {
     init_client();
     init_uploads2();
     init_api_promise();
@@ -40635,9 +40635,9 @@ var init_openai = __esm({
   }
 });
 
-// node_modules/retry/lib/retry_operation.js
+// api-server/node_modules/retry/lib/retry_operation.js
 var require_retry_operation = __commonJS({
-  "node_modules/retry/lib/retry_operation.js"(exports2, module2) {
+  "api-server/node_modules/retry/lib/retry_operation.js"(exports2, module2) {
     function RetryOperation(timeouts, options) {
       if (typeof options === "boolean") {
         options = { forever: options };
@@ -40770,9 +40770,9 @@ var require_retry_operation = __commonJS({
   }
 });
 
-// node_modules/retry/lib/retry.js
+// api-server/node_modules/retry/lib/retry.js
 var require_retry = __commonJS({
-  "node_modules/retry/lib/retry.js"(exports2) {
+  "api-server/node_modules/retry/lib/retry.js"(exports2) {
     var RetryOperation = require_retry_operation();
     exports2.operation = function(options) {
       var timeouts = exports2.timeouts(options);
@@ -40856,16 +40856,16 @@ var require_retry = __commonJS({
   }
 });
 
-// node_modules/retry/index.js
+// api-server/node_modules/retry/index.js
 var require_retry2 = __commonJS({
-  "node_modules/retry/index.js"(exports2, module2) {
+  "api-server/node_modules/retry/index.js"(exports2, module2) {
     module2.exports = require_retry();
   }
 });
 
-// node_modules/p-retry/index.js
+// api-server/node_modules/p-retry/index.js
 var require_p_retry = __commonJS({
-  "node_modules/p-retry/index.js"(exports2, module2) {
+  "api-server/node_modules/p-retry/index.js"(exports2, module2) {
     "use strict";
     var retry2 = require_retry2();
     var networkErrorMsgs = [
@@ -40942,9 +40942,9 @@ var require_p_retry = __commonJS({
   }
 });
 
-// node_modules/extend/index.js
+// api-server/node_modules/extend/index.js
 var require_extend = __commonJS({
-  "node_modules/extend/index.js"(exports2, module2) {
+  "api-server/node_modules/extend/index.js"(exports2, module2) {
     "use strict";
     var hasOwn3 = Object.prototype.hasOwnProperty;
     var toStr = Object.prototype.toString;
@@ -41033,9 +41033,9 @@ var require_extend = __commonJS({
   }
 });
 
-// node_modules/gaxios/package.json
+// api-server/node_modules/gaxios/package.json
 var require_package2 = __commonJS({
-  "node_modules/gaxios/package.json"(exports2, module2) {
+  "api-server/node_modules/gaxios/package.json"(exports2, module2) {
     module2.exports = {
       name: "gaxios",
       version: "7.3.0",
@@ -41144,18 +41144,18 @@ var require_package2 = __commonJS({
   }
 });
 
-// node_modules/gaxios/build/cjs/src/util.cjs
+// api-server/node_modules/gaxios/build/cjs/src/util.cjs
 var require_util = __commonJS({
-  "node_modules/gaxios/build/cjs/src/util.cjs"(exports2, module2) {
+  "api-server/node_modules/gaxios/build/cjs/src/util.cjs"(exports2, module2) {
     "use strict";
     var pkg = require_package2();
     module2.exports = { pkg };
   }
 });
 
-// node_modules/gaxios/build/cjs/src/common.js
+// api-server/node_modules/gaxios/build/cjs/src/common.js
 var require_common2 = __commonJS({
-  "node_modules/gaxios/build/cjs/src/common.js"(exports2) {
+  "api-server/node_modules/gaxios/build/cjs/src/common.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -41395,9 +41395,9 @@ var require_common2 = __commonJS({
   }
 });
 
-// node_modules/gaxios/build/cjs/src/retry.js
+// api-server/node_modules/gaxios/build/cjs/src/retry.js
 var require_retry3 = __commonJS({
-  "node_modules/gaxios/build/cjs/src/retry.js"(exports2) {
+  "api-server/node_modules/gaxios/build/cjs/src/retry.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getRetryConfig = getRetryConfig;
@@ -41500,9 +41500,9 @@ var require_retry3 = __commonJS({
   }
 });
 
-// node_modules/gaxios/build/cjs/src/interceptor.js
+// api-server/node_modules/gaxios/build/cjs/src/interceptor.js
 var require_interceptor = __commonJS({
-  "node_modules/gaxios/build/cjs/src/interceptor.js"(exports2) {
+  "api-server/node_modules/gaxios/build/cjs/src/interceptor.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.GaxiosInterceptorManager = void 0;
@@ -41512,9 +41512,9 @@ var require_interceptor = __commonJS({
   }
 });
 
-// node_modules/gaxios/node_modules/agent-base/dist/helpers.js
+// api-server/node_modules/gaxios/node_modules/agent-base/dist/helpers.js
 var require_helpers = __commonJS({
-  "node_modules/gaxios/node_modules/agent-base/dist/helpers.js"(exports2) {
+  "api-server/node_modules/gaxios/node_modules/agent-base/dist/helpers.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o10, m10, k10, k23) {
       if (k23 === void 0) k23 = k10;
@@ -41582,9 +41582,9 @@ var require_helpers = __commonJS({
   }
 });
 
-// node_modules/gaxios/node_modules/agent-base/dist/index.js
+// api-server/node_modules/gaxios/node_modules/agent-base/dist/index.js
 var require_dist4 = __commonJS({
-  "node_modules/gaxios/node_modules/agent-base/dist/index.js"(exports2) {
+  "api-server/node_modules/gaxios/node_modules/agent-base/dist/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o10, m10, k10, k23) {
       if (k23 === void 0) k23 = k10;
@@ -41738,9 +41738,9 @@ var require_dist4 = __commonJS({
   }
 });
 
-// node_modules/gaxios/node_modules/https-proxy-agent/dist/parse-proxy-response.js
+// api-server/node_modules/gaxios/node_modules/https-proxy-agent/dist/parse-proxy-response.js
 var require_parse_proxy_response = __commonJS({
-  "node_modules/gaxios/node_modules/https-proxy-agent/dist/parse-proxy-response.js"(exports2) {
+  "api-server/node_modules/gaxios/node_modules/https-proxy-agent/dist/parse-proxy-response.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -41834,9 +41834,9 @@ var require_parse_proxy_response = __commonJS({
   }
 });
 
-// node_modules/gaxios/node_modules/https-proxy-agent/dist/index.js
+// api-server/node_modules/gaxios/node_modules/https-proxy-agent/dist/index.js
 var require_dist5 = __commonJS({
-  "node_modules/gaxios/node_modules/https-proxy-agent/dist/index.js"(exports2) {
+  "api-server/node_modules/gaxios/node_modules/https-proxy-agent/dist/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o10, m10, k10, k23) {
       if (k23 === void 0) k23 = k10;
@@ -41984,7 +41984,7 @@ var require_dist5 = __commonJS({
   }
 });
 
-// node_modules/data-uri-to-buffer/dist/index.js
+// api-server/node_modules/data-uri-to-buffer/dist/index.js
 function dataUriToBuffer(uri) {
   if (!/^data:/i.test(uri)) {
     throw new TypeError('`uri` does not appear to be a Data URI (must begin with "data:")');
@@ -42023,14 +42023,14 @@ function dataUriToBuffer(uri) {
 }
 var dist_default;
 var init_dist = __esm({
-  "node_modules/data-uri-to-buffer/dist/index.js"() {
+  "api-server/node_modules/data-uri-to-buffer/dist/index.js"() {
     dist_default = dataUriToBuffer;
   }
 });
 
-// node_modules/web-streams-polyfill/dist/ponyfill.es2018.js
+// api-server/node_modules/web-streams-polyfill/dist/ponyfill.es2018.js
 var require_ponyfill_es2018 = __commonJS({
-  "node_modules/web-streams-polyfill/dist/ponyfill.es2018.js"(exports2, module2) {
+  "api-server/node_modules/web-streams-polyfill/dist/ponyfill.es2018.js"(exports2, module2) {
     (function(global2, factory2) {
       typeof exports2 === "object" && typeof module2 !== "undefined" ? factory2(exports2) : typeof define === "function" && define.amd ? define(["exports"], factory2) : (global2 = typeof globalThis !== "undefined" ? globalThis : global2 || self, factory2(global2.WebStreamsPolyfill = {}));
     })(exports2, (function(exports3) {
@@ -46303,9 +46303,9 @@ var require_ponyfill_es2018 = __commonJS({
   }
 });
 
-// node_modules/fetch-blob/streams.cjs
+// api-server/node_modules/fetch-blob/streams.cjs
 var require_streams2 = __commonJS({
-  "node_modules/fetch-blob/streams.cjs"() {
+  "api-server/node_modules/fetch-blob/streams.cjs"() {
     var POOL_SIZE2 = 65536;
     if (!globalThis.ReadableStream) {
       try {
@@ -46349,7 +46349,7 @@ var require_streams2 = __commonJS({
   }
 });
 
-// node_modules/fetch-blob/index.js
+// api-server/node_modules/fetch-blob/index.js
 async function* toIterator(parts2, clone4 = true) {
   for (const part of parts2) {
     if ("stream" in part) {
@@ -46386,7 +46386,7 @@ async function* toIterator(parts2, clone4 = true) {
 }
 var import_streams, POOL_SIZE, _Blob, Blob3, fetch_blob_default;
 var init_fetch_blob = __esm({
-  "node_modules/fetch-blob/index.js"() {
+  "api-server/node_modules/fetch-blob/index.js"() {
     import_streams = __toESM(require_streams2(), 1);
     POOL_SIZE = 65536;
     _Blob = class Blob2 {
@@ -46553,10 +46553,10 @@ var init_fetch_blob = __esm({
   }
 });
 
-// node_modules/fetch-blob/file.js
+// api-server/node_modules/fetch-blob/file.js
 var _File, File3, file_default;
 var init_file = __esm({
-  "node_modules/fetch-blob/file.js"() {
+  "api-server/node_modules/fetch-blob/file.js"() {
     init_fetch_blob();
     _File = class File2 extends fetch_blob_default {
       #lastModified = 0;
@@ -46597,7 +46597,7 @@ var init_file = __esm({
   }
 });
 
-// node_modules/formdata-polyfill/esm.min.js
+// api-server/node_modules/formdata-polyfill/esm.min.js
 function formDataToBlob(F10, B = fetch_blob_default) {
   var b10 = `${r()}${r()}`.replace(/\./g, "").slice(-28).padStart(32, "-"), c10 = [], p10 = `--${b10}\r
 Content-Disposition: form-data; name="`;
@@ -46613,7 +46613,7 @@ Content-Type: ${v10.type || "application/octet-stream"}\r
 }
 var t, i2, h, r, m, f, e, x, FormData2;
 var init_esm_min = __esm({
-  "node_modules/formdata-polyfill/esm.min.js"() {
+  "api-server/node_modules/formdata-polyfill/esm.min.js"() {
     init_fetch_blob();
     init_file();
     ({ toStringTag: t, iterator: i2, hasInstance: h } = Symbol);
@@ -46694,10 +46694,10 @@ var init_esm_min = __esm({
   }
 });
 
-// node_modules/node-fetch/src/errors/base.js
+// api-server/node_modules/node-fetch/src/errors/base.js
 var FetchBaseError;
 var init_base = __esm({
-  "node_modules/node-fetch/src/errors/base.js"() {
+  "api-server/node_modules/node-fetch/src/errors/base.js"() {
     FetchBaseError = class extends Error {
       constructor(message, type) {
         super(message);
@@ -46714,10 +46714,10 @@ var init_base = __esm({
   }
 });
 
-// node_modules/node-fetch/src/errors/fetch-error.js
+// api-server/node_modules/node-fetch/src/errors/fetch-error.js
 var FetchError;
 var init_fetch_error = __esm({
-  "node_modules/node-fetch/src/errors/fetch-error.js"() {
+  "api-server/node_modules/node-fetch/src/errors/fetch-error.js"() {
     init_base();
     FetchError = class extends FetchBaseError {
       /**
@@ -46736,10 +46736,10 @@ var init_fetch_error = __esm({
   }
 });
 
-// node_modules/node-fetch/src/utils/is.js
+// api-server/node_modules/node-fetch/src/utils/is.js
 var NAME, isURLSearchParameters, isBlob, isAbortSignal, isDomainOrSubdomain, isSameProtocol;
 var init_is = __esm({
-  "node_modules/node-fetch/src/utils/is.js"() {
+  "api-server/node_modules/node-fetch/src/utils/is.js"() {
     NAME = Symbol.toStringTag;
     isURLSearchParameters = (object) => {
       return typeof object === "object" && typeof object.append === "function" && typeof object.delete === "function" && typeof object.get === "function" && typeof object.getAll === "function" && typeof object.has === "function" && typeof object.set === "function" && typeof object.sort === "function" && object[NAME] === "URLSearchParams";
@@ -46763,9 +46763,9 @@ var init_is = __esm({
   }
 });
 
-// node_modules/node-domexception/index.js
+// api-server/node_modules/node-domexception/index.js
 var require_node_domexception = __commonJS({
-  "node_modules/node-domexception/index.js"(exports2, module2) {
+  "api-server/node_modules/node-domexception/index.js"(exports2, module2) {
     if (!globalThis.DOMException) {
       try {
         const { MessageChannel } = __require("worker_threads"), port2 = new MessageChannel().port1, ab2 = new ArrayBuffer();
@@ -46778,12 +46778,12 @@ var require_node_domexception = __commonJS({
   }
 });
 
-// node_modules/fetch-blob/from.js
+// api-server/node_modules/fetch-blob/from.js
 import { statSync, createReadStream, promises as fs2 } from "node:fs";
 import { basename } from "node:path";
 var import_node_domexception, stat, blobFromSync, blobFrom, fileFrom, fileFromSync, fromBlob, fromFile, BlobDataItem;
 var init_from = __esm({
-  "node_modules/fetch-blob/from.js"() {
+  "api-server/node_modules/fetch-blob/from.js"() {
     import_node_domexception = __toESM(require_node_domexception(), 1);
     init_file();
     init_fetch_blob();
@@ -46842,7 +46842,7 @@ var init_from = __esm({
   }
 });
 
-// node_modules/node-fetch/src/utils/multipart-parser.js
+// api-server/node_modules/node-fetch/src/utils/multipart-parser.js
 var multipart_parser_exports = {};
 __export(multipart_parser_exports, {
   toFormData: () => toFormData
@@ -46936,7 +46936,7 @@ async function toFormData(Body2, ct2) {
 }
 var s, S, f2, F, LF, CR, SPACE, HYPHEN, COLON, A, Z, lower, noop2, MultipartParser;
 var init_multipart_parser = __esm({
-  "node_modules/node-fetch/src/utils/multipart-parser.js"() {
+  "api-server/node_modules/node-fetch/src/utils/multipart-parser.js"() {
     init_from();
     init_esm_min();
     s = 0;
@@ -47204,7 +47204,7 @@ var init_multipart_parser = __esm({
   }
 });
 
-// node_modules/node-fetch/src/body.js
+// api-server/node_modules/node-fetch/src/body.js
 import Stream2, { PassThrough } from "node:stream";
 import { types, deprecate, promisify } from "node:util";
 import { Buffer as Buffer2 } from "node:buffer";
@@ -47254,7 +47254,7 @@ async function consumeBody(data) {
 }
 var pipeline, INTERNALS, Body, clone, getNonSpecFormDataBoundary, extractContentType, getTotalBytes, writeToStream;
 var init_body = __esm({
-  "node_modules/node-fetch/src/body.js"() {
+  "api-server/node_modules/node-fetch/src/body.js"() {
     init_fetch_blob();
     init_esm_min();
     init_fetch_error();
@@ -47462,7 +47462,7 @@ var init_body = __esm({
   }
 });
 
-// node_modules/node-fetch/src/headers.js
+// api-server/node_modules/node-fetch/src/headers.js
 import { types as types2 } from "node:util";
 import http from "node:http";
 function fromRawHeaders(headers = []) {
@@ -47485,7 +47485,7 @@ function fromRawHeaders(headers = []) {
 }
 var validateHeaderName, validateHeaderValue, Headers2;
 var init_headers2 = __esm({
-  "node_modules/node-fetch/src/headers.js"() {
+  "api-server/node_modules/node-fetch/src/headers.js"() {
     validateHeaderName = typeof http.validateHeaderName === "function" ? http.validateHeaderName : (name2) => {
       if (!/^[\^`\-\w!#$%&'*+.|~]+$/.test(name2)) {
         const error = new TypeError(`Header name must be a valid HTTP token [${name2}]`);
@@ -47653,10 +47653,10 @@ var init_headers2 = __esm({
   }
 });
 
-// node_modules/node-fetch/src/utils/is-redirect.js
+// api-server/node_modules/node-fetch/src/utils/is-redirect.js
 var redirectStatus, isRedirect;
 var init_is_redirect = __esm({
-  "node_modules/node-fetch/src/utils/is-redirect.js"() {
+  "api-server/node_modules/node-fetch/src/utils/is-redirect.js"() {
     redirectStatus = /* @__PURE__ */ new Set([301, 302, 303, 307, 308]);
     isRedirect = (code) => {
       return redirectStatus.has(code);
@@ -47664,10 +47664,10 @@ var init_is_redirect = __esm({
   }
 });
 
-// node_modules/node-fetch/src/response.js
+// api-server/node_modules/node-fetch/src/response.js
 var INTERNALS2, Response2;
 var init_response = __esm({
-  "node_modules/node-fetch/src/response.js"() {
+  "api-server/node_modules/node-fetch/src/response.js"() {
     init_headers2();
     init_body();
     init_is_redirect();
@@ -47790,10 +47790,10 @@ var init_response = __esm({
   }
 });
 
-// node_modules/node-fetch/src/utils/get-search.js
+// api-server/node_modules/node-fetch/src/utils/get-search.js
 var getSearch;
 var init_get_search = __esm({
-  "node_modules/node-fetch/src/utils/get-search.js"() {
+  "api-server/node_modules/node-fetch/src/utils/get-search.js"() {
     getSearch = (parsedURL) => {
       if (parsedURL.search) {
         return parsedURL.search;
@@ -47805,7 +47805,7 @@ var init_get_search = __esm({
   }
 });
 
-// node_modules/node-fetch/src/utils/referrer.js
+// api-server/node_modules/node-fetch/src/utils/referrer.js
 import { isIP } from "node:net";
 function stripURLForUseAsAReferrer(url2, originOnly = false) {
   if (url2 == null) {
@@ -47934,7 +47934,7 @@ function parseReferrerPolicyFromHeader(headers) {
 }
 var ReferrerPolicy, DEFAULT_REFERRER_POLICY;
 var init_referrer = __esm({
-  "node_modules/node-fetch/src/utils/referrer.js"() {
+  "api-server/node_modules/node-fetch/src/utils/referrer.js"() {
     ReferrerPolicy = /* @__PURE__ */ new Set([
       "",
       "no-referrer",
@@ -47950,12 +47950,12 @@ var init_referrer = __esm({
   }
 });
 
-// node_modules/node-fetch/src/request.js
+// api-server/node_modules/node-fetch/src/request.js
 import { format as formatUrl } from "node:url";
 import { deprecate as deprecate2 } from "node:util";
 var INTERNALS3, isRequest, doBadDataWarn, Request2, getNodeRequestOptions;
 var init_request = __esm({
-  "node_modules/node-fetch/src/request.js"() {
+  "api-server/node_modules/node-fetch/src/request.js"() {
     init_headers2();
     init_body();
     init_is();
@@ -48155,10 +48155,10 @@ var init_request = __esm({
   }
 });
 
-// node_modules/node-fetch/src/errors/abort-error.js
+// api-server/node_modules/node-fetch/src/errors/abort-error.js
 var AbortError;
 var init_abort_error = __esm({
-  "node_modules/node-fetch/src/errors/abort-error.js"() {
+  "api-server/node_modules/node-fetch/src/errors/abort-error.js"() {
     init_base();
     AbortError = class extends FetchBaseError {
       constructor(message, type = "aborted") {
@@ -48168,7 +48168,7 @@ var init_abort_error = __esm({
   }
 });
 
-// node_modules/node-fetch/src/index.js
+// api-server/node_modules/node-fetch/src/index.js
 var src_exports = {};
 __export(src_exports, {
   AbortError: () => AbortError,
@@ -48454,7 +48454,7 @@ function fixResponseChunkedTransferBadEnding(request, errorCallback) {
 }
 var supportedSchemas;
 var init_src = __esm({
-  "node_modules/node-fetch/src/index.js"() {
+  "api-server/node_modules/node-fetch/src/index.js"() {
     init_dist();
     init_body();
     init_response();
@@ -48471,9 +48471,9 @@ var init_src = __esm({
   }
 });
 
-// node_modules/gaxios/build/cjs/src/gaxios.js
+// api-server/node_modules/gaxios/build/cjs/src/gaxios.js
 var require_gaxios = __commonJS({
-  "node_modules/gaxios/build/cjs/src/gaxios.js"(exports2) {
+  "api-server/node_modules/gaxios/build/cjs/src/gaxios.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -48945,9 +48945,9 @@ Content-Type: ${partContentType}\r
   }
 });
 
-// node_modules/gaxios/build/cjs/src/index.js
+// api-server/node_modules/gaxios/build/cjs/src/index.js
 var require_src2 = __commonJS({
-  "node_modules/gaxios/build/cjs/src/index.js"(exports2) {
+  "api-server/node_modules/gaxios/build/cjs/src/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o10, m10, k10, k23) {
       if (k23 === void 0) k23 = k10;
@@ -48984,9 +48984,9 @@ var require_src2 = __commonJS({
   }
 });
 
-// node_modules/bignumber.js/bignumber.js
+// api-server/node_modules/bignumber.js/bignumber.js
 var require_bignumber = __commonJS({
-  "node_modules/bignumber.js/bignumber.js"(exports2, module2) {
+  "api-server/node_modules/bignumber.js/bignumber.js"(exports2, module2) {
     (function(globalObject) {
       "use strict";
       var BigNumber, isNumeric = /^-?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i, mathceil = Math.ceil, mathfloor = Math.floor, bignumberError = "[BigNumber Error] ", tooManyDigits = bignumberError + "Number primitive has more than 15 significant digits: ", BASE = 1e14, LOG_BASE = 14, MAX_SAFE_INTEGER = 9007199254740991, POWS_TEN = [1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13], SQRT_BASE = 1e7, MAX = 1e9;
@@ -50335,9 +50335,9 @@ var require_bignumber = __commonJS({
   }
 });
 
-// node_modules/json-bigint/lib/stringify.js
+// api-server/node_modules/json-bigint/lib/stringify.js
 var require_stringify2 = __commonJS({
-  "node_modules/json-bigint/lib/stringify.js"(exports2, module2) {
+  "api-server/node_modules/json-bigint/lib/stringify.js"(exports2, module2) {
     var BigNumber = require_bignumber();
     var JSON2 = module2.exports;
     (function() {
@@ -50447,9 +50447,9 @@ var require_stringify2 = __commonJS({
   }
 });
 
-// node_modules/json-bigint/lib/parse.js
+// api-server/node_modules/json-bigint/lib/parse.js
 var require_parse2 = __commonJS({
-  "node_modules/json-bigint/lib/parse.js"(exports2, module2) {
+  "api-server/node_modules/json-bigint/lib/parse.js"(exports2, module2) {
     var BigNumber = null;
     var suspectProtoRx = /(?:_|\\u005[Ff])(?:_|\\u005[Ff])(?:p|\\u0070)(?:r|\\u0072)(?:o|\\u006[Ff])(?:t|\\u0074)(?:o|\\u006[Ff])(?:_|\\u005[Ff])(?:_|\\u005[Ff])/;
     var suspectConstructorRx = /(?:c|\\u0063)(?:o|\\u006[Ff])(?:n|\\u006[Ee])(?:s|\\u0073)(?:t|\\u0074)(?:r|\\u0072)(?:u|\\u0075)(?:c|\\u0063)(?:t|\\u0074)(?:o|\\u006[Ff])(?:r|\\u0072)/;
@@ -50728,9 +50728,9 @@ var require_parse2 = __commonJS({
   }
 });
 
-// node_modules/json-bigint/index.js
+// api-server/node_modules/json-bigint/index.js
 var require_json_bigint = __commonJS({
-  "node_modules/json-bigint/index.js"(exports2, module2) {
+  "api-server/node_modules/json-bigint/index.js"(exports2, module2) {
     var json_stringify = require_stringify2().stringify;
     var json_parse = require_parse2();
     module2.exports = function(options) {
@@ -50744,9 +50744,9 @@ var require_json_bigint = __commonJS({
   }
 });
 
-// node_modules/gcp-metadata/build/src/gcp-residency.js
+// api-server/node_modules/gcp-metadata/build/src/gcp-residency.js
 var require_gcp_residency = __commonJS({
-  "node_modules/gcp-metadata/build/src/gcp-residency.js"(exports2) {
+  "api-server/node_modules/gcp-metadata/build/src/gcp-residency.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.GCE_LINUX_BIOS_PATHS = void 0;
@@ -50799,9 +50799,9 @@ var require_gcp_residency = __commonJS({
   }
 });
 
-// node_modules/google-logging-utils/build/src/colours.js
+// api-server/node_modules/google-logging-utils/build/src/colours.js
 var require_colours = __commonJS({
-  "node_modules/google-logging-utils/build/src/colours.js"(exports2) {
+  "api-server/node_modules/google-logging-utils/build/src/colours.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Colours = void 0;
@@ -50860,9 +50860,9 @@ var require_colours = __commonJS({
   }
 });
 
-// node_modules/google-logging-utils/build/src/logging-utils.js
+// api-server/node_modules/google-logging-utils/build/src/logging-utils.js
 var require_logging_utils = __commonJS({
-  "node_modules/google-logging-utils/build/src/logging-utils.js"(exports2) {
+  "api-server/node_modules/google-logging-utils/build/src/logging-utils.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o10, m10, k10, k23) {
       if (k23 === void 0) k23 = k10;
@@ -51149,9 +51149,9 @@ var require_logging_utils = __commonJS({
   }
 });
 
-// node_modules/google-logging-utils/build/src/index.js
+// api-server/node_modules/google-logging-utils/build/src/index.js
 var require_src3 = __commonJS({
-  "node_modules/google-logging-utils/build/src/index.js"(exports2) {
+  "api-server/node_modules/google-logging-utils/build/src/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o10, m10, k10, k23) {
       if (k23 === void 0) k23 = k10;
@@ -51174,9 +51174,9 @@ var require_src3 = __commonJS({
   }
 });
 
-// node_modules/gcp-metadata/build/src/index.js
+// api-server/node_modules/gcp-metadata/build/src/index.js
 var require_src4 = __commonJS({
-  "node_modules/gcp-metadata/build/src/index.js"(exports2) {
+  "api-server/node_modules/gcp-metadata/build/src/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o10, m10, k10, k23) {
       if (k23 === void 0) k23 = k10;
@@ -51430,9 +51430,9 @@ var require_src4 = __commonJS({
   }
 });
 
-// node_modules/base64-js/index.js
+// api-server/node_modules/base64-js/index.js
 var require_base64_js = __commonJS({
-  "node_modules/base64-js/index.js"(exports2) {
+  "api-server/node_modules/base64-js/index.js"(exports2) {
     "use strict";
     exports2.byteLength = byteLength;
     exports2.toByteArray = toByteArray;
@@ -51531,9 +51531,9 @@ var require_base64_js = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/crypto/shared.js
+// api-server/node_modules/google-auth-library/build/src/crypto/shared.js
 var require_shared = __commonJS({
-  "node_modules/google-auth-library/build/src/crypto/shared.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/crypto/shared.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.fromArrayBufferToHex = fromArrayBufferToHex;
@@ -51546,9 +51546,9 @@ var require_shared = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/crypto/browser/crypto.js
+// api-server/node_modules/google-auth-library/build/src/crypto/browser/crypto.js
 var require_crypto = __commonJS({
-  "node_modules/google-auth-library/build/src/crypto/browser/crypto.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/crypto/browser/crypto.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.BrowserCrypto = void 0;
@@ -51642,9 +51642,9 @@ var require_crypto = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/crypto/node/crypto.js
+// api-server/node_modules/google-auth-library/build/src/crypto/node/crypto.js
 var require_crypto2 = __commonJS({
-  "node_modules/google-auth-library/build/src/crypto/node/crypto.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/crypto/node/crypto.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.NodeCrypto = void 0;
@@ -51711,9 +51711,9 @@ var require_crypto2 = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/crypto/crypto.js
+// api-server/node_modules/google-auth-library/build/src/crypto/crypto.js
 var require_crypto3 = __commonJS({
-  "node_modules/google-auth-library/build/src/crypto/crypto.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/crypto/crypto.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o10, m10, k10, k23) {
       if (k23 === void 0) k23 = k10;
@@ -51749,9 +51749,9 @@ var require_crypto3 = __commonJS({
   }
 });
 
-// node_modules/safe-buffer/index.js
+// api-server/node_modules/safe-buffer/index.js
 var require_safe_buffer = __commonJS({
-  "node_modules/safe-buffer/index.js"(exports2, module2) {
+  "api-server/node_modules/safe-buffer/index.js"(exports2, module2) {
     var buffer = __require("buffer");
     var Buffer4 = buffer.Buffer;
     function copyProps(src, dst) {
@@ -51807,9 +51807,9 @@ var require_safe_buffer = __commonJS({
   }
 });
 
-// node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js
+// api-server/node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js
 var require_param_bytes_for_alg = __commonJS({
-  "node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js"(exports2, module2) {
+  "api-server/node_modules/ecdsa-sig-formatter/src/param-bytes-for-alg.js"(exports2, module2) {
     "use strict";
     function getParamSize(keySize) {
       var result = (keySize / 8 | 0) + (keySize % 8 === 0 ? 0 : 1);
@@ -51831,9 +51831,9 @@ var require_param_bytes_for_alg = __commonJS({
   }
 });
 
-// node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js
+// api-server/node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js
 var require_ecdsa_sig_formatter = __commonJS({
-  "node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js"(exports2, module2) {
+  "api-server/node_modules/ecdsa-sig-formatter/src/ecdsa-sig-formatter.js"(exports2, module2) {
     "use strict";
     var Buffer4 = require_safe_buffer().Buffer;
     var getParamBytesForAlg = require_param_bytes_for_alg();
@@ -51971,9 +51971,9 @@ var require_ecdsa_sig_formatter = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/util.js
+// api-server/node_modules/google-auth-library/build/src/util.js
 var require_util2 = __commonJS({
-  "node_modules/google-auth-library/build/src/util.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/util.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.LRUCache = void 0;
@@ -52086,9 +52086,9 @@ var require_util2 = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/package.json
+// api-server/node_modules/google-auth-library/package.json
 var require_package3 = __commonJS({
-  "node_modules/google-auth-library/package.json"(exports2, module2) {
+  "api-server/node_modules/google-auth-library/package.json"(exports2, module2) {
     module2.exports = {
       name: "google-auth-library",
       version: "10.9.1",
@@ -52182,9 +52182,9 @@ var require_package3 = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/shared.cjs
+// api-server/node_modules/google-auth-library/build/src/shared.cjs
 var require_shared2 = __commonJS({
-  "node_modules/google-auth-library/build/src/shared.cjs"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/shared.cjs"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.USER_AGENT = exports2.PRODUCT_NAME = exports2.pkg = void 0;
@@ -52197,9 +52197,9 @@ var require_shared2 = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/authclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/authclient.js
 var require_authclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/authclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/authclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.AuthClient = exports2.DEFAULT_EAGER_REFRESH_THRESHOLD_MILLIS = exports2.DEFAULT_UNIVERSE = void 0;
@@ -52432,9 +52432,9 @@ var require_authclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/loginticket.js
+// api-server/node_modules/google-auth-library/build/src/auth/loginticket.js
 var require_loginticket = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/loginticket.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/loginticket.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.LoginTicket = void 0;
@@ -52484,9 +52484,9 @@ var require_loginticket = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/oauth2client.js
+// api-server/node_modules/google-auth-library/build/src/auth/oauth2client.js
 var require_oauth2client = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/oauth2client.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/oauth2client.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.OAuth2Client = exports2.ClientAuthentication = exports2.CertificateFormat = exports2.CodeChallengeMethod = void 0;
@@ -53165,9 +53165,9 @@ var require_oauth2client = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/computeclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/computeclient.js
 var require_computeclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/computeclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/computeclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Compute = void 0;
@@ -53257,9 +53257,9 @@ var require_computeclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/idtokenclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/idtokenclient.js
 var require_idtokenclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/idtokenclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/idtokenclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.IdTokenClient = void 0;
@@ -53303,9 +53303,9 @@ var require_idtokenclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/envDetect.js
+// api-server/node_modules/google-auth-library/build/src/auth/envDetect.js
 var require_envDetect = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/envDetect.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/envDetect.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.GCPEnv = void 0;
@@ -53380,9 +53380,9 @@ var require_envDetect = __commonJS({
   }
 });
 
-// node_modules/jws/lib/data-stream.js
+// api-server/node_modules/jws/lib/data-stream.js
 var require_data_stream = __commonJS({
-  "node_modules/jws/lib/data-stream.js"(exports2, module2) {
+  "api-server/node_modules/jws/lib/data-stream.js"(exports2, module2) {
     var Buffer4 = require_safe_buffer().Buffer;
     var Stream5 = __require("stream");
     var util6 = __require("util");
@@ -53428,9 +53428,9 @@ var require_data_stream = __commonJS({
   }
 });
 
-// node_modules/buffer-equal-constant-time/index.js
+// api-server/node_modules/buffer-equal-constant-time/index.js
 var require_buffer_equal_constant_time = __commonJS({
-  "node_modules/buffer-equal-constant-time/index.js"(exports2, module2) {
+  "api-server/node_modules/buffer-equal-constant-time/index.js"(exports2, module2) {
     "use strict";
     var Buffer4 = __require("buffer").Buffer;
     var SlowBuffer = __require("buffer").SlowBuffer;
@@ -53462,9 +53462,9 @@ var require_buffer_equal_constant_time = __commonJS({
   }
 });
 
-// node_modules/jwa/index.js
+// api-server/node_modules/jwa/index.js
 var require_jwa = __commonJS({
-  "node_modules/jwa/index.js"(exports2, module2) {
+  "api-server/node_modules/jwa/index.js"(exports2, module2) {
     var Buffer4 = require_safe_buffer().Buffer;
     var crypto5 = __require("crypto");
     var formatEcdsa = require_ecdsa_sig_formatter();
@@ -53686,9 +53686,9 @@ var require_jwa = __commonJS({
   }
 });
 
-// node_modules/jws/lib/tostring.js
+// api-server/node_modules/jws/lib/tostring.js
 var require_tostring = __commonJS({
-  "node_modules/jws/lib/tostring.js"(exports2, module2) {
+  "api-server/node_modules/jws/lib/tostring.js"(exports2, module2) {
     var Buffer4 = __require("buffer").Buffer;
     module2.exports = function toString4(obj) {
       if (typeof obj === "string")
@@ -53700,9 +53700,9 @@ var require_tostring = __commonJS({
   }
 });
 
-// node_modules/jws/lib/sign-stream.js
+// api-server/node_modules/jws/lib/sign-stream.js
 var require_sign_stream = __commonJS({
-  "node_modules/jws/lib/sign-stream.js"(exports2, module2) {
+  "api-server/node_modules/jws/lib/sign-stream.js"(exports2, module2) {
     var Buffer4 = require_safe_buffer().Buffer;
     var DataStream = require_data_stream();
     var jwa = require_jwa();
@@ -53775,9 +53775,9 @@ var require_sign_stream = __commonJS({
   }
 });
 
-// node_modules/jws/lib/verify-stream.js
+// api-server/node_modules/jws/lib/verify-stream.js
 var require_verify_stream = __commonJS({
-  "node_modules/jws/lib/verify-stream.js"(exports2, module2) {
+  "api-server/node_modules/jws/lib/verify-stream.js"(exports2, module2) {
     var Buffer4 = require_safe_buffer().Buffer;
     var DataStream = require_data_stream();
     var jwa = require_jwa();
@@ -53890,9 +53890,9 @@ var require_verify_stream = __commonJS({
   }
 });
 
-// node_modules/jws/index.js
+// api-server/node_modules/jws/index.js
 var require_jws = __commonJS({
-  "node_modules/jws/index.js"(exports2) {
+  "api-server/node_modules/jws/index.js"(exports2) {
     var SignStream = require_sign_stream();
     var VerifyStream = require_verify_stream();
     var ALGORITHMS = [
@@ -53923,9 +53923,9 @@ var require_jws = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/gtoken/jwsSign.js
+// api-server/node_modules/google-auth-library/build/src/gtoken/jwsSign.js
 var require_jwsSign = __commonJS({
-  "node_modules/google-auth-library/build/src/gtoken/jwsSign.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/gtoken/jwsSign.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.buildPayloadForJwsSign = buildPayloadForJwsSign;
@@ -53957,9 +53957,9 @@ var require_jwsSign = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/gtoken/getToken.js
+// api-server/node_modules/google-auth-library/build/src/gtoken/getToken.js
 var require_getToken = __commonJS({
-  "node_modules/google-auth-library/build/src/gtoken/getToken.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/gtoken/getToken.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getToken = getToken;
@@ -54001,9 +54001,9 @@ var require_getToken = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/gtoken/errorWithCode.js
+// api-server/node_modules/google-auth-library/build/src/gtoken/errorWithCode.js
 var require_errorWithCode = __commonJS({
-  "node_modules/google-auth-library/build/src/gtoken/errorWithCode.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/gtoken/errorWithCode.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ErrorWithCode = void 0;
@@ -54018,9 +54018,9 @@ var require_errorWithCode = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/gtoken/getCredentials.js
+// api-server/node_modules/google-auth-library/build/src/gtoken/getCredentials.js
 var require_getCredentials = __commonJS({
-  "node_modules/google-auth-library/build/src/gtoken/getCredentials.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/gtoken/getCredentials.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCredentials = getCredentials;
@@ -54119,9 +54119,9 @@ var require_getCredentials = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/gtoken/tokenHandler.js
+// api-server/node_modules/google-auth-library/build/src/gtoken/tokenHandler.js
 var require_tokenHandler = __commonJS({
-  "node_modules/google-auth-library/build/src/gtoken/tokenHandler.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/gtoken/tokenHandler.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.TokenHandler = void 0;
@@ -54210,9 +54210,9 @@ var require_tokenHandler = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/gtoken/revokeToken.js
+// api-server/node_modules/google-auth-library/build/src/gtoken/revokeToken.js
 var require_revokeToken = __commonJS({
-  "node_modules/google-auth-library/build/src/gtoken/revokeToken.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/gtoken/revokeToken.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.revokeToken = revokeToken;
@@ -54228,9 +54228,9 @@ var require_revokeToken = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/gtoken/googleToken.js
+// api-server/node_modules/google-auth-library/build/src/gtoken/googleToken.js
 var require_googleToken = __commonJS({
-  "node_modules/google-auth-library/build/src/gtoken/googleToken.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/gtoken/googleToken.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.GoogleToken = void 0;
@@ -54334,9 +54334,9 @@ var require_googleToken = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/jwtaccess.js
+// api-server/node_modules/google-auth-library/build/src/auth/jwtaccess.js
 var require_jwtaccess = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/jwtaccess.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/jwtaccess.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.JWTAccess = void 0;
@@ -54504,9 +54504,9 @@ var require_jwtaccess = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/jwtclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/jwtclient.js
 var require_jwtclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/jwtclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/jwtclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.JWT = void 0;
@@ -54776,9 +54776,9 @@ var require_jwtclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/refreshclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/refreshclient.js
 var require_refreshclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/refreshclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/refreshclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.UserRefreshClient = exports2.USER_REFRESH_ACCOUNT_TYPE = void 0;
@@ -54904,9 +54904,9 @@ var require_refreshclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/impersonated.js
+// api-server/node_modules/google-auth-library/build/src/auth/impersonated.js
 var require_impersonated = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/impersonated.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/impersonated.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Impersonated = exports2.IMPERSONATED_ACCOUNT_TYPE = void 0;
@@ -55083,9 +55083,9 @@ var require_impersonated = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/oauth2common.js
+// api-server/node_modules/google-auth-library/build/src/auth/oauth2common.js
 var require_oauth2common = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/oauth2common.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/oauth2common.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.OAuthClientAuthHandler = void 0;
@@ -55231,9 +55231,9 @@ var require_oauth2common = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/stscredentials.js
+// api-server/node_modules/google-auth-library/build/src/auth/stscredentials.js
 var require_stscredentials = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/stscredentials.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/stscredentials.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.StsCredentials = void 0;
@@ -55319,9 +55319,9 @@ var require_stscredentials = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/baseexternalclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/baseexternalclient.js
 var require_baseexternalclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/baseexternalclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/baseexternalclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.BaseExternalAccountClient = exports2.CLOUD_RESOURCE_MANAGER = exports2.EXTERNAL_ACCOUNT_TYPE = exports2.EXPIRATION_TIME_OFFSET = void 0;
@@ -55698,9 +55698,9 @@ var require_baseexternalclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/filesubjecttokensupplier.js
+// api-server/node_modules/google-auth-library/build/src/auth/filesubjecttokensupplier.js
 var require_filesubjecttokensupplier = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/filesubjecttokensupplier.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/filesubjecttokensupplier.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.FileSubjectTokenSupplier = void 0;
@@ -55763,9 +55763,9 @@ var require_filesubjecttokensupplier = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/urlsubjecttokensupplier.js
+// api-server/node_modules/google-auth-library/build/src/auth/urlsubjecttokensupplier.js
 var require_urlsubjecttokensupplier = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/urlsubjecttokensupplier.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/urlsubjecttokensupplier.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.UrlSubjectTokenSupplier = void 0;
@@ -55821,9 +55821,9 @@ var require_urlsubjecttokensupplier = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/certificatesubjecttokensupplier.js
+// api-server/node_modules/google-auth-library/build/src/auth/certificatesubjecttokensupplier.js
 var require_certificatesubjecttokensupplier = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/certificatesubjecttokensupplier.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/certificatesubjecttokensupplier.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.CertificateSubjectTokenSupplier = exports2.InvalidConfigurationError = exports2.CertificateSourceUnavailableError = exports2.CERTIFICATE_CONFIGURATION_ENV_VARIABLE = void 0;
@@ -56005,9 +56005,9 @@ var require_certificatesubjecttokensupplier = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/identitypoolclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/identitypoolclient.js
 var require_identitypoolclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/identitypoolclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/identitypoolclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.IdentityPoolClient = void 0;
@@ -56117,9 +56117,9 @@ var require_identitypoolclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/awsrequestsigner.js
+// api-server/node_modules/google-auth-library/build/src/auth/awsrequestsigner.js
 var require_awsrequestsigner = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/awsrequestsigner.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/awsrequestsigner.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.AwsRequestSigner = void 0;
@@ -56267,9 +56267,9 @@ ${credentialScope}
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/defaultawssecuritycredentialssupplier.js
+// api-server/node_modules/google-auth-library/build/src/auth/defaultawssecuritycredentialssupplier.js
 var require_defaultawssecuritycredentialssupplier = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/defaultawssecuritycredentialssupplier.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/defaultawssecuritycredentialssupplier.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.DefaultAwsSecurityCredentialsSupplier = void 0;
@@ -56422,9 +56422,9 @@ var require_defaultawssecuritycredentialssupplier = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/awsclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/awsclient.js
 var require_awsclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/awsclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/awsclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.AwsClient = void 0;
@@ -56536,9 +56536,9 @@ var require_awsclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/executable-response.js
+// api-server/node_modules/google-auth-library/build/src/auth/executable-response.js
 var require_executable_response = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/executable-response.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/executable-response.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.InvalidSubjectTokenError = exports2.InvalidMessageFieldError = exports2.InvalidCodeFieldError = exports2.InvalidTokenTypeFieldError = exports2.InvalidExpirationTimeFieldError = exports2.InvalidSuccessFieldError = exports2.InvalidVersionFieldError = exports2.ExecutableResponseError = exports2.ExecutableResponse = void 0;
@@ -56667,9 +56667,9 @@ var require_executable_response = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/pluggable-auth-handler.js
+// api-server/node_modules/google-auth-library/build/src/auth/pluggable-auth-handler.js
 var require_pluggable_auth_handler = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/pluggable-auth-handler.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/pluggable-auth-handler.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.PluggableAuthHandler = exports2.ExecutableError = void 0;
@@ -56808,9 +56808,9 @@ var require_pluggable_auth_handler = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/pluggable-auth-client.js
+// api-server/node_modules/google-auth-library/build/src/auth/pluggable-auth-client.js
 var require_pluggable_auth_client = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/pluggable-auth-client.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/pluggable-auth-client.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.PluggableAuthClient = exports2.ExecutableError = void 0;
@@ -56935,9 +56935,9 @@ var require_pluggable_auth_client = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/externalclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/externalclient.js
 var require_externalclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/externalclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/externalclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ExternalAccountClient = void 0;
@@ -56984,9 +56984,9 @@ var require_externalclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/externalAccountAuthorizedUserClient.js
+// api-server/node_modules/google-auth-library/build/src/auth/externalAccountAuthorizedUserClient.js
 var require_externalAccountAuthorizedUserClient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/externalAccountAuthorizedUserClient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/externalAccountAuthorizedUserClient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ExternalAccountAuthorizedUserClient = exports2.EXTERNAL_ACCOUNT_AUTHORIZED_USER_TYPE = void 0;
@@ -57171,9 +57171,9 @@ var require_externalAccountAuthorizedUserClient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/gdchclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/gdchclient.js
 var require_gdchclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/gdchclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/gdchclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.GdchClient = exports2.GDCH_SERVICE_ACCOUNT_TYPE = void 0;
@@ -57454,9 +57454,9 @@ var require_gdchclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/googleauth.js
+// api-server/node_modules/google-auth-library/build/src/auth/googleauth.js
 var require_googleauth = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/googleauth.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/googleauth.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.GoogleAuth = exports2.GoogleAuthExceptionMessages = void 0;
@@ -58262,9 +58262,9 @@ var require_googleauth = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/iam.js
+// api-server/node_modules/google-auth-library/build/src/auth/iam.js
 var require_iam = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/iam.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/iam.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.IAMAuth = void 0;
@@ -58298,9 +58298,9 @@ var require_iam = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/downscopedclient.js
+// api-server/node_modules/google-auth-library/build/src/auth/downscopedclient.js
 var require_downscopedclient = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/downscopedclient.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/downscopedclient.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.DownscopedClient = exports2.EXPIRATION_TIME_OFFSET = exports2.MAX_ACCESS_BOUNDARY_RULES_COUNT = void 0;
@@ -58483,9 +58483,9 @@ var require_downscopedclient = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/auth/passthrough.js
+// api-server/node_modules/google-auth-library/build/src/auth/passthrough.js
 var require_passthrough = __commonJS({
-  "node_modules/google-auth-library/build/src/auth/passthrough.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/auth/passthrough.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.PassThroughClient = void 0;
@@ -58528,9 +58528,9 @@ var require_passthrough = __commonJS({
   }
 });
 
-// node_modules/google-auth-library/build/src/index.js
+// api-server/node_modules/google-auth-library/build/src/index.js
 var require_src5 = __commonJS({
-  "node_modules/google-auth-library/build/src/index.js"(exports2) {
+  "api-server/node_modules/google-auth-library/build/src/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o10, m10, k10, k23) {
       if (k23 === void 0) k23 = k10;
@@ -58664,9 +58664,9 @@ var require_src5 = __commonJS({
   }
 });
 
-// node_modules/ws/lib/constants.js
+// api-server/node_modules/ws/lib/constants.js
 var require_constants2 = __commonJS({
-  "node_modules/ws/lib/constants.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/constants.js"(exports2, module2) {
     "use strict";
     var BINARY_TYPES = ["nodebuffer", "arraybuffer", "fragments"];
     var hasBlob = typeof Blob !== "undefined";
@@ -58687,9 +58687,9 @@ var require_constants2 = __commonJS({
   }
 });
 
-// node_modules/ws/lib/buffer-util.js
+// api-server/node_modules/ws/lib/buffer-util.js
 var require_buffer_util = __commonJS({
-  "node_modules/ws/lib/buffer-util.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/buffer-util.js"(exports2, module2) {
     "use strict";
     var { EMPTY_BUFFER } = require_constants2();
     var FastBuffer = Buffer[Symbol.species];
@@ -58762,9 +58762,9 @@ var require_buffer_util = __commonJS({
   }
 });
 
-// node_modules/ws/lib/limiter.js
+// api-server/node_modules/ws/lib/limiter.js
 var require_limiter = __commonJS({
-  "node_modules/ws/lib/limiter.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/limiter.js"(exports2, module2) {
     "use strict";
     var kDone = /* @__PURE__ */ Symbol("kDone");
     var kRun = /* @__PURE__ */ Symbol("kRun");
@@ -58812,9 +58812,9 @@ var require_limiter = __commonJS({
   }
 });
 
-// node_modules/ws/lib/permessage-deflate.js
+// api-server/node_modules/ws/lib/permessage-deflate.js
 var require_permessage_deflate = __commonJS({
-  "node_modules/ws/lib/permessage-deflate.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/permessage-deflate.js"(exports2, module2) {
     "use strict";
     var zlib3 = __require("zlib");
     var bufferUtil = require_buffer_util();
@@ -59195,9 +59195,9 @@ var require_permessage_deflate = __commonJS({
   }
 });
 
-// node_modules/ws/lib/validation.js
+// api-server/node_modules/ws/lib/validation.js
 var require_validation = __commonJS({
-  "node_modules/ws/lib/validation.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/validation.js"(exports2, module2) {
     "use strict";
     var { isUtf8 } = __require("buffer");
     var { hasBlob } = require_constants2();
@@ -59396,9 +59396,9 @@ var require_validation = __commonJS({
   }
 });
 
-// node_modules/ws/lib/receiver.js
+// api-server/node_modules/ws/lib/receiver.js
 var require_receiver = __commonJS({
-  "node_modules/ws/lib/receiver.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/receiver.js"(exports2, module2) {
     "use strict";
     var { Writable } = __require("stream");
     var PerMessageDeflate2 = require_permessage_deflate();
@@ -60019,9 +60019,9 @@ var require_receiver = __commonJS({
   }
 });
 
-// node_modules/ws/lib/sender.js
+// api-server/node_modules/ws/lib/sender.js
 var require_sender = __commonJS({
-  "node_modules/ws/lib/sender.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/sender.js"(exports2, module2) {
     "use strict";
     var { Duplex } = __require("stream");
     var { randomFillSync } = __require("crypto");
@@ -60512,9 +60512,9 @@ var require_sender = __commonJS({
   }
 });
 
-// node_modules/ws/lib/event-target.js
+// api-server/node_modules/ws/lib/event-target.js
 var require_event_target = __commonJS({
-  "node_modules/ws/lib/event-target.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/event-target.js"(exports2, module2) {
     "use strict";
     var { kForOnEventAttribute, kListener } = require_constants2();
     var kCode = /* @__PURE__ */ Symbol("kCode");
@@ -60741,9 +60741,9 @@ var require_event_target = __commonJS({
   }
 });
 
-// node_modules/ws/lib/extension.js
+// api-server/node_modules/ws/lib/extension.js
 var require_extension = __commonJS({
-  "node_modules/ws/lib/extension.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/extension.js"(exports2, module2) {
     "use strict";
     var { tokenChars } = require_validation();
     function push(dest, name2, elem) {
@@ -60894,9 +60894,9 @@ var require_extension = __commonJS({
   }
 });
 
-// node_modules/ws/lib/websocket.js
+// api-server/node_modules/ws/lib/websocket.js
 var require_websocket = __commonJS({
-  "node_modules/ws/lib/websocket.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/websocket.js"(exports2, module2) {
     "use strict";
     var EventEmitter2 = __require("events");
     var https3 = __require("https");
@@ -61790,9 +61790,9 @@ var require_websocket = __commonJS({
   }
 });
 
-// node_modules/ws/lib/stream.js
+// api-server/node_modules/ws/lib/stream.js
 var require_stream = __commonJS({
-  "node_modules/ws/lib/stream.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/stream.js"(exports2, module2) {
     "use strict";
     var WebSocket3 = require_websocket();
     var { Duplex } = __require("stream");
@@ -61888,9 +61888,9 @@ var require_stream = __commonJS({
   }
 });
 
-// node_modules/ws/lib/subprotocol.js
+// api-server/node_modules/ws/lib/subprotocol.js
 var require_subprotocol = __commonJS({
-  "node_modules/ws/lib/subprotocol.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/subprotocol.js"(exports2, module2) {
     "use strict";
     var { tokenChars } = require_validation();
     function parse(header) {
@@ -61933,9 +61933,9 @@ var require_subprotocol = __commonJS({
   }
 });
 
-// node_modules/ws/lib/websocket-server.js
+// api-server/node_modules/ws/lib/websocket-server.js
 var require_websocket_server = __commonJS({
-  "node_modules/ws/lib/websocket-server.js"(exports2, module2) {
+  "api-server/node_modules/ws/lib/websocket-server.js"(exports2, module2) {
     "use strict";
     var EventEmitter2 = __require("events");
     var http4 = __require("http");
@@ -62334,10 +62334,10 @@ var require_websocket_server = __commonJS({
   }
 });
 
-// node_modules/ws/wrapper.mjs
+// api-server/node_modules/ws/wrapper.mjs
 var import_stream, import_extension, import_permessage_deflate, import_receiver, import_sender, import_subprotocol, import_websocket, import_websocket_server;
 var init_wrapper = __esm({
-  "node_modules/ws/wrapper.mjs"() {
+  "api-server/node_modules/ws/wrapper.mjs"() {
     import_stream = __toESM(require_stream(), 1);
     import_extension = __toESM(require_extension(), 1);
     import_permessage_deflate = __toESM(require_permessage_deflate(), 1);
@@ -62349,7 +62349,7 @@ var init_wrapper = __esm({
   }
 });
 
-// node_modules/@google/genai/dist/node/index.mjs
+// api-server/node_modules/@google/genai/dist/node/index.mjs
 import { createWriteStream } from "fs";
 import * as fs3 from "fs/promises";
 import { writeFile } from "fs/promises";
@@ -77027,7 +77027,7 @@ function getApiKeyFromEnv() {
 }
 var import_p_retry, import_google_auth_library, _defaultBaseGeminiUrl, _defaultBaseVertexUrl, BaseModule, Outcome, Language, FunctionResponseScheduling, Type, AuthType, HttpElementLocation, ApiSpec, Environment, SafetyPolicy, PhishBlockThreshold, Behavior, DynamicRetrievalConfigMode, ThinkingLevel, PersonGeneration, ProminentPeople, HarmCategory, HarmBlockMethod, HarmBlockThreshold, FunctionCallingConfigMode, FinishReason, HarmProbability, HarmSeverity, UrlRetrievalStatus, BlockedReason, TrafficType, MediaModality, ModelStage, MediaResolution, Modality, Delivery, AspectRatio, ImageSize, TuningMode, AdapterSize, ResponseParseType, MatchOperation, ReinforcementTuningThinkingLevel, JobState, TuningJobState, AggregationMetric, PairwiseChoice, VideoOrientation, TuningSpeed, TuningTask, DocumentState, ServiceTier, PartMediaResolutionLevel, ToolType, ResourceScope, FeatureSelectionPreference, EmbeddingApiType, SafetyFilterLevel, ImagePromptLanguage, MaskReferenceMode, ControlReferenceType, SubjectReferenceType, EditMode, SegmentMode, VideoGenerationReferenceType, VideoGenerationMaskMode, VideoCompressionQuality, ImageResizeMode, TuningMethod, FileState, FileSource, TurnCompleteReason, VadSignalType, VoiceActivityType, StartSensitivity, EndSensitivity, ActivityHandling, TurnCoverage, Scale, MusicGenerationMode, LiveMusicPlaybackControl, HttpResponse, GenerateContentResponse, EmbedContentResponse, GenerateImagesResponse, EditImageResponse, UpscaleImageResponse, RecontextImageResponse, SegmentImageResponse, ListModelsResponse, DeleteModelResponse, CountTokensResponse, ComputeTokensResponse, GenerateVideosOperation, ListTuningJobsResponse, CancelTuningJobResponse, ValidateRewardResponse, DeleteCachedContentResponse, ListCachedContentsResponse, ListDocumentsResponse, ListFileSearchStoresResponse, UploadToFileSearchStoreResumableResponse, ImportFileOperation, ListFilesResponse, CreateFileResponse, DeleteFileResponse, RegisterFilesResponse, ListBatchJobsResponse, LiveServerMessage, LiveMusicServerMessage, UploadToFileSearchStoreOperation, PagedItem, Pager, Batches2, Caches, Chats, Chat2, ApiError, Files4, CONTENT_TYPE_HEADER, SERVER_TIMEOUT_HEADER, USER_AGENT_HEADER, GOOGLE_API_CLIENT_HEADER, SDK_VERSION, LIBRARY_LABEL, VERTEX_AI_API_DEFAULT_VERSION, GOOGLE_AI_API_DEFAULT_VERSION, MULTI_REGIONAL_LOCATIONS, DEFAULT_RETRY_ATTEMPTS, DEFAULT_RETRY_INITIAL_DELAY, DEFAULT_RETRY_MAX_DELAY, DEFAULT_RETRY_EXP_BASE, DEFAULT_RETRY_JITTER, DEFAULT_RETRY_HTTP_STATUS_CODES, ApiClient, MCP_LABEL, hasMcpToolUsageFromMcpToTool, McpCallableTool, LiveMusic, LiveMusicSession, FUNCTION_RESPONSE_REQUIRES_ID, Live, defaultLiveSendClientContentParamerters, Session, DEFAULT_MAX_REMOTE_CALLS, Models2, Operations, Tokens, Documents, FileSearchStores, envMemo, GoogleGenAISecurityProvider, GoogleGenAIAuthHook, HTTPClientError, UnexpectedClientError, InvalidRequestError, RequestAbortedError, RequestTimeoutError, ConnectionError, GoogleGenAiError, GeminiNextGenAPIClientError, APIError2, APIUserAbortError2, APIConnectionError2, APIConnectionTimeoutError2, BadRequestError2, AuthenticationError2, PermissionDeniedError2, NotFoundError2, ConflictError2, UnprocessableEntityError2, RateLimitError2, InternalServerError2, SDKHooks, hasOwn2, ServerList, SDK_METADATA, encodeForm, encodeSimple, encodeFormQuery, DEFAULT_FETCHER, HTTPClient, mediaParamSeparator, codeRangeRE$1, defaultBackoff, PermanentError, TemporaryError, codeRangeRE, gt, webWorkerLike, isBrowserLike, ClientSDK, jsonLikeContentTypeRE, jsonlLikeContentTypeRE, GoogleGenAiDefaultError, Stream4, CR2, LF2, BOUNDARIES, MAX_BOUNDARY_LEN, DEFAULT_CONTENT_TYPES, headerValRE, SecurityErrorCode, SecurityError, _a3, APIPromise2, Agents, Environments, CancelInteractionByIdServerError, CancelInteractionByIdClientError, CreateInteractionServerError, CreateInteractionClientError, DeleteInteractionServerError, DeleteInteractionClientError, GetInteractionByIdServerError, GetInteractionByIdClientError, Interactions, Triggers, Webhooks2, GoogleGenAI$1, LEGACY_LYRIA_MODELS, GeminiNextGenInteractions, GeminiNextGenAgents, GeminiNextGenWebhooks, GeminiNextGenTriggers, GeminiNextGenEnvironments, GOOGLE_API_KEY_HEADER, REQUIRED_VERTEX_AI_SCOPE, NodeAuth, NodeDownloader, NodeWebSocketFactory, NodeWebSocket, Tunings, MAX_CHUNK_SIZE, MAX_RETRY_COUNT, INITIAL_RETRY_DELAY_MS, DELAY_MULTIPLIER, X_GOOG_UPLOAD_STATUS_HEADER_FIELD, NodeUploader, NodeFiles, LANGUAGE_LABEL_PREFIX, GoogleGenAI2;
 var init_node = __esm({
-  "node_modules/@google/genai/dist/node/index.mjs"() {
+  "api-server/node_modules/@google/genai/dist/node/index.mjs"() {
     import_p_retry = __toESM(require_p_retry(), 1);
     import_google_auth_library = __toESM(require_src5(), 1);
     init_wrapper();
@@ -84565,7 +84565,7 @@ var init_node = __esm({
   }
 });
 
-// src/lib/geminiContextCache.ts
+// api-server/src/lib/geminiContextCache.ts
 import { createHash } from "node:crypto";
 function getGeminiContextCacheStats() {
   return { ...stats };
@@ -84632,7 +84632,7 @@ async function getOrCreateSystemCache(ai2, system, model = DEFAULT_GEMINI_MODEL)
 }
 var MIN_CACHE_CHARS, DEFAULT_TTL_SEC, cacheByHash, stats;
 var init_geminiContextCache = __esm({
-  "src/lib/geminiContextCache.ts"() {
+  "api-server/src/lib/geminiContextCache.ts"() {
     "use strict";
     init_llmEnv();
     MIN_CACHE_CHARS = 3500;
@@ -84651,7 +84651,7 @@ var init_geminiContextCache = __esm({
   }
 });
 
-// src/lib/llmChat.ts
+// api-server/src/lib/llmChat.ts
 function getGeminiCallStats() {
   return {
     ...geminiCallStats,
@@ -84874,7 +84874,7 @@ function fromOpenAiMessages(messages2) {
 }
 var geminiCallStats, geminiClient, openaiClient;
 var init_llmChat = __esm({
-  "src/lib/llmChat.ts"() {
+  "api-server/src/lib/llmChat.ts"() {
     "use strict";
     init_openai();
     init_node();
@@ -84899,10 +84899,10 @@ var init_llmChat = __esm({
   }
 });
 
-// node_modules/bmp-ts/dist/esm/header-types.js
+// api-server/node_modules/bmp-ts/dist/esm/header-types.js
 var HeaderTypes, header_types_default;
 var init_header_types = __esm({
-  "node_modules/bmp-ts/dist/esm/header-types.js"() {
+  "api-server/node_modules/bmp-ts/dist/esm/header-types.js"() {
     (function(HeaderTypes2) {
       HeaderTypes2[HeaderTypes2["BITMAP_INFO_HEADER"] = 40] = "BITMAP_INFO_HEADER";
       HeaderTypes2[HeaderTypes2["BITMAP_V2_INFO_HEADER"] = 52] = "BITMAP_V2_INFO_HEADER";
@@ -84914,7 +84914,7 @@ var init_header_types = __esm({
   }
 });
 
-// node_modules/bmp-ts/dist/esm/mask-color.js
+// api-server/node_modules/bmp-ts/dist/esm/mask-color.js
 function maskColor(maskRed, maskGreen, maskBlue, maskAlpha) {
   const maskRedR = ~maskRed + 1 & maskRed;
   const maskGreenR = ~maskGreen + 1 & maskGreen;
@@ -84932,14 +84932,14 @@ function maskColor(maskRed, maskGreen, maskBlue, maskAlpha) {
   };
 }
 var init_mask_color = __esm({
-  "node_modules/bmp-ts/dist/esm/mask-color.js"() {
+  "api-server/node_modules/bmp-ts/dist/esm/mask-color.js"() {
   }
 });
 
-// node_modules/bmp-ts/dist/esm/types.js
+// api-server/node_modules/bmp-ts/dist/esm/types.js
 var BmpCompression;
 var init_types = __esm({
-  "node_modules/bmp-ts/dist/esm/types.js"() {
+  "api-server/node_modules/bmp-ts/dist/esm/types.js"() {
     (function(BmpCompression2) {
       BmpCompression2[BmpCompression2["NONE"] = 0] = "NONE";
       BmpCompression2[BmpCompression2["BI_RLE8"] = 1] = "BI_RLE8";
@@ -84950,10 +84950,10 @@ var init_types = __esm({
   }
 });
 
-// node_modules/bmp-ts/dist/esm/decoder.js
+// api-server/node_modules/bmp-ts/dist/esm/decoder.js
 var BmpDecoder;
 var init_decoder = __esm({
-  "node_modules/bmp-ts/dist/esm/decoder.js"() {
+  "api-server/node_modules/bmp-ts/dist/esm/decoder.js"() {
     init_header_types();
     init_mask_color();
     init_types();
@@ -85322,7 +85322,7 @@ var init_decoder = __esm({
   }
 });
 
-// node_modules/bmp-ts/dist/esm/encoder.js
+// api-server/node_modules/bmp-ts/dist/esm/encoder.js
 function createInteger(numbers) {
   return numbers.reduce((final, n10) => final << 1 | n10, 0);
 }
@@ -85331,7 +85331,7 @@ function createColor(color) {
 }
 var BmpEncoder;
 var init_encoder = __esm({
-  "node_modules/bmp-ts/dist/esm/encoder.js"() {
+  "api-server/node_modules/bmp-ts/dist/esm/encoder.js"() {
     init_header_types();
     BmpEncoder = class {
       fileSize;
@@ -85582,7 +85582,7 @@ var init_encoder = __esm({
   }
 });
 
-// node_modules/bmp-ts/dist/esm/index.js
+// api-server/node_modules/bmp-ts/dist/esm/index.js
 function decode(bmpData, options) {
   return new BmpDecoder(bmpData, options);
 }
@@ -85590,14 +85590,14 @@ function encode2(imgData) {
   return new BmpEncoder(imgData);
 }
 var init_esm = __esm({
-  "node_modules/bmp-ts/dist/esm/index.js"() {
+  "api-server/node_modules/bmp-ts/dist/esm/index.js"() {
     init_decoder();
     init_encoder();
     init_types();
   }
 });
 
-// node_modules/tinycolor2/esm/tinycolor.js
+// api-server/node_modules/tinycolor2/esm/tinycolor.js
 function _typeof(obj) {
   "@babel/helpers - typeof";
   return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(obj2) {
@@ -86077,7 +86077,7 @@ function validateWCAG2Parms(parms) {
 }
 var trimLeft, trimRight, names, hexNames, matchers;
 var init_tinycolor = __esm({
-  "node_modules/tinycolor2/esm/tinycolor.js"() {
+  "api-server/node_modules/tinycolor2/esm/tinycolor.js"() {
     trimLeft = /^\s+/;
     trimRight = /\s+$/;
     tinycolor.prototype = {
@@ -86567,7 +86567,7 @@ var init_tinycolor = __esm({
   }
 });
 
-// node_modules/@jimp/utils/dist/esm/index.js
+// api-server/node_modules/@jimp/utils/dist/esm/index.js
 function clone3(image2) {
   const newBitmap = {
     width: image2.bitmap.width,
@@ -86664,12 +86664,12 @@ function cssColorToHex(cssColor) {
   return parseInt(tinycolor(cssColor).toHex8(), 16);
 }
 var init_esm2 = __esm({
-  "node_modules/@jimp/utils/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/utils/dist/esm/index.js"() {
     init_tinycolor();
   }
 });
 
-// node_modules/@jimp/js-bmp/dist/esm/index.js
+// api-server/node_modules/@jimp/js-bmp/dist/esm/index.js
 function encode3(image2, options = {}) {
   scan({ bitmap: image2 }, 0, 0, image2.width, image2.height, function(_10, __, index) {
     const red = image2.data[index + 0];
@@ -86711,16 +86711,16 @@ function bmp() {
   };
 }
 var init_esm3 = __esm({
-  "node_modules/@jimp/js-bmp/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/js-bmp/dist/esm/index.js"() {
     init_esm();
     init_esm2();
     init_esm();
   }
 });
 
-// node_modules/omggif/omggif.js
+// api-server/node_modules/omggif/omggif.js
 var require_omggif = __commonJS({
-  "node_modules/omggif/omggif.js"(exports2) {
+  "api-server/node_modules/omggif/omggif.js"(exports2) {
     "use strict";
     function GifWriter(buf, width, height, gopts) {
       var p10 = 0;
@@ -87280,9 +87280,9 @@ var require_omggif = __commonJS({
   }
 });
 
-// node_modules/gifwrap/src/bitmapimage.js
+// api-server/node_modules/gifwrap/src/bitmapimage.js
 var require_bitmapimage = __commonJS({
-  "node_modules/gifwrap/src/bitmapimage.js"(exports2, module2) {
+  "api-server/node_modules/gifwrap/src/bitmapimage.js"(exports2, module2) {
     "use strict";
     var BitmapImage2 = class _BitmapImage {
       /**
@@ -87549,9 +87549,9 @@ var require_bitmapimage = __commonJS({
   }
 });
 
-// node_modules/gifwrap/src/gif.js
+// api-server/node_modules/gifwrap/src/gif.js
 var require_gif = __commonJS({
-  "node_modules/gifwrap/src/gif.js"(exports2) {
+  "api-server/node_modules/gifwrap/src/gif.js"(exports2) {
     "use strict";
     var Gif = class {
       // width - width of GIF in pixels
@@ -87611,9 +87611,9 @@ var require_gif = __commonJS({
   }
 });
 
-// node_modules/image-q/dist/cjs/image-q.cjs
+// api-server/node_modules/image-q/dist/cjs/image-q.cjs
 var require_image_q = __commonJS({
-  "node_modules/image-q/dist/cjs/image-q.cjs"(exports2, module2) {
+  "api-server/node_modules/image-q/dist/cjs/image-q.cjs"(exports2, module2) {
     var __defProp3 = Object.defineProperty;
     var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
     var __getOwnPropNames2 = Object.getOwnPropertyNames;
@@ -90373,9 +90373,9 @@ var require_image_q = __commonJS({
   }
 });
 
-// node_modules/gifwrap/src/gifframe.js
+// api-server/node_modules/gifwrap/src/gifframe.js
 var require_gifframe = __commonJS({
-  "node_modules/gifwrap/src/gifframe.js"(exports2) {
+  "api-server/node_modules/gifwrap/src/gifframe.js"(exports2) {
     "use strict";
     var BitmapImage2 = require_bitmapimage();
     var { GifError: GifError2 } = require_gif();
@@ -90476,9 +90476,9 @@ var require_gifframe = __commonJS({
   }
 });
 
-// node_modules/gifwrap/src/gifutil.js
+// api-server/node_modules/gifwrap/src/gifutil.js
 var require_gifutil = __commonJS({
-  "node_modules/gifwrap/src/gifutil.js"(exports2) {
+  "api-server/node_modules/gifwrap/src/gifutil.js"(exports2) {
     "use strict";
     var fs7 = __require("fs");
     var ImageQ = require_image_q();
@@ -90697,9 +90697,9 @@ var require_gifutil = __commonJS({
   }
 });
 
-// node_modules/gifwrap/src/gifcodec.js
+// api-server/node_modules/gifwrap/src/gifcodec.js
 var require_gifcodec = __commonJS({
-  "node_modules/gifwrap/src/gifcodec.js"(exports2) {
+  "api-server/node_modules/gifwrap/src/gifcodec.js"(exports2) {
     "use strict";
     var Omggif = require_omggif();
     var { Gif, GifError: GifError2 } = require_gif();
@@ -91062,9 +91062,9 @@ var require_gifcodec = __commonJS({
   }
 });
 
-// node_modules/gifwrap/src/index.js
+// api-server/node_modules/gifwrap/src/index.js
 var require_src6 = __commonJS({
-  "node_modules/gifwrap/src/index.js"(exports2, module2) {
+  "api-server/node_modules/gifwrap/src/index.js"(exports2, module2) {
     "use strict";
     var BitmapImage2 = require_bitmapimage();
     var { Gif, GifError: GifError2 } = require_gif();
@@ -91082,7 +91082,7 @@ var require_src6 = __commonJS({
   }
 });
 
-// node_modules/@jimp/js-gif/dist/esm/index.js
+// api-server/node_modules/@jimp/js-gif/dist/esm/index.js
 function gif() {
   return {
     mime: "image/gif",
@@ -91108,15 +91108,15 @@ function gif() {
 }
 var import_omggif, import_gifwrap;
 var init_esm4 = __esm({
-  "node_modules/@jimp/js-gif/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/js-gif/dist/esm/index.js"() {
     import_omggif = __toESM(require_omggif(), 1);
     import_gifwrap = __toESM(require_src6(), 1);
   }
 });
 
-// node_modules/jpeg-js/lib/encoder.js
+// api-server/node_modules/jpeg-js/lib/encoder.js
 var require_encoder = __commonJS({
-  "node_modules/jpeg-js/lib/encoder.js"(exports2, module2) {
+  "api-server/node_modules/jpeg-js/lib/encoder.js"(exports2, module2) {
     var btoa2 = btoa2 || function(buf) {
       return Buffer.from(buf).toString("base64");
     };
@@ -92191,9 +92191,9 @@ var require_encoder = __commonJS({
   }
 });
 
-// node_modules/jpeg-js/lib/decoder.js
+// api-server/node_modules/jpeg-js/lib/decoder.js
 var require_decoder = __commonJS({
-  "node_modules/jpeg-js/lib/decoder.js"(exports2, module2) {
+  "api-server/node_modules/jpeg-js/lib/decoder.js"(exports2, module2) {
     var JpegImage = (function jpegImage() {
       "use strict";
       var dctZigZag = new Int32Array([
@@ -93253,9 +93253,9 @@ var require_decoder = __commonJS({
   }
 });
 
-// node_modules/jpeg-js/index.js
+// api-server/node_modules/jpeg-js/index.js
 var require_jpeg_js = __commonJS({
-  "node_modules/jpeg-js/index.js"(exports2, module2) {
+  "api-server/node_modules/jpeg-js/index.js"(exports2, module2) {
     var encode6 = require_encoder();
     var decode3 = require_decoder();
     module2.exports = {
@@ -93265,7 +93265,7 @@ var require_jpeg_js = __commonJS({
   }
 });
 
-// node_modules/@jimp/js-jpeg/dist/esm/index.js
+// api-server/node_modules/@jimp/js-jpeg/dist/esm/index.js
 function jpeg() {
   return {
     mime: "image/jpeg",
@@ -93275,14 +93275,14 @@ function jpeg() {
 }
 var import_jpeg_js;
 var init_esm5 = __esm({
-  "node_modules/@jimp/js-jpeg/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/js-jpeg/dist/esm/index.js"() {
     import_jpeg_js = __toESM(require_jpeg_js(), 1);
   }
 });
 
-// node_modules/pngjs/lib/chunkstream.js
+// api-server/node_modules/pngjs/lib/chunkstream.js
 var require_chunkstream = __commonJS({
-  "node_modules/pngjs/lib/chunkstream.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/chunkstream.js"(exports2, module2) {
     "use strict";
     var util6 = __require("util");
     var Stream5 = __require("stream");
@@ -93418,9 +93418,9 @@ var require_chunkstream = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/interlace.js
+// api-server/node_modules/pngjs/lib/interlace.js
 var require_interlace = __commonJS({
-  "node_modules/pngjs/lib/interlace.js"(exports2) {
+  "api-server/node_modules/pngjs/lib/interlace.js"(exports2) {
     "use strict";
     var imagePasses = [
       {
@@ -93501,9 +93501,9 @@ var require_interlace = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/paeth-predictor.js
+// api-server/node_modules/pngjs/lib/paeth-predictor.js
 var require_paeth_predictor = __commonJS({
-  "node_modules/pngjs/lib/paeth-predictor.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/paeth-predictor.js"(exports2, module2) {
     "use strict";
     module2.exports = function paethPredictor(left, above, upLeft) {
       let paeth = left + above - upLeft;
@@ -93521,9 +93521,9 @@ var require_paeth_predictor = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/filter-parse.js
+// api-server/node_modules/pngjs/lib/filter-parse.js
 var require_filter_parse = __commonJS({
-  "node_modules/pngjs/lib/filter-parse.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/filter-parse.js"(exports2, module2) {
     "use strict";
     var interlaceUtils = require_interlace();
     var paethPredictor = require_paeth_predictor();
@@ -93662,9 +93662,9 @@ var require_filter_parse = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/filter-parse-async.js
+// api-server/node_modules/pngjs/lib/filter-parse-async.js
 var require_filter_parse_async = __commonJS({
-  "node_modules/pngjs/lib/filter-parse-async.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/filter-parse-async.js"(exports2, module2) {
     "use strict";
     var util6 = __require("util");
     var ChunkStream = require_chunkstream();
@@ -93688,9 +93688,9 @@ var require_filter_parse_async = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/constants.js
+// api-server/node_modules/pngjs/lib/constants.js
 var require_constants3 = __commonJS({
-  "node_modules/pngjs/lib/constants.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/constants.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       PNG_SIGNATURE: [137, 80, 78, 71, 13, 10, 26, 10],
@@ -93723,9 +93723,9 @@ var require_constants3 = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/crc.js
+// api-server/node_modules/pngjs/lib/crc.js
 var require_crc = __commonJS({
-  "node_modules/pngjs/lib/crc.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/crc.js"(exports2, module2) {
     "use strict";
     var crcTable = [];
     (function() {
@@ -93763,9 +93763,9 @@ var require_crc = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/parser.js
+// api-server/node_modules/pngjs/lib/parser.js
 var require_parser = __commonJS({
-  "node_modules/pngjs/lib/parser.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/parser.js"(exports2, module2) {
     "use strict";
     var constants2 = require_constants3();
     var CrcCalculator = require_crc();
@@ -93984,9 +93984,9 @@ var require_parser = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/bitmapper.js
+// api-server/node_modules/pngjs/lib/bitmapper.js
 var require_bitmapper = __commonJS({
-  "node_modules/pngjs/lib/bitmapper.js"(exports2) {
+  "api-server/node_modules/pngjs/lib/bitmapper.js"(exports2) {
     "use strict";
     var interlaceUtils = require_interlace();
     var pixelBppMapper = [
@@ -94232,9 +94232,9 @@ var require_bitmapper = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/format-normaliser.js
+// api-server/node_modules/pngjs/lib/format-normaliser.js
 var require_format_normaliser = __commonJS({
-  "node_modules/pngjs/lib/format-normaliser.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/format-normaliser.js"(exports2, module2) {
     "use strict";
     function dePalette(indata, outdata, width, height, palette2) {
       let pxPos = 0;
@@ -94313,9 +94313,9 @@ var require_format_normaliser = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/parser-async.js
+// api-server/node_modules/pngjs/lib/parser-async.js
 var require_parser_async = __commonJS({
-  "node_modules/pngjs/lib/parser-async.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/parser-async.js"(exports2, module2) {
     "use strict";
     var util6 = __require("util");
     var zlib3 = __require("zlib");
@@ -94443,9 +94443,9 @@ var require_parser_async = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/bitpacker.js
+// api-server/node_modules/pngjs/lib/bitpacker.js
 var require_bitpacker = __commonJS({
-  "node_modules/pngjs/lib/bitpacker.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/bitpacker.js"(exports2, module2) {
     "use strict";
     var constants2 = require_constants3();
     module2.exports = function(dataIn, width, height, options) {
@@ -94593,9 +94593,9 @@ var require_bitpacker = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/filter-pack.js
+// api-server/node_modules/pngjs/lib/filter-pack.js
 var require_filter_pack = __commonJS({
-  "node_modules/pngjs/lib/filter-pack.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/filter-pack.js"(exports2, module2) {
     "use strict";
     var paethPredictor = require_paeth_predictor();
     function filterNone(pxData, pxPos, byteWidth, rawData, rawPos) {
@@ -94735,9 +94735,9 @@ var require_filter_pack = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/packer.js
+// api-server/node_modules/pngjs/lib/packer.js
 var require_packer = __commonJS({
-  "node_modules/pngjs/lib/packer.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/packer.js"(exports2, module2) {
     "use strict";
     var constants2 = require_constants3();
     var CrcStream = require_crc();
@@ -94835,9 +94835,9 @@ var require_packer = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/packer-async.js
+// api-server/node_modules/pngjs/lib/packer-async.js
 var require_packer_async = __commonJS({
-  "node_modules/pngjs/lib/packer-async.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/packer-async.js"(exports2, module2) {
     "use strict";
     var util6 = __require("util");
     var Stream5 = __require("stream");
@@ -94877,9 +94877,9 @@ var require_packer_async = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/sync-inflate.js
+// api-server/node_modules/pngjs/lib/sync-inflate.js
 var require_sync_inflate = __commonJS({
-  "node_modules/pngjs/lib/sync-inflate.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/sync-inflate.js"(exports2, module2) {
     "use strict";
     var assert2 = __require("assert").ok;
     var zlib3 = __require("zlib");
@@ -95014,9 +95014,9 @@ var require_sync_inflate = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/sync-reader.js
+// api-server/node_modules/pngjs/lib/sync-reader.js
 var require_sync_reader = __commonJS({
-  "node_modules/pngjs/lib/sync-reader.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/sync-reader.js"(exports2, module2) {
     "use strict";
     var SyncReader = module2.exports = function(buffer) {
       this._buffer = buffer;
@@ -95052,9 +95052,9 @@ var require_sync_reader = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/filter-parse-sync.js
+// api-server/node_modules/pngjs/lib/filter-parse-sync.js
 var require_filter_parse_sync = __commonJS({
-  "node_modules/pngjs/lib/filter-parse-sync.js"(exports2) {
+  "api-server/node_modules/pngjs/lib/filter-parse-sync.js"(exports2) {
     "use strict";
     var SyncReader = require_sync_reader();
     var Filter = require_filter_parse();
@@ -95076,9 +95076,9 @@ var require_filter_parse_sync = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/parser-sync.js
+// api-server/node_modules/pngjs/lib/parser-sync.js
 var require_parser_sync = __commonJS({
-  "node_modules/pngjs/lib/parser-sync.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/parser-sync.js"(exports2, module2) {
     "use strict";
     var hasSyncZlib = true;
     var zlib3 = __require("zlib");
@@ -95171,9 +95171,9 @@ var require_parser_sync = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/packer-sync.js
+// api-server/node_modules/pngjs/lib/packer-sync.js
 var require_packer_sync = __commonJS({
-  "node_modules/pngjs/lib/packer-sync.js"(exports2, module2) {
+  "api-server/node_modules/pngjs/lib/packer-sync.js"(exports2, module2) {
     "use strict";
     var hasSyncZlib = true;
     var zlib3 = __require("zlib");
@@ -95216,9 +95216,9 @@ var require_packer_sync = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/png-sync.js
+// api-server/node_modules/pngjs/lib/png-sync.js
 var require_png_sync = __commonJS({
-  "node_modules/pngjs/lib/png-sync.js"(exports2) {
+  "api-server/node_modules/pngjs/lib/png-sync.js"(exports2) {
     "use strict";
     var parse = require_parser_sync();
     var pack = require_packer_sync();
@@ -95231,9 +95231,9 @@ var require_png_sync = __commonJS({
   }
 });
 
-// node_modules/pngjs/lib/png.js
+// api-server/node_modules/pngjs/lib/png.js
 var require_png = __commonJS({
-  "node_modules/pngjs/lib/png.js"(exports2) {
+  "api-server/node_modules/pngjs/lib/png.js"(exports2) {
     "use strict";
     var util6 = __require("util");
     var Stream5 = __require("stream");
@@ -95368,10 +95368,10 @@ var require_png = __commonJS({
   }
 });
 
-// node_modules/@jimp/js-png/dist/esm/constants.js
+// api-server/node_modules/@jimp/js-png/dist/esm/constants.js
 var PNGFilterType, PNGColorType;
 var init_constants = __esm({
-  "node_modules/@jimp/js-png/dist/esm/constants.js"() {
+  "api-server/node_modules/@jimp/js-png/dist/esm/constants.js"() {
     (function(PNGFilterType2) {
       PNGFilterType2[PNGFilterType2["AUTO"] = -1] = "AUTO";
       PNGFilterType2[PNGFilterType2["NONE"] = 0] = "NONE";
@@ -95389,7 +95389,7 @@ var init_constants = __esm({
   }
 });
 
-// node_modules/@jimp/js-png/dist/esm/index.js
+// api-server/node_modules/@jimp/js-png/dist/esm/index.js
 function png() {
   return {
     mime: "image/png",
@@ -95421,16 +95421,16 @@ function png() {
 }
 var import_pngjs;
 var init_esm6 = __esm({
-  "node_modules/@jimp/js-png/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/js-png/dist/esm/index.js"() {
     import_pngjs = __toESM(require_png(), 1);
     init_constants();
     init_constants();
   }
 });
 
-// node_modules/pako/lib/utils/common.js
+// api-server/node_modules/pako/lib/utils/common.js
 var require_common3 = __commonJS({
-  "node_modules/pako/lib/utils/common.js"(exports2) {
+  "api-server/node_modules/pako/lib/utils/common.js"(exports2) {
     "use strict";
     var TYPED_OK = typeof Uint8Array !== "undefined" && typeof Uint16Array !== "undefined" && typeof Int32Array !== "undefined";
     function _has(obj, key) {
@@ -95519,9 +95519,9 @@ var require_common3 = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/trees.js
+// api-server/node_modules/pako/lib/zlib/trees.js
 var require_trees = __commonJS({
-  "node_modules/pako/lib/zlib/trees.js"(exports2) {
+  "api-server/node_modules/pako/lib/zlib/trees.js"(exports2) {
     "use strict";
     var utils2 = require_common3();
     var Z_FIXED = 4;
@@ -96161,9 +96161,9 @@ var require_trees = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/adler32.js
+// api-server/node_modules/pako/lib/zlib/adler32.js
 var require_adler32 = __commonJS({
-  "node_modules/pako/lib/zlib/adler32.js"(exports2, module2) {
+  "api-server/node_modules/pako/lib/zlib/adler32.js"(exports2, module2) {
     "use strict";
     function adler32(adler, buf, len, pos) {
       var s12 = adler & 65535 | 0, s23 = adler >>> 16 & 65535 | 0, n10 = 0;
@@ -96183,9 +96183,9 @@ var require_adler32 = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/crc32.js
+// api-server/node_modules/pako/lib/zlib/crc32.js
 var require_crc32 = __commonJS({
-  "node_modules/pako/lib/zlib/crc32.js"(exports2, module2) {
+  "api-server/node_modules/pako/lib/zlib/crc32.js"(exports2, module2) {
     "use strict";
     function makeTable() {
       var c10, table = [];
@@ -96211,9 +96211,9 @@ var require_crc32 = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/messages.js
+// api-server/node_modules/pako/lib/zlib/messages.js
 var require_messages = __commonJS({
-  "node_modules/pako/lib/zlib/messages.js"(exports2, module2) {
+  "api-server/node_modules/pako/lib/zlib/messages.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       2: "need dictionary",
@@ -96238,9 +96238,9 @@ var require_messages = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/deflate.js
+// api-server/node_modules/pako/lib/zlib/deflate.js
 var require_deflate = __commonJS({
-  "node_modules/pako/lib/zlib/deflate.js"(exports2) {
+  "api-server/node_modules/pako/lib/zlib/deflate.js"(exports2) {
     "use strict";
     var utils2 = require_common3();
     var trees = require_trees();
@@ -97287,9 +97287,9 @@ var require_deflate = __commonJS({
   }
 });
 
-// node_modules/pako/lib/utils/strings.js
+// api-server/node_modules/pako/lib/utils/strings.js
 var require_strings = __commonJS({
-  "node_modules/pako/lib/utils/strings.js"(exports2) {
+  "api-server/node_modules/pako/lib/utils/strings.js"(exports2) {
     "use strict";
     var utils2 = require_common3();
     var STR_APPLY_OK = true;
@@ -97429,9 +97429,9 @@ var require_strings = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/zstream.js
+// api-server/node_modules/pako/lib/zlib/zstream.js
 var require_zstream = __commonJS({
-  "node_modules/pako/lib/zlib/zstream.js"(exports2, module2) {
+  "api-server/node_modules/pako/lib/zlib/zstream.js"(exports2, module2) {
     "use strict";
     function ZStream() {
       this.input = null;
@@ -97451,9 +97451,9 @@ var require_zstream = __commonJS({
   }
 });
 
-// node_modules/pako/lib/deflate.js
+// api-server/node_modules/pako/lib/deflate.js
 var require_deflate2 = __commonJS({
-  "node_modules/pako/lib/deflate.js"(exports2) {
+  "api-server/node_modules/pako/lib/deflate.js"(exports2) {
     "use strict";
     var zlib_deflate = require_deflate();
     var utils2 = require_common3();
@@ -97612,9 +97612,9 @@ var require_deflate2 = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/inffast.js
+// api-server/node_modules/pako/lib/zlib/inffast.js
 var require_inffast = __commonJS({
-  "node_modules/pako/lib/zlib/inffast.js"(exports2, module2) {
+  "api-server/node_modules/pako/lib/zlib/inffast.js"(exports2, module2) {
     "use strict";
     var BAD = 30;
     var TYPE = 12;
@@ -97841,9 +97841,9 @@ var require_inffast = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/inftrees.js
+// api-server/node_modules/pako/lib/zlib/inftrees.js
 var require_inftrees = __commonJS({
-  "node_modules/pako/lib/zlib/inftrees.js"(exports2, module2) {
+  "api-server/node_modules/pako/lib/zlib/inftrees.js"(exports2, module2) {
     "use strict";
     var utils2 = require_common3();
     var MAXBITS = 15;
@@ -98157,9 +98157,9 @@ var require_inftrees = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/inflate.js
+// api-server/node_modules/pako/lib/zlib/inflate.js
 var require_inflate = __commonJS({
-  "node_modules/pako/lib/zlib/inflate.js"(exports2) {
+  "api-server/node_modules/pako/lib/zlib/inflate.js"(exports2) {
     "use strict";
     var utils2 = require_common3();
     var adler32 = require_adler32();
@@ -99396,9 +99396,9 @@ var require_inflate = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/constants.js
+// api-server/node_modules/pako/lib/zlib/constants.js
 var require_constants4 = __commonJS({
-  "node_modules/pako/lib/zlib/constants.js"(exports2, module2) {
+  "api-server/node_modules/pako/lib/zlib/constants.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       /* Allowed flush values; see deflate() and inflate() below for details */
@@ -99443,9 +99443,9 @@ var require_constants4 = __commonJS({
   }
 });
 
-// node_modules/pako/lib/zlib/gzheader.js
+// api-server/node_modules/pako/lib/zlib/gzheader.js
 var require_gzheader = __commonJS({
-  "node_modules/pako/lib/zlib/gzheader.js"(exports2, module2) {
+  "api-server/node_modules/pako/lib/zlib/gzheader.js"(exports2, module2) {
     "use strict";
     function GZheader() {
       this.text = 0;
@@ -99463,9 +99463,9 @@ var require_gzheader = __commonJS({
   }
 });
 
-// node_modules/pako/lib/inflate.js
+// api-server/node_modules/pako/lib/inflate.js
 var require_inflate2 = __commonJS({
-  "node_modules/pako/lib/inflate.js"(exports2) {
+  "api-server/node_modules/pako/lib/inflate.js"(exports2) {
     "use strict";
     var zlib_inflate = require_inflate();
     var utils2 = require_common3();
@@ -99637,9 +99637,9 @@ var require_inflate2 = __commonJS({
   }
 });
 
-// node_modules/pako/index.js
+// api-server/node_modules/pako/index.js
 var require_pako = __commonJS({
-  "node_modules/pako/index.js"(exports2, module2) {
+  "api-server/node_modules/pako/index.js"(exports2, module2) {
     "use strict";
     var assign = require_common3().assign;
     var deflate = require_deflate2();
@@ -99651,9 +99651,9 @@ var require_pako = __commonJS({
   }
 });
 
-// node_modules/utif2/UTIF.js
+// api-server/node_modules/utif2/UTIF.js
 var require_UTIF = __commonJS({
-  "node_modules/utif2/UTIF.js"(exports2, module2) {
+  "api-server/node_modules/utif2/UTIF.js"(exports2, module2) {
     (function() {
       var UTIF = {};
       if (typeof module2 == "object") {
@@ -103139,7 +103139,7 @@ var require_UTIF = __commonJS({
   }
 });
 
-// node_modules/@jimp/js-tiff/dist/esm/index.js
+// api-server/node_modules/@jimp/js-tiff/dist/esm/index.js
 function getDimensionValue(dimension) {
   if (typeof dimension === "number") {
     return dimension;
@@ -103185,15 +103185,15 @@ function tiff() {
 }
 var import_utif2;
 var init_esm7 = __esm({
-  "node_modules/@jimp/js-tiff/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/js-tiff/dist/esm/index.js"() {
     import_utif2 = __toESM(require_UTIF(), 1);
   }
 });
 
-// node_modules/zod/v3/helpers/util.js
+// api-server/node_modules/zod/v3/helpers/util.js
 var util2, objectUtil2, ZodParsedType2, getParsedType2;
 var init_util = __esm({
-  "node_modules/zod/v3/helpers/util.js"() {
+  "api-server/node_modules/zod/v3/helpers/util.js"() {
     (function(util6) {
       util6.assertEqual = (_10) => {
       };
@@ -103327,10 +103327,10 @@ var init_util = __esm({
   }
 });
 
-// node_modules/zod/v3/ZodError.js
+// api-server/node_modules/zod/v3/ZodError.js
 var ZodIssueCode2, quotelessJson, ZodError2;
 var init_ZodError = __esm({
-  "node_modules/zod/v3/ZodError.js"() {
+  "api-server/node_modules/zod/v3/ZodError.js"() {
     init_util();
     ZodIssueCode2 = util2.arrayToEnum([
       "invalid_type",
@@ -103451,10 +103451,10 @@ var init_ZodError = __esm({
   }
 });
 
-// node_modules/zod/v3/locales/en.js
+// api-server/node_modules/zod/v3/locales/en.js
 var errorMap2, en_default2;
 var init_en = __esm({
-  "node_modules/zod/v3/locales/en.js"() {
+  "api-server/node_modules/zod/v3/locales/en.js"() {
     init_ZodError();
     init_util();
     errorMap2 = (issue, _ctx) => {
@@ -103561,7 +103561,7 @@ var init_en = __esm({
   }
 });
 
-// node_modules/zod/v3/errors.js
+// api-server/node_modules/zod/v3/errors.js
 function setErrorMap(map) {
   overrideErrorMap2 = map;
 }
@@ -103570,13 +103570,13 @@ function getErrorMap2() {
 }
 var overrideErrorMap2;
 var init_errors2 = __esm({
-  "node_modules/zod/v3/errors.js"() {
+  "api-server/node_modules/zod/v3/errors.js"() {
     init_en();
     overrideErrorMap2 = en_default2;
   }
 });
 
-// node_modules/zod/v3/helpers/parseUtil.js
+// api-server/node_modules/zod/v3/helpers/parseUtil.js
 function addIssueToContext2(ctx, issueData) {
   const overrideMap = getErrorMap2();
   const issue = makeIssue2({
@@ -103598,7 +103598,7 @@ function addIssueToContext2(ctx, issueData) {
 }
 var makeIssue2, EMPTY_PATH, ParseStatus2, INVALID2, DIRTY2, OK3, isAborted2, isDirty2, isValid3, isAsync2;
 var init_parseUtil = __esm({
-  "node_modules/zod/v3/helpers/parseUtil.js"() {
+  "api-server/node_modules/zod/v3/helpers/parseUtil.js"() {
     init_errors2();
     init_en();
     makeIssue2 = (params) => {
@@ -103693,16 +103693,16 @@ var init_parseUtil = __esm({
   }
 });
 
-// node_modules/zod/v3/helpers/typeAliases.js
+// api-server/node_modules/zod/v3/helpers/typeAliases.js
 var init_typeAliases = __esm({
-  "node_modules/zod/v3/helpers/typeAliases.js"() {
+  "api-server/node_modules/zod/v3/helpers/typeAliases.js"() {
   }
 });
 
-// node_modules/zod/v3/helpers/errorUtil.js
+// api-server/node_modules/zod/v3/helpers/errorUtil.js
 var errorUtil2;
 var init_errorUtil = __esm({
-  "node_modules/zod/v3/helpers/errorUtil.js"() {
+  "api-server/node_modules/zod/v3/helpers/errorUtil.js"() {
     (function(errorUtil3) {
       errorUtil3.errToObj = (message) => typeof message === "string" ? { message } : message || {};
       errorUtil3.toString = (message) => typeof message === "string" ? message : message?.message;
@@ -103710,7 +103710,7 @@ var init_errorUtil = __esm({
   }
 });
 
-// node_modules/zod/v3/types.js
+// api-server/node_modules/zod/v3/types.js
 function processCreateParams2(params) {
   if (!params)
     return {};
@@ -103904,7 +103904,7 @@ function custom(check, _params = {}, fatal) {
 }
 var ParseInputLazyPath2, handleResult2, ZodType2, cuidRegex2, cuid2Regex2, ulidRegex2, uuidRegex2, nanoidRegex2, jwtRegex2, durationRegex2, emailRegex2, _emojiRegex2, emojiRegex2, ipv4Regex2, ipv4CidrRegex2, ipv6Regex2, ipv6CidrRegex2, base64Regex2, base64urlRegex2, dateRegexSource2, dateRegex2, ZodString2, ZodNumber2, ZodBigInt2, ZodBoolean2, ZodDate2, ZodSymbol2, ZodUndefined2, ZodNull2, ZodAny2, ZodUnknown2, ZodNever2, ZodVoid2, ZodArray2, ZodObject2, ZodUnion2, getDiscriminator2, ZodDiscriminatedUnion2, ZodIntersection2, ZodTuple2, ZodRecord2, ZodMap2, ZodSet2, ZodFunction2, ZodLazy2, ZodLiteral2, ZodEnum2, ZodNativeEnum2, ZodPromise2, ZodEffects2, ZodOptional2, ZodNullable2, ZodDefault2, ZodCatch2, ZodNaN2, BRAND, ZodBranded2, ZodPipeline2, ZodReadonly2, late2, ZodFirstPartyTypeKind2, instanceOfType, stringType2, numberType2, nanType2, bigIntType2, booleanType2, dateType2, symbolType2, undefinedType2, nullType2, anyType2, unknownType2, neverType2, voidType2, arrayType2, objectType2, strictObjectType2, unionType2, discriminatedUnionType2, intersectionType2, tupleType2, recordType2, mapType2, setType2, functionType2, lazyType2, literalType2, enumType2, nativeEnumType2, promiseType2, effectsType2, optionalType2, nullableType2, preprocessType2, pipelineType2, ostring, onumber, oboolean, coerce2, NEVER;
 var init_types2 = __esm({
-  "node_modules/zod/v3/types.js"() {
+  "api-server/node_modules/zod/v3/types.js"() {
     init_ZodError();
     init_errors2();
     init_errorUtil();
@@ -107166,7 +107166,7 @@ var init_types2 = __esm({
   }
 });
 
-// node_modules/zod/v3/external.js
+// api-server/node_modules/zod/v3/external.js
 var external_exports = {};
 __export(external_exports, {
   BRAND: () => BRAND,
@@ -107278,7 +107278,7 @@ __export(external_exports, {
   void: () => voidType2
 });
 var init_external = __esm({
-  "node_modules/zod/v3/external.js"() {
+  "api-server/node_modules/zod/v3/external.js"() {
     init_errors2();
     init_parseUtil();
     init_typeAliases();
@@ -107288,20 +107288,20 @@ var init_external = __esm({
   }
 });
 
-// node_modules/zod/index.js
+// api-server/node_modules/zod/index.js
 var zod_default;
 var init_zod = __esm({
-  "node_modules/zod/index.js"() {
+  "api-server/node_modules/zod/index.js"() {
     init_external();
     init_external();
     zod_default = external_exports;
   }
 });
 
-// node_modules/@jimp/types/dist/esm/index.js
+// api-server/node_modules/@jimp/types/dist/esm/index.js
 var Edge, JimpClassSchema;
 var init_esm8 = __esm({
-  "node_modules/@jimp/types/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/types/dist/esm/index.js"() {
     init_zod();
     (function(Edge2) {
       Edge2[Edge2["EXTEND"] = 1] = "EXTEND";
@@ -107318,10 +107318,10 @@ var init_esm8 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-blit/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-blit/dist/esm/index.js
 var BlitOptionsSchemaComplex, BlitOptionsSchema, methods;
 var init_esm9 = __esm({
-  "node_modules/@jimp/plugin-blit/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-blit/dist/esm/index.js"() {
     init_esm8();
     init_esm2();
     init_zod();
@@ -107412,10 +107412,10 @@ var init_esm9 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-blur/dist/esm/blur-tables.js
+// api-server/node_modules/@jimp/plugin-blur/dist/esm/blur-tables.js
 var mulTable, shgTable;
 var init_blur_tables = __esm({
-  "node_modules/@jimp/plugin-blur/dist/esm/blur-tables.js"() {
+  "api-server/node_modules/@jimp/plugin-blur/dist/esm/blur-tables.js"() {
     mulTable = [
       1,
       57,
@@ -107937,10 +107937,10 @@ var init_blur_tables = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-blur/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-blur/dist/esm/index.js
 var methods2;
 var init_esm10 = __esm({
-  "node_modules/@jimp/plugin-blur/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-blur/dist/esm/index.js"() {
     init_blur_tables();
     init_esm2();
     methods2 = {
@@ -108123,10 +108123,10 @@ var init_esm10 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-circle/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-circle/dist/esm/index.js
 var CircleOptionsSchema, methods3;
 var init_esm11 = __esm({
-  "node_modules/@jimp/plugin-circle/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-circle/dist/esm/index.js"() {
     init_zod();
     CircleOptionsSchema = external_exports.object({
       /** the x position to draw the circle */
@@ -108171,7 +108171,7 @@ var init_esm11 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-color/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-color/dist/esm/index.js
 function applyKernel(image2, kernel, x10, y10) {
   const value = [0, 0, 0, 0];
   const size = (kernel.length - 1) / 2;
@@ -108208,7 +108208,7 @@ function histogram(image2) {
 }
 var ConvolutionMatrixSchema, ConvolutionComplexOptionsSchema, ConvolutionOptionsSchema, ConvoluteComplexOptionsSchema, ConvoluteOptionsSchema, PixelateSize, PixelateComplexOptionsSchema, PixelateOptionsSchema, HueActionSchema, SpinActionSchema, LightenActionSchema, RGBColorSchema, MixActionSchema, TintActionSchema, ShadeActionSchema, XorActionSchema, RedActionSchema, GreenActionSchema, BlueActionSchema, BrightenActionSchema, DarkenActionSchema, DesaturateActionSchema, SaturateActionSchema, GrayscaleActionSchema, ColorActionNameSchema, ColorActionName, normalizeValue, getBounds, methods4;
 var init_esm12 = __esm({
-  "node_modules/@jimp/plugin-color/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-color/dist/esm/index.js"() {
     init_tinycolor();
     init_esm2();
     init_esm8();
@@ -108840,9 +108840,9 @@ var init_esm12 = __esm({
   }
 });
 
-// node_modules/ieee754/index.js
+// api-server/node_modules/ieee754/index.js
 var require_ieee754 = __commonJS({
-  "node_modules/ieee754/index.js"(exports2) {
+  "api-server/node_modules/ieee754/index.js"(exports2) {
     exports2.read = function(buffer, offset, isLE, mLen, nBytes) {
       var e10, m10;
       var eLen = nBytes * 8 - mLen - 1;
@@ -108923,9 +108923,9 @@ var require_ieee754 = __commonJS({
   }
 });
 
-// node_modules/token-types/lib/index.js
+// api-server/node_modules/token-types/lib/index.js
 var require_lib4 = __commonJS({
-  "node_modules/token-types/lib/index.js"(exports2) {
+  "api-server/node_modules/token-types/lib/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.AnsiStringType = exports2.StringType = exports2.BufferType = exports2.Uint8ArrayType = exports2.IgnoreType = exports2.Float80_LE = exports2.Float80_BE = exports2.Float64_LE = exports2.Float64_BE = exports2.Float32_LE = exports2.Float32_BE = exports2.Float16_LE = exports2.Float16_BE = exports2.INT64_BE = exports2.UINT64_BE = exports2.INT64_LE = exports2.UINT64_LE = exports2.INT32_LE = exports2.INT32_BE = exports2.INT24_BE = exports2.INT24_LE = exports2.INT16_LE = exports2.INT16_BE = exports2.INT8 = exports2.UINT32_BE = exports2.UINT32_LE = exports2.UINT24_BE = exports2.UINT24_LE = exports2.UINT16_BE = exports2.UINT16_LE = exports2.UINT8 = void 0;
@@ -109415,9 +109415,9 @@ var require_lib4 = __commonJS({
   }
 });
 
-// node_modules/peek-readable/lib/EndOfFileStream.js
+// api-server/node_modules/peek-readable/lib/EndOfFileStream.js
 var require_EndOfFileStream = __commonJS({
-  "node_modules/peek-readable/lib/EndOfFileStream.js"(exports2) {
+  "api-server/node_modules/peek-readable/lib/EndOfFileStream.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.EndOfStreamError = exports2.defaultMessages = void 0;
@@ -109431,9 +109431,9 @@ var require_EndOfFileStream = __commonJS({
   }
 });
 
-// node_modules/peek-readable/lib/Deferred.js
+// api-server/node_modules/peek-readable/lib/Deferred.js
 var require_Deferred = __commonJS({
-  "node_modules/peek-readable/lib/Deferred.js"(exports2) {
+  "api-server/node_modules/peek-readable/lib/Deferred.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Deferred = void 0;
@@ -109451,9 +109451,9 @@ var require_Deferred = __commonJS({
   }
 });
 
-// node_modules/peek-readable/lib/StreamReader.js
+// api-server/node_modules/peek-readable/lib/StreamReader.js
 var require_StreamReader = __commonJS({
-  "node_modules/peek-readable/lib/StreamReader.js"(exports2) {
+  "api-server/node_modules/peek-readable/lib/StreamReader.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.StreamReader = exports2.EndOfStreamError = void 0;
@@ -109581,9 +109581,9 @@ var require_StreamReader = __commonJS({
   }
 });
 
-// node_modules/peek-readable/lib/index.js
+// api-server/node_modules/peek-readable/lib/index.js
 var require_lib5 = __commonJS({
-  "node_modules/peek-readable/lib/index.js"(exports2) {
+  "api-server/node_modules/peek-readable/lib/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.StreamReader = exports2.EndOfStreamError = void 0;
@@ -109598,9 +109598,9 @@ var require_lib5 = __commonJS({
   }
 });
 
-// node_modules/strtok3/lib/AbstractTokenizer.js
+// api-server/node_modules/strtok3/lib/AbstractTokenizer.js
 var require_AbstractTokenizer = __commonJS({
-  "node_modules/strtok3/lib/AbstractTokenizer.js"(exports2) {
+  "api-server/node_modules/strtok3/lib/AbstractTokenizer.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.AbstractTokenizer = void 0;
@@ -109701,9 +109701,9 @@ var require_AbstractTokenizer = __commonJS({
   }
 });
 
-// node_modules/strtok3/lib/ReadStreamTokenizer.js
+// api-server/node_modules/strtok3/lib/ReadStreamTokenizer.js
 var require_ReadStreamTokenizer = __commonJS({
-  "node_modules/strtok3/lib/ReadStreamTokenizer.js"(exports2) {
+  "api-server/node_modules/strtok3/lib/ReadStreamTokenizer.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.ReadStreamTokenizer = void 0;
@@ -109801,9 +109801,9 @@ var require_ReadStreamTokenizer = __commonJS({
   }
 });
 
-// node_modules/strtok3/lib/BufferTokenizer.js
+// api-server/node_modules/strtok3/lib/BufferTokenizer.js
 var require_BufferTokenizer = __commonJS({
-  "node_modules/strtok3/lib/BufferTokenizer.js"(exports2) {
+  "api-server/node_modules/strtok3/lib/BufferTokenizer.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.BufferTokenizer = void 0;
@@ -109860,9 +109860,9 @@ var require_BufferTokenizer = __commonJS({
   }
 });
 
-// node_modules/strtok3/lib/core.js
+// api-server/node_modules/strtok3/lib/core.js
 var require_core = __commonJS({
-  "node_modules/strtok3/lib/core.js"(exports2) {
+  "api-server/node_modules/strtok3/lib/core.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.fromBuffer = exports2.fromStream = exports2.EndOfStreamError = void 0;
@@ -109884,9 +109884,9 @@ var require_core = __commonJS({
   }
 });
 
-// node_modules/file-type/util.js
+// api-server/node_modules/file-type/util.js
 var require_util3 = __commonJS({
-  "node_modules/file-type/util.js"(exports2) {
+  "api-server/node_modules/file-type/util.js"(exports2) {
     "use strict";
     exports2.stringToBytes = (string) => [...string].map((character) => character.charCodeAt(0));
     exports2.tarHeaderChecksumMatches = (buffer, offset = 0) => {
@@ -109912,9 +109912,9 @@ var require_util3 = __commonJS({
   }
 });
 
-// node_modules/file-type/supported.js
+// api-server/node_modules/file-type/supported.js
 var require_supported = __commonJS({
-  "node_modules/file-type/supported.js"(exports2, module2) {
+  "api-server/node_modules/file-type/supported.js"(exports2, module2) {
     "use strict";
     module2.exports = {
       extensions: [
@@ -110200,9 +110200,9 @@ var require_supported = __commonJS({
   }
 });
 
-// node_modules/file-type/core.js
+// api-server/node_modules/file-type/core.js
 var require_core2 = __commonJS({
-  "node_modules/file-type/core.js"(exports, module) {
+  "api-server/node_modules/file-type/core.js"(exports, module) {
     "use strict";
     var Token = require_lib4();
     var strtok3 = require_core();
@@ -111330,9 +111330,9 @@ var require_core2 = __commonJS({
   }
 });
 
-// node_modules/await-to-js/dist/await-to-js.umd.js
+// api-server/node_modules/await-to-js/dist/await-to-js.umd.js
 var require_await_to_js_umd = __commonJS({
-  "node_modules/await-to-js/dist/await-to-js.umd.js"(exports2, module2) {
+  "api-server/node_modules/await-to-js/dist/await-to-js.umd.js"(exports2, module2) {
     (function(global2, factory2) {
       typeof exports2 === "object" && typeof module2 !== "undefined" ? factory2(exports2) : typeof define === "function" && define.amd ? define(["exports"], factory2) : factory2(global2.awaitToJs = {});
     })(exports2, (function(exports3) {
@@ -111354,20 +111354,20 @@ var require_await_to_js_umd = __commonJS({
   }
 });
 
-// node_modules/@jimp/file-ops/dist/esm/index.js
+// api-server/node_modules/@jimp/file-ops/dist/esm/index.js
 import { promises as fs4 } from "fs";
 import { existsSync } from "fs";
 var readFile, writeFile2;
 var init_esm13 = __esm({
-  "node_modules/@jimp/file-ops/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/file-ops/dist/esm/index.js"() {
     readFile = fs4.readFile;
     writeFile2 = fs4.writeFile;
   }
 });
 
-// node_modules/mime/Mime.js
+// api-server/node_modules/mime/Mime.js
 var require_Mime = __commonJS({
-  "node_modules/mime/Mime.js"(exports2, module2) {
+  "api-server/node_modules/mime/Mime.js"(exports2, module2) {
     "use strict";
     function Mime() {
       this._types = /* @__PURE__ */ Object.create(null);
@@ -111419,26 +111419,26 @@ var require_Mime = __commonJS({
   }
 });
 
-// node_modules/mime/types/standard.js
+// api-server/node_modules/mime/types/standard.js
 var require_standard = __commonJS({
-  "node_modules/mime/types/standard.js"(exports2, module2) {
+  "api-server/node_modules/mime/types/standard.js"(exports2, module2) {
     module2.exports = { "application/andrew-inset": ["ez"], "application/applixware": ["aw"], "application/atom+xml": ["atom"], "application/atomcat+xml": ["atomcat"], "application/atomdeleted+xml": ["atomdeleted"], "application/atomsvc+xml": ["atomsvc"], "application/atsc-dwd+xml": ["dwd"], "application/atsc-held+xml": ["held"], "application/atsc-rsat+xml": ["rsat"], "application/bdoc": ["bdoc"], "application/calendar+xml": ["xcs"], "application/ccxml+xml": ["ccxml"], "application/cdfx+xml": ["cdfx"], "application/cdmi-capability": ["cdmia"], "application/cdmi-container": ["cdmic"], "application/cdmi-domain": ["cdmid"], "application/cdmi-object": ["cdmio"], "application/cdmi-queue": ["cdmiq"], "application/cu-seeme": ["cu"], "application/dash+xml": ["mpd"], "application/davmount+xml": ["davmount"], "application/docbook+xml": ["dbk"], "application/dssc+der": ["dssc"], "application/dssc+xml": ["xdssc"], "application/ecmascript": ["es", "ecma"], "application/emma+xml": ["emma"], "application/emotionml+xml": ["emotionml"], "application/epub+zip": ["epub"], "application/exi": ["exi"], "application/express": ["exp"], "application/fdt+xml": ["fdt"], "application/font-tdpfr": ["pfr"], "application/geo+json": ["geojson"], "application/gml+xml": ["gml"], "application/gpx+xml": ["gpx"], "application/gxf": ["gxf"], "application/gzip": ["gz"], "application/hjson": ["hjson"], "application/hyperstudio": ["stk"], "application/inkml+xml": ["ink", "inkml"], "application/ipfix": ["ipfix"], "application/its+xml": ["its"], "application/java-archive": ["jar", "war", "ear"], "application/java-serialized-object": ["ser"], "application/java-vm": ["class"], "application/javascript": ["js", "mjs"], "application/json": ["json", "map"], "application/json5": ["json5"], "application/jsonml+json": ["jsonml"], "application/ld+json": ["jsonld"], "application/lgr+xml": ["lgr"], "application/lost+xml": ["lostxml"], "application/mac-binhex40": ["hqx"], "application/mac-compactpro": ["cpt"], "application/mads+xml": ["mads"], "application/manifest+json": ["webmanifest"], "application/marc": ["mrc"], "application/marcxml+xml": ["mrcx"], "application/mathematica": ["ma", "nb", "mb"], "application/mathml+xml": ["mathml"], "application/mbox": ["mbox"], "application/mediaservercontrol+xml": ["mscml"], "application/metalink+xml": ["metalink"], "application/metalink4+xml": ["meta4"], "application/mets+xml": ["mets"], "application/mmt-aei+xml": ["maei"], "application/mmt-usd+xml": ["musd"], "application/mods+xml": ["mods"], "application/mp21": ["m21", "mp21"], "application/mp4": ["mp4s", "m4p"], "application/msword": ["doc", "dot"], "application/mxf": ["mxf"], "application/n-quads": ["nq"], "application/n-triples": ["nt"], "application/node": ["cjs"], "application/octet-stream": ["bin", "dms", "lrf", "mar", "so", "dist", "distz", "pkg", "bpk", "dump", "elc", "deploy", "exe", "dll", "deb", "dmg", "iso", "img", "msi", "msp", "msm", "buffer"], "application/oda": ["oda"], "application/oebps-package+xml": ["opf"], "application/ogg": ["ogx"], "application/omdoc+xml": ["omdoc"], "application/onenote": ["onetoc", "onetoc2", "onetmp", "onepkg"], "application/oxps": ["oxps"], "application/p2p-overlay+xml": ["relo"], "application/patch-ops-error+xml": ["xer"], "application/pdf": ["pdf"], "application/pgp-encrypted": ["pgp"], "application/pgp-signature": ["asc", "sig"], "application/pics-rules": ["prf"], "application/pkcs10": ["p10"], "application/pkcs7-mime": ["p7m", "p7c"], "application/pkcs7-signature": ["p7s"], "application/pkcs8": ["p8"], "application/pkix-attr-cert": ["ac"], "application/pkix-cert": ["cer"], "application/pkix-crl": ["crl"], "application/pkix-pkipath": ["pkipath"], "application/pkixcmp": ["pki"], "application/pls+xml": ["pls"], "application/postscript": ["ai", "eps", "ps"], "application/provenance+xml": ["provx"], "application/pskc+xml": ["pskcxml"], "application/raml+yaml": ["raml"], "application/rdf+xml": ["rdf", "owl"], "application/reginfo+xml": ["rif"], "application/relax-ng-compact-syntax": ["rnc"], "application/resource-lists+xml": ["rl"], "application/resource-lists-diff+xml": ["rld"], "application/rls-services+xml": ["rs"], "application/route-apd+xml": ["rapd"], "application/route-s-tsid+xml": ["sls"], "application/route-usd+xml": ["rusd"], "application/rpki-ghostbusters": ["gbr"], "application/rpki-manifest": ["mft"], "application/rpki-roa": ["roa"], "application/rsd+xml": ["rsd"], "application/rss+xml": ["rss"], "application/rtf": ["rtf"], "application/sbml+xml": ["sbml"], "application/scvp-cv-request": ["scq"], "application/scvp-cv-response": ["scs"], "application/scvp-vp-request": ["spq"], "application/scvp-vp-response": ["spp"], "application/sdp": ["sdp"], "application/senml+xml": ["senmlx"], "application/sensml+xml": ["sensmlx"], "application/set-payment-initiation": ["setpay"], "application/set-registration-initiation": ["setreg"], "application/shf+xml": ["shf"], "application/sieve": ["siv", "sieve"], "application/smil+xml": ["smi", "smil"], "application/sparql-query": ["rq"], "application/sparql-results+xml": ["srx"], "application/srgs": ["gram"], "application/srgs+xml": ["grxml"], "application/sru+xml": ["sru"], "application/ssdl+xml": ["ssdl"], "application/ssml+xml": ["ssml"], "application/swid+xml": ["swidtag"], "application/tei+xml": ["tei", "teicorpus"], "application/thraud+xml": ["tfi"], "application/timestamped-data": ["tsd"], "application/toml": ["toml"], "application/trig": ["trig"], "application/ttml+xml": ["ttml"], "application/ubjson": ["ubj"], "application/urc-ressheet+xml": ["rsheet"], "application/urc-targetdesc+xml": ["td"], "application/voicexml+xml": ["vxml"], "application/wasm": ["wasm"], "application/widget": ["wgt"], "application/winhlp": ["hlp"], "application/wsdl+xml": ["wsdl"], "application/wspolicy+xml": ["wspolicy"], "application/xaml+xml": ["xaml"], "application/xcap-att+xml": ["xav"], "application/xcap-caps+xml": ["xca"], "application/xcap-diff+xml": ["xdf"], "application/xcap-el+xml": ["xel"], "application/xcap-ns+xml": ["xns"], "application/xenc+xml": ["xenc"], "application/xhtml+xml": ["xhtml", "xht"], "application/xliff+xml": ["xlf"], "application/xml": ["xml", "xsl", "xsd", "rng"], "application/xml-dtd": ["dtd"], "application/xop+xml": ["xop"], "application/xproc+xml": ["xpl"], "application/xslt+xml": ["*xsl", "xslt"], "application/xspf+xml": ["xspf"], "application/xv+xml": ["mxml", "xhvml", "xvml", "xvm"], "application/yang": ["yang"], "application/yin+xml": ["yin"], "application/zip": ["zip"], "audio/3gpp": ["*3gpp"], "audio/adpcm": ["adp"], "audio/amr": ["amr"], "audio/basic": ["au", "snd"], "audio/midi": ["mid", "midi", "kar", "rmi"], "audio/mobile-xmf": ["mxmf"], "audio/mp3": ["*mp3"], "audio/mp4": ["m4a", "mp4a"], "audio/mpeg": ["mpga", "mp2", "mp2a", "mp3", "m2a", "m3a"], "audio/ogg": ["oga", "ogg", "spx", "opus"], "audio/s3m": ["s3m"], "audio/silk": ["sil"], "audio/wav": ["wav"], "audio/wave": ["*wav"], "audio/webm": ["weba"], "audio/xm": ["xm"], "font/collection": ["ttc"], "font/otf": ["otf"], "font/ttf": ["ttf"], "font/woff": ["woff"], "font/woff2": ["woff2"], "image/aces": ["exr"], "image/apng": ["apng"], "image/avif": ["avif"], "image/bmp": ["bmp"], "image/cgm": ["cgm"], "image/dicom-rle": ["drle"], "image/emf": ["emf"], "image/fits": ["fits"], "image/g3fax": ["g3"], "image/gif": ["gif"], "image/heic": ["heic"], "image/heic-sequence": ["heics"], "image/heif": ["heif"], "image/heif-sequence": ["heifs"], "image/hej2k": ["hej2"], "image/hsj2": ["hsj2"], "image/ief": ["ief"], "image/jls": ["jls"], "image/jp2": ["jp2", "jpg2"], "image/jpeg": ["jpeg", "jpg", "jpe"], "image/jph": ["jph"], "image/jphc": ["jhc"], "image/jpm": ["jpm"], "image/jpx": ["jpx", "jpf"], "image/jxr": ["jxr"], "image/jxra": ["jxra"], "image/jxrs": ["jxrs"], "image/jxs": ["jxs"], "image/jxsc": ["jxsc"], "image/jxsi": ["jxsi"], "image/jxss": ["jxss"], "image/ktx": ["ktx"], "image/ktx2": ["ktx2"], "image/png": ["png"], "image/sgi": ["sgi"], "image/svg+xml": ["svg", "svgz"], "image/t38": ["t38"], "image/tiff": ["tif", "tiff"], "image/tiff-fx": ["tfx"], "image/webp": ["webp"], "image/wmf": ["wmf"], "message/disposition-notification": ["disposition-notification"], "message/global": ["u8msg"], "message/global-delivery-status": ["u8dsn"], "message/global-disposition-notification": ["u8mdn"], "message/global-headers": ["u8hdr"], "message/rfc822": ["eml", "mime"], "model/3mf": ["3mf"], "model/gltf+json": ["gltf"], "model/gltf-binary": ["glb"], "model/iges": ["igs", "iges"], "model/mesh": ["msh", "mesh", "silo"], "model/mtl": ["mtl"], "model/obj": ["obj"], "model/step+xml": ["stpx"], "model/step+zip": ["stpz"], "model/step-xml+zip": ["stpxz"], "model/stl": ["stl"], "model/vrml": ["wrl", "vrml"], "model/x3d+binary": ["*x3db", "x3dbz"], "model/x3d+fastinfoset": ["x3db"], "model/x3d+vrml": ["*x3dv", "x3dvz"], "model/x3d+xml": ["x3d", "x3dz"], "model/x3d-vrml": ["x3dv"], "text/cache-manifest": ["appcache", "manifest"], "text/calendar": ["ics", "ifb"], "text/coffeescript": ["coffee", "litcoffee"], "text/css": ["css"], "text/csv": ["csv"], "text/html": ["html", "htm", "shtml"], "text/jade": ["jade"], "text/jsx": ["jsx"], "text/less": ["less"], "text/markdown": ["markdown", "md"], "text/mathml": ["mml"], "text/mdx": ["mdx"], "text/n3": ["n3"], "text/plain": ["txt", "text", "conf", "def", "list", "log", "in", "ini"], "text/richtext": ["rtx"], "text/rtf": ["*rtf"], "text/sgml": ["sgml", "sgm"], "text/shex": ["shex"], "text/slim": ["slim", "slm"], "text/spdx": ["spdx"], "text/stylus": ["stylus", "styl"], "text/tab-separated-values": ["tsv"], "text/troff": ["t", "tr", "roff", "man", "me", "ms"], "text/turtle": ["ttl"], "text/uri-list": ["uri", "uris", "urls"], "text/vcard": ["vcard"], "text/vtt": ["vtt"], "text/xml": ["*xml"], "text/yaml": ["yaml", "yml"], "video/3gpp": ["3gp", "3gpp"], "video/3gpp2": ["3g2"], "video/h261": ["h261"], "video/h263": ["h263"], "video/h264": ["h264"], "video/iso.segment": ["m4s"], "video/jpeg": ["jpgv"], "video/jpm": ["*jpm", "jpgm"], "video/mj2": ["mj2", "mjp2"], "video/mp2t": ["ts"], "video/mp4": ["mp4", "mp4v", "mpg4"], "video/mpeg": ["mpeg", "mpg", "mpe", "m1v", "m2v"], "video/ogg": ["ogv"], "video/quicktime": ["qt", "mov"], "video/webm": ["webm"] };
   }
 });
 
-// node_modules/mime/lite.js
+// api-server/node_modules/mime/lite.js
 var require_lite = __commonJS({
-  "node_modules/mime/lite.js"(exports2, module2) {
+  "api-server/node_modules/mime/lite.js"(exports2, module2) {
     "use strict";
     var Mime = require_Mime();
     module2.exports = new Mime(require_standard());
   }
 });
 
-// node_modules/@jimp/core/dist/esm/utils/constants.js
+// api-server/node_modules/@jimp/core/dist/esm/utils/constants.js
 var HorizontalAlign, VerticalAlign, BlendMode;
 var init_constants2 = __esm({
-  "node_modules/@jimp/core/dist/esm/utils/constants.js"() {
+  "api-server/node_modules/@jimp/core/dist/esm/utils/constants.js"() {
     (function(HorizontalAlign2) {
       HorizontalAlign2[HorizontalAlign2["LEFT"] = 1] = "LEFT";
       HorizontalAlign2[HorizontalAlign2["CENTER"] = 2] = "CENTER";
@@ -111465,7 +111465,7 @@ var init_constants2 = __esm({
   }
 });
 
-// node_modules/@jimp/core/dist/esm/utils/composite-modes.js
+// api-server/node_modules/@jimp/core/dist/esm/utils/composite-modes.js
 var composite_modes_exports = {};
 __export(composite_modes_exports, {
   add: () => add,
@@ -111625,7 +111625,7 @@ function exclusion(src, dst, ops = 1) {
 }
 var names2;
 var init_composite_modes = __esm({
-  "node_modules/@jimp/core/dist/esm/utils/composite-modes.js"() {
+  "api-server/node_modules/@jimp/core/dist/esm/utils/composite-modes.js"() {
     names2 = [
       srcOver,
       dstOver,
@@ -111642,7 +111642,7 @@ var init_composite_modes = __esm({
   }
 });
 
-// node_modules/@jimp/core/dist/esm/utils/composite.js
+// api-server/node_modules/@jimp/core/dist/esm/utils/composite.js
 function composite(baseImage, src, x10 = 0, y10 = 0, options = {}) {
   if (!(src instanceof baseImage.constructor)) {
     throw new Error("The source must be a Jimp image");
@@ -111691,7 +111691,7 @@ function composite(baseImage, src, x10 = 0, y10 = 0, options = {}) {
   return baseImage;
 }
 var init_composite = __esm({
-  "node_modules/@jimp/core/dist/esm/utils/composite.js"() {
+  "api-server/node_modules/@jimp/core/dist/esm/utils/composite.js"() {
     init_esm8();
     init_constants2();
     init_composite_modes();
@@ -111699,9 +111699,9 @@ var init_composite = __esm({
   }
 });
 
-// node_modules/exif-parser/lib/jpeg.js
+// api-server/node_modules/exif-parser/lib/jpeg.js
 var require_jpeg = __commonJS({
-  "node_modules/exif-parser/lib/jpeg.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/lib/jpeg.js"(exports2, module2) {
     module2.exports = {
       parseSections: function(stream5, iterator2) {
         var len, markerType;
@@ -111777,9 +111777,9 @@ var require_jpeg = __commonJS({
   }
 });
 
-// node_modules/exif-parser/lib/exif.js
+// api-server/node_modules/exif-parser/lib/exif.js
 var require_exif = __commonJS({
-  "node_modules/exif-parser/lib/exif.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/lib/exif.js"(exports2, module2) {
     function readExifValue(format, stream5) {
       switch (format) {
         case 1:
@@ -111935,9 +111935,9 @@ var require_exif = __commonJS({
   }
 });
 
-// node_modules/exif-parser/lib/date.js
+// api-server/node_modules/exif-parser/lib/date.js
 var require_date = __commonJS({
-  "node_modules/exif-parser/lib/date.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/lib/date.js"(exports2, module2) {
     function parseNumber(s10) {
       return parseInt(s10, 10);
     }
@@ -111993,9 +111993,9 @@ var require_date = __commonJS({
   }
 });
 
-// node_modules/exif-parser/lib/simplify.js
+// api-server/node_modules/exif-parser/lib/simplify.js
 var require_simplify = __commonJS({
-  "node_modules/exif-parser/lib/simplify.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/lib/simplify.js"(exports2, module2) {
     var exif = require_exif();
     var date2 = require_date();
     var degreeTags = [
@@ -112079,9 +112079,9 @@ var require_simplify = __commonJS({
   }
 });
 
-// node_modules/exif-parser/lib/exif-tags.js
+// api-server/node_modules/exif-parser/lib/exif-tags.js
 var require_exif_tags = __commonJS({
-  "node_modules/exif-parser/lib/exif-tags.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/lib/exif-tags.js"(exports2, module2) {
     module2.exports = {
       exif: {
         1: "InteropIndex",
@@ -112552,9 +112552,9 @@ var require_exif_tags = __commonJS({
   }
 });
 
-// node_modules/exif-parser/lib/parser.js
+// api-server/node_modules/exif-parser/lib/parser.js
 var require_parser2 = __commonJS({
-  "node_modules/exif-parser/lib/parser.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/lib/parser.js"(exports2, module2) {
     var jpeg2 = require_jpeg();
     var exif = require_exif();
     var simplify = require_simplify();
@@ -112741,9 +112741,9 @@ var require_parser2 = __commonJS({
   }
 });
 
-// node_modules/exif-parser/lib/dom-bufferstream.js
+// api-server/node_modules/exif-parser/lib/dom-bufferstream.js
 var require_dom_bufferstream = __commonJS({
-  "node_modules/exif-parser/lib/dom-bufferstream.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/lib/dom-bufferstream.js"(exports2, module2) {
     function DOMBufferStream(arrayBuffer, offset, length, bigEndian, global2, parentOffset) {
       this.global = global2;
       offset = offset || 0;
@@ -112840,9 +112840,9 @@ var require_dom_bufferstream = __commonJS({
   }
 });
 
-// node_modules/exif-parser/lib/bufferstream.js
+// api-server/node_modules/exif-parser/lib/bufferstream.js
 var require_bufferstream = __commonJS({
-  "node_modules/exif-parser/lib/bufferstream.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/lib/bufferstream.js"(exports2, module2) {
     function BufferStream(buffer, offset, length, bigEndian) {
       this.buffer = buffer;
       this.offset = offset || 0;
@@ -112932,9 +112932,9 @@ var require_bufferstream = __commonJS({
   }
 });
 
-// node_modules/exif-parser/index.js
+// api-server/node_modules/exif-parser/index.js
 var require_exif_parser = __commonJS({
-  "node_modules/exif-parser/index.js"(exports2, module2) {
+  "api-server/node_modules/exif-parser/index.js"(exports2, module2) {
     var Parser = require_parser2();
     function getGlobal2() {
       return (1, eval)("this");
@@ -112954,7 +112954,7 @@ var require_exif_parser = __commonJS({
   }
 });
 
-// node_modules/@jimp/core/dist/esm/utils/image-bitmap.js
+// api-server/node_modules/@jimp/core/dist/esm/utils/image-bitmap.js
 function getExifOrientation(img) {
   const _exif = img._exif;
   return _exif && _exif.tags && _exif.tags.Orientation || 1;
@@ -113036,12 +113036,12 @@ async function attemptExifRotate(image2, buffer) {
 }
 var import_exif_parser;
 var init_image_bitmap = __esm({
-  "node_modules/@jimp/core/dist/esm/utils/image-bitmap.js"() {
+  "api-server/node_modules/@jimp/core/dist/esm/utils/image-bitmap.js"() {
     import_exif_parser = __toESM(require_exif_parser(), 1);
   }
 });
 
-// node_modules/@jimp/core/dist/esm/index.js
+// api-server/node_modules/@jimp/core/dist/esm/index.js
 function bufferFromArrayBuffer(arrayBuffer) {
   const buffer = Buffer.alloc(arrayBuffer.byteLength);
   const view = new Uint8Array(arrayBuffer);
@@ -113509,7 +113509,7 @@ function createJimp({ plugins: pluginsArg, formats: formatsArg } = {}) {
 }
 var import_core, import_await_to_js, import_lite, emptyBitmap;
 var init_esm14 = __esm({
-  "node_modules/@jimp/core/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/core/dist/esm/index.js"() {
     init_esm8();
     init_esm2();
     import_core = __toESM(require_core2(), 1);
@@ -113529,10 +113529,10 @@ var init_esm14 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-resize/dist/esm/constants.js
+// api-server/node_modules/@jimp/plugin-resize/dist/esm/constants.js
 var ResizeStrategy;
 var init_constants3 = __esm({
-  "node_modules/@jimp/plugin-resize/dist/esm/constants.js"() {
+  "api-server/node_modules/@jimp/plugin-resize/dist/esm/constants.js"() {
     (function(ResizeStrategy2) {
       ResizeStrategy2["NEAREST_NEIGHBOR"] = "nearestNeighbor";
       ResizeStrategy2["BILINEAR"] = "bilinearInterpolation";
@@ -113543,7 +113543,7 @@ var init_constants3 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-resize/dist/esm/modules/resize.js
+// api-server/node_modules/@jimp/plugin-resize/dist/esm/modules/resize.js
 function Resize(widthOriginal, heightOriginal, targetWidth, targetHeight, blendAlpha, interpolationPass, resizeCallback) {
   this.widthOriginal = Math.abs(Math.floor(widthOriginal) || 0);
   this.heightOriginal = Math.abs(Math.floor(heightOriginal) || 0);
@@ -113562,7 +113562,7 @@ function Resize(widthOriginal, heightOriginal, targetWidth, targetHeight, blendA
 }
 var resize_default;
 var init_resize = __esm({
-  "node_modules/@jimp/plugin-resize/dist/esm/modules/resize.js"() {
+  "api-server/node_modules/@jimp/plugin-resize/dist/esm/modules/resize.js"() {
     Resize.prototype.initialize = function() {
       if (this.widthOriginal > 0 && this.heightOriginal > 0 && this.targetWidth > 0 && this.targetHeight > 0) {
         this.configurePasses();
@@ -113881,10 +113881,10 @@ var init_resize = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-resize/dist/esm/modules/resize2.js
+// api-server/node_modules/@jimp/plugin-resize/dist/esm/modules/resize2.js
 var operations;
 var init_resize2 = __esm({
-  "node_modules/@jimp/plugin-resize/dist/esm/modules/resize2.js"() {
+  "api-server/node_modules/@jimp/plugin-resize/dist/esm/modules/resize2.js"() {
     operations = {
       nearestNeighbor(src, dst) {
         const wSrc = src.width;
@@ -114067,10 +114067,10 @@ var init_resize2 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-resize/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-resize/dist/esm/index.js
 var ResizeOptionsSchema, ScaleToFitOptionsSchema, ScaleComplexOptionsSchema, methods5;
 var init_esm15 = __esm({
-  "node_modules/@jimp/plugin-resize/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-resize/dist/esm/index.js"() {
     init_constants3();
     init_zod();
     init_resize();
@@ -114195,10 +114195,10 @@ var init_esm15 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-contain/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-contain/dist/esm/index.js
 var ContainOptionsSchema, methods6;
 var init_esm16 = __esm({
-  "node_modules/@jimp/plugin-contain/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-contain/dist/esm/index.js"() {
     init_esm14();
     init_esm2();
     init_esm15();
@@ -114256,10 +114256,10 @@ var init_esm16 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-crop/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-crop/dist/esm/index.js
 var CropOptionsSchema, AutocropComplexOptionsSchema, methods7;
 var init_esm17 = __esm({
-  "node_modules/@jimp/plugin-crop/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-crop/dist/esm/index.js"() {
     init_esm2();
     init_zod();
     CropOptionsSchema = external_exports.object({
@@ -114444,10 +114444,10 @@ var init_esm17 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-cover/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-cover/dist/esm/index.js
 var CoverOptionsSchema, methods8;
 var init_esm18 = __esm({
-  "node_modules/@jimp/plugin-cover/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-cover/dist/esm/index.js"() {
     init_esm14();
     init_esm15();
     init_esm17();
@@ -114500,10 +114500,10 @@ var init_esm18 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-displace/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-displace/dist/esm/index.js
 var DisplaceOptionsSchema, methods9;
 var init_esm19 = __esm({
-  "node_modules/@jimp/plugin-displace/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-displace/dist/esm/index.js"() {
     init_esm8();
     init_esm2();
     init_zod();
@@ -114545,10 +114545,10 @@ var init_esm19 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-dither/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-dither/dist/esm/index.js
 var methods10;
 var init_esm20 = __esm({
-  "node_modules/@jimp/plugin-dither/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-dither/dist/esm/index.js"() {
     methods10 = {
       /**
        * Apply a ordered dithering effect.
@@ -114593,10 +114593,10 @@ var init_esm20 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-fisheye/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-fisheye/dist/esm/index.js
 var FisheyeOptionsSchema, methods11;
 var init_esm21 = __esm({
-  "node_modules/@jimp/plugin-fisheye/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-fisheye/dist/esm/index.js"() {
     init_esm2();
     init_zod();
     FisheyeOptionsSchema = external_exports.object({
@@ -114638,10 +114638,10 @@ var init_esm21 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-flip/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-flip/dist/esm/index.js
 var FlipOptionsSchema, methods12;
 var init_esm22 = __esm({
-  "node_modules/@jimp/plugin-flip/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-flip/dist/esm/index.js"() {
     init_zod();
     FlipOptionsSchema = external_exports.object({
       /** if true the image will be flipped horizontally */
@@ -114680,9 +114680,9 @@ var init_esm22 = __esm({
   }
 });
 
-// node_modules/any-base/src/converter.js
+// api-server/node_modules/any-base/src/converter.js
 var require_converter = __commonJS({
-  "node_modules/any-base/src/converter.js"(exports2, module2) {
+  "api-server/node_modules/any-base/src/converter.js"(exports2, module2) {
     "use strict";
     function Converter(srcAlphabet, dstAlphabet) {
       if (!srcAlphabet || !dstAlphabet || !srcAlphabet.length || !dstAlphabet.length) {
@@ -114732,9 +114732,9 @@ var require_converter = __commonJS({
   }
 });
 
-// node_modules/any-base/index.js
+// api-server/node_modules/any-base/index.js
 var require_any_base = __commonJS({
-  "node_modules/any-base/index.js"(exports2, module2) {
+  "api-server/node_modules/any-base/index.js"(exports2, module2) {
     var Converter = require_converter();
     function anyBase2(srcAlphabet, dstAlphabet) {
       var converter = new Converter(srcAlphabet, dstAlphabet);
@@ -114750,7 +114750,7 @@ var require_any_base = __commonJS({
   }
 });
 
-// node_modules/@jimp/plugin-hash/dist/esm/phash.js
+// api-server/node_modules/@jimp/plugin-hash/dist/esm/phash.js
 function intToRGBA2(i10) {
   const a10 = i10 & 255;
   i10 >>>= 8;
@@ -114788,7 +114788,7 @@ function applyDCT(f10, size) {
 }
 var ImagePHash, c, phash_default;
 var init_phash = __esm({
-  "node_modules/@jimp/plugin-hash/dist/esm/phash.js"() {
+  "api-server/node_modules/@jimp/plugin-hash/dist/esm/phash.js"() {
     init_esm12();
     init_esm15();
     init_esm2();
@@ -114845,10 +114845,10 @@ var init_phash = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-hash/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-hash/dist/esm/index.js
 var import_any_base, alphabet, maxHashLength, methods13;
 var init_esm23 = __esm({
-  "node_modules/@jimp/plugin-hash/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-hash/dist/esm/index.js"() {
     import_any_base = __toESM(require_any_base(), 1);
     init_phash();
     alphabet = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ$_";
@@ -114918,10 +114918,10 @@ var init_esm23 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-mask/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-mask/dist/esm/index.js
 var MaskOptionsObjectSchema, MaskOptionsSchema, methods14;
 var init_esm24 = __esm({
-  "node_modules/@jimp/plugin-mask/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-mask/dist/esm/index.js"() {
     init_esm8();
     init_zod();
     MaskOptionsObjectSchema = external_exports.object({
@@ -114982,7 +114982,7 @@ var init_esm24 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-print/dist/esm/measure-text.js
+// api-server/node_modules/@jimp/plugin-print/dist/esm/measure-text.js
 function measureText(font, text2) {
   let x10 = 0;
   for (let i10 = 0; i10 < text2.length; i10++) {
@@ -115047,17 +115047,17 @@ function measureTextHeight(font, text2, maxWidth) {
   return lines.length * font.common.lineHeight;
 }
 var init_measure_text = __esm({
-  "node_modules/@jimp/plugin-print/dist/esm/measure-text.js"() {
+  "api-server/node_modules/@jimp/plugin-print/dist/esm/measure-text.js"() {
   }
 });
 
-// node_modules/@jimp/plugin-print/dist/esm/types.js
+// api-server/node_modules/@jimp/plugin-print/dist/esm/types.js
 var init_types3 = __esm({
-  "node_modules/@jimp/plugin-print/dist/esm/types.js"() {
+  "api-server/node_modules/@jimp/plugin-print/dist/esm/types.js"() {
   }
 });
 
-// node_modules/@jimp/plugin-print/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-print/dist/esm/index.js
 function xOffsetBasedOnAlignment(font, line2, maxWidth, alignment) {
   if (alignment === HorizontalAlign.LEFT) {
     return 0;
@@ -115107,7 +115107,7 @@ function printText(image2, font, x10, y10, text2, defaultCharWidth) {
 }
 var PrintOptionsSchema, methods15;
 var init_esm25 = __esm({
-  "node_modules/@jimp/plugin-print/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-print/dist/esm/index.js"() {
     init_esm14();
     init_esm9();
     init_zod();
@@ -115203,7 +115203,7 @@ var init_esm25 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-rotate/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-rotate/dist/esm/index.js
 function createIdxTranslationFunction(w10) {
   return function(x10, y10) {
     return y10 * w10 + x10 << 2;
@@ -115326,7 +115326,7 @@ function advancedRotate(image2, deg, mode) {
 }
 var RotateOptionsSchema, methods16;
 var init_esm26 = __esm({
-  "node_modules/@jimp/plugin-rotate/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-rotate/dist/esm/index.js"() {
     init_esm15();
     init_esm2();
     init_esm14();
@@ -115374,10 +115374,10 @@ var init_esm26 = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-threshold/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-threshold/dist/esm/index.js
 var ThresholdOptionsSchema, methods17;
 var init_esm27 = __esm({
-  "node_modules/@jimp/plugin-threshold/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-threshold/dist/esm/index.js"() {
     init_esm2();
     init_esm12();
     init_zod();
@@ -115426,7 +115426,7 @@ var init_esm27 = __esm({
   }
 });
 
-// node_modules/image-q/dist/esm/image-q.mjs
+// api-server/node_modules/image-q/dist/esm/image-q.mjs
 function correctGamma(n10) {
   return n10 > 0.04045 ? ((n10 + 0.055) / 1.055) ** 2.4 : n10 / 12.92;
 }
@@ -116030,7 +116030,7 @@ function paletteQuantizationToPaletteQuantizer(distanceCalculator, paletteQuanti
 }
 var __defProp2, __defNormalProp, __export2, __publicField, constants_exports, bt709_exports, Y, x2, y, conversion_exports, arithmetic_exports, refX, refY, refZ, refX2, refY2, refZ2, distance_exports, AbstractDistanceCalculator, AbstractCIE94, CIE94Textiles, CIE94GraphicArts, _CIEDE2000, CIEDE2000, CMetric, AbstractEuclidean, Euclidean, EuclideanBT709, EuclideanBT709NoAlpha, AbstractManhattan, Manhattan, ManhattanNommyde, ManhattanBT709, PNGQuant, palette_exports, AbstractPaletteQuantizer, Point, PointContainer, hueGroups, Palette, utils_exports, HueGroup, HueStatistics, _ProgressTracker, ProgressTracker, networkBiasShift, Neuron, _NeuQuant, NeuQuant, networkBiasShift2, NeuronFloat, _NeuQuantFloat, NeuQuantFloat, _ColorHistogram, ColorHistogram, RemovedColor, RGBQuant, WuColorCube, _WuQuant, WuQuant, image_exports, AbstractImageQuantizer, NearestColor, ErrorDiffusionArrayKernel, ErrorDiffusionArray, ErrorDiffusionRiemersma, quality_exports, K1, K2, setImmediateImpl;
 var init_image_q = __esm({
-  "node_modules/image-q/dist/esm/image-q.mjs"() {
+  "api-server/node_modules/image-q/dist/esm/image-q.mjs"() {
     __defProp2 = Object.defineProperty;
     __defNormalProp = (obj, key, value) => key in obj ? __defProp2(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
     __export2 = (target, all3) => {
@@ -118096,10 +118096,10 @@ var init_image_q = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-quantize/dist/esm/index.js
+// api-server/node_modules/@jimp/plugin-quantize/dist/esm/index.js
 var QuantizeOptionsSchema, methods18;
 var init_esm28 = __esm({
-  "node_modules/@jimp/plugin-quantize/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/plugin-quantize/dist/esm/index.js"() {
     init_image_q();
     init_zod();
     QuantizeOptionsSchema = zod_default.object({
@@ -118160,9 +118160,9 @@ var init_esm28 = __esm({
   }
 });
 
-// node_modules/parse-bmfont-ascii/index.js
+// api-server/node_modules/parse-bmfont-ascii/index.js
 var require_parse_bmfont_ascii = __commonJS({
-  "node_modules/parse-bmfont-ascii/index.js"(exports2, module2) {
+  "api-server/node_modules/parse-bmfont-ascii/index.js"(exports2, module2) {
     module2.exports = function parseBMFontAscii(data) {
       if (!data)
         throw new Error("no data provided");
@@ -118254,9 +118254,9 @@ var require_parse_bmfont_ascii = __commonJS({
   }
 });
 
-// node_modules/xml2js/lib/defaults.js
+// api-server/node_modules/xml2js/lib/defaults.js
 var require_defaults = __commonJS({
-  "node_modules/xml2js/lib/defaults.js"(exports2) {
+  "api-server/node_modules/xml2js/lib/defaults.js"(exports2) {
     (function() {
       exports2.defaults = {
         "0.1": {
@@ -118330,9 +118330,9 @@ var require_defaults = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/Utility.js
+// api-server/node_modules/xmlbuilder/lib/Utility.js
 var require_Utility = __commonJS({
-  "node_modules/xmlbuilder/lib/Utility.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/Utility.js"(exports2, module2) {
     (function() {
       var assign, getValue2, isArray3, isEmpty, isFunction3, isObject2, isPlainObject3, slice = [].slice, hasProp = {}.hasOwnProperty;
       assign = function() {
@@ -118401,9 +118401,9 @@ var require_Utility = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDOMImplementation.js
+// api-server/node_modules/xmlbuilder/lib/XMLDOMImplementation.js
 var require_XMLDOMImplementation = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDOMImplementation.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDOMImplementation.js"(exports2, module2) {
     (function() {
       var XMLDOMImplementation;
       module2.exports = XMLDOMImplementation = (function() {
@@ -118430,9 +118430,9 @@ var require_XMLDOMImplementation = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDOMErrorHandler.js
+// api-server/node_modules/xmlbuilder/lib/XMLDOMErrorHandler.js
 var require_XMLDOMErrorHandler = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDOMErrorHandler.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDOMErrorHandler.js"(exports2, module2) {
     (function() {
       var XMLDOMErrorHandler;
       module2.exports = XMLDOMErrorHandler = (function() {
@@ -118447,9 +118447,9 @@ var require_XMLDOMErrorHandler = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDOMStringList.js
+// api-server/node_modules/xmlbuilder/lib/XMLDOMStringList.js
 var require_XMLDOMStringList = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDOMStringList.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDOMStringList.js"(exports2, module2) {
     (function() {
       var XMLDOMStringList;
       module2.exports = XMLDOMStringList = (function() {
@@ -118473,9 +118473,9 @@ var require_XMLDOMStringList = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDOMConfiguration.js
+// api-server/node_modules/xmlbuilder/lib/XMLDOMConfiguration.js
 var require_XMLDOMConfiguration = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDOMConfiguration.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDOMConfiguration.js"(exports2, module2) {
     (function() {
       var XMLDOMConfiguration, XMLDOMErrorHandler, XMLDOMStringList;
       XMLDOMErrorHandler = require_XMLDOMErrorHandler();
@@ -118532,9 +118532,9 @@ var require_XMLDOMConfiguration = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/NodeType.js
+// api-server/node_modules/xmlbuilder/lib/NodeType.js
 var require_NodeType = __commonJS({
-  "node_modules/xmlbuilder/lib/NodeType.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/NodeType.js"(exports2, module2) {
     (function() {
       module2.exports = {
         Element: 1,
@@ -118559,9 +118559,9 @@ var require_NodeType = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLAttribute.js
+// api-server/node_modules/xmlbuilder/lib/XMLAttribute.js
 var require_XMLAttribute = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLAttribute.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLAttribute.js"(exports2, module2) {
     (function() {
       var NodeType, XMLAttribute, XMLNode;
       NodeType = require_NodeType();
@@ -118655,9 +118655,9 @@ var require_XMLAttribute = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLNamedNodeMap.js
+// api-server/node_modules/xmlbuilder/lib/XMLNamedNodeMap.js
 var require_XMLNamedNodeMap = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLNamedNodeMap.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLNamedNodeMap.js"(exports2, module2) {
     (function() {
       var XMLNamedNodeMap;
       module2.exports = XMLNamedNodeMap = (function() {
@@ -118705,9 +118705,9 @@ var require_XMLNamedNodeMap = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLElement.js
+// api-server/node_modules/xmlbuilder/lib/XMLElement.js
 var require_XMLElement = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLElement.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLElement.js"(exports2, module2) {
     (function() {
       var NodeType, XMLAttribute, XMLElement, XMLNamedNodeMap, XMLNode, getValue2, isFunction3, isObject2, ref, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -118972,9 +118972,9 @@ var require_XMLElement = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLCharacterData.js
+// api-server/node_modules/xmlbuilder/lib/XMLCharacterData.js
 var require_XMLCharacterData = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLCharacterData.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLCharacterData.js"(exports2, module2) {
     (function() {
       var XMLCharacterData, XMLNode, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -119049,9 +119049,9 @@ var require_XMLCharacterData = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLCData.js
+// api-server/node_modules/xmlbuilder/lib/XMLCData.js
 var require_XMLCData = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLCData.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLCData.js"(exports2, module2) {
     (function() {
       var NodeType, XMLCData, XMLCharacterData, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -119090,9 +119090,9 @@ var require_XMLCData = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLComment.js
+// api-server/node_modules/xmlbuilder/lib/XMLComment.js
 var require_XMLComment = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLComment.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLComment.js"(exports2, module2) {
     (function() {
       var NodeType, XMLCharacterData, XMLComment, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -119131,9 +119131,9 @@ var require_XMLComment = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDeclaration.js
+// api-server/node_modules/xmlbuilder/lib/XMLDeclaration.js
 var require_XMLDeclaration = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDeclaration.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDeclaration.js"(exports2, module2) {
     (function() {
       var NodeType, XMLDeclaration, XMLNode, isObject2, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -119179,9 +119179,9 @@ var require_XMLDeclaration = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDTDAttList.js
+// api-server/node_modules/xmlbuilder/lib/XMLDTDAttList.js
 var require_XMLDTDAttList = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDTDAttList.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDTDAttList.js"(exports2, module2) {
     (function() {
       var NodeType, XMLDTDAttList, XMLNode, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -119240,9 +119240,9 @@ var require_XMLDTDAttList = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDTDEntity.js
+// api-server/node_modules/xmlbuilder/lib/XMLDTDEntity.js
 var require_XMLDTDEntity = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDTDEntity.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDTDEntity.js"(exports2, module2) {
     (function() {
       var NodeType, XMLDTDEntity, XMLNode, isObject2, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -119336,9 +119336,9 @@ var require_XMLDTDEntity = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDTDElement.js
+// api-server/node_modules/xmlbuilder/lib/XMLDTDElement.js
 var require_XMLDTDElement = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDTDElement.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDTDElement.js"(exports2, module2) {
     (function() {
       var NodeType, XMLDTDElement, XMLNode, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -119380,9 +119380,9 @@ var require_XMLDTDElement = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDTDNotation.js
+// api-server/node_modules/xmlbuilder/lib/XMLDTDNotation.js
 var require_XMLDTDNotation = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDTDNotation.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDTDNotation.js"(exports2, module2) {
     (function() {
       var NodeType, XMLDTDNotation, XMLNode, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -119436,9 +119436,9 @@ var require_XMLDTDNotation = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDocType.js
+// api-server/node_modules/xmlbuilder/lib/XMLDocType.js
 var require_XMLDocType = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDocType.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDocType.js"(exports2, module2) {
     (function() {
       var NodeType, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDocType, XMLNamedNodeMap, XMLNode, isObject2, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -119605,9 +119605,9 @@ var require_XMLDocType = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLRaw.js
+// api-server/node_modules/xmlbuilder/lib/XMLRaw.js
 var require_XMLRaw = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLRaw.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLRaw.js"(exports2, module2) {
     (function() {
       var NodeType, XMLNode, XMLRaw, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -119645,9 +119645,9 @@ var require_XMLRaw = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLText.js
+// api-server/node_modules/xmlbuilder/lib/XMLText.js
 var require_XMLText = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLText.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLText.js"(exports2, module2) {
     (function() {
       var NodeType, XMLCharacterData, XMLText, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -119715,9 +119715,9 @@ var require_XMLText = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLProcessingInstruction.js
+// api-server/node_modules/xmlbuilder/lib/XMLProcessingInstruction.js
 var require_XMLProcessingInstruction = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLProcessingInstruction.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLProcessingInstruction.js"(exports2, module2) {
     (function() {
       var NodeType, XMLCharacterData, XMLProcessingInstruction, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -119768,9 +119768,9 @@ var require_XMLProcessingInstruction = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDummy.js
+// api-server/node_modules/xmlbuilder/lib/XMLDummy.js
 var require_XMLDummy = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDummy.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDummy.js"(exports2, module2) {
     (function() {
       var NodeType, XMLDummy, XMLNode, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -119804,9 +119804,9 @@ var require_XMLDummy = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLNodeList.js
+// api-server/node_modules/xmlbuilder/lib/XMLNodeList.js
 var require_XMLNodeList = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLNodeList.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLNodeList.js"(exports2, module2) {
     (function() {
       var XMLNodeList;
       module2.exports = XMLNodeList = (function() {
@@ -119830,9 +119830,9 @@ var require_XMLNodeList = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/DocumentPosition.js
+// api-server/node_modules/xmlbuilder/lib/DocumentPosition.js
 var require_DocumentPosition = __commonJS({
-  "node_modules/xmlbuilder/lib/DocumentPosition.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/DocumentPosition.js"(exports2, module2) {
     (function() {
       module2.exports = {
         Disconnected: 1,
@@ -119846,9 +119846,9 @@ var require_DocumentPosition = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLNode.js
+// api-server/node_modules/xmlbuilder/lib/XMLNode.js
 var require_XMLNode = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLNode.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLNode.js"(exports2, module2) {
     (function() {
       var DocumentPosition, NodeType, XMLCData, XMLComment, XMLDeclaration, XMLDocType, XMLDummy, XMLElement, XMLNamedNodeMap, XMLNode, XMLNodeList, XMLProcessingInstruction, XMLRaw, XMLText, getValue2, isEmpty, isFunction3, isObject2, ref1, hasProp = {}.hasOwnProperty;
       ref1 = require_Utility(), isObject2 = ref1.isObject, isFunction3 = ref1.isFunction, isEmpty = ref1.isEmpty, getValue2 = ref1.getValue;
@@ -120539,9 +120539,9 @@ var require_XMLNode = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLStringifier.js
+// api-server/node_modules/xmlbuilder/lib/XMLStringifier.js
 var require_XMLStringifier = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLStringifier.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLStringifier.js"(exports2, module2) {
     (function() {
       var XMLStringifier, bind2 = function(fn3, me3) {
         return function() {
@@ -120754,9 +120754,9 @@ var require_XMLStringifier = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/WriterState.js
+// api-server/node_modules/xmlbuilder/lib/WriterState.js
 var require_WriterState = __commonJS({
-  "node_modules/xmlbuilder/lib/WriterState.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/WriterState.js"(exports2, module2) {
     (function() {
       module2.exports = {
         None: 0,
@@ -120768,9 +120768,9 @@ var require_WriterState = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLWriterBase.js
+// api-server/node_modules/xmlbuilder/lib/XMLWriterBase.js
 var require_XMLWriterBase = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLWriterBase.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLWriterBase.js"(exports2, module2) {
     (function() {
       var NodeType, WriterState, XMLCData, XMLComment, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDeclaration, XMLDocType, XMLDummy, XMLElement, XMLProcessingInstruction, XMLRaw, XMLText, XMLWriterBase, assign, hasProp = {}.hasOwnProperty;
       assign = require_Utility().assign;
@@ -121163,9 +121163,9 @@ var require_XMLWriterBase = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLStringWriter.js
+// api-server/node_modules/xmlbuilder/lib/XMLStringWriter.js
 var require_XMLStringWriter = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLStringWriter.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLStringWriter.js"(exports2, module2) {
     (function() {
       var XMLStringWriter, XMLWriterBase, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -121205,9 +121205,9 @@ var require_XMLStringWriter = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDocument.js
+// api-server/node_modules/xmlbuilder/lib/XMLDocument.js
 var require_XMLDocument = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDocument.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDocument.js"(exports2, module2) {
     (function() {
       var NodeType, XMLDOMConfiguration, XMLDOMImplementation, XMLDocument, XMLNode, XMLStringWriter, XMLStringifier, isPlainObject3, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -121412,9 +121412,9 @@ var require_XMLDocument = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLDocumentCB.js
+// api-server/node_modules/xmlbuilder/lib/XMLDocumentCB.js
 var require_XMLDocumentCB = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLDocumentCB.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLDocumentCB.js"(exports2, module2) {
     (function() {
       var NodeType, WriterState, XMLAttribute, XMLCData, XMLComment, XMLDTDAttList, XMLDTDElement, XMLDTDEntity, XMLDTDNotation, XMLDeclaration, XMLDocType, XMLDocument, XMLDocumentCB, XMLElement, XMLProcessingInstruction, XMLRaw, XMLStringWriter, XMLStringifier, XMLText, getValue2, isFunction3, isObject2, isPlainObject3, ref, hasProp = {}.hasOwnProperty;
       ref = require_Utility(), isObject2 = ref.isObject, isFunction3 = ref.isFunction, isPlainObject3 = ref.isPlainObject, getValue2 = ref.getValue;
@@ -121878,9 +121878,9 @@ var require_XMLDocumentCB = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/XMLStreamWriter.js
+// api-server/node_modules/xmlbuilder/lib/XMLStreamWriter.js
 var require_XMLStreamWriter = __commonJS({
-  "node_modules/xmlbuilder/lib/XMLStreamWriter.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/XMLStreamWriter.js"(exports2, module2) {
     (function() {
       var NodeType, WriterState, XMLStreamWriter, XMLWriterBase, extend2 = function(child, parent) {
         for (var key in parent) {
@@ -122045,9 +122045,9 @@ var require_XMLStreamWriter = __commonJS({
   }
 });
 
-// node_modules/xmlbuilder/lib/index.js
+// api-server/node_modules/xmlbuilder/lib/index.js
 var require_lib6 = __commonJS({
-  "node_modules/xmlbuilder/lib/index.js"(exports2, module2) {
+  "api-server/node_modules/xmlbuilder/lib/index.js"(exports2, module2) {
     (function() {
       var NodeType, WriterState, XMLDOMImplementation, XMLDocument, XMLDocumentCB, XMLStreamWriter, XMLStringWriter, assign, isFunction3, ref;
       ref = require_Utility(), assign = ref.assign, isFunction3 = ref.isFunction;
@@ -122099,9 +122099,9 @@ var require_lib6 = __commonJS({
   }
 });
 
-// node_modules/xml2js/lib/builder.js
+// api-server/node_modules/xml2js/lib/builder.js
 var require_builder = __commonJS({
-  "node_modules/xml2js/lib/builder.js"(exports2) {
+  "api-server/node_modules/xml2js/lib/builder.js"(exports2) {
     (function() {
       "use strict";
       var builder, defaults4, escapeCDATA, requiresCDATA, wrapCDATA, hasProp = {}.hasOwnProperty;
@@ -122220,9 +122220,9 @@ var require_builder = __commonJS({
   }
 });
 
-// node_modules/sax/lib/sax.js
+// api-server/node_modules/sax/lib/sax.js
 var require_sax = __commonJS({
-  "node_modules/sax/lib/sax.js"(exports2) {
+  "api-server/node_modules/sax/lib/sax.js"(exports2) {
     (function(sax) {
       sax.parser = function(strict, opt) {
         return new SAXParser(strict, opt);
@@ -123814,9 +123814,9 @@ var require_sax = __commonJS({
   }
 });
 
-// node_modules/xml2js/lib/bom.js
+// api-server/node_modules/xml2js/lib/bom.js
 var require_bom = __commonJS({
-  "node_modules/xml2js/lib/bom.js"(exports2) {
+  "api-server/node_modules/xml2js/lib/bom.js"(exports2) {
     (function() {
       "use strict";
       exports2.stripBOM = function(str2) {
@@ -123830,9 +123830,9 @@ var require_bom = __commonJS({
   }
 });
 
-// node_modules/xml2js/lib/processors.js
+// api-server/node_modules/xml2js/lib/processors.js
 var require_processors = __commonJS({
-  "node_modules/xml2js/lib/processors.js"(exports2) {
+  "api-server/node_modules/xml2js/lib/processors.js"(exports2) {
     (function() {
       "use strict";
       var prefixMatch;
@@ -123862,9 +123862,9 @@ var require_processors = __commonJS({
   }
 });
 
-// node_modules/xml2js/lib/parser.js
+// api-server/node_modules/xml2js/lib/parser.js
 var require_parser3 = __commonJS({
-  "node_modules/xml2js/lib/parser.js"(exports2) {
+  "api-server/node_modules/xml2js/lib/parser.js"(exports2) {
     (function() {
       "use strict";
       var bom, defaults4, events, isEmpty, processItem, processors, sax, setImmediate2, bind2 = function(fn3, me3) {
@@ -124244,9 +124244,9 @@ var require_parser3 = __commonJS({
   }
 });
 
-// node_modules/xml2js/lib/xml2js.js
+// api-server/node_modules/xml2js/lib/xml2js.js
 var require_xml2js = __commonJS({
-  "node_modules/xml2js/lib/xml2js.js"(exports2) {
+  "api-server/node_modules/xml2js/lib/xml2js.js"(exports2) {
     (function() {
       "use strict";
       var builder, defaults4, parser, processors, extend2 = function(child, parent) {
@@ -124282,9 +124282,9 @@ var require_xml2js = __commonJS({
   }
 });
 
-// node_modules/parse-bmfont-xml/lib/parse-attribs.js
+// api-server/node_modules/parse-bmfont-xml/lib/parse-attribs.js
 var require_parse_attribs = __commonJS({
-  "node_modules/parse-bmfont-xml/lib/parse-attribs.js"(exports2, module2) {
+  "api-server/node_modules/parse-bmfont-xml/lib/parse-attribs.js"(exports2, module2) {
     var GLYPH_DESIGNER_ERROR = "chasrset";
     module2.exports = function parseAttributes(obj) {
       obj = Object.assign({}, obj);
@@ -124310,9 +124310,9 @@ var require_parse_attribs = __commonJS({
   }
 });
 
-// node_modules/parse-bmfont-xml/lib/index.js
+// api-server/node_modules/parse-bmfont-xml/lib/index.js
 var require_lib7 = __commonJS({
-  "node_modules/parse-bmfont-xml/lib/index.js"(exports2, module2) {
+  "api-server/node_modules/parse-bmfont-xml/lib/index.js"(exports2, module2) {
     var xml2js = require_xml2js();
     var parseAttributes = require_parse_attribs();
     module2.exports = function parseBMFontXML(data) {
@@ -124356,9 +124356,9 @@ var require_lib7 = __commonJS({
   }
 });
 
-// node_modules/parse-bmfont-binary/index.js
+// api-server/node_modules/parse-bmfont-binary/index.js
 var require_parse_bmfont_binary = __commonJS({
-  "node_modules/parse-bmfont-binary/index.js"(exports2, module2) {
+  "api-server/node_modules/parse-bmfont-binary/index.js"(exports2, module2) {
     var HEADER2 = [66, 77, 70];
     module2.exports = function readBMFontBinary(buf) {
       if (buf.length < 6)
@@ -124502,7 +124502,7 @@ var require_parse_bmfont_binary = __commonJS({
   }
 });
 
-// node_modules/simple-xml-to-json/lib/simpleXmlToJson.min.mjs
+// api-server/node_modules/simple-xml-to-json/lib/simpleXmlToJson.min.mjs
 function e2(e10) {
   return e10 && e10.__esModule && Object.prototype.hasOwnProperty.call(e10, "default") ? e10.default : e10;
 }
@@ -124677,7 +124677,7 @@ function p() {
 }
 var t2, n, r2, E, T, u, a, s2, c2, o, l, N, A2, C, L;
 var init_simpleXmlToJson_min = __esm({
-  "node_modules/simple-xml-to-json/lib/simpleXmlToJson.min.mjs"() {
+  "api-server/node_modules/simple-xml-to-json/lib/simpleXmlToJson.min.mjs"() {
     A2 = e2((function() {
       if (N) return l;
       N = 1;
@@ -124721,10 +124721,10 @@ var init_simpleXmlToJson_min = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-print/dist/esm/load-bitmap-font.js
+// api-server/node_modules/@jimp/plugin-print/dist/esm/load-bitmap-font.js
 var import_parse_bmfont_ascii, import_parse_bmfont_xml, import_parse_bmfont_binary, convertXML, isWebWorker, CharacterJimp, HEADER;
 var init_load_bitmap_font = __esm({
-  "node_modules/@jimp/plugin-print/dist/esm/load-bitmap-font.js"() {
+  "api-server/node_modules/@jimp/plugin-print/dist/esm/load-bitmap-font.js"() {
     import_parse_bmfont_ascii = __toESM(require_parse_bmfont_ascii(), 1);
     import_parse_bmfont_xml = __toESM(require_lib7(), 1);
     import_parse_bmfont_binary = __toESM(require_parse_bmfont_binary(), 1);
@@ -124738,16 +124738,16 @@ var init_load_bitmap_font = __esm({
   }
 });
 
-// node_modules/@jimp/plugin-print/dist/esm/load-font.js
+// api-server/node_modules/@jimp/plugin-print/dist/esm/load-font.js
 var init_load_font = __esm({
-  "node_modules/@jimp/plugin-print/dist/esm/load-font.js"() {
+  "api-server/node_modules/@jimp/plugin-print/dist/esm/load-font.js"() {
     init_load_bitmap_font();
   }
 });
 
-// node_modules/pixelmatch/index.js
+// api-server/node_modules/pixelmatch/index.js
 var require_pixelmatch = __commonJS({
-  "node_modules/pixelmatch/index.js"(exports2, module2) {
+  "api-server/node_modules/pixelmatch/index.js"(exports2, module2) {
     "use strict";
     module2.exports = pixelmatch;
     var defaultOptions = {
@@ -124921,20 +124921,20 @@ var require_pixelmatch = __commonJS({
   }
 });
 
-// node_modules/@jimp/diff/dist/esm/index.js
+// api-server/node_modules/@jimp/diff/dist/esm/index.js
 var import_pixelmatch;
 var init_esm29 = __esm({
-  "node_modules/@jimp/diff/dist/esm/index.js"() {
+  "api-server/node_modules/@jimp/diff/dist/esm/index.js"() {
     init_esm15();
     init_esm2();
     import_pixelmatch = __toESM(require_pixelmatch(), 1);
   }
 });
 
-// node_modules/jimp/dist/esm/index.js
+// api-server/node_modules/jimp/dist/esm/index.js
 var defaultPlugins, defaultFormats, JimpMime, Jimp;
 var init_esm30 = __esm({
-  "node_modules/jimp/dist/esm/index.js"() {
+  "api-server/node_modules/jimp/dist/esm/index.js"() {
     init_esm3();
     init_esm4();
     init_esm5();
@@ -125003,7 +125003,7 @@ var init_esm30 = __esm({
   }
 });
 
-// src/lib/imageCompress.ts
+// api-server/src/lib/imageCompress.ts
 function getImageCompressStats() {
   return { ...compressStats };
 }
@@ -125046,7 +125046,7 @@ async function tryCompressImageForVision(input, opts) {
 }
 var VISION_MAX_EDGE, VISION_JPEG_QUALITY, compressStats;
 var init_imageCompress = __esm({
-  "src/lib/imageCompress.ts"() {
+  "api-server/src/lib/imageCompress.ts"() {
     "use strict";
     init_esm30();
     VISION_MAX_EDGE = 1024;
@@ -125061,7 +125061,7 @@ var init_imageCompress = __esm({
   }
 });
 
-// src/lib/authJwt.ts
+// api-server/src/lib/authJwt.ts
 var authJwt_exports = {};
 __export(authJwt_exports, {
   isAuthConfigured: () => isAuthConfigured,
@@ -125111,15 +125111,15 @@ function isAuthConfigured() {
   return !!(process.env["SESSION_SECRET"]?.trim() || process.env["LUCY_SESSION_SECRET"]?.trim());
 }
 var init_authJwt = __esm({
-  "src/lib/authJwt.ts"() {
+  "api-server/src/lib/authJwt.ts"() {
     "use strict";
   }
 });
 
-// src/catalogo.ts
+// api-server/src/catalogo.ts
 var CATALOGO_BODASESOR;
 var init_catalogo = __esm({
-  "src/catalogo.ts"() {
+  "api-server/src/catalogo.ts"() {
     "use strict";
     CATALOGO_BODASESOR = `
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
@@ -125451,7 +125451,7 @@ DJ y audio, pantallas LED, iluminaci\xF3n, fiesta infantil, carpas y lonas.
   }
 });
 
-// src/services/serviceSynonyms.ts
+// api-server/src/services/serviceSynonyms.ts
 function norm(s10) {
   return s10.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -125630,7 +125630,7 @@ function loadSinonimosJson(raw) {
 }
 var DEFAULT_SERVICE_SYNONYM_FAMILIES, sheetSynonymIndex, FAMILY_DISPLAY;
 var init_serviceSynonyms = __esm({
-  "src/services/serviceSynonyms.ts"() {
+  "api-server/src/services/serviceSynonyms.ts"() {
     "use strict";
     DEFAULT_SERVICE_SYNONYM_FAMILIES = [
       {
@@ -126415,7 +126415,7 @@ var init_serviceSynonyms = __esm({
   }
 });
 
-// src/services/lucyInfoPriceCache.ts
+// api-server/src/services/lucyInfoPriceCache.ts
 import { existsSync as existsSync2, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -126823,7 +126823,7 @@ ${ask}`;
 }
 var STRICT_PDF_SERVICE_FAMILIES;
 var init_lucyInfoPriceCache = __esm({
-  "src/services/lucyInfoPriceCache.ts"() {
+  "api-server/src/services/lucyInfoPriceCache.ts"() {
     "use strict";
     init_serviceSynonyms();
     STRICT_PDF_SERVICE_FAMILIES = /* @__PURE__ */ new Set([
@@ -126850,7 +126850,7 @@ var init_lucyInfoPriceCache = __esm({
   }
 });
 
-// src/contact-name.ts
+// api-server/src/contact-name.ts
 function isMuchoGustoNameReply(text2) {
   const t10 = text2?.trim() ?? "";
   if (!t10) return false;
@@ -127162,7 +127162,7 @@ function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
 }
 var PHONE_LIKE, PLACEHOLDER_PATTERNS, GREETING_NAME_PATTERN, COMPANY_OR_CHANNEL_PATTERN, BOT_OR_META_NAME_TOKEN, COURTESY_NAME_TOKEN, MUCHO_GUSTO_SUFFIX, MUCHO_GUSTO_LEADING, CATALOG_LEVEL_OR_BRAND_NAME, SENTENCE_VERB_PATTERN, HANDOFF_OR_META_NAME_TOKEN, PRICE_OR_SERVICE_NAME_TOKEN, NAME_STOPWORDS;
 var init_contact_name = __esm({
-  "src/contact-name.ts"() {
+  "api-server/src/contact-name.ts"() {
     "use strict";
     PHONE_LIKE = /^\+?\d[\d\s\-().]{7,}$/;
     PLACEHOLDER_PATTERNS = [
@@ -127189,7 +127189,7 @@ var init_contact_name = __esm({
   }
 });
 
-// src/client-email.ts
+// api-server/src/client-email.ts
 function normalizeEmail(email) {
   const trimmed = email?.trim().toLowerCase() ?? "";
   return trimmed || null;
@@ -127221,7 +127221,7 @@ function buildEmailConfirmationPrompt(email) {
 }
 var OWN_EMAILS, SUSPICIOUS_TLD;
 var init_client_email = __esm({
-  "src/client-email.ts"() {
+  "api-server/src/client-email.ts"() {
     "use strict";
     OWN_EMAILS = new Set(
       [
@@ -127236,7 +127236,7 @@ var init_client_email = __esm({
   }
 });
 
-// src/lib/bodasesorAdvisor.ts
+// api-server/src/lib/bodasesorAdvisor.ts
 function getAdvisorName() {
   return process.env["BODASESOR_ADVISOR_NAME"]?.trim() || process.env["KOMMO_ADVISOR_NAME"]?.trim() || "Alejandro";
 }
@@ -127314,14 +127314,14 @@ function stripInternalCrmBlock(mensaje) {
 }
 var LEGACY_ADVISOR_NAMES, CLIENT_GREETING_PREFIX;
 var init_bodasesorAdvisor = __esm({
-  "src/lib/bodasesorAdvisor.ts"() {
+  "api-server/src/lib/bodasesorAdvisor.ts"() {
     "use strict";
     LEGACY_ADVISOR_NAMES = ["Rodrigo"];
     CLIENT_GREETING_PREFIX = /(Mucho gusto,?|Hola,?|Genial,?|Perfecto,?|Excelente,?|Listo,?|Claro,?|Qué padre,?)\s*/i;
   }
 });
 
-// src/services/imageProcessor.ts
+// api-server/src/services/imageProcessor.ts
 function pruneImageCache() {
   const now = Date.now();
   for (const [url2, entry] of imageAnalysisCache) {
@@ -127616,7 +127616,7 @@ function extractImageIntent(text2) {
 }
 var IMAGE_TYPES, IMAGE_CACHE_TTL_MS, IMAGE_CACHE_MAX, imageAnalysisCache, VALID_INTENTS, VISION_PROMPT, FALLBACK_REPLIES, IMAGE_ACTION_MARKER, IMAGE_INTENT_MARKER;
 var init_imageProcessor = __esm({
-  "src/services/imageProcessor.ts"() {
+  "api-server/src/services/imageProcessor.ts"() {
     "use strict";
     init_llmChat();
     init_llmEnv();
@@ -127682,7 +127682,7 @@ Reglas para client_reply (ES LO IMPORTANTE):
   }
 });
 
-// src/services/serviceDecline.ts
+// api-server/src/services/serviceDecline.ts
 function isMesaDulcesDeclinePhrase(t10) {
   return /\bno\s+(?:quiero|necesito|pedimos|pido)\s+mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t10) || /\bno\s+(?:quiero|necesito)\s+(postres?|dulces?)\b/i.test(t10) || /\bsin\s+mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t10) || /\bqu[ií]ta(le|me)?\s+(?:la\s+)?mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t10);
 }
@@ -127878,7 +127878,7 @@ function stripThemeColorsFromZona(value) {
 }
 var FAMILY_SERVICE_RE, FAMILY_DECLINE_WORDS;
 var init_serviceDecline = __esm({
-  "src/services/serviceDecline.ts"() {
+  "api-server/src/services/serviceDecline.ts"() {
     "use strict";
     init_imageProcessor();
     init_conversation_understanding();
@@ -127905,7 +127905,7 @@ var init_serviceDecline = __esm({
   }
 });
 
-// src/services/geoResolve.ts
+// api-server/src/services/geoResolve.ts
 function fold2(s10) {
   return s10.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
 }
@@ -128049,7 +128049,7 @@ async function enrichExtractedDireccionWithMaps(extracted, messageText) {
 }
 var CDMX_ALCALDIAS, CDMX_CITY, mapsCache;
 var init_geoResolve = __esm({
-  "src/services/geoResolve.ts"() {
+  "api-server/src/services/geoResolve.ts"() {
     "use strict";
     CDMX_ALCALDIAS = /\b(alvaro\s+obregon|[aá]lvaro\s+obreg[oó]n|azcapotzalco|benito\s+ju[aá]rez|coyoac[aá]n|cuajimalpa|cuauht[eé]moc|gustavo\s+a\.?\s*madero|iztacalco|iztapalapa|magdalena\s+contreras|miguel\s+hidalgo|milpa\s+alta|tl[aá]huac|tlalpan|venustiano\s+carranza|xochimilco)\b/i;
     CDMX_CITY = /\b(cdmx|ciudad\s+de\s+m[eé]xico|\bdf\b|d\.?\s*f\.?)\b/i;
@@ -128057,7 +128057,7 @@ var init_geoResolve = __esm({
   }
 });
 
-// src/conversation-understanding.ts
+// api-server/src/conversation-understanding.ts
 function parseTipoEventoLabeled(text2) {
   const m10 = text2.match(/\bTipo\s+de\s+evento\s*:\s*([^\n.]{3,60})/i);
   if (!m10?.[1]) return null;
@@ -129591,7 +129591,7 @@ function isMealTimeOnlySchedule(text2) {
 }
 function isSimpleClockTime(text2) {
   const t10 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t10 || t10.length > 50) return false;
+  if (!t10 || t10.length > 70) return false;
   if (MONTH_PATTERN.test(t10)) return false;
   if (/\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
     t10
@@ -129599,7 +129599,10 @@ function isSimpleClockTime(text2) {
     return false;
   }
   if (/^(a\s+)?medio\s*d[ií]a$/i.test(t10) || /^a\s+mediod[ií]a$/i.test(t10)) return true;
-  if (/^(?:a\s+las\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)?$/i.test(t10)) {
+  if (new RegExp(
+    String.raw`^(?:a\s+las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t10)) {
     return true;
   }
   if (/^(?:a\s+las\s+)?\d{1,2}(?::\d{2})?\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana)(?:\s*(?:hrs?|horas?))?$/i.test(
@@ -129607,11 +129610,20 @@ function isSimpleClockTime(text2) {
   )) {
     return true;
   }
+  if (new RegExp(
+    String.raw`^(?:a\s+)?(?:partir|desde)\s+de\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t10) || new RegExp(
+    String.raw`^desde\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t10)) {
+    return true;
+  }
   return false;
 }
 function isClockTimeOnlySchedule(text2) {
   const t10 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t10 || t10.length > 60) return false;
+  if (!t10 || t10.length > 80) return false;
   if (isSimpleClockTime(t10)) return true;
   if (MONTH_PATTERN.test(t10)) return false;
   if (/\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
@@ -129619,11 +129631,13 @@ function isClockTimeOnlySchedule(text2) {
   )) {
     return false;
   }
-  const clock = /^(de\s+)?\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}(?::\d{2})?\s*(?:hrs?|horas?)?$/i.test(
-    t10
-  ) || /^(horario\s*:?\s*)?\d{1,2}:\d{2}\s*(?:a|[-–]|hasta)\s*\d{1,2}:\d{2}\s*(?:hrs?|horas?)?$/i.test(
-    t10
-  );
+  const clock = new RegExp(
+    String.raw`^(?:de\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t10) || new RegExp(
+    String.raw`^(?:horario\s*:?\s*)?${CLOCK_TOKEN}\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t10);
   return clock;
 }
 function looksLikeFechaDiscourseJunk(text2) {
@@ -129677,12 +129691,22 @@ function syncLegacyFechaHorarioField(extracted) {
   );
 }
 function normalizeHorarioCapture(text2) {
-  return text2.replace(/^a\s+las\s+/i, "").trim().slice(0, 80);
+  return text2.replace(/^a\s+las\s+/i, "").replace(/^(?:a\s+)?partir\s+de\s+(?:las\s+)?/i, "a partir de las ").replace(/^desde\s+(?:las\s+)?/i, "desde las ").replace(/\s+/g, " ").trim().slice(0, 80);
+}
+function clientDefersHorario(text2) {
+  const t10 = (text2 ?? "").trim();
+  if (!t10) return false;
+  return /\bno\s+(cuento|tengo|tenemos|contamos)\s+con\s+(el\s+)?horario\b/i.test(t10) || /\b(a[uú]n|todav[ií]a)\s+no\s+(tengo|tenemos|cuento|contamos|hay|s[eé])\s+(el\s+)?horario\b/i.test(
+    t10
+  ) || /\bhorario\s+(a[uú]n|todav[ií]a)\s+no\b/i.test(t10) || /\b(sin|no\s+tengo)\s+horario\s+(a[uú]n|definido|por\s+ahora|todav[ií]a)\b/i.test(t10) || /\bno\s+cuento\s+con\s+el\s+horario\b/i.test(t10) || /\bel\s+horario\s+(a[uú]n\s+)?(no\s+lo\s+tengo|est[aá]\s+por\s+definir|pendiente)\b/i.test(t10);
 }
 function parseHorarioFromText(text2) {
   const trimmed = text2.trim();
   if (!trimmed) return null;
   const clean = trimmed.replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (clientDefersHorario(clean)) {
+    return "Sin definir (pendiente)";
+  }
   if (isClockTimeOnlySchedule(clean)) return normalizeHorarioCapture(clean);
   if (isMealTimeOnlySchedule(clean)) return clean;
   if (isScheduleLabeledClock(clean)) {
@@ -129697,14 +129721,53 @@ function parseHorarioFromText(text2) {
   }
   const horarioLabel = clean.match(/\bhorario\s*:?\s*(.+)$/i);
   if (horarioLabel?.[1] && /\d/.test(horarioLabel[1])) {
-    return horarioLabel[1].trim().slice(0, 80);
+    const labeled = horarioLabel[1].trim();
+    if (clientDefersHorario(labeled)) return "Sin definir (pendiente)";
+    return labeled.slice(0, 80);
+  }
+  const rangeAmpm = clean.match(
+    new RegExp(
+      String.raw`\b((?:de\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (rangeAmpm?.[1]) {
+    const frag = rangeAmpm[1].trim();
+    const without = clean.replace(rangeAmpm[1], "").trim();
+    if (!without || parseFechaFromText(without) || MONTH_PATTERN.test(without) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(without) || /\b(evento|ser[ií]a|ser[aá]|es|planean|planeamos|tendr[ií]a|horario)\b/i.test(without)) {
+      return frag.replace(/^de\s+/i, "de ").slice(0, 80);
+    }
+  }
+  const aPartir = clean.match(
+    new RegExp(
+      String.raw`\b((?:a\s+)?partir\s+de\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (aPartir?.[1]) {
+    return normalizeHorarioCapture(aPartir[1]);
+  }
+  const desdeLas = clean.match(
+    new RegExp(
+      String.raw`\b(desde\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (desdeLas?.[1]) {
+    return normalizeHorarioCapture(desdeLas[1]);
   }
   const aLasPhrase = clean.match(
-    /^a\s+las\s+(\d{1,2}(?::\d{2})?(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?)\s*(?:hrs?|horas?)?$/i
+    new RegExp(
+      String.raw`^a\s+las\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?)\s*(?:${CLOCK_AMPM})?$`,
+      "i"
+    )
   );
   if (aLasPhrase?.[1]) return normalizeHorarioCapture(aLasPhrase[0]);
   const atTime = clean.match(
-    /\b(?:a\s+las|a\s+partir\s+de)\s+(\d{1,2}(?::\d{2})?(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?(?:\s*(?:hrs?|horas?|am|pm|a\.?\s*m\.?|p\.?\s*m\.?))?)\b/i
+    new RegExp(
+      String.raw`\b(?:a\s+las|a\s+partir\s+de(?:\s+las)?)\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?(?:\s*(?:${CLOCK_AMPM}))?)`,
+      "i"
+    )
   );
   if (atTime?.[1]) {
     const withoutTime = clean.replace(atTime[0], "").trim();
@@ -129716,7 +129779,10 @@ function parseHorarioFromText(text2) {
     }
   }
   const range = clean.match(
-    /\b(\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}(?::\d{2})?\s*(?:hrs?|horas?|am|pm)?)\b/i
+    new RegExp(
+      String.raw`\b(${CLOCK_TOKEN}\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
   );
   if (range?.[1]) {
     const withoutRange = clean.replace(range[1], "").trim();
@@ -129761,6 +129827,8 @@ function isUsableHorarioEvento(value) {
   const t10 = (value ?? "").trim();
   if (!t10) return false;
   if (/^sin\s+definir/i.test(t10)) return true;
+  if (/pendiente/i.test(t10) && /sin\s+definir|por\s+definir/i.test(t10)) return true;
+  if (/\ba\s+partir\s+de\s+(?:las\s+)?\d/i.test(t10)) return true;
   if (isClockTimeOnlySchedule(t10)) return true;
   if (isMealTimeOnlySchedule(t10)) return true;
   if (isSimpleClockTime(t10)) return true;
@@ -131149,9 +131217,9 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     extracted.requerimientos_evento = null;
   }
 }
-var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, STAFF_OR_ADDON_SERVICE, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
+var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
 var init_conversation_understanding = __esm({
-  "src/conversation-understanding.ts"() {
+  "api-server/src/conversation-understanding.ts"() {
     "use strict";
     init_contact_name();
     init_client_email();
@@ -131472,6 +131540,8 @@ var init_conversation_understanding = __esm({
     VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue)\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.'-]{1,48})/i;
     JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
     STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
+    CLOCK_AMPM = String.raw`(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)`;
+    CLOCK_TOKEN = String.raw`\d{1,2}(?::\d{2})?`;
     GUEST_COUNT_WORDS = "personas?|invitados?|invitadas?|pax|guests?|gentes?|cabezas?";
     STANDARD_PISTA_SIZES = [
       { w: 4, h: 4, area: 16 },
@@ -131503,7 +131573,7 @@ var init_conversation_understanding = __esm({
   }
 });
 
-// src/price-guard.ts
+// api-server/src/price-guard.ts
 function escapeRegex2(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -131634,7 +131704,7 @@ function sanitizeInventedPrices(mensaje, currentMessage, recentContext) {
 }
 var NO_LISTED_PRICE_PATTERN, LISTED_PRICE_PATTERN, dynamicListedPattern, dynamicNoListedPattern, PRICE_CLAIM_PATTERN, PRICE_QUESTION_PATTERN;
 var init_price_guard = __esm({
-  "src/price-guard.ts"() {
+  "api-server/src/price-guard.ts"() {
     "use strict";
     init_lucyInfoPriceCache();
     init_conversation_understanding();
@@ -131648,7 +131718,7 @@ var init_price_guard = __esm({
   }
 });
 
-// src/services/googleSheetsCatalog.ts
+// api-server/src/services/googleSheetsCatalog.ts
 function deriveCatalogCategory(servicio) {
   const s10 = servicio.toLowerCase();
   if (/barra de bebida|cocteler|mixolog|m[oó]ctel/.test(s10)) return "Bebidas";
@@ -131968,7 +132038,7 @@ function parseRowNotes(notas) {
 }
 var BODASESOR_PRECIOS_SHEET_ID, HEADER_ALIASES;
 var init_googleSheetsCatalog = __esm({
-  "src/services/googleSheetsCatalog.ts"() {
+  "api-server/src/services/googleSheetsCatalog.ts"() {
     "use strict";
     BODASESOR_PRECIOS_SHEET_ID = "1s3DGZZXm3VXxqxyq1cKDnD3DfhGUrVw6ZkpYuN5_pBQ";
     HEADER_ALIASES = {
@@ -132006,7 +132076,7 @@ var init_googleSheetsCatalog = __esm({
   }
 });
 
-// src/services/gammaCatalog.ts
+// api-server/src/services/gammaCatalog.ts
 function gammaApiKey() {
   const key = process.env["GAMMA_API_KEY"]?.trim();
   return key || null;
@@ -132185,13 +132255,13 @@ async function loadGammaCatalog() {
 }
 var GAMMA_API_BASE;
 var init_gammaCatalog = __esm({
-  "src/services/gammaCatalog.ts"() {
+  "api-server/src/services/gammaCatalog.ts"() {
     "use strict";
     GAMMA_API_BASE = "https://public-api.gamma.app/v1.0";
   }
 });
 
-// src/services/catalogWebKnowledge.ts
+// api-server/src/services/catalogWebKnowledge.ts
 import { readFileSync as readFileSync2 } from "node:fs";
 import path3 from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
@@ -132376,7 +132446,7 @@ function buildCatalogWebDetailHint(query) {
 }
 var CATALOG_WEB_HUB, embedsCache, knowledgeCache, knowledgeBlockCache;
 var init_catalogWebKnowledge = __esm({
-  "src/services/catalogWebKnowledge.ts"() {
+  "api-server/src/services/catalogWebKnowledge.ts"() {
     "use strict";
     CATALOG_WEB_HUB = "https://bodasesor.com/catalogos";
     embedsCache = null;
@@ -132385,7 +132455,7 @@ var init_catalogWebKnowledge = __esm({
   }
 });
 
-// src/services/serviceProgressiveOffer.ts
+// api-server/src/services/serviceProgressiveOffer.ts
 function messageHasSoloCompletoNivelOrMode(text2) {
   const t10 = text2?.trim() ?? "";
   if (!t10) return false;
@@ -132844,7 +132914,7 @@ function resolveProgressiveDetailQuery(opts) {
 }
 var SERVICE_NIVEL_DETAIL_CTA, FAMILIES, FAMILY_ALL_DETAIL_QUERIES;
 var init_serviceProgressiveOffer = __esm({
-  "src/services/serviceProgressiveOffer.ts"() {
+  "api-server/src/services/serviceProgressiveOffer.ts"() {
     "use strict";
     init_conversation_understanding();
     SERVICE_NIVEL_DETAIL_CTA = "\xBFQuieres que te d\xE9 detalles de alguno?";
@@ -133163,7 +133233,7 @@ var init_serviceProgressiveOffer = __esm({
   }
 });
 
-// src/services/concreteProductQuestion.ts
+// api-server/src/services/concreteProductQuestion.ts
 function isCentrosDeMesaFloral(text2) {
   return /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(
     text2
@@ -133286,7 +133356,7 @@ function shouldSkipSalesMenuForConcreteQuestion(message) {
 }
 var CATALOG_WORD_RE;
 var init_concreteProductQuestion = __esm({
-  "src/services/concreteProductQuestion.ts"() {
+  "api-server/src/services/concreteProductQuestion.ts"() {
     "use strict";
     init_bodasesorAdvisor();
     init_conversation_understanding();
@@ -133297,7 +133367,7 @@ var init_concreteProductQuestion = __esm({
   }
 });
 
-// src/services/serviceKnowledge.ts
+// api-server/src/services/serviceKnowledge.ts
 function serviceLabelFromQuery(query) {
   const trimmed = query.trim();
   if (!trimmed) return "ese servicio";
@@ -133543,7 +133613,7 @@ function formatServiceKnowledgeForPrompt(query) {
 }
 var SERVICE_KNOWLEDGE_GOLDEN_RULE, NON_EVENT_REQUEST_PATTERN, EVENT_CONTEXT_PATTERN;
 var init_serviceKnowledge = __esm({
-  "src/services/serviceKnowledge.ts"() {
+  "api-server/src/services/serviceKnowledge.ts"() {
     "use strict";
     init_conversation_understanding();
     init_catalogService();
@@ -133557,7 +133627,7 @@ var init_serviceKnowledge = __esm({
   }
 });
 
-// src/services/catalogService.ts
+// api-server/src/services/catalogService.ts
 import { readFileSync as readFileSync3, existsSync as existsSync3 } from "node:fs";
 import path4 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
@@ -135536,7 +135606,7 @@ function messageOffersCatalogLink(text2) {
 }
 var GENERIC_CATERING_MENU_MARKERS, REFRESH_MS, snapshot, refreshTimer, refreshing, MACRO_CATEGORIES, CATALOG_OFFER_QUESTION, INCLUSION_ITEM_PATTERNS, EVENT_OFFER_PATTERNS, BROAD_SOCIAL_OFFER, EVENT_OFFER_FALLBACK, CATALOG_WEB_HUB_URL, BODASESOR_CATALOG_WEB_URL;
 var init_catalogService = __esm({
-  "src/services/catalogService.ts"() {
+  "api-server/src/services/catalogService.ts"() {
     "use strict";
     init_catalogo();
     init_price_guard();
@@ -135708,9 +135778,9 @@ var init_catalogService = __esm({
   }
 });
 
-// ../lib/db/node_modules/postgres-array/index.js
+// lib/db/node_modules/postgres-array/index.js
 var require_postgres_array = __commonJS({
-  "../lib/db/node_modules/postgres-array/index.js"(exports2) {
+  "lib/db/node_modules/postgres-array/index.js"(exports2) {
     "use strict";
     exports2.parse = function(source, transform) {
       return new ArrayParser(source, transform).parse();
@@ -135802,9 +135872,9 @@ var require_postgres_array = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-types/lib/arrayParser.js
+// lib/db/node_modules/pg-types/lib/arrayParser.js
 var require_arrayParser = __commonJS({
-  "../lib/db/node_modules/pg-types/lib/arrayParser.js"(exports2, module2) {
+  "lib/db/node_modules/pg-types/lib/arrayParser.js"(exports2, module2) {
     var array = require_postgres_array();
     module2.exports = {
       create: function(source, transform) {
@@ -135818,9 +135888,9 @@ var require_arrayParser = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/postgres-date/index.js
+// lib/db/node_modules/postgres-date/index.js
 var require_postgres_date = __commonJS({
-  "../lib/db/node_modules/postgres-date/index.js"(exports2, module2) {
+  "lib/db/node_modules/postgres-date/index.js"(exports2, module2) {
     "use strict";
     var DATE_TIME = /(\d{1,})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(\.\d{1,})?.*?( BC)?$/;
     var DATE = /^(\d{1,})-(\d{2})-(\d{2})( BC)?$/;
@@ -135905,9 +135975,9 @@ var require_postgres_date = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/xtend/mutable.js
+// lib/db/node_modules/xtend/mutable.js
 var require_mutable = __commonJS({
-  "../lib/db/node_modules/xtend/mutable.js"(exports2, module2) {
+  "lib/db/node_modules/xtend/mutable.js"(exports2, module2) {
     module2.exports = extend2;
     var hasOwnProperty2 = Object.prototype.hasOwnProperty;
     function extend2(target) {
@@ -135924,9 +135994,9 @@ var require_mutable = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/postgres-interval/index.js
+// lib/db/node_modules/postgres-interval/index.js
 var require_postgres_interval = __commonJS({
-  "../lib/db/node_modules/postgres-interval/index.js"(exports2, module2) {
+  "lib/db/node_modules/postgres-interval/index.js"(exports2, module2) {
     "use strict";
     var extend2 = require_mutable();
     module2.exports = PostgresInterval;
@@ -136015,9 +136085,9 @@ var require_postgres_interval = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/postgres-bytea/index.js
+// lib/db/node_modules/postgres-bytea/index.js
 var require_postgres_bytea = __commonJS({
-  "../lib/db/node_modules/postgres-bytea/index.js"(exports2, module2) {
+  "lib/db/node_modules/postgres-bytea/index.js"(exports2, module2) {
     "use strict";
     var bufferFrom = Buffer.from || Buffer;
     module2.exports = function parseBytea(input) {
@@ -136051,9 +136121,9 @@ var require_postgres_bytea = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-types/lib/textParsers.js
+// lib/db/node_modules/pg-types/lib/textParsers.js
 var require_textParsers = __commonJS({
-  "../lib/db/node_modules/pg-types/lib/textParsers.js"(exports2, module2) {
+  "lib/db/node_modules/pg-types/lib/textParsers.js"(exports2, module2) {
     var array = require_postgres_array();
     var arrayParser = require_arrayParser();
     var parseDate = require_postgres_date();
@@ -136251,9 +136321,9 @@ var require_textParsers = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-int8/index.js
+// lib/db/node_modules/pg-int8/index.js
 var require_pg_int8 = __commonJS({
-  "../lib/db/node_modules/pg-int8/index.js"(exports2, module2) {
+  "lib/db/node_modules/pg-int8/index.js"(exports2, module2) {
     "use strict";
     var BASE = 1e6;
     function readInt8(buffer) {
@@ -136331,9 +136401,9 @@ var require_pg_int8 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-types/lib/binaryParsers.js
+// lib/db/node_modules/pg-types/lib/binaryParsers.js
 var require_binaryParsers = __commonJS({
-  "../lib/db/node_modules/pg-types/lib/binaryParsers.js"(exports2, module2) {
+  "lib/db/node_modules/pg-types/lib/binaryParsers.js"(exports2, module2) {
     var parseInt64 = require_pg_int8();
     var parseBits = function(data, bits, offset, invert, callback) {
       offset = offset || 0;
@@ -136531,9 +136601,9 @@ var require_binaryParsers = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-types/lib/builtins.js
+// lib/db/node_modules/pg-types/lib/builtins.js
 var require_builtins = __commonJS({
-  "../lib/db/node_modules/pg-types/lib/builtins.js"(exports2, module2) {
+  "lib/db/node_modules/pg-types/lib/builtins.js"(exports2, module2) {
     module2.exports = {
       BOOL: 16,
       BYTEA: 17,
@@ -136599,9 +136669,9 @@ var require_builtins = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-types/index.js
+// lib/db/node_modules/pg-types/index.js
 var require_pg_types = __commonJS({
-  "../lib/db/node_modules/pg-types/index.js"(exports2) {
+  "lib/db/node_modules/pg-types/index.js"(exports2) {
     var textParsers = require_textParsers();
     var binaryParsers = require_binaryParsers();
     var arrayParser = require_arrayParser();
@@ -136640,9 +136710,9 @@ var require_pg_types = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/defaults.js
+// lib/db/node_modules/pg/lib/defaults.js
 var require_defaults2 = __commonJS({
-  "../lib/db/node_modules/pg/lib/defaults.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/defaults.js"(exports2, module2) {
     "use strict";
     var user;
     try {
@@ -136709,9 +136779,9 @@ var require_defaults2 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/utils.js
+// lib/db/node_modules/pg/lib/utils.js
 var require_utils4 = __commonJS({
-  "../lib/db/node_modules/pg/lib/utils.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/utils.js"(exports2, module2) {
     "use strict";
     var defaults4 = require_defaults2();
     var { isDate: isDate2 } = __require("util/types");
@@ -136857,9 +136927,9 @@ var require_utils4 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/crypto/utils.js
+// lib/db/node_modules/pg/lib/crypto/utils.js
 var require_utils5 = __commonJS({
-  "../lib/db/node_modules/pg/lib/crypto/utils.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/crypto/utils.js"(exports2, module2) {
     var nodeCrypto = __require("crypto");
     module2.exports = {
       postgresMd5PasswordHash,
@@ -136908,9 +136978,9 @@ var require_utils5 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/crypto/cert-signatures.js
+// lib/db/node_modules/pg/lib/crypto/cert-signatures.js
 var require_cert_signatures = __commonJS({
-  "../lib/db/node_modules/pg/lib/crypto/cert-signatures.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/crypto/cert-signatures.js"(exports2, module2) {
     function x509Error(msg, cert) {
       return new Error("SASL channel binding: " + msg + " when parsing public certificate " + cert.toString("base64"));
     }
@@ -137021,9 +137091,9 @@ var require_cert_signatures = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/crypto/sasl.js
+// lib/db/node_modules/pg/lib/crypto/sasl.js
 var require_sasl = __commonJS({
-  "../lib/db/node_modules/pg/lib/crypto/sasl.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/crypto/sasl.js"(exports2, module2) {
     "use strict";
     var crypto5 = require_utils5();
     var { signatureAlgorithmHashFromCertificate } = require_cert_signatures();
@@ -137206,9 +137276,9 @@ var require_sasl = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/type-overrides.js
+// lib/db/node_modules/pg/lib/type-overrides.js
 var require_type_overrides = __commonJS({
-  "../lib/db/node_modules/pg/lib/type-overrides.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/type-overrides.js"(exports2, module2) {
     "use strict";
     var types5 = require_pg_types();
     function TypeOverrides2(userTypes) {
@@ -137241,9 +137311,9 @@ var require_type_overrides = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-connection-string/index.js
+// lib/db/node_modules/pg-connection-string/index.js
 var require_pg_connection_string = __commonJS({
-  "../lib/db/node_modules/pg-connection-string/index.js"(exports2, module2) {
+  "lib/db/node_modules/pg-connection-string/index.js"(exports2, module2) {
     "use strict";
     function parse(str2, options = {}) {
       if (str2.charAt(0) === "/") {
@@ -137429,9 +137499,9 @@ See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode de
   }
 });
 
-// ../lib/db/node_modules/pg/lib/connection-parameters.js
+// lib/db/node_modules/pg/lib/connection-parameters.js
 var require_connection_parameters = __commonJS({
-  "../lib/db/node_modules/pg/lib/connection-parameters.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/connection-parameters.js"(exports2, module2) {
     "use strict";
     var dns = __require("dns");
     var defaults4 = require_defaults2();
@@ -137580,9 +137650,9 @@ var require_connection_parameters = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/result.js
+// lib/db/node_modules/pg/lib/result.js
 var require_result = __commonJS({
-  "../lib/db/node_modules/pg/lib/result.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/result.js"(exports2, module2) {
     "use strict";
     var types5 = require_pg_types();
     var matchRegexp = /^([A-Za-z]+)(?: (\d+))?(?: (\d+))?/;
@@ -137671,9 +137741,9 @@ var require_result = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/query.js
+// lib/db/node_modules/pg/lib/query.js
 var require_query = __commonJS({
-  "../lib/db/node_modules/pg/lib/query.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/query.js"(exports2, module2) {
     "use strict";
     var { EventEmitter: EventEmitter2 } = __require("events");
     var Result2 = require_result();
@@ -137870,9 +137940,9 @@ var require_query = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-protocol/dist/messages.js
+// lib/db/node_modules/pg-protocol/dist/messages.js
 var require_messages2 = __commonJS({
-  "../lib/db/node_modules/pg-protocol/dist/messages.js"(exports2) {
+  "lib/db/node_modules/pg-protocol/dist/messages.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.NoticeMessage = exports2.DataRowMessage = exports2.CommandCompleteMessage = exports2.ReadyForQueryMessage = exports2.NotificationResponseMessage = exports2.BackendKeyDataMessage = exports2.AuthenticationMD5Password = exports2.ParameterStatusMessage = exports2.ParameterDescriptionMessage = exports2.RowDescriptionMessage = exports2.Field = exports2.CopyResponse = exports2.CopyDataMessage = exports2.DatabaseError = exports2.copyDone = exports2.emptyQuery = exports2.replicationStart = exports2.portalSuspended = exports2.noData = exports2.closeComplete = exports2.bindComplete = exports2.parseComplete = void 0;
@@ -138035,9 +138105,9 @@ var require_messages2 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-protocol/dist/buffer-writer.js
+// lib/db/node_modules/pg-protocol/dist/buffer-writer.js
 var require_buffer_writer = __commonJS({
-  "../lib/db/node_modules/pg-protocol/dist/buffer-writer.js"(exports2) {
+  "lib/db/node_modules/pg-protocol/dist/buffer-writer.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Writer = void 0;
@@ -138139,9 +138209,9 @@ var require_buffer_writer = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-protocol/dist/serializer.js
+// lib/db/node_modules/pg-protocol/dist/serializer.js
 var require_serializer = __commonJS({
-  "../lib/db/node_modules/pg-protocol/dist/serializer.js"(exports2) {
+  "lib/db/node_modules/pg-protocol/dist/serializer.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.serialize = void 0;
@@ -138361,9 +138431,9 @@ var require_serializer = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-protocol/dist/buffer-reader.js
+// lib/db/node_modules/pg-protocol/dist/buffer-reader.js
 var require_buffer_reader = __commonJS({
-  "../lib/db/node_modules/pg-protocol/dist/buffer-reader.js"(exports2) {
+  "lib/db/node_modules/pg-protocol/dist/buffer-reader.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.BufferReader = void 0;
@@ -138420,9 +138490,9 @@ var require_buffer_reader = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-protocol/dist/parser.js
+// lib/db/node_modules/pg-protocol/dist/parser.js
 var require_parser4 = __commonJS({
-  "../lib/db/node_modules/pg-protocol/dist/parser.js"(exports2) {
+  "lib/db/node_modules/pg-protocol/dist/parser.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.Parser = void 0;
@@ -138727,9 +138797,9 @@ var require_parser4 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-protocol/dist/index.js
+// lib/db/node_modules/pg-protocol/dist/index.js
 var require_dist6 = __commonJS({
-  "../lib/db/node_modules/pg-protocol/dist/index.js"(exports2) {
+  "lib/db/node_modules/pg-protocol/dist/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.DatabaseError = exports2.serialize = void 0;
@@ -138751,18 +138821,18 @@ var require_dist6 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-cloudflare/dist/empty.js
+// lib/db/node_modules/pg-cloudflare/dist/empty.js
 var require_empty = __commonJS({
-  "../lib/db/node_modules/pg-cloudflare/dist/empty.js"(exports2) {
+  "lib/db/node_modules/pg-cloudflare/dist/empty.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.default = {};
   }
 });
 
-// ../lib/db/node_modules/pg/lib/stream.js
+// lib/db/node_modules/pg/lib/stream.js
 var require_stream2 = __commonJS({
-  "../lib/db/node_modules/pg/lib/stream.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/stream.js"(exports2, module2) {
     var { getStream, getSecureStream } = getStreamFuncs();
     module2.exports = {
       /**
@@ -138826,9 +138896,9 @@ var require_stream2 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/connection.js
+// lib/db/node_modules/pg/lib/connection.js
 var require_connection = __commonJS({
-  "../lib/db/node_modules/pg/lib/connection.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/connection.js"(exports2, module2) {
     "use strict";
     var EventEmitter2 = __require("events").EventEmitter;
     var { parse, serialize } = require_dist6();
@@ -139023,9 +139093,9 @@ var require_connection = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/split2/index.js
+// lib/db/node_modules/split2/index.js
 var require_split2 = __commonJS({
-  "../lib/db/node_modules/split2/index.js"(exports2, module2) {
+  "lib/db/node_modules/split2/index.js"(exports2, module2) {
     "use strict";
     var { Transform } = __require("stream");
     var { StringDecoder } = __require("string_decoder");
@@ -139124,9 +139194,9 @@ var require_split2 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pgpass/lib/helper.js
+// lib/db/node_modules/pgpass/lib/helper.js
 var require_helper = __commonJS({
-  "../lib/db/node_modules/pgpass/lib/helper.js"(exports2, module2) {
+  "lib/db/node_modules/pgpass/lib/helper.js"(exports2, module2) {
     "use strict";
     var path7 = __require("path");
     var Stream5 = __require("stream").Stream;
@@ -139295,9 +139365,9 @@ var require_helper = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pgpass/lib/index.js
+// lib/db/node_modules/pgpass/lib/index.js
 var require_lib8 = __commonJS({
-  "../lib/db/node_modules/pgpass/lib/index.js"(exports2, module2) {
+  "lib/db/node_modules/pgpass/lib/index.js"(exports2, module2) {
     "use strict";
     var path7 = __require("path");
     var fs7 = __require("fs");
@@ -139316,9 +139386,9 @@ var require_lib8 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/client.js
+// lib/db/node_modules/pg/lib/client.js
 var require_client = __commonJS({
-  "../lib/db/node_modules/pg/lib/client.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/client.js"(exports2, module2) {
     var EventEmitter2 = __require("events").EventEmitter;
     var utils2 = require_utils4();
     var nodeUtils = __require("util");
@@ -139958,9 +140028,9 @@ var require_client = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg-pool/index.js
+// lib/db/node_modules/pg-pool/index.js
 var require_pg_pool = __commonJS({
-  "../lib/db/node_modules/pg-pool/index.js"(exports2, module2) {
+  "lib/db/node_modules/pg-pool/index.js"(exports2, module2) {
     "use strict";
     var EventEmitter2 = __require("events").EventEmitter;
     var NOOP = function() {
@@ -140384,9 +140454,9 @@ var require_pg_pool = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/native/query.js
+// lib/db/node_modules/pg/lib/native/query.js
 var require_query2 = __commonJS({
-  "../lib/db/node_modules/pg/lib/native/query.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/native/query.js"(exports2, module2) {
     "use strict";
     var EventEmitter2 = __require("events").EventEmitter;
     var util6 = __require("util");
@@ -140525,9 +140595,9 @@ var require_query2 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/native/client.js
+// lib/db/node_modules/pg/lib/native/client.js
 var require_client2 = __commonJS({
-  "../lib/db/node_modules/pg/lib/native/client.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/native/client.js"(exports2, module2) {
     var nodeUtils = __require("util");
     var Native;
     try {
@@ -140784,17 +140854,17 @@ var require_client2 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/lib/native/index.js
+// lib/db/node_modules/pg/lib/native/index.js
 var require_native = __commonJS({
-  "../lib/db/node_modules/pg/lib/native/index.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/native/index.js"(exports2, module2) {
     "use strict";
     module2.exports = require_client2();
   }
 });
 
-// ../lib/db/node_modules/pg/lib/index.js
+// lib/db/node_modules/pg/lib/index.js
 var require_lib9 = __commonJS({
-  "../lib/db/node_modules/pg/lib/index.js"(exports2, module2) {
+  "lib/db/node_modules/pg/lib/index.js"(exports2, module2) {
     "use strict";
     var Client2 = require_client();
     var defaults4 = require_defaults2();
@@ -140858,10 +140928,10 @@ var require_lib9 = __commonJS({
   }
 });
 
-// ../lib/db/node_modules/pg/esm/index.mjs
+// lib/db/node_modules/pg/esm/index.mjs
 var import_lib, Client, Pool, Connection, types3, Query, DatabaseError, escapeIdentifier, escapeLiteral, Result, TypeOverrides, defaults2, esm_default;
 var init_esm31 = __esm({
-  "../lib/db/node_modules/pg/esm/index.mjs"() {
+  "lib/db/node_modules/pg/esm/index.mjs"() {
     import_lib = __toESM(require_lib9(), 1);
     Client = import_lib.default.Client;
     Pool = import_lib.default.Pool;
@@ -140878,7 +140948,7 @@ var init_esm31 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/entity.js
+// lib/db/node_modules/drizzle-orm/entity.js
 function is(value, type) {
   if (!value || typeof value !== "object") {
     return false;
@@ -140904,15 +140974,15 @@ function is(value, type) {
 }
 var entityKind;
 var init_entity = __esm({
-  "../lib/db/node_modules/drizzle-orm/entity.js"() {
+  "lib/db/node_modules/drizzle-orm/entity.js"() {
     entityKind = /* @__PURE__ */ Symbol.for("drizzle:entityKind");
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/logger.js
+// lib/db/node_modules/drizzle-orm/logger.js
 var ConsoleLogWriter, DefaultLogger, NoopLogger;
 var init_logger = __esm({
-  "../lib/db/node_modules/drizzle-orm/logger.js"() {
+  "lib/db/node_modules/drizzle-orm/logger.js"() {
     init_entity();
     ConsoleLogWriter = class {
       static [entityKind] = "ConsoleLogWriter";
@@ -140946,10 +141016,10 @@ var init_logger = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/query-promise.js
+// lib/db/node_modules/drizzle-orm/query-promise.js
 var QueryPromise;
 var init_query_promise = __esm({
-  "../lib/db/node_modules/drizzle-orm/query-promise.js"() {
+  "lib/db/node_modules/drizzle-orm/query-promise.js"() {
     init_entity();
     QueryPromise = class {
       static [entityKind] = "QueryPromise";
@@ -140976,10 +141046,10 @@ var init_query_promise = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/column.js
+// lib/db/node_modules/drizzle-orm/column.js
 var Column;
 var init_column = __esm({
-  "../lib/db/node_modules/drizzle-orm/column.js"() {
+  "lib/db/node_modules/drizzle-orm/column.js"() {
     init_entity();
     Column = class {
       constructor(table, config) {
@@ -141033,10 +141103,10 @@ var init_column = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/column-builder.js
+// lib/db/node_modules/drizzle-orm/column-builder.js
 var ColumnBuilder;
 var init_column_builder = __esm({
-  "../lib/db/node_modules/drizzle-orm/column-builder.js"() {
+  "lib/db/node_modules/drizzle-orm/column-builder.js"() {
     init_entity();
     ColumnBuilder = class {
       static [entityKind] = "ColumnBuilder";
@@ -141142,18 +141212,18 @@ var init_column_builder = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/table.utils.js
+// lib/db/node_modules/drizzle-orm/table.utils.js
 var TableName;
 var init_table_utils = __esm({
-  "../lib/db/node_modules/drizzle-orm/table.utils.js"() {
+  "lib/db/node_modules/drizzle-orm/table.utils.js"() {
     TableName = /* @__PURE__ */ Symbol.for("drizzle:Name");
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/foreign-keys.js
+// lib/db/node_modules/drizzle-orm/pg-core/foreign-keys.js
 var ForeignKeyBuilder, ForeignKey;
 var init_foreign_keys = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/foreign-keys.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/foreign-keys.js"() {
     init_entity();
     init_table_utils();
     ForeignKeyBuilder = class {
@@ -141214,22 +141284,22 @@ var init_foreign_keys = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/tracing-utils.js
+// lib/db/node_modules/drizzle-orm/tracing-utils.js
 function iife(fn3, ...args2) {
   return fn3(...args2);
 }
 var init_tracing_utils = __esm({
-  "../lib/db/node_modules/drizzle-orm/tracing-utils.js"() {
+  "lib/db/node_modules/drizzle-orm/tracing-utils.js"() {
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/unique-constraint.js
+// lib/db/node_modules/drizzle-orm/pg-core/unique-constraint.js
 function uniqueKeyName(table, columns) {
   return `${table[TableName]}_${columns.join("_")}_unique`;
 }
 var UniqueConstraintBuilder, UniqueOnConstraintBuilder, UniqueConstraint;
 var init_unique_constraint = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/unique-constraint.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/unique-constraint.js"() {
     init_entity();
     init_table_utils();
     UniqueConstraintBuilder = class {
@@ -141280,7 +141350,7 @@ var init_unique_constraint = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/utils/array.js
+// lib/db/node_modules/drizzle-orm/pg-core/utils/array.js
 function parsePgArrayValue(arrayString, startFrom, inQuotes) {
   for (let i10 = startFrom; i10 < arrayString.length; i10++) {
     const char2 = arrayString[i10];
@@ -141356,14 +141426,14 @@ function makePgArray(array) {
   }).join(",")}}`;
 }
 var init_array = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/utils/array.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/utils/array.js"() {
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/common.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/common.js
 var PgColumnBuilder, PgColumn, ExtraConfigColumn, IndexedColumn, PgArrayBuilder, PgArray;
 var init_common = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/common.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/common.js"() {
     init_column_builder();
     init_column();
     init_entity();
@@ -141556,7 +141626,7 @@ var init_common = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/enum.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/enum.js
 function isPgEnum(obj) {
   return !!obj && typeof obj === "function" && isPgEnumSym in obj && obj[isPgEnumSym] === true;
 }
@@ -141586,7 +141656,7 @@ function pgEnumObjectWithSchema(enumName, values, schema) {
 }
 var PgEnumObjectColumnBuilder, PgEnumObjectColumn, isPgEnumSym, PgEnumColumnBuilder, PgEnumColumn;
 var init_enum = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/enum.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/enum.js"() {
     init_entity();
     init_common();
     PgEnumObjectColumnBuilder = class extends PgColumnBuilder {
@@ -141645,10 +141715,10 @@ var init_enum = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/subquery.js
+// lib/db/node_modules/drizzle-orm/subquery.js
 var Subquery, WithSubquery;
 var init_subquery = __esm({
-  "../lib/db/node_modules/drizzle-orm/subquery.js"() {
+  "lib/db/node_modules/drizzle-orm/subquery.js"() {
     init_entity();
     Subquery = class {
       static [entityKind] = "Subquery";
@@ -141672,18 +141742,18 @@ var init_subquery = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/version.js
+// lib/db/node_modules/drizzle-orm/version.js
 var version;
 var init_version2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/version.js"() {
+  "lib/db/node_modules/drizzle-orm/version.js"() {
     version = "0.45.2";
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/tracing.js
+// lib/db/node_modules/drizzle-orm/tracing.js
 var otel, rawTracer, tracer;
 var init_tracing = __esm({
-  "../lib/db/node_modules/drizzle-orm/tracing.js"() {
+  "lib/db/node_modules/drizzle-orm/tracing.js"() {
     init_tracing_utils();
     init_version2();
     tracer = {
@@ -141720,15 +141790,15 @@ var init_tracing = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/view-common.js
+// lib/db/node_modules/drizzle-orm/view-common.js
 var ViewBaseConfig;
 var init_view_common = __esm({
-  "../lib/db/node_modules/drizzle-orm/view-common.js"() {
+  "lib/db/node_modules/drizzle-orm/view-common.js"() {
     ViewBaseConfig = /* @__PURE__ */ Symbol.for("drizzle:ViewBaseConfig");
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/table.js
+// lib/db/node_modules/drizzle-orm/table.js
 function getTableName(table) {
   return table[TableName];
 }
@@ -141737,7 +141807,7 @@ function getTableUniqueName(table) {
 }
 var Schema, Columns, ExtraConfigColumns, OriginalName, BaseName, IsAlias, ExtraConfigBuilder, IsDrizzleTable, Table;
 var init_table = __esm({
-  "../lib/db/node_modules/drizzle-orm/table.js"() {
+  "lib/db/node_modules/drizzle-orm/table.js"() {
     init_entity();
     init_table_utils();
     Schema = /* @__PURE__ */ Symbol.for("drizzle:Schema");
@@ -141797,7 +141867,7 @@ var init_table = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/sql/sql.js
+// lib/db/node_modules/drizzle-orm/sql/sql.js
 function isSQLWrapper(value) {
   return value !== null && value !== void 0 && typeof value.getSQL === "function";
 }
@@ -141847,7 +141917,7 @@ function fillPlaceholders(params, values) {
 }
 var FakePrimitiveParam, StringChunk, SQL, Name, noopDecoder, noopEncoder, noopMapper, Param, Placeholder, IsDrizzleView, View;
 var init_sql = __esm({
-  "../lib/db/node_modules/drizzle-orm/sql/sql.js"() {
+  "lib/db/node_modules/drizzle-orm/sql/sql.js"() {
     init_entity();
     init_enum();
     init_subquery();
@@ -142203,7 +142273,7 @@ var init_sql = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/alias.js
+// lib/db/node_modules/drizzle-orm/alias.js
 function aliasedTable(table, tableAlias) {
   return new Proxy(table, new TableAliasProxyHandler(tableAlias, false));
 }
@@ -142232,7 +142302,7 @@ function mapColumnsInSQLToAlias(query, alias) {
 }
 var ColumnAliasProxyHandler, TableAliasProxyHandler, RelationTableAliasProxyHandler;
 var init_alias = __esm({
-  "../lib/db/node_modules/drizzle-orm/alias.js"() {
+  "lib/db/node_modules/drizzle-orm/alias.js"() {
     init_column();
     init_entity();
     init_sql();
@@ -142309,10 +142379,10 @@ var init_alias = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/selection-proxy.js
+// lib/db/node_modules/drizzle-orm/selection-proxy.js
 var SelectionProxyHandler;
 var init_selection_proxy = __esm({
-  "../lib/db/node_modules/drizzle-orm/selection-proxy.js"() {
+  "lib/db/node_modules/drizzle-orm/selection-proxy.js"() {
     init_alias();
     init_column();
     init_entity();
@@ -142388,7 +142458,7 @@ var init_selection_proxy = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/utils.js
+// lib/db/node_modules/drizzle-orm/utils.js
 function mapResultRow(columns, row, joinsNotNullableMap) {
   const nullifyMap = {};
   const result = columns.reduce(
@@ -142539,7 +142609,7 @@ function isConfig(data) {
 }
 var textDecoder;
 var init_utils3 = __esm({
-  "../lib/db/node_modules/drizzle-orm/utils.js"() {
+  "lib/db/node_modules/drizzle-orm/utils.js"() {
     init_column();
     init_entity();
     init_sql();
@@ -142550,10 +142620,10 @@ var init_utils3 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/int.common.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/int.common.js
 var PgIntColumnBaseBuilder;
 var init_int_common = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/int.common.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/int.common.js"() {
     init_entity();
     init_common();
     PgIntColumnBaseBuilder = class extends PgColumnBuilder {
@@ -142596,7 +142666,7 @@ var init_int_common = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/bigint.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/bigint.js
 function bigint(a10, b10) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   if (config.mode === "number") {
@@ -142606,7 +142676,7 @@ function bigint(a10, b10) {
 }
 var PgBigInt53Builder, PgBigInt53, PgBigInt64Builder, PgBigInt64;
 var init_bigint = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/bigint.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/bigint.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -142659,7 +142729,7 @@ var init_bigint = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/bigserial.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/bigserial.js
 function bigserial(a10, b10) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   if (config.mode === "number") {
@@ -142669,7 +142739,7 @@ function bigserial(a10, b10) {
 }
 var PgBigSerial53Builder, PgBigSerial53, PgBigSerial64Builder, PgBigSerial64;
 var init_bigserial = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/bigserial.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/bigserial.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -142727,13 +142797,13 @@ var init_bigserial = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/boolean.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/boolean.js
 function boolean(name2) {
   return new PgBooleanBuilder(name2 ?? "");
 }
 var PgBooleanBuilder, PgBoolean;
 var init_boolean = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/boolean.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/boolean.js"() {
     init_entity();
     init_common();
     PgBooleanBuilder = class extends PgColumnBuilder {
@@ -142755,14 +142825,14 @@ var init_boolean = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/char.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/char.js
 function char(a10, b10 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   return new PgCharBuilder(name2, config);
 }
 var PgCharBuilder, PgChar;
 var init_char = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/char.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/char.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -142792,13 +142862,13 @@ var init_char = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/cidr.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/cidr.js
 function cidr(name2) {
   return new PgCidrBuilder(name2 ?? "");
 }
 var PgCidrBuilder, PgCidr;
 var init_cidr = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/cidr.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/cidr.js"() {
     init_entity();
     init_common();
     PgCidrBuilder = class extends PgColumnBuilder {
@@ -142820,7 +142890,7 @@ var init_cidr = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/custom.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/custom.js
 function customType(customTypeParams) {
   return (a10, b10) => {
     const { name: name2, config } = getColumnNameAndConfig(a10, b10);
@@ -142829,7 +142899,7 @@ function customType(customTypeParams) {
 }
 var PgCustomColumnBuilder, PgCustomColumn;
 var init_custom = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/custom.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/custom.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -142872,10 +142942,10 @@ var init_custom = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/date.common.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/date.common.js
 var PgDateColumnBaseBuilder;
 var init_date_common = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/date.common.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/date.common.js"() {
     init_entity();
     init_sql();
     init_common();
@@ -142888,7 +142958,7 @@ var init_date_common = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/date.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/date.js
 function date(a10, b10) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   if (config?.mode === "date") {
@@ -142898,7 +142968,7 @@ function date(a10, b10) {
 }
 var PgDateBuilder, PgDate, PgDateStringBuilder, PgDateString;
 var init_date = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/date.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/date.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -142952,13 +143022,13 @@ var init_date = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/double-precision.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/double-precision.js
 function doublePrecision(name2) {
   return new PgDoublePrecisionBuilder(name2 ?? "");
 }
 var PgDoublePrecisionBuilder, PgDoublePrecision;
 var init_double_precision = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/double-precision.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/double-precision.js"() {
     init_entity();
     init_common();
     PgDoublePrecisionBuilder = class extends PgColumnBuilder {
@@ -142989,13 +143059,13 @@ var init_double_precision = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/inet.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/inet.js
 function inet(name2) {
   return new PgInetBuilder(name2 ?? "");
 }
 var PgInetBuilder, PgInet;
 var init_inet = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/inet.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/inet.js"() {
     init_entity();
     init_common();
     PgInetBuilder = class extends PgColumnBuilder {
@@ -143017,13 +143087,13 @@ var init_inet = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/integer.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/integer.js
 function integer(name2) {
   return new PgIntegerBuilder(name2 ?? "");
 }
 var PgIntegerBuilder, PgInteger;
 var init_integer = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/integer.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/integer.js"() {
     init_entity();
     init_common();
     init_int_common();
@@ -143052,14 +143122,14 @@ var init_integer = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/interval.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/interval.js
 function interval(a10, b10 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   return new PgIntervalBuilder(name2, config);
 }
 var PgIntervalBuilder, PgInterval;
 var init_interval = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/interval.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/interval.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -143087,13 +143157,13 @@ var init_interval = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/json.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/json.js
 function json2(name2) {
   return new PgJsonBuilder(name2 ?? "");
 }
 var PgJsonBuilder, PgJson;
 var init_json = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/json.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/json.js"() {
     init_entity();
     init_common();
     PgJsonBuilder = class extends PgColumnBuilder {
@@ -143131,13 +143201,13 @@ var init_json = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/jsonb.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/jsonb.js
 function jsonb(name2) {
   return new PgJsonbBuilder(name2 ?? "");
 }
 var PgJsonbBuilder, PgJsonb;
 var init_jsonb = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/jsonb.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/jsonb.js"() {
     init_entity();
     init_common();
     PgJsonbBuilder = class extends PgColumnBuilder {
@@ -143175,7 +143245,7 @@ var init_jsonb = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/line.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/line.js
 function line(a10, b10) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   if (!config?.mode || config.mode === "tuple") {
@@ -143185,7 +143255,7 @@ function line(a10, b10) {
 }
 var PgLineBuilder, PgLineTuple, PgLineABCBuilder, PgLineABC;
 var init_line2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/line.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/line.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -143244,13 +143314,13 @@ var init_line2 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr.js
 function macaddr(name2) {
   return new PgMacaddrBuilder(name2 ?? "");
 }
 var PgMacaddrBuilder, PgMacaddr;
 var init_macaddr = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr.js"() {
     init_entity();
     init_common();
     PgMacaddrBuilder = class extends PgColumnBuilder {
@@ -143272,13 +143342,13 @@ var init_macaddr = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr8.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr8.js
 function macaddr8(name2) {
   return new PgMacaddr8Builder(name2 ?? "");
 }
 var PgMacaddr8Builder, PgMacaddr8;
 var init_macaddr8 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr8.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr8.js"() {
     init_entity();
     init_common();
     PgMacaddr8Builder = class extends PgColumnBuilder {
@@ -143300,7 +143370,7 @@ var init_macaddr8 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/numeric.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/numeric.js
 function numeric(a10, b10) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   const mode = config?.mode;
@@ -143308,7 +143378,7 @@ function numeric(a10, b10) {
 }
 var PgNumericBuilder, PgNumeric, PgNumericNumberBuilder, PgNumericNumber, PgNumericBigIntBuilder, PgNumericBigInt, decimal;
 var init_numeric = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/numeric.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/numeric.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -143426,7 +143496,7 @@ var init_numeric = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/point.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/point.js
 function point(a10, b10) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   if (!config?.mode || config.mode === "tuple") {
@@ -143436,7 +143506,7 @@ function point(a10, b10) {
 }
 var PgPointTupleBuilder, PgPointTuple, PgPointObjectBuilder, PgPointObject;
 var init_point = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/point.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/point.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -143501,7 +143571,7 @@ var init_point = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js
 function hexToBytes(hex) {
   const bytes = [];
   for (let c10 = 0; c10 < hex.length; c10 += 2) {
@@ -143540,11 +143610,11 @@ function parseEWKB(hex) {
   throw new Error("Unsupported geometry type");
 }
 var init_utils4 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js"() {
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js
 function geometry(a10, b10) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   if (!config?.mode || config.mode === "tuple") {
@@ -143554,7 +143624,7 @@ function geometry(a10, b10) {
 }
 var PgGeometryBuilder, PgGeometry, PgGeometryObjectBuilder, PgGeometryObject;
 var init_geometry = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -143613,13 +143683,13 @@ var init_geometry = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/real.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/real.js
 function real(name2) {
   return new PgRealBuilder(name2 ?? "");
 }
 var PgRealBuilder, PgReal;
 var init_real = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/real.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/real.js"() {
     init_entity();
     init_common();
     PgRealBuilder = class extends PgColumnBuilder {
@@ -143651,13 +143721,13 @@ var init_real = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/serial.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/serial.js
 function serial(name2) {
   return new PgSerialBuilder(name2 ?? "");
 }
 var PgSerialBuilder, PgSerial;
 var init_serial = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/serial.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/serial.js"() {
     init_entity();
     init_common();
     PgSerialBuilder = class extends PgColumnBuilder {
@@ -143681,13 +143751,13 @@ var init_serial = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/smallint.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/smallint.js
 function smallint(name2) {
   return new PgSmallIntBuilder(name2 ?? "");
 }
 var PgSmallIntBuilder, PgSmallInt;
 var init_smallint = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/smallint.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/smallint.js"() {
     init_entity();
     init_common();
     init_int_common();
@@ -143716,13 +143786,13 @@ var init_smallint = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/smallserial.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/smallserial.js
 function smallserial(name2) {
   return new PgSmallSerialBuilder(name2 ?? "");
 }
 var PgSmallSerialBuilder, PgSmallSerial;
 var init_smallserial = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/smallserial.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/smallserial.js"() {
     init_entity();
     init_common();
     PgSmallSerialBuilder = class extends PgColumnBuilder {
@@ -143749,14 +143819,14 @@ var init_smallserial = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/text.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/text.js
 function text(a10, b10 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   return new PgTextBuilder(name2, config);
 }
 var PgTextBuilder, PgText;
 var init_text = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/text.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/text.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -143781,14 +143851,14 @@ var init_text = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/time.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/time.js
 function time(a10, b10 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   return new PgTimeBuilder(name2, config.withTimezone ?? false, config.precision);
 }
 var PgTimeBuilder, PgTime;
 var init_time = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/time.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/time.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -143824,7 +143894,7 @@ var init_time = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/timestamp.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/timestamp.js
 function timestamp(a10, b10 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   if (config?.mode === "string") {
@@ -143834,7 +143904,7 @@ function timestamp(a10, b10 = {}) {
 }
 var PgTimestampBuilder, PgTimestamp, PgTimestampStringBuilder, PgTimestampString;
 var init_timestamp = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/timestamp.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/timestamp.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -143914,13 +143984,13 @@ var init_timestamp = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/uuid.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/uuid.js
 function uuid(name2) {
   return new PgUUIDBuilder(name2 ?? "");
 }
 var PgUUIDBuilder, PgUUID;
 var init_uuid2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/uuid.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/uuid.js"() {
     init_entity();
     init_sql();
     init_common();
@@ -143949,14 +144019,14 @@ var init_uuid2 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/varchar.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/varchar.js
 function varchar(a10, b10 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   return new PgVarcharBuilder(name2, config);
 }
 var PgVarcharBuilder, PgVarchar;
 var init_varchar = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/varchar.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/varchar.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -143986,14 +144056,14 @@ var init_varchar = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js
 function bit(a10, b10) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   return new PgBinaryVectorBuilder(name2, config);
 }
 var PgBinaryVectorBuilder, PgBinaryVector;
 var init_bit = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -144021,14 +144091,14 @@ var init_bit = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js
 function halfvec(a10, b10) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   return new PgHalfVectorBuilder(name2, config);
 }
 var PgHalfVectorBuilder, PgHalfVector;
 var init_halfvec = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -144062,14 +144132,14 @@ var init_halfvec = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js
 function sparsevec(a10, b10) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   return new PgSparseVectorBuilder(name2, config);
 }
 var PgSparseVectorBuilder, PgSparseVector;
 var init_sparsevec = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -144097,14 +144167,14 @@ var init_sparsevec = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js
 function vector(a10, b10) {
   const { name: name2, config } = getColumnNameAndConfig(a10, b10);
   return new PgVectorBuilder(name2, config);
 }
 var PgVectorBuilder, PgVector;
 var init_vector = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -144138,7 +144208,7 @@ var init_vector = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/all.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/all.js
 function getPgColumnBuilders() {
   return {
     bigint,
@@ -144176,7 +144246,7 @@ function getPgColumnBuilders() {
   };
 }
 var init_all = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/all.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/all.js"() {
     init_bigint();
     init_bigserial();
     init_boolean();
@@ -144212,7 +144282,7 @@ var init_all = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/table.js
+// lib/db/node_modules/drizzle-orm/pg-core/table.js
 function pgTableWithSchema(name2, columns, extraConfig, schema, baseName = name2) {
   const rawTable = new PgTable(name2, schema, baseName);
   const parsedColumns = typeof columns === "function" ? columns(getPgColumnBuilders()) : columns;
@@ -144248,7 +144318,7 @@ function pgTableWithSchema(name2, columns, extraConfig, schema, baseName = name2
 }
 var InlineForeignKeys, EnableRLS, PgTable, pgTable;
 var init_table2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/table.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/table.js"() {
     init_entity();
     init_table();
     init_all();
@@ -144276,10 +144346,10 @@ var init_table2 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/checks.js
+// lib/db/node_modules/drizzle-orm/pg-core/checks.js
 var CheckBuilder, Check;
 var init_checks = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/checks.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/checks.js"() {
     init_entity();
     CheckBuilder = class {
       constructor(name2, value) {
@@ -144306,9 +144376,9 @@ var init_checks = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/columns/index.js
+// lib/db/node_modules/drizzle-orm/pg-core/columns/index.js
 var init_columns = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/columns/index.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/columns/index.js"() {
     init_bigint();
     init_bigserial();
     init_boolean();
@@ -144347,10 +144417,10 @@ var init_columns = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/indexes.js
+// lib/db/node_modules/drizzle-orm/pg-core/indexes.js
 var IndexBuilderOn, IndexBuilder, Index;
 var init_indexes = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/indexes.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/indexes.js"() {
     init_sql();
     init_entity();
     init_columns();
@@ -144461,10 +144531,10 @@ var init_indexes = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/policies.js
+// lib/db/node_modules/drizzle-orm/pg-core/policies.js
 var PgPolicy;
 var init_policies = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/policies.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/policies.js"() {
     init_entity();
     PgPolicy = class {
       constructor(name2, config) {
@@ -144493,10 +144563,10 @@ var init_policies = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/primary-keys.js
+// lib/db/node_modules/drizzle-orm/pg-core/primary-keys.js
 var PrimaryKeyBuilder, PrimaryKey;
 var init_primary_keys = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/primary-keys.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/primary-keys.js"() {
     init_entity();
     init_table2();
     PrimaryKeyBuilder = class {
@@ -144530,15 +144600,15 @@ var init_primary_keys = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/view-common.js
+// lib/db/node_modules/drizzle-orm/pg-core/view-common.js
 var PgViewConfig;
 var init_view_common2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/view-common.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/view-common.js"() {
     PgViewConfig = /* @__PURE__ */ Symbol.for("drizzle:PgViewConfig");
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/casing.js
+// lib/db/node_modules/drizzle-orm/casing.js
 function toSnakeCase(input) {
   const words = input.replace(/['\u2019]/g, "").match(/[\da-z]+|[A-Z]+(?![a-z])|[A-Z][\da-z]+/g) ?? [];
   return words.map((word) => word.toLowerCase()).join("_");
@@ -144555,7 +144625,7 @@ function noopCase(input) {
 }
 var CasingCache;
 var init_casing = __esm({
-  "../lib/db/node_modules/drizzle-orm/casing.js"() {
+  "lib/db/node_modules/drizzle-orm/casing.js"() {
     init_entity();
     init_table();
     CasingCache = class {
@@ -144597,10 +144667,10 @@ var init_casing = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/errors.js
+// lib/db/node_modules/drizzle-orm/errors.js
 var DrizzleError, DrizzleQueryError, TransactionRollbackError;
 var init_errors3 = __esm({
-  "../lib/db/node_modules/drizzle-orm/errors.js"() {
+  "lib/db/node_modules/drizzle-orm/errors.js"() {
     init_entity();
     DrizzleError = class extends Error {
       static [entityKind] = "DrizzleError";
@@ -144630,7 +144700,7 @@ params: ${params}`);
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/sql/expressions/conditions.js
+// lib/db/node_modules/drizzle-orm/sql/expressions/conditions.js
 function bindIfParam(value, column) {
   if (isDriverValueEncoder(column) && !isSQLWrapper(value) && !is(value, Param) && !is(value, Placeholder) && !is(value, Column) && !is(value, Table) && !is(value, View)) {
     return new Param(value, column);
@@ -144728,7 +144798,7 @@ function notIlike(column, value) {
 }
 var eq, ne, gt2, gte, lt, lte;
 var init_conditions = __esm({
-  "../lib/db/node_modules/drizzle-orm/sql/expressions/conditions.js"() {
+  "lib/db/node_modules/drizzle-orm/sql/expressions/conditions.js"() {
     init_column();
     init_entity();
     init_table();
@@ -144754,7 +144824,7 @@ var init_conditions = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/sql/expressions/select.js
+// lib/db/node_modules/drizzle-orm/sql/expressions/select.js
 function asc(column) {
   return sql`${column} asc`;
 }
@@ -144762,20 +144832,20 @@ function desc(column) {
   return sql`${column} desc`;
 }
 var init_select = __esm({
-  "../lib/db/node_modules/drizzle-orm/sql/expressions/select.js"() {
+  "lib/db/node_modules/drizzle-orm/sql/expressions/select.js"() {
     init_sql();
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/sql/expressions/index.js
+// lib/db/node_modules/drizzle-orm/sql/expressions/index.js
 var init_expressions = __esm({
-  "../lib/db/node_modules/drizzle-orm/sql/expressions/index.js"() {
+  "lib/db/node_modules/drizzle-orm/sql/expressions/index.js"() {
     init_conditions();
     init_select();
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/relations.js
+// lib/db/node_modules/drizzle-orm/relations.js
 function getOperators() {
   return {
     and,
@@ -144985,7 +145055,7 @@ function mapRelationalRow(tablesConfig, tableConfig, row, buildQueryResultSelect
 }
 var Relation, Relations, One, Many;
 var init_relations = __esm({
-  "../lib/db/node_modules/drizzle-orm/relations.js"() {
+  "lib/db/node_modules/drizzle-orm/relations.js"() {
     init_table();
     init_column();
     init_entity();
@@ -145047,39 +145117,39 @@ var init_relations = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/sql/functions/aggregate.js
+// lib/db/node_modules/drizzle-orm/sql/functions/aggregate.js
 var init_aggregate = __esm({
-  "../lib/db/node_modules/drizzle-orm/sql/functions/aggregate.js"() {
+  "lib/db/node_modules/drizzle-orm/sql/functions/aggregate.js"() {
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/sql/functions/vector.js
+// lib/db/node_modules/drizzle-orm/sql/functions/vector.js
 var init_vector2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/sql/functions/vector.js"() {
+  "lib/db/node_modules/drizzle-orm/sql/functions/vector.js"() {
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/sql/functions/index.js
+// lib/db/node_modules/drizzle-orm/sql/functions/index.js
 var init_functions = __esm({
-  "../lib/db/node_modules/drizzle-orm/sql/functions/index.js"() {
+  "lib/db/node_modules/drizzle-orm/sql/functions/index.js"() {
     init_aggregate();
     init_vector2();
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/sql/index.js
+// lib/db/node_modules/drizzle-orm/sql/index.js
 var init_sql2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/sql/index.js"() {
+  "lib/db/node_modules/drizzle-orm/sql/index.js"() {
     init_expressions();
     init_functions();
     init_sql();
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/view-base.js
+// lib/db/node_modules/drizzle-orm/pg-core/view-base.js
 var PgViewBase;
 var init_view_base = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/view-base.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/view-base.js"() {
     init_entity();
     init_sql();
     PgViewBase = class extends View {
@@ -145088,10 +145158,10 @@ var init_view_base = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/dialect.js
+// lib/db/node_modules/drizzle-orm/pg-core/dialect.js
 var PgDialect;
 var init_dialect = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/dialect.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/dialect.js"() {
     init_alias();
     init_casing();
     init_column();
@@ -146213,10 +146283,10 @@ var init_dialect = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/query-builders/query-builder.js
+// lib/db/node_modules/drizzle-orm/query-builders/query-builder.js
 var TypedQueryBuilder;
 var init_query_builder = __esm({
-  "../lib/db/node_modules/drizzle-orm/query-builders/query-builder.js"() {
+  "lib/db/node_modules/drizzle-orm/query-builders/query-builder.js"() {
     init_entity();
     TypedQueryBuilder = class {
       static [entityKind] = "TypedQueryBuilder";
@@ -146228,7 +146298,7 @@ var init_query_builder = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.js
 function createSetOperator(type, isAll) {
   return (leftSelect, rightSelect, ...restSelects) => {
     const setOperators = [rightSelect, ...restSelects].map((select) => ({
@@ -146248,7 +146318,7 @@ function createSetOperator(type, isAll) {
 }
 var PgSelectBuilder, PgSelectQueryBuilderBase, PgSelectBase, getPgSetOperators, union, unionAll, intersect, intersectAll, except, exceptAll;
 var init_select2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.js"() {
     init_entity();
     init_view_base();
     init_query_builder();
@@ -147062,10 +147132,10 @@ var init_select2 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/query-builder.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/query-builder.js
 var QueryBuilder;
 var init_query_builder2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/query-builder.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/query-builder.js"() {
     init_entity();
     init_dialect();
     init_selection_proxy();
@@ -147159,7 +147229,7 @@ var init_query_builder2 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/view.js
+// lib/db/node_modules/drizzle-orm/pg-core/view.js
 function pgViewWithSchema(name2, selection, schema) {
   if (selection) {
     return new ManualViewBuilder(name2, selection, schema);
@@ -147174,7 +147244,7 @@ function pgMaterializedViewWithSchema(name2, selection, schema) {
 }
 var DefaultViewBuilderCore, ViewBuilder, ManualViewBuilder, MaterializedViewBuilderCore, MaterializedViewBuilder, ManualMaterializedViewBuilder, PgView, PgMaterializedViewConfig, PgMaterializedView;
 var init_view = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/view.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/view.js"() {
     init_entity();
     init_selection_proxy();
     init_utils3();
@@ -147408,7 +147478,7 @@ var init_view = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/utils.js
+// lib/db/node_modules/drizzle-orm/pg-core/utils.js
 function extractUsedTable(table) {
   if (is(table, PgTable)) {
     return [table[Schema] ? `${table[Schema]}.${table[Table.Symbol.BaseName]}` : table[Table.Symbol.BaseName]];
@@ -147422,7 +147492,7 @@ function extractUsedTable(table) {
   return [];
 }
 var init_utils5 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/utils.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/utils.js"() {
     init_entity();
     init_table2();
     init_sql();
@@ -147431,10 +147501,10 @@ var init_utils5 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/delete.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/delete.js
 var PgDeleteBase;
 var init_delete = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/delete.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/delete.js"() {
     init_entity();
     init_query_promise();
     init_selection_proxy();
@@ -147539,10 +147609,10 @@ var init_delete = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/insert.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/insert.js
 var PgInsertBuilder, PgInsertBase;
 var init_insert = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/insert.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/insert.js"() {
     init_entity();
     init_query_promise();
     init_selection_proxy();
@@ -147746,10 +147816,10 @@ var init_insert = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/refresh-materialized-view.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/refresh-materialized-view.js
 var PgRefreshMaterializedView;
 var init_refresh_materialized_view = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/refresh-materialized-view.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/refresh-materialized-view.js"() {
     init_entity();
     init_query_promise();
     init_tracing();
@@ -147808,16 +147878,16 @@ var init_refresh_materialized_view = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.types.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.types.js
 var init_select_types = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.types.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.types.js"() {
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/update.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/update.js
 var PgUpdateBuilder, PgUpdateBase;
 var init_update = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/update.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/update.js"() {
     init_entity();
     init_table2();
     init_query_promise();
@@ -148041,9 +148111,9 @@ var init_update = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/index.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/index.js
 var init_query_builders = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/index.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/index.js"() {
     init_delete();
     init_insert();
     init_query_builder2();
@@ -148054,10 +148124,10 @@ var init_query_builders = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/count.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/count.js
 var PgCountBuilder;
 var init_count = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/count.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/count.js"() {
     init_entity();
     init_sql();
     PgCountBuilder = class _PgCountBuilder extends SQL {
@@ -148112,10 +148182,10 @@ var init_count = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/query.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/query.js
 var RelationalQueryBuilder, PgRelationalQuery;
 var init_query2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/query.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/query.js"() {
     init_entity();
     init_query_promise();
     init_relations();
@@ -148234,10 +148304,10 @@ var init_query2 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/raw.js
+// lib/db/node_modules/drizzle-orm/pg-core/query-builders/raw.js
 var PgRaw;
 var init_raw = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/raw.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/query-builders/raw.js"() {
     init_entity();
     init_query_promise();
     PgRaw = class extends QueryPromise {
@@ -148270,10 +148340,10 @@ var init_raw = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/db.js
+// lib/db/node_modules/drizzle-orm/pg-core/db.js
 var PgDatabase;
 var init_db = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/db.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/db.js"() {
     init_entity();
     init_query_builders();
     init_selection_proxy();
@@ -148563,7 +148633,7 @@ var init_db = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/cache/core/cache.js
+// lib/db/node_modules/drizzle-orm/cache/core/cache.js
 async function hashQuery(sql4, params) {
   const dataToHash = `${sql4}-${JSON.stringify(params)}`;
   const encoder = new TextEncoder();
@@ -148575,7 +148645,7 @@ async function hashQuery(sql4, params) {
 }
 var Cache, NoopCache;
 var init_cache = __esm({
-  "../lib/db/node_modules/drizzle-orm/cache/core/cache.js"() {
+  "lib/db/node_modules/drizzle-orm/cache/core/cache.js"() {
     init_entity();
     Cache = class {
       static [entityKind] = "Cache";
@@ -148596,23 +148666,23 @@ var init_cache = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/cache/core/index.js
+// lib/db/node_modules/drizzle-orm/cache/core/index.js
 var init_core = __esm({
-  "../lib/db/node_modules/drizzle-orm/cache/core/index.js"() {
+  "lib/db/node_modules/drizzle-orm/cache/core/index.js"() {
     init_cache();
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/alias.js
+// lib/db/node_modules/drizzle-orm/pg-core/alias.js
 var init_alias2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/alias.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/alias.js"() {
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/roles.js
+// lib/db/node_modules/drizzle-orm/pg-core/roles.js
 var PgRole;
 var init_roles7 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/roles.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/roles.js"() {
     init_entity();
     PgRole = class {
       constructor(name2, config) {
@@ -148640,13 +148710,13 @@ var init_roles7 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/sequence.js
+// lib/db/node_modules/drizzle-orm/pg-core/sequence.js
 function pgSequenceWithSchema(name2, options, schema) {
   return new PgSequence(name2, options, schema);
 }
 var PgSequence;
 var init_sequence = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/sequence.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/sequence.js"() {
     init_entity();
     PgSequence = class {
       constructor(seqName, seqOptions, schema) {
@@ -148659,10 +148729,10 @@ var init_sequence = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/schema.js
+// lib/db/node_modules/drizzle-orm/pg-core/schema.js
 var PgSchema;
 var init_schema = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/schema.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/schema.js"() {
     init_entity();
     init_sql();
     init_enum();
@@ -148703,10 +148773,10 @@ var init_schema = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/session.js
+// lib/db/node_modules/drizzle-orm/pg-core/session.js
 var PgPreparedQuery, PgSession, PgTransaction;
 var init_session = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/session.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/session.js"() {
     init_cache();
     init_entity();
     init_errors3();
@@ -148874,22 +148944,22 @@ var init_session = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/subquery.js
+// lib/db/node_modules/drizzle-orm/pg-core/subquery.js
 var init_subquery2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/subquery.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/subquery.js"() {
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/utils/index.js
+// lib/db/node_modules/drizzle-orm/pg-core/utils/index.js
 var init_utils6 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/utils/index.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/utils/index.js"() {
     init_array();
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pg-core/index.js
+// lib/db/node_modules/drizzle-orm/pg-core/index.js
 var init_pg_core = __esm({
-  "../lib/db/node_modules/drizzle-orm/pg-core/index.js"() {
+  "lib/db/node_modules/drizzle-orm/pg-core/index.js"() {
     init_alias2();
     init_checks();
     init_columns();
@@ -148914,10 +148984,10 @@ var init_pg_core = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/node-postgres/session.js
+// lib/db/node_modules/drizzle-orm/node-postgres/session.js
 var Pool2, types4, NodePgPreparedQuery, NodePgSession, NodePgTransaction;
 var init_session2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/node-postgres/session.js"() {
+  "lib/db/node_modules/drizzle-orm/node-postgres/session.js"() {
     init_esm31();
     init_core();
     init_entity();
@@ -149144,7 +149214,7 @@ var init_session2 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/node-postgres/driver.js
+// lib/db/node_modules/drizzle-orm/node-postgres/driver.js
 function construct(client2, config = {}) {
   const dialect = new PgDialect({ casing: config.casing });
   let logger2;
@@ -149194,7 +149264,7 @@ function drizzle(...params) {
 }
 var NodePgDriver, NodePgDatabase;
 var init_driver = __esm({
-  "../lib/db/node_modules/drizzle-orm/node-postgres/driver.js"() {
+  "lib/db/node_modules/drizzle-orm/node-postgres/driver.js"() {
     init_esm31();
     init_entity();
     init_logger();
@@ -149229,18 +149299,18 @@ var init_driver = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/node-postgres/index.js
+// lib/db/node_modules/drizzle-orm/node-postgres/index.js
 var init_node_postgres = __esm({
-  "../lib/db/node_modules/drizzle-orm/node-postgres/index.js"() {
+  "lib/db/node_modules/drizzle-orm/node-postgres/index.js"() {
     init_driver();
     init_session2();
   }
 });
 
-// ../lib/db/node_modules/@electric-sql/pglite/dist/chunk-BTBUZ646.js
+// lib/db/node_modules/@electric-sql/pglite/dist/chunk-BTBUZ646.js
 var p2, i4, c3, f4, l2, s3, a2, _, d, D, F2, g, L2, P, n2, h2, R, x3, T2, U, u2;
 var init_chunk_BTBUZ646 = __esm({
-  "../lib/db/node_modules/@electric-sql/pglite/dist/chunk-BTBUZ646.js"() {
+  "lib/db/node_modules/@electric-sql/pglite/dist/chunk-BTBUZ646.js"() {
     p2 = Object.create;
     i4 = Object.defineProperty;
     c3 = Object.getOwnPropertyDescriptor;
@@ -149278,7 +149348,7 @@ var init_chunk_BTBUZ646 = __esm({
   }
 });
 
-// ../lib/db/node_modules/@electric-sql/pglite/dist/chunk-EADU5A67.js
+// lib/db/node_modules/@electric-sql/pglite/dist/chunk-EADU5A67.js
 function ue(e10, t10, n10) {
   if (e10 === null) return null;
   let r10 = n10?.[t10] ?? Se.parsers[t10];
@@ -149392,7 +149462,7 @@ function Nr(e10) {
 }
 var hn, ht, bt, be, ge, gt3, we, ve, Ge, wt, F3, We, At, xt, St, Ae, Dt, Bt, It, Mt, Rt, Tt, je, Qe, Et, Ct, Pt, Ut, Nt, Lt, Ot, kt, Vt, _e, ze, He, Ft, qe, xe, vt, Gt, Wt, jt, Qt, _t, zt, Ht, qt, Yt, $t, Kt, Jt, Xt, Zt, en, tn, nn, rn, sn, an, Ye, on, un, $e, Se, ln, cn, dn, fn, he, wn, Ue, Be, Ie, Me, Re, Te, Ee, Ce, Pe, v, G, W, j, Q, _2, E2, z, H, q, Y2, $, K, J, X, Z2, ee, te, ne2, zn, b, g2, U2, ce, N2, x4, le, P2, Xe, R2, m2, An, xn, Sn, Dn, Bn, In, Mn, Rn, L3, Tn, En, Cn, Pn, Un, Ne, Nn, Ln, On, kn, Vn, Fn, pe, vn, Gn, Wn, jn, O2, Le, Qn, M, w, fe, me, re, de, Oe, _n, Ze, et, A3, S2, D2, o2, l3, tt, nt, rt, st, it, at, ot, ke, ut, lt2, ct, pt, dt, ft, mt, yt, Ve, ye, Fe, se, k;
 var init_chunk_EADU5A67 = __esm({
-  "../lib/db/node_modules/@electric-sql/pglite/dist/chunk-EADU5A67.js"() {
+  "lib/db/node_modules/@electric-sql/pglite/dist/chunk-EADU5A67.js"() {
     init_chunk_BTBUZ646();
     hn = {};
     F2(hn, { ABSTIME: () => Et, ACLITEM: () => Vt, BIT: () => Wt, BOOL: () => be, BPCHAR: () => _e, BYTEA: () => ge, CHAR: () => gt3, CID: () => St, CIDR: () => Tt, CIRCLE: () => Ut, DATE: () => He, FLOAT4: () => je, FLOAT8: () => Qe, GTSVECTOR: () => rn, INET: () => kt, INT2: () => ve, INT4: () => Ge, INT8: () => we, INTERVAL: () => vt, JSON: () => Ae, JSONB: () => Ye, MACADDR: () => Ot, MACADDR8: () => Nt, MONEY: () => Lt, NUMERIC: () => Qt, OID: () => We, PATH: () => Mt, PG_DEPENDENCIES: () => en, PG_LSN: () => Xt, PG_NDISTINCT: () => Zt, PG_NODE_TREE: () => Bt, POLYGON: () => Rt, REFCURSOR: () => _t, REGCLASS: () => Yt, REGCONFIG: () => sn, REGDICTIONARY: () => an, REGNAMESPACE: () => on, REGOPER: () => Ht, REGOPERATOR: () => qt, REGPROC: () => wt, REGPROCEDURE: () => zt, REGROLE: () => un, REGTYPE: () => $t, RELTIME: () => Ct, SMGR: () => It, TEXT: () => F3, TID: () => At, TIME: () => Ft, TIMESTAMP: () => qe, TIMESTAMPTZ: () => xe, TIMETZ: () => Gt, TINTERVAL: () => Pt, TSQUERY: () => nn, TSVECTOR: () => tn, TXID_SNAPSHOT: () => Jt, UUID: () => Kt, VARBIT: () => jt, VARCHAR: () => ze, XID: () => xt, XML: () => Dt, arrayParser: () => yn, arraySerializer: () => Ke, parseType: () => ue, parsers: () => ln, serializers: () => cn, types: () => $e });
@@ -149987,7 +150057,7 @@ var init_chunk_EADU5A67 = __esm({
   }
 });
 
-// ../lib/db/node_modules/@electric-sql/pglite/dist/chunk-STOZMFXW.js
+// lib/db/node_modules/@electric-sql/pglite/dist/chunk-STOZMFXW.js
 function s4(t10, r10, ...e10) {
   let a10 = t10.length - 1, p10 = e10.length - 1;
   if (p10 !== -1) {
@@ -150022,17 +150092,17 @@ function g3(t10, ...r10) {
 }
 var o3;
 var init_chunk_STOZMFXW = __esm({
-  "../lib/db/node_modules/@electric-sql/pglite/dist/chunk-STOZMFXW.js"() {
+  "lib/db/node_modules/@electric-sql/pglite/dist/chunk-STOZMFXW.js"() {
     init_chunk_BTBUZ646();
     u2();
     o3 = { part: "part", container: "container" };
   }
 });
 
-// ../lib/db/node_modules/@electric-sql/pglite/dist/chunk-A7RFOIQ7.js
+// lib/db/node_modules/@electric-sql/pglite/dist/chunk-A7RFOIQ7.js
 var b2, u3, r3, l4, g4, h3, R3, z2;
 var init_chunk_A7RFOIQ7 = __esm({
-  "../lib/db/node_modules/@electric-sql/pglite/dist/chunk-A7RFOIQ7.js"() {
+  "lib/db/node_modules/@electric-sql/pglite/dist/chunk-A7RFOIQ7.js"() {
     init_chunk_EADU5A67();
     init_chunk_STOZMFXW();
     init_chunk_BTBUZ646();
@@ -150145,7 +150215,7 @@ var init_chunk_A7RFOIQ7 = __esm({
   }
 });
 
-// ../lib/db/node_modules/@electric-sql/pglite/dist/chunk-WGR4JCLS.js
+// lib/db/node_modules/@electric-sql/pglite/dist/chunk-WGR4JCLS.js
 async function H2(r10, e10, t10 = "pgdata", s10 = "auto") {
   let a10 = Br(r10, e10), [n10, o10] = await qr(a10, s10), i10 = t10 + (o10 ? ".tar.gz" : ".tar"), u10 = o10 ? "application/x-gzip" : "application/x-tar";
   return typeof File < "u" ? new File([n10], i10, { type: u10 }) : new Blob([n10], { type: u10 });
@@ -150236,7 +150306,7 @@ function sr(r10) {
 }
 var w2, x5, L4, er, nr, or2, g5, Hr, Vr, C3, ur, cr, pr, Zr;
 var init_chunk_WGR4JCLS = __esm({
-  "../lib/db/node_modules/@electric-sql/pglite/dist/chunk-WGR4JCLS.js"() {
+  "lib/db/node_modules/@electric-sql/pglite/dist/chunk-WGR4JCLS.js"() {
     init_chunk_BTBUZ646();
     w2 = D(($r2, l10) => {
       "use strict";
@@ -150713,7 +150783,7 @@ var init_chunk_WGR4JCLS = __esm({
   }
 });
 
-// ../lib/db/node_modules/@electric-sql/pglite/dist/fs/nodefs.js
+// lib/db/node_modules/@electric-sql/pglite/dist/fs/nodefs.js
 var nodefs_exports = {};
 __export(nodefs_exports, {
   NodeFS: () => m3
@@ -150722,7 +150792,7 @@ import * as s5 from "fs";
 import * as o4 from "path";
 var m3;
 var init_nodefs = __esm({
-  "../lib/db/node_modules/@electric-sql/pglite/dist/fs/nodefs.js"() {
+  "lib/db/node_modules/@electric-sql/pglite/dist/fs/nodefs.js"() {
     init_chunk_WGR4JCLS();
     init_chunk_BTBUZ646();
     u2();
@@ -150743,14 +150813,14 @@ var init_nodefs = __esm({
   }
 });
 
-// ../lib/db/node_modules/@electric-sql/pglite/dist/fs/opfs-ahp.js
+// lib/db/node_modules/@electric-sql/pglite/dist/fs/opfs-ahp.js
 var opfs_ahp_exports = {};
 __export(opfs_ahp_exports, {
   OpfsAhpFS: () => L5
 });
 var $2, G2, T3, H3, v2, F4, M2, y3, b3, m4, x6, P3, D3, S3, n3, C4, O3, k2, w3, f5, I, W2, j2, L5, p3;
 var init_opfs_ahp = __esm({
-  "../lib/db/node_modules/@electric-sql/pglite/dist/fs/opfs-ahp.js"() {
+  "lib/db/node_modules/@electric-sql/pglite/dist/fs/opfs-ahp.js"() {
     init_chunk_WGR4JCLS();
     init_chunk_BTBUZ646();
     u2();
@@ -151049,7 +151119,7 @@ ${t10}`), i10 = h2(this, y3).getSize();
   }
 });
 
-// ../lib/db/node_modules/@electric-sql/pglite/dist/index.js
+// lib/db/node_modules/@electric-sql/pglite/dist/index.js
 async function ge2(e10) {
   if (Fe) {
     let t10 = await import("fs"), r10 = await import("zlib"), { Writable: a10 } = await import("stream"), { pipeline: o10 } = await import("stream/promises");
@@ -151124,7 +151194,7 @@ async function Ae2(e10, t10) {
 }
 var Ye2, Je2, He2, We2, ce3, je2, H4, Ie2, ee2, te2, Qe2, ke2, Te2, Y3, W3, j3, J2, $3, _e2, ie, me2, Z3, ae, oe, se2, V, G3, k3, K3, O4, qe2, re2, pe2, Ue2;
 var init_dist2 = __esm({
-  "../lib/db/node_modules/@electric-sql/pglite/dist/index.js"() {
+  "lib/db/node_modules/@electric-sql/pglite/dist/index.js"() {
     init_chunk_A7RFOIQ7();
     init_chunk_EADU5A67();
     init_chunk_WGR4JCLS();
@@ -155262,10 +155332,10 @@ ${n10}`), 0;
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pglite/session.js
+// lib/db/node_modules/drizzle-orm/pglite/session.js
 var PglitePreparedQuery, PgliteSession, PgliteTransaction;
 var init_session3 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pglite/session.js"() {
+  "lib/db/node_modules/drizzle-orm/pglite/session.js"() {
     init_entity();
     init_logger();
     init_pg_core();
@@ -155425,7 +155495,7 @@ var init_session3 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pglite/driver.js
+// lib/db/node_modules/drizzle-orm/pglite/driver.js
 function construct2(client2, config = {}) {
   const dialect = new PgDialect({ casing: config.casing });
   let logger2;
@@ -155476,7 +155546,7 @@ function drizzle2(...params) {
 }
 var PgliteDriver, PgliteDatabase;
 var init_driver2 = __esm({
-  "../lib/db/node_modules/drizzle-orm/pglite/driver.js"() {
+  "lib/db/node_modules/drizzle-orm/pglite/driver.js"() {
     init_dist2();
     init_entity();
     init_logger();
@@ -155511,15 +155581,15 @@ var init_driver2 = __esm({
   }
 });
 
-// ../lib/db/node_modules/drizzle-orm/pglite/index.js
+// lib/db/node_modules/drizzle-orm/pglite/index.js
 var init_pglite = __esm({
-  "../lib/db/node_modules/drizzle-orm/pglite/index.js"() {
+  "lib/db/node_modules/drizzle-orm/pglite/index.js"() {
     init_driver2();
     init_session3();
   }
 });
 
-// ../lib/db/src/schema/index.ts
+// lib/db/src/schema/index.ts
 var schema_exports = {};
 __export(schema_exports, {
   conversations: () => conversations,
@@ -155535,7 +155605,7 @@ __export(schema_exports, {
 });
 var conversations, leadScores, messages, dailyMetrics, followUpEvents, users, trainingExamples, learningCandidates, knowledgeGaps, lucyInfoDocuments;
 var init_schema2 = __esm({
-  "../lib/db/src/schema/index.ts"() {
+  "lib/db/src/schema/index.ts"() {
     "use strict";
     init_pg_core();
     conversations = pgTable("conversations", {
@@ -155674,7 +155744,7 @@ var init_schema2 = __esm({
   }
 });
 
-// ../lib/db/src/local.ts
+// lib/db/src/local.ts
 import fs5 from "node:fs";
 import path5 from "node:path";
 function removeStalePostmasterPid() {
@@ -155719,7 +155789,7 @@ function isLocalDbMode() {
 }
 var LOCAL_DB_DIR, client, localDb, INIT_SQL, MIGRATION_SQL;
 var init_local = __esm({
-  "../lib/db/src/local.ts"() {
+  "lib/db/src/local.ts"() {
     "use strict";
     init_dist2();
     init_pglite();
@@ -155873,7 +155943,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS messages_kommo_message_id_idx ON messages (kom
   }
 });
 
-// ../lib/db/src/index.ts
+// lib/db/src/index.ts
 async function createDb() {
   if (isLocalDbMode()) {
     console.info("[db] Sin DATABASE_URL \u2192 usando base de datos local (PGlite)");
@@ -155884,7 +155954,7 @@ async function createDb() {
 }
 var Pool3, pool, db;
 var init_src2 = __esm({
-  async "../lib/db/src/index.ts"() {
+  async "lib/db/src/index.ts"() {
     "use strict";
     init_node_postgres();
     init_esm31();
@@ -155897,7 +155967,7 @@ var init_src2 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/entity.js
+// api-server/node_modules/drizzle-orm/entity.js
 function is2(value, type) {
   if (!value || typeof value !== "object") {
     return false;
@@ -155923,15 +155993,15 @@ function is2(value, type) {
 }
 var entityKind2;
 var init_entity2 = __esm({
-  "node_modules/drizzle-orm/entity.js"() {
+  "api-server/node_modules/drizzle-orm/entity.js"() {
     entityKind2 = /* @__PURE__ */ Symbol.for("drizzle:entityKind");
   }
 });
 
-// node_modules/drizzle-orm/column.js
+// api-server/node_modules/drizzle-orm/column.js
 var Column2;
 var init_column2 = __esm({
-  "node_modules/drizzle-orm/column.js"() {
+  "api-server/node_modules/drizzle-orm/column.js"() {
     init_entity2();
     Column2 = class {
       constructor(table, config) {
@@ -155985,10 +156055,10 @@ var init_column2 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/column-builder.js
+// api-server/node_modules/drizzle-orm/column-builder.js
 var ColumnBuilder2;
 var init_column_builder2 = __esm({
-  "node_modules/drizzle-orm/column-builder.js"() {
+  "api-server/node_modules/drizzle-orm/column-builder.js"() {
     init_entity2();
     ColumnBuilder2 = class {
       static [entityKind2] = "ColumnBuilder";
@@ -156094,18 +156164,18 @@ var init_column_builder2 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/table.utils.js
+// api-server/node_modules/drizzle-orm/table.utils.js
 var TableName2;
 var init_table_utils2 = __esm({
-  "node_modules/drizzle-orm/table.utils.js"() {
+  "api-server/node_modules/drizzle-orm/table.utils.js"() {
     TableName2 = /* @__PURE__ */ Symbol.for("drizzle:Name");
   }
 });
 
-// node_modules/drizzle-orm/pg-core/foreign-keys.js
+// api-server/node_modules/drizzle-orm/pg-core/foreign-keys.js
 var ForeignKeyBuilder2, ForeignKey2;
 var init_foreign_keys2 = __esm({
-  "node_modules/drizzle-orm/pg-core/foreign-keys.js"() {
+  "api-server/node_modules/drizzle-orm/pg-core/foreign-keys.js"() {
     init_entity2();
     init_table_utils2();
     ForeignKeyBuilder2 = class {
@@ -156166,22 +156236,22 @@ var init_foreign_keys2 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/tracing-utils.js
+// api-server/node_modules/drizzle-orm/tracing-utils.js
 function iife2(fn3, ...args2) {
   return fn3(...args2);
 }
 var init_tracing_utils2 = __esm({
-  "node_modules/drizzle-orm/tracing-utils.js"() {
+  "api-server/node_modules/drizzle-orm/tracing-utils.js"() {
   }
 });
 
-// node_modules/drizzle-orm/pg-core/unique-constraint.js
+// api-server/node_modules/drizzle-orm/pg-core/unique-constraint.js
 function uniqueKeyName2(table, columns) {
   return `${table[TableName2]}_${columns.join("_")}_unique`;
 }
 var UniqueConstraintBuilder2, UniqueOnConstraintBuilder2, UniqueConstraint2;
 var init_unique_constraint2 = __esm({
-  "node_modules/drizzle-orm/pg-core/unique-constraint.js"() {
+  "api-server/node_modules/drizzle-orm/pg-core/unique-constraint.js"() {
     init_entity2();
     init_table_utils2();
     UniqueConstraintBuilder2 = class {
@@ -156232,7 +156302,7 @@ var init_unique_constraint2 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/pg-core/utils/array.js
+// api-server/node_modules/drizzle-orm/pg-core/utils/array.js
 function parsePgArrayValue2(arrayString, startFrom, inQuotes) {
   for (let i10 = startFrom; i10 < arrayString.length; i10++) {
     const char2 = arrayString[i10];
@@ -156308,14 +156378,14 @@ function makePgArray2(array) {
   }).join(",")}}`;
 }
 var init_array2 = __esm({
-  "node_modules/drizzle-orm/pg-core/utils/array.js"() {
+  "api-server/node_modules/drizzle-orm/pg-core/utils/array.js"() {
   }
 });
 
-// node_modules/drizzle-orm/pg-core/columns/common.js
+// api-server/node_modules/drizzle-orm/pg-core/columns/common.js
 var PgColumnBuilder2, PgColumn2, ExtraConfigColumn2, IndexedColumn2, PgArrayBuilder2, PgArray2;
 var init_common2 = __esm({
-  "node_modules/drizzle-orm/pg-core/columns/common.js"() {
+  "api-server/node_modules/drizzle-orm/pg-core/columns/common.js"() {
     init_column_builder2();
     init_column2();
     init_entity2();
@@ -156508,13 +156578,13 @@ var init_common2 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/pg-core/columns/enum.js
+// api-server/node_modules/drizzle-orm/pg-core/columns/enum.js
 function isPgEnum2(obj) {
   return !!obj && typeof obj === "function" && isPgEnumSym2 in obj && obj[isPgEnumSym2] === true;
 }
 var PgEnumObjectColumnBuilder2, PgEnumObjectColumn2, isPgEnumSym2, PgEnumColumnBuilder2, PgEnumColumn2;
 var init_enum2 = __esm({
-  "node_modules/drizzle-orm/pg-core/columns/enum.js"() {
+  "api-server/node_modules/drizzle-orm/pg-core/columns/enum.js"() {
     init_entity2();
     init_common2();
     PgEnumObjectColumnBuilder2 = class extends PgColumnBuilder2 {
@@ -156573,10 +156643,10 @@ var init_enum2 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/subquery.js
+// api-server/node_modules/drizzle-orm/subquery.js
 var Subquery2, WithSubquery2;
 var init_subquery3 = __esm({
-  "node_modules/drizzle-orm/subquery.js"() {
+  "api-server/node_modules/drizzle-orm/subquery.js"() {
     init_entity2();
     Subquery2 = class {
       static [entityKind2] = "Subquery";
@@ -156600,18 +156670,18 @@ var init_subquery3 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/version.js
+// api-server/node_modules/drizzle-orm/version.js
 var version2;
 var init_version3 = __esm({
-  "node_modules/drizzle-orm/version.js"() {
+  "api-server/node_modules/drizzle-orm/version.js"() {
     version2 = "0.45.2";
   }
 });
 
-// node_modules/drizzle-orm/tracing.js
+// api-server/node_modules/drizzle-orm/tracing.js
 var otel2, rawTracer2, tracer2;
 var init_tracing2 = __esm({
-  "node_modules/drizzle-orm/tracing.js"() {
+  "api-server/node_modules/drizzle-orm/tracing.js"() {
     init_tracing_utils2();
     init_version3();
     tracer2 = {
@@ -156648,18 +156718,18 @@ var init_tracing2 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/view-common.js
+// api-server/node_modules/drizzle-orm/view-common.js
 var ViewBaseConfig2;
 var init_view_common3 = __esm({
-  "node_modules/drizzle-orm/view-common.js"() {
+  "api-server/node_modules/drizzle-orm/view-common.js"() {
     ViewBaseConfig2 = /* @__PURE__ */ Symbol.for("drizzle:ViewBaseConfig");
   }
 });
 
-// node_modules/drizzle-orm/table.js
+// api-server/node_modules/drizzle-orm/table.js
 var Schema2, Columns2, ExtraConfigColumns2, OriginalName2, BaseName2, IsAlias2, ExtraConfigBuilder2, IsDrizzleTable2, Table2;
 var init_table3 = __esm({
-  "node_modules/drizzle-orm/table.js"() {
+  "api-server/node_modules/drizzle-orm/table.js"() {
     init_entity2();
     init_table_utils2();
     Schema2 = /* @__PURE__ */ Symbol.for("drizzle:Schema");
@@ -156719,7 +156789,7 @@ var init_table3 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/sql/sql.js
+// api-server/node_modules/drizzle-orm/sql/sql.js
 function isSQLWrapper2(value) {
   return value !== null && value !== void 0 && typeof value.getSQL === "function";
 }
@@ -156752,7 +156822,7 @@ function sql2(strings, ...params) {
 }
 var FakePrimitiveParam2, StringChunk2, SQL2, Name2, noopDecoder2, noopEncoder2, noopMapper2, Param2, Placeholder2, IsDrizzleView2, View2;
 var init_sql3 = __esm({
-  "node_modules/drizzle-orm/sql/sql.js"() {
+  "api-server/node_modules/drizzle-orm/sql/sql.js"() {
     init_entity2();
     init_enum2();
     init_subquery3();
@@ -157108,13 +157178,13 @@ var init_sql3 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/alias.js
+// api-server/node_modules/drizzle-orm/alias.js
 function aliasedTable2(table, tableAlias) {
   return new Proxy(table, new TableAliasProxyHandler2(tableAlias, false));
 }
 var ColumnAliasProxyHandler2, TableAliasProxyHandler2, RelationTableAliasProxyHandler2;
 var init_alias3 = __esm({
-  "node_modules/drizzle-orm/alias.js"() {
+  "api-server/node_modules/drizzle-orm/alias.js"() {
     init_column2();
     init_entity2();
     init_table3();
@@ -157190,10 +157260,10 @@ var init_alias3 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/errors.js
+// api-server/node_modules/drizzle-orm/errors.js
 var DrizzleError2, TransactionRollbackError2;
 var init_errors4 = __esm({
-  "node_modules/drizzle-orm/errors.js"() {
+  "api-server/node_modules/drizzle-orm/errors.js"() {
     init_entity2();
     DrizzleError2 = class extends Error {
       static [entityKind2] = "DrizzleError";
@@ -157212,10 +157282,10 @@ var init_errors4 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/logger.js
+// api-server/node_modules/drizzle-orm/logger.js
 var ConsoleLogWriter2, DefaultLogger2, NoopLogger2;
 var init_logger2 = __esm({
-  "node_modules/drizzle-orm/logger.js"() {
+  "api-server/node_modules/drizzle-orm/logger.js"() {
     init_entity2();
     ConsoleLogWriter2 = class {
       static [entityKind2] = "ConsoleLogWriter";
@@ -157249,16 +157319,16 @@ var init_logger2 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/operations.js
+// api-server/node_modules/drizzle-orm/operations.js
 var init_operations = __esm({
-  "node_modules/drizzle-orm/operations.js"() {
+  "api-server/node_modules/drizzle-orm/operations.js"() {
   }
 });
 
-// node_modules/drizzle-orm/query-promise.js
+// api-server/node_modules/drizzle-orm/query-promise.js
 var QueryPromise2;
 var init_query_promise2 = __esm({
-  "node_modules/drizzle-orm/query-promise.js"() {
+  "api-server/node_modules/drizzle-orm/query-promise.js"() {
     init_entity2();
     QueryPromise2 = class {
       static [entityKind2] = "QueryPromise";
@@ -157285,15 +157355,15 @@ var init_query_promise2 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/utils.js
+// api-server/node_modules/drizzle-orm/utils.js
 var textDecoder2;
 var init_utils7 = __esm({
-  "node_modules/drizzle-orm/utils.js"() {
+  "api-server/node_modules/drizzle-orm/utils.js"() {
     textDecoder2 = typeof TextDecoder === "undefined" ? null : new TextDecoder();
   }
 });
 
-// node_modules/drizzle-orm/sql/expressions/conditions.js
+// api-server/node_modules/drizzle-orm/sql/expressions/conditions.js
 function bindIfParam2(value, column) {
   if (isDriverValueEncoder2(column) && !isSQLWrapper2(value) && !is2(value, Param2) && !is2(value, Placeholder2) && !is2(value, Column2) && !is2(value, Table2) && !is2(value, View2)) {
     return new Param2(value, column);
@@ -157343,7 +157413,7 @@ function inArray2(column, values) {
 }
 var eq2, gte2, lte2;
 var init_conditions2 = __esm({
-  "node_modules/drizzle-orm/sql/expressions/conditions.js"() {
+  "api-server/node_modules/drizzle-orm/sql/expressions/conditions.js"() {
     init_column2();
     init_entity2();
     init_table3();
@@ -157360,7 +157430,7 @@ var init_conditions2 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/sql/expressions/select.js
+// api-server/node_modules/drizzle-orm/sql/expressions/select.js
 function asc2(column) {
   return sql2`${column} asc`;
 }
@@ -157368,23 +157438,23 @@ function desc2(column) {
   return sql2`${column} desc`;
 }
 var init_select3 = __esm({
-  "node_modules/drizzle-orm/sql/expressions/select.js"() {
+  "api-server/node_modules/drizzle-orm/sql/expressions/select.js"() {
     init_sql3();
   }
 });
 
-// node_modules/drizzle-orm/sql/expressions/index.js
+// api-server/node_modules/drizzle-orm/sql/expressions/index.js
 var init_expressions2 = __esm({
-  "node_modules/drizzle-orm/sql/expressions/index.js"() {
+  "api-server/node_modules/drizzle-orm/sql/expressions/index.js"() {
     init_conditions2();
     init_select3();
   }
 });
 
-// node_modules/drizzle-orm/relations.js
+// api-server/node_modules/drizzle-orm/relations.js
 var Relation2, Relations2, One2, Many2;
 var init_relations2 = __esm({
-  "node_modules/drizzle-orm/relations.js"() {
+  "api-server/node_modules/drizzle-orm/relations.js"() {
     init_table3();
     init_entity2();
     Relation2 = class {
@@ -157442,42 +157512,42 @@ var init_relations2 = __esm({
   }
 });
 
-// node_modules/drizzle-orm/sql/functions/aggregate.js
+// api-server/node_modules/drizzle-orm/sql/functions/aggregate.js
 function count(expression) {
   return sql2`count(${expression || sql2.raw("*")})`.mapWith(Number);
 }
 var init_aggregate2 = __esm({
-  "node_modules/drizzle-orm/sql/functions/aggregate.js"() {
+  "api-server/node_modules/drizzle-orm/sql/functions/aggregate.js"() {
     init_sql3();
   }
 });
 
-// node_modules/drizzle-orm/sql/functions/vector.js
+// api-server/node_modules/drizzle-orm/sql/functions/vector.js
 var init_vector3 = __esm({
-  "node_modules/drizzle-orm/sql/functions/vector.js"() {
+  "api-server/node_modules/drizzle-orm/sql/functions/vector.js"() {
   }
 });
 
-// node_modules/drizzle-orm/sql/functions/index.js
+// api-server/node_modules/drizzle-orm/sql/functions/index.js
 var init_functions2 = __esm({
-  "node_modules/drizzle-orm/sql/functions/index.js"() {
+  "api-server/node_modules/drizzle-orm/sql/functions/index.js"() {
     init_aggregate2();
     init_vector3();
   }
 });
 
-// node_modules/drizzle-orm/sql/index.js
+// api-server/node_modules/drizzle-orm/sql/index.js
 var init_sql4 = __esm({
-  "node_modules/drizzle-orm/sql/index.js"() {
+  "api-server/node_modules/drizzle-orm/sql/index.js"() {
     init_expressions2();
     init_functions2();
     init_sql3();
   }
 });
 
-// node_modules/drizzle-orm/index.js
+// api-server/node_modules/drizzle-orm/index.js
 var init_drizzle_orm = __esm({
-  "node_modules/drizzle-orm/index.js"() {
+  "api-server/node_modules/drizzle-orm/index.js"() {
     init_alias3();
     init_column_builder2();
     init_column2();
@@ -157495,10 +157565,10 @@ var init_drizzle_orm = __esm({
   }
 });
 
-// src/lib/logger.ts
+// api-server/src/lib/logger.ts
 var import_pino, isProduction, logger;
 var init_logger3 = __esm({
-  "src/lib/logger.ts"() {
+  "api-server/src/lib/logger.ts"() {
     "use strict";
     import_pino = __toESM(require_pino(), 1);
     isProduction = process.env.NODE_ENV === "production";
@@ -157519,7 +157589,7 @@ var init_logger3 = __esm({
   }
 });
 
-// src/chat-history.ts
+// api-server/src/chat-history.ts
 import { readFileSync as readFileSync6, writeFileSync, existsSync as existsSync7 } from "fs";
 import { join as join5, dirname as dirname2 } from "path";
 import { fileURLToPath as fileURLToPath4 } from "url";
@@ -157557,7 +157627,7 @@ function appendHistory(chatId, userText, assistantText) {
 }
 var __dirname2, DATA_FILE, MAX_MESSAGES, store;
 var init_chat_history = __esm({
-  "src/chat-history.ts"() {
+  "api-server/src/chat-history.ts"() {
     "use strict";
     __dirname2 = dirname2(fileURLToPath4(import.meta.url));
     DATA_FILE = join5(__dirname2, "../../data/chat-history.json");
@@ -157566,7 +157636,7 @@ var init_chat_history = __esm({
   }
 });
 
-// src/modoServicio.ts
+// api-server/src/modoServicio.ts
 function detectModoServicio(text2) {
   const t10 = text2?.trim() ?? "";
   if (!t10) return null;
@@ -157603,14 +157673,14 @@ function buildPedidoEntregaReply(message) {
 }
 var PEDIDO_ENTREGA, SERVICIO_MONTADO;
 var init_modoServicio = __esm({
-  "src/modoServicio.ts"() {
+  "api-server/src/modoServicio.ts"() {
     "use strict";
     PEDIDO_ENTREGA = /\b(para\s+llevar|a\s+domicilio|en\s+mi\s+casa|entrega|que\s+me\s+(los?\s+|las?\s+)?dejen|que\s+me\s+(los?\s+|las?\s+)?entreguen|solo\s+los?\s+rollos?|solo\s+el\s+producto|sin\s+montaje|pedido\s+de|un\s+pedido\s+de|cantidad\s+de\s+\d+|piezas?\s+de)\b/i;
     SERVICIO_MONTADO = /\b(montado\s+en|en\s+el\s+evento|barra\s+en|estaci[oó]n\s+en|meseros|servicio\s+en\s+el|montaje\s+en|en\s+mi\s+evento|en\s+la\s+fiesta)\b/i;
   }
 });
 
-// src/tipoContacto.ts
+// api-server/src/tipoContacto.ts
 function resolveTipoContacto(extracted, conversationText) {
   const text2 = conversationText.trim();
   if (!text2) return extracted === "incierto" ? "cliente" : extracted;
@@ -157638,7 +157708,7 @@ function buildCompanyEmailConfirmReply() {
 }
 var PROVEEDOR_SELL, PROVEEDOR_ALLIANCE, PROVEEDOR_OFFER, CLIENTE_BUY;
 var init_tipoContacto = __esm({
-  "src/tipoContacto.ts"() {
+  "api-server/src/tipoContacto.ts"() {
     "use strict";
     PROVEEDOR_SELL = /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|soy\s+proveedor|quiero\s+venderles|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidor\s+de|mi\s+empresa\s+ofrece|vendo\s+.+\s+a\s+eventos)\b/i;
     PROVEEDOR_ALLIANCE = /\b(red\s+de\s+aliados|aliados?\s+comerciales?|alianza\s+comercial|aliado\s+comercial|registrarte\s+en\s+nuestra\s+base|invitarte\s+a\s+registrarte|te\s+invito\s+a\s+registrarte|ser\s+parte\s+de\s+nuestra\s+red|sumarte\s+a\s+(nuestra\s+)?red|formar\s+parte\s+de\s+nuestra\s+red|proveedores?\s+aliados?|cat[aá]logo\s+de\s+proveedores|beneficios\s+y\s+tarifas.{0,80}(?:venue|hacienda|sal[oó]n)|ejecutiv[oa]\s+de\s+ventas\s+en\s+(?:hacienda|sal[oó]n|venue|hotel)|nuestro\s+venue|red\s+de\s+proveedores|quiero\s+ser\s+proveedor|ofrecerles\s+(nuestro|mis|nuestros)|los\s+invito\s+a\s+(conocer|registr|formar)|invitarlos\s+a\s+(nuestra|formar|registr))\b/i;
@@ -157650,7 +157720,7 @@ var init_tipoContacto = __esm({
   }
 });
 
-// src/lucy-flow-guards.ts
+// api-server/src/lucy-flow-guards.ts
 function mensajeMencionaCatalogoServicios(mensaje) {
   return /alimentos?|mobiliario|carpas?|pistas?(\s+de\s+baile)?|bebidas?|banquete|taquiza|iluminaci[oó]n|pantallas?|mesas?\s+de\s+dulces|dj\b|barras?\s+(de\s+)?alimentos|estaciones?\s+de\s+comida/i.test(
     mensaje
@@ -161124,18 +161194,22 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
-    if (!cierreYaEnviado && currentMessage && (lucyAskedHorario || horarioPending || lucyAskedFecha || fechaPending || isScheduleLabeledClock(currentMessage)) && (isClockTimeOnlySchedule(currentMessage) || isMealTimeOnlySchedule(currentMessage) || isScheduleLabeledClock(currentMessage) || !!horarioNow)) {
-      const parsedHorario = (horarioNow ?? parseHorarioFromText(currentMessage ?? "") ?? currentMessage.trim()).replace(/\s+/g, " ").slice(0, 80);
+    const defersHorario = !!(currentMessage && clientDefersHorario(currentMessage));
+    const messageIsPrimarilyHorario = !!currentMessage && (defersHorario || isClockTimeOnlySchedule(currentMessage) || isSimpleClockTime(currentMessage.trim()) || isScheduleLabeledClock(currentMessage) || /^(el\s+evento\s+)?(ser[ií]a|es|ser[aá]|qued[oó]|arranca|inicia|empieza)\b/i.test(
+      currentMessage.trim()
+    ) && !!horarioNow);
+    if (!cierreYaEnviado && currentMessage && (lucyAskedHorario || horarioPending || defersHorario || messageIsPrimarilyHorario || (lucyAskedFecha || fechaPending) && !!horarioNow && messageIsPrimarilyHorario) && (defersHorario || isClockTimeOnlySchedule(currentMessage) || isMealTimeOnlySchedule(currentMessage) || isScheduleLabeledClock(currentMessage) || isSimpleClockTime(currentMessage.trim()) || !!horarioNow)) {
+      const parsedHorario = (defersHorario ? "Sin definir (pendiente)" : horarioNow ?? parseHorarioFromText(currentMessage ?? "") ?? currentMessage.trim()).replace(/\s+/g, " ").slice(0, 80);
       if (!parsedHorario || !isUsableHorarioEvento(parsedHorario)) {
       } else {
         extracted.horario_evento = parsedHorario;
         filledSet.add(CRM_HORARIO_LABEL);
         syncLegacyFechaHorarioField(extracted);
         const display = getDisplayName(extracted, whatsappDisplayName);
-        const ack = display ? `Perfecto, ${display}. Anoto el horario *${extracted.horario_evento}*.` : `Perfecto. Anoto el horario *${extracted.horario_evento}*.`;
+        const ack = defersHorario ? display ? `Entendido, ${display}. Dejamos el horario pendiente por ahora.` : "Entendido. Dejamos el horario pendiente por ahora." : display ? `Perfecto, ${display}. Anoto el horario *${extracted.horario_evento}*.` : `Perfecto. Anoto el horario *${extracted.horario_evento}*.`;
         const pendingAfterHorario = getNextPendingField(extracted, filledSet);
         const nextQ = pendingAfterHorario ? buildNaturalQuestion(pendingAfterHorario, ctx) : null;
-        log?.info({ entityId, pending: pendingAfterHorario }, "GUARD: A15419 \u2014 horario capturado + embudo");
+        log?.info({ entityId, pending: pendingAfterHorario, defersHorario }, "GUARD: A15419/A15566 \u2014 horario capturado + embudo");
         return normalizeAdvisorReferences(
           nextQ ? `${ack} ${nextQ}` : ack,
           extracted.nombre ?? display
@@ -163772,7 +163846,7 @@ function stripImageAnnotation(text2) {
 }
 var EMAIL_WAIVED_LABEL, WHATSAPP_NOMBRE_NOTE, EMAIL_REFUSAL_PATTERN, CLOSING_CORE_FIELDS, LUCY_INTRO, SERVICIOS_CATALOGO_HINT_ADICIONAL, OTRO_SERVICIO_ASK_PATTERN, CORREO_MAX_ASKS, FIELD_ASK_PATTERNS, CLOSING_SIGNATURE, INVITADOS_UNAVAILABLE_VALUE, PISTA_TARIMA_VARIANTS, LUCY_TRANSITIONS, TRANSITION_START_PATTERN, FIELD_ORDER, SALES_CTA_NOT_FUNNEL, MINIMAL_SERVICE_PATTERN;
 var init_lucy_flow_guards = __esm({
-  "src/lucy-flow-guards.ts"() {
+  "api-server/src/lucy-flow-guards.ts"() {
     "use strict";
     init_contact_name();
     init_client_email();
@@ -163911,7 +163985,7 @@ var init_lucy_flow_guards = __esm({
   }
 });
 
-// src/services/learningSchema.ts
+// api-server/src/services/learningSchema.ts
 async function ensureLearningSchema() {
   if (ensured2) return;
   for (const statement of STATEMENTS) {
@@ -163925,7 +163999,7 @@ async function ensureLearningSchema() {
 }
 var ensured2, STATEMENTS;
 var init_learningSchema = __esm({
-  async "src/services/learningSchema.ts"() {
+  async "api-server/src/services/learningSchema.ts"() {
     "use strict";
     await init_src2();
     init_drizzle_orm();
@@ -163975,7 +164049,7 @@ var init_learningSchema = __esm({
   }
 });
 
-// src/lib/trainingPaths.ts
+// api-server/src/lib/trainingPaths.ts
 import { existsSync as existsSync8 } from "fs";
 import { join as join6, dirname as dirname3 } from "path";
 import { fileURLToPath as fileURLToPath5 } from "url";
@@ -163993,13 +164067,13 @@ function resolveTrainingJsonFile() {
 }
 var moduleDir;
 var init_trainingPaths = __esm({
-  "src/lib/trainingPaths.ts"() {
+  "api-server/src/lib/trainingPaths.ts"() {
     "use strict";
     moduleDir = dirname3(fileURLToPath5(import.meta.url));
   }
 });
 
-// src/services/trainingStore.ts
+// api-server/src/services/trainingStore.ts
 import { readFileSync as readFileSync7 } from "fs";
 import { randomUUID } from "crypto";
 function rowToExample(row) {
@@ -164137,7 +164211,7 @@ async function deleteTrainingExample(id2) {
 }
 var CACHE_TTL_MS, cache, cacheLoadedAt, initialized, ENSURE_TABLE_SQL;
 var init_trainingStore = __esm({
-  async "src/services/trainingStore.ts"() {
+  async "api-server/src/services/trainingStore.ts"() {
     "use strict";
     await init_src2();
     init_drizzle_orm();
@@ -164161,7 +164235,7 @@ CREATE TABLE IF NOT EXISTS training_examples (
   }
 });
 
-// src/services/learningStore.ts
+// api-server/src/services/learningStore.ts
 function rowToDto(row) {
   return {
     id: row.id,
@@ -164224,7 +164298,7 @@ async function rejectLearningCandidate(id2, reviewerEmail) {
   return updated.length > 0;
 }
 var init_learningStore = __esm({
-  async "src/services/learningStore.ts"() {
+  async "api-server/src/services/learningStore.ts"() {
     "use strict";
     await init_src2();
     init_drizzle_orm();
@@ -164233,7 +164307,7 @@ var init_learningStore = __esm({
   }
 });
 
-// src/services/learningPairFilter.ts
+// api-server/src/services/learningPairFilter.ts
 function isUsefulLearningPair(pair) {
   const user = pair.user_message?.trim() ?? "";
   const resp = pair.suggested_response?.trim() ?? "";
@@ -164249,12 +164323,12 @@ function isUsefulLearningPair(pair) {
   return true;
 }
 var init_learningPairFilter = __esm({
-  "src/services/learningPairFilter.ts"() {
+  "api-server/src/services/learningPairFilter.ts"() {
     "use strict";
   }
 });
 
-// src/services/learningExtractor.ts
+// api-server/src/services/learningExtractor.ts
 var learningExtractor_exports = {};
 __export(learningExtractor_exports, {
   extractLearningCandidatesForLead: () => extractLearningCandidatesForLead
@@ -164356,7 +164430,7 @@ ${transcript}` }
 }
 var AUTO_APPROVE_CONFIDENCE, MIN_EXTRACT_GAP_MS, IDLE_EXTRACT_GAP_MS;
 var init_learningExtractor = __esm({
-  async "src/services/learningExtractor.ts"() {
+  async "api-server/src/services/learningExtractor.ts"() {
     "use strict";
     await init_src2();
     init_drizzle_orm();
@@ -164372,7 +164446,7 @@ var init_learningExtractor = __esm({
   }
 });
 
-// src/services/chatIngest.ts
+// api-server/src/services/chatIngest.ts
 import { createHash as createHash3 } from "crypto";
 function mapKommoAuthor(authorType) {
   if (authorType === "external") return "client";
@@ -164517,7 +164591,7 @@ async function setLearningPhase(kommoLeadId, phase) {
   await db.update(conversations).set({ learningPhase: phase, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.id, conv.id));
 }
 var init_chatIngest = __esm({
-  async "src/services/chatIngest.ts"() {
+  async "api-server/src/services/chatIngest.ts"() {
     "use strict";
     await init_src2();
     init_drizzle_orm();
@@ -164526,7 +164600,7 @@ var init_chatIngest = __esm({
   }
 });
 
-// src/services/kommoTalks.ts
+// api-server/src/services/kommoTalks.ts
 function classifyKommoOrigin(origin2) {
   const o10 = (origin2 ?? "").trim().toLowerCase();
   if (!o10) return "unknown";
@@ -164663,13 +164737,13 @@ async function resolveKommoTalkId(opts) {
   return null;
 }
 var init_kommoTalks = __esm({
-  "src/services/kommoTalks.ts"() {
+  "api-server/src/services/kommoTalks.ts"() {
     "use strict";
     init_logger3();
   }
 });
 
-// src/services/learningSync.ts
+// api-server/src/services/learningSync.ts
 var learningSync_exports = {};
 __export(learningSync_exports, {
   listKommoLeadsInLearningStages: () => listKommoLeadsInLearningStages,
@@ -164856,7 +164930,7 @@ async function runLearningSyncCron(subdomain, accessToken) {
 }
 var LEARNING_PHASES, LEARNING_STATUS_IDS;
 var init_learningSync = __esm({
-  async "src/services/learningSync.ts"() {
+  async "api-server/src/services/learningSync.ts"() {
     "use strict";
     await init_src2();
     init_drizzle_orm();
@@ -164874,7 +164948,7 @@ var init_learningSync = __esm({
   }
 });
 
-// src/services/embudo.ts
+// api-server/src/services/embudo.ts
 function resolveProveedorEtapa() {
   const statusRaw = process.env["KOMMO_PROVEEDOR_STATUS_ID"]?.trim();
   const pipelineRaw = process.env["KOMMO_PROVEEDOR_PIPELINE_ID"]?.trim();
@@ -165398,7 +165472,7 @@ async function verificarLeadsInactivos(subdomain, accessToken) {
 }
 var ETAPA, PIPELINE_ID, ETAPAS_LUCY_ACTIVA, MS_INACTIVIDAD, MS_SEGUIMIENTO, MS_VENTANA_MIN, MS_VENTANA_MAX, ETAPAS_LUCY_SILENCIO;
 var init_embudo = __esm({
-  async "src/services/embudo.ts"() {
+  async "api-server/src/services/embudo.ts"() {
     "use strict";
     await init_src2();
     init_drizzle_orm();
@@ -165429,19 +165503,19 @@ var init_embudo = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/bind.js
+// api-server/node_modules/axios/lib/helpers/bind.js
 function bind(fn3, thisArg) {
   return function wrap() {
     return fn3.apply(thisArg, arguments);
   };
 }
 var init_bind = __esm({
-  "node_modules/axios/lib/helpers/bind.js"() {
+  "api-server/node_modules/axios/lib/helpers/bind.js"() {
     "use strict";
   }
 });
 
-// node_modules/axios/lib/utils.js
+// api-server/node_modules/axios/lib/utils.js
 function isBuffer(val) {
   return val !== null && !isUndefined(val) && val.constructor !== null && !isUndefined(val.constructor) && isFunction(val.constructor.isBuffer) && val.constructor.isBuffer(val);
 }
@@ -165546,7 +165620,7 @@ function isSpecCompliantForm(thing) {
 }
 var toString2, getPrototypeOf, iterator, toStringTag, hasOwnProperty, hasOwnInPrototypeChain, getSafeProp, kindOf, kindOfTest, typeOfTest, isArray2, isUndefined, isArrayBuffer, isString, isFunction, isNumber, isObject, isBoolean, isPlainObject2, isEmptyObject, isDate, isFile, isReactNativeBlob, isReactNative, isBlob2, isFileList, isStream, G4, FormDataCtor, isFormData, isURLSearchParams, isReadableStream, isRequest2, isResponse, isHeaders, trim, _global, isContextDefined, extend, stripBOM, inherits, toFlatObject, endsWith, toArray, isTypedArray, forEachEntry, matchAll, isHTMLForm, toCamelCase2, propertyIsEnumerable, isRegExp, reduceDescriptors, freezeMethods, toObjectSet, noop3, toFiniteNumber, toJSONObject, isAsyncFn, isThenable, _setImmediate, asap, isIterable, isSafeIterable, utils_default;
 var init_utils8 = __esm({
-  "node_modules/axios/lib/utils.js"() {
+  "api-server/node_modules/axios/lib/utils.js"() {
     "use strict";
     init_bind();
     ({ toString: toString2 } = Object.prototype);
@@ -165925,10 +165999,10 @@ var init_utils8 = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/parseHeaders.js
+// api-server/node_modules/axios/lib/helpers/parseHeaders.js
 var ignoreDuplicateOf, parseHeaders_default;
 var init_parseHeaders = __esm({
-  "node_modules/axios/lib/helpers/parseHeaders.js"() {
+  "api-server/node_modules/axios/lib/helpers/parseHeaders.js"() {
     "use strict";
     init_utils8();
     ignoreDuplicateOf = utils_default.toObjectSet([
@@ -165977,7 +166051,7 @@ var init_parseHeaders = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/sanitizeHeaderValue.js
+// api-server/node_modules/axios/lib/helpers/sanitizeHeaderValue.js
 function trimSPorHTAB(str2) {
   let start2 = 0;
   let end = str2.length;
@@ -166012,7 +166086,7 @@ function toByteStringHeaderObject(headers) {
 }
 var INVALID_UNICODE_HEADER_VALUE_CHARS, INVALID_BYTE_STRING_HEADER_VALUE_CHARS, sanitizeHeaderValue, sanitizeByteStringHeaderValue;
 var init_sanitizeHeaderValue = __esm({
-  "node_modules/axios/lib/helpers/sanitizeHeaderValue.js"() {
+  "api-server/node_modules/axios/lib/helpers/sanitizeHeaderValue.js"() {
     "use strict";
     init_utils8();
     INVALID_UNICODE_HEADER_VALUE_CHARS = new RegExp("[\\u0000-\\u0008\\u000a-\\u001f\\u007f]+", "g");
@@ -166022,7 +166096,7 @@ var init_sanitizeHeaderValue = __esm({
   }
 });
 
-// node_modules/axios/lib/core/AxiosHeaders.js
+// api-server/node_modules/axios/lib/core/AxiosHeaders.js
 function normalizeHeader2(header) {
   return header && String(header).trim().toLowerCase();
 }
@@ -166077,7 +166151,7 @@ function buildAccessors(obj, header) {
 }
 var $internals, isValidHeaderName, AxiosHeaders, AxiosHeaders_default;
 var init_AxiosHeaders = __esm({
-  "node_modules/axios/lib/core/AxiosHeaders.js"() {
+  "api-server/node_modules/axios/lib/core/AxiosHeaders.js"() {
     "use strict";
     init_utils8();
     init_parseHeaders();
@@ -166276,7 +166350,7 @@ var init_AxiosHeaders = __esm({
   }
 });
 
-// node_modules/axios/lib/core/AxiosError.js
+// api-server/node_modules/axios/lib/core/AxiosError.js
 function hasOwnOrPrototypeToJSON(source) {
   if (utils_default.hasOwnProp(source, "toJSON")) {
     return true;
@@ -166330,7 +166404,7 @@ function redactConfig(config, redactKeys) {
 }
 var REDACTED, AxiosError, AxiosError_default;
 var init_AxiosError = __esm({
-  "node_modules/axios/lib/core/AxiosError.js"() {
+  "api-server/node_modules/axios/lib/core/AxiosError.js"() {
     "use strict";
     init_utils8();
     init_AxiosHeaders();
@@ -166425,9 +166499,9 @@ var init_AxiosError = __esm({
   }
 });
 
-// node_modules/delayed-stream/lib/delayed_stream.js
+// api-server/node_modules/delayed-stream/lib/delayed_stream.js
 var require_delayed_stream = __commonJS({
-  "node_modules/delayed-stream/lib/delayed_stream.js"(exports2, module2) {
+  "api-server/node_modules/delayed-stream/lib/delayed_stream.js"(exports2, module2) {
     var Stream5 = __require("stream").Stream;
     var util6 = __require("util");
     module2.exports = DelayedStream;
@@ -166516,9 +166590,9 @@ var require_delayed_stream = __commonJS({
   }
 });
 
-// node_modules/combined-stream/lib/combined_stream.js
+// api-server/node_modules/combined-stream/lib/combined_stream.js
 var require_combined_stream = __commonJS({
-  "node_modules/combined-stream/lib/combined_stream.js"(exports2, module2) {
+  "api-server/node_modules/combined-stream/lib/combined_stream.js"(exports2, module2) {
     var util6 = __require("util");
     var Stream5 = __require("stream").Stream;
     var DelayedStream = require_delayed_stream();
@@ -166685,9 +166759,9 @@ var require_combined_stream = __commonJS({
   }
 });
 
-// node_modules/form-data/node_modules/mime-db/db.json
+// api-server/node_modules/form-data/node_modules/mime-db/db.json
 var require_db2 = __commonJS({
-  "node_modules/form-data/node_modules/mime-db/db.json"(exports2, module2) {
+  "api-server/node_modules/form-data/node_modules/mime-db/db.json"(exports2, module2) {
     module2.exports = {
       "application/1d-interleaved-parityfec": {
         source: "iana"
@@ -175210,16 +175284,16 @@ var require_db2 = __commonJS({
   }
 });
 
-// node_modules/form-data/node_modules/mime-db/index.js
+// api-server/node_modules/form-data/node_modules/mime-db/index.js
 var require_mime_db2 = __commonJS({
-  "node_modules/form-data/node_modules/mime-db/index.js"(exports2, module2) {
+  "api-server/node_modules/form-data/node_modules/mime-db/index.js"(exports2, module2) {
     module2.exports = require_db2();
   }
 });
 
-// node_modules/form-data/node_modules/mime-types/index.js
+// api-server/node_modules/form-data/node_modules/mime-types/index.js
 var require_mime_types2 = __commonJS({
-  "node_modules/form-data/node_modules/mime-types/index.js"(exports2) {
+  "api-server/node_modules/form-data/node_modules/mime-types/index.js"(exports2) {
     "use strict";
     var db3 = require_mime_db2();
     var extname = __require("path").extname;
@@ -175307,9 +175381,9 @@ var require_mime_types2 = __commonJS({
   }
 });
 
-// node_modules/asynckit/lib/defer.js
+// api-server/node_modules/asynckit/lib/defer.js
 var require_defer = __commonJS({
-  "node_modules/asynckit/lib/defer.js"(exports2, module2) {
+  "api-server/node_modules/asynckit/lib/defer.js"(exports2, module2) {
     module2.exports = defer;
     function defer(fn3) {
       var nextTick = typeof setImmediate == "function" ? setImmediate : typeof process == "object" && typeof process.nextTick == "function" ? process.nextTick : null;
@@ -175322,9 +175396,9 @@ var require_defer = __commonJS({
   }
 });
 
-// node_modules/asynckit/lib/async.js
+// api-server/node_modules/asynckit/lib/async.js
 var require_async = __commonJS({
-  "node_modules/asynckit/lib/async.js"(exports2, module2) {
+  "api-server/node_modules/asynckit/lib/async.js"(exports2, module2) {
     var defer = require_defer();
     module2.exports = async;
     function async(callback) {
@@ -175345,9 +175419,9 @@ var require_async = __commonJS({
   }
 });
 
-// node_modules/asynckit/lib/abort.js
+// api-server/node_modules/asynckit/lib/abort.js
 var require_abort = __commonJS({
-  "node_modules/asynckit/lib/abort.js"(exports2, module2) {
+  "api-server/node_modules/asynckit/lib/abort.js"(exports2, module2) {
     module2.exports = abort2;
     function abort2(state) {
       Object.keys(state.jobs).forEach(clean.bind(state));
@@ -175361,9 +175435,9 @@ var require_abort = __commonJS({
   }
 });
 
-// node_modules/asynckit/lib/iterate.js
+// api-server/node_modules/asynckit/lib/iterate.js
 var require_iterate = __commonJS({
-  "node_modules/asynckit/lib/iterate.js"(exports2, module2) {
+  "api-server/node_modules/asynckit/lib/iterate.js"(exports2, module2) {
     var async = require_async();
     var abort2 = require_abort();
     module2.exports = iterate2;
@@ -175394,9 +175468,9 @@ var require_iterate = __commonJS({
   }
 });
 
-// node_modules/asynckit/lib/state.js
+// api-server/node_modules/asynckit/lib/state.js
 var require_state = __commonJS({
-  "node_modules/asynckit/lib/state.js"(exports2, module2) {
+  "api-server/node_modules/asynckit/lib/state.js"(exports2, module2) {
     module2.exports = state;
     function state(list, sortMethod) {
       var isNamedList = !Array.isArray(list), initState = {
@@ -175416,9 +175490,9 @@ var require_state = __commonJS({
   }
 });
 
-// node_modules/asynckit/lib/terminator.js
+// api-server/node_modules/asynckit/lib/terminator.js
 var require_terminator = __commonJS({
-  "node_modules/asynckit/lib/terminator.js"(exports2, module2) {
+  "api-server/node_modules/asynckit/lib/terminator.js"(exports2, module2) {
     var abort2 = require_abort();
     var async = require_async();
     module2.exports = terminator;
@@ -175433,9 +175507,9 @@ var require_terminator = __commonJS({
   }
 });
 
-// node_modules/asynckit/parallel.js
+// api-server/node_modules/asynckit/parallel.js
 var require_parallel = __commonJS({
-  "node_modules/asynckit/parallel.js"(exports2, module2) {
+  "api-server/node_modules/asynckit/parallel.js"(exports2, module2) {
     var iterate2 = require_iterate();
     var initState = require_state();
     var terminator = require_terminator();
@@ -175460,9 +175534,9 @@ var require_parallel = __commonJS({
   }
 });
 
-// node_modules/asynckit/serialOrdered.js
+// api-server/node_modules/asynckit/serialOrdered.js
 var require_serialOrdered = __commonJS({
-  "node_modules/asynckit/serialOrdered.js"(exports2, module2) {
+  "api-server/node_modules/asynckit/serialOrdered.js"(exports2, module2) {
     var iterate2 = require_iterate();
     var initState = require_state();
     var terminator = require_terminator();
@@ -175494,9 +175568,9 @@ var require_serialOrdered = __commonJS({
   }
 });
 
-// node_modules/asynckit/serial.js
+// api-server/node_modules/asynckit/serial.js
 var require_serial = __commonJS({
-  "node_modules/asynckit/serial.js"(exports2, module2) {
+  "api-server/node_modules/asynckit/serial.js"(exports2, module2) {
     var serialOrdered = require_serialOrdered();
     module2.exports = serial2;
     function serial2(list, iterator2, callback) {
@@ -175505,9 +175579,9 @@ var require_serial = __commonJS({
   }
 });
 
-// node_modules/asynckit/index.js
+// api-server/node_modules/asynckit/index.js
 var require_asynckit = __commonJS({
-  "node_modules/asynckit/index.js"(exports2, module2) {
+  "api-server/node_modules/asynckit/index.js"(exports2, module2) {
     module2.exports = {
       parallel: require_parallel(),
       serial: require_serial(),
@@ -175516,9 +175590,9 @@ var require_asynckit = __commonJS({
   }
 });
 
-// node_modules/has-tostringtag/shams.js
+// api-server/node_modules/has-tostringtag/shams.js
 var require_shams2 = __commonJS({
-  "node_modules/has-tostringtag/shams.js"(exports2, module2) {
+  "api-server/node_modules/has-tostringtag/shams.js"(exports2, module2) {
     "use strict";
     var hasSymbols = require_shams();
     module2.exports = function hasToStringTagShams() {
@@ -175527,9 +175601,9 @@ var require_shams2 = __commonJS({
   }
 });
 
-// node_modules/es-set-tostringtag/index.js
+// api-server/node_modules/es-set-tostringtag/index.js
 var require_es_set_tostringtag = __commonJS({
-  "node_modules/es-set-tostringtag/index.js"(exports2, module2) {
+  "api-server/node_modules/es-set-tostringtag/index.js"(exports2, module2) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var $defineProperty = GetIntrinsic("%Object.defineProperty%", true);
@@ -175559,9 +175633,9 @@ var require_es_set_tostringtag = __commonJS({
   }
 });
 
-// node_modules/form-data/lib/populate.js
+// api-server/node_modules/form-data/lib/populate.js
 var require_populate = __commonJS({
-  "node_modules/form-data/lib/populate.js"(exports2, module2) {
+  "api-server/node_modules/form-data/lib/populate.js"(exports2, module2) {
     "use strict";
     module2.exports = function(dst, src) {
       Object.keys(src).forEach(function(prop) {
@@ -175572,9 +175646,9 @@ var require_populate = __commonJS({
   }
 });
 
-// node_modules/form-data/lib/form_data.js
+// api-server/node_modules/form-data/lib/form_data.js
 var require_form_data = __commonJS({
-  "node_modules/form-data/lib/form_data.js"(exports2, module2) {
+  "api-server/node_modules/form-data/lib/form_data.js"(exports2, module2) {
     "use strict";
     var CombinedStream = require_combined_stream();
     var util6 = __require("util");
@@ -175894,16 +175968,16 @@ var require_form_data = __commonJS({
   }
 });
 
-// node_modules/axios/lib/platform/node/classes/FormData.js
+// api-server/node_modules/axios/lib/platform/node/classes/FormData.js
 var import_form_data, FormData_default;
 var init_FormData = __esm({
-  "node_modules/axios/lib/platform/node/classes/FormData.js"() {
+  "api-server/node_modules/axios/lib/platform/node/classes/FormData.js"() {
     import_form_data = __toESM(require_form_data(), 1);
     FormData_default = import_form_data.default;
   }
 });
 
-// node_modules/axios/lib/helpers/toFormData.js
+// api-server/node_modules/axios/lib/helpers/toFormData.js
 function isVisitable(thing) {
   return utils_default.isPlainObject(thing) || utils_default.isArray(thing);
 }
@@ -176051,7 +176125,7 @@ function toFormData2(obj, formData, options) {
 }
 var DEFAULT_FORM_DATA_MAX_DEPTH, predicates, toFormData_default;
 var init_toFormData = __esm({
-  "node_modules/axios/lib/helpers/toFormData.js"() {
+  "api-server/node_modules/axios/lib/helpers/toFormData.js"() {
     "use strict";
     init_utils8();
     init_AxiosError();
@@ -176064,7 +176138,7 @@ var init_toFormData = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/AxiosURLSearchParams.js
+// api-server/node_modules/axios/lib/helpers/AxiosURLSearchParams.js
 function encode4(str2) {
   const charMap = {
     "!": "%21",
@@ -176084,7 +176158,7 @@ function AxiosURLSearchParams(params, options) {
 }
 var prototype, AxiosURLSearchParams_default;
 var init_AxiosURLSearchParams = __esm({
-  "node_modules/axios/lib/helpers/AxiosURLSearchParams.js"() {
+  "api-server/node_modules/axios/lib/helpers/AxiosURLSearchParams.js"() {
     "use strict";
     init_toFormData();
     prototype = AxiosURLSearchParams.prototype;
@@ -176101,7 +176175,7 @@ var init_AxiosURLSearchParams = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/buildURL.js
+// api-server/node_modules/axios/lib/helpers/buildURL.js
 function encode5(val) {
   return encodeURIComponent(val).replace(/%3A/gi, ":").replace(/%24/g, "$").replace(/%2C/gi, ",").replace(/%20/g, "+");
 }
@@ -176131,17 +176205,17 @@ function buildURL(url2, params, options) {
   return url2;
 }
 var init_buildURL = __esm({
-  "node_modules/axios/lib/helpers/buildURL.js"() {
+  "api-server/node_modules/axios/lib/helpers/buildURL.js"() {
     "use strict";
     init_utils8();
     init_AxiosURLSearchParams();
   }
 });
 
-// node_modules/axios/lib/core/InterceptorManager.js
+// api-server/node_modules/axios/lib/core/InterceptorManager.js
 var InterceptorManager, InterceptorManager_default;
 var init_InterceptorManager = __esm({
-  "node_modules/axios/lib/core/InterceptorManager.js"() {
+  "api-server/node_modules/axios/lib/core/InterceptorManager.js"() {
     "use strict";
     init_utils8();
     InterceptorManager = class {
@@ -176210,10 +176284,10 @@ var init_InterceptorManager = __esm({
   }
 });
 
-// node_modules/axios/lib/defaults/transitional.js
+// api-server/node_modules/axios/lib/defaults/transitional.js
 var transitional_default;
 var init_transitional = __esm({
-  "node_modules/axios/lib/defaults/transitional.js"() {
+  "api-server/node_modules/axios/lib/defaults/transitional.js"() {
     "use strict";
     transitional_default = {
       silentJSONParsing: true,
@@ -176226,21 +176300,21 @@ var init_transitional = __esm({
   }
 });
 
-// node_modules/axios/lib/platform/node/classes/URLSearchParams.js
+// api-server/node_modules/axios/lib/platform/node/classes/URLSearchParams.js
 import url from "url";
 var URLSearchParams_default;
 var init_URLSearchParams = __esm({
-  "node_modules/axios/lib/platform/node/classes/URLSearchParams.js"() {
+  "api-server/node_modules/axios/lib/platform/node/classes/URLSearchParams.js"() {
     "use strict";
     URLSearchParams_default = url.URLSearchParams;
   }
 });
 
-// node_modules/axios/lib/platform/node/index.js
+// api-server/node_modules/axios/lib/platform/node/index.js
 import crypto3 from "crypto";
 var ALPHA, DIGIT, ALPHABET, generateString, node_default;
 var init_node2 = __esm({
-  "node_modules/axios/lib/platform/node/index.js"() {
+  "api-server/node_modules/axios/lib/platform/node/index.js"() {
     init_URLSearchParams();
     init_FormData();
     ALPHA = "abcdefghijklmnopqrstuvwxyz";
@@ -176274,7 +176348,7 @@ var init_node2 = __esm({
   }
 });
 
-// node_modules/axios/lib/platform/common/utils.js
+// api-server/node_modules/axios/lib/platform/common/utils.js
 var utils_exports2 = {};
 __export(utils_exports2, {
   hasBrowserEnv: () => hasBrowserEnv,
@@ -176285,7 +176359,7 @@ __export(utils_exports2, {
 });
 var hasBrowserEnv, _navigator, hasStandardBrowserEnv, hasStandardBrowserWebWorkerEnv, origin;
 var init_utils9 = __esm({
-  "node_modules/axios/lib/platform/common/utils.js"() {
+  "api-server/node_modules/axios/lib/platform/common/utils.js"() {
     hasBrowserEnv = typeof window !== "undefined" && typeof document !== "undefined";
     _navigator = typeof navigator === "object" && navigator || void 0;
     hasStandardBrowserEnv = hasBrowserEnv && (!_navigator || ["ReactNative", "NativeScript", "NS"].indexOf(_navigator.product) < 0);
@@ -176297,10 +176371,10 @@ var init_utils9 = __esm({
   }
 });
 
-// node_modules/axios/lib/platform/index.js
+// api-server/node_modules/axios/lib/platform/index.js
 var platform_default;
 var init_platform = __esm({
-  "node_modules/axios/lib/platform/index.js"() {
+  "api-server/node_modules/axios/lib/platform/index.js"() {
     init_node2();
     init_utils9();
     platform_default = {
@@ -176310,7 +176384,7 @@ var init_platform = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/toURLEncodedForm.js
+// api-server/node_modules/axios/lib/helpers/toURLEncodedForm.js
 function toURLEncodedForm(data, options) {
   return toFormData_default(data, new platform_default.classes.URLSearchParams(), {
     visitor: function(value, key, path7, helpers) {
@@ -176324,7 +176398,7 @@ function toURLEncodedForm(data, options) {
   });
 }
 var init_toURLEncodedForm = __esm({
-  "node_modules/axios/lib/helpers/toURLEncodedForm.js"() {
+  "api-server/node_modules/axios/lib/helpers/toURLEncodedForm.js"() {
     "use strict";
     init_utils8();
     init_toFormData();
@@ -176332,7 +176406,7 @@ var init_toURLEncodedForm = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/formDataToJSON.js
+// api-server/node_modules/axios/lib/helpers/formDataToJSON.js
 function throwIfDepthExceeded(index) {
   if (index > MAX_DEPTH) {
     throw new AxiosError_default(
@@ -176399,7 +176473,7 @@ function formDataToJSON(formData) {
 }
 var MAX_DEPTH, formDataToJSON_default;
 var init_formDataToJSON = __esm({
-  "node_modules/axios/lib/helpers/formDataToJSON.js"() {
+  "api-server/node_modules/axios/lib/helpers/formDataToJSON.js"() {
     "use strict";
     init_utils8();
     init_AxiosError();
@@ -176409,7 +176483,7 @@ var init_formDataToJSON = __esm({
   }
 });
 
-// node_modules/axios/lib/defaults/index.js
+// api-server/node_modules/axios/lib/defaults/index.js
 function stringifySafely(rawValue, parser, encoder) {
   if (utils_default.isString(rawValue)) {
     try {
@@ -176425,7 +176499,7 @@ function stringifySafely(rawValue, parser, encoder) {
 }
 var own, defaults3, defaults_default;
 var init_defaults = __esm({
-  "node_modules/axios/lib/defaults/index.js"() {
+  "api-server/node_modules/axios/lib/defaults/index.js"() {
     "use strict";
     init_utils8();
     init_AxiosError();
@@ -176539,7 +176613,7 @@ var init_defaults = __esm({
   }
 });
 
-// node_modules/axios/lib/core/transformData.js
+// api-server/node_modules/axios/lib/core/transformData.js
 function transformData(fns, response) {
   const config = this || defaults_default;
   const context = response || config;
@@ -176552,7 +176626,7 @@ function transformData(fns, response) {
   return data;
 }
 var init_transformData = __esm({
-  "node_modules/axios/lib/core/transformData.js"() {
+  "api-server/node_modules/axios/lib/core/transformData.js"() {
     "use strict";
     init_utils8();
     init_defaults();
@@ -176560,20 +176634,20 @@ var init_transformData = __esm({
   }
 });
 
-// node_modules/axios/lib/cancel/isCancel.js
+// api-server/node_modules/axios/lib/cancel/isCancel.js
 function isCancel(value) {
   return !!(value && value.__CANCEL__);
 }
 var init_isCancel = __esm({
-  "node_modules/axios/lib/cancel/isCancel.js"() {
+  "api-server/node_modules/axios/lib/cancel/isCancel.js"() {
     "use strict";
   }
 });
 
-// node_modules/axios/lib/cancel/CanceledError.js
+// api-server/node_modules/axios/lib/cancel/CanceledError.js
 var CanceledError, CanceledError_default;
 var init_CanceledError = __esm({
-  "node_modules/axios/lib/cancel/CanceledError.js"() {
+  "api-server/node_modules/axios/lib/cancel/CanceledError.js"() {
     "use strict";
     init_AxiosError();
     CanceledError = class extends AxiosError_default {
@@ -176596,7 +176670,7 @@ var init_CanceledError = __esm({
   }
 });
 
-// node_modules/axios/lib/core/settle.js
+// api-server/node_modules/axios/lib/core/settle.js
 function settle(resolve3, reject2, response) {
   const validateStatus2 = response.config.validateStatus;
   if (!response.status || !validateStatus2 || validateStatus2(response.status)) {
@@ -176612,13 +176686,13 @@ function settle(resolve3, reject2, response) {
   }
 }
 var init_settle = __esm({
-  "node_modules/axios/lib/core/settle.js"() {
+  "api-server/node_modules/axios/lib/core/settle.js"() {
     "use strict";
     init_AxiosError();
   }
 });
 
-// node_modules/axios/lib/helpers/isAbsoluteURL.js
+// api-server/node_modules/axios/lib/helpers/isAbsoluteURL.js
 function isAbsoluteURL2(url2) {
   if (typeof url2 !== "string") {
     return false;
@@ -176626,22 +176700,22 @@ function isAbsoluteURL2(url2) {
   return /^([a-z][a-z\d+\-.]*:)?\/\//i.test(url2);
 }
 var init_isAbsoluteURL = __esm({
-  "node_modules/axios/lib/helpers/isAbsoluteURL.js"() {
+  "api-server/node_modules/axios/lib/helpers/isAbsoluteURL.js"() {
     "use strict";
   }
 });
 
-// node_modules/axios/lib/helpers/combineURLs.js
+// api-server/node_modules/axios/lib/helpers/combineURLs.js
 function combineURLs(baseURL, relativeURL) {
   return relativeURL ? baseURL.replace(/\/?\/$/, "") + "/" + relativeURL.replace(/^\/+/, "") : baseURL;
 }
 var init_combineURLs = __esm({
-  "node_modules/axios/lib/helpers/combineURLs.js"() {
+  "api-server/node_modules/axios/lib/helpers/combineURLs.js"() {
     "use strict";
   }
 });
 
-// node_modules/axios/lib/core/buildFullPath.js
+// api-server/node_modules/axios/lib/core/buildFullPath.js
 function stripLeadingC0ControlOrSpace(url2) {
   let i10 = 0;
   while (i10 < url2.length && url2.charCodeAt(i10) <= 32) {
@@ -176672,7 +176746,7 @@ function buildFullPath(baseURL, requestedURL, allowAbsoluteUrls, config) {
 }
 var malformedHttpProtocol, httpProtocolControlCharacters;
 var init_buildFullPath = __esm({
-  "node_modules/axios/lib/core/buildFullPath.js"() {
+  "api-server/node_modules/axios/lib/core/buildFullPath.js"() {
     "use strict";
     init_AxiosError();
     init_isAbsoluteURL();
@@ -176682,7 +176756,7 @@ var init_buildFullPath = __esm({
   }
 });
 
-// node_modules/proxy-from-env/index.js
+// api-server/node_modules/proxy-from-env/index.js
 function parseUrl(urlString) {
   try {
     return new URL(urlString);
@@ -176742,7 +176816,7 @@ function getEnv2(key) {
 }
 var DEFAULT_PORTS;
 var init_proxy_from_env = __esm({
-  "node_modules/proxy-from-env/index.js"() {
+  "api-server/node_modules/proxy-from-env/index.js"() {
     "use strict";
     DEFAULT_PORTS = {
       ftp: 21,
@@ -176755,9 +176829,9 @@ var init_proxy_from_env = __esm({
   }
 });
 
-// node_modules/agent-base/dist/src/promisify.js
+// api-server/node_modules/agent-base/dist/src/promisify.js
 var require_promisify = __commonJS({
-  "node_modules/agent-base/dist/src/promisify.js"(exports2) {
+  "api-server/node_modules/agent-base/dist/src/promisify.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
     function promisify2(fn3) {
@@ -176777,9 +176851,9 @@ var require_promisify = __commonJS({
   }
 });
 
-// node_modules/agent-base/dist/src/index.js
+// api-server/node_modules/agent-base/dist/src/index.js
 var require_src7 = __commonJS({
-  "node_modules/agent-base/dist/src/index.js"(exports2, module2) {
+  "api-server/node_modules/agent-base/dist/src/index.js"(exports2, module2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -176960,9 +177034,9 @@ var require_src7 = __commonJS({
   }
 });
 
-// node_modules/https-proxy-agent/dist/parse-proxy-response.js
+// api-server/node_modules/https-proxy-agent/dist/parse-proxy-response.js
 var require_parse_proxy_response2 = __commonJS({
-  "node_modules/https-proxy-agent/dist/parse-proxy-response.js"(exports2) {
+  "api-server/node_modules/https-proxy-agent/dist/parse-proxy-response.js"(exports2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -177026,9 +177100,9 @@ var require_parse_proxy_response2 = __commonJS({
   }
 });
 
-// node_modules/https-proxy-agent/dist/agent.js
+// api-server/node_modules/https-proxy-agent/dist/agent.js
 var require_agent = __commonJS({
-  "node_modules/https-proxy-agent/dist/agent.js"(exports2) {
+  "api-server/node_modules/https-proxy-agent/dist/agent.js"(exports2) {
     "use strict";
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P10, generator) {
       function adopt(value) {
@@ -177186,9 +177260,9 @@ var require_agent = __commonJS({
   }
 });
 
-// node_modules/https-proxy-agent/dist/index.js
+// api-server/node_modules/https-proxy-agent/dist/index.js
 var require_dist7 = __commonJS({
-  "node_modules/https-proxy-agent/dist/index.js"(exports2, module2) {
+  "api-server/node_modules/https-proxy-agent/dist/index.js"(exports2, module2) {
     "use strict";
     var __importDefault = exports2 && exports2.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -177205,9 +177279,9 @@ var require_dist7 = __commonJS({
   }
 });
 
-// node_modules/follow-redirects/debug.js
+// api-server/node_modules/follow-redirects/debug.js
 var require_debug = __commonJS({
-  "node_modules/follow-redirects/debug.js"(exports2, module2) {
+  "api-server/node_modules/follow-redirects/debug.js"(exports2, module2) {
     var debug;
     module2.exports = function() {
       if (!debug) {
@@ -177225,9 +177299,9 @@ var require_debug = __commonJS({
   }
 });
 
-// node_modules/follow-redirects/index.js
+// api-server/node_modules/follow-redirects/index.js
 var require_follow_redirects = __commonJS({
-  "node_modules/follow-redirects/index.js"(exports2, module2) {
+  "api-server/node_modules/follow-redirects/index.js"(exports2, module2) {
     var url2 = __require("url");
     var URL2 = url2.URL;
     var http4 = __require("http");
@@ -177736,26 +177810,26 @@ var require_follow_redirects = __commonJS({
   }
 });
 
-// node_modules/axios/lib/env/data.js
+// api-server/node_modules/axios/lib/env/data.js
 var VERSION2;
 var init_data = __esm({
-  "node_modules/axios/lib/env/data.js"() {
+  "api-server/node_modules/axios/lib/env/data.js"() {
     VERSION2 = "1.18.1";
   }
 });
 
-// node_modules/axios/lib/helpers/parseProtocol.js
+// api-server/node_modules/axios/lib/helpers/parseProtocol.js
 function parseProtocol(url2) {
   const match2 = /^([-+\w]{1,25}):(?:\/\/)?/.exec(url2);
   return match2 && match2[1] || "";
 }
 var init_parseProtocol = __esm({
-  "node_modules/axios/lib/helpers/parseProtocol.js"() {
+  "api-server/node_modules/axios/lib/helpers/parseProtocol.js"() {
     "use strict";
   }
 });
 
-// node_modules/axios/lib/helpers/fromDataURI.js
+// api-server/node_modules/axios/lib/helpers/fromDataURI.js
 function fromDataURI(uri, asBlob, options) {
   const _Blob2 = options && options.Blob || platform_default.classes.Blob;
   const protocol = parseProtocol(uri);
@@ -177791,7 +177865,7 @@ function fromDataURI(uri, asBlob, options) {
 }
 var DATA_URL_PATTERN;
 var init_fromDataURI = __esm({
-  "node_modules/axios/lib/helpers/fromDataURI.js"() {
+  "api-server/node_modules/axios/lib/helpers/fromDataURI.js"() {
     "use strict";
     init_AxiosError();
     init_parseProtocol();
@@ -177800,11 +177874,11 @@ var init_fromDataURI = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/AxiosTransformStream.js
+// api-server/node_modules/axios/lib/helpers/AxiosTransformStream.js
 import stream2 from "stream";
 var kInternals, AxiosTransformStream, AxiosTransformStream_default;
 var init_AxiosTransformStream = __esm({
-  "node_modules/axios/lib/helpers/AxiosTransformStream.js"() {
+  "api-server/node_modules/axios/lib/helpers/AxiosTransformStream.js"() {
     "use strict";
     init_utils8();
     kInternals = /* @__PURE__ */ Symbol("internals");
@@ -177930,10 +178004,10 @@ var init_AxiosTransformStream = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/readBlob.js
+// api-server/node_modules/axios/lib/helpers/readBlob.js
 var asyncIterator, readBlob, readBlob_default;
 var init_readBlob = __esm({
-  "node_modules/axios/lib/helpers/readBlob.js"() {
+  "api-server/node_modules/axios/lib/helpers/readBlob.js"() {
     ({ asyncIterator } = Symbol);
     readBlob = async function* (blob) {
       if (blob.stream) {
@@ -177950,12 +178024,12 @@ var init_readBlob = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/formDataToStream.js
+// api-server/node_modules/axios/lib/helpers/formDataToStream.js
 import util3 from "util";
 import { Readable as Readable2 } from "stream";
 var BOUNDARY_ALPHABET, textEncoder, CRLF, CRLF_BYTES, CRLF_BYTES_COUNT, FormDataPart, formDataToStream, formDataToStream_default;
 var init_formDataToStream = __esm({
-  "node_modules/axios/lib/helpers/formDataToStream.js"() {
+  "api-server/node_modules/axios/lib/helpers/formDataToStream.js"() {
     init_utils8();
     init_readBlob();
     init_platform();
@@ -178045,11 +178119,11 @@ var init_formDataToStream = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/ZlibHeaderTransformStream.js
+// api-server/node_modules/axios/lib/helpers/ZlibHeaderTransformStream.js
 import stream3 from "stream";
 var ZlibHeaderTransformStream, ZlibHeaderTransformStream_default;
 var init_ZlibHeaderTransformStream = __esm({
-  "node_modules/axios/lib/helpers/ZlibHeaderTransformStream.js"() {
+  "api-server/node_modules/axios/lib/helpers/ZlibHeaderTransformStream.js"() {
     "use strict";
     ZlibHeaderTransformStream = class extends stream3.Transform {
       __transform(chunk, encoding, callback) {
@@ -178073,12 +178147,12 @@ var init_ZlibHeaderTransformStream = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/Http2Sessions.js
+// api-server/node_modules/axios/lib/helpers/Http2Sessions.js
 import http22 from "http2";
 import util4 from "util";
 var Http2Sessions, Http2Sessions_default;
 var init_Http2Sessions = __esm({
-  "node_modules/axios/lib/helpers/Http2Sessions.js"() {
+  "api-server/node_modules/axios/lib/helpers/Http2Sessions.js"() {
     "use strict";
     Http2Sessions = class {
       constructor() {
@@ -178160,10 +178234,10 @@ var init_Http2Sessions = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/callbackify.js
+// api-server/node_modules/axios/lib/helpers/callbackify.js
 var callbackify, callbackify_default;
 var init_callbackify = __esm({
-  "node_modules/axios/lib/helpers/callbackify.js"() {
+  "api-server/node_modules/axios/lib/helpers/callbackify.js"() {
     init_utils8();
     callbackify = (fn3, reducer) => {
       return utils_default.isAsyncFn(fn3) ? function(...args2) {
@@ -178181,7 +178255,7 @@ var init_callbackify = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/shouldBypassProxy.js
+// api-server/node_modules/axios/lib/helpers/shouldBypassProxy.js
 function shouldBypassProxy(location2) {
   let parsed;
   try {
@@ -178221,7 +178295,7 @@ function shouldBypassProxy(location2) {
 }
 var LOOPBACK_HOSTNAMES, isIPv4Loopback, isIPv6ZeroGroup, isIPv6Unspecified, isIPv6Loopback, isLoopback, DEFAULT_PORTS2, parseNoProxyEntry, IPV4_MAPPED_DOTTED_RE, IPV4_MAPPED_HEX_RE, unmapIPv4MappedIPv6, normalizeNoProxyHost;
 var init_shouldBypassProxy = __esm({
-  "node_modules/axios/lib/helpers/shouldBypassProxy.js"() {
+  "api-server/node_modules/axios/lib/helpers/shouldBypassProxy.js"() {
     LOOPBACK_HOSTNAMES = /* @__PURE__ */ new Set(["localhost", "0.0.0.0"]);
     isIPv4Loopback = (host) => {
       const parts2 = host.split(".");
@@ -178325,7 +178399,7 @@ var init_shouldBypassProxy = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/speedometer.js
+// api-server/node_modules/axios/lib/helpers/speedometer.js
 function speedometer(samplesCount, min) {
   samplesCount = samplesCount || 10;
   const bytes = new Array(samplesCount);
@@ -178361,13 +178435,13 @@ function speedometer(samplesCount, min) {
 }
 var speedometer_default;
 var init_speedometer = __esm({
-  "node_modules/axios/lib/helpers/speedometer.js"() {
+  "api-server/node_modules/axios/lib/helpers/speedometer.js"() {
     "use strict";
     speedometer_default = speedometer;
   }
 });
 
-// node_modules/axios/lib/helpers/throttle.js
+// api-server/node_modules/axios/lib/helpers/throttle.js
 function throttle(fn3, freq) {
   let timestamp2 = 0;
   let threshold = 1e3 / freq;
@@ -178402,15 +178476,15 @@ function throttle(fn3, freq) {
 }
 var throttle_default;
 var init_throttle = __esm({
-  "node_modules/axios/lib/helpers/throttle.js"() {
+  "api-server/node_modules/axios/lib/helpers/throttle.js"() {
     throttle_default = throttle;
   }
 });
 
-// node_modules/axios/lib/helpers/progressEventReducer.js
+// api-server/node_modules/axios/lib/helpers/progressEventReducer.js
 var progressEventReducer, progressEventDecorator, asyncDecorator;
 var init_progressEventReducer = __esm({
-  "node_modules/axios/lib/helpers/progressEventReducer.js"() {
+  "api-server/node_modules/axios/lib/helpers/progressEventReducer.js"() {
     init_speedometer();
     init_throttle();
     init_utils8();
@@ -178456,7 +178530,7 @@ var init_progressEventReducer = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/estimateDataURLDecodedBytes.js
+// api-server/node_modules/axios/lib/helpers/estimateDataURLDecodedBytes.js
 function estimateDataURLDecodedBytes(url2) {
   if (!url2 || typeof url2 !== "string") return 0;
   if (!url2.startsWith("data:")) return 0;
@@ -178530,13 +178604,13 @@ function estimateDataURLDecodedBytes(url2) {
 }
 var isHexDigit, isPercentEncodedByte;
 var init_estimateDataURLDecodedBytes = __esm({
-  "node_modules/axios/lib/helpers/estimateDataURLDecodedBytes.js"() {
+  "api-server/node_modules/axios/lib/helpers/estimateDataURLDecodedBytes.js"() {
     isHexDigit = (charCode) => charCode >= 48 && charCode <= 57 || charCode >= 65 && charCode <= 70 || charCode >= 97 && charCode <= 102;
     isPercentEncodedByte = (str2, i10, len) => i10 + 2 < len && isHexDigit(str2.charCodeAt(i10 + 1)) && isHexDigit(str2.charCodeAt(i10 + 2));
   }
 });
 
-// node_modules/axios/lib/adapters/http.js
+// api-server/node_modules/axios/lib/adapters/http.js
 import http3 from "http";
 import https2 from "https";
 import http23 from "http2";
@@ -178739,7 +178813,7 @@ function setProxy(options, configProxy, location2, isRedirect2, configHttpsAgent
 }
 var import_https_proxy_agent, import_follow_redirects, zlibOptions, brotliOptions, zstdOptions, isBrotliSupported, isZstdSupported, ACCEPT_ENCODING, ACCEPT_ENCODING_WITH_ZSTD, httpFollow, httpsFollow, isHttps, FORM_DATA_CONTENT_HEADERS, kAxiosSocketListener, kAxiosCurrentReq, kAxiosInstalledTunnel, tunnelingAgentCache, tunnelingAgentCacheUser, NODE_NATIVE_ENV_PROXY_SUPPORT, supportedProtocols, decodeURIComponentSafe, flushOnFinish, http2Sessions, isHttpAdapterSupported, wrapAsync, resolveFamily, buildAddressEntry, http2Transport, http_default;
 var init_http = __esm({
-  "node_modules/axios/lib/adapters/http.js"() {
+  "api-server/node_modules/axios/lib/adapters/http.js"() {
     init_utils8();
     init_settle();
     init_buildFullPath();
@@ -179546,10 +179620,10 @@ var init_http = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/isURLSameOrigin.js
+// api-server/node_modules/axios/lib/helpers/isURLSameOrigin.js
 var isURLSameOrigin_default;
 var init_isURLSameOrigin = __esm({
-  "node_modules/axios/lib/helpers/isURLSameOrigin.js"() {
+  "api-server/node_modules/axios/lib/helpers/isURLSameOrigin.js"() {
     init_platform();
     isURLSameOrigin_default = platform_default.hasStandardBrowserEnv ? /* @__PURE__ */ ((origin2, isMSIE) => (url2) => {
       url2 = new URL(url2, platform_default.origin);
@@ -179561,10 +179635,10 @@ var init_isURLSameOrigin = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/cookies.js
+// api-server/node_modules/axios/lib/helpers/cookies.js
 var cookies_default;
 var init_cookies = __esm({
-  "node_modules/axios/lib/helpers/cookies.js"() {
+  "api-server/node_modules/axios/lib/helpers/cookies.js"() {
     init_utils8();
     init_platform();
     cookies_default = platform_default.hasStandardBrowserEnv ? (
@@ -179625,7 +179699,7 @@ var init_cookies = __esm({
   }
 });
 
-// node_modules/axios/lib/core/mergeConfig.js
+// api-server/node_modules/axios/lib/core/mergeConfig.js
 function mergeConfig(config1, config2) {
   config1 = config1 || {};
   config2 = config2 || {};
@@ -179743,7 +179817,7 @@ function mergeConfig(config1, config2) {
 }
 var headersToObject;
 var init_mergeConfig = __esm({
-  "node_modules/axios/lib/core/mergeConfig.js"() {
+  "api-server/node_modules/axios/lib/core/mergeConfig.js"() {
     "use strict";
     init_utils8();
     init_AxiosHeaders();
@@ -179751,7 +179825,7 @@ var init_mergeConfig = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/resolveConfig.js
+// api-server/node_modules/axios/lib/helpers/resolveConfig.js
 function setFormDataHeaders2(headers, formHeaders, policy) {
   if (policy !== "content-only") {
     headers.set(formHeaders);
@@ -179816,7 +179890,7 @@ function resolveConfig(config) {
 }
 var FORM_DATA_CONTENT_HEADERS2, encodeUTF82, resolveConfig_default;
 var init_resolveConfig = __esm({
-  "node_modules/axios/lib/helpers/resolveConfig.js"() {
+  "api-server/node_modules/axios/lib/helpers/resolveConfig.js"() {
     init_platform();
     init_utils8();
     init_AxiosError();
@@ -179835,10 +179909,10 @@ var init_resolveConfig = __esm({
   }
 });
 
-// node_modules/axios/lib/adapters/xhr.js
+// api-server/node_modules/axios/lib/adapters/xhr.js
 var isXHRAdapterSupported, xhr_default;
 var init_xhr = __esm({
-  "node_modules/axios/lib/adapters/xhr.js"() {
+  "api-server/node_modules/axios/lib/adapters/xhr.js"() {
     init_utils8();
     init_settle();
     init_transitional();
@@ -179998,10 +180072,10 @@ var init_xhr = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/composeSignals.js
+// api-server/node_modules/axios/lib/helpers/composeSignals.js
 var composeSignals, composeSignals_default;
 var init_composeSignals = __esm({
-  "node_modules/axios/lib/helpers/composeSignals.js"() {
+  "api-server/node_modules/axios/lib/helpers/composeSignals.js"() {
     init_CanceledError();
     init_AxiosError();
     init_utils8();
@@ -180046,10 +180120,10 @@ var init_composeSignals = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/trackStream.js
+// api-server/node_modules/axios/lib/helpers/trackStream.js
 var streamChunk, readBytes, readStream, trackStream;
 var init_trackStream = __esm({
-  "node_modules/axios/lib/helpers/trackStream.js"() {
+  "api-server/node_modules/axios/lib/helpers/trackStream.js"() {
     streamChunk = function* (chunk, chunkSize) {
       let len = chunk.byteLength;
       if (!chunkSize || len < chunkSize) {
@@ -180131,10 +180205,10 @@ var init_trackStream = __esm({
   }
 });
 
-// node_modules/axios/lib/adapters/fetch.js
+// api-server/node_modules/axios/lib/adapters/fetch.js
 var DEFAULT_CHUNK_SIZE, isFunction2, encodeUTF83, decodeURIComponentSafe2, test, maybeWithAuthCredentials, factory, seedCache, getFetch, adapter;
 var init_fetch = __esm({
-  "node_modules/axios/lib/adapters/fetch.js"() {
+  "api-server/node_modules/axios/lib/adapters/fetch.js"() {
     init_platform();
     init_utils8();
     init_AxiosError();
@@ -180565,7 +180639,7 @@ var init_fetch = __esm({
   }
 });
 
-// node_modules/axios/lib/adapters/adapters.js
+// api-server/node_modules/axios/lib/adapters/adapters.js
 function getAdapter(adapters, config) {
   adapters = utils_default.isArray(adapters) ? adapters : [adapters];
   const { length } = adapters;
@@ -180601,7 +180675,7 @@ function getAdapter(adapters, config) {
 }
 var knownAdapters, renderReason, isResolvedHandle, adapters_default;
 var init_adapters = __esm({
-  "node_modules/axios/lib/adapters/adapters.js"() {
+  "api-server/node_modules/axios/lib/adapters/adapters.js"() {
     init_utils8();
     init_http();
     init_xhr();
@@ -180640,7 +180714,7 @@ var init_adapters = __esm({
   }
 });
 
-// node_modules/axios/lib/core/dispatchRequest.js
+// api-server/node_modules/axios/lib/core/dispatchRequest.js
 function throwIfCancellationRequested(config) {
   if (config.cancelToken) {
     config.cancelToken.throwIfRequested();
@@ -180691,7 +180765,7 @@ function dispatchRequest(config) {
   );
 }
 var init_dispatchRequest = __esm({
-  "node_modules/axios/lib/core/dispatchRequest.js"() {
+  "api-server/node_modules/axios/lib/core/dispatchRequest.js"() {
     "use strict";
     init_transformData();
     init_isCancel();
@@ -180702,7 +180776,7 @@ var init_dispatchRequest = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/validator.js
+// api-server/node_modules/axios/lib/helpers/validator.js
 function assertOptions(options, schema, allowUnknown) {
   if (typeof options !== "object" || options === null) {
     throw new AxiosError_default("options must be an object", AxiosError_default.ERR_BAD_OPTION_VALUE);
@@ -180730,7 +180804,7 @@ function assertOptions(options, schema, allowUnknown) {
 }
 var validators, deprecatedWarnings, validator_default;
 var init_validator = __esm({
-  "node_modules/axios/lib/helpers/validator.js"() {
+  "api-server/node_modules/axios/lib/helpers/validator.js"() {
     "use strict";
     init_data();
     init_AxiosError();
@@ -180777,10 +180851,10 @@ var init_validator = __esm({
   }
 });
 
-// node_modules/axios/lib/core/Axios.js
+// api-server/node_modules/axios/lib/core/Axios.js
 var validators2, Axios, Axios_default;
 var init_Axios = __esm({
-  "node_modules/axios/lib/core/Axios.js"() {
+  "api-server/node_modules/axios/lib/core/Axios.js"() {
     "use strict";
     init_utils8();
     init_buildURL();
@@ -180996,10 +181070,10 @@ var init_Axios = __esm({
   }
 });
 
-// node_modules/axios/lib/cancel/CancelToken.js
+// api-server/node_modules/axios/lib/cancel/CancelToken.js
 var CancelToken, CancelToken_default;
 var init_CancelToken = __esm({
-  "node_modules/axios/lib/cancel/CancelToken.js"() {
+  "api-server/node_modules/axios/lib/cancel/CancelToken.js"() {
     "use strict";
     init_CanceledError();
     CancelToken = class _CancelToken {
@@ -181101,33 +181175,33 @@ var init_CancelToken = __esm({
   }
 });
 
-// node_modules/axios/lib/helpers/spread.js
+// api-server/node_modules/axios/lib/helpers/spread.js
 function spread(callback) {
   return function wrap(arr) {
     return callback.apply(null, arr);
   };
 }
 var init_spread = __esm({
-  "node_modules/axios/lib/helpers/spread.js"() {
+  "api-server/node_modules/axios/lib/helpers/spread.js"() {
     "use strict";
   }
 });
 
-// node_modules/axios/lib/helpers/isAxiosError.js
+// api-server/node_modules/axios/lib/helpers/isAxiosError.js
 function isAxiosError(payload) {
   return utils_default.isObject(payload) && payload.isAxiosError === true;
 }
 var init_isAxiosError = __esm({
-  "node_modules/axios/lib/helpers/isAxiosError.js"() {
+  "api-server/node_modules/axios/lib/helpers/isAxiosError.js"() {
     "use strict";
     init_utils8();
   }
 });
 
-// node_modules/axios/lib/helpers/HttpStatusCode.js
+// api-server/node_modules/axios/lib/helpers/HttpStatusCode.js
 var HttpStatusCode, HttpStatusCode_default;
 var init_HttpStatusCode = __esm({
-  "node_modules/axios/lib/helpers/HttpStatusCode.js"() {
+  "api-server/node_modules/axios/lib/helpers/HttpStatusCode.js"() {
     HttpStatusCode = {
       Continue: 100,
       SwitchingProtocols: 101,
@@ -181206,7 +181280,7 @@ var init_HttpStatusCode = __esm({
   }
 });
 
-// node_modules/axios/lib/axios.js
+// api-server/node_modules/axios/lib/axios.js
 function createInstance(defaultConfig) {
   const context = new Axios_default(defaultConfig);
   const instance2 = bind(Axios_default.prototype.request, context);
@@ -181219,7 +181293,7 @@ function createInstance(defaultConfig) {
 }
 var axios, axios_default;
 var init_axios = __esm({
-  "node_modules/axios/lib/axios.js"() {
+  "api-server/node_modules/axios/lib/axios.js"() {
     "use strict";
     init_utils8();
     init_bind();
@@ -181262,10 +181336,10 @@ var init_axios = __esm({
   }
 });
 
-// node_modules/axios/index.js
+// api-server/node_modules/axios/index.js
 var Axios2, AxiosError2, CanceledError2, isCancel2, CancelToken2, VERSION3, all2, Cancel, isAxiosError2, spread2, toFormData3, AxiosHeaders2, HttpStatusCode2, formToJSON, getAdapter2, mergeConfig2, create;
 var init_axios2 = __esm({
-  "node_modules/axios/index.js"() {
+  "api-server/node_modules/axios/index.js"() {
     init_axios();
     ({
       Axios: Axios2,
@@ -181289,7 +181363,7 @@ var init_axios2 = __esm({
   }
 });
 
-// src/services/whatsappDirectSender.ts
+// api-server/src/services/whatsappDirectSender.ts
 function normalizeWhatsAppNumber(phone) {
   const digits = phone.replace(/\D/g, "");
   if (digits.length === 10) {
@@ -181498,7 +181572,7 @@ async function registrarMensajeSalienteKommo(opts) {
 }
 var WHATSAPP_TOKEN, PHONE_NUMBER_ID, META_API_VERSION, sleep4;
 var init_whatsappDirectSender = __esm({
-  "src/services/whatsappDirectSender.ts"() {
+  "api-server/src/services/whatsappDirectSender.ts"() {
     "use strict";
     init_axios2();
     init_logger3();
@@ -181509,7 +181583,7 @@ var init_whatsappDirectSender = __esm({
   }
 });
 
-// src/services/kommoMirror.ts
+// api-server/src/services/kommoMirror.ts
 async function deliverLucyOutbound(opts) {
   const { subdomain, accessToken, talkId, chatId, whatsappPhone, texto, entityId } = opts;
   const trimmed = stripInternalCrmBlock(texto?.trim() ?? "");
@@ -181687,7 +181761,7 @@ ${preview}`
   );
 }
 var init_kommoMirror = __esm({
-  async "src/services/kommoMirror.ts"() {
+  async "api-server/src/services/kommoMirror.ts"() {
     "use strict";
     init_logger3();
     init_bodasesorAdvisor();
@@ -181697,7 +181771,7 @@ var init_kommoMirror = __esm({
   }
 });
 
-// src/services/incomingLeadRecovery.ts
+// api-server/src/services/incomingLeadRecovery.ts
 var incomingLeadRecovery_exports = {};
 __export(incomingLeadRecovery_exports, {
   isWithinLookback: () => isWithinLookback,
@@ -181901,7 +181975,7 @@ async function recoverStuckIncomingLeads(opts) {
 }
 var MAX_PER_RUN, PAUSE_MS;
 var init_incomingLeadRecovery = __esm({
-  async "src/services/incomingLeadRecovery.ts"() {
+  async "api-server/src/services/incomingLeadRecovery.ts"() {
     "use strict";
     init_logger3();
     init_chat_history();
@@ -181914,7 +181988,7 @@ var init_incomingLeadRecovery = __esm({
   }
 });
 
-// src/middleware/requireAuth.ts
+// api-server/src/middleware/requireAuth.ts
 function requireAuth(req, res, next) {
   const header = req.headers.authorization;
   const bearer2 = header?.startsWith("Bearer ") ? header.slice(7).trim() : null;
@@ -181946,13 +182020,13 @@ function requireRole(...roles) {
   };
 }
 var init_requireAuth = __esm({
-  "src/middleware/requireAuth.ts"() {
+  "api-server/src/middleware/requireAuth.ts"() {
     "use strict";
     init_authJwt();
   }
 });
 
-// src/routes/learning.ts
+// api-server/src/routes/learning.ts
 var learning_exports = {};
 __export(learning_exports, {
   default: () => learning_default,
@@ -181978,7 +182052,7 @@ async function handleLearningCron(req, res) {
 }
 var import_express2, router2, learning_default;
 var init_learning = __esm({
-  async "src/routes/learning.ts"() {
+  async "api-server/src/routes/learning.ts"() {
     "use strict";
     import_express2 = __toESM(require_express2(), 1);
     init_requireAuth();
@@ -182119,7 +182193,7 @@ var init_learning = __esm({
   }
 });
 
-// node_modules/unpdf/dist/pdfjs.mjs
+// api-server/node_modules/unpdf/dist/pdfjs.mjs
 var pdfjs_exports = {};
 __export(pdfjs_exports, {
   AbortException: () => qi,
@@ -186799,7 +186873,7 @@ function O0(t10) {
 }
 var km, p4, ym, jm, Ma, qm, na, hi, ll, Dh, On2, Mh, $s, Hh, Ha, Oh, dn2, Lh, tf, Zt2, Rs, Oa, Nh, Am, Sm, Fr, E3, Et2, zh, fl, Ln2, La, nf, Br2, Uh, Q2, jn2, qn, Rr2, pt2, Rm, rf, Gh, Pm, hl, Mm, Hm, Om, pn2, Wh, $h, ul, te3, Qt2, Vh, _3, ae2, Rt2, tn2, ze2, Xh, of, Nm, _s, lf, ff, Ft2, cf, Fi, sa, uf, Wm, mn2, zn2, nu, Pr2, bf, wf, rg, wn2, dg, ru, pg2, mg, gg, bg, ou, wg, Hn, xg, Ci, Uo, jt2, Rn2, xf, kg, yg, cu, qg, hu, ns, Ag, Sg, yf, pi, mi, Sn2, Re2, Cn2, In2, jf, vf, uu, du, pu, mu, gu, bu, wu, xu, ku, _t2, Cg, Dr, ju, Ig, vu, Tg, kl, Og, Ri, L0, yl, Su, Mr, Gg, jl, Wg, Pn2, $g, ut2, ks, Af, Cu, Hr2, vl, ql, Al, Sl, Cl, Il, Ga, Tl, Tu, wr, Fl, Bl, aa, Eu, Zg, kn2, Wa, eb, tb, nb, sb, ib, ab, rb, ob, lb, Fu, fb, cb, hb, ub, Bu, db2, pb, Ru, _u, mb, gb, Pi, $a, Ps, wb, xb, If, Tf, Lr, Nr2, Hu, Ou, Kn, Mi, Lu, Bb, Ff, gi, zr, Bf, Rf, Ks, Rb, _b, _f, Mb, Pf, Ka, Ds, Nu, Lb, Gu, zb, Ub, Gb, Wb, _l, Pl, Xa, $b, Df, Wu, $u, Mf, Oi, Vu, Vb, Go, Kb, Wo, Hf, Gr, Xb, Yb, Ku, $o, Wr2, Qb, Of, Lf, Nf, Xu, Jb, Zb, $r, ys, zf, sw, el, iw, aw, rw, ow, lw, fw, Ml, Hl, Zu, Vr2, Kr2, cw, Xr2, Ol, hw, uw, dw, pw, Wf, mw, tl, yh, gw, jh, vh, ed, td, Vo, Gn2, xw, nd, kw, ad, qw, bi, fa, Aw, Sw, Tw, md, gd, Xn, Nw, Qr, zw, Uw, bd, Yi, $w, Vw, Kw, Xw, Yw, Qw, Jw, Zw, ex, tx, nx, sx, ix, ax, rx, ox, lx, Jr, Zr2, eo, to2, no, so, io, ao, fx, cx, hx, ux, dx, px, mx, gx, bx, wx, xx, kx, yx, jx, vx, qx, Ax, Cx, Mn2, ws, Ix, ha, yd, jd, Tx, vd, Ex, Fx, Bx, xr, qd, Ad, N0, Rx, Qa, _x, ua, Jf, Px, Sd, Cd, Id, Lx, Nx, zx, Li, mt2, vs, da, pa, ma, ro, Wx, _d, qs, Ys, Vx, Qi, Kx, Pd, Xx, Dd, nl, qr2, nc, zl, Yx, Hd, Ji, Qx, Jx, Zi, t22, n22, Od, ga, oo, ac, Yn, Nd, lo, Ul, i22, zd, cs, ea, a22, Gl, Ud, r22, Wl, Pa, kr, $l, ba, Mt2, Ni, As, Za, Vl, Ms, Js, ee3, Ss, er2, V2, vt2, fo, oc, Wd, wa, Kl, co, ho, lc, Tn2, uo, gn2, tr, wi, Wt2, Ue3, $t2, qt2, po, nr2, fc, Xl, cc, xa, sr2, zi, mo, xi, ki, go, bo, f22, Vt2, dt2, ka, Zs, hc, yi, ei, Qn2, ir, Ui, $d, wo, ji, uc, Vd, Jn, Hs, nn2, Kd, Pe3, xo, ft2, xt2, Os, Kt2, c22, h22, Ee2, p22, g22, Yd, b22, w22, Qd, x22, hs, Jd, k22, Zl, ya, ar2, Xe2, pc, Wi, mc, e1, gc, t1, bc, ko, e0, Cs, yo, jo, wc, xc, n1, X2, R4, kc, ri, Ht2, kt2, Ze2, Ns, sn2, s1, i1, he2, va, s0, q2, A22, S22, C22, I2, T22, y1, E22, F22, B2, R22, Sc, _22, P22, j1, D22, v1, q1, M22, H22, O22, L22, N22, A1, S1, z22, U22, G22, Cc, C1, W22, $22, V22, K22, X22, Y22, Q22, J22, I1, qo, Z22, e9, t9, n9, s9, i9, a9, r9, o9, l9, T1, f9, c9, Ic, h9, u9, d9, p9, m9, g9, b9, E1, w9, x9, k9, Tc, y9, j9, v9, q9, A9, S9, C9, I9, T9, E9, F9, B9, R9, _9, F1, or4, Ko, P9, D9, M9, H9, O9, L9, N9, z9, B1, U9, G9, Ec, W9, $9, V9, K9, X9, Y9, R1, Fc, Q9, J9, Z9, Bc, _1, P1, e3, t3, n32, s32, i32, Rc, a3, _c, r32, z0, D1, o32, l32, re3, f32, c32, h32, u32, d3, p32, m32, g32, b32, w32, x32, k32, y32, j32, v3, q3, A32, S32, C32, I3, T32, E32, F32, B3, R32, _32, P32, D32, M3, H32, O32, L32, N3, z3, U3, G32, W32, $32, V3, K32, X3, Y32, Q3, J3, Z32, e5, t5, n5, s52, i5, a5, r5, o5, l5, f52, c5, h5, u5, d5, p5, m5, g52, b5, w5, x52, k5, y5, j5, v5, q5, A5, S5, C5, I5, T5, E5, F52, B5, R5, _5, P5, D5, M5, H5, O5, L52, N5, z5, U5, G5, W5, $5, V5, K5, X5, Y5, Q5, J5, Z5, e4, t4, n4, s42, i42, a4, r4, o42, l42, f42, c4, h4, u4, d4, p42, m42, g42, b4, w4, x42, k4, y4, j4, v4, q4, A4, S4, C42, I4, T4, E4, F42, B4, R42, _4, P4, D4, M4, H42, O42, U0, Is, L42, N4, z4, U4, G42, W4, $4, V4, K4, X4, Y4, Q4, G0, Pc, J4, Z4, W0, Ot2, e8, t8, n8, s8, i8, a8, r8, o8, l8, f8, c8, h8, u8, d8, p8, m8, g8, b8, w8, x8, k8, y8, j8, v8, $0, q8, A8, V0, S8, C8, K0, I8, T8, X0, E8, f0, F8, B8, R8, _8, P8, H8, us, O8, L8, N8, z8, U8, G8, W8, $8, V8, K8, X8, Y8, Q8, Ar, M1, H1, J8, Z8, e7, Y0, Xo, zs, So, t7, Zn, Gs, n7, s7, i7, O1, a7, r7, Mc, Hc, o7, l7, f7, L1, N1, c7, Co, Oc, h7, u7, d7, lr, p7, m7, g7, b7, w7, Sa, x7, de2, k7, I7, G1, P7, Ca, D7, Nc, W1, zc, $1, M7, H7, V1, yr, O7, L7, K12, X1, Y1, N7, Q1, J1, Gc, U7, c0, an2, ep, e6, t6, n6, s6, i6, a6, r6, o6, l6, f6, c6, h6, ni, u6, Ts, Vc, Kc, ps, vi, Io, et2, gt4, rp, Ia, cn2, To, Yt2, fr, Eo, cr2, Fo, op, u0, Ta, lp, Jc, p0, Bo, g6, qi, rn2, Zc, Ie3, eh, fp, hr, g0, b0, w0, Yo, nh, Ai, Ea, Qo, k0, dp, j0, Ws, v0, A6, mp, kp, Jo, S6, St2, C6, qh, I6, Po, Ah, Si, oi, q0, Zo, We3, T6, qp, Es, ii, Ap, Do, ah, Sp, dr, Cp, Ip, rh, E6, Ep, F6, B6, Q0, Fs, J0, R6, _6, P6, D6, Us, Xi, M6, H6, O6, L6, N6, oh, G6, Fp, W6, S0, on2, Mo, Rp, _p, Pp, $6, Dp, V6, X6, Y6, Q6, J6, Z6, lh, Fn2, fh, sk, ak, rk, Mp, Sh, Hp, Op, fk, Lp, ts, hh, gs, pr2, Np, hk, uk, dk, Wp, jr2, E0, F0, B0, mk, gk, bk, wk, xk, kk, uh, Zp, jk, vk, qk, Ak, Sk, Ck, mr, Tk, gr, Ek, Fk, Bk, br, tm, nm, Rk, sm, ss, _k, Ch, dh, Pk, Ih, yn2, Dk, Mk, vr, am, rm, bs, sl, lm, Hk, Lo, Ok, Fa, Lk, ph, Ut2, Nk, mh, zk, Ba, Uk, Gk, Wk, fm, $k, Vk, gh, Kk, cm, Xk, Yk, Qk, hm, Jk, Zk, bh, um, ey, ty, ny, dm, sy, Z0, M0, bn2, Be2, _a4, pm, wh, iy, xh, ay, Jt2, mm, At2, ry, No, ef, Th, kh, H0, zo, Ra, Eh, Fh, ai, oy, li, xn2, il;
 var init_pdfjs = __esm({
-  "node_modules/unpdf/dist/pdfjs.mjs"() {
+  "api-server/node_modules/unpdf/dist/pdfjs.mjs"() {
     km = Object.defineProperty;
     p4 = (t10, e10) => km(t10, "name", { value: e10, configurable: true });
     ym = Object.defineProperty;
@@ -223682,7 +223756,7 @@ fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
   }
 });
 
-// node_modules/unpdf/dist/index.mjs
+// api-server/node_modules/unpdf/dist/index.mjs
 var dist_exports = {};
 __export(dist_exports, {
   configureUnPDF: () => configureUnPDF,
@@ -224000,7 +224074,7 @@ async function configureUnPDF(options) {
 }
 var resolvedModule, isNode, isBrowser, resolvedCanvasModule, BaseCanvasFactory, DOMCanvasFactory, NodeCanvasFactory, XMP_DATE_PROPERTIES, getMeta, extractText, extractTextItems, extractImages, renderPageAsImage, extractLinks;
 var init_dist3 = __esm({
-  "node_modules/unpdf/dist/index.mjs"() {
+  "api-server/node_modules/unpdf/dist/index.mjs"() {
     isNode = globalThis.process?.release?.name === "node";
     isBrowser = typeof window !== "undefined";
     BaseCanvasFactory = class {
@@ -224097,7 +224171,7 @@ var init_dist3 = __esm({
   }
 });
 
-// node_modules/dotenv/config.js
+// api-server/node_modules/dotenv/config.js
 (function() {
   require_main().config(
     Object.assign(
@@ -224108,10 +224182,10 @@ var init_dist3 = __esm({
   );
 })();
 
-// src/index.ts
+// api-server/src/index.ts
 init_openaiEnv();
 
-// src/lib/kommoEnv.ts
+// api-server/src/lib/kommoEnv.ts
 function getKommoAccessToken() {
   return process.env["KOMMO_ACCESS_TOKEN"]?.trim() || process.env["KOMMO_TOKEN_LARGA_DURACION"]?.trim() || process.env["KOMMO_LONG_LIVED_TOKEN"]?.trim() || "";
 }
@@ -224143,19 +224217,19 @@ function ensureKommoEnv() {
   }
 }
 
-// src/app.ts
+// api-server/src/app.ts
 var import_express13 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
 import path6 from "node:path";
 
-// src/routes/index.ts
+// api-server/src/routes/index.ts
 var import_express12 = __toESM(require_express2(), 1);
 
-// src/routes/health.ts
+// api-server/src/routes/health.ts
 var import_express = __toESM(require_express2(), 1);
 
-// ../lib/api-zod/node_modules/zod/v3/helpers/util.js
+// lib/api-zod/node_modules/zod/v3/helpers/util.js
 var util;
 (function(util6) {
   util6.assertEqual = (_10) => {
@@ -224289,7 +224363,7 @@ var getParsedType = (data) => {
   }
 };
 
-// ../lib/api-zod/node_modules/zod/v3/ZodError.js
+// lib/api-zod/node_modules/zod/v3/ZodError.js
 var ZodIssueCode = util.arrayToEnum([
   "invalid_type",
   "invalid_literal",
@@ -224403,7 +224477,7 @@ ZodError.create = (issues) => {
   return error;
 };
 
-// ../lib/api-zod/node_modules/zod/v3/locales/en.js
+// lib/api-zod/node_modules/zod/v3/locales/en.js
 var errorMap = (issue, _ctx) => {
   let message;
   switch (issue.code) {
@@ -224506,13 +224580,13 @@ var errorMap = (issue, _ctx) => {
 };
 var en_default = errorMap;
 
-// ../lib/api-zod/node_modules/zod/v3/errors.js
+// lib/api-zod/node_modules/zod/v3/errors.js
 var overrideErrorMap = en_default;
 function getErrorMap() {
   return overrideErrorMap;
 }
 
-// ../lib/api-zod/node_modules/zod/v3/helpers/parseUtil.js
+// lib/api-zod/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
   const { data, path: path7, errorMaps, issueData } = params;
   const fullPath = [...path7, ...issueData.path || []];
@@ -224621,14 +224695,14 @@ var isDirty = (x10) => x10.status === "dirty";
 var isValid = (x10) => x10.status === "valid";
 var isAsync = (x10) => typeof Promise !== "undefined" && x10 instanceof Promise;
 
-// ../lib/api-zod/node_modules/zod/v3/helpers/errorUtil.js
+// lib/api-zod/node_modules/zod/v3/helpers/errorUtil.js
 var errorUtil;
 (function(errorUtil3) {
   errorUtil3.errToObj = (message) => typeof message === "string" ? { message } : message || {};
   errorUtil3.toString = (message) => typeof message === "string" ? message : message?.message;
 })(errorUtil || (errorUtil = {}));
 
-// ../lib/api-zod/node_modules/zod/v3/types.js
+// lib/api-zod/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
   constructor(parent, value, path7, key) {
     this._cachedPath = [];
@@ -228041,7 +228115,7 @@ var coerce = {
   date: ((arg) => ZodDate.create({ ...arg, coerce: true }))
 };
 
-// ../lib/api-zod/src/generated/api.ts
+// lib/api-zod/src/generated/api.ts
 var HealthCheckResponse = objectType({
   status: stringType()
 });
@@ -228089,14 +228163,14 @@ var UpdateExampleResponse = objectType({
   createdAt: coerce.date()
 });
 
-// src/routes/health.ts
+// api-server/src/routes/health.ts
 init_openaiEnv();
 init_llmEnv();
 init_llmChat();
 init_imageCompress();
 init_geminiContextCache();
 
-// src/lib/lucyCostControls.ts
+// api-server/src/lib/lucyCostControls.ts
 function isLucyUnifiedLlmTurn() {
   const raw = (process.env["LUCY_UNIFIED_LLM_TURN"] ?? "1").trim().toLowerCase();
   return raw !== "0" && raw !== "false" && raw !== "off";
@@ -228125,19 +228199,19 @@ function lucyCostControlsSummary() {
   };
 }
 
-// src/routes/health.ts
+// api-server/src/routes/health.ts
 init_authJwt();
 init_catalogService();
 
-// src/lib/buildMeta.ts
+// api-server/src/lib/buildMeta.ts
 import { existsSync as existsSync4, readFileSync as readFileSync4 } from "node:fs";
 import { join as join2 } from "node:path";
 
-// src/lib/lucyRelease.ts
+// api-server/src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.57";
+var LUCY_PROMPT_VERSION = "V9.58";
 
-// src/lib/buildMeta.ts
+// api-server/src/lib/buildMeta.ts
 var cached = null;
 function formatBuiltAtDisplay(iso) {
   try {
@@ -228189,13 +228263,13 @@ function getBuildMeta() {
   return cached;
 }
 
-// src/services/lucyInfoStore.ts
+// api-server/src/services/lucyInfoStore.ts
 await init_src2();
 init_drizzle_orm();
 import { existsSync as existsSync6, readFileSync as readFileSync5 } from "node:fs";
 import { join as join4 } from "node:path";
 
-// src/services/lucyInfoSchema.ts
+// api-server/src/services/lucyInfoSchema.ts
 await init_src2();
 init_drizzle_orm();
 init_logger3();
@@ -228225,7 +228299,7 @@ async function ensureLucyInfoSchema() {
   ensured = true;
 }
 
-// src/services/lucyInfoStore.ts
+// api-server/src/services/lucyInfoStore.ts
 init_lucyInfoPriceCache();
 init_logger3();
 function normalizeKind(kind) {
@@ -228536,7 +228610,7 @@ async function buildLucyInfoPromptBlock(opts) {
   return sections.join("\n");
 }
 
-// src/routes/health.ts
+// api-server/src/routes/health.ts
 init_lucyInfoPriceCache();
 var router = (0, import_express.Router)();
 router.get("/healthz", (_req, res) => {
@@ -228640,10 +228714,10 @@ router.get("/health", async (_req, res) => {
 });
 var health_default = router;
 
-// src/routes/kommo.ts
+// api-server/src/routes/kommo.ts
 var import_express3 = __toESM(require_express2(), 1);
 
-// scripts/simulator-auto-client-lib.mjs
+// api-server/scripts/simulator-auto-client-lib.mjs
 var DEFAULT_BASE = process.env.LUCY_SIM_BASE?.replace(/\/$/, "") || process.env.LUCY_PUBLIC_URL?.replace(/\/$/, "") || "https://midnightblue-mosquito-424375.hostingersite.com";
 var CLIENT_MODEL = process.env.LUCY_CLIENT_MODEL ?? "gpt-4o-mini";
 var JUDGE_MODEL = process.env.LUCY_JUDGE_MODEL ?? "gpt-4o-mini";
@@ -229268,7 +229342,7 @@ async function runAllAutoClients(base, options = {}) {
   return { base, at: (/* @__PURE__ */ new Date()).toISOString(), passed, total: results.length, results };
 }
 
-// src/lib/publicUrl.ts
+// api-server/src/lib/publicUrl.ts
 var DEFAULT_PUBLIC_BASE = "https://midnightblue-mosquito-424375.hostingersite.com";
 function resolveLucyPublicBase(req) {
   const fromEnv = process.env.LUCY_PUBLIC_URL?.trim();
@@ -229284,7 +229358,7 @@ function resolveLucyPublicBase(req) {
   return DEFAULT_PUBLIC_BASE;
 }
 
-// src/routes/kommo.ts
+// api-server/src/routes/kommo.ts
 init_openaiEnv();
 init_llmEnv();
 init_llmChat();
@@ -229294,7 +229368,7 @@ init_lucy_flow_guards();
 await init_src2();
 init_drizzle_orm();
 
-// src/services/leadScoring.ts
+// api-server/src/services/leadScoring.ts
 function calculateLeadScore(context) {
   let budgetScore = 0;
   let urgencyScore = 0;
@@ -229534,7 +229608,7 @@ function detectStage(context) {
   return "discovery";
 }
 
-// src/services/intentDetection.ts
+// api-server/src/services/intentDetection.ts
 function detectIntent(text2) {
   const lower2 = text2.toLowerCase();
   const cotizarPatterns = [
@@ -229747,7 +229821,7 @@ function detectObjection(text2) {
   return { hasObjection: false };
 }
 
-// src/services/voiceProcessor.ts
+// api-server/src/services/voiceProcessor.ts
 init_openai();
 init_openaiEnv();
 init_llmChat();
@@ -229959,7 +230033,7 @@ function getVoiceAcknowledgment() {
   return "Dame un segundo, estoy escuchando tu nota de voz\u2026";
 }
 
-// src/services/paymentReceiptCrm.ts
+// api-server/src/services/paymentReceiptCrm.ts
 await init_embudo();
 var FIELD_ANTICIPO = 1049322;
 var FIELD_LIQUIDACION = 1049324;
@@ -230100,11 +230174,11 @@ async function applyPaymentReceiptToLeadUnlocked(opts) {
   return { slot, fieldId, value };
 }
 
-// src/routes/kommo.ts
+// api-server/src/routes/kommo.ts
 init_imageProcessor();
 await init_embudo();
 
-// src/lib/webhookDedup.ts
+// api-server/src/lib/webhookDedup.ts
 var TTL_MS = 24 * 60 * 60 * 1e3;
 var MAX_ENTRIES = 1e4;
 var processedAt = /* @__PURE__ */ new Map();
@@ -230168,7 +230242,7 @@ function isIncomingClientMessage(message) {
   return true;
 }
 
-// src/lib/external-ingest-sanitize.ts
+// api-server/src/lib/external-ingest-sanitize.ts
 init_contact_name();
 init_client_email();
 init_tipoContacto();
@@ -230239,7 +230313,7 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
   return out2;
 }
 
-// src/lucyCrmInvariants.ts
+// api-server/src/lucyCrmInvariants.ts
 init_contact_name();
 init_conversation_understanding();
 function userTextsBlob(userTexts) {
@@ -230408,7 +230482,7 @@ function purgeInvalidNombreInvariantLines(lines) {
   });
 }
 
-// src/services/summaryService.ts
+// api-server/src/services/summaryService.ts
 init_conversation_understanding();
 init_contact_name();
 function isUsableResumenServicio(value) {
@@ -230543,15 +230617,15 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   return lineas.join("\n").slice(0, 8e3);
 }
 
-// src/routes/kommo.ts
+// api-server/src/routes/kommo.ts
 init_contact_name();
 init_client_email();
 
-// src/lucyTurnProcessor.ts
+// api-server/src/lucyTurnProcessor.ts
 init_client_email();
 init_tipoContacto();
 
-// src/lib/proveedorHandoff.ts
+// api-server/src/lib/proveedorHandoff.ts
 function extractEmpresaFromText(text2) {
   if (!text2?.trim()) return null;
   const patterns = [
@@ -230595,13 +230669,13 @@ function scrubClientFieldsForProveedor(extracted) {
   return out2;
 }
 
-// src/lucyTurnProcessor.ts
+// api-server/src/lucyTurnProcessor.ts
 init_modoServicio();
 init_conversation_understanding();
 init_geoResolve();
 init_contact_name();
 
-// src/lucy-prompt.ts
+// api-server/src/lucy-prompt.ts
 init_bodasesorAdvisor();
 var ADVISOR = getAdvisorName();
 var TEAM = advisorLabelForClient();
@@ -230876,7 +230950,7 @@ humano \u2192 pasa tel\xE9fonos de ventas/gerencia. Las im\xE1genes se leen siem
 pero no se responde al cliente.
 `;
 
-// src/services/promptBuilder.ts
+// api-server/src/services/promptBuilder.ts
 init_catalogService();
 init_bodasesorAdvisor();
 function buildStaticSystemPrompt() {
@@ -230996,7 +231070,7 @@ Ofrece propuesta para comparar. M\xE1ximo 2 l\xEDneas.`
   return modules[type] ?? "";
 }
 
-// src/services/lucyRedaction.ts
+// api-server/src/services/lucyRedaction.ts
 init_lucy_flow_guards();
 init_lucy_flow_guards();
 init_serviceKnowledge();
@@ -231253,27 +231327,27 @@ function mergeExtractedPatch(target, patch) {
   }
 }
 
-// src/lucyTurnProcessor.ts
+// api-server/src/lucyTurnProcessor.ts
 init_catalogService();
 init_serviceKnowledge();
 
-// src/lib/training.ts
+// api-server/src/lib/training.ts
 await init_trainingStore();
 
-// src/lucyTurnProcessor.ts
+// api-server/src/lucyTurnProcessor.ts
 init_lucy_flow_guards();
 
-// src/lib/formatForWhatsApp.ts
+// api-server/src/lib/formatForWhatsApp.ts
 function formatForWhatsApp(text2) {
   if (!text2?.trim()) return text2;
   return text2.replace(/\*\*(.+?)\*\*/g, "*$1*").replace(/^#{1,6}\s*/gm, "").replace(/^\s*[-*]\s+/gm, "\u2022 ").replace(/`{1,3}/g, "").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-// src/lucyOutboundPipeline.ts
+// api-server/src/lucyOutboundPipeline.ts
 init_bodasesorAdvisor();
 init_lucy_flow_guards();
 
-// src/lucyOutboundAntiRepeat.ts
+// api-server/src/lucyOutboundAntiRepeat.ts
 init_catalogService();
 init_price_guard();
 init_conversation_understanding();
@@ -231767,7 +231841,7 @@ ${q10}` : display && !q10.includes(display) ? `Perfecto, ${display}. ${q10}` : q
   return { mensaje: mensaje.trim(), applied };
 }
 
-// src/lucyOutboundPipeline.ts
+// api-server/src/lucyOutboundPipeline.ts
 init_conversation_understanding();
 init_serviceKnowledge();
 init_concreteProductQuestion();
@@ -231887,7 +231961,7 @@ ${keepQ}` : ack;
   return formatForWhatsApp(mensaje);
 }
 
-// src/lucyTurnProcessor.ts
+// api-server/src/lucyTurnProcessor.ts
 async function prepareLucyExtraction(input) {
   const { fullHistory, messageText, crmLines, extractFn } = input;
   const extracted = await extractFn(fullHistory, messageText, crmLines.join("\n"));
@@ -232162,11 +232236,11 @@ async function generateLucyOutbound(input) {
   return { mensajeParaCliente, aiResponse };
 }
 
-// src/routes/kommo.ts
+// api-server/src/routes/kommo.ts
 init_conversation_understanding();
 init_whatsappDirectSender();
 
-// src/lib/kommoWebhookParse.ts
+// api-server/src/lib/kommoWebhookParse.ts
 function asRecord(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : null;
 }
@@ -232245,20 +232319,20 @@ function webhookBodyShape(body2) {
   };
 }
 
-// src/routes/kommo.ts
+// api-server/src/routes/kommo.ts
 await init_kommoMirror();
 await init_chatIngest();
 await init_learningSync();
 
-// src/services/knowledgeGapDetector.ts
+// api-server/src/services/knowledgeGapDetector.ts
 init_catalogService();
 init_price_guard();
 
-// src/services/knowledgeGapStore.ts
+// api-server/src/services/knowledgeGapStore.ts
 await init_src2();
 init_drizzle_orm();
 
-// src/services/knowledgeGapSchema.ts
+// api-server/src/services/knowledgeGapSchema.ts
 await init_src2();
 init_drizzle_orm();
 init_logger3();
@@ -232293,7 +232367,7 @@ async function ensureKnowledgeGapSchema() {
   ensured3 = true;
 }
 
-// src/services/knowledgeGapStore.ts
+// api-server/src/services/knowledgeGapStore.ts
 await init_trainingStore();
 init_logger3();
 function rowToDto2(row) {
@@ -232394,7 +232468,7 @@ async function dismissKnowledgeGap(id2, reviewerEmail) {
   return updated.length > 0;
 }
 
-// src/services/knowledgeGapDetector.ts
+// api-server/src/services/knowledgeGapDetector.ts
 init_logger3();
 function inferTopic(message) {
   const t10 = message.trim();
@@ -232457,7 +232531,7 @@ async function recordKnowledgeGapIfNeeded(opts) {
   }
 }
 
-// src/silentWatchCrm.ts
+// api-server/src/silentWatchCrm.ts
 init_lucy_flow_guards();
 init_contact_name();
 init_conversation_understanding();
@@ -232538,7 +232612,7 @@ function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLine
   return customFields.length || payload["name"] ? payload : null;
 }
 
-// src/routes/kommo.ts
+// api-server/src/routes/kommo.ts
 init_bodasesorAdvisor();
 var router3 = (0, import_express3.Router)();
 var openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
@@ -234832,7 +234906,7 @@ router3.post("/kommo/simulator/auto-clients/run", async (req, res) => {
 })();
 var kommo_default = router3;
 
-// src/routes/lucy.ts
+// api-server/src/routes/lucy.ts
 var import_express4 = __toESM(require_express2(), 1);
 var router4 = (0, import_express4.Router)();
 router4.post("/", (_req, res) => {
@@ -234840,7 +234914,7 @@ router4.post("/", (_req, res) => {
 });
 var lucy_default = router4;
 
-// src/routes/examples.ts
+// api-server/src/routes/examples.ts
 var import_express5 = __toESM(require_express2(), 1);
 init_requireAuth();
 await init_trainingStore();
@@ -234907,7 +234981,7 @@ router5.delete("/examples/:id", requireRole("admin", "editor"), async (req, res)
 });
 var examples_default = router5;
 
-// src/routes/analytics.ts
+// api-server/src/routes/analytics.ts
 var import_express6 = __toESM(require_express2(), 1);
 await init_src2();
 init_drizzle_orm();
@@ -235062,7 +235136,7 @@ router6.get("/analytics/stats", async (_req, res) => {
 });
 var analytics_default = router6;
 
-// src/routes/auth.ts
+// api-server/src/routes/auth.ts
 var import_express7 = __toESM(require_express2(), 1);
 await init_src2();
 init_drizzle_orm();
@@ -235159,10 +235233,10 @@ router7.get("/auth/me", async (req, res) => {
 });
 var auth_default = router7;
 
-// src/routes/index.ts
+// api-server/src/routes/index.ts
 await init_learning();
 
-// src/routes/knowledgeGaps.ts
+// api-server/src/routes/knowledgeGaps.ts
 var import_express8 = __toESM(require_express2(), 1);
 var router8 = (0, import_express8.Router)();
 router8.get("/knowledge-gaps", async (req, res) => {
@@ -235216,10 +235290,10 @@ router8.post("/knowledge-gaps/:id/dismiss", async (req, res) => {
 });
 var knowledgeGaps_default = router8;
 
-// src/routes/lucyInfo.ts
+// api-server/src/routes/lucyInfo.ts
 var import_express9 = __toESM(require_express2(), 1);
 
-// src/services/pdfTextExtract.ts
+// api-server/src/services/pdfTextExtract.ts
 function stripPdfNoise(text2) {
   return text2.replace(/\r\n/g, "\n").replace(/\u0000/g, "").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 }
@@ -235248,7 +235322,7 @@ async function extractPlainTextFromPdf(input) {
   return { text: text2, pages };
 }
 
-// src/routes/lucyInfo.ts
+// api-server/src/routes/lucyInfo.ts
 var router9 = (0, import_express9.Router)();
 function mapDoc(row) {
   return {
@@ -235359,7 +235433,7 @@ router9.delete("/lucy-info/documents/:id", async (req, res) => {
 });
 var lucyInfo_default = router9;
 
-// src/routes/catalog.ts
+// api-server/src/routes/catalog.ts
 var import_express10 = __toESM(require_express2(), 1);
 init_requireAuth();
 init_catalogService();
@@ -235400,7 +235474,7 @@ router10.post("/catalog/refresh", requireAuth, async (_req, res) => {
 });
 var catalog_default = router10;
 
-// src/routes/ops.ts
+// api-server/src/routes/ops.ts
 var import_express11 = __toESM(require_express2(), 1);
 init_openaiEnv();
 init_llmEnv();
@@ -235541,7 +235615,7 @@ router11.post("/ops/heal", async (_req, res) => {
 });
 var ops_default = router11;
 
-// src/routes/index.ts
+// api-server/src/routes/index.ts
 var router12 = (0, import_express12.Router)();
 router12.use(health_default);
 router12.use(catalog_default);
@@ -235556,7 +235630,7 @@ router12.use(examples_default);
 router12.use(analytics_default);
 var routes_default = router12;
 
-// src/app.ts
+// api-server/src/app.ts
 init_logger3();
 var app = (0, import_express13.default)();
 var simuladorDir = path6.join(__dirname, "simulador");
@@ -235653,7 +235727,7 @@ app.post("/", (req, _res, next) => {
 app.use("/api", routes_default);
 var app_default = app;
 
-// src/index.ts
+// api-server/src/index.ts
 init_logger3();
 await init_trainingStore();
 await init_learningSchema();

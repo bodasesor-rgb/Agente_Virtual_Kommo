@@ -71796,9 +71796,11 @@ function isMealTimeOnlySchedule(text) {
   }
   return false;
 }
+var CLOCK_AMPM = String.raw`(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)`;
+var CLOCK_TOKEN = String.raw`\d{1,2}(?::\d{2})?`;
 function isSimpleClockTime(text) {
   const t3 = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t3 || t3.length > 50) return false;
+  if (!t3 || t3.length > 70) return false;
   if (MONTH_PATTERN.test(t3)) return false;
   if (/\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
     t3
@@ -71806,7 +71808,10 @@ function isSimpleClockTime(text) {
     return false;
   }
   if (/^(a\s+)?medio\s*d[ií]a$/i.test(t3) || /^a\s+mediod[ií]a$/i.test(t3)) return true;
-  if (/^(?:a\s+las\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)?$/i.test(t3)) {
+  if (new RegExp(
+    String.raw`^(?:a\s+las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t3)) {
     return true;
   }
   if (/^(?:a\s+las\s+)?\d{1,2}(?::\d{2})?\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana)(?:\s*(?:hrs?|horas?))?$/i.test(
@@ -71814,11 +71819,20 @@ function isSimpleClockTime(text) {
   )) {
     return true;
   }
+  if (new RegExp(
+    String.raw`^(?:a\s+)?(?:partir|desde)\s+de\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t3) || new RegExp(
+    String.raw`^desde\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t3)) {
+    return true;
+  }
   return false;
 }
 function isClockTimeOnlySchedule(text) {
   const t3 = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t3 || t3.length > 60) return false;
+  if (!t3 || t3.length > 80) return false;
   if (isSimpleClockTime(t3)) return true;
   if (MONTH_PATTERN.test(t3)) return false;
   if (/\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
@@ -71826,11 +71840,13 @@ function isClockTimeOnlySchedule(text) {
   )) {
     return false;
   }
-  const clock = /^(de\s+)?\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}(?::\d{2})?\s*(?:hrs?|horas?)?$/i.test(
-    t3
-  ) || /^(horario\s*:?\s*)?\d{1,2}:\d{2}\s*(?:a|[-–]|hasta)\s*\d{1,2}:\d{2}\s*(?:hrs?|horas?)?$/i.test(
-    t3
-  );
+  const clock = new RegExp(
+    String.raw`^(?:de\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t3) || new RegExp(
+    String.raw`^(?:horario\s*:?\s*)?${CLOCK_TOKEN}\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t3);
   return clock;
 }
 function looksLikeFechaDiscourseJunk(text) {
@@ -71884,12 +71900,22 @@ function syncLegacyFechaHorarioField(extracted) {
   );
 }
 function normalizeHorarioCapture(text) {
-  return text.replace(/^a\s+las\s+/i, "").trim().slice(0, 80);
+  return text.replace(/^a\s+las\s+/i, "").replace(/^(?:a\s+)?partir\s+de\s+(?:las\s+)?/i, "a partir de las ").replace(/^desde\s+(?:las\s+)?/i, "desde las ").replace(/\s+/g, " ").trim().slice(0, 80);
+}
+function clientDefersHorario(text) {
+  const t3 = (text ?? "").trim();
+  if (!t3) return false;
+  return /\bno\s+(cuento|tengo|tenemos|contamos)\s+con\s+(el\s+)?horario\b/i.test(t3) || /\b(a[uú]n|todav[ií]a)\s+no\s+(tengo|tenemos|cuento|contamos|hay|s[eé])\s+(el\s+)?horario\b/i.test(
+    t3
+  ) || /\bhorario\s+(a[uú]n|todav[ií]a)\s+no\b/i.test(t3) || /\b(sin|no\s+tengo)\s+horario\s+(a[uú]n|definido|por\s+ahora|todav[ií]a)\b/i.test(t3) || /\bno\s+cuento\s+con\s+el\s+horario\b/i.test(t3) || /\bel\s+horario\s+(a[uú]n\s+)?(no\s+lo\s+tengo|est[aá]\s+por\s+definir|pendiente)\b/i.test(t3);
 }
 function parseHorarioFromText(text) {
   const trimmed = text.trim();
   if (!trimmed) return null;
   const clean = trimmed.replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (clientDefersHorario(clean)) {
+    return "Sin definir (pendiente)";
+  }
   if (isClockTimeOnlySchedule(clean)) return normalizeHorarioCapture(clean);
   if (isMealTimeOnlySchedule(clean)) return clean;
   if (isScheduleLabeledClock(clean)) {
@@ -71904,14 +71930,53 @@ function parseHorarioFromText(text) {
   }
   const horarioLabel = clean.match(/\bhorario\s*:?\s*(.+)$/i);
   if (horarioLabel?.[1] && /\d/.test(horarioLabel[1])) {
-    return horarioLabel[1].trim().slice(0, 80);
+    const labeled = horarioLabel[1].trim();
+    if (clientDefersHorario(labeled)) return "Sin definir (pendiente)";
+    return labeled.slice(0, 80);
+  }
+  const rangeAmpm = clean.match(
+    new RegExp(
+      String.raw`\b((?:de\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (rangeAmpm?.[1]) {
+    const frag = rangeAmpm[1].trim();
+    const without = clean.replace(rangeAmpm[1], "").trim();
+    if (!without || parseFechaFromText(without) || MONTH_PATTERN.test(without) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(without) || /\b(evento|ser[ií]a|ser[aá]|es|planean|planeamos|tendr[ií]a|horario)\b/i.test(without)) {
+      return frag.replace(/^de\s+/i, "de ").slice(0, 80);
+    }
+  }
+  const aPartir = clean.match(
+    new RegExp(
+      String.raw`\b((?:a\s+)?partir\s+de\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (aPartir?.[1]) {
+    return normalizeHorarioCapture(aPartir[1]);
+  }
+  const desdeLas = clean.match(
+    new RegExp(
+      String.raw`\b(desde\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (desdeLas?.[1]) {
+    return normalizeHorarioCapture(desdeLas[1]);
   }
   const aLasPhrase = clean.match(
-    /^a\s+las\s+(\d{1,2}(?::\d{2})?(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?)\s*(?:hrs?|horas?)?$/i
+    new RegExp(
+      String.raw`^a\s+las\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?)\s*(?:${CLOCK_AMPM})?$`,
+      "i"
+    )
   );
   if (aLasPhrase?.[1]) return normalizeHorarioCapture(aLasPhrase[0]);
   const atTime = clean.match(
-    /\b(?:a\s+las|a\s+partir\s+de)\s+(\d{1,2}(?::\d{2})?(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?(?:\s*(?:hrs?|horas?|am|pm|a\.?\s*m\.?|p\.?\s*m\.?))?)\b/i
+    new RegExp(
+      String.raw`\b(?:a\s+las|a\s+partir\s+de(?:\s+las)?)\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?(?:\s*(?:${CLOCK_AMPM}))?)`,
+      "i"
+    )
   );
   if (atTime?.[1]) {
     const withoutTime = clean.replace(atTime[0], "").trim();
@@ -71923,7 +71988,10 @@ function parseHorarioFromText(text) {
     }
   }
   const range = clean.match(
-    /\b(\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}(?::\d{2})?\s*(?:hrs?|horas?|am|pm)?)\b/i
+    new RegExp(
+      String.raw`\b(${CLOCK_TOKEN}\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
   );
   if (range?.[1]) {
     const withoutRange = clean.replace(range[1], "").trim();
@@ -71968,6 +72036,8 @@ function isUsableHorarioEvento(value) {
   const t3 = (value ?? "").trim();
   if (!t3) return false;
   if (/^sin\s+definir/i.test(t3)) return true;
+  if (/pendiente/i.test(t3) && /sin\s+definir|por\s+definir/i.test(t3)) return true;
+  if (/\ba\s+partir\s+de\s+(?:las\s+)?\d/i.test(t3)) return true;
   if (isClockTimeOnlySchedule(t3)) return true;
   if (isMealTimeOnlySchedule(t3)) return true;
   if (isSimpleClockTime(t3)) return true;
@@ -80896,18 +80966,22 @@ ${nextQ}`.trim() : `${intro}${ack2}${catalogBlock}`.trim();
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
-    if (!cierreYaEnviado && currentMessage && (lucyAskedHorario || horarioPending || lucyAskedFecha || fechaPending || isScheduleLabeledClock(currentMessage)) && (isClockTimeOnlySchedule(currentMessage) || isMealTimeOnlySchedule(currentMessage) || isScheduleLabeledClock(currentMessage) || !!horarioNow)) {
-      const parsedHorario = (horarioNow ?? parseHorarioFromText(currentMessage ?? "") ?? currentMessage.trim()).replace(/\s+/g, " ").slice(0, 80);
+    const defersHorario = !!(currentMessage && clientDefersHorario(currentMessage));
+    const messageIsPrimarilyHorario = !!currentMessage && (defersHorario || isClockTimeOnlySchedule(currentMessage) || isSimpleClockTime(currentMessage.trim()) || isScheduleLabeledClock(currentMessage) || /^(el\s+evento\s+)?(ser[ií]a|es|ser[aá]|qued[oó]|arranca|inicia|empieza)\b/i.test(
+      currentMessage.trim()
+    ) && !!horarioNow);
+    if (!cierreYaEnviado && currentMessage && (lucyAskedHorario || horarioPending || defersHorario || messageIsPrimarilyHorario || (lucyAskedFecha || fechaPending) && !!horarioNow && messageIsPrimarilyHorario) && (defersHorario || isClockTimeOnlySchedule(currentMessage) || isMealTimeOnlySchedule(currentMessage) || isScheduleLabeledClock(currentMessage) || isSimpleClockTime(currentMessage.trim()) || !!horarioNow)) {
+      const parsedHorario = (defersHorario ? "Sin definir (pendiente)" : horarioNow ?? parseHorarioFromText(currentMessage ?? "") ?? currentMessage.trim()).replace(/\s+/g, " ").slice(0, 80);
       if (!parsedHorario || !isUsableHorarioEvento(parsedHorario)) {
       } else {
         extracted.horario_evento = parsedHorario;
         filledSet.add(CRM_HORARIO_LABEL);
         syncLegacyFechaHorarioField(extracted);
         const display = getDisplayName(extracted, whatsappDisplayName);
-        const ack2 = display ? `Perfecto, ${display}. Anoto el horario *${extracted.horario_evento}*.` : `Perfecto. Anoto el horario *${extracted.horario_evento}*.`;
+        const ack2 = defersHorario ? display ? `Entendido, ${display}. Dejamos el horario pendiente por ahora.` : "Entendido. Dejamos el horario pendiente por ahora." : display ? `Perfecto, ${display}. Anoto el horario *${extracted.horario_evento}*.` : `Perfecto. Anoto el horario *${extracted.horario_evento}*.`;
         const pendingAfterHorario = getNextPendingField(extracted, filledSet);
         const nextQ = pendingAfterHorario ? buildNaturalQuestion(pendingAfterHorario, ctx) : null;
-        log?.info({ entityId, pending: pendingAfterHorario }, "GUARD: A15419 \u2014 horario capturado + embudo");
+        log?.info({ entityId, pending: pendingAfterHorario, defersHorario }, "GUARD: A15419/A15566 \u2014 horario capturado + embudo");
         return normalizeAdvisorReferences(
           nextQ ? `${ack2} ${nextQ}` : ack2,
           extracted.nombre ?? display
@@ -83544,7 +83618,7 @@ function stripImageAnnotation(text) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.57";
+var LUCY_PROMPT_VERSION = "V9.58";
 
 // src/selftest/a15550-smoke.ts
 function emptyExtracted(overrides = {}) {
@@ -83581,7 +83655,7 @@ function runGuards(opts) {
   });
 }
 var brief = "cotizaci\xF3n para una fiesta de cumplea\xF1os el 3 de octubre con 50 personas, en un sal\xF3n en Nezahualc\xF3yotl, el sal\xF3n suministra mesas, sillas, manteler\xEDa, platos, vasos y un mesero";
-assert.equal(LUCY_PROMPT_VERSION, "V9.57");
+assert.equal(LUCY_PROMPT_VERSION, "V9.58");
 assert.ok(isVenueProvidesContext(brief));
 assert.deepEqual(venueProvidedServiceLabels(brief).sort(), ["Meseros", "Mobiliario", "Vajillas"].sort());
 var parsed = parseServicesFromText(brief);
