@@ -3244,6 +3244,82 @@ function normalizeHorarioCapture(text: string): string {
     .slice(0, 80);
 }
 
+/** A15581: "a partir de las cuatro" → "a partir de las 4" antes de parsear reloj. */
+export function normalizeWrittenClockInText(text: string): string {
+  let out = text;
+  for (const [word, digit] of Object.entries(WRITTEN_NUMBERS)) {
+    const n = parseInt(digit, 10);
+    if (n < 1 || n > 12) continue;
+    out = out.replace(
+      new RegExp(
+        String.raw`\b((?:a\s+)?(?:partir\s+de\s+|desde\s+)?(?:las\s+|a\s+las\s+)?)${word}\b`,
+        "gi"
+      ),
+      `$1${digit}`
+    );
+  }
+  return out;
+}
+
+/** A15581: pide dos propuestas (formal + casual). */
+export function clientRequestsDualProposals(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  if (/\b(dos|2)\s+propuestas?\b/i.test(t)) return true;
+  return (
+    /\bpropuesta\b/i.test(t) &&
+    /\b(banquete|formal)\b/i.test(t) &&
+    /\b(casual|relajad)\b/i.test(t)
+  );
+}
+
+export function buildDualProposalAck(displayName?: string | null): string {
+  const who = displayName?.trim();
+  const prefix = who ? `Perfecto, ${who}.` : "Perfecto.";
+  return `${prefix} Anoto *dos propuestas*: banquete *formal* y otra *casual*, para que tu equipo compare.`;
+}
+
+/** A15581: servicio solo en una propuesta ("DJ solo en la casual"). */
+export function clientScopesServiceToProposalOption(
+  message?: string
+): "casual" | "formal" | null {
+  if (!message?.trim()) return null;
+  const t = message.toLowerCase();
+  if (!/\b(solo|solamente|nada\s+m[aá]s|unicamente|únicamente)\b/i.test(t)) return null;
+  if (!/\b(agreg\w*|sum\w*|inclu\w*|pon\w*|anot\w*|dej\w*)\b/i.test(t)) return null;
+  if (/\b(casual|relajad)\b/i.test(t)) return "casual";
+  if (/\b(formal|banquete)\b/i.test(t)) return "formal";
+  return null;
+}
+
+export function buildScopedServiceProposalAck(
+  serviceLabel: string,
+  scope: "casual" | "formal",
+  displayName?: string | null
+): string {
+  const who = displayName?.trim();
+  const prefix = who ? `Perfecto, ${who}.` : "Perfecto.";
+  const other = scope === "casual" ? "formal" : "casual";
+  return `${prefix} Anoto *${serviceLabel}* solo en la propuesta ${scope}; la ${other} va sin ${serviceLabel}.`;
+}
+
+/** A15581: "¿Requiere una hora exacta?" — aclara si basta horario aproximado. */
+export function clientAsksHorarioExactitud(message?: string): boolean {
+  if (!message?.trim()) return false;
+  return (
+    /\b(requiere|necesita|hace\s+falta|piden)\b.{0,40}\b(hora\s+exacta|horario\s+exacto|hora\s+precisa)\b/i.test(
+      message
+    ) || /\b(hora\s+exacta|horario\s+exacto)\b/i.test(message)
+  );
+}
+
+/** A15581: confusión tras hablar de DJ ("¿De algún DJ?"). */
+export function clientAsksDjClarification(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  return /^\s*[¿?]*\s*de\s+alg[uú]n\s+dj\s*[¿?]*\s*$/i.test(t);
+}
+
 /** A15566: cliente pospone horario ("no cuento con el horario aún"). */
 export function clientDefersHorario(text: string | null | undefined): boolean {
   const t = (text ?? "").trim();
@@ -3264,7 +3340,7 @@ export function clientDefersHorario(text: string | null | undefined): boolean {
 export function parseHorarioFromText(text: string): string | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
-  const clean = trimmed.replace(/[.,;:¡!¿?]+$/g, "").trim();
+  const clean = normalizeWrittenClockInText(trimmed.replace(/[.,;:¡!¿?]+$/g, "").trim());
 
   if (clientDefersHorario(clean)) {
     return "Sin definir (pendiente)";

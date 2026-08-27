@@ -249,6 +249,12 @@ import {
   isUsableHorarioEvento,
   parseHorarioFromText,
   clientDefersHorario,
+  clientRequestsDualProposals,
+  buildDualProposalAck,
+  clientScopesServiceToProposalOption,
+  buildScopedServiceProposalAck,
+  clientAsksHorarioExactitud,
+  clientAsksDjClarification,
   CRM_FECHA_LABEL,
   CRM_HORARIO_LABEL,
   LEGACY_CRM_FECHA_HORARIO_LABEL,
@@ -5951,6 +5957,94 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
+  // A15581: "¿Requiere una hora exacta?" — usar horario ya dicho y no repetir pregunta.
+  if (!cierreYaEnviado && currentMessage && clientAsksHorarioExactitud(currentMessage)) {
+    syncHorarioFromHistory(filledSet, extracted, presHistory, currentMessage);
+    const horario = extracted.horario_evento?.trim();
+    if (horario && isUsableHorarioEvento(horario)) {
+      filledSet.add(CRM_HORARIO_LABEL);
+      syncLegacyFechaHorarioField(extracted);
+      const horarioLabel = /\d/.test(horario)
+        ? horario.replace(/^a\s+partir\s+de\s+las\s+/i, "las ")
+        : horario;
+      const ack = `Con ${horarioLabel} es suficiente para la logística.`;
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+      log?.info({ entityId, horario }, "GUARD: A15581 — horario aproximado suficiente");
+      return normalizeAdvisorReferences(
+        nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
+
+  // A15581: dos propuestas formal + casual — anotar y avanzar embudo.
+  if (!cierreYaEnviado && currentMessage && clientRequestsDualProposals(currentMessage)) {
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      "Banquete Formal, Menú Casual",
+      8
+    );
+    if (merged) {
+      extracted.requerimientos_evento = merged;
+      filledSet.add("Requerimientos o servicios");
+    }
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const ack = buildDualProposalAck(display);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    log?.info({ entityId, pending }, "GUARD: A15581 — dos propuestas formal+casual");
+    return normalizeAdvisorReferences(
+      nextQ ? `${ack} ${nextQ}` : ack,
+      extracted.nombre ?? display
+    );
+  }
+
+  // A15581: servicio acotado a una propuesta ("DJ solo en la casual").
+  if (!cierreYaEnviado && currentMessage) {
+    const scope = clientScopesServiceToProposalOption(currentMessage);
+    if (scope) {
+      const service =
+        parsePrimaryService(currentMessage) ||
+        (/\bdj\b/i.test(currentMessage) ? "DJ" : null);
+      if (service) {
+        const scopedNote = `${service} (solo propuesta ${scope})`;
+        const merged = mergeServiceRequirements(
+          extracted.requerimientos_evento,
+          scopedNote,
+          8
+        );
+        if (merged) extracted.requerimientos_evento = merged;
+        filledSet.add("Requerimientos o servicios");
+        const display = getDisplayName(extracted, whatsappDisplayName);
+        const ack = buildScopedServiceProposalAck(service, scope, display);
+        const pending = getNextPendingField(extracted, filledSet);
+        const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+        log?.info({ entityId, service, scope }, "GUARD: A15581 — servicio acotado a propuesta");
+        return normalizeAdvisorReferences(
+          nextQ ? `${ack} ${nextQ}` : ack,
+          extracted.nombre ?? display
+        );
+      }
+    }
+  }
+
+  // A15581: "¿De algún DJ?" — aclarar, no re-anotar ni repetir horario.
+  if (!cierreYaEnviado && currentMessage && clientAsksDjClarification(currentMessage)) {
+    syncHorarioFromHistory(filledSet, extracted, presHistory, currentMessage);
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const ack =
+      `${display ? `Claro, ${display}. ` : "Claro. "}` +
+      "Es nuestro servicio de *DJ* para eventos (equipo, micrófono e iluminación básica); no es un DJ externo que debas conseguir por tu cuenta.";
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    log?.info({ entityId }, "GUARD: A15581 — aclaración DJ");
+    return normalizeAdvisorReferences(
+      nextQ ? `${ack} ${nextQ}` : ack,
+      extracted.nombre ?? display
+    );
+  }
+
   // A15539: "carpa?" / "capra?" mid-flujo → anotar Carpas + embudo (no ignorar).
   if (
     !cierreYaEnviado &&
@@ -6222,6 +6316,22 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         withNext,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
+    }
+    // A15581: DJ / servicios sin Sheet — info consultiva, no "anoto para cotización".
+    if (mentionsNoListedPriceService(currentMessage ?? "")) {
+      const consultative = buildConsultativeNoPriceReply(currentMessage ?? "");
+      if (consultative) {
+        const pending = getNextPendingField(extracted, filledSet);
+        const withNext =
+          pending && pending !== "requerimientos" && pending !== "nombre"
+            ? `${consultative}\n\n${buildNaturalQuestion(pending, ctx)}`
+            : consultative;
+        log?.info({ entityId }, "GUARD: A15581 — inclusión consultiva sin anotar SKU");
+        return normalizeAdvisorReferences(
+          withNext,
+          extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+        );
+      }
     }
     }
   }
@@ -8924,12 +9034,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       (responseLooksLikeGenericCateringMenu(mensaje) || looksLikeServicesMenuDump(mensaje)) &&
       (historyHadGenericMenu ||
         (currentMessage && clientMentionsPistaTarima(currentMessage)) ||
-        (mentionsNoListedPriceService(currentMessage ?? ""))) &&
+        (mentionsNoListedPriceService(currentMessage ?? "") &&
+          !clientAsksInclusion(currentMessage))) &&
       currentMessage?.trim()
     ) {
       if (
         clientMentionsPistaTarima(currentMessage) ||
-        mentionsNoListedPriceService(currentMessage)
+        (mentionsNoListedPriceService(currentMessage) &&
+          !clientAsksInclusion(currentMessage))
       ) {
         const ack = buildGuardServiceAck(currentMessage);
         filledSet.add("Requerimientos o servicios");
@@ -9251,13 +9363,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   );
   if (
     (responseLooksLikeGenericCateringMenu(mensaje) || looksLikeServicesMenuDump(mensaje)) &&
-    (historyHadGenericMenu || (currentMessage && clientMentionsPistaTarima(currentMessage)) || mentionsNoListedPriceService(currentMessage ?? "")) &&
+    (historyHadGenericMenu ||
+      (currentMessage && clientMentionsPistaTarima(currentMessage)) ||
+      (mentionsNoListedPriceService(currentMessage ?? "") &&
+        !clientAsksInclusion(currentMessage))) &&
     currentMessage?.trim()
   ) {
     // Servicio concreto sin precio en Sheet (pista, DJ, etc.) → aceptar-anotar-avanzar, no otro menú.
     if (
       (currentMessage && clientMentionsPistaTarima(currentMessage)) ||
-      mentionsNoListedPriceService(currentMessage ?? "")
+      (mentionsNoListedPriceService(currentMessage ?? "") &&
+        !clientAsksInclusion(currentMessage))
     ) {
       const ack = buildGuardServiceAck(currentMessage);
       filledSet.add("Requerimientos o servicios");
