@@ -15,15 +15,18 @@ import {
   parsePrimaryService,
   parseSalaProductFromText,
   parseSpaceDimensions,
+  clientAsksForCatalog,
 } from "../conversation-understanding.js";
 import {
   buildCatalogInclusionAnswer,
   buildCatalogPriceAnswer,
   buildCatalogServiceDetailAnswer,
+  clientAsksInclusion,
   formatServiceDataForPrompt,
   lookupCatalogServices,
   getCatalogWebHubDeliveryUrl,
 } from "./catalogService.js";
+import { clientAsksPrice } from "../price-guard.js";
 import { buildConcreteProductQuestionReply } from "./concreteProductQuestion.js";
 import { advisorLabelForClient } from "../lib/bodasesorAdvisor.js";
 import { buildLucyInfoLearnedPriceReply } from "./lucyInfoPriceCache.js";
@@ -219,11 +222,20 @@ export function buildGuardServiceAck(query: string): string {
   const label = serviceLabelFromQuery(query);
   const level = classifyServiceKnowledgeLevel(query);
   if (level === 1) {
-    const detail =
-      buildCatalogServiceDetailAnswer(query) ??
-      buildCatalogPriceAnswer(query) ??
-      buildCatalogInclusionAnswer(query);
-    if (detail) return detail;
+    // A15627 / A15547: cotizar o nombrar el servicio ≠ volcar Sheet/PDF con $.
+    // Solo detalle con precios o dump de filas si pidieron precio, inclusiones o catálogo.
+    const wantsDetail =
+      clientAsksPrice(query) ||
+      clientAsksInclusion(query) ||
+      clientAsksForCatalog(query);
+    if (wantsDetail) {
+      const detail =
+        buildCatalogServiceDetailAnswer(query) ??
+        buildCatalogPriceAnswer(query) ??
+        buildCatalogInclusionAnswer(query);
+      if (detail) return detail;
+    }
+    return buildLevel2Ack(label);
   }
   if (level === 3) return buildLevel3Ack(label);
 

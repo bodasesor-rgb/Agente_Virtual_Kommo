@@ -1788,6 +1788,13 @@ const CATALOG_TYPO_RE =
 export function clientAsksForCatalog(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
+  // A15627: "mándame / envíame la cotización" ≠ pedido de catálogo web.
+  if (
+    /\b(m[aá]nda|env[ií]a|pasa|dame|quiero|necesito).{0,40}\b(cotizaci[oó]n|propuesta)\b/i.test(t) &&
+    !CATALOG_TYPO_RE.test(t)
+  ) {
+    return false;
+  }
   // A15286: typo solo ("CTALOGO DE SILLAS") cuenta como pedido de catálogo.
   if (CATALOG_TYPO_RE.test(t) && /\b(de|web|completo|general|sillas?|mesas?|men[uú]|carpas?)\b/i.test(t)) {
     return true;
@@ -1824,6 +1831,18 @@ export function clientAsksForCatalog(message?: string): boolean {
     return true;
   }
   return false;
+}
+
+/** A15627: pide que le envíen la cotización/propuesta (cierre), no el catálogo web. */
+export function clientWantsQuoteDelivery(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  if (CATALOG_TYPO_RE.test(t)) return false;
+  return (
+    /\b(m[aá]nda|env[ií]a|pasa|dame|quiero|necesito).{0,40}\b(cotizaci[oó]n|propuesta)\b/i.test(t) ||
+    /\b(cotizaci[oó]n|propuesta)\s+(por\s+favor|ya|ahora)\b/i.test(t) ||
+    /\bs[ií],?\s*(m[aá]ndame|env[ií]ame).{0,20}\b(cotizaci[oó]n|propuesta)\b/i.test(t)
+  );
 }
 
 /**
@@ -3098,16 +3117,24 @@ export function isSimpleClockTime(text: string | null | undefined): boolean {
     return false;
   }
   if (/^(a\s+)?medio\s*d[ií]a$/i.test(t) || /^a\s+mediod[ií]a$/i.test(t)) return true;
+  // A15627: "a la 1" (singular) / "alrededor de la 1" — español usa "la" con la 1.
+  if (
+    /^(?:alrededor\s+de\s+)?(?:a\s+)?la\s+\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)?$/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
   if (
     new RegExp(
-      String.raw`^(?:a\s+las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+      String.raw`^(?:a\s+las?\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
       "i"
     ).test(t)
   ) {
     return true;
   }
   if (
-    /^(?:a\s+las\s+)?\d{1,2}(?::\d{2})?\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana)(?:\s*(?:hrs?|horas?))?$/i.test(
+    /^(?:a\s+las?\s+)?\d{1,2}(?::\d{2})?\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana)(?:\s*(?:hrs?|horas?))?$/i.test(
       t
     )
   ) {
@@ -3442,15 +3469,33 @@ export function parseHorarioFromText(text: string): string | null {
 
   const aLasPhrase = clean.match(
     new RegExp(
-      String.raw`^a\s+las\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?)\s*(?:${CLOCK_AMPM})?$`,
+      String.raw`^a\s+las?\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?)\s*(?:${CLOCK_AMPM})?$`,
       "i"
     )
   );
   if (aLasPhrase?.[1]) return normalizeHorarioCapture(aLasPhrase[0]);
 
+  // A15627: "a la 1" / "alrededor de la 1" / "Alrededor de la 1, pero…"
+  const alrededorLa = clean.match(
+    new RegExp(
+      String.raw`\b((?:alrededor\s+de\s+)?(?:a\s+)?la\s+${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (alrededorLa?.[1]) {
+    const without = clean.replace(alrededorLa[1], "").trim();
+    if (
+      !without ||
+      without.length < 8 ||
+      /\b(pero|apenas|confirme|detalles?|por\s+favor|horario|evento)\b/i.test(without)
+    ) {
+      return normalizeHorarioCapture(alrededorLa[1]);
+    }
+  }
+
   const atTime = clean.match(
     new RegExp(
-      String.raw`\b(?:a\s+las|a\s+partir\s+de(?:\s+las)?)\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?(?:\s*(?:${CLOCK_AMPM}))?)`,
+      String.raw`\b(?:a\s+las?|a\s+partir\s+de(?:\s+las)?)\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?(?:\s*(?:${CLOCK_AMPM}))?)`,
       "i"
     )
   );
@@ -3540,6 +3585,8 @@ export function isUsableHorarioEvento(value: string | null | undefined): boolean
   if (/pendiente/i.test(t) && /sin\s+definir|por\s+definir/i.test(t)) return true;
   // A15566: frases "a partir de las…" / rangos con am/pm ya normalizados.
   if (/\ba\s+partir\s+de\s+(?:las\s+)?\d/i.test(t)) return true;
+  // A15627: "a la 1" / "alrededor de la 1"
+  if (/\b(?:alrededor\s+de\s+)?(?:a\s+)?la\s+\d{1,2}\b/i.test(t)) return true;
   if (isClockTimeOnlySchedule(t)) return true;
   if (isMealTimeOnlySchedule(t)) return true;
   if (isSimpleClockTime(t)) return true;

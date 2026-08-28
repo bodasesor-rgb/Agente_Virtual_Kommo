@@ -227,6 +227,7 @@ import {
   isGettingReadyContext,
   parseWebLeadBrief,
   clientAsksForCatalog,
+  clientWantsQuoteDelivery,
   clientAsksGenericMenuCatalog,
   clientWantsFullCatalog,
   clientAffirmsCatalogOffer,
@@ -4485,6 +4486,17 @@ export function buildDeferredKnownServiceOffer(opts: {
   }
 
   const detail = buildCatalogServiceDetailAnswer(svc);
+  // A15627: tras el nombre no volcar precios/$ del Sheet; ack + embudo.
+  if (detail && /\$\s*\d/.test(detail)) {
+    const ack = buildGuardServiceAck(svc);
+    let body = `${intro} ${ack}`.trim();
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending && pending !== "requerimientos" && pending !== "nombre") {
+      const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });
+      if (nextQ && !body.includes(nextQ)) body = `${body}\n\n${nextQ}`;
+    }
+    return body;
+  }
   if (!detail || !/nivel|precio|manejamos|\$/i.test(detail)) return null;
 
   const link = buildCatalogWebLinkReply({ query: svc, serviceHint: svc });
@@ -5943,6 +5955,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         isClockTimeOnlySchedule(currentMessage) ||
         isSimpleClockTime(currentMessage.trim()) ||
         isScheduleLabeledClock(currentMessage) ||
+        /^(?:alrededor\s+de\s+)?(?:a\s+)?la\s+\d{1,2}\b/i.test(currentMessage.trim()) ||
         (/^(el\s+evento\s+)?(ser[ií]a|es|ser[aá]|qued[oó]|arranca|inicia|empieza)\b/i.test(
           currentMessage.trim()
         ) &&
@@ -6080,6 +6093,41 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
     log?.info({ entityId }, "GUARD: A15581 — aclaración DJ");
+    return normalizeAdvisorReferences(
+      nextQ ? `${ack} ${nextQ}` : ack,
+      extracted.nombre ?? display
+    );
+  }
+
+  // A15627: "mándame la cotización" → cierre/equipo, NUNCA link genérico de catálogo.
+  if (!cierreYaEnviado && currentMessage && clientWantsQuoteDelivery(currentMessage)) {
+    syncHorarioFromHistory(filledSet, extracted, presHistory, currentMessage);
+    if (!filledSet.has("Presupuesto (MXN)")) {
+      applyPresupuestoWaiver(
+        filledSet,
+        [],
+        collectUserTexts(presHistory, currentMessage),
+        presHistory
+      );
+    }
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    if (isReadyForClosing(filledSet) || isEmailSatisfied(filledSet, extracted)) {
+      const close = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: A15627 — cotización pedida → cierre (no catálogo)");
+      return normalizeAdvisorReferences(close, extracted.nombre ?? display);
+    }
+    const pending = getNextPendingField(extracted, filledSet);
+    const ack = display
+      ? `Claro, ${display}. Nuestro equipo te arma la cotización con lo que ya platicamos.`
+      : "Claro. Nuestro equipo te arma la cotización con lo que ya platicamos.";
+    const nextQ =
+      pending && pending !== "presupuesto"
+        ? buildNaturalQuestion(pending, ctx)
+        : null;
+    log?.info({ entityId, pending }, "GUARD: A15627 — cotización pedida + embudo restante");
     return normalizeAdvisorReferences(
       nextQ ? `${ack} ${nextQ}` : ack,
       extracted.nombre ?? display
@@ -9879,6 +9927,30 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       findMentionedService(currentMessage ?? ""),
     currentMessage,
   });
+
+  // A15627: nunca volcar filas crudas del Sheet/PDF (PZAS $330…) si no pidieron precio.
+  if (
+    !clientAsksPrice(currentMessage) &&
+    !clientAsksInclusion(currentMessage) &&
+    (/Según el cat[aá]logo que ya (tenemos|cargamos)/i.test(mensaje) ||
+      /\bPZAS\b/i.test(mensaje) ||
+      /NO INCLUYE ENV[IÍ]O/i.test(mensaje)) &&
+    /\$\s*\d/.test(mensaje)
+  ) {
+    const svc =
+      parsePrimaryService(currentMessage ?? "") ||
+      findMentionedService(currentMessage ?? "") ||
+      extracted.requerimientos_evento?.split(",")[0]?.trim() ||
+      "ese servicio";
+    const ack = buildGuardServiceAck(svc);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ =
+      pending && pending !== "requerimientos" && pending !== "nombre"
+        ? buildNaturalQuestion(pending, ctx)
+        : null;
+    mensaje = nextQ ? `${ack} ${nextQ}` : ack;
+    log?.info({ entityId }, "GUARD: A15627 — strip dump crudo de precios sin pedir $");
+  }
   if (
     /tenemos dos caminos/i.test(mensaje) &&
     /1\.\s*\*?Solo alimentos/i.test(mensaje) &&
