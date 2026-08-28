@@ -1307,6 +1307,28 @@ export function isPromoTemplateMessage(text: string | null | undefined): boolean
   return true;
 }
 
+/** Línea de mínimo comercial (promo / catálogo), no afluencia del evento. A15620 Mara. */
+export function isPromoMinimumGuestLine(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  if (/\bpedido\s+m[ií]nimo\b/i.test(t)) return true;
+  return (
+    /\bm[ií]nimo\s*:?\s*\d+\s*personas?\b/i.test(t) &&
+    !/\b(ser[ií]an?|somos|invitados?|asistentes?|para\s+\d+\s+personas)\b/i.test(t)
+  );
+}
+
+/** Quita metadatos de plantilla promo antes de parsear fecha/horario/invitados. */
+export function stripPromoTemplateMetadata(text: string): string {
+  return text
+    .replace(/\bpedido\s+m[ií]nimo\s*:?\s*\d+\s*personas?\b/gi, " ")
+    .replace(/\bm[ií]nimo\s*:?\s*\d+\s*personas?\b/gi, " ")
+    .replace(/\bhorario\s+en\s+que\s+env[ií]o\s+este\s+mensaje\s*:?[^\n]*/gi, " ")
+    .replace(/\(?\s*hora\s+ciudad\s+de\s+m[eé]xico\s*\)?/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** Unidades que NO son invitados ("4 salas", "10 mesas", "2 carpas"). */
 const NON_GUEST_UNIT_PATTERN =
   /\b\d+\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?|pantallas?|paquetes?|juegos?|m[oó]dulos?|piezas?)\b/i;
@@ -2727,9 +2749,13 @@ export function buildMultiServiceAck(services: string[]): string {
  * No pide datos; solo confirma que leímos el brief.
  */
 export function buildRichBriefAcknowledgment(text: string): string {
+  if (isPromoTemplateMessage(text)) {
+    return "Claro, te ayudo con la cotización de tu evento.";
+  }
   const services = parseServicesFromText(text);
   const tipo = parseTipoEventoFromText(text);
-  const inv = text.match(/\b(\d{2,4})\s*(?:personas?|invitados?|asistentes?)\b/i);
+  const invParsed = parseInvitadosFromText(text);
+  const inv = invParsed && /^\d+$/.test(invParsed) ? invParsed : null;
   const fecha = text.match(
     /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+\d{4})?)/i
   );
@@ -2748,7 +2774,7 @@ export function buildRichBriefAcknowledgment(text: string): string {
   if (tipo) bits.push(tipo);
   if (fecha) bits.push(fecha[1]!);
   if (zona) bits.push(zona.trim());
-  if (inv) bits.push(`${inv[1]} personas`);
+  if (inv) bits.push(`${inv} personas`);
 
   let ack =
     bits.length > 0
@@ -3340,7 +3366,12 @@ export function clientDefersHorario(text: string | null | undefined): boolean {
 export function parseHorarioFromText(text: string): string | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
-  const clean = normalizeWrittenClockInText(trimmed.replace(/[.,;:¡!¿?]+$/g, "").trim());
+  if (isPromoTemplateMessage(trimmed)) return null;
+  const stripped = stripPromoTemplateMetadata(trimmed);
+  if (!stripped) return null;
+  const clean = normalizeWrittenClockInText(stripped.replace(/[.,;:¡!¿?]+$/g, "").trim());
+  if (!clean) return null;
+  if (/\bhorario\s+en\s+que\s+env[ií]o\b/i.test(trimmed)) return null;
 
   if (clientDefersHorario(clean)) {
     return "Sin definir (pendiente)";
@@ -3755,6 +3786,7 @@ export function recoverInvitadosFromUserTexts(
 ): number | null {
   const merged = [...texts, currentMessage?.trim() ?? ""].filter(Boolean);
   for (let i = merged.length - 1; i >= 0; i--) {
+    if (isPromoTemplateMessage(merged[i]!)) continue;
     const inv = parseInvitadosFromText(merged[i]!, {
       askedInvitados: true,
       mobiliarioRenta: opts?.mobiliarioRenta,
@@ -3780,17 +3812,17 @@ export function parseInvitadosFromText(text: string, opts?: InvitadosParseOption
   const trimmed = text.trim();
   if (!trimmed) return null;
 
-  // A15486: "Pedido mínimo: 35 personas" de plantilla promo ≠ afluencia del evento.
-  if (
-    /\bpedido\s+m[ií]nimo\b/i.test(trimmed) &&
-    !/\b(ser[ií]an?|somos|invitados?|asistentes?|para\s+\d+\s+personas)\b/i.test(
-      trimmed.replace(/\bpedido\s+m[ií]nimo\s*:?\s*\d+\s*personas?\b/gi, " ")
-    )
-  ) {
-    const withoutMin = trimmed.replace(/\bpedido\s+m[ií]nimo\s*:?\s*\d+\s*personas?\b/gi, " ").trim();
-    if (!withoutMin || withoutMin.length < 8) return null;
-    // Seguir parseando el resto del mensaje (p. ej. "50 invitados" real).
-    return parseInvitadosFromText(withoutMin, opts);
+  // A15620 Mara: plantilla promo / pedido mínimo ≠ afluencia del evento.
+  if (isPromoTemplateMessage(trimmed)) return null;
+  if (isPromoMinimumGuestLine(trimmed)) {
+    const withoutMin = stripPromoTemplateMetadata(trimmed);
+    if (
+      withoutMin.length >= 8 &&
+      /\b(ser[ií]an?|somos|invitados?|asistentes?|para\s+\d+\s+personas)\b/i.test(withoutMin)
+    ) {
+      return parseInvitadosFromText(withoutMin, opts);
+    }
+    return null;
   }
 
   // A15509: "Aún no" tras pregunta de invitados = dato pendiente, no re-preguntar.
@@ -5663,22 +5695,25 @@ export function enrichExtractedFromConversation(
   extracted: ExtractedData,
   conversationText: string
 ): void {
+  const promo = isPromoTemplateMessage(conversationText);
+  const parseText = promo ? stripPromoTemplateMetadata(conversationText) : conversationText;
+
   if (!extracted.tipo_evento?.trim()) {
-    const tipo = parseTipoEventoFromText(conversationText);
+    const tipo = parseTipoEventoFromText(parseText);
     if (tipo) extracted.tipo_evento = tipo;
   }
 
-  if (!extracted.fecha_evento?.trim()) {
-    const fecha = parseFechaFromText(conversationText);
+  if (!extracted.fecha_evento?.trim() && !promo) {
+    const fecha = parseFechaFromText(parseText);
     if (fecha) extracted.fecha_evento = fecha;
   }
-  if (!extracted.horario_evento?.trim()) {
+  if (!extracted.horario_evento?.trim() && !promo) {
     const horario = parseHorarioFromText(conversationText);
     if (horario) extracted.horario_evento = horario;
   }
   syncLegacyFechaHorarioField(extracted);
 
-  if (!extracted.num_invitados) {
+  if (!extracted.num_invitados && !promo) {
     const inv = parseInvitadosFromText(conversationText);
     if (inv) extracted.num_invitados = parseInt(inv, 10);
   }

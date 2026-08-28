@@ -777,6 +777,7 @@ export function syncInvitadosFromHistory(
   currentMessage?: string
 ): boolean {
   if (isFieldSatisfied("invitados", filledSet, extracted)) return false;
+  if (currentMessage && isPromoTemplateMessage(currentMessage)) return false;
   const mobiliario =
     /\b(mobiliario|sillas?|crossback|tiffany|periquera)\b/i.test(
       extracted.requerimientos_evento ?? ""
@@ -799,6 +800,7 @@ export function syncHorarioFromHistory(
   currentMessage?: string
 ): boolean {
   if (isFieldSatisfied("horario", filledSet, extracted)) return false;
+  if (currentMessage && isPromoTemplateMessage(currentMessage)) return false;
   const texts = collectUserTexts(history, currentMessage);
   for (let i = texts.length - 1; i >= 0; i--) {
     const h = parseHorarioFromText(texts[i]!);
@@ -810,6 +812,33 @@ export function syncHorarioFromHistory(
     }
   }
   return false;
+}
+
+/** A15620 Mara: plantilla promo — no conservar pedido mínimo / hora de envío como datos del evento. */
+function clearPromoTemplateMisextracts(
+  extracted: ExtractedData,
+  filledSet: Set<string>,
+  message: string | undefined
+): void {
+  if (!message?.trim() || !isPromoTemplateMessage(message)) return;
+
+  const parsedInv = parseInvitadosFromText(message);
+  if (extracted.num_invitados != null && (!parsedInv || !/^\d+$/.test(parsedInv))) {
+    extracted.num_invitados = null;
+    filledSet.delete("Número de invitados");
+  }
+
+  if (/\bhorario\s+en\s+que\s+env[ií]o\b/i.test(message)) {
+    if (extracted.horario_evento) {
+      extracted.horario_evento = null;
+      filledSet.delete(CRM_HORARIO_LABEL);
+    }
+    if (extracted.fecha_evento) {
+      extracted.fecha_evento = null;
+      filledSet.delete(CRM_FECHA_LABEL);
+    }
+    syncLegacyFechaHorarioField(extracted);
+  }
 }
 
 function blockResolvedInvitadosAsk(
@@ -1178,14 +1207,15 @@ export function buildLocationAnswer(): string {
 
 /** Pitch / menú de comida italiana (A15302: barra italiana → pastas/pizzas, no bebidas). */
 export function buildItalianFoodPitch(message?: string): string {
-  const inv = message?.match(/(\d+)\s*(?:personas?|invitados?)/i);
+  const invN = message ? parseInvitadosFromText(message) : null;
+  const inv = invN && /^\d+$/.test(invN) ? invN : null;
   const asksBarra = /\bbarra\b/i.test(message ?? "");
   if (asksBarra) {
     return buildProgressiveOptionsMenu("barra_alimentos", message ?? "barra italiana");
   }
   let pitch =
     "Para temática italiana manejamos *barra de pastas y ensaladas*, *barra de pizzas*, antipasti y estaciones italianas";
-  if (inv) pitch += ` para ${inv[1]} personas`;
+  if (inv) pitch += ` para ${inv} personas`;
   return `${pitch}. ¿Te late más pastas, pizzas, o te detallo ambas?`;
 }
 
@@ -2677,6 +2707,11 @@ export function parseNombreFromCrmLines(mergedLines: string[]): string | null {
   return sanitizeCrmNombre(raw) ?? sanitizeDisplayName(raw);
 }
 
+function guestCountFromUserText(text: string): string | null {
+  const inv = parseInvitadosFromText(text);
+  return inv && /^\d+$/.test(inv) ? inv : null;
+}
+
 /** Reconocimiento breve del primer mensaje del cliente (sin pedir otros datos). */
 export function buildOpeningAcknowledgment(
   history: OpenAI.Chat.ChatCompletionMessageParam[],
@@ -2685,6 +2720,11 @@ export function buildOpeningAcknowledgment(
   const texts = collectUserTexts(history, currentMessage);
   const userText = texts[texts.length - 1] ?? texts.join(" ");
   const t = userText.toLowerCase();
+
+  // A15620 Mara: plantilla promo — no mencionar pedido mínimo como invitados.
+  if (isPromoTemplateMessage(userText)) {
+    return "Claro, te ayudo con la cotización de tu evento.";
+  }
 
   // RFQ largo (Alejandra / B2B): reconocer fecha, zona, menús y paquete completo.
   if (isRichQuoteBrief(userText)) {
@@ -2698,26 +2738,26 @@ export function buildOpeningAcknowledgment(
   }
 
   if (/taquiza|tacos/.test(t)) {
-    const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
+    const inv = guestCountFromUserText(userText);
     const zona = userText.match(/\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,24})/i);
     const fecha = userText.match(
       /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))/i
     );
     let ack = "Te ayudo con la taquiza";
-    if (inv) ack += ` para ${inv[1]} personas`;
+    if (inv) ack += ` para ${inv} personas`;
     if (zona) ack += ` en ${zona[1].trim()}`;
     if (fecha) ack += ` el ${fecha[1]}`;
     return `${ack}.`;
   }
 
   if (/\bboda\b/.test(t)) {
-    const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
+    const inv = guestCountFromUserText(userText);
     const fecha = userText.match(
       /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))/i
     );
     let ack = "Te ayudo con la cotización para tu boda";
     if (fecha) ack += ` del ${fecha[1]}`;
-    if (inv) ack += ` para ${inv[1]} personas`;
+    if (inv) ack += ` para ${inv} personas`;
     return `${ack}.`;
   }
 
@@ -2765,10 +2805,10 @@ export function buildOpeningAcknowledgment(
       if (short.length > 3) return `Vi tu solicitud de ${short}.`;
     }
     const tipo = parseTipoEventoFromText(userText);
-    const inv = userText.match(/para\s+(\d+)\s*(?:personas?|invitados?)/i);
+    const inv = guestCountFromUserText(userText);
     if (tipo) {
       let ack = `Vi tu solicitud para ${tipo}`;
-      if (inv) ack += ` para ${inv[1]} personas`;
+      if (inv) ack += ` para ${inv} personas`;
       return `${ack}.`;
     }
     return "Vi los datos de tu evento en la solicitud.";
@@ -2781,9 +2821,9 @@ export function buildOpeningAcknowledgment(
     return "Te ayudo con la renta de mesas, sillas y mobiliario.";
   }
   if (/banquete/.test(t)) {
-    const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
+    const inv = guestCountFromUserText(userText);
     return inv
-      ? `Te ayudo con el banquete para ${inv[1]} personas.`
+      ? `Te ayudo con el banquete para ${inv} personas.`
       : "Con gusto te ayudo con información de banquetes.";
   }
   if (/kosher/.test(t)) return "Sí tenemos opciones kosher.";
@@ -2794,9 +2834,9 @@ export function buildOpeningAcknowledgment(
     return "Claro, te ayudo con pista de baile o tarima para tu evento.";
   }
   if (/expo|stand\s+de\s+caf[eé]|feria|congreso/i.test(t)) {
-    const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
+    const inv = guestCountFromUserText(userText);
     return inv
-      ? `Te ayudo con el stand de café para tu expo (${inv[1]} personas).`
+      ? `Te ayudo con el stand de café para tu expo (${inv} personas).`
       : "Te ayudo con el stand de café para tu expo.";
   }
   if (/italian|italia|toscana|toscano|mafia\s+italiana|men[uú]\s+italiano|pastas?|pizzas?|antipasti/i.test(t)) {
@@ -4968,6 +5008,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   syncFilledFromExtracted(filledSet, extracted);
   syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage);
   syncHorarioFromHistory(filledSet, extracted, presHistory, currentMessage);
+  clearPromoTemplateMisextracts(extracted, filledSet, currentMessage);
   // A15443: "hora de comida/fomida" nunca es ciudad ni fecha completa.
   if (
     extracted.direccion_evento &&
