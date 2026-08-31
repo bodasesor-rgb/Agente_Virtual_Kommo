@@ -319,6 +319,11 @@ const TIPO_EVENTO_PATTERNS: Array<[RegExp, string]> = [
   [/\bcarne\s+asada\b/i, "carne asada"],
   [/\bposada\b/i, "posada"],
   [/\bcena\s+navide[nñ]a\b/i, "cena navideña"],
+  // A15642: "Es una comida para el sábado…" = tipo de evento (no catering).
+  [
+    /\bes\s+una\s+comida\b|\bcomida\s+para\s+(el\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+)/i,
+    "comida",
+  ],
   // A14988 Ernesto: concierto es tipo de evento (no servicio).
   [/\bconciertos?\b/i, "concierto"],
   // A15205 Mariel: campamento / concentración deportiva.
@@ -805,10 +810,40 @@ function hasSpecificFoodService(text: string): boolean {
   );
 }
 
+/**
+ * A15642: "Es una comida para el sábado 12 de septiembre" describe el *tipo* de evento
+ * (una comida / almuerzo), NO un pedido de catering/alimentos.
+ */
+export function isEventTypeMealPhrase(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  // Pedido explícito de catering/alimentos → no es solo tipo de evento.
+  if (
+    /\b(cotizar|quiero|necesito|busco|me\s+interesa)\b.{0,30}\b(comida|alimentos?|catering|banquete)\b/i.test(
+      t
+    ) ||
+    /\b(catering|banquete|taquiza|barra\s+de|alimentos?)\b/i.test(t)
+  ) {
+    return false;
+  }
+  if (/\bes\s+una\s+comida\b/i.test(t)) return true;
+  if (
+    /\b(ser[aá]|ser[ií]a|es)\s+(una\s+)?comida\s+(para|el|del)\b/i.test(t)
+  ) {
+    return true;
+  }
+  // "comida para el sábado / 12 de septiembre" sin verbo de cotizar.
+  return /\bcomida\s+para\s+(el\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+\w+)/i.test(
+    t
+  );
+}
+
 /** Término general de comida sin servicio concreto — indagar, no asumir. */
 export function isVagueFoodTerm(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
+  // A15642: "Es una comida para el sábado…" = tipo de evento, no catering.
+  if (isEventTypeMealPhrase(t)) return false;
   // A15539: "comida a las 2:00" / "cocktail a las 12" = horario, no menú vago.
   if (isScheduleLabeledClock(t)) return false;
   // A15295: "no quiero alimentos/comida" ≠ pedir menú vago.
@@ -1214,6 +1249,8 @@ export function clientSoftDeclinesLead(message?: string | null): boolean {
 /** Cliente pregunta catering o comida (mapear a opciones de alimentos del catálogo). */
 export function clientMentionsCatering(message?: string): boolean {
   if (!message?.trim()) return false;
+  // A15642: "comida para el sábado" describe el tipo de evento, no pide catering.
+  if (isEventTypeMealPhrase(message)) return false;
   const t = message.toLowerCase();
   return (
     /\bcatering\b/i.test(t) ||
@@ -1227,9 +1264,9 @@ export function clientMentionsCatering(message?: string): boolean {
     /\bbarra\s+de\s+(sushi|pizzas?|alimentos|bebidas?|crepas?|pastas?|mariscos?)\b/i.test(t) ||
     /\b(sushi|poke(\s*bowl)?)\b/i.test(t) ||
     /\b(busco|necesito|quiero|cotizar|interesa)\s+(cotizar\s+)?(comida|alimentos?|men[uú])\b/i.test(t) ||
-    /\bcomida\s+para\b/i.test(t) ||
+    (/\bcomida\s+para\b/i.test(t) && !isEventTypeMealPhrase(message)) ||
     /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) ||
-    /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t)
+    (/\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t) && !isEventTypeMealPhrase(message))
   );
 }
 

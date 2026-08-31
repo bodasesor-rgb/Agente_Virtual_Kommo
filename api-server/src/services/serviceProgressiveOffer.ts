@@ -527,11 +527,21 @@ export function buildCateringCasualMenu(): string {
 
 export function isMobiliarioPieceMenuReply(text: string | null | undefined): boolean {
   if (!text?.trim()) return false;
+  // A15642: a veces el encabezado se corta y quedan solo viñetas Mesas/Sillas/Periqueras.
+  if (
+    /^[•*\-]\s*Mesas\b/im.test(text) &&
+    /\bSillas\b/i.test(text) &&
+    /\bPeriqueras\b/i.test(text)
+  ) {
+    return true;
+  }
   return (
-    /contamos con \*mobiliario\*|en \*mobiliario\* manejamos/i.test(text) &&
+    /contamos con \*mobiliario\*|en \*mobiliario\* manejamos|s[ií],?\s+contamos con \*mobiliario\*/i.test(
+      text
+    ) &&
     /\bmesas\b/i.test(text) &&
     /\bsillas\b/i.test(text) &&
-    /qu[eé] es lo que buscas|qu[eé] pieza|dime qu[eé]/i.test(text)
+    /qu[eé] es lo que buscas|qu[eé] pieza|dime qu[eé]|Periqueras/i.test(text)
   );
 }
 

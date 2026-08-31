@@ -222,6 +222,7 @@ import {
   shouldReplaceCrmDireccion,
   recoverClienteNombreFromHistory,
   isVagueFoodTerm,
+  isEventTypeMealPhrase,
   needsAlimentosTipoClarification,
   clientAsksForFoodMenu,
   isGettingReadyContext,
@@ -6134,6 +6135,32 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
   }
 
+  // A15642: "Es una comida para el sábado 12…" → tipo + fecha, NO menú de catering.
+  if (!cierreYaEnviado && currentMessage && isEventTypeMealPhrase(currentMessage)) {
+    const tipo = parseTipoEventoFromText(currentMessage) || "comida";
+    extracted.tipo_evento = tipo;
+    filledSet.add("Tipo de evento");
+    const fecha = parseFechaFromText(currentMessage);
+    if (fecha && isUsableFechaEvento(fecha)) {
+      extracted.fecha_evento = fecha;
+      filledSet.add(CRM_FECHA_LABEL);
+      syncLegacyFechaHorarioField(extracted);
+    }
+    // Si el CRM ya trae mobiliario, no empujar alimentos.
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const fechaLabel = extracted.fecha_evento?.trim();
+    const ack = display
+      ? `Perfecto, ${display}. Anoto que es una *comida*${fechaLabel ? ` el *${fechaLabel}*` : ""}.`
+      : `Perfecto. Anoto que es una *comida*${fechaLabel ? ` el *${fechaLabel}*` : ""}.`;
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    log?.info({ entityId, tipo, fecha: fechaLabel }, "GUARD: A15642 — comida = tipo de evento");
+    return normalizeAdvisorReferences(
+      nextQ ? `${ack} ${nextQ}` : ack,
+      extracted.nombre ?? display
+    );
+  }
+
   // A15539: "carpa?" / "capra?" mid-flujo → anotar Carpas + embudo (no ignorar).
   if (
     !cierreYaEnviado &&
@@ -7423,13 +7450,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (
     allowSalesReplyOverride &&
     (isVagueFoodTerm(currentMessage) || clientAsksForFoodMenu(currentMessage)) &&
+    !isEventTypeMealPhrase(currentMessage) &&
     !clientDeclinesAnyService(currentMessage) &&
     !clientAsksForRecommendations(currentMessage) &&
+    // A15642: si ya cotizan mobiliario/mesas/sillas, no reabrir menú de alimentos.
+    !/\b(mobiliario|mesas?|sillas?|periqueras?|plato\s+trinche|vajillas?)\b/i.test(
+      `${extracted.requerimientos_evento ?? ""} ${collectUserTexts(presHistory).join(" ")}`
+    ) &&
     // A15212: si ya hay SKU concreto (Puestos/Banquete/…), no reabrir banquete/taquiza/brunch.
     !preferPrimaryCatalogService(
       parseServicesFromText(extracted.requerimientos_evento ?? "")
     )?.match(
-      /Puestos|Banquete|Taquiza|Coffee|Barra de|Bocadillo|Canap|Parrillada|Paella|Desayuno|Mesa de/i
+      /Puestos|Banquete|Taquiza|Coffee|Barra de|Bocadillo|Canap|Parrillada|Paella|Desayuno|Mesa de|Mobiliario/i
     )
   ) {
     // A15302: capturar tipo ("Mi cumpleaños") del mismo mensaje del menú.
@@ -8081,15 +8113,22 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       log?.info({ entityId }, "GUARD: eligió catering casual → menú estaciones");
     }
   } else if (
-    // V8.92 / A15165: menú de piezas mobiliario → modelos (también post-cierre).
+    // V8.92 / A15165 / A15642: menú de piezas mobiliario → modelos (también post-cierre).
+    // Incluye "Mesas, sillas, plato trinche" aunque Lucy haya abierto menú de alimentos por error.
     allowSalesReplyOverride &&
     !shouldSkipSalesMenuForConcreteQuestion(currentMessage) &&
     !clientAsksForCatalog(currentMessage) &&
+    !isEventTypeMealPhrase(currentMessage) &&
     (historyOfferedMobiliarioPieceMenu(presHistory) ||
-      /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio\b/i.test(currentMessage ?? "")) &&
+      historyOfferedAlimentosModoMenu(presHistory) ||
+      /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio|\bmesas?\b|\bplato\s+trinche|\bvajillas?\b/i.test(
+        currentMessage ?? ""
+      )) &&
     currentMessage?.trim() &&
     (parseMobiliarioPieceChoice(currentMessage) ||
+      isTablewareRequestText(currentMessage) ||
       /\b(modelos?\s+de\s+)?sillas?\b/i.test(currentMessage ?? "") ||
+      /\bmesas?\b/i.test(currentMessage ?? "") ||
       /\bmobiliario|mobilairio\b/i.test(currentMessage ?? ""))
   ) {
     const piece =
@@ -8100,32 +8139,62 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           ? "mesas"
           : "mobiliario");
     filledSet.add("Requerimientos o servicios");
+    // A15642: "Mesas, sillas, plato trinche" → anotar todo y avanzar, no otro menú de modelos.
+    const multiPieces =
+      (/\bmesas?\b/i.test(currentMessage ?? "") ? 1 : 0) +
+        (/\bsillas?\b/i.test(currentMessage ?? "") ? 1 : 0) +
+        (/\bperiqueras?\b/i.test(currentMessage ?? "") ? 1 : 0) +
+        (isTablewareRequestText(currentMessage) ? 1 : 0) >=
+      2;
+    const reqBlob = multiPieces
+      ? currentMessage!
+      : piece === "mobiliario"
+        ? "Mobiliario"
+        : isTablewareRequestText(currentMessage)
+          ? `${piece}, plato trinche`
+          : `Mobiliario: ${piece}`;
     const merged = mergeServiceRequirements(
       extracted.requerimientos_evento,
-      piece === "mobiliario" ? "Mobiliario" : `Mobiliario: ${piece}`,
-      6
+      reqBlob,
+      8
     );
     if (merged) extracted.requerimientos_evento = merged;
-    const body =
-      piece === "mobiliario"
-        ? buildProgressiveOptionsMenu("mobiliario")
-        : buildMobiliarioPieceFollowUp(piece);
-    const catalogUrl =
-      getCatalogWebUrlForQuery("mesas y sillas") ||
-      getCatalogWebHubDeliveryUrl();
-    const withLink =
-      catalogUrl && !/bodasesor\.com\/catalogos/i.test(body)
-        ? `${body}\n\nCatálogo de mesas y sillas:\n${catalogUrl}`
-        : body;
-    mensaje = mergeWithPendingQuestion(
-      `${pickTransition(presHistory)} ${withLink}`,
-      filledSet,
-      extracted,
-      ctx
-    );
-    appliedSalesReply = true;
-    appliedDirectReply = true;
-    log?.info({ entityId, piece }, "GUARD: mobiliario/sillas → menú de modelos + catálogo");
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    if (multiPieces || (historyOfferedAlimentosModoMenu(presHistory) && piece !== "mobiliario")) {
+      const ack = display
+        ? `Perfecto, ${display}. Anoto *mesas, sillas*${isTablewareRequestText(currentMessage) ? " y *plato trinche*" : ""} para tu cotización.`
+        : `Perfecto. Anoto *mesas, sillas*${isTablewareRequestText(currentMessage) ? " y *plato trinche*" : ""} para tu cotización.`;
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ =
+        pending && pending !== "requerimientos"
+          ? buildNaturalQuestion(pending, ctx)
+          : null;
+      mensaje = nextQ ? `${ack} ${nextQ}` : ack;
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId, piece, multiPieces }, "GUARD: A15642 — mobiliario listado → embudo");
+    } else {
+      const body =
+        piece === "mobiliario"
+          ? buildProgressiveOptionsMenu("mobiliario")
+          : buildMobiliarioPieceFollowUp(piece);
+      const catalogUrl =
+        getCatalogWebUrlForQuery("mesas y sillas") ||
+        getCatalogWebHubDeliveryUrl();
+      const withLink =
+        catalogUrl && !/bodasesor\.com\/catalogos/i.test(body)
+          ? `${body}\n\nCatálogo de mesas y sillas:\n${catalogUrl}`
+          : body;
+      mensaje = mergeWithPendingQuestion(
+        `${pickTransition(presHistory)} ${withLink}`,
+        filledSet,
+        extracted,
+        ctx
+      );
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId, piece }, "GUARD: mobiliario/sillas → menú de modelos + catálogo");
+    }
   } else if (
     allowSalesReplyOverride &&
     !cierreYaEnviado &&
@@ -9917,6 +9986,44 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       }
       log?.info({ entityId, label }, "GUARD: A15443 — reunión de N años ≠ XV");
     }
+  }
+
+  // A15642: si el outbound quedó en menú de alimentos pero el cliente pide mobiliario / tipo comida-evento, corregir.
+  if (
+    isAlimentosModoMenuReply(mensaje) &&
+    currentMessage &&
+    (isEventTypeMealPhrase(currentMessage) ||
+      (/\b(mesas?|sillas?|plato\s+trinche|mobiliario)\b/i.test(currentMessage) &&
+        !/\b(banquete|taquiza|catering|alimentos?|barra\s+de)\b/i.test(currentMessage)))
+  ) {
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    if (isEventTypeMealPhrase(currentMessage)) {
+      const tipo = parseTipoEventoFromText(currentMessage) || "comida";
+      extracted.tipo_evento = tipo;
+      filledSet.add("Tipo de evento");
+      const fecha = parseFechaFromText(currentMessage);
+      if (fecha && isUsableFechaEvento(fecha)) {
+        extracted.fecha_evento = fecha;
+        filledSet.add(CRM_FECHA_LABEL);
+        syncLegacyFechaHorarioField(extracted);
+      }
+    }
+    if (/\b(mesas?|sillas?|plato\s+trinche)\b/i.test(currentMessage)) {
+      const merged = mergeServiceRequirements(
+        extracted.requerimientos_evento,
+        currentMessage,
+        8
+      );
+      if (merged) {
+        extracted.requerimientos_evento = merged;
+        filledSet.add("Requerimientos o servicios");
+      }
+    }
+    const pending = getNextPendingField(extracted, filledSet);
+    const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    mensaje = nextQ ? `${ack} ${nextQ}` : ack;
+    log?.info({ entityId }, "GUARD: A15642 — reemplazó menú alimentos indebido");
   }
 
   // A15443: "dos caminos" incompleto (solo opción 1) → menú completo solo vs completo.
