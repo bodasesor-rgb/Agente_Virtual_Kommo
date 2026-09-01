@@ -6101,7 +6101,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   // A15627: "mándame la cotización" → cierre/equipo, NUNCA link genérico de catálogo.
-  if (!cierreYaEnviado && currentMessage && clientWantsQuoteDelivery(currentMessage)) {
+  if (
+    !cierreYaEnviado &&
+    currentMessage &&
+    clientWantsQuoteDelivery(currentMessage) &&
+    conversationAlreadyStarted(filledSet, presHistory)
+  ) {
     syncHorarioFromHistory(filledSet, extracted, presHistory, currentMessage);
     if (!filledSet.has("Presupuesto (MXN)")) {
       applyPresupuestoWaiver(

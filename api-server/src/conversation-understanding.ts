@@ -1875,8 +1875,26 @@ export function clientWantsQuoteDelivery(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.trim();
   if (CATALOG_TYPO_RE.test(t)) return false;
+
+  const hasDeliveryVerb =
+    /\b(m[aá]nda|env[ií]a|pasa|dame)\b/i.test(t) ||
+    /\b(cotizaci[oó]n|propuesta)\s+(por\s+favor|ya|ahora)\b/i.test(t) ||
+    /\bs[ií],?\s*(m[aá]ndame|env[ií]ame)/i.test(t);
+
+  // A15707: "Quiero hacer una cotización de sushi…" = inicio, no pedido de envío.
+  if (
+    !hasDeliveryVerb &&
+    (/\b(quiero|necesito|busco|me\s+interesa)\s+(hacer|una|un|cotizar)\b/i.test(t) ||
+      (isQuoteIntentMessage(t) &&
+        (/\b(hacer\s+una?\s+)?cotiz/i.test(t) ||
+          /\bpara\s+\d+\s+personas?\b/i.test(t) ||
+          parseServicesFromText(t).length > 0)))
+  ) {
+    return false;
+  }
+
   return (
-    /\b(m[aá]nda|env[ií]a|pasa|dame|quiero|necesito).{0,40}\b(cotizaci[oó]n|propuesta)\b/i.test(t) ||
+    /\b(m[aá]nda|env[ií]a|pasa|dame).{0,40}\b(cotizaci[oó]n|propuesta)\b/i.test(t) ||
     /\b(cotizaci[oó]n|propuesta)\s+(por\s+favor|ya|ahora)\b/i.test(t) ||
     /\bs[ií],?\s*(m[aá]ndame|env[ií]ame).{0,20}\b(cotizaci[oó]n|propuesta)\b/i.test(t)
   );

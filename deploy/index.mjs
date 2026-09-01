@@ -131636,7 +131636,11 @@ function clientWantsQuoteDelivery(message) {
   if (!message?.trim()) return false;
   const t4 = message.trim();
   if (CATALOG_TYPO_RE.test(t4)) return false;
-  return /\b(m[aá]nda|env[ií]a|pasa|dame|quiero|necesito).{0,40}\b(cotizaci[oó]n|propuesta)\b/i.test(t4) || /\b(cotizaci[oó]n|propuesta)\s+(por\s+favor|ya|ahora)\b/i.test(t4) || /\bs[ií],?\s*(m[aá]ndame|env[ií]ame).{0,20}\b(cotizaci[oó]n|propuesta)\b/i.test(t4);
+  const hasDeliveryVerb = /\b(m[aá]nda|env[ií]a|pasa|dame)\b/i.test(t4) || /\b(cotizaci[oó]n|propuesta)\s+(por\s+favor|ya|ahora)\b/i.test(t4) || /\bs[ií],?\s*(m[aá]ndame|env[ií]ame)/i.test(t4);
+  if (!hasDeliveryVerb && (/\b(quiero|necesito|busco|me\s+interesa)\s+(hacer|una|un|cotizar)\b/i.test(t4) || isQuoteIntentMessage(t4) && (/\b(hacer\s+una?\s+)?cotiz/i.test(t4) || /\bpara\s+\d+\s+personas?\b/i.test(t4) || parseServicesFromText(t4).length > 0))) {
+    return false;
+  }
+  return /\b(m[aá]nda|env[ií]a|pasa|dame).{0,40}\b(cotizaci[oó]n|propuesta)\b/i.test(t4) || /\b(cotizaci[oó]n|propuesta)\s+(por\s+favor|ya|ahora)\b/i.test(t4) || /\bs[ií],?\s*(m[aá]ndame|env[ií]ame).{0,20}\b(cotizaci[oó]n|propuesta)\b/i.test(t4);
 }
 function clientAsksGenericMenuCatalog(message) {
   if (!message?.trim()) return false;
@@ -162766,7 +162770,7 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
       extracted.nombre ?? display
     );
   }
-  if (!cierreYaEnviado && currentMessage && clientWantsQuoteDelivery(currentMessage)) {
+  if (!cierreYaEnviado && currentMessage && clientWantsQuoteDelivery(currentMessage) && conversationAlreadyStarted(filledSet, presHistory)) {
     syncHorarioFromHistory(filledSet, extracted, presHistory, currentMessage);
     if (!filledSet.has("Presupuesto (MXN)")) {
       applyPresupuestoWaiver(
@@ -224634,7 +224638,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.63";
+var LUCY_PROMPT_VERSION = "V9.64";
 
 // src/lib/buildMeta.ts
 var cached = null;
