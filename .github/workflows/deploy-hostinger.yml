@@ -32,6 +32,16 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Build deploy bundle from source (V9.x)
+        run: |
+          cp package.json package.production.json.bak
+          cp package.development.json package.json
+          npm install
+          npm run build:source
+          mv package.production.json.bak package.json
+          echo "deploy/build-meta.json:"
+          cat deploy/build-meta.json
+
       - name: Comprobar bundle y fecha de build
         run: |
           if [ ! -f deploy/build-meta.json ]; then
