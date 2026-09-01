@@ -9393,6 +9393,31 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
 
+  // A15701: si el cliente ya dio ciudad (p. ej. Puerto Vallarta), no rotar variantes de zona.
+  if (
+    mensajeAsksForField(mensaje, "zona") &&
+    !isFieldSatisfied("zona", filledSet, extracted) &&
+    currentMessage
+  ) {
+    const zonaNow = parseZonaFromText(currentMessage);
+    if (zonaNow && isUsableDireccionEvento(zonaNow)) {
+      extracted.direccion_evento =
+        mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
+      filledSet.add("Lugar/dirección del evento");
+      const nombre = getDisplayName(extracted, whatsappDisplayName);
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+      mensaje = [
+        nombre ? `Perfecto, ${nombre}.` : "Perfecto.",
+        `Anoto la ubicación en *${extracted.direccion_evento}*.`,
+        nextQ,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      log?.info({ entityId, zonaNow }, "GUARD: A15701 — ciudad capturada, no repetir zona");
+    }
+  }
+
   // No pisar una respuesta de catálogo (Incluye / niveles / precios / entretenimiento) solo para variar la zona.
   if (
     mensajeAsksForField(mensaje, "zona") &&
