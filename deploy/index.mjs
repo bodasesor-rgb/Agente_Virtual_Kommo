@@ -163517,7 +163517,7 @@ ${nextQ}` : ""}`.trim();
         ""
       );
     }
-    mensaje = nextQ ? `${nameAck} ${nextQ}`.trim() : `${nameAck} \xBFEn qu\xE9 te puedo ayudar para tu evento?`;
+    mensaje = nextQ ? stripRepeatLucyIntro(`${nameAck} ${nextQ}`.trim(), presHistory, true) : stripRepeatLucyIntro(`${nameAck} \xBFEn qu\xE9 te puedo ayudar para tu evento?`, presHistory, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: nombre capturado \u2014 embudo sin cat\xE1logo/PDF");
   } else if (deferredKnownServiceOffer) {
@@ -164561,6 +164561,11 @@ ${nextQ}`;
         presHistory
       );
     }
+    mensaje = stripRepeatLucyIntro(
+      mensaje,
+      presHistory,
+      conversationAlreadyStarted(filledSet, presHistory)
+    );
     return normalizeAdvisorReferences(
       mensaje,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
@@ -164889,7 +164894,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}` : fromCatalog;
         log?.info({ entityId }, "GUARD: precio del Sheet en rama de ventas");
       }
     }
-    if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted)) {
+    if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !lucyHasPresented(presHistory) && !isFieldSatisfied("nombre", filledSet, extracted)) {
       if (!/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
         mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
       }
@@ -164911,11 +164916,16 @@ ${pickVariant("nombre", history, entityId)}`.trim();
         presHistory
       );
     }
+    mensaje = stripRepeatLucyIntro(
+      mensaje,
+      presHistory,
+      conversationAlreadyStarted(filledSet, presHistory)
+    );
     return normalizeAdvisorReferences(mensaje, extracted.nombre);
   }
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
   const presHistoryForIntro = input.presentationHistory ?? history;
-  const isOpeningTurn = (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) && !conversationAlreadyStarted(filledSet, presHistoryForIntro);
+  const isOpeningTurn = (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) && !conversationAlreadyStarted(filledSet, presHistoryForIntro) && !lucyHasPresented(presHistoryForIntro);
   if (isOpeningTurn && !/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
     mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
     log?.info({ entityId }, "GUARD: presentaci\xF3n Lucy a\xF1adida al primer mensaje");
@@ -224638,7 +224648,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.64";
+var LUCY_PROMPT_VERSION = "V9.65";
 
 // src/lib/buildMeta.ts
 var cached = null;

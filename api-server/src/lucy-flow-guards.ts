@@ -7235,8 +7235,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       );
     }
     mensaje = nextQ
-      ? `${nameAck} ${nextQ}`.trim()
-      : `${nameAck} ¿En qué te puedo ayudar para tu evento?`;
+      ? stripRepeatLucyIntro(`${nameAck} ${nextQ}`.trim(), presHistory, true)
+      : stripRepeatLucyIntro(`${nameAck} ¿En qué te puedo ayudar para tu evento?`, presHistory, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: nombre capturado — embudo sin catálogo/PDF");
   } else if (deferredKnownServiceOffer) {
@@ -8727,6 +8727,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         presHistory
       );
     }
+    mensaje = stripRepeatLucyIntro(
+      mensaje,
+      presHistory,
+      conversationAlreadyStarted(filledSet, presHistory)
+    );
     return normalizeAdvisorReferences(
       mensaje,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
@@ -9231,6 +9236,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     if (
       (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
       !conversationAlreadyStarted(filledSet, presHistory) &&
+      !lucyHasPresented(presHistory) &&
       !isFieldSatisfied("nombre", filledSet, extracted)
     ) {
       if (!/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
@@ -9255,6 +9261,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         presHistory
       );
     }
+    mensaje = stripRepeatLucyIntro(
+      mensaje,
+      presHistory,
+      conversationAlreadyStarted(filledSet, presHistory)
+    );
     return normalizeAdvisorReferences(mensaje, extracted.nombre);
   }
 
@@ -9263,7 +9274,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const presHistoryForIntro = input.presentationHistory ?? history;
   const isOpeningTurn =
     (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) &&
-    !conversationAlreadyStarted(filledSet, presHistoryForIntro);
+    !conversationAlreadyStarted(filledSet, presHistoryForIntro) &&
+    !lucyHasPresented(presHistoryForIntro);
   if (
     isOpeningTurn &&
     !/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)

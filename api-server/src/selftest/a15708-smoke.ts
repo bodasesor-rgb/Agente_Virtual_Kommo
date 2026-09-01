@@ -1,11 +1,8 @@
 /**
- * Smoke A15707 danymelgozza — primer mensaje con cotización ≠ "ya platicamos".
- * node ./scripts/run-a15707-smoke.mjs
+ * Smoke A15708 Itzel — no repetir presentación Lucy tras dar el nombre.
+ * node ./scripts/run-a15708-smoke.mjs
  */
 import assert from "node:assert/strict";
-import {
-  clientWantsQuoteDelivery,
-} from "../conversation-understanding.js";
 import { applyLucyMessageGuards } from "../lucy-flow-guards.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
@@ -36,7 +33,6 @@ function runGuards(opts: {
   filledSet: Set<string>;
   currentMessage: string;
   history?: { role: string; content: string }[];
-  forceFirstPresentation?: boolean;
 }): string {
   return applyLucyMessageGuards({
     aiResponse: opts.aiResponse,
@@ -46,34 +42,32 @@ function runGuards(opts: {
     cierreYaEnviado: false,
     history: (opts.history ?? []) as never,
     currentMessage: opts.currentMessage,
-    whatsappDisplayName: "danymelgozza",
+    whatsappDisplayName: "Itzel Mendoza",
     buildClosing: () => "Listo, el equipo arma tu cotización.",
     emailRefusedThisTurn: false,
-    forceFirstPresentation: opts.forceFirstPresentation,
   });
 }
 
-const opening =
-  "Quiero hacer una cotización de barra de sushis y nigiris para 25 personas";
-
 assert.equal(LUCY_PROMPT_VERSION, "V9.65");
-assert.equal(clientWantsQuoteDelivery(opening), false);
-assert.ok(clientWantsQuoteDelivery("Si, mándame la cotización por favor, y te confirmo todo"));
+
+const firstIntro =
+  "¡Hola! Buen día. Soy Lucy, agente virtual de Bodasesor. Claro que te ayudo con tu evento. ¿Me regalas tu nombre?";
 
 const reply = runGuards({
   aiResponse:
-    "Claro, danymelgozza. Nuestro equipo te arma la cotización con lo que ya platicamos. ¿Me regalas tu nombre?",
-  extracted: emptyExtracted({
-    requerimientos_evento: "Barra de sushi",
-    num_invitados: 25,
-  }),
-  filledSet: new Set(["Requerimientos o servicios", "Número de invitados"]),
-  currentMessage: opening,
-  forceFirstPresentation: true,
-  history: [],
+    "¡Hola! Buen día. Soy Lucy, agente virtual de Bodasesor. ¡Mucho gusto, Itzel! ¿Qué tipo de evento tienes en mente celebrar?",
+  extracted: emptyExtracted({ nombre: "Itzel Mendoza" }),
+  filledSet: new Set(["Nombre del cliente"]),
+  currentMessage: "itzel mendoza",
+  history: [
+    { role: "user", content: "Hola, me gustaría cotizar un evento" },
+    { role: "assistant", content: firstIntro },
+  ],
 });
 
-assert.ok(!/ya platicamos/i.test(reply), reply.slice(0, 500));
-assert.ok(/sushi|nigiri|25|personas|nombre|Lucy|Bodasesor/i.test(reply), reply.slice(0, 500));
+assert.ok(/Mucho gusto,\s*Itzel/i.test(reply), reply.slice(0, 400));
+assert.ok(!/Soy Lucy.*Soy Lucy/is.test(reply), reply.slice(0, 400));
+assert.equal((reply.match(/Soy Lucy/gi) ?? []).length, 0, reply.slice(0, 400));
+assert.ok(/tipo de evento/i.test(reply), reply.slice(0, 400));
 
-console.log("A15707 smoke OK —", LUCY_PROMPT_VERSION);
+console.log("A15708 smoke OK —", LUCY_PROMPT_VERSION);
