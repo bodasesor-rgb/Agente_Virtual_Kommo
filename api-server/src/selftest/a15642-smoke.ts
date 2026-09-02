@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Smoke A15642 Paloma — comida = tipo evento; mesas/sillas ≠ menú alimentos.
  * node ./scripts/run-a15642-smoke.mjs
  */
@@ -55,7 +55,7 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.66");
+assert.equal(LUCY_PROMPT_VERSION, "V9.67");
 
 assert.ok(isEventTypeMealPhrase("Es una comida para el sábado 12 de septiembre"));
 assert.ok(!isVagueFoodTerm("Es una comida para el sábado 12 de septiembre"));

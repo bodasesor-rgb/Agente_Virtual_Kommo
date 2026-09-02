@@ -29,7 +29,7 @@ import {
   isMobiliarioRentalPedido,
   needsModoServicioClarification,
 } from "./modoServicio.js";
-import { normalizeAdvisorReferences, advisorLabelForClient, stripInternalCrmBlock } from "./lib/bodasesorAdvisor.js";
+import { normalizeAdvisorReferences as normalizeAdvisorRefsBase, advisorLabelForClient, stripInternalCrmBlock } from "./lib/bodasesorAdvisor.js";
 import {
   buildCompanyEmailConfirmReply,
   clientAsksIfCompanyEmailCorrect,
@@ -1111,6 +1111,77 @@ function conversationAlreadyStarted(
   return false;
 }
 
+/**
+ * Embudo con sustancia real (no solo saludo/nombre WA).
+ * Clase A15707+: no decir "ya platicamos" ni cerrar cotización sin datos.
+ */
+function funnelHasSubstance(filledSet: Set<string>, extracted: ExtractedData): boolean {
+  if (filledSet.has("Tipo de evento") && !!extracted.tipo_evento?.trim()) return true;
+  if (filledSet.has("Número de invitados") && extracted.num_invitados != null) return true;
+  if (
+    filledSet.has(CRM_FECHA_LABEL) &&
+    !!extracted.fecha_evento?.trim() &&
+    extracted.fecha_evento !== FECHA_AUTO_WAIVER
+  ) {
+    return true;
+  }
+  if (
+    filledSet.has("Lugar/dirección del evento") &&
+    hasCityOrMetroSignal(extracted.direccion_evento)
+  ) {
+    return true;
+  }
+  if (filledSet.has("Requerimientos o servicios") && !!extracted.requerimientos_evento?.trim()) {
+    return true;
+  }
+  if (filledSet.has("Horario del evento") && !!extracted.horario_evento?.trim()) return true;
+  if (filledSet.has(CRM_HORARIO_LABEL) && !!extracted.horario_evento?.trim()) return true;
+  return false;
+}
+
+/** Contexto de salida: todos los early-return pasan por finalizeOutbound. */
+let _outboundFinalizeCtx: {
+  history: OpenAI.Chat.ChatCompletionMessageParam[];
+  currentMessage?: string;
+  filledSet: Set<string>;
+  extracted: ExtractedData;
+} | null = null;
+
+/**
+ * Capa global de salida (V9.67): intro repetida, "ya platicamos" prematuro, $.
+ * Sustituye normalizeAdvisorReferences en este módulo para cubrir ~38 early returns.
+ */
+function normalizeAdvisorReferences(mensaje: string, name?: string | null): string {
+  let out = normalizeAdvisorRefsBase(mensaje, name);
+  const ctx = _outboundFinalizeCtx;
+  if (!ctx) return out;
+
+  const started =
+    conversationAlreadyStarted(ctx.filledSet, ctx.history) || lucyHasPresented(ctx.history);
+  out = stripRepeatLucyIntro(out, ctx.history, started);
+
+  if (!funnelHasSubstance(ctx.filledSet, ctx.extracted)) {
+    out = out
+      .replace(/\s*con\s+lo\s+que\s+ya\s+platicamos\.?/gi, ".")
+      .replace(/\bSeguimos\s+con\s+lo\s+que\s+ya\s+platicamos\.?/gi, "Seguimos.")
+      .replace(/\.\s*\./g, ".");
+  }
+
+  if (
+    ctx.currentMessage &&
+    !clientAsksPrice(ctx.currentMessage) &&
+    !clientAsksInclusion(ctx.currentMessage) &&
+    !mentionsListedPriceService(ctx.currentMessage) &&
+    /\$\s*\d/.test(out) &&
+    !/bodasesor\.com\/catalogos/i.test(out)
+  ) {
+    out = sanitizeInventedPrices(out, ctx.currentMessage);
+    out = stripStalePriceTalk(out, ctx.currentMessage);
+  }
+
+  return out.replace(/\s{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 function presentationHistoryFrom(ctx: NaturalQuestionContext): OpenAI.Chat.ChatCompletionMessageParam[] {
   return ctx.presentationHistory ?? ctx.history ?? [];
 }
@@ -1127,6 +1198,8 @@ function stripRepeatLucyIntro(
       ""
     )
     .replace(/Hola,?\s*soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "")
+    .replace(/\bSoy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "")
+    .replace(/¡?Hola!?\.?\s*Soy\s+Lucy[^.!?\n]{0,90}\.?/gi, "")
     .replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "")
     .replace(/Con gusto te ayudo\.?\s*/gi, "")
     .replace(/^\s+/, "")
@@ -5022,6 +5095,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage);
   syncHorarioFromHistory(filledSet, extracted, presHistory, currentMessage);
   clearPromoTemplateMisextracts(extracted, filledSet, currentMessage);
+  _outboundFinalizeCtx = {
+    history: presHistory,
+    currentMessage,
+    filledSet,
+    extracted,
+  };
   // A15443: "hora de comida/fomida" nunca es ciudad ni fecha completa.
   if (
     extracted.direccion_evento &&
@@ -6126,21 +6205,26 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       return normalizeAdvisorReferences(close, extracted.nombre ?? display);
     }
     const pending = getNextPendingField(extracted, filledSet);
-    const ack = display
-      ? `Claro, ${display}. Nuestro equipo te arma la cotización con lo que ya platicamos.`
-      : "Claro. Nuestro equipo te arma la cotización con lo que ya platicamos.";
+    const hasProgress = funnelHasSubstance(filledSet, extracted);
+    const ack = hasProgress
+      ? display
+        ? `Claro, ${display}. Nuestro equipo te arma la cotización con lo que ya platicamos.`
+        : "Claro. Nuestro equipo te arma la cotización con lo que ya platicamos."
+      : display
+        ? `Claro, ${display}. Con gusto te ayudo a armar la cotización.`
+        : "Claro. Con gusto te ayudo a armar la cotización.";
     const nextQ =
       pending && pending !== "presupuesto"
         ? buildNaturalQuestion(pending, ctx)
         : null;
-    log?.info({ entityId, pending }, "GUARD: A15627 — cotización pedida + embudo restante");
+    log?.info({ entityId, pending, hasProgress }, "GUARD: A15627 — cotización pedida + embudo restante");
     return normalizeAdvisorReferences(
       nextQ ? `${ack} ${nextQ}` : ack,
       extracted.nombre ?? display
     );
   }
 
-  // A15642: "Es una comida para el sábado 12…" → tipo + fecha, NO menú de catering.
+  // A15642+: "Es una comida/cena/brunch para el sábado…" → tipo + fecha, NO menú de catering.
   if (!cierreYaEnviado && currentMessage && isEventTypeMealPhrase(currentMessage)) {
     const tipo = parseTipoEventoFromText(currentMessage) || "comida";
     extracted.tipo_evento = tipo;
@@ -6154,12 +6238,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     // Si el CRM ya trae mobiliario, no empujar alimentos.
     const display = getDisplayName(extracted, whatsappDisplayName);
     const fechaLabel = extracted.fecha_evento?.trim();
+    const tipoLabel = tipo.trim();
     const ack = display
-      ? `Perfecto, ${display}. Anoto que es una *comida*${fechaLabel ? ` el *${fechaLabel}*` : ""}.`
-      : `Perfecto. Anoto que es una *comida*${fechaLabel ? ` el *${fechaLabel}*` : ""}.`;
+      ? `Perfecto, ${display}. Anoto que es *${tipoLabel}*${fechaLabel ? ` el *${fechaLabel}*` : ""}.`
+      : `Perfecto. Anoto que es *${tipoLabel}*${fechaLabel ? ` el *${fechaLabel}*` : ""}.`;
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-    log?.info({ entityId, tipo, fecha: fechaLabel }, "GUARD: A15642 — comida = tipo de evento");
+    log?.info({ entityId, tipo, fecha: fechaLabel }, "GUARD: A15642 — meal phrase = tipo de evento");
     return normalizeAdvisorReferences(
       nextQ ? `${ack} ${nextQ}` : ack,
       extracted.nombre ?? display
@@ -9410,14 +9495,20 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
 
-  // A15701: si el cliente ya dio ciudad (p. ej. Puerto Vallarta), no rotar variantes de zona.
+  // A15701+: si ya hay ciudad usable (mensaje, historial o extracted), no re-preguntar zona.
   if (
     mensajeAsksForField(mensaje, "zona") &&
-    !isFieldSatisfied("zona", filledSet, extracted) &&
-    currentMessage
+    !isFieldSatisfied("zona", filledSet, extracted)
   ) {
-    const zonaNow = parseZonaFromText(currentMessage);
-    if (zonaNow && isUsableDireccionEvento(zonaNow)) {
+    const zonaNow =
+      (currentMessage ? parseZonaFromText(currentMessage) : null) ||
+      recoverZonaFromUserTexts(collectUserTexts(presHistory, currentMessage), currentMessage) ||
+      (extracted.direccion_evento &&
+      hasCityOrMetroSignal(extracted.direccion_evento) &&
+      isUsableDireccionEvento(extracted.direccion_evento)
+        ? extracted.direccion_evento
+        : null);
+    if (zonaNow && isUsableDireccionEvento(zonaNow) && hasCityOrMetroSignal(zonaNow)) {
       extracted.direccion_evento =
         mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
       filledSet.add("Lugar/dirección del evento");

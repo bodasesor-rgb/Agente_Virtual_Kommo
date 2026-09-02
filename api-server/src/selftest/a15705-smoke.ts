@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Smoke A15705 Karla — "Sería De Catering" ≠ nombre; no pisar Karla Rodríguez.
  * node ./scripts/run-a15705-smoke.mjs
  */
@@ -38,7 +38,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.66");
+assert.equal(LUCY_PROMPT_VERSION, "V9.67");
 
 assert.ok(isServicePreferenceAsNombre("Sería De Catering"));
 assert.ok(isServicePreferenceAsNombre("Sería de catering"));

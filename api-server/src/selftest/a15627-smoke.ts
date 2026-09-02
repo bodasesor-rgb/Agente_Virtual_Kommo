@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Smoke A15627 Erika — sin dump de precios, "a la 1", cotización ≠ catálogo.
  * node ./scripts/run-a15627-smoke.mjs
  */
@@ -56,7 +56,7 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.66");
+assert.equal(LUCY_PROMPT_VERSION, "V9.67");
 
 assert.ok(isSimpleClockTime("A la 1"));
 assert.ok(isSimpleClockTime("alrededor de la 1"));

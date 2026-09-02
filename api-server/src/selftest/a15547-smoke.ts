@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Smoke A15547 Marisol — sin precios antes de info + qué incluye + soft decline.
  * node ./scripts/run-a15547-smoke.mjs
  */
@@ -64,7 +64,7 @@ const csv = [
 ].join("\n");
 setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.66");
+assert.equal(LUCY_PROMPT_VERSION, "V9.67");
 
 const noPriceMenu = buildSoloVsCompletoModeAnswer("Taquiza", parseSheetCatalogCsv(csv));
 assert.ok(/solo\s+alimentos/i.test(noPriceMenu), noPriceMenu.slice(0, 300));

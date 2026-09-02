@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Smoke A15566 Lynn — rangos de horario / a partir de / waiver.
  * node ./scripts/run-a15566-smoke.mjs
  */
@@ -55,7 +55,7 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.66");
+assert.equal(LUCY_PROMPT_VERSION, "V9.67");
 
 const cases: Array<[string, RegExp]> = [
   ["El evento sería de 3:00 pm a 11:00 pm", /3:00\s*pm.*11:00\s*pm/i],

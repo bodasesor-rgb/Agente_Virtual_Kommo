@@ -320,10 +320,18 @@ const TIPO_EVENTO_PATTERNS: Array<[RegExp, string]> = [
   [/\bcarne\s+asada\b/i, "carne asada"],
   [/\bposada\b/i, "posada"],
   [/\bcena\s+navide[nñ]a\b/i, "cena navideña"],
-  // A15642: "Es una comida para el sábado…" = tipo de evento (no catering).
+  // A15642+: meal-as-event-type (comida/cena/brunch/…) — no catering.
   [
-    /\bes\s+una\s+comida\b|\bcomida\s+para\s+(el\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+)/i,
-    "comida",
+    /\bes\s+un[a]?\s+(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)\b/i,
+    "__meal_event__",
+  ],
+  [
+    /\b(ser[aá]|ser[ií]a)\s+(una?\s+)?(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)\s+(para|el|del)\b/i,
+    "__meal_event__",
+  ],
+  [
+    /\b(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)\s+para\s+(el\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+)/i,
+    "__meal_event__",
   ],
   // A14988 Ernesto: concierto es tipo de evento (no servicio).
   [/\bconciertos?\b/i, "concierto"],
@@ -811,32 +819,39 @@ function hasSpecificFoodService(text: string): boolean {
   );
 }
 
+/** Tipos de comida usados como *tipo de evento*, no como pedido de catering (clase A15642+). */
+const EVENT_MEAL_TYPE =
+  /comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail/i;
+
 /**
- * A15642: "Es una comida para el sábado 12 de septiembre" describe el *tipo* de evento
- * (una comida / almuerzo), NO un pedido de catering/alimentos.
+ * "Es una comida/cena/brunch para el sábado…" = tipo de evento, NO pedido de catering.
  */
 export function isEventTypeMealPhrase(text: string | null | undefined): boolean {
   const t = (text ?? "").trim();
   if (!t) return false;
   // Pedido explícito de catering/alimentos → no es solo tipo de evento.
   if (
-    /\b(cotizar|quiero|necesito|busco|me\s+interesa)\b.{0,30}\b(comida|alimentos?|catering|banquete)\b/i.test(
+    /\b(cotizar|quiero|necesito|busco|me\s+interesa)\b.{0,30}\b(comida|cena|almuerzo|brunch|desayuno|alimentos?|catering|banquete)\b/i.test(
       t
     ) ||
     /\b(catering|banquete|taquiza|barra\s+de|alimentos?)\b/i.test(t)
   ) {
     return false;
   }
-  if (/\bes\s+una\s+comida\b/i.test(t)) return true;
+  if (new RegExp(`\\bes\\s+un[a]?\\s+(${EVENT_MEAL_TYPE.source})\\b`, "i").test(t)) return true;
   if (
-    /\b(ser[aá]|ser[ií]a|es)\s+(una\s+)?comida\s+(para|el|del)\b/i.test(t)
+    new RegExp(
+      `\\b(ser[aá]|ser[ií]a|es)\\s+(una\\s+)?(${EVENT_MEAL_TYPE.source})\\s+(para|el|del)\\b`,
+      "i"
+    ).test(t)
   ) {
     return true;
   }
-  // "comida para el sábado / 12 de septiembre" sin verbo de cotizar.
-  return /\bcomida\s+para\s+(el\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+\w+)/i.test(
-    t
-  );
+  // "cena/comida para el sábado / 12 de septiembre" sin verbo de cotizar.
+  return new RegExp(
+    `\\b(${EVENT_MEAL_TYPE.source})\\s+para\\s+(el\\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\\d{1,2}\\s+de\\s+\\w+)`,
+    "i"
+  ).test(t);
 }
 
 /** Término general de comida sin servicio concreto — indagar, no asumir. */
@@ -1345,11 +1360,14 @@ export function isPromoTemplateMessage(text: string | null | undefined): boolean
   return true;
 }
 
-/** Línea de mínimo comercial (promo / catálogo), no afluencia del evento. A15620 Mara. */
+/** Línea de mínimo comercial (promo / catálogo), no afluencia del evento. Clase A15620+. */
 export function isPromoMinimumGuestLine(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
   if (/\bpedido\s+m[ií]nimo\b/i.test(t)) return true;
+  if (/\b(desde|a\s+partir\s+de)\s+\d+\s*personas?\b/i.test(t) && !/\b(ser[ií]an?|somos|invitados?)\b/i.test(t)) {
+    return true;
+  }
   return (
     /\bm[ií]nimo\s*:?\s*\d+\s*personas?\b/i.test(t) &&
     !/\b(ser[ií]an?|somos|invitados?|asistentes?|para\s+\d+\s+personas)\b/i.test(t)
@@ -1361,6 +1379,7 @@ export function stripPromoTemplateMetadata(text: string): string {
   return text
     .replace(/\bpedido\s+m[ií]nimo\s*:?\s*\d+\s*personas?\b/gi, " ")
     .replace(/\bm[ií]nimo\s*:?\s*\d+\s*personas?\b/gi, " ")
+    .replace(/\b(desde|a\s+partir\s+de)\s+\d+\s*personas?\b/gi, " ")
     .replace(/\bhorario\s+en\s+que\s+env[ií]o\s+este\s+mensaje\s*:?[^\n]*/gi, " ")
     .replace(/\(?\s*hora\s+ciudad\s+de\s+m[eé]xico\s*\)?/gi, " ")
     .replace(/\s+/g, " ")
@@ -2061,8 +2080,9 @@ const WRITTEN_NUMBERS: Record<string, string> = {
 const MONTH_PATTERN =
   /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
 
+/** Lexicón único de ciudad/metro MX — parsers, zona y anti-nombre (clase A15701+). */
 const KNOWN_ZONES =
-  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala)\b/i;
+  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita)\b/i;
 
 /** Fragmentos (sin artículo) que NO son ubicación, aunque vengan tras "en …". */
 const NON_LOCATION_WORDS =
@@ -3023,7 +3043,14 @@ export function isServiceRelatedMessage(text: string | null | undefined): boolea
 
 export function parseTipoEventoFromText(text: string): string | null {
   for (const [pattern, label] of TIPO_EVENTO_PATTERNS) {
-    if (pattern.test(text)) return label;
+    if (!pattern.test(text)) continue;
+    if (label === "__meal_event__") {
+      const m = text.match(
+        /\b(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)\b/i
+      );
+      return (m?.[1] ?? "comida").toLowerCase().replace(/ó/, "o");
+    }
+    return label;
   }
   return parseTipoEventoLabeled(text);
 }
@@ -3918,20 +3945,23 @@ function messageIsAboutScheduleOrPlaceNotGuests(text: string): boolean {
 }
 
 export function parseInvitadosFromText(text: string, opts?: InvitadosParseOptions): string | null {
-  const trimmed = text.trim();
+  const raw = text.trim();
+  if (!raw) return null;
+  // Siempre quitar metadatos promo antes de contar afluencia (clase A15620+).
+  const trimmed = stripPromoTemplateMetadata(raw);
   if (!trimmed) return null;
 
   // A15620 Mara: plantilla promo / pedido mínimo ≠ afluencia del evento.
-  if (isPromoTemplateMessage(trimmed)) return null;
-  if (isPromoMinimumGuestLine(trimmed)) {
-    const withoutMin = stripPromoTemplateMetadata(trimmed);
+  if (isPromoTemplateMessage(raw) || isPromoTemplateMessage(trimmed)) return null;
+  if (isPromoMinimumGuestLine(raw) || isPromoMinimumGuestLine(trimmed)) {
     if (
-      withoutMin.length >= 8 &&
-      /\b(ser[ií]an?|somos|invitados?|asistentes?|para\s+\d+\s+personas)\b/i.test(withoutMin)
+      trimmed.length >= 8 &&
+      /\b(ser[ií]an?|somos|invitados?|asistentes?|para\s+\d+\s+personas)\b/i.test(trimmed)
     ) {
-      return parseInvitadosFromText(withoutMin, opts);
+      // Ya strippeado: seguir parseando el resto (evitar recursión infinita).
+    } else {
+      return null;
     }
-    return null;
   }
 
   // A15509: "Aún no" tras pregunta de invitados = dato pendiente, no re-preguntar.

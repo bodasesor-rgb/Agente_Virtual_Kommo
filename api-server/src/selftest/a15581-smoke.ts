@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Smoke A15581 Mariana César — horario en palabras, dos propuestas, DJ inclusión/acotado.
  * node ./scripts/run-a15581-smoke.mjs
  */
@@ -57,7 +57,7 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.66");
+assert.equal(LUCY_PROMPT_VERSION, "V9.67");
 
 const horarioCuatro = parseHorarioFromText("Sería temprano, a partir de las cuatro");
 assert.ok(horarioCuatro && /4|cuatro/i.test(horarioCuatro), horarioCuatro ?? "null");

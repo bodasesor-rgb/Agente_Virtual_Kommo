@@ -250,24 +250,36 @@ export function buildCompanyIdentityReply(clientName?: string | null): string {
 }
 
 /**
- * Preferencia de servicio / display WA tipo "Sería De Catering" ≠ nombre (A15705 Karla).
- * También cubre "Sería banquete", "Serían coffee break", etc.
+ * Preferencia de servicio / display WA ≠ nombre (clase A15705+).
+ * Cubre: "Sería De Catering", "Prefiero banquete", "Solo mobiliario", "De Taquiza", etc.
  */
 export function isServicePreferenceAsNombre(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
   if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
+
+  const serviceFamily =
+    /\b(catering|banquete|taquiza|coffee(\s*break)?|brunch|comida|alimentos?|formal|casual|desayuno|canap[eé]s?|barra|sushi|pizza|pasta|nigiri|mobiliario|mesas?|sillas?|periqueras?|carpas?|pista|dj|bebidas?|mixolog[ií]a|helado|crepas?|photo\s*booth|photobooth|vajillas?|loza)\b/i;
+
+  // Modalidad / preferencia + familia de servicio.
   if (
-    /\bser[ií]a(n)?\s+(de\s+)?(catering|banquete|taquiza|coffee(\s*break)?|brunch|comida|alimentos?|formal|casual|desayuno|canap[eé]s?|barra|sushi|pizza|pasta|nigiri)\b/i.test(
+    /\b(ser[ií]a(n)?|prefiero|preferimos|quiero|necesito|busco|solo|solamente|nada\s+m[aá]s)\s+(de\s+|un\s+|una\s+|el\s+|la\s+)?/i.test(
       t
-    )
+    ) &&
+    serviceFamily.test(t)
   ) {
     return true;
   }
-  if (/^ser[ií]a(\s+de)?\s+catering$/i.test(t)) return true;
-  if (/^(de\s+)?catering$/i.test(t)) return true;
-  // Tras strip "de Empresa" queda solo "Sería" / "Serían" — no es nombre.
+  // Display WA corto: "De Catering", "Catering", "Banquete Formal".
+  if (/^(de\s+)?(catering|banquete|taquiza|coffee(\s*break)?|brunch|mobiliario)(\s+\w+){0,2}$/i.test(t)) {
+    return true;
+  }
+  // Solo el token "Sería"/"Serían" tras strip de empresa.
   if (/^ser[ií]a(n)?$/i.test(t)) return true;
+  // WA display centrado en servicio (sin forma clara de persona).
+  if (t.split(/\s+/).length <= 4 && serviceFamily.test(t) && !looksLikePersonFullName(t)) {
+    return true;
+  }
   return false;
 }
 
@@ -283,7 +295,7 @@ export function isLikelyUbicacionNotNombre(text: string | null | undefined): boo
     return true;
   }
   if (
-    /\b(cdmx|cd\.?\s*m\.?x\.?|ciudad de m[eé]xico|polanco|narvarte|santa\s*fe|cuernavaca|morelos|coyoac[aá]n|tlalpan|tlalnepantla|naucalpan|ecatepec|atizap[aá]n|sat[eé]lite|interlomas|expo\s+santa|estado\s+de\s+m[eé]xico|edo\.?\s*mex|canc[uú]n|cancun|guadalajara|monterrey|puebla|quer[eé]taro|m[eé]rida|tulum|playa\s+del\s+carmen|toluca|acapulco|veracruz|tijuana|valle\s+de\s+bravo|mesa\s+rica|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|pachuca|tlaxcala)\b/i.test(
+    /\b(cdmx|cd\.?\s*m\.?x\.?|ciudad de m[eé]xico|polanco|narvarte|santa\s*fe|cuernavaca|morelos|coyoac[aá]n|tlalpan|tlalnepantla|naucalpan|ecatepec|atizap[aá]n|sat[eé]lite|interlomas|expo\s+santa|estado\s+de\s+m[eé]xico|edo\.?\s*mex|canc[uú]n|cancun|guadalajara|monterrey|puebla|quer[eé]taro|m[eé]rida|tulum|playa\s+del\s+carmen|toluca|acapulco|veracruz|tijuana|valle\s+de\s+bravo|mesa\s+rica|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|pachuca|tlaxcala|jiutepec|aguascalientes|chihuahua|oaxaca|morelia|saltillo|huatulco|sayulita|ixtapa|zihuatanejo)\b/i.test(
       t
     ) &&
     t.split(/\s+/).length <= 5
