@@ -82,12 +82,16 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
   // "americano" (bebida) ≠ Barra Americana (A14970).
   ["Barra Americana", /\bbarra\s+americana\b/i],
-  ["Barra de mariscos", /\bbarra\s+de\s+mariscos?\b/i],
-  ["Barra de paninis", /\bbarra\s+de\s+paninis?\b/i],
-  ["Barra de Crepas", /\bbarra\s+de\s+crepas?\b/i],
+  ["Barra de mariscos", /\bbarra\s+de\s+mariscos?\b|\bmariscos?\b/i],
+  // Bare paninis / sandwiches (y typos sanwich*) = Barra de paninis (clase A15727+).
+  [
+    "Barra de paninis",
+    /\bbarra\s+de\s+paninis?\b|\bpaninis?\b|\bsan+dw?ich(es|itos|ito)?\b|\bs[aá]ndwich(es|itos|ito)?\b|\bsanwich(es|itos|ito)?\b/i,
+  ],
+  ["Barra de Crepas", /\bbarra\s+de\s+crepas?\b|\bcrepas?\b/i],
   ["Barra de pastas y ensaladas", /\bbarra\s+de\s+pastas?\s+y\s+ensaladas?\b/i],
-  ["Barra de pastas", /\bbarra\s+de\s+pastas?\b/i],
-  ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra)\b/i],
+  ["Barra de pastas", /\bbarra\s+de\s+pastas?\b|\bpastas?\b(?!\s+y\s+pizzas?)/i],
+  ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra|pizzas?)\b/i],
   // A14985: cerveza/whisky/licores → Barra de bebidas (no solo "barra de bebidas" literal).
   ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?|cervezas?|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|open\s*bar|barra\s+libre)\b/i],
   ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
@@ -805,7 +809,8 @@ export function needsAlimentosTipoClarification(value: string | null | undefined
   );
 }
 
-function hasSpecificFoodService(text: string): boolean {
+/** True si el texto ya nombra un SKU concreto de alimentos (no solo "comida"/"alimentos"). */
+export function hasSpecificFoodService(text: string): boolean {
   // "banquetes o catering" / "servicio de banquetes" es VAGO — no cuenta como servicio concreto.
   if (
     /\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b|\bbanquetes?\s+o\s+catering\b/i.test(
@@ -814,7 +819,7 @@ function hasSpecificFoodService(text: string): boolean {
   ) {
     return false;
   }
-  return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé](?!\p{L})|pizzas?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?(?!\p{L})|bocadillos?|parrillada|brunch\s+buf[eé](?!\p{L})|desayuno\s+(?:buffet|ejecutivo|continental)|puestos?\s+de\s+comida|antojitos?|quesadillas?)\b/iu.test(
+  return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé](?!\p{L})|pizzas?|pastas?|crepas?|mariscos?|paninis?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?(?!\p{L})|bocadillos?|parrillada|brunch\s+buf[eé](?!\p{L})|desayuno\s+(?:buffet|ejecutivo|continental)|puestos?\s+de\s+comida|antojitos?|quesadillas?|paninis?|pizzas?|pastas?|crepas?|mariscos?|san+dw?ich|s[aá]ndwich|sanwich)\b/iu.test(
     text
   );
 }
@@ -877,6 +882,18 @@ export function isVagueFoodTerm(text: string | null | undefined): boolean {
     return false;
   }
   if (hasSpecificFoodService(t)) return false;
+
+  // SKU concreto en el mismo mensaje (paninis, pizza, sushi…) → no menú vago.
+  {
+    const concrete = parseServicesFromText(t).filter(
+      (s) =>
+        !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s) &&
+        /barra|banquete|taquiza|sushi|pizza|pasta|panini|crepa|marisco|pozole|paella|canap|bocadillo|coffee|desayuno|brunch|puestos/i.test(
+          s
+        )
+    );
+    if (concrete.length > 0) return false;
+  }
 
   // A15205: "cotizar comidas", "quería comidas para un evento", "alimentos"…
   // → formal vs casual; NUNCA menú Banquete Formal/Mexicano de entrada.
@@ -3747,7 +3764,7 @@ export function isReferentialPriorAnswer(message?: string | null): boolean {
     .toLowerCase()
     .replace(/[¿?¡!.,;:]+/g, "")
     .trim();
-  if (!n || n.length > 120) return false;
+  if (!n || n.length > 160) return false;
   return (
     /^(a\s+)?(este|ese|esta|esa)(\s+(mismo|misma|correo|mail|email|dato))?$/.test(n) ||
     /^(el|la)\s+(mismo|misma)(\s+(correo|mail|email|dato))?$/.test(n) ||
@@ -3762,7 +3779,12 @@ export function isReferentialPriorAnswer(message?: string | null): boolean {
     /^al\s+(mismo|que\s+ya\s+(te\s+)?(he\s+)?(di|mande|envie|enviado|mandado))$/.test(n) ||
     /^al\s+mismo\s+que\s+ya\s+(te\s+)?(he\s+)?(enviado|mandado|dado|di|mande|envie)\b/.test(n) ||
     /^(el\s+)?mismo\s+que\s+ya\s+(te\s+)?(he\s+)?(enviado|mandado|dado|di|mande|envie)\b/.test(n) ||
-    /\bya\s+te\s+(lo\s+)?he\s+(enviado|mandado|dado)\b/.test(n)
+    /\bya\s+te\s+(lo\s+)?he\s+(enviado|mandado|dado)\b/.test(n) ||
+    // A15727+: "lo que mencioné", "esa sería la comida", "eso mismo que dije".
+    /\blo\s+que\s+(te\s+)?(mencione|dije|comente|explique|indique)\b/.test(n) ||
+    /\b(esa|eso|este|esto)\s+ser[ií]a\s+(la\s+)?(comida|opcion|servicio|que\s+quiero)\b/.test(n) ||
+    /^(esa|eso)\s+(misma\s+)?(comida|opcion|servicio)?$/.test(n) ||
+    /\bcomo\s+(te\s+)?(dije|mencione|comente)\b/.test(n)
   );
 }
 

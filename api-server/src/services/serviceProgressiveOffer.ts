@@ -82,7 +82,7 @@ export function resolveSoloVsCompletoStationLabel(
     if (/\bpasta|ensalada|italian/i.test(t)) return "Barra de pastas y ensaladas";
     if (/\bcrepas?\b/i.test(t)) return "Barra de Crepas";
     if (/\bmariscos?\b/i.test(t)) return "Barra de mariscos";
-    if (/\bpaninis?\b/i.test(t)) return "Barra de paninis";
+    if (/\bpaninis?\b|\bsan+dw?ich|\bs[aá]ndwich|\bsanwich/i.test(t)) return "Barra de paninis";
     return null;
   }
   return null;
@@ -460,6 +460,10 @@ export function buildAlimentosModoMenu(): string {
 
 export function isAlimentosModoMenuReply(text: string | null | undefined): boolean {
   if (!text?.trim()) return false;
+  // Incluye la pregunta corta (a veces GPT/ack trunca el menú completo).
+  if (/para \*?comida\*? del evento/i.test(text) && /qu[eé] te gustar[ií]a/i.test(text)) {
+    return true;
+  }
   return (
     (/banquete.*formal|formal.*banquete|algo m[aá]s \*?casual\*?\s+tipo\s+catering|\*banquete\*.*formal|casual.*catering/i.test(
       text

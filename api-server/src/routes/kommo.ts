@@ -1144,7 +1144,9 @@ async function updateKommoContact(
   contactId: number,
   extracted: ExtractedData,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  log: any
+  log: any,
+  /** Nombre actual del contacto/lead — no acortar apellido (clase A15727+). */
+  currentContactName?: string | null
 ): Promise<void> {
   const hasContact = extracted.nombre || extracted.telefono || extracted.correo;
   if (!hasContact) return;
@@ -1152,7 +1154,14 @@ async function updateKommoContact(
   const contactPayload: Record<string, unknown> = {};
 
   if (extracted.nombre) {
-    contactPayload["name"] = extracted.nombre;
+    // Nunca degradar "Daniela Loustaunau" → "Daniela" al sincronizar el contacto.
+    const namePatch = resolveKommoLeadNamePatch(currentContactName, extracted.nombre);
+    if (namePatch) {
+      contactPayload["name"] = namePatch;
+    } else if (!currentContactName?.trim()) {
+      const fresh = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
+      if (fresh) contactPayload["name"] = fresh;
+    }
   }
 
   const cfv: Array<{ field_code: string; values: Array<{ value: string; enum_code: string }> }> = [];
@@ -1166,6 +1175,8 @@ async function updateKommoContact(
   if (cfv.length > 0) {
     contactPayload["custom_fields_values"] = cfv;
   }
+
+  if (Object.keys(contactPayload).length === 0) return;
 
   const res = await fetch(
     `https://${subdomain}.kommo.com/api/v4/contacts/${contactId}`,
@@ -2055,7 +2066,15 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     if (hasContactData) {
       const contactId = await fetchLeadContactId(subdomain, accessToken, entityId);
       if (contactId) {
-        await updateKommoContact(subdomain, accessToken, contactId, extracted, log);
+        const extractedForContact = withCrmNombre(extracted, crmMergedLines);
+        await updateKommoContact(
+          subdomain,
+          accessToken,
+          contactId,
+          extractedForContact,
+          log,
+          kommoLeadName
+        );
       } else {
         log.warn({ entityId }, "No se encontró contacto vinculado al lead");
       }

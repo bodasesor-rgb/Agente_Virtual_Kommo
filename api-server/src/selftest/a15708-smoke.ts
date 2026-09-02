@@ -48,7 +48,7 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.67");
+assert.equal(LUCY_PROMPT_VERSION, "V9.68");
 
 const firstIntro =
   "¡Hola! Buen día. Soy Lucy, agente virtual de Bodasesor. Claro que te ayudo con tu evento. ¿Me regalas tu nombre?";

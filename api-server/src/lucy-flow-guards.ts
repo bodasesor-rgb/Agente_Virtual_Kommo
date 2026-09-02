@@ -222,6 +222,7 @@ import {
   shouldReplaceCrmDireccion,
   recoverClienteNombreFromHistory,
   isVagueFoodTerm,
+  hasSpecificFoodService,
   isEventTypeMealPhrase,
   needsAlimentosTipoClarification,
   clientAsksForFoodMenu,
@@ -2218,9 +2219,20 @@ function buildFoodSalesReply(
     return `${body}\n\n${nextQ}`;
   };
 
-  const allServices = currentMessage
+  const allServicesRaw = currentMessage
     ? dedupeServiceHierarchy(parseServicesFromText(clientCaptionForServiceParse(currentMessage)))
     : [];
+  // A15727+: "solo alimentos" + paninis/pizza → no tratar Alimentos genérico como 2º SKU.
+  const allServices = (() => {
+    const concrete = allServicesRaw.filter(
+      (s) =>
+        !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s) &&
+        /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
+          s
+        )
+    );
+    return concrete.length > 0 ? concrete : allServicesRaw;
+  })();
   const crmService = isValidRequerimientosValue(extracted.requerimientos_evento)
     ? extracted.requerimientos_evento!.trim()
     : null;
@@ -2230,6 +2242,33 @@ function buildFoodSalesReply(
     mentionedService ||
     parsePrimaryService(clientCaptionForServiceParse(currentMessage) || currentMessage || "") ||
     (crmService ? preferPrimaryCatalogService(parseServicesFromText(crmService)) || crmService : null);
+
+  // Un solo SKU concreto de comida → detalle / solo vs completo (no menú vago ni multi genérico).
+  if (
+    allServices.length === 1 &&
+    resolvedServiceLabel &&
+    !/^(Comida|Alimentos)$/i.test(resolvedServiceLabel) &&
+    hasSpecificFoodService(currentMessage ?? "")
+  ) {
+    if (filledSet) {
+      filledSet.add("Requerimientos o servicios");
+      const merged = mergeServiceRequirements(
+        extracted.requerimientos_evento,
+        resolvedServiceLabel,
+        6
+      );
+      if (merged) extracted.requerimientos_evento = merged;
+    }
+    const soloCompleto = buildSoloVsCompletoOfferIfApplicable(resolvedServiceLabel);
+    const detail =
+      soloCompleto ||
+      buildCatalogServiceDetailAnswer(resolvedServiceLabel) ||
+      buildGuardServiceAck(resolvedServiceLabel);
+    return appendNext(
+      `${pickTransition(history)} Perfecto. Anoto *${resolvedServiceLabel}*.\n\n${detail}`.trim(),
+      resolvedServiceLabel
+    );
+  }
 
   if (
     (allServices.length >= 2 || (currentMessage && isRichQuoteBrief(currentMessage))) &&
@@ -3624,6 +3663,31 @@ function ensureFunnelAfterSalesReply(
   history: OpenAI.Chat.ChatCompletionMessageParam[]
 ): string {
   let out = collapseRepeatedSentences(dedupeTransitionsInMessage(mensaje));
+
+  // A15727+: quitar menú vago de comida si ya hay SKU concreto en CRM o historial.
+  {
+    const foodBlob = `${extracted.requerimientos_evento ?? ""} ${collectUserTexts(history, currentMessage).join(" ")} ${currentMessage ?? ""}`;
+    const concrete =
+      preferPrimaryCatalogService(
+        parseServicesFromText(foodBlob).filter(
+          (s) =>
+            !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s) &&
+            /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
+              s
+            )
+        )
+      ) || null;
+    if (concrete && /para\s+\*?comida\*?\s+del\s+evento/i.test(out)) {
+      out = out
+        .replace(/[^.!?\n¿]*para\s+\*?comida\*?\s+del\s+evento[^.!?\n]*[.!?]?\s*/gi, " ")
+        .replace(/•\s*Un\s+\*?banquete\*?\s+m[aá]s\s+formal[^\n]*/gi, " ")
+        .replace(/•\s*Algo\s+m[aá]s\s+\*?casual\*?[^\n]*/gi, " ")
+        .replace(/\b(Con gusto\.?\s*)?(Claro\.?\s*)+(?=\s*(De acuerdo|Perfecto|¿|Anoto)|\s*$)/gi, " ")
+        .replace(/\s{2,}/g, " ")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    }
+  }
 
   // A15391: handoff a asesor — no pedir ciudad/invitados encima de los teléfonos.
   if (
@@ -6649,9 +6713,22 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     .map((t) => clientCaptionForServiceParse(t))
     .join(" ");
   const servicesFromCurrentMessage = parseServicesFromText(captionForServices);
-  const servicesFromTurn = parseServicesFromText(
+  const servicesFromTurnRaw = parseServicesFromText(
     `${captionForServices} ${userBlobForServices}`
   );
+  // A15727+: "solo alimentos" + paninis/pizza/… → quedarse con el SKU concreto.
+  const demoteVagueFood = (list: string[]) => {
+    const concrete = list.filter(
+      (s) =>
+        !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s) &&
+        /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
+          s
+        )
+    );
+    return concrete.length > 0 ? concrete : list;
+  };
+  const servicesFromTurn = demoteVagueFood(servicesFromTurnRaw);
+  const servicesFromCurrentMessageConcrete = demoteVagueFood(servicesFromCurrentMessage);
   if (
     servicesFromTurn.length > 0 &&
     !isVagueFoodTerm(captionForServices || currentMessage) &&
@@ -6670,6 +6747,20 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     if (mergedReq) {
       extracted.requerimientos_evento = mergedReq;
       filledSet.add("Requerimientos o servicios");
+    }
+    // A15727+: si hay SKU concreto (paninis/pizza/…) no dejar "Alimentos/Comida" genérico.
+    {
+      const parts = parseServicesFromText(extracted.requerimientos_evento ?? "");
+      const concreteParts = parts.filter(
+        (s) =>
+          !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s) &&
+          /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
+            s
+          )
+      );
+      if (concreteParts.length > 0 && parts.some((s) => /^(Comida|Alimentos)$/i.test(s))) {
+        extracted.requerimientos_evento = concreteParts.join(", ");
+      }
     }
   } else if (declinedFamilies.length > 0 && captionForServices?.trim()) {
     // Merge solo para aplicar el strip vía mergeServiceRequirements (texto = decline).
@@ -7396,11 +7487,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (
     allowSalesReplyOverride &&
     // Solo servicios del MENSAJE ACTUAL (no historial) — A14924: "cumpleaños" no re-dump.
-    (servicesFromCurrentMessage.length >= 2 || isRichQuoteBrief(currentMessage)) &&
+    (servicesFromCurrentMessageConcrete.length >= 2 || isRichQuoteBrief(currentMessage)) &&
     !cierreYaEnviado &&
     // A15000: RFQ multi-servicio ("opciones de alimentos + meseros + mobiliario")
     // NO se trata como pregunta puntual aunque diga "opciones"/"costo".
-    !(clientAsksServiceInfo(currentMessage) && servicesFromCurrentMessage.length < 2) &&
+    !(clientAsksServiceInfo(currentMessage) && servicesFromCurrentMessageConcrete.length < 2) &&
     !clientMentionsCarpas(currentMessage) &&
     !clientMentionsPistaTarima(currentMessage) &&
     // Show / MC / hora loca → rama de entretenimiento (manda catálogo propio).
@@ -7418,7 +7509,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       isMobiliarioRentalPedido(currentMessage) &&
       !clientMentionsCarpas(currentMessage) &&
       parseMobiliarioRentItems(currentMessage ?? "").length >= 1 &&
-      servicesFromCurrentMessage.filter((s) => !/mobiliario/i.test(s)).length === 0 &&
+      servicesFromCurrentMessageConcrete.filter((s) => !/mobiliario/i.test(s)).length === 0 &&
       !isEquipmentListRfq(currentMessage)
     ) {
       if (
@@ -7456,12 +7547,41 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         { entityId, items: items.length },
         "GUARD: RFQ mobiliario — picnic/periqueras/bancos + catálogo + embudo"
       );
+    } else if (
+      servicesFromCurrentMessageConcrete.length === 1 &&
+      hasSpecificFoodService(currentMessage ?? "")
+    ) {
+      // A15727+: paninis/pizza/sushi… aunque el brief sea largo — no multi + GPT menú vago.
+      const label = servicesFromCurrentMessageConcrete[0]!;
+      const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 8);
+      if (merged) {
+        extracted.requerimientos_evento = merged;
+        filledSet.add("Requerimientos o servicios");
+      }
+      const soloCompleto = buildSoloVsCompletoOfferIfApplicable(label);
+      const detail =
+        soloCompleto ||
+        buildCatalogServiceDetailAnswer(label) ||
+        buildGuardServiceAck(label);
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const ack = display
+        ? `Perfecto, ${display}. Anoto *${label}*.`
+        : `Perfecto. Anoto *${label}*.`;
+      mensaje = mergeWithPendingQuestion(
+        `${ack}\n\n${detail}`.trim(),
+        filledSet,
+        extracted,
+        ctx
+      );
+      appliedDirectReply = true;
+      appliedSalesReply = true;
+      log?.info({ entityId, label }, "GUARD: A15727 — comida concreta en brief (no multi+GPT)");
     } else {
     // Brief con múltiples servicios / RFQ: reconocer TODOS + enviar catálogo.
     const packageServices =
-      servicesFromCurrentMessage.length >= 2
-        ? servicesFromCurrentMessage
-        : servicesFromTurn;
+      servicesFromCurrentMessageConcrete.length >= 2
+        ? servicesFromCurrentMessageConcrete
+        : demoteVagueFood(servicesFromTurn);
     const packageReply = buildMultiServicePackageReply(
       packageServices,
       currentMessage ?? collectUserTexts(presHistory, currentMessage).join(" ")
@@ -7470,7 +7590,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       /ya\s+lo\s+tengo\s+anotado|perfecto,?\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]+\.?$/i.test(
         aiResponse.trim()
       ) || aiResponse.trim().length < 40;
-    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && !aiIsUselessAck) {
+    const aiIsStaleVagueFood =
+      /para\s+\*?comida\*?\s+del\s+evento/i.test(aiResponse) ||
+      isAlimentosModoMenuReply(aiResponse);
+    if (
+      shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) &&
+      !aiIsUselessAck &&
+      !aiIsStaleVagueFood
+    ) {
       const aiAlreadyLists =
         packageServices.filter((s) =>
           aiResponse.toLowerCase().includes(s.toLowerCase().split(/\s+/)[0]!)
@@ -7497,7 +7624,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       { entityId, services: packageServices.length },
       "GUARD: brief multi-servicio — lista completa + catálogo"
     );
-    } // fin else: RFQ no-mobiliario
+    } // fin else: RFQ no-mobiliario / no-comida-concreta
   } else if (
     // A15302: "¿Tienes barra italiana?" → pastas/pizzas (nunca dump Americana/Yucateca ni "la anoto").
     allowSalesReplyOverride &&
@@ -7537,6 +7664,80 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: A15302 — barra/temática italiana → pastas/pizzas");
+  } else if (
+    allowSalesReplyOverride &&
+    currentMessage &&
+    !cierreYaEnviado &&
+    !clientDeclinesAnyService(currentMessage) &&
+    !isEventTypeMealPhrase(currentMessage) &&
+    (() => {
+      const userBlobFood = collectUserTexts(presHistory, currentMessage).join(" ");
+      const referentialFood =
+        isReferentialPriorAnswer(currentMessage) ||
+        /\blo\s+que\s+(te\s+)?(mencione|dije|comente)\b/i.test(currentMessage) ||
+        /\b(esa|eso)\s+ser[ií]a\s+(la\s+)?comida\b/i.test(currentMessage);
+      const foodFilter = (s: string) =>
+        !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s) &&
+        /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
+          s
+        );
+      const concreteFromTurn =
+        preferPrimaryCatalogService(parseServicesFromText(currentMessage).filter(foodFilter)) ||
+        (hasSpecificFoodService(currentMessage)
+          ? parsePrimaryService(currentMessage) ||
+            resolveDetailQueryForFamily("barra_alimentos", currentMessage)
+          : null);
+      const concreteFromHistory =
+        preferPrimaryCatalogService(parseServicesFromText(userBlobFood).filter(foodFilter)) ||
+        parsePrimaryService(userBlobFood) ||
+        resolveDetailQueryForFamily("barra_alimentos", userBlobFood);
+      const concreteFood =
+        (concreteFromTurn && foodFilter(concreteFromTurn) ? concreteFromTurn : null) ||
+        (referentialFood && concreteFromHistory && foodFilter(concreteFromHistory)
+          ? concreteFromHistory
+          : null) ||
+        (/\b(paninis?|pizzas?|pastas?|sushi|sanwich|s[aá]ndwich|san+dw?ich|crepas?|mariscos?)\b/i.test(
+          currentMessage
+        )
+          ? concreteFromTurn || concreteFromHistory
+          : null);
+      if (!concreteFood || !foodFilter(concreteFood)) return false;
+
+      const label =
+        resolveDetailQueryForFamily("barra_alimentos", `${currentMessage} ${concreteFood}`) ||
+        concreteFood;
+      const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 8);
+      if (merged) {
+        extracted.requerimientos_evento = merged;
+        filledSet.add("Requerimientos o servicios");
+      }
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const soloCompleto = buildSoloVsCompletoOfferIfApplicable(label);
+      const detail =
+        soloCompleto ||
+        buildCatalogServiceDetailAnswer(label) ||
+        buildGuardServiceAck(label);
+      const ack = display
+        ? `Perfecto, ${display}. Anoto *${label}*.`
+        : `Perfecto. Anoto *${label}*.`;
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ =
+        pending && pending !== "requerimientos"
+          ? buildNaturalQuestion(pending, ctx)
+          : null;
+      const body = detail
+        ? `${ack}\n\n${detail}${nextQ ? `\n\n${nextQ}` : ""}`.trim()
+        : nextQ
+          ? `${ack} ${nextQ}`
+          : ack;
+      mensaje = mergeWithPendingQuestion(body, filledSet, extracted, ctx);
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId, label }, "GUARD: A15727 — comida concreta anotada, no menú vago");
+      return true;
+    })()
+  ) {
+    // body set inside IIFE
   } else if (
     allowSalesReplyOverride &&
     (isVagueFoodTerm(currentMessage) || clientAsksForFoodMenu(currentMessage)) &&
@@ -10157,6 +10358,76 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
     mensaje = nextQ ? `${ack} ${nextQ}` : ack;
     log?.info({ entityId }, "GUARD: A15642 — reemplazó menú alimentos indebido");
+  }
+
+  // A15727+: nunca dejar "Para comida del evento, ¿qué te gustaría?" si ya hay SKU concreto.
+  {
+    const foodBlob = `${extracted.requerimientos_evento ?? ""} ${collectUserTexts(presHistory, currentMessage).join(" ")}`;
+    const concreteFood =
+      preferPrimaryCatalogService(
+        parseServicesFromText(foodBlob).filter(
+          (s) =>
+            !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s) &&
+            /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
+              s
+            )
+        )
+      ) ||
+      (hasSpecificFoodService(foodBlob)
+        ? parsePrimaryService(foodBlob) || resolveDetailQueryForFamily("barra_alimentos", foodBlob)
+        : null);
+    if (
+      concreteFood &&
+      !/^(Comida|Alimentos)$/i.test(concreteFood) &&
+      (/para\s+\*?comida\*?\s+del\s+evento/i.test(mensaje) || isAlimentosModoMenuReply(mensaje))
+    ) {
+      let cleaned = mensaje
+        .replace(/[^.!?\n]*para\s+\*?comida\*?\s+del\s+evento[^.!?\n]*[.!?]?\s*/gi, " ")
+        .replace(/•\s*Un\s+\*?banquete\*?\s+m[aá]s\s+formal[^\n]*/gi, " ")
+        .replace(/•\s*Algo\s+m[aá]s\s+\*?casual\*?[^\n]*/gi, " ")
+        .replace(/También manejamos desayuno[^\n]*/gi, " ")
+        .replace(/\s{2,}/g, " ")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+      if (
+        !cleaned ||
+        cleaned.length < 40 ||
+        /^(Con gusto\.?\s*)?(Claro\.?\s*)+$/i.test(cleaned)
+      ) {
+        const display = getDisplayName(extracted, whatsappDisplayName);
+        const soloCompleto = buildSoloVsCompletoOfferIfApplicable(concreteFood);
+        const ack = display
+          ? `Perfecto, ${display}. Anoto *${concreteFood}*.`
+          : `Perfecto. Anoto *${concreteFood}*.`;
+        const pending = getNextPendingField(extracted, filledSet);
+        const nextQ =
+          pending && pending !== "requerimientos"
+            ? buildNaturalQuestion(pending, ctx)
+            : null;
+        cleaned = soloCompleto
+          ? `${ack}\n\n${soloCompleto}${nextQ ? `\n\n${nextQ}` : ""}`.trim()
+          : nextQ
+            ? `${ack} ${nextQ}`
+            : ack;
+      } else {
+        const pending = getNextPendingField(extracted, filledSet);
+        if (pending && pending !== "requerimientos") {
+          const nextQ = buildNaturalQuestion(pending, ctx);
+          if (nextQ && !cleaned.includes(nextQ.slice(0, 24))) {
+            cleaned = `${cleaned}\n\n${nextQ}`.trim();
+          }
+        }
+      }
+      mensaje = cleaned;
+      if (!extracted.requerimientos_evento?.includes(concreteFood.split(" ")[0] ?? "")) {
+        const merged = mergeServiceRequirements(extracted.requerimientos_evento, concreteFood, 8);
+        if (merged) {
+          extracted.requerimientos_evento = merged;
+          filledSet.add("Requerimientos o servicios");
+        }
+      }
+      log?.info({ entityId, concreteFood }, "GUARD: A15727 — strip menú vago con SKU concreto");
+    }
   }
 
   // A15443: "dos caminos" incompleto (solo opción 1) → menú completo solo vs completo.
