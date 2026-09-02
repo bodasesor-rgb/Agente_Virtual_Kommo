@@ -11,6 +11,7 @@ import {
   isLikelyNotPersonNameMessage,
   isLikelyUbicacionNotNombre,
   isQuoteIntentMessage,
+  isServicePreferenceAsNombre,
   looksLikePersonFullName,
   sanitizeCrmNombre,
   sanitizeDisplayName,
@@ -3851,21 +3852,27 @@ export function looksLikeNameAnswerMessage(text: string | null | undefined): boo
   const t = text?.trim() ?? "";
   if (!t || t.length > 90 || /\?/.test(t) || /@/.test(t) || /\d{3,}/.test(t)) return false;
   if (clientAsksCafeOrCateringChoice(t)) return false;
+  // A15705: "Sería De Catering" / preferencia ≠ respuesta de nombre.
+  if (isServicePreferenceAsNombre(t)) return false;
   if (isServiceRelatedMessage(t) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\b/i.test(t)) {
     // "Victor Ramos de Destiladora…" no es servicio; "quiero banquete" sí.
-    if (/\b(quiero|necesito|busco|cotiz|banquete|taquiza|barra|dj|pista)\b/i.test(t)) {
+    if (/\b(quiero|necesito|busco|cotiz|banquete|taquiza|barra|dj|pista|catering)\b/i.test(t)) {
       return false;
     }
   }
-  const candidato = stripNombrePresentationPrefix(t)
-    .replace(/\s+de\s+[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúñ.\s-]{2,50}$/u, "")
-    .trim();
+  // "X de Empresa" — no strip si lo de después de "de" es servicio (catering/banquete…).
+  const strippedCompany = t.replace(
+    /\s+de\s+(?!catering\b|banquete\b|taquiza\b|coffee\b|brunch\b|comida\b|alimentos?\b)([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúñ.\s-]{2,50})$/iu,
+    ""
+  );
+  const candidato = stripNombrePresentationPrefix(strippedCompany).trim();
+  if (isServicePreferenceAsNombre(candidato)) return false;
   const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
   if (!nombre) return false;
   if (isLikelyNotPersonNameMessage(candidato) && !/^(soy|me\s+llamo)/i.test(t)) {
     // Intentar con el texto completo (nombre + de empresa).
     const full = sanitizeCrmNombre(stripNombrePresentationPrefix(t).split(/\s+de\s+/i)[0] ?? "");
-    return !!full;
+    return !!full && !isServicePreferenceAsNombre(full);
   }
   return true;
 }

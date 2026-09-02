@@ -8,6 +8,7 @@ import {
   isLikelyUbicacionNotNombre,
   isLikelyNotPersonNameMessage,
   isQuoteIntentMessage,
+  isServicePreferenceAsNombre,
   sanitizeCrmNombre,
 } from "./contact-name.js";
 import {
@@ -60,6 +61,7 @@ export function isInvalidCrmNombre(value: string | null | undefined): boolean {
   if (!raw) return true;
   if (isQuoteIntentMessage(raw)) return true;
   if (isLikelyUbicacionNotNombre(raw)) return true;
+  if (isServicePreferenceAsNombre(raw)) return true;
   if (isLikelyNotPersonNameMessage(raw) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw)) {
     return true;
   }

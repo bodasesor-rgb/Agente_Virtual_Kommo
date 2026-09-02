@@ -182,6 +182,9 @@ export function isLikelyNotPersonNameMessage(text: string | null | undefined): b
   if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
   if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 5) return false;
 
+  // A15705: "Sería De Catering" / preferencia de servicio ≠ nombre.
+  if (isServicePreferenceAsNombre(t)) return true;
+
   // Pregunta / verbo de servicio ANTES de looksLikePersonFullName:
   // "Tienes Crepas Para Eventos" matcheaba como "nombre completo" (4 tokens).
   if (/\?/.test(t)) return true;
@@ -211,7 +214,7 @@ export function isLikelyNotPersonNameMessage(text: string | null | undefined): b
   if (/\b(asesor|agente|humano)\b/i.test(t) && t.split(/\s+/).length <= 5) return true;
   // Servicio del catálogo sin verbo ("crepas para eventos", "barra de sushi", mesas/periqueras).
   if (
-    /\b(crepas?|sushi|poke|banquete|taquiza|coffee\s*break|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mobiliario|salas?\s+lounge|photo\s*booth|photobooth|cabina)\b/i.test(
+    /\b(crepas?|sushi|poke|banquete|taquiza|catering|coffee\s*break|brunch|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mobiliario|salas?\s+lounge|photo\s*booth|photobooth|cabina|nigiris?)\b/i.test(
       t
     ) &&
     !/^(soy|me\s+llamo)/i.test(t)
@@ -244,6 +247,28 @@ export function buildCompanyIdentityReply(clientName?: string | null): string {
   const base =
     "Sí, soy Lucy de Bodasesor (Cap&Bara Eventos). Te ayudo a armar tu cotización por aquí.";
   return nombre ? `${base} ¿Seguimos, ${nombre}?` : `${base} ¿Me regalas tu nombre para iniciar?`;
+}
+
+/**
+ * Preferencia de servicio / display WA tipo "Sería De Catering" ≠ nombre (A15705 Karla).
+ * También cubre "Sería banquete", "Serían coffee break", etc.
+ */
+export function isServicePreferenceAsNombre(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
+  if (
+    /\bser[ií]a(n)?\s+(de\s+)?(catering|banquete|taquiza|coffee(\s*break)?|brunch|comida|alimentos?|formal|casual|desayuno|canap[eé]s?|barra|sushi|pizza|pasta|nigiri)\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  if (/^ser[ií]a(\s+de)?\s+catering$/i.test(t)) return true;
+  if (/^(de\s+)?catering$/i.test(t)) return true;
+  // Tras strip "de Empresa" queda solo "Sería" / "Serían" — no es nombre.
+  if (/^ser[ií]a(n)?$/i.test(t)) return true;
+  return false;
 }
 
 /** Colonia/ciudad — no es nombre de persona ("Narvarte CDMX", "en Tlalnepantla"). */
@@ -340,6 +365,8 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
   if (isGreetingOnlyMessage(raw)) return null;
   if (isRepeatComplaintAsName(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw)) return null;
+  // A15705: WA/display "Sería De Catering" nunca va al CRM como nombre.
+  if (isServicePreferenceAsNombre(raw)) return null;
 
   // A15003: "Juan Hablar Agente" / handoff pegado al nombre.
   const strippedHandoff = raw
@@ -558,6 +585,30 @@ export function pickBetterNombre(
     return sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
   }
   return sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+}
+
+/**
+ * A15705: si el mensaje saluda a "Sería" (preferencia WA) y el CRM tiene Karla,
+ * reescribe el vocativo al nombre real.
+ */
+export function rewriteJunkClientVocative(
+  message: string,
+  correctNombre?: string | null
+): string {
+  if (!message?.trim()) return message;
+  const correct =
+    sanitizeDisplayName(correctNombre) ??
+    sanitizeCrmNombre(correctNombre)?.split(/\s+/)[0] ??
+    null;
+
+  return message.replace(
+    /\b((?:¡?Mucho gusto|¡?Con gusto|Perfecto|Excelente|Genial|Listo|Claro|Hola)[,!]?)(\s+)([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ'-]*)\b/gi,
+    (full, greet: string, space: string, name: string) => {
+      if (!isServicePreferenceAsNombre(name)) return full;
+      if (correct) return `${greet}${space}${correct}`;
+      return greet.replace(/,$/, "").trim();
+    }
+  );
 }
 
 export function resolveClientDisplayName(

@@ -61,7 +61,7 @@ function runGuards(opts: {
 const brief =
   "cotización para una fiesta de cumpleaños el 3 de octubre con 50 personas, en un salón en Nezahualcóyotl, el salón suministra mesas, sillas, mantelería, platos, vasos y un mesero";
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.65");
+assert.equal(LUCY_PROMPT_VERSION, "V9.66");
 assert.ok(isVenueProvidesContext(brief));
 assert.deepEqual(venueProvidedServiceLabels(brief).sort(), ["Meseros", "Mobiliario", "Vajillas"].sort());
 

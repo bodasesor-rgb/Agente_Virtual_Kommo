@@ -129667,6 +129667,7 @@ function isLikelyNotPersonNameMessage(text2) {
   if (isRepeatComplaintAsName(t4)) return true;
   if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t4)) return false;
   if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t4) && t4.split(/\s+/).length <= 5) return false;
+  if (isServicePreferenceAsNombre(t4)) return true;
   if (/\?/.test(t4)) return true;
   if (SENTENCE_VERB_PATTERN.test(t4)) return true;
   if (/\bcu[aá]nto\s+(cuesta|cuestan|vale|valen|cobran|sale)\b/i.test(t4) || /\b(precio|costo|tarifa)\s+(de|para|por)\b/i.test(t4) || /\bcu[aá]nto\s+cuesta\s+la\s+renta\b/i.test(t4)) {
@@ -129683,7 +129684,7 @@ function isLikelyNotPersonNameMessage(text2) {
   if (COMPANY_OR_CHANNEL_PATTERN.test(t4)) return true;
   if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona)\b/i.test(t4)) return true;
   if (/\b(asesor|agente|humano)\b/i.test(t4) && t4.split(/\s+/).length <= 5) return true;
-  if (/\b(crepas?|sushi|poke|banquete|taquiza|coffee\s*break|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mobiliario|salas?\s+lounge|photo\s*booth|photobooth|cabina)\b/i.test(
+  if (/\b(crepas?|sushi|poke|banquete|taquiza|catering|coffee\s*break|brunch|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mobiliario|salas?\s+lounge|photo\s*booth|photobooth|cabina|nigiris?)\b/i.test(
     t4
   ) && !/^(soy|me\s+llamo)/i.test(t4)) {
     return true;
@@ -129702,6 +129703,20 @@ function buildCompanyIdentityReply(clientName) {
   const nombre = sanitizeDisplayName(clientName);
   const base = "S\xED, soy Lucy de Bodasesor (Cap&Bara Eventos). Te ayudo a armar tu cotizaci\xF3n por aqu\xED.";
   return nombre ? `${base} \xBFSeguimos, ${nombre}?` : `${base} \xBFMe regalas tu nombre para iniciar?`;
+}
+function isServicePreferenceAsNombre(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t4)) return false;
+  if (/\bser[ií]a(n)?\s+(de\s+)?(catering|banquete|taquiza|coffee(\s*break)?|brunch|comida|alimentos?|formal|casual|desayuno|canap[eé]s?|barra|sushi|pizza|pasta|nigiri)\b/i.test(
+    t4
+  )) {
+    return true;
+  }
+  if (/^ser[ií]a(\s+de)?\s+catering$/i.test(t4)) return true;
+  if (/^(de\s+)?catering$/i.test(t4)) return true;
+  if (/^ser[ií]a(n)?$/i.test(t4)) return true;
+  return false;
 }
 function isLikelyUbicacionNotNombre(text2) {
   const t4 = text2?.trim() ?? "";
@@ -129772,6 +129787,7 @@ function sanitizeCrmNombre(name2) {
   if (isGreetingOnlyMessage(raw)) return null;
   if (isRepeatComplaintAsName(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw)) return null;
+  if (isServicePreferenceAsNombre(raw)) return null;
   const strippedHandoff = raw.replace(/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/gi, " ").replace(/\b(hablar|asesor|agente|humano)\b/gi, " ").replace(/\s+/g, " ").trim();
   if (strippedHandoff && strippedHandoff !== raw && strippedHandoff.length >= 2) {
     return sanitizeCrmNombre(strippedHandoff);
@@ -129899,6 +129915,18 @@ function pickBetterNombre(candidate, existing) {
   }
   return sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
 }
+function rewriteJunkClientVocative(message, correctNombre) {
+  if (!message?.trim()) return message;
+  const correct = sanitizeDisplayName(correctNombre) ?? sanitizeCrmNombre(correctNombre)?.split(/\s+/)[0] ?? null;
+  return message.replace(
+    /\b((?:¡?Mucho gusto|¡?Con gusto|Perfecto|Excelente|Genial|Listo|Claro|Hola)[,!]?)(\s+)([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ'-]*)\b/gi,
+    (full, greet, space, name2) => {
+      if (!isServicePreferenceAsNombre(name2)) return full;
+      if (correct) return `${greet}${space}${correct}`;
+      return greet.replace(/,$/, "").trim();
+    }
+  );
+}
 function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
   return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
 }
@@ -130022,7 +130050,7 @@ function replaceAdvisorTokensPreservingClientName(text2, token, replacement, cli
 function normalizeAdvisorReferences(text2, clientName) {
   const advisor = advisorLabelForClient(clientName);
   if (!text2?.trim()) return text2;
-  let out2 = text2;
+  let out2 = rewriteJunkClientVocative(text2, clientName);
   for (const legacy of LEGACY_ADVISOR_NAMES) {
     out2 = out2.replace(new RegExp(`\\b${legacy}\\b`, "gi"), advisor);
   }
@@ -130058,6 +130086,7 @@ var LEGACY_ADVISOR_NAMES, CLIENT_GREETING_PREFIX;
 var init_bodasesorAdvisor = __esm({
   "src/lib/bodasesorAdvisor.ts"() {
     "use strict";
+    init_contact_name();
     LEGACY_ADVISOR_NAMES = ["Rodrigo"];
     CLIENT_GREETING_PREFIX = /(Mucho gusto,?|Hola,?|Genial,?|Perfecto,?|Excelente,?|Listo,?|Claro,?|Qué padre,?)\s*/i;
   }
@@ -132808,17 +132837,23 @@ function looksLikeNameAnswerMessage(text2) {
   const t4 = text2?.trim() ?? "";
   if (!t4 || t4.length > 90 || /\?/.test(t4) || /@/.test(t4) || /\d{3,}/.test(t4)) return false;
   if (clientAsksCafeOrCateringChoice(t4)) return false;
+  if (isServicePreferenceAsNombre(t4)) return false;
   if (isServiceRelatedMessage(t4) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\b/i.test(t4)) {
-    if (/\b(quiero|necesito|busco|cotiz|banquete|taquiza|barra|dj|pista)\b/i.test(t4)) {
+    if (/\b(quiero|necesito|busco|cotiz|banquete|taquiza|barra|dj|pista|catering)\b/i.test(t4)) {
       return false;
     }
   }
-  const candidato = stripNombrePresentationPrefix(t4).replace(/\s+de\s+[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúñ.\s-]{2,50}$/u, "").trim();
+  const strippedCompany = t4.replace(
+    /\s+de\s+(?!catering\b|banquete\b|taquiza\b|coffee\b|brunch\b|comida\b|alimentos?\b)([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúñ.\s-]{2,50})$/iu,
+    ""
+  );
+  const candidato = stripNombrePresentationPrefix(strippedCompany).trim();
+  if (isServicePreferenceAsNombre(candidato)) return false;
   const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
   if (!nombre) return false;
   if (isLikelyNotPersonNameMessage(candidato) && !/^(soy|me\s+llamo)/i.test(t4)) {
     const full = sanitizeCrmNombre(stripNombrePresentationPrefix(t4).split(/\s+de\s+/i)[0] ?? "");
-    return !!full;
+    return !!full && !isServicePreferenceAsNombre(full);
   }
   return true;
 }
@@ -224648,7 +224683,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.65";
+var LUCY_PROMPT_VERSION = "V9.66";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -226779,6 +226814,7 @@ function isInvalidCrmNombre(value) {
   if (!raw) return true;
   if (isQuoteIntentMessage(raw)) return true;
   if (isLikelyUbicacionNotNombre(raw)) return true;
+  if (isServicePreferenceAsNombre(raw)) return true;
   if (isLikelyNotPersonNameMessage(raw) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw)) {
     return true;
   }

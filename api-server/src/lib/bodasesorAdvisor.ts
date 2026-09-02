@@ -2,6 +2,8 @@
  * Nombre del asesor humano que arma cotizaciones (configurable en Hostinger).
  * Rodrigo es legado del bot Replit — el asesor actual es Alejandro.
  */
+import { rewriteJunkClientVocative } from "../contact-name.js";
+
 export const LEGACY_ADVISOR_NAMES = ["Rodrigo"] as const;
 
 export function getAdvisorName(): string {
@@ -77,7 +79,8 @@ export function normalizeAdvisorReferences(text: string, clientName?: string | n
   const advisor = advisorLabelForClient(clientName);
   if (!text?.trim()) return text;
 
-  let out = text;
+  // A15705: "¡Con gusto, Sería!" → "¡Con gusto, Karla!" cuando el CRM tiene el nombre real.
+  let out = rewriteJunkClientVocative(text, clientName);
   for (const legacy of LEGACY_ADVISOR_NAMES) {
     out = out.replace(new RegExp(`\\b${legacy}\\b`, "gi"), advisor);
   }
