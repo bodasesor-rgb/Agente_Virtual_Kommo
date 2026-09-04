@@ -55,7 +55,7 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.68");
+assert.equal(LUCY_PROMPT_VERSION, "V9.69");
 
 assert.ok(isEventTypeMealPhrase("Es una comida para el sábado 12 de septiembre"));
 assert.ok(!isVagueFoodTerm("Es una comida para el sábado 12 de septiembre"));

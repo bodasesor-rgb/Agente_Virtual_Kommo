@@ -1,5 +1,5 @@
 /**
- * Smoke V9.68 — clase A15727+: comida concreta (paninis/sandwich) no reabre menú vago;
+ * Smoke V9.69 — clase A15727+: comida concreta (paninis/sandwich) no reabre menú vago;
  * no acortar nombre completo CRM.
  * node ./scripts/run-v968-class-smoke.mjs
  */
@@ -40,7 +40,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.68");
+assert.equal(LUCY_PROMPT_VERSION, "V9.69");
 
 // ── Parser: paninis / typos sandwich ──
 const paniniMsg =
@@ -145,4 +145,4 @@ assert.match(pickBetterNombre("Daniela", "daniela loustaunau") ?? "", /daniela\s
 assert.equal(resolveKommoLeadNamePatch("daniela loustaunau", "Daniela"), null);
 assert.ok(!!resolveKommoLeadNamePatch("Daniela", "Daniela Loustaunau"));
 
-console.log("V9.68 class smoke OK");
+console.log("V9.69 class smoke OK");

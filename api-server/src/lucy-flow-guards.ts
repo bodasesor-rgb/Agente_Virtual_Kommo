@@ -8412,7 +8412,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     !isEventTypeMealPhrase(currentMessage) &&
     (historyOfferedMobiliarioPieceMenu(presHistory) ||
       historyOfferedAlimentosModoMenu(presHistory) ||
-      /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio|\bmesas?\b|\bplato\s+trinche|\bvajillas?\b/i.test(
+      /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio|\bmesas?\b|\bperiqueras?\b|\bplato\s+trinche|\bvajillas?\b/i.test(
         currentMessage ?? ""
       )) &&
     currentMessage?.trim() &&
@@ -8420,23 +8420,29 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       isTablewareRequestText(currentMessage) ||
       /\b(modelos?\s+de\s+)?sillas?\b/i.test(currentMessage ?? "") ||
       /\bmesas?\b/i.test(currentMessage ?? "") ||
+      /\bperiqueras?\b/i.test(currentMessage ?? "") ||
       /\bmobiliario|mobilairio\b/i.test(currentMessage ?? ""))
   ) {
+    const msgMob = currentMessage ?? "";
+    // A15735+: "mesas periqueras" = periqueras (no mesas + periqueras ni "mesas, sillas").
+    const mesasPeriquerasOnly = /\bmesas?\s+periqueras?\b/i.test(msgMob);
     const piece =
       parseMobiliarioPieceChoice(currentMessage) ||
-      (/\bsillas?\b/i.test(currentMessage ?? "")
+      (/\bsillas?\b/i.test(msgMob)
         ? "sillas"
-        : /\bmesas?\b/i.test(currentMessage ?? "")
-          ? "mesas"
-          : "mobiliario");
+        : mesasPeriquerasOnly || /\bperiqueras?\b/i.test(msgMob)
+          ? "periqueras"
+          : /\bmesas?\b/i.test(msgMob)
+            ? "mesas"
+            : "mobiliario");
     filledSet.add("Requerimientos o servicios");
-    // A15642: "Mesas, sillas, plato trinche" → anotar todo y avanzar, no otro menú de modelos.
-    const multiPieces =
-      (/\bmesas?\b/i.test(currentMessage ?? "") ? 1 : 0) +
-        (/\bsillas?\b/i.test(currentMessage ?? "") ? 1 : 0) +
-        (/\bperiqueras?\b/i.test(currentMessage ?? "") ? 1 : 0) +
-        (isTablewareRequestText(currentMessage) ? 1 : 0) >=
-      2;
+    // A15642 / A15735+: listar piezas reales (periqueras ≠ mesas/sillas genérico).
+    const mobLabels: string[] = [];
+    if (/\bperiqueras?\b/i.test(msgMob) || mesasPeriquerasOnly) mobLabels.push("periqueras");
+    if (/\bsillas?\b/i.test(msgMob)) mobLabels.push("sillas");
+    if (/\bmesas?\b/i.test(msgMob) && !mesasPeriquerasOnly) mobLabels.push("mesas");
+    if (isTablewareRequestText(currentMessage)) mobLabels.push("plato trinche");
+    const multiPieces = mobLabels.length >= 2;
     const reqBlob = multiPieces
       ? currentMessage!
       : piece === "mobiliario"
@@ -8451,10 +8457,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
     if (merged) extracted.requerimientos_evento = merged;
     const display = getDisplayName(extracted, whatsappDisplayName);
-    if (multiPieces || (historyOfferedAlimentosModoMenu(presHistory) && piece !== "mobiliario")) {
+    const advanceWithAck =
+      multiPieces ||
+      mesasPeriquerasOnly ||
+      (historyOfferedAlimentosModoMenu(presHistory) && piece !== "mobiliario");
+    if (advanceWithAck) {
+      const labelText =
+        mobLabels.length > 0
+          ? mobLabels.map((l) => `*${l}*`).join(", ").replace(/, ([^,]*)$/, " y $1")
+          : `*${piece}*`;
       const ack = display
-        ? `Perfecto, ${display}. Anoto *mesas, sillas*${isTablewareRequestText(currentMessage) ? " y *plato trinche*" : ""} para tu cotización.`
-        : `Perfecto. Anoto *mesas, sillas*${isTablewareRequestText(currentMessage) ? " y *plato trinche*" : ""} para tu cotización.`;
+        ? `Perfecto, ${display}. Anoto ${labelText} para tu cotización.`
+        : `Perfecto. Anoto ${labelText} para tu cotización.`;
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ =
         pending && pending !== "requerimientos"
@@ -8463,7 +8477,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       mensaje = nextQ ? `${ack} ${nextQ}` : ack;
       appliedSalesReply = true;
       appliedDirectReply = true;
-      log?.info({ entityId, piece, multiPieces }, "GUARD: A15642 — mobiliario listado → embudo");
+      log?.info({ entityId, piece, multiPieces, mobLabels }, "GUARD: A15642/A15735 — mobiliario listado → embudo");
     } else {
       const body =
         piece === "mobiliario"

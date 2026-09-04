@@ -129593,6 +129593,19 @@ var init_lucyInfoPriceCache = __esm({
 });
 
 // src/contact-name.ts
+function isRoleOrDepartmentAsNombre(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return false;
+  if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t4)) return false;
+  const parts2 = t4.split(/\s+/).filter(Boolean);
+  if (parts2.length === 0 || parts2.length > 5) return false;
+  const first = (parts2[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+  if (ROLE_OR_DEPT_NAME_TOKEN.test(first) || ROLE_OR_DEPT_NAME_TOKEN.test(t4)) return true;
+  if (/^(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n|compras)\b/i.test(t4) && parts2.length <= 4) {
+    return true;
+  }
+  return false;
+}
 function isMuchoGustoNameReply(text2) {
   const t4 = text2?.trim() ?? "";
   if (!t4) return false;
@@ -129612,9 +129625,20 @@ function isRepeatComplaintAsName(text2) {
 function isGreetingToLucy(text2) {
   return /^(hola|hello|hi|hey)[,!]?\s+lucy\b/i.test(text2.trim());
 }
+function stripRoleNameCorrectionClause(raw) {
+  return raw.replace(
+    /[,.]?\s*no\s+(?:la\s+|el\s+)?(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n)\b.*$/i,
+    ""
+  ).replace(/[.!🙂😊😉]*$/u, "").trim();
+}
 function stripPresentationPrefixLocal(raw) {
-  const m6 = raw.trim().match(/^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es|c[oó]mo)\s+(.+)$/i);
-  return (m6?.[1] ?? raw).trim();
+  const t4 = raw.trim();
+  const mid = t4.match(
+    /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+(.+)$/i
+  );
+  if (mid?.[1]) return stripRoleNameCorrectionClause(mid[1].trim());
+  const m6 = t4.match(/^\s*(?:c[oó]mo)\s+(.+)$/i);
+  return stripRoleNameCorrectionClause((m6?.[1] ?? t4).trim());
 }
 function isQuoteIntentMessage(text2) {
   const t4 = text2?.trim() ?? "";
@@ -129665,9 +129689,10 @@ function isLikelyNotPersonNameMessage(text2) {
   if (!t4) return true;
   if (isGreetingToLucy(t4)) return true;
   if (isRepeatComplaintAsName(t4)) return true;
-  if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t4)) return false;
+  if (/(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t4)) return false;
   if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t4) && t4.split(/\s+/).length <= 5) return false;
   if (isServicePreferenceAsNombre(t4)) return true;
+  if (isRoleOrDepartmentAsNombre(t4)) return true;
   if (/\?/.test(t4)) return true;
   if (SENTENCE_VERB_PATTERN.test(t4)) return true;
   if (/\bcu[aá]nto\s+(cuesta|cuestan|vale|valen|cobran|sale)\b/i.test(t4) || /\b(precio|costo|tarifa)\s+(de|para|por)\b/i.test(t4) || /\bcu[aá]nto\s+cuesta\s+la\s+renta\b/i.test(t4)) {
@@ -129746,6 +129771,7 @@ function isPlaceholderLeadName(name2) {
   if (!trimmed) return true;
   if (trimmed.length < 2) return true;
   if (PHONE_LIKE.test(trimmed.replace(/\s/g, ""))) return true;
+  if (isRoleOrDepartmentAsNombre(trimmed)) return true;
   return PLACEHOLDER_PATTERNS.some((p5) => p5.test(trimmed));
 }
 function stripLeadingNameFillers(name2) {
@@ -129793,12 +129819,13 @@ function sanitizeCrmNombre(name2) {
   if (isRepeatComplaintAsName(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw)) return null;
   if (isServicePreferenceAsNombre(raw)) return null;
+  if (isRoleOrDepartmentAsNombre(raw)) return null;
   const strippedHandoff = raw.replace(/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/gi, " ").replace(/\b(hablar|asesor|agente|humano)\b/gi, " ").replace(/\s+/g, " ").trim();
   if (strippedHandoff && strippedHandoff !== raw && strippedHandoff.length >= 2) {
     return sanitizeCrmNombre(strippedHandoff);
   }
   if (!strippedHandoff) return null;
-  const isPresentation = /^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw);
+  const isPresentation = /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw);
   if (!isPresentation && isLikelyNotPersonNameMessage(raw)) {
     if (/\bcu[aá]nto\s+(cuesta|cuestan|vale|valen|cobran)\b/i.test(raw) || /\b(precio|costo)\b.{0,20}\b(renta|mesa|silla|periquera)/i.test(raw) || PRICE_OR_SERVICE_NAME_TOKEN.test((raw.split(/\s+/)[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, ""))) {
       return null;
@@ -129863,7 +129890,7 @@ function shouldUpdateName(current, incoming) {
   const iClean = sanitizeCrmNombre(i6) ?? sanitizeDisplayName(i6);
   if (!iClean) return false;
   if (!c5) return true;
-  if (isLikelyUbicacionNotNombre(c5) || CATALOG_LEVEL_OR_BRAND_NAME.test(c5.split(/\s+/)[0] ?? "") || !sanitizeCrmNombre(c5)) {
+  if (isLikelyUbicacionNotNombre(c5) || isRoleOrDepartmentAsNombre(c5) || CATALOG_LEVEL_OR_BRAND_NAME.test(c5.split(/\s+/)[0] ?? "") || !sanitizeCrmNombre(c5)) {
     return true;
   }
   if (!namesAreLikelySamePerson(c5, iClean)) return false;
@@ -129924,9 +129951,11 @@ function rewriteJunkClientVocative(message, correctNombre) {
   if (!message?.trim()) return message;
   const correct = sanitizeDisplayName(correctNombre) ?? sanitizeCrmNombre(correctNombre)?.split(/\s+/)[0] ?? null;
   return message.replace(
-    /\b((?:¡?Mucho gusto|¡?Con gusto|Perfecto|Excelente|Genial|Listo|Claro|Hola)[,!]?)(\s+)([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ'-]*)\b/gi,
+    /\b((?:¡?Mucho gusto|¡?Con gusto|Perfecto|Excelente|Genial|Listo|Claro|Hola|Gracias)[,!]?)(\s+)([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ'-]*)\b/gi,
     (full, greet, space, name2) => {
-      if (!isServicePreferenceAsNombre(name2)) return full;
+      if (!isServicePreferenceAsNombre(name2) && !isRoleOrDepartmentAsNombre(name2)) {
+        return full;
+      }
       if (correct) return `${greet}${space}${correct}`;
       return greet.replace(/,$/, "").trim();
     }
@@ -129935,7 +129964,7 @@ function rewriteJunkClientVocative(message, correctNombre) {
 function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
   return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
 }
-var PHONE_LIKE, PLACEHOLDER_PATTERNS, GREETING_NAME_PATTERN, COMPANY_OR_CHANNEL_PATTERN, BOT_OR_META_NAME_TOKEN, COURTESY_NAME_TOKEN, MUCHO_GUSTO_SUFFIX, MUCHO_GUSTO_LEADING, CATALOG_LEVEL_OR_BRAND_NAME, SENTENCE_VERB_PATTERN, HANDOFF_OR_META_NAME_TOKEN, PRICE_OR_SERVICE_NAME_TOKEN, NAME_STOPWORDS;
+var PHONE_LIKE, PLACEHOLDER_PATTERNS, ROLE_OR_DEPT_NAME_TOKEN, GREETING_NAME_PATTERN, COMPANY_OR_CHANNEL_PATTERN, BOT_OR_META_NAME_TOKEN, COURTESY_NAME_TOKEN, MUCHO_GUSTO_SUFFIX, MUCHO_GUSTO_LEADING, CATALOG_LEVEL_OR_BRAND_NAME, SENTENCE_VERB_PATTERN, HANDOFF_OR_META_NAME_TOKEN, PRICE_OR_SERVICE_NAME_TOKEN, NAME_STOPWORDS;
 var init_contact_name = __esm({
   "src/contact-name.ts"() {
     "use strict";
@@ -129950,6 +129979,7 @@ var init_contact_name = __esm({
       /^cliente$/i,
       /^\d+$/
     ];
+    ROLE_OR_DEPT_NAME_TOKEN = /^(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n|compras|rh|rr\.?\s*hh?|recursos\s+humanos|atenci[oó]n(\s+a\s+clientes)?|customer\s+service|front\s+desk|concierge|reservaciones?|reservations?|informaci[oó]n|info|oficina|office|operaciones|log[ií]stica|eventos?|coordinaci[oó]n|coordinador[ao]?|asistente|secretaria|secretar[ií]a)$/i;
     GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo|claro)$/i;
     COMPANY_OR_CHANNEL_PATTERN = /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
     BOT_OR_META_NAME_TOKEN = /^(lucy|llamo|llam[oó]|bodasesor|capybara|salesbot)$/i;
@@ -131208,8 +131238,19 @@ function sanitizeExtractedAmbiguousNumbers(extracted, messageText, ctx) {
   }
 }
 function stripNombrePresentationPrefix(raw) {
-  const m6 = raw.trim().match(/^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es|c[oó]mo)\s+(.+)$/i);
-  return (m6?.[1] ?? raw).trim();
+  const t4 = raw.trim();
+  const mid = t4.match(
+    /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+(.+)$/i
+  );
+  let rest = mid?.[1] ?? null;
+  if (!rest) {
+    const m6 = t4.match(/^\s*(?:c[oó]mo)\s+(.+)$/i);
+    rest = m6?.[1] ?? t4;
+  }
+  return rest.replace(
+    /[,.]?\s*no\s+(?:la\s+|el\s+)?(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n)\b.*$/i,
+    ""
+  ).replace(/[.!🙂😊😉]*$/u, "").trim();
 }
 function recoverClienteNombreFromHistory(history, currentMessage) {
   let lastAssistant = "";
@@ -131345,6 +131386,7 @@ function clientDeclinesMoreServices(message) {
   if (/\bsolo\s+(el\s+)?(servicio|photo|photobooth|cabina|banquete|barra|dj|mobiliario)/i.test(t4) && !/\bno\s+quiero\b/i.test(t4)) {
     return false;
   }
+  if (isPointingReferentialEmoji(message)) return true;
   return /^(no|nop)[\s.,!]*$/i.test(t4) || /\bsolo\s+(con\s+)?eso\b/i.test(t4) || /\bsolo\s+ese\b/i.test(t4) || /\bsolamente\s+eso\b/i.test(t4) || /\bnada\s+m[aá]s\b/i.test(t4) || /\bno\s+quiero\s+nada\s+m[aá]s\b/i.test(t4) || /\bno\s+quiero\s+(nada\s+)?m[aá]s\b/i.test(t4) || /\bning[uú]n[a]?\b/i.test(t4) || /\bning[uú]n\s+otro\b/i.test(t4) || /\bninguno\s+de\s+(esos|ellos|estos)\b/i.test(t4) || /\bno[.\s,¡!]+gracias\b/i.test(t4) || /\bno\s+gracias\b/i.test(t4) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t4) || /\beso\s+es\s+todo\b/i.test(t4) || /\bes\s+todo\b/i.test(t4) || /\bya\s+no\b/i.test(t4) || /\bno\s+m[aá]s\b/i.test(t4) || /\blisto\s+as[ií]\b/i.test(t4) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t4) || /\bno\s+me\s+interesa\b/i.test(t4) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t4) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t4) || /\bpor\s+ahora\s+no\b/i.test(t4) || // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
   /\bsolo\s+quiero\b/i.test(t4) && !/\bcomida\b|\bcotiz/i.test(t4) || /\bquiero\s+solo\b/i.test(t4) && !/\bcomida\b|\bcotiz/i.test(t4);
 }
@@ -132799,8 +132841,19 @@ function isUsableFechaHorario(value) {
   }
   return true;
 }
+function isPointingReferentialEmoji(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  const withoutPoint = t4.replace(/[\u{1F446}\u{1F445}\u{1F447}\u{1F448}\u{1F449}\u{261D}\u{2B06}\u{2191}\u{2197}\u{2934}]/gu, "").replace(
+    /[\s.!,;:¿?¡]+/g,
+    ""
+  );
+  if (withoutPoint.length > 0) return false;
+  return /[\u{1F446}\u{261D}\u{2B06}\u{2191}]/u.test(t4);
+}
 function isReferentialPriorAnswer(message) {
   if (!message?.trim()) return false;
+  if (isPointingReferentialEmoji(message)) return true;
   const n5 = message.trim().normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
   if (!n5 || n5.length > 160) return false;
   return /^(a\s+)?(este|ese|esta|esa)(\s+(mismo|misma|correo|mail|email|dato))?$/.test(n5) || /^(el|la)\s+(mismo|misma)(\s+(correo|mail|email|dato))?$/.test(n5) || /^(el|la)\s+de\s+(antes|arriba|hace\s+rato|hace\s+un\s+rato)$/.test(n5) || /^(ese|este)\s+(que\s+)?(ya\s+)?(te\s+)?(di|mande|envie|pase)$/.test(n5) || /^(el\s+)?(mismo\s+)?(correo|mail|email)(\s+(de\s+antes|anterior))?$/.test(n5) || /^ya\s+(te\s+)?(lo\s+)?(di|mande|envie|pase|he\s+enviado|he\s+mandado)(\s+(ese|el|antes))?$/.test(
@@ -133309,6 +133362,24 @@ function parseZonaFromText(text2) {
     return expoMatch[0].trim();
   }
   if (KNOWN_ZONES.test(trimmed)) {
+    const zoneHits = [
+      ...trimmed.matchAll(new RegExp(KNOWN_ZONES.source, "gi"))
+    ].map((m7) => m7[0].trim()).filter(Boolean);
+    const uniqueZones = [];
+    for (const z4 of zoneHits) {
+      if (!uniqueZones.some((u5) => u5.toLowerCase() === z4.toLowerCase())) {
+        uniqueZones.push(z4);
+      }
+    }
+    if (uniqueZones.length >= 2) {
+      let composedMulti = uniqueZones[0];
+      for (let i6 = 1; i6 < uniqueZones.length; i6++) {
+        composedMulti = mergeZonaDetail(composedMulti, uniqueZones[i6]);
+      }
+      if (composedMulti && isUsableDireccionEvento(composedMulti)) {
+        return composedMulti;
+      }
+    }
     const m6 = trimmed.match(KNOWN_ZONES);
     if (m6 && isUsableDireccionEvento(m6[0].trim())) {
       const city = m6[0].trim();
@@ -135548,6 +135619,7 @@ function parseMobiliarioPieceChoice(text2) {
     return null;
   }
   if (/\b(periqueras?)\b/i.test(t4)) return "periqueras";
+  if (/\bmesas?\s+periqueras?\b/i.test(t4)) return "periqueras";
   if (/\b(salas?\s+lounge|lounge)\b/i.test(t4)) return "salas lounge";
   if (/\b(vajillas?|loza|manteler[ií]a|cubiertos?)\b/i.test(t4)) return "vajillas";
   if (/\b(entelados?)\b/i.test(t4)) return "entelados";
@@ -164354,13 +164426,20 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
   } else if (
     // V8.92 / A15165 / A15642: menú de piezas mobiliario → modelos (también post-cierre).
     // Incluye "Mesas, sillas, plato trinche" aunque Lucy haya abierto menú de alimentos por error.
-    allowSalesReplyOverride && !shouldSkipSalesMenuForConcreteQuestion(currentMessage) && !clientAsksForCatalog(currentMessage) && !isEventTypeMealPhrase(currentMessage) && (historyOfferedMobiliarioPieceMenu(presHistory) || historyOfferedAlimentosModoMenu(presHistory) || /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio|\bmesas?\b|\bplato\s+trinche|\bvajillas?\b/i.test(
+    allowSalesReplyOverride && !shouldSkipSalesMenuForConcreteQuestion(currentMessage) && !clientAsksForCatalog(currentMessage) && !isEventTypeMealPhrase(currentMessage) && (historyOfferedMobiliarioPieceMenu(presHistory) || historyOfferedAlimentosModoMenu(presHistory) || /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio|\bmesas?\b|\bperiqueras?\b|\bplato\s+trinche|\bvajillas?\b/i.test(
       currentMessage ?? ""
-    )) && currentMessage?.trim() && (parseMobiliarioPieceChoice(currentMessage) || isTablewareRequestText(currentMessage) || /\b(modelos?\s+de\s+)?sillas?\b/i.test(currentMessage ?? "") || /\bmesas?\b/i.test(currentMessage ?? "") || /\bmobiliario|mobilairio\b/i.test(currentMessage ?? ""))
+    )) && currentMessage?.trim() && (parseMobiliarioPieceChoice(currentMessage) || isTablewareRequestText(currentMessage) || /\b(modelos?\s+de\s+)?sillas?\b/i.test(currentMessage ?? "") || /\bmesas?\b/i.test(currentMessage ?? "") || /\bperiqueras?\b/i.test(currentMessage ?? "") || /\bmobiliario|mobilairio\b/i.test(currentMessage ?? ""))
   ) {
-    const piece = parseMobiliarioPieceChoice(currentMessage) || (/\bsillas?\b/i.test(currentMessage ?? "") ? "sillas" : /\bmesas?\b/i.test(currentMessage ?? "") ? "mesas" : "mobiliario");
+    const msgMob = currentMessage ?? "";
+    const mesasPeriquerasOnly = /\bmesas?\s+periqueras?\b/i.test(msgMob);
+    const piece = parseMobiliarioPieceChoice(currentMessage) || (/\bsillas?\b/i.test(msgMob) ? "sillas" : mesasPeriquerasOnly || /\bperiqueras?\b/i.test(msgMob) ? "periqueras" : /\bmesas?\b/i.test(msgMob) ? "mesas" : "mobiliario");
     filledSet.add("Requerimientos o servicios");
-    const multiPieces = (/\bmesas?\b/i.test(currentMessage ?? "") ? 1 : 0) + (/\bsillas?\b/i.test(currentMessage ?? "") ? 1 : 0) + (/\bperiqueras?\b/i.test(currentMessage ?? "") ? 1 : 0) + (isTablewareRequestText(currentMessage) ? 1 : 0) >= 2;
+    const mobLabels = [];
+    if (/\bperiqueras?\b/i.test(msgMob) || mesasPeriquerasOnly) mobLabels.push("periqueras");
+    if (/\bsillas?\b/i.test(msgMob)) mobLabels.push("sillas");
+    if (/\bmesas?\b/i.test(msgMob) && !mesasPeriquerasOnly) mobLabels.push("mesas");
+    if (isTablewareRequestText(currentMessage)) mobLabels.push("plato trinche");
+    const multiPieces = mobLabels.length >= 2;
     const reqBlob = multiPieces ? currentMessage : piece === "mobiliario" ? "Mobiliario" : isTablewareRequestText(currentMessage) ? `${piece}, plato trinche` : `Mobiliario: ${piece}`;
     const merged = mergeServiceRequirements(
       extracted.requerimientos_evento,
@@ -164369,14 +164448,16 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
     );
     if (merged) extracted.requerimientos_evento = merged;
     const display = getDisplayName(extracted, whatsappDisplayName);
-    if (multiPieces || historyOfferedAlimentosModoMenu(presHistory) && piece !== "mobiliario") {
-      const ack = display ? `Perfecto, ${display}. Anoto *mesas, sillas*${isTablewareRequestText(currentMessage) ? " y *plato trinche*" : ""} para tu cotizaci\xF3n.` : `Perfecto. Anoto *mesas, sillas*${isTablewareRequestText(currentMessage) ? " y *plato trinche*" : ""} para tu cotizaci\xF3n.`;
+    const advanceWithAck = multiPieces || mesasPeriquerasOnly || historyOfferedAlimentosModoMenu(presHistory) && piece !== "mobiliario";
+    if (advanceWithAck) {
+      const labelText = mobLabels.length > 0 ? mobLabels.map((l6) => `*${l6}*`).join(", ").replace(/, ([^,]*)$/, " y $1") : `*${piece}*`;
+      const ack = display ? `Perfecto, ${display}. Anoto ${labelText} para tu cotizaci\xF3n.` : `Perfecto. Anoto ${labelText} para tu cotizaci\xF3n.`;
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
       mensaje = nextQ ? `${ack} ${nextQ}` : ack;
       appliedSalesReply = true;
       appliedDirectReply = true;
-      log?.info({ entityId, piece, multiPieces }, "GUARD: A15642 \u2014 mobiliario listado \u2192 embudo");
+      log?.info({ entityId, piece, multiPieces, mobLabels }, "GUARD: A15642/A15735 \u2014 mobiliario listado \u2192 embudo");
     } else {
       const body2 = piece === "mobiliario" ? buildProgressiveOptionsMenu("mobiliario") : buildMobiliarioPieceFollowUp(piece);
       const catalogUrl = getCatalogWebUrlForQuery("mesas y sillas") || getCatalogWebHubDeliveryUrl();
@@ -224931,7 +225012,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.68";
+var LUCY_PROMPT_VERSION = "V9.69";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -229674,7 +229755,7 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
     if (idx >= 0) {
       const rawLine = mergedLines[idx];
       const existing = rawLine.replace(/^-?\s*Nombre del cliente:\s*/i, "").replace(WHATSAPP_NOMBRE_NOTE, "").trim();
-      const presented = !!currentMessage && /^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(currentMessage);
+      const presented = !!currentMessage && /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(currentMessage);
       const fromTurn = currentMessage && (lastAskedEarly === "nombre" || presented) ? sanitizeCrmNombre(stripNombrePresentationPrefix(currentMessage)) : null;
       const upgraded = pickBetterNombre(
         pickBetterNombre(extracted.nombre, fromTurn),

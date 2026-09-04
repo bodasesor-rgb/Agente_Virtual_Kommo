@@ -570,6 +570,8 @@ export function parseMobiliarioPieceChoice(text: string | null | undefined): str
     return null;
   }
   if (/\b(periqueras?)\b/i.test(t)) return "periqueras";
+  // A15735+: "mesas periqueras" / "mesa periquera" = periqueras (no mesas de comedor).
+  if (/\bmesas?\s+periqueras?\b/i.test(t)) return "periqueras";
   if (/\b(salas?\s+lounge|lounge)\b/i.test(t)) return "salas lounge";
   if (/\b(vajillas?|loza|manteler[ií]a|cubiertos?)\b/i.test(t)) return "vajillas";
   if (/\b(entelados?)\b/i.test(t)) return "entelados";

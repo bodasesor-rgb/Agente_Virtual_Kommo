@@ -973,10 +973,23 @@ export function sanitizeExtractedAmbiguousNumbers(
 
 /** Quita "soy / me llamo / …" y deja el nombre (completo para CRM). */
 export function stripNombrePresentationPrefix(raw: string): string {
-  const m = raw
-    .trim()
-    .match(/^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es|c[oó]mo)\s+(.+)$/i);
-  return (m?.[1] ?? raw).trim();
+  const t = raw.trim();
+  // A15735+: "que tal, soy Bea" / "soy Bea, no recepción"
+  const mid = t.match(
+    /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+(.+)$/i
+  );
+  let rest = mid?.[1] ?? null;
+  if (!rest) {
+    const m = t.match(/^\s*(?:c[oó]mo)\s+(.+)$/i);
+    rest = m?.[1] ?? t;
+  }
+  return rest
+    .replace(
+      /[,.]?\s*no\s+(?:la\s+|el\s+)?(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n)\b.*$/i,
+      ""
+    )
+    .replace(/[.!🙂😊😉]*$/u, "")
+    .trim();
 }
 
 /**
@@ -1236,6 +1249,8 @@ export function clientDeclinesMoreServices(message?: string | null): boolean {
   ) {
     return false;
   }
+  // A15735+: emoji apuntando al mensaje previo = "solo eso" / sin otro servicio.
+  if (isPointingReferentialEmoji(message)) return true;
   return (
     /^(no|nop)[\s.,!]*$/i.test(t) ||
     /\bsolo\s+(con\s+)?eso\b/i.test(t) ||
@@ -3755,8 +3770,24 @@ export function isUsableFechaHorario(value: string | null | undefined): boolean 
  * Cliente apunta al dato ya dado: "a este", "ese", "el mismo", "el de antes".
  * A15007 Osiris — no tratar como vacío / "Sigo aquí".
  */
+/** Emoji que apunta al mensaje anterior (👆 / ⬆️ / etc.) — clase A15735+. */
+export function isPointingReferentialEmoji(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  // Solo emoji(s) de apuntar / “eso de arriba”, sin texto de servicio nuevo.
+  const withoutPoint =
+    t.replace(/[\u{1F446}\u{1F445}\u{1F447}\u{1F448}\u{1F449}\u{261D}\u{2B06}\u{2191}\u{2197}\u{2934}]/gu, "").replace(
+      /[\s.!,;:¿?¡]+/g,
+      ""
+    );
+  if (withoutPoint.length > 0) return false;
+  return /[\u{1F446}\u{261D}\u{2B06}\u{2191}]/u.test(t);
+}
+
 export function isReferentialPriorAnswer(message?: string | null): boolean {
   if (!message?.trim()) return false;
+  // A15735+: "👆" tras "¿otro servicio?" = lo de arriba / solo eso.
+  if (isPointingReferentialEmoji(message)) return true;
   const n = message
     .trim()
     .normalize("NFD")
@@ -4613,6 +4644,27 @@ export function parseZonaFromText(text: string): string | null {
   }
 
   if (KNOWN_ZONES.test(trimmed)) {
+    // A15735+: "cdmx polanco" → conservar ciudad + colonia (no solo el primer match).
+    const zoneHits = [
+      ...trimmed.matchAll(new RegExp(KNOWN_ZONES.source, "gi")),
+    ]
+      .map((m) => m[0]!.trim())
+      .filter(Boolean);
+    const uniqueZones: string[] = [];
+    for (const z of zoneHits) {
+      if (!uniqueZones.some((u) => u.toLowerCase() === z.toLowerCase())) {
+        uniqueZones.push(z);
+      }
+    }
+    if (uniqueZones.length >= 2) {
+      let composedMulti: string | null = uniqueZones[0]!;
+      for (let i = 1; i < uniqueZones.length; i++) {
+        composedMulti = mergeZonaDetail(composedMulti, uniqueZones[i]!);
+      }
+      if (composedMulti && isUsableDireccionEvento(composedMulti)) {
+        return composedMulti;
+      }
+    }
     const m = trimmed.match(KNOWN_ZONES);
     if (m && isUsableDireccionEvento(m[0]!.trim())) {
       const city = m[0]!.trim();

@@ -110587,6 +110587,20 @@ var PLACEHOLDER_PATTERNS = [
   /^cliente$/i,
   /^\d+$/
 ];
+var ROLE_OR_DEPT_NAME_TOKEN = /^(recepci[o√≥]n|reception|hospitality|ventas|gerencia|administraci[o√≥]n|compras|rh|rr\.?\s*hh?|recursos\s+humanos|atenci[o√≥]n(\s+a\s+clientes)?|customer\s+service|front\s+desk|concierge|reservaciones?|reservations?|informaci[o√≥]n|info|oficina|office|operaciones|log[i√≠]stica|eventos?|coordinaci[o√≥]n|coordinador[ao]?|asistente|secretaria|secretar[i√≠]a)$/i;
+function isRoleOrDepartmentAsNombre(text2) {
+  const t3 = (text2 ?? "").trim();
+  if (!t3) return false;
+  if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t3)) return false;
+  const parts2 = t3.split(/\s+/).filter(Boolean);
+  if (parts2.length === 0 || parts2.length > 5) return false;
+  const first = (parts2[0] ?? "").replace(/[^a-zA-Z√°√©√≠√≥√∫√º√±√Å√â√ç√ì√ö√ú√ë]/g, "");
+  if (ROLE_OR_DEPT_NAME_TOKEN.test(first) || ROLE_OR_DEPT_NAME_TOKEN.test(t3)) return true;
+  if (/^(recepci[o√≥]n|reception|hospitality|ventas|gerencia|administraci[o√≥]n|compras)\b/i.test(t3) && parts2.length <= 4) {
+    return true;
+  }
+  return false;
+}
 var GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[i√≠]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[i√≠]|no|qu[e√©]|tal|ayuda|info|cotizaci[o√≥]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo|claro)$/i;
 var COMPANY_OR_CHANNEL_PATTERN = /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
 var BOT_OR_META_NAME_TOKEN = /^(lucy|llamo|llam[o√≥]|bodasesor|capybara|salesbot)$/i;
@@ -110613,9 +110627,20 @@ var CATALOG_LEVEL_OR_BRAND_NAME = /^(premium|b[a√°]sic[ao]|tradicional|solo\s*al
 function isGreetingToLucy(text2) {
   return /^(hola|hello|hi|hey)[,!]?\s+lucy\b/i.test(text2.trim());
 }
+function stripRoleNameCorrectionClause(raw) {
+  return raw.replace(
+    /[,.]?\s*no\s+(?:la\s+|el\s+)?(recepci[o√≥]n|reception|hospitality|ventas|gerencia|administraci[o√≥]n)\b.*$/i,
+    ""
+  ).replace(/[.!üôÇüòäüòâ]*$/u, "").trim();
+}
 function stripPresentationPrefixLocal(raw) {
-  const m5 = raw.trim().match(/^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es|c[o√≥]mo)\s+(.+)$/i);
-  return (m5?.[1] ?? raw).trim();
+  const t3 = raw.trim();
+  const mid = t3.match(
+    /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+(.+)$/i
+  );
+  if (mid?.[1]) return stripRoleNameCorrectionClause(mid[1].trim());
+  const m5 = t3.match(/^\s*(?:c[o√≥]mo)\s+(.+)$/i);
+  return stripRoleNameCorrectionClause((m5?.[1] ?? t3).trim());
 }
 var SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|hablar|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[i√≠]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale|manda|m[a√°]nda|mandame|m[a√°]ndame|mandamelo|m[a√°]ndamelo|env[i√≠]a|env[i√≠]ame|env[i√≠]amelo|pasa|p[a√°]same|conocer)\b/i;
 var HANDOFF_OR_META_NAME_TOKEN = /^(hablar|asesor|agente|humano|persona|ejecutivo|equipo|conmigo|contigo|por|favor)$/i;
@@ -110670,9 +110695,10 @@ function isLikelyNotPersonNameMessage(text2) {
   if (!t3) return true;
   if (isGreetingToLucy(t3)) return true;
   if (isRepeatComplaintAsName(t3)) return true;
-  if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t3)) return false;
+  if (/(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t3)) return false;
   if (/^c[o√≥]mo\s+[A-Za-z√Å√â√ç√ì√ö√°√©√≠√≥√∫√±√ë]{2,}/i.test(t3) && t3.split(/\s+/).length <= 5) return false;
   if (isServicePreferenceAsNombre(t3)) return true;
+  if (isRoleOrDepartmentAsNombre(t3)) return true;
   if (/\?/.test(t3)) return true;
   if (SENTENCE_VERB_PATTERN.test(t3)) return true;
   if (/\bcu[a√°]nto\s+(cuesta|cuestan|vale|valen|cobran|sale)\b/i.test(t3) || /\b(precio|costo|tarifa)\s+(de|para|por)\b/i.test(t3) || /\bcu[a√°]nto\s+cuesta\s+la\s+renta\b/i.test(t3)) {
@@ -110751,6 +110777,7 @@ function isPlaceholderLeadName(name2) {
   if (!trimmed) return true;
   if (trimmed.length < 2) return true;
   if (PHONE_LIKE.test(trimmed.replace(/\s/g, ""))) return true;
+  if (isRoleOrDepartmentAsNombre(trimmed)) return true;
   return PLACEHOLDER_PATTERNS.some((p4) => p4.test(trimmed));
 }
 function stripLeadingNameFillers(name2) {
@@ -110798,12 +110825,13 @@ function sanitizeCrmNombre(name2) {
   if (isRepeatComplaintAsName(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw)) return null;
   if (isServicePreferenceAsNombre(raw)) return null;
+  if (isRoleOrDepartmentAsNombre(raw)) return null;
   const strippedHandoff = raw.replace(/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/gi, " ").replace(/\b(hablar|asesor|agente|humano)\b/gi, " ").replace(/\s+/g, " ").trim();
   if (strippedHandoff && strippedHandoff !== raw && strippedHandoff.length >= 2) {
     return sanitizeCrmNombre(strippedHandoff);
   }
   if (!strippedHandoff) return null;
-  const isPresentation = /^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw);
+  const isPresentation = /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw);
   if (!isPresentation && isLikelyNotPersonNameMessage(raw)) {
     if (/\bcu[a√°]nto\s+(cuesta|cuestan|vale|valen|cobran)\b/i.test(raw) || /\b(precio|costo)\b.{0,20}\b(renta|mesa|silla|periquera)/i.test(raw) || PRICE_OR_SERVICE_NAME_TOKEN.test((raw.split(/\s+/)[0] ?? "").replace(/[^a-zA-Z√°√©√≠√≥√∫√º√±√Å√â√ç√ì√ö√ú√ë]/g, ""))) {
       return null;
@@ -110868,7 +110896,7 @@ function shouldUpdateName(current, incoming) {
   const iClean = sanitizeCrmNombre(i5) ?? sanitizeDisplayName(i5);
   if (!iClean) return false;
   if (!c4) return true;
-  if (isLikelyUbicacionNotNombre(c4) || CATALOG_LEVEL_OR_BRAND_NAME.test(c4.split(/\s+/)[0] ?? "") || !sanitizeCrmNombre(c4)) {
+  if (isLikelyUbicacionNotNombre(c4) || isRoleOrDepartmentAsNombre(c4) || CATALOG_LEVEL_OR_BRAND_NAME.test(c4.split(/\s+/)[0] ?? "") || !sanitizeCrmNombre(c4)) {
     return true;
   }
   if (!namesAreLikelySamePerson(c4, iClean)) return false;
@@ -110929,9 +110957,11 @@ function rewriteJunkClientVocative(message, correctNombre) {
   if (!message?.trim()) return message;
   const correct = sanitizeDisplayName(correctNombre) ?? sanitizeCrmNombre(correctNombre)?.split(/\s+/)[0] ?? null;
   return message.replace(
-    /\b((?:¬°?Mucho gusto|¬°?Con gusto|Perfecto|Excelente|Genial|Listo|Claro|Hola)[,!]?)(\s+)([A-Za-z√Å√â√ç√ì√ö√°√©√≠√≥√∫√º√±√ë][\w√Å√â√ç√ì√ö√°√©√≠√≥√∫√º√±√ë'-]*)\b/gi,
+    /\b((?:¬°?Mucho gusto|¬°?Con gusto|Perfecto|Excelente|Genial|Listo|Claro|Hola|Gracias)[,!]?)(\s+)([A-Za-z√Å√â√ç√ì√ö√°√©√≠√≥√∫√º√±√ë][\w√Å√â√ç√ì√ö√°√©√≠√≥√∫√º√±√ë'-]*)\b/gi,
     (full, greet, space, name2) => {
-      if (!isServicePreferenceAsNombre(name2)) return full;
+      if (!isServicePreferenceAsNombre(name2) && !isRoleOrDepartmentAsNombre(name2)) {
+        return full;
+      }
       if (correct) return `${greet}${space}${correct}`;
       return greet.replace(/,$/, "").trim();
     }
@@ -125263,8 +125293,19 @@ function sanitizeExtractedAmbiguousNumbers(extracted, messageText, ctx) {
   }
 }
 function stripNombrePresentationPrefix(raw) {
-  const m5 = raw.trim().match(/^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es|c[o√≥]mo)\s+(.+)$/i);
-  return (m5?.[1] ?? raw).trim();
+  const t3 = raw.trim();
+  const mid = t3.match(
+    /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+(.+)$/i
+  );
+  let rest = mid?.[1] ?? null;
+  if (!rest) {
+    const m5 = t3.match(/^\s*(?:c[o√≥]mo)\s+(.+)$/i);
+    rest = m5?.[1] ?? t3;
+  }
+  return rest.replace(
+    /[,.]?\s*no\s+(?:la\s+|el\s+)?(recepci[o√≥]n|reception|hospitality|ventas|gerencia|administraci[o√≥]n)\b.*$/i,
+    ""
+  ).replace(/[.!üôÇüòäüòâ]*$/u, "").trim();
 }
 function recoverClienteNombreFromHistory(history, currentMessage) {
   let lastAssistant = "";
@@ -125400,6 +125441,7 @@ function clientDeclinesMoreServices(message) {
   if (/\bsolo\s+(el\s+)?(servicio|photo|photobooth|cabina|banquete|barra|dj|mobiliario)/i.test(t3) && !/\bno\s+quiero\b/i.test(t3)) {
     return false;
   }
+  if (isPointingReferentialEmoji(message)) return true;
   return /^(no|nop)[\s.,!]*$/i.test(t3) || /\bsolo\s+(con\s+)?eso\b/i.test(t3) || /\bsolo\s+ese\b/i.test(t3) || /\bsolamente\s+eso\b/i.test(t3) || /\bnada\s+m[a√°]s\b/i.test(t3) || /\bno\s+quiero\s+nada\s+m[a√°]s\b/i.test(t3) || /\bno\s+quiero\s+(nada\s+)?m[a√°]s\b/i.test(t3) || /\bning[u√∫]n[a]?\b/i.test(t3) || /\bning[u√∫]n\s+otro\b/i.test(t3) || /\bninguno\s+de\s+(esos|ellos|estos)\b/i.test(t3) || /\bno[.\s,¬°!]+gracias\b/i.test(t3) || /\bno\s+gracias\b/i.test(t3) || /\bas[i√≠]\s+est[a√°]\s+bien\b/i.test(t3) || /\beso\s+es\s+todo\b/i.test(t3) || /\bes\s+todo\b/i.test(t3) || /\bya\s+no\b/i.test(t3) || /\bno\s+m[a√°]s\b/i.test(t3) || /\blisto\s+as[i√≠]\b/i.test(t3) || /\bcon\s+eso(\s+est[a√°]\s+bien)?\b/i.test(t3) || /\bno\s+me\s+interesa\b/i.test(t3) || /\bno\s+necesito\s+(nada\s+)?m[a√°]s\b/i.test(t3) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t3) || /\bpor\s+ahora\s+no\b/i.test(t3) || // A14962: "Robots leds solo quiero" ‚Äî no aplicar a "solo quiero que me coticen la comida".
   /\bsolo\s+quiero\b/i.test(t3) && !/\bcomida\b|\bcotiz/i.test(t3) || /\bquiero\s+solo\b/i.test(t3) && !/\bcomida\b|\bcotiz/i.test(t3);
 }
@@ -126917,8 +126959,19 @@ function isUsableFechaHorario(value) {
   }
   return true;
 }
+function isPointingReferentialEmoji(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.trim();
+  const withoutPoint = t3.replace(/[\u{1F446}\u{1F445}\u{1F447}\u{1F448}\u{1F449}\u{261D}\u{2B06}\u{2191}\u{2197}\u{2934}]/gu, "").replace(
+    /[\s.!,;:¬ø?¬°]+/g,
+    ""
+  );
+  if (withoutPoint.length > 0) return false;
+  return /[\u{1F446}\u{261D}\u{2B06}\u{2191}]/u.test(t3);
+}
 function isReferentialPriorAnswer(message) {
   if (!message?.trim()) return false;
+  if (isPointingReferentialEmoji(message)) return true;
   const n4 = message.trim().normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¬ø?¬°!.,;:]+/g, "").trim();
   if (!n4 || n4.length > 160) return false;
   return /^(a\s+)?(este|ese|esta|esa)(\s+(mismo|misma|correo|mail|email|dato))?$/.test(n4) || /^(el|la)\s+(mismo|misma)(\s+(correo|mail|email|dato))?$/.test(n4) || /^(el|la)\s+de\s+(antes|arriba|hace\s+rato|hace\s+un\s+rato)$/.test(n4) || /^(ese|este)\s+(que\s+)?(ya\s+)?(te\s+)?(di|mande|envie|pase)$/.test(n4) || /^(el\s+)?(mismo\s+)?(correo|mail|email)(\s+(de\s+antes|anterior))?$/.test(n4) || /^ya\s+(te\s+)?(lo\s+)?(di|mande|envie|pase|he\s+enviado|he\s+mandado)(\s+(ese|el|antes))?$/.test(
@@ -127438,6 +127491,24 @@ function parseZonaFromText(text2) {
     return expoMatch[0].trim();
   }
   if (KNOWN_ZONES.test(trimmed)) {
+    const zoneHits = [
+      ...trimmed.matchAll(new RegExp(KNOWN_ZONES.source, "gi"))
+    ].map((m6) => m6[0].trim()).filter(Boolean);
+    const uniqueZones = [];
+    for (const z3 of zoneHits) {
+      if (!uniqueZones.some((u4) => u4.toLowerCase() === z3.toLowerCase())) {
+        uniqueZones.push(z3);
+      }
+    }
+    if (uniqueZones.length >= 2) {
+      let composedMulti = uniqueZones[0];
+      for (let i5 = 1; i5 < uniqueZones.length; i5++) {
+        composedMulti = mergeZonaDetail(composedMulti, uniqueZones[i5]);
+      }
+      if (composedMulti && isUsableDireccionEvento(composedMulti)) {
+        return composedMulti;
+      }
+    }
     const m5 = trimmed.match(KNOWN_ZONES);
     if (m5 && isUsableDireccionEvento(m5[0].trim())) {
       const city = m5[0].trim();
@@ -131186,6 +131257,7 @@ function parseMobiliarioPieceChoice(text2) {
     return null;
   }
   if (/\b(periqueras?)\b/i.test(t3)) return "periqueras";
+  if (/\bmesas?\s+periqueras?\b/i.test(t3)) return "periqueras";
   if (/\b(salas?\s+lounge|lounge)\b/i.test(t3)) return "salas lounge";
   if (/\b(vajillas?|loza|manteler[i√≠]a|cubiertos?)\b/i.test(t3)) return "vajillas";
   if (/\b(entelados?)\b/i.test(t3)) return "entelados";
@@ -139176,13 +139248,20 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
   } else if (
     // V8.92 / A15165 / A15642: men√∫ de piezas mobiliario ‚Üí modelos (tambi√©n post-cierre).
     // Incluye "Mesas, sillas, plato trinche" aunque Lucy haya abierto men√∫ de alimentos por error.
-    allowSalesReplyOverride && !shouldSkipSalesMenuForConcreteQuestion(currentMessage) && !clientAsksForCatalog(currentMessage) && !isEventTypeMealPhrase(currentMessage) && (historyOfferedMobiliarioPieceMenu(presHistory) || historyOfferedAlimentosModoMenu(presHistory) || /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio|\bmesas?\b|\bplato\s+trinche|\bvajillas?\b/i.test(
+    allowSalesReplyOverride && !shouldSkipSalesMenuForConcreteQuestion(currentMessage) && !clientAsksForCatalog(currentMessage) && !isEventTypeMealPhrase(currentMessage) && (historyOfferedMobiliarioPieceMenu(presHistory) || historyOfferedAlimentosModoMenu(presHistory) || /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio|\bmesas?\b|\bperiqueras?\b|\bplato\s+trinche|\bvajillas?\b/i.test(
       currentMessage ?? ""
-    )) && currentMessage?.trim() && (parseMobiliarioPieceChoice(currentMessage) || isTablewareRequestText(currentMessage) || /\b(modelos?\s+de\s+)?sillas?\b/i.test(currentMessage ?? "") || /\bmesas?\b/i.test(currentMessage ?? "") || /\bmobiliario|mobilairio\b/i.test(currentMessage ?? ""))
+    )) && currentMessage?.trim() && (parseMobiliarioPieceChoice(currentMessage) || isTablewareRequestText(currentMessage) || /\b(modelos?\s+de\s+)?sillas?\b/i.test(currentMessage ?? "") || /\bmesas?\b/i.test(currentMessage ?? "") || /\bperiqueras?\b/i.test(currentMessage ?? "") || /\bmobiliario|mobilairio\b/i.test(currentMessage ?? ""))
   ) {
-    const piece = parseMobiliarioPieceChoice(currentMessage) || (/\bsillas?\b/i.test(currentMessage ?? "") ? "sillas" : /\bmesas?\b/i.test(currentMessage ?? "") ? "mesas" : "mobiliario");
+    const msgMob = currentMessage ?? "";
+    const mesasPeriquerasOnly = /\bmesas?\s+periqueras?\b/i.test(msgMob);
+    const piece = parseMobiliarioPieceChoice(currentMessage) || (/\bsillas?\b/i.test(msgMob) ? "sillas" : mesasPeriquerasOnly || /\bperiqueras?\b/i.test(msgMob) ? "periqueras" : /\bmesas?\b/i.test(msgMob) ? "mesas" : "mobiliario");
     filledSet.add("Requerimientos o servicios");
-    const multiPieces = (/\bmesas?\b/i.test(currentMessage ?? "") ? 1 : 0) + (/\bsillas?\b/i.test(currentMessage ?? "") ? 1 : 0) + (/\bperiqueras?\b/i.test(currentMessage ?? "") ? 1 : 0) + (isTablewareRequestText(currentMessage) ? 1 : 0) >= 2;
+    const mobLabels = [];
+    if (/\bperiqueras?\b/i.test(msgMob) || mesasPeriquerasOnly) mobLabels.push("periqueras");
+    if (/\bsillas?\b/i.test(msgMob)) mobLabels.push("sillas");
+    if (/\bmesas?\b/i.test(msgMob) && !mesasPeriquerasOnly) mobLabels.push("mesas");
+    if (isTablewareRequestText(currentMessage)) mobLabels.push("plato trinche");
+    const multiPieces = mobLabels.length >= 2;
     const reqBlob = multiPieces ? currentMessage : piece === "mobiliario" ? "Mobiliario" : isTablewareRequestText(currentMessage) ? `${piece}, plato trinche` : `Mobiliario: ${piece}`;
     const merged = mergeServiceRequirements(
       extracted.requerimientos_evento,
@@ -139191,14 +139270,16 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
     );
     if (merged) extracted.requerimientos_evento = merged;
     const display = getDisplayName(extracted, whatsappDisplayName);
-    if (multiPieces || historyOfferedAlimentosModoMenu(presHistory) && piece !== "mobiliario") {
-      const ack = display ? `Perfecto, ${display}. Anoto *mesas, sillas*${isTablewareRequestText(currentMessage) ? " y *plato trinche*" : ""} para tu cotizaci\xF3n.` : `Perfecto. Anoto *mesas, sillas*${isTablewareRequestText(currentMessage) ? " y *plato trinche*" : ""} para tu cotizaci\xF3n.`;
+    const advanceWithAck = multiPieces || mesasPeriquerasOnly || historyOfferedAlimentosModoMenu(presHistory) && piece !== "mobiliario";
+    if (advanceWithAck) {
+      const labelText = mobLabels.length > 0 ? mobLabels.map((l5) => `*${l5}*`).join(", ").replace(/, ([^,]*)$/, " y $1") : `*${piece}*`;
+      const ack = display ? `Perfecto, ${display}. Anoto ${labelText} para tu cotizaci\xF3n.` : `Perfecto. Anoto ${labelText} para tu cotizaci\xF3n.`;
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
       mensaje = nextQ ? `${ack} ${nextQ}` : ack;
       appliedSalesReply = true;
       appliedDirectReply = true;
-      log?.info({ entityId, piece, multiPieces }, "GUARD: A15642 \u2014 mobiliario listado \u2192 embudo");
+      log?.info({ entityId, piece, multiPieces, mobLabels }, "GUARD: A15642/A15735 \u2014 mobiliario listado \u2192 embudo");
     } else {
       const body2 = piece === "mobiliario" ? buildProgressiveOptionsMenu("mobiliario") : buildMobiliarioPieceFollowUp(piece);
       const catalogUrl = getCatalogWebUrlForQuery("mesas y sillas") || getCatalogWebHubDeliveryUrl();
@@ -142367,7 +142448,7 @@ function clientReplyForPaymentSlot(slot) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.68";
+var LUCY_PROMPT_VERSION = "V9.69";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -142436,12 +142517,12 @@ function runGuards(opts) {
   });
 }
 async function runAll() {
-  console.log("Lucy \u2014 28 escenarios de prueba\n");
-  await test('1. A14754/A15205 \u2014 "Busco comida" pregunta formal vs casual', () => {
+  console.log("Lucy \uFFFD 28 escenarios de prueba\n");
+  await test('1. A14754/A15205 \uFFFD "Busco comida" pregunta formal vs casual', () => {
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
-    const extracted = emptyExtracted({ nombre: "Alejandro", tipo_evento: "cumplea\xF1os" });
+    const extracted = emptyExtracted({ nombre: "Alejandro", tipo_evento: "cumplea\uFFFDos" });
     const history = [
-      { role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar para la fiesta de cumplea\xF1os?" }
+      { role: "assistant", content: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar para la fiesta de cumplea\uFFFDos?" }
     ];
     const lastLucy = history[0].content;
     assert2.equal(inferLucyAskedField(lastLucy), "requerimientos");
@@ -142450,7 +142531,7 @@ async function runAll() {
     assert2.ok(isVagueFoodTerm("Busco comida"));
     const debugLogs = [];
     const reply = runGuards({
-      aiResponse: "\xBFCu\xE1ntos invitados?",
+      aiResponse: "\uFFFDCu\uFFFDntos invitados?",
       extracted,
       filledSet: filled,
       readyForClosing: false,
@@ -142461,22 +142542,22 @@ async function runAll() {
     assert2.ok(/banquete|casual|catering/i.test(reply), reply.slice(0, 300));
     assert2.ok(/formal|casual/i.test(reply), reply.slice(0, 300));
     assert2.ok(!/Formal\s*\(3 o 4 tiempos\)/i.test(reply), reply.slice(0, 400));
-    assert2.ok(!/Kosher|Navide[n√±]o/i.test(reply), reply.slice(0, 400));
+    assert2.ok(!/Kosher|Navide[nÒ]o/i.test(reply), reply.slice(0, 400));
   });
-  await test("2. Cliente Alejandro \u2014 cierre dice nuestro equipo, no Alejandro asesor", () => {
+  await test("2. Cliente Alejandro \uFFFD cierre dice nuestro equipo, no Alejandro asesor", () => {
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       EMAIL_WAIVED_LABEL,
       "Tipo de evento",
       "Requerimientos o servicios",
-      "N\xFAmero de invitados",
-      "Lugar/direcci\xF3n del evento",
+      "N\uFFFDmero de invitados",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario",
       "Presupuesto (MXN)"
     ]);
     const extracted = emptyExtracted({
       nombre: "Alejandro",
-      tipo_evento: "cumplea\xF1os",
+      tipo_evento: "cumplea\uFFFDos",
       requerimientos_evento: "banquete / taquiza",
       num_invitados: 60,
       direccion_evento: "CDMX",
@@ -142485,7 +142566,7 @@ async function runAll() {
     });
     assert2.equal(isReadyForClosing(filled), true);
     const reply = runGuards({
-      aiResponse: "Informaci\xF3n completa obtenida.",
+      aiResponse: "Informaci\uFFFDn completa obtenida.",
       extracted,
       filledSet: filled,
       readyForClosing: true,
@@ -142503,60 +142584,60 @@ async function runAll() {
     assert2.equal(parseInvitadosFromText("60"), "60");
     const caps = scanConversationForCaptures([], "60", /* @__PURE__ */ new Set());
     assert2.equal(caps.find((c4) => c4.label === "Presupuesto (MXN)"), void 0);
-    assert2.equal(caps.find((c4) => c4.label === "N\xFAmero de invitados")?.value, "60");
+    assert2.equal(caps.find((c4) => c4.label === "N\uFFFDmero de invitados")?.value, "60");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       EMAIL_WAIVED_LABEL,
       "Tipo de evento",
       "Requerimientos o servicios",
-      "N\xFAmero de invitados",
-      "Lugar/direcci\xF3n del evento",
+      "N\uFFFDmero de invitados",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario"
     ]);
     assert2.equal(isReadyForClosing(filled), false);
     assert2.equal(getNextPendingField(emptyExtracted({ num_invitados: 60 }), filled), "presupuesto");
   });
-  await test('4. "Por este medio est\xE1 bien" \u2014 waiver de correo y sin re-preguntar', () => {
-    assert2.ok(detectEmailRefusal(["Por este medio est\xE1 bien"]));
+  await test('4. "Por este medio est\uFFFD bien" \uFFFD waiver de correo y sin re-preguntar', () => {
+    assert2.ok(detectEmailRefusal(["Por este medio est\uFFFD bien"]));
     const merged = [];
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente"]);
-    applyEmailWaiver(filled, merged, ["Por este medio est\xE1 bien"]);
+    applyEmailWaiver(filled, merged, ["Por este medio est\uFFFD bien"]);
     assert2.ok(filled.has(EMAIL_WAIVED_LABEL));
     const extracted = emptyExtracted({ nombre: "Ana" });
     const reply = runGuards({
-      aiResponse: "\xBFMe das tu correo?",
+      aiResponse: "\uFFFDMe das tu correo?",
       extracted,
       filledSet: filled,
       readyForClosing: false,
-      currentMessage: "Por este medio est\xE1 bien",
+      currentMessage: "Por este medio est\uFFFD bien",
       emailRefusedThisTurn: true,
-      history: [{ role: "assistant", content: "\xBFA qu\xE9 correo te lo env\xEDo?" }]
+      history: [{ role: "assistant", content: "\uFFFDA qu\uFFFD correo te lo env\uFFFDo?" }]
     });
-    assert2.ok(!/correo/i.test(reply) || /seguimos por aqu√≠/i.test(reply));
-    assert2.ok(/cumplea√±os|evento|festejan|tipo/i.test(reply));
+    assert2.ok(!/correo/i.test(reply) || /seguimos por aquÌ/i.test(reply));
+    assert2.ok(/cumpleaÒos|evento|festejan|tipo/i.test(reply));
   });
-  await test("5. Pregunta tel\xE9fonos \u2014 ventas solo llamada, gerencia con WhatsApp", () => {
-    assert2.ok(clientAsksPhone("\xBFTienen tel\xE9fono de ventas?"));
+  await test("5. Pregunta tel\uFFFDfonos \uFFFD ventas solo llamada, gerencia con WhatsApp", () => {
+    assert2.ok(clientAsksPhone("\uFFFDTienen tel\uFFFDfono de ventas?"));
     const phone = buildPhoneAnswer();
     assert2.ok(/4008\s*0373/.test(phone));
     assert2.ok(/4671\s*0585/.test(phone));
-    assert2.ok(/solo por l[i√≠]nea telef[o√≥]nica/i.test(phone));
+    assert2.ok(/solo por l[iÌ]nea telef[oÛ]nica/i.test(phone));
     assert2.ok(/no WhatsApp/i.test(phone));
-    assert2.ok(/WhatsApp y por l[i√≠]nea telef[o√≥]nica/i.test(phone));
+    assert2.ok(/WhatsApp y por l[iÌ]nea telef[oÛ]nica/i.test(phone));
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const reply = runGuards({
       aiResponse: "ok",
       extracted: emptyExtracted({ nombre: "Luis", tipo_evento: "boda" }),
       filledSet: filled,
       readyForClosing: false,
-      currentMessage: "\xBFTienen tel\xE9fono? Nadie contesta"
+      currentMessage: "\uFFFDTienen tel\uFFFDfono? Nadie contesta"
     });
     assert2.ok(/4008|4671/.test(reply));
     assert2.ok(/no WhatsApp/i.test(reply));
-    assert2.ok(/WhatsApp y por l[i√≠]nea telef[o√≥]nica/i.test(reply));
+    assert2.ok(/WhatsApp y por l[iÌ]nea telef[oÛ]nica/i.test(reply));
   });
-  await test('6. "No s\xE9 a\xFAn" en invitados \u2014 captura sin re-preguntar invitados', () => {
-    const inv = parseInvitadosFromText("No s\xE9 a\xFAn");
+  await test('6. "No s\uFFFD a\uFFFDn" en invitados \uFFFD captura sin re-preguntar invitados', () => {
+    const inv = parseInvitadosFromText("No s\uFFFD a\uFFFDn");
     assert2.ok(inv?.includes("Sin definir"));
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
@@ -142566,33 +142647,33 @@ async function runAll() {
     ]);
     const merged = [];
     const caps = captureContextualAnswer(
-      [{ role: "assistant", content: "\xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?" }],
-      "No s\xE9 a\xFAn",
+      [{ role: "assistant", content: "\uFFFDM\uFFFDs o menos para cu\uFFFDntas personas ser\uFFFDa?" }],
+      "No s\uFFFD a\uFFFDn",
       filled
     );
     applyCapturesToCrm(merged, filled, caps);
-    assert2.ok(filled.has("N\xFAmero de invitados"));
+    assert2.ok(filled.has("N\uFFFDmero de invitados"));
     assert2.equal(getNextPendingField(emptyExtracted(), filled), "fecha");
   });
-  await test("7. Boda \u2014 recomendaciones mencionan banquete/taquiza y cat\xE1logo", () => {
-    assert2.ok(clientAsksForRecommendations("\xBFQu\xE9 me recomiendas para mi boda?"));
+  await test("7. Boda \uFFFD recomendaciones mencionan banquete/taquiza y cat\uFFFDlogo", () => {
+    assert2.ok(clientAsksForRecommendations("\uFFFDQu\uFFFD me recomiendas para mi boda?"));
     const reply = buildRecommendationsReply(
       emptyExtracted({ tipo_evento: "boda" }),
       [],
       1,
-      "\xBFQu\xE9 me recomiendas?"
+      "\uFFFDQu\uFFFD me recomiendas?"
     );
     assert2.ok(/banquete|taquiza/i.test(reply));
     assert2.ok(/bebidas|mobiliario|DJ|iluminaci/i.test(reply));
   });
-  await test("8. Secuencia 60 pax + presupuesto 80k \u2014 sin contaminar campos", () => {
+  await test("8. Secuencia 60 pax + presupuesto 80k \uFFFD sin contaminar campos", () => {
     const filled = /* @__PURE__ */ new Set();
     const merged = [];
     applyCapturesToCrm(merged, filled, scanConversationForCaptures([], "60", filled));
     assert2.equal(merged.find((l5) => l5.includes("invitados"))?.includes("60"), true);
     assert2.equal(merged.find((l5) => l5.includes("Presupuesto")), void 0);
     const capsPres = captureContextualAnswer(
-      [{ role: "assistant", content: "\xBFTienen alg\xFAn rango de presupuesto en mente?" }],
+      [{ role: "assistant", content: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente?" }],
       "80000",
       filled
     );
@@ -142602,11 +142683,11 @@ async function runAll() {
     const extracted = emptyExtracted({ num_invitados: 60, presupuesto: 8e4 });
     assert2.notEqual(extracted.presupuesto, extracted.num_invitados);
   });
-  await test("9. Resumen largo \u2014 sin emojis, servicios reales, no confunde tipo", () => {
+  await test("9. Resumen largo \uFFFD sin emojis, servicios reales, no confunde tipo", () => {
     const text2 = buildResumenClienteLargo(
       emptyExtracted({
         nombre: "Alejandro",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         requerimientos_evento: "banquete / taquiza",
         num_invitados: 60,
         direccion_evento: "CDMX",
@@ -142616,25 +142697,25 @@ async function runAll() {
       [
         "- Nombre del cliente: Alejandro",
         "- Correo (prefiere no compartir): continuar por WhatsApp/chat",
-        "- Tipo de evento: cumplea\xF1os",
+        "- Tipo de evento: cumplea\uFFFDos",
         "- Requerimientos o servicios: banquete / taquiza",
-        "- N\xFAmero de invitados: 60",
-        "- Lugar/direcci\xF3n del evento: CDMX",
+        "- N\uFFFDmero de invitados: 60",
+        "- Lugar/direcci\uFFFDn del evento: CDMX",
         "- Fecha y horario: en 2 meses",
         "- Presupuesto (MXN): 80000"
       ],
-      "cumplea\xF1os busco comida 60 CDMX en 2 meses"
+      "cumplea\uFFFDos busco comida 60 CDMX en 2 meses"
     );
     assert2.ok(!/[\u{1F300}-\u{1FAFF}]/u.test(text2), "contiene emojis");
     assert2.ok(text2.includes("banquete"));
     assert2.ok(/Escala: 60|60 personas/i.test(text2), text2);
     assert2.ok(text2.includes("CDMX"));
-    assert2.ok(!text2.includes("Servicios / requerimientos: cumplea\xF1os"));
-    assert2.ok(/sigue por WhatsApp|no comparti√≥/i.test(text2), text2);
-    assert2.ok(text2.includes("RESUMEN DE CONVERSACI\xD3N"));
-    assert2.ok(text2.includes("Qu\xE9 busca el cliente"));
+    assert2.ok(!text2.includes("Servicios / requerimientos: cumplea\uFFFDos"));
+    assert2.ok(/sigue por WhatsApp|no compartiÛ/i.test(text2), text2);
+    assert2.ok(text2.includes("RESUMEN DE CONVERSACI\uFFFDN"));
+    assert2.ok(text2.includes("Qu\uFFFD busca el cliente"));
   });
-  await test("10. Integraciones \u2014 m\xF3dulos conectados y features activas", () => {
+  await test("10. Integraciones \uFFFD m\uFFFDdulos conectados y features activas", () => {
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
     const mirrorSrc = readFileSync5(path6.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
     const healthSrc = readFileSync5(path6.join(apiRoot, "src/routes/health.ts"), "utf8");
@@ -142652,12 +142733,12 @@ async function runAll() {
     assert2.equal(CLOSING_CORE_FIELDS.length, 7);
     assert2.ok(LUCY_INTRO.includes("Lucy"));
     assert2.ok(isValidRequerimientosValue("banquete"));
-    assert2.ok(!isValidRequerimientosValue("cumplea\xF1os"));
+    assert2.ok(!isValidRequerimientosValue("cumplea\uFFFDos"));
     assert2.equal(clientAsksAboutTeam("Alejandro", "Alejandro"), false);
-    assert2.equal(clientAsksAboutTeam("\xBFQui\xE9n es Rodrigo?", "Mar\xEDa"), true);
-    assert2.equal(clientAsksAboutTeam("\xBFQui\xE9n es Alejandro?", "Mar\xEDa"), true);
+    assert2.equal(clientAsksAboutTeam("\uFFFDQui\uFFFDn es Rodrigo?", "Mar\uFFFDa"), true);
+    assert2.equal(clientAsksAboutTeam("\uFFFDQui\uFFFDn es Alejandro?", "Mar\uFFFDa"), true);
     const norm2 = normalizeAdvisorReferences(
-      "Le paso estos datos a Alejandro para que te arme una cotizaci\xF3n.",
+      "Le paso estos datos a Alejandro para que te arme una cotizaci\uFFFDn.",
       "Alejandro"
     );
     assert2.ok(norm2.includes("nuestro equipo"));
@@ -142665,7 +142746,7 @@ async function runAll() {
     assert2.ok(healthSrc.includes("learning-cron-keepalive"));
     assert2.ok(healthSrc.includes("learning-auto-approve-high-confidence"));
   });
-  await test('11. Bakar \u2014 "Quiero cotizaci\xF3n" NO es nombre', () => {
+  await test('11. Bakar \uFFFD "Quiero cotizaci\uFFFDn" NO es nombre', () => {
     assert2.equal(isQuoteIntentMessage("Quiero hacer una cotizacion"), true);
     assert2.equal(sanitizeDisplayName("Quiero hacer una cotizacion"), null);
     assert2.equal(sanitizeDisplayName("Quiero"), null);
@@ -142673,20 +142754,20 @@ async function runAll() {
     const caps = captureContextualAnswer([], "Quiero hacer una cotizacion", filled);
     assert2.equal(caps.find((c4) => c4.label === "Nombre del cliente"), void 0);
   });
-  await test('12. Bakar \u2014 "no" en presupuesto no repite bucle', () => {
+  await test('12. Bakar \uFFFD "no" en presupuesto no repite bucle', () => {
     assert2.ok(detectPresupuestoRefusal("no"));
     assert2.ok(detectPresupuestoRefusal("no no tengo presupuesto, no me brindaron"));
     assert2.equal(
       parsePresupuestoFromText("no", { askedField: "presupuesto" }),
-      "Sin definir (cliente indic\xF3 que no tiene)"
+      "Sin definir (cliente indic\uFFFD que no tiene)"
     );
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "N\xFAmero de invitados",
-      "Lugar/direcci\xF3n del evento",
+      "N\uFFFDmero de invitados",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario"
     ]);
     const merged = [];
@@ -142703,60 +142784,60 @@ async function runAll() {
       fecha_horario: "18 de diciembre a las 20:00 horas"
     });
     const reply = runGuards({
-      aiResponse: "\xBFTienen presupuesto estimado?",
+      aiResponse: "\uFFFDTienen presupuesto estimado?",
       extracted,
       filledSet: filled,
       readyForClosing: true,
       currentMessage: "no",
-      history: [{ role: "assistant", content: "\xBFTienen alg\xFAn presupuesto estimado en mente?" }]
+      history: [{ role: "assistant", content: "\uFFFDTienen alg\uFFFDn presupuesto estimado en mente?" }]
     });
     assert2.ok(reply.includes("Perfecto, ya tengo todo") || !/presupuesto/i.test(reply));
   });
-  await test("13. Bakar \u2014 show de grupo vers\xE1til ofrece entretenimiento", () => {
+  await test("13. Bakar \uFFFD show de grupo vers\uFFFDtil ofrece entretenimiento", () => {
     assert2.ok(clientMentionsEntertainment("requerimos un show de grupo versatil"));
-    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico"]);
+    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico"]);
     const extracted = emptyExtracted({ nombre: "Bakar", correo: "compras1@scabakar.com" });
     const msg = "requerimos un show de grupo versatil para el dia 18 de diciembre a las 20:00 horas para un grupo de 30 personas";
     const reply = runGuards({
-      aiResponse: "\xBFQu\xE9 tipo de evento?",
+      aiResponse: "\uFFFDQu\uFFFD tipo de evento?",
       extracted,
       filledSet: filled,
       readyForClosing: false,
       currentMessage: msg,
-      history: [{ role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" }]
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?" }]
     });
-    assert2.ok(/show|animaci|hora\s+loca|entretenimiento|vers[a√°]til/i.test(reply), reply.slice(0, 150));
+    assert2.ok(/show|animaci|hora\s+loca|entretenimiento|vers[a·]til/i.test(reply), reply.slice(0, 150));
     assert2.ok(
-      /bodasesor\.com\/catalogos|mande el cat[a√°]logo/i.test(reply),
-      `show debe incluir cat\xE1logo: ${reply.slice(0, 350)}`
+      /bodasesor\.com\/catalogos|mande el cat[a·]logo/i.test(reply),
+      `show debe incluir cat\uFFFDlogo: ${reply.slice(0, 350)}`
     );
   });
-  await test("14. Fer A14756 \u2014 pista/tarima ofrece orientaci\xF3n de venta", () => {
+  await test("14. Fer A14756 \uFFFD pista/tarima ofrece orientaci\uFFFDn de venta", () => {
     assert2.ok(clientMentionsPistaTarima("quiero cotizar una pista de baile o tarima"));
     const filled = /* @__PURE__ */ new Set();
     const extracted = emptyExtracted();
     const reply = runGuards({
-      aiResponse: "\xBFMe regalas tu nombre?",
+      aiResponse: "\uFFFDMe regalas tu nombre?",
       extracted,
       filledSet: filled,
       readyForClosing: false,
-      currentMessage: "Hola, me gustar\xEDa cotizar una pista de baile o tarima para mi evento",
+      currentMessage: "Hola, me gustar\uFFFDa cotizar una pista de baile o tarima para mi evento",
       history: []
     });
     assert2.ok(/pista|tarima/i.test(reply), reply.slice(0, 200));
     assert2.ok(/LED|iluminada|vinil|pintada|madera|charol|estilo/i.test(reply), reply.slice(0, 400));
-    assert2.ok(!/Seg√∫n el cat√°logo que ya cargamos/i.test(reply), reply.slice(0, 300));
-    assert2.ok(!/alg[u√∫]n\s+otro\s+servicio|qu[e√©]\s+otros\s+servicios/i.test(reply), reply);
+    assert2.ok(!/Seg˙n el cat·logo que ya cargamos/i.test(reply), reply.slice(0, 300));
+    assert2.ok(!/alg[u˙]n\s+otro\s+servicio|qu[eÈ]\s+otros\s+servicios/i.test(reply), reply);
   });
-  await test("15. Fer A14756 \u2014 6m x 12m NO es ubicaci\xF3n", () => {
+  await test("15. Fer A14756 \uFFFD 6m x 12m NO es ubicaci\uFFFDn", () => {
     assert2.ok(isDimensionText("Son 50 personas. El espacio es de 6 metros por 12"));
     assert2.equal(parseZonaFromText("6 metros por 12"), null);
     assert2.equal(parseSpaceDimensions("El espacio es de 6 metros por 12"), "6m x 12m");
-    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"]);
+    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico", "Tipo de evento"]);
     const merged = [];
     const caps = [
       ...captureContextualAnswer(
-        [{ role: "assistant", content: "\xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?" }],
+        [{ role: "assistant", content: "\uFFFDM\uFFFDs o menos para cu\uFFFDntas personas ser\uFFFDa?" }],
         "Son 50 personas. El espacio es de 6 metros por 12",
         filled
       ),
@@ -142768,45 +142849,45 @@ async function runAll() {
     ];
     applyCapturesToCrm(merged, filled, caps);
     assert2.ok(merged.some((l5) => /invitados.*50/i.test(l5)));
-    assert2.ok(!merged.some((l5) => /Lugar\/direcci√≥n/i.test(l5)));
+    assert2.ok(!merged.some((l5) => /Lugar\/direcciÛn/i.test(l5)));
     assert2.ok(
       merged.some((l5) => /Requerimientos.*6m x 12m|espacio 6m/i.test(l5)) || caps.some((c4) => /6m x 12m|espacio/i.test(c4.value))
     );
   });
-  await test('16. Fer A14756 \u2014 presupuesto econ\xF3mico y "gracias" post-cierre', () => {
-    assert2.equal(parsePresupuestoFromText("Lo m\xE1s econ\xF3mico posible"), "Opciones econ\xF3micas (sin monto fijo)");
-    assert2.ok(detectPresupuestoRefusal("No tengo rango ee comparaci\xF3n"));
+  await test('16. Fer A14756 \uFFFD presupuesto econ\uFFFDmico y "gracias" post-cierre', () => {
+    assert2.equal(parsePresupuestoFromText("Lo m\uFFFDs econ\uFFFDmico posible"), "Opciones econ\uFFFDmicas (sin monto fijo)");
+    assert2.ok(detectPresupuestoRefusal("No tengo rango ee comparaci\uFFFDn"));
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "N\xFAmero de invitados",
-      "Lugar/direcci\xF3n del evento",
+      "N\uFFFDmero de invitados",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario"
     ]);
     const extracted = emptyExtracted({
       nombre: "Fer",
       correo: "ferramlun2206@gmail.com",
-      tipo_evento: "cumplea\xF1os",
+      tipo_evento: "cumplea\uFFFDos",
       requerimientos_evento: "Pista de baile (espacio 6m x 12m)",
       num_invitados: 50,
       fecha_horario: "15 de julio"
     });
     const ecoReply = runGuards({
-      aiResponse: "\xBFTienen alg\xFAn rango de presupuesto en mente?",
+      aiResponse: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente?",
       extracted,
       filledSet: filled,
       readyForClosing: false,
-      currentMessage: "Lo m\xE1s econ\xF3mico posible",
-      history: [{ role: "assistant", content: "\xBFTienen alg\xFAn rango de presupuesto en mente?" }]
+      currentMessage: "Lo m\uFFFDs econ\uFFFDmico posible",
+      history: [{ role: "assistant", content: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente?" }]
     });
     assert2.ok(!/rango de presupuesto/i.test(ecoReply), ecoReply.slice(0, 200));
     assert2.ok(
-      /econ[o√≥]mic|cierre|ya tengo todo/i.test(ecoReply),
-      `debe reconocer presupuesto econ\xF3mico o cerrar: ${ecoReply.slice(0, 200)}`
+      /econ[oÛ]mic|cierre|ya tengo todo/i.test(ecoReply),
+      `debe reconocer presupuesto econ\uFFFDmico o cerrar: ${ecoReply.slice(0, 200)}`
     );
-    const thanksFilled = /* @__PURE__ */ new Set([...filled, "Presupuesto (MXN)", "Lugar/direcci\xF3n del evento"]);
+    const thanksFilled = /* @__PURE__ */ new Set([...filled, "Presupuesto (MXN)", "Lugar/direcci\uFFFDn del evento"]);
     const thanksReply = applyLucyMessageGuards({
       aiResponse: "",
       extracted,
@@ -142818,32 +142899,32 @@ async function runAll() {
       currentMessage: "Muchas gracias",
       buildClosing: mockClosing
     });
-    assert2.ok(thanksReply.trim().length > 0, "respuesta vac\xEDa");
+    assert2.ok(thanksReply.trim().length > 0, "respuesta vac\uFFFDa");
     assert2.ok(clientSaysThanks("Muchas gracias"));
     assert2.ok(buildPostCierreThanksReply("Fer").includes("Fer"));
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
     const mirrorSrc = readFileSync5(path6.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
-    assert2.ok(mirrorSrc.includes("texto vac\xEDo"));
+    assert2.ok(mirrorSrc.includes("texto vac\uFFFDo"));
   });
-  await test("17. Fer A14751 \u2014 brunch baby shower, correo, fecha y presupuesto sin bucles", () => {
+  await test("17. Fer A14751 \uFFFD brunch baby shower, correo, fecha y presupuesto sin bucles", () => {
     assert2.equal(isQuoteIntentMessage("Quiero hacer una cotizacion"), true);
     assert2.equal(sanitizeDisplayName("Quiero"), null);
     assert2.ok(clientMentionsCatering("Brunch/ desayuno para 35 personas"));
     assert2.ok(isServiceLabelNotTipoEvento("brunch"));
     assert2.equal(parseCorreoFromText("Si fer.barrientost2892@gmail.com"), "fer.barrientost2892@gmail.com");
-    assert2.equal(parseFechaFromText("Todav\xEDa la vamos a definir"), "Sin definir (pendiente)");
+    assert2.equal(parseFechaFromText("Todav\uFFFDa la vamos a definir"), "Sin definir (pendiente)");
     assert2.ok(parseFechaFromText("Yo creo que x octubre")?.includes("octubre"));
     assert2.equal(
-      parsePresupuestoFromText("Tu m\xE1ndame el presupuesto y si quieres vemos"),
-      "Sin definir (cliente pidi\xF3 que propongamos)"
+      parsePresupuestoFromText("Tu m\uFFFDndame el presupuesto y si quieres vemos"),
+      "Sin definir (cliente pidi\uFFFD que propongamos)"
     );
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "N\xFAmero de invitados",
-      "Lugar/direcci\xF3n del evento",
+      "N\uFFFDmero de invitados",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario"
     ]);
     const extracted = emptyExtracted({
@@ -142857,79 +142938,79 @@ async function runAll() {
     });
     const presFilled = new Set(filled);
     const presReply = runGuards({
-      aiResponse: "\xBFTienen alg\xFAn rango de presupuesto en mente?",
+      aiResponse: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente?",
       extracted,
       filledSet: presFilled,
       readyForClosing: false,
-      currentMessage: "Tu m\xE1ndame el presupuesto y si quieres vemos",
-      history: [{ role: "assistant", content: "\xBFTienen alg\xFAn rango de presupuesto en mente?" }]
+      currentMessage: "Tu m\uFFFDndame el presupuesto y si quieres vemos",
+      history: [{ role: "assistant", content: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente?" }]
     });
     assert2.ok(!/rango de presupuesto/i.test(presReply), presReply.slice(0, 200));
     const fechaFilled = new Set(filled);
-    const fechaAi = "\xBFYa hay d\xEDa definido o siguen viendo opciones?";
+    const fechaAi = "\uFFFDYa hay d\uFFFDa definido o siguen viendo opciones?";
     assert2.ok(mensajeAsksForFilledField(fechaAi, fechaFilled, extracted), "debe detectar fecha repetida");
     const fechaReply = runGuards({
       aiResponse: fechaAi,
       extracted,
       filledSet: fechaFilled,
       readyForClosing: false,
-      currentMessage: "Todav\xEDa la vamos a definir",
-      history: [{ role: "assistant", content: "\xBFYa tienen fecha o todav\xEDa la van definiendo?" }]
+      currentMessage: "Todav\uFFFDa la vamos a definir",
+      history: [{ role: "assistant", content: "\uFFFDYa tienen fecha o todav\uFFFDa la van definiendo?" }]
     });
-    if (/fecha|d[i√≠]a definido/i.test(fechaReply) && !/presupuesto/i.test(fechaReply)) {
+    if (/fecha|d[iÌ]a definido/i.test(fechaReply) && !/presupuesto/i.test(fechaReply)) {
       throw new Error(`fechaReply inesperada: ${fechaReply.slice(0, 200)}`);
     }
-    const brunchFilled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"]);
+    const brunchFilled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico", "Tipo de evento"]);
     const brunchReply = runGuards({
-      aiResponse: "\xBFA qu\xE9 correo te mando la informaci\xF3n?",
+      aiResponse: "\uFFFDA qu\uFFFD correo te mando la informaci\uFFFDn?",
       extracted: emptyExtracted({ nombre: "Fer", tipo_evento: "baby shower" }),
       filledSet: brunchFilled,
       readyForClosing: false,
       currentMessage: "Brunch/ desayuno para 35 personas",
-      history: [{ role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" }]
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?" }]
     });
     assert2.ok(/brunch|banquete|taquiza|desayuno|alimentos/i.test(brunchReply), brunchReply.slice(0, 200));
     assert2.ok(!/correo/i.test(brunchReply), "no debe re-preguntar correo ya capturado");
   });
-  await test("18. Ver\xF3nica A14760 \u2014 por aqu\xED sin correo, sin Alejandro, nombre completo", () => {
-    assert2.ok(detectEmailRefusal(["Si me la pueden mandar por aqu\xED porfa"]));
-    assert2.equal(sanitizeCrmNombre("Ver\xF3nica Camarillo"), "Ver\xF3nica Camarillo");
-    assert2.equal(sanitizeDisplayName("Ver\xF3nica Camarillo"), "Ver\xF3nica");
-    const merged = ["- Nombre del cliente: Ver\xF3nica"];
+  await test("18. Ver\uFFFDnica A14760 \uFFFD por aqu\uFFFD sin correo, sin Alejandro, nombre completo", () => {
+    assert2.ok(detectEmailRefusal(["Si me la pueden mandar por aqu\uFFFD porfa"]));
+    assert2.equal(sanitizeCrmNombre("Ver\uFFFDnica Camarillo"), "Ver\uFFFDnica Camarillo");
+    assert2.equal(sanitizeDisplayName("Ver\uFFFDnica Camarillo"), "Ver\uFFFDnica");
+    const merged = ["- Nombre del cliente: Ver\uFFFDnica"];
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente"]);
-    applyEmailWaiver(filled, merged, ["Si me la pueden mandar por aqu\xED porfa"]);
+    applyEmailWaiver(filled, merged, ["Si me la pueden mandar por aqu\uFFFD porfa"]);
     assert2.ok(filled.has(EMAIL_WAIVED_LABEL));
-    const extracted = emptyExtracted({ nombre: "Ver\xF3nica Camarillo", tipo_evento: "cumplea\xF1os" });
+    const extracted = emptyExtracted({ nombre: "Ver\uFFFDnica Camarillo", tipo_evento: "cumplea\uFFFDos" });
     const reply = runGuards({
-      aiResponse: "Claro, Ver\xF3nica. \xBFMe podr\xEDas compartir tu correo para enviarte la informaci\xF3n y que Alejandro te arme la propuesta?",
+      aiResponse: "Claro, Ver\uFFFDnica. \uFFFDMe podr\uFFFDas compartir tu correo para enviarte la informaci\uFFFDn y que Alejandro te arme la propuesta?",
       extracted,
       filledSet: /* @__PURE__ */ new Set([...filled, "Tipo de evento"]),
       readyForClosing: false,
-      currentMessage: "Si me la pueden mandar por aqu\xED porfa",
+      currentMessage: "Si me la pueden mandar por aqu\uFFFD porfa",
       emailRefusedThisTurn: true,
-      history: [{ role: "assistant", content: "\xBFA qu\xE9 correo te lo env\xEDo?" }]
+      history: [{ role: "assistant", content: "\uFFFDA qu\uFFFD correo te lo env\uFFFDo?" }]
     });
     assert2.ok(!/correo/i.test(reply), reply.slice(0, 200));
     assert2.ok(!/Alejandro/i.test(reply), reply);
     assert2.ok(
-      /sin problema|este chat|por aqu[i√≠]|invitados|servicios|armar|fecha|cu[a√°]ndo/i.test(reply),
+      /sin problema|este chat|por aqu[iÌ]|invitados|servicios|armar|fecha|cu[a·]ndo/i.test(reply),
       reply.slice(0, 200)
     );
     const norm2 = normalizeAdvisorReferences(
       "para que Alejandro te arme la propuesta",
-      "Ver\xF3nica"
+      "Ver\uFFFDnica"
     );
     assert2.ok(norm2.includes("nuestro equipo"));
     assert2.ok(!/Alejandro/i.test(norm2));
   });
-  await test("19. Fer A14751 \u2014 no repetir presupuesto tras waiver ni 2+ preguntas", () => {
+  await test("19. Fer A14751 \uFFFD no repetir presupuesto tras waiver ni 2+ preguntas", () => {
     const baseFilled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "N\xFAmero de invitados",
-      "Lugar/direcci\xF3n del evento",
+      "N\uFFFDmero de invitados",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario"
     ]);
     const extracted = emptyExtracted({
@@ -142942,41 +143023,41 @@ async function runAll() {
       fecha_horario: "Sin definir (pendiente)"
     });
     const historyAfterRefusal = [
-      { role: "assistant", content: "\xBFTienen alg\xFAn rango de presupuesto en mente?" },
-      { role: "user", content: "Tu m\xE1ndame el presupuesto y si quieres vemos" },
-      { role: "assistant", content: "Entendido, sin problema. Nuestro equipo te propone opciones seg\xFAn lo que platicamos." }
+      { role: "assistant", content: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente?" },
+      { role: "user", content: "Tu m\uFFFDndame el presupuesto y si quieres vemos" },
+      { role: "assistant", content: "Entendido, sin problema. Nuestro equipo te propone opciones seg\uFFFDn lo que platicamos." }
     ];
     const filledAfterRefusal = new Set(baseFilled);
     applyPresupuestoWaiver(
       filledAfterRefusal,
       [],
-      ["Tu m\xE1ndame el presupuesto y si quieres vemos"],
+      ["Tu m\uFFFDndame el presupuesto y si quieres vemos"],
       historyAfterRefusal
     );
     assert2.ok(filledAfterRefusal.has("Presupuesto (MXN)"));
     const loopReply1 = runGuards({
-      aiResponse: "\xBFManejan alg\xFAn presupuesto estimado para el evento?",
+      aiResponse: "\uFFFDManejan alg\uFFFDn presupuesto estimado para el evento?",
       extracted,
       filledSet: new Set(baseFilled),
       readyForClosing: false,
       currentMessage: "ok",
       history: [
         ...historyAfterRefusal,
-        { role: "assistant", content: "\xBFManejan alg\xFAn presupuesto estimado para el evento?" }
+        { role: "assistant", content: "\uFFFDManejan alg\uFFFDn presupuesto estimado para el evento?" }
       ]
     });
     assert2.ok(!/presupuesto|rango|estimado/i.test(loopReply1), loopReply1.slice(0, 200));
     const filledLoop = new Set(baseFilled);
     const historyDoubleAsk = [
-      { role: "assistant", content: "\xBFTienen alg\xFAn rango de presupuesto en mente?" },
+      { role: "assistant", content: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente?" },
       { role: "user", content: "..." },
-      { role: "assistant", content: "\xBFManejan alg\xFAn presupuesto estimado para el evento?" }
+      { role: "assistant", content: "\uFFFDManejan alg\uFFFDn presupuesto estimado para el evento?" }
     ];
     assert2.equal(countLucyFieldAsks(historyDoubleAsk, "presupuesto"), 2);
     applyPresupuestoWaiver(filledLoop, [], ["..."], historyDoubleAsk);
     assert2.ok(filledLoop.has("Presupuesto (MXN)"));
     const loopReply2 = runGuards({
-      aiResponse: "\xBFTienen idea del presupuesto o prefieren que les propongamos opciones?",
+      aiResponse: "\uFFFDTienen idea del presupuesto o prefieren que les propongamos opciones?",
       extracted,
       filledSet: new Set(baseFilled),
       readyForClosing: false,
@@ -142989,7 +143070,7 @@ async function runAll() {
       loopReply2.slice(0, 200)
     );
   });
-  await test('20. Nayeli A14766 \u2014 "tope de 5,000" y "que propongan opciones" se capturan sin 4 preguntas', () => {
+  await test('20. Nayeli A14766 \uFFFD "tope de 5,000" y "que propongan opciones" se capturan sin 4 preguntas', () => {
     assert2.equal(
       parsePresupuestoFromText("Mi tope es de 5,000"),
       "Hasta $5000 MXN"
@@ -142997,32 +143078,32 @@ async function runAll() {
     assert2.ok(detectPresupuestoRefusal("Que me propongan opciones"));
     assert2.equal(
       parsePresupuestoFromText("Que me propongan opciones"),
-      "Sin definir (cliente pidi\xF3 que propongamos)"
+      "Sin definir (cliente pidi\uFFFD que propongamos)"
     );
     const baseFilled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "N\xFAmero de invitados",
-      "Lugar/direcci\xF3n del evento",
+      "N\uFFFDmero de invitados",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario"
     ]);
     const extracted = emptyExtracted({
       nombre: "Nayeli",
       correo: "naygt_13@hotmail.com",
-      tipo_evento: "primera comuni\xF3n",
-      requerimientos_evento: "Video y fotograf\xEDa, libro de fotos",
+      tipo_evento: "primera comuni\uFFFDn",
+      requerimientos_evento: "Video y fotograf\uFFFDa, libro de fotos",
       num_invitados: 40,
-      direccion_evento: "Parroquia Santo Domingo de Guzm\xE1n, Insurgentes Mixcoac",
+      direccion_evento: "Parroquia Santo Domingo de Guzm\uFFFDn, Insurgentes Mixcoac",
       fecha_horario: "Sin definir (pendiente)"
     });
     const filledTurn1 = new Set(baseFilled);
     const historyAsk1 = [
-      { role: "assistant", content: "\xBFTienen alg\xFAn rango de presupuesto en mente para la primera comuni\xF3n?" }
+      { role: "assistant", content: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente para la primera comuni\uFFFDn?" }
     ];
     const reply1 = runGuards({
-      aiResponse: "\xBFTienen idea del presupuesto o prefieren que nuestro equipo les proponga opciones?",
+      aiResponse: "\uFFFDTienen idea del presupuesto o prefieren que nuestro equipo les proponga opciones?",
       extracted,
       filledSet: filledTurn1,
       readyForClosing: false,
@@ -143032,9 +143113,9 @@ async function runAll() {
     assert2.ok(!/rango\s+de\s+presupuesto|presupuesto\s+en\s+mente|idea\s+del\s+presupuesto/i.test(reply1), reply1.slice(0, 200));
     assert2.ok(filledTurn1.has("Presupuesto (MXN)"), "debe capturar el tope como presupuesto");
     const historyAfterTwoAsks = [
-      { role: "assistant", content: "\xBFTienen alg\xFAn rango de presupuesto en mente para la primera comuni\xF3n?" },
+      { role: "assistant", content: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente para la primera comuni\uFFFDn?" },
       { role: "user", content: "Mi tope es de 5,000" },
-      { role: "assistant", content: "\xBFTienen idea del presupuesto o prefieren que nuestro equipo les proponga opciones?" },
+      { role: "assistant", content: "\uFFFDTienen idea del presupuesto o prefieren que nuestro equipo les proponga opciones?" },
       { role: "user", content: "Que me propongan opciones" }
     ];
     assert2.equal(countLucyFieldAsks(historyAfterTwoAsks, "presupuesto"), 2);
@@ -143042,7 +143123,7 @@ async function runAll() {
     applyPresupuestoWaiver(filledTurn3, [], ["Que me propongan opciones"], historyAfterTwoAsks);
     assert2.ok(filledTurn3.has("Presupuesto (MXN)"), "tope de 2 preguntas debe forzar auto-waiver");
     const reply3 = runGuards({
-      aiResponse: "\xBFTienen alg\xFAn rango de presupuesto en mente?",
+      aiResponse: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente?",
       extracted,
       filledSet: new Set(baseFilled),
       readyForClosing: false,
@@ -143051,45 +143132,45 @@ async function runAll() {
     });
     assert2.ok(
       !/rango\s+de\s+presupuesto|presupuesto\s+en\s+mente/i.test(reply3),
-      `no debe haber una 3\xAA pregunta de presupuesto: ${reply3.slice(0, 200)}`
+      `no debe haber una 3\uFFFD pregunta de presupuesto: ${reply3.slice(0, 200)}`
     );
     assert2.ok(
       reply3.includes("Perfecto, ya tengo todo") || /nuestro equipo|sin problema/i.test(reply3),
       reply3.slice(0, 200)
     );
   });
-  await test('21. Manuel A14770 \u2014 "\xBFalg\xFAn otro servicio?" no se pregunta para siempre', () => {
+  await test('21. Manuel A14770 \uFFFD "\uFFFDalg\uFFFDn otro servicio?" no se pregunta para siempre', () => {
     assert2.ok(clientDeclinesMoreServices("No"));
     assert2.ok(clientDeclinesMoreServices("Solo con eso"));
     assert2.ok(clientDeclinesMoreServices("Solo eso"));
-    assert2.ok(clientDeclinesMoreServices("Ning\xFAn otro servicio"));
+    assert2.ok(clientDeclinesMoreServices("Ning\uFFFDn otro servicio"));
     assert2.ok(clientDeclinesMoreServices("No gracias"));
-    assert2.ok(!clientDeclinesMoreServices("Animaci\xF3n"));
+    assert2.ok(!clientDeclinesMoreServices("Animaci\uFFFDn"));
     const filledReady = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "N\xFAmero de invitados",
-      "Lugar/direcci\xF3n del evento",
+      "N\uFFFDmero de invitados",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario",
       "Presupuesto (MXN)"
     ]);
     const extracted = emptyExtracted({
       nombre: "Manuel",
       correo: "arteagamanuel714@gmail.com",
-      tipo_evento: "cumplea\xF1os",
-      requerimientos_evento: "show en vivo, animaci\xF3n, hora loca, happening, espejos, l\xE1ser",
+      tipo_evento: "cumplea\uFFFDos",
+      requerimientos_evento: "show en vivo, animaci\uFFFDn, hora loca, happening, espejos, l\uFFFDser",
       num_invitados: 125,
-      direccion_evento: "Naucalpan de Ju\xE1rez, Edo Mex",
-      fecha_horario: "pr\xF3ximo a\xF1o",
+      direccion_evento: "Naucalpan de Ju\uFFFDrez, Edo Mex",
+      fecha_horario: "pr\uFFFDximo a\uFFFDo",
       presupuesto: 12500
     });
     assert2.equal(isReadyForClosing(filledReady), true);
     const historyFirstAsk = [
       {
         role: "assistant",
-        content: "Para tu evento, manejamos shows en vivo, animaci\xF3n, hora loca, happening, espejos, l\xE1ser y m\xE1s opciones de entretenimiento. \xBFQu\xE9 necesitas para el evento?"
+        content: "Para tu evento, manejamos shows en vivo, animaci\uFFFDn, hora loca, happening, espejos, l\uFFFDser y m\uFFFDs opciones de entretenimiento. \uFFFDQu\uFFFD necesitas para el evento?"
       }
     ];
     const historyLoop = [
@@ -143097,22 +143178,22 @@ async function runAll() {
       { role: "user", content: "No me interesa" },
       {
         role: "assistant",
-        content: "Perfecto. Con el Animaci\xF3n / Hora loca, \xBFnecesitan alg\xFAn otro servicio?"
+        content: "Perfecto. Con el Animaci\uFFFDn / Hora loca, \uFFFDnecesitan alg\uFFFDn otro servicio?"
       },
-      { role: "user", content: "Fiesta din\xE1mica" },
+      { role: "user", content: "Fiesta din\uFFFDmica" },
       {
         role: "assistant",
-        content: "Perfecto. Con el show en vivo, animaci\xF3n, hora loca, happening, espejos, l\xE1ser, \xBFnecesitan alg\xFAn otro servicio?"
+        content: "Perfecto. Con el show en vivo, animaci\uFFFDn, hora loca, happening, espejos, l\uFFFDser, \uFFFDnecesitan alg\uFFFDn otro servicio?"
       },
-      { role: "user", content: "Ning\xFAn otro servicio" },
+      { role: "user", content: "Ning\uFFFDn otro servicio" },
       {
         role: "assistant",
-        content: "Perfecto. Con el Animaci\xF3n / Hora loca, \xBFnecesitan alg\xFAn otro servicio?"
+        content: "Perfecto. Con el Animaci\uFFFDn / Hora loca, \uFFFDnecesitan alg\uFFFDn otro servicio?"
       }
     ];
     const debugLogs = [];
     const replyNo = runGuards({
-      aiResponse: "Perfecto. Con el Animaci\xF3n / Hora loca, \xBFnecesitan alg\xFAn otro servicio?",
+      aiResponse: "Perfecto. Con el Animaci\uFFFDn / Hora loca, \uFFFDnecesitan alg\uFFFDn otro servicio?",
       extracted,
       filledSet: new Set(filledReady),
       readyForClosing: true,
@@ -143124,36 +143205,36 @@ async function runAll() {
       replyNo.includes("Perfecto, ya tengo todo") || replyNo.includes(CATALOG_URL2),
       `debe cerrar en vez de repetir: "${replyNo.slice(0, 200)}" | logs: ${debugLogs.join(" > ")}`
     );
-    assert2.ok(!/alg[u√∫]n\s+otro\s+servicio/i.test(replyNo), replyNo.slice(0, 200));
+    assert2.ok(!/alg[u˙]n\s+otro\s+servicio/i.test(replyNo), replyNo.slice(0, 200));
     const replyBareWord = runGuards({
-      aiResponse: "\xBFQu\xE9 necesitas para el evento?",
+      aiResponse: "\uFFFDQu\uFFFD necesitas para el evento?",
       extracted,
       filledSet: new Set(filledReady),
       readyForClosing: true,
-      currentMessage: "Animaci\xF3n",
+      currentMessage: "Animaci\uFFFDn",
       history: historyLoop
     });
     assert2.ok(
-      !/manejamos shows en vivo, animaci[o√≥]n, hora loca/i.test(replyBareWord),
+      !/manejamos shows en vivo, animaci[oÛ]n, hora loca/i.test(replyBareWord),
       `no debe repetir el pitch de venta: "${replyBareWord.slice(0, 200)}"`
     );
     const replyRealQuestion = runGuards({
-      aiResponse: "\xBFQu\xE9 necesitas para el evento?",
+      aiResponse: "\uFFFDQu\uFFFD necesitas para el evento?",
       extracted,
       filledSet: new Set(filledReady),
       readyForClosing: true,
-      currentMessage: "\xBFC\xF3mo es eso de los espejos?",
+      currentMessage: "\uFFFDC\uFFFDmo es eso de los espejos?",
       history: historyLoop
     });
     assert2.ok(replyRealQuestion.trim().length > 0);
     const historyPostCierre = [
       {
         role: "assistant",
-        content: "Perfecto, ya tengo todo. Voy a compartir esta informaci\xF3n con nuestro equipo para que te prepare una cotizaci\xF3n personalizada. Mientras tanto, aqu\xED tienes nuestro cat\xE1logo completo. \xBFTe gustar\xEDa incluir algo m\xE1s en la cotizaci\xF3n?"
+        content: "Perfecto, ya tengo todo. Voy a compartir esta informaci\uFFFDn con nuestro equipo para que te prepare una cotizaci\uFFFDn personalizada. Mientras tanto, aqu\uFFFD tienes nuestro cat\uFFFDlogo completo. \uFFFDTe gustar\uFFFDa incluir algo m\uFFFDs en la cotizaci\uFFFDn?"
       }
     ];
     const postCierreReply = applyLucyMessageGuards({
-      aiResponse: "\xBFD\xF3nde se llevar\xE1 a cabo el evento?",
+      aiResponse: "\uFFFDD\uFFFDnde se llevar\uFFFD a cabo el evento?",
       extracted,
       filledSet: new Set(filledReady),
       readyForClosing: true,
@@ -143164,15 +143245,15 @@ async function runAll() {
       buildClosing: mockClosing
     });
     assert2.ok(
-      !/d[o√≥]nde\s+se\s+llevar[a√°]|qu[e√©]\s+tipo\s+de\s+evento/i.test(postCierreReply),
+      !/d[oÛ]nde\s+se\s+llevar[a·]|qu[eÈ]\s+tipo\s+de\s+evento/i.test(postCierreReply),
       `no debe repetir zona/tipo de evento post-cierre: "${postCierreReply.slice(0, 200)}"`
     );
     assert2.ok(postCierreReply.trim().length > 0);
     const filledSinZona = new Set(
-      [...filledReady].filter((f6) => f6 !== "Lugar/direcci\xF3n del evento")
+      [...filledReady].filter((f6) => f6 !== "Lugar/direcci\uFFFDn del evento")
     );
     const postCierreVariosNo = applyLucyMessageGuards({
-      aiResponse: "\xBFEn qu\xE9 ciudad ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, ser\xEDa lo ideal.",
+      aiResponse: "\uFFFDEn qu\uFFFD ciudad ser\uFFFDa tu evento? Si tienes la direcci\uFFFDn exacta, ser\uFFFDa lo ideal.",
       extracted,
       filledSet: filledSinZona,
       readyForClosing: true,
@@ -143183,13 +143264,13 @@ async function runAll() {
       buildClosing: mockClosing
     });
     assert2.ok(
-      !/en\s+qu[e√©]\s+ciudad|direcci[o√≥]n\s+exacta|tienen\s+ya\s+el\s+lugar/i.test(postCierreVariosNo),
+      !/en\s+qu[eÈ]\s+ciudad|direcci[oÛ]n\s+exacta|tienen\s+ya\s+el\s+lugar/i.test(postCierreVariosNo),
       `no debe concatenar pregunta de zona tras el ack: "${postCierreVariosNo.slice(0, 200)}"`
     );
     assert2.ok(/con gusto|nuestro equipo/i.test(postCierreVariosNo), postCierreVariosNo.slice(0, 200));
     for (const msg of ["No", "No", "Gracias"]) {
       const reply = applyLucyMessageGuards({
-        aiResponse: "\xBFEn qu\xE9 ciudad ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, ser\xEDa lo ideal.",
+        aiResponse: "\uFFFDEn qu\uFFFD ciudad ser\uFFFDa tu evento? Si tienes la direcci\uFFFDn exacta, ser\uFFFDa lo ideal.",
         extracted,
         filledSet: new Set(filledSinZona),
         readyForClosing: true,
@@ -143200,37 +143281,37 @@ async function runAll() {
         buildClosing: mockClosing
       });
       assert2.ok(
-        !/en\s+qu[e√©]\s+ciudad|direcci[o√≥]n\s+exacta|tienen\s+ya\s+el\s+lugar|d[o√≥]nde\s+se\s+llevar[a√°]/i.test(reply),
+        !/en\s+qu[eÈ]\s+ciudad|direcci[oÛ]n\s+exacta|tienen\s+ya\s+el\s+lugar|d[oÛ]nde\s+se\s+llevar[a·]/i.test(reply),
         `"${msg}" no debe concatenar pregunta de zona: "${reply.slice(0, 200)}"`
       );
     }
   });
-  await test("22. Manuel A14770 \u2014 CRM no se contamina con extracci\xF3n inestable del turno", () => {
+  await test("22. Manuel A14770 \uFFFD CRM no se contamina con extracci\uFFFDn inestable del turno", () => {
     const mergedLines = [
       "- Nombre del cliente: Manuel",
-      "- Correo electr\xF3nico: arteagamanuel714@gmail.com",
-      "- Tipo de evento: cumplea\xF1os",
-      "- Requerimientos o servicios: show en vivo, animaci\xF3n, hora loca, happening, espejos, l\xE1ser",
-      "- Lugar/direcci\xF3n del evento: Naucalpan de Ju\xE1rez, Edo Mex"
+      "- Correo electr\uFFFDnico: arteagamanuel714@gmail.com",
+      "- Tipo de evento: cumplea\uFFFDos",
+      "- Requerimientos o servicios: show en vivo, animaci\uFFFDn, hora loca, happening, espejos, l\uFFFDser",
+      "- Lugar/direcci\uFFFDn del evento: Naucalpan de Ju\uFFFDrez, Edo Mex"
     ];
-    assert2.equal(crmStoredValue(mergedLines, "Tipo de evento"), "cumplea\xF1os");
+    assert2.equal(crmStoredValue(mergedLines, "Tipo de evento"), "cumplea\uFFFDos");
     assert2.equal(
-      crmStoredValue(mergedLines, "Lugar/direcci\xF3n del evento"),
-      "Naucalpan de Ju\xE1rez, Edo Mex"
+      crmStoredValue(mergedLines, "Lugar/direcci\uFFFDn del evento"),
+      "Naucalpan de Ju\uFFFDrez, Edo Mex"
     );
     assert2.equal(
       crmStoredValue(mergedLines, "Requerimientos o servicios"),
-      "show en vivo, animaci\xF3n, hora loca, happening, espejos, l\xE1ser"
+      "show en vivo, animaci\uFFFDn, hora loca, happening, espejos, l\uFFFDser"
     );
     assert2.equal(crmStoredValue(mergedLines, "Presupuesto (MXN)"), null);
-    const tipoEventoContaminado = "fiesta din\xE1mica";
+    const tipoEventoContaminado = "fiesta din\uFFFDmica";
     const direccionContaminada = "vivo";
     const tipoEventoFinal = crmStoredValue(mergedLines, "Tipo de evento") ?? tipoEventoContaminado;
-    const direccionFinal = crmStoredValue(mergedLines, "Lugar/direcci\xF3n del evento") ?? direccionContaminada;
-    assert2.equal(tipoEventoFinal, "cumplea\xF1os");
-    assert2.equal(direccionFinal, "Naucalpan de Ju\xE1rez, Edo Mex");
+    const direccionFinal = crmStoredValue(mergedLines, "Lugar/direcci\uFFFDn del evento") ?? direccionContaminada;
+    assert2.equal(tipoEventoFinal, "cumplea\uFFFDos");
+    assert2.equal(direccionFinal, "Naucalpan de Ju\uFFFDrez, Edo Mex");
   });
-  await test("23. Detecci\xF3n de notas de voz e im\xE1genes en el payload de Kommo", () => {
+  await test("23. Detecci\uFFFDn de notas de voz e im\uFFFDgenes en el payload de Kommo", () => {
     assert2.ok(isVoiceNote({ attachment: { type: "voice", link: "https://x/a.ogg" } }));
     assert2.ok(isVoiceNote({ attachment: { type: "audio", link: "https://x/a.ogg" } }));
     assert2.ok(isVoiceNote({ attachment: { mime_type: "audio/ogg", link: "https://x/a.ogg" } }));
@@ -143254,16 +143335,16 @@ async function runAll() {
       "https://x/foto.jpg"
     );
     assert2.equal(
-      getImageCaption({ attachment: { type: "picture", link: "https://x/foto.jpg", text: "As\xED se ve el sal\xF3n" } }),
-      "As\xED se ve el sal\xF3n"
+      getImageCaption({ attachment: { type: "picture", link: "https://x/foto.jpg", text: "As\uFFFD se ve el sal\uFFFDn" } }),
+      "As\uFFFD se ve el sal\uFFFDn"
     );
     assert2.equal(getImageCaption({ attachment: { type: "picture", link: "https://x/foto.jpg" } }), null);
-    const leaked = "Qu\xE9 bonito sal\xF3n. [Imagen adjunta: sal\xF3n de eventos con jard\xEDn y carpa blanca] \xBFEs ah\xED tu evento?";
+    const leaked = "Qu\uFFFD bonito sal\uFFFDn. [Imagen adjunta: sal\uFFFDn de eventos con jard\uFFFDn y carpa blanca] \uFFFDEs ah\uFFFD tu evento?";
     const cleaned = stripImageAnnotation(leaked);
     assert2.ok(!/imagen adjunta/i.test(cleaned), cleaned);
-    assert2.ok(/qu√© bonito sal√≥n/i.test(cleaned));
+    assert2.ok(/quÈ bonito salÛn/i.test(cleaned));
   });
-  await test("24. Sin\xF3nimos de captura (del prompt de Opus) \u2014 presupuesto, invitados, correo, zona", () => {
+  await test("24. Sin\uFFFDnimos de captura (del prompt de Opus) \uFFFD presupuesto, invitados, correo, zona", () => {
     assert2.equal(parsePresupuestoFromText("$500 por persona"), "$500 MXN por persona");
     assert2.equal(parsePresupuestoFromText("500 por cabeza"), "$500 MXN por persona");
     assert2.equal(parsePresupuestoFromText("unos 600 pp"), "$600 MXN por persona");
@@ -143274,7 +143355,7 @@ async function runAll() {
     assert2.equal(parseInvitadosFromText("250 gentes"), "250");
     assert2.equal(parseInvitadosFromText("como 60 cabezas"), "60");
     assert2.equal(parseInvitadosFromText("unos 40"), "40");
-    assert2.equal(parseInvitadosFromText("m\xE1s o menos 120"), "120");
+    assert2.equal(parseInvitadosFromText("m\uFFFDs o menos 120"), "120");
     assert2.equal(parseInvitadosFromText("aproximadamente 80"), "80");
     assert2.equal(parseInvitadosFromText("entre 90 y 100"), "100");
     assert2.equal(parseCorreoFromText("mi correo es ana arroba gmail punto com"), "ana@gmail.com");
@@ -143283,20 +143364,20 @@ async function runAll() {
       "pedro_lopez@hotmail.com"
     );
     assert2.equal(parseCorreoFromText("mi correo es test@gmail.com"), "test@gmail.com");
-    assert2.equal(parseZonaFromText("El evento es en el Estado de M\xE9xico"), "Estado de M\xE9xico");
+    assert2.equal(parseZonaFromText("El evento es en el Estado de M\uFFFDxico"), "Estado de M\uFFFDxico");
     assert2.equal(parseZonaFromText("Va a ser en la colonia Roma"), "colonia Roma");
-    assert2.equal(parseZonaFromText("Es en delegaci\xF3n Coyoac\xE1n"), "Coyoac\xE1n");
-    assert2.equal(parseZonaFromText("Va a ser en la alcald\xEDa Miguel Hidalgo"), "alcald\xEDa Miguel Hidalgo");
-    assert2.equal(parseZonaFromText("en total ser\xEDan 50 personas"), null);
+    assert2.equal(parseZonaFromText("Es en delegaci\uFFFDn Coyoac\uFFFDn"), "Coyoac\uFFFDn");
+    assert2.equal(parseZonaFromText("Va a ser en la alcald\uFFFDa Miguel Hidalgo"), "alcald\uFFFDa Miguel Hidalgo");
+    assert2.equal(parseZonaFromText("en total ser\uFFFDan 50 personas"), null);
     assert2.equal(parseZonaFromText("es solo para mi familia"), null);
   });
-  await test("25. Lorena A14777 \u2014 Coffee Break se ofrece, resumen no pierde datos, cat\xE1logo no vac\xEDa la respuesta", () => {
+  await test("25. Lorena A14777 \uFFFD Coffee Break se ofrece, resumen no pierde datos, cat\uFFFDlogo no vac\uFFFDa la respuesta", () => {
     assert2.ok(clientMentionsCatering("Hola, me interesa cotizar: Coffee Break para Eventos Corporativos"));
-    assert2.ok(clientMentionsCatering("barra de caf\xE9 para el evento"));
+    assert2.ok(clientMentionsCatering("barra de caf\uFFFD para el evento"));
     const filledInicial = /* @__PURE__ */ new Set();
     const extractedInicial = emptyExtracted();
     const reply1 = runGuards({
-      aiResponse: "\xBFMe regalas tu nombre?",
+      aiResponse: "\uFFFDMe regalas tu nombre?",
       extracted: extractedInicial,
       filledSet: filledInicial,
       readyForClosing: false,
@@ -143313,7 +143394,7 @@ async function runAll() {
       nombre: "Lorena",
       tipo_evento: "corporativo",
       requerimientos_evento: "Coffee Break",
-      // GPT re-extrajo una versi√≥n m√°s corta este turno
+      // GPT re-extrajo una versiÛn m·s corta este turno
       num_invitados: 150
     });
     const resumen = buildResumenClienteLargo(extractedTurno2, mergedLinesTurno1, "coffee break para eventos corporativos 150 personas");
@@ -143322,34 +143403,34 @@ async function runAll() {
       `no debe perder el detalle ya guardado: ${resumen}`
     );
     assert2.ok(
-      resumen.includes("Qu\xE9 busca el cliente") || resumen.includes("Servicios:"),
-      `debe resumir qu\xE9 busca el cliente: ${resumen}`
+      resumen.includes("Qu\uFFFD busca el cliente") || resumen.includes("Servicios:"),
+      `debe resumir qu\uFFFD busca el cliente: ${resumen}`
     );
     assert2.ok(!/servicios\s*\/\s*requerimientos/i.test(resumen), resumen);
-    const mezclado = "No hay ning\xFAn problema, ya anot\xE9 que el evento es en Cuernavaca. Mientras tanto, aqu\xED tienes nuestro cat\xE1logo completo: https://bodasesor.com/catalogos. \xBFHay algo m\xE1s en lo que te pueda ayudar?";
+    const mezclado = "No hay ning\uFFFDn problema, ya anot\uFFFD que el evento es en Cuernavaca. Mientras tanto, aqu\uFFFD tienes nuestro cat\uFFFDlogo completo: https://bodasesor.com/catalogos. \uFFFDHay algo m\uFFFDs en lo que te pueda ayudar?";
     const limpio = stripCatalogBlockShared(mezclado);
-    assert2.ok(limpio.trim().length > 0, "no debe quedar vac\xEDo");
+    assert2.ok(limpio.trim().length > 0, "no debe quedar vac\uFFFDo");
     assert2.ok(!/cdn\.shopify\.com/i.test(limpio), limpio);
-    assert2.ok(/no hay ning[u√∫]n problema/i.test(limpio), limpio);
+    assert2.ok(/no hay ning[u˙]n problema/i.test(limpio), limpio);
     assert2.ok(/cuernavaca/i.test(limpio), limpio);
-    assert2.ok(/algo m[a√°]s en lo que te pueda ayudar/i.test(limpio), limpio);
+    assert2.ok(/algo m[a·]s en lo que te pueda ayudar/i.test(limpio), limpio);
     assert2.equal(parseTipoEventoFromText("Coffee Break para Eventos Corporativos"), "evento corporativo");
     assert2.equal(parseTipoEventoFromText("es para un evento corporativo"), "evento corporativo");
     assert2.equal(parseTipoEventoFromText("es un bautizo"), "bautizo");
     const dup1 = normalizeAdvisorReferences(
-      "Perfecto, voy a pasar esta informaci\xF3n a nuestro equipo para que te prepare una cotizaci\xF3n.",
+      "Perfecto, voy a pasar esta informaci\uFFFDn a nuestro equipo para que te prepare una cotizaci\uFFFDn.",
       "Lorena"
     );
     assert2.ok(!/equipo\s+equipo/i.test(dup1), dup1);
     assert2.ok(dup1.includes("nuestro equipo"), dup1);
     const dup2 = normalizeAdvisorReferences(
-      "Con gusto, le paso estos datos a nuestro equipo para la cotizaci\xF3n.",
+      "Con gusto, le paso estos datos a nuestro equipo para la cotizaci\uFFFDn.",
       "Lorena"
     );
     assert2.ok(!/equipo\s+equipo/i.test(dup2), dup2);
   });
-  await test("26. Bugs Kommo \u2014 proveedor/cliente, correo propio, nombre completo, cierre", () => {
-    const cafeText = "Solicitud para cotizaci\xF3n de caf\xE9 gourmet para evento corporativo Saint-Gobain";
+  await test("26. Bugs Kommo \uFFFD proveedor/cliente, correo propio, nombre completo, cierre", () => {
+    const cafeText = "Solicitud para cotizaci\uFFFDn de caf\uFFFD gourmet para evento corporativo Saint-Gobain";
     assert2.equal(resolveTipoContacto("proveedor", cafeText), "cliente");
     assert2.ok(isOwnCompanyEmail("capybaraeventos@gmail.com"));
     assert2.equal(filterClientEmail("capybaraeventos@gmail.com"), null);
@@ -143361,24 +143442,24 @@ async function runAll() {
     assert2.ok(isNombreMoreComplete("Gresia Perez", "Gresia"));
     assert2.ok(!isNombreMoreComplete("Gresia", "Gresia Perez"));
     assert2.equal(pickBetterNombre("Gresia", "Gresia Perez"), "Gresia Perez");
-    assert2.ok(clientAsksIfCompanyEmailCorrect("\xBFes capybaraeventos@gmail.com el correo correcto?"));
+    assert2.ok(clientAsksIfCompanyEmailCorrect("\uFFFDes capybaraeventos@gmail.com el correo correcto?"));
     assert2.ok(buildCompanyEmailConfirmReply().includes("capybaraeventos"));
     const hist = [
-      { role: "assistant", content: `${CLOSING_SIGNATURE} Aqu\xED est\xE1 el cat\xE1logo.` }
+      { role: "assistant", content: `${CLOSING_SIGNATURE} Aqu\uFFFD est\uFFFD el cat\uFFFDlogo.` }
     ];
     assert2.ok(detectCierreEnviado(hist));
-    assert2.ok(detectCierreEnviado([], `${CLOSING_SIGNATURE} cat\xE1logo`));
+    assert2.ok(detectCierreEnviado([], `${CLOSING_SIGNATURE} cat\uFFFDlogo`));
     const emailGuard = runGuards({
-      aiResponse: "\xBFA qu\xE9 correo te lo env\xEDo?",
+      aiResponse: "\uFFFDA qu\uFFFD correo te lo env\uFFFDo?",
       extracted: emptyExtracted(),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       readyForClosing: false,
-      currentMessage: "\xBFes capybaraeventos@gmail.com el correo correcto?"
+      currentMessage: "\uFFFDes capybaraeventos@gmail.com el correo correcto?"
     });
     assert2.ok(/capybaraeventos|bodasesor/i.test(emailGuard), emailGuard);
     assert2.ok(/tu correo|compartes/i.test(emailGuard), emailGuard);
   });
-  await test("27. Webhook/imagen \u2014 sin duplicar Vision ni notas", () => {
+  await test("27. Webhook/imagen \uFFFD sin duplicar Vision ni notas", () => {
     resetWebhookDedupForTests();
     resetImageAnalysisCacheForTests();
     const msg = {
@@ -143404,7 +143485,7 @@ async function runAll() {
     });
     assert2.equal(fallbackKey, `media:chat-2:${imgUrl}`);
   });
-  await test("27b. Webhook Incoming Leads \u2014 payload Kommo oficial + unsorted", () => {
+  await test("27b. Webhook Incoming Leads \uFFFD payload Kommo oficial + unsorted", () => {
     const official = {
       add: [
         {
@@ -143468,17 +143549,17 @@ async function runAll() {
     assert2.ok(lucyDebeResponder(0, []), "Incoming unsorted sin status");
     assert2.equal(lucyDebeResponder(99999999, []), false, "otro filtro: Lucy no habla");
     assert2.equal(lucyDebeResponder(105583875, []), false, "Humano Trabaja: silencio");
-    assert2.equal(lucyDebeResponder(72336827, []), false, "Cotizaci\xF3n: silencio");
+    assert2.equal(lucyDebeResponder(72336827, []), false, "Cotizaci\uFFFDn: silencio");
     assert2.equal(lucyDebeResponder(143, []), false, "Perdido: silencio");
     assert2.equal(lucyDebeResponder(72336719, ["lucy_desactivada"]), false);
     const now = Date.now();
     assert2.ok(isWithinLookback(Math.floor((now - 2 * 3600 * 1e3) / 1e3), 15 * 3600 * 1e3, now));
     assert2.ok(!isWithinLookback(Math.floor((now - 20 * 3600 * 1e3) / 1e3), 15 * 3600 * 1e3, now));
   });
-  await test("28. Lucy V7 \u2014 pedido/entrega, n\xFAmero ambiguo, orden fecha\u2192ubicaci\xF3n\u2192correo", () => {
+  await test("28. Lucy V7 \uFFFD pedido/entrega, n\uFFFDmero ambiguo, orden fecha?ubicaci\uFFFDn?correo", () => {
     assert2.equal(detectModoServicio("quiero 50 rollos para llevar"), "pedido_entrega");
     assert2.equal(
-      detectModoServicio("Solo quiero 50 rollos de sushi y que me los dejen en mi casa, \xBFcu\xE1nto?"),
+      detectModoServicio("Solo quiero 50 rollos de sushi y que me los dejen en mi casa, \uFFFDcu\uFFFDnto?"),
       "pedido_entrega"
     );
     assert2.equal(detectModoServicio("barra de sushi montada en el evento"), "servicio_montado");
@@ -143493,10 +143574,10 @@ async function runAll() {
       "Requerimientos o servicios"
     ]);
     assert2.equal(getNextPendingField(emptyExtracted(), filled), "invitados");
-    const pedidoMsg = "Solo quiero 50 rollos de sushi y que me los dejen en mi casa, \xBFcu\xE1nto?";
+    const pedidoMsg = "Solo quiero 50 rollos de sushi y que me los dejen en mi casa, \uFFFDcu\uFFFDnto?";
     const pedidoEx = emptyExtracted();
     const pedidoReply = runGuards({
-      aiResponse: "S\xED, la barra de sushi inicia en $280 por persona con chefs en sitio.",
+      aiResponse: "S\uFFFD, la barra de sushi inicia en $280 por persona con chefs en sitio.",
       extracted: pedidoEx,
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
@@ -143505,52 +143586,52 @@ async function runAll() {
     });
     assert2.equal(pedidoEx.modo_servicio, "pedido_entrega");
     assert2.ok(/pedido\/entrega|domicilio|entrega/i.test(pedidoReply), pedidoReply);
-    assert2.ok(/nuestro equipo|cotizaci[o√≥]n exacta/i.test(pedidoReply), pedidoReply);
+    assert2.ok(/nuestro equipo|cotizaci[oÛ]n exacta/i.test(pedidoReply), pedidoReply);
     assert2.ok(!/por persona|chefs en sitio|montaje de barra/i.test(pedidoReply), pedidoReply);
     assert2.ok(/lucy|bodasesor/i.test(pedidoReply), pedidoReply);
   });
-  await test("29. Replit \u2014 transiciones, anti-robot, servicios sin precio consultivos", () => {
+  await test("29. Replit \uFFFD transiciones, anti-robot, servicios sin precio consultivos", () => {
     const hist = [
-      { role: "assistant", content: "Perfecto. \xBFA qu\xE9 correo te lo env\xEDo?" }
+      { role: "assistant", content: "Perfecto. \uFFFDA qu\uFFFD correo te lo env\uFFFDo?" }
     ];
     const t1 = pickTransition(hist);
     assert2.notEqual(t1, "Perfecto.", t1);
     const stripped = stripRobotAcknowledgments(
-      "Perfecto, Pelene. Ya tengo tu correo. \xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?"
+      "Perfecto, Pelene. Ya tengo tu correo. \uFFFDM\uFFFDs o menos para cu\uFFFDntas personas ser\uFFFDa?"
     );
     assert2.ok(!/ya\s+tengo\s+tu\s+correo/i.test(stripped), stripped);
     assert2.ok(/personas/i.test(stripped), stripped);
-    const dj = buildConsultativeNoPriceReply("\xBFCu\xE1nto cuesta el DJ?");
+    const dj = buildConsultativeNoPriceReply("\uFFFDCu\uFFFDnto cuesta el DJ?");
     assert2.ok(dj && /DJ/i.test(dj) && /nuestro equipo/i.test(dj) && dj.includes("?"), dj ?? "");
-    const carpa = buildConsultativeNoPriceReply("necesito carpas para el jard\xEDn");
+    const carpa = buildConsultativeNoPriceReply("necesito carpas para el jard\uFFFDn");
     assert2.ok(
       carpa && /carpas?/i.test(carpa) && /blancas?/i.test(carpa) && /negras?/i.test(carpa) && /transparentes?/i.test(carpa) && /domo/i.test(carpa),
       carpa ?? ""
     );
-    assert2.ok(!/Cathedral|Catedral|Pir√°mide|Planas/i.test(carpa ?? ""), carpa ?? "");
+    assert2.ok(!/Cathedral|Catedral|Pir·mide|Planas/i.test(carpa ?? ""), carpa ?? "");
     const priceGuard = runGuards({
       aiResponse: "El DJ cuesta $5,000.",
       extracted: emptyExtracted({ nombre: "Ana" }),
-      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"]),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico", "Tipo de evento"]),
       readyForClosing: false,
-      currentMessage: "\xBFCu\xE1nto cuesta el DJ?"
+      currentMessage: "\uFFFDCu\uFFFDnto cuesta el DJ?"
     });
     assert2.ok(/DJ/i.test(priceGuard), priceGuard);
     assert2.ok(!/\$\s*5,?000/.test(priceGuard), priceGuard);
     assert2.ok(/nuestro equipo/i.test(priceGuard), priceGuard);
   });
-  await test("30. Asesor Alejandro + sanitizaci\xF3n datos externos (Kommo/CRM)", () => {
+  await test("30. Asesor Alejandro + sanitizaci\uFFFDn datos externos (Kommo/CRM)", () => {
     assert2.equal(getAdvisorName(), "Alejandro");
     const rodrigoNorm = normalizeAdvisorReferences(
-      "Perfecto, ya tengo todo. Le paso estos datos a Rodrigo para que te arme una cotizaci\xF3n.",
-      "Mar\xEDa"
+      "Perfecto, ya tengo todo. Le paso estos datos a Rodrigo para que te arme una cotizaci\uFFFDn.",
+      "Mar\uFFFDa"
     );
     assert2.ok(!/Rodrigo/i.test(rodrigoNorm), rodrigoNorm);
     assert2.ok(/nuestro equipo/i.test(rodrigoNorm), rodrigoNorm);
     const dirtyCrm = sanitizeKommoCrmLines([
-      "- Nombre del cliente: Quiero hacer una cotizaci\xF3n",
-      "- Correo electr\xF3nico: capybaraeventos@gmail.com",
-      "- Lugar/direcci\xF3n del evento: 6m x 12m",
+      "- Nombre del cliente: Quiero hacer una cotizaci\uFFFDn",
+      "- Correo electr\uFFFDnico: capybaraeventos@gmail.com",
+      "- Lugar/direcci\uFFFDn del evento: 6m x 12m",
       "- Tipo de evento: boda"
     ]);
     assert2.equal(dirtyCrm.length, 1);
@@ -143562,7 +143643,7 @@ async function runAll() {
         nombre: "Quiero cotizar",
         direccion_evento: "8m x 10m"
       }),
-      "Solicitud de cotizaci\xF3n de caf\xE9 para evento corporativo Saint-Gobain"
+      "Solicitud de cotizaci\uFFFDn de caf\uFFFD para evento corporativo Saint-Gobain"
     );
     assert2.equal(clean.tipo_contacto, "cliente");
     assert2.equal(clean.correo, null);
@@ -143570,14 +143651,14 @@ async function runAll() {
     assert2.equal(clean.direccion_evento, null);
     assert2.ok(LEGACY_ADVISOR_NAMES.includes("Rodrigo"));
   });
-  await test("31. A14786 \u2014 cliente Alejandro: saludo correcto, no confundir con asesor", () => {
+  await test("31. A14786 \uFFFD cliente Alejandro: saludo correcto, no confundir con asesor", () => {
     assert2.equal(clientAsksAboutTeam("Alejandro!", null), false);
-    assert2.equal(clientAsksAboutTeam("Alejandro!", "Mar\xEDa"), false);
+    assert2.equal(clientAsksAboutTeam("Alejandro!", "Mar\uFFFDa"), false);
     const correoQ = buildCorreoQuestion("Alejandro", [], 14786);
     assert2.ok(/Mucho gusto,\s+Alejandro/i.test(correoQ), correoQ);
     assert2.ok(!/Mucho gusto,\s+nuestro equipo/i.test(correoQ), correoQ);
     const norm2 = normalizeAdvisorReferences(
-      "Mucho gusto, Alejandro. \xBFA qu\xE9 correo te env\xEDo la info para que nuestro equipo te arme la propuesta?",
+      "Mucho gusto, Alejandro. \uFFFDA qu\uFFFD correo te env\uFFFDo la info para que nuestro equipo te arme la propuesta?",
       "Alejandro"
     );
     assert2.ok(/Mucho gusto,\s+Alejandro/i.test(norm2), norm2);
@@ -143594,22 +143675,22 @@ async function runAll() {
     assert2.ok(dirty.some((l5) => /Nombre del cliente:\s*Rodrigo/i.test(l5)));
     assert2.ok(dirty.some((l5) => /Tipo de evento:\s*bautizo/i.test(l5)));
     assert2.ok(!dirty.some((l5) => /Requerimientos/i.test(l5)));
-    const leaked = "Perfecto. Informaci\xF3n completa obtenida.\n\nDATOS DEL CLIENTE:\n- Nombre: Alejandro";
+    const leaked = "Perfecto. Informaci\uFFFDn completa obtenida.\n\nDATOS DEL CLIENTE:\n- Nombre: Alejandro";
     const clean = stripInternalCrmBlock(leaked);
     assert2.ok(!/DATOS DEL CLIENTE/i.test(clean));
     assert2.ok(/^Perfecto\./i.test(clean));
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "Lugar/direcci\xF3n del evento",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario",
-      "N\xFAmero de invitados",
+      "N\uFFFDmero de invitados",
       "Presupuesto (MXN)"
     ]);
     const closeReply = runGuards({
-      aiResponse: "Informaci\xF3n completa obtenida. DATOS DEL CLIENTE:\n- Nombre: Alejandro\n\n\xBFTe interesa algo m\xE1s?",
+      aiResponse: "Informaci\uFFFDn completa obtenida. DATOS DEL CLIENTE:\n- Nombre: Alejandro\n\n\uFFFDTe interesa algo m\uFFFDs?",
       extracted: emptyExtracted({ nombre: "Alejandro", tipo_evento: "bautizo", requerimientos_evento: "servicio completo" }),
       filledSet: filled,
       readyForClosing: true,
@@ -143617,13 +143698,13 @@ async function runAll() {
     });
     assert2.ok(closeReply.includes(CLOSING_SIGNATURE), closeReply);
     assert2.ok(!/DATOS DEL CLIENTE/i.test(closeReply), closeReply);
-    assert2.ok(!/Informaci√≥n completa obtenida/i.test(closeReply), closeReply);
+    assert2.ok(!/InformaciÛn completa obtenida/i.test(closeReply), closeReply);
   });
-  await test("32. Bater\xEDa 20 \u2014 ubicaci\xF3n, italiano, expo, n\xFAmero ambiguo", () => {
-    assert2.ok(clientAsksLocation("\xBFD\xF3nde se ubican?"));
-    assert2.ok(clientMentionsItalianTheme("fiesta tem\xE1tica de mafia italiana"));
-    assert2.ok(buildLocationAnswer().includes("rep\xFAblica"));
-    assert2.equal(parseTipoEventoFromText("stand de caf\xE9 para una expo"), "evento corporativo");
+  await test("32. Bater\uFFFDa 20 \uFFFD ubicaci\uFFFDn, italiano, expo, n\uFFFDmero ambiguo", () => {
+    assert2.ok(clientAsksLocation("\uFFFDD\uFFFDnde se ubican?"));
+    assert2.ok(clientMentionsItalianTheme("fiesta tem\uFFFDtica de mafia italiana"));
+    assert2.ok(buildLocationAnswer().includes("rep\uFFFDblica"));
+    assert2.equal(parseTipoEventoFromText("stand de caf\uFFFD para una expo"), "evento corporativo");
     assert2.equal(parseZonaFromText("en Expo Santa Fe"), "Expo Santa Fe");
     assert2.equal(sanitizeDisplayName("el 5"), null);
     const locFirst = buildFirstInteractionMessage(
@@ -143631,27 +143712,27 @@ async function runAll() {
         extracted: emptyExtracted(),
         filledSet: /* @__PURE__ */ new Set(),
         history: [],
-        currentMessage: "\xBFD\xF3nde se ubican?"
+        currentMessage: "\uFFFDD\uFFFDnde se ubican?"
       },
       true
     );
-    assert2.ok(/CDMX|Ciudad de M√©xico|rep√∫blica/i.test(locFirst), locFirst);
+    assert2.ok(/CDMX|Ciudad de MÈxico|rep˙blica/i.test(locFirst), locFirst);
     assert2.ok(/llamas|nombre/i.test(locFirst), locFirst);
     const ambig = runGuards({
-      aiResponse: "\xBFA qu\xE9 correo te lo env\xEDo?",
-      extracted: emptyExtracted({ tipo_evento: "cumplea\xF1os" }),
+      aiResponse: "\uFFFDA qu\uFFFD correo te lo env\uFFFDo?",
+      extracted: emptyExtracted({ tipo_evento: "cumplea\uFFFDos" }),
       filledSet: /* @__PURE__ */ new Set(["Tipo de evento"]),
       readyForClosing: false,
       currentMessage: "el 5",
       history: [
-        { role: "user", content: "quiero cotizar un cumplea\xF1os" },
-        { role: "assistant", content: "\xBFC\xF3mo te llamas?" }
+        { role: "user", content: "quiero cotizar un cumplea\uFFFDos" },
+        { role: "assistant", content: "\uFFFDC\uFFFDmo te llamas?" }
       ]
     });
-    assert2.ok(/invitados|d√≠a\s*5|fecha/i.test(ambig), ambig);
+    assert2.ok(/invitados|dÌa\s*5|fecha/i.test(ambig), ambig);
     const expoCaptures = scanConversationForCaptures(
       [],
-      "Necesito un stand de caf\xE9 para una expo, 200 personas por d\xEDa, en Expo Santa Fe.",
+      "Necesito un stand de caf\uFFFD para una expo, 200 personas por d\uFFFDa, en Expo Santa Fe.",
       /* @__PURE__ */ new Set()
     );
     assert2.ok(
@@ -143659,24 +143740,24 @@ async function runAll() {
       JSON.stringify(expoCaptures)
     );
     assert2.ok(
-      expoCaptures.some((c4) => c4.label === "N\xFAmero de invitados" && c4.value === "200"),
+      expoCaptures.some((c4) => c4.label === "N\uFFFDmero de invitados" && c4.value === "200"),
       JSON.stringify(expoCaptures)
     );
     const itRec = buildRecommendationsReply(
       emptyExtracted(),
       [],
       1,
-      "Vamos a ver el partido de la selecci\xF3n de Italia, \xBFqu\xE9 me recomiendas de comida?"
+      "Vamos a ver el partido de la selecci\uFFFDn de Italia, \uFFFDqu\uFFFD me recomiendas de comida?"
     );
     assert2.ok(/pasta|pizza|italian/i.test(itRec), itRec);
   });
   await test("33. Nombre persiste desde historial y waiver presupuesto directo", () => {
-    assert2.ok(detectPresupuestoRefusal("a\xFAn no s\xE9 cu\xE1nto"));
+    assert2.ok(detectPresupuestoRefusal("a\uFFFDn no s\uFFFD cu\uFFFDnto"));
     const hist = [
       { role: "user", content: "Hola, quiero banquete para mi boda" },
-      { role: "assistant", content: "\xBFC\xF3mo te llamas?" },
+      { role: "assistant", content: "\uFFFDC\uFFFDmo te llamas?" },
       { role: "user", content: "Elena" },
-      { role: "assistant", content: "Mucho gusto, Elena. \xBFA qu\xE9 correo te lo env\xEDo?" },
+      { role: "assistant", content: "Mucho gusto, Elena. \uFFFDA qu\uFFFD correo te lo env\uFFFDo?" },
       { role: "user", content: "elena@test.com" }
     ];
     assert2.equal(recoverClienteNombreFromHistory(hist), "Elena");
@@ -143687,31 +143768,31 @@ async function runAll() {
     );
     const logs = [];
     const presWaiver = runGuards({
-      aiResponse: "\xBFC\xF3mo te llamas?",
+      aiResponse: "\uFFFDC\uFFFDmo te llamas?",
       extracted: emptyExtracted({ nombre: "Mario", num_invitados: 60 }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados",
-        "Lugar/direcci\xF3n del evento",
+        "N\uFFFDmero de invitados",
+        "Lugar/direcci\uFFFDn del evento",
         "Fecha y horario"
       ]),
       readyForClosing: false,
-      currentMessage: "a\xFAn no s\xE9 cu\xE1nto",
+      currentMessage: "a\uFFFDn no s\uFFFD cu\uFFFDnto",
       history: hist,
       debugLogs: logs
     });
-    assert2.ok(!/c[o√≥]mo\s+te\s+llamas/i.test(presWaiver), `${presWaiver} | logs: ${logs.join("; ")}`);
+    assert2.ok(!/c[oÛ]mo\s+te\s+llamas/i.test(presWaiver), `${presWaiver} | logs: ${logs.join("; ")}`);
     assert2.ok(/definir|propong|equipo/i.test(presWaiver), presWaiver);
   });
-  await test("34. Cat\xE1logo \u2014 sin men\xFA hardcodeado; datos del Sheet", () => {
-    assert2.ok(clientAsksServiceInfo("Quiero informaci\xF3n sobre la barra de pizzas"));
+  await test("34. Cat\uFFFDlogo \uFFFD sin men\uFFFD hardcodeado; datos del Sheet", () => {
+    assert2.ok(clientAsksServiceInfo("Quiero informaci\uFFFDn sobre la barra de pizzas"));
     assert2.ok(responseLooksLikeGenericCateringMenu(
-      "S\xED, manejamos catering para eventos. Estas son las opciones m\xE1s pedidas:\n\n\xBFCu\xE1l te interesa?"
+      "S\uFFFD, manejamos catering para eventos. Estas son las opciones m\uFFFDs pedidas:\n\n\uFFFDCu\uFFFDl te interesa?"
     ));
-    const genericMenu = "S\xED, manejamos catering para eventos. Estas son las opciones m\xE1s pedidas:\n\n\u2022 Taquiza\n\n\xBFCu\xE1l te interesa? Con eso te paso precios";
+    const genericMenu = "S\uFFFD, manejamos catering para eventos. Estas son las opciones m\uFFFDs pedidas:\n\n\uFFFD Taquiza\n\n\uFFFDCu\uFFFDl te interesa? Con eso te paso precios";
     const injected = injectCatalogCateringIfAsked(
       "quiero cotizar banquete para mi boda",
       genericMenu
@@ -143725,7 +143806,7 @@ async function runAll() {
       assert2.ok(/taquiza/i.test(promptBlock), promptBlock);
     }
   });
-  await test('35. Jes\xFAs \u2014 renta de letras fuera de cat\xE1logo, "no gracias" sin bucle', () => {
+  await test('35. Jes\uFFFDs \uFFFD renta de letras fuera de cat\uFFFDlogo, "no gracias" sin bucle', () => {
     assert2.equal(parsePrimaryService("quiero renta de letras"), "Renta de letras");
     assert2.ok(isServiceRelatedMessage("renta de letra XV"));
     assert2.ok(clientDeclinesMoreServices("solo ese"));
@@ -143740,39 +143821,39 @@ async function runAll() {
       "Requerimientos o servicios"
     ]);
     const extracted = emptyExtracted({
-      nombre: "Jes\xFAs",
-      tipo_evento: "xv a\xF1os",
+      nombre: "Jes\uFFFDs",
+      tipo_evento: "xv a\uFFFDos",
       requerimientos_evento: "renta de letras"
     });
     const historyAfterFollowUp = [
       {
         role: "assistant",
-        content: "S\xED, podemos ayudarte con *renta de letras*. Lo confirmo con nuestro equipo para darte descripci\xF3n, precio e inclusiones exactas y lo anoto en tu solicitud."
+        content: "S\uFFFD, podemos ayudarte con *renta de letras*. Lo confirmo con nuestro equipo para darte descripci\uFFFDn, precio e inclusiones exactas y lo anoto en tu solicitud."
       },
       {
         role: "assistant",
-        content: "Perfecto. Con el renta de letras, \xBFnecesitan alg\xFAn otro servicio?"
+        content: "Perfecto. Con el renta de letras, \uFFFDnecesitan alg\uFFFDn otro servicio?"
       }
     ];
     const replyNoGracias = runGuards({
-      aiResponse: "Perfecto. Con la renta de la letra XV, \xBFnecesitan alg\xFAn otro servicio?",
+      aiResponse: "Perfecto. Con la renta de la letra XV, \uFFFDnecesitan alg\uFFFDn otro servicio?",
       extracted,
       filledSet: new Set(filledPartial),
       readyForClosing: false,
       currentMessage: "no gracias",
       history: historyAfterFollowUp
     });
-    assert2.ok(!/alg[u√∫]n\s+otro\s+servicio|otros\s+servicios/i.test(replyNoGracias), replyNoGracias);
+    assert2.ok(!/alg[u˙]n\s+otro\s+servicio|otros\s+servicios/i.test(replyNoGracias), replyNoGracias);
     assert2.ok(
-      /invitados|ciudad|fecha|presupuesto|d[o√≥]nde|ubicaci|sal[o√≥]n|d[i√≠]a|hora|cu[a√°]ndo|definiendo/i.test(
+      /invitados|ciudad|fecha|presupuesto|d[oÛ]nde|ubicaci|sal[oÛ]n|d[iÌ]a|hora|cu[a·]ndo|definiendo/i.test(
         replyNoGracias
       ),
       `debe pedir siguiente dato: "${replyNoGracias.slice(0, 200)}"`
     );
     const filledReady = /* @__PURE__ */ new Set([
       ...filledPartial,
-      "N\xFAmero de invitados",
-      "Lugar/direcci\xF3n del evento",
+      "N\uFFFDmero de invitados",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario",
       "Presupuesto (MXN)"
     ]);
@@ -143784,7 +143865,7 @@ async function runAll() {
       presupuesto: 5e4
     };
     const replyClose = runGuards({
-      aiResponse: "Perfecto. Con las letras, \xBFnecesitan alg\xFAn otro servicio?",
+      aiResponse: "Perfecto. Con las letras, \uFFFDnecesitan alg\uFFFDn otro servicio?",
       extracted: extractedReady,
       filledSet: new Set(filledReady),
       readyForClosing: true,
@@ -143795,15 +143876,15 @@ async function runAll() {
       replyClose.includes("Perfecto, ya tengo todo") || replyClose.includes(CATALOG_URL2),
       `debe cerrar: "${replyClose.slice(0, 200)}"`
     );
-    assert2.ok(!/alg[u√∫]n\s+otro\s+servicio/i.test(replyClose), replyClose);
+    assert2.ok(!/alg[u˙]n\s+otro\s+servicio/i.test(replyClose), replyClose);
     const historyLoop = [
       {
         role: "assistant",
-        content: "Adem\xE1s del renta de letras, \xBFte gustar\xEDa cotizar alg\xFAn otro servicio?"
+        content: "Adem\uFFFDs del renta de letras, \uFFFDte gustar\uFFFDa cotizar alg\uFFFDn otro servicio?"
       }
     ];
     const replyRepeat = runGuards({
-      aiResponse: "Adem\xE1s de la renta de la letra XV, \xBFte gustar\xEDa cotizar alg\xFAn otro servicio?",
+      aiResponse: "Adem\uFFFDs de la renta de la letra XV, \uFFFDte gustar\uFFFDa cotizar alg\uFFFDn otro servicio?",
       extracted,
       filledSet: new Set(filledPartial),
       readyForClosing: false,
@@ -143811,12 +143892,12 @@ async function runAll() {
       history: historyLoop
     });
     assert2.ok(
-      !/alg[u√∫]n\s+otro\s+servicio|te\s+gustar[i√≠]a\s+cotizar\s+alg[u√∫]n\s+otro/i.test(replyRepeat),
+      !/alg[u˙]n\s+otro\s+servicio|te\s+gustar[iÌ]a\s+cotizar\s+alg[u˙]n\s+otro/i.test(replyRepeat),
       `no debe repetir follow-up: "${replyRepeat.slice(0, 200)}"`
     );
   });
-  await test("36. Modelo 3 niveles \u2014 Sheet, evento sin Sheet, solicitud especial", () => {
-    assert2.ok(SERVICE_KNOWLEDGE_GOLDEN_RULE.includes("no est\xE9 en el cat\xE1logo"));
+  await test("36. Modelo 3 niveles \uFFFD Sheet, evento sin Sheet, solicitud especial", () => {
+    assert2.ok(SERVICE_KNOWLEDGE_GOLDEN_RULE.includes("no est\uFFFD en el cat\uFFFDlogo"));
     const catalogStatus = getCatalogStatus();
     if (catalogStatus.rowCount > 0) {
       assert2.equal(classifyServiceKnowledgeLevel("taquiza"), 1);
@@ -143833,7 +143914,7 @@ async function runAll() {
     assert2.ok(level3);
     assert2.equal(level3.level, 3);
     assert2.ok(/solicitud especial/i.test(level3.guardAck), level3.guardAck);
-    assert2.ok(/anoto/i.test(buildLevel2Ack("pirotecnia fr\xEDa")));
+    assert2.ok(/anoto/i.test(buildLevel2Ack("pirotecnia fr\uFFFDa")));
     assert2.ok(/disponibilidad/i.test(buildLevel3Ack("seguro de auto")));
     const filledPartial = /* @__PURE__ */ new Set([
       "Nombre del cliente",
@@ -143841,29 +143922,29 @@ async function runAll() {
       "Tipo de evento"
     ]);
     const extracted = emptyExtracted({
-      nombre: "Jes\xFAs",
-      tipo_evento: "xv a\xF1os"
+      nombre: "Jes\uFFFDs",
+      tipo_evento: "xv a\uFFFDos"
     });
     const reply = runGuards({
-      aiResponse: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?",
+      aiResponse: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?",
       extracted,
       filledSet: new Set(filledPartial),
       readyForClosing: false,
       currentMessage: "quiero renta de letras",
-      history: [{ role: "assistant", content: "\xBFQu\xE9 tipo de celebraci\xF3n festejan?" }]
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD tipo de celebraci\uFFFDn festejan?" }]
     });
     assert2.ok(/anoto|renta de letras|letras/i.test(reply), reply.slice(0, 250));
-    assert2.ok(!/alg[u√∫]n\s+otro\s+servicio/i.test(reply), reply);
+    assert2.ok(!/alg[u˙]n\s+otro\s+servicio/i.test(reply), reply);
     assert2.ok(
-      /invitados|ciudad|fecha|presupuesto|d[o√≥]nde|ubicaci|sal[o√≥]n|d[i√≠]a|hora|cu[a√°]ndo|definiendo|ser[i√≠]a el evento/i.test(
+      /invitados|ciudad|fecha|presupuesto|d[oÛ]nde|ubicaci|sal[oÛ]n|d[iÌ]a|hora|cu[a·]ndo|definiendo|ser[iÌ]a el evento/i.test(
         reply
       ),
       reply.slice(0, 250)
     );
   });
-  await test("37. Jerarqu\xEDa cat\xE1logo \u2014 categor\xEDa / servicio / nivel", () => {
+  await test("37. Jerarqu\uFFFDa cat\uFFFDlogo \uFFFD categor\uFFFDa / servicio / nivel", () => {
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Que Incluye"',
       '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","5 guisados"',
       '"Taquiza","Premium","$450.00","$9,000.00","TRUE","7 guisados"',
       '"Banquete 4 tiempos","Basico","$500.00","$15,000.00","TRUE","3 tiempos menu"',
@@ -143875,7 +143956,7 @@ async function runAll() {
     assert2.equal(rows[0].servicio, "Taquiza");
     assert2.equal(rows[0].nivel, "Solo Alimentos");
     assert2.equal(rows[0].categoria, "Alimentos");
-    assert2.equal(formatCatalogRowLabel(rows[0]), "Taquiza \u2014 Solo Alimentos");
+    assert2.equal(formatCatalogRowLabel(rows[0]), "Taquiza \uFFFD Solo Alimentos");
     assert2.equal(deriveCatalogCategory("Barra de bebidas"), "Bebidas");
     setCatalogSnapshotForTests(rows);
     const cat = resolveCatalogQuery("alimentos");
@@ -143900,14 +143981,14 @@ async function runAll() {
       tipo_evento: "boda"
     });
     const midPrice = runGuards({
-      aiResponse: "Manejamos varios niveles de banquete. \xBFC\xF3mo te llamas?",
+      aiResponse: "Manejamos varios niveles de banquete. \uFFFDC\uFFFDmo te llamas?",
       extracted: midPriceEx,
       filledSet: /* @__PURE__ */ new Set(["Requerimientos o servicios", "Tipo de evento"]),
       readyForClosing: false,
-      currentMessage: "\xBFcu\xE1nto cuesta el banquete?",
+      currentMessage: "\uFFFDcu\uFFFDnto cuesta el banquete?",
       history: [
         { role: "user", content: "quiero un banquete para mi boda" },
-        { role: "assistant", content: "Claro. \xBFC\xF3mo te llamas?" }
+        { role: "assistant", content: "Claro. \uFFFDC\uFFFDmo te llamas?" }
       ]
     });
     assert2.ok(
@@ -143925,8 +144006,8 @@ async function runAll() {
     assert2.ok(label);
     assert2.ok(/Banquete 4 tiempos.*Premium/i.test(label), label);
   });
-  await test("38. Maestro \u2014 pre-fill web, invitados 35/40, comida vaga", () => {
-    const webMsg = "Hola, me interesa cotizar para mi evento: boda en jard\xEDn. Ser\xEDa el 15 de agosto en Cuernavaca, Morelos para 120 personas";
+  await test("38. Maestro \uFFFD pre-fill web, invitados 35/40, comida vaga", () => {
+    const webMsg = "Hola, me interesa cotizar para mi evento: boda en jard\uFFFDn. Ser\uFFFDa el 15 de agosto en Cuernavaca, Morelos para 120 personas";
     const brief = parseWebLeadBrief(webMsg);
     assert2.ok(brief);
     assert2.equal(brief.tipo_evento, "boda");
@@ -143952,7 +144033,7 @@ async function runAll() {
     assert2.ok(/getting ready|desayuno|brunch|canap/i.test(vagueReply), vagueReply);
     assert2.ok(/sin pista/i.test(vagueReply), vagueReply);
     const first = runGuards({
-      aiResponse: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?",
+      aiResponse: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?",
       extracted: emptyExtracted({ tipo_evento: "boda", num_invitados: 120, direccion_evento: "Cuernavaca" }),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
@@ -143960,10 +144041,10 @@ async function runAll() {
       history: [],
       forceFirstPresentation: true
     });
-    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[i√≠]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 200));
-    assert2.ok(!clientAsksForRecommendations(webMsg) || !/lo m[a√°]s com[u√∫]n es banquete o taquiza/i.test(first), first);
+    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[iÌ]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 200));
+    assert2.ok(!clientAsksForRecommendations(webMsg) || !/lo m[a·]s com[u˙]n es banquete o taquiza/i.test(first), first);
   });
-  await test("39. Maestro \u2014 correo typo y nombre CRM", () => {
+  await test("39. Maestro \uFFFD correo typo y nombre CRM", () => {
     assert2.equal(looksLikeValidClientEmail("a.juan@gmail.comm"), false);
     assert2.equal(looksLikeValidClientEmail("juan@gmail.com"), true);
     assert2.ok(buildEmailConfirmationPrompt("a.juan@gmail.comm").includes("gmail.comm"));
@@ -143977,20 +144058,20 @@ async function runAll() {
     });
     assert2.ok(/confirmas tu correo/i.test(emailGuard), emailGuard);
     const nameGuard = runGuards({
-      aiResponse: "\xBFMe regalas tu nombre?",
+      aiResponse: "\uFFFDMe regalas tu nombre?",
       extracted: emptyExtracted(),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
       currentMessage: "Juan Vicente",
       history: [],
-      whatsappDisplayName: "Susana Brise\xF1o"
+      whatsappDisplayName: "Susana Brise\uFFFDo"
     });
     assert2.ok(/susana|juan vicente/i.test(nameGuard), nameGuard);
     assert2.ok(/eres|sigo contigo/i.test(nameGuard), nameGuard);
   });
-  await test("40. Maestro \u2014 comida no mapea a Comida Corrida", () => {
+  await test("40. Maestro \uFFFD comida no mapea a Comida Corrida", () => {
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Que Incluye"',
       '"Comida Corrida","Basico","$280.00","$8,400.00","TRUE","3 tiempos"',
       '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","5 guisados"'
     ].join("\n");
@@ -144001,7 +144082,7 @@ async function runAll() {
     assert2.ok(comida.rows.length >= 2, comida.rows.map((r4) => r4.servicio).join(", "));
     assert2.equal(formatRequerimientoLabelFromQuery("comida"), null);
   });
-  await test("41. Legacy \u2014 1048786 resumen no es \xFAltima respuesta de Lucy", () => {
+  await test("41. Legacy \uFFFD 1048786 resumen no es \uFFFDltima respuesta de Lucy", () => {
     const resumen = buildResumenClienteLargo(
       emptyExtracted({ nombre: "Ana", tipo_evento: "boda" }),
       ["- Nombre del cliente: Ana", "- Tipo de evento: boda"],
@@ -144010,9 +144091,9 @@ async function runAll() {
     assert2.ok(isResumenClienteLargo(resumen), resumen.slice(0, 120));
     assert2.ok(isLegacyStoredLucyResponse(resumen));
     assert2.ok(isLegacyStoredLucyResponse("-"));
-    assert2.ok(isLegacyStoredLucyResponse("\xA1Hola Lead #12345! Te saluda Lucy de Bodasesor."));
+    assert2.ok(isLegacyStoredLucyResponse("\uFFFDHola Lead #12345! Te saluda Lucy de Bodasesor."));
     assert2.ok(isLegacyStoredLucyResponse("Te saluda Lucy, agente virtual de Bodasesor."));
-    const realOutbound = "Hola, soy Lucy, agente virtual de Bodasesor. \xBFMe regalas tu nombre?";
+    const realOutbound = "Hola, soy Lucy, agente virtual de Bodasesor. \uFFFDMe regalas tu nombre?";
     assert2.equal(isLegacyStoredLucyResponse(realOutbound), false);
     const fromHistory = resolveEffectiveLastLucyResponse({
       entityId: "999",
@@ -144032,40 +144113,40 @@ async function runAll() {
     });
     assert2.equal(ignoresResumenCache, null);
   });
-  await test("42. Anti-alucinaci\xF3n \u2014 inclusiones solo del Sheet", () => {
+  await test("42. Anti-alucinaci\uFFFDn \uFFFD inclusiones solo del Sheet", () => {
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Que Incluye"',
       '"Barra de bebidas con alcohol","Basica","$450.00","$9,000.00","TRUE",""',
       '"Barra de bebidas con alcohol","Premium","$750.00","$15,000.00","TRUE","Refrescos, aguas y 3 licores premium"'
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
-    assert2.equal(buildCatalogInclusionAnswer("qu\xE9 incluye la barra b\xE1sica"), null);
-    const team = buildInclusionTeamConfirmationAnswer("qu\xE9 incluye la barra b\xE1sica");
-    assert2.ok(team, "sin Incluye en Sheet \u2192 cat\xE1logo web o equipo (nunca inventar)");
+    assert2.equal(buildCatalogInclusionAnswer("qu\uFFFD incluye la barra b\uFFFDsica"), null);
+    const team = buildInclusionTeamConfirmationAnswer("qu\uFFFD incluye la barra b\uFFFDsica");
+    assert2.ok(team, "sin Incluye en Sheet ? cat\uFFFDlogo web o equipo (nunca inventar)");
     assert2.ok(
-      /confirma nuestro equipo|cat[a√°]logo web|bodasesor\.com\/catalogos/i.test(team),
+      /confirma nuestro equipo|cat[a·]logo web|bodasesor\.com\/catalogos/i.test(team),
       team
     );
-    assert2.ok(!/cerveza|vino|licor com[u√∫]n/i.test(team), team);
-    const filled = buildCatalogInclusionAnswer("qu\xE9 incluye la barra premium");
+    assert2.ok(!/cerveza|vino|licor com[u˙]n/i.test(team), team);
+    const filled = buildCatalogInclusionAnswer("qu\uFFFD incluye la barra premium");
     assert2.ok(filled);
     assert2.ok(/Refrescos, aguas y 3 licores premium/.test(filled), filled);
-    assert2.ok(!/cerveza|vino com[u√∫]n/i.test(filled), filled);
+    assert2.ok(!/cerveza|vino com[u˙]n/i.test(filled), filled);
     assert2.ok(!/dato real del Sheet/i.test(filled), filled);
-    const hallucinated = "La barra b\xE1sica incluye cervezas, vinos y licores comunes.";
-    const injected = injectCatalogInclusionIfAsked("qu\xE9 incluye la barra b\xE1sica", hallucinated);
+    const hallucinated = "La barra b\uFFFDsica incluye cervezas, vinos y licores comunes.";
+    const injected = injectCatalogInclusionIfAsked("qu\uFFFD incluye la barra b\uFFFDsica", hallucinated);
     assert2.ok(!/cerveza|vino/i.test(injected), injected);
     assert2.ok(
-      /confirma nuestro equipo|cat[a√°]logo web|bodasesor\.com\/catalogos/i.test(injected),
+      /confirma nuestro equipo|cat[a·]logo web|bodasesor\.com\/catalogos/i.test(injected),
       injected
     );
-    const reply = resolveCatalogInclusionReply("qu\xE9 incluye la barra b\xE1sica");
+    const reply = resolveCatalogInclusionReply("qu\uFFFD incluye la barra b\uFFFDsica");
     assert2.ok(reply);
     assert2.equal(reply, team);
   });
-  await test("43. Alejandra \u2014 parrillada argentina no se sustituye por banquete", () => {
+  await test("43. Alejandra \uFFFD parrillada argentina no se sustituye por banquete", () => {
     const csvBanqueteOnly = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Que Incluye"',
       '"Banquete 3 tiempos","Basico","$500.00","$15,000.00","TRUE","3 tiempos"',
       '"Banquete 4 tiempos","Premium","$750.00","$15,000.00","TRUE","4 tiempos"'
     ].join("\n");
@@ -144090,15 +144171,15 @@ async function runAll() {
     assert2.ok(!/banquete\s+3\s+tiempos/i.test(detail), detail);
     assert2.ok(catalogAnswerMatchesRequestedService("quiero parrillada argentina", detail), detail);
   });
-  await test("44. Fase 0 \u2014 formatForWhatsApp y brief web en primer turno", () => {
-    const formatted = formatForWhatsApp("**Hola** \u2014 precio:\n\n- item uno\n\n## T\xEDtulo");
+  await test("44. Fase 0 \uFFFD formatForWhatsApp y brief web en primer turno", () => {
+    const formatted = formatForWhatsApp("**Hola** \uFFFD precio:\n\n- item uno\n\n## T\uFFFDtulo");
     assert2.ok(/\*Hola\*/.test(formatted), formatted);
     assert2.ok(!/\*\*/.test(formatted), formatted);
-    assert2.ok(/‚Ä¢ item uno/.test(formatted), formatted);
+    assert2.ok(/ï item uno/.test(formatted), formatted);
     assert2.ok(!/^##/m.test(formatted), formatted);
-    const webMsg = "Hola, me interesa cotizar para mi evento: boda en jard\xEDn. Ser\xEDa el 15 de agosto en Cuernavaca para 80 personas";
+    const webMsg = "Hola, me interesa cotizar para mi evento: boda en jard\uFFFDn. Ser\uFFFDa el 15 de agosto en Cuernavaca para 80 personas";
     const first = runGuards({
-      aiResponse: "Estas son las opciones m\xE1s pedidas: banquete o taquiza.",
+      aiResponse: "Estas son las opciones m\uFFFDs pedidas: banquete o taquiza.",
       extracted: emptyExtracted({ tipo_evento: "boda", num_invitados: 80 }),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
@@ -144106,11 +144187,11 @@ async function runAll() {
       history: [],
       forceFirstPresentation: true
     });
-    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[i√≠]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 200));
+    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[iÌ]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 200));
     assert2.ok(/boda|solicitud|80\s+personas/i.test(first), first);
-    assert2.ok(!/opciones m[a√°]s pedidas/i.test(first), first);
+    assert2.ok(!/opciones m[a·]s pedidas/i.test(first), first);
   });
-  await test("45. Live-20 regresiones \u2014 el 5, nombre persistente, ubicaci\xF3n no es nombre", () => {
+  await test("45. Live-20 regresiones \uFFFD el 5, nombre persistente, ubicaci\uFFFDn no es nombre", () => {
     assert2.ok(isLikelyUbicacionNotNombre("Narvarte CDMX"));
     assert2.equal(sanitizeCrmNombre("Narvarte CDMX"), null);
     assert2.equal(sanitizeCrmNombre("Mario"), "Mario");
@@ -144119,70 +144200,70 @@ async function runAll() {
     assert2.equal(extractedAmbig.num_invitados, null);
     const filledElena = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios"
     ]);
     const replyInvitados = runGuards({
-      aiResponse: "\xBFC\xF3mo te llamas?",
+      aiResponse: "\uFFFDC\uFFFDmo te llamas?",
       extracted: emptyExtracted({ nombre: "Elena", tipo_evento: "boda", num_invitados: 100 }),
       filledSet: new Set(filledElena),
       readyForClosing: false,
       currentMessage: "100 personas",
       history: [
         { role: "user", content: "Elena" },
-        { role: "assistant", content: "Mucho gusto, Elena. \xBFA qu\xE9 correo te lo env\xEDo?" }
+        { role: "assistant", content: "Mucho gusto, Elena. \uFFFDA qu\uFFFD correo te lo env\uFFFDo?" }
       ]
     });
-    assert2.ok(!/c[o√≥]mo\s+te\s+llamas/i.test(replyInvitados), replyInvitados);
+    assert2.ok(!/c[oÛ]mo\s+te\s+llamas/i.test(replyInvitados), replyInvitados);
     const valetFirst = runGuards({
-      aiResponse: "Hola, soy Lucy, agente virtual de Bodasesor. \xBFC\xF3mo te llamas?",
+      aiResponse: "Hola, soy Lucy, agente virtual de Bodasesor. \uFFFDC\uFFFDmo te llamas?",
       extracted: emptyExtracted(),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
-      currentMessage: "\xBFTambi\xE9n manejan valet parking y flores?",
+      currentMessage: "\uFFFDTambi\uFFFDn manejan valet parking y flores?",
       history: [],
       forceFirstPresentation: true
     });
     assert2.ok(/valet|flor|coordin|anot|equipo/i.test(valetFirst), valetFirst.slice(0, 200));
     assert2.ok(!/no tenemos|no manejamos/i.test(valetFirst), valetFirst);
   });
-  await test("46. Karime \u2014 imagen accionable (montaje + comprobante), no descripci\xF3n due\xF1o", () => {
+  await test("46. Karime \uFFFD imagen accionable (montaje + comprobante), no descripci\uFFFDn due\uFFFDo", () => {
     const montaje = parseVisionImageJson(
       JSON.stringify({
         intent: "montaje_referencia",
-        internal_description: "El espacio es un \xE1rea al aire libre con c\xE9sped y mesas r\xFAsticas.",
-        client_reply: "\xA1S\xED! Manejamos mesas y sillas de ese estilo r\xFAstico. Lo anoto para tu cotizaci\xF3n."
+        internal_description: "El espacio es un \uFFFDrea al aire libre con c\uFFFDsped y mesas r\uFFFDsticas.",
+        client_reply: "\uFFFDS\uFFFD! Manejamos mesas y sillas de ese estilo r\uFFFDstico. Lo anoto para tu cotizaci\uFFFDn."
       })
     );
     assert2.ok(montaje);
     assert2.equal(montaje.intent, "montaje_referencia");
-    assert2.ok(/anoto|estilo r√∫stico|mesas/i.test(montaje.clientReply));
+    assert2.ok(/anoto|estilo r˙stico|mesas/i.test(montaje.clientReply));
     assert2.ok(!/^El espacio es/i.test(montaje.clientReply));
     const turn = formatImageTurnText(montaje);
     assert2.ok(extractImageClientReply(turn));
     assert2.ok(!/\[Imagen nota interna\]/i.test(turn), "el turno NO debe llevar resumen interno al LLM");
     assert2.ok(formatImageTeamNote(montaje).includes("Ref. equipo"));
     const cleaned = stripImageAnnotation(
-      `Qu\xE9 bonito. ${turn}`
+      `Qu\uFFFD bonito. ${turn}`
     );
     assert2.ok(!/\[Imagen/i.test(cleaned), cleaned);
     const replyMontaje = runGuards({
-      aiResponse: "El espacio es un \xE1rea al aire libre con c\xE9sped y mesas de madera.",
+      aiResponse: "El espacio es un \uFFFDrea al aire libre con c\uFFFDsped y mesas de madera.",
       extracted: emptyExtracted({ nombre: "Karime" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       readyForClosing: false,
       currentMessage: turn,
-      history: [{ role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" }]
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?" }]
     });
     assert2.ok(/anoto|estilo|mesas|sillas/i.test(replyMontaje), replyMontaje);
-    assert2.ok(!/√°rea al aire libre con c√©sped/i.test(replyMontaje), replyMontaje);
-    assert2.ok(looksLikeImageInternalSummary("La imagen muestra un jard\xEDn con mesas."));
+    assert2.ok(!/·rea al aire libre con cÈsped/i.test(replyMontaje), replyMontaje);
+    assert2.ok(looksLikeImageInternalSummary("La imagen muestra un jard\uFFFDn con mesas."));
     const pago = parseVisionImageJson(
       JSON.stringify({
         intent: "comprobante_pago",
         internal_description: "Captura SPEI por $5000 a cuenta ****1234",
-        client_reply: "\xA1Gracias por tu pago! Lo registro y el equipo da seguimiento.",
+        client_reply: "\uFFFDGracias por tu pago! Lo registro y el equipo da seguimiento.",
         amount_mxn: 5e3,
         payment_method: "transferencia"
       })
@@ -144200,12 +144281,12 @@ async function runAll() {
     assert2.equal(pago.amountMxn, 5e3);
     assert2.equal(pago.paymentMethod, "transferencia");
   });
-  await test("50. Offer temprano \u2014 boda: OpenAI propone, no 'qu\xE9 servicios quieres'", () => {
-    assert2.ok(isDryRequerimientosAsk("\xBFQu\xE9 servicios te gustar\xEDa cotizar?"));
-    assert2.ok(!aiLooksLikeEventServiceOffer("\xBFQu\xE9 servicios te gustar\xEDa cotizar?"));
-    const bodaAi = "\xA1Qu\xE9 emoci\xF3n! Para una boda manejamos banquete, barras de bebidas, mobiliario, DJ e iluminaci\xF3n y mesa de postres. \xBFQu\xE9 te gustar\xEDa ir armando?";
+  await test("50. Offer temprano \uFFFD boda: OpenAI propone, no 'qu\uFFFD servicios quieres'", () => {
+    assert2.ok(isDryRequerimientosAsk("\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?"));
+    assert2.ok(!aiLooksLikeEventServiceOffer("\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?"));
+    const bodaAi = "\uFFFDQu\uFFFD emoci\uFFFDn! Para una boda manejamos banquete, barras de bebidas, mobiliario, DJ e iluminaci\uFFFDn y mesa de postres. \uFFFDQu\uFFFD te gustar\uFFFDa ir armando?";
     assert2.ok(aiLooksLikeEventServiceOffer(bodaAi));
-    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"]);
+    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico", "Tipo de evento"]);
     const extracted = emptyExtracted({
       nombre: "Karime",
       correo: "k@test.com",
@@ -144215,13 +144296,13 @@ async function runAll() {
       aiResponse: bodaAi,
       extracted,
       filledSet: filled,
-      history: [{ role: "assistant", content: "\xBFQu\xE9 tipo de celebraci\xF3n es?" }],
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD tipo de celebraci\uFFFDn es?" }],
       currentMessage: "es una boda"
     });
     assert2.ok(offer && /banquete|dj|armando/i.test(offer), offer ?? "");
     assert2.ok(!isDryRequerimientosAsk(offer));
     const dryReplaced = preferEventOfferReply({
-      aiResponse: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?",
+      aiResponse: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?",
       extracted,
       filledSet: filled,
       history: [],
@@ -144236,12 +144317,12 @@ async function runAll() {
       filledSet: filled,
       readyForClosing: false,
       currentMessage: "es una boda",
-      history: [{ role: "assistant", content: "\xBFQu\xE9 tipo de celebraci\xF3n es?" }]
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD tipo de celebraci\uFFFDn es?" }]
     });
     assert2.ok(/banquete|dj|bebidas|armando|mobiliario/i.test(guarded), guarded);
-    assert2.ok(!/qu[e√©]\s+servicios\s+te\s+gustar/i.test(guarded), guarded);
+    assert2.ok(!/qu[eÈ]\s+servicios\s+te\s+gustar/i.test(guarded), guarded);
   });
-  await test("51. Offer temprano \u2014 boda vs baby shower: propuestas distintas", () => {
+  await test("51. Offer temprano \uFFFD boda vs baby shower: propuestas distintas", () => {
     const bodaServices = listCatalogServicesForEvent("boda");
     const babyServices = listCatalogServicesForEvent("baby shower");
     assert2.ok(bodaServices.some((s6) => /dj|banquete|barra|ilumin/i.test(s6)), bodaServices.join(","));
@@ -144250,9 +144331,9 @@ async function runAll() {
       buildEventOfferCatalogHint("boda") !== buildEventOfferCatalogHint("baby shower"),
       "hints deben diferir por evento"
     );
-    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"]);
+    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico", "Tipo de evento"]);
     const bodaReply = runGuards({
-      aiResponse: "\xA1Qu\xE9 emoci\xF3n! Para tu boda armamos banquete, barras de bebidas, DJ e iluminaci\xF3n. \xBFQu\xE9 te gustar\xEDa ir cotizando?",
+      aiResponse: "\uFFFDQu\uFFFD emoci\uFFFDn! Para tu boda armamos banquete, barras de bebidas, DJ e iluminaci\uFFFDn. \uFFFDQu\uFFFD te gustar\uFFFDa ir cotizando?",
       extracted: emptyExtracted({ nombre: "Ana", correo: "a@t.com", tipo_evento: "boda" }),
       filledSet: new Set(filled),
       readyForClosing: false,
@@ -144260,7 +144341,7 @@ async function runAll() {
       history: []
     });
     const babyReply = runGuards({
-      aiResponse: "\xA1Qu\xE9 bonito! Para un baby shower suele ir brunch, mesa de dulces, bocadillos y mobiliario. \xBFQu\xE9 te late incluir?",
+      aiResponse: "\uFFFDQu\uFFFD bonito! Para un baby shower suele ir brunch, mesa de dulces, bocadillos y mobiliario. \uFFFDQu\uFFFD te late incluir?",
       extracted: emptyExtracted({
         nombre: "Ana",
         correo: "a@t.com",
@@ -144274,15 +144355,15 @@ async function runAll() {
     assert2.ok(/banquete|dj|bebidas/i.test(bodaReply), bodaReply);
     assert2.ok(/brunch|dulces|bocadillo/i.test(babyReply), babyReply);
     assert2.ok(bodaReply !== babyReply, "redacciones distintas por evento");
-    assert2.ok(!/qu[e√©]\s+servicios\s+te\s+gustar/i.test(bodaReply));
-    assert2.ok(!/qu[e√©]\s+servicios\s+te\s+gustar/i.test(babyReply));
+    assert2.ok(!/qu[eÈ]\s+servicios\s+te\s+gustar/i.test(bodaReply));
+    assert2.ok(!/qu[eÈ]\s+servicios\s+te\s+gustar/i.test(babyReply));
   });
-  await test("47. Karime \u2014 ofrecer complementos en pedido solo mesa y sillas", () => {
+  await test("47. Karime \uFFFD ofrecer complementos en pedido solo mesa y sillas", () => {
     assert2.ok(looksLikeMinimalServiceAsk("solo mesa y sillas para 12 personas"));
     const soft = buildSoftComplementOffer(
       emptyExtracted({
         nombre: "Karime",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         num_invitados: 12,
         requerimientos_evento: "solo mesa y sillas"
       }),
@@ -144291,36 +144372,36 @@ async function runAll() {
     );
     assert2.ok(soft);
     assert2.ok(/mantel|postres|bebidas/i.test(soft), soft);
-    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"]);
+    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico", "Tipo de evento"]);
     const reply = runGuards({
-      aiResponse: "\xBFEn qu\xE9 ciudad ser\xEDa tu evento?",
+      aiResponse: "\uFFFDEn qu\uFFFD ciudad ser\uFFFDa tu evento?",
       extracted: emptyExtracted({
         nombre: "Karime",
         correo: "k@test.com",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         num_invitados: 12,
         requerimientos_evento: "solo mesa y sillas"
       }),
       filledSet: filled,
       readyForClosing: false,
       currentMessage: "solo mesa y sillas para 12 personas",
-      history: [{ role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" }]
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?" }]
     });
     assert2.ok(/mantel|postres|bebidas|opcional/i.test(reply), reply);
   });
-  await test("48. Karime \u2014 no cierra sin fecha/ubicaci\xF3n (embudo natural)", () => {
+  await test("48. Karime \uFFFD no cierra sin fecha/ubicaci\uFFFDn (embudo natural)", () => {
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios"
     ]);
     const reply = runGuards({
-      aiResponse: "Perfecto, ya tengo todo. Aqu\xED el cat\xE1logo completo.",
+      aiResponse: "Perfecto, ya tengo todo. Aqu\uFFFD el cat\uFFFDlogo completo.",
       extracted: emptyExtracted({
         nombre: "Karime",
         correo: "k@test.com",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         requerimientos_evento: "mesa y sillas",
         num_invitados: 12
       }),
@@ -144330,34 +144411,34 @@ async function runAll() {
       history: []
     });
     assert2.ok(
-      /ciudad|colonia|sal[o√≥]n|ubicaci|fecha|cu[a√°]ndo|d[i√≠]a|hora|definiendo/i.test(reply),
+      /ciudad|colonia|sal[oÛ]n|ubicaci|fecha|cu[a·]ndo|d[iÌ]a|hora|definiendo/i.test(reply),
       reply
     );
     assert2.ok(!/ya tengo todo/i.test(reply), reply);
   });
-  await test("49. Karime \u2014 'no tengo' en presupuesto = sin definir, no repetir", () => {
+  await test("49. Karime \uFFFD 'no tengo' en presupuesto = sin definir, no repetir", () => {
     assert2.ok(detectPresupuestoRefusal("no tengo"));
     assert2.equal(
       parsePresupuestoFromText("no tengo"),
-      "Sin definir (cliente indic\xF3 que no tiene)"
+      "Sin definir (cliente indic\uFFFD que no tiene)"
     );
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "N\xFAmero de invitados",
-      "Lugar/direcci\xF3n del evento",
+      "N\uFFFDmero de invitados",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario"
     ]);
     applyPresupuestoWaiver(filled, [], ["no tengo"]);
     assert2.ok(filled.has("Presupuesto (MXN)"));
     const reply = runGuards({
-      aiResponse: "\xBFTienen alg\xFAn rango de presupuesto en mente?",
+      aiResponse: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente?",
       extracted: emptyExtracted({
         nombre: "Karime",
         correo: "k@test.com",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         requerimientos_evento: "mesa y sillas",
         num_invitados: 12,
         direccion_evento: "Narvarte CDMX",
@@ -144366,12 +144447,12 @@ async function runAll() {
       filledSet: filled,
       readyForClosing: true,
       currentMessage: "no tengo",
-      history: [{ role: "assistant", content: "\xBFTienen alg\xFAn rango de presupuesto en mente?" }]
+      history: [{ role: "assistant", content: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente?" }]
     });
     assert2.ok(!/rango de presupuesto|presupuesto en mente/i.test(reply), reply);
     assert2.ok(/perfecto, ya tengo todo|sin problema|por definir/i.test(reply), reply);
   });
-  await test("52. Luis \u2014 pozolada ofrece pozole, no banquete/taquiza", () => {
+  await test("52. Luis \uFFFD pozolada ofrece pozole, no banquete/taquiza", () => {
     const focus = resolveServiceFocusFromText("pozolada");
     assert2.ok(focus && /pozole/i.test(focus.label), JSON.stringify(focus));
     const services = listCatalogServicesForEvent("pozolada");
@@ -144380,9 +144461,9 @@ async function runAll() {
     const hint = buildEventOfferCatalogHint("pozolada") ?? "";
     assert2.ok(/pozole/i.test(hint), hint.slice(0, 200));
     assert2.ok(/no banquete|ESE servicio|EVENTO = SERVICIO/i.test(hint), hint.slice(0, 250));
-    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"]);
+    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico", "Tipo de evento"]);
     const reply = runGuards({
-      aiResponse: "\xA1Claro! Para tu pozolada tenemos pozole rojo, verde o blanco con tostadas. \xBFPara cu\xE1ntas personas?",
+      aiResponse: "\uFFFDClaro! Para tu pozolada tenemos pozole rojo, verde o blanco con tostadas. \uFFFDPara cu\uFFFDntas personas?",
       extracted: emptyExtracted({
         nombre: "Luis",
         correo: "l@test.com",
@@ -144391,31 +144472,31 @@ async function runAll() {
       filledSet: filled,
       readyForClosing: false,
       currentMessage: "es una pozolada",
-      history: [{ role: "assistant", content: "\xBFQu\xE9 tipo de celebraci\xF3n es?" }]
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD tipo de celebraci\uFFFDn es?" }]
     });
     assert2.ok(/pozole/i.test(reply), reply);
     assert2.ok(!/banquete.*taquiza|taquiza.*banquete/i.test(reply) || /pozole/i.test(reply), reply);
   });
-  await test("53. Luis \u2014 'opciones' resuelve presupuesto y no re-pregunta", () => {
+  await test("53. Luis \uFFFD 'opciones' resuelve presupuesto y no re-pregunta", () => {
     assert2.ok(detectPresupuestoRefusal("Opciones"));
     assert2.ok(detectPresupuestoRefusal("opciones"));
     assert2.equal(
       parsePresupuestoFromText("Opciones"),
-      "Sin definir (cliente pidi\xF3 que propongamos)"
+      "Sin definir (cliente pidi\uFFFD que propongamos)"
     );
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "N\xFAmero de invitados",
-      "Lugar/direcci\xF3n del evento",
+      "N\uFFFDmero de invitados",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario"
     ]);
     applyPresupuestoWaiver(filled, [], ["Opciones"]);
     assert2.ok(filled.has("Presupuesto (MXN)"));
     const reply = runGuards({
-      aiResponse: "\xBFTienen alg\xFAn rango de presupuesto en mente?",
+      aiResponse: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente?",
       extracted: emptyExtracted({
         nombre: "Luis",
         correo: "l@test.com",
@@ -144428,17 +144509,17 @@ async function runAll() {
       filledSet: filled,
       readyForClosing: true,
       currentMessage: "Opciones",
-      history: [{ role: "assistant", content: "\xBFTienen alg\xFAn rango de presupuesto en mente?" }]
+      history: [{ role: "assistant", content: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente?" }]
     });
     assert2.ok(!/rango de presupuesto|presupuesto en mente/i.test(reply), reply);
   });
-  await test("54. Luis \u2014 sin transici\xF3n doble ni cierre enlatado", () => {
+  await test("54. Luis \uFFFD sin transici\uFFFDn doble ni cierre enlatado", () => {
     const deduped = dedupeTransitionsInMessage(
-      "Suena muy bien. \xA1Claro! Para tu evento. Suena muy bien. \xBFTienen fecha?"
+      "Suena muy bien. \uFFFDClaro! Para tu evento. Suena muy bien. \uFFFDTienen fecha?"
     );
     assert2.equal((deduped.match(/suena muy bien/gi) || []).length, 1, deduped);
     const closeReply = runGuards({
-      aiResponse: "Perfecto, ya tengo todo. Por cierto, tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, pantallas, mesas de dulces, barras de alimentos y m\xE1s. \xBFAlgo m\xE1s?",
+      aiResponse: "Perfecto, ya tengo todo. Por cierto, tambi\uFFFDn manejamos bebidas, DJ, iluminaci\uFFFDn, carpas, pantallas, mesas de dulces, barras de alimentos y m\uFFFDs. \uFFFDAlgo m\uFFFDs?",
       extracted: emptyExtracted({
         nombre: "Luis",
         tipo_evento: "pozolada",
@@ -144446,11 +144527,11 @@ async function runAll() {
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados",
-        "Lugar/direcci\xF3n del evento",
+        "N\uFFFDmero de invitados",
+        "Lugar/direcci\uFFFDn del evento",
         "Fecha y horario",
         "Presupuesto (MXN)"
       ]),
@@ -144458,15 +144539,15 @@ async function runAll() {
       currentMessage: "ok",
       history: []
     });
-    assert2.ok(!/tambi[e√©]n manejamos bebidas,?\s*DJ/i.test(closeReply), closeReply.slice(0, 300));
+    assert2.ok(!/tambi[eÈ]n manejamos bebidas,?\s*DJ/i.test(closeReply), closeReply.slice(0, 300));
   });
-  await test("55. Cat\xE1logo web \u2014 links en info de servicio + strip GPT suelto", () => {
+  await test("55. Cat\uFFFDlogo web \uFFFD links en info de servicio + strip GPT suelto", () => {
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye","Sinonimos"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Link catalogo","Que Incluye","Sinonimos"',
       '"Barra de pizzas","Basico","$320.00","$8,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-pizzas","Pizzas artesanales","pizza"',
       '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","5 guisados","tacos de guisados"',
       '"Parrillada Tacos","Basico","$350.00","$10,000.00","TRUE","https://bodasesor.com/catalogos/parrillada-tacos","Tacos a la parrilla","parrillada de tacos"',
-      '"Cupcakes","Basico","$45.00","$2,000.00","TRUE","https://bodasesor.com/catalogos/cupcakes-y-betun","Cupcakes","bet\xFAn"',
+      '"Cupcakes","Basico","$45.00","$2,000.00","TRUE","https://bodasesor.com/catalogos/cupcakes-y-betun","Cupcakes","bet\uFFFDn"',
       '"Entelados para Techo","Basico","","","TRUE","https://bodasesor.com/catalogos/entelados-para-techo","Telas para techo","entelado|tela en techo"',
       '"Colgantes Premium","Basico","","","TRUE","https://bodasesor.com/catalogos/colgantes-premium","Colgantes","colgantes|wisteria"'
     ].join("\n");
@@ -144474,18 +144555,18 @@ async function runAll() {
     setCatalogSnapshotForTests(rows);
     const pizzaRow = rows.find((r4) => /pizzas/i.test(r4.servicio));
     assert2.ok(pizzaRow?.linkCatalogo?.includes("barra-de-pizzas"), String(pizzaRow?.linkCatalogo));
-    assert2.ok(clientAsksForCatalog("m\xE1ndame el cat\xE1logo de la barra de pizzas"));
-    assert2.ok(clientAsksForCatalog("p\xE1same el de colgantes"));
-    assert2.equal(clientAsksForCatalog("cu\xE1nto cuesta la barra de pizzas"), false);
-    assert2.ok(clientWantsFullCatalog("m\xE1ndame todo el cat\xE1logo"));
+    assert2.ok(clientAsksForCatalog("m\uFFFDndame el cat\uFFFDlogo de la barra de pizzas"));
+    assert2.ok(clientAsksForCatalog("p\uFFFDsame el de colgantes"));
+    assert2.equal(clientAsksForCatalog("cu\uFFFDnto cuesta la barra de pizzas"), false);
+    assert2.ok(clientWantsFullCatalog("m\uFFFDndame todo el cat\uFFFDlogo"));
     assert2.ok(
-      clientAffirmsCatalogOffer("s\xED", `Genial.
+      clientAffirmsCatalogOffer("s\uFFFD", `Genial.
 
 Detalle
 
 ${CATALOG_OFFER_QUESTION}`)
     );
-    const pizza = resolveCatalogWebLink("el cat\xE1logo de la barra de pizzas");
+    const pizza = resolveCatalogWebLink("el cat\uFFFDlogo de la barra de pizzas");
     assert2.equal(pizza.url, "https://bodasesor.com/catalogos/barra-de-pizzas");
     assert2.ok(/pizzas/i.test(pizza.serviceName ?? ""), pizza.serviceName);
     const colgantes = resolveCatalogWebLink("colgantes");
@@ -144498,10 +144579,10 @@ ${CATALOG_OFFER_QUESTION}`)
     assert2.equal(taquiza.url, "https://bodasesor.com/catalogos/taquiza");
     const parrTacos = resolveCatalogWebLink("parrillada tacos");
     assert2.equal(parrTacos.url, "https://bodasesor.com/catalogos/parrillada-tacos");
-    const cupcakes = resolveCatalogWebLink("bet\xFAn");
+    const cupcakes = resolveCatalogWebLink("bet\uFFFDn");
     assert2.equal(cupcakes.url, "https://bodasesor.com/catalogos/cupcakes-y-betun");
     const replyPizza = buildCatalogWebLinkReply({
-      query: "cat\xE1logo de la barra de pizzas"
+      query: "cat\uFFFDlogo de la barra de pizzas"
     });
     assert2.ok(
       replyPizza.includes("/catalogos/barra-de-pizzas"),
@@ -144516,7 +144597,7 @@ ${CATALOG_OFFER_QUESTION}`)
     const replyFull = buildCatalogWebLinkReply({ query: "todo", wantFull: true });
     assert2.ok(/\/catalogos\b/.test(replyFull), replyFull);
     const unsolicited = stripUnsolicitedCatalogWebLinks(
-      "Mira https://bodasesor.com/catalogos/barra-de-pizzas est\xE1 padre",
+      "Mira https://bodasesor.com/catalogos/barra-de-pizzas est\uFFFD padre",
       false
     );
     assert2.ok(!/bodasesor\.com\/catalogos/i.test(unsolicited), unsolicited);
@@ -144530,7 +144611,7 @@ ${CATALOG_OFFER_QUESTION}`)
     const famEnt = expandQueryWithServiceSynonyms("tela en techo");
     assert2.ok(famEnt.familyKeys.includes("entelados_techo"), String(famEnt.familyKeys));
     const guardSend = runGuards({
-      aiResponse: "\xBFQu\xE9 m\xE1s necesitas?",
+      aiResponse: "\uFFFDQu\uFFFD m\uFFFDs necesitas?",
       extracted: emptyExtracted({
         nombre: "Ana",
         tipo_evento: "boda",
@@ -144538,12 +144619,12 @@ ${CATALOG_OFFER_QUESTION}`)
       }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
       readyForClosing: false,
-      currentMessage: "m\xE1ndame el cat\xE1logo de la barra de pizzas",
+      currentMessage: "m\uFFFDndame el cat\uFFFDlogo de la barra de pizzas",
       history: [
         { role: "user", content: "quiero barra de pizzas" },
         {
           role: "assistant",
-          content: `Perfecto. S\xED manejamos barra de pizzas.
+          content: `Perfecto. S\uFFFD manejamos barra de pizzas.
 
 ${CATALOG_OFFER_QUESTION}`
         }
@@ -144554,7 +144635,7 @@ ${CATALOG_OFFER_QUESTION}`
       guardSend
     );
     const guardInfo = runGuards({
-      aiResponse: "Claro, \xBFcu\xE1ntos invitados?",
+      aiResponse: "Claro, \uFFFDcu\uFFFDntos invitados?",
       extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "boda" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento"]),
       readyForClosing: false,
@@ -144566,7 +144647,7 @@ ${CATALOG_OFFER_QUESTION}`
       guardInfo.slice(0, 500)
     );
     const strippedBare = stripUnsolicitedCatalogWebLinks(
-      "Mira https://bodasesor.com/catalogos/barra-de-pizzas est\xE1 padre",
+      "Mira https://bodasesor.com/catalogos/barra-de-pizzas est\uFFFD padre",
       false
     );
     assert2.ok(!/bodasesor\.com\/catalogos/i.test(strippedBare), strippedBare);
@@ -144579,12 +144660,12 @@ ${CATALOG_OFFER_QUESTION}`
       }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
       readyForClosing: false,
-      currentMessage: "s\xED",
+      currentMessage: "s\uFFFD",
       history: [
         { role: "user", content: "me interesan colgantes" },
         {
           role: "assistant",
-          content: `Perfecto. S\xED manejamos Colgantes Premium.
+          content: `Perfecto. S\uFFFD manejamos Colgantes Premium.
 
 ${CATALOG_OFFER_QUESTION}`
         }
@@ -144595,18 +144676,18 @@ ${CATALOG_OFFER_QUESTION}`
       guardAffirm
     );
   });
-  await test("56. Tarima sin precio \u2014 aceptar-anotar-avanzar (no men\xFA)", () => {
+  await test("56. Tarima sin precio \uFFFD aceptar-anotar-avanzar (no men\uFFFD)", () => {
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento"
     ]);
     const reply = runGuards({
-      aiResponse: "Claro. Manejamos alimentos y barras, mobiliario, carpas, pistas de baile, DJ\u2026 \xBFQu\xE9 otros servicios te gustar\xEDa?",
+      aiResponse: "Claro. Manejamos alimentos y barras, mobiliario, carpas, pistas de baile, DJ\uFFFD \uFFFDQu\uFFFD otros servicios te gustar\uFFFDa?",
       extracted: emptyExtracted({
         nombre: "Fer",
         correo: "fer@test.com",
-        tipo_evento: "cumplea\xF1os"
+        tipo_evento: "cumplea\uFFFDos"
       }),
       filledSet: filled,
       readyForClosing: false,
@@ -144614,19 +144695,19 @@ ${CATALOG_OFFER_QUESTION}`
       history: [
         {
           role: "assistant",
-          content: "Plat\xEDcame qu\xE9 necesitas. Manejamos alimentos y barras, mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n y m\xE1s."
+          content: "Plat\uFFFDcame qu\uFFFD necesitas. Manejamos alimentos y barras, mobiliario, carpas, pistas de baile, DJ, iluminaci\uFFFDn y m\uFFFDs."
         }
       ]
     });
     assert2.ok(/tarima|pista/i.test(reply), reply.slice(0, 300));
     assert2.ok(
-      !/alg[u√∫]n\s+otro\s+servicio|qu[e√©]\s+otros\s+servicios|manejamos alimentos y barras.{0,40}dj/i.test(
+      !/alg[u˙]n\s+otro\s+servicio|qu[eÈ]\s+otros\s+servicios|manejamos alimentos y barras.{0,40}dj/i.test(
         reply
       ),
       reply.slice(0, 400)
     );
     assert2.ok(/4\s*m|estilo|LED|vinil|pintada|charol/i.test(reply), reply.slice(0, 400));
-    assert2.ok(!/Seg√∫n el cat√°logo que ya cargamos/i.test(reply), reply.slice(0, 300));
+    assert2.ok(!/Seg˙n el cat·logo que ya cargamos/i.test(reply), reply.slice(0, 300));
   });
   await test("57. Cierre sobrio sin upsell forzado (V8.93)", () => {
     const close = mockClosing("renta de tarima/pista 4x4", "Ana");
@@ -144634,16 +144715,16 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(/tarima|pista/i.test(close), close);
     assert2.ok(/con gusto te apoyo/i.test(close), close);
     assert2.ok(!/Si quieres sumar/i.test(close), close);
-    assert2.ok(!/Si m√°s adelante quieres sumar algo adem√°s/i.test(close), close);
+    assert2.ok(!/Si m·s adelante quieres sumar algo adem·s/i.test(close), close);
   });
-  await test("58. Anti-repetici\xF3n \u2014 correo ya en extracted no se vuelve a pedir", () => {
+  await test("58. Anti-repetici\uFFFDn \uFFFD correo ya en extracted no se vuelve a pedir", () => {
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
       "Requerimientos o servicios"
     ]);
     const reply = runGuards({
-      aiResponse: "Perfecto. \xBFMe compartes tu correo para enviarte la informaci\xF3n?",
+      aiResponse: "Perfecto. \uFFFDMe compartes tu correo para enviarte la informaci\uFFFDn?",
       extracted: emptyExtracted({
         nombre: "Ana",
         correo: "ana@test.com",
@@ -144654,30 +144735,30 @@ ${CATALOG_OFFER_QUESTION}`
       readyForClosing: false,
       currentMessage: "Quiero banquete formal",
       history: [
-        { role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" },
+        { role: "assistant", content: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?" },
         { role: "user", content: "banquete" }
       ]
     });
     assert2.ok(!/correo|e-?mail/i.test(reply) || !/\?/.test(reply.split(/correo/i)[0] + "?"), reply.slice(0, 300));
     assert2.ok(!mensajeAsksForField(reply, "correo") && !/necesito.{0,20}correo/i.test(reply), reply.slice(0, 400));
   });
-  await test("59. Anti-repetici\xF3n \u2014 presupuesto ya capturado no se re-pregunta en venta", () => {
+  await test("59. Anti-repetici\uFFFDn \uFFFD presupuesto ya capturado no se re-pregunta en venta", () => {
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "Lugar/direcci\xF3n del evento",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario",
-      "N\xFAmero de invitados",
+      "N\uFFFDmero de invitados",
       "Presupuesto (MXN)"
     ]);
     const reply = runGuards({
-      aiResponse: "Claro, el DJ lo anoto. \xBFTienen alg\xFAn rango de presupuesto en mente?",
+      aiResponse: "Claro, el DJ lo anoto. \uFFFDTienen alg\uFFFDn rango de presupuesto en mente?",
       extracted: emptyExtracted({
         nombre: "Luis",
         correo: "l@test.com",
-        tipo_evento: "xv a\xF1os",
+        tipo_evento: "xv a\uFFFDos",
         requerimientos_evento: "DJ",
         direccion_evento: "CDMX Polanco",
         fecha_horario: "15 agosto 2026",
@@ -144686,7 +144767,7 @@ ${CATALOG_OFFER_QUESTION}`
       }),
       filledSet: filled,
       readyForClosing: true,
-      currentMessage: "tambi\xE9n quiero DJ",
+      currentMessage: "tambi\uFFFDn quiero DJ",
       history: [
         {
           role: "assistant",
@@ -144697,18 +144778,18 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(!mensajeAsksForField(reply, "presupuesto"), reply.slice(0, 400));
     assert2.ok(!/rango\s+de\s+presupuesto/i.test(reply), reply.slice(0, 400));
   });
-  await test("60. Anti-repetici\xF3n \u2014 segundo men\xFA de servicios se corta y avanza", () => {
+  await test("60. Anti-repetici\uFFFDn \uFFFD segundo men\uFFFD de servicios se corta y avanza", () => {
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento"
     ]);
     const reply = runGuards({
-      aiResponse: "Tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas\u2026 \xBFQu\xE9 otros servicios te gustar\xEDa?",
+      aiResponse: "Tambi\uFFFDn manejamos bebidas, DJ, iluminaci\uFFFDn, carpas\uFFFD \uFFFDQu\uFFFD otros servicios te gustar\uFFFDa?",
       extracted: emptyExtracted({
         nombre: "Fer",
         correo: "fer@test.com",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         requerimientos_evento: "mobiliario"
       }),
       filledSet: filled,
@@ -144717,28 +144798,28 @@ ${CATALOG_OFFER_QUESTION}`
       history: [
         {
           role: "assistant",
-          content: "Plat\xEDcame qu\xE9 necesitas. Manejamos alimentos y barras, mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n y m\xE1s."
+          content: "Plat\uFFFDcame qu\uFFFD necesitas. Manejamos alimentos y barras, mobiliario, carpas, pistas de baile, DJ, iluminaci\uFFFDn y m\uFFFDs."
         }
       ]
     });
     assert2.ok(
-      !/qu[e√©]\s+otros\s+servicios|alg[u√∫]n\s+otro\s+servicio/i.test(reply),
+      !/qu[eÈ]\s+otros\s+servicios|alg[u˙]n\s+otro\s+servicio/i.test(reply),
       reply.slice(0, 400)
     );
     assert2.ok(
-      /mobiliario|anot|ciudad|colonia|sal[o√≥]n|fecha|personas|invitados/i.test(reply),
+      /mobiliario|anot|ciudad|colonia|sal[oÛ]n|fecha|personas|invitados/i.test(reply),
       reply.slice(0, 400)
     );
   });
-  await test("61. Anti-repetici\xF3n \u2014 zona en extracted no se vuelve a pedir", () => {
+  await test("61. Anti-repetici\uFFFDn \uFFFD zona en extracted no se vuelve a pedir", () => {
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios"
     ]);
     const reply = runGuards({
-      aiResponse: "Genial. \xBFEn qu\xE9 ciudad y colonia ser\xEDa tu evento?",
+      aiResponse: "Genial. \uFFFDEn qu\uFFFD ciudad y colonia ser\uFFFDa tu evento?",
       extracted: emptyExtracted({
         nombre: "Karime",
         correo: "k@test.com",
@@ -144748,64 +144829,64 @@ ${CATALOG_OFFER_QUESTION}`
       }),
       filledSet: filled,
       readyForClosing: false,
-      currentMessage: "s\xED el banquete",
-      history: [{ role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa?" }]
+      currentMessage: "s\uFFFD el banquete",
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa?" }]
     });
     assert2.ok(!mensajeAsksForField(reply, "zona"), reply.slice(0, 400));
     assert2.ok(
-      /fecha|horario|cu[a√°]ndo|invitados|personas|presupuesto|pensado/i.test(reply),
+      /fecha|horario|cu[a·]ndo|invitados|personas|presupuesto|pensado/i.test(reply),
       reply.slice(0, 400)
     );
   });
-  await test("62. A14856 Omar \u2014 saludo/Cap&Bara NO se confunden con nombre", () => {
-    assert2.equal(isGreetingOnlyMessage("Hola buen d\xEDa"), true);
-    assert2.equal(isGreetingOnlyMessage("buen d\xEDa"), true);
-    assert2.equal(isGreetingOnlyMessage("Buenos d\xEDas"), true);
-    assert2.equal(isGreetingOnlyMessage("buenas, informaci\xF3n"), true);
+  await test("62. A14856 Omar \uFFFD saludo/Cap&Bara NO se confunden con nombre", () => {
+    assert2.equal(isGreetingOnlyMessage("Hola buen d\uFFFDa"), true);
+    assert2.equal(isGreetingOnlyMessage("buen d\uFFFDa"), true);
+    assert2.equal(isGreetingOnlyMessage("Buenos d\uFFFDas"), true);
+    assert2.equal(isGreetingOnlyMessage("buenas, informaci\uFFFDn"), true);
     assert2.equal(isGreetingOnlyMessage("hola info"), true);
-    assert2.equal(sanitizeCrmNombre("Buen D\xEDa"), null);
-    assert2.equal(sanitizeDisplayName("Hola buen d\xEDa"), null);
+    assert2.equal(sanitizeCrmNombre("Buen D\uFFFDa"), null);
+    assert2.equal(sanitizeDisplayName("Hola buen d\uFFFDa"), null);
     const vagueOpen = runGuards({
-      aiResponse: "Claro, \xBFqu\xE9 necesitas?",
+      aiResponse: "Claro, \uFFFDqu\uFFFD necesitas?",
       extracted: emptyExtracted(),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
-      currentMessage: "buenas, informaci\xF3n",
+      currentMessage: "buenas, informaci\uFFFDn",
       forceFirstPresentation: true
     });
     assert2.ok(/lucy|agente virtual|bodasesor/i.test(vagueOpen), vagueOpen);
-    assert2.ok(clientAsksCompanyIdentity("\xBFMe comunico con Cap&Bata eventos?"));
-    assert2.ok(clientAsksCompanyIdentity("\xBFMe comunico con Cap&Bara eventos?"));
-    assert2.ok(isLikelyNotPersonNameMessage("\xBFMe comunico con Cap&Bata eventos?"));
-    assert2.ok(isLikelyNotPersonNameMessage("Hola buen d\xEDa"));
+    assert2.ok(clientAsksCompanyIdentity("\uFFFDMe comunico con Cap&Bata eventos?"));
+    assert2.ok(clientAsksCompanyIdentity("\uFFFDMe comunico con Cap&Bara eventos?"));
+    assert2.ok(isLikelyNotPersonNameMessage("\uFFFDMe comunico con Cap&Bata eventos?"));
+    assert2.ok(isLikelyNotPersonNameMessage("Hola buen d\uFFFDa"));
     assert2.equal(isLikelyNotPersonNameMessage("Omar"), false);
-    assert2.equal(isLikelyNotPersonNameMessage("C\xF3mo Omar"), false);
+    assert2.equal(isLikelyNotPersonNameMessage("C\uFFFDmo Omar"), false);
     const filled = /* @__PURE__ */ new Set();
     const greetingReply = runGuards({
-      aiResponse: "\xBFMe regalas tu nombre?",
+      aiResponse: "\uFFFDMe regalas tu nombre?",
       extracted: emptyExtracted({ nombre: null }),
       filledSet: filled,
       readyForClosing: false,
-      currentMessage: "Hola buen d\xEDa",
+      currentMessage: "Hola buen d\uFFFDa",
       whatsappDisplayName: "Omar Ponce",
       history: [],
       forceFirstPresentation: true
     });
     assert2.ok(
       !/eres\s+Buen|sigues?\s+contigo\s+como/i.test(greetingReply),
-      `no debe preguntar si es Buen D\xEDa: ${greetingReply.slice(0, 250)}`
+      `no debe preguntar si es Buen D\uFFFDa: ${greetingReply.slice(0, 250)}`
     );
     const filled2 = /* @__PURE__ */ new Set();
     const companyReply = runGuards({
-      aiResponse: "\xBFMe regalas tu nombre?",
+      aiResponse: "\uFFFDMe regalas tu nombre?",
       extracted: emptyExtracted({ nombre: null }),
       filledSet: filled2,
       readyForClosing: false,
-      currentMessage: "\xBFMe comunico con Cap&Bata eventos?",
+      currentMessage: "\uFFFDMe comunico con Cap&Bata eventos?",
       whatsappDisplayName: "Omar Ponce",
       history: [
-        { role: "user", content: "Hola buen d\xEDa" },
-        { role: "assistant", content: "Hola, soy Lucy. \xBFMe regalas tu nombre?" }
+        { role: "user", content: "Hola buen d\uFFFDa" },
+        { role: "assistant", content: "Hola, soy Lucy. \uFFFDMe regalas tu nombre?" }
       ]
     });
     assert2.ok(
@@ -144818,9 +144899,9 @@ ${CATALOG_OFFER_QUESTION}`
     );
     assert2.ok(buildCompanyIdentityReply("Omar").includes("Omar"));
   });
-  await test("63. Edgar A14861 \u2014 intro, correo, nivel barra, cat\xE1logo bodasesor", () => {
+  await test("63. Edgar A14861 \uFFFD intro, correo, nivel barra, cat\uFFFDlogo bodasesor", () => {
     const mesasFirst = runGuards({
-      aiResponse: "Anoto mesa y sillas. Si quieres, como opcional: manteler\xEDa o bebidas. \xBFC\xF3mo te llamas?",
+      aiResponse: "Anoto mesa y sillas. Si quieres, como opcional: manteler\uFFFDa o bebidas. \uFFFDC\uFFFDmo te llamas?",
       extracted: emptyExtracted({ requerimientos_evento: "Renta de Mesas y Sillas para Eventos" }),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
@@ -144830,11 +144911,11 @@ ${CATALOG_OFFER_QUESTION}`
     });
     assert2.ok(/soy Lucy.*agente virtual/i.test(mesasFirst), mesasFirst.slice(0, 200));
     assert2.ok(/llamas|nombre/i.test(mesasFirst), mesasFirst);
-    assert2.ok(!/manteler[i√≠]a|bebidas para redondear/i.test(mesasFirst), mesasFirst);
+    assert2.ok(!/manteler[iÌ]a|bebidas para redondear/i.test(mesasFirst), mesasFirst);
     const mobDetail = buildMobiliarioRentDetailReply("Necesito 900 sillas para un concierto");
     assert2.ok(mobDetail && /sillas|mesas|periquera/i.test(mobDetail), mobDetail ?? "");
     const emailReply = runGuards({
-      aiResponse: "Genial, Edgar. \xBFEn qu\xE9 ciudad ser\xEDa el evento?",
+      aiResponse: "Genial, Edgar. \uFFFDEn qu\uFFFD ciudad ser\uFFFDa el evento?",
       extracted: emptyExtracted({
         nombre: "Edgar",
         correo: "edagarcruz85@hotmaill.com",
@@ -144844,27 +144925,27 @@ ${CATALOG_OFFER_QUESTION}`
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados"
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
       currentMessage: "edagarcruz85@hotmaill.com",
       history: [
-        { role: "assistant", content: "\xBFMe compartes un correo para enviarte los detalles de la cotizaci\xF3n?" }
+        { role: "assistant", content: "\uFFFDMe compartes un correo para enviarte los detalles de la cotizaci\uFFFDn?" }
       ]
     });
     assert2.ok(/gracias por tu correo/i.test(emailReply), emailReply);
     assert2.ok(!/^genial/i.test(emailReply.trim()), emailReply);
     assert2.ok(
-      /ciudad|ubicaci[o√≥]n|fecha|cu[a√°]ndo|d[i√≠]a|hora|definiendo|sal[o√≥]n/i.test(emailReply),
+      /ciudad|ubicaci[oÛ]n|fecha|cu[a·]ndo|d[iÌ]a|hora|definiendo|sal[oÛ]n/i.test(emailReply),
       emailReply
     );
-    const nivelAsk = "Perfecto, Edgar. Para la *Barra de Bebidas*, manejamos tres niveles: 1. *B\xE1sica* 2. *Tradicional* 3. *Premium* \xBFCu\xE1l nivel prefieres para tu evento?";
+    const nivelAsk = "Perfecto, Edgar. Para la *Barra de Bebidas*, manejamos tres niveles: 1. *B\uFFFDsica* 2. *Tradicional* 3. *Premium* \uFFFDCu\uFFFDl nivel prefieres para tu evento?";
     assert2.ok(isCatalogLevelSelection("1", nivelAsk));
     const nivelReply = runGuards({
-      aiResponse: "\xBFTe refieres a 5 invitados o al d\xEDa 5 del mes?",
+      aiResponse: "\uFFFDTe refieres a 5 invitados o al d\uFFFDa 5 del mes?",
       extracted: emptyExtracted({
         nombre: "Edgar",
         tipo_evento: "concierto",
@@ -144878,7 +144959,7 @@ ${CATALOG_OFFER_QUESTION}`
         { role: "assistant", content: nivelAsk }
       ]
     });
-    assert2.ok(!/invitados o al d[i√≠]a 5/i.test(nivelReply), nivelReply);
+    assert2.ok(!/invitados o al d[iÌ]a 5/i.test(nivelReply), nivelReply);
     const prevLight = process.env["CATALOG_USE_LIGHT_PAGES"];
     delete process.env["CATALOG_USE_LIGHT_PAGES"];
     assert2.equal(
@@ -144887,14 +144968,14 @@ ${CATALOG_OFFER_QUESTION}`
     );
     if (prevLight !== void 0) process.env["CATALOG_USE_LIGHT_PAGES"] = prevLight;
     const internalLeak = runGuards({
-      aiResponse: "Informaci\xF3n completa obtenida y verificada.\n\nDATOS DEL CLIENTE:\n- Nombre: Edgar\n- Correo: edagarcruz85@hotmaill.com\n\nPerfecto, ya tengo todo. Voy a compartir esta informaci\xF3n con nuestro equipo.",
+      aiResponse: "Informaci\uFFFDn completa obtenida y verificada.\n\nDATOS DEL CLIENTE:\n- Nombre: Edgar\n- Correo: edagarcruz85@hotmaill.com\n\nPerfecto, ya tengo todo. Voy a compartir esta informaci\uFFFDn con nuestro equipo.",
       extracted: emptyExtracted({
         nombre: "Edgar",
         correo: "edagarcruz85@hotmaill.com",
         tipo_evento: "concierto",
         requerimientos_evento: "Renta de Mesas y Sillas para Eventos",
         num_invitados: 900,
-        direccion_evento: "M\xE9rida..club campestre",
+        direccion_evento: "M\uFFFDrida..club campestre",
         fecha_horario: "19 sep 20 a 24 HRS"
       }),
       filledSet: /* @__PURE__ */ new Set([
@@ -144907,17 +144988,17 @@ ${CATALOG_OFFER_QUESTION}`
       history: []
     });
     assert2.ok(!/DATOS DEL CLIENTE/i.test(internalLeak), internalLeak.slice(0, 300));
-    assert2.ok(!/Informaci√≥n completa obtenida/i.test(internalLeak), internalLeak.slice(0, 300));
+    assert2.ok(!/InformaciÛn completa obtenida/i.test(internalLeak), internalLeak.slice(0, 300));
   });
-  await test("64. Niveles \u2014 Basica/Tradicional/Premium con qu\xE9 incluye cada uno", () => {
+  await test("64. Niveles \uFFFD Basica/Tradicional/Premium con qu\uFFFD incluye cada uno", () => {
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Que Incluye"',
       '"Barra de bebidas","Basica","$150.00","$4,500.00","TRUE","Refrescos y aguas"',
       '"Barra de bebidas","Tradicional","$220.00","$6,600.00","TRUE","Refrescos, aguas y 2 licores"',
       '"Barra de bebidas","Premium","$320.00","$9,600.00","TRUE","Refrescos, aguas y 3 licores premium"'
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
-    const bare = "Perfecto, Edgar. Para la *Barra de Bebidas*, manejamos tres niveles: 1. *B\xE1sica* 2. *Tradicional* 3. *Premium* \xBFCu\xE1l nivel prefieres para tu evento?";
+    const bare = "Perfecto, Edgar. Para la *Barra de Bebidas*, manejamos tres niveles: 1. *B\uFFFDsica* 2. *Tradicional* 3. *Premium* \uFFFDCu\uFFFDl nivel prefieres para tu evento?";
     assert2.ok(messageOffersLevelsWithoutInclusions(bare));
     const detail = buildCatalogServiceDetailAnswer("barra de bebidas");
     assert2.ok(detail, "debe armar oferta de niveles");
@@ -144925,13 +145006,13 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(/Incluye:.*2 licores/i.test(detail), detail);
     assert2.ok(/Incluye:.*3 licores premium/i.test(detail), detail);
     assert2.ok(
-      /quieres que te d[e√©] detalles de alguno|Cu√°l nivel prefieres/i.test(detail),
+      /quieres que te d[eÈ] detalles de alguno|Cu·l nivel prefieres/i.test(detail),
       detail
     );
     assert2.ok(!messageOffersLevelsWithoutInclusions(detail), detail);
     const promptBlock = formatServiceDataForPrompt("barra de bebidas");
     assert2.ok(promptBlock && /Incluye:/i.test(promptBlock), promptBlock ?? "");
-    assert2.ok(/EXPLICA qu√© incluye/i.test(promptBlock), promptBlock);
+    assert2.ok(/EXPLICA quÈ incluye/i.test(promptBlock), promptBlock);
     const guardBare = runGuards({
       aiResponse: bare,
       extracted: emptyExtracted({
@@ -144944,16 +145025,16 @@ ${CATALOG_OFFER_QUESTION}`
       currentMessage: "Hola, me interesa cotizar Barra de Bebidas",
       history: [
         { role: "user", content: "Hola, me interesa cotizar Barra de Bebidas" },
-        { role: "assistant", content: "\xBFQu\xE9 nivel te interesa?" }
+        { role: "assistant", content: "\uFFFDQu\uFFFD nivel te interesa?" }
       ]
     });
     assert2.ok(/Incluye:/i.test(guardBare), guardBare.slice(0, 500));
     assert2.ok(/Refrescos y aguas/i.test(guardBare), guardBare.slice(0, 500));
     assert2.ok(enrichBareNivelOffer(bare, "Barra de bebidas"), "enrich debe devolver detalle");
   });
-  await test("65. Cat\xE1logos web + foto sin resumen interno", () => {
+  await test("65. Cat\uFFFDlogos web + foto sin resumen interno", () => {
     const embeds = loadCatalogEmbeds();
-    assert2.ok(embeds.length > 5, `embeds.json vac\xEDo: ${embeds.length}`);
+    assert2.ok(embeds.length > 5, `embeds.json vac\uFFFDo: ${embeds.length}`);
     assert2.equal(resolveCatalogWebSlug("barra de bebidas"), "barra-de-bebidas");
     assert2.equal(
       getCatalogWebUrlForQuery("barra de bebidas"),
@@ -144962,7 +145043,7 @@ ${CATALOG_OFFER_QUESTION}`
     const hint = buildCatalogWebDetailHint("barra de bebidas");
     assert2.ok(hint && /bodasesor\.com\/catalogos\/barra-de-bebidas/.test(hint), hint ?? "");
     const csvEmpty = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Que Incluye"',
       '"Barra de bebidas","Basica","$150.00","$4,500.00","TRUE",""',
       '"Barra de bebidas","Tradicional","$220.00","$6,600.00","TRUE",""',
       '"Barra de bebidas","Premium","$320.00","$9,600.00","TRUE",""'
@@ -144974,32 +145055,32 @@ ${CATALOG_OFFER_QUESTION}`
       /bodasesor\.com\/catalogos\/barra-de-bebidas/i.test(detailEmpty),
       detailEmpty
     );
-    const summaryAi = "La imagen muestra un jard\xEDn con mesas r\xFAsticas y sillas de madera alrededor.";
+    const summaryAi = "La imagen muestra un jard\uFFFDn con mesas r\uFFFDsticas y sillas de madera alrededor.";
     assert2.ok(looksLikeImageInternalSummary(summaryAi));
     const blocked = runGuards({
       aiResponse: summaryAi,
       extracted: emptyExtracted({ nombre: "Karime" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       readyForClosing: false,
-      currentMessage: "[Imagen intent]: montaje_referencia\n[Imagen respuesta cliente]: \xA1Me encanta el estilo r\xFAstico de tu foto! Lo anoto para armar ese montaje.",
+      currentMessage: "[Imagen intent]: montaje_referencia\n[Imagen respuesta cliente]: \uFFFDMe encanta el estilo r\uFFFDstico de tu foto! Lo anoto para armar ese montaje.",
       history: []
     });
-    assert2.ok(/estilo r√∫stico|anoto|montaje/i.test(blocked), blocked);
+    assert2.ok(/estilo r˙stico|anoto|montaje/i.test(blocked), blocked);
     assert2.ok(!/La imagen muestra/i.test(blocked), blocked);
   });
-  await test("68. Silencio + emergencia \u2014 vigila datos; solo tel\xE9fonos en Humano Trabaja", () => {
-    assert2.ok(clientNeedsEmergencyContact("necesito un tel\xE9fono de emergencia"));
+  await test("68. Silencio + emergencia \uFFFD vigila datos; solo tel\uFFFDfonos en Humano Trabaja", () => {
+    assert2.ok(clientNeedsEmergencyContact("necesito un tel\uFFFDfono de emergencia"));
     assert2.ok(clientNeedsEmergencyContact("nadie me contesta, es urgente"));
-    assert2.ok(clientNeedsEmergencyContact("p\xE1same un contacto por favor"));
-    assert2.ok(clientNeedsEmergencyContact("\xBFTienen tel\xE9fono de ventas?"));
-    assert2.ok(!clientNeedsEmergencyContact("ay\xFAdame con el banquete para 100"));
-    assert2.ok(!clientNeedsEmergencyContact("la direcci\xF3n ahora es Polanco CDMX"));
+    assert2.ok(clientNeedsEmergencyContact("p\uFFFDsame un contacto por favor"));
+    assert2.ok(clientNeedsEmergencyContact("\uFFFDTienen tel\uFFFDfono de ventas?"));
+    assert2.ok(!clientNeedsEmergencyContact("ay\uFFFDdame con el banquete para 100"));
+    assert2.ok(!clientNeedsEmergencyContact("la direcci\uFFFDn ahora es Polanco CDMX"));
     const emergency = buildEmergencyContactAnswer();
     assert2.ok(/55 4008 0373/.test(emergency));
     assert2.ok(/56 4671 0585/.test(emergency));
     assert2.ok(/emergencia/i.test(emergency));
-    assert2.ok(/solo por l[i√≠]nea telef[o√≥]nica/i.test(emergency));
-    assert2.ok(/WhatsApp y por l[i√≠]nea telef[o√≥]nica/i.test(emergency));
+    assert2.ok(/solo por l[iÌ]nea telef[oÛ]nica/i.test(emergency));
+    assert2.ok(/WhatsApp y por l[iÌ]nea telef[oÛ]nica/i.test(emergency));
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
     const kommoSrc = readFileSync5(path6.join(apiRoot, "src/routes/kommo.ts"), "utf8");
     const embudoSrc = readFileSync5(path6.join(apiRoot, "src/services/embudo.ts"), "utf8");
@@ -145008,14 +145089,14 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(/clientNeedsEmergencyContact/.test(kommoSrc));
     assert2.ok(/extractKommoIncomingMessage/.test(kommoSrc), "webhook debe parsear payload oficial Kommo");
     assert2.ok(/acceptUnsortedForLeadId/.test(kommoSrc), "Lucy debe aceptar Incoming Leads");
-    assert2.ok(/processKommoWebhookAfterAck/.test(kommoSrc), "ACK 200 antes de voz/visi\xF3n o Kommo desactiva el webhook");
-    assert2.ok(/applyPaymentReceiptToLead/.test(kommoSrc), "comprobante imagen debe llenar Anticipo/Liquidaci\xF3n");
+    assert2.ok(/processKommoWebhookAfterAck/.test(kommoSrc), "ACK 200 antes de voz/visi\uFFFDn o Kommo desactiva el webhook");
+    assert2.ok(/applyPaymentReceiptToLead/.test(kommoSrc), "comprobante imagen debe llenar Anticipo/Liquidaci\uFFFDn");
     assert2.ok(/Kommo exige HTTP 2xx/.test(kommoSrc));
     assert2.ok(/acceptUnsortedLead/.test(embudoSrc));
     assert2.ok(/lucyEstaEnSilencio|lucyDebeResponder/.test(embudoSrc));
     assert2.ok(/Humano Trabaja/.test(embudoSrc) || /HUMANO_TRABAJA/.test(embudoSrc));
   });
-  await test("67. Aprendizaje continuo \u2014 cron + extract en Humano Trabaja", () => {
+  await test("67. Aprendizaje continuo \uFFFD cron + extract en Humano Trabaja", () => {
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
     const repoRoot = path6.resolve(apiRoot, "..");
     const syncSrc = readFileSync5(path6.join(apiRoot, "src/services/learningSync.ts"), "utf8");
@@ -145053,13 +145134,13 @@ ${CATALOG_OFFER_QUESTION}`
     const examplesMount = routesIndex.indexOf("router.use(examplesRouter)");
     assert2.ok(
       learningMount > 0 && examplesMount > 0 && learningMount < examplesMount,
-      "learningRouter debe ir antes de examplesRouter para no bloquear GET p\xFAblicos"
+      "learningRouter debe ir antes de examplesRouter para no bloquear GET p\uFFFDblicos"
     );
   });
-  await test("66. Brief multi-servicio Alexa + sal\xF3n/edificio no es ubicaci\xF3n", () => {
-    const alexaBrief = "Hola, para un corporativo necesito coffee break, desayuno, snack, comida, cena y men\xFA staff para 80 personas el 12 de septiembre en Polanco";
+  await test("66. Brief multi-servicio Alexa + sal\uFFFDn/edificio no es ubicaci\uFFFDn", () => {
+    const alexaBrief = "Hola, para un corporativo necesito coffee break, desayuno, snack, comida, cena y men\uFFFD staff para 80 personas el 12 de septiembre en Polanco";
     const services = parseServicesFromText(alexaBrief);
-    assert2.ok(services.length >= 5, `esperaba \u22655 servicios, got ${services.join(", ")}`);
+    assert2.ok(services.length >= 5, `esperaba =5 servicios, got ${services.join(", ")}`);
     assert2.ok(services.some((s6) => /coffee/i.test(s6)), services.join(", "));
     assert2.ok(services.some((s6) => /desayuno/i.test(s6)), services.join(", "));
     assert2.ok(services.some((s6) => /snack/i.test(s6)), services.join(", "));
@@ -145075,7 +145156,7 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(/polanco/i.test(extracted.direccion_evento ?? ""), extracted.direccion_evento);
     assert2.equal(extracted.num_invitados, 80);
     const waReply = runGuards({
-      aiResponse: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?",
+      aiResponse: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?",
       extracted: emptyExtracted(),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
@@ -145083,13 +145164,13 @@ ${CATALOG_OFFER_QUESTION}`
       history: [],
       forceFirstPresentation: true
     });
-    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[i√≠]a[.!]?\s*)?soy\s+lucy/i.test(waReply), waReply.slice(0, 280));
+    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[iÌ]a[.!]?\s*)?soy\s+lucy/i.test(waReply), waReply.slice(0, 280));
     assert2.ok(/coffee/i.test(waReply), waReply.slice(0, 500));
     assert2.ok(/desayuno/i.test(waReply), waReply.slice(0, 500));
     assert2.ok(/cena/i.test(waReply), waReply.slice(0, 500));
     assert2.ok(/snack|comida|staff|meseros/i.test(waReply), waReply.slice(0, 500));
     const midReply = runGuards({
-      aiResponse: "\xBFSolo el coffee break?",
+      aiResponse: "\uFFFDSolo el coffee break?",
       extracted: emptyExtracted({
         nombre: "Alexa",
         tipo_evento: "evento corporativo",
@@ -145097,18 +145178,18 @@ ${CATALOG_OFFER_QUESTION}`
       }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
       readyForClosing: false,
-      currentMessage: "Adem\xE1s necesito desayuno, snack, comida, cena y men\xFA staff",
+      currentMessage: "Adem\uFFFDs necesito desayuno, snack, comida, cena y men\uFFFD staff",
       history: [
         { role: "user", content: alexaBrief },
-        { role: "assistant", content: "Hola, soy Lucy. \xBFMe regalas tu nombre?" },
+        { role: "assistant", content: "Hola, soy Lucy. \uFFFDMe regalas tu nombre?" },
         { role: "user", content: "Alexa" },
-        { role: "assistant", content: "Perfecto, Alexa. \xBFMe confirmas los servicios?" }
+        { role: "assistant", content: "Perfecto, Alexa. \uFFFDMe confirmas los servicios?" }
       ]
     });
     assert2.ok(/desayuno/i.test(midReply), midReply.slice(0, 400));
     assert2.ok(/cena/i.test(midReply), midReply.slice(0, 400));
-    assert2.ok(/todo eso|paquete|cat[a√°]logos?/i.test(midReply), midReply.slice(0, 400));
-    const webMsg = "Hola, me interesa cotizar para mi evento: corporativo coffee break desayuno snack comida cena men\xFA staff. Ser\xEDa el 12 de septiembre en Polanco para 80 personas";
+    assert2.ok(/todo eso|paquete|cat[a·]logos?/i.test(midReply), midReply.slice(0, 400));
+    const webMsg = "Hola, me interesa cotizar para mi evento: corporativo coffee break desayuno snack comida cena men\uFFFD staff. Ser\uFFFDa el 12 de septiembre en Polanco para 80 personas";
     const brief = parseWebLeadBrief(webMsg);
     assert2.ok(brief);
     const webExtracted = emptyExtracted();
@@ -145117,7 +145198,7 @@ ${CATALOG_OFFER_QUESTION}`
     const webServices = parseServicesFromText(webExtracted.requerimientos_evento ?? webMsg);
     assert2.ok(webServices.length >= 4, webExtracted.requerimientos_evento);
     const webReply = runGuards({
-      aiResponse: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?",
+      aiResponse: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?",
       extracted: webExtracted,
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
@@ -145126,17 +145207,17 @@ ${CATALOG_OFFER_QUESTION}`
       forceFirstPresentation: true
     });
     assert2.ok(/coffee|desayuno|comida|cena/i.test(webReply), webReply.slice(0, 400));
-    assert2.equal(parseZonaFromText("en el sal\xF3n"), null);
+    assert2.equal(parseZonaFromText("en el sal\uFFFDn"), null);
     assert2.equal(parseZonaFromText("en el edificio"), null);
-    assert2.ok(isVagueVenueOnly("sal\xF3n"));
+    assert2.ok(isVagueVenueOnly("sal\uFFFDn"));
     assert2.ok(isVagueVenueOnly("edificio"));
-    assert2.ok(isVagueVenueOnly("sal\xF3n de eventos"));
-    assert2.ok(!isUsableDireccionEvento("sal\xF3n"));
+    assert2.ok(isVagueVenueOnly("sal\uFFFDn de eventos"));
+    assert2.ok(!isUsableDireccionEvento("sal\uFFFDn"));
     assert2.ok(isUsableDireccionEvento("Polanco CDMX"));
-    assert2.ok(!isUsableDireccionEvento("Sal\xF3n Hacienda Los Olivos"));
-    assert2.ok(isUsableDireccionEvento("Sal\xF3n Hacienda Los Olivos, CDMX"));
-    assert2.ok(isVenueWithoutCity("Sal\xF3n Hacienda Los Olivos"));
-    assert2.ok(!isVenueWithoutCity("Sal\xF3n Hacienda Los Olivos en Polanco"));
+    assert2.ok(!isUsableDireccionEvento("Sal\uFFFDn Hacienda Los Olivos"));
+    assert2.ok(isUsableDireccionEvento("Sal\uFFFDn Hacienda Los Olivos, CDMX"));
+    assert2.ok(isVenueWithoutCity("Sal\uFFFDn Hacienda Los Olivos"));
+    assert2.ok(!isVenueWithoutCity("Sal\uFFFDn Hacienda Los Olivos en Polanco"));
     assert2.equal(parseZonaFromText("en la empresa"), null);
     assert2.equal(parseZonaFromText("en nuestro espacio"), null);
     assert2.ok(isVagueVenueOnly("empresa"));
@@ -145155,7 +145236,7 @@ ${CATALOG_OFFER_QUESTION}`
       ).direccion_evento,
       null
     );
-    const vagueLoc = emptyExtracted({ direccion_evento: "sal\xF3n" });
+    const vagueLoc = emptyExtracted({ direccion_evento: "sal\uFFFDn" });
     const cleaned = sanitizeExtractedFromExternal(vagueLoc);
     assert2.equal(cleaned.direccion_evento, null);
     const pendingZona = getNextPendingField(
@@ -145164,75 +145245,75 @@ ${CATALOG_OFFER_QUESTION}`
         correo: "a@x.com",
         tipo_evento: "evento corporativo",
         requerimientos_evento: "Coffee break, Desayuno",
-        direccion_evento: "sal\xF3n",
+        direccion_evento: "sal\uFFFDn",
         fecha_horario: "12 de septiembre",
         num_invitados: 80,
         presupuesto: null
       }),
       /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
         "Fecha y horario",
-        "N\xFAmero de invitados"
+        "N\uFFFDmero de invitados"
       ])
     );
     assert2.equal(pendingZona, "zona");
     const merged = mergeServiceRequirements("Coffee break", alexaBrief, 6);
     assert2.ok(merged && merged.split(",").length >= 5, merged);
   });
-  await test("70. Ximena A14889 \u2014 graduaci\xF3n ofrece abanico amplio (no solo 3 \xEDtems)", () => {
-    assert2.equal(parseTipoEventoFromText("Graduaci\xF3n"), "graduaci\xF3n");
-    assert2.ok(!isNarrowSocialEventOffer(buildBroadLevel1Offer("graduaci\xF3n"), "graduaci\xF3n"));
-    const services = listCatalogServicesForEvent("graduaci\xF3n");
+  await test("70. Ximena A14889 \uFFFD graduaci\uFFFDn ofrece abanico amplio (no solo 3 \uFFFDtems)", () => {
+    assert2.equal(parseTipoEventoFromText("Graduaci\uFFFDn"), "graduaci\uFFFDn");
+    assert2.ok(!isNarrowSocialEventOffer(buildBroadLevel1Offer("graduaci\uFFFDn"), "graduaci\uFFFDn"));
+    const services = listCatalogServicesForEvent("graduaci\uFFFDn");
     assert2.ok(services.length >= 6, services.join(", "));
     assert2.ok(services.some((s6) => /alimento|banquete|taquiza|brunch/i.test(s6)), services.join(", "));
     assert2.ok(services.some((s6) => /dj|ilumin/i.test(s6)), services.join(", "));
     assert2.ok(services.some((s6) => /mobiliario/i.test(s6)), services.join(", "));
     assert2.ok(services.some((s6) => /pista|tarima|carpa|pantalla|audio/i.test(s6)), services.join(", "));
-    const narrowAi = "Para tu graduaci\xF3n, podemos ofrecerte varios servicios que podr\xEDan encajar bien:\n\u2022 *Mobiliario*: Mesas y sillas para tus invitados.\n\u2022 *Barras de bebidas*: Incluyendo opciones de cocteler\xEDa o bebidas no alcoh\xF3licas.\n\u2022 *Mesa de dulces*: Para un toque especial en la celebraci\xF3n.\n\xBFQu\xE9 te gustar\xEDa ir armando primero?";
-    assert2.ok(isNarrowSocialEventOffer(narrowAi, "graduaci\xF3n"));
+    const narrowAi = "Para tu graduaci\uFFFDn, podemos ofrecerte varios servicios que podr\uFFFDan encajar bien:\n\uFFFD *Mobiliario*: Mesas y sillas para tus invitados.\n\uFFFD *Barras de bebidas*: Incluyendo opciones de cocteler\uFFFDa o bebidas no alcoh\uFFFDlicas.\n\uFFFD *Mesa de dulces*: Para un toque especial en la celebraci\uFFFDn.\n\uFFFDQu\uFFFD te gustar\uFFFDa ir armando primero?";
+    assert2.ok(isNarrowSocialEventOffer(narrowAi, "graduaci\uFFFDn"));
     assert2.ok(countOfferCategories(narrowAi) < 5);
-    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"]);
+    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico", "Tipo de evento"]);
     const reply = runGuards({
       aiResponse: narrowAi,
       extracted: emptyExtracted({
         nombre: "Ximena Fuentes",
         correo: "x@test.com",
-        tipo_evento: "graduaci\xF3n"
+        tipo_evento: "graduaci\uFFFDn"
       }),
       filledSet: filled,
       readyForClosing: false,
-      currentMessage: "Graduaci\xF3n",
-      history: [{ role: "assistant", content: "\xBFQu\xE9 tipo de celebraci\xF3n es?" }]
+      currentMessage: "Graduaci\uFFFDn",
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD tipo de celebraci\uFFFDn es?" }]
     });
     assert2.ok(countOfferCategories(reply) >= 5, reply.slice(0, 600));
     assert2.ok(/alimento|banquete|taquiza|brunch/i.test(reply), reply.slice(0, 500));
     assert2.ok(/dj/i.test(reply), reply.slice(0, 500));
     assert2.ok(/pista|tarima|carpa|pantalla|audio/i.test(reply), reply.slice(0, 500));
-    assert2.ok(!/^Para tu graduaci√≥n[\s\S]*Mobiliario[\s\S]*Barras de bebidas[\s\S]*Mesa de dulces[\s\S]*armando primero\?$/i.test(reply.trim()));
-    const hint = buildEventOfferCatalogHint("graduaci\xF3n") ?? "";
-    assert2.ok(/AMPLIO|m√≠nimo 6|NUNCA te limites/i.test(hint), hint.slice(0, 400));
+    assert2.ok(!/^Para tu graduaciÛn[\s\S]*Mobiliario[\s\S]*Barras de bebidas[\s\S]*Mesa de dulces[\s\S]*armando primero\?$/i.test(reply.trim()));
+    const hint = buildEventOfferCatalogHint("graduaci\uFFFDn") ?? "";
+    assert2.ok(/AMPLIO|mÌnimo 6|NUNCA te limites/i.test(hint), hint.slice(0, 400));
   });
-  await test("69. Alejandra A14893 \u2014 RFQ B2B: leer brief, cat\xE1logo, cierre, llamada, sin SKU", () => {
+  await test("69. Alejandra A14893 \uFFFD RFQ B2B: leer brief, cat\uFFFDlogo, cierre, llamada, sin SKU", () => {
     const alejandraBrief = [
-      "Buenas tardes!! Quiero pedirte tu apoyo con una cotizaci\xF3n para un evento corporativo",
-      "el pr\xF3ximo 15 de agosto, en Santa Fe, Ciudad de M\xE9xico.",
-      "En Punto de Imagen ALRO somos distribuidores de art\xEDculos promocionales.",
+      "Buenas tardes!! Quiero pedirte tu apoyo con una cotizaci\uFFFDn para un evento corporativo",
+      "el pr\uFFFDximo 15 de agosto, en Santa Fe, Ciudad de M\uFFFDxico.",
+      "En Punto de Imagen ALRO somos distribuidores de art\uFFFDculos promocionales.",
       "Asistentes: 200 personas. Horario para servir alimentos: 5:00 p.m.",
-      "Me gustar\xEDa tres propuestas de men\xFA, con diferentes rangos de precio.",
-      "Opci\xF3n 1 \u2013 Parrillada (arrachera, carne asada, BBQ, chorizo, brochetas, verduras, aguas).",
-      "Opci\xF3n 2 \u2013 Parrillada con excelente relaci\xF3n costo-beneficio.",
-      "Opci\xF3n 3 \u2013 Men\xFA Casual: hamburguesas, hot dogs, papas, aguas frescas.",
-      "Incluir: servicio de meseros, mesas redondas, manteler\xEDa, cristaler\xEDa, cubiertos,",
-      "sillas con fundas, montaje y desmontaje. Fotograf\xEDas del mobiliario.",
+      "Me gustar\uFFFDa tres propuestas de men\uFFFD, con diferentes rangos de precio.",
+      "Opci\uFFFDn 1 \uFFFD Parrillada (arrachera, carne asada, BBQ, chorizo, brochetas, verduras, aguas).",
+      "Opci\uFFFDn 2 \uFFFD Parrillada con excelente relaci\uFFFDn costo-beneficio.",
+      "Opci\uFFFDn 3 \uFFFD Men\uFFFD Casual: hamburguesas, hot dogs, papas, aguas frescas.",
+      "Incluir: servicio de meseros, mesas redondas, manteler\uFFFDa, cristaler\uFFFDa, cubiertos,",
+      "sillas con fundas, montaje y desmontaje. Fotograf\uFFFDas del mobiliario.",
       "Mejor precio para distribuidor; no somos el cliente final; margen comercial.",
       "Sin perder de vista el presupuesto."
     ].join(" ");
     assert2.ok(isRichQuoteBrief(alejandraBrief), "debe detectar RFQ largo");
-    assert2.ok(!detectPresupuestoRefusal(alejandraBrief), "RFQ \u2260 sin presupuesto");
-    assert2.ok(!clientAsksPrice(alejandraBrief), "RFQ \u2260 pregunta de precio SKU");
+    assert2.ok(!detectPresupuestoRefusal(alejandraBrief), "RFQ ? sin presupuesto");
+    assert2.ok(!clientAsksPrice(alejandraBrief), "RFQ ? pregunta de precio SKU");
     assert2.ok(clientAsksDistributorPricing(alejandraBrief));
     const services = parseServicesFromText(alejandraBrief);
     assert2.ok(services.some((s6) => /parrillada/i.test(s6)), services.join(", "));
@@ -145240,7 +145321,7 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(services.some((s6) => /mobiliario/i.test(s6)), services.join(", "));
     assert2.ok(services.some((s6) => /casual|hamburguesa/i.test(s6)), services.join(", "));
     const first = runGuards({
-      aiResponse: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?",
+      aiResponse: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?",
       extracted: emptyExtracted(),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
@@ -145248,68 +145329,68 @@ ${CATALOG_OFFER_QUESTION}`
       history: [],
       forceFirstPresentation: true
     });
-    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[i√≠]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 300));
+    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[iÌ]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 300));
     assert2.ok(!/lo dejamos por definir/i.test(first), first.slice(0, 400));
     assert2.ok(/15 de agosto|santa fe|200/i.test(first), first.slice(0, 500));
-    assert2.ok(/parrillada|men[u√∫]\s+casual|tres propuestas/i.test(first), first.slice(0, 600));
+    assert2.ok(/parrillada|men[u˙]\s+casual|tres propuestas/i.test(first), first.slice(0, 600));
     assert2.ok(/distribuidor|mayoreo/i.test(first), first.slice(0, 600));
-    assert2.ok(first.includes(CATALOG_URL2) || /cat[a√°]logo/i.test(first), first.slice(0, 700));
-    assert2.ok(/nombre|c[o√≥]mo te llamas|regalas/i.test(first), first.slice(0, 700));
+    assert2.ok(first.includes(CATALOG_URL2) || /cat[a·]logo/i.test(first), first.slice(0, 700));
+    assert2.ok(/nombre|c[oÛ]mo te llamas|regalas/i.test(first), first.slice(0, 700));
     const reread = runGuards({
       aiResponse: "ok",
       extracted: emptyExtracted({
-        nombre: "Alejandra Vel\xE1zquez",
+        nombre: "Alejandra Vel\uFFFDzquez",
         tipo_evento: "evento corporativo",
-        requerimientos_evento: "Mobiliario, Meseros, Parrillada, Men\xFA Casual",
-        direccion_evento: "Santa Fe, Ciudad de M\xE9xico",
+        requerimientos_evento: "Mobiliario, Meseros, Parrillada, Men\uFFFD Casual",
+        direccion_evento: "Santa Fe, Ciudad de M\uFFFDxico",
         fecha_horario: "15 de agosto, 5:00 p.m.",
         num_invitados: 200,
-        presupuesto: "Sin definir (cliente indic\xF3 que no tiene)"
+        presupuesto: "Sin definir (cliente indic\uFFFD que no tiene)"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento",
+        "Lugar/direcci\uFFFDn del evento",
         "Fecha y horario",
-        "N\xFAmero de invitados",
+        "N\uFFFDmero de invitados",
         "Presupuesto (MXN)"
       ]),
       readyForClosing: false,
       currentMessage: "Favor de leer muy bien las especificaciones",
       history: [
         { role: "user", content: alejandraBrief },
-        { role: "assistant", content: "Hola, soy Lucy. \xBFMe regalas tu nombre?" },
-        { role: "user", content: "Alejandra Vel\xE1zquez" },
+        { role: "assistant", content: "Hola, soy Lucy. \uFFFDMe regalas tu nombre?" },
+        { role: "user", content: "Alejandra Vel\uFFFDzquez" },
         {
           role: "assistant",
-          content: "Perfecto, veo que necesitas Mobiliario. \xBFA qu\xE9 correo te lo env\xEDo?"
+          content: "Perfecto, veo que necesitas Mobiliario. \uFFFDA qu\uFFFD correo te lo env\uFFFDo?"
         }
       ]
     });
     assert2.ok(clientAsksToRereadBrief("Favor de leer muy bien las especificaciones"));
-    assert2.ok(/reviso|revis[e√©]|anoto|solicitud|propuestas/i.test(reread), reread.slice(0, 500));
-    assert2.ok(reread.includes(CATALOG_URL2) || /cat[a√°]logo/i.test(reread), reread.slice(0, 600));
+    assert2.ok(/reviso|revis[eÈ]|anoto|solicitud|propuestas/i.test(reread), reread.slice(0, 500));
+    assert2.ok(reread.includes(CATALOG_URL2) || /cat[a·]logo/i.test(reread), reread.slice(0, 600));
     const close = runGuards({
-      aiResponse: "Informaci\xF3n completa",
+      aiResponse: "Informaci\uFFFDn completa",
       extracted: emptyExtracted({
-        nombre: "Alejandra Vel\xE1zquez",
+        nombre: "Alejandra Vel\uFFFDzquez",
         correo: "alejandra@puntodeimagen.mx",
         tipo_evento: "evento corporativo",
-        requerimientos_evento: "Mobiliario, Meseros, Parrillada, Men\xFA Casual",
-        direccion_evento: "Santa Fe, Ciudad de M\xE9xico",
+        requerimientos_evento: "Mobiliario, Meseros, Parrillada, Men\uFFFD Casual",
+        direccion_evento: "Santa Fe, Ciudad de M\uFFFDxico",
         fecha_horario: "15 de agosto, 5:00 p.m.",
         num_invitados: 200,
         presupuesto: "Sin definir"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento",
+        "Lugar/direcci\uFFFDn del evento",
         "Fecha y horario",
-        "N\xFAmero de invitados",
+        "N\uFFFDmero de invitados",
         "Presupuesto (MXN)"
       ]),
       readyForClosing: true,
@@ -145319,20 +145400,20 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(/alimentos|mobiliario|DJ|iluminaci/i.test(close), close);
     assert2.ok(close.includes(CATALOG_URL2), close);
     assert2.ok(
-      clientRequestsCallback("Me gustar\xEDa una atenci\xF3n personalizada. Si me pueden marcar por favor")
+      clientRequestsCallback("Me gustar\uFFFDa una atenci\uFFFDn personalizada. Si me pueden marcar por favor")
     );
     const callFilled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "Lugar/direcci\xF3n del evento",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario",
-      "N\xFAmero de invitados",
+      "N\uFFFDmero de invitados",
       "Presupuesto (MXN)"
     ]);
     const callExtracted = emptyExtracted({
-      nombre: "Alejandra Vel\xE1zquez",
+      nombre: "Alejandra Vel\uFFFDzquez",
       correo: "alejandra@puntodeimagen.mx",
       tipo_evento: "evento corporativo",
       requerimientos_evento: "Mobiliario, Meseros, Parrillada",
@@ -145349,7 +145430,7 @@ ${CATALOG_OFFER_QUESTION}`
       cierreYaEnviado: true,
       emailRefusedThisTurn: false,
       history: [{ role: "assistant", content: "Perfecto, ya tengo todo. Le paso a nuestro equipo." }],
-      currentMessage: "Me gustar\xEDa una atenci\xF3n personalizada. Si me pueden marcar por favor",
+      currentMessage: "Me gustar\uFFFDa una atenci\uFFFDn personalizada. Si me pueden marcar por favor",
       buildClosing: mockClosing
     });
     assert2.ok(/4008|4671/.test(callReply), callReply.slice(0, 400));
@@ -145365,29 +145446,29 @@ ${CATALOG_OFFER_QUESTION}`
       currentMessage: "Gracias",
       buildClosing: mockClosing
     });
-    assert2.ok(/asesor|n[u√∫]meros|atender/i.test(callPost), callPost);
+    assert2.ok(/asesor|n[u˙]meros|atender/i.test(callPost), callPost);
     assert2.ok(!/ya tengo todo/i.test(callPost), callPost);
-    const briefConDj = alejandraBrief + " Adicionalmente dos escenarios: con DJ e iluminaci\xF3n, y sin DJ ni iluminaci\xF3n. Precio para distribuidor.";
+    const briefConDj = alejandraBrief + " Adicionalmente dos escenarios: con DJ e iluminaci\uFFFDn, y sin DJ ni iluminaci\uFFFDn. Precio para distribuidor.";
     const postRfq = applyLucyMessageGuards({
-      aiResponse: "S\xED, manejamos *Parrillada Argentina \u2014 Premium*. *Precio:* $930.00 /pp (m\xEDn. $27,900.00)",
+      aiResponse: "S\uFFFD, manejamos *Parrillada Argentina \uFFFD Premium*. *Precio:* $930.00 /pp (m\uFFFDn. $27,900.00)",
       extracted: emptyExtracted({
-        nombre: "Alejandra Vel\xE1zquez",
+        nombre: "Alejandra Vel\uFFFDzquez",
         correo: "alejandra@puntodeimagen.mx",
         tipo_evento: "evento corporativo",
-        requerimientos_evento: "Mobiliario, Meseros, Parrillada, Men\xFA Casual",
-        direccion_evento: "Santa Fe, Ciudad de M\xE9xico",
+        requerimientos_evento: "Mobiliario, Meseros, Parrillada, Men\uFFFD Casual",
+        direccion_evento: "Santa Fe, Ciudad de M\uFFFDxico",
         fecha_horario: "15 de agosto, 5:00 p.m.",
         num_invitados: 200,
         presupuesto: "Sin definir"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento",
+        "Lugar/direcci\uFFFDn del evento",
         "Fecha y horario",
-        "N\xFAmero de invitados",
+        "N\uFFFDmero de invitados",
         "Presupuesto (MXN)"
       ]),
       readyForClosing: true,
@@ -145398,9 +145479,9 @@ ${CATALOG_OFFER_QUESTION}`
       buildClosing: mockClosing
     });
     assert2.ok(!/\$\s*930/i.test(postRfq), postRfq.slice(0, 500));
-    assert2.ok(!/Premium.*\/pp|m√≠n\./i.test(postRfq), postRfq.slice(0, 500));
-    assert2.ok(/parrillada|men[u√∫]|meseros|mobiliario|dj|iluminaci/i.test(postRfq), postRfq.slice(0, 700));
-    assert2.ok(postRfq.includes(CATALOG_URL2) || /cat[a√°]logo/i.test(postRfq), postRfq.slice(0, 700));
+    assert2.ok(!/Premium.*\/pp|mÌn\./i.test(postRfq), postRfq.slice(0, 500));
+    assert2.ok(/parrillada|men[u˙]|meseros|mobiliario|dj|iluminaci/i.test(postRfq), postRfq.slice(0, 700));
+    assert2.ok(postRfq.includes(CATALOG_URL2) || /cat[a·]logo/i.test(postRfq), postRfq.slice(0, 700));
     assert2.ok(/mayoreo|distribuidor|equipo/i.test(postRfq), postRfq.slice(0, 700));
     const pkg = buildMultiServicePackageReply(
       ["Parrillada", "Meseros", "Mobiliario"],
@@ -145419,28 +145500,28 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(/Alejandra/.test(buildPostCierreCallbackAck("Alejandra")));
     assert2.ok(/corporativo|15 de agosto|200/i.test(buildRichBriefAcknowledgment(alejandraBrief)));
   });
-  await test("71. N\xFAria A14894 \u2014 post-cierre No. Gracias no reinicia embudo", () => {
+  await test("71. N\uFFFDria A14894 \uFFFD post-cierre No. Gracias no reinicia embudo", () => {
     assert2.ok(clientDeclinesMoreServices("No. Gracias"));
     assert2.ok(clientDeclinesMoreServices("No, gracias"));
     assert2.ok(clientSaysThanks("No. Gracias"));
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "N\xFAmero de invitados",
-      "Lugar/direcci\xF3n del evento",
+      "N\uFFFDmero de invitados",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario",
       "Presupuesto (MXN)"
     ]);
     const reply = applyLucyMessageGuards({
-      aiResponse: "\xBFMe regalas tu correo para enviarte la cotizaci\xF3n?",
+      aiResponse: "\uFFFDMe regalas tu correo para enviarte la cotizaci\uFFFDn?",
       extracted: emptyExtracted({
-        nombre: "N\xFAria",
+        nombre: "N\uFFFDria",
         correo: "nuria@example.com",
         tipo_evento: "fiesta",
         requerimientos_evento: "Barra de pastas, Barra de pizzas",
-        direccion_evento: "Quer\xE9taro, El Marqu\xE9s",
+        direccion_evento: "Quer\uFFFDtaro, El Marqu\uFFFDs",
         fecha_horario: "Sin definir (pendiente)",
         num_invitados: 80,
         presupuesto: "Sin definir"
@@ -145455,12 +145536,12 @@ ${CATALOG_OFFER_QUESTION}`
     });
     assert2.ok(/con gusto|equipo/i.test(reply), reply);
     assert2.ok(!/correo|e-?mail/i.test(reply), `no debe pedir correo: ${reply}`);
-    assert2.ok(filled.has("Correo electr\xF3nico"));
+    assert2.ok(filled.has("Correo electr\uFFFDnico"));
   });
-  await test("72. N\xFAria A14894 \u2014 cotizaci\xF3n gen\xE9rica \u2260 requerimiento; toscana/pastas", () => {
-    assert2.ok(isGenericQuoteIntentRequerimiento("Quiero una cotizaci\xF3n"));
-    assert2.ok(!isValidRequerimientosValue("Quiero una cotizaci\xF3n"));
-    assert2.ok(!isValidRequerimientosValue("cotizaci\xF3n"));
+  await test("72. N\uFFFDria A14894 \uFFFD cotizaci\uFFFDn gen\uFFFDrica ? requerimiento; toscana/pastas", () => {
+    assert2.ok(isGenericQuoteIntentRequerimiento("Quiero una cotizaci\uFFFDn"));
+    assert2.ok(!isValidRequerimientosValue("Quiero una cotizaci\uFFFDn"));
+    assert2.ok(!isValidRequerimientosValue("cotizaci\uFFFDn"));
     assert2.equal(parseTipoEventoFromText("Fiesta toscana"), "fiesta");
     assert2.ok(clientMentionsItalianTheme("Fiesta toscana"));
     assert2.ok(!isValidRequerimientosValue("Fiesta toscana"));
@@ -145480,44 +145561,44 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(/pasta|pizza|italian|antipasti/i.test(italianFirst), italianFirst);
     const sanitized = sanitizeExtractedFromExternal({
       ...emptyExtracted(),
-      requerimientos_evento: "Quiero una cotizaci\xF3n",
-      nombre: "N\xFAria"
+      requerimientos_evento: "Quiero una cotizaci\uFFFDn",
+      nombre: "N\uFFFDria"
     });
     assert2.equal(sanitized.requerimientos_evento, null);
     const pending = getNextPendingField(
       emptyExtracted({
-        nombre: "N\xFAria",
+        nombre: "N\uFFFDria",
         correo: "nuria@example.com",
         tipo_evento: "fiesta",
-        requerimientos_evento: "Quiero una cotizaci\xF3n"
+        requerimientos_evento: "Quiero una cotizaci\uFFFDn"
       }),
-      /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"])
+      /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico", "Tipo de evento"])
     );
     assert2.equal(pending, "requerimientos");
   });
-  await test("73. N\xFAria A14894 \u2014 zona/fecha sin dobles + nombre tras correo", () => {
+  await test("73. N\uFFFDria A14894 \uFFFD zona/fecha sin dobles + nombre tras correo", () => {
     assert2.ok(/marqu/i.test(parseZonaFromText("El Marques") ?? ""));
-    assert2.ok(/quer/i.test(parseZonaFromText("Quer\xE9taro") ?? ""));
+    assert2.ok(/quer/i.test(parseZonaFromText("Quer\uFFFDtaro") ?? ""));
     assert2.equal(
-      mergeZonaDetail("Quer\xE9taro", "El Marqu\xE9s"),
-      "Quer\xE9taro, El Marqu\xE9s"
+      mergeZonaDetail("Quer\uFFFDtaro", "El Marqu\uFFFDs"),
+      "Quer\uFFFDtaro, El Marqu\uFFFDs"
     );
-    const filledZona = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"]);
+    const filledZona = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico", "Tipo de evento"]);
     const extractedZona = emptyExtracted({
-      nombre: "N\xFAria",
+      nombre: "N\uFFFDria",
       correo: "nuria@example.com",
       tipo_evento: "fiesta",
-      direccion_evento: "Quer\xE9taro"
+      direccion_evento: "Quer\uFFFDtaro"
     });
     const zonaGuard = runGuards({
-      aiResponse: "\xBFMe confirmas la colonia o sal\xF3n del evento?",
+      aiResponse: "\uFFFDMe confirmas la colonia o sal\uFFFDn del evento?",
       extracted: extractedZona,
       filledSet: filledZona,
       readyForClosing: false,
-      currentMessage: "Quer\xE9taro",
+      currentMessage: "Quer\uFFFDtaro",
       history: [
-        { role: "assistant", content: "\xBFEn qu\xE9 ciudad o zona ser\xEDa el evento?" },
-        { role: "user", content: "Quer\xE9taro" }
+        { role: "assistant", content: "\uFFFDEn qu\uFFFD ciudad o zona ser\uFFFDa el evento?" },
+        { role: "user", content: "Quer\uFFFDtaro" }
       ],
       buildClosing: mockClosing
     });
@@ -145526,29 +145607,29 @@ ${CATALOG_OFFER_QUESTION}`
       `no debe insistir zona: ${zonaGuard.slice(0, 220)}`
     );
     assert2.equal(FECHA_MAX_ASKS, 2);
-    assert2.ok(parseFechaFromText("todav\xEDa no la definimos"));
-    assert2.ok(parseFechaFromText("a\xFAn no tenemos fecha"));
+    assert2.ok(parseFechaFromText("todav\uFFFDa no la definimos"));
+    assert2.ok(parseFechaFromText("a\uFFFDn no tenemos fecha"));
     const emailTone = runGuards({
-      aiResponse: "N\xFAria. \xBFQu\xE9 tipo de celebraci\xF3n es?",
-      extracted: emptyExtracted({ nombre: "N\xFAria", correo: "nuria@example.com" }),
-      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico"]),
+      aiResponse: "N\uFFFDria. \uFFFDQu\uFFFD tipo de celebraci\uFFFDn es?",
+      extracted: emptyExtracted({ nombre: "N\uFFFDria", correo: "nuria@example.com" }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico"]),
       readyForClosing: false,
       currentMessage: "nuria@example.com",
-      history: [{ role: "assistant", content: "\xBFMe regalas tu correo?" }]
+      history: [{ role: "assistant", content: "\uFFFDMe regalas tu correo?" }]
     });
-    assert2.ok(/gracias por tu correo,\s*N√∫ria/i.test(emailTone), emailTone);
-    assert2.ok(!/N√∫ria\.\s*N√∫ria/i.test(emailTone), emailTone);
+    assert2.ok(/gracias por tu correo,\s*N˙ria/i.test(emailTone), emailTone);
+    assert2.ok(!/N˙ria\.\s*N˙ria/i.test(emailTone), emailTone);
     const vague = applyLucyMessageGuards({
-      aiResponse: "Perfecto, actualizo estos servicios en tu cotizaci\xF3n. \xBFAlgo m\xE1s?",
+      aiResponse: "Perfecto, actualizo estos servicios en tu cotizaci\uFFFDn. \uFFFDAlgo m\uFFFDs?",
       extracted: emptyExtracted({
-        nombre: "N\xFAria",
+        nombre: "N\uFFFDria",
         correo: "nuria@example.com",
         tipo_evento: "fiesta",
         requerimientos_evento: "Barra de pastas, Barra de pizzas"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios"
       ]),
@@ -145561,57 +145642,57 @@ ${CATALOG_OFFER_QUESTION}`
     });
     assert2.ok(/pasta/i.test(vague) && /pizza/i.test(vague), vague.slice(0, 400));
   });
-  await test("74. Anti-repetici\xF3n global \u2014 filtro outbound", () => {
+  await test("74. Anti-repetici\uFFFDn global \uFFFD filtro outbound", () => {
     assert2.equal(
       lucyTextOverlapRatio(
-        "\xBFMe confirmas la ciudad o colonia del evento?",
-        "\xBFMe confirmas la ciudad o colonia del evento?"
+        "\uFFFDMe confirmas la ciudad o colonia del evento?",
+        "\uFFFDMe confirmas la ciudad o colonia del evento?"
       ),
       1
     );
     assert2.ok(
       lucyTextOverlapRatio(
-        "Perfecto. Lo sumo a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?",
-        "Perfecto, N\xFAria. Lo sumo a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?"
+        "Perfecto. Lo sumo a tu cotizaci\uFFFDn. \uFFFDAlgo m\uFFFDs que quieras agregar?",
+        "Perfecto, N\uFFFDria. Lo sumo a tu cotizaci\uFFFDn. \uFFFDAlgo m\uFFFDs que quieras agregar?"
       ) >= 0.65
     );
     const dup = applyLucyGlobalAntiRepetition({
-      mensaje: "\xBFMe confirmas la ciudad o colonia del evento?",
+      mensaje: "\uFFFDMe confirmas la ciudad o colonia del evento?",
       history: [
         {
           role: "assistant",
-          content: "\xBFMe confirmas la ciudad o colonia del evento?"
+          content: "\uFFFDMe confirmas la ciudad o colonia del evento?"
         }
       ],
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
-      extracted: emptyExtracted({ nombre: "N\xFAria" })
+      extracted: emptyExtracted({ nombre: "N\uFFFDria" })
     });
     assert2.ok(dup.applied.length > 0, String(dup.applied));
     assert2.ok(
-      lucyTextOverlapRatio(dup.mensaje, "\xBFMe confirmas la ciudad o colonia del evento?") < 0.72 || !/ciudad o colonia/i.test(dup.mensaje),
+      lucyTextOverlapRatio(dup.mensaje, "\uFFFDMe confirmas la ciudad o colonia del evento?") < 0.72 || !/ciudad o colonia/i.test(dup.mensaje),
       dup.mensaje
     );
-    const thanks1 = "\xA1Con gusto, N\xFAria! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
+    const thanks1 = "\uFFFDCon gusto, N\uFFFDria! Nuestro equipo ya tiene tus datos para la cotizaci\uFFFDn. Si necesitas algo m\uFFFDs, aqu\uFFFD estamos.";
     const thanks2 = applyLucyGlobalAntiRepetition({
       mensaje: thanks1,
       history: [{ role: "assistant", content: thanks1 }],
       cierreYaEnviado: true,
-      clientName: "N\xFAria",
-      extracted: emptyExtracted({ nombre: "N\xFAria" })
+      clientName: "N\uFFFDria",
+      extracted: emptyExtracted({ nombre: "N\uFFFDria" })
     });
     assert2.ok(thanks2.applied.includes("postcierre-thanks-dedupe"), String(thanks2.applied));
     assert2.ok(/con gusto/i.test(thanks2.mensaje), thanks2.mensaje);
     assert2.ok(lucyTextOverlapRatio(thanks2.mensaje, thanks1) < 0.9, thanks2.mensaje);
     const algo = applyLucyGlobalAntiRepetition({
-      mensaje: "Perfecto. Lo sumo a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?",
+      mensaje: "Perfecto. Lo sumo a tu cotizaci\uFFFDn. \uFFFDAlgo m\uFFFDs que quieras agregar?",
       history: [
         {
           role: "assistant",
-          content: "Perfecto, N\xFAria. Lo sumo a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?"
+          content: "Perfecto, N\uFFFDria. Lo sumo a tu cotizaci\uFFFDn. \uFFFDAlgo m\uFFFDs que quieras agregar?"
         }
       ],
       cierreYaEnviado: true,
-      clientName: "N\xFAria"
+      clientName: "N\uFFFDria"
     });
     assert2.ok(
       algo.applied.includes("postcierre-algo-mas-dedupe") || algo.applied.includes("near-duplicate-postcierre"),
@@ -145619,9 +145700,9 @@ ${CATALOG_OFFER_QUESTION}`
     );
     assert2.ok(!ALGO_MAS_OR_EMPTY(algo.mensaje), algo.mensaje);
     const filledAsk = applyLucyGlobalAntiRepetition({
-      mensaje: "Genial. \xBFMe compartes tu correo para enviarte la info?",
-      history: [{ role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa?" }],
-      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico"]),
+      mensaje: "Genial. \uFFFDMe compartes tu correo para enviarte la info?",
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa?" }],
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico"]),
       extracted: emptyExtracted({ nombre: "Ana", correo: "ana@test.com" })
     });
     assert2.ok(
@@ -145632,14 +145713,14 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(/\?/.test(filledAsk.mensaje), filledAsk.mensaje);
     assert2.ok(!/^Perfecto[^.]*anotad[oa]\.?\s*$/i.test(filledAsk.mensaje.trim()), filledAsk.mensaje);
     const paraphrase = applyLucyGlobalAntiRepetition({
-      mensaje: "Perfecto, Nicole. \xBFQu\xE9 tipo de evento est\xE1s organizando?",
+      mensaje: "Perfecto, Nicole. \uFFFDQu\uFFFD tipo de evento est\uFFFDs organizando?",
       history: [
         {
           role: "assistant",
-          content: "Gracias por tu correo, Nicole. \xBFQu\xE9 tipo de evento est\xE1s planeando?"
+          content: "Gracias por tu correo, Nicole. \uFFFDQu\uFFFD tipo de evento est\uFFFDs planeando?"
         }
       ],
-      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico"]),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico"]),
       extracted: emptyExtracted({ nombre: "Nicole", correo: "n@test.com" }),
       clientName: "Nicole"
     });
@@ -145650,26 +145731,26 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(
       lucyTextOverlapRatio(
         paraphrase.mensaje,
-        "\xBFQu\xE9 tipo de evento est\xE1s planeando?"
+        "\uFFFDQu\uFFFD tipo de evento est\uFFFDs planeando?"
       ) < 0.9 || paraphrase.applied.includes("same-field-reask-ack"),
       paraphrase.mensaje
     );
     const catalog2 = applyLucyGlobalAntiRepetition({
-      mensaje: "Perfecto, veo que necesitas Comida y Pastas.\n\nTe dejo el cat\xE1logo general para que veas montajes, men\xFAs y opciones:\nhttps://bodasesor.com/catalogos\n\n\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?\n\n\xBFQu\xE9 tipo de evento es?",
+      mensaje: "Perfecto, veo que necesitas Comida y Pastas.\n\nTe dejo el cat\uFFFDlogo general para que veas montajes, men\uFFFDs y opciones:\nhttps://bodasesor.com/catalogos\n\n\uFFFDQuieres que te mande el cat\uFFFDlogo con m\uFFFDs detalle?\n\n\uFFFDQu\uFFFD tipo de evento es?",
       history: [
         {
           role: "assistant",
-          content: "Perfecto, veo que necesitas Comida y Pastas.\n\nTe dejo el cat\xE1logo general para que veas montajes, men\xFAs y opciones:\nhttps://bodasesor.com/catalogos\n\n\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?\n\n\xBFQu\xE9 tipo de evento es?"
+          content: "Perfecto, veo que necesitas Comida y Pastas.\n\nTe dejo el cat\uFFFDlogo general para que veas montajes, men\uFFFDs y opciones:\nhttps://bodasesor.com/catalogos\n\n\uFFFDQuieres que te mande el cat\uFFFDlogo con m\uFFFDs detalle?\n\n\uFFFDQu\uFFFD tipo de evento es?"
         }
       ],
-      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Requerimientos o servicios"]),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico", "Requerimientos o servicios"]),
       extracted: emptyExtracted({
         nombre: "Nicole",
         correo: "n@test.com",
         requerimientos_evento: "Comida, Pastas"
       }),
       clientName: "Nicole",
-      currentMessage: "cumplea\xF1os"
+      currentMessage: "cumplea\uFFFDos"
     });
     assert2.ok(
       catalog2.applied.includes("catalog-resend-dedupe") || !/bodasesor\.com\/catalogos/i.test(catalog2.mensaje),
@@ -145677,12 +145758,12 @@ ${CATALOG_OFFER_QUESTION}`
     );
     assert2.ok(!/bodasesor\.com\/catalogos/i.test(catalog2.mensaje), catalog2.mensaje.slice(0, 300));
     const broken = cleanupBrokenOutboundFragments(
-      "Hola, Nicole. con la cotizaci\xF3n. \xBFA qu\xE9 correo te env\xEDo la informaci\xF3n?"
+      "Hola, Nicole. con la cotizaci\uFFFDn. \uFFFDA qu\uFFFD correo te env\uFFFDo la informaci\uFFFDn?"
     );
     assert2.ok(!/\.\s+con la cotizaci/i.test(broken), broken);
     assert2.ok(/correo/i.test(broken), broken);
     const doublePerf = cleanupBrokenOutboundFragments(
-      "Perfecto, Nicole. Perfecto. Nicole, \xBFtienen d\xEDa u horario ya definido?"
+      "Perfecto, Nicole. Perfecto. Nicole, \uFFFDtienen d\uFFFDa u horario ya definido?"
     );
     assert2.ok(!/Perfecto\.\s*Nicole/i.test(doublePerf), doublePerf);
     assert2.equal(
@@ -145690,74 +145771,74 @@ ${CATALOG_OFFER_QUESTION}`
       1,
       doublePerf
     );
-    assert2.ok(/horario|fecha|d[i√≠]a/i.test(doublePerf), doublePerf);
+    assert2.ok(/horario|fecha|d[iÌ]a/i.test(doublePerf), doublePerf);
   });
-  await test("75. Mar\xEDa A14906 \u2014 salas\u2260invitados, Luxor\u2260zona, carpas con medidas", () => {
-    assert2.equal(parseInvitadosFromText("Ser\xEDan 4 salas"), null);
-    assert2.equal(parseInvitadosFromText("ser\xEDan 4 mesas"), null);
-    assert2.ok(parseInvitadosFromText("ser\xEDan 40 personas") === "40");
+  await test("75. Mar\uFFFDa A14906 \uFFFD salas?invitados, Luxor?zona, carpas con medidas", () => {
+    assert2.equal(parseInvitadosFromText("Ser\uFFFDan 4 salas"), null);
+    assert2.equal(parseInvitadosFromText("ser\uFFFDan 4 mesas"), null);
+    assert2.ok(parseInvitadosFromText("ser\uFFFDan 40 personas") === "40");
     assert2.ok(parseSalaProductFromText("cotizar la sala: Luxor Rosa")?.includes("Luxor"));
-    assert2.ok(parseSalaProductFromText("Ser\xEDan 4 salas")?.includes("4"));
+    assert2.ok(parseSalaProductFromText("Ser\uFFFDan 4 salas")?.includes("4"));
     assert2.ok(isLikelyProductNameNotLocation("Luxor Rosa"));
     assert2.ok(isLikelyProductNameNotLocation("sala: Luxor Rosa"));
     assert2.equal(isUsableDireccionEvento("Luxor Rosa"), false);
     assert2.equal(parseZonaFromText("sala: Luxor Rosa"), null);
     assert2.ok(isUsableDireccionEvento("Polanco, CDMX"));
     const services = parseServicesFromText(
-      "Hola, me interesa cotizar la sala: Luxor Rosa. Ser\xEDan 4 salas"
+      "Hola, me interesa cotizar la sala: Luxor Rosa. Ser\uFFFDan 4 salas"
     );
     assert2.ok(services.some((s6) => /sala|luxor/i.test(s6)), String(services));
-    assert2.ok(clientAsksServiceInfo("\xBFCuentan con carpas transparentes?"));
-    assert2.ok(clientMentionsCarpas("\xBFCuentan con carpas transparentes?"));
-    const carpasAck = buildGuardServiceAck("\xBFCuentan con carpas transparentes?");
-    assert2.ok(/s[i√≠]|contamos|manejamos/i.test(carpasAck), carpasAck);
+    assert2.ok(clientAsksServiceInfo("\uFFFDCuentan con carpas transparentes?"));
+    assert2.ok(clientMentionsCarpas("\uFFFDCuentan con carpas transparentes?"));
+    const carpasAck = buildGuardServiceAck("\uFFFDCuentan con carpas transparentes?");
+    assert2.ok(/s[iÌ]|contamos|manejamos/i.test(carpasAck), carpasAck);
     assert2.ok(/transparent/i.test(carpasAck), carpasAck);
     assert2.ok(/agreg|cotiz/i.test(carpasAck), carpasAck);
     assert2.ok(/medidas?/i.test(carpasAck), carpasAck);
-    assert2.ok(!/^¬°?claro!.{0,40}la anoto/i.test(carpasAck), carpasAck);
-    const carpasConsult = buildConsultativeNoPriceReply("\xBFCuentan con carpas transparentes?");
+    assert2.ok(!/^°?claro!.{0,40}la anoto/i.test(carpasAck), carpasAck);
+    const carpasConsult = buildConsultativeNoPriceReply("\uFFFDCuentan con carpas transparentes?");
     assert2.ok(carpasConsult && /transparent|medidas?/i.test(carpasConsult), carpasConsult ?? "");
     const carpasReply = runGuards({
-      aiResponse: "\xA1Claro! Carpas la anoto para tu cotizaci\xF3n.",
+      aiResponse: "\uFFFDClaro! Carpas la anoto para tu cotizaci\uFFFDn.",
       extracted: emptyExtracted({
         nombre: "Maria",
         correo: "maria.gomez@gopop.mx",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         requerimientos_evento: "Sala Luxor Rosa"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios"
       ]),
       readyForClosing: false,
       currentMessage: "Cuentan con carpas transparentes ?",
       history: [
-        { role: "assistant", content: "Gracias por tu correo, Maria. \xBFQu\xE9 tipo de evento es?" },
-        { role: "user", content: "Fiesta de cumplea\xF1os" }
+        { role: "assistant", content: "Gracias por tu correo, Maria. \uFFFDQu\uFFFD tipo de evento es?" },
+        { role: "user", content: "Fiesta de cumplea\uFFFDos" }
       ]
     });
-    assert2.ok(/s[i√≠]|contamos|manejamos|carpa/i.test(carpasReply), carpasReply.slice(0, 400));
+    assert2.ok(/s[iÌ]|contamos|manejamos|carpa/i.test(carpasReply), carpasReply.slice(0, 400));
     assert2.ok(/medidas?/i.test(carpasReply), carpasReply.slice(0, 400));
-    assert2.ok(!/la anoto para tu cotizaci[o√≥]n\.?\s*$/i.test(carpasReply.trim()), carpasReply);
+    assert2.ok(!/la anoto para tu cotizaci[oÛ]n\.?\s*$/i.test(carpasReply.trim()), carpasReply);
     const emailAgain = runGuards({
-      aiResponse: "Mucho gusto, Maria. Para mandarte la info, \xBFa qu\xE9 correo te lo env\xEDo?",
+      aiResponse: "Mucho gusto, Maria. Para mandarte la info, \uFFFDa qu\uFFFD correo te lo env\uFFFDo?",
       extracted: emptyExtracted({ nombre: "Maria" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       readyForClosing: false,
-      currentMessage: "Ser\xEDan 4 salas",
+      currentMessage: "Ser\uFFFDan 4 salas",
       history: [
         {
           role: "assistant",
-          content: "Con gusto te apoyo con la cotizaci\xF3n para el sal\xF3n Luxor Rosa. \xBFMe podr\xEDas proporcionar tu correo electr\xF3nico para enviarte la informaci\xF3n?"
+          content: "Con gusto te apoyo con la cotizaci\uFFFDn para el sal\uFFFDn Luxor Rosa. \uFFFDMe podr\uFFFDas proporcionar tu correo electr\uFFFDnico para enviarte la informaci\uFFFDn?"
         }
       ],
       whatsappDisplayName: "Maria"
     });
     assert2.ok(/sala|luxor|anoto/i.test(emailAgain), emailAgain.slice(0, 400));
     assert2.ok(
-      !/me podr[i√≠]as proporcionar tu correo electr[o√≥]nico/i.test(emailAgain),
+      !/me podr[iÌ]as proporcionar tu correo electr[oÛ]nico/i.test(emailAgain),
       emailAgain.slice(0, 400)
     );
     const clean = sanitizeExtractedFromExternal({
@@ -145768,25 +145849,25 @@ ${CATALOG_OFFER_QUESTION}`
     });
     assert2.equal(clean.direccion_evento, null);
     const carpasVsRfq = runGuards({
-      aiResponse: "Perfecto, veo que necesitas salas y carpas. Te dejo el cat\xE1logo.",
+      aiResponse: "Perfecto, veo que necesitas salas y carpas. Te dejo el cat\uFFFDlogo.",
       extracted: emptyExtracted({
         nombre: "Maria",
         correo: "maria@test.com",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         requerimientos_evento: "4 salas Luxor Rosa"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios"
       ]),
       readyForClosing: false,
-      currentMessage: "\xBFCuentan con carpas transparentes?",
+      currentMessage: "\uFFFDCuentan con carpas transparentes?",
       history: [
-        { role: "user", content: "sala: Luxor Rosa. Ser\xEDan 4 salas" },
-        { role: "assistant", content: "Perfecto, anoto 4 salas. \xBFQu\xE9 tipo de evento es?" },
-        { role: "user", content: "cumplea\xF1os" }
+        { role: "user", content: "sala: Luxor Rosa. Ser\uFFFDan 4 salas" },
+        { role: "assistant", content: "Perfecto, anoto 4 salas. \uFFFDQu\uFFFD tipo de evento es?" },
+        { role: "user", content: "cumplea\uFFFDos" }
       ]
     });
     assert2.ok(/transparent|contamos|manejamos/i.test(carpasVsRfq), carpasVsRfq.slice(0, 400));
@@ -145796,48 +145877,48 @@ ${CATALOG_OFFER_QUESTION}`
   await test("76. Nombre+apellido en CRM; Lucy saluda solo con nombre", () => {
     assert2.equal(sanitizeCrmNombre("Patricia Campos"), "Patricia Campos");
     assert2.equal(sanitizeDisplayName("Patricia Campos"), "Patricia");
-    assert2.equal(sanitizeCrmNombre("Mar\xEDa Jos\xE9 P\xE9rez Garc\xEDa"), "Mar\xEDa Jos\xE9 P\xE9rez Garc\xEDa");
-    assert2.equal(sanitizeDisplayName("Mar\xEDa Jos\xE9 P\xE9rez Garc\xEDa"), "Mar\xEDa");
-    assert2.ok(looksLikePersonFullName("Patricia Campos L\xF3pez"));
-    assert2.equal(isLikelyNotPersonNameMessage("Patricia Campos L\xF3pez"), false);
-    assert2.equal(isLikelyNotPersonNameMessage("Mar\xEDa Jos\xE9 P\xE9rez Garc\xEDa"), false);
+    assert2.equal(sanitizeCrmNombre("Mar\uFFFDa Jos\uFFFD P\uFFFDrez Garc\uFFFDa"), "Mar\uFFFDa Jos\uFFFD P\uFFFDrez Garc\uFFFDa");
+    assert2.equal(sanitizeDisplayName("Mar\uFFFDa Jos\uFFFD P\uFFFDrez Garc\uFFFDa"), "Mar\uFFFDa");
+    assert2.ok(looksLikePersonFullName("Patricia Campos L\uFFFDpez"));
+    assert2.equal(isLikelyNotPersonNameMessage("Patricia Campos L\uFFFDpez"), false);
+    assert2.equal(isLikelyNotPersonNameMessage("Mar\uFFFDa Jos\uFFFD P\uFFFDrez Garc\uFFFDa"), false);
     const hist = [
       { role: "user", content: "Hola, quiero cotizar" },
-      { role: "assistant", content: "\xBFMe regalas tu nombre para iniciar?" },
+      { role: "assistant", content: "\uFFFDMe regalas tu nombre para iniciar?" },
       { role: "user", content: "Me llamo Patricia Campos" }
     ];
     assert2.equal(recoverClienteNombreFromHistory(hist), "Patricia Campos");
     assert2.equal(
       recoverClienteNombreFromHistory(
         [
-          { role: "assistant", content: "\xBFC\xF3mo te llamas?" }
+          { role: "assistant", content: "\uFFFDC\uFFFDmo te llamas?" }
         ],
-        "Elena Garc\xEDa L\xF3pez"
+        "Elena Garc\uFFFDa L\uFFFDpez"
       ),
-      "Elena Garc\xEDa L\xF3pez"
+      "Elena Garc\uFFFDa L\uFFFDpez"
     );
     assert2.equal(pickBetterNombre("Patricia Campos", "Patricia"), "Patricia Campos");
     assert2.equal(isNombreMoreComplete("Patricia Campos", "Patricia"), true);
     const captures = captureContextualAnswer(
-      [{ role: "assistant", content: "\xBFMe regalas tu nombre para iniciar?" }],
-      "Ver\xF3nica Camarillo",
+      [{ role: "assistant", content: "\uFFFDMe regalas tu nombre para iniciar?" }],
+      "Ver\uFFFDnica Camarillo",
       /* @__PURE__ */ new Set()
     );
     assert2.ok(
-      captures.some((c4) => c4.label === "Nombre del cliente" && c4.value === "Ver\xF3nica Camarillo"),
+      captures.some((c4) => c4.label === "Nombre del cliente" && c4.value === "Ver\uFFFDnica Camarillo"),
       JSON.stringify(captures)
     );
     const greet = buildCompanyIdentityReply("Patricia Campos");
-    assert2.ok(/¬øSeguimos, Patricia\?/.test(greet), greet);
+    assert2.ok(/øSeguimos, Patricia\?/.test(greet), greet);
     assert2.ok(!/Campos/.test(greet), greet);
     const thanks = buildPostCierreThanksReply("Patricia Campos");
-    assert2.ok(/¬°Con gusto, Patricia!/.test(thanks), thanks);
+    assert2.ok(/°Con gusto, Patricia!/.test(thanks), thanks);
     assert2.ok(!/Campos/.test(thanks), thanks);
     assert2.equal(parseNombreFromCrmLines(["- Nombre del cliente: Patricia Campos"]), "Patricia Campos");
   });
-  await test("77. Multi-nivel \u2014 markdown del cat\xE1logo incluye descripci\xF3n (Que Incluye)", () => {
+  await test("77. Multi-nivel \uFFFD markdown del cat\uFFFDlogo incluye descripci\uFFFDn (Que Incluye)", () => {
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Que Incluye"',
       '"Barra de bebidas","Basica","$150.00","$4,500.00","TRUE","Refrescos y aguas"',
       '"Barra de bebidas","Tradicional","$220.00","$6,600.00","TRUE","Refrescos, aguas y 2 licores"',
       '"Barra de bebidas","Premium","$320.00","$9,600.00","TRUE","Refrescos, aguas y 3 licores premium"'
@@ -145849,21 +145930,21 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(/Incluye:.*Refrescos y aguas/i.test(md), md);
     assert2.ok(/Incluye:.*2 licores/i.test(md), md);
     assert2.ok(/Incluye:.*3 licores premium/i.test(md), md);
-    assert2.ok(clientAsksInclusion("dame la descripci\xF3n de cada paquete"));
-    assert2.ok(clientAsksInclusion("qu\xE9 incluye cada nivel y el precio"));
+    assert2.ok(clientAsksInclusion("dame la descripci\uFFFDn de cada paquete"));
+    assert2.ok(clientAsksInclusion("qu\uFFFD incluye cada nivel y el precio"));
     assert2.ok(
       messageOffersLevelsWithoutInclusions(
-        "La barra viene en B\xE1sica $150, Tradicional $220 y Premium $320. \xBFCu\xE1l prefieres?"
+        "La barra viene en B\uFFFDsica $150, Tradicional $220 y Premium $320. \uFFFDCu\uFFFDl prefieres?"
       )
     );
     const withHint = resolveCatalogInclusionReply(
-      "qu\xE9 incluye cada nivel B\xE1sica Tradicional y Premium",
+      "qu\uFFFD incluye cada nivel B\uFFFDsica Tradicional y Premium",
       "Barra de bebidas"
     );
     assert2.ok(withHint && /Refrescos y aguas/i.test(withHint), withHint ?? "");
     assert2.ok(/2 licores/i.test(withHint), withHint);
     const guardIncl = runGuards({
-      aiResponse: "Listo. Ana, \xBFen qu\xE9 zona o sal\xF3n lo tendr\xEDan?",
+      aiResponse: "Listo. Ana, \uFFFDen qu\uFFFD zona o sal\uFFFDn lo tendr\uFFFDan?",
       extracted: emptyExtracted({
         nombre: "Ana",
         tipo_evento: "boda",
@@ -145871,12 +145952,12 @@ ${CATALOG_OFFER_QUESTION}`
       }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
       readyForClosing: false,
-      currentMessage: "qu\xE9 incluye cada nivel B\xE1sica Tradicional y Premium",
+      currentMessage: "qu\uFFFD incluye cada nivel B\uFFFDsica Tradicional y Premium",
       history: [
         { role: "user", content: "quiero barra de bebidas" },
-        { role: "assistant", content: "Perfecto. \xBFEn qu\xE9 ciudad ser\xE1 tu boda?" },
+        { role: "assistant", content: "Perfecto. \uFFFDEn qu\uFFFD ciudad ser\uFFFD tu boda?" },
         { role: "user", content: "quiero barra de bebidas" },
-        { role: "assistant", content: "Con gusto. Ana, \xBFme confirmas la ciudad o colonia del evento?" }
+        { role: "assistant", content: "Con gusto. Ana, \uFFFDme confirmas la ciudad o colonia del evento?" }
       ]
     });
     assert2.ok(/incluye/i.test(guardIncl), guardIncl.slice(0, 500));
@@ -145884,9 +145965,9 @@ ${CATALOG_OFFER_QUESTION}`
     const anti = applyLucyGlobalAntiRepetition({
       mensaje: `${guardIncl}
 
-El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https://bodasesor.com/catalogos/barra-de-bebidas`,
+El detalle completo de men\uFFFDs e inclusiones est\uFFFD en el cat\uFFFDlogo: https://bodasesor.com/catalogos/barra-de-bebidas`,
       history: [
-        { role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" },
+        { role: "assistant", content: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?" },
         { role: "user", content: "barra de bebidas" }
       ],
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
@@ -145900,20 +145981,20 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(!/Ya lo tengo anotado/i.test(anti.mensaje), anti.mensaje.slice(0, 300));
     assert2.ok(/incluye|bodasesor\.com\/catalogos/i.test(anti.mensaje), anti.mensaje.slice(0, 400));
     const csvEmptyIncl = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Que Incluye","Link catalogo"',
       '"Barra de bebidas","Basica","$150.00","$4,500.00","TRUE","","https://bodasesor.com/catalogos/barra-de-bebidas"',
       '"Barra de bebidas","Tradicional","$180.00","$5,400.00","TRUE","","https://bodasesor.com/catalogos/barra-de-bebidas"',
       '"Barra de bebidas","Premium","$200.00","$6,000.00","TRUE","","https://bodasesor.com/catalogos/barra-de-bebidas"'
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csvEmptyIncl));
     const emptyHint = resolveCatalogInclusionReply(
-      "qu\xE9 incluye cada nivel B\xE1sica Tradicional y Premium",
+      "qu\uFFFD incluye cada nivel B\uFFFDsica Tradicional y Premium",
       "Barra de bebidas"
     );
-    assert2.ok(emptyHint, "debe haber respuesta aunque Que Incluye est\xE9 vac\xEDo");
+    assert2.ok(emptyHint, "debe haber respuesta aunque Que Incluye est\uFFFD vac\uFFFDo");
     assert2.ok(/bodasesor\.com\/catalogos|Incluye:/i.test(emptyHint), emptyHint);
     const liveGuard = runGuards({
-      aiResponse: "\xBFCu\xE1l ser\xEDa la ubicaci\xF3n del evento? Necesito ciudad y colonia o sal\xF3n para cotizar bien.",
+      aiResponse: "\uFFFDCu\uFFFDl ser\uFFFDa la ubicaci\uFFFDn del evento? Necesito ciudad y colonia o sal\uFFFDn para cotizar bien.",
       extracted: emptyExtracted({
         nombre: "Ana",
         tipo_evento: "boda",
@@ -145921,18 +146002,18 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios"
       ]),
       readyForClosing: false,
-      currentMessage: "qu\xE9 incluye cada nivel B\xE1sica Tradicional y Premium",
+      currentMessage: "qu\uFFFD incluye cada nivel B\uFFFDsica Tradicional y Premium",
       history: [
-        { role: "assistant", content: "\xBFEn qu\xE9 ciudad ser\xE1 tu boda?" },
+        { role: "assistant", content: "\uFFFDEn qu\uFFFD ciudad ser\uFFFD tu boda?" },
         { role: "user", content: "barra de bebidas" },
         {
           role: "assistant",
-          content: "Para la barra manejamos tres niveles. El equipo confirma qu\xE9 incluye. \xBFCu\xE1l prefieres? \xBFEn qu\xE9 ciudad?"
+          content: "Para la barra manejamos tres niveles. El equipo confirma qu\uFFFD incluye. \uFFFDCu\uFFFDl prefieres? \uFFFDEn qu\uFFFD ciudad?"
         }
       ]
     });
@@ -145940,9 +146021,9 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       /bodasesor\.com\/catalogos|Incluye:|nivel/i.test(liveGuard),
       `no debe quedar solo zona: ${liveGuard.slice(0, 400)}`
     );
-    assert2.ok(!/^¬øCu√°l ser√≠a la ubicaci√≥n/i.test(liveGuard.trim()), liveGuard.slice(0, 200));
+    assert2.ok(!/^øCu·l serÌa la ubicaciÛn/i.test(liveGuard.trim()), liveGuard.slice(0, 200));
   });
-  await test("78. Liliana A14916 \u2014 form Sushi ofrece solo vs completo tras el nombre", () => {
+  await test("78. Liliana A14916 \uFFFD form Sushi ofrece solo vs completo tras el nombre", () => {
     assert2.ok(
       clientMentionsCatering("Hola, me interesa cotizar: Barra de Sushi y Poke Bowl para Eventos")
     );
@@ -145952,7 +146033,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(brief?.requerimientos_evento, "brief form corto debe capturar servicio");
     assert2.ok(/sushi/i.test(brief.requerimientos_evento), brief);
     const csvSushi = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Que Incluye","Link catalogo"',
       '"Barra de sushi","Solo Alimentos","$420.00","$8,400.00","TRUE","","https://bodasesor.com/catalogos/barra-de-sushi"',
       '"Barra de sushi","Basico","$800.00","$16,000.00","TRUE","","https://bodasesor.com/catalogos/barra-de-sushi"',
       '"Barra de sushi","Tradicional","$850.00","$17,000.00","TRUE","","https://bodasesor.com/catalogos/barra-de-sushi"',
@@ -145961,7 +146042,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csvSushi));
     const formMsg = "Hola, me interesa cotizar: Barra de Sushi y Poke Bowl para Eventos";
     const t1 = runGuards({
-      aiResponse: "\xBFC\xF3mo te llamas?",
+      aiResponse: "\uFFFDC\uFFFDmo te llamas?",
       extracted: emptyExtracted({ requerimientos_evento: "Barra de sushi" }),
       filledSet: /* @__PURE__ */ new Set(["Requerimientos o servicios"]),
       readyForClosing: false,
@@ -145972,7 +146053,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(/sushi|lucy/i.test(t1), t1.slice(0, 300));
     assert2.ok(/nombre|llam[oa]|gusto/i.test(t1), `T1 debe pedir nombre: ${t1.slice(0, 300)}`);
     const t22 = runGuards({
-      aiResponse: "Perfecto, Liliana. \xBFA qu\xE9 correo te env\xEDo la informaci\xF3n?",
+      aiResponse: "Perfecto, Liliana. \uFFFDA qu\uFFFD correo te env\uFFFDo la informaci\uFFFDn?",
       extracted: emptyExtracted({
         nombre: "Liliana",
         requerimientos_evento: "Barra de sushi"
@@ -145984,7 +146065,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         { role: "user", content: formMsg },
         {
           role: "assistant",
-          content: "Hola, soy Lucy, agente virtual de Bodasesor. Vi que te interesa cotizar Sushi.\n\n\xBFC\xF3mo te llamas?"
+          content: "Hola, soy Lucy, agente virtual de Bodasesor. Vi que te interesa cotizar Sushi.\n\n\uFFFDC\uFFFDmo te llamas?"
         }
       ]
     });
@@ -145992,7 +146073,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       /solo\s+alimentos/i.test(t22) && /servicio\s+completo/i.test(t22),
       `T2 solo vs completo: ${t22.slice(0, 500)}`
     );
-    assert2.ok(/cu[a√°]l te late/i.test(t22), `T2 pregunta modo: ${t22.slice(0, 400)}`);
+    assert2.ok(/cu[a·]l te late/i.test(t22), `T2 pregunta modo: ${t22.slice(0, 400)}`);
     assert2.ok(
       !/1\.\s*\*?Solo Alimentos[\s\S]*4\.\s*\*?Premium/i.test(t22),
       `T2 sin dump 4 niveles: ${t22.slice(0, 500)}`
@@ -146005,14 +146086,14 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       teaser?.slice(0, 500)
     );
   });
-  await test("79. Lorena A14918 \u2014 crepas: nombre\u2260pregunta, invitados ni\xF1os+adultos, post-cierre corto", () => {
+  await test("79. Lorena A14918 \uFFFD crepas: nombre?pregunta, invitados ni\uFFFDos+adultos, post-cierre corto", () => {
     assert2.ok(isLikelyNotPersonNameMessage("tienes crepas para eventos"));
     assert2.ok(isLikelyNotPersonNameMessage("Tienes Crepas Para Eventos"));
     assert2.equal(sanitizeCrmNombre("tienes crepas para eventos"), null);
     assert2.equal(sanitizeCrmNombre("Tienes Crepas Para Eventos"), null);
     assert2.ok(isServiceRelatedMessage("tienes crepas para eventos"));
-    assert2.equal(parseInvitadosFromText("es un evento de 8 ni\xF1os y 18 adultos"), "26");
-    assert2.equal(parseInvitadosFromText("18 adultos y 8 ni\xF1os"), "26");
+    assert2.equal(parseInvitadosFromText("es un evento de 8 ni\uFFFDos y 18 adultos"), "26");
+    assert2.equal(parseInvitadosFromText("18 adultos y 8 ni\uFFFDos"), "26");
     assert2.ok(isQuoteIntentMessage("Quiero hacer una cotizacion"));
     assert2.ok(!isValidRequerimientosValue("Quiero hacer una cotizacion"));
     assert2.ok(clientAddsToQuote("queremos helado, crepas y frutas en vasito"));
@@ -146020,25 +146101,25 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(services.some((s6) => /crepas/i.test(s6)), String(services));
     assert2.ok(services.some((s6) => /helado/i.test(s6)), String(services));
     const post = runGuards({
-      aiResponse: "Para *Barra de Crepas* manejamos estos niveles:\n1. *Basico* \u2014 $730",
+      aiResponse: "Para *Barra de Crepas* manejamos estos niveles:\n1. *Basico* \uFFFD $730",
       extracted: emptyExtracted({
         nombre: "Lorena",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         requerimientos_evento: "Crepas",
         correo: "lorsgro@gmail.com",
         direccion_evento: "CDMX Lomas de Chapultepec",
         fecha_horario: "2 de agosto comida",
         num_invitados: 26,
-        presupuesto: "Sin definir \u2014 proponer opciones"
+        presupuesto: "Sin definir \uFFFD proponer opciones"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento",
+        "Lugar/direcci\uFFFDn del evento",
         "Fecha y horario",
-        "N\xFAmero de invitados",
+        "N\uFFFDmero de invitados",
         "Presupuesto"
       ]),
       readyForClosing: true,
@@ -146047,14 +146128,14 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       history: [
         {
           role: "assistant",
-          content: "Perfecto, ya tengo todo. Voy a compartir esta informaci\xF3n con nuestro equipo para que te prepare una cotizaci\xF3n personalizada."
+          content: "Perfecto, ya tengo todo. Voy a compartir esta informaci\uFFFDn con nuestro equipo para que te prepare una cotizaci\uFFFDn personalizada."
         }
       ]
     });
     assert2.ok(/anoto|sume|helado|crepas|frutas/i.test(post), post.slice(0, 400));
     assert2.ok(!/manejamos estos niveles|\$730|\$280/i.test(post), post.slice(0, 400));
     const badName = runGuards({
-      aiResponse: "\xBFC\xF3mo te llamas?",
+      aiResponse: "\uFFFDC\uFFFDmo te llamas?",
       extracted: emptyExtracted(),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
@@ -146063,27 +146144,27 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         { role: "user", content: "Quiero hacer una cotizacion" },
         {
           role: "assistant",
-          content: "Hola, soy Lucy. \xBFC\xF3mo te llamas?"
+          content: "Hola, soy Lucy. \uFFFDC\uFFFDmo te llamas?"
         }
       ]
     });
     assert2.ok(!/mucho gusto,\s*tienes/i.test(badName), badName.slice(0, 300));
   });
-  await test("80. Karina A14920 \u2014 maestro de ceremonias/show manda cat\xE1logo (no 'Ya lo tengo anotado')", () => {
+  await test("80. Karina A14920 \uFFFD maestro de ceremonias/show manda cat\uFFFDlogo (no 'Ya lo tengo anotado')", () => {
     assert2.ok(clientMentionsEntertainment("estaba buscando maestro de ceremonias y un show"));
     assert2.ok(clientMentionsEntertainment("Disculpame, estaba buscando maestro de ceremonias y un show"));
-    const banqueteMenu = "Perfecto, Karina. Para tus XV a\xF1os, manejamos una variedad de servicios que pueden ser de inter\xE9s:\n\n\u2022 Banquete Formal 3 o 4 tiempos\n\u2022 Barra de bebidas\n\u2022 Mobiliario\n\u2022 DJ e iluminaci\xF3n\n\u2022 Pista de baile\n\n\xBFTe gustar\xEDa revisar alguno de estos servicios en particular?";
+    const banqueteMenu = "Perfecto, Karina. Para tus XV a\uFFFDos, manejamos una variedad de servicios que pueden ser de inter\uFFFDs:\n\n\uFFFD Banquete Formal 3 o 4 tiempos\n\uFFFD Barra de bebidas\n\uFFFD Mobiliario\n\uFFFD DJ e iluminaci\uFFFDn\n\uFFFD Pista de baile\n\n\uFFFDTe gustar\uFFFDa revisar alguno de estos servicios en particular?";
     const reply = runGuards({
       aiResponse: "Perfecto, Karina Fierro. Ya lo tengo anotado.",
       extracted: emptyExtracted({
         nombre: "Karina Fierro",
         correo: "fierro.karina.tr@gmail.com",
-        tipo_evento: "xv a\xF1os",
+        tipo_evento: "xv a\uFFFDos",
         requerimientos_evento: "Banquete Formal"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios"
       ]),
@@ -146102,7 +146183,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     );
     assert2.ok(
       /bodasesor\.com\/catalogos/i.test(reply),
-      `debe mandar link de cat\xE1logo: ${reply.slice(0, 500)}`
+      `debe mandar link de cat\uFFFDlogo: ${reply.slice(0, 500)}`
     );
     assert2.ok(!/Ya lo tengo anotado/i.test(reply), reply.slice(0, 300));
     const afterAnti = applyLucyGlobalAntiRepetition({
@@ -146110,14 +146191,14 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       history: [{ role: "assistant", content: banqueteMenu }],
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios"
       ]),
       extracted: emptyExtracted({
         nombre: "Karina Fierro",
         correo: "fierro.karina.tr@gmail.com",
-        tipo_evento: "xv a\xF1os",
+        tipo_evento: "xv a\uFFFDos",
         requerimientos_evento: "Banquete Formal"
       }),
       currentMessage: "Disculpame, estaba buscando maestro de ceremonias y un show",
@@ -146125,11 +146206,11 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     });
     assert2.ok(
       !afterAnti.applied.includes("services-menu-dedupe"),
-      `anti-repeat no debe dedupear men\xFA de entretenimiento: ${afterAnti.applied.join(",")}`
+      `anti-repeat no debe dedupear men\uFFFD de entretenimiento: ${afterAnti.applied.join(",")}`
     );
     assert2.ok(
       /bodasesor\.com\/catalogos/i.test(afterAnti.mensaje),
-      `cat\xE1logo debe sobrevivir anti-repeat: ${afterAnti.mensaje.slice(0, 500)}`
+      `cat\uFFFDlogo debe sobrevivir anti-repeat: ${afterAnti.mensaje.slice(0, 500)}`
     );
     assert2.ok(
       /maestro\s+de\s+ceremonias|shows?\s+en\s+vivo|hora\s+loca/i.test(afterAnti.mensaje),
@@ -146142,7 +146223,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     );
     assert2.ok(!/Servicios:\s*Buenas\s+tardes/i.test(resumen), resumen);
   });
-  await test("81. Nicole A14924 \u2014 nombre, quote\u2260servicio, un tipo ask, no re-dump, no reinicio", () => {
+  await test("81. Nicole A14924 \uFFFD nombre, quote?servicio, un tipo ask, no re-dump, no reinicio", () => {
     assert2.equal(sanitizeCrmNombre("Me llamo Nicole"), "Nicole");
     assert2.equal(sanitizeCrmNombre("Me llamo NIcole"), "Nicole");
     assert2.equal(sanitizeCrmNombre("Hola, Lucy"), null);
@@ -146158,7 +146239,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     );
     const brief = "Es un evento para 70 personas. La comida es de 2 a 3 pm. Quiero una barra de pizzas, pasta y ensaldas";
     const multi = runGuards({
-      aiResponse: "Perfecto, Nicole. \xBFQu\xE9 tipo de evento es?\n\nCu\xE9ntame, \xBFde qu\xE9 se trata el evento? Manejamos bodas, XV a\xF1os y cumplea\xF1os.",
+      aiResponse: "Perfecto, Nicole. \uFFFDQu\uFFFD tipo de evento es?\n\nCu\uFFFDntame, \uFFFDde qu\uFFFD se trata el evento? Manejamos bodas, XV a\uFFFDos y cumplea\uFFFDos.",
       extracted: emptyExtracted({
         nombre: "Nicole",
         correo: "lazarinnicole@gmail.com",
@@ -146168,22 +146249,22 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
-        "N\xFAmero de invitados",
+        "Correo electr\uFFFDnico",
+        "N\uFFFDmero de invitados",
         "Fecha y horario",
         "Requerimientos o servicios"
       ]),
       readyForClosing: false,
       currentMessage: brief,
       history: [
-        { role: "assistant", content: "Gracias por tu correo, Nicole. \xBFQu\xE9 tipo de evento est\xE1s planeando?" }
+        { role: "assistant", content: "Gracias por tu correo, Nicole. \uFFFDQu\uFFFD tipo de evento est\uFFFDs planeando?" }
       ]
     });
     assert2.ok(/bodasesor\.com\/catalogos|barra de pizzas|pastas/i.test(multi), multi.slice(0, 400));
-    const tipoBlocks = multi.split(/\n{2,}/).filter((b4) => /tipo de evento|de qu[e√©] se trata|qu[e√©] festejan/i.test(b4));
+    const tipoBlocks = multi.split(/\n{2,}/).filter((b4) => /tipo de evento|de qu[eÈ] se trata|qu[eÈ] festejan/i.test(b4));
     assert2.ok(
       tipoBlocks.length <= 1,
-      `solo un bloque de tipo: ${tipoBlocks.length} \u2014 ${multi.slice(0, 600)}`
+      `solo un bloque de tipo: ${tipoBlocks.length} \uFFFD ${multi.slice(0, 600)}`
     );
     const afterTipo = runGuards({
       aiResponse: "Perfecto, veo que necesitas Comida, Pastas y Barra de pizzas...",
@@ -146193,32 +146274,32 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         num_invitados: 70,
         fecha_horario: "2 a 3 pm",
         requerimientos_evento: "Barra de pizzas, Pastas, Comida",
-        tipo_evento: "cumplea\xF1os"
+        tipo_evento: "cumplea\uFFFDos"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
-        "N\xFAmero de invitados",
+        "Correo electr\uFFFDnico",
+        "N\uFFFDmero de invitados",
         "Fecha y horario",
         "Requerimientos o servicios",
         "Tipo de evento"
       ]),
       readyForClosing: false,
-      currentMessage: "cumplea\xF1os",
+      currentMessage: "cumplea\uFFFDos",
       history: [
         {
           role: "assistant",
-          content: "Perfecto, veo que necesitas Comida, Pastas y Barra de pizzas. Te cotizamos todo eso.\n\n" + buildPackageCatalogOfferBlock() + "\n\nPerfecto, Nicole. \xBFQu\xE9 tipo de evento es?"
+          content: "Perfecto, veo que necesitas Comida, Pastas y Barra de pizzas. Te cotizamos todo eso.\n\n" + buildPackageCatalogOfferBlock() + "\n\nPerfecto, Nicole. \uFFFDQu\uFFFD tipo de evento es?"
         },
         { role: "user", content: brief }
       ]
     });
     assert2.ok(
-      !/Te dejo el cat√°logo general/i.test(afterTipo),
-      `no re-dump cat\xE1logo en cumplea\xF1os: ${afterTipo.slice(0, 400)}`
+      !/Te dejo el cat·logo general/i.test(afterTipo),
+      `no re-dump cat\uFFFDlogo en cumplea\uFFFDos: ${afterTipo.slice(0, 400)}`
     );
     assert2.ok(
-      /ciudad|ubicaci|zona|sal[o√≥]n/i.test(afterTipo),
+      /ciudad|ubicaci|zona|sal[oÛ]n/i.test(afterTipo),
       `debe pedir zona tras tipo: ${afterTipo.slice(0, 400)}`
     );
     const noReinicio = runGuards({
@@ -146226,42 +146307,42 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       extracted: emptyExtracted({
         nombre: "Nicole",
         correo: "lazarinnicole@gmail.com",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         requerimientos_evento: "Barra de pizzas, Pastas",
         num_invitados: 70,
-        direccion_evento: "Ciudad de M\xE9xico"
+        direccion_evento: "Ciudad de M\uFFFDxico"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados"
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
-      currentMessage: "Ciudad de M\xE9xico",
+      currentMessage: "Ciudad de M\uFFFDxico",
       history: [],
       forceFirstPresentation: true
     });
     assert2.ok(
-      !/Hola,?\s*soy\s+Lucy/i.test(noReinicio) || /ubicaci|colonia|sal[o√≥]n|fecha|invitados|presupuesto/i.test(noReinicio),
+      !/Hola,?\s*soy\s+Lucy/i.test(noReinicio) || /ubicaci|colonia|sal[oÛ]n|fecha|invitados|presupuesto/i.test(noReinicio),
       `no reinicio puro: ${noReinicio.slice(0, 300)}`
     );
-    assert2.ok(!/c[o√≥]mo\s+te\s+llamas/i.test(noReinicio), noReinicio.slice(0, 300));
+    assert2.ok(!/c[oÛ]mo\s+te\s+llamas/i.test(noReinicio), noReinicio.slice(0, 300));
   });
-  await test("82. Khris A14883 \u2014 'en la cotizaci\xF3n' NO es ubicaci\xF3n", () => {
-    const brief = "Me gustar\xEDa solicitar una cotizaci\xF3n para una barra de carnes fr\xEDas y quesos. Favor de incluirlo en la cotizaci\xF3n. Gracias!";
+  await test("82. Khris A14883 \uFFFD 'en la cotizaci\uFFFDn' NO es ubicaci\uFFFDn", () => {
+    const brief = "Me gustar\uFFFDa solicitar una cotizaci\uFFFDn para una barra de carnes fr\uFFFDas y quesos. Favor de incluirlo en la cotizaci\uFFFDn. Gracias!";
     assert2.equal(parseZonaFromText(brief), null);
-    assert2.equal(parseZonaFromText("incluirlo en la cotizaci\xF3n"), null);
-    assert2.equal(parseZonaFromText("cotizaci\xF3n"), null);
-    assert2.equal(parseZonaFromText("la cotizaci\xF3n"), null);
-    assert2.ok(!isUsableDireccionEvento("cotizaci\xF3n"));
-    assert2.ok(!isUsableDireccionEvento("cotizaci\xF3n."));
-    assert2.ok(!isUsableDireccionEvento("la cotizaci\xF3n"));
-    assert2.ok(isUsableDireccionEvento("Cuauht\xE9moc, CDMX"));
+    assert2.equal(parseZonaFromText("incluirlo en la cotizaci\uFFFDn"), null);
+    assert2.equal(parseZonaFromText("cotizaci\uFFFDn"), null);
+    assert2.equal(parseZonaFromText("la cotizaci\uFFFDn"), null);
+    assert2.ok(!isUsableDireccionEvento("cotizaci\uFFFDn"));
+    assert2.ok(!isUsableDireccionEvento("cotizaci\uFFFDn."));
+    assert2.ok(!isUsableDireccionEvento("la cotizaci\uFFFDn"));
+    assert2.ok(isUsableDireccionEvento("Cuauht\uFFFDmoc, CDMX"));
     assert2.ok(isUsableDireccionEvento("Rio Guadalquivir 94, Cuauhtemoc, CDMX"));
     const extracted = emptyExtracted({
-      direccion_evento: "cotizaci\xF3n",
+      direccion_evento: "cotizaci\uFFFDn",
       requerimientos_evento: "Mesa de quesos, Meseros",
       num_invitados: 25
     });
@@ -146270,14 +146351,14 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     const resumen = buildResumenClienteLargo(
       emptyExtracted({
         nombre: "Khris",
-        direccion_evento: "cotizaci\xF3n",
+        direccion_evento: "cotizaci\uFFFDn",
         requerimientos_evento: "Mesa de quesos, Meseros"
       }),
-      ["- Nombre del cliente: Khris", "- Lugar/direcci\xF3n del evento: cotizaci\xF3n"],
+      ["- Nombre del cliente: Khris", "- Lugar/direcci\uFFFDn del evento: cotizaci\uFFFDn"],
       brief
     );
-    assert2.ok(!/Ubicaci[o√≥]n:\s*cotizaci/i.test(resumen), resumen);
-    assert2.ok(/ubicaci[o√≥]n/i.test(resumen) || /Completar:.*ubicaci/i.test(resumen), resumen);
+    assert2.ok(!/Ubicaci[oÛ]n:\s*cotizaci/i.test(resumen), resumen);
+    assert2.ok(/ubicaci[oÛ]n/i.test(resumen) || /Completar:.*ubicaci/i.test(resumen), resumen);
     const mid = runGuards({
       aiResponse: "Perfecto, ya tengo todo.",
       extracted: emptyExtracted({
@@ -146287,30 +146368,30 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         requerimientos_evento: "Mesa de quesos, Meseros",
         num_invitados: 25,
         fecha_horario: "Septiembre 1, 2026, tarde",
-        direccion_evento: "cotizaci\xF3n"
+        direccion_evento: "cotizaci\uFFFDn"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados",
+        "N\uFFFDmero de invitados",
         "Fecha y horario"
-        // Sin "Lugar/direcci√≥n" v√°lido en filledSet
+        // Sin "Lugar/direcciÛn" v·lido en filledSet
       ]),
       readyForClosing: false,
-      currentMessage: "La fecha ser\xEDa Septiembre 1, 2026. A\xFAn no tenemos horario definido pero ser\xE1 por la tarde",
+      currentMessage: "La fecha ser\uFFFDa Septiembre 1, 2026. A\uFFFDn no tenemos horario definido pero ser\uFFFD por la tarde",
       history: [
-        { role: "assistant", content: "Perfecto, Khris. \xBFTienen ya definida la fecha y horario del evento?" }
+        { role: "assistant", content: "Perfecto, Khris. \uFFFDTienen ya definida la fecha y horario del evento?" }
       ]
     });
     assert2.ok(
-      /ciudad|ubicaci|zona|sal[o√≥]n|direcci/i.test(mid),
-      `debe pedir ubicaci\xF3n, no cerrar: ${mid.slice(0, 400)}`
+      /ciudad|ubicaci|zona|sal[oÛ]n|direcci/i.test(mid),
+      `debe pedir ubicaci\uFFFDn, no cerrar: ${mid.slice(0, 400)}`
     );
     assert2.ok(!/ya tengo todo|preparen una cotizaci/i.test(mid), mid.slice(0, 300));
   });
-  await test("83. Jeny A14929 \u2014 Premium\u2260nombre, banquetes vagos, cat\xE1logo con URL, CRM upgrade", () => {
+  await test("83. Jeny A14929 \uFFFD Premium?nombre, banquetes vagos, cat\uFFFDlogo con URL, CRM upgrade", () => {
     assert2.equal(sanitizeCrmNombre("Premium"), null);
     assert2.equal(sanitizeDisplayName("Premium"), null);
     assert2.equal(sanitizeCrmNombre("Jeny"), "Jeny");
@@ -146318,22 +146399,22 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.equal(shouldUpdateName("Premium", "Jeny"), true);
     assert2.ok(
       isVagueFoodTerm(
-        "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. \xBFMe pueden dar informaci\xF3n?"
+        "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. \uFFFDMe pueden dar informaci\uFFFDn?"
       )
     );
     assert2.ok(isVagueFoodTerm("servicio de banquetes o catering"));
     const vagueReply = runGuards({
-      aiResponse: "Manejamos *Banquete Formal 3 tiempos* en varias opciones: banquete 3 tiempos, Bet\xFAn Cl\xE1sico, Cupcakes. \xBFCu\xE1l variante?",
+      aiResponse: "Manejamos *Banquete Formal 3 tiempos* en varias opciones: banquete 3 tiempos, Bet\uFFFDn Cl\uFFFDsico, Cupcakes. \uFFFDCu\uFFFDl variante?",
       extracted: emptyExtracted({}),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
-      currentMessage: "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. \xBFMe pueden dar informaci\xF3n?",
+      currentMessage: "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. \uFFFDMe pueden dar informaci\uFFFDn?",
       history: [],
       forceFirstPresentation: true
     });
     assert2.ok(/Lucy|Bodasesor/i.test(vagueReply), vagueReply.slice(0, 200));
     assert2.ok(
-      !/Bet√∫n|Cupcakes|Paletas de hielo/i.test(vagueReply),
+      !/Bet˙n|Cupcakes|Paletas de hielo/i.test(vagueReply),
       `no debe dump postres: ${vagueReply.slice(0, 400)}`
     );
     assert2.ok(
@@ -146343,19 +146424,19 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(/nombre|llamas/i.test(vagueReply), vagueReply.slice(0, 200));
     assert2.ok(clientAsksForCatalog("Puedes mandarme el catalogo por favor"));
     assert2.ok(
-      clientAffirmsCatalogOffer("Si", "\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?")
+      clientAffirmsCatalogOffer("Si", "\uFFFDQuieres que te mande el cat\uFFFDlogo con m\uFFFDs detalle?")
     );
     const catalogReply = runGuards({
-      aiResponse: "Claro, aqu\xED tienes el enlace al cat\xE1logo completo para que revises las opciones:",
+      aiResponse: "Claro, aqu\uFFFD tienes el enlace al cat\uFFFDlogo completo para que revises las opciones:",
       extracted: emptyExtracted({
         nombre: "Jeny",
-        requerimientos_evento: "Banquete Formal, Mobiliario, DJ, Iluminaci\xF3n"
+        requerimientos_evento: "Banquete Formal, Mobiliario, DJ, Iluminaci\uFFFDn"
       }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
       readyForClosing: false,
       currentMessage: "Puedes mandarme el catalogo por favor",
       history: [
-        { role: "assistant", content: "Te dejo el cat\xE1logo general para que veas montajes." }
+        { role: "assistant", content: "Te dejo el cat\uFFFDlogo general para que veas montajes." }
       ],
       whatsappDisplayName: "Premium"
     });
@@ -146364,7 +146445,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       `debe incluir URL: ${catalogReply.slice(0, 400)}`
     );
     const noFakePremium = runGuards({
-      aiResponse: "Genial, Jeny. El banquete Premium incluye un servicio completo con platillos de alta calidad. \xBFA qu\xE9 correo te puedo enviar la informaci\xF3n?",
+      aiResponse: "Genial, Jeny. El banquete Premium incluye un servicio completo con platillos de alta calidad. \uFFFDA qu\uFFFD correo te puedo enviar la informaci\uFFFDn?",
       extracted: emptyExtracted({ nombre: "Jeny" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       readyForClosing: false,
@@ -146372,7 +146453,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       history: [
         {
           role: "assistant",
-          content: "\xBFCu\xE1l variante y nivel prefieres? \xBFC\xF3mo te llamas?"
+          content: "\uFFFDCu\uFFFDl variante y nivel prefieres? \uFFFDC\uFFFDmo te llamas?"
         }
       ],
       whatsappDisplayName: "Premium"
@@ -146391,7 +146472,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     applyCapturesToCrm(merged, filled, [
       {
         label: "Requerimientos o servicios",
-        value: "banquete, mobiliario, DJ, iluminaci\xF3n"
+        value: "banquete, mobiliario, DJ, iluminaci\uFFFDn"
       },
       { label: "Presupuesto (MXN)", value: "100000" }
     ]);
@@ -146416,24 +146497,24 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       }),
       [
         "- Nombre del cliente: Jeny",
-        "- Correo electr\xF3nico: Jennymujica450@gmail.com",
+        "- Correo electr\uFFFDnico: Jennymujica450@gmail.com",
         "- Tipo de evento: boda",
         "- Requerimientos o servicios: servicio de banquetes o catering",
-        "- N\xFAmero de invitados: 150",
+        "- N\uFFFDmero de invitados: 150",
         "- Fecha y horario: 20 de noviembre del 2027",
-        "- Lugar/direcci\xF3n del evento: Calle tepetenco manzana 16 lote 5 san lorenzo parte alta chimalhuacan estado de mexico 56340",
+        "- Lugar/direcci\uFFFDn del evento: Calle tepetenco manzana 16 lote 5 san lorenzo parte alta chimalhuacan estado de mexico 56340",
         "- Presupuesto (MXN): 50000"
       ],
-      "Con banquete, catering, mobiliario, dj,iluminaci\xF3n para 150 personas, me presupuesto entonces seria de 100,000"
+      "Con banquete, catering, mobiliario, dj,iluminaci\uFFFDn para 150 personas, me presupuesto entonces seria de 100,000"
     );
     assert2.ok(/Mobiliario|DJ|Iluminaci|Banquete/i.test(resumen), resumen);
     assert2.ok(/100000|100,000/i.test(resumen), resumen);
     assert2.ok(/Nombre:\s*Jeny/i.test(resumen), resumen);
     assert2.ok(!/Nombre:\s*Premium/i.test(resumen), resumen);
   });
-  await test("84. Paola A14932 \u2014 qu\xE9 incluye cada cosa manda cat\xE1logo (no solo 'equipo confirma')", () => {
+  await test("84. Paola A14932 \uFFFD qu\uFFFD incluye cada cosa manda cat\uFFFDlogo (no solo 'equipo confirma')", () => {
     assert2.ok(clientAsksInclusion("Que incluye cada cosa?"));
-    assert2.ok(clientAsksInclusion("qu\xE9 incluye cada cosa"));
+    assert2.ok(clientAsksInclusion("qu\uFFFD incluye cada cosa"));
     assert2.equal(
       clientMentionsItalianTheme("Hola, me interesa cotizar: Barra de Pastas y Ensaladas para Eventos"),
       false
@@ -146445,35 +146526,35 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     );
     const placeholderLevels = `Para *Barra de pastas* manejamos estos niveles:
 
-1. *Basico* \u2014 $780.00 /pp
-   Incluye: el equipo lo confirma en la cotizaci\xF3n.
-2. *Tradicional* \u2014 $830.00 /pp
-   Incluye: el equipo lo confirma en la cotizaci\xF3n.
-3. *Premium* \u2014 $880.00 /pp
-   Incluye: el equipo lo confirma en la cotizaci\xF3n.
+1. *Basico* \uFFFD $780.00 /pp
+   Incluye: el equipo lo confirma en la cotizaci\uFFFDn.
+2. *Tradicional* \uFFFD $830.00 /pp
+   Incluye: el equipo lo confirma en la cotizaci\uFFFDn.
+3. *Premium* \uFFFD $880.00 /pp
+   Incluye: el equipo lo confirma en la cotizaci\uFFFDn.
 
-\xBFCu\xE1l nivel prefieres? El detalle exacto de inclusiones te lo confirma el equipo en la cotizaci\xF3n.`;
+\uFFFDCu\uFFFDl nivel prefieres? El detalle exacto de inclusiones te lo confirma el equipo en la cotizaci\uFFFDn.`;
     assert2.ok(
       messageOffersLevelsWithoutInclusions(placeholderLevels),
-      "placeholder 'equipo confirma' no cuenta como inclusi\xF3n real"
+      "placeholder 'equipo confirma' no cuenta como inclusi\uFFFDn real"
     );
     const inclReply = resolveCatalogInclusionReply(
       "Que incluye cada cosa?",
       "Barra de pastas y ensaladas"
     );
-    assert2.ok(inclReply, "debe responder inclusiones/cat\xE1logo");
+    assert2.ok(inclReply, "debe responder inclusiones/cat\uFFFDlogo");
     assert2.ok(
       /bodasesor\.com\/catalogos/i.test(inclReply),
-      `debe incluir URL de cat\xE1logo: ${inclReply}`
+      `debe incluir URL de cat\uFFFDlogo: ${inclReply}`
     );
     assert2.ok(
-      !/^El detalle exacto de lo que incluye\b.*equipo en la cotizaci√≥n\.?\s*$/i.test(
+      !/^El detalle exacto de lo que incluye\b.*equipo en la cotizaciÛn\.?\s*$/i.test(
         inclReply.replace(/\n/g, " ")
       ),
       `no debe ser solo 'equipo confirma' sin link: ${inclReply}`
     );
     const guard = runGuards({
-      aiResponse: "El detalle exacto te lo confirma el equipo. \xBFTe la preparo?",
+      aiResponse: "El detalle exacto te lo confirma el equipo. \uFFFDTe la preparo?",
       extracted: emptyExtracted({
         nombre: "Paola",
         requerimientos_evento: "Barra de pastas y ensaladas"
@@ -146484,16 +146565,16 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       history: [
         {
           role: "assistant",
-          content: placeholderLevels + "\n\n\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?\n\n\xBFA qu\xE9 correo te lo env\xEDo?"
+          content: placeholderLevels + "\n\n\uFFFDQuieres que te mande el cat\uFFFDlogo con m\uFFFDs detalle?\n\n\uFFFDA qu\uFFFD correo te lo env\uFFFDo?"
         }
       ],
       whatsappDisplayName: "Paola Ovalles"
     });
     assert2.ok(
       /bodasesor\.com\/catalogos/i.test(guard),
-      `guard debe mandar cat\xE1logo: ${guard.slice(0, 500)}`
+      `guard debe mandar cat\uFFFDlogo: ${guard.slice(0, 500)}`
     );
-    assert2.ok(!/Bet√∫n|Cupcakes/i.test(guard), guard.slice(0, 300));
+    assert2.ok(!/Bet˙n|Cupcakes/i.test(guard), guard.slice(0, 300));
     const team = buildInclusionTeamConfirmationAnswer("Barra de pastas");
     if (team) {
       assert2.ok(
@@ -146502,32 +146583,32 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       );
     }
   });
-  await test("85. Anylam A14933 \u2014 precio\u2260nombre, horario\u2260presupuesto, responde costo periqueras", () => {
-    const priceQ = "Cu\xE1nto cuesta la renta de mesas periqueras para 10 personas";
+  await test("85. Anylam A14933 \uFFFD precio?nombre, horario?presupuesto, responde costo periqueras", () => {
+    const priceQ = "Cu\uFFFDnto cuesta la renta de mesas periqueras para 10 personas";
     assert2.ok(isLikelyNotPersonNameMessage(priceQ));
     assert2.equal(sanitizeCrmNombre(priceQ), null);
-    assert2.equal(sanitizeCrmNombre("Cu\xE1nto Cuesta La Renta"), null);
-    assert2.equal(shouldUpdateName("Cu\xE1nto Cuesta La Renta", "Anylam"), true);
+    assert2.equal(sanitizeCrmNombre("Cu\uFFFDnto Cuesta La Renta"), null);
+    assert2.equal(shouldUpdateName("Cu\uFFFDnto Cuesta La Renta", "Anylam"), true);
     assert2.ok(clientAsksPrice(priceQ));
     assert2.ok(mentionsNoListedPriceService(priceQ));
-    assert2.equal(parsePresupuestoFromText("Si este s\xE1bado de 3 a 12"), null);
-    assert2.ok(parseFechaFromText("Si este s\xE1bado de 3 a 12"));
+    assert2.equal(parsePresupuestoFromText("Si este s\uFFFDbado de 3 a 12"), null);
+    assert2.ok(parseFechaFromText("Si este s\uFFFDbado de 3 a 12"));
     const recovered = recoverClienteNombreFromHistory(
-      [{ role: "assistant", content: "\xBFC\xF3mo te llamas?" }],
+      [{ role: "assistant", content: "\uFFFDC\uFFFDmo te llamas?" }],
       priceQ
     );
     assert2.equal(recovered, null);
     const consult = buildConsultativeNoPriceReply(priceQ);
     assert2.ok(consult && /periqueras?/i.test(consult), consult ?? "");
     const priceGuard = runGuards({
-      aiResponse: "Lo anoto (mesa y sillas). Tambi\xE9n manteler\xEDa. \xBFA qu\xE9 correo te lo env\xEDo?",
+      aiResponse: "Lo anoto (mesa y sillas). Tambi\uFFFDn manteler\uFFFDa. \uFFFDA qu\uFFFD correo te lo env\uFFFDo?",
       extracted: emptyExtracted({ nombre: null }),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
       currentMessage: priceQ,
       history: [
-        { role: "user", content: "Hola, me gustar\xEDa cotizar salas o periqueras para mi evento." },
-        { role: "assistant", content: "Hola, soy Lucy. \xBFC\xF3mo te llamas?" }
+        { role: "user", content: "Hola, me gustar\uFFFDa cotizar salas o periqueras para mi evento." },
+        { role: "assistant", content: "Hola, soy Lucy. \uFFFDC\uFFFDmo te llamas?" }
       ],
       whatsappDisplayName: "Anylam"
     });
@@ -146536,21 +146617,21 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       `debe responder precio/consultivo: ${priceGuard.slice(0, 400)}`
     );
     assert2.ok(
-      !/manteler[i√≠]a|mesa de postres/i.test(priceGuard),
-      `no upsell manteler\xEDa ante pregunta de precio: ${priceGuard.slice(0, 400)}`
+      !/manteler[iÌ]a|mesa de postres/i.test(priceGuard),
+      `no upsell manteler\uFFFDa ante pregunta de precio: ${priceGuard.slice(0, 400)}`
     );
     assert2.ok(
-      !/Cu[a√°]nto Cuesta|Nombre.*Renta/i.test(priceGuard),
+      !/Cu[a·]nto Cuesta|Nombre.*Renta/i.test(priceGuard),
       priceGuard.slice(0, 200)
     );
     const opening = buildOpeningAcknowledgment(
       [],
-      "Hola, me gustar\xEDa cotizar salas o periqueras para mi evento."
+      "Hola, me gustar\uFFFDa cotizar salas o periqueras para mi evento."
     );
     assert2.ok(/periqueras?|mobiliario|salas/i.test(opening), opening);
   });
-  await test("86. Brenda A14934 \u2014 Barra Yucateca, nivel+correo, 40 invitados sin Sigo aqu\xED", () => {
-    const lead = 'Hola, me interesa cotizar "Barra Yucateca" en Ciudad de M\xE9xico para mi evento.';
+  await test("86. Brenda A14934 \uFFFD Barra Yucateca, nivel+correo, 40 invitados sin Sigo aqu\uFFFD", () => {
+    const lead = 'Hola, me interesa cotizar "Barra Yucateca" en Ciudad de M\uFFFDxico para mi evento.';
     const brief = parseWebLeadBrief(lead);
     assert2.ok(brief, "debe parsear lead web sin dos puntos");
     assert2.ok(
@@ -146558,7 +146639,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       String(brief?.requerimientos_evento)
     );
     assert2.ok(
-      /m[e√©]xico|cdmx/i.test(brief.direccion_evento ?? ""),
+      /m[eÈ]xico|cdmx/i.test(brief.direccion_evento ?? ""),
       String(brief?.direccion_evento)
     );
     assert2.ok(parseServicesFromText(lead).includes("Barra Yucateca"));
@@ -146566,7 +146647,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(/Barra Yucateca/i.test(opening), opening);
     assert2.ok(!/Vi los datos de tu evento/i.test(opening), opening);
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Que Incluye"',
       '"Barra Yucateca","Basico","$350.00","$5,000.00","TRUE","Cochinita, panuchos"',
       '"Barra Yucateca","Tradicional","$450.00","$6,500.00","TRUE","Cochinita, panuchos, sopa de lima"',
       '"Barra Americana","Basico","$300.00","$4,500.00","TRUE","Hamburguesas"',
@@ -146582,47 +146663,47 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       `no dump de otras barras: ${yucDetail.slice(0, 300)}`
     );
     assert2.ok(/nivel|Basico|Tradicional/i.test(yucDetail), yucDetail.slice(0, 300));
-    const nivelAsk = "Manejamos *Barra Yucateca* en varias opciones. Niveles disponibles: *Basico*, *Tradicional*. \xBFCu\xE1l variante y nivel prefieres?\n\n\xBFa qu\xE9 correo te lo env\xEDo?";
-    const compound = "beom93@gmail.com\nBarra yucateca\nNivel b\xE1sico";
+    const nivelAsk = "Manejamos *Barra Yucateca* en varias opciones. Niveles disponibles: *Basico*, *Tradicional*. \uFFFDCu\uFFFDl variante y nivel prefieres?\n\n\uFFFDa qu\uFFFD correo te lo env\uFFFDo?";
+    const compound = "beom93@gmail.com\nBarra yucateca\nNivel b\uFFFDsico";
     assert2.equal(extractCatalogNivelFromText(compound), "basica");
     assert2.ok(isCatalogLevelSelection(compound, nivelAsk));
     const nivelGuard = runGuards({
-      aiResponse: "Perfecto. \xBFQu\xE9 tipo de evento es?",
+      aiResponse: "Perfecto. \uFFFDQu\uFFFD tipo de evento es?",
       extracted: emptyExtracted({
         nombre: "Brenda Orozco",
         requerimientos_evento: "Barra Yucateca",
-        direccion_evento: "Ciudad de M\xE9xico"
+        direccion_evento: "Ciudad de M\uFFFDxico"
       }),
-      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios", "Lugar/direcci\xF3n del evento"]),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios", "Lugar/direcci\uFFFDn del evento"]),
       readyForClosing: false,
       currentMessage: compound,
       history: [
         { role: "user", content: lead },
-        { role: "assistant", content: "\xBFC\xF3mo te llamas?" },
+        { role: "assistant", content: "\uFFFDC\uFFFDmo te llamas?" },
         { role: "user", content: "Brenda Orozco" },
         { role: "assistant", content: nivelAsk }
       ],
       whatsappDisplayName: "Brenda Orozco"
     });
-    assert2.ok(/b[a√°]sic/i.test(nivelGuard), `debe anotar nivel: ${nivelGuard.slice(0, 400)}`);
+    assert2.ok(/b[a·]sic/i.test(nivelGuard), `debe anotar nivel: ${nivelGuard.slice(0, 400)}`);
     assert2.ok(
       /correo|tipo de evento|festejan|celebr/i.test(nivelGuard),
       `debe seguir embudo: ${nivelGuard.slice(0, 400)}`
     );
     const anti = applyLucyGlobalAntiRepetition({
-      mensaje: "Excelente. \xBFCu\xE1ntos invitados asistir\xE1n a la boda civil?",
+      mensaje: "Excelente. \uFFFDCu\uFFFDntos invitados asistir\uFFFDn a la boda civil?",
       history: [
         {
           role: "assistant",
-          content: "Excelente, Brenda. \xBFCu\xE1ntos invitados asistir\xE1n a la boda civil?"
+          content: "Excelente, Brenda. \uFFFDCu\uFFFDntos invitados asistir\uFFFDn a la boda civil?"
         }
       ],
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento",
+        "Lugar/direcci\uFFFDn del evento",
         "Fecha y horario"
       ]),
       extracted: emptyExtracted({
@@ -146630,7 +146711,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         correo: "beom93@gmail.com",
         tipo_evento: "boda",
         requerimientos_evento: "Barra Yucateca",
-        direccion_evento: "Ciudad de M\xE9xico",
+        direccion_evento: "Ciudad de M\uFFFDxico",
         fecha_horario: "03 de agosto 12:30",
         num_invitados: null
       }),
@@ -146638,15 +146719,15 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       clientName: "Brenda Orozco"
     });
     assert2.ok(
-      !/Sigo aqu[i√≠]/i.test(anti.mensaje),
-      `no debe decir Sigo aqu\xED: ${anti.mensaje}`
+      !/Sigo aqu[iÌ]/i.test(anti.mensaje),
+      `no debe decir Sigo aqu\uFFFD: ${anti.mensaje}`
     );
     assert2.ok(
       !mensajeAsksForField(anti.mensaje, "invitados") || /presupuesto|Perfecto|anotad/i.test(anti.mensaje),
       anti.mensaje
     );
   });
-  await test("87. Ilana A14938 \u2014 ubicaci\xF3n\u2260nombre, pizzas en evento, sin $300 presupuesto", () => {
+  await test("87. Ilana A14938 \uFFFD ubicaci\uFFFDn?nombre, pizzas en evento, sin $300 presupuesto", () => {
     assert2.ok(isLikelyUbicacionNotNombre("en Tlalnepantla"));
     assert2.ok(isLikelyUbicacionNotNombre("En Tlalnepantla"));
     assert2.ok(isLikelyUbicacionNotNombre("Tlalnepantla"));
@@ -146658,17 +146739,17 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(zona && /tlalnepantla/i.test(zona), String(zona));
     const filled = /* @__PURE__ */ new Set();
     const caps = captureContextualAnswer(
-      [{ role: "assistant", content: "Hola, soy Lucy. \xBFC\xF3mo te llamas?" }],
+      [{ role: "assistant", content: "Hola, soy Lucy. \uFFFDC\uFFFDmo te llamas?" }],
       "en Tlalnepantla",
       filled
     );
     assert2.ok(
-      caps.some((c4) => c4.label === "Lugar/direcci\xF3n del evento"),
+      caps.some((c4) => c4.label === "Lugar/direcci\uFFFDn del evento"),
       JSON.stringify(caps)
     );
     assert2.ok(
       !caps.some((c4) => c4.label === "Nombre del cliente"),
-      `ubicaci\xF3n no es nombre: ${JSON.stringify(caps)}`
+      `ubicaci\uFFFDn no es nombre: ${JSON.stringify(caps)}`
     );
     assert2.equal(
       parsePresupuestoFromText("Perfecto, en Tlalnepantla manejamos taquizas desde $300 por persona."),
@@ -146683,7 +146764,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     const pizzaAck = buildGuardServiceAck("Hacen las pizzas en el evento?");
     assert2.ok(/pizza|monta|evento|momento/i.test(pizzaAck), pizzaAck);
     const pizzaGuard = runGuards({
-      aiResponse: "Perfecto, anoto Pizzas. \xBFMe compartes un correo?",
+      aiResponse: "Perfecto, anoto Pizzas. \uFFFDMe compartes un correo?",
       extracted: emptyExtracted({
         nombre: "Ilana Berman",
         requerimientos_evento: "Pizzas",
@@ -146696,9 +146777,9 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         "Nombre del cliente",
         "Requerimientos o servicios",
         "Tipo de evento",
-        "N\xFAmero de invitados",
+        "N\uFFFDmero de invitados",
         "Fecha y horario",
-        "Lugar/direcci\xF3n del evento"
+        "Lugar/direcci\uFFFDn del evento"
       ]),
       readyForClosing: false,
       currentMessage: "Hacen las pizzas en el evento?",
@@ -146707,19 +146788,19 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
           role: "user",
           content: "Quiero hacer una cotizacion de pizzas para un evento empresarial de 550 personas el 12 de dic"
         },
-        { role: "assistant", content: "\xBFC\xF3mo te llamas?" },
+        { role: "assistant", content: "\uFFFDC\uFFFDmo te llamas?" },
         { role: "user", content: "Ilana Berman" },
-        { role: "assistant", content: "Perfecto, Ilana. \xBFMe compartes un correo?" }
+        { role: "assistant", content: "Perfecto, Ilana. \uFFFDMe compartes un correo?" }
       ],
       whatsappDisplayName: "Ilana Berman"
     });
     assert2.ok(
-      /monta|evento|prepar|momento|s[i√≠]/i.test(pizzaGuard),
+      /monta|evento|prepar|momento|s[iÌ]/i.test(pizzaGuard),
       `debe responder si hacen pizzas en el evento: ${pizzaGuard.slice(0, 400)}`
     );
     assert2.ok(!/anoto Pizzas\.?\s*$/i.test(pizzaGuard.trim()), pizzaGuard.slice(0, 200));
     const zonaGuard = runGuards({
-      aiResponse: "Perfecto, en Tlalnepantla manejamos taquizas desde $300 por persona. \xBFTienes un correo?",
+      aiResponse: "Perfecto, en Tlalnepantla manejamos taquizas desde $300 por persona. \uFFFDTienes un correo?",
       extracted: emptyExtracted({
         requerimientos_evento: "Pizzas",
         tipo_evento: "corporativo",
@@ -146730,9 +146811,9 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       filledSet: /* @__PURE__ */ new Set([
         "Requerimientos o servicios",
         "Tipo de evento",
-        "N\xFAmero de invitados",
+        "N\uFFFDmero de invitados",
         "Fecha y horario",
-        "Lugar/direcci\xF3n del evento"
+        "Lugar/direcci\uFFFDn del evento"
       ]),
       readyForClosing: false,
       currentMessage: "en Tlalnepantla",
@@ -146741,7 +146822,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
           role: "user",
           content: "Quiero hacer una cotizacion de pizzas para un evento empresarial de 550 personas el 12 de dic"
         },
-        { role: "assistant", content: "\xBFC\xF3mo te llamas?" }
+        { role: "assistant", content: "\uFFFDC\uFFFDmo te llamas?" }
       ],
       whatsappDisplayName: "Ilana Berman"
     });
@@ -146752,7 +146833,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(/postre/i.test(merged ?? ""), merged);
     assert2.ok(parseServicesFromText("Entradas y postre").length >= 1);
   });
-  await test("88. Invariantes CRM \u2014 nombre/presupuesto no se contaminan", () => {
+  await test("88. Invariantes CRM \uFFFD nombre/presupuesto no se contaminan", () => {
     assert2.ok(isInvalidCrmNombre("En Tlalnepantla"));
     assert2.ok(isInvalidCrmNombre("en Naucalpan"));
     assert2.ok(!isInvalidCrmNombre("Ilana Berman"));
@@ -146786,25 +146867,25 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(!lines.some((l5) => /Presupuesto/i.test(l5)));
     assert2.ok(lines.some((l5) => /Ilana/i.test(l5)));
   });
-  await test("89. Marco A14943 \u2014 precios plural, paquetes, correo, no Comida Corrida", () => {
-    assert2.ok(clientAsksPrice("Me gustar\xEDa ver los precios"));
+  await test("89. Marco A14943 \uFFFD precios plural, paquetes, correo, no Comida Corrida", () => {
+    assert2.ok(clientAsksPrice("Me gustar\uFFFDa ver los precios"));
     assert2.ok(clientAsksPrice("Antes quisiera ver los precios"));
     assert2.ok(clientAsksPrice("Precios!!"));
     assert2.ok(clientAsksInclusion("Quiero ver los paquetes"));
     assert2.ok(clientAsksInclusion("ver los paquetes"));
-    const corporateOffer = "Perfecto, Marco. Para tu evento corporativo, manejamos varias opciones.\n\u2022 Banquete Formal 3 tiempos\n\u2022 Barra de bebidas\n\u2022 Coffee break\n\xBFTe gustar\xEDa revisar primero alg\xFAn servicio?";
+    const corporateOffer = "Perfecto, Marco. Para tu evento corporativo, manejamos varias opciones.\n\uFFFD Banquete Formal 3 tiempos\n\uFFFD Barra de bebidas\n\uFFFD Coffee break\n\uFFFDTe gustar\uFFFDa revisar primero alg\uFFFDn servicio?";
     const priceClarify = buildGenericPriceClarifyReply(
       emptyExtracted({ nombre: "Marco Santos", tipo_evento: "evento corporativo" }),
       [
         { role: "assistant", content: corporateOffer },
-        { role: "user", content: "Me gustar\xEDa ver los precios" }
+        { role: "user", content: "Me gustar\uFFFDa ver los precios" }
       ],
-      "Me gustar\xEDa ver los precios"
+      "Me gustar\uFFFDa ver los precios"
     );
     assert2.ok(/precio|banquete|barra|coffee/i.test(priceClarify), priceClarify);
-    assert2.ok(!/Sigo aqu√≠/i.test(priceClarify), priceClarify);
+    assert2.ok(!/Sigo aquÌ/i.test(priceClarify), priceClarify);
     const priceGuard = runGuards({
-      aiResponse: "Adem\xE1s podemos incluir mobiliario y DJ. \xBFArmamos un paquete completo?",
+      aiResponse: "Adem\uFFFDs podemos incluir mobiliario y DJ. \uFFFDArmamos un paquete completo?",
       extracted: emptyExtracted({
         nombre: "Marco Santos",
         correo: "becerrilsantosmarcoantonio@gmail.com",
@@ -146812,7 +146893,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento"
       ]),
       readyForClosing: false,
@@ -146822,27 +146903,27 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         { role: "user", content: "Antes quisiera ver los precios" },
         {
           role: "assistant",
-          content: "Adem\xE1s podemos incluir mobiliario. \xBFArmamos un paquete completo?"
+          content: "Adem\uFFFDs podemos incluir mobiliario. \uFFFDArmamos un paquete completo?"
         }
       ]
     });
     assert2.ok(/precio|banquete|coffee|barra|servicio/i.test(priceGuard), priceGuard);
-    assert2.ok(!/Sigo aqu√≠/i.test(priceGuard), priceGuard);
+    assert2.ok(!/Sigo aquÌ/i.test(priceGuard), priceGuard);
     assert2.ok(!/paquete completo/i.test(priceGuard), priceGuard);
     const anti = applyLucyGlobalAntiRepetition({
-      mensaje: "\xBFTe gustar\xEDa revisar primero alg\xFAn servicio en particular o armar un paquete completo?",
+      mensaje: "\uFFFDTe gustar\uFFFDa revisar primero alg\uFFFDn servicio en particular o armar un paquete completo?",
       history: [
         { role: "assistant", content: corporateOffer },
         { role: "user", content: "Precios!!" }
       ],
       extracted: emptyExtracted({ nombre: "Marco Santos", tipo_evento: "evento corporativo" }),
-      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"]),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico", "Tipo de evento"]),
       currentMessage: "Precios!!",
       clientName: "Marco Santos"
     });
-    assert2.ok(!/Sigo aqu√≠/i.test(anti.mensaje), anti.mensaje);
+    assert2.ok(!/Sigo aquÌ/i.test(anti.mensaje), anti.mensaje);
     const packages = runGuards({
-      aiResponse: "\xBFEn qu\xE9 ciudad ser\xE1 el evento?",
+      aiResponse: "\uFFFDEn qu\uFFFD ciudad ser\uFFFD el evento?",
       extracted: emptyExtracted({
         nombre: "Marco Santos",
         correo: "becerrilsantosmarcoantonio@gmail.com",
@@ -146850,7 +146931,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento"
       ]),
       readyForClosing: false,
@@ -146858,7 +146939,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       history: [{ role: "assistant", content: corporateOffer }]
     });
     assert2.ok(/paquete|nivel|banquete|coffee|servicio/i.test(packages), packages);
-    assert2.ok(!/^¬øEn qu√© ciudad/i.test(packages.trim()), packages);
+    assert2.ok(!/^øEn quÈ ciudad/i.test(packages.trim()), packages);
     const emailRecovered = emptyExtracted({
       nombre: "Marco Santos",
       tipo_evento: "evento corporativo",
@@ -146874,29 +146955,29 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       emailRecovered.correo ?? ""
     );
     const reAskCorreo = runGuards({
-      aiResponse: "\xBFMe puedes proporcionar un correo electr\xF3nico donde enviarte la informaci\xF3n?",
+      aiResponse: "\uFFFDMe puedes proporcionar un correo electr\uFFFDnico donde enviarte la informaci\uFFFDn?",
       extracted: emailRecovered,
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
-        "Lugar/direcci\xF3n del evento",
+        "Lugar/direcci\uFFFDn del evento",
         "Fecha y horario"
       ]),
       readyForClosing: false,
       currentMessage: "21 de Noviembre",
       history: [
         { role: "user", content: "becerrilsantosmarcoantonio@gmail.com" },
-        { role: "assistant", content: "Gracias. \xBFQu\xE9 tipo de evento es?" },
+        { role: "assistant", content: "Gracias. \uFFFDQu\uFFFD tipo de evento es?" },
         { role: "user", content: "Evento de trabajo" },
         { role: "assistant", content: corporateOffer },
         { role: "user", content: "CDMX" },
-        { role: "assistant", content: "\xBFTienen d\xEDa u horario ya definido?" }
+        { role: "assistant", content: "\uFFFDTienen d\uFFFDa u horario ya definido?" }
       ]
     });
     assert2.ok(!mensajeAsksForField(reAskCorreo, "correo"), reAskCorreo.slice(0, 300));
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Que Incluye"',
       '"Comida Corrida","Basico","$280.00","$8,400.00","TRUE","3 tiempos"',
       '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","3 tiempos"'
     ].join("\n");
@@ -146912,13 +146993,13 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       [
         "- Nombre del cliente: Marco Santos",
         "- Tipo de evento: evento corporativo",
-        "- Correo electr\xF3nico: becerrilsantosmarcoantonio@gmail.com"
+        "- Correo electr\uFFFDnico: becerrilsantosmarcoantonio@gmail.com"
       ],
-      "\xA1Hola, me gustar\xEDa cotizar un evento con ustedes! Evento de trabajo Quiero ver los paquetes CDMX"
+      "\uFFFDHola, me gustar\uFFFDa cotizar un evento con ustedes! Evento de trabajo Quiero ver los paquetes CDMX"
     );
     assert2.ok(!/comida\s+corrida/i.test(resumen), resumen);
   });
-  await test("90. Alexandra A14947 \u2014 banquete info, nombre\u2260boda, tres tiempos, inclusiones", () => {
+  await test("90. Alexandra A14947 \uFFFD banquete info, nombre?boda, tres tiempos, inclusiones", () => {
     assert2.equal(sanitizeCrmNombre("Alexandra Es Boda"), "Alexandra");
     assert2.equal(sanitizeCrmNombre("Alexandra\nEs boda"), "Alexandra");
     assert2.equal(sanitizeCrmNombre("Alexandra"), "Alexandra");
@@ -146932,26 +147013,26 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.equal(resolveKommoLeadNamePatch("Alexandra", "Alexandra Es Boda"), null);
     assert2.equal(
       detectPresupuestoRefusal(
-        "Pero no s\xE9 muy bien cu\xE1l podr\xEDa ser o que incluiria"
+        "Pero no s\uFFFD muy bien cu\uFFFDl podr\uFFFDa ser o que incluiria"
       ),
       false
     );
     assert2.ok(
-      clientAsksInclusion("Pero no s\xE9 muy bien cu\xE1l podr\xEDa ser o que incluiria")
+      clientAsksInclusion("Pero no s\uFFFD muy bien cu\uFFFDl podr\uFFFDa ser o que incluiria")
     );
-    const vagueInfo = "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. \xBFMe pueden dar informaci\xF3n?";
+    const vagueInfo = "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. \uFFFDMe pueden dar informaci\uFFFDn?";
     assert2.ok(isVagueFoodTerm(vagueInfo));
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Link catalogo","Que Incluye"',
       '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Entrada, plato fuerte y postre"',
       '"Banquete Formal 3 tiempos","Premium","$750.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Entrada premium, fuerte y postre"',
       '"Banquete Mexicano 4 tiempos","Basico","$600.00","$18,000.00","TRUE","https://bodasesor.com/catalogos/banquete-mexicano","4 tiempos mexicanos"',
-      '"Bet\xFAn Cl\xE1sico","Basico","$200.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/cupcakes-y-betun","bet\xFAn"',
+      '"Bet\uFFFDn Cl\uFFFDsico","Basico","$200.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/cupcakes-y-betun","bet\uFFFDn"',
       '"Cupcakes","Basico","$150.00","$3,000.00","TRUE","https://bodasesor.com/catalogos/cupcakes-y-betun","cupcakes"'
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
     const first = runGuards({
-      aiResponse: "Manejamos Banquete Formal 3 tiempos en varias opciones: banquete 3 tiempos, Bet\xFAn Cl\xE1sico, Cupcakes. \xBFCu\xE1l variante?",
+      aiResponse: "Manejamos Banquete Formal 3 tiempos en varias opciones: banquete 3 tiempos, Bet\uFFFDn Cl\uFFFDsico, Cupcakes. \uFFFDCu\uFFFDl variante?",
       extracted: emptyExtracted(),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
@@ -146959,7 +147040,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       forceFirstPresentation: true
     });
     assert2.ok(/banquete/i.test(first), first.slice(0, 300));
-    assert2.ok(!/bet[u√∫]n|cupcakes?/i.test(first), first.slice(0, 400));
+    assert2.ok(!/bet[u˙]n|cupcakes?/i.test(first), first.slice(0, 400));
     assert2.ok(
       /formal|casual|catering/i.test(first),
       first.slice(0, 400)
@@ -146970,10 +147051,10 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     );
     assert2.ok(
       !/bodasesor\.com\/catalogos|\$500|\$750/i.test(first),
-      `men\xFA sin dump/link: ${first.slice(0, 500)}`
+      `men\uFFFD sin dump/link: ${first.slice(0, 500)}`
     );
     const afterBanquete = runGuards({
-      aiResponse: "\xBFCu\xE1l estilo?",
+      aiResponse: "\uFFFDCu\uFFFDl estilo?",
       extracted: emptyExtracted({ nombre: "Cecilia", requerimientos_evento: "banquete" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
       readyForClosing: false,
@@ -146986,7 +147067,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       afterBanquete.slice(0, 500)
     );
     const tiempos = runGuards({
-      aiResponse: "\xBFCu\xE1l nivel prefieres?",
+      aiResponse: "\uFFFDCu\uFFFDl nivel prefieres?",
       extracted: emptyExtracted({
         nombre: "Alexandra",
         tipo_evento: "boda",
@@ -147002,7 +147083,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       history: [
         {
           role: "assistant",
-          content: "Claro. En *banquete* manejamos varias opciones:\n\u2022 *Formal 3 tiempos*\n\u2022 *Mexicano 4 tiempos*\n\n\xBFQuieres que te d\xE9 detalles de alguno?"
+          content: "Claro. En *banquete* manejamos varias opciones:\n\uFFFD *Formal 3 tiempos*\n\uFFFD *Mexicano 4 tiempos*\n\n\uFFFDQuieres que te d\uFFFD detalles de alguno?"
         }
       ]
     });
@@ -147012,7 +147093,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       tiempos.slice(0, 500)
     );
     const incl = runGuards({
-      aiResponse: "Sin problema, lo dejamos por definir. \xBFA qu\xE9 correo te mando la informaci\xF3n?",
+      aiResponse: "Sin problema, lo dejamos por definir. \uFFFDA qu\uFFFD correo te mando la informaci\uFFFDn?",
       extracted: emptyExtracted({
         nombre: "Alexandra",
         tipo_evento: "boda",
@@ -147024,32 +147105,32 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         "Requerimientos o servicios"
       ]),
       readyForClosing: false,
-      currentMessage: "Pero no s\xE9 muy bien cu\xE1l podr\xEDa ser o que incluiria",
+      currentMessage: "Pero no s\uFFFD muy bien cu\uFFFDl podr\uFFFDa ser o que incluiria",
       history: [
         { role: "user", content: "De tres tiempos" },
-        { role: "assistant", content: "\xBFCu\xE1l nivel prefieres?" }
+        { role: "assistant", content: "\uFFFDCu\uFFFDl nivel prefieres?" }
       ]
     });
     assert2.ok(!/lo dejamos por definir/i.test(incl), incl.slice(0, 300));
-    assert2.ok(/incluye|nivel|Basico|Premium|cat[a√°]logo|\$/i.test(incl), incl.slice(0, 500));
+    assert2.ok(/incluye|nivel|Basico|Premium|cat[a·]logo|\$/i.test(incl), incl.slice(0, 500));
     assert2.ok(
       /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(incl),
       incl.slice(0, 500)
     );
-    assert2.ok(!/bet[u√∫]n|cupcakes?/i.test(incl), incl.slice(0, 400));
+    assert2.ok(!/bet[u˙]n|cupcakes?/i.test(incl), incl.slice(0, 400));
   });
-  await test("91. Alejandro \u2014 lead.name se escribe aunque CRM ya tenga Nombre del cliente", () => {
+  await test("91. Alejandro \uFFFD lead.name se escribe aunque CRM ya tenga Nombre del cliente", () => {
     assert2.equal(resolveKommoLeadNamePatch(void 0, "Alexandra"), "Alexandra");
     assert2.equal(resolveKommoLeadNamePatch("+52 55 1234 5678", "Alexandra"), "Alexandra");
     assert2.equal(resolveKommoLeadNamePatch("Lead: 26669772", "Alexandra"), "Alexandra");
     assert2.equal(resolveKommoLeadNamePatch("Alexandra", "Alexandra"), null);
     assert2.equal(resolveKommoLeadNamePatch("Alexandra", "Alexandra Ruiz"), "Alexandra Ruiz");
   });
-  await test("92. Cat\xE1logo \u2014 todas las ramas de servicio env\xEDan link", () => {
+  await test("92. Cat\uFFFDlogo \uFFFD todas las ramas de servicio env\uFFFDan link", () => {
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
-      '"Coffee Break","Basico","$180.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9 y pan dulce"',
-      '"Coffee Break","Premium","$250.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9 premium"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Link catalogo","Que Incluye"',
+      '"Coffee Break","Basico","$180.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\uFFFD y pan dulce"',
+      '"Coffee Break","Premium","$250.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\uFFFD premium"',
       '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","5 guisados"',
       '"Barra de sushi","Basico","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","Rollos"',
       '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","3 tiempos"'
@@ -147059,14 +147140,14 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(hasUrl(ensureCatalogWebLink("Detalle coffee", "coffee break")));
     assert2.ok(hasUrl(buildCatalogPriceAnswer("coffee break") || ""));
     assert2.ok(hasUrl(buildCatalogServiceDetailAnswer("taquiza") || ""));
-    const sushiIncl = resolveCatalogInclusionReply("qu\xE9 incluye", "barra de sushi") || "";
-    assert2.ok(sushiIncl.length > 20, "inclusi\xF3n sushi debe responder");
+    const sushiIncl = resolveCatalogInclusionReply("qu\uFFFD incluye", "barra de sushi") || "";
+    assert2.ok(sushiIncl.length > 20, "inclusi\uFFFDn sushi debe responder");
     assert2.ok(hasUrl(ensureCatalogWebLink(sushiIncl, "barra de sushi")));
-    assert2.ok(hasUrl(buildBroadLevel1Offer("graduaci\xF3n")));
+    assert2.ok(hasUrl(buildBroadLevel1Offer("graduaci\uFFFDn")));
     const vagueOpts = buildVagueFoodOptionsReply(
       emptyExtracted({ tipo_evento: "boda" }),
       [],
-      "\xBFrecomiendas algo?"
+      "\uFFFDrecomiendas algo?"
     );
     assert2.ok(/banquete|taquiza|brunch|coffee|alimentos/i.test(vagueOpts), vagueOpts);
     assert2.ok(hasUrl(buildGenericPackagesOverviewReply(emptyExtracted({ requerimientos_evento: "coffee break" }), [], "ver los paquetes")));
@@ -147084,7 +147165,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         "Requerimientos o servicios"
       ]),
       readyForClosing: false,
-      currentMessage: "cu\xE1nto cuesta el coffee break",
+      currentMessage: "cu\uFFFDnto cuesta el coffee break",
       history: []
     });
     assert2.ok(hasUrl(priceGuard), priceGuard.slice(0, 500));
@@ -147094,17 +147175,17 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "boda" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento"]),
       readyForClosing: false,
-      currentMessage: "me interesa la barra de sushi, dame informaci\xF3n",
+      currentMessage: "me interesa la barra de sushi, dame informaci\uFFFDn",
       history: []
     });
-    assert2.ok(/sushi|niveles|detallada|Solo Alimentos|B[a√°]sic/i.test(sushiInfo), sushiInfo.slice(0, 500));
+    assert2.ok(/sushi|niveles|detallada|Solo Alimentos|B[a·]sic/i.test(sushiInfo), sushiInfo.slice(0, 500));
     assert2.ok(!/\$400|Incluye:/i.test(sushiInfo), sushiInfo.slice(0, 400));
   });
-  await test("93. Detalle Sheet \u2014 niveles/incluye en info y primer turno (no solo link)", () => {
+  await test("93. Detalle Sheet \uFFFD niveles/incluye en info y primer turno (no solo link)", () => {
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
-      '"Coffee Break","Basico","$180.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9, pan dulce y fruta"',
-      '"Coffee Break","Premium","$250.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9 premium, jugo y snacks"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Link catalogo","Que Incluye"',
+      '"Coffee Break","Basico","$180.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\uFFFD, pan dulce y fruta"',
+      '"Coffee Break","Premium","$250.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\uFFFD premium, jugo y snacks"',
       '"Barra de sushi","Basico","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","8 rollos y soya"',
       '"Barra de sushi","Premium","$550.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","12 rollos y chef"'
     ].join("\n");
@@ -147112,21 +147193,21 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     const detail = attachAvailableSheetDetail("coffee break");
     assert2.ok(detail, "attachAvailableSheetDetail debe devolver texto");
     assert2.ok(
-      messageHasSheetServiceDetail(detail) || /incluye|Caf√©|Coffee Break|\$\s*180|Basico|Premium/i.test(detail),
+      messageHasSheetServiceDetail(detail) || /incluye|CafÈ|Coffee Break|\$\s*180|Basico|Premium/i.test(detail),
       detail
     );
-    assert2.ok(/incluye|Caf√©|pan dulce|\$\s*180|Basico|Premium|Coffee Break/i.test(detail), detail);
+    assert2.ok(/incluye|CafÈ|pan dulce|\$\s*180|Basico|Premium|Coffee Break/i.test(detail), detail);
     assert2.ok(
       /bodasesor\.com\/catalogos/i.test(detail) || /bodasesor\.com\/catalogos/i.test(ensureCatalogWebLink(detail, "coffee break")),
       detail
     );
     assert2.equal(
-      messageHasSheetServiceDetail("Cat\xE1logo:\nhttps://bodasesor.com/catalogos/coffee-break"),
+      messageHasSheetServiceDetail("Cat\uFFFDlogo:\nhttps://bodasesor.com/catalogos/coffee-break"),
       false
     );
     assert2.equal(
       historyAlreadyOfferedServiceDetail([
-        { role: "assistant", content: "Cat\xE1logo:\nhttps://bodasesor.com/catalogos/coffee-break" }
+        { role: "assistant", content: "Cat\uFFFDlogo:\nhttps://bodasesor.com/catalogos/coffee-break" }
       ]),
       false
     );
@@ -147145,20 +147226,20 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(/lucy|bodasesor/i.test(first), first.slice(0, 200));
     assert2.ok(
       /Coffee Break|paquetes|detalles de alguno|detallada|diferencia|nivel/i.test(first),
-      `primer turno men\xFA opciones: ${first.slice(0, 600)}`
+      `primer turno men\uFFFD opciones: ${first.slice(0, 600)}`
     );
-    assert2.ok(!/\$\s*180|Incluye:/i.test(first), `sin dump en men\xFA: ${first.slice(0, 400)}`);
+    assert2.ok(!/\$\s*180|Incluye:/i.test(first), `sin dump en men\uFFFD: ${first.slice(0, 400)}`);
     const info2 = runGuards({
-      aiResponse: "Claro, \xBFcu\xE1ntos invitados?",
+      aiResponse: "Claro, \uFFFDcu\uFFFDntos invitados?",
       extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "corporativo" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento"]),
       readyForClosing: false,
-      currentMessage: "dame informaci\xF3n del coffee break",
+      currentMessage: "dame informaci\uFFFDn del coffee break",
       history: []
     });
     assert2.ok(
       /Coffee Break|paquetes|detalles de alguno|detallada|diferencia/i.test(info2),
-      `info \u2192 men\xFA primero: ${info2.slice(0, 600)}`
+      `info ? men\uFFFD primero: ${info2.slice(0, 600)}`
     );
     assert2.ok(!/\$\s*180|Incluye:/i.test(info2), info2.slice(0, 400));
     const afterSi = runGuards({
@@ -147174,55 +147255,55 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         "Requerimientos o servicios"
       ]),
       readyForClosing: false,
-      currentMessage: "S\xED",
+      currentMessage: "S\uFFFD",
       history: [{ role: "assistant", content: info2 }]
     });
     assert2.ok(
-      /incluye|Caf√©|pan dulce|Basico|Premium|\$\s*180/i.test(afterSi),
-      `s\xED \u2192 detalle Sheet: ${afterSi.slice(0, 600)}`
+      /incluye|CafÈ|pan dulce|Basico|Premium|\$\s*180/i.test(afterSi),
+      `s\uFFFD ? detalle Sheet: ${afterSi.slice(0, 600)}`
     );
     assert2.ok(/bodasesor\.com\/catalogos/i.test(afterSi), afterSi.slice(0, 400));
     const price = buildCatalogPriceAnswer("barra de sushi") || "";
     assert2.ok(/\$\s*\d/.test(price), price);
     assert2.ok(/incluye|rollos/i.test(price), `precio multi-nivel debe traer Incluye: ${price}`);
   });
-  await test("94. Car A14949 \u2014 Coffee Break 5 = nivel (no 5 invitados), Viernes 24", () => {
+  await test("94. Car A14949 \uFFFD Coffee Break 5 = nivel (no 5 invitados), Viernes 24", () => {
     const lastOffer = [
       "Para *Coffee Break* manejamos estos niveles:",
       "",
-      "1. *Coffee Break 1* \u2014 $120.00 /pp",
-      "2. *Coffee Break 2* \u2014 $200.00 /pp",
-      "3. *Coffee Break 3* \u2014 $280.00 /pp",
-      "4. *Coffee Break 4* \u2014 $350.00 /pp",
-      "5. *Coffee Break 5* \u2014 $400.00 /pp",
+      "1. *Coffee Break 1* \uFFFD $120.00 /pp",
+      "2. *Coffee Break 2* \uFFFD $200.00 /pp",
+      "3. *Coffee Break 3* \uFFFD $280.00 /pp",
+      "4. *Coffee Break 4* \uFFFD $350.00 /pp",
+      "5. *Coffee Break 5* \uFFFD $400.00 /pp",
       "",
-      "\xBFCu\xE1l nivel prefieres?",
+      "\uFFFDCu\uFFFDl nivel prefieres?",
       "https://bodasesor.com/catalogos/coffee-break",
       "",
-      "\xBFC\xF3mo te llamas?"
+      "\uFFFDC\uFFFDmo te llamas?"
     ].join("\n");
-    assert2.equal(parseInvitadosFromText("Me interesar\xEDa el coffe break 5"), null);
+    assert2.equal(parseInvitadosFromText("Me interesar\uFFFDa el coffe break 5"), null);
     assert2.equal(parseInvitadosFromText("coffee break 5"), null);
     assert2.equal(
-      extractCatalogNivelFromText("Me interesar\xEDa el coffe break 5", lastOffer),
+      extractCatalogNivelFromText("Me interesar\uFFFDa el coffe break 5", lastOffer),
       "Coffee Break 5"
     );
     assert2.equal(extractCatalogNivelFromText("el 5", lastOffer), "Coffee Break 5");
-    assert2.ok(isCatalogLevelSelection("Me interesar\xEDa el coffe break 5", lastOffer));
+    assert2.ok(isCatalogLevelSelection("Me interesar\uFFFDa el coffe break 5", lastOffer));
     assert2.ok(isCatalogLevelSelection("5", lastOffer));
     const amb = { num_invitados: 5 };
-    sanitizeExtractedAmbiguousNumbers(amb, "Me interesar\xEDa el coffe break 5");
+    sanitizeExtractedAmbiguousNumbers(amb, "Me interesar\uFFFDa el coffe break 5");
     assert2.equal(amb.num_invitados, null);
     assert2.equal(parseFechaFromText("Viernes 24"), "Viernes 24");
     assert2.ok(/viernes\s+24/i.test(parseFechaFromText("el viernes 24") || ""));
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
-      '"Coffee Break","Coffee Break 5","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Men\xFA premium CB5"',
-      '"Coffee Break","Coffee Break 1","$120.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Men\xFA CB1"'
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Link catalogo","Que Incluye"',
+      '"Coffee Break","Coffee Break 5","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Men\uFFFD premium CB5"',
+      '"Coffee Break","Coffee Break 1","$120.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Men\uFFFD CB1"'
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
     const pick = runGuards({
-      aiResponse: "Mucho gusto, Car. \xBFA qu\xE9 correo te lo env\xEDo?",
+      aiResponse: "Mucho gusto, Car. \uFFFDA qu\uFFFD correo te lo env\uFFFDo?",
       extracted: emptyExtracted({
         nombre: "Car",
         tipo_evento: "evento corporativo",
@@ -147233,10 +147314,10 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         "Nombre del cliente",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados"
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
-      currentMessage: "Me interesar\xEDa el coffe break 5",
+      currentMessage: "Me interesar\uFFFDa el coffe break 5",
       history: [
         {
           role: "user",
@@ -147249,11 +147330,11 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(/anoto|Coffee Break 5|\*Coffee Break 5\*/i.test(pick), pick.slice(0, 400));
     assert2.ok(!/5\s*invitados|somos 5/i.test(pick), pick.slice(0, 300));
     assert2.ok(
-      /correo|invitados|cu[a√°]ntos/i.test(pick),
+      /correo|invitados|cu[a·]ntos/i.test(pick),
       `debe seguir embudo tras ack nivel: ${pick.slice(0, 400)}`
     );
   });
-  await test("95. Informaci\xF3n para Lucy se inyecta PRIMERO en el prompt", async () => {
+  await test("95. Informaci\uFFFDn para Lucy se inyecta PRIMERO en el prompt", async () => {
     const prompt = buildDynamicPrompt({
       stage: "discovery",
       priority: "medium",
@@ -147261,25 +147342,25 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       crmContext: "",
       catalogBlock: "CATALOGO_TEST",
       lucyInfoBlock: [
-        "PRIORIDAD 1 \u2014 INFORMACI\xD3N MANUAL PARA LUCY (PDFs y tips del panel Aprendizaje)",
-        "\u2014\u2014 Tendencias, modas y consejos \u2014\u2014",
+        "PRIORIDAD 1 \uFFFD INFORMACI\uFFFDN MANUAL PARA LUCY (PDFs y tips del panel Aprendizaje)",
+        "\uFFFD\uFFFD Tendencias, modas y consejos \uFFFD\uFFFD",
         "### Tendencias 2026",
-        "Bodas \xEDntimas con coffee break premium y flores silvestres."
+        "Bodas \uFFFDntimas con coffee break premium y flores silvestres."
       ].join("\n")
     });
     assert2.ok(prompt.includes("CATALOGO_TEST"));
-    assert2.ok(/INFORMACI√ìN MANUAL PARA LUCY|PRIORIDAD 1/i.test(prompt));
-    assert2.ok(/Bodas √≠ntimas con coffee break premium/i.test(prompt));
-    const infoIdx = prompt.search(/PRIORIDAD 1|INFORMACI√ìN MANUAL PARA LUCY/i);
+    assert2.ok(/INFORMACI”N MANUAL PARA LUCY|PRIORIDAD 1/i.test(prompt));
+    assert2.ok(/Bodas Ìntimas con coffee break premium/i.test(prompt));
+    const infoIdx = prompt.search(/PRIORIDAD 1|INFORMACI”N MANUAL PARA LUCY/i);
     const catalogIdx = prompt.indexOf("CATALOGO_TEST");
     assert2.ok(infoIdx >= 0 && catalogIdx >= 0 && infoIdx < catalogIdx, "info manual debe ir antes del Sheet");
   });
-  await test("96. A14964 Victor \u2014 nombre, tipo, caf\xE9/catering, presupuesto sin re-pedir correo", () => {
+  await test("96. A14964 Victor \uFFFD nombre, tipo, caf\uFFFD/catering, presupuesto sin re-pedir correo", () => {
     assert2.ok(looksLikeNameAnswerMessage("Victor Ramos de Destiladora San Francisco"));
-    assert2.ok(!looksLikeNameAnswerMessage("Es solo caf\xE9 o tienes catering de comida"));
-    assert2.ok(clientAsksCafeOrCateringChoice("Es solo caf\xE9 o tienes catering de comida"));
-    assert2.ok(isVagueFoodTerm("Es solo caf\xE9 o tienes catering de comida"));
-    assert2.ok(!parseServicesFromText("Es solo caf\xE9 o tienes catering de comida").some(
+    assert2.ok(!looksLikeNameAnswerMessage("Es solo caf\uFFFD o tienes catering de comida"));
+    assert2.ok(clientAsksCafeOrCateringChoice("Es solo caf\uFFFD o tienes catering de comida"));
+    assert2.ok(isVagueFoodTerm("Es solo caf\uFFFD o tienes catering de comida"));
+    assert2.ok(!parseServicesFromText("Es solo caf\uFFFD o tienes catering de comida").some(
       (s6) => /banquete\s*\/\s*taquiza/i.test(s6)
     ));
     assert2.ok(isUnusableTipoEventoReply("Lo acabo de mencionar"));
@@ -147287,25 +147368,25 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(!isUnusableTipoEventoReply("evento corporativo"));
     assert2.ok(!isServiceLabelNotTipoEvento("evento con banquete"));
     const banqueteCaps = captureContextualAnswer(
-      [{ role: "assistant", content: "\xBFQu\xE9 tipo de evento est\xE1s organizando?" }],
+      [{ role: "assistant", content: "\uFFFDQu\uFFFD tipo de evento est\uFFFDs organizando?" }],
       "Banquete para 100 personas, requiero servicio de catering completo, comida, loza y meseros",
-      /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico"])
+      /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico"])
     );
     assert2.ok(
       banqueteCaps.some((c4) => c4.label === "Tipo de evento" && /banquete|catering/i.test(c4.value)),
       JSON.stringify(banqueteCaps)
     );
     assert2.ok(
-      banqueteCaps.some((c4) => c4.label === "N\xFAmero de invitados" && c4.value === "100"),
+      banqueteCaps.some((c4) => c4.label === "N\uFFFDmero de invitados" && c4.value === "100"),
       JSON.stringify(banqueteCaps)
     );
     const metaCaps = captureContextualAnswer(
       [
         { role: "user", content: "Banquete para 100 personas, catering completo" },
-        { role: "assistant", content: "\xBFQu\xE9 tipo de evento es?" }
+        { role: "assistant", content: "\uFFFDQu\uFFFD tipo de evento es?" }
       ],
       "Lo acabo de mencionar",
-      /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico"])
+      /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico"])
     );
     assert2.ok(
       !metaCaps.some((c4) => c4.label === "Tipo de evento" && /acabo de mencionar/i.test(c4.value)),
@@ -147319,28 +147400,28 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     const cafeReply = buildVagueFoodOptionsReply(
       emptyExtracted({ nombre: "Victor" }),
       [],
-      "Es solo caf\xE9 o tienes catering de comida"
+      "Es solo caf\uFFFD o tienes catering de comida"
     );
     assert2.ok(/barra de caf|catering/i.test(cafeReply), cafeReply.slice(0, 300));
     assert2.ok(!/banquete formal 3 tiempos/i.test(cafeReply), cafeReply.slice(0, 300));
     const afterName = runGuards({
-      aiResponse: "Seg\xFAn el cat\xE1logo que ya tenemos de *Barra de Cafe bodasesor*: dump\u2026",
+      aiResponse: "Seg\uFFFDn el cat\uFFFDlogo que ya tenemos de *Barra de Cafe bodasesor*: dump\uFFFD",
       extracted: emptyExtracted({ nombre: "Victor Ramos" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       readyForClosing: false,
       currentMessage: "Victor Ramos de Destiladora San Francisco",
-      history: [{ role: "assistant", content: "\xBFC\xF3mo te llamas?" }]
+      history: [{ role: "assistant", content: "\uFFFDC\uFFFDmo te llamas?" }]
     });
-    assert2.ok(!/Seg√∫n el cat√°logo que ya tenemos/i.test(afterName), afterName.slice(0, 400));
+    assert2.ok(!/Seg˙n el cat·logo que ya tenemos/i.test(afterName), afterName.slice(0, 400));
     assert2.ok(!/Barra de Caf/i.test(afterName), afterName.slice(0, 400));
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "Lugar/direcci\xF3n del evento",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario",
-      "N\xFAmero de invitados",
-      "Correo electr\xF3nico"
+      "N\uFFFDmero de invitados",
+      "Correo electr\uFFFDnico"
     ]);
     const extracted = emptyExtracted({
       nombre: "Victor Ramos",
@@ -147352,20 +147433,20 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       num_invitados: 100
     });
     const afterBudget = runGuards({
-      aiResponse: "Mucho gusto, Victor. \xBFA qu\xE9 correo te mando la informaci\xF3n?",
+      aiResponse: "Mucho gusto, Victor. \uFFFDA qu\uFFFD correo te mando la informaci\uFFFDn?",
       extracted,
       filledSet: filled,
       readyForClosing: false,
       currentMessage: "Para eso te contacto",
       history: [
         { role: "user", content: "sanfrancisco.destiladora@gmail.com" },
-        { role: "assistant", content: "\xBFManejan alg\xFAn presupuesto estimado para el evento?" }
+        { role: "assistant", content: "\uFFFDManejan alg\uFFFDn presupuesto estimado para el evento?" }
       ]
     });
     assert2.ok(!/correo|e-?mail/i.test(afterBudget), afterBudget.slice(0, 400));
     assert2.ok(/sin problema|por definir|equipo|propon/i.test(afterBudget), afterBudget.slice(0, 400));
   });
-  await test("97. A14967 Ang\xE9lica \u2014 pista: men\xFA de tipos primero, detalle tras elecci\xF3n", () => {
+  await test("97. A14967 Ang\uFFFDlica \uFFFD pista: men\uFFFD de tipos primero, detalle tras elecci\uFFFDn", () => {
     assert2.equal(parsePistaTarimaVariant("pista de baile personalizada"), null);
     assert2.equal(parsePistaTarimaVariant("Quisiera cotizar una pista personalizada"), null);
     assert2.ok(parsePistaTarimaVariant("pista LED interactiva")?.key === "pista_led");
@@ -147373,23 +147454,23 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(parsePistaTarimaVariant("pintada a mano")?.key === "pista_pintada");
     assert2.ok(parsePistaTarimaVariant("con logo")?.key === "pista_logo");
     const first = runGuards({
-      aiResponse: "Seg\xFAn el cat\xE1logo que ya cargamos en Aprendizaje:\n*Pistas-y-Tarimas-2026*: $7,430 Pista 6x6m\u2026\n\xBFQu\xE9 medidas aproximadas tiene el espacio?",
-      extracted: emptyExtracted({ nombre: "Ang\xE9lica" }),
+      aiResponse: "Seg\uFFFDn el cat\uFFFDlogo que ya cargamos en Aprendizaje:\n*Pistas-y-Tarimas-2026*: $7,430 Pista 6x6m\uFFFD\n\uFFFDQu\uFFFD medidas aproximadas tiene el espacio?",
+      extracted: emptyExtracted({ nombre: "Ang\uFFFDlica" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       readyForClosing: false,
-      currentMessage: "Quisiera una cotizaci\xF3n por favor para una pista de baile personalizada. Mi nombre es Ang\xE9lica",
-      history: [{ role: "assistant", content: "\xBFC\xF3mo te llamas?" }]
+      currentMessage: "Quisiera una cotizaci\uFFFDn por favor para una pista de baile personalizada. Mi nombre es Ang\uFFFDlica",
+      history: [{ role: "assistant", content: "\uFFFDC\uFFFDmo te llamas?" }]
     });
     assert2.ok(/pista|tarima/i.test(first), first.slice(0, 300));
     assert2.ok(/vinil|pintada|LED|estilo|opciones/i.test(first), first.slice(0, 500));
-    assert2.ok(!/Seg√∫n el cat√°logo que ya cargamos/i.test(first), first.slice(0, 400));
+    assert2.ok(!/Seg˙n el cat·logo que ya cargamos/i.test(first), first.slice(0, 400));
     assert2.ok(!/\$7,?430|Pista 6x6m|\$20,?250/i.test(first), first.slice(0, 400));
-    const medidasAsks = (first.match(/¬øQu√© medidas aproximadas tiene el espacio\?/gi) || []).length;
+    const medidasAsks = (first.match(/øQuÈ medidas aproximadas tiene el espacio\?/gi) || []).length;
     assert2.ok(medidasAsks <= 1, first.slice(0, 400));
     const detail = runGuards({
-      aiResponse: "\xBFQuieres que te d\xE9 detalles de alguno?",
+      aiResponse: "\uFFFDQuieres que te d\uFFFD detalles de alguno?",
       extracted: emptyExtracted({
-        nombre: "Ang\xE9lica",
+        nombre: "Ang\uFFFDlica",
         requerimientos_evento: "pista de baile / tarima"
       }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
@@ -147401,29 +147482,29 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     });
     assert2.ok(/LED|interactiva/i.test(detail), detail.slice(0, 400));
     assert2.ok(
-      /\$|m¬≤|medidas|Aprendizaje|detallo/i.test(detail),
+      /\$|m≤|medidas|Aprendizaje|detallo/i.test(detail),
       detail.slice(0, 500)
     );
-    const medidas2 = (detail.match(/¬øQu√© medidas aproximadas tiene el espacio\?/gi) || []).length;
+    const medidas2 = (detail.match(/øQuÈ medidas aproximadas tiene el espacio\?/gi) || []).length;
     assert2.equal(medidas2, 1, detail.slice(0, 500));
   });
-  await test("98. V8.68 \u2014 banquete/coffee: men\xFA primero, detalle+link tras elegir", () => {
+  await test("98. V8.68 \uFFFD banquete/coffee: men\uFFFD primero, detalle+link tras elegir", () => {
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Link catalogo","Que Incluye"',
       '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Entrada, plato fuerte y postre"',
       '"Banquete Formal 3 tiempos","Premium","$750.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Entrada premium"',
       '"Banquete Mexicano 4 tiempos","Basico","$600.00","$18,000.00","TRUE","https://bodasesor.com/catalogos/banquete-mexicano","4 tiempos"',
-      '"Coffee Break","Coffee Break 1","$180.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9 y galletas"',
-      '"Coffee Break","Coffee Break 5","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Men\xFA premium"'
+      '"Coffee Break","Coffee Break 1","$180.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\uFFFD y galletas"',
+      '"Coffee Break","Coffee Break 5","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Men\uFFFD premium"'
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
     const banqueteAsk = runGuards({
-      aiResponse: "\xBFQuieres banquete formal con todos los precios?",
+      aiResponse: "\uFFFDQuieres banquete formal con todos los precios?",
       extracted: emptyExtracted({ nombre: "Ana" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       readyForClosing: false,
       currentMessage: "Quiero banquete para mi evento",
-      history: [{ role: "assistant", content: "\xBFQu\xE9 necesitas?" }]
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD necesitas?" }]
     });
     assert2.ok(
       /Formal|Mexicano|detalles de alguno|detallada/i.test(banqueteAsk),
@@ -147456,13 +147537,13 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
       readyForClosing: false,
-      currentMessage: "S\xED",
+      currentMessage: "S\uFFFD",
       history: [{ role: "assistant", content: banqueteAsk }]
     });
     assert2.ok(/\$500|Formal|Mexicano|nivel/i.test(banqueteSi), banqueteSi.slice(0, 500));
     assert2.ok(
       /bodasesor\.com\/catalogos/i.test(banqueteSi),
-      `s\xED \u2192 detalle+link: ${banqueteSi.slice(0, 500)}`
+      `s\uFFFD ? detalle+link: ${banqueteSi.slice(0, 500)}`
     );
     const coffeeAsk = runGuards({
       aiResponse: "te mando todos los coffee break",
@@ -147470,7 +147551,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       readyForClosing: false,
       currentMessage: "Me interesa coffee break",
-      history: [{ role: "assistant", content: "\xBFQu\xE9 servicio buscas?" }]
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD servicio buscas?" }]
     });
     assert2.ok(
       /Coffee Break|paquetes|detalles de alguno|Coffee Break 1/i.test(coffeeAsk),
@@ -147482,7 +147563,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     );
     assert2.ok(!/correo|e-?mail/i.test(coffeeAsk), coffeeAsk.slice(0, 300));
   });
-  await test("99. V8.69 \u2014 clasifica origen FB/IG y usa Kommo send_message", () => {
+  await test("99. V8.69 \uFFFD clasifica origen FB/IG y usa Kommo send_message", () => {
     assert2.equal(classifyKommoOrigin("facebook"), "facebook");
     assert2.equal(classifyKommoOrigin("Facebook Messenger"), "facebook");
     assert2.equal(classifyKommoOrigin("instagram"), "instagram");
@@ -147495,11 +147576,11 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     const talksSrc = readFileSync5(path6.join(apiRoot, "src/services/kommoTalks.ts"), "utf8");
     const mirrorSrc = readFileSync5(path6.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
     assert2.ok(/sendKommoTalkMessage|send_message/.test(talksSrc));
-    assert2.ok(/sin tel√©fono ‚Äî intentando env√≠o por Kommo/i.test(mirrorSrc));
+    assert2.ok(/sin telÈfono ó intentando envÌo por Kommo/i.test(mirrorSrc));
   });
-  await test("100. A14975 \u2014 sushi 'Nivel tradicional' da detalle (no re-lista) + 2 cat\xE1logos", () => {
+  await test("100. A14975 \uFFFD sushi 'Nivel tradicional' da detalle (no re-lista) + 2 cat\uFFFDlogos", () => {
     const csvSushi = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Que Incluye","Link catalogo"',
       '"Barra de sushi","Solo Alimentos","$420.00","$8,400.00","TRUE","Rollos y soya","https://bodasesor.com/catalogos/barra-de-sushi"',
       '"Barra de sushi","Basico","$800.00","$16,000.00","TRUE","8 piezas","https://bodasesor.com/catalogos/barra-de-sushi"',
       '"Barra de sushi","Tradicional","$850.00","$17,000.00","TRUE","12 piezas y chef","https://bodasesor.com/catalogos/barra-de-sushi"',
@@ -147511,11 +147592,11 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       "Barra de sushi Tradicional"
     );
     assert2.equal(catalogNivelLabelFromText("Nivel tradicional"), "Tradicional");
-    const menu = "Claro. En *Barra de sushi* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).\n\n\xBFCu\xE1l te late m\xE1s?\n\n\xBFC\xF3mo te llamas?";
+    const menu = "Claro. En *Barra de sushi* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).\n\n\uFFFDCu\uFFFDl te late m\uFFFDs?\n\n\uFFFDC\uFFFDmo te llamas?";
     const reply = runGuards({
-      aiResponse: "\xBFCu\xE1l nivel?",
+      aiResponse: "\uFFFDCu\uFFFDl nivel?",
       extracted: emptyExtracted({
-        nombre: "Mariana Garc\xEDa",
+        nombre: "Mariana Garc\uFFFDa",
         requerimientos_evento: "Barra de sushi"
       }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
@@ -147534,68 +147615,68 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       `debe detallar Tradicional: ${reply.slice(0, 600)}`
     );
     assert2.ok(
-      !/¬øCu[a√°]l nivel prefieres/i.test(reply),
+      !/øCu[a·]l nivel prefieres/i.test(reply),
       `no re-preguntar nivel: ${reply.slice(0, 500)}`
     );
     assert2.ok(
-      !(/Solo Alimentos[\s\S]*Basico[\s\S]*Tradicional[\s\S]*Premium/i.test(reply) && /¬øCu[a√°]l nivel/i.test(reply)),
+      !(/Solo Alimentos[\s\S]*Basico[\s\S]*Tradicional[\s\S]*Premium/i.test(reply) && /øCu[a·]l nivel/i.test(reply)),
       `no re-listar niveles: ${reply.slice(0, 600)}`
     );
     const sushiUrls = reply.match(/bodasesor\.com\/catalogos\/barra-de-sushi/gi) || [];
     assert2.equal(sushiUrls.length, 1, `un link de servicio: ${reply.slice(0, 700)}`);
     assert2.ok(
-      /Cat[a√°]logo general:[\s\S]*bodasesor\.com\/catalogos(?!\/[a-z])/i.test(reply) || /Cat[a√°]logo general:\s*\nhttps?:\/\/(?:www\.)?bodasesor\.com\/catalogos\/?\s*$/m.test(
+      /Cat[a·]logo general:[\s\S]*bodasesor\.com\/catalogos(?!\/[a-z])/i.test(reply) || /Cat[a·]logo general:\s*\nhttps?:\/\/(?:www\.)?bodasesor\.com\/catalogos\/?\s*$/m.test(
         reply
       ),
-      `debe incluir cat\xE1logo general: ${reply.slice(0, 700)}`
+      `debe incluir cat\uFFFDlogo general: ${reply.slice(0, 700)}`
     );
   });
-  await test("101. A14970 \u2014 barra de caf\xE9 (acento) y preferencia bebidas sin Banquete", () => {
-    const cafeMsg = "Hola, me interesa cotizar: Barra de Caf\xE9 Premium para Eventos";
-    assert2.ok(clientMentionsCatering(cafeMsg), "debe detectar catering con caf\xE9 acentuado");
+  await test("101. A14970 \uFFFD barra de caf\uFFFD (acento) y preferencia bebidas sin Banquete", () => {
+    const cafeMsg = "Hola, me interesa cotizar: Barra de Caf\uFFFD Premium para Eventos";
+    assert2.ok(clientMentionsCatering(cafeMsg), "debe detectar catering con caf\uFFFD acentuado");
     const services = parseServicesFromText(cafeMsg);
     assert2.ok(
       services.some((s6) => /barra de caf/i.test(s6)),
-      `debe capturar Barra de Caf\xE9: ${services.join(", ")}`
+      `debe capturar Barra de Caf\uFFFD: ${services.join(", ")}`
     );
     assert2.ok(!services.some((s6) => /^Coffee break$/i.test(s6)), services.join(", "));
-    const withMeseros = "Me interesa una barra de caf\xE9 para 50 personas, es evento corporativo y 2 meseros.";
+    const withMeseros = "Me interesa una barra de caf\uFFFD para 50 personas, es evento corporativo y 2 meseros.";
     const mixed = parseServicesFromText(withMeseros);
     assert2.equal(
       preferPrimaryCatalogService(mixed),
-      "Barra de Caf\xE9",
-      `primario caf\xE9 no meseros: ${mixed.join(", ")}`
+      "Barra de Caf\uFFFD",
+      `primario caf\uFFFD no meseros: ${mixed.join(", ")}`
     );
-    const pref = "Buenas noches.\nRespecto a la barra de caf\xE9, solo requieren, americano, capuchino y t\xE9";
+    const pref = "Buenas noches.\nRespecto a la barra de caf\uFFFD, solo requieren, americano, capuchino y t\uFFFD";
     assert2.ok(
-      isServicePreferenceRefinement(pref, "Barra de Caf\xE9 Premium"),
+      isServicePreferenceRefinement(pref, "Barra de Caf\uFFFD Premium"),
       "debe ser refinamiento de preferencia"
     );
     assert2.ok(!/banquete/i.test(parsePrimaryService(pref) || ""), parsePrimaryService(pref));
     const csvCafe = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
-      '"Barra de Caf\xE9","Premium","$180.00","$9,000.00","TRUE","Baristas y bebidas artesanales","https://bodasesor.com/catalogos/barra-de-cafe"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Que Incluye","Link catalogo"',
+      '"Barra de Caf\uFFFD","Premium","$180.00","$9,000.00","TRUE","Baristas y bebidas artesanales","https://bodasesor.com/catalogos/barra-de-cafe"',
       '"Banquete Formal 3 tiempos","Solo Alimentos","$450.00","$13,500.00","TRUE","Entrada plato fuerte","https://bodasesor.com/catalogos/banquete-formal"'
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csvCafe));
     const postCierre = runGuards({
-      aiResponse: "\xBFAlgo m\xE1s?",
+      aiResponse: "\uFFFDAlgo m\uFFFDs?",
       extracted: emptyExtracted({
-        nombre: "Erika Casta\xF1eda",
+        nombre: "Erika Casta\uFFFDeda",
         correo: "malinali2707@hotmail.com",
         tipo_evento: "corporativo",
         num_invitados: 50,
-        requerimientos_evento: "Barra de Caf\xE9 Premium, Meseros",
+        requerimientos_evento: "Barra de Caf\uFFFD Premium, Meseros",
         zona: "Pachuca de Soto, Hidalgo",
         fecha_horario: "3 de agosto"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
-        "N\xFAmero de invitados",
+        "N\uFFFDmero de invitados",
         "Requerimientos o servicios",
-        "Zona o ubicaci\xF3n del evento",
+        "Zona o ubicaci\uFFFDn del evento",
         "Fecha y horario",
         "Presupuesto (MXN)"
       ]),
@@ -147606,7 +147687,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         { role: "user", content: cafeMsg },
         {
           role: "assistant",
-          content: "Perfecto, ya tengo todo. Voy a compartir esta informaci\xF3n con nuestro equipo para que te prepare una cotizaci\xF3n personalizada."
+          content: "Perfecto, ya tengo todo. Voy a compartir esta informaci\uFFFDn con nuestro equipo para que te prepare una cotizaci\uFFFDn personalizada."
         }
       ]
     });
@@ -147619,14 +147700,14 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       `no Banquete ni mensaje crudo: ${postCierre.slice(0, 600)}`
     );
     assert2.ok(
-      !/a qu[e√©] correo/i.test(postCierre),
+      !/a qu[eÈ] correo/i.test(postCierre),
       `no re-pedir correo: ${postCierre.slice(0, 400)}`
     );
     const mid = runGuards({
       aiResponse: "ok",
       extracted: emptyExtracted({
         nombre: "Erika",
-        requerimientos_evento: "Barra de Caf\xE9 Premium",
+        requerimientos_evento: "Barra de Caf\uFFFD Premium",
         tipo_evento: "corporativo"
       }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios", "Tipo de evento"]),
@@ -147634,7 +147715,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       currentMessage: pref,
       history: [
         { role: "user", content: cafeMsg },
-        { role: "assistant", content: "Perfecto, Erika. \xBFA qu\xE9 correo te env\xEDo la informaci\xF3n?" }
+        { role: "assistant", content: "Perfecto, Erika. \uFFFDA qu\uFFFD correo te env\uFFFDo la informaci\uFFFDn?" }
       ]
     });
     assert2.ok(
@@ -147642,7 +147723,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       `sin Banquete a mitad de flujo: ${mid.slice(0, 500)}`
     );
   });
-  await test("102. Cat\xE1logo web \u2014 detecci\xF3n y variantes de todas las l\xEDneas", () => {
+  await test("102. Cat\uFFFDlogo web \uFFFD detecci\uFFFDn y variantes de todas las l\uFFFDneas", () => {
     assert2.equal(banqueteDetailQuery("De tres tiempos"), "Banquete Formal 3 tiempos");
     assert2.equal(banqueteDetailQuery("4 tiempos"), "Banquete Formal 4 tiempos");
     assert2.equal(banqueteDetailQuery("formal 4 tiempos"), "Banquete Formal 4 tiempos");
@@ -147650,7 +147731,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.equal(banqueteDetailQuery("mexicano 4 tiempos"), "Banquete Mexicano 4 tiempos");
     assert2.equal(banqueteDetailQuery("kosher buffet"), "Banquete Kosher Buffet");
     assert2.equal(banqueteDetailQuery("kosher 3 tiempos"), "Banquete Kosher 3 tiempos");
-    assert2.equal(banqueteDetailQuery("banquete navide\xF1o 4 tiempos"), "Banquete Navide\xF1o 4 tiempos");
+    assert2.equal(banqueteDetailQuery("banquete navide\uFFFDo 4 tiempos"), "Banquete Navide\uFFFDo 4 tiempos");
     assert2.equal(
       resolveDetailQueryForFamily("banquete", "El formal de 3 tiempos"),
       "Banquete Formal 3 tiempos"
@@ -147659,39 +147740,39 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       const found = parseServicesFromText(msg);
       assert2.ok(
         found.some((s6) => s6.toLowerCase().includes(label.toLowerCase()) || label.toLowerCase().includes(s6.toLowerCase())),
-        `"${msg}" \u2192 esperaba ${label}, got ${JSON.stringify(found)}`
+        `"${msg}" ? esperaba ${label}, got ${JSON.stringify(found)}`
       );
     };
     const expectPrimary = (msg, label) => {
       const found = parseServicesFromText(msg);
       assert2.ok(
         found.includes(label) || found[0] === label,
-        `"${msg}" \u2192 esperaba incluir ${label}, got ${JSON.stringify(found)}`
+        `"${msg}" ? esperaba incluir ${label}, got ${JSON.stringify(found)}`
       );
     };
     expectPrimary("banquete mexicano", "Banquete Mexicano");
     assert2.ok(!parseServicesFromText("banquete mexicano").includes("Banquete Formal"));
     expectPrimary("banquete kosher", "Banquete Kosher");
-    expectPrimary("banquete navide\xF1o", "Banquete Navide\xF1o");
+    expectPrimary("banquete navide\uFFFDo", "Banquete Navide\uFFFDo");
     expectPrimary("barra americana", "Barra Americana");
     expectPrimary("barra yucateca", "Barra Yucateca");
     expectPrimary("barra de bebidas con alcohol", "Barra de bebidas");
-    expectPrimary("barra de caf\xE9", "Barra de Caf\xE9");
+    expectPrimary("barra de caf\uFFFD", "Barra de Caf\uFFFD");
     expectPrimary("barra de crepas", "Barra de Crepas");
     expectPrimary("barra de mariscos", "Barra de mariscos");
     expectPrimary("barra de paninis", "Barra de paninis");
     expectPrimary("barra de pastas y ensaladas", "Barra de pastas y ensaladas");
     expectPrimary("barra de pizzas", "Barra de pizzas");
     expectPrimary("barra de sushi", "Barra de sushi");
-    expectHas("cocteler\xEDa y mixolog\xEDa", "Cocteler\xEDa");
-    expectPrimary("m\xF3cteles", "M\xF3cteles");
+    expectHas("cocteler\uFFFDa y mixolog\uFFFDa", "Cocteler\uFFFDa");
+    expectPrimary("m\uFFFDcteles", "M\uFFFDcteles");
     expectPrimary("paella", "Paella");
     expectPrimary("pozole y tostadas", "Pozole y Tostadas");
     expectPrimary("puestos de comida", "Puestos de Comida");
-    expectPrimary("canap\xE9s", "Canap\xE9s");
+    expectPrimary("canap\uFFFDs", "Canap\uFFFDs");
     expectPrimary("bocadillos", "Bocadillos");
-    expectPrimary("cupcakes", "Cupcakes y Bet\xFAn");
-    expectPrimary("bet\xFAn decorado", "Cupcakes y Bet\xFAn");
+    expectPrimary("cupcakes", "Cupcakes y Bet\uFFFDn");
+    expectPrimary("bet\uFFFDn decorado", "Cupcakes y Bet\uFFFDn");
     expectPrimary("paletas de hielo", "Paletas de Hielo y Helados");
     expectPrimary("parrillada argentina", "Parrillada Argentina");
     expectPrimary("parrillada de tacos", "Parrillada Tacos");
@@ -147710,19 +147791,19 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(!parseServicesFromText("arreglos de mesa").includes("Mobiliario"));
     expectPrimary("entelados", "Entelados para Techo");
     expectPrimary("colgantes premium", "Colgantes Premium");
-    expectPrimary("decoraci\xF3n a\xE9rea", "Colgantes Premium");
+    expectPrimary("decoraci\uFFFDn a\uFFFDrea", "Colgantes Premium");
     expectPrimary("vajillas", "Vajillas");
     expectHas("mesas y sillas", "Mobiliario");
     expectHas("tarima", "Pista de baile");
     expectPrimary("fiesta infantil", "Fiesta Infantil");
-    expectHas("audio e iluminaci\xF3n", "Audio");
+    expectHas("audio e iluminaci\uFFFDn", "Audio");
     expectPrimary("video", "Video");
     expectPrimary("coffee break", "Coffee break");
     expectPrimary("comida corrida", "Comida Corrida");
     expectPrimary("desayuno", "Desayuno");
     expectPrimary("brunch", "Brunch");
     assert2.equal(detectProgressiveFamily("quiero banquete"), "banquete");
-    assert2.equal(detectProgressiveFamily("barra de caf\xE9"), "barra_cafe");
+    assert2.equal(detectProgressiveFamily("barra de caf\uFFFD"), "barra_cafe");
     assert2.equal(detectProgressiveFamily("paella para 80"), "gastronomia");
     assert2.equal(detectProgressiveFamily("cupcakes"), "cupcakes_betun");
     assert2.equal(detectProgressiveFamily("entelados para techo"), "mobiliario");
@@ -147734,7 +147815,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       resolveDetailQueryForFamily("parrillada", "parrillada de tacos"),
       "Parrillada Tacos"
     );
-    assert2.equal(resolveDetailQueryForFamily("cupcakes_betun", "bet\xFAn cl\xE1sico"), "Bet\xFAn Cl\xE1sico");
+    assert2.equal(resolveDetailQueryForFamily("cupcakes_betun", "bet\uFFFDn cl\uFFFDsico"), "Bet\uFFFDn Cl\uFFFDsico");
     assert2.equal(resolveDetailQueryForFamily("gastronomia", "pozole"), "Pozole y Tostadas");
     assert2.equal(
       resolveDetailQueryForFamily("barra_alimentos", "barra de pastas"),
@@ -147742,12 +147823,12 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     );
     assert2.equal(resolveDetailQueryForFamily("mesa_dulces", "carrito de snacks"), "Carrito de Snacks");
   });
-  await test("103. Regina A14981 \u2014 pastas sin Taquiza, nombre sin doble, solo comida", () => {
+  await test("103. Regina A14981 \uFFFD pastas sin Taquiza, nombre sin doble, solo comida", () => {
     const visionTurn = formatImageTurnText(
       {
         intent: "comida_producto",
         internalDescription: "Pasta fresca en plato",
-        clientReply: "\xA1Me encanta la idea de la pasta fresca! Podemos ofrecer un servicio de taquiza o un men\xFA de pasta para tu evento."
+        clientReply: "\uFFFDMe encanta la idea de la pasta fresca! Podemos ofrecer un servicio de taquiza o un men\uFFFD de pasta para tu evento."
       },
       "Tengo en mente una barra de pastas."
     );
@@ -147771,7 +147852,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     const closing = buildStandardClosingMessage("Barra de pastas, Pastas, Taquiza", "Regina");
     assert2.ok(/barra de pastas/i.test(closing), closing.slice(0, 400));
     assert2.ok(!/taquiza/i.test(closing), closing.slice(0, 400));
-    assert2.ok(!/adem√°s de la comida,\s*como/i.test(closing), closing.slice(0, 400));
+    assert2.ok(!/adem·s de la comida,\s*como/i.test(closing), closing.slice(0, 400));
     const nameTurn = runGuards({
       aiResponse: "ok",
       extracted: emptyExtracted({ nombre: "Regina Couttolenc" }),
@@ -147781,7 +147862,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       history: [
         {
           role: "assistant",
-          content: "Hola, soy Lucy, agente virtual de Bodasesor. \xBFC\xF3mo te llamas?"
+          content: "Hola, soy Lucy, agente virtual de Bodasesor. \uFFFDC\uFFFDmo te llamas?"
         }
       ]
     });
@@ -147791,7 +147872,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       `sin doble nombre: ${nameTurn.slice(0, 300)}`
     );
     const pastaCsv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Link catalogo","Que Incluye"',
       '"Barra de pastas y ensaladas","Basico","$340.00","$10,200.00","TRUE","https://bodasesor.com/catalogos/barra-de-pastas","Pastas"',
       '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","Tacos"'
     ].join("\n");
@@ -147816,11 +147897,11 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       currentMessage: visionTurn,
       history: [
         { role: "user", content: "Bautizo." },
-        { role: "assistant", content: "\xBFQu\xE9 servicios tienes en mente?" }
+        { role: "assistant", content: "\uFFFDQu\uFFFD servicios tienes en mente?" }
       ]
     });
     assert2.ok(
-      !/S√≠, manejamos Taquiza|Solo Alimentos.*\$300/i.test(imgReply),
+      !/SÌ, manejamos Taquiza|Solo Alimentos.*\$300/i.test(imgReply),
       `sin dump taquiza: ${imgReply.slice(0, 500)}`
     );
     assert2.ok(
@@ -147845,17 +147926,17 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       filledSet: foodFilled,
       readyForClosing: false,
       currentMessage: "Solo quiero que me coticen la comida",
-      history: [{ role: "assistant", content: "\xBFTe gustar\xEDa sumar otro servicio?" }]
+      history: [{ role: "assistant", content: "\uFFFDTe gustar\uFFFDa sumar otro servicio?" }]
     });
     assert2.ok(
       /barra de pastas/i.test(foodOnly.requerimientos_evento ?? "") && !/taquiza/i.test(foodOnly.requerimientos_evento ?? ""),
-      `solo comida \u2192 ${foodOnly.requerimientos_evento}`
+      `solo comida ? ${foodOnly.requerimientos_evento}`
     );
   });
-  await test("104. A14982 \u2014 CTA detalle en TODAS las ramas (no solo Yucateca)", () => {
+  await test("104. A14982 \uFFFD CTA detalle en TODAS las ramas (no solo Yucateca)", () => {
     assert2.ok(/detalles de alguno/i.test(SERVICE_NIVEL_DETAIL_CTA));
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Link catalogo","Que Incluye"',
       '"Barra Yucateca","Solo Alimentos","$330.00","$9,900.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","guisos"',
       '"Barra Yucateca","Basico","$750.00","$22,500.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","basico"',
       '"Barra Yucateca","Tradicional","$800.00","$24,000.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","tradicional"',
@@ -147868,9 +147949,9 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       '"Barra de sushi","Basico","$800.00","$24,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","basico"',
       '"Barra de sushi","Tradicional","$850.00","$25,500.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","tradicional"',
       '"Barra de sushi","Premium","$900.00","$27,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","premium"',
-      '"Barra de Caf\xE9","Basico","$350.00","$10,500.00","TRUE","https://bodasesor.com/catalogos/barra-de-cafe","cafe"',
-      '"Barra de Caf\xE9","Tradicional","$450.00","$13,500.00","TRUE","https://bodasesor.com/catalogos/barra-de-cafe","cafe t"',
-      '"Barra de Caf\xE9","Premium","$550.00","$16,500.00","TRUE","https://bodasesor.com/catalogos/barra-de-cafe","cafe p"',
+      '"Barra de Caf\uFFFD","Basico","$350.00","$10,500.00","TRUE","https://bodasesor.com/catalogos/barra-de-cafe","cafe"',
+      '"Barra de Caf\uFFFD","Tradicional","$450.00","$13,500.00","TRUE","https://bodasesor.com/catalogos/barra-de-cafe","cafe t"',
+      '"Barra de Caf\uFFFD","Premium","$550.00","$16,500.00","TRUE","https://bodasesor.com/catalogos/barra-de-cafe","cafe p"',
       '"Barra Americana","Basico","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/barra-americana","am"',
       '"Barra Americana","Tradicional","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/barra-americana","am t"',
       '"Barra Americana","Premium","$600.00","$18,000.00","TRUE","https://bodasesor.com/catalogos/barra-americana","am p"'
@@ -147880,18 +147961,18 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       "Barra Yucateca",
       "Taquiza",
       "Barra de sushi",
-      "Barra de Caf\xE9",
+      "Barra de Caf\uFFFD",
       "Barra Americana"
     ]) {
       const detail = buildCatalogServiceDetailAnswer(svc);
       assert2.ok(detail, `detail ${svc}`);
       assert2.ok(
-        /quieres que te d[e√©] detalles de alguno|cu[a√°]l te late m[a√°]s/i.test(detail),
+        /quieres que te d[eÈ] detalles de alguno|cu[a·]l te late m[a·]s/i.test(detail),
         `CTA/embudo en ${svc}: ${detail.slice(-180)}`
       );
       assert2.ok(
-        !/cu[a√°]l nivel prefieres/i.test(detail),
-        `sin forzar elecci\xF3n en ${svc}`
+        !/cu[a·]l nivel prefieres/i.test(detail),
+        `sin forzar elecci\uFFFDn en ${svc}`
       );
       if (/Yucateca|Taquiza|sushi/i.test(svc)) {
         assert2.ok(
@@ -147923,18 +148004,18 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       const menu = buildProgressiveOptionsMenu(fam);
       if (fam === "mobiliario") {
         assert2.ok(
-          /qu[e√©] es lo que buscas|dime qu[e√©] pieza|Mesas|Sillas/i.test(menu),
-          `men\xFA mobiliario pregunta pieza: ${menu.slice(-160)}`
+          /qu[eÈ] es lo que buscas|dime qu[eÈ] pieza|Mesas|Sillas/i.test(menu),
+          `men\uFFFD mobiliario pregunta pieza: ${menu.slice(-160)}`
         );
       } else if (fam === "taquiza" || fam === "barra_sushi") {
         assert2.ok(
-          /solo\s+alimentos|servicio\s+completo|cu[a√°]l te late/i.test(menu),
-          `men\xFA ${fam} solo vs completo: ${menu.slice(-160)}`
+          /solo\s+alimentos|servicio\s+completo|cu[a·]l te late/i.test(menu),
+          `men\uFFFD ${fam} solo vs completo: ${menu.slice(-160)}`
         );
       } else {
         assert2.ok(
-          menu.includes(SERVICE_NIVEL_DETAIL_CTA) || /solo\s+alimentos|servicio\s+completo|cu[a√°]l te late/i.test(menu),
-          `men\xFA ${fam} debe usar CTA global o solo vs completo: ${menu.slice(-120)}`
+          menu.includes(SERVICE_NIVEL_DETAIL_CTA) || /solo\s+alimentos|servicio\s+completo|cu[a·]l te late/i.test(menu),
+          `men\uFFFD ${fam} debe usar CTA global o solo vs completo: ${menu.slice(-120)}`
         );
       }
     }
@@ -147984,21 +148065,21 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         tipo_evento: "taquiza",
         requerimientos_evento: "Barra Yucateca",
         num_invitados: 230,
-        direccion_evento: "Quer\xE9taro"
+        direccion_evento: "Quer\uFFFDtaro"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados",
-        "Lugar/direcci\xF3n del evento"
+        "N\uFFFDmero de invitados",
+        "Lugar/direcci\uFFFDn del evento"
       ]),
       readyForClosing: false,
-      currentMessage: "Si me puede cotizar la taquiza de guisados tambi\xE9n lo apreciar\xEDa",
+      currentMessage: "Si me puede cotizar la taquiza de guisados tambi\uFFFDn lo apreciar\uFFFDa",
       history: [
         {
           role: "assistant",
-          content: "Perfecto. Te detallo *Barra Yucateca*.\n\nPara *Barra Yucateca* manejamos estos niveles:\n1. *Solo Alimentos* \u2014 $330\n\n\xBFQuieres que te d\xE9 detalles de alguno?\n\nCat\xE1logo: https://bodasesor.com/catalogos/barra-yucateca"
+          content: "Perfecto. Te detallo *Barra Yucateca*.\n\nPara *Barra Yucateca* manejamos estos niveles:\n1. *Solo Alimentos* \uFFFD $330\n\n\uFFFDQuieres que te d\uFFFD detalles de alguno?\n\nCat\uFFFDlogo: https://bodasesor.com/catalogos/barra-yucateca"
         }
       ]
     });
@@ -148008,7 +148089,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(!/De acuerdo\.\s*Perfecto\./i.test(reply), reply.slice(0, 200));
     assert2.ok(!/Barra Yucateca/i.test(reply), `no reabrir barra: ${reply.slice(0, 400)}`);
     assert2.ok(
-      /quieres que te d[e√©] detalles|info detallada|Te detallo \*Taquiza|manejamos varios niveles/i.test(
+      /quieres que te d[eÈ] detalles|info detallada|Te detallo \*Taquiza|manejamos varios niveles/i.test(
         reply
       ),
       reply.slice(0, 500)
@@ -148016,18 +148097,18 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(
       isCatalogLevelSelection(
         "Tradicional",
-        "Para *Taquiza* manejamos estos niveles:\n1. *Basico*\n\n\xBFQuieres que te d\xE9 detalles de alguno?"
+        "Para *Taquiza* manejamos estos niveles:\n1. *Basico*\n\n\uFFFDQuieres que te d\uFFFD detalles de alguno?"
       )
     );
   });
-  await test("105. A14982 \u2014 Yucateca+Taquiza: niveles Sheet (no hub gen\xE9rico) + embudo", () => {
+  await test("105. A14982 \uFFFD Yucateca+Taquiza: niveles Sheet (no hub gen\uFFFDrico) + embudo", () => {
     assert2.ok(
       clientAsksInclusion(
         "Por que no me ofreces lo paquetes que tienes y me puedo dar una idea mas clara"
       )
     );
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Link catalogo","Que Incluye"',
       '"Barra Yucateca","Solo Alimentos","$330.00","$9,900.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","guisos"',
       '"Barra Yucateca","Basico","$750.00","$22,500.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","basico"',
       '"Barra Yucateca","Tradicional","$800.00","$24,000.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","tradicional"',
@@ -148040,26 +148121,26 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
     const levels = buildMultiServiceSheetLevelsReply(
       ["Barra Yucateca", "Taquiza"],
-      "Si v\xED una barra yucateca y una taquiza de guisados"
+      "Si v\uFFFD una barra yucateca y una taquiza de guisados"
     );
     assert2.ok(levels, "debe haber dump de niveles");
     assert2.ok(/Barra Yucateca/i.test(levels), levels.slice(0, 300));
     assert2.ok(/Taquiza/i.test(levels), levels.slice(0, 300));
     assert2.ok(/\$330|\$300|\$750|solo\s+alimentos|servicio\s+completo/i.test(levels), levels.slice(0, 500));
     assert2.ok(
-      /quieres que te d[e√©] detalles de alguno|cu[a√°]l te late/i.test(levels),
+      /quieres que te d[eÈ] detalles de alguno|cu[a·]l te late/i.test(levels),
       levels.slice(-200)
     );
     assert2.ok(
-      !/quieres que te mande el cat[a√°]logo con m[a√°]s detalle/i.test(levels),
-      "sin loop de cat\xE1logo gen\xE9rico"
+      !/quieres que te mande el cat[a·]logo con m[a·]s detalle/i.test(levels),
+      "sin loop de cat\uFFFDlogo gen\uFFFDrico"
     );
     const pkgReply = buildMultiServicePackageReply(
       ["Barra Yucateca", "Taquiza"],
-      "Si v\xED una barra yucateca y una taquiza"
+      "Si v\uFFFD una barra yucateca y una taquiza"
     );
     assert2.ok(/\$330|\$300|solo\s+alimentos|desde/i.test(pkgReply), pkgReply.slice(0, 400));
-    assert2.ok(!/Te dejo el cat√°logo general/i.test(pkgReply), pkgReply.slice(0, 300));
+    assert2.ok(!/Te dejo el cat·logo general/i.test(pkgReply), pkgReply.slice(0, 300));
     const reply = runGuards({
       aiResponse: "ok",
       extracted: emptyExtracted({
@@ -148067,58 +148148,58 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         tipo_evento: "evento",
         requerimientos_evento: "Barra Yucateca",
         num_invitados: 230,
-        direccion_evento: "Quer\xE9taro",
+        direccion_evento: "Quer\uFFFDtaro",
         fecha_horario: "finales de septiembre"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados",
-        "Lugar/direcci\xF3n del evento",
+        "N\uFFFDmero de invitados",
+        "Lugar/direcci\uFFFDn del evento",
         "Fecha y horario"
       ]),
       readyForClosing: false,
-      currentMessage: "Si v\xED una barra yucateca y una taquiza de guisados",
+      currentMessage: "Si v\uFFFD una barra yucateca y una taquiza de guisados",
       history: [
         {
           role: "assistant",
-          content: "hola, \xBFte llam\xF3 la atenci\xF3n alg\xFAn paquete?"
+          content: "hola, \uFFFDte llam\uFFFD la atenci\uFFFDn alg\uFFFDn paquete?"
         }
       ]
     });
     assert2.ok(/Yucateca/i.test(reply) && /Taquiza/i.test(reply), reply.slice(0, 500));
     assert2.ok(/\$\s*\d/i.test(reply), reply.slice(0, 500));
     assert2.ok(
-      !/quieres que te mande el cat[a√°]logo con m[a√°]s detalle/i.test(reply),
+      !/quieres que te mande el cat[a·]logo con m[a·]s detalle/i.test(reply),
       reply.slice(0, 400)
     );
     assert2.ok(
-      /correo|e-?mail|cu[a√°]l te late|detalles de alguno/i.test(reply),
+      /correo|e-?mail|cu[a·]l te late|detalles de alguno/i.test(reply),
       `debe pedir modo/nivel o correo: ${reply.slice(-300)}`
     );
     const pkgs = runGuards({
-      aiResponse: "Claro, aqu\xED tienes un resumen de algunos paquetes: - Taquiza: Desde $300\u2026",
+      aiResponse: "Claro, aqu\uFFFD tienes un resumen de algunos paquetes: - Taquiza: Desde $300\uFFFD",
       extracted: emptyExtracted({
         nombre: "Francisco",
         tipo_evento: "evento",
         requerimientos_evento: "Barra Yucateca, Taquiza",
         num_invitados: 230,
-        direccion_evento: "Quer\xE9taro"
+        direccion_evento: "Quer\uFFFDtaro"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados",
-        "Lugar/direcci\xF3n del evento"
+        "N\uFFFDmero de invitados",
+        "Lugar/direcci\uFFFDn del evento"
       ]),
       readyForClosing: false,
       currentMessage: "Por que no me ofreces lo paquetes que tienes y me puedo dar una idea mas clara",
       history: [
         {
           role: "assistant",
-          content: "\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?"
+          content: "\uFFFDQuieres que te mande el cat\uFFFDlogo con m\uFFFDs detalle?"
         }
       ]
     });
@@ -148126,15 +148207,15 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(/\$330|\$750|Solo Alimentos|Basico|servicio\s+completo|desde/i.test(pkgs), pkgs.slice(0, 600));
     assert2.ok(!/resumen de algunos paquetes/i.test(pkgs), pkgs.slice(0, 300));
     assert2.ok(
-      /correo|e-?mail|fecha|cu[a√°]ndo|d[i√≠]a|hora|definiendo|ciudad|ubicaci|sal[o√≥]n|cu[a√°]l te late|detalles de alguno/i.test(
+      /correo|e-?mail|fecha|cu[a·]ndo|d[iÌ]a|hora|definiendo|ciudad|ubicaci|sal[oÛ]n|cu[a·]l te late|detalles de alguno/i.test(
         pkgs
       ),
       `tras paquetes, embudo: ${pkgs.slice(-350)}`
     );
   });
-  await test("106. A14982 \u2014 banquete mexicano \u2260 Formal (subtipo Sheet correcto)", () => {
+  await test("106. A14982 \uFFFD banquete mexicano ? Formal (subtipo Sheet correcto)", () => {
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Link catalogo","Que Incluye"',
       '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Entrada formal"',
       '"Banquete Formal 4 tiempos","Basico","$550.00","$16,500.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","4 tiempos formal"',
       '"Banquete Mexicano 3 tiempos","Basico","$580.00","$17,400.00","TRUE","https://bodasesor.com/catalogos/banquete-mexicano","3 tiempos mx"',
@@ -148164,7 +148245,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       detail.slice(0, 400)
     );
     const reply = runGuards({
-      aiResponse: "Claro, te paso el Banquete Formal 3 tiempos que es muy pedido\u2026",
+      aiResponse: "Claro, te paso el Banquete Formal 3 tiempos que es muy pedido\uFFFD",
       extracted: emptyExtracted({
         nombre: "Francisco",
         tipo_evento: "evento",
@@ -148175,14 +148256,14 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         "Nombre del cliente",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados"
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
       currentMessage: "Me interesa el banquete mexicano",
       history: [
         {
           role: "assistant",
-          content: "Claro. En *banquete* manejamos varias opciones:\n\u2022 *Formal* (3 o 4 tiempos)\n\u2022 *Mexicano* (3 o 4 tiempos)\n\n\xBFQuieres que te d\xE9 detalles de alguno?"
+          content: "Claro. En *banquete* manejamos varias opciones:\n\uFFFD *Formal* (3 o 4 tiempos)\n\uFFFD *Mexicano* (3 o 4 tiempos)\n\n\uFFFDQuieres que te d\uFFFD detalles de alguno?"
         }
       ]
     });
@@ -148193,7 +148274,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       reply.slice(0, 600)
     );
   });
-  await test("107. A14985 Lilian \u2014 golf stand: bebidas+banderillas+periqueras \u2192 cat\xE1logos concretos", () => {
+  await test("107. A14985 Lilian \uFFFD golf stand: bebidas+banderillas+periqueras ? cat\uFFFDlogos concretos", () => {
     const brief = [
       "Evento: Torneo de Golf (Stand en campo)",
       "Lugar: Club de Golf Los Encinos",
@@ -148203,8 +148284,8 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       "Bebidas y Alimentos",
       "Cerveza",
       "Whisky",
-      "Tercera opci\xF3n de bebida",
-      "Snack: Banderillas (u otra opci\xF3n similar)",
+      "Tercera opci\uFFFDn de bebida",
+      "Snack: Banderillas (u otra opci\uFFFDn similar)",
       "Mobiliario y Montaje",
       "Mobiliario: Periqueras (mesas altas con bancos)"
     ].join("\n");
@@ -148231,7 +148312,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(/barra-de-bebidas/i.test(mapped), mapped);
     assert2.ok(/puestos-de-comida/i.test(mapped), mapped);
     assert2.ok(/salas-y-periqueras/i.test(mapped), mapped);
-    assert2.ok(!/mande el cat√°logo con m√°s detalle/i.test(mapped), mapped);
+    assert2.ok(!/mande el cat·logo con m·s detalle/i.test(mapped), mapped);
     const pkg = buildMultiServicePackageReply(services, brief);
     assert2.ok(/Barra de bebidas|Puestos/i.test(pkg), pkg.slice(0, 400));
     assert2.ok(/barra-de-bebidas/i.test(pkg) && /puestos-de-comida/i.test(pkg), pkg);
@@ -148244,15 +148325,15 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         correo: "lilian@nodum.com.mx",
         tipo_evento: "evento corporativo",
         num_invitados: 80,
-        direccion_evento: "Club de Golf Los Encinos, Estado de M\xE9xico",
+        direccion_evento: "Club de Golf Los Encinos, Estado de M\uFFFDxico",
         fecha_horario: "20 de agosto, 07:00 a 15:00 hrs"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
-        "N\xFAmero de invitados",
-        "Lugar/direcci\xF3n del evento",
+        "N\uFFFDmero de invitados",
+        "Lugar/direcci\uFFFDn del evento",
         "Fecha y horario"
       ]),
       readyForClosing: false,
@@ -148260,13 +148341,13 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       history: [
         {
           role: "assistant",
-          content: "Gracias por tu correo, Lilian. \xBFQu\xE9 tipo de evento est\xE1s planeando?"
+          content: "Gracias por tu correo, Lilian. \uFFFDQu\uFFFD tipo de evento est\uFFFDs planeando?"
         }
       ]
     });
     assert2.ok(
       /barra-de-bebidas|puestos-de-comida|salas-y-periqueras/i.test(reply),
-      `guards con cat\xE1logos concretos: ${reply.slice(0, 700)}`
+      `guards con cat\uFFFDlogos concretos: ${reply.slice(0, 700)}`
     );
     assert2.ok(
       /Barra de bebidas|Puestos|Periqueras|Mobiliario/i.test(reply),
@@ -148277,7 +148358,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       `no solo Snack+Mobiliario: ${reply.slice(0, 400)}`
     );
   });
-  await test("108. V8.79 \u2014 cat\xE1logos mapeados en TODAS las ramas (no solo RFQ)", () => {
+  await test("108. V8.79 \uFFFD cat\uFFFDlogos mapeados en TODAS las ramas (no solo RFQ)", () => {
     const golfServices = [
       "Barra de bebidas",
       "Puestos de Comida",
@@ -148286,13 +148367,13 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     const golfText = "Cerveza Whisky Snack Banderillas Periqueras torneo de golf 80 personas";
     assert2.ok(
       buildGenericCatalogHubBlock().includes(CATALOG_OFFER_QUESTION),
-      "hub gen\xE9rico intacto"
+      "hub gen\uFFFDrico intacto"
     );
     const viaPackage = buildPackageCatalogOfferBlock(golfServices, golfText);
     assert2.ok(/barra-de-bebidas/i.test(viaPackage), viaPackage);
     assert2.ok(/puestos-de-comida/i.test(viaPackage), viaPackage);
     assert2.ok(/salas-y-periqueras/i.test(viaPackage), viaPackage);
-    assert2.ok(!/^Te dejo el cat√°logo general/i.test(viaPackage), viaPackage);
+    assert2.ok(!/^Te dejo el cat·logo general/i.test(viaPackage), viaPackage);
     const closing = buildStandardClosingMessage(
       "Barra de bebidas, Puestos de Comida, Mobiliario",
       "Lilian"
@@ -148310,7 +148391,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         }),
         filledSet: /* @__PURE__ */ new Set([
           "Tipo de evento",
-          "N\xFAmero de invitados",
+          "N\uFFFDmero de invitados",
           "Requerimientos o servicios"
         ]),
         history: [],
@@ -148336,10 +148417,10 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados"
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
       currentMessage: "Favor de leer muy bien las especificaciones",
@@ -148347,7 +148428,7 @@ ${golfText}`,
         { role: "user", content: `Torneo de Golf. ${golfText}` },
         {
           role: "assistant",
-          content: "Perfecto, ya anot\xE9 tus datos. \xBFCu\xE1l es tu presupuesto?"
+          content: "Perfecto, ya anot\uFFFD tus datos. \uFFFDCu\uFFFDl es tu presupuesto?"
         }
       ]
     });
@@ -148362,13 +148443,13 @@ ${golfText}`,
       `releer mapeado: ${reread.slice(0, 700)}`
     );
   });
-  await test("109. A14987 Natalia \u2014 picnic/periqueras/bancos (no 50 sillas ni color=zona)", () => {
+  await test("109. A14987 Natalia \uFFFD picnic/periqueras/bancos (no 50 sillas ni color=zona)", () => {
     assert2.equal(
       parseZonaFromText("50 mesas tipo picnic en color blanco"),
       null,
-      "color blanco \u2260 ubicaci\xF3n"
+      "color blanco ? ubicaci\uFFFDn"
     );
-    assert2.equal(parseZonaFromText("\xBFTienen en color blanco?"), null);
+    assert2.equal(parseZonaFromText("\uFFFDTienen en color blanco?"), null);
     const items = parseMobiliarioRentItems(
       "50 mesas tipo picnic y 50 periqueras con 200 bancos, todo en color blanco"
     );
@@ -148377,7 +148458,7 @@ ${golfText}`,
       ["50 mesas tipo picnic", "50 periqueras", "200 bancos"]
     );
     const detail = buildMobiliarioRentDetailReply(
-      "S\xED por favor, me gustar\xEDa cotizar 50 mesas tipo picnic \xBFTienen en color blanco?\n\nDe igual forma me gustar\xEDa cotizar 50 periqueras y 200 bancos de color blanco"
+      "S\uFFFD por favor, me gustar\uFFFDa cotizar 50 mesas tipo picnic \uFFFDTienen en color blanco?\n\nDe igual forma me gustar\uFFFDa cotizar 50 periqueras y 200 bancos de color blanco"
     );
     assert2.ok(detail, "debe haber detalle mobiliario");
     assert2.ok(/picnic/i.test(detail), detail);
@@ -148386,10 +148467,10 @@ ${golfText}`,
     assert2.ok(/blanco/i.test(detail), detail);
     assert2.ok(!/50 sillas/i.test(detail), detail);
     const brief = [
-      "Ser\xEDa sin montaje, solo para entrega el d\xEDa 10 de diciembre (2026) y recogerlo el d\xEDa 12 de diciembre despu\xE9s de las 5 pm.",
-      "Ser\xEDan 50 mesas tipo picnic y 50 periqueras con 200 bancos, todo en color blanco.",
-      "La ubicaci\xF3n ser\xEDa en: Planta Volkswagen Puebla, Avenida San Lorenzo Almecatla 16, 72710 Cuautlancingo, Puebla",
-      "El correo ser\xEDa mcadena@luzebi.com"
+      "Ser\uFFFDa sin montaje, solo para entrega el d\uFFFDa 10 de diciembre (2026) y recogerlo el d\uFFFDa 12 de diciembre despu\uFFFDs de las 5 pm.",
+      "Ser\uFFFDan 50 mesas tipo picnic y 50 periqueras con 200 bancos, todo en color blanco.",
+      "La ubicaci\uFFFDn ser\uFFFDa en: Planta Volkswagen Puebla, Avenida San Lorenzo Almecatla 16, 72710 Cuautlancingo, Puebla",
+      "El correo ser\uFFFDa mcadena@luzebi.com"
     ].join("\n\n");
     assert2.ok(isRichQuoteBrief(brief));
     assert2.ok(isMobiliarioRentalPedido(brief));
@@ -148403,16 +148484,16 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento"
+        "Lugar/direcci\uFFFDn del evento"
       ]),
       readyForClosing: false,
       currentMessage: brief,
       history: [
         {
           role: "assistant",
-          content: "Para mandarte la info, \xBFa qu\xE9 correo te lo env\xEDo?"
+          content: "Para mandarte la info, \uFFFDa qu\uFFFD correo te lo env\uFFFDo?"
         }
       ]
     });
@@ -148422,7 +148503,7 @@ ${golfText}`,
     assert2.ok(!/50 sillas/i.test(reply), reply.slice(0, 500));
     assert2.ok(
       /salas-y-periqueras|catalogos/i.test(reply),
-      `cat\xE1logo: ${reply.slice(0, 600)}`
+      `cat\uFFFDlogo: ${reply.slice(0, 600)}`
     );
     assert2.ok(
       /tipo de evento|festejan|evento|fecha|presupuesto|invitados/i.test(reply),
@@ -148438,28 +148519,28 @@ ${golfText}`,
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento"
+        "Lugar/direcci\uFFFDn del evento"
       ]),
       readyForClosing: false,
-      currentMessage: "S\xED por favor, me gustar\xEDa cotizar 50 mesas tipo picnic \xBFTienen en color blanco?\n\nDe igual forma me gustar\xEDa cotizar 50 periqueras y 200 bancos de color blanco, si tienes, por favor",
+      currentMessage: "S\uFFFD por favor, me gustar\uFFFDa cotizar 50 mesas tipo picnic \uFFFDTienen en color blanco?\n\nDe igual forma me gustar\uFFFDa cotizar 50 periqueras y 200 bancos de color blanco, si tienes, por favor",
       history: [
         {
           role: "assistant",
-          content: "Claro. En *mobiliario* manejamos varias opciones.\n\n\xBFQuieres que te d\xE9 detalles de alguno?"
+          content: "Claro. En *mobiliario* manejamos varias opciones.\n\n\uFFFDQuieres que te d\uFFFD detalles de alguno?"
         }
       ]
     });
     assert2.ok(/picnic/i.test(mid) && !/50 sillas/i.test(mid), mid.slice(0, 500));
   });
-  await test("110. A14988 Ernesto \u2014 Bailarinas en concierto (no re-CTA revisar primero)", () => {
+  await test("110. A14988 Ernesto \uFFFD Bailarinas en concierto (no re-CTA revisar primero)", () => {
     assert2.equal(parseTipoEventoFromText("Concierto"), "concierto");
     assert2.ok(clientMentionsEntertainment("Bailarinas"));
     assert2.ok(isServiceRelatedMessage("Bailarinas"));
     assert2.ok(parseServicesFromText("Bailarinas").some((s6) => /bailarinas/i.test(s6)));
     assert2.ok(clientConfirmsOfferReview("Revisar"));
-    const offerCta = "Perfecto, Ernesto. Para tu concierto, manejamos una variedad de servicios que pueden ser muy \xFAtiles:\n\n\u2022 Alimentos\n\u2022 Barras de bebidas\n\u2022 DJ e iluminaci\xF3n\n\n\xBFQu\xE9 te gustar\xEDa revisar primero o armar un paquete?";
+    const offerCta = "Perfecto, Ernesto. Para tu concierto, manejamos una variedad de servicios que pueden ser muy \uFFFDtiles:\n\n\uFFFD Alimentos\n\uFFFD Barras de bebidas\n\uFFFD DJ e iluminaci\uFFFDn\n\n\uFFFDQu\uFFFD te gustar\uFFFDa revisar primero o armar un paquete?";
     const bailarinas = runGuards({
-      aiResponse: "Perfecto, Ernesto. \xBFQu\xE9 te gustar\xEDa revisar primero o prefieres armar un paquete completo?",
+      aiResponse: "Perfecto, Ernesto. \uFFFDQu\uFFFD te gustar\uFFFDa revisar primero o prefieres armar un paquete completo?",
       extracted: emptyExtracted({
         nombre: "Ernesto Juarez",
         correo: "ernesto@elkomander.com.mx",
@@ -148467,7 +148548,7 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento"
       ]),
       readyForClosing: false,
@@ -148483,15 +148564,15 @@ ${golfText}`,
       `debe orientar entretenimiento: ${bailarinas.slice(0, 400)}`
     );
     assert2.ok(
-      !/qu[e√©]\s+te\s+gustar[i√≠]a\s+revisar\s+primero/i.test(bailarinas),
+      !/qu[eÈ]\s+te\s+gustar[iÌ]a\s+revisar\s+primero/i.test(bailarinas),
       `no re-CTA: ${bailarinas.slice(0, 400)}`
     );
     assert2.ok(
-      /ubicaci[o√≥]n|ciudad|fecha|invitados|presupuesto|donde|cu[a√°]ndo/i.test(bailarinas),
+      /ubicaci[oÛ]n|ciudad|fecha|invitados|presupuesto|donde|cu[a·]ndo/i.test(bailarinas),
       `embudo: ${bailarinas.slice(-350)}`
     );
     const revisar = runGuards({
-      aiResponse: "\xBFQu\xE9 te gustar\xEDa revisar primero o prefieres armar un paquete completo?",
+      aiResponse: "\uFFFDQu\uFFFD te gustar\uFFFDa revisar primero o prefieres armar un paquete completo?",
       extracted: emptyExtracted({
         nombre: "Ernesto Juarez",
         correo: "ernesto@elkomander.com.mx",
@@ -148499,7 +148580,7 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento"
       ]),
       readyForClosing: false,
@@ -148509,33 +148590,33 @@ ${golfText}`,
         { role: "user", content: "Bailarinas" },
         {
           role: "assistant",
-          content: "Perfecto, Ernesto. \xBFQu\xE9 te gustar\xEDa revisar primero o prefieres armar un paquete completo?"
+          content: "Perfecto, Ernesto. \uFFFDQu\uFFFD te gustar\uFFFDa revisar primero o prefieres armar un paquete completo?"
         }
       ]
     });
     assert2.ok(/bailarinas/i.test(revisar), revisar.slice(0, 400));
     assert2.ok(
-      !/qu[e√©]\s+te\s+gustar[i√≠]a\s+revisar\s+primero/i.test(revisar),
+      !/qu[eÈ]\s+te\s+gustar[iÌ]a\s+revisar\s+primero/i.test(revisar),
       `Revisar no re-CTA: ${revisar.slice(0, 400)}`
     );
   });
-  await test("111. A14994 Sandra \u2014 cat\xE1logo S\xED/S\xED por favor + 80 a 100 \u2260 presupuesto", () => {
-    assert2.equal(parsePresupuestoFromText("80 a 100"), null, "rango invitados \u2260 presupuesto");
+  await test("111. A14994 Sandra \uFFFD cat\uFFFDlogo S\uFFFD/S\uFFFD por favor + 80 a 100 ? presupuesto", () => {
+    assert2.equal(parsePresupuestoFromText("80 a 100"), null, "rango invitados ? presupuesto");
     assert2.equal(parseInvitadosFromText("80 a 100"), "90");
     assert2.equal(parseInvitadosFromText("de 80 a 100"), "90");
-    const offerDetalles = "\xBFTe gustar\xEDa que te env\xEDe el cat\xE1logo con m\xE1s detalles?";
-    const offerDetallado = "\xBFTe gustar\xEDa que te env\xEDe un cat\xE1logo m\xE1s detallado?";
+    const offerDetalles = "\uFFFDTe gustar\uFFFDa que te env\uFFFDe el cat\uFFFDlogo con m\uFFFDs detalles?";
+    const offerDetallado = "\uFFFDTe gustar\uFFFDa que te env\uFFFDe un cat\uFFFDlogo m\uFFFDs detallado?";
     assert2.ok(clientAffirmsCatalogOffer("Si", offerDetalles));
     assert2.ok(clientAffirmsCatalogOffer("Si por favor", offerDetallado));
-    assert2.ok(clientAffirmsCatalogOffer("s\xED, por favor", offerDetalles));
+    assert2.ok(clientAffirmsCatalogOffer("s\uFFFD, por favor", offerDetalles));
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "Lugar/direcci\xF3n del evento",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario",
-      "N\xFAmero de invitados"
+      "N\uFFFDmero de invitados"
     ]);
     const extracted = emptyExtracted({
       nombre: "Sandra",
@@ -148547,20 +148628,20 @@ ${golfText}`,
       num_invitados: 90
     });
     const si = runGuards({
-      aiResponse: "\xBFTe gustar\xEDa que te env\xEDe un cat\xE1logo m\xE1s detallado?",
+      aiResponse: "\uFFFDTe gustar\uFFFDa que te env\uFFFDe un cat\uFFFDlogo m\uFFFDs detallado?",
       extracted: { ...extracted },
       filledSet: new Set(filled),
       readyForClosing: true,
       currentMessage: "Si",
       history: [{ role: "assistant", content: offerDetalles }]
     });
-    assert2.ok(/bodasesor\.com\/catalogos/i.test(si), `S\xED debe enviar URL: ${si.slice(0, 400)}`);
+    assert2.ok(/bodasesor\.com\/catalogos/i.test(si), `S\uFFFD debe enviar URL: ${si.slice(0, 400)}`);
     assert2.ok(
-      !/te\s+gustar[i√≠]a\s+que\s+te\s+env[i√≠]e.*cat[a√°]logo/i.test(si),
-      `S\xED no re-pregunta: ${si.slice(0, 400)}`
+      !/te\s+gustar[iÌ]a\s+que\s+te\s+env[iÌ]e.*cat[a·]logo/i.test(si),
+      `S\uFFFD no re-pregunta: ${si.slice(0, 400)}`
     );
     const porfa = runGuards({
-      aiResponse: "\xBFTe gustar\xEDa que te env\xEDe un cat\xE1logo m\xE1s detallado?",
+      aiResponse: "\uFFFDTe gustar\uFFFDa que te env\uFFFDe un cat\uFFFDlogo m\uFFFDs detallado?",
       extracted: { ...extracted },
       filledSet: new Set(filled),
       readyForClosing: true,
@@ -148573,14 +148654,14 @@ ${golfText}`,
     });
     assert2.ok(
       /bodasesor\.com\/catalogos/i.test(porfa),
-      `S\xED por favor debe enviar URL: ${porfa.slice(0, 400)}`
+      `S\uFFFD por favor debe enviar URL: ${porfa.slice(0, 400)}`
     );
     assert2.ok(
-      !/te\s+gustar[i√≠]a\s+que\s+te\s+env[i√≠]e.*cat[a√°]logo/i.test(porfa),
-      `S\xED por favor no re-pregunta: ${porfa.slice(0, 400)}`
+      !/te\s+gustar[iÌ]a\s+que\s+te\s+env[iÌ]e.*cat[a·]logo/i.test(porfa),
+      `S\uFFFD por favor no re-pregunta: ${porfa.slice(0, 400)}`
     );
     const carpas = runGuards({
-      aiResponse: "\xBFEn qu\xE9 ciudad y colonia ser\xEDa tu evento?",
+      aiResponse: "\uFFFDEn qu\uFFFD ciudad y colonia ser\uFFFDa tu evento?",
       extracted: emptyExtracted({
         nombre: "Sandra",
         correo: "sanduka@hotmail.com",
@@ -148588,7 +148669,7 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento"
       ]),
       readyForClosing: false,
@@ -148596,27 +148677,27 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "Perfecto, Sandra. Te propongo:\n\u2022 Banquete Formal (3 o 4 tiempos)...\n\xBFQu\xE9 te gustar\xEDa revisar primero?"
+          content: "Perfecto, Sandra. Te propongo:\n\uFFFD Banquete Formal (3 o 4 tiempos)...\n\uFFFDQu\uFFFD te gustar\uFFFDa revisar primero?"
         }
       ]
     });
     assert2.ok(/carpas/i.test(carpas) && /mobiliario/i.test(carpas), carpas.slice(0, 500));
     assert2.ok(
-      /bodasesor\.com\/catalogos|medidas|√°rea|espacio/i.test(carpas),
-      `carpas+mobiliario ack/cat\xE1logo: ${carpas.slice(0, 500)}`
+      /bodasesor\.com\/catalogos|medidas|·rea|espacio/i.test(carpas),
+      `carpas+mobiliario ack/cat\uFFFDlogo: ${carpas.slice(0, 500)}`
     );
     assert2.ok(
-      !/^¬øEn qu√© ciudad/i.test(carpas.trim()),
+      !/^øEn quÈ ciudad/i.test(carpas.trim()),
       `no saltar solo a zona: ${carpas.slice(0, 300)}`
     );
   });
-  await test("112. A14994 \u2014 correcciones en TODAS las ramas (CRM, affirm mapeado, anti-repeat)", () => {
+  await test("112. A14994 \uFFFD correcciones en TODAS las ramas (CRM, affirm mapeado, anti-repeat)", () => {
     assert2.ok(looksLikeGuestCountRange("80 a 100"));
     assert2.ok(looksLikeGuestCountRange("80 - 100"));
     assert2.equal(looksLikeGuestCountRange("de 3 a 12"), false);
     assert2.ok(assistantOfferedCatalogDetail(CATALOG_OFFER_QUESTION));
     assert2.ok(
-      assistantOfferedCatalogDetail("\xBFTe gustar\xEDa que te env\xEDe un cat\xE1logo m\xE1s detallado?")
+      assistantOfferedCatalogDetail("\uFFFDTe gustar\uFFFDa que te env\uFFFDe un cat\uFFFDlogo m\uFFFDs detallado?")
     );
     const cleared = applyCrmWriteInvariants(
       emptyExtracted({
@@ -148638,7 +148719,7 @@ ${golfText}`,
     );
     assert2.equal(clearedNum.extracted.presupuesto, null);
     const mappedAffirm = runGuards({
-      aiResponse: "\xBFTe gustar\xEDa que te env\xEDe un cat\xE1logo m\xE1s detallado?",
+      aiResponse: "\uFFFDTe gustar\uFFFDa que te env\uFFFDe un cat\uFFFDlogo m\uFFFDs detallado?",
       extracted: emptyExtracted({
         nombre: "Sandra",
         correo: "sanduka@hotmail.com",
@@ -148650,19 +148731,19 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento",
+        "Lugar/direcci\uFFFDn del evento",
         "Fecha y horario",
-        "N\xFAmero de invitados"
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: true,
       currentMessage: "Si por favor",
       history: [
         {
           role: "assistant",
-          content: "Perfecto, ya tengo todo.\n\n\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?"
+          content: "Perfecto, ya tengo todo.\n\n\uFFFDQuieres que te mande el cat\uFFFDlogo con m\uFFFDs detalle?"
         }
       ]
     });
@@ -148671,7 +148752,7 @@ ${golfText}`,
       `affirm debe mandar URL: ${mappedAffirm.slice(0, 500)}`
     );
     assert2.ok(
-      !/te\s+gustar[i√≠]a\s+que\s+te\s+env[i√≠]e.*cat[a√°]logo/i.test(mappedAffirm),
+      !/te\s+gustar[iÌ]a\s+que\s+te\s+env[iÌ]e.*cat[a·]logo/i.test(mappedAffirm),
       `no re-pregunta: ${mappedAffirm.slice(0, 400)}`
     );
     const afterAnti = applyLucyGlobalAntiRepetition({
@@ -148679,7 +148760,7 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?"
+          content: "\uFFFDQuieres que te mande el cat\uFFFDlogo con m\uFFFDs detalle?"
         }
       ],
       extracted: emptyExtracted({
@@ -148695,7 +148776,7 @@ ${golfText}`,
       `anti-repeat conserva URL: ${afterAnti.mensaje.slice(0, 400)}`
     );
   });
-  await test("113. A14995 Hortensia \u2014 d\xF3nde est\xE1n \u2260 zona + paquete multi-servicio completo", () => {
+  await test("113. A14995 Hortensia \uFFFD d\uFFFDnde est\uFFFDn ? zona + paquete multi-servicio completo", () => {
     assert2.ok(clientAsksLocation("En donde estan ubicados?"));
     assert2.ok(clientAsksLocation("Es muy importante. En donde estan?"));
     assert2.equal(parseZonaFromText("En donde estan ubicados?"), null);
@@ -148729,21 +148810,21 @@ ${golfText}`,
       extracted: emptyExtracted({
         nombre: "Hortensia",
         correo: "hortehgz@hotmail.com",
-        tipo_evento: "graduaci\xF3n",
+        tipo_evento: "graduaci\uFFFDn",
         direccion_evento: "donde estan"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
-        "Lugar/direcci\xF3n del evento"
+        "Lugar/direcci\uFFFDn del evento"
       ]),
       readyForClosing: false,
       currentMessage: pkgMsg,
       history: [
         {
           role: "assistant",
-          content: "Para tu graduaci\xF3n, manejamos varias opciones:\n\u2022 Banquete Formal\n\u2022 Barra de bebidas\n\xBFQu\xE9 te gustar\xEDa revisar primero?"
+          content: "Para tu graduaci\uFFFDn, manejamos varias opciones:\n\uFFFD Banquete Formal\n\uFFFD Barra de bebidas\n\uFFFDQu\uFFFD te gustar\uFFFDa revisar primero?"
         }
       ]
     });
@@ -148759,11 +148840,11 @@ ${golfText}`,
     assert2.equal(urls.length, unique.size, `URLs duplicadas: ${urls.join(" | ")}`);
     assert2.ok(/bodasesor\.com\/catalogos/i.test(reply), reply.slice(0, 500));
   });
-  await test("114. V8.85 \u2014 ubicaci\xF3n basura + silencio Humano Trabaja no pisa CRM", () => {
+  await test("114. V8.85 \uFFFD ubicaci\uFFFDn basura + silencio Humano Trabaja no pisa CRM", () => {
     assert2.equal(parseZonaFromText("Es muy importante"), null);
     assert2.equal(parseZonaFromText("Show en vivo"), null);
     assert2.equal(parseZonaFromText("la fiesta es en la noche"), null);
-    assert2.equal(parseZonaFromText("en realidad no s\xE9"), null);
+    assert2.equal(parseZonaFromText("en realidad no s\uFFFD"), null);
     assert2.equal(parseZonaFromText("50 mesas en color blanco"), null);
     assert2.ok(!isUsableDireccionEvento("es muy importante"));
     assert2.ok(!isUsableDireccionEvento("vivo"));
@@ -148778,7 +148859,7 @@ ${golfText}`,
     assert2.equal(shouldReplaceCrmDireccion("Jiutepec", "es muy importante"), false);
     assert2.equal(shouldReplaceCrmDireccion("Jiutepec", "vivo"), false);
     assert2.equal(shouldReplaceCrmDireccion(null, "Jiutepec"), true);
-    assert2.equal(shouldReplaceCrmDireccion("cotizaci\xF3n", "Polanco CDMX"), true);
+    assert2.equal(shouldReplaceCrmDireccion("cotizaci\uFFFDn", "Polanco CDMX"), true);
     assert2.equal(
       shouldReplaceCrmDireccion("Jiutepec", "Calle Reforma 100, Jiutepec"),
       true
@@ -148791,16 +148872,16 @@ ${golfText}`,
       "Es muy importante. En donde estan ubicados?",
       junkExtracted,
       "Hortensia",
-      ["- Lugar/direcci\xF3n del evento: Jiutepec"]
+      ["- Lugar/direcci\uFFFDn del evento: Jiutepec"]
     );
-    assert2.equal(noWrite, null, "no debe PATCH con basura de ubicaci\xF3n");
+    assert2.equal(noWrite, null, "no debe PATCH con basura de ubicaci\uFFFDn");
     const okZona = buildSilentWatchPatchPayload(
-      "El evento ser\xE1 en Tlalnepantla",
+      "El evento ser\uFFFD en Tlalnepantla",
       emptyExtracted({ nombre: "Ana" }),
       "Ana",
       []
     );
-    assert2.ok(okZona, "s\xED escribe zona clara del mensaje");
+    assert2.ok(okZona, "s\uFFFD escribe zona clara del mensaje");
     const fields = okZona["custom_fields_values"] ?? [];
     assert2.ok(
       fields.some((f6) => String(f6.values?.[0]?.value ?? "").toLowerCase().includes("tlalnepantla")),
@@ -148810,21 +148891,21 @@ ${golfText}`,
       "ok gracias",
       emptyExtracted({ direccion_evento: "Polanco" }),
       "Ana",
-      ["- Lugar/direcci\xF3n del evento: Polanco, CDMX"]
+      ["- Lugar/direcci\uFFFDn del evento: Polanco, CDMX"]
     );
     assert2.equal(keep, null);
     assert2.equal(isUsefulLearningPair({ user_message: "ok", suggested_response: "va" }), false);
     assert2.equal(
       isUsefulLearningPair({
         user_message: "En donde estan?",
-        suggested_response: "Anoto la ubicaci\xF3n: donde estan para tu evento"
+        suggested_response: "Anoto la ubicaci\uFFFDn: donde estan para tu evento"
       }),
       false
     );
     assert2.ok(
       isUsefulLearningPair({
-        user_message: "\xBFCu\xE1nto sale el banquete para 100?",
-        suggested_response: "Claro, para 100 personas te armo opciones de banquete seg\xFAn el men\xFA que elijas."
+        user_message: "\uFFFDCu\uFFFDnto sale el banquete para 100?",
+        suggested_response: "Claro, para 100 personas te armo opciones de banquete seg\uFFFDn el men\uFFFD que elijas."
       })
     );
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
@@ -148834,28 +148915,28 @@ ${golfText}`,
     assert2.ok(!/sanitizeCrmNombre\(text\)/.test(silentSrc));
     assert2.ok(/parseZonaFromText/.test(silentSrc));
   });
-  await test("115. A15000 Itzel \u2014 nombre completo, reuni\xF3n familiar, multi-servicio, asesor", () => {
+  await test("115. A15000 Itzel \uFFFD nombre completo, reuni\uFFFDn familiar, multi-servicio, asesor", () => {
     assert2.equal(shouldUpdateName("Itzel Lombera", "Itzel"), false);
     assert2.equal(resolveKommoLeadNamePatch("Itzel Lombera", "Itzel"), null);
     assert2.equal(pickBetterNombre("Itzel", "Itzel Lombera"), "Itzel Lombera");
-    assert2.equal(parseTipoEventoFromText("Reuni\xF3n familiar"), "fiesta");
+    assert2.equal(parseTipoEventoFromText("Reuni\uFFFDn familiar"), "fiesta");
     assert2.equal(parseTipoEventoFromText("celebraciones familiares"), "fiesta");
-    const brief = "Quiero ver qu\xE9 opciones tienen para alimentos , y si tienen meseros , y mobiliario , tambi\xE9n saber el costo por persona aprox 40 adultos y 10 ni\xF1os";
+    const brief = "Quiero ver qu\uFFFD opciones tienen para alimentos , y si tienen meseros , y mobiliario , tambi\uFFFDn saber el costo por persona aprox 40 adultos y 10 ni\uFFFDos";
     const services = parseServicesFromText(brief);
     assert2.ok(services.some((s6) => /alimento|banquete|comida/i.test(s6)), services.join(","));
     assert2.ok(services.some((s6) => /mesero/i.test(s6)), services.join(","));
     assert2.ok(services.some((s6) => /mobiliario/i.test(s6)), services.join(","));
     assert2.ok(services.length >= 3, services.join(","));
     const multi = runGuards({
-      aiResponse: "Anoto mobiliario. \xBFEn qu\xE9 ciudad ser\xEDa tu evento?",
+      aiResponse: "Anoto mobiliario. \uFFFDEn qu\uFFFD ciudad ser\uFFFDa tu evento?",
       extracted: emptyExtracted({
         nombre: "Itzel",
         correo: "Itzel.Lombera@live.com",
-        tipo_evento: "cumplea\xF1os"
+        tipo_evento: "cumplea\uFFFDos"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento"
       ]),
       readyForClosing: false,
@@ -148863,7 +148944,7 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "\xBFQu\xE9 te gustar\xEDa revisar primero o prefieres armar un paquete completo?"
+          content: "\uFFFDQu\uFFFD te gustar\uFFFDa revisar primero o prefieres armar un paquete completo?"
         }
       ]
     });
@@ -148876,57 +148957,57 @@ ${golfText}`,
       `no monopolio mobiliario: ${multi.slice(0, 300)}`
     );
     assert2.ok(clientAsksForHumanAdvisor("Prefiero hablar con un asesor"));
-    assert2.ok(clientAsksForHumanAdvisor("Y prefiero que alg\xFAn asesor se comunique conmigo"));
+    assert2.ok(clientAsksForHumanAdvisor("Y prefiero que alg\uFFFDn asesor se comunique conmigo"));
     const handoff = buildHumanAdvisorHandoffAnswer("Itzel");
     assert2.ok(/asesor/i.test(handoff));
     assert2.ok(/55 4008 0373/.test(handoff));
     const advisorReply = runGuards({
-      aiResponse: "Itzel, \xBFtienen d\xEDa u horario ya definido?",
+      aiResponse: "Itzel, \uFFFDtienen d\uFFFDa u horario ya definido?",
       extracted: emptyExtracted({
         nombre: "Itzel",
         correo: "Itzel.Lombera@live.com",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         direccion_evento: "Del Valle sur",
         num_invitados: 50
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
-        "Lugar/direcci\xF3n del evento",
-        "N\xFAmero de invitados"
+        "Lugar/direcci\uFFFDn del evento",
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
       currentMessage: "Prefiero hablar con un asesor",
       history: [
-        { role: "assistant", content: "Con gusto. Itzel, \xBFtienen d\xEDa u horario ya definido?" }
+        { role: "assistant", content: "Con gusto. Itzel, \uFFFDtienen d\uFFFDa u horario ya definido?" }
       ]
     });
     assert2.ok(/asesor|canalizo|equipo/i.test(advisorReply), advisorReply.slice(0, 400));
-    assert2.ok(!/d[i√≠]a u horario|fecha/i.test(advisorReply), advisorReply.slice(0, 400));
-    assert2.ok(!/cat[a√°]logo/i.test(advisorReply), advisorReply.slice(0, 400));
+    assert2.ok(!/d[iÌ]a u horario|fecha/i.test(advisorReply), advisorReply.slice(0, 400));
+    assert2.ok(!/cat[a·]logo/i.test(advisorReply), advisorReply.slice(0, 400));
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
     const kommoSrc = readFileSync5(path6.join(apiRoot, "src/routes/kommo.ts"), "utf8");
     assert2.ok(!/generateSummary\(conversationText\)/.test(kommoSrc));
     assert2.ok(/clientAsksForHumanAdvisor/.test(kommoSrc));
     assert2.ok(/pide_asesor/.test(kommoSrc));
   });
-  await test("116. A15003 Juan \u2014 agente/Photo Booth/nombre/anti-Sigo aqu\xED", async () => {
+  await test("116. A15003 Juan \uFFFD agente/Photo Booth/nombre/anti-Sigo aqu\uFFFD", async () => {
     assert2.ok(clientAsksForHumanAdvisor("Hablar con un agente"));
     assert2.ok(clientAsksForHumanAdvisor("Hablar con un asesor"));
     assert2.ok(clientAsksForHumanAdvisor("Juan\nHablar con un agente"));
     assert2.ok(clientAsksForHumanAdvisor("quiero un agente"));
     assert2.ok(clientNeedsEmergencyContact("Hablar con un agente"));
     const handoffAgente = runGuards({
-      aiResponse: "Perfecto. \xBFMe compartes un correo?",
+      aiResponse: "Perfecto. \uFFFDMe compartes un correo?",
       extracted: emptyExtracted({ nombre: "Juan", direccion_evento: "cdmx" }),
-      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Lugar/direcci\xF3n del evento"]),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Lugar/direcci\uFFFDn del evento"]),
       readyForClosing: false,
       currentMessage: "Hablar con un agente",
       history: [
         {
           role: "assistant",
-          content: "Perfecto. Mucho gusto, Juan. \xBFMe compartes un correo para enviarte los detalles?"
+          content: "Perfecto. Mucho gusto, Juan. \uFFFDMe compartes un correo para enviarte los detalles?"
         }
       ]
     });
@@ -148942,9 +149023,9 @@ ${golfText}`,
     assert2.ok(parseServicesFromText("Photo Booth").includes("Photo Booth"));
     assert2.equal(clientDeclinesMoreServices("Solo el servicio de Photo Booth"), false);
     assert2.ok(clientDeclinesMoreServices("Ninguno de esos"));
-    assert2.ok(clientDeclinesMoreServices("No quiero nada m\xE1s"));
+    assert2.ok(clientDeclinesMoreServices("No quiero nada m\uFFFDs"));
     const photoReply = runGuards({
-      aiResponse: "Manejamos Banquete Formal, Barra de bebidas\u2026 \xBFQu\xE9 te gustar\xEDa revisar primero?",
+      aiResponse: "Manejamos Banquete Formal, Barra de bebidas\uFFFD \uFFFDQu\uFFFD te gustar\uFFFDa revisar primero?",
       extracted: emptyExtracted({
         nombre: "Juan",
         correo: "juan.andrade@dharma.agency",
@@ -148953,24 +149034,24 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
-        "Lugar/direcci\xF3n del evento"
+        "Lugar/direcci\uFFFDn del evento"
       ]),
       readyForClosing: false,
       currentMessage: "Photo Booth",
       history: [
         {
           role: "assistant",
-          content: "Para tu evento corporativo: \u2022 Banquete Formal \u2022 Barra de bebidas. \xBFQu\xE9 te gustar\xEDa revisar primero o prefieres armar un paquete completo?"
+          content: "Para tu evento corporativo: \uFFFD Banquete Formal \uFFFD Barra de bebidas. \uFFFDQu\uFFFD te gustar\uFFFDa revisar primero o prefieres armar un paquete completo?"
         }
       ]
     });
     assert2.ok(/photo\s*booth/i.test(photoReply), photoReply.slice(0, 500));
     assert2.ok(!/banquete\s+formal/i.test(photoReply), photoReply.slice(0, 500));
-    assert2.ok(!/Sigo aqu√≠/i.test(photoReply), photoReply.slice(0, 500));
+    assert2.ok(!/Sigo aquÌ/i.test(photoReply), photoReply.slice(0, 500));
     const soloPhoto = runGuards({
-      aiResponse: "Adem\xE1s podemos ofrecerte Banquete Formal\u2026",
+      aiResponse: "Adem\uFFFDs podemos ofrecerte Banquete Formal\uFFFD",
       extracted: emptyExtracted({
         nombre: "Juan",
         correo: "juan.andrade@dharma.agency",
@@ -148980,10 +149061,10 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento"
+        "Lugar/direcci\uFFFDn del evento"
       ]),
       readyForClosing: false,
       currentMessage: "Ninguno de esos",
@@ -148991,19 +149072,19 @@ ${golfText}`,
         { role: "user", content: "Photo Booth" },
         {
           role: "assistant",
-          content: "Aceptamos Photo Booth. Adem\xE1s: \u2022 Banquete Formal \u2022 Barra de bebidas. \xBFAlgo m\xE1s?"
+          content: "Aceptamos Photo Booth. Adem\uFFFDs: \uFFFD Banquete Formal \uFFFD Barra de bebidas. \uFFFDAlgo m\uFFFDs?"
         }
       ]
     });
     assert2.ok(/photo\s*booth/i.test(soloPhoto), soloPhoto.slice(0, 500));
     assert2.ok(!/banquete\s+formal/i.test(soloPhoto), soloPhoto.slice(0, 500));
-    assert2.ok(!/Sigo aqu√≠/i.test(soloPhoto), soloPhoto.slice(0, 500));
+    assert2.ok(!/Sigo aquÌ/i.test(soloPhoto), soloPhoto.slice(0, 500));
     const antiPhoto = applyLucyGlobalAntiRepetition({
-      mensaje: "\xBFQu\xE9 tipo de servicios te interesan para tu evento?",
+      mensaje: "\uFFFDQu\uFFFD tipo de servicios te interesan para tu evento?",
       history: [
         {
           role: "assistant",
-          content: "\xBFQu\xE9 servicios necesitas para tu evento corporativo?"
+          content: "\uFFFDQu\uFFFD servicios necesitas para tu evento corporativo?"
         }
       ],
       currentMessage: "Photo Booth",
@@ -149011,17 +149092,17 @@ ${golfText}`,
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento"]),
       clientName: "Juan"
     });
-    assert2.ok(!/Sigo aqu√≠/i.test(antiPhoto.mensaje), antiPhoto.mensaje);
+    assert2.ok(!/Sigo aquÌ/i.test(antiPhoto.mensaje), antiPhoto.mensaje);
     assert2.ok(
       antiPhoto.applied.every((a3) => a3 !== "same-field-reask-ack"),
       String(antiPhoto.applied)
     );
     const antiHandoff = applyLucyGlobalAntiRepetition({
-      mensaje: "\xBFMe compartes un correo para enviarte los detalles?",
+      mensaje: "\uFFFDMe compartes un correo para enviarte los detalles?",
       history: [
         {
           role: "assistant",
-          content: "Perfecto. \xBFMe compartes un correo para la cotizaci\xF3n?"
+          content: "Perfecto. \uFFFDMe compartes un correo para la cotizaci\uFFFDn?"
         }
       ],
       currentMessage: "Hablar con un agente",
@@ -149029,9 +149110,9 @@ ${golfText}`,
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       clientName: "Juan"
     });
-    assert2.ok(!/Sigo aqu√≠/i.test(antiHandoff.mensaje), antiHandoff.mensaje);
+    assert2.ok(!/Sigo aquÌ/i.test(antiHandoff.mensaje), antiHandoff.mensaje);
   });
-  await test("117. A15016 Israel \u2014 Catedral, De 6x20, email\u2260presupuesto, post-cierre", async () => {
+  await test("117. A15016 Israel \uFFFD Catedral, De 6x20, email?presupuesto, post-cierre", async () => {
     assert2.equal(parseCarpaVariantFromText("Catedral"), null);
     assert2.equal(parseCarpaVariantFromText("Domo"), "Carpa tipo domo");
     assert2.equal(parseCarpaVariantFromText("Carpa negra"), "Carpa negra");
@@ -149056,14 +149137,14 @@ ${golfText}`,
         presupuesto: 241268,
         direccion_evento: "Catedral",
         requerimientos_evento: "Carpas (espacio 6m x 20m)",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         num_invitados: 200
       },
       [
         "Carpa transparente",
         "De 6 x20",
         "Catedral",
-        "Cumplea\xF1os",
+        "Cumplea\uFFFDos",
         "17 mil aproximadamente",
         "israel241268@hotmail.com"
       ]
@@ -149075,25 +149156,25 @@ ${golfText}`,
     );
     assert2.ok(inv.applied.includes("zona-unusable-cleared") || inv.extracted.direccion_evento == null);
     const carpaFirst = runGuards({
-      aiResponse: "\xBFQu\xE9 tipo de evento est\xE1s organizando?",
+      aiResponse: "\uFFFDQu\uFFFD tipo de evento est\uFFFDs organizando?",
       extracted: emptyExtracted({
         nombre: "Israel Albiter",
         correo: "isra_piter@hotmail.com"
       }),
-      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico"]),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico"]),
       readyForClosing: false,
       currentMessage: "Carpa transparente",
       history: [
         {
           role: "assistant",
-          content: "Gracias por tu correo, Israel. \xBFQu\xE9 tipo de evento est\xE1s organizando?"
+          content: "Gracias por tu correo, Israel. \uFFFDQu\uFFFD tipo de evento est\uFFFDs organizando?"
         }
       ]
     });
     assert2.ok(/carpa/i.test(carpaFirst), carpaFirst.slice(0, 400));
-    assert2.ok(!/Sigo aqu√≠/i.test(carpaFirst));
+    assert2.ok(!/Sigo aquÌ/i.test(carpaFirst));
     const dimsReply = runGuards({
-      aiResponse: "\xBFQu\xE9 tipo de evento est\xE1s organizando?",
+      aiResponse: "\uFFFDQu\uFFFD tipo de evento est\uFFFDs organizando?",
       extracted: emptyExtracted({
         nombre: "Israel Albiter",
         correo: "isra_piter@hotmail.com",
@@ -149101,7 +149182,7 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Requerimientos o servicios"
       ]),
       readyForClosing: false,
@@ -149109,14 +149190,14 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "S\xED, manejamos carpas blancas, negras, transparentes y tipo domo. \xBFQu\xE9 medidas aproximadas necesitas?"
+          content: "S\uFFFD, manejamos carpas blancas, negras, transparentes y tipo domo. \uFFFDQu\uFFFD medidas aproximadas necesitas?"
         }
       ]
     });
     assert2.ok(/6\s*m?\s*x\s*20/i.test(dimsReply), dimsReply.slice(0, 500));
     assert2.ok(!/medidas aproximadas necesitas/i.test(dimsReply), dimsReply.slice(0, 500));
     const domoReply = runGuards({
-      aiResponse: "\xBFQu\xE9 tipo de evento est\xE1s organizando?",
+      aiResponse: "\uFFFDQu\uFFFD tipo de evento est\uFFFDs organizando?",
       extracted: emptyExtracted({
         nombre: "Israel Albiter",
         correo: "isra_piter@hotmail.com",
@@ -149125,9 +149206,9 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento"
+        "Lugar/direcci\uFFFDn del evento"
       ]),
       readyForClosing: false,
       currentMessage: "Domo",
@@ -149135,20 +149216,20 @@ ${golfText}`,
         { role: "user", content: "Carpa transparente" },
         {
           role: "assistant",
-          content: "S\xED, carpas blancas, negras, transparentes y tipo domo. \xBFMedidas?"
+          content: "S\uFFFD, carpas blancas, negras, transparentes y tipo domo. \uFFFDMedidas?"
         }
       ]
     });
     assert2.ok(/domo|carpa/i.test(domoReply), domoReply.slice(0, 500));
-    assert2.ok(!/ubicaci[o√≥]n|lugar del evento|d[o√≥]nde ser[a√°]/i.test(domoReply), domoReply.slice(0, 400));
-    const closing = `${CLOSING_SIGNATURE} Voy a compartir esta informaci\xF3n con nuestro equipo para que te prepare una cotizaci\xF3n personalizada.`;
+    assert2.ok(!/ubicaci[oÛ]n|lugar del evento|d[oÛ]nde ser[a·]/i.test(domoReply), domoReply.slice(0, 400));
+    const closing = `${CLOSING_SIGNATURE} Voy a compartir esta informaci\uFFFDn con nuestro equipo para que te prepare una cotizaci\uFFFDn personalizada.`;
     assert2.ok(detectCierreEnviado([{ role: "assistant", content: closing }]));
     const thanks = runGuards({
-      aiResponse: "\xBFMe puedes compartir tu correo electr\xF3nico?",
+      aiResponse: "\uFFFDMe puedes compartir tu correo electr\uFFFDnico?",
       extracted: emptyExtracted({
         nombre: "Israel Albiter",
         correo: "isra_piter@hotmail.com",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         requerimientos_evento: "Carpas (espacio 6m x 20m)",
         fecha_horario: "1 de agosto 2026",
         num_invitados: 200,
@@ -149156,11 +149237,11 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
         "Fecha y horario",
-        "N\xFAmero de invitados",
+        "N\uFFFDmero de invitados",
         "Presupuesto (MXN)"
       ]),
       readyForClosing: true,
@@ -149177,17 +149258,17 @@ ${golfText}`,
       )
     );
     const pay = runGuards({
-      aiResponse: "Mucho gusto, Israel. \xBFA qu\xE9 correo te lo env\xEDo?",
+      aiResponse: "Mucho gusto, Israel. \uFFFDA qu\uFFFD correo te lo env\uFFFDo?",
       extracted: emptyExtracted({
         nombre: "Israel Albiter",
         correo: "isra_piter@hotmail.com",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         requerimientos_evento: "Carpas (espacio 6m x 20m)",
         presupuesto: 17e3
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
         "Presupuesto (MXN)"
@@ -149201,27 +149282,27 @@ ${golfText}`,
       ],
       lastStoredResponse: closing
     });
-    assert2.ok(/anticipo|equipo|cotizaci[o√≥]n/i.test(pay), pay.slice(0, 500));
-    assert2.ok(!/a qu[e√©] correo|Mucho gusto,\s*Israel\.\s*Mucho gusto/i.test(pay), pay.slice(0, 500));
+    assert2.ok(/anticipo|equipo|cotizaci[oÛ]n/i.test(pay), pay.slice(0, 500));
+    assert2.ok(!/a qu[eÈ] correo|Mucho gusto,\s*Israel\.\s*Mucho gusto/i.test(pay), pay.slice(0, 500));
     const deduped = dedupeTransitionsInMessage(
-      "Perfecto, Israel. Mucho gusto, Israel. Para mandarte la info, \xBFa qu\xE9 correo te lo env\xEDo?"
+      "Perfecto, Israel. Mucho gusto, Israel. Para mandarte la info, \uFFFDa qu\uFFFD correo te lo env\uFFFDo?"
     );
     assert2.equal((deduped.match(/Mucho gusto,\s*Israel/gi) || []).length, 0);
     assert2.ok(/Perfecto, Israel/i.test(deduped));
     const handoffPay = buildPostCierrePaymentHandoffReply("Israel");
     assert2.ok(/anticipo|50\s*%|equipo/i.test(handoffPay));
   });
-  await test("118. A15007 Osiris \u2014 referencia, queja repetici\xF3n, carpas sin re-pitch", async () => {
+  await test("118. A15007 Osiris \uFFFD referencia, queja repetici\uFFFDn, carpas sin re-pitch", async () => {
     assert2.ok(isReferentialPriorAnswer("A este"));
     assert2.ok(isReferentialPriorAnswer("ese mismo"));
     assert2.ok(isReferentialPriorAnswer("el mismo"));
     assert2.ok(clientComplainsAboutRepeat("Ya me habias preguntado eso"));
-    assert2.ok(clientComplainsAboutRepeat("Ya me hab\xEDas preguntado eso"));
+    assert2.ok(clientComplainsAboutRepeat("Ya me hab\uFFFDas preguntado eso"));
     assert2.equal(
       recoverCorreoFromUserTexts(["hola", "administracion@celamex.page"], "A este"),
       "administracion@celamex.page"
     );
-    const closingPitch = "S\xED, manejamos carpas para jard\xEDn o terraza: blancas, negras, transparentes y tipo domo. \xBFQu\xE9 medidas aproximadas necesitas?";
+    const closingPitch = "S\uFFFD, manejamos carpas para jard\uFFFDn o terraza: blancas, negras, transparentes y tipo domo. \uFFFDQu\uFFFD medidas aproximadas necesitas?";
     const rePitch = runGuards({
       aiResponse: closingPitch,
       extracted: emptyExtracted({
@@ -149233,10 +149314,10 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento",
-        "N\xFAmero de invitados"
+        "Lugar/direcci\uFFFDn del evento",
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
       currentMessage: "Busco una carpa sencilla para 100 personas",
@@ -149252,7 +149333,7 @@ ${golfText}`,
     );
     assert2.ok(/carpa/i.test(rePitch), rePitch.slice(0, 400));
     const complained = runGuards({
-      aiResponse: "\xBFA qu\xE9 correo te lo env\xEDo?",
+      aiResponse: "\uFFFDA qu\uFFFD correo te lo env\uFFFDo?",
       extracted: emptyExtracted({
         nombre: "Osiris",
         correo: "administracion@celamex.page",
@@ -149262,10 +149343,10 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento",
-        "N\xFAmero de invitados"
+        "Lugar/direcci\uFFFDn del evento",
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
       currentMessage: "Ya me habias preguntado eso",
@@ -149275,10 +149356,10 @@ ${golfText}`,
       ]
     });
     assert2.ok(/anotado|Perfecto/i.test(complained), complained.slice(0, 400));
-    assert2.ok(!/a qu[e√©] correo|correo te lo env[i√≠]o/i.test(complained), complained.slice(0, 400));
-    assert2.ok(!/Sigo aqu√≠/i.test(complained));
+    assert2.ok(!/a qu[eÈ] correo|correo te lo env[iÌ]o/i.test(complained), complained.slice(0, 400));
+    assert2.ok(!/Sigo aquÌ/i.test(complained));
     const aEste = runGuards({
-      aiResponse: "Mucho gusto, Osiris. \xBFA qu\xE9 correo te mando la informaci\xF3n?",
+      aiResponse: "Mucho gusto, Osiris. \uFFFDA qu\uFFFD correo te mando la informaci\uFFFDn?",
       extracted: emptyExtracted({
         nombre: "Osiris",
         requerimientos_evento: "Carpas (espacio 10m x 10m)",
@@ -149288,8 +149369,8 @@ ${golfText}`,
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento",
-        "N\xFAmero de invitados"
+        "Lugar/direcci\uFFFDn del evento",
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
       currentMessage: "A este",
@@ -149297,29 +149378,29 @@ ${golfText}`,
         { role: "user", content: "administracion@celamex.page" },
         {
           role: "assistant",
-          content: "Perfecto, Osiris. \xBFA qu\xE9 correo te env\xEDo la informaci\xF3n?"
+          content: "Perfecto, Osiris. \uFFFDA qu\uFFFD correo te env\uFFFDo la informaci\uFFFDn?"
         }
       ]
     });
-    assert2.ok(!/Sigo aqu√≠/i.test(aEste), aEste.slice(0, 400));
-    assert2.ok(!/a qu[e√©] correo/i.test(aEste), aEste.slice(0, 400));
+    assert2.ok(!/Sigo aquÌ/i.test(aEste), aEste.slice(0, 400));
+    assert2.ok(!/a qu[eÈ] correo/i.test(aEste), aEste.slice(0, 400));
     const anti = applyLucyGlobalAntiRepetition({
-      mensaje: "\xBFA qu\xE9 correo te mando la informaci\xF3n?",
+      mensaje: "\uFFFDA qu\uFFFD correo te mando la informaci\uFFFDn?",
       history: [
         {
           role: "assistant",
-          content: "Mucho gusto, Osiris. \xBFA qu\xE9 correo te mando la informaci\xF3n?"
+          content: "Mucho gusto, Osiris. \uFFFDA qu\uFFFD correo te mando la informaci\uFFFDn?"
         }
       ],
       currentMessage: "A este",
       extracted: { nombre: "Osiris", correo: "administracion@celamex.page" },
-      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico"]),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\uFFFDnico"]),
       clientName: "Osiris"
     });
-    assert2.ok(!/Sigo aqu√≠/i.test(anti.mensaje), anti.mensaje);
+    assert2.ok(!/Sigo aquÌ/i.test(anti.mensaje), anti.mensaje);
     assert2.ok(anti.applied.every((a3) => a3 !== "same-field-reask-ack"), String(anti.applied));
   });
-  await test("119. A15009 Erick \u2014 circo, blueman, handoff humano, anti-Sigo aqu\xED", async () => {
+  await test("119. A15009 Erick \uFFFD circo, blueman, handoff humano, anti-Sigo aqu\uFFFD", async () => {
     assert2.ok(clientMentionsSpecialLiveAct("Circo para eventos"));
     assert2.ok(clientMentionsEntertainment("Circo para eventos"));
     assert2.ok(clientMentionsSpecialLiveAct("show blueman"));
@@ -149327,7 +149408,7 @@ ${golfText}`,
     assert2.equal(parseSpecialLiveActLabel("show blueman"), "Show Blue Man");
     assert2.ok(clientAsksForHumanAdvisor("Hablar con un humano"));
     assert2.ok(parseServicesFromText("Circo para eventos").includes("Circo para eventos"));
-    const banquetAsk = "Podemos ofrecerte: \u2022 Banquete Formal \u2022 Barra de bebidas. \xBFQu\xE9 te gustar\xEDa revisar primero?";
+    const banquetAsk = "Podemos ofrecerte: \uFFFD Banquete Formal \uFFFD Barra de bebidas. \uFFFDQu\uFFFD te gustar\uFFFDa revisar primero?";
     const circo = runGuards({
       aiResponse: banquetAsk,
       extracted: emptyExtracted({
@@ -149339,23 +149420,23 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
-        "N\xFAmero de invitados",
-        "Lugar/direcci\xF3n del evento"
+        "N\uFFFDmero de invitados",
+        "Lugar/direcci\uFFFDn del evento"
       ]),
       readyForClosing: false,
       currentMessage: "Circo para eventos",
       history: [{ role: "assistant", content: banquetAsk }]
     });
     assert2.ok(/circo/i.test(circo), circo.slice(0, 500));
-    assert2.ok(!/Sigo aqu√≠/i.test(circo), circo.slice(0, 400));
+    assert2.ok(!/Sigo aquÌ/i.test(circo), circo.slice(0, 400));
     assert2.ok(!/banquete\s+formal/i.test(circo), circo.slice(0, 400));
     assert2.ok(!/revisar\s+primero/i.test(circo), circo.slice(0, 400));
     assert2.ok(!/no\s+confundir/i.test(circo), circo.slice(0, 500));
     assert2.ok(!/no\s+es\s+banquete\s+ni\s+catering/i.test(circo), circo.slice(0, 500));
     const insist = runGuards({
-      aiResponse: "\xBFQu\xE9 te gustar\xEDa revisar primero o prefieres armar un paquete?",
+      aiResponse: "\uFFFDQu\uFFFD te gustar\uFFFDa revisar primero o prefieres armar un paquete?",
       extracted: emptyExtracted({
         nombre: "Erick Llamas",
         correo: "e.llamas@bunker-inc.com.mx",
@@ -149366,24 +149447,24 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados",
-        "Lugar/direcci\xF3n del evento"
+        "N\uFFFDmero de invitados",
+        "Lugar/direcci\uFFFDn del evento"
       ]),
       readyForClosing: false,
       currentMessage: "Yo quiero circo para eventos",
       history: [
         { role: "user", content: "Circo para eventos" },
-        { role: "assistant", content: "\xBFQu\xE9 te gustar\xEDa revisar primero?" }
+        { role: "assistant", content: "\uFFFDQu\uFFFD te gustar\uFFFDa revisar primero?" }
       ]
     });
     assert2.ok(/circo/i.test(insist), insist.slice(0, 500));
-    assert2.ok(!/Sigo aqu√≠/i.test(insist));
+    assert2.ok(!/Sigo aquÌ/i.test(insist));
     assert2.ok(!/revisar\s+primero/i.test(insist));
     const humano = runGuards({
-      aiResponse: "Entiendo que deseas hablar con un humano. Mientras tanto, puedo ayudarte\u2026 Banquete Formal\u2026",
+      aiResponse: "Entiendo que deseas hablar con un humano. Mientras tanto, puedo ayudarte\uFFFD Banquete Formal\uFFFD",
       extracted: emptyExtracted({
         nombre: "Erick Llamas",
         correo: "e.llamas@bunker-inc.com.mx",
@@ -149392,7 +149473,7 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios"
       ]),
@@ -149404,7 +149485,7 @@ ${golfText}`,
     assert2.ok(/55 4008 0373/.test(humano));
     assert2.ok(!/banquete|mientras tanto/i.test(humano), humano.slice(0, 400));
     const blueman = runGuards({
-      aiResponse: "Para tu evento, manejamos shows\u2026 Te dejo el cat\xE1logo general\u2026",
+      aiResponse: "Para tu evento, manejamos shows\uFFFD Te dejo el cat\uFFFDlogo general\uFFFD",
       extracted: emptyExtracted({
         nombre: "Erick Llamas",
         correo: "e.llamas@bunker-inc.com.mx",
@@ -149413,9 +149494,9 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
-        "N\xFAmero de invitados"
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
       currentMessage: "show blueman",
@@ -149423,30 +149504,30 @@ ${golfText}`,
     });
     assert2.ok(/blue\s*man/i.test(blueman), blueman.slice(0, 500));
     assert2.ok(!/banquete\s+formal/i.test(blueman), blueman.slice(0, 400));
-    assert2.ok(!/Sigo aqu√≠/i.test(blueman));
+    assert2.ok(!/Sigo aquÌ/i.test(blueman));
     const anti = applyLucyGlobalAntiRepetition({
-      mensaje: "\xBFQu\xE9 te gustar\xEDa revisar primero?",
-      history: [{ role: "assistant", content: "\xBFQu\xE9 te gustar\xEDa revisar primero?" }],
+      mensaje: "\uFFFDQu\uFFFD te gustar\uFFFDa revisar primero?",
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD te gustar\uFFFDa revisar primero?" }],
       currentMessage: "Circo para eventos",
       extracted: { nombre: "Erick", tipo_evento: "corporativo" },
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento"]),
       clientName: "Erick"
     });
-    assert2.ok(!/Sigo aqu√≠/i.test(anti.mensaje), anti.mensaje);
+    assert2.ok(!/Sigo aquÌ/i.test(anti.mensaje), anti.mensaje);
   });
-  await test("120. V8.92 \u2014 banquete/catering formal-casual + mobiliario pieza\u2192modelos", () => {
+  await test("120. V8.92 \uFFFD banquete/catering formal-casual + mobiliario pieza?modelos", () => {
     assert2.ok(isAlimentosModoMenuReply(buildAlimentosModoMenu()));
     assert2.ok(clientChoseBanqueteFormal("quiero banquete"));
-    assert2.ok(clientChoseBanqueteFormal("m\xE1s formal"));
-    assert2.ok(clientChoseCateringCasual("algo m\xE1s casual"));
+    assert2.ok(clientChoseBanqueteFormal("m\uFFFDs formal"));
+    assert2.ok(clientChoseCateringCasual("algo m\uFFFDs casual"));
     assert2.ok(clientChoseCateringCasual("barra de pizzas"));
     assert2.ok(!clientChoseBanqueteFormal("quiero taquiza casual"));
     const modo = buildAlimentosModoMenu();
     assert2.ok(/formal|casual/i.test(modo), modo);
     assert2.ok(/barra de pastas|barra de pizzas|taquiza/i.test(modo), modo);
-    const vague = "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. \xBFMe pueden dar informaci\xF3n?";
+    const vague = "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. \uFFFDMe pueden dar informaci\uFFFDn?";
     const first = runGuards({
-      aiResponse: "Manejamos Banquete Formal 3 tiempos\u2026",
+      aiResponse: "Manejamos Banquete Formal 3 tiempos\uFFFD",
       extracted: emptyExtracted(),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
@@ -149472,28 +149553,28 @@ ${golfText}`,
       extracted: emptyExtracted({ nombre: "Cecilia" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       readyForClosing: false,
-      currentMessage: "algo m\xE1s casual",
+      currentMessage: "algo m\uFFFDs casual",
       history: [{ role: "assistant", content: buildAlimentosModoMenu() }]
     });
     assert2.ok(/sushi|pozole|panini|pizza|taquiza/i.test(casual), casual.slice(0, 500));
-    assert2.ok(/cat[a√°]logo general/i.test(casual), casual.slice(0, 400));
+    assert2.ok(/cat[a·]logo general/i.test(casual), casual.slice(0, 400));
     assert2.equal(buildMobiliarioRentDetailReply("barra de mobiliario"), null);
     assert2.equal(buildMobiliarioRentDetailReply("me interesa cotizar mobiliario"), null);
     assert2.ok(isMobiliarioPieceMenuReply(buildProgressiveOptionsMenu("mobiliario")));
     assert2.equal(parseMobiliarioPieceChoice("sillas"), "sillas");
     assert2.ok(/Tiffany|Crossback|Ghost/i.test(buildSillasModelMenu()));
     const mobFirst = runGuards({
-      aiResponse: "Anoto mobiliario Tiffany periqueras lounge\u2026",
+      aiResponse: "Anoto mobiliario Tiffany periqueras lounge\uFFFD",
       extracted: emptyExtracted(),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
-      currentMessage: "Hola, me interesa cotizar una barra de mobiliario para mi evento. \xBFMe pueden dar informaci\xF3n?",
+      currentMessage: "Hola, me interesa cotizar una barra de mobiliario para mi evento. \uFFFDMe pueden dar informaci\uFFFDn?",
       forceFirstPresentation: true
     });
     assert2.ok(/Lucy|Bodasesor/i.test(mobFirst), mobFirst.slice(0, 200));
-    assert2.ok(/qu[e√©] es lo que buscas|Mesas|Sillas|Periqueras/i.test(mobFirst), mobFirst.slice(0, 500));
+    assert2.ok(/qu[eÈ] es lo que buscas|Mesas|Sillas|Periqueras/i.test(mobFirst), mobFirst.slice(0, 500));
     assert2.ok(
-      !/Tiffany y vers√°tiles|mesas tipo picnic, salas lounge y m[a√°]s/i.test(mobFirst),
+      !/Tiffany y vers·tiles|mesas tipo picnic, salas lounge y m[a·]s/i.test(mobFirst),
       `no dump: ${mobFirst.slice(0, 500)}`
     );
     const sillas = runGuards({
@@ -149505,15 +149586,15 @@ ${golfText}`,
       history: [{ role: "assistant", content: buildProgressiveOptionsMenu("mobiliario") }]
     });
     assert2.ok(/Tiffany|Crossback|Ghost/i.test(sillas), sillas.slice(0, 500));
-    assert2.ok(/cat[a√°]logo/i.test(sillas), sillas.slice(0, 400));
+    assert2.ok(/cat[a·]logo/i.test(sillas), sillas.slice(0, 400));
     const qty = buildMobiliarioRentDetailReply("Necesito 900 sillas para un concierto");
     assert2.ok(qty && /900|sillas/i.test(qty), qty ?? "");
   });
-  await test("121. V8.93 \u2014 voz humana preferida + cierre sin upsell + prompt", () => {
+  await test("121. V8.93 \uFFFD voz humana preferida + cierre sin upsell + prompt", () => {
     assert2.ok(/^V(8\.9[3456789]|9\.\d{2})$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert2.ok(/PLANTILLAS|CONOCIMIENTO|asesora|voz humana|no guion/i.test(SYSTEM_PROMPT));
-    assert2.ok(/no eres un salesbot|no guion|REDACTA t[u√∫]/i.test(SYSTEM_PROMPT));
-    const humanEnt = "Claro, Bakar. Anoto un show de grupo vers\xE1til para tu evento del 18 de diciembre. Es entretenimiento (no catering). \xBFMe confirmas si es corporativo y en qu\xE9 sede ser\xEDa?";
+    assert2.ok(/no eres un salesbot|no guion|REDACTA t[u˙]/i.test(SYSTEM_PROMPT));
+    const humanEnt = "Claro, Bakar. Anoto un show de grupo vers\uFFFDtil para tu evento del 18 de diciembre. Es entretenimiento (no catering). \uFFFDMe confirmas si es corporativo y en qu\uFFFD sede ser\uFFFDa?";
     const entReply = runGuards({
       aiResponse: humanEnt,
       extracted: emptyExtracted({
@@ -149523,16 +149604,16 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento"
       ]),
       readyForClosing: false,
       currentMessage: "requerimos un show de grupo versatil para el dia 18 de diciembre a las 20:00 horas para un grupo de 30 personas",
-      history: [{ role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" }]
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?" }]
     });
-    assert2.ok(/show de grupo vers[a√°]til/i.test(entReply), entReply.slice(0, 400));
+    assert2.ok(/show de grupo vers[a·]til/i.test(entReply), entReply.slice(0, 400));
     assert2.ok(
-      !/happening, espejos, l[a√°]ser y m[a√°]s opciones/i.test(entReply),
+      !/happening, espejos, l[a·]ser y m[a·]s opciones/i.test(entReply),
       `no dump show: ${entReply.slice(0, 400)}`
     );
     const closing = buildStandardClosingMessage("banquete", "Ana");
@@ -149540,17 +149621,17 @@ ${golfText}`,
     assert2.ok(!/Si quieres sumar/i.test(closing), closing);
     assert2.ok(!/DJ o iluminaci/i.test(closing), closing);
     const progressive = runGuards({
-      aiResponse: "Te paso Banquete Formal 3 tiempos a $500 e incluye\u2026",
+      aiResponse: "Te paso Banquete Formal 3 tiempos a $500 e incluye\uFFFD",
       extracted: emptyExtracted(),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
-      currentMessage: "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. \xBFMe pueden dar informaci\xF3n?",
+      currentMessage: "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. \uFFFDMe pueden dar informaci\uFFFDn?",
       forceFirstPresentation: true
     });
     assert2.ok(/formal|casual/i.test(progressive), progressive.slice(0, 400));
     assert2.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
-  await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
+  await test("122. V8.94 \uFFFD Gemini Flash-Lite provider + conversi\uFFFDn mensajes", () => {
     assert2.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert2.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
@@ -149593,7 +149674,7 @@ ${golfText}`,
       else process.env.OPENAI_API_KEY = prevOpenAi;
     }
   });
-  await test("123. V8.98 \u2014 pin gemini-3.1-flash-lite; bloquea Nano Banana/Imagen", () => {
+  await test("123. V8.98 \uFFFD pin gemini-3.1-flash-lite; bloquea Nano Banana/Imagen", () => {
     assert2.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     assert2.equal(resolveGeminiModel("gemini-3.1-flash-lite-image"), "gemini-3.1-flash-lite");
     assert2.equal(resolveGeminiModel("imagen-4.0-fast-generate-001"), "gemini-3.1-flash-lite");
@@ -149632,14 +149713,14 @@ ${golfText}`,
       else process.env.gemini_ia = prevGeminiIa;
     }
   });
-  await test("124. A15164 \u2014 Alejandro/Hola Alejandro se capturan; queja no re-pide nombre", () => {
+  await test("124. A15164 \uFFFD Alejandro/Hola Alejandro se capturan; queja no re-pide nombre", () => {
     assert2.equal(sanitizeCrmNombre("Alejandro"), "Alejandro");
     assert2.equal(sanitizeCrmNombre("Hola, Alejandro"), "Alejandro");
     assert2.equal(sanitizeCrmNombre("Soy Alejandro"), "Alejandro");
     assert2.equal(sanitizeDisplayName("Alejandro"), "Alejandro");
     assert2.equal(sanitizeCrmNombre("Ya te lo dije 3 veces"), null);
     const hist = [
-      { role: "assistant", content: "\xBFC\xF3mo te llamas?" },
+      { role: "assistant", content: "\uFFFDC\uFFFDmo te llamas?" },
       { role: "user", content: "Hola, Alejandro" }
     ];
     assert2.equal(recoverClienteNombreFromHistory(hist, "Alejandro"), "Alejandro");
@@ -149647,42 +149728,42 @@ ${golfText}`,
     const filled = /* @__PURE__ */ new Set();
     const extracted = emptyExtracted();
     const afterName = runGuards({
-      aiResponse: "\xBFMe regalas tu nombre para iniciar?",
+      aiResponse: "\uFFFDMe regalas tu nombre para iniciar?",
       extracted,
       filledSet: filled,
       readyForClosing: false,
       currentMessage: "Alejandro",
-      history: [{ role: "assistant", content: "\xBFC\xF3mo te llamas?" }]
+      history: [{ role: "assistant", content: "\uFFFDC\uFFFDmo te llamas?" }]
     });
     assert2.equal(extracted.nombre, "Alejandro");
     assert2.ok(filled.has("Nombre del cliente"));
-    assert2.ok(!/cu[a√°]l\s+es\s+tu\s+nombre|c[o√≥]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[e√©]n\s+tengo/i.test(afterName), afterName);
+    assert2.ok(!/cu[a·]l\s+es\s+tu\s+nombre|c[oÛ]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eÈ]n\s+tengo/i.test(afterName), afterName);
     assert2.ok(/Mucho gusto,\s*Alejandro/i.test(afterName), afterName);
     assert2.ok(
-      /celebr|tipo de evento|de qu[e√©] se trata|servicios|pensado/i.test(afterName),
+      /celebr|tipo de evento|de qu[eÈ] se trata|servicios|pensado/i.test(afterName),
       afterName
     );
     assert2.ok(!mensajeAsksForField(afterName, "correo"), afterName);
     const filled2 = /* @__PURE__ */ new Set();
     const extracted2 = emptyExtracted();
     const afterComplaint = runGuards({
-      aiResponse: "\xBFC\xF3mo te llamas?",
+      aiResponse: "\uFFFDC\uFFFDmo te llamas?",
       extracted: extracted2,
       filledSet: filled2,
       readyForClosing: false,
       currentMessage: "Ya te lo dije 3 veces",
       history: [
-        { role: "assistant", content: "\xBFC\xF3mo te llamas?" },
+        { role: "assistant", content: "\uFFFDC\uFFFDmo te llamas?" },
         { role: "user", content: "Alejandro" },
-        { role: "assistant", content: "\xBFCon qui\xE9n tengo el gusto?" },
+        { role: "assistant", content: "\uFFFDCon qui\uFFFDn tengo el gusto?" },
         { role: "user", content: "Alejandro" },
-        { role: "assistant", content: "\xBFMe regalas tu nombre para iniciar?" }
+        { role: "assistant", content: "\uFFFDMe regalas tu nombre para iniciar?" }
       ]
     });
     assert2.equal(extracted2.nombre, "Alejandro");
     assert2.ok(/Perfecto/i.test(afterComplaint), afterComplaint);
     assert2.ok(
-      !/regalas\s+tu\s+nombre|c[o√≥]mo\s+te\s+llamas|con\s+qui[e√©]n\s+tengo/i.test(afterComplaint),
+      !/regalas\s+tu\s+nombre|c[oÛ]mo\s+te\s+llamas|con\s+qui[eÈ]n\s+tengo/i.test(afterComplaint),
       afterComplaint
     );
     const crmOk = sanitizeKommoCrmLines(["- Nombre del cliente: Alejandro"]);
@@ -149690,16 +149771,16 @@ ${golfText}`,
     const crmLucy = sanitizeKommoCrmLines(["- Nombre del cliente: Lucy"]);
     assert2.equal(crmLucy.length, 0);
     const norm2 = normalizeAdvisorReferences(
-      "Mucho gusto, Alejandro. Le paso estos datos a Alejandro para la cotizaci\xF3n.",
+      "Mucho gusto, Alejandro. Le paso estos datos a Alejandro para la cotizaci\uFFFDn.",
       "Alejandro"
     );
     assert2.ok(/Mucho gusto,\s+Alejandro/i.test(norm2), norm2);
     assert2.ok(/nuestro equipo/i.test(norm2), norm2);
   });
-  await test("125. A15165 \u2014 show intro + info shows/mobiliario/sillas post-cierre", async () => {
+  await test("125. A15165 \uFFFD show intro + info shows/mobiliario/sillas post-cierre", async () => {
     assert2.ok(clientMentionsEntertainment("Hola quiero cotizar un show"));
     assert2.ok(clientMentionsEntertainment("Tiene info de los shows?"));
-    assert2.ok(clientAsksForRecommendations("Qu\xE9 otros servicios manejan"));
+    assert2.ok(clientAsksForRecommendations("Qu\uFFFD otros servicios manejan"));
     assert2.ok(isServiceRelatedMessage("Mobilairio que manejan"));
     assert2.ok(clientAsksServiceInfo("Tienes los modelos de sillas?"));
     const first = buildFirstInteractionMessage(
@@ -149712,10 +149793,10 @@ ${golfText}`,
       },
       true
     );
-    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[i√≠]a[.!]?\s*)?soy\s+lucy/i.test(first), first);
-    assert2.ok(/cu[a√°]l\s+es\s+tu\s+nombre|c[o√≥]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[e√©]n\s+tengo/i.test(first), first);
+    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[iÌ]a[.!]?\s*)?soy\s+lucy/i.test(first), first);
+    assert2.ok(/cu[a·]l\s+es\s+tu\s+nombre|c[oÛ]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eÈ]n\s+tengo/i.test(first), first);
     assert2.ok(/show|animaci|performance/i.test(first), first);
-    assert2.ok(!/^\s*¬°?Claro!\s+\*Animaci[o√≥]n/i.test(first), first);
+    assert2.ok(!/^\s*°?Claro!\s+\*Animaci[oÛ]n/i.test(first), first);
     const kept = await finalizeLucyOutboundMessage({
       mensaje: first,
       extracted: emptyExtracted(),
@@ -149726,24 +149807,24 @@ ${golfText}`,
       cierreYaEnviado: false,
       entityId: 15165
     });
-    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[i√≠]a[.!]?\s*)?soy\s+lucy/i.test(kept), kept);
-    assert2.ok(!/^\s*¬°?Claro!\s+\*Animaci[o√≥]n\s*\/\s*Hora\s+loca\*\s+la\s+anoto/i.test(kept), kept);
+    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[iÌ]a[.!]?\s*)?soy\s+lucy/i.test(kept), kept);
+    assert2.ok(!/^\s*°?Claro!\s+\*Animaci[oÛ]n\s*\/\s*Hora\s+loca\*\s+la\s+anoto/i.test(kept), kept);
     const postShow = runGuards({
-      aiResponse: "\xA1Claro! *Animaci\xF3n / Hora loca* la anoto para tu cotizaci\xF3n. Nuestro equipo te confirma descripci\xF3n, precio e inclusiones.",
+      aiResponse: "\uFFFDClaro! *Animaci\uFFFDn / Hora loca* la anoto para tu cotizaci\uFFFDn. Nuestro equipo te confirma descripci\uFFFDn, precio e inclusiones.",
       extracted: emptyExtracted({
         nombre: "Alejandro",
         tipo_evento: "evento corporativo",
-        requerimientos_evento: "Animaci\xF3n / Hora loca",
+        requerimientos_evento: "Animaci\uFFFDn / Hora loca",
         direccion_evento: "CDMX"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento",
+        "Lugar/direcci\uFFFDn del evento",
         "Fecha y horario",
-        "N\xFAmero de invitados",
+        "N\uFFFDmero de invitados",
         "Presupuesto (MXN)"
       ]),
       readyForClosing: true,
@@ -149752,15 +149833,15 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "Perfecto, ya tengo todo. He anotado la animaci\xF3n\u2026 Si necesitas algo m\xE1s, con gusto te apoyo."
+          content: "Perfecto, ya tengo todo. He anotado la animaci\uFFFDn\uFFFD Si necesitas algo m\uFFFDs, con gusto te apoyo."
         }
       ]
     });
     assert2.ok(/show|animaci|entretenimiento|hora\s+loca|performance/i.test(postShow), postShow.slice(0, 400));
-    assert2.ok(/bodasesor\.com\/catalogos|cat[a√°]logo/i.test(postShow), postShow.slice(0, 500));
+    assert2.ok(/bodasesor\.com\/catalogos|cat[a·]logo/i.test(postShow), postShow.slice(0, 500));
     assert2.ok(!/Queda anotado\.?\s*Nuestro equipo sigue/i.test(postShow), postShow);
     assert2.ok(
-      !/\bla\s+anoto\s+para\s+tu\s+cotizaci[o√≥]n\b/i.test(postShow),
+      !/\bla\s+anoto\s+para\s+tu\s+cotizaci[oÛ]n\b/i.test(postShow),
       `no Level-2: ${postShow.slice(0, 400)}`
     );
     const postOtros = runGuards({
@@ -149768,48 +149849,48 @@ ${golfText}`,
       extracted: emptyExtracted({ nombre: "Alejandro", tipo_evento: "evento corporativo" }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento",
+        "Lugar/direcci\uFFFDn del evento",
         "Fecha y horario",
-        "N\xFAmero de invitados",
+        "N\uFFFDmero de invitados",
         "Presupuesto (MXN)"
       ]),
       readyForClosing: true,
       cierreYaEnviado: true,
-      currentMessage: "Qu\xE9 otros servicios manejan",
+      currentMessage: "Qu\uFFFD otros servicios manejan",
       history: [{ role: "assistant", content: "Perfecto, ya tengo todo." }]
     });
     assert2.ok(/banquete|mobiliario|barra|dj|servicio/i.test(postOtros), postOtros.slice(0, 400));
     assert2.ok(!/Queda anotado\.?\s*Nuestro equipo sigue/i.test(postOtros), postOtros);
     const postSillas = runGuards({
-      aiResponse: "Queda anotado. Nuestro equipo sigue con tu cotizaci\xF3n.",
+      aiResponse: "Queda anotado. Nuestro equipo sigue con tu cotizaci\uFFFDn.",
       extracted: emptyExtracted({ nombre: "Alejandro", requerimientos_evento: "Mobiliario" }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento",
+        "Lugar/direcci\uFFFDn del evento",
         "Fecha y horario",
-        "N\xFAmero de invitados",
+        "N\uFFFDmero de invitados",
         "Presupuesto (MXN)"
       ]),
       readyForClosing: true,
       cierreYaEnviado: true,
-      currentMessage: "No sabes qu\xE9 modelos manejas de sillas?",
+      currentMessage: "No sabes qu\uFFFD modelos manejas de sillas?",
       history: [{ role: "assistant", content: "Perfecto, ya tengo todo." }]
     });
     assert2.ok(/tiffany|crossback|ghost|sillas/i.test(postSillas), postSillas.slice(0, 500));
-    assert2.ok(/mesas-y-sillas|cat[a√°]logo/i.test(postSillas), postSillas.slice(0, 500));
+    assert2.ok(/mesas-y-sillas|cat[a·]logo/i.test(postSillas), postSillas.slice(0, 500));
     assert2.ok(!/Queda anotado\.?\s*Nuestro equipo sigue/i.test(postSillas), postSillas);
     assert2.ok(/tiffany/i.test(buildSillasModelMenu()));
     const showAck = buildGuardServiceAck("quiero cotizar un show");
-    assert2.ok(/show|animaci|cat[a√°]logo|bodasesor\.com\/catalogos/i.test(showAck), showAck);
-    assert2.ok(!/^\s*¬°?Claro!\s+\*Animaci[o√≥]n\s*\/\s*Hora\s+loca\*\s+la\s+anoto/i.test(showAck), showAck);
+    assert2.ok(/show|animaci|cat[a·]logo|bodasesor\.com\/catalogos/i.test(showAck), showAck);
+    assert2.ok(!/^\s*°?Claro!\s+\*Animaci[oÛ]n\s*\/\s*Hora\s+loca\*\s+la\s+anoto/i.test(showAck), showAck);
   });
-  await test("126. V9.00 \u2014 context cache + media-once + image compress", async () => {
+  await test("126. V9.00 \uFFFD context cache + media-once + image compress", async () => {
     assert2.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     const prevCache = process.env.GEMINI_CONTEXT_CACHE;
     process.env.GEMINI_CONTEXT_CACHE = "1";
@@ -149873,37 +149954,37 @@ ${golfText}`,
     assert2.ok("context_cache" in gstats);
     assert2.ok("mediaStripped" in gstats);
   });
-  await test("127. A14936 \u2014 Lety Hacienda aliados \u2192 proveedor, no formulario evento", async () => {
-    const letyText = "Hola Lucy. Te escribe Lety, soy ejecutiva de ventas en Hacienda Los Arc\xE1ngeles, te invito a registrarte en nuestra base de datos para conocer los beneficios y tarifas disponibles de nuestro venue, y ser parte de nuestra red de aliados comerciales. Bonito Martes!";
+  await test("127. A14936 \uFFFD Lety Hacienda aliados ? proveedor, no formulario evento", async () => {
+    const letyText = "Hola Lucy. Te escribe Lety, soy ejecutiva de ventas en Hacienda Los Arc\uFFFDngeles, te invito a registrarte en nuestra base de datos para conocer los beneficios y tarifas disponibles de nuestro venue, y ser parte de nuestra red de aliados comerciales. Bonito Martes!";
     assert2.ok(looksLikeProveedorOutreach(letyText));
     assert2.equal(resolveTipoContacto("cliente", letyText), "proveedor");
     assert2.equal(resolveTipoContacto(null, letyText), "proveedor");
     assert2.equal(resolveTipoContacto("proveedor", letyText), "proveedor");
-    const follow = "Hola Lucy; La intenci\xF3n de mi mensaje es invitarte a registrarte para ser parte de nuestra red de aliados";
+    const follow = "Hola Lucy; La intenci\uFFFDn de mi mensaje es invitarte a registrarte para ser parte de nuestra red de aliados";
     assert2.equal(resolveTipoContacto("cliente", follow), "proveedor");
-    const cafe = "Solicitud para cotizaci\xF3n de caf\xE9 gourmet para evento corporativo Saint-Gobain";
+    const cafe = "Solicitud para cotizaci\uFFFDn de caf\uFFFD gourmet para evento corporativo Saint-Gobain";
     assert2.equal(resolveTipoContacto("proveedor", cafe), "cliente");
     assert2.ok(!looksLikeProveedorOutreach(cafe));
-    const bodaHacienda = "Quiero cotizar banquete para mi boda en Hacienda Los Arc\xE1ngeles el 20 de diciembre";
+    const bodaHacienda = "Quiero cotizar banquete para mi boda en Hacienda Los Arc\uFFFDngeles el 20 de diciembre";
     assert2.equal(resolveTipoContacto(null, bodaHacienda), "cliente");
-    assert2.equal(extractEmpresaFromText(letyText), "Hacienda Los Arc\xE1ngeles");
+    assert2.equal(extractEmpresaFromText(letyText), "Hacienda Los Arc\uFFFDngeles");
     const reply = buildProveedorHandoffReply({
       nombre: "Lety",
-      empresa: "Hacienda Los Arc\xE1ngeles",
+      empresa: "Hacienda Los Arc\uFFFDngeles",
       conversationText: letyText
     });
     assert2.ok(/proveedores|alianzas/i.test(reply), reply);
-    assert2.ok(/Hacienda Los Arc√°ngeles/i.test(reply), reply);
+    assert2.ok(/Hacienda Los Arc·ngeles/i.test(reply), reply);
     assert2.ok(!/tipo de evento|invitados|presupuesto|correo te mando/i.test(reply), reply);
     const scrubbed = scrubClientFieldsForProveedor({
       ...emptyExtracted(),
       tipo_contacto: "proveedor",
       nombre: "Lety",
-      empresa: "Hacienda Los Arc\xE1ngeles",
-      direccion_evento: "Hacienda Los Arc\xE1ngeles",
+      empresa: "Hacienda Los Arc\uFFFDngeles",
+      direccion_evento: "Hacienda Los Arc\uFFFDngeles",
       tipo_evento: "boda",
       num_invitados: 100,
-      requerimientos_evento: "Invitaci\xF3n a red de aliados"
+      requerimientos_evento: "Invitaci\uFFFDn a red de aliados"
     });
     assert2.equal(scrubbed.tipo_contacto, "proveedor");
     assert2.equal(scrubbed.direccion_evento, null);
@@ -149920,7 +150001,7 @@ ${golfText}`,
         ...emptyExtracted(),
         tipo_contacto: "cliente",
         nombre: "Lety",
-        empresa: "Hacienda Los Arc\xE1ngeles",
+        empresa: "Hacienda Los Arc\uFFFDngeles",
         requerimientos_evento: "red de aliados"
       })
     });
@@ -149933,9 +150014,9 @@ ${golfText}`,
     );
     assert2.ok(healthSrc.includes("proveedor-alianza-handoff"));
   });
-  await test("128. A15168 \u2014 Coffee Break detalle, cat\xE1logo y opci\xF3n 1 (no vac\xEDo)", () => {
+  await test("128. A15168 \uFFFD Coffee Break detalle, cat\uFFFDlogo y opci\uFFFDn 1 (no vac\uFFFDo)", () => {
     assert2.ok(isLikelyUbicacionNotNombre("Cancun"));
-    assert2.ok(isLikelyUbicacionNotNombre("Canc\xFAn"));
+    assert2.ok(isLikelyUbicacionNotNombre("Canc\uFFFDn"));
     assert2.equal(sanitizeCrmNombre("Cancun"), null);
     assert2.equal(sanitizeDisplayName("Cancun"), null);
     const menu = buildProgressiveOptionsMenu("coffee_break");
@@ -149947,7 +150028,7 @@ ${golfText}`,
     ];
     assert2.ok(clientWantsServiceDetail("quiero ver las opciones", hist));
     assert2.ok(clientWantsServiceDetail("opcion 1", hist));
-    assert2.ok(clientWantsServiceDetail("opci\xF3n 1", hist));
+    assert2.ok(clientWantsServiceDetail("opci\uFFFDn 1", hist));
     assert2.ok(clientWantsServiceDetail("paquete 2", hist));
     assert2.ok(isCatalogLevelSelection("opcion 1", menu));
     assert2.equal(extractCatalogNivelFromText("opcion 1", menu), "Coffee Break 1");
@@ -149970,7 +150051,7 @@ ${golfText}`,
     assert2.ok(services.some((s6) => /coffee/i.test(s6)), services.join(", "));
     assert2.ok(services.some((s6) => /desayuno/i.test(s6)), services.join(", "));
     const first = runGuards({
-      aiResponse: "\xBFC\xF3mo te llamas?",
+      aiResponse: "\uFFFDC\uFFFDmo te llamas?",
       extracted: emptyExtracted({
         tipo_evento: "corporativo",
         requerimientos_evento: "Coffee Break"
@@ -149988,12 +150069,12 @@ ${golfText}`,
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
-          '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye","Sinonimos"',
-          '"Coffee Break","Coffee Break 1","$120.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9, galletas y agua"',
-          '"Coffee Break","Coffee Break 2","$200.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9, pan dulce y fruta"',
-          '"Coffee Break","Coffee Break 3","$280.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9 premium y snacks"',
-          '"Coffee Break","Coffee Break 4","$350.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estaci\xF3n completa CB4"',
-          '"Coffee Break","Coffee Break 5","$400.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estaci\xF3n completa CB5"'
+          '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Link catalogo","Que Incluye","Sinonimos"',
+          '"Coffee Break","Coffee Break 1","$120.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\uFFFD, galletas y agua"',
+          '"Coffee Break","Coffee Break 2","$200.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\uFFFD, pan dulce y fruta"',
+          '"Coffee Break","Coffee Break 3","$280.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\uFFFD premium y snacks"',
+          '"Coffee Break","Coffee Break 4","$350.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estaci\uFFFDn completa CB4"',
+          '"Coffee Break","Coffee Break 5","$400.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estaci\uFFFDn completa CB5"'
         ].join("\n")
       )
     );
@@ -150010,12 +150091,12 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento",
+        "Lugar/direcci\uFFFDn del evento",
         "Fecha y horario",
-        "N\xFAmero de invitados"
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
       currentMessage: "opcion 1",
@@ -150024,19 +150105,19 @@ ${golfText}`,
     });
     assert2.ok(!/Seguimos con lo que ya platicamos/i.test(pick), pick.slice(0, 300));
     assert2.ok(
-      /Coffee Break 1|Caf√©|galletas|\$\s*120|incluye/i.test(pick),
+      /Coffee Break 1|CafÈ|galletas|\$\s*120|incluye/i.test(pick),
       pick.slice(0, 500)
     );
     assert2.ok(/bodasesor\.com\/catalogos\/coffee-break/i.test(pick), pick.slice(0, 400));
   });
-  await test("129. A15169 \u2014 cat\xE1logo gen\xE9rico hub; S\xED m\xE1ndamelo no es nombre", () => {
-    const msg = "\xA1Hola, me gustar\xEDa conocer m\xE1s de sus servicios!\nCuentan con catalogo de men\xFA?";
+  await test("129. A15169 \uFFFD cat\uFFFDlogo gen\uFFFDrico hub; S\uFFFD m\uFFFDndamelo no es nombre", () => {
+    const msg = "\uFFFDHola, me gustar\uFFFDa conocer m\uFFFDs de sus servicios!\nCuentan con catalogo de men\uFFFD?";
     assert2.ok(clientAsksForCatalog(msg));
     assert2.ok(clientAsksGenericMenuCatalog(msg));
     assert2.ok(clientWantsFullCatalog(msg));
     assert2.equal(parseServicesFromText(msg).length, 0);
     const first = runGuards({
-      aiResponse: "Claro, aqu\xED tienes el cat\xE1logo de *Barra de pizzas*:\nhttps://bodasesor.com/catalogos/barra-de-pizzas",
+      aiResponse: "Claro, aqu\uFFFD tienes el cat\uFFFDlogo de *Barra de pizzas*:\nhttps://bodasesor.com/catalogos/barra-de-pizzas",
       extracted: emptyExtracted({
         requerimientos_evento: "Barra de pizzas"
       }),
@@ -150045,30 +150126,30 @@ ${golfText}`,
       currentMessage: msg,
       forceFirstPresentation: true
     });
-    assert2.ok(/cat[a√°]logo general|todos los servicios/i.test(first), first.slice(0, 400));
+    assert2.ok(/cat[a·]logo general|todos los servicios/i.test(first), first.slice(0, 400));
     assert2.ok(/bodasesor\.com\/catalogos(?!\/barra)/i.test(first), first.slice(0, 400));
     assert2.ok(!/barra-de-pizzas|Barra de pizzas/i.test(first), first.slice(0, 400));
-    assert2.ok(isLikelyNotPersonNameMessage("Si m\xE1ndamelo"));
-    assert2.ok(isLikelyNotPersonNameMessage("m\xE1ndamelo"));
-    assert2.equal(sanitizeCrmNombre("Si m\xE1ndamelo"), null);
-    assert2.equal(sanitizeDisplayName("M\xE1ndamelo"), null);
-    const pizzaOffer = "Claro, aqu\xED tienes el cat\xE1logo de *Barra de pizzas*:\nhttps://bodasesor.com/catalogos/barra-de-pizzas\n\nSi quieres el de otro servicio, d\xEDmelo y te mando ese.";
+    assert2.ok(isLikelyNotPersonNameMessage("Si m\uFFFDndamelo"));
+    assert2.ok(isLikelyNotPersonNameMessage("m\uFFFDndamelo"));
+    assert2.equal(sanitizeCrmNombre("Si m\uFFFDndamelo"), null);
+    assert2.equal(sanitizeDisplayName("M\uFFFDndamelo"), null);
+    const pizzaOffer = "Claro, aqu\uFFFD tienes el cat\uFFFDlogo de *Barra de pizzas*:\nhttps://bodasesor.com/catalogos/barra-de-pizzas\n\nSi quieres el de otro servicio, d\uFFFDmelo y te mando ese.";
     assert2.ok(assistantOfferedCatalogDetail(pizzaOffer));
-    assert2.ok(clientAffirmsCatalogOffer("Si m\xE1ndamelo", pizzaOffer));
+    assert2.ok(clientAffirmsCatalogOffer("Si m\uFFFDndamelo", pizzaOffer));
     const affirm = runGuards({
-      aiResponse: "Para anotarte bien: \xBFeres M\xE1ndamelo o sigo contigo como Stephany?",
+      aiResponse: "Para anotarte bien: \uFFFDeres M\uFFFDndamelo o sigo contigo como Stephany?",
       extracted: emptyExtracted({ nombre: "Stephany" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       readyForClosing: false,
-      currentMessage: "Si m\xE1ndamelo",
+      currentMessage: "Si m\uFFFDndamelo",
       history: [{ role: "assistant", content: pizzaOffer }],
       presentationHistory: [{ role: "assistant", content: pizzaOffer }],
       whatsappDisplayName: "Stephany"
     });
-    assert2.ok(!/eres M[a√°]ndamelo|sigo contigo/i.test(affirm), affirm.slice(0, 300));
+    assert2.ok(!/eres M[a·]ndamelo|sigo contigo/i.test(affirm), affirm.slice(0, 300));
     assert2.ok(/bodasesor\.com\/catalogos/i.test(affirm), affirm.slice(0, 400));
   });
-  await test("130. A15190 \u2014 centros de mesa es floral/decorativo, no mobiliario", () => {
+  await test("130. A15190 \uFFFD centros de mesa es floral/decorativo, no mobiliario", () => {
     for (const msg of [
       "centros de mesa",
       "De centros de mesa",
@@ -150077,7 +150158,7 @@ ${golfText}`,
       "centros florales"
     ]) {
       const services = parseServicesFromText(msg);
-      assert2.ok(services.includes("Centros de mesa"), `${msg} \u2192 ${services.join(",")}`);
+      assert2.ok(services.includes("Centros de mesa"), `${msg} ? ${services.join(",")}`);
       assert2.ok(!services.includes("Mobiliario"), `${msg} no debe ser mobiliario: ${services.join(",")}`);
       assert2.equal(detectProgressiveFamily(msg), null, msg);
       assert2.equal(parseMobiliarioPieceChoice(msg), null, msg);
@@ -150086,9 +150167,9 @@ ${golfText}`,
     const ack = buildGuardServiceAck("De centros de mesa");
     assert2.ok(/centros de mesa/i.test(ack), ack);
     assert2.ok(/floral|decoraci/i.test(ack), ack);
-    assert2.ok(!/periqueras|salas lounge|Tiffany|¬øQu√© es lo que buscas/i.test(ack), ack);
+    assert2.ok(!/periqueras|salas lounge|Tiffany|øQuÈ es lo que buscas/i.test(ack), ack);
     const early = runGuards({
-      aiResponse: "S\xED, contamos con *mobiliario*. \xBFQu\xE9 es lo que buscas?\n\u2022 Mesas\n\u2022 Sillas",
+      aiResponse: "S\uFFFD, contamos con *mobiliario*. \uFFFDQu\uFFFD es lo que buscas?\n\uFFFD Mesas\n\uFFFD Sillas",
       extracted: emptyExtracted(),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
@@ -150097,31 +150178,31 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "Hola, soy Lucy, agente virtual de Bodasesor. \xBFC\xF3mo te llamas?"
+          content: "Hola, soy Lucy, agente virtual de Bodasesor. \uFFFDC\uFFFDmo te llamas?"
         }
       ]
     });
     assert2.ok(!/periqueras|salas lounge|Tiffany/i.test(early), early.slice(0, 500));
     assert2.ok(
-      /centros de mesa|floral|decoraci|anoto/i.test(early) || /c[o√≥]mo te llamas|nombre/i.test(early),
+      /centros de mesa|floral|decoraci|anoto/i.test(early) || /c[oÛ]mo te llamas|nombre/i.test(early),
       early.slice(0, 500)
     );
     assert2.ok(!/\*Mobiliario\*/i.test(early), early.slice(0, 400));
     const named = runGuards({
-      aiResponse: "\xA1Claro! *Mobiliario* la anoto para tu cotizaci\xF3n.",
+      aiResponse: "\uFFFDClaro! *Mobiliario* la anoto para tu cotizaci\uFFFDn.",
       extracted: emptyExtracted({ nombre: "Adriana" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       readyForClosing: false,
       currentMessage: "Centros de mesa",
-      whatsappDisplayName: "Adriana Garc\xEDa"
+      whatsappDisplayName: "Adriana Garc\uFFFDa"
     });
     assert2.ok(/centros de mesa/i.test(named), named.slice(0, 400));
     assert2.ok(!/\*Mobiliario\*/i.test(named), named.slice(0, 400));
     assert2.ok(!/periqueras|salas lounge/i.test(named), named.slice(0, 400));
   });
-  await test("131. A15191 \u2014 Barra de Caf\xE9 no usa Barra Americana y respeta afluencia desconocida", () => {
+  await test("131. A15191 \uFFFD Barra de Caf\uFFFD no usa Barra Americana y respeta afluencia desconocida", () => {
     const baristaFamilies = expandQueryWithServiceSynonyms(
-      "Busco un barista para un stand de caf\xE9"
+      "Busco un barista para un stand de caf\uFFFD"
     ).familyKeys;
     assert2.ok(baristaFamilies.includes("barra_cafe"), baristaFamilies.join(", "));
     assert2.ok(!baristaFamilies.includes("coffee_break"), baristaFamilies.join(", "));
@@ -150133,15 +150214,15 @@ ${golfText}`,
     refreshLucyInfoPriceCache([
       {
         title: "Barra Americana bodasesor",
-        content: "Barra Americana. Centro de mesa con flores. Barra con vitroleros, agua y caf\xE9. Tradicional $180 por persona. Meseros, vajilla y silla Tiffany."
+        content: "Barra Americana. Centro de mesa con flores. Barra con vitroleros, agua y caf\uFFFD. Tradicional $180 por persona. Meseros, vajilla y silla Tiffany."
       },
       {
         title: "Barra de Cafe bodasesor",
-        content: "Barra de Caf\xE9 Premium. Barista, caf\xE9 americano, capuchino y t\xE9. Premium $550 por persona. Incluye equipo e insumos."
+        content: "Barra de Caf\uFFFD Premium. Barista, caf\uFFFD americano, capuchino y t\uFFFD. Premium $550 por persona. Incluye equipo e insumos."
       }
     ]);
     const cafeDetail = buildLucyInfoInclusionReply(
-      "Barra de Caf\xE9 Premium para Eventos"
+      "Barra de Caf\uFFFD Premium para Eventos"
     );
     assert2.ok(/Barra de Cafe bodasesor/i.test(cafeDetail ?? ""), cafeDetail ?? "sin detalle");
     assert2.ok(/barista|capuchino/i.test(cafeDetail ?? ""), cafeDetail ?? "sin detalle");
@@ -150150,123 +150231,123 @@ ${golfText}`,
       cafeDetail ?? "sin detalle"
     );
     const first = runGuards({
-      aiResponse: "Seg\xFAn el cat\xE1logo que ya tenemos de *Barra Americana bodasesor*: Centro de mesa, vitroleros, meseros, vajilla y silla Tiffany.",
+      aiResponse: "Seg\uFFFDn el cat\uFFFDlogo que ya tenemos de *Barra Americana bodasesor*: Centro de mesa, vitroleros, meseros, vajilla y silla Tiffany.",
       extracted: emptyExtracted(),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
-      currentMessage: "Hola, me interesa cotizar: Barra de Caf\xE9 Premium para Eventos",
+      currentMessage: "Hola, me interesa cotizar: Barra de Caf\uFFFD Premium para Eventos",
       forceFirstPresentation: true,
       history: []
     });
-    assert2.ok(/Barra de Caf√©/i.test(first), first.slice(0, 500));
-    assert2.ok(/c[o√≥]mo te llamas|nombre|con qui[e√©]n/i.test(first), first.slice(0, 500));
+    assert2.ok(/Barra de CafÈ/i.test(first), first.slice(0, 500));
+    assert2.ok(/c[oÛ]mo te llamas|nombre|con qui[eÈ]n/i.test(first), first.slice(0, 500));
     assert2.ok(!/Barra Americana|Silla Tiffany|vitroleros/i.test(first), first.slice(0, 500));
-    assert2.ok(!/Seg√∫n el cat√°logo/i.test(first), first.slice(0, 500));
-    const unknownGuests = "No sabemos cu\xE1ntos invitados son; nosotros no organizamos el evento, vamos como patrocinadores.";
+    assert2.ok(!/Seg˙n el cat·logo/i.test(first), first.slice(0, 500));
+    const unknownGuests = "No sabemos cu\uFFFDntos invitados son; nosotros no organizamos el evento, vamos como patrocinadores.";
     const guestFilled = /* @__PURE__ */ new Set();
     const guestLines = [];
     applyInvitadosWaiver(
       guestFilled,
       guestLines,
       [unknownGuests],
-      [{ role: "assistant", content: "\xBFCu\xE1ntos invitados tienen contemplados?" }]
+      [{ role: "assistant", content: "\uFFFDCu\uFFFDntos invitados tienen contemplados?" }]
     );
-    assert2.ok(guestFilled.has("N\xFAmero de invitados"));
+    assert2.ok(guestFilled.has("N\uFFFDmero de invitados"));
     assert2.ok(/afluencia abierta|no dispone del dato/i.test(guestLines.join(" ")));
     const guestSummary = buildResumenClienteLargo(
       emptyExtracted({
         nombre: "Patricio",
-        requerimientos_evento: "Barra de Caf\xE9 Premium"
+        requerimientos_evento: "Barra de Caf\uFFFD Premium"
       }),
       guestLines
     );
     assert2.ok(/Escala: Sin definir \(afluencia abierta/i.test(guestSummary), guestSummary);
-    assert2.ok(!/afluencia abierta[^‚Ä¢\n]*personas\s*\/\s*piezas/i.test(guestSummary), guestSummary);
+    assert2.ok(!/afluencia abierta[^ï\n]*personas\s*\/\s*piezas/i.test(guestSummary), guestSummary);
     assert2.equal(
-      parseInvitadosFromText("No sabemos cu\xE1ntos invitados son"),
-      "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)"
+      parseInvitadosFromText("No sabemos cu\uFFFDntos invitados son"),
+      "Sin definir (cliente indic\uFFFD aproximaci\uFFFDn pendiente)"
     );
     assert2.equal(
       parseInvitadosFromText("No te lo puedo confirmar, no tenemos ese dato"),
-      "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)"
+      "Sin definir (cliente indic\uFFFD aproximaci\uFFFDn pendiente)"
     );
     assert2.equal(parseZonaFromText("el stand"), null);
     assert2.equal(parseZonaFromText("en el stand con nosotros"), null);
     assert2.ok(!isUsableDireccionEvento("el, stand"));
     assert2.ok(isUsableDireccionEvento("Expo Santa Fe"));
     const closing = runGuards({
-      aiResponse: "De acuerdo. \xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?",
+      aiResponse: "De acuerdo. \uFFFDM\uFFFDs o menos para cu\uFFFDntas personas ser\uFFFDa?",
       extracted: emptyExtracted({
         nombre: "Patricio",
         correo: "pacosiom@finasist.com",
         tipo_evento: "evento corporativo",
-        requerimientos_evento: "Barra de Caf\xE9 Premium \u2014 barista en stand por dos d\xEDas",
+        requerimientos_evento: "Barra de Caf\uFFFD Premium \uFFFD barista en stand por dos d\uFFFDas",
         direccion_evento: "Expo Santa Fe",
-        fecha_horario: "dos d\xEDas"
+        fecha_horario: "dos d\uFFFDas"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento",
+        "Lugar/direcci\uFFFDn del evento",
         "Fecha y horario",
         "Presupuesto (MXN)"
       ]),
       readyForClosing: false,
       currentMessage: unknownGuests,
-      history: [{ role: "assistant", content: "\xBFCu\xE1ntos invitados tienen contemplados?" }]
+      history: [{ role: "assistant", content: "\uFFFDCu\uFFFDntos invitados tienen contemplados?" }]
     });
-    assert2.ok(!/cu[a√°]ntos|cu[a√°]nta gente|para cu[a√°]ntas/i.test(closing), closing);
+    assert2.ok(!/cu[a·]ntos|cu[a·]nta gente|para cu[a·]ntas/i.test(closing), closing);
     assert2.ok(/ya tengo todo|equipo|cotizaci/i.test(closing), closing);
   });
-  await test("132. A15197 \u2014 tipos reales de carpa y medidas obligatorias antes del cierre", () => {
+  await test("132. A15197 \uFFFD tipos reales de carpa y medidas obligatorias antes del cierre", () => {
     const carpaInfo = buildGuardServiceAck(
-      "Quiero informaci\xF3n y disponibilidad de una carpa bonita para jard\xEDn"
+      "Quiero informaci\uFFFDn y disponibilidad de una carpa bonita para jard\uFFFDn"
     );
     for (const option of ["blanca", "negra", "transparente", "domo"]) {
       assert2.ok(new RegExp(option, "i").test(carpaInfo), `${option}: ${carpaInfo}`);
     }
     assert2.ok(/medidas|largo|ancho/i.test(carpaInfo), carpaInfo);
-    assert2.ok(!/Cathedral|Catedral|Pir[a√°]mide|Planas?/i.test(carpaInfo), carpaInfo);
+    assert2.ok(!/Cathedral|Catedral|Pir[a·]mide|Planas?/i.test(carpaInfo), carpaInfo);
     const completeWithoutDims = emptyExtracted({
       nombre: "Milka",
       correo: "orisrs.13@gmail.com",
-      tipo_evento: "cumplea\xF1os",
-      requerimientos_evento: "Carpas \u2014 peque\xF1a y bonita para jard\xEDn",
+      tipo_evento: "cumplea\uFFFDos",
+      requerimientos_evento: "Carpas \uFFFD peque\uFFFDa y bonita para jard\uFFFDn",
       direccion_evento: "Chalco",
-      fecha_horario: "este s\xE1bado",
+      fecha_horario: "este s\uFFFDbado",
       num_invitados: 15,
       presupuesto: 1
     });
     const allCore = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "Lugar/direcci\xF3n del evento",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario",
-      "N\xFAmero de invitados",
+      "N\uFFFDmero de invitados",
       "Presupuesto (MXN)"
     ]);
     const blockedClose = runGuards({
-      aiResponse: "Perfecto, ya tengo todo. Le paso esta informaci\xF3n al equipo para preparar la cotizaci\xF3n.",
+      aiResponse: "Perfecto, ya tengo todo. Le paso esta informaci\uFFFDn al equipo para preparar la cotizaci\uFFFDn.",
       extracted: completeWithoutDims,
       filledSet: allCore,
       readyForClosing: true,
-      currentMessage: "Lo m\xE1s barato que se pueda",
+      currentMessage: "Lo m\uFFFDs barato que se pueda",
       history: [
         {
           role: "assistant",
-          content: "Manejamos carpas blancas, negras, transparentes y tipo domo. \xBFQu\xE9 medidas aproximadas necesitas?"
+          content: "Manejamos carpas blancas, negras, transparentes y tipo domo. \uFFFDQu\uFFFD medidas aproximadas necesitas?"
         },
-        { role: "user", content: "Algo peque\xF1ito y bonito" }
+        { role: "user", content: "Algo peque\uFFFDito y bonito" }
       ]
     });
-    assert2.ok(/medidas|largo|ancho|√°rea.*cubrir/i.test(blockedClose), blockedClose);
-    assert2.ok(!/ya tengo todo|preparar.*cotizaci[o√≥]n/i.test(blockedClose), blockedClose);
+    assert2.ok(/medidas|largo|ancho|·rea.*cubrir/i.test(blockedClose), blockedClose);
+    assert2.ok(!/ya tengo todo|preparar.*cotizaci[oÛ]n/i.test(blockedClose), blockedClose);
     const withDims = runGuards({
-      aiResponse: "Perfecto, ya tengo todo. Le paso esta informaci\xF3n al equipo para preparar la cotizaci\xF3n.",
+      aiResponse: "Perfecto, ya tengo todo. Le paso esta informaci\uFFFDn al equipo para preparar la cotizaci\uFFFDn.",
       extracted: completeWithoutDims,
       filledSet: new Set(allCore),
       readyForClosing: true,
@@ -150274,14 +150355,14 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "\xBFQu\xE9 medidas aproximadas debe tener la carpa (largo \xD7 ancho)?"
+          content: "\uFFFDQu\uFFFD medidas aproximadas debe tener la carpa (largo \uFFFD ancho)?"
         }
       ]
     });
-    assert2.ok(/3\s*m?\s*x\s*4|ya tengo todo|cotizaci[o√≥]n/i.test(withDims), withDims);
-    assert2.ok(!/¬ø[^?]*medidas aproximadas/i.test(withDims), withDims);
+    assert2.ok(/3\s*m?\s*x\s*4|ya tengo todo|cotizaci[oÛ]n/i.test(withDims), withDims);
+    assert2.ok(!/ø[^?]*medidas aproximadas/i.test(withDims), withDims);
     const tarimaWithoutDims = runGuards({
-      aiResponse: "Perfecto, ya tengo todo. El equipo preparar\xE1 tu cotizaci\xF3n de tarima.",
+      aiResponse: "Perfecto, ya tengo todo. El equipo preparar\uFFFD tu cotizaci\uFFFDn de tarima.",
       extracted: emptyExtracted({
         ...completeWithoutDims,
         requerimientos_evento: "Tarima para evento"
@@ -150294,36 +150375,36 @@ ${golfText}`,
     assert2.ok(!/ya tengo todo/i.test(tarimaWithoutDims), tarimaWithoutDims);
     assert2.equal(parseInvitadosFromText("15 aprox"), "15");
     const noGuestRepeat = runGuards({
-      aiResponse: "\xBFCu\xE1ntos invitados esperas aproximadamente?",
+      aiResponse: "\uFFFDCu\uFFFDntos invitados esperas aproximadamente?",
       extracted: completeWithoutDims,
       filledSet: new Set(allCore),
       readyForClosing: true,
       currentMessage: "15 aprox"
     });
-    assert2.ok(!/cu[a√°]ntos invitados|cu[a√°]ntas personas/i.test(noGuestRepeat), noGuestRepeat);
+    assert2.ok(!/cu[a·]ntos invitados|cu[a·]ntas personas/i.test(noGuestRepeat), noGuestRepeat);
   });
-  await test("133. A15204 \u2014 catering/canap\xE9s no vuelca mobiliario ni banquete gen\xE9rico", () => {
-    assert2.equal(detectProgressiveFamily("Un catering/ canap\xE9s"), "gastronomia");
-    assert2.equal(detectProgressiveFamily("canap\xE9s"), "gastronomia");
+  await test("133. A15204 \uFFFD catering/canap\uFFFDs no vuelca mobiliario ni banquete gen\uFFFDrico", () => {
+    assert2.equal(detectProgressiveFamily("Un catering/ canap\uFFFDs"), "gastronomia");
+    assert2.equal(detectProgressiveFamily("canap\uFFFDs"), "gastronomia");
     assert2.equal(detectProgressiveFamily("quiero catering"), "banquete");
     assert2.equal(
       resolveProgressiveDetailQuery({
-        currentMessage: "Un catering/ canap\xE9s",
+        currentMessage: "Un catering/ canap\uFFFDs",
         serviceHint: "catering",
         history: []
       }),
-      "Canap\xE9s"
+      "Canap\uFFFDs"
     );
-    const services = parseServicesFromText("Un catering/ canap\xE9s");
-    assert2.ok(services.includes("Canap\xE9s"), services.join(","));
+    const services = parseServicesFromText("Un catering/ canap\uFFFDs");
+    assert2.ok(services.includes("Canap\uFFFDs"), services.join(","));
     refreshLucyInfoPriceCache([
       {
         title: "Mesas-y-Sillas-Bodasesor-2026-compressed",
-        content: "RENTA DE MOBILIARIO Mesas Sillas Barras 4 estilos para tu servicio de bar \xBFPor qu\xE9 Bodasesor? M\xE1s de 20 combinaciones de mobiliario Colecci\xF3n Vintage Tiffany $320"
+        content: "RENTA DE MOBILIARIO Mesas Sillas Barras 4 estilos para tu servicio de bar \uFFFDPor qu\uFFFD Bodasesor? M\uFFFDs de 20 combinaciones de mobiliario Colecci\uFFFDn Vintage Tiffany $320"
       },
       {
         title: "Canapes-bodasesor-2026",
-        content: "Canap\xE9s Premium. Estaci\xF3n de bocadillos finos para recepci\xF3n. Incluye chef, montaje y vajilla. Premium $450 por persona."
+        content: "Canap\uFFFDs Premium. Estaci\uFFFDn de bocadillos finos para recepci\uFFFDn. Incluye chef, montaje y vajilla. Premium $450 por persona."
       },
       {
         title: "Banquete-Formal-Bodasesor-2026",
@@ -150331,26 +150412,26 @@ ${golfText}`,
       }
     ]);
     for (const q2 of [
-      "Un catering/ canap\xE9s",
-      "canap\xE9s",
-      "Canap\xE9s",
-      "catering canap\xE9s",
-      "Hola, me interesa cotizar: Un catering/ canap\xE9s"
+      "Un catering/ canap\uFFFDs",
+      "canap\uFFFDs",
+      "Canap\uFFFDs",
+      "catering canap\uFFFDs",
+      "Hola, me interesa cotizar: Un catering/ canap\uFFFDs"
     ]) {
       const detail = buildLucyInfoInclusionReply(q2);
       assert2.ok(detail, `debe haber detalle para: ${q2}`);
       assert2.ok(/Canapes/i.test(detail), detail);
       assert2.ok(/bocadillo|chef|Premium/i.test(detail), detail);
       assert2.ok(
-        !/Mesas\s*y\s*Sillas|mobiliario|Tiffany|Colecci[o√≥]n Vintage/i.test(detail),
+        !/Mesas\s*y\s*Sillas|mobiliario|Tiffany|Colecci[oÛ]n Vintage/i.test(detail),
         detail
       );
     }
-    const ack = buildGuardServiceAck("Un catering/ canap\xE9s");
+    const ack = buildGuardServiceAck("Un catering/ canap\uFFFDs");
     assert2.ok(/[Cc]anap/i.test(ack), ack);
-    assert2.ok(!/Mesas\s*y\s*Sillas|periqueras|Tiffany|¬øQu√© es lo que buscas/i.test(ack), ack);
+    assert2.ok(!/Mesas\s*y\s*Sillas|periqueras|Tiffany|øQuÈ es lo que buscas/i.test(ack), ack);
     const dumped = runGuards({
-      aiResponse: "Seg\xFAn el cat\xE1logo que ya tenemos de *Mesas y Sillas Bodasesor*:\n\nstilos para tu servicio de bar \xBFPor qu\xE9 Bodasesor? M\xE1s de 20 combinaciones de mobiliario Mesas, sillas Tiffany.\n\n\xBFTe late este nivel o quieres que te detalle otro?",
+      aiResponse: "Seg\uFFFDn el cat\uFFFDlogo que ya tenemos de *Mesas y Sillas Bodasesor*:\n\nstilos para tu servicio de bar \uFFFDPor qu\uFFFD Bodasesor? M\uFFFDs de 20 combinaciones de mobiliario Mesas, sillas Tiffany.\n\n\uFFFDTe late este nivel o quieres que te detalle otro?",
       extracted: emptyExtracted({
         nombre: "Mauricio Glz",
         correo: "mauriciogq84@gmail.com",
@@ -150359,50 +150440,50 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
-        "N\xFAmero de invitados"
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
-      currentMessage: "Un catering/ canap\xE9s",
+      currentMessage: "Un catering/ canap\uFFFDs",
       history: [
-        { role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" }
+        { role: "assistant", content: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?" }
       ]
     });
     assert2.ok(/[Cc]anap/i.test(dumped), dumped.slice(0, 500));
     assert2.ok(
-      !/Mesas\s*y\s*Sillas|20 combinaciones de mobiliario|Colecci[o√≥]n Vintage/i.test(dumped),
+      !/Mesas\s*y\s*Sillas|20 combinaciones de mobiliario|Colecci[oÛ]n Vintage/i.test(dumped),
       dumped.slice(0, 500)
     );
   });
-  await test("134. WhatsApp no dice 'No confundir con\u2026' al cliente", () => {
+  await test("134. WhatsApp no dice 'No confundir con\uFFFD' al cliente", () => {
     const stripped = stripClientServiceConfusionNotes(
-      "Perfecto \u2014 anoto *Actos de circo / animaci\xF3n* para tu cumplea\xF1os. Es entretenimiento / show en vivo: el equipo confirma disponibilidad, formato y propuesta. No confundir con banquete ni catering.\n\n\xBFYa hay d\xEDa definido?"
+      "Perfecto \uFFFD anoto *Actos de circo / animaci\uFFFDn* para tu cumplea\uFFFDos. Es entretenimiento / show en vivo: el equipo confirma disponibilidad, formato y propuesta. No confundir con banquete ni catering.\n\n\uFFFDYa hay d\uFFFDa definido?"
     );
     assert2.ok(/circo|entretenimiento|disponibilidad/i.test(stripped), stripped);
     assert2.ok(!/no\s+confundir/i.test(stripped), stripped);
     assert2.ok(!/banquete ni catering/i.test(stripped), stripped);
     for (const msg of [
-      "Actos de circo / animaci\xF3n para mi cumplea\xF1os",
+      "Actos de circo / animaci\uFFFDn para mi cumplea\uFFFDos",
       "Photo Booth",
       "bailarinas para XV",
       "robots LED",
       "batucada"
     ]) {
       const out2 = runGuards({
-        aiResponse: "Perfecto. No confundir con banquete ni catering. \xBFQu\xE9 fecha tienes?",
-        extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "cumplea\xF1os" }),
+        aiResponse: "Perfecto. No confundir con banquete ni catering. \uFFFDQu\uFFFD fecha tienes?",
+        extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "cumplea\uFFFDos" }),
         filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento"]),
         readyForClosing: false,
         currentMessage: msg,
         history: []
       });
-      assert2.ok(!/no\s+confundir/i.test(out2), `${msg} \u2192 ${out2.slice(0, 400)}`);
-      assert2.ok(!/no\s+es\s+banquete\s+ni\s+catering/i.test(out2), `${msg} \u2192 ${out2.slice(0, 400)}`);
+      assert2.ok(!/no\s+confundir/i.test(out2), `${msg} ? ${out2.slice(0, 400)}`);
+      assert2.ok(!/no\s+es\s+banquete\s+ni\s+catering/i.test(out2), `${msg} ? ${out2.slice(0, 400)}`);
     }
   });
-  await test("135. A15205 \u2014 cotizar comidas pregunta formal vs casual", () => {
-    assert2.ok(isVagueFoodTerm("Quer\xEDa cotizar comidas para un evento en CONADE"));
+  await test("135. A15205 \uFFFD cotizar comidas pregunta formal vs casual", () => {
+    assert2.ok(isVagueFoodTerm("Quer\uFFFDa cotizar comidas para un evento en CONADE"));
     assert2.ok(isVagueFoodTerm("cotizar comidas"));
     assert2.ok(isVagueFoodTerm("comidas"));
     assert2.ok(isVagueFoodTerm("Busco comida"));
@@ -150410,31 +150491,31 @@ ${golfText}`,
     assert2.ok(!isVagueFoodTerm("Necesitamos desayuno, comida y cena"));
     assert2.equal(parseTipoEventoFromText("campamento para atletas"), "campamento");
     const reply = runGuards({
-      aiResponse: "Claro. En *banquete* manejamos Formal, Mexicano, Kosher\u2026",
+      aiResponse: "Claro. En *banquete* manejamos Formal, Mexicano, Kosher\uFFFD",
       extracted: emptyExtracted({ nombre: "Mariel" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       readyForClosing: false,
-      currentMessage: "Quer\xEDa cotizar comidas para un evento en CONADE",
+      currentMessage: "Quer\uFFFDa cotizar comidas para un evento en CONADE",
       history: [],
       whatsappDisplayName: "Mariel Casillas"
     });
     assert2.ok(/formal|casual|catering|banquete/i.test(reply), reply.slice(0, 500));
     assert2.ok(/casual|barra de pastas|taquiza|pizzas/i.test(reply), reply.slice(0, 500));
     assert2.ok(!/Formal\s*\(3 o 4 tiempos\)/i.test(reply), reply.slice(0, 500));
-    assert2.ok(!/Kosher|Navide[n√±]o/i.test(reply), reply.slice(0, 500));
+    assert2.ok(!/Kosher|Navide[nÒ]o/i.test(reply), reply.slice(0, 500));
     const first = buildFirstInteractionMessage({
       extracted: emptyExtracted(),
       filledSet: /* @__PURE__ */ new Set(),
       history: [],
-      currentMessage: "Quer\xEDa cotizar comidas para un evento en CONADE",
+      currentMessage: "Quer\uFFFDa cotizar comidas para un evento en CONADE",
       entityId: 1
     });
     assert2.ok(/formal|casual/i.test(first), first.slice(0, 500));
     assert2.ok(!/Formal\s*\(3 o 4 tiempos\)/i.test(first), first.slice(0, 500));
   });
-  await test("136. A15210 \u2014 desayuno mexicano, patio y presupuesto\u22602026", () => {
+  await test("136. A15210 \uFFFD desayuno mexicano, patio y presupuesto?2026", () => {
     const services = parseServicesFromText(
-      "Desayuno tem\xE1tico mexicano para 40 personas en Torre Latitud Polanco, piso 15"
+      "Desayuno tem\uFFFDtico mexicano para 40 personas en Torre Latitud Polanco, piso 15"
     );
     assert2.ok(services.some((s6) => /^Desayuno$/i.test(s6)), JSON.stringify(services));
     assert2.ok(
@@ -150448,30 +150529,30 @@ ${golfText}`,
     assert2.equal(parsePresupuestoFromText("2026", { askedField: "presupuesto" }), null);
     assert2.equal(
       parsePresupuestoFromText(
-        "no es en el piso 15, es en otra ubicaci\xF3n, pero tambi\xE9n es en polanco",
+        "no es en el piso 15, es en otra ubicaci\uFFFDn, pero tambi\uFFFDn es en polanco",
         { askedField: "presupuesto" }
       ),
       null
     );
-    assert2.ok(clientCorrectsLocation("Me equivoqu\xE9, es un patio"));
-    assert2.ok(clientCorrectsLocation("no es en el piso 15, es en otra ubicaci\xF3n"));
+    assert2.ok(clientCorrectsLocation("Me equivoqu\uFFFD, es un patio"));
+    assert2.ok(clientCorrectsLocation("no es en el piso 15, es en otra ubicaci\uFFFDn"));
     assert2.ok(isVenueSpaceDetail("techado"));
     const prev = "Torre Latitud Polanco, piso 15";
-    const patio = applyLocationCorrectionToAddress(prev, "Me equivoqu\xE9, es un patio");
+    const patio = applyLocationCorrectionToAddress(prev, "Me equivoqu\uFFFD, es un patio");
     assert2.ok(patio && /patio/i.test(patio) && /polanco/i.test(patio), patio ?? "null");
     assert2.ok(patio && !/piso\s*15/i.test(patio), patio);
     const techado = applyLocationCorrectionToAddress(patio, "techado");
     assert2.ok(techado && /patio\s+techado/i.test(techado), techado ?? "null");
     const otra = applyLocationCorrectionToAddress(
       prev,
-      "no es en el piso 15, es en otra ubicaci\xF3n, pero tambi\xE9n es en polanco"
+      "no es en el piso 15, es en otra ubicaci\uFFFDn, pero tambi\uFFFDn es en polanco"
     );
     assert2.ok(otra && /polanco/i.test(otra) && !/piso\s*15/i.test(otra), otra ?? "null");
     assert2.ok(shouldReplaceCrmDireccion(prev, otra));
-    const lines = [`- Lugar/direcci\xF3n del evento: ${prev}`, "- Presupuesto (MXN): pendiente"];
-    const filled = /* @__PURE__ */ new Set(["Lugar/direcci\xF3n del evento"]);
+    const lines = [`- Lugar/direcci\uFFFDn del evento: ${prev}`, "- Presupuesto (MXN): pendiente"];
+    const filled = /* @__PURE__ */ new Set(["Lugar/direcci\uFFFDn del evento"]);
     const extracted = emptyExtracted({
-      nombre: "Hern\xE1n",
+      nombre: "Hern\uFFFDn",
       direccion_evento: prev,
       requerimientos_evento: "Desayuno"
     });
@@ -150480,44 +150561,44 @@ ${golfText}`,
         lines,
         filled,
         extracted,
-        "Me equivoqu\xE9, es un patio"
+        "Me equivoqu\uFFFD, es un patio"
       )
     );
-    assert2.ok(/patio/i.test(crmStoredValue(lines, "Lugar/direcci\xF3n del evento") ?? ""));
-    assert2.ok(!/piso\s*15/i.test(crmStoredValue(lines, "Lugar/direcci\xF3n del evento") ?? ""));
+    assert2.ok(/patio/i.test(crmStoredValue(lines, "Lugar/direcci\uFFFDn del evento") ?? ""));
+    assert2.ok(!/piso\s*15/i.test(crmStoredValue(lines, "Lugar/direcci\uFFFDn del evento") ?? ""));
     const reply = runGuards({
-      aiResponse: "Te detallo el Nivel 1 del desayuno\u2026",
+      aiResponse: "Te detallo el Nivel 1 del desayuno\uFFFD",
       extracted: emptyExtracted({
-        nombre: "Hern\xE1n",
+        nombre: "Hern\uFFFDn",
         direccion_evento: prev,
         requerimientos_evento: "Desayuno"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Lugar/direcci\xF3n del evento",
+        "Lugar/direcci\uFFFDn del evento",
         "Requerimientos o servicios"
       ]),
       readyForClosing: false,
-      currentMessage: "Me equivoqu\xE9, es un patio",
+      currentMessage: "Me equivoqu\uFFFD, es un patio",
       history: [
         {
           role: "assistant",
-          content: "\xBFTienes un presupuesto aproximado para el desayuno?"
+          content: "\uFFFDTienes un presupuesto aproximado para el desayuno?"
         }
       ],
-      whatsappDisplayName: "Hern\xE1n Peralta"
+      whatsappDisplayName: "Hern\uFFFDn Peralta"
     });
     assert2.ok(/patio|ubicaci|direcci|lugar/i.test(reply), reply.slice(0, 500));
     assert2.ok(!/Nivel\s*1|presupuesto aproximado/i.test(reply), reply.slice(0, 500));
   });
-  await test("137. A15212 \u2014 puestos Servicio completo, no taquiza; correo al mismo", () => {
+  await test("137. A15212 \uFFFD puestos Servicio completo, no taquiza; correo al mismo", () => {
     const puestosMenu = [
       "Para *Puestos de comida* manejamos estos niveles:",
       "",
-      "1. *Por pieza* \u2014 $38.00 /pp",
-      "2. *Servicio completo* \u2014 $300.00 /pp",
+      "1. *Por pieza* \uFFFD $38.00 /pp",
+      "2. *Servicio completo* \uFFFD $300.00 /pp",
       "",
-      "\xBFQuieres que te d\xE9 detalles de alguno?"
+      "\uFFFDQuieres que te d\uFFFD detalles de alguno?"
     ].join("\n");
     const parsed = parseNumberedNivelesFromAssistant(puestosMenu);
     assert2.equal(parsed.length, 2);
@@ -150536,35 +150617,35 @@ ${golfText}`,
     assert2.notEqual(extractCatalogNivelFromText("2", puestosMenu), "tradicional");
     assert2.ok(isReferentialPriorAnswer("Al mismo que ya te he enviado"));
     assert2.ok(isReferentialPriorAnswer("al mismo"));
-    assert2.ok(clientWantsFoodOnlyQuote("Solo dame cotizaci\xF3n de los antojitos por favor"));
+    assert2.ok(clientWantsFoodOnlyQuote("Solo dame cotizaci\uFFFDn de los antojitos por favor"));
     assert2.equal(
       preferPrimaryCatalogService(["Puestos de Comida", "Comida", "Bocadillos"]),
       "Puestos de Comida"
     );
     const levelReply = runGuards({
-      aiResponse: "Excelente. Para el servicio completo de taquiza, el costo es de $750 por persona\u2026",
+      aiResponse: "Excelente. Para el servicio completo de taquiza, el costo es de $750 por persona\uFFFD",
       extracted: emptyExtracted({
         nombre: "Sandra Carbajal",
         correo: "carbajalsandra@hotmail.com",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         num_invitados: 70,
         direccion_evento: "Roma Norte",
         requerimientos_evento: "Puestos de Comida",
-        presupuesto: "Sin definir (cliente pidi\xF3 que propongamos)"
+        presupuesto: "Sin definir (cliente pidi\uFFFD que propongamos)"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
-        "N\xFAmero de invitados",
-        "Lugar/direcci\xF3n del evento",
+        "N\uFFFDmero de invitados",
+        "Lugar/direcci\uFFFDn del evento",
         "Requerimientos o servicios",
         "Presupuesto (MXN)"
       ]),
       readyForClosing: false,
       currentMessage: "2. Servicio completo",
       history: [
-        { role: "user", content: "Solo dame cotizaci\xF3n de los antojitos por favor" },
+        { role: "user", content: "Solo dame cotizaci\uFFFDn de los antojitos por favor" },
         { role: "assistant", content: puestosMenu }
       ],
       whatsappDisplayName: "Sandra Carbajal"
@@ -150575,7 +150656,7 @@ ${golfText}`,
       levelReply.slice(0, 600)
     );
     const emailReply = runGuards({
-      aiResponse: "\xBFMe compartes un correo para enviarte los detalles?",
+      aiResponse: "\uFFFDMe compartes un correo para enviarte los detalles?",
       extracted: emptyExtracted({
         nombre: "Sandra Carbajal",
         direccion_evento: "Roma Norte",
@@ -150583,7 +150664,7 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Lugar/direcci\xF3n del evento",
+        "Lugar/direcci\uFFFDn del evento",
         "Requerimientos o servicios"
       ]),
       readyForClosing: false,
@@ -150592,7 +150673,7 @@ ${golfText}`,
         { role: "user", content: "carbajalsandra@hotmail.com" },
         {
           role: "assistant",
-          content: "Perfecto, Sandra. \xBFMe compartes un correo para enviarte los detalles de la cotizaci\xF3n?"
+          content: "Perfecto, Sandra. \uFFFDMe compartes un correo para enviarte los detalles de la cotizaci\uFFFDn?"
         }
       ],
       whatsappDisplayName: "Sandra Carbajal"
@@ -150600,7 +150681,7 @@ ${golfText}`,
     assert2.ok(!/me compartes un correo/i.test(emailReply), emailReply.slice(0, 500));
     assert2.ok(!/Mucho gusto,\s*Sandra\.\s*Mucho gusto/i.test(emailReply), emailReply.slice(0, 400));
     const vague = runGuards({
-      aiResponse: "Seg\xFAn el evento podemos ofrecerte banquete, taquiza o brunch \u2014",
+      aiResponse: "Seg\uFFFDn el evento podemos ofrecerte banquete, taquiza o brunch \uFFFD",
       extracted: emptyExtracted({
         nombre: "Sandra Carbajal",
         correo: "carbajalsandra@hotmail.com",
@@ -150608,11 +150689,11 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Requerimientos o servicios"
       ]),
       readyForClosing: false,
-      currentMessage: "Es una fiesta de 50 a\xF1os y busco comida para la torna fiesta, que ser\xEDa a las 9 de la noche",
+      currentMessage: "Es una fiesta de 50 a\uFFFDos y busco comida para la torna fiesta, que ser\uFFFDa a las 9 de la noche",
       history: [
         { role: "user", content: "Hola, me interesa cotizar: Puestos de Antojitos para Evento" },
         { role: "assistant", content: "Vi que te interesa cotizar Puestos de Comida." }
@@ -150621,8 +150702,8 @@ ${golfText}`,
     });
     assert2.ok(!/\btaquiza\b.*\bbrunch\b|\bbanquete,\s*taquiza/i.test(vague), vague.slice(0, 500));
   });
-  await test("138. V9.13 \u2014 intro, embudo natural (correo tarde) y no repregunta", () => {
-    assert2.ok(/Buen d[i√≠]a/i.test(LUCY_INTRO), LUCY_INTRO);
+  await test("138. V9.13 \uFFFD intro, embudo natural (correo tarde) y no repregunta", () => {
+    assert2.ok(/Buen d[iÌ]a/i.test(LUCY_INTRO), LUCY_INTRO);
     assert2.ok(/Bodasesor/i.test(LUCY_INTRO), LUCY_INTRO);
     assert2.ok(!/tu agente virtual(?!\s+de\s+Bodasesor)/i.test(LUCY_INTRO));
     assert2.equal(
@@ -150636,14 +150717,14 @@ ${golfText}`,
           tipo_evento: "boda",
           requerimientos_evento: "banquete",
           fecha_horario: "20 de septiembre",
-          direccion_evento: "Coyoac\xE1n CDMX"
+          direccion_evento: "Coyoac\uFFFDn CDMX"
         }),
         /* @__PURE__ */ new Set([
           "Nombre del cliente",
           "Tipo de evento",
           "Requerimientos o servicios",
           "Fecha y horario",
-          "Lugar/direcci\xF3n del evento"
+          "Lugar/direcci\uFFFDn del evento"
         ])
       ),
       "invitados"
@@ -150655,7 +150736,7 @@ ${golfText}`,
           tipo_evento: "boda",
           requerimientos_evento: "banquete",
           fecha_horario: "20 de septiembre",
-          direccion_evento: "Coyoac\xE1n CDMX",
+          direccion_evento: "Coyoac\uFFFDn CDMX",
           num_invitados: 80
         }),
         /* @__PURE__ */ new Set([
@@ -150663,8 +150744,8 @@ ${golfText}`,
           "Tipo de evento",
           "Requerimientos o servicios",
           "Fecha y horario",
-          "Lugar/direcci\xF3n del evento",
-          "N\xFAmero de invitados"
+          "Lugar/direcci\uFFFDn del evento",
+          "N\uFFFDmero de invitados"
         ])
       ),
       "correo"
@@ -150676,10 +150757,10 @@ ${golfText}`,
       currentMessage: "Hola",
       entityId: 15220
     });
-    assert2.ok(/¬°?Hola!?.*Buen d[i√≠]a.*Lucy.*Bodasesor/i.test(first), first.slice(0, 300));
-    assert2.ok(/cu[a√°]l es tu nombre|c[o√≥]mo te llamas|regalas tu nombre/i.test(first), first);
+    assert2.ok(/°?Hola!?.*Buen d[iÌ]a.*Lucy.*Bodasesor/i.test(first), first.slice(0, 300));
+    assert2.ok(/cu[a·]l es tu nombre|c[oÛ]mo te llamas|regalas tu nombre/i.test(first), first);
     const questions = (first.match(/\?/g) ?? []).length;
-    assert2.ok(questions <= 2, `demasiadas preguntas: ${questions} \u2014 ${first.slice(0, 400)}`);
+    assert2.ok(questions <= 2, `demasiadas preguntas: ${questions} \uFFFD ${first.slice(0, 400)}`);
     const nameTurn = runGuards({
       aiResponse: "ok",
       extracted: emptyExtracted({ nombre: "Sandra Carbajal" }),
@@ -150689,13 +150770,13 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: `${LUCY_INTRO} \xBFCu\xE1l es tu nombre?`
+          content: `${LUCY_INTRO} \uFFFDCu\uFFFDl es tu nombre?`
         }
       ]
     });
-    assert2.ok(/¬°?Mucho gusto,\s*Sandra/i.test(nameTurn), nameTurn.slice(0, 300));
+    assert2.ok(/°?Mucho gusto,\s*Sandra/i.test(nameTurn), nameTurn.slice(0, 300));
     assert2.ok(
-      !/Perfecto,\s*Sandra\.\s*¬°?Mucho gusto,\s*Sandra/i.test(nameTurn),
+      !/Perfecto,\s*Sandra\.\s*°?Mucho gusto,\s*Sandra/i.test(nameTurn),
       `sin doble saludo: ${nameTurn.slice(0, 300)}`
     );
     assert2.ok(!mensajeAsksForField(nameTurn, "correo"), nameTurn.slice(0, 400));
@@ -150710,28 +150791,28 @@ ${golfText}`,
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", "Fecha y horario"]),
       readyForClosing: false,
       currentMessage: "Hola, soy Ana, es para mi boda el 20 de septiembre",
-      history: [{ role: "assistant", content: `${LUCY_INTRO} \xBFCu\xE1l es tu nombre?` }]
+      history: [{ role: "assistant", content: `${LUCY_INTRO} \uFFFDCu\uFFFDl es tu nombre?` }]
     });
-    assert2.ok(/¬°?Mucho gusto,\s*Ana/i.test(multi), multi.slice(0, 300));
+    assert2.ok(/°?Mucho gusto,\s*Ana/i.test(multi), multi.slice(0, 300));
     assert2.ok(!mensajeAsksForField(multi, "tipo_evento"), multi.slice(0, 400));
     assert2.ok(!mensajeAsksForField(multi, "fecha"), multi.slice(0, 400));
     assert2.ok(detectEmailRefusal(["Prefiero no dar mi correo por ahora"]));
     assert2.ok(detectEmailRefusal(["Prefiero no dar correo"]));
     const refuse = emailRefusalAckMessage(
       emptyExtracted({ nombre: "Sandra" }),
-      [{ role: "assistant", content: "\xBFA qu\xE9 correo te mando la informaci\xF3n?" }],
+      [{ role: "assistant", content: "\uFFFDA qu\uFFFD correo te mando la informaci\uFFFDn?" }],
       "Prefiero no dar mi correo por ahora",
       1,
       /* @__PURE__ */ new Set(["Nombre del cliente"])
     );
     assert2.ok(/sin problema/i.test(refuse), refuse);
-    assert2.ok(/este chat|por aqu[i√≠]/i.test(refuse), refuse);
+    assert2.ok(/este chat|por aqu[iÌ]/i.test(refuse), refuse);
     assert2.ok(!/necesito tu correo|es obligatorio/i.test(refuse), refuse);
     const refuseLive = runGuards({
-      aiResponse: "\xBFA qu\xE9 correo te mando la informaci\xF3n?",
+      aiResponse: "\uFFFDA qu\uFFFD correo te mando la informaci\uFFFDn?",
       extracted: emptyExtracted({
         nombre: "Sandra",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         requerimientos_evento: "Banquete",
         fecha_horario: "15 de agosto",
         direccion_evento: "Narvarte CDMX"
@@ -150741,17 +150822,17 @@ ${golfText}`,
         "Tipo de evento",
         "Requerimientos o servicios",
         "Fecha y horario",
-        "Lugar/direcci\xF3n del evento"
+        "Lugar/direcci\uFFFDn del evento"
       ]),
       readyForClosing: false,
       currentMessage: "Prefiero no dar mi correo por ahora",
       emailRefusedThisTurn: true,
-      history: [{ role: "assistant", content: "\xBFMe compartes un correo para enviarte los detalles?" }]
+      history: [{ role: "assistant", content: "\uFFFDMe compartes un correo para enviarte los detalles?" }]
     });
     assert2.ok(/sin problema/i.test(refuseLive), refuseLive.slice(0, 300));
     assert2.ok(!mensajeAsksForField(refuseLive, "correo"), refuseLive.slice(0, 300));
   });
-  await test("137. A15251 \u2014 \xBFincluye X? desde cat\xE1logo (cualquier servicio); no handoff por persona", () => {
+  await test("137. A15251 \uFFFD \uFFFDincluye X? desde cat\uFFFDlogo (cualquier servicio); no handoff por persona", () => {
     assert2.equal(clientAsksSpecificInclusionItem("Inclue bebidas?"), "bebidas");
     assert2.equal(clientAsksSpecificInclusionItem("Incluye bebidas?"), "bebidas");
     assert2.equal(clientAsksSpecificInclusionItem("el banquete incluye meseros?"), "meseros");
@@ -150763,70 +150844,70 @@ ${golfText}`,
         "Quiero saber si el paquete por persona de canapes incluye bebidas"
       ),
       false,
-      "por persona \u2260 pedir asesor humano"
+      "por persona ? pedir asesor humano"
     );
     const services = [
-      "Canap\xE9s",
+      "Canap\uFFFDs",
       "Bocadillos",
       "Taquiza",
       "Coffee Break",
       "Banquete Formal"
     ];
     for (const svc of services) {
-      const reply = buildSpecificInclusionItemReply("\xBFIncluye bebidas?", svc);
-      assert2.ok(reply, `[${svc}] debe responder inclusi\xF3n`);
+      const reply = buildSpecificInclusionItemReply("\uFFFDIncluye bebidas?", svc);
+      assert2.ok(reply, `[${svc}] debe responder inclusi\uFFFDn`);
       assert2.ok(
         new RegExp(svc.split(/\s+/)[0], "i").test(reply) || /bebidas/i.test(reply),
-        `[${svc}] sin nombre/\xEDtem: ${reply.slice(0, 220)}`
+        `[${svc}] sin nombre/\uFFFDtem: ${reply.slice(0, 220)}`
       );
       assert2.ok(
-        /S[i√≠] incluye|No incluye|Sobre \*bebidas\*|barra de bebidas|cat[a√°]logo/i.test(reply),
+        /S[iÌ] incluye|No incluye|Sobre \*bebidas\*|barra de bebidas|cat[a·]logo/i.test(reply),
         `[${svc}] formato: ${reply.slice(0, 280)}`
       );
     }
-    const canapes = buildSpecificInclusionItemReply("Inclue bebidas?", "Canap\xE9s, Bocadillos");
+    const canapes = buildSpecificInclusionItemReply("Inclue bebidas?", "Canap\uFFFDs, Bocadillos");
     assert2.ok(canapes && /Solo Alimentos/i.test(canapes), canapes?.slice(0, 300));
     assert2.ok(/No incluye/i.test(canapes), canapes.slice(0, 300));
-    assert2.ok(/S[i√≠] incluye/i.test(canapes), canapes.slice(0, 400));
+    assert2.ok(/S[iÌ] incluye/i.test(canapes), canapes.slice(0, 400));
     assert2.ok(
       /Solo Alimentos[\s\S]{0,80}\$320|No incluye[\s\S]{0,120}Solo Alimentos/i.test(canapes),
       `Solo Alimentos sin bebidas: ${canapes.slice(0, 400)}`
     );
     const live = runGuards({
-      aiResponse: "\xBFQuieres que te d\xE9 detalles de alguno?",
+      aiResponse: "\uFFFDQuieres que te d\uFFFD detalles de alguno?",
       extracted: emptyExtracted({
-        nombre: "Gio Garc\xEDa",
-        tipo_evento: "inauguraci\xF3n de oficinas",
-        requerimientos_evento: "Canap\xE9s, Bocadillos",
+        nombre: "Gio Garc\uFFFDa",
+        tipo_evento: "inauguraci\uFFFDn de oficinas",
+        requerimientos_evento: "Canap\uFFFDs, Bocadillos",
         num_invitados: 25
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados"
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
       currentMessage: "Quiero saber si el paquete por persona de canapes incluye bebidas",
       history: [
         {
           role: "user",
-          content: "inauguraci\xF3n oficinas, bocadillos y canapes, 25 personas"
+          content: "inauguraci\uFFFDn oficinas, bocadillos y canapes, 25 personas"
         },
         {
           role: "assistant",
-          content: "Perfecto, veo que necesitas Canap\xE9s y Bocadillos.\n\xBFQuieres que te d\xE9 detalles de alguno?\n\xBFPara cu\xE1ndo ser\xEDa el evento?"
+          content: "Perfecto, veo que necesitas Canap\uFFFDs y Bocadillos.\n\uFFFDQuieres que te d\uFFFD detalles de alguno?\n\uFFFDPara cu\uFFFDndo ser\uFFFDa el evento?"
         }
       ]
     });
-    assert2.ok(/bebidas/i.test(live) && /Solo Alimentos|Tradicional|No incluye|S[i√≠] incluye/i.test(live), live.slice(0, 500));
-    assert2.ok(!/gastronom[i√≠]a manejamos varias opciones/i.test(live), live.slice(0, 300));
+    assert2.ok(/bebidas/i.test(live) && /Solo Alimentos|Tradicional|No incluye|S[iÌ] incluye/i.test(live), live.slice(0, 500));
+    assert2.ok(!/gastronom[iÌ]a manejamos varias opciones/i.test(live), live.slice(0, 300));
     assert2.ok(!/hablar con un asesor|Humano Trabaja/i.test(live), live.slice(0, 200));
     const taquizaLive = runGuards({
       aiResponse: "Claro.",
       extracted: emptyExtracted({
         nombre: "Ana",
-        tipo_evento: "XV a\xF1os",
+        tipo_evento: "XV a\uFFFDos",
         requerimientos_evento: "Taquiza"
       }),
       filledSet: /* @__PURE__ */ new Set([
@@ -150838,15 +150919,15 @@ ${golfText}`,
       currentMessage: "La taquiza incluye meseros?",
       history: [
         { role: "user", content: "quiero taquiza" },
-        { role: "assistant", content: "Perfecto, manejamos Taquiza. \xBFQuieres que te d\xE9 detalles de alguno?" }
+        { role: "assistant", content: "Perfecto, manejamos Taquiza. \uFFFDQuieres que te d\uFFFD detalles de alguno?" }
       ]
     });
     assert2.ok(
-      /meseros/i.test(taquizaLive) && !/gastronom[i√≠]a manejamos/i.test(taquizaLive),
+      /meseros/i.test(taquizaLive) && !/gastronom[iÌ]a manejamos/i.test(taquizaLive),
       taquizaLive.slice(0, 450)
     );
   });
-  await test("138. A15286 \u2014 fotos/luz/capacidad/cat\xE1logo typo; no CTA vac\xEDo ni borrar invitados", () => {
+  await test("138. A15286 \uFFFD fotos/luz/capacidad/cat\uFFFDlogo typo; no CTA vac\uFFFDo ni borrar invitados", () => {
     assert2.ok(clientAsksForCatalog("CTALOGO DE SILLAS"), "typo CTALOGO");
     assert2.ok(clientAsksForCatalog("catalgo de mesas"), "typo catalgo");
     assert2.ok(clientAsksServiceInfo("si la carpa cuenta con luz"));
@@ -150856,27 +150937,27 @@ ${golfText}`,
     assert2.ok(clientAsksForPhotos("Fotos de lo solicitado y si la carpa cuenta con luz"));
     assert2.ok(clientAsksAboutLighting("Fotos de lo solicitado y si la carpa cuenta con luz"));
     assert2.equal(
-      clientAsksConcreteProductQuestion("\xBFCuentan con carpas transparentes?"),
+      clientAsksConcreteProductQuestion("\uFFFDCuentan con carpas transparentes?"),
       false,
-      "disponibilidad gen\xE9rica no es pregunta-concreta A15286"
+      "disponibilidad gen\uFFFDrica no es pregunta-concreta A15286"
     );
     const filledBase = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
       "Requerimientos o servicios",
       "Fecha y horario",
-      "Lugar/direcci\xF3n del evento"
+      "Lugar/direcci\uFFFDn del evento"
     ]);
     const extractedBase = emptyExtracted({
       nombre: "Jose Luis",
-      tipo_evento: "Inauguraci\xF3n de empresa",
+      tipo_evento: "Inauguraci\uFFFDn de empresa",
       requerimientos_evento: "Mobiliario, Carpas",
       fecha_horario: "Viernes 4 de septiembre, 6 de la tarde",
       direccion_evento: "Tixcacal Opichen",
       num_invitados: 300
     });
     const fotos = runGuards({
-      aiResponse: "\xBFQu\xE9 medidas aproximadas necesitas?",
+      aiResponse: "\uFFFDQu\uFFFD medidas aproximadas necesitas?",
       extracted: { ...extractedBase },
       filledSet: new Set(filledBase),
       readyForClosing: false,
@@ -150887,20 +150968,20 @@ ${golfText}`,
         { role: "user", content: "TOLDOS" },
         {
           role: "assistant",
-          content: "S\xED, manejamos carpas blancas, negras, transparentes y tipo domo. \xBFQu\xE9 medidas aproximadas necesitas?"
+          content: "S\uFFFD, manejamos carpas blancas, negras, transparentes y tipo domo. \uFFFDQu\uFFFD medidas aproximadas necesitas?"
         }
       ]
     });
     assert2.ok(
-      /foto|cat[a√°]logo|bodasesor\.com\/catalogos|iluminaci|luz|confirmo con/i.test(fotos),
+      /foto|cat[a·]logo|bodasesor\.com\/catalogos|iluminaci|luz|confirmo con/i.test(fotos),
       fotos.slice(0, 500)
     );
     assert2.ok(
-      !/^[\s\S]{0,40}¬øQu[e√©] medidas aproximadas/i.test(fotos) || /foto|luz|iluminaci|cat[a√°]logo/i.test(fotos),
+      !/^[\s\S]{0,40}øQu[eÈ] medidas aproximadas/i.test(fotos) || /foto|luz|iluminaci|cat[a·]logo/i.test(fotos),
       `no solo medidas: ${fotos.slice(0, 400)}`
     );
     const capacidad = runGuards({
-      aiResponse: "Perfecto. \xBFSeguimos con el siguiente dato del evento?",
+      aiResponse: "Perfecto. \uFFFDSeguimos con el siguiente dato del evento?",
       extracted: { ...extractedBase },
       filledSet: new Set(filledBase),
       readyForClosing: false,
@@ -150909,16 +150990,16 @@ ${golfText}`,
         { role: "user", content: "CARPA BLANCA PARA CUBRIR LAS 30 MESAS" },
         {
           role: "assistant",
-          content: "Te dejo el cat\xE1logo general:\nhttps://bodasesor.com/catalogos\n\n\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?"
+          content: "Te dejo el cat\uFFFDlogo general:\nhttps://bodasesor.com/catalogos\n\n\uFFFDQuieres que te mande el cat\uFFFDlogo con m\uFFFDs detalle?"
         }
       ]
     });
     assert2.ok(
-      /medidas|acomodo|cab[e√©]n|confirmo|equipo/i.test(capacidad),
+      /medidas|acomodo|cab[eÈ]n|confirmo|equipo/i.test(capacidad),
       capacidad.slice(0, 450)
     );
     assert2.ok(
-      !/¬øSeguimos con el siguiente dato del evento\?/i.test(capacidad),
+      !/øSeguimos con el siguiente dato del evento\?/i.test(capacidad),
       capacidad.slice(0, 300)
     );
     assert2.ok(
@@ -150926,7 +151007,7 @@ ${golfText}`,
       capacidad.slice(0, 300)
     );
     const catalogo = runGuards({
-      aiResponse: "\xBFDe cu\xE1l te paso detalle, o te mando el cat\xE1logo de mesas y sillas?",
+      aiResponse: "\uFFFDDe cu\uFFFDl te paso detalle, o te mando el cat\uFFFDlogo de mesas y sillas?",
       extracted: { ...extractedBase },
       filledSet: new Set(filledBase),
       readyForClosing: false,
@@ -150934,28 +151015,28 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "En *sillas* manejamos Tiffany, Crossback\u2026 \xBFte mando el cat\xE1logo de mesas y sillas?"
+          content: "En *sillas* manejamos Tiffany, Crossback\uFFFD \uFFFDte mando el cat\uFFFDlogo de mesas y sillas?"
         }
       ]
     });
     assert2.ok(/bodasesor\.com\/catalogos/i.test(catalogo), catalogo.slice(0, 400));
     assert2.ok(
-      !/¬øSeguimos con el siguiente dato del evento\?/i.test(catalogo),
+      !/øSeguimos con el siguiente dato del evento\?/i.test(catalogo),
       catalogo.slice(0, 300)
     );
     const invKeep = runGuards({
-      aiResponse: "\xBFCu\xE1ntos invitados tienen contemplados?",
+      aiResponse: "\uFFFDCu\uFFFDntos invitados tienen contemplados?",
       extracted: emptyExtracted({
         nombre: "Jose Luis",
-        tipo_evento: "Inauguraci\xF3n",
+        tipo_evento: "Inauguraci\uFFFDn",
         requerimientos_evento: "Mobiliario, Carpas",
         num_invitados: 300,
         correo: "Inventariosmda@livek.mx"
       }),
       filledSet: /* @__PURE__ */ new Set([
         ...filledBase,
-        "Correo electr\xF3nico",
-        "N\xFAmero de invitados"
+        "Correo electr\uFFFDnico",
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
       currentMessage: "Gracias",
@@ -150963,7 +151044,7 @@ ${golfText}`,
         { role: "user", content: "300 SILLAS" },
         { role: "user", content: "VIERNES 4 DE SEPTIEMBRE PARA 300 PERSONAS" },
         { role: "user", content: "300 personas" },
-        { role: "assistant", content: "Perfecto. \xBFCu\xE1ntos invitados tienen contemplados?" }
+        { role: "assistant", content: "Perfecto. \uFFFDCu\uFFFDntos invitados tienen contemplados?" }
       ]
     });
     assert2.ok(
@@ -150971,8 +151052,8 @@ ${golfText}`,
       `no re-preguntar invitados: ${invKeep.slice(0, 350)}`
     );
   });
-  await test("139. A15296 \u2014 centros+foto anota qty y pide embudo; no mesas-y-sillas", () => {
-    const caption = "disculpe me podr\xEDa ayudar con cotizaci\xF3n para centros de mesa ser\xEDan 20 tengo pensado algo as\xED";
+  await test("139. A15296 \uFFFD centros+foto anota qty y pide embudo; no mesas-y-sillas", () => {
+    const caption = "disculpe me podr\uFFFDa ayudar con cotizaci\uFFFDn para centros de mesa ser\uFFFDan 20 tengo pensado algo as\uFFFD";
     assert2.equal(parseCentrosDeMesaRequirement(caption), "Centros de mesa (20)");
     assert2.ok(parseServicesFromText(caption).some((s6) => /Centros de mesa \(20\)/i.test(s6)));
     assert2.ok(
@@ -150983,7 +151064,7 @@ ${golfText}`,
       {
         intent: "montaje_referencia",
         internalDescription: "Centro de mesa con aro, globos y flores.",
-        clientReply: "\xA1Qu\xE9 lindo detalle! Me encanta el estilo del aro con los globos y las flores. Ya lo anot\xE9 como referencia para tu evento, \xBFte gustar\xEDa que lo incluyamos en la cotizaci\xF3n de tu decoraci\xF3n?"
+        clientReply: "\uFFFDQu\uFFFD lindo detalle! Me encanta el estilo del aro con los globos y las flores. Ya lo anot\uFFFD como referencia para tu evento, \uFFFDte gustar\uFFFDa que lo incluyamos en la cotizaci\uFFFDn de tu decoraci\uFFFDn?"
       },
       caption
     );
@@ -150994,9 +151075,9 @@ ${golfText}`,
     assert2.ok(!clientAsksConcreteProductQuestion(visionTurn));
     assert2.ok(
       !/mesas-y-sillas/i.test(getCatalogWebUrlForQuery("centros de mesa") ?? ""),
-      "slug centros \u2260 mesas-y-sillas"
+      "slug centros ? mesas-y-sillas"
     );
-    const inclusion = resolveCatalogInclusionReply("centros de mesa ser\xEDan 20", "Centros de mesa");
+    const inclusion = resolveCatalogInclusionReply("centros de mesa ser\uFFFDan 20", "Centros de mesa");
     assert2.ok(inclusion && /centros de mesa|floral/i.test(inclusion), inclusion?.slice(0, 200));
     assert2.ok(
       !/detalle de lo que incluye cada nivel/i.test(inclusion),
@@ -151008,20 +151089,20 @@ ${golfText}`,
     });
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento"]);
     const live = runGuards({
-      aiResponse: "El detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo.",
+      aiResponse: "El detalle de lo que incluye cada nivel est\uFFFD en el cat\uFFFDlogo.",
       extracted,
       filledSet: filled,
       readyForClosing: false,
       currentMessage: visionTurn,
       history: [
         { role: "user", content: "Quiero hacer una cotizacion" },
-        { role: "assistant", content: "\xA1Hola! \xBFMe regalas tu nombre?" },
+        { role: "assistant", content: "\uFFFDHola! \uFFFDMe regalas tu nombre?" },
         { role: "user", content: "buen dia Alejandra" },
-        { role: "assistant", content: "\xA1Mucho gusto, Alejandra! \xBFQu\xE9 van a celebrar?" },
+        { role: "assistant", content: "\uFFFDMucho gusto, Alejandra! \uFFFDQu\uFFFD van a celebrar?" },
         { role: "user", content: "es un bautizo" },
         {
           role: "assistant",
-          content: "\xA1Qu\xE9 buena noticia! \xBFQu\xE9 te gustar\xEDa revisar primero?"
+          content: "\uFFFDQu\uFFFD buena noticia! \uFFFDQu\uFFFD te gustar\uFFFDa revisar primero?"
         }
       ]
     });
@@ -151035,7 +151116,7 @@ ${golfText}`,
     );
     assert2.ok(!/mesas-y-sillas/i.test(live), live.slice(0, 400));
     assert2.ok(
-      mensajeAsksForField(live, "fecha") || /para cu[a√°]ndo|fecha/i.test(live),
+      mensajeAsksForField(live, "fecha") || /para cu[a·]ndo|fecha/i.test(live),
       `debe pedir fecha del embudo: ${live.slice(0, 450)}`
     );
     assert2.ok(
@@ -151050,21 +151131,21 @@ ${golfText}`,
       clientAsksConcreteProductQuestion("Fotos de lo solicitado y si la carpa cuenta con luz")
     );
   });
-  await test("140. imagen+caption \u2192 embudo en sushi/taquiza/banquete/carpas/etc.", () => {
+  await test("140. imagen+caption ? embudo en sushi/taquiza/banquete/carpas/etc.", () => {
     const cases = [
-      ["barra de sushi, algo as\xED", /sushi/i],
+      ["barra de sushi, algo as\uFFFD", /sushi/i],
       ["quiero taquiza, mira esta foto", /taquiza/i],
-      ["banquete formal 3 tiempos, as\xED", /banquete/i],
-      ["carpa blanca, as\xED", /carpas?/i],
-      ["coffee break, as\xED lo imagino", /coffee/i],
-      ["centros de mesa ser\xEDan 12", /centros de mesa \(12\)/i]
+      ["banquete formal 3 tiempos, as\uFFFD", /banquete/i],
+      ["carpa blanca, as\uFFFD", /carpas?/i],
+      ["coffee break, as\uFFFD lo imagino", /coffee/i],
+      ["centros de mesa ser\uFFFDan 12", /centros de mesa \(12\)/i]
     ];
     for (const [caption, reqRe] of cases) {
       const turn = formatImageTurnText(
         {
           intent: "montaje_referencia",
           internalDescription: "ref",
-          clientReply: "\xA1Qu\xE9 lindo! Ya anot\xE9 tu referencia."
+          clientReply: "\uFFFDQu\uFFFD lindo! Ya anot\uFFFD tu referencia."
         },
         caption
       );
@@ -151073,19 +151154,19 @@ ${golfText}`,
         tipo_evento: "boda"
       });
       const live = runGuards({
-        aiResponse: "El detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo.",
+        aiResponse: "El detalle de lo que incluye cada nivel est\uFFFD en el cat\uFFFDlogo.",
         extracted,
         filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento"]),
         readyForClosing: false,
         currentMessage: turn,
-        history: [{ role: "assistant", content: "\xBFQu\xE9 van a celebrar?" }]
+        history: [{ role: "assistant", content: "\uFFFDQu\uFFFD van a celebrar?" }]
       });
       assert2.ok(
-        !/detalle de lo que incluye cada nivel|Seg√∫n el cat√°logo que ya tenemos/i.test(live),
+        !/detalle de lo que incluye cada nivel|Seg˙n el cat·logo que ya tenemos/i.test(live),
         `[${caption}] dump: ${live.slice(0, 220)}`
       );
       assert2.ok(
-        mensajeAsksForField(live, "fecha") || /fecha|cu[a√°]ndo/i.test(live),
+        mensajeAsksForField(live, "fecha") || /fecha|cu[a·]ndo/i.test(live),
         `[${caption}] embudo: ${live.slice(0, 220)}`
       );
       assert2.ok(
@@ -151094,10 +151175,10 @@ ${golfText}`,
       );
     }
   });
-  await test("141. A15295 \u2014 no quiero comida / qu\xEDtale / typo comoda \u2192 quita Alimentos+Pizzas", () => {
+  await test("141. A15295 \uFFFD no quiero comida / qu\uFFFDtale / typo comoda ? quita Alimentos+Pizzas", () => {
     assert2.ok(
       clientDeclinesServiceFamilies(
-        "Peor qu\xEDtale la comida por qu\xE9 les voy a dar pizza"
+        "Peor qu\uFFFDtale la comida por qu\uFFFD les voy a dar pizza"
       ).includes("alimentos")
     );
     assert2.ok(clientDeclinesServiceFamilies("Que no quiero alimentos").includes("alimentos"));
@@ -151108,52 +151189,52 @@ ${golfText}`,
       ]).includes("alimentos")
     );
     assert2.ok(
-      clientDeclinesServiceFamilies("Por qu\xE9 yo ya les voy a dar").includes("alimentos")
+      clientDeclinesServiceFamilies("Por qu\uFFFD yo ya les voy a dar").includes("alimentos")
     );
     const stripped = removeDeclinedFamiliesFromRequirements(
-      "Mesa de dulces, Decoraci\xF3n, Pizzas, Alimentos",
+      "Mesa de dulces, Decoraci\uFFFDn, Pizzas, Alimentos",
       ["alimentos"]
     );
     assert2.ok(stripped && !/alimento|pizza/i.test(stripped), stripped);
     assert2.ok(/dulces|decoraci/i.test(stripped), stripped);
     assert2.ok(looksLikeThemeColorNotLocation("rojo y negro"));
     assert2.equal(
-      stripThemeColorsFromZona("Estado de M\xE9xico, rojo y negro"),
-      "Estado de M\xE9xico"
+      stripThemeColorsFromZona("Estado de M\uFFFDxico, rojo y negro"),
+      "Estado de M\uFFFDxico"
     );
     const extracted = emptyExtracted({
       nombre: "Catalina",
-      tipo_evento: "cumplea\xF1os",
-      requerimientos_evento: "Mesa de dulces, Decoraci\xF3n, Pizzas, Alimentos",
+      tipo_evento: "cumplea\uFFFDos",
+      requerimientos_evento: "Mesa de dulces, Decoraci\uFFFDn, Pizzas, Alimentos",
       fecha_horario: "25 de agosto",
-      direccion_evento: "Estado de M\xE9xico, rojo y negro"
+      direccion_evento: "Estado de M\uFFFDxico, rojo y negro"
     });
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
       "Requerimientos o servicios",
       "Fecha y horario",
-      "Lugar/direcci\xF3n del evento"
+      "Lugar/direcci\uFFFDn del evento"
     ]);
     const live = runGuards({
-      aiResponse: "\xA1Claro! *Alimentos* la anoto para tu cotizaci\xF3n. Seg\xFAn el cat\xE1logo que ya tenemos de *Barra de pizzas Bodasesor*: Tradicional $250...",
+      aiResponse: "\uFFFDClaro! *Alimentos* la anoto para tu cotizaci\uFFFDn. Seg\uFFFDn el cat\uFFFDlogo que ya tenemos de *Barra de pizzas Bodasesor*: Tradicional $250...",
       extracted,
       filledSet: filled,
       readyForClosing: false,
       currentMessage: "Que no quiero alimentos",
       history: [
-        { role: "user", content: "El cumplea\xF1os de mi nena" },
+        { role: "user", content: "El cumplea\uFFFDos de mi nena" },
         {
           role: "assistant",
-          content: "Con gusto te apoyo. \xBFQu\xE9 te gustar\xEDa revisar primero?"
+          content: "Con gusto te apoyo. \uFFFDQu\uFFFD te gustar\uFFFDa revisar primero?"
         },
         {
           role: "user",
-          content: "Peor qu\xEDtale la comida por qu\xE9 les voy a dar pizza"
+          content: "Peor qu\uFFFDtale la comida por qu\uFFFD les voy a dar pizza"
         },
         {
           role: "assistant",
-          content: "Seg\xFAn el cat\xE1logo de Barra de pizzas..."
+          content: "Seg\uFFFDn el cat\uFFFDlogo de Barra de pizzas..."
         }
       ]
     });
@@ -151162,7 +151243,7 @@ ${golfText}`,
       `ack decline: ${live.slice(0, 300)}`
     );
     assert2.ok(
-      !/Seg√∫n el cat√°logo|Barra de pizzas|anoto Alimentos|anoto \*Alimentos/i.test(live),
+      !/Seg˙n el cat·logo|Barra de pizzas|anoto Alimentos|anoto \*Alimentos/i.test(live),
       `no dump/re-anotar: ${live.slice(0, 350)}`
     );
     assert2.ok(
@@ -151179,10 +151260,10 @@ ${golfText}`,
     );
     const ex2 = emptyExtracted({
       nombre: "Catalina",
-      tipo_evento: "cumplea\xF1os",
-      requerimientos_evento: "Decoraci\xF3n, Alimentos",
+      tipo_evento: "cumplea\uFFFDos",
+      requerimientos_evento: "Decoraci\uFFFDn, Alimentos",
       fecha_horario: "25 de agosto",
-      direccion_evento: "Estado de M\xE9xico condado de Sayavedra"
+      direccion_evento: "Estado de M\uFFFDxico condado de Sayavedra"
     });
     const live2 = runGuards({
       aiResponse: "Perfecto, anoto Alimentos.",
@@ -151192,13 +151273,13 @@ ${golfText}`,
         "Tipo de evento",
         "Requerimientos o servicios",
         "Fecha y horario",
-        "Lugar/direcci\xF3n del evento"
+        "Lugar/direcci\uFFFDn del evento"
       ]),
       readyForClosing: false,
       currentMessage: "Comida",
       history: [
         { role: "user", content: "No pero no quiero comoda" },
-        { role: "assistant", content: "Perfecto, anoto Alimentos. \xBFCorreo?" }
+        { role: "assistant", content: "Perfecto, anoto Alimentos. \uFFFDCorreo?" }
       ]
     });
     assert2.ok(
@@ -151207,42 +151288,42 @@ ${golfText}`,
     );
     assert2.ok(/no\s+incluimos|\*no\*/i.test(live2), live2.slice(0, 250));
   });
-  await test("142. A15297 \u2014 S\xED tras siguiente-dato / SKU sala+mesa \u2192 pregunta real", () => {
+  await test("142. A15297 \uFFFD S\uFFFD tras siguiente-dato / SKU sala+mesa ? pregunta real", () => {
     assert2.ok(
       assistantAskedVagueEmbudoContinue(
-        "Perfecto, Edna. \xBFSeguimos con el siguiente dato del evento?"
+        "Perfecto, Edna. \uFFFDSeguimos con el siguiente dato del evento?"
       )
     );
     assert2.ok(
       clientAffirmsEmbudoContinue(
         "Si",
-        "Perfecto, Edna. \xBFSeguimos con el siguiente dato del evento?"
+        "Perfecto, Edna. \uFFFDSeguimos con el siguiente dato del evento?"
       )
     );
     assert2.ok(
       !clientAffirmsCatalogOffer(
         "Si",
-        "Perfecto, Edna. \xBFSeguimos con el siguiente dato del evento?"
+        "Perfecto, Edna. \uFFFDSeguimos con el siguiente dato del evento?"
       ),
-      "S\xED tras siguiente-dato \u2260 cat\xE1logo"
+      "S\uFFFD tras siguiente-dato ? cat\uFFFDlogo"
     );
     assert2.equal(
       parseFurnitureCatalogSkuFromText("Sala Ariel Color Nude"),
       "Sala Ariel Color Nude"
     );
     assert2.ok(
-      /Mesa Centro.*M√°rmol/i.test(
-        parseFurnitureCatalogSkuFromText("Mesa Centro Rectangular M\xE1rmol") ?? ""
+      /Mesa Centro.*M·rmol/i.test(
+        parseFurnitureCatalogSkuFromText("Mesa Centro Rectangular M\uFFFDrmol") ?? ""
       )
     );
     assert2.ok(
-      /Mesa Centro.*M√°rmol/i.test(
-        parseFurnitureCatalogSkuFromText("Mesa Centro M\xE1rmol Redonda") ?? ""
+      /Mesa Centro.*M·rmol/i.test(
+        parseFurnitureCatalogSkuFromText("Mesa Centro M\uFFFDrmol Redonda") ?? ""
       )
     );
     const extracted = emptyExtracted({
       nombre: "Edna Osorno",
-      tipo_evento: "cumplea\xF1os",
+      tipo_evento: "cumplea\uFFFDos",
       requerimientos_evento: "Salas lounge"
     });
     const filled = /* @__PURE__ */ new Set([
@@ -151251,7 +151332,7 @@ ${golfText}`,
       "Requerimientos o servicios"
     ]);
     const liveSi = runGuards({
-      aiResponse: "Claro.\n\nTe dejo el cat\xE1logo general:\nhttps://bodasesor.com/catalogos",
+      aiResponse: "Claro.\n\nTe dejo el cat\uFFFDlogo general:\nhttps://bodasesor.com/catalogos",
       extracted,
       filledSet: filled,
       readyForClosing: false,
@@ -151259,25 +151340,25 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "Perfecto, Edna. \xBFSeguimos con el siguiente dato del evento?"
+          content: "Perfecto, Edna. \uFFFDSeguimos con el siguiente dato del evento?"
         }
       ]
     });
     assert2.ok(
-      mensajeAsksForField(liveSi, "fecha") || /fecha|cu[a√°]ndo|para cu[a√°]ndo/i.test(liveSi),
-      `S\xED \u2192 fecha real: ${liveSi.slice(0, 300)}`
+      mensajeAsksForField(liveSi, "fecha") || /fecha|cu[a·]ndo|para cu[a·]ndo/i.test(liveSi),
+      `S\uFFFD ? fecha real: ${liveSi.slice(0, 300)}`
     );
     assert2.ok(
       !/bodasesor\.com\/catalogos|colgantes|siguiente dato del evento/i.test(liveSi),
-      `no cat\xE1logo/filler: ${liveSi.slice(0, 350)}`
+      `no cat\uFFFDlogo/filler: ${liveSi.slice(0, 350)}`
     );
     const exSku = emptyExtracted({
       nombre: "Edna Osorno",
-      tipo_evento: "cumplea\xF1os",
+      tipo_evento: "cumplea\uFFFDos",
       requerimientos_evento: "Salas lounge"
     });
     const liveSku = runGuards({
-      aiResponse: "Perfecto. \xBFQuieres que te d\xE9 detalles de alguno?",
+      aiResponse: "Perfecto. \uFFFDQuieres que te d\uFFFD detalles de alguno?",
       extracted: exSku,
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
@@ -151287,25 +151368,25 @@ ${golfText}`,
       readyForClosing: false,
       currentMessage: "Sala Ariel Color Nude",
       history: [
-        { role: "assistant", content: "\xBFQuieres que te d\xE9 detalles de alguno?" }
+        { role: "assistant", content: "\uFFFDQuieres que te d\uFFFD detalles de alguno?" }
       ]
     });
     assert2.ok(/Sala Ariel/i.test(exSku.requerimientos_evento ?? ""), exSku.requerimientos_evento);
     assert2.ok(
-      /anoto|Sala Ariel/i.test(liveSku) && (mensajeAsksForField(liveSku, "fecha") || /fecha|cu[a√°]ndo/i.test(liveSku)),
+      /anoto|Sala Ariel/i.test(liveSku) && (mensajeAsksForField(liveSku, "fecha") || /fecha|cu[a·]ndo/i.test(liveSku)),
       liveSku.slice(0, 400)
     );
     assert2.ok(
-      !/siguiente dato del evento|colgantes|cat[a√°]logo general/i.test(liveSku),
+      !/siguiente dato del evento|colgantes|cat[a·]logo general/i.test(liveSku),
       liveSku.slice(0, 350)
     );
     const exFecha = emptyExtracted({
       nombre: "Edna Osorno",
-      tipo_evento: "cumplea\xF1os",
-      requerimientos_evento: "Sala Ariel Color Nude, Mesa Centro Rectangular M\xE1rmol"
+      tipo_evento: "cumplea\uFFFDos",
+      requerimientos_evento: "Sala Ariel Color Nude, Mesa Centro Rectangular M\uFFFDrmol"
     });
     const liveFecha = runGuards({
-      aiResponse: "Con gusto. \xBFQuieres que te d\xE9 detalles de alguno?",
+      aiResponse: "Con gusto. \uFFFDQuieres que te d\uFFFD detalles de alguno?",
       extracted: exFecha,
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
@@ -151317,7 +151398,7 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "De acuerdo. Edna, \xBFtienen d\xEDa u horario ya definido?"
+          content: "De acuerdo. Edna, \uFFFDtienen d\uFFFDa u horario ya definido?"
         }
       ]
     });
@@ -151326,28 +151407,28 @@ ${golfText}`,
       `fecha CRM: ${exFecha.fecha_horario}`
     );
     assert2.ok(
-      /4:00|ubicaci|sal[o√≥]n|colonia|ciudad/i.test(liveFecha),
+      /4:00|ubicaci|sal[oÛ]n|colonia|ciudad/i.test(liveFecha),
       `ack fecha + zona: ${liveFecha.slice(0, 350)}`
     );
     assert2.ok(
-      !/quieres que te d[e√©] detalles de alguno/i.test(liveFecha),
+      !/quieres que te d[eÈ] detalles de alguno/i.test(liveFecha),
       liveFecha.slice(0, 350)
     );
     assert2.ok(
-      !/colgantes|Seg√∫n el cat√°logo/i.test(liveFecha),
+      !/colgantes|Seg˙n el cat·logo/i.test(liveFecha),
       liveFecha.slice(0, 350)
     );
   });
-  await test("146. A15308 \u2014 solo nombre: Mucho gusto + embudo, sin felicitar", () => {
-    const dirty = "\xA1Mucho gusto, Carlota! Qu\xE9 emoci\xF3n, felicidades. \xBFQu\xE9 tipo de evento van planeando celebrar?";
+  await test("146. A15308 \uFFFD solo nombre: Mucho gusto + embudo, sin felicitar", () => {
+    const dirty = "\uFFFDMucho gusto, Carlota! Qu\uFFFD emoci\uFFFDn, felicidades. \uFFFDQu\uFFFD tipo de evento van planeando celebrar?";
     const cleaned = stripPrematureCelebrationFluff(dirty, {
       currentMessage: "Carlota",
       tipoEvento: null
     });
     assert2.ok(/Mucho gusto,\s*Carlota/i.test(cleaned), cleaned);
-    assert2.ok(!/emoci√≥n|felicidades/i.test(cleaned), cleaned);
+    assert2.ok(!/emociÛn|felicidades/i.test(cleaned), cleaned);
     assert2.ok(
-      !/emoci√≥n|felicidades/i.test(dedupeTransitionsInMessage(dirty)),
+      !/emociÛn|felicidades/i.test(dedupeTransitionsInMessage(dirty)),
       dedupeTransitionsInMessage(dirty)
     );
     const live = runGuards({
@@ -151359,43 +151440,43 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor. \xBFMe regalas tu nombre?"
+          content: "\uFFFDHola! Buen d\uFFFDa. Soy Lucy, agente virtual de Bodasesor. \uFFFDMe regalas tu nombre?"
         }
       ]
     });
     assert2.ok(/Mucho gusto,\s*Carlota/i.test(live), live.slice(0, 300));
     assert2.equal((live.match(/Soy Lucy/gi) ?? []).length, 0, live.slice(0, 300));
-    assert2.ok(!/emoci√≥n|felicidades|qu[e√©]\s+padre/i.test(live), live.slice(0, 400));
-    assert2.ok(/tipo de evento|van a celebrar|qu[e√©] van a celebrar/i.test(live), live.slice(0, 400));
+    assert2.ok(!/emociÛn|felicidades|qu[eÈ]\s+padre/i.test(live), live.slice(0, 400));
+    assert2.ok(/tipo de evento|van a celebrar|qu[eÈ] van a celebrar/i.test(live), live.slice(0, 400));
   });
-  await test("145. A15302 \u2014 men\xFA cumplea\xF1os peque\xF1o + barra italiana (pastas/pizzas)", () => {
-    const menuMsg = "Mi cumplea\xF1os. Es peque\xF1o.\nM regalas tu men\xFA porfa?";
+  await test("145. A15302 \uFFFD men\uFFFD cumplea\uFFFDos peque\uFFFDo + barra italiana (pastas/pizzas)", () => {
+    const menuMsg = "Mi cumplea\uFFFDos. Es peque\uFFFDo.\nM regalas tu men\uFFFD porfa?";
     assert2.ok(clientAsksForFoodMenu(menuMsg));
     assert2.ok(isVagueFoodTerm(menuMsg));
     assert2.ok(clientMentionsItalianTheme("Tienes barra italiana?"));
     const extracted = emptyExtracted({
-      nombre: "Christi\xE1n Martell",
-      direccion_evento: "Metepec, Estado de M\xE9xico",
-      fecha_horario: "S\xE1bado 15",
+      nombre: "Christi\uFFFDn Martell",
+      direccion_evento: "Metepec, Estado de M\uFFFDxico",
+      fecha_horario: "S\uFFFDbado 15",
       num_invitados: 30
     });
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Lugar/direcci\xF3n del evento",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario",
-      "N\xFAmero de invitados"
+      "N\uFFFDmero de invitados"
     ]);
     const menuReply = runGuards({
-      aiResponse: "Te detallo *men\xFA* para un cumplea\xF1os. Para *alimentos* tenemos: banquete 3 tiempos, Banquete Kosher...",
+      aiResponse: "Te detallo *men\uFFFD* para un cumplea\uFFFDos. Para *alimentos* tenemos: banquete 3 tiempos, Banquete Kosher...",
       extracted,
       filledSet: filled,
       readyForClosing: false,
       currentMessage: menuMsg,
       history: [
-        { role: "assistant", content: "\xA1Mucho gusto, Christi\xE1n! \xBFQu\xE9 tipo de evento es?" }
+        { role: "assistant", content: "\uFFFDMucho gusto, Christi\uFFFDn! \uFFFDQu\uFFFD tipo de evento es?" }
       ]
     });
-    assert2.equal(extracted.tipo_evento, "cumplea\xF1os");
+    assert2.equal(extracted.tipo_evento, "cumplea\uFFFDos");
     assert2.ok(
       !/Banquete Kosher|3 tiempos|4 tiempos|Barra Americana/i.test(menuReply),
       menuReply.slice(0, 400)
@@ -151405,10 +151486,10 @@ ${golfText}`,
       menuReply.slice(0, 500)
     );
     const exBar = emptyExtracted({
-      nombre: "Christi\xE1n Martell",
-      tipo_evento: "cumplea\xF1os",
-      direccion_evento: "Metepec, Estado de M\xE9xico",
-      fecha_horario: "S\xE1bado 15",
+      nombre: "Christi\uFFFDn Martell",
+      tipo_evento: "cumplea\uFFFDos",
+      direccion_evento: "Metepec, Estado de M\uFFFDxico",
+      fecha_horario: "S\uFFFDbado 15",
       num_invitados: 30
     });
     const filledBar = /* @__PURE__ */ new Set([...filled, "Tipo de evento"]);
@@ -151419,7 +151500,7 @@ ${golfText}`,
       readyForClosing: false,
       currentMessage: "Tienes barra italiana?",
       history: [
-        { role: "assistant", content: "\xBFQu\xE9 tipo de evento es?" },
+        { role: "assistant", content: "\uFFFDQu\uFFFD tipo de evento es?" },
         { role: "user", content: menuMsg },
         { role: "assistant", content: menuReply }
       ]
@@ -151428,19 +151509,19 @@ ${golfText}`,
     assert2.ok(/pastas?|pizzas?/i.test(barra), barra.slice(0, 500));
     assert2.ok(/pastas?|pizzas?/i.test(exBar.requerimientos_evento ?? ""));
   });
-  await test("144. V9.23 \u2014 RFQ largo completo: captura todo y solo pide lo faltante", () => {
+  await test("144. V9.23 \uFFFD RFQ largo completo: captura todo y solo pide lo faltante", () => {
     const rich = [
       "Hola, queremos cotizar un evento corporativo el 10 de octubre",
-      "en Polanco, Ciudad de M\xE9xico, para 120 personas.",
+      "en Polanco, Ciudad de M\uFFFDxico, para 120 personas.",
       "Necesitamos coffee break y meseros.",
       "Nuestro correo es eventos@acme.mx.",
-      "\xBFNos pueden enviar una propuesta con costos?"
+      "\uFFFDNos pueden enviar una propuesta con costos?"
     ].join(" ");
     assert2.ok(isRichQuoteBrief(rich));
     assert2.ok(/Polanco/i.test(parseZonaFromText(rich) ?? ""));
     const extracted = emptyExtracted();
     const live = runGuards({
-      aiResponse: "De acuerdo. Sobre *bebidas* en *Coffee Break*: *S\xED incluye*...",
+      aiResponse: "De acuerdo. Sobre *bebidas* en *Coffee Break*: *S\uFFFD incluye*...",
       extracted,
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
@@ -151448,12 +151529,12 @@ ${golfText}`,
       history: [],
       forceFirstPresentation: true
     });
-    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[i√≠]a[.!]?\s*)?soy\s+lucy/i.test(live), live.slice(0, 300));
-    assert2.ok(!/Sobre \*bebidas\*|S[i√≠] incluye/i.test(live), `sin dump: ${live.slice(0, 350)}`);
+    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[iÌ]a[.!]?\s*)?soy\s+lucy/i.test(live), live.slice(0, 300));
+    assert2.ok(!/Sobre \*bebidas\*|S[iÌ] incluye/i.test(live), `sin dump: ${live.slice(0, 350)}`);
     assert2.ok(/10 de octubre|polanco|120/i.test(live), live.slice(0, 500));
     assert2.ok(/coffee|meseros/i.test(live), live.slice(0, 500));
-    assert2.ok(/nombre|c[o√≥]mo te llamas|regalas/i.test(live), live.slice(0, 700));
-    assert2.ok(!/en qu[e√©] ciudad|cu[a√°]ntas personas|ya tienen fecha|correo/i.test(live), live.slice(0, 700));
+    assert2.ok(/nombre|c[oÛ]mo te llamas|regalas/i.test(live), live.slice(0, 700));
+    assert2.ok(!/en qu[eÈ] ciudad|cu[a·]ntas personas|ya tienen fecha|correo/i.test(live), live.slice(0, 700));
     assert2.equal(extracted.num_invitados, 120);
     assert2.ok(/Polanco/i.test(extracted.direccion_evento ?? ""));
     assert2.ok(/10 de octubre/i.test(extracted.fecha_horario ?? ""));
@@ -151461,77 +151542,77 @@ ${golfText}`,
     assert2.ok(/Coffee|Meseros/i.test(extracted.requerimientos_evento ?? ""));
     const filled2 = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "Lugar/direcci\xF3n del evento",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario",
-      "N\xFAmero de invitados"
+      "N\uFFFDmero de invitados"
     ]);
     const ex2 = emptyExtracted({
-      nombre: "Ana P\xE9rez",
+      nombre: "Ana P\uFFFDrez",
       correo: "eventos@acme.mx",
       tipo_evento: "evento corporativo",
       requerimientos_evento: "Coffee Break, Meseros",
-      direccion_evento: "Polanco, Ciudad de M\xE9xico",
+      direccion_evento: "Polanco, Ciudad de M\uFFFDxico",
       fecha_horario: "10 de octubre",
       num_invitados: 120
     });
     const mid = runGuards({
-      aiResponse: "\xBFTienen alg\xFAn rango de presupuesto en mente?",
+      aiResponse: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente?",
       extracted: ex2,
       filledSet: filled2,
       readyForClosing: false,
       currentMessage: rich,
       history: [
-        { role: "assistant", content: "\xBFMe regalas tu nombre?" },
-        { role: "user", content: "Ana P\xE9rez" },
-        { role: "assistant", content: "\xBFTienen alg\xFAn rango de presupuesto en mente?" }
+        { role: "assistant", content: "\uFFFDMe regalas tu nombre?" },
+        { role: "user", content: "Ana P\uFFFDrez" },
+        { role: "assistant", content: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente?" }
       ]
     });
-    assert2.ok(!/Sobre \*bebidas\*|S[i√≠] incluye/i.test(mid), mid.slice(0, 300));
+    assert2.ok(!/Sobre \*bebidas\*|S[iÌ] incluye/i.test(mid), mid.slice(0, 300));
     assert2.ok(
       /ya tengo todo|equipo|cotizaci|propuesta/i.test(mid) || !/presupuesto|rango de inversi/i.test(mid),
       mid.slice(0, 350)
     );
   });
-  await test("143. A15298 \u2014 RFQ canap\xE9s/caf\xE9 + propuesta mamita cierra sin presupuesto", () => {
+  await test("143. A15298 \uFFFD RFQ canap\uFFFDs/caf\uFFFD + propuesta mamita cierra sin presupuesto", () => {
     const brief = [
-      "Nos gustar\xEDa solicitarles una cotizaci\xF3n para una presentaci\xF3n editorial.",
+      "Nos gustar\uFFFDa solicitarles una cotizaci\uFFFDn para una presentaci\uFFFDn editorial.",
       "Fecha: 21 de noviembre. Horario: de 14:00 a 19:00 horas.",
-      "N\xFAmero estimado de asistentes: 60 personas.",
+      "N\uFFFDmero estimado de asistentes: 60 personas.",
       "Lugar: Centro Cultural El Rule, ubicado junto a la Torre Latinoamericana, en el tercer piso.",
-      "Tipo de evento: presentaci\xF3n editorial.",
-      "Bocadillos o canapes salados, vegetarianas/veganas, servicio de caf\xE9.",
-      "Nosotros proporcionar\xEDamos los vinos, el agua y las copas.",
-      "S\xED necesitar\xEDamos su apoyo con la distribuci\xF3n y el servicio de las bebidas.",
-      "La cotizaci\xF3n indicara si incluye personal de servicio y cuanto seria sin personal.",
+      "Tipo de evento: presentaci\uFFFDn editorial.",
+      "Bocadillos o canapes salados, vegetarianas/veganas, servicio de caf\uFFFD.",
+      "Nosotros proporcionar\uFFFDamos los vinos, el agua y las copas.",
+      "S\uFFFD necesitar\uFFFDamos su apoyo con la distribuci\uFFFDn y el servicio de las bebidas.",
+      "La cotizaci\uFFFDn indicara si incluye personal de servicio y cuanto seria sin personal.",
       "Quedamos atentos a sus propuestas y recomendaciones."
     ].join("\n");
     assert2.ok(isRichQuoteBrief(brief));
     assert2.equal(clientAsksSpecificInclusionItem(brief), "meseros");
     assert2.ok(!/tercer piso/i.test(parseZonaFromText(brief) ?? ""));
     assert2.ok(/Centro Cultural El Rule/i.test(parseZonaFromText(brief) ?? ""));
-    assert2.ok(detectPresupuestoRefusal("Me gustar\xEDa una propuesta mamita"));
+    assert2.ok(detectPresupuestoRefusal("Me gustar\uFFFDa una propuesta mamita"));
     assert2.ok(detectPresupuestoRefusal("Por favor una propuesta"));
     assert2.ok(parseServicesFromText(brief).some((s6) => /canap/i.test(s6)));
-    assert2.ok(parseServicesFromText(brief).some((s6) => /caf[e√©]/i.test(s6)));
-    assert2.equal(parseTipoEventoFromText(brief), "presentaci\xF3n editorial");
+    assert2.ok(parseServicesFromText(brief).some((s6) => /caf[eÈ]/i.test(s6)));
+    assert2.equal(parseTipoEventoFromText(brief), "presentaci\uFFFDn editorial");
     const extracted = emptyExtracted();
     const live = runGuards({
-      aiResponse: "De acuerdo. Sobre *bebidas* en *Canap\xE9s*: *S\xED incluye* en Basico...",
+      aiResponse: "De acuerdo. Sobre *bebidas* en *Canap\uFFFDs*: *S\uFFFD incluye* en Basico...",
       extracted,
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
       currentMessage: brief,
-      history: [{ role: "assistant", content: "\xA1Hola! \xBFMe regalas tu nombre?" }]
+      history: [{ role: "assistant", content: "\uFFFDHola! \uFFFDMe regalas tu nombre?" }]
     });
     assert2.ok(
-      !/Sobre \*bebidas\*|S[i√≠] incluye|Solo Alimentos/i.test(live),
+      !/Sobre \*bebidas\*|S[iÌ] incluye|Solo Alimentos/i.test(live),
       `no dump bebidas: ${live.slice(0, 350)}`
     );
     assert2.ok(
-      /revis[e√©]|anoto|canap|nombre|llamas/i.test(live),
+      /revis[eÈ]|anoto|canap|nombre|llamas/i.test(live),
       live.slice(0, 400)
     );
     assert2.ok(/Centro Cultural El Rule/i.test(extracted.direccion_evento ?? ""));
@@ -151539,32 +151620,32 @@ ${golfText}`,
     assert2.equal(extracted.num_invitados, 60);
     const filledReady = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "Lugar/direcci\xF3n del evento",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario",
-      "N\xFAmero de invitados"
+      "N\uFFFDmero de invitados"
     ]);
     const exReady = emptyExtracted({
       nombre: "Priscilla Bulnes",
       correo: "trogni1@yahoo.com",
-      tipo_evento: "presentaci\xF3n editorial",
-      requerimientos_evento: "Canap\xE9s, Bocadillos, Meseros, Barra de Caf\xE9",
+      tipo_evento: "presentaci\uFFFDn editorial",
+      requerimientos_evento: "Canap\uFFFDs, Bocadillos, Meseros, Barra de Caf\uFFFD",
       direccion_evento: "Centro Cultural El Rule",
       fecha_horario: "21 de noviembre",
       num_invitados: 60
     });
     const cierre = runGuards({
-      aiResponse: "\xBFTienen alg\xFAn rango de presupuesto en mente?",
+      aiResponse: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente?",
       extracted: exReady,
       filledSet: filledReady,
       readyForClosing: false,
-      currentMessage: "Me gustar\xEDa una propuesta mamita",
+      currentMessage: "Me gustar\uFFFDa una propuesta mamita",
       history: [
         {
           role: "assistant",
-          content: "\xBFTienen alg\xFAn rango de presupuesto en mente?"
+          content: "\uFFFDTienen alg\uFFFDn rango de presupuesto en mente?"
         }
       ]
     });
@@ -151578,12 +151659,12 @@ ${golfText}`,
       cierre.slice(0, 300)
     );
   });
-  await test("127. V9.26 \u2014 anti-cierre 'Ya lo tengo anotado' sigue embudo", async () => {
+  await test("127. V9.26 \uFFFD anti-cierre 'Ya lo tengo anotado' sigue embudo", async () => {
     assert2.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert2.ok(looksLikeDeadEndAck("Perfecto, Ana. Ya lo tengo anotado."));
     assert2.ok(looksLikeDeadEndAck("Perfecto, ya tengo lo principal anotado."));
     assert2.ok(looksLikeDeadEndAck("Entendido. Seguimos con lo que ya platicamos."));
-    assert2.ok(!looksLikeDeadEndAck("Perfecto, Ana. Ya lo tengo anotado.\n\n\xBFQu\xE9 tipo de evento es?"));
+    assert2.ok(!looksLikeDeadEndAck("Perfecto, Ana. Ya lo tengo anotado.\n\n\uFFFDQu\uFFFD tipo de evento es?"));
     assert2.ok(!looksLikeDeadEndAck("Perfecto, ya tengo todo. Le paso estos datos al equipo."));
     const filledMid = /* @__PURE__ */ new Set([
       "Nombre del cliente",
@@ -151598,7 +151679,7 @@ ${golfText}`,
     const antiBare = applyLucyGlobalAntiRepetition({
       mensaje: "Perfecto, Ana. Ya lo tengo anotado.",
       history: [
-        { role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" },
+        { role: "assistant", content: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?" },
         { role: "user", content: "barra de bebidas" }
       ],
       filledSet: filledMid,
@@ -151612,22 +151693,22 @@ ${golfText}`,
       antiBare.mensaje.slice(0, 300)
     );
     assert2.ok(
-      /fecha|cu[a√°]ndo|cuando|d[i√≠]a|horario/i.test(antiBare.mensaje) || mensajeAsksForField(antiBare.mensaje, "fecha"),
+      /fecha|cu[a·]ndo|cuando|d[iÌ]a|horario/i.test(antiBare.mensaje) || mensajeAsksForField(antiBare.mensaje, "fecha"),
       antiBare.mensaje.slice(0, 400)
     );
     const filledAskZona = applyLucyGlobalAntiRepetition({
-      mensaje: "Genial. \xBFMe compartes tu correo para enviarte la info?",
-      history: [{ role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa?" }],
+      mensaje: "Genial. \uFFFDMe compartes tu correo para enviarte la info?",
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa?" }],
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
-        "Correo electr\xF3nico",
+        "Correo electr\uFFFDnico",
         "Tipo de evento",
         "Requerimientos o servicios"
       ]),
       extracted: emptyExtracted({
         nombre: "Luis",
         correo: "luis@test.com",
-        tipo_evento: "cumplea\xF1os",
+        tipo_evento: "cumplea\uFFFDos",
         requerimientos_evento: "DJ"
       }),
       clientName: "Luis"
@@ -151635,7 +151716,7 @@ ${golfText}`,
     assert2.ok(!mensajeAsksForField(filledAskZona.mensaje, "correo"), filledAskZona.mensaje);
     assert2.ok(/\?/.test(filledAskZona.mensaje), filledAskZona.mensaje);
     assert2.ok(
-      mensajeAsksForField(filledAskZona.mensaje, "fecha") || /fecha|cu[a√°]ndo|d[i√≠]a/i.test(filledAskZona.mensaje),
+      mensajeAsksForField(filledAskZona.mensaje, "fecha") || /fecha|cu[a·]ndo|d[iÌ]a/i.test(filledAskZona.mensaje),
       filledAskZona.mensaje
     );
     const guardBare = runGuards({
@@ -151645,7 +151726,7 @@ ${golfText}`,
       readyForClosing: false,
       currentMessage: "barra de bebidas",
       history: [
-        { role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" },
+        { role: "assistant", content: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?" },
         { role: "user", content: "barra de bebidas" }
       ]
     });
@@ -151659,16 +151740,16 @@ ${golfText}`,
       filledSet: filledMid,
       currentMessage: "barra de bebidas",
       history: [
-        { role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" }
+        { role: "assistant", content: "\uFFFDQu\uFFFD servicios te gustar\uFFFDa cotizar?" }
       ]
     });
     assert2.ok(/\?/.test(pipe), pipe.slice(0, 400));
     assert2.ok(!looksLikeDeadEndAck(pipe), pipe.slice(0, 300));
   });
-  await test("128. V9.28 \u2014 solo vs completo en todas las ramas completas", () => {
+  await test("128. V9.28 \uFFFD solo vs completo en todas las ramas completas", () => {
     assert2.ok(/^V9\.(2[89]|[3-9]\d)$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Que Incluye","Link catalogo"',
       '"Taquiza","Solo Alimentos","$320.00","$9,600.00","TRUE","Tacos","https://bodasesor.com/catalogos/taquiza"',
       '"Taquiza","Basico","$750.00","$22,500.00","TRUE","Basico completo","https://bodasesor.com/catalogos/taquiza"',
       '"Taquiza","Tradicional","$800.00","$24,000.00","TRUE","Trad completo","https://bodasesor.com/catalogos/taquiza"',
@@ -151713,10 +151794,10 @@ ${golfText}`,
         `no dump 4: ${svc}`
       );
       const offer = buildSoloVsCompletoOfferIfApplicable(svc);
-      assert2.ok(offer && /cu[a√°]l te late/i.test(offer), `offer helper ${svc}`);
+      assert2.ok(offer && /cu[a·]l te late/i.test(offer), `offer helper ${svc}`);
       const teaser2 = buildCatalogServiceDetailAnswer(`${svc} servicio completo`);
       assert2.ok(
-        teaser2 && /3 niveles|B[a√°]sico|Tradicional|Premium/i.test(teaser2),
+        teaser2 && /3 niveles|B[a·]sico|Tradicional|Premium/i.test(teaser2),
         `teaser ${svc}: ${teaser2?.slice(0, 300)}`
       );
     }
@@ -151735,13 +151816,13 @@ ${golfText}`,
     assert2.ok(/solo\s+alimentos/i.test(mode) && /servicio\s+completo/i.test(mode), mode.slice(0, 500));
     assert2.ok(!/\$\s*\d/.test(mode), `sin precios en primer contacto: ${mode.slice(0, 500)}`);
     assert2.ok(/bebidas|mobiliario|meseros/i.test(mode), mode.slice(0, 500));
-    assert2.ok(/cu[a√°]l te late/i.test(mode), mode.slice(0, 400));
+    assert2.ok(/cu[a·]l te late/i.test(mode), mode.slice(0, 400));
     const priced = buildCatalogServiceDetailAnswer("precio taquiza");
     assert2.ok(priced && /\$\s*320/i.test(priced), priced?.slice(0, 400));
     const teaser = buildCatalogServiceDetailAnswer("taquiza servicio completo");
     assert2.ok(teaser, "teaser completo");
-    assert2.ok(/3 niveles|B[a√°]sico|Tradicional|Premium/i.test(teaser), teaser.slice(0, 500));
-    assert2.ok(/montaje|meseros|decoraci[o√≥]n|bebidas/i.test(teaser), teaser.slice(0, 500));
+    assert2.ok(/3 niveles|B[a·]sico|Tradicional|Premium/i.test(teaser), teaser.slice(0, 500));
+    assert2.ok(/montaje|meseros|decoraci[oÛ]n|bebidas/i.test(teaser), teaser.slice(0, 500));
     assert2.ok(/detalles de alguno/i.test(teaser), teaser.slice(0, 400));
     assert2.ok(!/\$\s*800|\$\s*850/i.test(teaser), `sin volcar todos los precios: ${teaser.slice(0, 400)}`);
     const solo = buildCatalogServiceDetailAnswer("taquiza Solo Alimentos");
@@ -151751,17 +151832,17 @@ ${golfText}`,
     const modeMenu = [
       "Para *Taquiza* tenemos dos caminos:",
       "",
-      "1. *Solo alimentos* \u2014 $320.00 /pp (solo la comida)",
-      "2. *Servicio completo* \u2014 desde $750.00 /pp (incluye bebidas, mobiliario y meseros)",
+      "1. *Solo alimentos* \uFFFD $320.00 /pp (solo la comida)",
+      "2. *Servicio completo* \uFFFD desde $750.00 /pp (incluye bebidas, mobiliario y meseros)",
       "",
-      "\xBFCu\xE1l te late m\xE1s?"
+      "\uFFFDCu\uFFFDl te late m\uFFFDs?"
     ].join("\n");
     assert2.ok(isCatalogLevelSelection("completo", modeMenu));
     assert2.ok(isCatalogLevelSelection("2", modeMenu));
     assert2.equal(extractCatalogNivelFromText("2", modeMenu), "Servicio completo");
     assert2.match(extractCatalogNivelFromText("solo alimentos", modeMenu) ?? "", /solo\s+alimentos/i);
     const live = runGuards({
-      aiResponse: "Para *Taquiza* manejamos estos niveles:\n1. *Solo Alimentos* \u2014 $320\n2. *Basico* \u2014 $750\n3. *Tradicional* \u2014 $800\n4. *Premium* \u2014 $850\n\n\xBFCu\xE1l prefieres?",
+      aiResponse: "Para *Taquiza* manejamos estos niveles:\n1. *Solo Alimentos* \uFFFD $320\n2. *Basico* \uFFFD $750\n3. *Tradicional* \uFFFD $800\n4. *Premium* \uFFFD $850\n\n\uFFFDCu\uFFFDl prefieres?",
       extracted: emptyExtracted({
         nombre: "Ana",
         tipo_evento: "boda",
@@ -151786,7 +151867,7 @@ ${golfText}`,
       `guards no deben dejar dump: ${live.slice(0, 600)}`
     );
     const pastasLive = runGuards({
-      aiResponse: "Para *Barra de pastas y ensaladas* manejamos estos niveles:\n1. *Solo Alimentos* \u2014 $280\n2. *Basico* \u2014 $700\n3. *Tradicional* \u2014 $750\n4. *Premium* \u2014 $800\n\n\xBFCu\xE1l prefieres?",
+      aiResponse: "Para *Barra de pastas y ensaladas* manejamos estos niveles:\n1. *Solo Alimentos* \uFFFD $280\n2. *Basico* \uFFFD $700\n3. *Tradicional* \uFFFD $750\n4. *Premium* \uFFFD $800\n\n\uFFFDCu\uFFFDl prefieres?",
       extracted: emptyExtracted({
         nombre: "Luis",
         tipo_evento: "corporativo",
@@ -151811,7 +151892,7 @@ ${golfText}`,
       `pastas sin dump 4: ${pastasLive.slice(0, 600)}`
     );
   });
-  await test("129. V9.29 \u2014 empresa/espacio/ratito no cierran direcci\xF3n", () => {
+  await test("129. V9.29 \uFFFD empresa/espacio/ratito no cierran direcci\uFFFDn", () => {
     assert2.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     for (const junk of [
       "nuestra empresa, un ratito",
@@ -151833,13 +151914,13 @@ ${golfText}`,
     }
     assert2.ok(isUsableDireccionEvento("Polanco"));
     assert2.ok(isUsableDireccionEvento("Santa Fe, CDMX"));
-    assert2.ok(!isUsableDireccionEvento("Sal\xF3n Hacienda Los Olivos"));
-    assert2.ok(isUsableDireccionEvento("Sal\xF3n Hacienda Los Olivos, CDMX"));
+    assert2.ok(!isUsableDireccionEvento("Sal\uFFFDn Hacienda Los Olivos"));
+    assert2.ok(isUsableDireccionEvento("Sal\uFFFDn Hacienda Los Olivos, CDMX"));
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "N\xFAmero de invitados",
+      "N\uFFFDmero de invitados",
       "Fecha y horario"
     ]);
     const extracted = emptyExtracted({
@@ -151851,7 +151932,7 @@ ${golfText}`,
       direccion_evento: "nuestra empresa, un ratito"
     });
     const reply = runGuards({
-      aiResponse: "Perfecto, anoto la direcci\xF3n en nuestra empresa. \xBFMe pasas tu correo?",
+      aiResponse: "Perfecto, anoto la direcci\uFFFDn en nuestra empresa. \uFFFDMe pasas tu correo?",
       extracted,
       filledSet: filled,
       readyForClosing: false,
@@ -151859,15 +151940,15 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "\xBFEn qu\xE9 ciudad y colonia (o sal\xF3n) ser\xEDa tu evento?"
+          content: "\uFFFDEn qu\uFFFD ciudad y colonia (o sal\uFFFDn) ser\uFFFDa tu evento?"
         },
         { role: "user", content: "nuestra empresa, un ratito" }
       ]
     });
     assert2.equal(extracted.direccion_evento, null);
-    assert2.ok(!filled.has("Lugar/direcci\xF3n del evento"));
+    assert2.ok(!filled.has("Lugar/direcci\uFFFDn del evento"));
     assert2.ok(
-      /ciudad|colonia|sal[o√≥]n|ubicaci[o√≥]n|direcci[o√≥]n|zona|lugar/i.test(reply),
+      /ciudad|colonia|sal[oÛ]n|ubicaci[oÛ]n|direcci[oÛ]n|zona|lugar/i.test(reply),
       reply.slice(0, 400)
     );
     assert2.ok(
@@ -151875,23 +151956,23 @@ ${golfText}`,
       reply.slice(0, 400)
     );
   });
-  await test("130. V9.30 \u2014 ubicaci\xF3n m\xEDnima es ciudad (sal\xF3n solo no basta)", () => {
+  await test("130. V9.30 \uFFFD ubicaci\uFFFDn m\uFFFDnima es ciudad (sal\uFFFDn solo no basta)", () => {
     assert2.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert2.ok(hasCityOrMetroSignal("CDMX"));
-    assert2.ok(hasCityOrMetroSignal("Quer\xE9taro"));
+    assert2.ok(hasCityOrMetroSignal("Quer\uFFFDtaro"));
     assert2.ok(hasCityOrMetroSignal("colonia Roma"));
-    assert2.ok(!hasCityOrMetroSignal("Sal\xF3n Hacienda Los Olivos"));
-    assert2.ok(isVenueWithoutCity("Sal\xF3n Hacienda Los Olivos"));
-    assert2.ok(isVenueWithoutCity("Hacienda Los Arc\xE1ngeles"));
+    assert2.ok(!hasCityOrMetroSignal("Sal\uFFFDn Hacienda Los Olivos"));
+    assert2.ok(isVenueWithoutCity("Sal\uFFFDn Hacienda Los Olivos"));
+    assert2.ok(isVenueWithoutCity("Hacienda Los Arc\uFFFDngeles"));
     assert2.ok(!isVenueWithoutCity("Expo Santa Fe"));
-    assert2.ok(!isUsableDireccionEvento("Sal\xF3n Hacienda Los Olivos"));
+    assert2.ok(!isUsableDireccionEvento("Sal\uFFFDn Hacienda Los Olivos"));
     assert2.ok(!isUsableDireccionEvento("Club de Golf Mexico"));
-    assert2.ok(isUsableDireccionEvento("Sal\xF3n Hacienda Los Olivos, CDMX"));
+    assert2.ok(isUsableDireccionEvento("Sal\uFFFDn Hacienda Los Olivos, CDMX"));
     assert2.ok(isUsableDireccionEvento("Polanco"));
     assert2.ok(isUsableDireccionEvento("Jiutepec"));
     assert2.equal(
       sanitizeExtractedFromExternal(
-        emptyExtracted({ direccion_evento: "Sal\xF3n Hacienda Los Olivos" })
+        emptyExtracted({ direccion_evento: "Sal\uFFFDn Hacienda Los Olivos" })
       ).direccion_evento,
       null
     );
@@ -151899,7 +151980,7 @@ ${golfText}`,
       "Nombre del cliente",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "N\xFAmero de invitados",
+      "N\uFFFDmero de invitados",
       "Fecha y horario"
     ]);
     const extracted = emptyExtracted({
@@ -151908,66 +151989,66 @@ ${golfText}`,
       requerimientos_evento: "Banquete",
       num_invitados: 100,
       fecha_horario: "20 de diciembre",
-      direccion_evento: "Sal\xF3n Hacienda Los Olivos"
+      direccion_evento: "Sal\uFFFDn Hacienda Los Olivos"
     });
     const reply = runGuards({
-      aiResponse: "Perfecto, anoto el sal\xF3n. \xBFMe pasas tu correo?",
+      aiResponse: "Perfecto, anoto el sal\uFFFDn. \uFFFDMe pasas tu correo?",
       extracted,
       filledSet: filled,
       readyForClosing: false,
-      currentMessage: "Sal\xF3n Hacienda Los Olivos",
+      currentMessage: "Sal\uFFFDn Hacienda Los Olivos",
       history: [
         {
           role: "assistant",
-          content: "\xBFEn qu\xE9 ciudad ser\xEDa tu evento?"
+          content: "\uFFFDEn qu\uFFFD ciudad ser\uFFFDa tu evento?"
         },
-        { role: "user", content: "Sal\xF3n Hacienda Los Olivos" }
+        { role: "user", content: "Sal\uFFFDn Hacienda Los Olivos" }
       ]
     });
     assert2.equal(extracted.direccion_evento, null);
     assert2.ok(/ciudad/i.test(reply), reply.slice(0, 400));
-    assert2.ok(/Hacienda Los Olivos|sal[o√≥]n/i.test(reply), reply.slice(0, 400));
-    assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
+    assert2.ok(/Hacienda Los Olivos|sal[oÛ]n/i.test(reply), reply.slice(0, 400));
+    assert2.match(extractVenueNameHint("Sal\uFFFDn Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
-  await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("133. V9.35 \uFFFD banquete Torre\uFFFDn primer turno pide fecha/invitados", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "Lugar/direcci\xF3n del evento"
+      "Lugar/direcci\uFFFDn del evento"
     ]);
     const extracted = emptyExtracted({
       nombre: "Allison Berumen",
       tipo_evento: "evento con banquete",
       requerimientos_evento: "Banquete Formal 3 tiempos",
-      direccion_evento: "Torre\xF3n"
+      direccion_evento: "Torre\uFFFDn"
     });
     const reply = runGuards({
-      aiResponse: "Perfecto, Allison. Anoto Banquete Formal 3 tiempos. Solo alimentos $450 servicio completo $780. \xBFCu\xE1l te late m\xE1s?",
+      aiResponse: "Perfecto, Allison. Anoto Banquete Formal 3 tiempos. Solo alimentos $450 servicio completo $780. \uFFFDCu\uFFFDl te late m\uFFFDs?",
       extracted,
       filledSet: filled,
       readyForClosing: false,
-      currentMessage: "Hola, me interesa cotizar: Banquete 3 Tiempos Torre\xF3n",
+      currentMessage: "Hola, me interesa cotizar: Banquete 3 Tiempos Torre\uFFFDn",
       whatsappDisplayName: "Allison Berumen",
-      history: [{ role: "user", content: "Hola, me interesa cotizar: Banquete 3 Tiempos Torre\xF3n" }]
+      history: [{ role: "user", content: "Hola, me interesa cotizar: Banquete 3 Tiempos Torre\uFFFDn" }]
     });
     assert2.ok(
-      /fecha|cu[a√°]ndo|d[i√≠]a|invitados|correo|e-?mail|cu[a√°]nt[oa]s|personas/i.test(reply),
+      /fecha|cu[a·]ndo|d[iÌ]a|invitados|correo|e-?mail|cu[a·]nt[oa]s|personas/i.test(reply),
       `debe pedir dato del embudo: ${reply.slice(0, 500)}`
     );
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
-  await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("134. V9.36 \uFFFD Isai: no cierra, no confunde nombre con ciudad, urgencia ? tel\uFFFDfono", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
     assert2.ok(!detectPresupuestoRefusal("Por este medio por favor no tengo correo"));
     assert2.ok(detectEmailRefusal(["Por este medio por favor no tengo correo"]));
     assert2.ok(detectEmailRefusal(["A Qui por WhatsApp no se puede"]));
-    assert2.ok(!clientAsksPhone("Nada m\xE1s que no sea ma\xF1ana porque ya me urge faltan pocos d\xEDas y necesito saber si pueden o no"));
-    assert2.ok(clientSignalsUrgency("Nada m\xE1s que no sea ma\xF1ana porque ya me urge faltan pocos d\xEDas"));
+    assert2.ok(!clientAsksPhone("Nada m\uFFFDs que no sea ma\uFFFDana porque ya me urge faltan pocos d\uFFFDas y necesito saber si pueden o no"));
+    assert2.ok(clientSignalsUrgency("Nada m\uFFFDs que no sea ma\uFFFDana porque ya me urge faltan pocos d\uFFFDas"));
     assert2.ok(!isValidRequerimientosValue("banquetes o catering"));
     assert2.ok(isValidRequerimientosValue("banquete"));
     const filled = /* @__PURE__ */ new Set([
@@ -151983,14 +152064,14 @@ ${golfText}`,
       direccion_evento: "Isai Moreno"
     });
     const replyEmail = runGuards({
-      aiResponse: "Perfecto, ya tengo todo. He tomado nota para envi\xE1rselos a nuestro equipo.",
+      aiResponse: "Perfecto, ya tengo todo. He tomado nota para envi\uFFFDrselos a nuestro equipo.",
       extracted,
       filledSet: filled,
       readyForClosing: false,
       cierreYaEnviado: false,
       currentMessage: "Por este medio por favor no tengo correo",
       history: [
-        { role: "assistant", content: "\xBFMe compartes un correo para enviarte los detalles?" },
+        { role: "assistant", content: "\uFFFDMe compartes un correo para enviarte los detalles?" },
         { role: "user", content: "Por este medio por favor no tengo correo" }
       ]
     });
@@ -152013,21 +152094,21 @@ ${golfText}`,
       direccion_evento: "Ecatepec"
     });
     const replyUrg = runGuards({
-      aiResponse: "Claro, te paso los n\xFAmeros:\nVentas: 55 4008 0373",
+      aiResponse: "Claro, te paso los n\uFFFDmeros:\nVentas: 55 4008 0373",
       extracted: extractedUrg,
       filledSet: filledUrg,
       readyForClosing: false,
       cierreYaEnviado: true,
-      currentMessage: "Nada m\xE1s que no sea ma\xF1ana porque ya me urge faltan pocos d\xEDas y necesito saber si pueden o no",
+      currentMessage: "Nada m\uFFFDs que no sea ma\uFFFDana porque ya me urge faltan pocos d\uFFFDas y necesito saber si pueden o no",
       history: [
-        { role: "assistant", content: "Perfecto, ya tengo todo. Con esta informaci\xF3n voy a solicitar a nuestro equipo que prepare una cotizaci\xF3n personalizada para ti." },
-        { role: "user", content: "Nada m\xE1s que no sea ma\xF1ana porque ya me urge" }
+        { role: "assistant", content: "Perfecto, ya tengo todo. Con esta informaci\uFFFDn voy a solicitar a nuestro equipo que prepare una cotizaci\uFFFDn personalizada para ti." },
+        { role: "user", content: "Nada m\uFFFDs que no sea ma\uFFFDana porque ya me urge" }
       ]
     });
-    assert2.ok(!/55 4008 0373|te paso los n[u√∫]meros/i.test(replyUrg), replyUrg.slice(0, 400));
+    assert2.ok(!/55 4008 0373|te paso los n[u˙]meros/i.test(replyUrg), replyUrg.slice(0, 400));
     assert2.ok(/\?/i.test(replyUrg), `urgencia debe seguir el chat: ${replyUrg.slice(0, 400)}`);
   });
-  await test("132. V9.34 \u2014 Valle de Bravo y mesa rica (Sara A15370)", () => {
+  await test("132. V9.34 \uFFFD Valle de Bravo y mesa rica (Sara A15370)", () => {
     assert2.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert2.ok(hasCityOrMetroSignal("Valle de Bravo"));
     assert2.ok(isUsableDireccionEvento("Valle de Bravo"));
@@ -152062,13 +152143,13 @@ ${golfText}`,
       fecha_horario: "Diciembre"
     });
     const reply = runGuards({
-      aiResponse: "\xBFEn qu\xE9 ciudad ser\xEDa tu evento?",
+      aiResponse: "\uFFFDEn qu\uFFFD ciudad ser\uFFFDa tu evento?",
       extracted,
       filledSet: filled,
       readyForClosing: false,
       currentMessage: "Valle de bravo",
       history: [
-        { role: "assistant", content: "\xBFMe confirmas la *ciudad* del evento?" },
+        { role: "assistant", content: "\uFFFDMe confirmas la *ciudad* del evento?" },
         { role: "user", content: "Valle de bravo" }
       ]
     });
@@ -152076,8 +152157,8 @@ ${golfText}`,
     assert2.equal(extracted.direccion_evento?.toLowerCase(), "valle de bravo");
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
-  await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("131. V9.32 \uFFFD unified turn + cache off + history trim + static system", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,
@@ -152128,8 +152209,8 @@ ${golfText}`,
       assert2.equal(/CONTEXTO DEL TURNO \(din/i.test(dyn), true);
       assert2.ok(dyn.length < 5e3, `dyn len ${dyn.length}`);
       const target = emptyExtracted({ nombre: "Ana" });
-      mergeExtractedPatch(target, { nombre: "Ana P\xE9rez", num_invitados: 80 });
-      assert2.equal(target.nombre, "Ana P\xE9rez");
+      mergeExtractedPatch(target, { nombre: "Ana P\uFFFDrez", num_invitados: 80 });
+      assert2.equal(target.nombre, "Ana P\uFFFDrez");
       assert2.equal(target.num_invitados, 80);
       const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
       const healthSrc = readFileSync5(path6.join(apiRoot, "src/routes/health.ts"), "utf8");
@@ -152147,8 +152228,8 @@ ${golfText}`,
       }
     }
   });
-  await test("135. V9.38 \u2014 comprobante en imagen: primer pago Anticipo, segundo Liquidaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("135. V9.38 \uFFFD comprobante en imagen: primer pago Anticipo, segundo Liquidaci\uFFFDn", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     assert2.equal(FIELD_ANTICIPO, 1049322);
     assert2.equal(FIELD_LIQUIDACION, 1049324);
     assert2.equal(nextPaymentSlot(null, null), "anticipo");
@@ -152162,7 +152243,7 @@ ${golfText}`,
     assert2.equal(paymentFieldValue({ amountMxn: 4500, method: "transferencia" }), 4500);
     assert2.equal(paymentFieldValue({ amountMxn: null, method: "efectivo" }), "Efectivo");
     assert2.ok(/anticipo/i.test(clientReplyForPaymentSlot("anticipo")));
-    assert2.ok(/liquidaci[o√≥]n/i.test(clientReplyForPaymentSlot("liquidacion")));
+    assert2.ok(/liquidaci[oÛ]n/i.test(clientReplyForPaymentSlot("liquidacion")));
     assert2.equal(parseAmountMxn(7800), 7800);
     assert2.equal(parseAmountMxn("5,000.00"), 5e3);
     assert2.equal(normalizePaymentMethod("SPEI BBVA"), "transferencia");
@@ -152171,7 +152252,7 @@ ${golfText}`,
       JSON.stringify({
         intent: "comprobante_pago",
         internal_description: "SPEI $7800",
-        client_reply: "\xA1Gracias por tu pago!",
+        client_reply: "\uFFFDGracias por tu pago!",
         amount_mxn: 7800,
         payment_method: "transferencia"
       })
@@ -152182,16 +152263,16 @@ ${golfText}`,
       JSON.stringify({
         intent: "comprobante_pago",
         internal_description: "Ticket caja $2000 efectivo",
-        client_reply: "\xA1Gracias por tu pago!",
+        client_reply: "\uFFFDGracias por tu pago!",
         payment_method: "efectivo"
       })
     );
     assert2.equal(cash.paymentMethod, "efectivo");
-    assert2.equal(cash.amountMxn, 2e3, "monto desde descripci\xF3n si JSON no lo trae");
+    assert2.equal(cash.amountMxn, 2e3, "monto desde descripci\uFFFDn si JSON no lo trae");
     const montaje = parseVisionImageJson(
       JSON.stringify({
         intent: "montaje_referencia",
-        internal_description: "Mesas r\xFAsticas",
+        internal_description: "Mesas r\uFFFDsticas",
         client_reply: "Lo anoto",
         amount_mxn: 9999
       })
@@ -152201,7 +152282,7 @@ ${golfText}`,
       formatImageTurnText(spei),
       clientReplyForPaymentSlot("anticipo")
     );
-    assert2.ok(/registr√© tu anticipo/i.test(rewritten));
+    assert2.ok(/registrÈ tu anticipo/i.test(rewritten));
     assert2.ok(!/7800/.test(extractImageClientReply(rewritten) ?? ""));
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
     const paySrc = readFileSync5(path6.join(apiRoot, "src/services/paymentReceiptCrm.ts"), "utf8");
@@ -152211,18 +152292,18 @@ ${golfText}`,
     assert2.ok(/comprobante_pago/.test(imgSrc));
     assert2.ok(/amount_mxn/.test(imgSrc));
   });
-  await test("136. V9.40 \u2014 A15380 invitados no se saltan; Coyoac\xE1n+colonia; Claro no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
-    const horario = "hola si se har\xEDa el 26 de septiembre pero a\xFAn no tenemos definido el horario";
-    assert2.equal(parseInvitadosFromText(horario), null, "horario pendiente \u2260 invitados");
+  await test("136. V9.40 \uFFFD A15380 invitados no se saltan; Coyoac\uFFFDn+colonia; Claro no es nombre", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
+    const horario = "hola si se har\uFFFDa el 26 de septiembre pero a\uFFFDn no tenemos definido el horario";
+    assert2.equal(parseInvitadosFromText(horario), null, "horario pendiente ? invitados");
     const caps = scanConversationForCaptures([], horario, /* @__PURE__ */ new Set(["Nombre del cliente"]));
-    assert2.equal(caps.find((c4) => c4.label === "N\xFAmero de invitados"), void 0);
-    assert2.ok(isUsableDireccionEvento("Coyoac\xE1n"));
-    const coyEdu = parseZonaFromText("es en Coyoac\xE1n la colonia es educaci\xF3n") ?? "";
+    assert2.equal(caps.find((c4) => c4.label === "N\uFFFDmero de invitados"), void 0);
+    assert2.ok(isUsableDireccionEvento("Coyoac\uFFFDn"));
+    const coyEdu = parseZonaFromText("es en Coyoac\uFFFDn la colonia es educaci\uFFFDn") ?? "";
     assert2.match(coyEdu, /coyoac/i);
     assert2.match(coyEdu, /educaci/i);
     assert2.match(coyEdu, /cdmx/i);
-    assert2.match(composeEventLocation("es en Coyoac\xE1n la colonia es educaci\xF3n") ?? "", /educaci/i);
+    assert2.match(composeEventLocation("es en Coyoac\uFFFDn la colonia es educaci\uFFFDn") ?? "", /educaci/i);
     assert2.equal(sanitizeCrmNombre("Claro Aura Vargas"), "Aura Vargas");
     assert2.equal(sanitizeDisplayName("Claro Aura Vargas"), "Aura");
     assert2.ok(needsAlimentosTipoClarification("alimentos"));
@@ -152238,84 +152319,84 @@ ${golfText}`,
       getNextPendingField(
         emptyExtracted({
           nombre: "Aura",
-          tipo_evento: "reuni\xF3n familiar",
+          tipo_evento: "reuni\uFFFDn familiar",
           requerimientos_evento: "alimentos"
         }),
         afterReq
       ),
       "requerimientos",
-      "alimentos gen\xE9rico no cierra servicios"
+      "alimentos gen\uFFFDrico no cierra servicios"
     );
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
       "Requerimientos o servicios",
       "Fecha y horario",
-      "Lugar/direcci\xF3n del evento",
-      "Correo electr\xF3nico"
+      "Lugar/direcci\uFFFDn del evento",
+      "Correo electr\uFFFDnico"
     ]);
     const extracted = emptyExtracted({
       nombre: "Aura Vargas",
-      tipo_evento: "reuni\xF3n familiar",
+      tipo_evento: "reuni\uFFFDn familiar",
       requerimientos_evento: "Alimentos",
       fecha_horario: "26 de septiembre",
-      direccion_evento: "colonia Educaci\xF3n, Coyoac\xE1n, CDMX",
+      direccion_evento: "colonia Educaci\uFFFDn, Coyoac\uFFFDn, CDMX",
       correo: "aura.elling237@gmail.com"
     });
     assert2.equal(getNextPendingField(extracted, filled), "requerimientos");
     const close = runGuards({
-      aiResponse: "Perfecto, ya tengo todo. He anotado el servicio de Alimentos y voy a compartir esta informaci\xF3n con el equipo para que puedan prepararte una cotizaci\xF3n personalizada.",
+      aiResponse: "Perfecto, ya tengo todo. He anotado el servicio de Alimentos y voy a compartir esta informaci\uFFFDn con el equipo para que puedan prepararte una cotizaci\uFFFDn personalizada.",
       extracted,
       filledSet: filled,
       readyForClosing: false,
       currentMessage: "CDMX*",
-      history: [{ role: "assistant", content: "\xBFMe compartes un correo para enviarte los detalles?" }]
+      history: [{ role: "assistant", content: "\uFFFDMe compartes un correo para enviarte los detalles?" }]
     });
     assert2.ok(!/ya tengo todo/i.test(close), close.slice(0, 400));
     assert2.ok(/banquete|casual|taquiza|pizzas|pastas|sushi/i.test(close), close.slice(0, 400));
     const cityAgain = runGuards({
-      aiResponse: "Gracias por tu correo, Claro. \xBFEn qu\xE9 ciudad lo arman?",
+      aiResponse: "Gracias por tu correo, Claro. \uFFFDEn qu\uFFFD ciudad lo arman?",
       extracted,
       filledSet: filled,
       readyForClosing: false,
       currentMessage: "aura.elling237@gmail.com",
-      history: [{ role: "assistant", content: "\xBFMe compartes un correo para enviarte los detalles?" }]
+      history: [{ role: "assistant", content: "\uFFFDMe compartes un correo para enviarte los detalles?" }]
     });
-    assert2.ok(!/ciudad lo arman|en qu[e√©] ciudad/i.test(cityAgain), cityAgain.slice(0, 400));
+    assert2.ok(!/ciudad lo arman|en qu[eÈ] ciudad/i.test(cityAgain), cityAgain.slice(0, 400));
     assert2.ok(/banquete|casual|taquiza|pizzas|pastas|sushi/i.test(cityAgain), cityAgain.slice(0, 400));
   });
-  await test("137. V9.40 \u2014 servicio de alimentos ofrece tipos (todas las ramas)", () => {
+  await test("137. V9.40 \uFFFD servicio de alimentos ofrece tipos (todas las ramas)", () => {
     assert2.ok(isVagueFoodTerm("Pues mira principalmente me interesa el servicio de alimentos"));
     const reply = runGuards({
-      aiResponse: "\xBFYa hay d\xEDa y hora, o siguen viendo opciones?",
+      aiResponse: "\uFFFDYa hay d\uFFFDa y hora, o siguen viendo opciones?",
       extracted: emptyExtracted({
         nombre: "Aura Vargas",
-        tipo_evento: "reuni\xF3n familiar",
+        tipo_evento: "reuni\uFFFDn familiar",
         requerimientos_evento: "Alimentos"
       }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
       readyForClosing: false,
       currentMessage: "Pues mira principalmente me interesa el servicio de alimentos",
       history: [
-        { role: "assistant", content: "\xBFQu\xE9 van a celebrar?" },
-        { role: "user", content: "es una reuni\xF3n familiar" },
-        { role: "assistant", content: "Anoto tu reuni\xF3n familiar. \xBFQu\xE9 te gustar\xEDa revisar primero?" }
+        { role: "assistant", content: "\uFFFDQu\uFFFD van a celebrar?" },
+        { role: "user", content: "es una reuni\uFFFDn familiar" },
+        { role: "assistant", content: "Anoto tu reuni\uFFFDn familiar. \uFFFDQu\uFFFD te gustar\uFFFDa revisar primero?" }
       ]
     });
-    assert2.ok(!/d[i√≠]a y hora|fecha/i.test(reply), reply.slice(0, 500));
+    assert2.ok(!/d[iÌ]a y hora|fecha/i.test(reply), reply.slice(0, 500));
     assert2.ok(/banquete/i.test(reply) && /casual|taquiza|pizzas|pastas/i.test(reply), reply.slice(0, 500));
     const taquizaNext = getNextPendingField(
       emptyExtracted({
         nombre: "Aura",
-        tipo_evento: "reuni\xF3n familiar",
+        tipo_evento: "reuni\uFFFDn familiar",
         requerimientos_evento: "Taquiza"
       }),
       /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"])
     );
     assert2.equal(taquizaNext, "invitados");
   });
-  await test("138. V9.41 \u2014 A15383 Kelia: ciudad, banquetes, LED\u2260luz, no spam (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("138. V9.41 \uFFFD A15383 Kelia: ciudad, banquetes, LED?luz, no spam (todas las ramas)", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert2.match(hornoMty, /horno\s*3/i, hornoMty);
     assert2.match(hornoMty, /monterrey/i, hornoMty);
@@ -152325,20 +152406,20 @@ ${golfText}`,
     assert2.ok(isUsableDireccionEvento("Monterrey"));
     assert2.match(recoverZonaFromUserTexts(["En horno 3 Monterrey"], "Monterrey") ?? "", /monterrey/i);
     assert2.equal(parsePresupuestoFromText("Si 5 de octubre 2027"), null);
-    assert2.match(parsePresupuestoFromText("Opci\xF3n completa por favor") ?? "", /propong/i);
-    assert2.equal(parseInvitadosFromText("Me gustar\xEDa men\xFA de tres tiempos - high end"), null);
+    assert2.match(parsePresupuestoFromText("Opci\uFFFDn completa por favor") ?? "", /propong/i);
+    assert2.equal(parseInvitadosFromText("Me gustar\uFFFDa men\uFFFD de tres tiempos - high end"), null);
     assert2.ok(isUnusableTipoEventoReply("Hola Lucy"));
     assert2.ok(!isUnusableTipoEventoReply("Es un evento corporativo"));
     const tipoCaps = captureContextualAnswer(
-      [{ role: "assistant", content: "\xBFQu\xE9 tipo de evento tienen planeado realizar?" }],
+      [{ role: "assistant", content: "\uFFFDQu\uFFFD tipo de evento tienen planeado realizar?" }],
       "Hola Lucy",
       /* @__PURE__ */ new Set(["Nombre del cliente"])
     );
     assert2.equal(tipoCaps.find((c4) => c4.label === "Tipo de evento"), void 0);
-    const spam = "Plat\xEDcame qu\xE9 te gustar\xEDa armar para el evento. Plat\xEDcame qu\xE9 te gustar\xEDa armar para el evento. Plat\xEDcame qu\xE9 te gustar\xEDa armar para el evento. Plat\xEDcame qu\xE9 te gustar\xEDa armar para el evento.";
+    const spam = "Plat\uFFFDcame qu\uFFFD te gustar\uFFFDa armar para el evento. Plat\uFFFDcame qu\uFFFD te gustar\uFFFDa armar para el evento. Plat\uFFFDcame qu\uFFFD te gustar\uFFFDa armar para el evento. Plat\uFFFDcame qu\uFFFD te gustar\uFFFDa armar para el evento.";
     const collapsed = collapseRepeatedSentences(spam);
-    assert2.equal((collapsed.match(/Plat√≠came/gi) ?? []).length, 1, collapsed);
-    const mariachiMsg = "Si me gustar\xEDa alg\xFAn baile regional, los de percusi\xF3n con led, alg\xFAn grupo m\xE1s b\xE1sico, manejan mariachis?";
+    assert2.equal((collapsed.match(/PlatÌcame/gi) ?? []).length, 1, collapsed);
+    const mariachiMsg = "Si me gustar\uFFFDa alg\uFFFDn baile regional, los de percusi\uFFFDn con led, alg\uFFFDn grupo m\uFFFDs b\uFFFDsico, manejan mariachis?";
     assert2.equal(clientAsksAboutLighting(mariachiMsg), false);
     assert2.ok(clientMentionsEntertainment(mariachiMsg));
     assert2.ok(parseServicesFromText(mariachiMsg).some((s6) => /mariachi|baile regional|robots led/i.test(s6)));
@@ -152348,7 +152429,7 @@ ${golfText}`,
     assert2.ok(!/\*En cuanto a banquetes/i.test(banquetAck), banquetAck.slice(0, 240));
     assert2.ok(/formal|mexicano|tiempos/i.test(banquetAck), banquetAck.slice(0, 400));
     const banquetGuard = runGuards({
-      aiResponse: "\xA1Claro! *En cuanto a banquetes que opciones manejan?* la anoto para tu cotizaci\xF3n. Para *comida* del evento, \xBFqu\xE9 te gustar\xEDa?",
+      aiResponse: "\uFFFDClaro! *En cuanto a banquetes que opciones manejan?* la anoto para tu cotizaci\uFFFDn. Para *comida* del evento, \uFFFDqu\uFFFD te gustar\uFFFDa?",
       extracted: emptyExtracted({
         nombre: "Kelia Zazueta",
         tipo_evento: "evento corporativo"
@@ -152359,7 +152440,7 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "\xBFQu\xE9 te gustar\xEDa revisar primero para empezar a armar tu propuesta?"
+          content: "\uFFFDQu\uFFFD te gustar\uFFFDa revisar primero para empezar a armar tu propuesta?"
         }
       ]
     });
@@ -152367,7 +152448,7 @@ ${golfText}`,
     assert2.ok(/formal|mexicano|tiempos|banquete/i.test(banquetGuard), banquetGuard.slice(0, 400));
     assert2.ok(
       clientChoseBanqueteFormal(
-        "Me gustar\xEDa men\xFA de tres tiempos - considerando que es un perfil de cliente high end"
+        "Me gustar\uFFFDa men\uFFFD de tres tiempos - considerando que es un perfil de cliente high end"
       )
     );
     const mergedSvc = mergeServiceRequirements("Banquete Formal", mariachiMsg, 6) ?? "";
@@ -152378,9 +152459,9 @@ ${golfText}`,
       "Tipo de evento",
       "Requerimientos o servicios",
       "Fecha y horario",
-      "Lugar/direcci\xF3n del evento",
-      "Correo electr\xF3nico",
-      "N\xFAmero de invitados"
+      "Lugar/direcci\uFFFDn del evento",
+      "Correo electr\uFFFDnico",
+      "N\uFFFDmero de invitados"
     ]);
     const extractedCity = emptyExtracted({
       nombre: "Kelia Zazueta",
@@ -152392,21 +152473,21 @@ ${golfText}`,
       num_invitados: 40
     });
     const noCityAgain = runGuards({
-      aiResponse: "Perfecto. Kelia, \xBFya tienen ciudad del evento?",
+      aiResponse: "Perfecto. Kelia, \uFFFDya tienen ciudad del evento?",
       extracted: extractedCity,
       filledSet: filledCity,
       readyForClosing: false,
       currentMessage: "40 aproximadamente",
       history: [
         { role: "user", content: "En horno 3 Monterrey" },
-        { role: "assistant", content: "\xBFMe confirmas la *ciudad* del evento?" },
+        { role: "assistant", content: "\uFFFDMe confirmas la *ciudad* del evento?" },
         { role: "user", content: "Monterrey" },
-        { role: "assistant", content: "\xBFcu\xE1ntos invitados tienen contemplados aproximadamente?" }
+        { role: "assistant", content: "\uFFFDcu\uFFFDntos invitados tienen contemplados aproximadamente?" }
       ]
     });
-    assert2.ok(!/ciudad del evento|en qu[e√©] ciudad/i.test(noCityAgain), noCityAgain.slice(0, 400));
+    assert2.ok(!/ciudad del evento|en qu[eÈ] ciudad/i.test(noCityAgain), noCityAgain.slice(0, 400));
     const entReply = runGuards({
-      aiResponse: "Buena pregunta sobre iluminaci\xF3n \u2014 eso lo confirmo con nuestro equipo para darte el dato exacto.",
+      aiResponse: "Buena pregunta sobre iluminaci\uFFFDn \uFFFD eso lo confirmo con nuestro equipo para darte el dato exacto.",
       extracted: emptyExtracted({
         nombre: "Kelia Zazueta",
         tipo_evento: "evento corporativo",
@@ -152419,12 +152500,12 @@ ${golfText}`,
       filledSet: new Set(filledCity),
       readyForClosing: false,
       currentMessage: mariachiMsg,
-      history: [{ role: "assistant", content: "\xBFBuscas show en vivo, hora loca, o ya tienes un formato en mente?" }]
+      history: [{ role: "assistant", content: "\uFFFDBuscas show en vivo, hora loca, o ya tienes un formato en mente?" }]
     });
-    assert2.ok(!/iluminaci[o√≥]n/i.test(entReply), entReply.slice(0, 400));
+    assert2.ok(!/iluminaci[oÛ]n/i.test(entReply), entReply.slice(0, 400));
     assert2.ok(/mariachi|baile regional|percusi|entretenimiento/i.test(entReply), entReply.slice(0, 400));
     const tiemposReply = runGuards({
-      aiResponse: "\xBFQuieres que te d\xE9 detalles de alguno?",
+      aiResponse: "\uFFFDQuieres que te d\uFFFD detalles de alguno?",
       extracted: emptyExtracted({
         nombre: "Kelia Zazueta",
         tipo_evento: "evento corporativo",
@@ -152432,25 +152513,25 @@ ${golfText}`,
       }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
       readyForClosing: false,
-      currentMessage: "Me gustar\xEDa men\xFA de tres tiempos - considerando que es un perfil de cliente high end",
+      currentMessage: "Me gustar\uFFFDa men\uFFFD de tres tiempos - considerando que es un perfil de cliente high end",
       history: [
         {
           role: "assistant",
-          content: "Para comida del evento, \xBFqu\xE9 te gustar\xEDa? Banquete formal o algo m\xE1s casual."
+          content: "Para comida del evento, \uFFFDqu\uFFFD te gustar\uFFFDa? Banquete formal o algo m\uFFFDs casual."
         }
       ]
     });
     assert2.ok(/formal|mexicano|tiempos|\$/i.test(tiemposReply), tiemposReply.slice(0, 500));
     assert2.ok(
-      /fecha|cu[a√°]ndo|d[i√≠]a|invitados|correo|e-?mail|cu[a√°]nt[oa]s|personas/i.test(tiemposReply),
+      /fecha|cu[a·]ndo|d[iÌ]a|invitados|correo|e-?mail|cu[a·]nt[oa]s|personas/i.test(tiemposReply),
       `3 tiempos debe seguir el embudo: ${tiemposReply.slice(-280)}`
     );
-    assert2.ok((tiemposReply.match(/Plat√≠came/gi) ?? []).length <= 1);
-    const nameSpam = dedupeTransitionsInMessage("Perfecto, Kelia. Listo. Kelia, \xBFen qu\xE9 ciudad ser\xEDa?");
+    assert2.ok((tiemposReply.match(/PlatÌcame/gi) ?? []).length <= 1);
+    const nameSpam = dedupeTransitionsInMessage("Perfecto, Kelia. Listo. Kelia, \uFFFDen qu\uFFFD ciudad ser\uFFFDa?");
     assert2.ok(!/Listo\.\s*Kelia/i.test(nameSpam), nameSpam);
   });
-  await test("139. V9.42 \u2014 A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("139. V9.42 \uFFFD A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert2.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert2.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -152473,12 +152554,12 @@ ${golfText}`,
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
-          '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye","Sinonimos"',
-          '"Coffee Break","Coffee Break 1","$120.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9, galletas y agua"',
-          '"Coffee Break","Coffee Break 2","$200.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9, pan dulce y fruta"',
-          '"Coffee Break","Coffee Break 3","$280.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9 premium y snacks"',
-          '"Coffee Break","Coffee Break 4","$350.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estaci\xF3n completa CB4"',
-          '"Coffee Break","Coffee Break 5","$400.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estaci\xF3n completa CB5"'
+          '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Link catalogo","Que Incluye","Sinonimos"',
+          '"Coffee Break","Coffee Break 1","$120.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\uFFFD, galletas y agua"',
+          '"Coffee Break","Coffee Break 2","$200.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\uFFFD, pan dulce y fruta"',
+          '"Coffee Break","Coffee Break 3","$280.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\uFFFD premium y snacks"',
+          '"Coffee Break","Coffee Break 4","$350.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estaci\uFFFDn completa CB4"',
+          '"Coffee Break","Coffee Break 5","$400.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estaci\uFFFDn completa CB5"'
         ].join("\n")
       )
     );
@@ -152490,7 +152571,7 @@ ${golfText}`,
     );
     const hist = [{ role: "assistant", content: menu }];
     const pickCompound = runGuards({
-      aiResponse: "De acuerdo. \xBFQuieres que te d\xE9 detalles de alguno?",
+      aiResponse: "De acuerdo. \uFFFDQuieres que te d\uFFFD detalles de alguno?",
       extracted: emptyExtracted({
         tipo_evento: "evento corporativo",
         requerimientos_evento: "Coffee Break"
@@ -152501,11 +152582,11 @@ ${golfText}`,
       history: hist,
       whatsappDisplayName: "Mariana Ogarrio"
     });
-    assert2.ok(!/^de acuerdo\.\s*¬øquieres que te d[e√©] detalles de alguno/i.test(pickCompound.trim()));
+    assert2.ok(!/^de acuerdo\.\s*øquieres que te d[eÈ] detalles de alguno/i.test(pickCompound.trim()));
     assert2.ok(/Coffee Break 4|350|CB4|incluye/i.test(pickCompound), pickCompound.slice(0, 500));
     assert2.ok(!/Coffee Break 1[\s\S]{0,80}Coffee Break 2[\s\S]{0,80}Coffee Break 3/i.test(pickCompound));
     const pickCb4 = runGuards({
-      aiResponse: "Claro que s\xED. Te detallo Coffee Break 4. Para Coffee Break manejamos estos niveles\u2026",
+      aiResponse: "Claro que s\uFFFD. Te detallo Coffee Break 4. Para Coffee Break manejamos estos niveles\uFFFD",
       extracted: emptyExtracted({
         nombre: "Mariana",
         tipo_evento: "evento corporativo",
@@ -152516,13 +152597,13 @@ ${golfText}`,
       currentMessage: "coffe break 4",
       history: hist
     });
-    assert2.ok(/Coffee Break 4|350|CB4|estaci√≥n completa/i.test(pickCb4), pickCb4.slice(0, 500));
+    assert2.ok(/Coffee Break 4|350|CB4|estaciÛn completa/i.test(pickCb4), pickCb4.slice(0, 500));
     assert2.ok(
       !/manejamos estos niveles[\s\S]*Coffee Break 1[\s\S]*Coffee Break 5/i.test(pickCb4),
       pickCb4.slice(0, 500)
     );
     const handoff = runGuards({
-      aiResponse: "Con gusto. \xBFTienen un estimado de invitados?",
+      aiResponse: "Con gusto. \uFFFDTienen un estimado de invitados?",
       extracted: emptyExtracted({
         nombre: "Mariana",
         tipo_evento: "evento corporativo",
@@ -152533,22 +152614,22 @@ ${golfText}`,
       currentMessage: "comunicame con una persona",
       history: [
         ...hist,
-        { role: "assistant", content: "Te detallo Coffee Break 4. \xBFQuieres que te d\xE9 detalles de alguno?" }
+        { role: "assistant", content: "Te detallo Coffee Break 4. \uFFFDQuieres que te d\uFFFD detalles de alguno?" }
       ]
     });
     assert2.ok(/55\s*4008\s*0373/i.test(handoff), handoff.slice(0, 400));
-    assert2.ok(!/invitados|cu[a√°]nt[oa]s|ciudad del evento|en qu[e√©] ciudad/i.test(handoff), handoff.slice(0, 400));
+    assert2.ok(!/invitados|cu[a·]nt[oa]s|ciudad del evento|en qu[eÈ] ciudad/i.test(handoff), handoff.slice(0, 400));
   });
-  await test("140. V9.43 \u2014 detalle de un producto no re-lista el men\xFA (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("140. V9.43 \uFFFD detalle de un producto no re-lista el men\uFFFD (todas las ramas)", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
-          '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye","Sinonimos"',
-          '"Coffee Break","Coffee Break 1","$120.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9, galletas y agua"',
-          '"Coffee Break","Coffee Break 4","$350.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estaci\xF3n completa CB4"',
-          '"Coffee Break","Coffee Break 5","$400.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estaci\xF3n completa CB5"',
-          '"Taquiza","Basico","$750.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","Tacos b\xE1sicos"',
+          '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Link catalogo","Que Incluye","Sinonimos"',
+          '"Coffee Break","Coffee Break 1","$120.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\uFFFD, galletas y agua"',
+          '"Coffee Break","Coffee Break 4","$350.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estaci\uFFFDn completa CB4"',
+          '"Coffee Break","Coffee Break 5","$400.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estaci\uFFFDn completa CB5"',
+          '"Taquiza","Basico","$750.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","Tacos b\uFFFDsicos"',
           '"Taquiza","Tradicional","$800.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","Tacos tradicionales y salsas"',
           '"Taquiza","Premium","$850.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","Tacos premium y bartender"'
         ].join("\n")
@@ -152560,7 +152641,7 @@ ${golfText}`,
     const trad = buildCatalogServiceDetailAnswer("Taquiza Tradicional") ?? "";
     assert2.ok(!looksLikeNivelOptionsDump(trad), trad.slice(0, 400));
     assert2.match(trad, /tradicional|800/i, trad.slice(0, 400));
-    const dump = "Claro que s\xED. Te detallo *Coffee Break 4*:\n\nPara *Coffee Break* manejamos estos niveles:\n\n1. *Coffee Break 4* \u2014 $350.00 /pp\n2. *Coffee Break 1* \u2014 $120.00 /pp\n\n\xBFQuieres que te d\xE9 detalles de alguno?";
+    const dump = "Claro que s\uFFFD. Te detallo *Coffee Break 4*:\n\nPara *Coffee Break* manejamos estos niveles:\n\n1. *Coffee Break 4* \uFFFD $350.00 /pp\n2. *Coffee Break 1* \uFFFD $120.00 /pp\n\n\uFFFDQuieres que te d\uFFFD detalles de alguno?";
     assert2.ok(looksLikeNivelOptionsDump(dump));
     const menu = buildProgressiveOptionsMenu("coffee_break");
     const rewritten = runGuards({
@@ -152578,12 +152659,12 @@ ${golfText}`,
     assert2.ok(!looksLikeNivelOptionsDump(rewritten), rewritten.slice(0, 500));
     assert2.ok(/Coffee Break 4|350|CB4/i.test(rewritten), rewritten.slice(0, 500));
   });
-  await test("141. V9.44 \u2014 A15443 Rosario: reuni\xF3n, hora comida, ciudad obligatoria", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
-    assert2.equal(parseTipoEventoFromText("una reuni\xF3n de 15 a\xF1os"), "reuni\xF3n");
-    assert2.ok(clientSaidReunionNotXv("una reuni\xF3n de 15 a\xF1os"));
-    assert2.ok(!clientSaidReunionNotXv("mis XV a\xF1os"));
-    assert2.match(parseReunionAniosLabel("una reuni\xF3n de 15 a\xF1os") ?? "", /15\s*a[n√±]os/i);
+  await test("141. V9.44 \uFFFD A15443 Rosario: reuni\uFFFDn, hora comida, ciudad obligatoria", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
+    assert2.equal(parseTipoEventoFromText("una reuni\uFFFDn de 15 a\uFFFDos"), "reuni\uFFFDn");
+    assert2.ok(clientSaidReunionNotXv("una reuni\uFFFDn de 15 a\uFFFDos"));
+    assert2.ok(!clientSaidReunionNotXv("mis XV a\uFFFDos"));
+    assert2.match(parseReunionAniosLabel("una reuni\uFFFDn de 15 a\uFFFDos") ?? "", /15\s*a[nÒ]os/i);
     assert2.equal(parseZonaFromText("banquete de tres tiempos en hora de fomida"), null);
     assert2.equal(parseZonaFromText("banquete de tres tiempos en hora de comida"), null);
     assert2.ok(looksLikeMealTimeNotLocation("hora de fomida"));
@@ -152594,91 +152675,91 @@ ${golfText}`,
     assert2.ok(isMealTimeOnlySchedule("hora de comida"));
     assert2.ok(!isUsableFechaHorario("hora de comida"));
     const xvReply = runGuards({
-      aiResponse: "Anoto tus XV a\xF1os, Rosario. Para orientarte mejor, \xBFqu\xE9 servicios tienes en mente?",
-      extracted: emptyExtracted({ nombre: "Rosario", tipo_evento: "XV a\xF1os" }),
+      aiResponse: "Anoto tus XV a\uFFFDos, Rosario. Para orientarte mejor, \uFFFDqu\uFFFD servicios tienes en mente?",
+      extracted: emptyExtracted({ nombre: "Rosario", tipo_evento: "XV a\uFFFDos" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento"]),
       readyForClosing: false,
-      currentMessage: "una reuni\xF3n de 15 a\xF1os",
+      currentMessage: "una reuni\uFFFDn de 15 a\uFFFDos",
       history: [
-        { role: "assistant", content: "\xA1Mucho gusto, Rosario! \xBFQu\xE9 van a celebrar?" },
-        { role: "user", content: "una reuni\xF3n de 15 a\xF1os" }
+        { role: "assistant", content: "\uFFFDMucho gusto, Rosario! \uFFFDQu\uFFFD van a celebrar?" },
+        { role: "user", content: "una reuni\uFFFDn de 15 a\uFFFDos" }
       ]
     });
-    assert2.ok(!/XV\s*a[n√±]os|quincea[n√±]era/i.test(xvReply), xvReply.slice(0, 400));
+    assert2.ok(!/XV\s*a[nÒ]os|quincea[nÒ]era/i.test(xvReply), xvReply.slice(0, 400));
     assert2.ok(/reun/i.test(xvReply), xvReply.slice(0, 400));
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "N\xFAmero de invitados",
+      "N\uFFFDmero de invitados",
       "Fecha y horario",
-      "Lugar/direcci\xF3n del evento",
-      "Correo electr\xF3nico",
+      "Lugar/direcci\uFFFDn del evento",
+      "Correo electr\uFFFDnico",
       "Presupuesto (MXN)"
     ]);
     const extracted = emptyExtracted({
       nombre: "Rosario",
-      tipo_evento: "reuni\xF3n de 15 a\xF1os",
+      tipo_evento: "reuni\uFFFDn de 15 a\uFFFDos",
       requerimientos_evento: "Banquete Formal 3 tiempos",
       num_invitados: 50,
       fecha_horario: "hora de comida",
       direccion_evento: "hora de fomida",
-      correo: "no comparti\xF3 (sigue por WhatsApp)",
-      presupuesto: "Sin definir (cliente indic\xF3 que no tiene)"
+      correo: "no comparti\uFFFD (sigue por WhatsApp)",
+      presupuesto: "Sin definir (cliente indic\uFFFD que no tiene)"
     });
     assert2.equal(getNextPendingField(extracted, filled), "fecha");
     assert2.ok(!filled.has("Fecha y horario"));
-    assert2.ok(!filled.has("Lugar/direcci\xF3n del evento"));
+    assert2.ok(!filled.has("Lugar/direcci\uFFFDn del evento"));
     const premature = runGuards({
-      aiResponse: "Perfecto, ya tengo todo. He anotado que el servicio ser\xE1 Banquete Formal. Con esta informaci\xF3n, nuestro equipo preparar\xE1 una cotizaci\xF3n personalizada para ti.",
+      aiResponse: "Perfecto, ya tengo todo. He anotado que el servicio ser\uFFFD Banquete Formal. Con esta informaci\uFFFDn, nuestro equipo preparar\uFFFD una cotizaci\uFFFDn personalizada para ti.",
       extracted: emptyExtracted({
         nombre: "Rosario",
-        tipo_evento: "reuni\xF3n",
+        tipo_evento: "reuni\uFFFDn",
         requerimientos_evento: "Banquete Formal 3 tiempos",
         num_invitados: 50,
         fecha_horario: "hora de comida",
         direccion_evento: "hora de fomida",
-        presupuesto: "Sin definir (cliente indic\xF3 que no tiene)"
+        presupuesto: "Sin definir (cliente indic\uFFFD que no tiene)"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados",
+        "N\uFFFDmero de invitados",
         "Fecha y horario",
-        "Lugar/direcci\xF3n del evento",
-        "Correo electr\xF3nico",
+        "Lugar/direcci\uFFFDn del evento",
+        "Correo electr\uFFFDnico",
         "Presupuesto (MXN)"
       ]),
       readyForClosing: true,
       currentMessage: "no",
       history: [
-        { role: "assistant", content: "\xBFManejan alg\xFAn presupuesto estimado?" },
+        { role: "assistant", content: "\uFFFDManejan alg\uFFFDn presupuesto estimado?" },
         { role: "user", content: "no" }
       ]
     });
     assert2.ok(!/ya tengo todo/i.test(premature), premature.slice(0, 500));
     assert2.ok(
-      /fecha|d[i√≠]a|horario|cu[a√°]ndo|ciudad|ubicaci|d[o√≥]nde|en qu[e√©] ciudad/i.test(premature),
+      /fecha|d[iÌ]a|horario|cu[a·]ndo|ciudad|ubicaci|d[oÛ]nde|en qu[eÈ] ciudad/i.test(premature),
       premature.slice(0, 500)
     );
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
-          '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye","Sinonimos"',
+          '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Link catalogo","Que Incluye","Sinonimos"',
           '"Banquete Formal 3 tiempos","Solo Alimentos","$450.00","$13,500.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Entrada, fuerte y postre"',
-          '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","B\xE1sico completo"',
+          '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","B\uFFFDsico completo"',
           '"Banquete Formal 3 tiempos","Tradicional","$830.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Tradicional completo"',
           '"Banquete Formal 3 tiempos","Premium","$950.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Premium completo"'
         ].join("\n")
       )
     );
-    const incomplete = "Perfecto, Rosario. Anoto *Banquete Formal 3 tiempos*. Para *Banquete Formal 3 tiempos* tenemos dos caminos: 1. *Solo alimentos* \u2014 $450.00 /pp (solo la comida)\nhttps://bodasesor.com/catalogos/banquete-formal";
+    const incomplete = "Perfecto, Rosario. Anoto *Banquete Formal 3 tiempos*. Para *Banquete Formal 3 tiempos* tenemos dos caminos: 1. *Solo alimentos* \uFFFD $450.00 /pp (solo la comida)\nhttps://bodasesor.com/catalogos/banquete-formal";
     const fixedMenu = runGuards({
       aiResponse: incomplete,
       extracted: emptyExtracted({
         nombre: "Rosario",
-        tipo_evento: "reuni\xF3n",
+        tipo_evento: "reuni\uFFFDn",
         requerimientos_evento: "Banquete Formal 3 tiempos"
       }),
       filledSet: /* @__PURE__ */ new Set([
@@ -152693,18 +152774,18 @@ ${golfText}`,
     assert2.ok(/Servicio completo|solo alimentos/i.test(fixedMenu), fixedMenu.slice(0, 600));
     assert2.ok(/2\.\s*\*?Servicio completo/i.test(fixedMenu), fixedMenu.slice(0, 600));
   });
-  await test("142. V9.45 \u2014 A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("142. V9.45 \uFFFD A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     assert2.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert2.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
     assert2.ok(!isUsableFechaHorario("13:00 a 20:00 hrs"));
-    const junkMsg = "\xDAnicamente ser\xEDa lo de la fecha de evento sigue siendo septiembre por favor";
+    const junkMsg = "\uFFFDnicamente ser\uFFFDa lo de la fecha de evento sigue siendo septiembre por favor";
     assert2.ok(looksLikeFechaDiscourseJunk(junkMsg));
     assert2.equal(parseFechaFromText(junkMsg), "Septiembre");
     assert2.ok(isUsableFechaHorario("Septiembre"));
     assert2.ok(!isUsableFechaHorario(junkMsg));
     assert2.match(extractFechaCorrectionFragment(junkMsg) ?? "", /septiembre/i);
-    assert2.equal(parseFechaFromText("el evento ser\xEDa el 10 de diciembre"), "10 de diciembre");
+    assert2.equal(parseFechaFromText("el evento ser\uFFFDa el 10 de diciembre"), "10 de diciembre");
     assert2.match(
       mergeFechaHorario("13:00 a 20:00 hrs", "10 de diciembre") ?? "",
       /10 de diciembre.*13:00/i
@@ -152725,7 +152806,7 @@ ${golfText}`,
       fechaFields.find((f6) => f6.field_id === 1048778)?.values?.[0]?.value ?? ""
     );
     assert2.match(fechaVal, /^Septiembre$/i);
-    assert2.ok(!/√önicamente|por favor/i.test(fechaVal), fechaVal);
+    assert2.ok(!/⁄nicamente|por favor/i.test(fechaVal), fechaVal);
     const silentClock = buildSilentWatchPatchPayload(
       "13:00 a 20:00 hrs",
       emptyExtracted({ nombre: "Stephanie" }),
@@ -152735,15 +152816,15 @@ ${golfText}`,
     assert2.equal(silentClock, null, "horario solo no escribe fecha en CRM");
     assert2.ok(
       clientCorrectsLocation(
-        "Y menciona algo de vi\xE1ticos a puebla, el evento es en cdmx."
+        "Y menciona algo de vi\uFFFDticos a puebla, el evento es en cdmx."
       )
     );
     const zonaFix = parseZonaFromText(
-      "Y menciona algo de vi\xE1ticos a puebla, el evento es en cdmx."
+      "Y menciona algo de vi\uFFFDticos a puebla, el evento es en cdmx."
     );
-    assert2.ok(zonaFix && /cdmx|ciudad\s+de\s+m[e√©]xico/i.test(zonaFix), String(zonaFix));
+    assert2.ok(zonaFix && /cdmx|ciudad\s+de\s+m[eÈ]xico/i.test(zonaFix), String(zonaFix));
     const clockReply = runGuards({
-      aiResponse: "Entendido. \xBFEn qu\xE9 ciudad lo arman?",
+      aiResponse: "Entendido. \uFFFDEn qu\uFFFD ciudad lo arman?",
       extracted: emptyExtracted({
         nombre: "Stephanie Gama",
         tipo_evento: "evento corporativo",
@@ -152754,21 +152835,21 @@ ${golfText}`,
         "Nombre del cliente",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados"
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
       currentMessage: "13:00 a 20:00 hrs",
       history: [
-        { role: "assistant", content: "Claro. Stephanie, \xBFtienen d\xEDa u horario ya definido?" },
+        { role: "assistant", content: "Claro. Stephanie, \uFFFDtienen d\uFFFDa u horario ya definido?" },
         { role: "user", content: "13:00 a 20:00 hrs" }
       ]
     });
     assert2.ok(/horario|13:00/i.test(clockReply), clockReply.slice(0, 400));
-    assert2.ok(/d[i√≠]a|fecha|cu[a√°]ndo/i.test(clockReply), clockReply.slice(0, 400));
+    assert2.ok(/d[iÌ]a|fecha|cu[a·]ndo/i.test(clockReply), clockReply.slice(0, 400));
     assert2.ok(!/ya tengo todo/i.test(clockReply));
   });
-  await test("143. V9.49 \u2014 imagen solo embudo; silencio lee dep\xF3sito sin WhatsApp", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("143. V9.49 \uFFFD imagen solo embudo; silencio lee dep\uFFFDsito sin WhatsApp", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
     assert2.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
@@ -152781,7 +152862,7 @@ ${golfText}`,
       {
         intent: "comprobante_pago",
         internalDescription: "SPEI 5000",
-        clientReply: "\xA1Gracias por tu pago!",
+        clientReply: "\uFFFDGracias por tu pago!",
         amountMxn: 5e3,
         paymentMethod: "transferencia"
       },
@@ -152808,32 +152889,32 @@ ${golfText}`,
     const kommoSrc = readFileSync5(path6.join(apiRoot, "src/routes/kommo.ts"), "utf8");
     assert2.ok(/lucyDebeResponderImagenAlCliente/.test(kommoSrc));
     assert2.ok(/stripImageClientReplyForSilence/.test(kommoSrc));
-    assert2.ok(/sin WhatsApp al cliente|le√≠da en silencio/i.test(kommoSrc));
+    assert2.ok(/sin WhatsApp al cliente|leÌda en silencio/i.test(kommoSrc));
   });
-  await test("144. V9.49 \u2014 A15478 Isabel: recomienda tama\xF1o pista seg\xFAn invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
-    const ask = "Me puedes recomendar el tama\xF1o pensando en la cantidad de invitados?";
+  await test("144. V9.49 \uFFFD A15478 Isabel: recomienda tama\uFFFDo pista seg\uFFFDn invitados", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
+    const ask = "Me puedes recomendar el tama\uFFFDo pensando en la cantidad de invitados?";
     assert2.ok(clientAsksDimensionRecommendation(ask));
-    const rec = recommendPistaDimensionsForGuests(120, "XV a\xF1os");
+    const rec = recommendPistaDimensionsForGuests(120, "XV a\uFFFDos");
     assert2.ok(/6m\s*x\s*8m|8m\s*x\s*8m/i.test(rec.dims), rec.dims);
     const extracted = emptyExtracted({
       nombre: "Isabel",
       correo: "ijactthar@gmail.com",
-      tipo_evento: "XV a\xF1os",
-      requerimientos_evento: "Banquete Formal, DJ, pista iluminada, animadores, barra de snacks, c\xF3ctel de bienvenida",
-      direccion_evento: "Lomas Verdes, Zona Esmeralda, Sat\xE9lite",
+      tipo_evento: "XV a\uFFFDos",
+      requerimientos_evento: "Banquete Formal, DJ, pista iluminada, animadores, barra de snacks, c\uFFFDctel de bienvenida",
+      direccion_evento: "Lomas Verdes, Zona Esmeralda, Sat\uFFFDlite",
       fecha_horario: "27 de noviembre de 2027",
       num_invitados: 120,
       presupuesto: 1
     });
     const allCore = /* @__PURE__ */ new Set([
       "Nombre del cliente",
-      "Correo electr\xF3nico",
+      "Correo electr\uFFFDnico",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "Lugar/direcci\xF3n del evento",
+      "Lugar/direcci\uFFFDn del evento",
       "Fecha y horario",
-      "N\xFAmero de invitados",
+      "N\uFFFDmero de invitados",
       "Presupuesto (MXN)"
     ]);
     const dimReply = buildDimensionRecommendationReply(extracted, ask);
@@ -152847,7 +152928,7 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \xD7 ancho). \xBFCu\xE1nto debe medir?"
+          content: "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \uFFFD ancho). \uFFFDCu\uFFFDnto debe medir?"
         }
       ]
     });
@@ -152855,16 +152936,16 @@ ${golfText}`,
     assert2.ok(!/ya tengo lo principal/i.test(guarded), guarded);
     assert2.ok(/\?/.test(guarded), guarded);
     const anti = applyLucyGlobalAntiRepetition({
-      mensaje: "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \xD7 ancho). \xBFCu\xE1nto debe medir?",
+      mensaje: "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \uFFFD ancho). \uFFFDCu\uFFFDnto debe medir?",
       history: [
         {
           role: "assistant",
-          content: "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \xD7 ancho). \xBFCu\xE1nto debe medir?"
+          content: "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \uFFFD ancho). \uFFFDCu\uFFFDnto debe medir?"
         },
         { role: "user", content: ask },
         {
           role: "assistant",
-          content: "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \xD7 ancho). \xBFCu\xE1nto debe medir?"
+          content: "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \uFFFD ancho). \uFFFDCu\uFFFDnto debe medir?"
         }
       ],
       filledSet: allCore,
@@ -152876,8 +152957,8 @@ ${golfText}`,
     assert2.ok(/6m|8m|referencia|medidas/i.test(anti.mensaje), anti.mensaje);
     assert2.ok(!/ya tengo lo principal/i.test(anti.mensaje), anti.mensaje);
   });
-  await test("146. V9.49 \u2014 A15494 Paola: mucho gusto no es apellido", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("146. V9.49 \uFFFD A15494 Paola: mucho gusto no es apellido", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     const reply = "Paola mucho gusto";
     assert2.ok(isMuchoGustoNameReply(reply));
     assert2.equal(sanitizeCrmNombre(reply), "Paola");
@@ -152887,7 +152968,7 @@ ${golfText}`,
     assert2.equal(
       recoverClienteNombreFromHistory(
         [
-          { role: "assistant", content: "\xBFMe regalas tu nombre?" },
+          { role: "assistant", content: "\uFFFDMe regalas tu nombre?" },
           { role: "user", content: reply }
         ],
         reply
@@ -152898,21 +152979,21 @@ ${golfText}`,
     assert2.equal(resolveKommoLeadNamePatch("Paola", "Paola Mucho Gusto"), null);
     assert2.equal(pickBetterNombre("Paola Mucho Gusto", "Paola"), "Paola");
     const guarded = runGuards({
-      aiResponse: "\xA1Mucho gusto, Paola Mucho Gusto! \xBFQu\xE9 van a celebrar?",
+      aiResponse: "\uFFFDMucho gusto, Paola Mucho Gusto! \uFFFDQu\uFFFD van a celebrar?",
       extracted: emptyExtracted(),
       filledSet: /* @__PURE__ */ new Set(),
       readyForClosing: false,
       currentMessage: reply,
       history: [
-        { role: "assistant", content: "\xBFMe regalas tu nombre?" }
+        { role: "assistant", content: "\uFFFDMe regalas tu nombre?" }
       ]
     });
     assert2.ok(/mucho gusto,\s*Paola[^M]/i.test(guarded), guarded);
     assert2.ok(!/Mucho Gusto!/i.test(guarded.replace(/mucho gusto,\s*Paola/i, "")), guarded);
   });
-  await test("147. V9.49 \u2014 A15503 Good: loza y plato postre = vajilla, no postres", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
-    const brief = "Hola, me interesa cotizar un servicio\nQuiere loza para un evento para 50 personas\nSer\xEDa:\nPlato trinche\nPlato postre\nCubiertos (cuchara, tenedor, cuchara postre).";
+  await test("147. V9.49 \uFFFD A15503 Good: loza y plato postre = vajilla, no postres", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
+    const brief = "Hola, me interesa cotizar un servicio\nQuiere loza para un evento para 50 personas\nSer\uFFFDa:\nPlato trinche\nPlato postre\nCubiertos (cuchara, tenedor, cuchara postre).";
     assert2.ok(isTablewareRequestText(brief));
     const services = parseServicesFromText(brief);
     assert2.ok(services.includes("Vajillas"), services.join("|"));
@@ -152923,7 +153004,7 @@ ${golfText}`,
     const declineFamilies = clientDeclinesServiceFamilies("No necesito mesa de postre");
     assert2.ok(declineFamilies.includes("dulces"), declineFamilies.join(","));
     assert2.ok(!declineFamilies.includes("mobiliario"), declineFamilies.join(","));
-    const onlyVajilla = parseServicesFromText("\xDAnicamente vajilla");
+    const onlyVajilla = parseServicesFromText("\uFFFDnicamente vajilla");
     assert2.deepEqual(onlyVajilla, ["Vajillas"]);
     const declineGuard = runGuards({
       aiResponse: "Perfecto, anoto mesa de postres.",
@@ -152932,15 +153013,15 @@ ${golfText}`,
         requerimientos_evento: "Mesa de postres, Vajillas",
         num_invitados: 50
       }),
-      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios", "N\xFAmero de invitados"]),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios", "N\uFFFDmero de invitados"]),
       readyForClosing: false,
       currentMessage: "No necesito mesa de postre"
     });
     assert2.ok(/postres|dulces/i.test(declineGuard), declineGuard);
     assert2.ok(!/mobiliario/i.test(declineGuard), declineGuard);
   });
-  await test("148. V9.50 \u2014 fecha y horario en campos CRM separados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("148. V9.50 \uFFFD fecha y horario en campos CRM separados", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     const split = splitCombinedFechaHorario("15 de agosto, 5:00 p.m.");
     assert2.equal(split.fecha, "15 de agosto");
     assert2.ok(split.horario && /5:00/i.test(split.horario));
@@ -152977,8 +153058,8 @@ ${golfText}`,
     assert2.ok(cf.some((f6) => f6.field_id === 1049358));
     assert2.ok(!cf.some((f6) => f6.field_id === 1048778));
   });
-  await test("149. V9.51 \u2014 A15508 Betiana: 40 invitadas y anti-repetici\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("149. V9.51 \uFFFD A15508 Betiana: 40 invitadas y anti-repetici\uFFFDn", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     assert2.equal(parseInvitadosFromText("40 sillas, 40 invitadas"), "40");
     assert2.equal(parseInvitadosFromText("40 invitadas"), "40");
     assert2.equal(
@@ -153003,37 +153084,37 @@ ${golfText}`,
       "Fecha del evento"
     ]);
     const history = [
-      { role: "assistant", content: "\xBFCu\xE1ntos invitados tienen contemplados?" },
+      { role: "assistant", content: "\uFFFDCu\uFFFDntos invitados tienen contemplados?" },
       { role: "user", content: "40 sillas, 40 invitadas" }
     ];
     syncInvitadosFromHistory(filled, extracted, history, "C.P 05120 CDMX");
     assert2.equal(extracted.num_invitados, 40);
-    assert2.ok(filled.has("N\xFAmero de invitados"));
+    assert2.ok(filled.has("N\uFFFDmero de invitados"));
     assert2.notEqual(getNextPendingField(extracted, filled), "invitados");
     const guarded = runGuards({
-      aiResponse: "Con gusto. \xBFTienen un estimado de invitados? Si a\xFAn no, un rango sirve.",
+      aiResponse: "Con gusto. \uFFFDTienen un estimado de invitados? Si a\uFFFDn no, un rango sirve.",
       extracted,
       filledSet: filled,
       readyForClosing: false,
       currentMessage: "C.P 05120 CDMX",
       history: [
         ...history,
-        { role: "assistant", content: "\xBFEn qu\xE9 ciudad lo arman?" }
+        { role: "assistant", content: "\uFFFDEn qu\uFFFD ciudad lo arman?" }
       ]
     });
-    assert2.ok(!/estimado de invitados|cu[a√°]ntos invitados/i.test(guarded), guarded);
+    assert2.ok(!/estimado de invitados|cu[a·]ntos invitados/i.test(guarded), guarded);
   });
-  await test("150. V9.52 \u2014 A15509 Gaby: apertura, RFQ equipo, a\xFAn no invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
-    assert2.equal(parseTipoEventoFromText("Ser\xEDa para la apertura de un negocio"), "apertura de negocio");
-    assert2.ok(clientSaidAperturaNegocio("Ser\xEDa para la apertura de un negocio"));
+  await test("150. V9.52 \uFFFD A15509 Gaby: apertura, RFQ equipo, a\uFFFDn no invitados", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
+    assert2.equal(parseTipoEventoFromText("Ser\uFFFDa para la apertura de un negocio"), "apertura de negocio");
+    assert2.ok(clientSaidAperturaNegocio("Ser\uFFFDa para la apertura de un negocio"));
     const rfq = [
       "PINOTEPA:",
       "",
       "2 mesas (tablones)",
       "30 sillas tipo tiffany",
       "1 bocina",
-      "2 micr\xF3fonos",
+      "2 micr\uFFFDfonos",
       "1 podium",
       "",
       "El evento es el dia 14 de septiembre"
@@ -153043,55 +153124,55 @@ ${golfText}`,
     assert2.equal(parseZonaFromText(rfq), "PINOTEPA");
     const items = parseEquipmentRfqLineItems(rfq);
     assert2.ok(items.some((i5) => /bocina/i.test(i5)));
-    assert2.ok(items.some((i5) => /micr[o√≥]fono/i.test(i5)));
+    assert2.ok(items.some((i5) => /micr[oÛ]fono/i.test(i5)));
     assert2.ok(items.some((i5) => /podium/i.test(i5)));
     const extracted = emptyExtracted({
-      requerimientos_evento: "Audio y sonido, Iluminaci\xF3n, Video"
+      requerimientos_evento: "Audio y sonido, Iluminaci\uFFFDn, Video"
     });
     const filled = /* @__PURE__ */ new Set(["Requerimientos o servicios"]);
     syncRichBriefIntoExtracted(extracted, filled, rfq);
     assert2.equal(extracted.direccion_evento, "PINOTEPA");
     assert2.ok(/14 de septiembre/i.test(extracted.fecha_evento ?? ""));
-    assert2.ok(/bocina|micr[o√≥]fono|podium/i.test(extracted.requerimientos_evento ?? ""));
+    assert2.ok(/bocina|micr[oÛ]fono|podium/i.test(extracted.requerimientos_evento ?? ""));
     assert2.equal(
-      parseInvitadosFromText("A\xFAn no", { askedInvitados: true }),
-      "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)"
+      parseInvitadosFromText("A\uFFFDn no", { askedInvitados: true }),
+      "Sin definir (cliente indic\uFFFD aproximaci\uFFFDn pendiente)"
     );
     assert2.ok(
-      detectInvitadosUnavailable(["A\xFAn no"], [
-        { role: "assistant", content: "\xBFCu\xE1ntos invitados tienen contemplados?" }
+      detectInvitadosUnavailable(["A\uFFFDn no"], [
+        { role: "assistant", content: "\uFFFDCu\uFFFDntos invitados tienen contemplados?" }
       ])
     );
     const bodaFix = runGuards({
-      aiResponse: "\xA1Mucho gusto, Gaby! Anoto tu boda el 14 de septiembre con audio e iluminaci\xF3n. \xBFCu\xE1ntos invitados?",
+      aiResponse: "\uFFFDMucho gusto, Gaby! Anoto tu boda el 14 de septiembre con audio e iluminaci\uFFFDn. \uFFFDCu\uFFFDntos invitados?",
       extracted: emptyExtracted({ nombre: "Gaby", tipo_evento: "boda" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento"]),
       readyForClosing: false,
-      currentMessage: "Ser\xEDa para la apertura de un negocio",
+      currentMessage: "Ser\uFFFDa para la apertura de un negocio",
       history: [
         { role: "user", content: rfq },
-        { role: "assistant", content: "\xBFCu\xE1ntos invitados?" }
+        { role: "assistant", content: "\uFFFDCu\uFFFDntos invitados?" }
       ]
     });
     assert2.ok(!/\bboda\b/i.test(bodaFix), bodaFix);
     const invWaive = runGuards({
-      aiResponse: "Con gusto. \xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?\n\nPerfecto, Gaby. No te preocupes por el n\xFAmero de invitados por ahora. \xBFTienes correo?",
+      aiResponse: "Con gusto. \uFFFDM\uFFFDs o menos para cu\uFFFDntas personas ser\uFFFDa?\n\nPerfecto, Gaby. No te preocupes por el n\uFFFDmero de invitados por ahora. \uFFFDTienes correo?",
       extracted: emptyExtracted({ nombre: "Gaby", tipo_evento: "apertura de negocio" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
       readyForClosing: false,
-      currentMessage: "A\xFAn no",
+      currentMessage: "A\uFFFDn no",
       history: [
-        { role: "assistant", content: "\xBFCu\xE1ntos invitados tienen contemplados?" },
-        { role: "user", content: "Ser\xEDa para la apertura de un negocio" }
+        { role: "assistant", content: "\uFFFDCu\uFFFDntos invitados tienen contemplados?" },
+        { role: "user", content: "Ser\uFFFDa para la apertura de un negocio" }
       ]
     });
-    assert2.ok(!/cu[a√°]ntas personas|estimado de invitados/i.test(invWaive), invWaive);
+    assert2.ok(!/cu[a·]ntas personas|estimado de invitados/i.test(invWaive), invWaive);
   });
-  await test("151. V9.53 \u2014 A15516 Ccam: captura horario pm y anti-repetici\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("151. V9.53 \uFFFD A15516 Ccam: captura horario pm y anti-repetici\uFFFDn", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     const extracted = emptyExtracted({
       nombre: "Ccam",
-      tipo_evento: "XV a\xF1os",
+      tipo_evento: "XV a\uFFFDos",
       requerimientos_evento: "Carpas",
       fecha_evento: "9 de enero",
       num_invitados: 50,
@@ -153102,111 +153183,111 @@ ${golfText}`,
       "Tipo de evento",
       "Requerimientos o servicios",
       CRM_FECHA_LABEL,
-      "N\xFAmero de invitados"
+      "N\uFFFDmero de invitados"
     ]);
     const history = [
-      { role: "assistant", content: "\xBFEn qu\xE9 horario lo planean?" }
+      { role: "assistant", content: "\uFFFDEn qu\uFFFD horario lo planean?" }
     ];
     syncHorarioFromHistory(filled, extracted, history, "4 pm");
     assert2.equal(extracted.horario_evento, "4 pm");
     assert2.ok(filled.has(CRM_HORARIO_LABEL));
     assert2.notEqual(getNextPendingField(extracted, filled), "horario");
     const guarded = runGuards({
-      aiResponse: "Perfecto, Ccam. \xBFA qu\xE9 hora ser\xEDa el evento?",
+      aiResponse: "Perfecto, Ccam. \uFFFDA qu\uFFFD hora ser\uFFFDa el evento?",
       extracted,
       filledSet: filled,
       readyForClosing: false,
       currentMessage: "4 pm",
       history
     });
-    assert2.ok(!/a qu[e√©] hora|horario lo planean/i.test(guarded), guarded);
-    assert2.ok(!/Sigo aqu[i√≠]/i.test(guarded), guarded);
+    assert2.ok(!/a qu[eÈ] hora|horario lo planean/i.test(guarded), guarded);
+    assert2.ok(!/Sigo aqu[iÌ]/i.test(guarded), guarded);
     const guarded2 = runGuards({
-      aiResponse: "\xBFEn qu\xE9 horario lo planean?",
+      aiResponse: "\uFFFDEn qu\uFFFD horario lo planean?",
       extracted: emptyExtracted({
         nombre: "Ccam",
-        tipo_evento: "XV a\xF1os",
+        tipo_evento: "XV a\uFFFDos",
         fecha_evento: "9 de enero"
       }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", CRM_FECHA_LABEL]),
       readyForClosing: false,
       currentMessage: "A las 4 de la tarde",
-      history: [{ role: "assistant", content: "\xBFEn qu\xE9 horario lo planean?" }]
+      history: [{ role: "assistant", content: "\uFFFDEn qu\uFFFD horario lo planean?" }]
     });
     assert2.ok(!/horario/i.test(guarded2) || /anoto|perfecto|invitados|ciudad|correo/i.test(guarded2), guarded2);
   });
-  await test("152. V9.55 \u2014 A15486 G\xE9nesis: promo/vajilla/detalles/presupuesto/PDF", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("152. V9.55 \uFFFD A15486 G\uFFFDnesis: promo/vajilla/detalles/presupuesto/PDF", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     const promo = [
-      "Hola, escribo por la promo de cierre r\xE1pido (10% de descuento).",
-      "C\xF3digo: CierreRapido",
-      "Pedido m\xEDnimo: 35 personas.",
-      "Horario en que env\xEDo este mensaje: 22 ago 2026, 5:37 p.m. (hora Ciudad de M\xE9xico).",
-      "Me gustar\xEDa cotizar un evento."
+      "Hola, escribo por la promo de cierre r\uFFFDpido (10% de descuento).",
+      "C\uFFFDdigo: CierreRapido",
+      "Pedido m\uFFFDnimo: 35 personas.",
+      "Horario en que env\uFFFDo este mensaje: 22 ago 2026, 5:37 p.m. (hora Ciudad de M\uFFFDxico).",
+      "Me gustar\uFFFDa cotizar un evento."
     ].join("\n");
     assert2.ok(isPromoTemplateMessage(promo));
     assert2.ok(!isRichQuoteBrief(promo));
     assert2.equal(parseInvitadosFromText(promo), null);
     assert2.equal(parseZonaFromText(promo), null);
-    const vajillaMsg = "Me gustar\xEDa Cotizar la vajilla para una boda en San Miguel de Allende en Ex Hacienda la Petaca.\n\n15 de mayo del 2027.\n\n50 invitados";
+    const vajillaMsg = "Me gustar\uFFFDa Cotizar la vajilla para una boda en San Miguel de Allende en Ex Hacienda la Petaca.\n\n15 de mayo del 2027.\n\n50 invitados";
     assert2.ok(isTablewareRequestText(vajillaMsg));
     assert2.ok(parseServicesFromText(vajillaMsg).includes("Vajillas"));
     assert2.ok(/San Miguel|Petaca|Allende/i.test(parseZonaFromText(vajillaMsg) ?? ""));
     assert2.equal(parseInvitadosFromText(vajillaMsg), "50");
     assert2.ok(/15 de mayo/i.test(parseFechaFromText(vajillaMsg) ?? ""));
     assert2.equal(
-      parsePresupuestoFromText("No, no hay l\xEDmite de presupuesto. Esto es lo que tengo en mente", {
+      parsePresupuestoFromText("No, no hay l\uFFFDmite de presupuesto. Esto es lo que tengo en mente", {
         askedField: "presupuesto"
       }),
-      "Sin l\xEDmite (cliente indic\xF3 flexibilidad)"
+      "Sin l\uFFFDmite (cliente indic\uFFFD flexibilidad)"
     );
     assert2.equal(parsePresupuestoFromText("2027"), null);
     assert2.equal(parsePresupuestoFromText("2027", { askedField: "presupuesto" }), null);
     const yearCleared = applyCrmWriteInvariants(
       emptyExtracted({ presupuesto: 2027, fecha_evento: "15 de mayo del 2027" }),
-      ["15 de mayo del 2027", "No, no hay l\xEDmite de presupuesto"]
+      ["15 de mayo del 2027", "No, no hay l\uFFFDmite de presupuesto"]
     );
     assert2.equal(yearCleared.extracted.presupuesto, null);
     const pdfZona = applyCrmWriteInvariants(
-      emptyExtracted({ direccion_evento: "Ciudad de M\xE9xico, PDF" }),
-      ["Me podr\xEDa enviar las cotizaciones en PDF por favor"]
+      emptyExtracted({ direccion_evento: "Ciudad de M\uFFFDxico, PDF" }),
+      ["Me podr\uFFFDa enviar las cotizaciones en PDF por favor"]
     );
     assert2.ok(!/pdf/i.test(pdfZona.extracted.direccion_evento ?? ""));
     assert2.ok(clientAsksNamedServiceDetail("Detalles de banquete formal"));
-    assert2.ok(clientAsksNamedServiceDetail("M\xE1s detalles de mesa de dulces"));
+    assert2.ok(clientAsksNamedServiceDetail("M\uFFFDs detalles de mesa de dulces"));
     assert2.ok(clientAsksServiceInfo("Detalles de banquete formal"));
-    assert2.ok(clientAsksPaymentOrQuoteDelivery("Me podr\xEDa enviar las cotizaciones en PDF por favor"));
+    assert2.ok(clientAsksPaymentOrQuoteDelivery("Me podr\uFFFDa enviar las cotizaciones en PDF por favor"));
     const vajillaReply = runGuards({
-      aiResponse: "\u2022 Mesas\n\u2022 Sillas\n\u2022 Periqueras",
-      extracted: emptyExtracted({ nombre: "G\xE9nesis" }),
+      aiResponse: "\uFFFD Mesas\n\uFFFD Sillas\n\uFFFD Periqueras",
+      extracted: emptyExtracted({ nombre: "G\uFFFDnesis" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       readyForClosing: false,
       currentMessage: vajillaMsg,
-      history: [{ role: "assistant", content: "\xBFMe regalas tu nombre?" }]
+      history: [{ role: "assistant", content: "\uFFFDMe regalas tu nombre?" }]
     });
-    assert2.ok(!/^\s*‚Ä¢\s*Mesas/i.test(vajillaReply), vajillaReply.slice(0, 300));
+    assert2.ok(!/^\s*ï\s*Mesas/i.test(vajillaReply), vajillaReply.slice(0, 300));
     assert2.ok(/vajilla|loza|cristaler/i.test(vajillaReply) || /San Miguel|boda|correo|nombre/i.test(vajillaReply), vajillaReply.slice(0, 400));
     const detailReply = runGuards({
-      aiResponse: "\xA1Con gusto, G\xE9nesis! Aqu\xED seguimos cuando lo necesites.",
+      aiResponse: "\uFFFDCon gusto, G\uFFFDnesis! Aqu\uFFFD seguimos cuando lo necesites.",
       extracted: emptyExtracted({
-        nombre: "G\xE9nesis",
+        nombre: "G\uFFFDnesis",
         tipo_evento: "boda",
         requerimientos_evento: "Banquete Formal, Vajillas, Centros de mesa",
         direccion_evento: "San Miguel de Allende",
         fecha_evento: "15 de mayo del 2027",
         num_invitados: 50,
         correo: "genesis.valdez.ramos@gmail.com",
-        presupuesto: "Sin l\xEDmite (cliente indic\xF3 flexibilidad)"
+        presupuesto: "Sin l\uFFFDmite (cliente indic\uFFFD flexibilidad)"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento",
+        "Lugar/direcci\uFFFDn del evento",
         CRM_FECHA_LABEL,
         CRM_HORARIO_LABEL,
-        "N\xFAmero de invitados",
-        "Correo electr\xF3nico",
+        "N\uFFFDmero de invitados",
+        "Correo electr\uFFFDnico",
         "Presupuesto (MXN)"
       ]),
       readyForClosing: true,
@@ -153215,56 +153296,56 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "Perfecto, ya tengo todo. Qued\xF3 anotado *Banquete Formal, Vajillas*."
+          content: "Perfecto, ya tengo todo. Qued\uFFFD anotado *Banquete Formal, Vajillas*."
         }
       ]
     });
-    assert2.ok(!/Aqu[i√≠] seguimos cuando lo necesites/i.test(detailReply), detailReply.slice(0, 300));
+    assert2.ok(!/Aqu[iÌ] seguimos cuando lo necesites/i.test(detailReply), detailReply.slice(0, 300));
     assert2.ok(
-      /banquete|nivel|precio|incluye|tradicional|premium|cat[a√°]logo/i.test(detailReply),
+      /banquete|nivel|precio|incluye|tradicional|premium|cat[a·]logo/i.test(detailReply),
       detailReply.slice(0, 400)
     );
     const masDetalle = runGuards({
-      aiResponse: "Seg\xFAn el cat\xE1logo que ya tenemos de *Banquete Formal Bodasesor*...",
+      aiResponse: "Seg\uFFFDn el cat\uFFFDlogo que ya tenemos de *Banquete Formal Bodasesor*...",
       extracted: emptyExtracted({
-        nombre: "G\xE9nesis",
-        requerimientos_evento: "Banquete Formal, Vajillas, Iluminaci\xF3n, Audio y sonido"
+        nombre: "G\uFFFDnesis",
+        requerimientos_evento: "Banquete Formal, Vajillas, Iluminaci\uFFFDn, Audio y sonido"
       }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
       readyForClosing: true,
       cierreYaEnviado: true,
-      currentMessage: "M\xE1s detalle",
+      currentMessage: "M\uFFFDs detalle",
       history: [
         {
           role: "assistant",
-          content: "Perfecto, veo que necesitas Iluminaci\xF3n y Audio y sonido. Te dejo el cat\xE1logo general:\nhttps://bodasesor.com/catalogos \xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?"
+          content: "Perfecto, veo que necesitas Iluminaci\uFFFDn y Audio y sonido. Te dejo el cat\uFFFDlogo general:\nhttps://bodasesor.com/catalogos \uFFFDQuieres que te mande el cat\uFFFDlogo con m\uFFFDs detalle?"
         }
       ]
     });
     assert2.ok(!/Banquete Formal Bodasesor/i.test(masDetalle), masDetalle.slice(0, 400));
     assert2.ok(
-      /[Ii]luminaci|[Aa]udio|sonido|cat[a√°]logo/i.test(masDetalle),
+      /[Ii]luminaci|[Aa]udio|sonido|cat[a·]logo/i.test(masDetalle),
       masDetalle.slice(0, 400)
     );
   });
-  await test("153. V9.55 \u2014 A15539 Jorge: horario/carpa/DJ no/mobiliario/Atlixco/callback", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
-    assert2.equal(parseTipoEventoFromText("primera comuni\xF3n"), "primera comuni\xF3n");
-    assert2.ok(isScheduleLabeledClock("a medio d\xEDa"));
+  await test("153. V9.55 \uFFFD A15539 Jorge: horario/carpa/DJ no/mobiliario/Atlixco/callback", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
+    assert2.equal(parseTipoEventoFromText("primera comuni\uFFFDn"), "primera comuni\uFFFDn");
+    assert2.ok(isScheduleLabeledClock("a medio d\uFFFDa"));
     assert2.ok(isScheduleLabeledClock("cocktail a las 12:00\ncomida a las 2:00"));
     assert2.ok(!isVagueFoodTerm("comida a las 2:00"));
     assert2.ok(/cocktail|12|comida|2/i.test(parseHorarioFromText("cocktail a las 12:00\ncomida a las 2:00") ?? ""));
-    assert2.equal(parseHorarioFromText("a medio d\xEDa"), "a medio d\xEDa");
+    assert2.equal(parseHorarioFromText("a medio d\uFFFDa"), "a medio d\uFFFDa");
     assert2.ok(clientMentionsCarpas("carpa?"));
-    assert2.ok(clientMentionsCarpas("capra s\xED"));
-    assert2.ok(parseServicesFromText("necesito bar tender, DJ no, capra s\xED").includes("Cocteler\xEDa"));
-    assert2.ok(parseServicesFromText("necesito bar tender, DJ no, capra s\xED").includes("Carpas"));
-    assert2.ok(!parseServicesFromText("necesito bar tender, DJ no, capra s\xED").some((s6) => /^DJ$/i.test(s6)));
-    assert2.ok(clientDeclinesServiceFamilies("necesito bar tender, DJ no, capra s\xED").includes("entretenimiento"));
+    assert2.ok(clientMentionsCarpas("capra s\uFFFD"));
+    assert2.ok(parseServicesFromText("necesito bar tender, DJ no, capra s\uFFFD").includes("Cocteler\uFFFDa"));
+    assert2.ok(parseServicesFromText("necesito bar tender, DJ no, capra s\uFFFD").includes("Carpas"));
+    assert2.ok(!parseServicesFromText("necesito bar tender, DJ no, capra s\uFFFD").some((s6) => /^DJ$/i.test(s6)));
+    assert2.ok(clientDeclinesServiceFamilies("necesito bar tender, DJ no, capra s\uFFFD").includes("entretenimiento"));
     assert2.ok(/Atlixco/i.test(parseZonaFromText("atlixco") ?? ""));
-    assert2.ok(isVenueSpaceDetail("ser\xE1 en un jardin"));
-    assert2.ok(isVenueSpaceDetail("jard\xEDn"));
-    assert2.ok(clientRequestsCallback("que me llamen si est\xE1n interesados"));
+    assert2.ok(isVenueSpaceDetail("ser\uFFFD en un jardin"));
+    assert2.ok(isVenueSpaceDetail("jard\uFFFDn"));
+    assert2.ok(clientRequestsCallback("que me llamen si est\uFFFDn interesados"));
     assert2.ok(clientRequestsCallback("este es mi tel"));
     assert2.ok(isBodasesorCompanyPhone("55 4008 0373"));
     assert2.ok(isBodasesorCompanyPhone("+52 55 4008 0373"));
@@ -153277,27 +153358,27 @@ ${golfText}`,
       "el servicio completo incluye mobiliario correcto?",
       "Paella"
     );
-    assert2.ok(mobiliarioInc && /mobiliario/i.test(mobiliarioInc) && /s[i√≠]|correcto|incluye/i.test(mobiliarioInc), mobiliarioInc ?? "");
+    assert2.ok(mobiliarioInc && /mobiliario/i.test(mobiliarioInc) && /s[iÌ]|correcto|incluye/i.test(mobiliarioInc), mobiliarioInc ?? "");
     const carpaQ = runGuards({
-      aiResponse: "\xBFQu\xE9 tipo de evento es?",
+      aiResponse: "\uFFFDQu\uFFFD tipo de evento es?",
       extracted: emptyExtracted({
         nombre: "Jorge",
         requerimientos_evento: "Paella",
         num_invitados: 100
       }),
-      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios", "N\xFAmero de invitados"]),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios", "N\uFFFDmero de invitados"]),
       readyForClosing: false,
       currentMessage: "carpa?",
-      history: [{ role: "assistant", content: "\xBFCu\xE1l te late m\xE1s?" }]
+      history: [{ role: "assistant", content: "\uFFFDCu\uFFFDl te late m\uFFFDs?" }]
     });
     assert2.ok(/carpa/i.test(carpaQ), carpaQ.slice(0, 300));
     assert2.ok(/Manejamos \*carpas\*|anoto.*[Cc]arpas/i.test(carpaQ), carpaQ.slice(0, 300));
-    assert2.ok(!/^\s*¬øQu√© tipo de evento es\?\s*$/i.test(carpaQ.trim()), carpaQ.slice(0, 300));
+    assert2.ok(!/^\s*øQuÈ tipo de evento es\?\s*$/i.test(carpaQ.trim()), carpaQ.slice(0, 300));
     const horarioReply = runGuards({
-      aiResponse: "Con gusto. Claro. Para *comida* del evento, \xBFqu\xE9 te gustar\xEDa?",
+      aiResponse: "Con gusto. Claro. Para *comida* del evento, \uFFFDqu\uFFFD te gustar\uFFFDa?",
       extracted: emptyExtracted({
         nombre: "Jorge",
-        tipo_evento: "primera comuni\xF3n",
+        tipo_evento: "primera comuni\uFFFDn",
         requerimientos_evento: "Paella",
         fecha_evento: "Marzo-Abril 2027",
         num_invitados: 100
@@ -153307,32 +153388,32 @@ ${golfText}`,
         "Tipo de evento",
         "Requerimientos o servicios",
         CRM_FECHA_LABEL,
-        "N\xFAmero de invitados"
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
       currentMessage: "cocktail a las 12:00\ncomida a las 2:00",
-      history: [{ role: "assistant", content: "\xBFEn qu\xE9 horario lo planean?" }]
+      history: [{ role: "assistant", content: "\uFFFDEn qu\uFFFD horario lo planean?" }]
     });
     assert2.ok(/horario|12|cocktail|2/i.test(horarioReply), horarioReply.slice(0, 400));
     assert2.ok(!/banquete|taquiza|casual/i.test(horarioReply), horarioReply.slice(0, 400));
     const checklist = emptyExtracted({
       nombre: "Jorge",
-      tipo_evento: "primera comuni\xF3n",
+      tipo_evento: "primera comuni\uFFFDn",
       requerimientos_evento: "Paella, Mobiliario, Carpas",
       num_invitados: 100
     });
     const djNo = runGuards({
-      aiResponse: "\xA1Claro! *DJ* la anoto para tu cotizaci\xF3n.",
+      aiResponse: "\uFFFDClaro! *DJ* la anoto para tu cotizaci\uFFFDn.",
       extracted: checklist,
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados"
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
-      currentMessage: "necesito bar tender, DJ no, capra s\xED",
-      history: [{ role: "assistant", content: "\xBFNecesitan alg\xFAn otro servicio?" }]
+      currentMessage: "necesito bar tender, DJ no, capra s\uFFFD",
+      history: [{ role: "assistant", content: "\uFFFDNecesitan alg\uFFFDn otro servicio?" }]
     });
     assert2.ok(!/\*DJ\*\s+la anoto|DJ.*anoto/i.test(djNo), djNo.slice(0, 400));
     assert2.ok(/sin\s+DJ|no\s+incluimos\s+entretenimiento|Cocteler|bartender|carpa/i.test(djNo), djNo.slice(0, 400));
@@ -153342,7 +153423,7 @@ ${golfText}`,
     );
     assert2.ok(!/\bDJ\b/i.test(checklist.requerimientos_evento ?? "") || /sin\s+DJ/i.test(djNo));
     const mobiliarioQ = runGuards({
-      aiResponse: "Perfecto, Jorge. S\xED, contamos con *mobiliario*. \xBFQu\xE9 es lo que buscas?",
+      aiResponse: "Perfecto, Jorge. S\uFFFD, contamos con *mobiliario*. \uFFFDQu\uFFFD es lo que buscas?",
       extracted: emptyExtracted({
         nombre: "Jorge",
         requerimientos_evento: "Paella"
@@ -153350,20 +153431,20 @@ ${golfText}`,
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
       readyForClosing: false,
       currentMessage: "el servicio completo incluye mobiliario correcto?",
-      history: [{ role: "assistant", content: "\xBFCu\xE1l te late m\xE1s? Solo alimentos o servicio completo" }]
+      history: [{ role: "assistant", content: "\uFFFDCu\uFFFDl te late m\uFFFDs? Solo alimentos o servicio completo" }]
     });
-    assert2.ok(/incluye|correcto|s[i√≠]/i.test(mobiliarioQ) && /mobiliario/i.test(mobiliarioQ), mobiliarioQ.slice(0, 400));
-    assert2.ok(!/Qu[e√©] es lo que buscas|Mesas\n|‚Ä¢\s*Sillas/i.test(mobiliarioQ), mobiliarioQ.slice(0, 400));
+    assert2.ok(/incluye|correcto|s[iÌ]/i.test(mobiliarioQ) && /mobiliario/i.test(mobiliarioQ), mobiliarioQ.slice(0, 400));
+    assert2.ok(!/Qu[eÈ] es lo que buscas|Mesas\n|ï\s*Sillas/i.test(mobiliarioQ), mobiliarioQ.slice(0, 400));
     const ciudad = runGuards({
-      aiResponse: "Con gusto. Claro. Para *comida* del evento, \xBFqu\xE9 te gustar\xEDa? \u2022 Un *banquete*\u2026",
+      aiResponse: "Con gusto. Claro. Para *comida* del evento, \uFFFDqu\uFFFD te gustar\uFFFDa? \uFFFD Un *banquete*\uFFFD",
       extracted: emptyExtracted({
         nombre: "Jorge",
-        tipo_evento: "primera comuni\xF3n",
-        requerimientos_evento: "Paella, Mobiliario, Carpas, Cocteler\xEDa",
+        tipo_evento: "primera comuni\uFFFDn",
+        requerimientos_evento: "Paella, Mobiliario, Carpas, Cocteler\uFFFDa",
         fecha_evento: "Marzo-Abril 2027",
         horario_evento: "cocktail 12:00; comida 14:00",
         num_invitados: 100,
-        direccion_evento: "jard\xEDn"
+        direccion_evento: "jard\uFFFDn"
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
@@ -153371,51 +153452,51 @@ ${golfText}`,
         "Requerimientos o servicios",
         CRM_FECHA_LABEL,
         CRM_HORARIO_LABEL,
-        "N\xFAmero de invitados"
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
       currentMessage: "atlixco",
       history: [
         {
           role: "assistant",
-          content: "Listo, Jorge. Para cotizar bien necesito al menos la *ciudad* del evento. \xBFEn qu\xE9 ciudad est\xE1?"
+          content: "Listo, Jorge. Para cotizar bien necesito al menos la *ciudad* del evento. \uFFFDEn qu\uFFFD ciudad est\uFFFD?"
         }
       ]
     });
     assert2.ok(/Atlixco/i.test(ciudad), ciudad.slice(0, 400));
-    assert2.ok(!/banquete|taquiza|¬øqu[e√©] te gustar[i√≠]a/i.test(ciudad), ciudad.slice(0, 400));
+    assert2.ok(!/banquete|taquiza|øqu[eÈ] te gustar[iÌ]a/i.test(ciudad), ciudad.slice(0, 400));
     const callback = runGuards({
-      aiResponse: "Perfecto, Jorge. \xBFQu\xE9 servicios te gustar\xEDa ir armando?",
+      aiResponse: "Perfecto, Jorge. \uFFFDQu\uFFFD servicios te gustar\uFFFDa ir armando?",
       extracted: emptyExtracted({
         nombre: "Jorge",
         telefono: "+5212227391899",
-        requerimientos_evento: "Paella, Carpas, Cocteler\xEDa",
+        requerimientos_evento: "Paella, Carpas, Cocteler\uFFFDa",
         direccion_evento: "Atlixco",
         num_invitados: 100
       }),
       filledSet: /* @__PURE__ */ new Set([
         "Nombre del cliente",
         "Requerimientos o servicios",
-        "Lugar/direcci\xF3n del evento",
-        "N\xFAmero de invitados"
+        "Lugar/direcci\uFFFDn del evento",
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
-      currentMessage: "que me llamen si est\xE1n interesados. este es mi tel",
-      history: [{ role: "assistant", content: "\xBFQu\xE9 necesitas cotizar?" }]
+      currentMessage: "que me llamen si est\uFFFDn interesados. este es mi tel",
+      history: [{ role: "assistant", content: "\uFFFDQu\uFFFD necesitas cotizar?" }]
     });
     assert2.ok(/asesor|canalizo|55\s*4008/i.test(callback), callback.slice(0, 400));
-    assert2.ok(!/servicios te gustar[i√≠]a|ir armando/i.test(callback), callback.slice(0, 400));
+    assert2.ok(!/servicios te gustar[iÌ]a|ir armando/i.test(callback), callback.slice(0, 400));
   });
-  await test("154. V9.56 \u2014 A15547 Marisol: taquiza sin $, qu\xE9 incluye, pospone sin correo", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("154. V9.56 \uFFFD A15547 Marisol: taquiza sin $, qu\uFFFD incluye, pospone sin correo", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\uFFFDlogo Revisado","Que Incluye","Link catalogo"',
       '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","5 guisados","https://bodasesor.com/catalogos/taquiza"',
       '"Taquiza","Basico","$750.00","$22,500.00","TRUE","Basico completo","https://bodasesor.com/catalogos/taquiza"'
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
     const taquiza = runGuards({
-      aiResponse: "Para *Taquiza* tenemos dos caminos:\n1. *Solo alimentos* \u2014 $300.00 /pp\n2. *Servicio completo* \u2014 desde $750.00 /pp",
+      aiResponse: "Para *Taquiza* tenemos dos caminos:\n1. *Solo alimentos* \uFFFD $300.00 /pp\n2. *Servicio completo* \uFFFD desde $750.00 /pp",
       extracted: emptyExtracted({
         nombre: "Marisol",
         tipo_evento: "taquiza",
@@ -153429,10 +153510,10 @@ ${golfText}`,
         "Nombre del cliente",
         "Tipo de evento",
         "Requerimientos o servicios",
-        "N\xFAmero de invitados",
+        "N\uFFFDmero de invitados",
         CRM_FECHA_LABEL,
         CRM_HORARIO_LABEL,
-        "Lugar/direcci\xF3n del evento"
+        "Lugar/direcci\uFFFDn del evento"
       ]),
       currentMessage: "taquiza para 100 personas para el lunes 31 de agosto a las 4:00 pm",
       history: [{ role: "user", content: "Marisol" }]
@@ -153440,7 +153521,7 @@ ${golfText}`,
     assert2.ok(/solo\s+alimentos/i.test(taquiza) && /servicio\s+completo/i.test(taquiza), taquiza.slice(0, 500));
     assert2.ok(!/\$\s*\d/.test(taquiza), taquiza.slice(0, 500));
     const inclusion = runGuards({
-      aiResponse: "Claro. \xBFQuieres que te d\xE9 detalles de alguno?",
+      aiResponse: "Claro. \uFFFDQuieres que te d\uFFFD detalles de alguno?",
       extracted: emptyExtracted({
         nombre: "Marisol",
         requerimientos_evento: "Taquiza"
@@ -153456,7 +153537,7 @@ ${golfText}`,
     });
     assert2.ok(!/detalles de alguno/i.test(inclusion), inclusion.slice(0, 400));
     const soft = runGuards({
-      aiResponse: "Perfecto, Marisol. \xBFA qu\xE9 correo te mando la informaci\xF3n?",
+      aiResponse: "Perfecto, Marisol. \uFFFDA qu\uFFFD correo te mando la informaci\uFFFDn?",
       extracted: emptyExtracted({ nombre: "Marisol", requerimientos_evento: "Taquiza" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
       currentMessage: "Gracias, me pongo en contacto si nos interesa"
@@ -153464,9 +153545,9 @@ ${golfText}`,
     assert2.ok(/quedo a tu disposici/i.test(soft), soft.slice(0, 400));
     assert2.ok(!/correo|e-?mail/i.test(soft), soft.slice(0, 400));
   });
-  await test("155. V9.57 \u2014 A15550 Jos\xE9: sal\xF3n suministra \u2260 pedido; bufet \u2192 banquete", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
-    const brief = "cotizaci\xF3n cumplea\xF1os 3 de octubre 50 personas Nezahualc\xF3yotl, el sal\xF3n suministra mesas, sillas, manteler\xEDa, platos, vasos y un mesero";
+  await test("155. V9.57 \uFFFD A15550 Jos\uFFFD: sal\uFFFDn suministra ? pedido; bufet ? banquete", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
+    const brief = "cotizaci\uFFFDn cumplea\uFFFDos 3 de octubre 50 personas Nezahualc\uFFFDyotl, el sal\uFFFDn suministra mesas, sillas, manteler\uFFFDa, platos, vasos y un mesero";
     assert2.ok(isVenueProvidesContext(brief));
     const parsed = parseServicesFromText(brief);
     assert2.ok(!parsed.some((s6) => /mobiliario|meseros|vajillas/i.test(s6)), parsed.join(", "));
@@ -153474,27 +153555,27 @@ ${golfText}`,
     const fix = runGuards({
       aiResponse: "Perfecto, veo que necesitas Vajillas y Mobiliario.",
       extracted: emptyExtracted({
-        nombre: "Jos\xE9 Angeles",
+        nombre: "Jos\uFFFD Angeles",
         requerimientos_evento: "Mobiliario, Meseros"
       }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
-      currentMessage: "ya hay mesas, sillas, manteler\xEDa, cubiertos y vasos en el sal\xF3n"
+      currentMessage: "ya hay mesas, sillas, manteler\uFFFDa, cubiertos y vasos en el sal\uFFFDn"
     });
-    assert2.ok(/sal[o√≥]n ya incluye/i.test(fix), fix.slice(0, 400));
+    assert2.ok(/sal[oÛ]n ya incluye/i.test(fix), fix.slice(0, 400));
     assert2.ok(!/necesitas.*vajillas/i.test(fix), fix.slice(0, 400));
   });
-  await test("156. V9.68 \u2014 A15566 Lynn: de 3pm a 11pm, a partir de, sin horario a\xFAn", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
-    assert2.ok(/3:00.*11:00/i.test(parseHorarioFromText("El evento ser\xEDa de 3:00 pm a 11:00 pm") ?? ""));
+  await test("156. V9.69 \uFFFD A15566 Lynn: de 3pm a 11pm, a partir de, sin horario a\uFFFDn", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
+    assert2.ok(/3:00.*11:00/i.test(parseHorarioFromText("El evento ser\uFFFDa de 3:00 pm a 11:00 pm") ?? ""));
     assert2.ok(/16:00|a partir/i.test(parseHorarioFromText("A partir de las 16:00 hrs") ?? ""));
     assert2.ok(/15:00.*11:00/i.test(parseHorarioFromText("De 15:00 p.m a 11:00 p.m") ?? ""));
-    assert2.ok(clientDefersHorario("No cuento con el horario a\xFAn"));
-    assert2.ok(/sin definir|pendiente/i.test(parseHorarioFromText("No cuento con el horario a\xFAn") ?? ""));
+    assert2.ok(clientDefersHorario("No cuento con el horario a\uFFFDn"));
+    assert2.ok(/sin definir|pendiente/i.test(parseHorarioFromText("No cuento con el horario a\uFFFDn") ?? ""));
     const range = runGuards({
-      aiResponse: "\xBFEn qu\xE9 horario lo planean?",
+      aiResponse: "\uFFFDEn qu\uFFFD horario lo planean?",
       extracted: emptyExtracted({
         nombre: "Lynn",
-        tipo_evento: "XV a\xF1os",
+        tipo_evento: "XV a\uFFFDos",
         requerimientos_evento: "Barra de pastas y ensaladas",
         fecha_evento: "16 de enero 2027",
         num_invitados: 100
@@ -153504,16 +153585,16 @@ ${golfText}`,
         "Tipo de evento",
         "Requerimientos o servicios",
         "Fecha del evento",
-        "N\xFAmero de invitados"
+        "N\uFFFDmero de invitados"
       ]),
       readyForClosing: false,
-      currentMessage: "El evento ser\xEDa de 3:00 pm a 11:00 pm",
-      history: [{ role: "assistant", content: "\xBFEn qu\xE9 horario lo planean?" }]
+      currentMessage: "El evento ser\uFFFDa de 3:00 pm a 11:00 pm",
+      history: [{ role: "assistant", content: "\uFFFDEn qu\uFFFD horario lo planean?" }]
     });
-    assert2.ok(!/horario lo planean|Sigo aqu[i√≠]|confirmas ese dato/i.test(range), range.slice(0, 400));
+    assert2.ok(!/horario lo planean|Sigo aqu[iÌ]|confirmas ese dato/i.test(range), range.slice(0, 400));
     assert2.ok(/3:00|11:00|anot/i.test(range), range.slice(0, 400));
     const defer = runGuards({
-      aiResponse: "\xBFEn qu\xE9 horario lo planean?",
+      aiResponse: "\uFFFDEn qu\uFFFD horario lo planean?",
       extracted: emptyExtracted({
         nombre: "Lynn",
         fecha_evento: "16 de enero 2027",
@@ -153525,21 +153606,21 @@ ${golfText}`,
         "Requerimientos o servicios"
       ]),
       readyForClosing: false,
-      currentMessage: "No cuento con el horario a\xFAn",
-      history: [{ role: "assistant", content: "\xBFEn qu\xE9 horario lo planean?" }]
+      currentMessage: "No cuento con el horario a\uFFFDn",
+      history: [{ role: "assistant", content: "\uFFFDEn qu\uFFFD horario lo planean?" }]
     });
     assert2.ok(!/horario lo planean/i.test(defer), defer.slice(0, 400));
   });
-  await test("157. V9.68 \u2014 A15581 Mariana: cuatro, dual propuesta, DJ inclusi\xF3n/acotado", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
-    assert2.ok(/4/.test(parseHorarioFromText("Ser\xEDa temprano, a partir de las cuatro") ?? ""));
+  await test("157. V9.69 \uFFFD A15581 Mariana: cuatro, dual propuesta, DJ inclusi\uFFFDn/acotado", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
+    assert2.ok(/4/.test(parseHorarioFromText("Ser\uFFFDa temprano, a partir de las cuatro") ?? ""));
     assert2.ok(normalizeWrittenClockInText("a partir de las cuatro").includes("4"));
     assert2.ok(clientRequestsDualProposals("dos propuestas formal y otra casual"));
-    assert2.equal(clientScopesServiceToProposalOption("solo lo agregara en la opci\xF3n m\xE1s casual"), "casual");
-    assert2.ok(clientAsksHorarioExactitud("\xBFRequiere una hora exacta?"));
-    assert2.ok(clientAsksDjClarification("\xBFDe alg\xFAn DJ?"));
+    assert2.equal(clientScopesServiceToProposalOption("solo lo agregara en la opci\uFFFDn m\uFFFDs casual"), "casual");
+    assert2.ok(clientAsksHorarioExactitud("\uFFFDRequiere una hora exacta?"));
+    assert2.ok(clientAsksDjClarification("\uFFFDDe alg\uFFFDn DJ?"));
     const marianaBase = emptyExtracted({
-      nombre: "Mariana C\xE9sar",
+      nombre: "Mariana C\uFFFDsar",
       tipo_evento: "evento corporativo",
       requerimientos_evento: "Banquete Formal, Mobiliario",
       num_invitados: 15,
@@ -153549,61 +153630,61 @@ ${golfText}`,
       "Nombre del cliente",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "N\xFAmero de invitados",
+      "N\uFFFDmero de invitados",
       "Fecha del evento"
     ]);
     const horario = runGuards({
-      aiResponse: "\xBFEn qu\xE9 horario lo planean?",
+      aiResponse: "\uFFFDEn qu\uFFFD horario lo planean?",
       extracted: marianaBase,
       filledSet: new Set(marianaFilled),
       readyForClosing: false,
-      currentMessage: "Ser\xEDa temprano, a partir de las cuatro",
-      history: [{ role: "assistant", content: "\xBFA qu\xE9 hora ser\xEDa el evento?" }]
+      currentMessage: "Ser\uFFFDa temprano, a partir de las cuatro",
+      history: [{ role: "assistant", content: "\uFFFDA qu\uFFFD hora ser\uFFFDa el evento?" }]
     });
-    assert2.ok(!/horario lo planean|a qu[e√©] hora ser[i√≠]a/i.test(horario), horario.slice(0, 400));
+    assert2.ok(!/horario lo planean|a qu[eÈ] hora ser[iÌ]a/i.test(horario), horario.slice(0, 400));
     const djInfo = runGuards({
-      aiResponse: "\xA1Claro! *DJ* la anoto para tu cotizaci\xF3n.",
+      aiResponse: "\uFFFDClaro! *DJ* la anoto para tu cotizaci\uFFFDn.",
       extracted: { ...marianaBase, horario_evento: "a partir de las 4" },
       filledSet: /* @__PURE__ */ new Set([...marianaFilled, "Horario del evento"]),
       readyForClosing: false,
-      currentMessage: "Vi en su p\xE1gina que hay la opci\xF3n de DJ \xBFqu\xE9 es lo que incluir\xEDa?"
+      currentMessage: "Vi en su p\uFFFDgina que hay la opci\uFFFDn de DJ \uFFFDqu\uFFFD es lo que incluir\uFFFDa?"
     });
-    assert2.ok(/equipo|micr[o√≥]fono|iluminaci/i.test(djInfo), djInfo.slice(0, 400));
+    assert2.ok(/equipo|micr[oÛ]fono|iluminaci/i.test(djInfo), djInfo.slice(0, 400));
     assert2.ok(!/la anoto para tu cotizaci/i.test(djInfo), djInfo.slice(0, 400));
   });
-  await test("158. V9.68 \u2014 A15620 Mara: promo CierreRapido no captura 35 pax ni hora de env\xEDo", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("158. V9.69 \uFFFD A15620 Mara: promo CierreRapido no captura 35 pax ni hora de env\uFFFDo", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     const maraPromo = [
-      "Hola, escribo por la promo de cierre r\xE1pido (10% de descuento).",
-      "C\xF3digo: CierreRapido",
-      "Pedido m\xEDnimo: 35 personas.",
-      "Horario en que env\xEDo este mensaje: 28 ago 2026, 8:30 a.m. (hora Ciudad de M\xE9xico).",
-      "Me gustar\xEDa cotizar un evento."
+      "Hola, escribo por la promo de cierre r\uFFFDpido (10% de descuento).",
+      "C\uFFFDdigo: CierreRapido",
+      "Pedido m\uFFFDnimo: 35 personas.",
+      "Horario en que env\uFFFDo este mensaje: 28 ago 2026, 8:30 a.m. (hora Ciudad de M\uFFFDxico).",
+      "Me gustar\uFFFDa cotizar un evento."
     ].join("\n");
     assert2.ok(isPromoTemplateMessage(maraPromo));
-    assert2.ok(isPromoMinimumGuestLine("Pedido m\xEDnimo: 35 personas."));
+    assert2.ok(isPromoMinimumGuestLine("Pedido m\uFFFDnimo: 35 personas."));
     assert2.equal(parseInvitadosFromText(maraPromo), null);
     assert2.equal(parseHorarioFromText(maraPromo), null);
     assert2.ok(!/35\s*personas/i.test(buildRichBriefAcknowledgment(maraPromo)));
     const promoReply = runGuards({
-      aiResponse: "Con gusto, te ayudo con la cotizaci\xF3n para tu evento de 35 personas.",
+      aiResponse: "Con gusto, te ayudo con la cotizaci\uFFFDn para tu evento de 35 personas.",
       extracted: emptyExtracted({ num_invitados: 35 }),
-      filledSet: /* @__PURE__ */ new Set(["N\xFAmero de invitados"]),
+      filledSet: /* @__PURE__ */ new Set(["N\uFFFDmero de invitados"]),
       readyForClosing: false,
       currentMessage: maraPromo,
       forceFirstPresentation: true
     });
     assert2.equal(promoReply.match(/35\s*personas/gi)?.length ?? 0, 0, promoReply.slice(0, 400));
   });
-  await test("159. V9.68 \u2014 A15701 Alejandra: Puerto Vallarta no repregunta ciudad", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
+  await test("159. V9.69 \uFFFD A15701 Alejandra: Puerto Vallarta no repregunta ciudad", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
     assert2.equal(parseZonaFromText("Puerto Vallarta")?.toLowerCase(), "puerto vallarta");
     assert2.ok(isUsableDireccionEvento("Puerto Vallarta"));
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
       "Requerimientos o servicios",
-      "N\xFAmero de invitados",
+      "N\uFFFDmero de invitados",
       "Fecha y horario"
     ]);
     const extracted = emptyExtracted({
@@ -153615,7 +153696,7 @@ ${golfText}`,
       horario_evento: "8 a 3 pm"
     });
     const reply = runGuards({
-      aiResponse: "Perfecto, Alejandra. Claro. Alejandra, \xBFen qu\xE9 ciudad ser\xEDa?",
+      aiResponse: "Perfecto, Alejandra. Claro. Alejandra, \uFFFDen qu\uFFFD ciudad ser\uFFFDa?",
       extracted,
       filledSet: filled,
       readyForClosing: false,
@@ -153623,30 +153704,30 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "\xBFPodr\xEDas indicarme en qu\xE9 lugar o alcald\xEDa se llevar\xE1 a cabo?"
+          content: "\uFFFDPodr\uFFFDas indicarme en qu\uFFFD lugar o alcald\uFFFDa se llevar\uFFFD a cabo?"
         },
         { role: "user", content: "Puerto Vallarta" },
-        { role: "assistant", content: "Listo. Alejandra, \xBFme confirmas la *ciudad* del evento?" },
+        { role: "assistant", content: "Listo. Alejandra, \uFFFDme confirmas la *ciudad* del evento?" },
         { role: "user", content: "Puerto Vallarta" },
-        { role: "assistant", content: "Perfecto, Alejandra. Claro. Alejandra, \xBFen qu\xE9 ciudad ser\xEDa?" }
+        { role: "assistant", content: "Perfecto, Alejandra. Claro. Alejandra, \uFFFDen qu\uFFFD ciudad ser\uFFFDa?" }
       ]
     });
     assert2.ok(isFieldSatisfied("zona", filled, extracted));
     assert2.match(extracted.direccion_evento ?? "", /puerto\s+vallarta/i);
-    assert2.ok(!/confirmas la \*ciudad\*|en qu[e√©] ciudad|ya tienen ciudad/i.test(reply), reply.slice(0, 400));
+    assert2.ok(!/confirmas la \*ciudad\*|en qu[eÈ] ciudad|ya tienen ciudad/i.test(reply), reply.slice(0, 400));
   });
-  await test("160. V9.68 \u2014 A15707 danymelgozza: cotizaci\xF3n inicial no es env\xEDo de cotizaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
-    const opening = "Quiero hacer una cotizaci\xF3n de barra de sushis y nigiris para 25 personas";
+  await test("160. V9.69 \uFFFD A15707 danymelgozza: cotizaci\uFFFDn inicial no es env\uFFFDo de cotizaci\uFFFDn", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
+    const opening = "Quiero hacer una cotizaci\uFFFDn de barra de sushis y nigiris para 25 personas";
     assert2.equal(clientWantsQuoteDelivery(opening), false);
-    assert2.ok(clientWantsQuoteDelivery("Si, m\xE1ndame la cotizaci\xF3n por favor, y te confirmo todo"));
+    assert2.ok(clientWantsQuoteDelivery("Si, m\uFFFDndame la cotizaci\uFFFDn por favor, y te confirmo todo"));
     const reply = runGuards({
-      aiResponse: "Claro, danymelgozza. Nuestro equipo te arma la cotizaci\xF3n con lo que ya platicamos. \xBFMe regalas tu nombre?",
+      aiResponse: "Claro, danymelgozza. Nuestro equipo te arma la cotizaci\uFFFDn con lo que ya platicamos. \uFFFDMe regalas tu nombre?",
       extracted: emptyExtracted({
         requerimientos_evento: "Barra de sushi",
         num_invitados: 25
       }),
-      filledSet: /* @__PURE__ */ new Set(["Requerimientos o servicios", "N\xFAmero de invitados"]),
+      filledSet: /* @__PURE__ */ new Set(["Requerimientos o servicios", "N\uFFFDmero de invitados"]),
       readyForClosing: false,
       currentMessage: opening,
       forceFirstPresentation: true,
@@ -153656,17 +153737,17 @@ ${golfText}`,
     assert2.ok(!/ya platicamos/i.test(reply), reply.slice(0, 500));
     assert2.ok(/sushi|nigiri|25|personas|nombre|Lucy|Bodasesor/i.test(reply), reply.slice(0, 500));
   });
-  await test("161. V9.68 \u2014 A15708 Itzel: una sola presentaci\xF3n Lucy", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
-    const firstIntro = "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor. Claro que te ayudo con tu evento. \xBFMe regalas tu nombre?";
+  await test("161. V9.69 \uFFFD A15708 Itzel: una sola presentaci\uFFFDn Lucy", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
+    const firstIntro = "\uFFFDHola! Buen d\uFFFDa. Soy Lucy, agente virtual de Bodasesor. Claro que te ayudo con tu evento. \uFFFDMe regalas tu nombre?";
     const reply = runGuards({
-      aiResponse: "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor. \xA1Mucho gusto, Itzel! \xBFQu\xE9 tipo de evento tienes en mente celebrar?",
+      aiResponse: "\uFFFDHola! Buen d\uFFFDa. Soy Lucy, agente virtual de Bodasesor. \uFFFDMucho gusto, Itzel! \uFFFDQu\uFFFD tipo de evento tienes en mente celebrar?",
       extracted: emptyExtracted({ nombre: "Itzel Mendoza" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       readyForClosing: false,
       currentMessage: "itzel mendoza",
       history: [
-        { role: "user", content: "Hola, me gustar\xEDa cotizar un evento" },
+        { role: "user", content: "Hola, me gustar\uFFFDa cotizar un evento" },
         { role: "assistant", content: firstIntro }
       ],
       whatsappDisplayName: "Itzel Mendoza"
@@ -153675,31 +153756,31 @@ ${golfText}`,
     assert2.equal((reply.match(/Soy Lucy/gi) ?? []).length, 0, reply.slice(0, 400));
     assert2.ok(/tipo de evento/i.test(reply), reply.slice(0, 400));
   });
-  await test("162. V9.68 \u2014 A15705 Karla: Ser\xEDa De Catering no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.68");
-    assert2.equal(sanitizeCrmNombre("Ser\xEDa De Catering"), null);
-    assert2.equal(shouldUpdateName("Karla Rodr\xEDguez", "Ser\xEDa De Catering"), false);
-    assert2.equal(shouldUpdateName("Ser\xEDa De Catering", "Karla Rodr\xEDguez"), true);
-    assert2.equal(looksLikeNameAnswerMessage("Ser\xEDa De Catering"), false);
-    assert2.ok(looksLikeNameAnswerMessage("Karla Rodr\xEDguez"));
+  await test("162. V9.69 \uFFFD A15705 Karla: Ser\uFFFDa De Catering no es nombre", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.69");
+    assert2.equal(sanitizeCrmNombre("Ser\uFFFDa De Catering"), null);
+    assert2.equal(shouldUpdateName("Karla Rodr\uFFFDguez", "Ser\uFFFDa De Catering"), false);
+    assert2.equal(shouldUpdateName("Ser\uFFFDa De Catering", "Karla Rodr\uFFFDguez"), true);
+    assert2.equal(looksLikeNameAnswerMessage("Ser\uFFFDa De Catering"), false);
+    assert2.ok(looksLikeNameAnswerMessage("Karla Rodr\uFFFDguez"));
     const reply = runGuards({
-      aiResponse: "\xA1Con gusto, Ser\xEDa! Aqu\xED seguimos cuando lo necesites.",
-      extracted: emptyExtracted({ nombre: "Karla Rodr\xEDguez" }),
+      aiResponse: "\uFFFDCon gusto, Ser\uFFFDa! Aqu\uFFFD seguimos cuando lo necesites.",
+      extracted: emptyExtracted({ nombre: "Karla Rodr\uFFFDguez" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
       readyForClosing: true,
       currentMessage: "Muchas gracias, quedo atenta",
       history: [{ role: "assistant", content: "Perfecto, ya tengo todo." }],
-      whatsappDisplayName: "Ser\xEDa De Catering"
+      whatsappDisplayName: "Ser\uFFFDa De Catering"
     });
     assert2.ok(/Con gusto,\s*Karla/i.test(reply), reply.slice(0, 400));
-    assert2.ok(!/Con gusto,\s*Ser[i√≠]a/i.test(reply), reply.slice(0, 400));
+    assert2.ok(!/Con gusto,\s*Ser[iÌ]a/i.test(reply), reply.slice(0, 400));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
 }
 function ALGO_MAS_OR_EMPTY(msg) {
-  return /\b(algo\s+m[a√°]s|alg[u√∫]n\s+otro\s+servicio)\b/i.test(msg);
+  return /\b(algo\s+m[a·]s|alg[u˙]n\s+otro\s+servicio)\b/i.test(msg);
 }
 runAll().catch((err2) => {
   console.error(err2);

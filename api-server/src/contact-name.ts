@@ -17,6 +17,31 @@ const PLACEHOLDER_PATTERNS = [
   /^\d+$/,
 ];
 
+/**
+ * Cargo / área / display WA de empresa ≠ nombre de persona (clase A15735+).
+ * Ej: "Recepción OFM", "Ventas Acme", "Hospitality".
+ */
+const ROLE_OR_DEPT_NAME_TOKEN =
+  /^(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n|compras|rh|rr\.?\s*hh?|recursos\s+humanos|atenci[oó]n(\s+a\s+clientes)?|customer\s+service|front\s+desk|concierge|reservaciones?|reservations?|informaci[oó]n|info|oficina|office|operaciones|log[ií]stica|eventos?|coordinaci[oó]n|coordinador[ao]?|asistente|secretaria|secretar[ií]a)$/i;
+
+export function isRoleOrDepartmentAsNombre(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
+  const parts = t.split(/\s+/).filter(Boolean);
+  if (parts.length === 0 || parts.length > 5) return false;
+  const first = (parts[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+  if (ROLE_OR_DEPT_NAME_TOKEN.test(first) || ROLE_OR_DEPT_NAME_TOKEN.test(t)) return true;
+  // "Recepción OFM", "Ventas Oriental Films"
+  if (
+    /^(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n|compras)\b/i.test(t) &&
+    parts.length <= 4
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /** Saludos y frases que NO son nombres de persona. */
 const GREETING_NAME_PATTERN =
   /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo|claro)$/i;
@@ -75,12 +100,27 @@ function isGreetingToLucy(text: string): boolean {
   return /^(hola|hello|hi|hey)[,!]?\s+lucy\b/i.test(text.trim());
 }
 
+/** Quita corrección de cargo WA: "Bea, no recepción" → "Bea" (A15735+). */
+function stripRoleNameCorrectionClause(raw: string): string {
+  return raw
+    .replace(
+      /[,.]?\s*no\s+(?:la\s+|el\s+)?(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n)\b.*$/i,
+      ""
+    )
+    .replace(/[.!🙂😊😉]*$/u, "")
+    .trim();
+}
+
 /** Quita "soy / me llamo / mi nombre es" dejando el nombre. */
 function stripPresentationPrefixLocal(raw: string): string {
-  const m = raw
-    .trim()
-    .match(/^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es|c[oó]mo)\s+(.+)$/i);
-  return (m?.[1] ?? raw).trim();
+  const t = raw.trim();
+  // "soy Bea" / "que tal, soy Bea" / "hola, me llamo Ana"
+  const mid = t.match(
+    /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+(.+)$/i
+  );
+  if (mid?.[1]) return stripRoleNameCorrectionClause(mid[1].trim());
+  const m = t.match(/^\s*(?:c[oó]mo)\s+(.+)$/i);
+  return stripRoleNameCorrectionClause((m?.[1] ?? t).trim());
 }
 
 /** Verbos de frase/pregunta — el mensaje no es un nombre propio. */
@@ -178,12 +218,14 @@ export function isLikelyNotPersonNameMessage(text: string | null | undefined): b
   if (!t) return true;
   if (isGreetingToLucy(t)) return true;
   if (isRepeatComplaintAsName(t)) return true;
-  // Presentación explícita sí puede ser nombre.
-  if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
+  // Presentación explícita sí puede ser nombre ("soy Bea" / "que tal, soy Bea").
+  if (/(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
   if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 5) return false;
 
   // A15705: "Sería De Catering" / preferencia de servicio ≠ nombre.
   if (isServicePreferenceAsNombre(t)) return true;
+  // A15735+: "Recepción OFM" / cargo o área WA ≠ nombre de persona.
+  if (isRoleOrDepartmentAsNombre(t)) return true;
 
   // Pregunta / verbo de servicio ANTES de looksLikePersonFullName:
   // "Tienes Crepas Para Eventos" matcheaba como "nombre completo" (4 tokens).
@@ -317,6 +359,7 @@ export function isPlaceholderLeadName(name: string | null | undefined): boolean 
   if (!trimmed) return true;
   if (trimmed.length < 2) return true;
   if (PHONE_LIKE.test(trimmed.replace(/\s/g, ""))) return true;
+  if (isRoleOrDepartmentAsNombre(trimmed)) return true;
   return PLACEHOLDER_PATTERNS.some((p) => p.test(trimmed));
 }
 
@@ -379,6 +422,8 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
   if (isLikelyUbicacionNotNombre(raw)) return null;
   // A15705: WA/display "Sería De Catering" nunca va al CRM como nombre.
   if (isServicePreferenceAsNombre(raw)) return null;
+  // A15735+: "Recepción OFM" / cargo nunca va al CRM como nombre.
+  if (isRoleOrDepartmentAsNombre(raw)) return null;
 
   // A15003: "Juan Hablar Agente" / handoff pegado al nombre.
   const strippedHandoff = raw
@@ -391,7 +436,8 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
   }
   if (!strippedHandoff) return null;
 
-  const isPresentation = /^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw);
+  const isPresentation =
+    /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw);
   // Frases de servicio/saludo (no presentación, no mashup reparable).
   if (!isPresentation && isLikelyNotPersonNameMessage(raw)) {
     // A14933: preguntas de precio/renta NUNCA se "reparan" a nombre ("Cuánto Cuesta La Renta").
@@ -504,6 +550,7 @@ export function shouldUpdateName(current?: string, incoming?: string): boolean {
   // Ubicación / nivel / basura en CRM → siempre reemplazable por un nombre real (A14929/A14938).
   if (
     isLikelyUbicacionNotNombre(c) ||
+    isRoleOrDepartmentAsNombre(c) ||
     CATALOG_LEVEL_OR_BRAND_NAME.test(c.split(/\s+/)[0] ?? "") ||
     !sanitizeCrmNombre(c)
   ) {
@@ -614,9 +661,11 @@ export function rewriteJunkClientVocative(
     null;
 
   return message.replace(
-    /\b((?:¡?Mucho gusto|¡?Con gusto|Perfecto|Excelente|Genial|Listo|Claro|Hola)[,!]?)(\s+)([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ'-]*)\b/gi,
+    /\b((?:¡?Mucho gusto|¡?Con gusto|Perfecto|Excelente|Genial|Listo|Claro|Hola|Gracias)[,!]?)(\s+)([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ'-]*)\b/gi,
     (full, greet: string, space: string, name: string) => {
-      if (!isServicePreferenceAsNombre(name)) return full;
+      if (!isServicePreferenceAsNombre(name) && !isRoleOrDepartmentAsNombre(name)) {
+        return full;
+      }
       if (correct) return `${greet}${space}${correct}`;
       return greet.replace(/,$/, "").trim();
     }

@@ -768,9 +768,10 @@ function buildCrmContext(
         .replace(WHATSAPP_NOMBRE_NOTE, "")
         .trim();
       // Si el cliente acaba de decir nombre+apellido, ampliar el corto ya guardado.
+      // A15735+: "que tal, soy Bea" / "soy Bea, no recepción" también cuentan.
       const presented =
         !!currentMessage &&
-        /^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(currentMessage);
+        /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(currentMessage);
       const fromTurn =
         currentMessage && (lastAskedEarly === "nombre" || presented)
           ? sanitizeCrmNombre(stripNombrePresentationPrefix(currentMessage))
