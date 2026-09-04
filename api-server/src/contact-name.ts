@@ -111,9 +111,14 @@ function stripRoleNameCorrectionClause(raw: string): string {
     .trim();
 }
 
-/** Quita "soy / me llamo / mi nombre es" dejando el nombre. */
+/** Quita "soy / me llamo / mi nombre es / es Sofía" dejando el nombre. */
 function stripPresentationPrefixLocal(raw: string): string {
   const t = raw.trim();
+  // "Es Sofía" / "Es Sofy Zavala" (respuesta al pedir nombre) — A15758+.
+  const esName = t.match(
+    /^\s*es\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{1,30}(?:\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{1,30}){0,3})\s*$/i
+  );
+  if (esName?.[1]) return stripRoleNameCorrectionClause(esName[1].trim());
   // "soy Bea" / "que tal, soy Bea" / "hola, me llamo Ana"
   const mid = t.match(
     /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+(.+)$/i
@@ -218,8 +223,9 @@ export function isLikelyNotPersonNameMessage(text: string | null | undefined): b
   if (!t) return true;
   if (isGreetingToLucy(t)) return true;
   if (isRepeatComplaintAsName(t)) return true;
-  // Presentación explícita sí puede ser nombre ("soy Bea" / "que tal, soy Bea").
+  // Presentación explícita sí puede ser nombre ("soy Bea" / "que tal, soy Bea" / "Es Sofía").
   if (/(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
+  if (/^\s*es\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]/i.test(t) && t.split(/\s+/).length <= 5) return false;
   if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 5) return false;
 
   // A15705: "Sería De Catering" / preferencia de servicio ≠ nombre.
@@ -594,6 +600,34 @@ function normalizeNameTokens(name: string): string[] {
     .filter((t) => t.length >= 2);
 }
 
+/** Sofy≈Sofía, Ale≈Alejandra — misma persona sin ser token idéntico (A15758+). */
+export function namesShareNicknameRoot(
+  a: string | null | undefined,
+  b: string | null | undefined
+): boolean {
+  const na = (a ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z]/g, "");
+  const nb = (b ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z]/g, "");
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  if (na.length < 3 || nb.length < 3) return false;
+  const shorter = na.length <= nb.length ? na : nb;
+  const longer = na.length > nb.length ? na : nb;
+  // Prefijo fuerte (sof/sofy/sofia) o uno contenido en el otro.
+  if (longer.startsWith(shorter) && shorter.length >= 3) return true;
+  let common = 0;
+  while (common < shorter.length && shorter[common] === longer[common]) common++;
+  // Sofy≈Sofía (sof*), Dani≈Daniela — mismo núcleo, longitudes cercanas.
+  return common >= 3 && Math.abs(na.length - nb.length) <= 3;
+}
+
 /** ¿El nombre entrante parece la misma persona que el ya guardado? */
 export function namesAreLikelySamePerson(
   existing: string | null | undefined,
@@ -606,6 +640,7 @@ export function namesAreLikelySamePerson(
   const ti = normalizeNameTokens(i);
   if (!te.length || !ti.length) return true;
   if (te[0] === ti[0]) return true;
+  if (namesShareNicknameRoot(te[0], ti[0])) return true;
   return te.some((t) => ti.includes(t)) || ti.some((t) => te.includes(t));
 }
 
@@ -640,6 +675,22 @@ export function pickBetterNombre(
   candidate: string | null | undefined,
   existing: string | null | undefined
 ): string | null {
+  // A15758+: "Sofía" no debe ganar sobre "Sofy Zavala" (mismo apodo, más completo).
+  const eClean = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+  const iClean = sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
+  if (eClean && iClean && namesAreLikelySamePerson(eClean, iClean)) {
+    if (nombreWordCount(eClean) > nombreWordCount(iClean)) {
+      return eClean;
+    }
+    if (
+      nombreWordCount(eClean) === nombreWordCount(iClean) &&
+      eClean.length > iClean.length &&
+      namesShareNicknameRoot(eClean.split(/\s+/)[0], iClean.split(/\s+/)[0])
+    ) {
+      // Preferir forma canónica más larga del mismo apodo si no hay apellido.
+      // Pero si el CRM ya tiene apellido+nick, keep existing arriba.
+    }
+  }
   if (isNombreMoreComplete(candidate, existing)) {
     return sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
   }

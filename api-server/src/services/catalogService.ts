@@ -1033,7 +1033,15 @@ function formatRowPriceShort(row: SheetCatalogRow | undefined): string {
 }
 
 function queryWantsSoloAlimentos(q: string): boolean {
-  return /\bsolo\s+alimentos?\b/i.test(q);
+  // A15758+: "solo sería barra de pizzas" / "solo la barra" = modalidad solo alimentos.
+  return (
+    /\bsolo\s+alimentos?\b/i.test(q) ||
+    /\bsolo\s+(ser[ií]a|seria)\s+(la\s+|las\s+|el\s+|los\s+)?(barra|estaci[oó]n|pizza|pasta|sushi|taquiza|crepas?|paninis?)/i.test(
+      q
+    ) ||
+    /\bsolo\s+(la\s+|las\s+)?barra(\s+de\s+\w+)?\b/i.test(q) ||
+    /\bsolo\s+(ser[ií]a\s+)?(las?\s+)?(pizzas?|pastas?|sushi|crepas?|paninis?)\b/i.test(q)
+  );
 }
 
 function queryWantsCompletoMode(q: string): boolean {

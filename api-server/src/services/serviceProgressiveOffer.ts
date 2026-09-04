@@ -31,7 +31,27 @@ export function messageHasSoloCompletoNivelOrMode(text: string | null | undefine
   return (
     /\b(solo\s+alimentos|servicio\s+completo)\b/i.test(t) ||
     /(?:^|[^\p{L}])completo(?:[^\p{L}]|$)/iu.test(t) ||
-    /\b(b[aá]sic[oa]|tradicional|premium)\b/i.test(t)
+    /\b(b[aá]sic[oa]|tradicional|premium)\b/i.test(t) ||
+    // A15758+: "solo sería barra de pizzas" / "solo la barra".
+    clientChoseSoloFoodStation(t)
+  );
+}
+
+/**
+ * Cliente elige solo la estación de comida (sin paquete completo).
+ * Clase A15758+: "Solo sería barra de pizzas".
+ */
+export function clientChoseSoloFoodStation(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  if (/\bservicio\s+completo\b/i.test(t) && !/\bsolo\b/i.test(t)) return false;
+  return (
+    /\bsolo\s+alimentos?\b/i.test(t) ||
+    /\bsolo\s+(ser[ií]a|seria)\s+(la\s+|las\s+|el\s+|los\s+)?(barra|estaci[oó]n|pizza|pasta|sushi|taquiza|crepas?|paninis?)/i.test(
+      t
+    ) ||
+    /\bsolo\s+(la\s+|las\s+)?barra(\s+de\s+\w+)?\b/i.test(t) ||
+    /\bsolo\s+(ser[ií]a\s+)?(las?\s+)?(pizzas?|pastas?|sushi|crepas?|paninis?)\b/i.test(t)
   );
 }
 
@@ -45,6 +65,23 @@ export function buildSoloVsCompletoProgressiveMenu(serviceLabel: string): string
     "",
     "¿Cuál te late más?",
   ].join("\n");
+}
+
+export function isSoloVsCompletoMenuReply(text: string | null | undefined): boolean {
+  if (!text?.trim()) return false;
+  return (
+    /\bsolo\s+alimentos\b/i.test(text) &&
+    /\bservicio\s+completo\b/i.test(text) &&
+    (/cu[aá]l\s+te\s+late/i.test(text) || /tenemos\s+(dos\s+caminos|\*?solo)/i.test(text))
+  );
+}
+
+export function historyOfferedSoloVsCompletoMenu(
+  history: OpenAI.Chat.ChatCompletionMessageParam[]
+): boolean {
+  return history
+    .filter((m) => m.role === "assistant" && typeof m.content === "string")
+    .some((m) => isSoloVsCompletoMenuReply(m.content as string));
 }
 
 /**

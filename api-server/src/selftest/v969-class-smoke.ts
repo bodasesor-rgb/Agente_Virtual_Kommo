@@ -1,5 +1,5 @@
 /**
- * Smoke V9.69 — clase A15735+: cargo WA ≠ nombre; periqueras (no mesas/sillas);
+ * Smoke V9.70 — clase A15735+: cargo WA ≠ nombre; periqueras (no mesas/sillas);
  * 👆 = solo eso; cdmx + colonia.
  * node ./scripts/run-v969-class-smoke.mjs
  */
@@ -42,7 +42,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.69");
+assert.equal(LUCY_PROMPT_VERSION, "V9.70");
 
 // ── Cargo / área WA ≠ nombre ──
 assert.ok(isRoleOrDepartmentAsNombre("Recepción"));
@@ -150,4 +150,4 @@ assert.ok(clientDeclinesMoreServices("👆"));
 const zona = parseZonaFromText("cdmx polanco");
 assert.ok(zona && /cdmx/i.test(zona) && /polanco/i.test(zona), zona ?? "");
 
-console.log("V9.69 class smoke OK");
+console.log("V9.70 class smoke OK");

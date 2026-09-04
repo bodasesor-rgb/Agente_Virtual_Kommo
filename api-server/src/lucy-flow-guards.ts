@@ -109,6 +109,8 @@ import {
   isAlimentosModoMenuReply,
   clientChoseBanqueteFormal,
   clientChoseCateringCasual,
+  clientChoseSoloFoodStation,
+  historyOfferedSoloVsCompletoMenu,
   historyOfferedMobiliarioPieceMenu,
   parseMobiliarioPieceChoice,
   buildMobiliarioPieceFollowUp,
@@ -6944,6 +6946,42 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre — cliente pidió llamada/teléfonos");
   } else if (
+    // A15758+: "Solo sería barra de pizzas" → modalidad solo alimentos, no reabrir menú.
+    !cierreYaEnviado &&
+    currentMessage &&
+    clientChoseSoloFoodStation(currentMessage) &&
+    (historyOfferedSoloVsCompletoMenu(presHistory) ||
+      resolveSoloVsCompletoStationLabel(currentMessage) ||
+      resolveSoloVsCompletoStationLabel(extracted.requerimientos_evento))
+  ) {
+    const station =
+      resolveSoloVsCompletoStationLabel(currentMessage) ||
+      resolveSoloVsCompletoStationLabel(extracted.requerimientos_evento) ||
+      preferPrimaryCatalogService(parseServicesFromText(currentMessage)) ||
+      "Barra de pizzas";
+    filledSet.add("Requerimientos o servicios");
+    const baseReq =
+      preferPrimaryCatalogService(
+        parseServicesFromText(extracted.requerimientos_evento ?? "")
+      ) ||
+      station;
+    // No pasar por mergeServiceRequirements: "(solo alimentos)" se parsea como SKU "Alimentos".
+    extracted.requerimientos_evento = /solo\s+alimentos/i.test(
+      extracted.requerimientos_evento ?? ""
+    )
+      ? (extracted.requerimientos_evento ?? `${baseReq} — solo alimentos`)
+      : `${baseReq} — solo alimentos`;
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const ack = display
+      ? `Perfecto, ${display}. Anoto *${station}* en modalidad *solo alimentos*.`
+      : `Perfecto. Anoto *${station}* en modalidad *solo alimentos*.`;
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ =
+      pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
+    mensaje = nextQ ? `${ack} ${nextQ}` : ack;
+    appliedDirectReply = true;
+    log?.info({ entityId, station }, "GUARD: A15758 — solo estación de comida, sin reabrir solo/completo");
+  } else if (
     cierreYaEnviado &&
     clientAsksPaymentOrQuoteDelivery(currentMessage)
   ) {
@@ -10035,20 +10073,43 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     /el detalle de (lo que incluye|inclusiones).{0,40}cat[aá]logo/i.test(mensaje) ||
     /aqu[ií]\s+tienes\s+el\s+cat[aá]logo/i.test(mensaje) ||
     /\bCat[aá]logo(?:\s+de\s+\*[^*]+\*)?:\s*\n?\s*https?:\/\//i.test(mensaje) ||
-    messageOffersCatalogLink(mensaje) ||
+    // A15758+: NO usar messageOffersCatalogLink(mensaje) — si el modelo ya pegó la URL,
+    // eso no la vuelve "intencional"; hay que poder quitarla en turnos de embudo (horario/zona).
     (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(mensaje) &&
       (/shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento|niveles?|incluye|men[uú]s|precio|manejamos|paquetes?/i.test(
         mensaje
-      ) ||
-        clientAsksServiceInfo(currentMessage) ||
-        clientAsksPrice(currentMessage)));
+      ) &&
+        (clientAsksServiceInfo(currentMessage) ||
+          clientAsksPrice(currentMessage) ||
+          clientAsksInclusion(currentMessage) ||
+          clientAsksForCatalog(currentMessage))));
+  // Embudo puro (horario/fecha/zona/correo) → nunca conservar link de catálogo.
+  const lastAskForCatalogStrip = inferLucyAskedField(
+    lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+      ? (lastAssistantMsg.content as string)
+      : ""
+  );
+  const funnelFieldTurn =
+    !!currentMessage &&
+    !clientAsksForCatalog(currentMessage) &&
+    !clientAsksPrice(currentMessage) &&
+    !clientAsksInclusion(currentMessage) &&
+    !clientAsksServiceInfo(currentMessage) &&
+    (lastAskForCatalogStrip === "horario" ||
+      lastAskForCatalogStrip === "fecha" ||
+      lastAskForCatalogStrip === "zona" ||
+      lastAskForCatalogStrip === "correo" ||
+      (!!parseHorarioFromText(currentMessage) &&
+        (lastAskForCatalogStrip === "horario" ||
+          /a\s+las\s+\d/i.test(currentMessage))));
   mensaje = stripUnsolicitedCatalogWebLinks(
     mensaje,
-    clientWantedCatalog ||
-      intentionalCatalogSend ||
-      clientAsksInclusion(currentMessage) ||
-      clientAsksServiceInfo(currentMessage) ||
-      clientAsksPrice(currentMessage)
+    !funnelFieldTurn &&
+      (clientWantedCatalog ||
+        intentionalCatalogSend ||
+        clientAsksInclusion(currentMessage) ||
+        clientAsksServiceInfo(currentMessage) ||
+        clientAsksPrice(currentMessage))
   );
 
   // A14929: si dijo que manda enlace/catálogo pero no hay URL, forzar link del Sheet.

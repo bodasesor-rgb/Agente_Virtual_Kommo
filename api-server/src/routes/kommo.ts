@@ -755,9 +755,12 @@ function buildCrmContext(
       sanitizeCrmNombre(extracted.nombre) ??
       recoverClienteNombreFromHistory(historyFull, currentMessage);
     if (nombreVal) {
-      mergedLines.push(`- Nombre del cliente: ${nombreVal}`);
+      // A15758+: no degradar "Sofy Zavala" (WA) a "Sofía" del turno.
+      const preferred =
+        pickBetterNombre(nombreVal, whatsappDisplayName) ?? nombreVal;
+      mergedLines.push(`- Nombre del cliente: ${preferred}`);
       filledSet.add("Nombre del cliente");
-      extracted.nombre = nombreVal;
+      extracted.nombre = preferred;
     }
   } else {
     const idx = mergedLines.findIndex((l) => /^-?\s*Nombre del cliente:/i.test(l));
@@ -768,22 +771,27 @@ function buildCrmContext(
         .replace(WHATSAPP_NOMBRE_NOTE, "")
         .trim();
       // Si el cliente acaba de decir nombre+apellido, ampliar el corto ya guardado.
-      // A15735+: "que tal, soy Bea" / "soy Bea, no recepción" también cuentan.
+      // A15735+/A15758+: "que tal, soy Bea" / "Es Sofía" / "soy Bea, no recepción".
       const presented =
         !!currentMessage &&
-        /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(currentMessage);
+        (/^\s*es\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]/i.test(currentMessage) ||
+          /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(currentMessage));
       const fromTurn =
         currentMessage && (lastAskedEarly === "nombre" || presented)
           ? sanitizeCrmNombre(stripNombrePresentationPrefix(currentMessage))
           : null;
       const upgraded = pickBetterNombre(
         pickBetterNombre(extracted.nombre, fromTurn),
-        existing
+        pickBetterNombre(existing, whatsappDisplayName)
       );
       if (upgraded && shouldUpdateName(existing, upgraded)) {
         const suffix = rawLine.includes(WHATSAPP_NOMBRE_NOTE) ? ` ${WHATSAPP_NOMBRE_NOTE}` : "";
         mergedLines[idx] = `- Nombre del cliente: ${upgraded}${suffix}`;
         extracted.nombre = upgraded;
+      } else {
+        // Conservar el más completo (Sofy Zavala > Sofía).
+        const keep = pickBetterNombre(extracted.nombre, existing) ?? existing;
+        if (keep) extracted.nombre = keep;
       }
     }
   }

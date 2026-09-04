@@ -974,6 +974,19 @@ export function sanitizeExtractedAmbiguousNumbers(
 /** Quita "soy / me llamo / …" y deja el nombre (completo para CRM). */
 export function stripNombrePresentationPrefix(raw: string): string {
   const t = raw.trim();
+  // A15758+: "Es Sofía" al responder el nombre.
+  const esName = t.match(
+    /^\s*es\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{1,30}(?:\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{1,30}){0,3})\s*$/i
+  );
+  if (esName?.[1]) {
+    return esName[1]
+      .replace(
+        /[,.]?\s*no\s+(?:la\s+|el\s+)?(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n)\b.*$/i,
+        ""
+      )
+      .replace(/[.!🙂😊😉]*$/u, "")
+      .trim();
+  }
   // A15735+: "que tal, soy Bea" / "soy Bea, no recepción"
   const mid = t.match(
     /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+(.+)$/i
@@ -3152,18 +3165,26 @@ export function isScheduleLabeledClock(text: string | null | undefined): boolean
   ) {
     return true;
   }
-  // "cocktail/cóctel/comida/cena a las 12:00" (con o sin varios renglones).
+  // "cocktail/cóctel/comida/cena/pizzas a las 12:00" (con o sin varios renglones).
   if (
-    /\b(cocktail|c[oó]ctel|comida|cena|desayuno|brunch|almuerzo|recepci[oó]n)\s+(a\s+las\s+)?\d{1,2}(?::\d{2})?\b/i.test(
+    /\b(cocktail|c[oó]ctel|comida|cena|desayuno|brunch|almuerzo|recepci[oó]n|pizzas?|pastas?|barra|taquiza|sushi)\s+(a\s+las\s+)?\d{1,2}(?::\d{2})?\b/i.test(
       t
     )
+  ) {
+    return true;
+  }
+  // A15758+: "Necesitaríamos las pizzas a las 7 pm"
+  if (
+    /\b(pizzas?|pastas?|comida|cena|barra|servicio)\b/i.test(t) &&
+    /\ba\s+las?\s+\d{1,2}(?::\d{2})?\s*(am|pm|a\.?m\.?|p\.?m\.?)?\b/i.test(t) &&
+    t.split(/\s+/).length <= 14
   ) {
     return true;
   }
   // Varias líneas de horario etiquetado.
   const labeledClocks = (
     t.match(
-      /\b(cocktail|c[oó]ctel|comida|cena|desayuno|brunch)\s+(a\s+las\s+)?\d{1,2}(?::\d{2})?/gi
+      /\b(cocktail|c[oó]ctel|comida|cena|desayuno|brunch|pizzas?)\s+(a\s+las\s+)?\d{1,2}(?::\d{2})?/gi
     ) ?? []
   ).length;
   return labeledClocks >= 1 && t.split(/\s+/).length <= 20;
@@ -3523,13 +3544,21 @@ export function parseHorarioFromText(text: string): string | null {
   if (isMealTimeOnlySchedule(clean)) return clean;
 
   // A15539: "cocktail a las 12:00" + "comida a las 2:00" → un solo horario usable.
+  // A15758+: "Necesitaríamos las pizzas a las 7 pm".
   if (isScheduleLabeledClock(clean)) {
     const parts = [
       ...clean.matchAll(
-        /\b((?:cocktail|c[oó]ctel|comida|cena|desayuno|brunch)\s+(?:a\s+las\s+)?\d{1,2}(?::\d{2})?)/gi
+        /\b((?:cocktail|c[oó]ctel|comida|cena|desayuno|brunch|pizzas?|pastas?|barra)\s+(?:a\s+las\s+)?\d{1,2}(?::\d{2})?(?:\s*(?:am|pm|a\.?m\.?|p\.?m\.?))?)/gi
       ),
     ].map((m) => m[1]!.trim());
     if (parts.length >= 1) return parts.join("; ").slice(0, 100);
+    const bareALas = clean.match(
+      new RegExp(
+        String.raw`\b(a\s+las?\s+${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+        "i"
+      )
+    );
+    if (bareALas?.[1]) return normalizeHorarioCapture(bareALas[1]);
     if (/medio\s*d[ií]a/i.test(clean)) return "a medio día";
     return clean.slice(0, 80);
   }
@@ -3621,6 +3650,15 @@ export function parseHorarioFromText(text: string): string | null {
         return normalizeHorarioCapture(clean);
       }
       return normalizeHorarioCapture(atTime[1]);
+    }
+    // A15758+: "Necesitaríamos las pizzas a las 7 pm" / servicio + hora.
+    if (
+      /\b(pizzas?|pastas?|comida|cena|barra|servicio|alimentos?|taquiza|sushi|necesito|necesitar)/i.test(
+        withoutTime
+      ) &&
+      withoutTime.split(/\s+/).length <= 12
+    ) {
+      return normalizeHorarioCapture(`a las ${atTime[1]}`);
     }
   }
 

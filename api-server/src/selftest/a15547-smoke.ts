@@ -64,7 +64,7 @@ const csv = [
 ].join("\n");
 setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.69");
+assert.equal(LUCY_PROMPT_VERSION, "V9.70");
 
 const noPriceMenu = buildSoloVsCompletoModeAnswer("Taquiza", parseSheetCatalogCsv(csv));
 assert.ok(/solo\s+alimentos/i.test(noPriceMenu), noPriceMenu.slice(0, 300));
