@@ -131852,15 +131852,24 @@ function clientAsksBanqueteVsTaquiza(message) {
   if (!message?.trim()) return false;
   return /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(message.toLowerCase());
 }
-function hasGeoLocationSignal(text2) {
+function matchesKnownZone(text2) {
   const t4 = text2.trim();
   if (!t4) return false;
   if (KNOWN_ZONES.test(t4)) return true;
-  if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio|calle|av\.?|avenida|blvd|boulevard|cp\.?|c\.p\.?|cdmx|ciudad|estado\s+de|edo\.?\s*m[eé]x|quer[eé]taro|puebla|monterrey|guadalajara)\b/i.test(
+  const bare = t4.normalize("NFD").replace(/\p{M}/gu, "");
+  return bare !== t4 && KNOWN_ZONES.test(bare);
+}
+function hasGeoLocationSignal(text2) {
+  const t4 = text2.trim();
+  if (!t4) return false;
+  if (isLocationMetaReferential(t4)) return false;
+  if (matchesKnownZone(t4)) return true;
+  if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio|calle|av\.?|avenida|blvd|boulevard|cp\.?|c\.p\.?|cdmx|estado\s+de|edo\.?\s*m[eé]x|quer[eé]taro|puebla|monterrey|guadalajara|tlaquepaque|zapopan)\b/i.test(
     t4
   )) {
     return true;
   }
+  if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t4)) return true;
   if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(\s+de\s+golf)?|expo|centro\s+de\s+convenciones)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]/i.test(
     t4
   )) {
@@ -131873,21 +131882,31 @@ function hasGeoLocationSignal(text2) {
 function hasCityOrMetroSignal(text2) {
   const t4 = (text2 ?? "").trim();
   if (!t4) return false;
-  if (KNOWN_ZONES.test(t4)) return true;
+  if (isLocationMetaReferential(t4)) return false;
+  if (matchesKnownZone(t4)) return true;
   if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio)\s+[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(
     t4
   )) {
     return true;
   }
-  if (/\b(ciudad(\s+de)?|estado\s+de|edo\.?\s*m[eé]x|cdmx|d\.?\s*f\.?)\b/i.test(t4)) {
-    return true;
-  }
-  if (/\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica|atlixco|cholula|tehuac[aá]n|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala)\b/i.test(
+  if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t4)) return true;
+  if (/\b(estado\s+de|edo\.?\s*m[eé]x|cdmx|d\.?\s*f\.?)\b/i.test(t4)) return true;
+  if (/\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica|atlixco|cholula|tehuac[aá]n|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|tlaquepaque|zapopan|tonal[aá]|tlajomulco|jalisco)\b/i.test(
     t4
   )) {
     return true;
   }
   return false;
+}
+function isLocationMetaReferential(message) {
+  if (!message?.trim()) return false;
+  const n5 = message.trim().normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
+  if (!n5 || n5.length > 80) return false;
+  return /^(esa|eso|este|esta)\s+es\s+(la\s+|el\s+)?(ciudad|ubicacion|zona|direccion|lugar|sede)(\s+(del\s+evento|que\s+(te\s+)?(dije|di|mande|envie)))?$/.test(
+    n5
+  ) || /^(esa|eso)\s+(misma\s+)?(ciudad|ubicacion|zona|direccion)$/.test(n5) || /^ya\s+(te\s+)?(di|dije|mande|envie)\s+(la\s+|el\s+)?(ciudad|ubicacion|zona|direccion)\b/.test(
+    n5
+  ) || /^(la\s+)?(ciudad|ubicacion|zona)\s+(es\s+)?(esa|esa\s+que\s+te\s+dije|la\s+de\s+arriba)$/.test(n5);
 }
 function extractVenueNameHint(text2) {
   const t4 = (text2 ?? "").trim();
@@ -131916,6 +131935,7 @@ function isVenueWithoutCity(text2) {
 function looksLikeDiscourseNotPlace(text2) {
   const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
   if (!t4) return true;
+  if (isLocationMetaReferential(t4)) return true;
   if (JUNK_DIRECCION_PATTERN.test(t4)) return true;
   if (looksLikeMealTimeNotLocation(t4)) return true;
   if (hasGeoLocationSignal(t4) || KNOWN_ZONES.test(t4)) return false;
@@ -132906,6 +132926,7 @@ function isPointingReferentialEmoji(message) {
 function isReferentialPriorAnswer(message) {
   if (!message?.trim()) return false;
   if (isPointingReferentialEmoji(message)) return true;
+  if (isLocationMetaReferential(message)) return true;
   const n5 = message.trim().normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
   if (!n5 || n5.length > 160) return false;
   return /^(a\s+)?(este|ese|esta|esa)(\s+(mismo|misma|correo|mail|email|dato))?$/.test(n5) || /^(el|la)\s+(mismo|misma)(\s+(correo|mail|email|dato))?$/.test(n5) || /^(el|la)\s+de\s+(antes|arriba|hace\s+rato|hace\s+un\s+rato)$/.test(n5) || /^(ese|este)\s+(que\s+)?(ya\s+)?(te\s+)?(di|mande|envie|pase)$/.test(n5) || /^(el\s+)?(mismo\s+)?(correo|mail|email)(\s+(de\s+antes|anterior))?$/.test(n5) || /^ya\s+(te\s+)?(lo\s+)?(di|mande|envie|pase|he\s+enviado|he\s+mandado)(\s+(ese|el|antes))?$/.test(
@@ -132922,7 +132943,7 @@ function clientComplainsAboutRepeat(message) {
   ) || /\bya\s+(te\s+)?(lo\s+)?(dije|mencion[eé]|coment[eé])\b/i.test(t4) || /\beso\s+ya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t4) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(t4) || /\b(otra\s+vez|de\s+nuevo)\s+(me\s+)?preguntas?\b/i.test(t4) || /\bya\s+respond[ií]\b/i.test(t4);
 }
 function recoverZonaFromUserTexts(texts, currentMessage) {
-  const blob = [...texts, currentMessage ?? ""].filter(Boolean);
+  const blob = [...texts, currentMessage ?? ""].filter(Boolean).filter((msg) => !isLocationMetaReferential(msg) && !isReferentialPriorAnswer(msg));
   let best = null;
   for (const msg of blob) {
     const z4 = parseZonaFromText(msg);
@@ -133151,6 +133172,7 @@ function isDimensionText(text2) {
 function isUsableDireccionEvento(value) {
   const t4 = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
   if (!t4) return false;
+  if (isLocationMetaReferential(t4)) return false;
   if (/^(pdf|excel|word|archivo|documento)s?$/i.test(t4)) return false;
   if (/,?\s*pdf\s*$/i.test(t4) && !KNOWN_ZONES.test(t4.replace(/,?\s*pdf\s*$/i, ""))) return false;
   if (isDimensionText(t4)) return false;
@@ -133353,6 +133375,9 @@ function parseZonaFromText(text2) {
   const withoutEmails = text2.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, " ").replace(/\s+/g, " ").trim();
   const trimmed = withoutEmails.replace(/\(?\s*hora\s+ciudad\s+de\s+m[eé]xico\s*\)?/gi, " ").replace(/\bhorario\s+en\s+que\s+env[ií]o\s+este\s+mensaje\s*:?[^\n]*/gi, " ").replace(/\bcotizaci[oó]n(es)?\s+en\s+pdf\b/gi, " ").replace(/\b(en\s+)?pdf\b/gi, " ").replace(/\s+/g, " ").trim();
   if (!trimmed) return null;
+  if (isLocationMetaReferential(trimmed) || isReferentialPriorAnswer(trimmed)) {
+    return null;
+  }
   if (/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(text2.trim())) {
     return null;
   }
@@ -133642,6 +133667,8 @@ function mergeZonaDetail(existing, incoming) {
   const next = (stripThemeColorsFromZona(nextRaw) || nextRaw).replace(/,?\s*pdf\s*$/i, "").trim();
   if (!next) return prev || null;
   if (!prev) return next;
+  if (isLocationMetaReferential(prev)) return next;
+  if (isLocationMetaReferential(next)) return prev || null;
   if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
   if (next.toLowerCase().includes(prev.toLowerCase())) return next;
   if (textOverlapLoose(prev, next) >= 0.85) return prev.length >= next.length ? prev : next;
@@ -134605,7 +134632,7 @@ var init_conversation_understanding = __esm({
       quinientos: "500"
     };
     MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
-    KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita)\b/i;
+    KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|zapopan|tlaquepaque|san\s+pedro\s+tlaquepaque|tonal[aá]|tlajomulco(\s+de\s+z[uú][nñ]iga)?|el\s+salto|chapala|ajijic|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita|jalisco)\b/i;
     NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
     VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue)\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.'-]{1,48})/i;
     JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
@@ -162506,6 +162533,20 @@ function applyLucyMessageGuards(input) {
           log?.info({ entityId, n: extracted.num_invitados }, "GUARD: A15508 \u2014 invitados recuperados tras queja");
         }
       }
+      if (!isFieldSatisfied("zona", filledSet, extracted) || isLocationMetaReferential(msgEarly) || askedEarly === "zona") {
+        const recoveredZona = recoverZonaFromUserTexts(
+          collectUserTexts(presHistory, void 0),
+          void 0
+        );
+        if (recoveredZona && isUsableDireccionEvento(recoveredZona)) {
+          extracted.direccion_evento = isLocationMetaReferential(extracted.direccion_evento) ? recoveredZona : mergeZonaDetail(extracted.direccion_evento, recoveredZona) ?? recoveredZona;
+          filledSet.add("Lugar/direcci\xF3n del evento");
+          log?.info(
+            { entityId, recoveredZona, askedEarly },
+            "GUARD: A15775 \u2014 zona recuperada tras 'esa es la ciudad'/referencia"
+          );
+        }
+      }
       if (askedEarly === "requerimientos" || lastAsstEarly && /medidas/i.test(lastAsstEarly.content)) {
         const histDims = collectUserTexts(presHistory, void 0).map((t4) => parseSpaceDimensions(t4)).find(Boolean);
         if (histDims && /carpa/i.test(extracted.requerimientos_evento ?? "")) {
@@ -162537,9 +162578,20 @@ function applyLucyMessageGuards(input) {
   }
   if (!cierreYaEnviado && currentMessage && (isReferentialPriorAnswer(currentMessage) || clientComplainsAboutRepeat(currentMessage))) {
     syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage);
+    if (isLocationMetaReferential(currentMessage) && (!isUsableDireccionEvento(extracted.direccion_evento) || isLocationMetaReferential(extracted.direccion_evento))) {
+      const recoveredZona = recoverZonaFromUserTexts(
+        collectUserTexts(presHistory, void 0),
+        void 0
+      );
+      if (recoveredZona) {
+        extracted.direccion_evento = recoveredZona;
+        filledSet.add("Lugar/direcci\xF3n del evento");
+      }
+    }
     const pending = getNextPendingField(extracted, filledSet);
     const nombre = getDisplayName(extracted, whatsappDisplayName);
-    const ack = nombre ? `Perfecto, ${nombre}. Ya lo tengo anotado.` : "Perfecto. Ya lo tengo anotado.";
+    const zonaAck = isLocationMetaReferential(currentMessage) && extracted.direccion_evento && isUsableDireccionEvento(extracted.direccion_evento) ? `Anoto la ubicaci\xF3n en *${extracted.direccion_evento}*.` : null;
+    const ack = nombre ? `Perfecto, ${nombre}.${zonaAck ? ` ${zonaAck}` : " Ya lo tengo anotado."}` : `Perfecto.${zonaAck ? ` ${zonaAck}` : " Ya lo tengo anotado."}`;
     let body2;
     if (pending) {
       body2 = `${ack}
@@ -162553,7 +162605,7 @@ ${buildNaturalQuestion(pending, ctx)}`;
     } else {
       body2 = nombre ? `Perfecto, ${nombre}. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?` : "Perfecto. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?";
     }
-    log?.info({ entityId, pending }, "GUARD: A15007 \u2014 referencia/queja de repetici\xF3n \u2192 avanzar");
+    log?.info({ entityId, pending }, "GUARD: A15007/A15775 \u2014 referencia/queja de repetici\xF3n \u2192 avanzar");
     return normalizeAdvisorReferences2(
       body2,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
@@ -162754,7 +162806,7 @@ ${nextQ}` : ack;
       return normalizeAdvisorReferences2(body2, display);
     }
   }
-  if (!cierreYaEnviado && currentMessage && !isFieldSatisfied("zona", filledSet, extracted)) {
+  if (!cierreYaEnviado && currentMessage && !isLocationMetaReferential(currentMessage) && !isFieldSatisfied("zona", filledSet, extracted)) {
     const zonaNow = parseZonaFromText(currentMessage);
     if (zonaNow && isUsableDireccionEvento(zonaNow)) {
       extracted.direccion_evento = mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
@@ -225107,7 +225159,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.70";
+var LUCY_PROMPT_VERSION = "V9.71";
 
 // src/lib/buildMeta.ts
 var cached = null;

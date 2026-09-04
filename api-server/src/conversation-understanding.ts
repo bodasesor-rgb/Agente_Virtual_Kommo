@@ -2125,9 +2125,18 @@ const WRITTEN_NUMBERS: Record<string, string> = {
 const MONTH_PATTERN =
   /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
 
-/** Lexicón único de ciudad/metro MX — parsers, zona y anti-nombre (clase A15701+). */
+/** Lexicón único de ciudad/metro MX — parsers, zona y anti-nombre (clase A15701+/A15775+). */
 const KNOWN_ZONES =
-  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita)\b/i;
+  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|zapopan|tlaquepaque|san\s+pedro\s+tlaquepaque|tonal[aá]|tlajomulco(\s+de\s+z[uú][nñ]iga)?|el\s+salto|chapala|ajijic|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita|jalisco)\b/i;
+
+/** `\b` de JS no trata á/é como letra — probar también sin diacríticos (Tonalá, León…). */
+function matchesKnownZone(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (KNOWN_ZONES.test(t)) return true;
+  const bare = t.normalize("NFD").replace(/\p{M}/gu, "");
+  return bare !== t && KNOWN_ZONES.test(bare);
+}
 
 /** Fragmentos (sin artículo) que NO son ubicación, aunque vengan tras "en …". */
 const NON_LOCATION_WORDS =
@@ -2137,14 +2146,18 @@ const NON_LOCATION_WORDS =
 export function hasGeoLocationSignal(text: string): boolean {
   const t = text.trim();
   if (!t) return false;
-  if (KNOWN_ZONES.test(t)) return true;
+  // A15775+: "esa es la ciudad" ≠ señal geo (es meta-referencia).
+  if (isLocationMetaReferential(t)) return false;
+  if (matchesKnownZone(t)) return true;
   if (
-    /\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio|calle|av\.?|avenida|blvd|boulevard|cp\.?|c\.p\.?|cdmx|ciudad|estado\s+de|edo\.?\s*m[eé]x|quer[eé]taro|puebla|monterrey|guadalajara)\b/i.test(
+    /\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio|calle|av\.?|avenida|blvd|boulevard|cp\.?|c\.p\.?|cdmx|estado\s+de|edo\.?\s*m[eé]x|quer[eé]taro|puebla|monterrey|guadalajara|tlaquepaque|zapopan)\b/i.test(
       t
     )
   ) {
     return true;
   }
+  // "ciudad de X" / "Ciudad Juárez" — no la palabra suelta "ciudad".
+  if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t)) return true;
   // Venue con nombre propio: "Salón X", "Hotel Marriott", "Club de Golf X", "Expo Santa Fe"
   if (
     /\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(\s+de\s+golf)?|expo|centro\s+de\s+convenciones)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]/i.test(
@@ -2166,7 +2179,8 @@ export function hasGeoLocationSignal(text: string): boolean {
 export function hasCityOrMetroSignal(text: string | null | undefined): boolean {
   const t = (text ?? "").trim();
   if (!t) return false;
-  if (KNOWN_ZONES.test(t)) return true;
+  if (isLocationMetaReferential(t)) return false;
+  if (matchesKnownZone(t)) return true;
   if (
     /\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio)\s+[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(
       t
@@ -2174,20 +2188,44 @@ export function hasCityOrMetroSignal(text: string | null | undefined): boolean {
   ) {
     return true;
   }
-  if (
-    /\b(ciudad(\s+de)?|estado\s+de|edo\.?\s*m[eé]x|cdmx|d\.?\s*f\.?)\b/i.test(t)
-  ) {
-    return true;
-  }
+  // "ciudad de México" / "ciudad X" — no la palabra suelta "ciudad" (A15775).
+  if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t)) return true;
+  if (/\b(estado\s+de|edo\.?\s*m[eé]x|cdmx|d\.?\s*f\.?)\b/i.test(t)) return true;
   // Ciudades / estados frecuentes fuera de KNOWN_ZONES (respuesta corta = ciudad).
   if (
-    /\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica|atlixco|cholula|tehuac[aá]n|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala)\b/i.test(
+    /\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica|atlixco|cholula|tehuac[aá]n|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|tlaquepaque|zapopan|tonal[aá]|tlajomulco|jalisco)\b/i.test(
       t
     )
   ) {
     return true;
   }
   return false;
+}
+
+/**
+ * Cliente apunta a la ciudad/zona ya dicha: "esa es la ciudad" (A15775+).
+ * No es un topónimo — hay que recuperar el mensaje previo.
+ */
+export function isLocationMetaReferential(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  const n = message
+    .trim()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[¿?¡!.,;:]+/g, "")
+    .trim();
+  if (!n || n.length > 80) return false;
+  return (
+    /^(esa|eso|este|esta)\s+es\s+(la\s+|el\s+)?(ciudad|ubicacion|zona|direccion|lugar|sede)(\s+(del\s+evento|que\s+(te\s+)?(dije|di|mande|envie)))?$/.test(
+      n
+    ) ||
+    /^(esa|eso)\s+(misma\s+)?(ciudad|ubicacion|zona|direccion)$/.test(n) ||
+    /^ya\s+(te\s+)?(di|dije|mande|envie)\s+(la\s+|el\s+)?(ciudad|ubicacion|zona|direccion)\b/.test(
+      n
+    ) ||
+    /^(la\s+)?(ciudad|ubicacion|zona)\s+(es\s+)?(esa|esa\s+que\s+te\s+dije|la\s+de\s+arriba)$/.test(n)
+  );
 }
 
 const VENUE_NAME_PATTERN =
@@ -2239,6 +2277,7 @@ const JUNK_DIRECCION_PATTERN =
 export function looksLikeDiscourseNotPlace(text: string | null | undefined): boolean {
   const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
   if (!t) return true;
+  if (isLocationMetaReferential(t)) return true;
   if (JUNK_DIRECCION_PATTERN.test(t)) return true;
   if (looksLikeMealTimeNotLocation(t)) return true;
   if (hasGeoLocationSignal(t) || KNOWN_ZONES.test(t)) return false;
@@ -3826,6 +3865,8 @@ export function isReferentialPriorAnswer(message?: string | null): boolean {
   if (!message?.trim()) return false;
   // A15735+: "👆" tras "¿otro servicio?" = lo de arriba / solo eso.
   if (isPointingReferentialEmoji(message)) return true;
+  // A15775+: "esa es la ciudad" = apunta a la zona ya dicha.
+  if (isLocationMetaReferential(message)) return true;
   const n = message
     .trim()
     .normalize("NFD")
@@ -3884,7 +3925,10 @@ export function recoverZonaFromUserTexts(
   texts: string[],
   currentMessage?: string | null
 ): string | null {
-  const blob = [...texts, currentMessage ?? ""].filter(Boolean);
+  // A15775+: no usar el mensaje meta ("esa es la ciudad") como zona.
+  const blob = [...texts, currentMessage ?? ""]
+    .filter(Boolean)
+    .filter((msg) => !isLocationMetaReferential(msg) && !isReferentialPriorAnswer(msg));
   let best: string | null = null;
   for (const msg of blob) {
     const z = parseZonaFromText(msg);
@@ -4243,6 +4287,8 @@ export function isDimensionText(text: string | null | undefined): boolean {
 export function isUsableDireccionEvento(value: string | null | undefined): boolean {
   const t = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
   if (!t) return false;
+  // A15775+: "esa es la ciudad" nunca es sede.
+  if (isLocationMetaReferential(t)) return false;
   // A15486: "PDF" / archivo ≠ sede.
   if (/^(pdf|excel|word|archivo|documento)s?$/i.test(t)) return false;
   if (/,?\s*pdf\s*$/i.test(t) && !KNOWN_ZONES.test(t.replace(/,?\s*pdf\s*$/i, ""))) return false;
@@ -4590,6 +4636,10 @@ export function parseZonaFromText(text: string): string | null {
     .replace(/\s+/g, " ")
     .trim();
   if (!trimmed) return null;
+  // A15775+: "esa es la ciudad" ≠ topónimo.
+  if (isLocationMetaReferential(trimmed) || isReferentialPriorAnswer(trimmed)) {
+    return null;
+  }
   // Mensaje que es solo un email (tras limpiar queda vacío) ya se filtró.
   // Si el texto original era únicamente un correo, no hay zona.
   if (/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(text.trim())) {
@@ -5040,6 +5090,9 @@ export function mergeZonaDetail(
     (stripThemeColorsFromZona(nextRaw) || nextRaw).replace(/,?\s*pdf\s*$/i, "").trim();
   if (!next) return prev || null;
   if (!prev) return next;
+  // A15775+: meta ("esa es la ciudad") nunca se concatena ni se conserva frente a topónimo.
+  if (isLocationMetaReferential(prev)) return next;
+  if (isLocationMetaReferential(next)) return prev || null;
   if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
   if (next.toLowerCase().includes(prev.toLowerCase())) return next;
   // Evita duplicar si son casi iguales.

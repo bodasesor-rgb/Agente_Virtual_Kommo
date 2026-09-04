@@ -56,7 +56,7 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.70");
+assert.equal(LUCY_PROMPT_VERSION, "V9.71");
 
 assert.ok(isSimpleClockTime("A la 1"));
 assert.ok(isSimpleClockTime("alrededor de la 1"));

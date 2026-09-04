@@ -193,6 +193,7 @@ import {
   recoverZonaFromUserTexts,
   isUnusableTipoEventoReply,
   isReferentialPriorAnswer,
+  isLocationMetaReferential,
   clientComplainsAboutRepeat,
   clientMentionsCatering,
   inferLucyAskedField,
@@ -5366,6 +5367,28 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           log?.info({ entityId, n: extracted.num_invitados }, "GUARD: A15508 — invitados recuperados tras queja");
         }
       }
+      // A15775+: "esa es la ciudad" → recuperar San Pedro Tlaquepaque (u otra) del historial.
+      if (
+        !isFieldSatisfied("zona", filledSet, extracted) ||
+        isLocationMetaReferential(msgEarly) ||
+        askedEarly === "zona"
+      ) {
+        const recoveredZona = recoverZonaFromUserTexts(
+          collectUserTexts(presHistory, undefined),
+          undefined
+        );
+        if (recoveredZona && isUsableDireccionEvento(recoveredZona)) {
+          // Si GPT/CRM ya pegó el meta literal, reemplazar; si no, mergear detalle.
+          extracted.direccion_evento = isLocationMetaReferential(extracted.direccion_evento)
+            ? recoveredZona
+            : mergeZonaDetail(extracted.direccion_evento, recoveredZona) ?? recoveredZona;
+          filledSet.add("Lugar/dirección del evento");
+          log?.info(
+            { entityId, recoveredZona, askedEarly },
+            "GUARD: A15775 — zona recuperada tras 'esa es la ciudad'/referencia"
+          );
+        }
+      }
       // Medidas ya dadas en historial (carpas/pista).
       if (
         askedEarly === "requerimientos" ||
@@ -5417,17 +5440,38 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   // A15007: "A este" / "ya me preguntaste" — no reiniciar embudo ni "Sigo aquí".
   // V9.26: nunca devolver solo el ack (corta la conversación).
+  // A15775+: "esa es la ciudad" → ack con la zona recuperada, no el literal meta.
   if (
     !cierreYaEnviado &&
     currentMessage &&
     (isReferentialPriorAnswer(currentMessage) || clientComplainsAboutRepeat(currentMessage))
   ) {
     syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage);
+    if (
+      isLocationMetaReferential(currentMessage) &&
+      (!isUsableDireccionEvento(extracted.direccion_evento) ||
+        isLocationMetaReferential(extracted.direccion_evento))
+    ) {
+      const recoveredZona = recoverZonaFromUserTexts(
+        collectUserTexts(presHistory, undefined),
+        undefined
+      );
+      if (recoveredZona) {
+        extracted.direccion_evento = recoveredZona;
+        filledSet.add("Lugar/dirección del evento");
+      }
+    }
     const pending = getNextPendingField(extracted, filledSet);
     const nombre = getDisplayName(extracted, whatsappDisplayName);
+    const zonaAck =
+      isLocationMetaReferential(currentMessage) &&
+      extracted.direccion_evento &&
+      isUsableDireccionEvento(extracted.direccion_evento)
+        ? `Anoto la ubicación en *${extracted.direccion_evento}*.`
+        : null;
     const ack = nombre
-      ? `Perfecto, ${nombre}. Ya lo tengo anotado.`
-      : "Perfecto. Ya lo tengo anotado.";
+      ? `Perfecto, ${nombre}.${zonaAck ? ` ${zonaAck}` : " Ya lo tengo anotado."}`
+      : `Perfecto.${zonaAck ? ` ${zonaAck}` : " Ya lo tengo anotado."}`;
     let body: string;
     if (pending) {
       body = `${ack}\n\n${buildNaturalQuestion(pending, ctx)}`;
@@ -5442,7 +5486,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         ? `Perfecto, ${nombre}. ¿Me confirmas la fecha, zona, invitados o presupuesto que aún falte?`
         : "Perfecto. ¿Me confirmas la fecha, zona, invitados o presupuesto que aún falte?";
     }
-    log?.info({ entityId, pending }, "GUARD: A15007 — referencia/queja de repetición → avanzar");
+    log?.info({ entityId, pending }, "GUARD: A15007/A15775 — referencia/queja de repetición → avanzar");
     return normalizeAdvisorReferences(
       body,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
@@ -5736,9 +5780,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   // V9.34: anotar ciudad cuando el cliente responde con topónimo (evita bucle "¿en qué ciudad?").
+  // A15775+: no anotar meta ("esa es la ciudad").
   if (
     !cierreYaEnviado &&
     currentMessage &&
+    !isLocationMetaReferential(currentMessage) &&
     !isFieldSatisfied("zona", filledSet, extracted)
   ) {
     const zonaNow = parseZonaFromText(currentMessage);
