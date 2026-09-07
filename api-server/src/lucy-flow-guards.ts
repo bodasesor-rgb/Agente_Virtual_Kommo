@@ -7305,6 +7305,26 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente preguntó si es Cap&Bara/Bodasesor");
   } else if (
+    // A15815: "Ok gracias" tras un mensaje que YA traía el link → no reenviar.
+    (() => {
+      const lastTxt =
+        lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+          ? (lastAssistantMsg.content as string)
+          : "";
+      if (!messageOffersCatalogLink(lastTxt)) return false;
+      if (clientAsksForCatalog(currentMessage)) return false;
+      const soft =
+        clientSaysThanks(currentMessage) ||
+        /^(ok|okay|va|perfecto|claro|s[ií]|sip)([\s,]+gracias)?[\s.!]*$/i.test(
+          (currentMessage ?? "").trim()
+        );
+      return soft;
+    })()
+  ) {
+    mensaje = buildPostCierreThanksReply(extracted.nombre);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A15815 — ack tras catálogo ya enviado (sin reenviar link)");
+  } else if (
     clientAsksForCatalog(currentMessage) ||
     clientAffirmsCatalogOffer(
       currentMessage,

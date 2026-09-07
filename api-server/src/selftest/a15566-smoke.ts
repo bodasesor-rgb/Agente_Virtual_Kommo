@@ -55,7 +55,7 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.73");
+assert.equal(LUCY_PROMPT_VERSION, "V9.74");
 
 const cases: Array<[string, RegExp]> = [
   ["El evento sería de 3:00 pm a 11:00 pm", /3:00\s*pm.*11:00\s*pm/i],

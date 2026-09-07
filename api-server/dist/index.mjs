@@ -131815,6 +131815,14 @@ function clientAffirmsCatalogOffer(message, lastAssistantText) {
   if (/^m[aá]s\s+detalles?[\s.!]*$/i.test(t4) || /^con\s+m[aá]s\s+detalle[\s.!]*$/i.test(t4)) {
     return true;
   }
+  const alreadySentLink = /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(lastAssistantText ?? "");
+  const softAckOnly = /^(ok|okay|va|perfecto|claro|s[ií]|sip)([\s,]+gracias)?[\s.!]*$/i.test(t4) || /^(muchas\s+)?gracias[\s.!]*$/i.test(t4) || /^ok\s+gracias[\s.!]*$/i.test(t4);
+  const explicitResend = /\b(m[aá]nda(me)?(lo)?|env[ií]a(me)?(lo)?|pasa(me)?(lo)?|m[aá]s\s+detalle|el\s+link|el\s+enlace)\b/i.test(
+    t4
+  );
+  if (alreadySentLink && softAckOnly && !explicitResend) {
+    return false;
+  }
   if (/^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|p[aá]samelo)([.!?]|\s|$)/i.test(
     t4
   )) {
@@ -132593,6 +132601,12 @@ function isSimpleClockTime(text2) {
   ).test(t4)) {
     return true;
   }
+  if (new RegExp(
+    String.raw`^de\s+(?:las?\s+)?${CLOCK_TOKEN}\s*${CLOCK_AMPM}$`,
+    "i"
+  ).test(t4)) {
+    return true;
+  }
   return false;
 }
 function isClockTimeOnlySchedule(text2) {
@@ -132665,7 +132679,10 @@ function syncLegacyFechaHorarioField(extracted) {
   );
 }
 function normalizeHorarioCapture(text2) {
-  return text2.replace(/^a\s+las\s+/i, "").replace(/^(?:a\s+)?partir\s+de\s+(?:las\s+)?/i, "a partir de las ").replace(/^desde\s+(?:las\s+)?/i, "desde las ").replace(/\s+/g, " ").trim().slice(0, 80);
+  return text2.replace(/^a\s+las\s+/i, "").replace(/^(?:a\s+)?partir\s+de\s+(?:las\s+)?/i, "a partir de las ").replace(/^desde\s+(?:las\s+)?/i, "desde las ").replace(
+    new RegExp(String.raw`^de\s+(?:las?\s+)?(${CLOCK_TOKEN}\s*${CLOCK_AMPM})$`, "i"),
+    "a partir de las $1"
+  ).replace(/\s+/g, " ").trim().slice(0, 80);
 }
 function normalizeWrittenClockInText(text2) {
   let out2 = text2;
@@ -133788,7 +133805,8 @@ function detectPresupuestoRefusal(text2) {
   if (/\bpara\s+eso\s+(te\s+)?(contacto|contact[eé]|escribo|hablo|llamo)\b/i.test(t4) || /\b(por|para)\s+eso\s+(te\s+)?(estoy\s+)?(contactando|escribiendo|llamando)\b/i.test(t4)) {
     return true;
   }
-  const explicitNoBudget = /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t4) || /\bno\s+me\s+brindaron\b/i.test(t4) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t4) || /\bsin\s+presupuesto\b/i.test(t4) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t4);
+  const explicitNoBudget = /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t4) || /\bno\s+me\s+brindaron\b/i.test(t4) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t4) || /\bsin\s+presupuesto\b/i.test(t4) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t4) || // A15815: "No hemos cotizado nada aún Uds son los primeros"
+  /\bno\s+hemos\s+cotizado\b/i.test(t4) || /\b(ustedes|uds\.?|ustedes)\s+son\s+los\s+primeros\b/i.test(t4) || /\bson\s+los\s+primeros\b/i.test(t4);
   if (explicitNoBudget) return true;
   const budgetCareLanguage = /\b(dentro\s+del\s+presupuesto|sin\s+perder.{0,40}presupuesto|al\s+presupuesto|bajo\s+presupuesto|mantener.{0,25}presupuesto|seg[uú]n\s+(el\s+)?presupuesto|cuidando.{0,25}presupuesto)\b/i.test(
     t4
@@ -163880,6 +163898,21 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     mensaje = buildCompanyIdentityReply(knownName);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 si es Cap&Bara/Bodasesor");
+  } else if (
+    // A15815: "Ok gracias" tras un mensaje que YA traía el link → no reenviar.
+    (() => {
+      const lastTxt = lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : "";
+      if (!messageOffersCatalogLink(lastTxt)) return false;
+      if (clientAsksForCatalog(currentMessage)) return false;
+      const soft = clientSaysThanks(currentMessage) || /^(ok|okay|va|perfecto|claro|s[ií]|sip)([\s,]+gracias)?[\s.!]*$/i.test(
+        (currentMessage ?? "").trim()
+      );
+      return soft;
+    })()
+  ) {
+    mensaje = buildPostCierreThanksReply(extracted.nombre);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A15815 \u2014 ack tras cat\xE1logo ya enviado (sin reenviar link)");
   } else if (clientAsksForCatalog(currentMessage) || clientAffirmsCatalogOffer(
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
@@ -225365,7 +225398,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.73";
+var LUCY_PROMPT_VERSION = "V9.74";
 
 // src/lib/buildMeta.ts
 var cached = null;

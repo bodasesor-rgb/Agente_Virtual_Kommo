@@ -2042,6 +2042,20 @@ export function clientAffirmsCatalogOffer(
   if (/^m[aá]s\s+detalles?[\s.!]*$/i.test(t) || /^con\s+m[aá]s\s+detalle[\s.!]*$/i.test(t)) {
     return true;
   }
+  // A15815+: si Lucy YA mandó el link, "ok gracias" / "ok" ≠ reenviar el mismo catálogo.
+  const alreadySentLink =
+    /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(lastAssistantText ?? "");
+  const softAckOnly =
+    /^(ok|okay|va|perfecto|claro|s[ií]|sip)([\s,]+gracias)?[\s.!]*$/i.test(t) ||
+    /^(muchas\s+)?gracias[\s.!]*$/i.test(t) ||
+    /^ok\s+gracias[\s.!]*$/i.test(t);
+  const explicitResend =
+    /\b(m[aá]nda(me)?(lo)?|env[ií]a(me)?(lo)?|pasa(me)?(lo)?|m[aá]s\s+detalle|el\s+link|el\s+enlace)\b/i.test(
+      t
+    );
+  if (alreadySentLink && softAckOnly && !explicitResend) {
+    return false;
+  }
   // "Sí", "Si por favor", "claro que sí", "mande por favor", "sí mándamelo", etc.
   if (
     /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|p[aá]samelo)([.!?]|\s|$)/i.test(
@@ -3369,6 +3383,15 @@ export function isSimpleClockTime(text: string | null | undefined): boolean {
   ) {
     return true;
   }
+  // A15815: "De 6:30pm" / "de las 6:30 pm" (= inicio; exige am/pm para no confundir con día del mes).
+  if (
+    new RegExp(
+      String.raw`^de\s+(?:las?\s+)?${CLOCK_TOKEN}\s*${CLOCK_AMPM}$`,
+      "i"
+    ).test(t)
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -3508,6 +3531,11 @@ function normalizeHorarioCapture(text: string): string {
     .replace(/^a\s+las\s+/i, "")
     .replace(/^(?:a\s+)?partir\s+de\s+(?:las\s+)?/i, "a partir de las ")
     .replace(/^desde\s+(?:las\s+)?/i, "desde las ")
+    // A15815: "De 6:30pm" → "a partir de las 6:30pm"
+    .replace(
+      new RegExp(String.raw`^de\s+(?:las?\s+)?(${CLOCK_TOKEN}\s*${CLOCK_AMPM})$`, "i"),
+      "a partir de las $1"
+    )
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 80);
@@ -5339,7 +5367,11 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
     /\bno\s+me\s+brindaron\b/i.test(t) ||
     /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) ||
     /\bsin\s+presupuesto\b/i.test(t) ||
-    /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t);
+    /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) ||
+    // A15815: "No hemos cotizado nada aún Uds son los primeros"
+    /\bno\s+hemos\s+cotizado\b/i.test(t) ||
+    /\b(ustedes|uds\.?|ustedes)\s+son\s+los\s+primeros\b/i.test(t) ||
+    /\bson\s+los\s+primeros\b/i.test(t);
 
   if (explicitNoBudget) return true;
 
