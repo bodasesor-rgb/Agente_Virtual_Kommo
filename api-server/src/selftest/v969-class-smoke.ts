@@ -42,7 +42,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.71");
+assert.equal(LUCY_PROMPT_VERSION, "V9.72");
 
 // ── Cargo / área WA ≠ nombre ──
 assert.ok(isRoleOrDepartmentAsNombre("Recepción"));
@@ -150,4 +150,4 @@ assert.ok(clientDeclinesMoreServices("👆"));
 const zona = parseZonaFromText("cdmx polanco");
 assert.ok(zona && /cdmx/i.test(zona) && /polanco/i.test(zona), zona ?? "");
 
-console.log("V9.71 class smoke OK");
+console.log("V9.72 class smoke OK");

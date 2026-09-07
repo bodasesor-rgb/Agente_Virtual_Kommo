@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Smoke V9.70 — generalización por *clase* de error (no un ticket literal).
  * Variantes × rutas: meal-tipo, ciudad, cotización prematura, nombre-basura, intro.
  * node ./scripts/run-v967-class-smoke.mjs
@@ -42,7 +42,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.71");
+assert.equal(LUCY_PROMPT_VERSION, "V9.72");
 
 // ── Clase meal-as-event-type (A15642+) ──
 for (const phrase of [
@@ -216,4 +216,4 @@ assert.equal(
   "120"
 );
 
-console.log("V9.71 class smoke OK");
+console.log("V9.72 class smoke OK");

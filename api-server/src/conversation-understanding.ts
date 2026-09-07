@@ -2127,7 +2127,7 @@ const MONTH_PATTERN =
 
 /** Lexicón único de ciudad/metro MX — parsers, zona y anti-nombre (clase A15701+/A15775+). */
 const KNOWN_ZONES =
-  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|zapopan|tlaquepaque|san\s+pedro\s+tlaquepaque|tonal[aá]|tlajomulco(\s+de\s+z[uú][nñ]iga)?|el\s+salto|chapala|ajijic|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita|jalisco)\b/i;
+  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|zapopan|tlaquepaque|san\s+pedro\s+tlaquepaque|tonal[aá]|tlajomulco(\s+de\s+z[uú][nñ]iga)?|el\s+salto|chapala|ajijic|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita|jalisco|huasca(\s+de\s+ocampo)?|real\s+del\s+monte|mineral\s+del\s+chico|tequisquiapan|bernal|taxco|tulancingo|actopan|ixmiquilpan|tepeji|amealco|tula(\s+de\s+allende)?)\b/i;
 
 /** `\b` de JS no trata á/é como letra — probar también sin diacríticos (Tonalá, León…). */
 function matchesKnownZone(text: string): boolean {
@@ -2136,6 +2136,43 @@ function matchesKnownZone(text: string): boolean {
   if (KNOWN_ZONES.test(t)) return true;
   const bare = t.normalize("NFD").replace(/\p{M}/gu, "");
   return bare !== t && KNOWN_ZONES.test(bare);
+}
+
+/**
+ * Municipio / pueblo MX tipo "Huasca de Ocampo", "Mineral del Chico" (A15791+).
+ * No es "barra de pizzas" ni nombre de persona suelto.
+ */
+export function looksLikeMxMunicipalityToponym(text: string | null | undefined): boolean {
+  const raw = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!raw) return false;
+  const t = raw
+    .replace(/^(s[ií][,.]?\s+|es\s+en\s+|en\s+|ser[ií]a\s+en\s+|ser[aá]\s+en\s+)/i, "")
+    .trim();
+  if (!t || t.length > 56) return false;
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 5) return false;
+  if (
+    /\b(barra|pizza|pasta|crepa|sushi|banquete|taquiza|catering|carpa|dj|mobiliario|mesa|silla|sal[oó]n|hotel|hacienda|club|expo|cabana|caba[nñ]a|venue|servicio|evento|correo|presupuesto|cotizaci[oó]n)\b/i.test(
+      t
+    )
+  ) {
+    return false;
+  }
+  // "X de Y" / "X del Y" / "San Pedro de los …” típico de municipios.
+  const bare = t.normalize("NFD").replace(/\p{M}/gu, "");
+  if (
+    !/\b(de|del|de\s+los|de\s+las|de\s+la)\b/i.test(bare) &&
+    !/\b(huasca|tequisquiapan|bernal|taxco|tulancingo|zacatl[aá]n|amealco|tepeji|actopan|ixmiquilpan|tula|pachuca)\b/i.test(
+      bare
+    )
+  ) {
+    // Un topónimo corto conocido sin "de" (p. ej. Taxco) vía lista; sin lista → no.
+    return false;
+  }
+  // Todas las piezas con letra (permitiendo de/del/los/las/la/san/santo).
+  const okPart =
+    /^(de|del|la|las|los|san|santa|santo|el)$/i;
+  return words.every((w) => okPart.test(w) || /^[A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,}(?:'[A-Za-zÁÉÍÓÚáéíóúüñÑ]+)?$/.test(w));
 }
 
 /** Fragmentos (sin artículo) que NO son ubicación, aunque vengan tras "en …". */
@@ -2149,6 +2186,7 @@ export function hasGeoLocationSignal(text: string): boolean {
   // A15775+: "esa es la ciudad" ≠ señal geo (es meta-referencia).
   if (isLocationMetaReferential(t)) return false;
   if (matchesKnownZone(t)) return true;
+  if (looksLikeMxMunicipalityToponym(t)) return true;
   if (
     /\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio|calle|av\.?|avenida|blvd|boulevard|cp\.?|c\.p\.?|cdmx|estado\s+de|edo\.?\s*m[eé]x|quer[eé]taro|puebla|monterrey|guadalajara|tlaquepaque|zapopan)\b/i.test(
       t
@@ -2181,6 +2219,7 @@ export function hasCityOrMetroSignal(text: string | null | undefined): boolean {
   if (!t) return false;
   if (isLocationMetaReferential(t)) return false;
   if (matchesKnownZone(t)) return true;
+  if (looksLikeMxMunicipalityToponym(t)) return true;
   if (
     /\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio)\s+[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(
       t
@@ -2253,9 +2292,11 @@ export function extractVenueNameHint(text: string | null | undefined): string | 
 export function isVenueWithoutCity(text: string | null | undefined): boolean {
   const t = (text ?? "").trim();
   if (!t) return false;
-  if (hasCityOrMetroSignal(t) || KNOWN_ZONES.test(t)) return false;
+  if (hasCityOrMetroSignal(t) || KNOWN_ZONES.test(t) || looksLikeMxMunicipalityToponym(t)) {
+    return false;
+  }
   if (
-    /\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club|expo|centro\s+(de\s+)?(convenciones|cultural)|venue)\b/i.test(
+    /\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club|expo|centro\s+(de\s+)?(convenciones|cultural)|venue|caba[nñ]as?|cabanas?|villas?|finca|lodge)\b/i.test(
       t
     )
   ) {
@@ -3792,6 +3833,26 @@ export function isUsableHorarioEvento(value: string | null | undefined): boolean
   return false;
 }
 
+/** A15791+: "3pm a 1am" es más claro que "De 3 a 1am" (sin am/pm en el inicio). */
+export function isRicherHorarioCapture(
+  incoming: string | null | undefined,
+  existing: string | null | undefined
+): boolean {
+  const next = (incoming ?? "").trim();
+  const prev = (existing ?? "").trim();
+  if (!next || !isUsableHorarioEvento(next)) return false;
+  if (!prev) return true;
+  if (next.toLowerCase() === prev.toLowerCase()) return false;
+  // Meridiano en la hora de inicio (no el "a" de rango ni el "am" solo del cierre).
+  const startMeridiem =
+    /(?:^|\bde\s+)\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.m\.?|p\.m\.?)\b/i;
+  const nextStart = startMeridiem.test(next) || /^\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/i.test(next);
+  const prevStart = startMeridiem.test(prev) || /^\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/i.test(prev);
+  if (nextStart && !prevStart) return true;
+  if (next.length > prev.length + 2 && /\d/.test(next) && nextStart) return true;
+  return false;
+}
+
 /** Hidrata fecha_evento/horario_evento desde CRM legacy o combinado. */
 export function hydrateScheduleFields(extracted: ExtractedData): void {
   if (extracted.fecha_evento?.trim() || extracted.horario_evento?.trim()) {
@@ -3933,7 +3994,13 @@ export function recoverZonaFromUserTexts(
   for (const msg of blob) {
     const z = parseZonaFromText(msg);
     if (!z || !isUsableDireccionEvento(z)) continue;
-    if (!hasCityOrMetroSignal(z) && !KNOWN_ZONES.test(z)) continue;
+    if (
+      !hasCityOrMetroSignal(z) &&
+      !KNOWN_ZONES.test(z) &&
+      !looksLikeMxMunicipalityToponym(z)
+    ) {
+      continue;
+    }
     best = mergeZonaDetail(best, z);
   }
   return best && isUsableDireccionEvento(best) ? best : null;
@@ -4312,9 +4379,18 @@ export function isUsableDireccionEvento(value: string | null | undefined): boole
     return false;
   }
   // Ciudad / zona metro conocida → OK (también "Salón X en CDMX").
-  if (hasCityOrMetroSignal(t) || KNOWN_ZONES.test(t)) return true;
+  if (hasCityOrMetroSignal(t) || KNOWN_ZONES.test(t) || looksLikeMxMunicipalityToponym(t)) {
+    return true;
+  }
+  // A15791+: "Huasca de Ocampo, Cabañas Alcatraces" — ciudad + venue sigue usable.
+  if (/[,|]/.test(t) || /\s+en\s+/i.test(t)) {
+    const parts = t.split(/[,|]|(\s+en\s+)/i).map((p) => p?.trim()).filter(Boolean) as string[];
+    if (parts.some((p) => hasCityOrMetroSignal(p) || looksLikeMxMunicipalityToponym(p) || matchesKnownZone(p))) {
+      return true;
+    }
+  }
   // Sin ciudad: solo topónimos cortos tipo ciudad (Jiutepec), nunca venues.
-  if (!hasGeoLocationSignal(t) && !KNOWN_ZONES.test(t)) {
+  if (!hasGeoLocationSignal(t) && !KNOWN_ZONES.test(t) && !looksLikeMxMunicipalityToponym(t)) {
     const words = t.split(/\s+/).filter(Boolean);
     if (words.length > 3 || t.length > 40) return false;
     if (
@@ -4628,11 +4704,13 @@ export function parseZonaFromText(text: string): string | null {
     .replace(/\s+/g, " ")
     .trim();
   // A15486: quitar stamp de timezone y "PDF" de pedidos de archivo.
+  // A15791+: "Si Huasca de Ocampo" → quitar afirmación inicial.
   const trimmed = withoutEmails
     .replace(/\(?\s*hora\s+ciudad\s+de\s+m[eé]xico\s*\)?/gi, " ")
     .replace(/\bhorario\s+en\s+que\s+env[ií]o\s+este\s+mensaje\s*:?[^\n]*/gi, " ")
     .replace(/\bcotizaci[oó]n(es)?\s+en\s+pdf\b/gi, " ")
     .replace(/\b(en\s+)?pdf\b/gi, " ")
+    .replace(/^(s[ií][,.]?\s+)(?=[A-Za-zÁÉÍÓÚáéíóúñÑ])/i, "")
     .replace(/\s+/g, " ")
     .trim();
   if (!trimmed) return null;
@@ -4846,17 +4924,19 @@ export function parseZonaFromText(text: string): string | null {
     if (lugar && isUsableDireccionEvento(lugar)) return lugar;
   }
 
-  // Respuesta corta = ciudad (V9.34): "Valle de Bravo", "Jiutepec"
+  // Respuesta corta = ciudad (V9.34): "Valle de Bravo", "Jiutepec", "Huasca de Ocampo"
   const shortPlace = trimmed
-    .replace(/^(es\s+en\s+|en\s+|ser[ií]a\s+en\s+)/i, "")
+    .replace(/^(es\s+en\s+|en\s+|ser[ií]a\s+en\s+|s[ií][,.]?\s+)/i, "")
     .trim()
     .replace(/[.,;:]+$/g, "")
     .trim();
   if (
     shortPlace &&
-    shortPlace.split(/\s+/).length <= 4 &&
-    shortPlace.length <= 48 &&
-    (hasCityOrMetroSignal(shortPlace) || KNOWN_ZONES.test(shortPlace)) &&
+    shortPlace.split(/\s+/).length <= 5 &&
+    shortPlace.length <= 56 &&
+    (hasCityOrMetroSignal(shortPlace) ||
+      KNOWN_ZONES.test(shortPlace) ||
+      looksLikeMxMunicipalityToponym(shortPlace)) &&
     isUsableDireccionEvento(shortPlace)
   ) {
     return shortPlace;
@@ -5093,6 +5173,21 @@ export function mergeZonaDetail(
   // A15775+: meta ("esa es la ciudad") nunca se concatena ni se conserva frente a topónimo.
   if (isLocationMetaReferential(prev)) return next;
   if (isLocationMetaReferential(next)) return prev || null;
+  // A15791+: ciudad + venue (cabañas/salón) → conservar ambos sin perder ciudad.
+  const prevIsCity =
+    hasCityOrMetroSignal(prev) || looksLikeMxMunicipalityToponym(prev) || matchesKnownZone(prev);
+  const nextIsVenue = isVenueWithoutCity(next) || extractVenueNameHint(next);
+  const nextIsCity =
+    hasCityOrMetroSignal(next) || looksLikeMxMunicipalityToponym(next) || matchesKnownZone(next);
+  const prevIsVenue = isVenueWithoutCity(prev) || extractVenueNameHint(prev);
+  if (prevIsCity && nextIsVenue && !nextIsCity) {
+    if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
+    return `${prev}, ${next}`;
+  }
+  if (nextIsCity && prevIsVenue && !prevIsCity) {
+    if (next.toLowerCase().includes(prev.toLowerCase())) return next;
+    return `${next}, ${prev}`;
+  }
   if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
   if (next.toLowerCase().includes(prev.toLowerCase())) return next;
   // Evita duplicar si son casi iguales.

@@ -37,7 +37,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.71");
+assert.equal(LUCY_PROMPT_VERSION, "V9.72");
 
 // Lexicón metro GDL / municipios
 for (const city of [
@@ -148,4 +148,4 @@ assert.ok(!/esa es la ciudad/i.test(mergeZonaDetail("esa es la ciudad", "Zapopan
   );
 }
 
-console.log("V9.71 class smoke OK");
+console.log("V9.72 class smoke OK");

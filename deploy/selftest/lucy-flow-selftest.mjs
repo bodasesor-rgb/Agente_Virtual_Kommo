@@ -125941,7 +125941,7 @@ var WRITTEN_NUMBERS = {
   quinientos: "500"
 };
 var MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
-var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|zapopan|tlaquepaque|san\s+pedro\s+tlaquepaque|tonal[aá]|tlajomulco(\s+de\s+z[uú][nñ]iga)?|el\s+salto|chapala|ajijic|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita|jalisco)\b/i;
+var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|zapopan|tlaquepaque|san\s+pedro\s+tlaquepaque|tonal[aá]|tlajomulco(\s+de\s+z[uú][nñ]iga)?|el\s+salto|chapala|ajijic|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita|jalisco|huasca(\s+de\s+ocampo)?|real\s+del\s+monte|mineral\s+del\s+chico|tequisquiapan|bernal|taxco|tulancingo|actopan|ixmiquilpan|tepeji|amealco|tula(\s+de\s+allende)?)\b/i;
 function matchesKnownZone(text2) {
   const t3 = text2.trim();
   if (!t3) return false;
@@ -125949,12 +125949,34 @@ function matchesKnownZone(text2) {
   const bare = t3.normalize("NFD").replace(/\p{M}/gu, "");
   return bare !== t3 && KNOWN_ZONES.test(bare);
 }
+function looksLikeMxMunicipalityToponym(text2) {
+  const raw = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!raw) return false;
+  const t3 = raw.replace(/^(s[ií][,.]?\s+|es\s+en\s+|en\s+|ser[ií]a\s+en\s+|ser[aá]\s+en\s+)/i, "").trim();
+  if (!t3 || t3.length > 56) return false;
+  const words = t3.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 5) return false;
+  if (/\b(barra|pizza|pasta|crepa|sushi|banquete|taquiza|catering|carpa|dj|mobiliario|mesa|silla|sal[oó]n|hotel|hacienda|club|expo|cabana|caba[nñ]a|venue|servicio|evento|correo|presupuesto|cotizaci[oó]n)\b/i.test(
+    t3
+  )) {
+    return false;
+  }
+  const bare = t3.normalize("NFD").replace(/\p{M}/gu, "");
+  if (!/\b(de|del|de\s+los|de\s+las|de\s+la)\b/i.test(bare) && !/\b(huasca|tequisquiapan|bernal|taxco|tulancingo|zacatl[aá]n|amealco|tepeji|actopan|ixmiquilpan|tula|pachuca)\b/i.test(
+    bare
+  )) {
+    return false;
+  }
+  const okPart = /^(de|del|la|las|los|san|santa|santo|el)$/i;
+  return words.every((w4) => okPart.test(w4) || /^[A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,}(?:'[A-Za-zÁÉÍÓÚáéíóúüñÑ]+)?$/.test(w4));
+}
 var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
 function hasGeoLocationSignal(text2) {
   const t3 = text2.trim();
   if (!t3) return false;
   if (isLocationMetaReferential(t3)) return false;
   if (matchesKnownZone(t3)) return true;
+  if (looksLikeMxMunicipalityToponym(t3)) return true;
   if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio|calle|av\.?|avenida|blvd|boulevard|cp\.?|c\.p\.?|cdmx|estado\s+de|edo\.?\s*m[eé]x|quer[eé]taro|puebla|monterrey|guadalajara|tlaquepaque|zapopan)\b/i.test(
     t3
   )) {
@@ -125975,6 +125997,7 @@ function hasCityOrMetroSignal(text2) {
   if (!t3) return false;
   if (isLocationMetaReferential(t3)) return false;
   if (matchesKnownZone(t3)) return true;
+  if (looksLikeMxMunicipalityToponym(t3)) return true;
   if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio)\s+[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(
     t3
   )) {
@@ -126015,8 +126038,10 @@ function extractVenueNameHint(text2) {
 function isVenueWithoutCity(text2) {
   const t3 = (text2 ?? "").trim();
   if (!t3) return false;
-  if (hasCityOrMetroSignal(t3) || KNOWN_ZONES.test(t3)) return false;
-  if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club|expo|centro\s+(de\s+)?(convenciones|cultural)|venue)\b/i.test(
+  if (hasCityOrMetroSignal(t3) || KNOWN_ZONES.test(t3) || looksLikeMxMunicipalityToponym(t3)) {
+    return false;
+  }
+  if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club|expo|centro\s+(de\s+)?(convenciones|cultural)|venue|caba[nñ]as?|cabanas?|villas?|finca|lodge)\b/i.test(
     t3
   )) {
     return true;
@@ -126990,6 +127015,19 @@ function isUsableHorarioEvento(value) {
   }
   return false;
 }
+function isRicherHorarioCapture(incoming, existing) {
+  const next = (incoming ?? "").trim();
+  const prev = (existing ?? "").trim();
+  if (!next || !isUsableHorarioEvento(next)) return false;
+  if (!prev) return true;
+  if (next.toLowerCase() === prev.toLowerCase()) return false;
+  const startMeridiem = /(?:^|\bde\s+)\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.m\.?|p\.m\.?)\b/i;
+  const nextStart = startMeridiem.test(next) || /^\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/i.test(next);
+  const prevStart = startMeridiem.test(prev) || /^\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/i.test(prev);
+  if (nextStart && !prevStart) return true;
+  if (next.length > prev.length + 2 && /\d/.test(next) && nextStart) return true;
+  return false;
+}
 function hydrateScheduleFields(extracted) {
   if (extracted.fecha_evento?.trim() || extracted.horario_evento?.trim()) {
     syncLegacyFechaHorarioField(extracted);
@@ -127066,7 +127104,9 @@ function recoverZonaFromUserTexts(texts, currentMessage) {
   for (const msg of blob) {
     const z3 = parseZonaFromText(msg);
     if (!z3 || !isUsableDireccionEvento(z3)) continue;
-    if (!hasCityOrMetroSignal(z3) && !KNOWN_ZONES.test(z3)) continue;
+    if (!hasCityOrMetroSignal(z3) && !KNOWN_ZONES.test(z3) && !looksLikeMxMunicipalityToponym(z3)) {
+      continue;
+    }
     best = mergeZonaDetail(best, z3);
   }
   return best && isUsableDireccionEvento(best) ? best : null;
@@ -127311,8 +127351,16 @@ function isUsableDireccionEvento(value) {
   if (/\bd[oó]nde\b|\bubicad/i.test(t3) && !KNOWN_ZONES.test(t3) && t3.split(/\s+/).length <= 5) {
     return false;
   }
-  if (hasCityOrMetroSignal(t3) || KNOWN_ZONES.test(t3)) return true;
-  if (!hasGeoLocationSignal(t3) && !KNOWN_ZONES.test(t3)) {
+  if (hasCityOrMetroSignal(t3) || KNOWN_ZONES.test(t3) || looksLikeMxMunicipalityToponym(t3)) {
+    return true;
+  }
+  if (/[,|]/.test(t3) || /\s+en\s+/i.test(t3)) {
+    const parts2 = t3.split(/[,|]|(\s+en\s+)/i).map((p4) => p4?.trim()).filter(Boolean);
+    if (parts2.some((p4) => hasCityOrMetroSignal(p4) || looksLikeMxMunicipalityToponym(p4) || matchesKnownZone(p4))) {
+      return true;
+    }
+  }
+  if (!hasGeoLocationSignal(t3) && !KNOWN_ZONES.test(t3) && !looksLikeMxMunicipalityToponym(t3)) {
     const words = t3.split(/\s+/).filter(Boolean);
     if (words.length > 3 || t3.length > 40) return false;
     if (/\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|ratito|ahorita|sal[oó]n|hotel|hacienda|club|expo)\b/i.test(
@@ -127502,7 +127550,7 @@ function clientMentionsPistaTarima(message) {
 }
 function parseZonaFromText(text2) {
   const withoutEmails = text2.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, " ").replace(/\s+/g, " ").trim();
-  const trimmed = withoutEmails.replace(/\(?\s*hora\s+ciudad\s+de\s+m[eé]xico\s*\)?/gi, " ").replace(/\bhorario\s+en\s+que\s+env[ií]o\s+este\s+mensaje\s*:?[^\n]*/gi, " ").replace(/\bcotizaci[oó]n(es)?\s+en\s+pdf\b/gi, " ").replace(/\b(en\s+)?pdf\b/gi, " ").replace(/\s+/g, " ").trim();
+  const trimmed = withoutEmails.replace(/\(?\s*hora\s+ciudad\s+de\s+m[eé]xico\s*\)?/gi, " ").replace(/\bhorario\s+en\s+que\s+env[ií]o\s+este\s+mensaje\s*:?[^\n]*/gi, " ").replace(/\bcotizaci[oó]n(es)?\s+en\s+pdf\b/gi, " ").replace(/\b(en\s+)?pdf\b/gi, " ").replace(/^(s[ií][,.]?\s+)(?=[A-Za-zÁÉÍÓÚáéíóúñÑ])/i, "").replace(/\s+/g, " ").trim();
   if (!trimmed) return null;
   if (isLocationMetaReferential(trimmed) || isReferentialPriorAnswer(trimmed)) {
     return null;
@@ -127641,8 +127689,8 @@ function parseZonaFromText(text2) {
     const lugar = perteneceMatch[1].trim().replace(/[.,;:]+$/g, "").split(/\s+(?:a\s+media|a\s+\d|por\s+la|por\s+que)\b/i)[0].trim();
     if (lugar && isUsableDireccionEvento(lugar)) return lugar;
   }
-  const shortPlace = trimmed.replace(/^(es\s+en\s+|en\s+|ser[ií]a\s+en\s+)/i, "").trim().replace(/[.,;:]+$/g, "").trim();
-  if (shortPlace && shortPlace.split(/\s+/).length <= 4 && shortPlace.length <= 48 && (hasCityOrMetroSignal(shortPlace) || KNOWN_ZONES.test(shortPlace)) && isUsableDireccionEvento(shortPlace)) {
+  const shortPlace = trimmed.replace(/^(es\s+en\s+|en\s+|ser[ií]a\s+en\s+|s[ií][,.]?\s+)/i, "").trim().replace(/[.,;:]+$/g, "").trim();
+  if (shortPlace && shortPlace.split(/\s+/).length <= 5 && shortPlace.length <= 56 && (hasCityOrMetroSignal(shortPlace) || KNOWN_ZONES.test(shortPlace) || looksLikeMxMunicipalityToponym(shortPlace)) && isUsableDireccionEvento(shortPlace)) {
     return shortPlace;
   }
   return null;
@@ -127811,6 +127859,18 @@ function mergeZonaDetail(existing, incoming) {
   if (!prev) return next;
   if (isLocationMetaReferential(prev)) return next;
   if (isLocationMetaReferential(next)) return prev || null;
+  const prevIsCity = hasCityOrMetroSignal(prev) || looksLikeMxMunicipalityToponym(prev) || matchesKnownZone(prev);
+  const nextIsVenue = isVenueWithoutCity(next) || extractVenueNameHint(next);
+  const nextIsCity = hasCityOrMetroSignal(next) || looksLikeMxMunicipalityToponym(next) || matchesKnownZone(next);
+  const prevIsVenue = isVenueWithoutCity(prev) || extractVenueNameHint(prev);
+  if (prevIsCity && nextIsVenue && !nextIsCity) {
+    if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
+    return `${prev}, ${next}`;
+  }
+  if (nextIsCity && prevIsVenue && !prevIsCity) {
+    if (next.toLowerCase().includes(prev.toLowerCase())) return next;
+    return `${next}, ${prev}`;
+  }
   if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
   if (next.toLowerCase().includes(prev.toLowerCase())) return next;
   if (textOverlapLoose(prev, next) >= 0.85) return prev.length >= next.length ? prev : next;
@@ -135234,6 +135294,7 @@ function hasMeaningfulRequerimientos(extracted, filledSet) {
 function lastAssistantAskedMoreServices(history) {
   const lastAssistant = history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(-1)[0]?.content;
   if (!lastAssistant) return false;
+  if (OTRO_SERVICIO_ASK_PATTERN.test(lastAssistant)) return true;
   return inferLucyAskedField(lastAssistant) === "requerimientos" && /alg[uú]n\s+otro\s+servicio|otro\s+servicio|algo\s+m[aá]s|qu[eé]\s+otros\s+servicios/i.test(
     lastAssistant
   );
@@ -137608,13 +137669,33 @@ ${nextQ}` : ack;
   if (!cierreYaEnviado && currentMessage && isVenueWithoutCity(currentMessage) && !isUsableDireccionEvento(currentMessage)) {
     const lastAsstZona = [...presHistory].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
     const askedZona = lastAsstZona ? inferLucyAskedField(lastAsstZona.content) : null;
+    const recoveredCity = recoverZonaFromUserTexts(collectUserTexts(presHistory, void 0), void 0) || (extracted.direccion_evento && (hasCityOrMetroSignal(extracted.direccion_evento) || looksLikeMxMunicipalityToponym(extracted.direccion_evento)) ? extracted.direccion_evento : null);
+    const venue = extractVenueNameHint(currentMessage) || currentMessage.trim();
+    if (recoveredCity && isUsableDireccionEvento(recoveredCity)) {
+      extracted.direccion_evento = mergeZonaDetail(recoveredCity, venue) ?? `${recoveredCity}, ${venue}`;
+      filledSet.add("Lugar/direcci\xF3n del evento");
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending && pending !== "zona" ? buildNaturalQuestion(pending, ctx) : null;
+      const body2 = [
+        display ? `Perfecto, ${display}.` : "Perfecto.",
+        `Anoto *${extracted.direccion_evento}*.`,
+        nextQ
+      ].filter(Boolean).join(" ");
+      log?.info(
+        { entityId, venue, recoveredCity },
+        "GUARD: A15791 \u2014 venue + ciudad del historial"
+      );
+      return normalizeAdvisorReferences2(body2, display);
+    }
     const zonaPending = !isFieldSatisfied("zona", filledSet, extracted);
-    if (askedZona === "zona" || zonaPending && /sal[oó]n|hacienda|hotel|club|expo|jard[ií]n/i.test(currentMessage)) {
+    if (askedZona === "zona" || zonaPending && /sal[oó]n|hacienda|hotel|club|expo|jard[ií]n|caba[nñ]as?|cabanas?|villa|finca/i.test(
+      currentMessage
+    )) {
       if (extracted.direccion_evento && (isVenueWithoutCity(extracted.direccion_evento) || !isUsableDireccionEvento(extracted.direccion_evento))) {
         extracted.direccion_evento = null;
         filledSet.delete("Lugar/direcci\xF3n del evento");
       }
-      const venue = extractVenueNameHint(currentMessage);
       const display = getDisplayName(extracted, whatsappDisplayName);
       const body2 = [
         display ? `Listo, ${display}.` : "Listo.",
@@ -139256,18 +139337,36 @@ ${nextQ}` : `Entendido \u2014 nos quedamos solo con *${label}*. El equipo arma l
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: A15003 \u2014 decline extras, solo entretenimiento elegido");
   } else if (clientDeclinesMoreServices(currentMessage) && hasMeaningfulRequerimientos(extracted, filledSet) && (requerimientosFollowUpAlreadyAsked || justAnsweredReq || lastAssistantAskedMoreServices(presHistory))) {
+    filledSet.add("Requerimientos o servicios");
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
       mensaje = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
         extracted.nombre
       );
     } else {
-      const pending = getNextPendingField(extracted, filledSet);
-      mensaje = pending ? buildNaturalQuestion(pending, ctx) : buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
+      let pending = getNextPendingField(extracted, filledSet);
+      if (pending === "requerimientos") {
+        const skipReq = [
+          "correo",
+          "presupuesto",
+          "zona",
+          "fecha",
+          "horario",
+          "invitados",
+          "tipo_evento"
+        ];
+        pending = skipReq.find((f6) => !isFieldSatisfied(f6, filledSet, extracted)) ?? null;
+      }
+      if (pending) {
+        mensaje = buildNaturalQuestion(pending, ctx);
+      } else {
+        mensaje = buildClosing(
+          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+          extracted.nombre
+        );
+      }
     }
+    appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente no quiere m\xE1s servicios \u2014 avanzar o cierre");
   } else if (allowSalesReplyOverride && (clientMentionsEntertainment(currentMessage) || clientMentionsLedRobotsOrBatucada(currentMessage) || justAnsweredReq && (clientMentionsEntertainment(currentMessage) || clientMentionsLedRobotsOrBatucada(currentMessage)) || // Hilo ya habló de batucada/robots y el cliente insiste (A14962).
   clientMentionsLedRobotsOrBatucada(
@@ -139990,6 +140089,28 @@ ${nextQ}`;
       mensaje = nextQ ?? "Entendido, anoto el horario.";
       log?.info({ entityId }, "GUARD: horario capturado en turno \u2014 continuar flujo");
     }
+  } else if (
+    // A15791+: "3pm a 1am" tras "De 3 a 1am" — refinar am/pm aunque horario ya esté filled.
+    horarioFromMsg && isUsableHorarioEvento(horarioFromMsg) && isRicherHorarioCapture(horarioFromMsg, extracted.horario_evento)
+  ) {
+    extracted.horario_evento = horarioFromMsg;
+    filledSet.add(CRM_HORARIO_LABEL);
+    syncLegacyFechaHorarioField(extracted);
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    const nextQ = nextFieldQuestion(
+      extracted,
+      filledSet,
+      whatsappDisplayName,
+      history,
+      currentMessage,
+      entityId
+    );
+    mensaje = [
+      nombre ? `Perfecto, ${nombre}.` : "Perfecto.",
+      `Anoto el horario *${horarioFromMsg}*.`,
+      nextQ && !mensajeAsksForField(nextQ, "horario") ? nextQ : null
+    ].filter(Boolean).join(" ");
+    log?.info({ entityId, horarioFromMsg }, "GUARD: A15791 \u2014 horario refinado con am/pm");
   } else if (fechaFromMsg && !isUsableFechaEvento(fechaFromMsg) && looksLikeFechaDiscourseJunk(currentMessage ?? "")) {
     filledSet.delete(CRM_FECHA_LABEL);
   }
@@ -140309,8 +140430,8 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
   }
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
   if (mensajeAsksForField(mensaje, "zona") && !isFieldSatisfied("zona", filledSet, extracted)) {
-    const zonaNow = (currentMessage ? parseZonaFromText(currentMessage) : null) || recoverZonaFromUserTexts(collectUserTexts(presHistory, currentMessage), currentMessage) || (extracted.direccion_evento && hasCityOrMetroSignal(extracted.direccion_evento) && isUsableDireccionEvento(extracted.direccion_evento) ? extracted.direccion_evento : null);
-    if (zonaNow && isUsableDireccionEvento(zonaNow) && hasCityOrMetroSignal(zonaNow)) {
+    const zonaNow = (currentMessage ? parseZonaFromText(currentMessage) : null) || recoverZonaFromUserTexts(collectUserTexts(presHistory, currentMessage), currentMessage) || (extracted.direccion_evento && isUsableDireccionEvento(extracted.direccion_evento) && (hasCityOrMetroSignal(extracted.direccion_evento) || looksLikeMxMunicipalityToponym(extracted.direccion_evento)) ? extracted.direccion_evento : null);
+    if (zonaNow && isUsableDireccionEvento(zonaNow) && (hasCityOrMetroSignal(zonaNow) || looksLikeMxMunicipalityToponym(zonaNow))) {
       extracted.direccion_evento = mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
       filledSet.add("Lugar/direcci\xF3n del evento");
       const nombre = getDisplayName(extracted, whatsappDisplayName);
@@ -140321,7 +140442,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
         `Anoto la ubicaci\xF3n en *${extracted.direccion_evento}*.`,
         nextQ
       ].filter(Boolean).join(" ");
-      log?.info({ entityId, zonaNow }, "GUARD: A15701 \u2014 ciudad capturada, no repetir zona");
+      log?.info({ entityId, zonaNow }, "GUARD: A15701/A15791 \u2014 ciudad capturada, no repetir zona");
     }
   }
   if (mensajeAsksForField(mensaje, "zona") && countLucyFieldAsks(presHistory, "zona") >= 1 && !isFieldSatisfied("zona", filledSet, extracted) && !(currentMessage && parseZonaFromText(currentMessage)) && !/\bincluye\b|\bniveles?\b|\$\s*\d|bodasesor\.com\/catalogos|cat[aá]logo general|shows?\s+en\s+vivo|maestro\s+de\s+ceremonias/i.test(
@@ -141350,6 +141471,21 @@ ${q2}` : q2;
         if (freshQ && qOverlap < 0.85) {
           mensaje = display ? `Perfecto, ${display}. ${freshQ}` : freshQ;
           applied.push("same-field-reask-trim");
+        } else if (
+          // A15791+: si el cliente aclaró horario/zona/dato útil, no "Sigo aquí".
+          input.currentMessage && (parseHorarioFromText(input.currentMessage) || parseZonaFromText(input.currentMessage) || parseFechaFromText(input.currentMessage) || parseInvitadosFromText(input.currentMessage) || parseCorreoFromText(input.currentMessage))
+        ) {
+          const pending = getNextPendingField(asExtracted(extracted), filled);
+          if (pending) {
+            mensaje = buildNaturalQuestion(pending, {
+              extracted: asExtracted(extracted),
+              filledSet: filled,
+              history: input.history ?? [],
+              currentMessage: input.currentMessage,
+              whatsappName: display
+            });
+            applied.push("same-field-reask-advance-on-answer");
+          }
         } else {
           mensaje = display ? `Sigo aqu\xED, ${display}. Cuando puedas, \xBFme confirmas ese dato?` : "Sigo aqu\xED. Cuando puedas, \xBFme confirmas ese dato?";
           applied.push("same-field-reask-ack");
@@ -142595,7 +142731,7 @@ function clientReplyForPaymentSlot(slot) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.71";
+var LUCY_PROMPT_VERSION = "V9.72";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -152158,7 +152294,7 @@ ${golfText}`,
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
   await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -152187,7 +152323,7 @@ ${golfText}`,
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
   await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -152305,7 +152441,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,
@@ -152376,7 +152512,7 @@ ${golfText}`,
     }
   });
   await test("135. V9.38 \u2014 comprobante en imagen: primer pago Anticipo, segundo Liquidaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     assert2.equal(FIELD_ANTICIPO, 1049322);
     assert2.equal(FIELD_LIQUIDACION, 1049324);
     assert2.equal(nextPaymentSlot(null, null), "anticipo");
@@ -152440,7 +152576,7 @@ ${golfText}`,
     assert2.ok(/amount_mxn/.test(imgSrc));
   });
   await test("136. V9.40 \u2014 A15380 invitados no se saltan; Coyoac\xE1n+colonia; Claro no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     const horario = "hola si se har\xEDa el 26 de septiembre pero a\xFAn no tenemos definido el horario";
     assert2.equal(parseInvitadosFromText(horario), null, "horario pendiente \u2260 invitados");
     const caps = scanConversationForCaptures([], horario, /* @__PURE__ */ new Set(["Nombre del cliente"]));
@@ -152543,7 +152679,7 @@ ${golfText}`,
     assert2.equal(taquizaNext, "invitados");
   });
   await test("138. V9.41 \u2014 A15383 Kelia: ciudad, banquetes, LED\u2260luz, no spam (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert2.match(hornoMty, /horno\s*3/i, hornoMty);
     assert2.match(hornoMty, /monterrey/i, hornoMty);
@@ -152678,7 +152814,7 @@ ${golfText}`,
     assert2.ok(!/Listo\.\s*Kelia/i.test(nameSpam), nameSpam);
   });
   await test("139. V9.42 \u2014 A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert2.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert2.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -152768,7 +152904,7 @@ ${golfText}`,
     assert2.ok(!/invitados|cu[aá]nt[oa]s|ciudad del evento|en qu[eé] ciudad/i.test(handoff), handoff.slice(0, 400));
   });
   await test("140. V9.43 \u2014 detalle de un producto no re-lista el men\xFA (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -152807,7 +152943,7 @@ ${golfText}`,
     assert2.ok(/Coffee Break 4|350|CB4/i.test(rewritten), rewritten.slice(0, 500));
   });
   await test("141. V9.44 \u2014 A15443 Rosario: reuni\xF3n, hora comida, ciudad obligatoria", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     assert2.equal(parseTipoEventoFromText("una reuni\xF3n de 15 a\xF1os"), "reuni\xF3n");
     assert2.ok(clientSaidReunionNotXv("una reuni\xF3n de 15 a\xF1os"));
     assert2.ok(!clientSaidReunionNotXv("mis XV a\xF1os"));
@@ -152922,7 +153058,7 @@ ${golfText}`,
     assert2.ok(/2\.\s*\*?Servicio completo/i.test(fixedMenu), fixedMenu.slice(0, 600));
   });
   await test("142. V9.45 \u2014 A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     assert2.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert2.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
     assert2.ok(!isUsableFechaHorario("13:00 a 20:00 hrs"));
@@ -152996,7 +153132,7 @@ ${golfText}`,
     assert2.ok(!/ya tengo todo/i.test(clockReply));
   });
   await test("143. V9.49 \u2014 imagen solo embudo; silencio lee dep\xF3sito sin WhatsApp", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
     assert2.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
@@ -153039,7 +153175,7 @@ ${golfText}`,
     assert2.ok(/sin WhatsApp al cliente|leída en silencio/i.test(kommoSrc));
   });
   await test("144. V9.49 \u2014 A15478 Isabel: recomienda tama\xF1o pista seg\xFAn invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     const ask = "Me puedes recomendar el tama\xF1o pensando en la cantidad de invitados?";
     assert2.ok(clientAsksDimensionRecommendation(ask));
     const rec = recommendPistaDimensionsForGuests(120, "XV a\xF1os");
@@ -153105,7 +153241,7 @@ ${golfText}`,
     assert2.ok(!/ya tengo lo principal/i.test(anti.mensaje), anti.mensaje);
   });
   await test("146. V9.49 \u2014 A15494 Paola: mucho gusto no es apellido", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     const reply = "Paola mucho gusto";
     assert2.ok(isMuchoGustoNameReply(reply));
     assert2.equal(sanitizeCrmNombre(reply), "Paola");
@@ -153139,7 +153275,7 @@ ${golfText}`,
     assert2.ok(!/Mucho Gusto!/i.test(guarded.replace(/mucho gusto,\s*Paola/i, "")), guarded);
   });
   await test("147. V9.49 \u2014 A15503 Good: loza y plato postre = vajilla, no postres", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     const brief = "Hola, me interesa cotizar un servicio\nQuiere loza para un evento para 50 personas\nSer\xEDa:\nPlato trinche\nPlato postre\nCubiertos (cuchara, tenedor, cuchara postre).";
     assert2.ok(isTablewareRequestText(brief));
     const services = parseServicesFromText(brief);
@@ -153168,7 +153304,7 @@ ${golfText}`,
     assert2.ok(!/mobiliario/i.test(declineGuard), declineGuard);
   });
   await test("148. V9.50 \u2014 fecha y horario en campos CRM separados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     const split = splitCombinedFechaHorario("15 de agosto, 5:00 p.m.");
     assert2.equal(split.fecha, "15 de agosto");
     assert2.ok(split.horario && /5:00/i.test(split.horario));
@@ -153206,7 +153342,7 @@ ${golfText}`,
     assert2.ok(!cf.some((f6) => f6.field_id === 1048778));
   });
   await test("149. V9.51 \u2014 A15508 Betiana: 40 invitadas y anti-repetici\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     assert2.equal(parseInvitadosFromText("40 sillas, 40 invitadas"), "40");
     assert2.equal(parseInvitadosFromText("40 invitadas"), "40");
     assert2.equal(
@@ -153252,7 +153388,7 @@ ${golfText}`,
     assert2.ok(!/estimado de invitados|cu[aá]ntos invitados/i.test(guarded), guarded);
   });
   await test("150. V9.52 \u2014 A15509 Gaby: apertura, RFQ equipo, a\xFAn no invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     assert2.equal(parseTipoEventoFromText("Ser\xEDa para la apertura de un negocio"), "apertura de negocio");
     assert2.ok(clientSaidAperturaNegocio("Ser\xEDa para la apertura de un negocio"));
     const rfq = [
@@ -153316,7 +153452,7 @@ ${golfText}`,
     assert2.ok(!/cu[aá]ntas personas|estimado de invitados/i.test(invWaive), invWaive);
   });
   await test("151. V9.53 \u2014 A15516 Ccam: captura horario pm y anti-repetici\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     const extracted = emptyExtracted({
       nombre: "Ccam",
       tipo_evento: "XV a\xF1os",
@@ -153364,7 +153500,7 @@ ${golfText}`,
     assert2.ok(!/horario/i.test(guarded2) || /anoto|perfecto|invitados|ciudad|correo/i.test(guarded2), guarded2);
   });
   await test("152. V9.55 \u2014 A15486 G\xE9nesis: promo/vajilla/detalles/presupuesto/PDF", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     const promo = [
       "Hola, escribo por la promo de cierre r\xE1pido (10% de descuento).",
       "C\xF3digo: CierreRapido",
@@ -153476,7 +153612,7 @@ ${golfText}`,
     );
   });
   await test("153. V9.55 \u2014 A15539 Jorge: horario/carpa/DJ no/mobiliario/Atlixco/callback", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     assert2.equal(parseTipoEventoFromText("primera comuni\xF3n"), "primera comuni\xF3n");
     assert2.ok(isScheduleLabeledClock("a medio d\xEDa"));
     assert2.ok(isScheduleLabeledClock("cocktail a las 12:00\ncomida a las 2:00"));
@@ -153635,7 +153771,7 @@ ${golfText}`,
     assert2.ok(!/servicios te gustar[ií]a|ir armando/i.test(callback), callback.slice(0, 400));
   });
   await test("154. V9.56 \u2014 A15547 Marisol: taquiza sin $, qu\xE9 incluye, pospone sin correo", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     const csv = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
       '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","5 guisados","https://bodasesor.com/catalogos/taquiza"',
@@ -153693,7 +153829,7 @@ ${golfText}`,
     assert2.ok(!/correo|e-?mail/i.test(soft), soft.slice(0, 400));
   });
   await test("155. V9.57 \u2014 A15550 Jos\xE9: sal\xF3n suministra \u2260 pedido; bufet \u2192 banquete", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     const brief = "cotizaci\xF3n cumplea\xF1os 3 de octubre 50 personas Nezahualc\xF3yotl, el sal\xF3n suministra mesas, sillas, manteler\xEDa, platos, vasos y un mesero";
     assert2.ok(isVenueProvidesContext(brief));
     const parsed = parseServicesFromText(brief);
@@ -153712,7 +153848,7 @@ ${golfText}`,
     assert2.ok(!/necesitas.*vajillas/i.test(fix), fix.slice(0, 400));
   });
   await test("156. V9.70 \u2014 A15566 Lynn: de 3pm a 11pm, a partir de, sin horario a\xFAn", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     assert2.ok(/3:00.*11:00/i.test(parseHorarioFromText("El evento ser\xEDa de 3:00 pm a 11:00 pm") ?? ""));
     assert2.ok(/16:00|a partir/i.test(parseHorarioFromText("A partir de las 16:00 hrs") ?? ""));
     assert2.ok(/15:00.*11:00/i.test(parseHorarioFromText("De 15:00 p.m a 11:00 p.m") ?? ""));
@@ -153759,7 +153895,7 @@ ${golfText}`,
     assert2.ok(!/horario lo planean/i.test(defer), defer.slice(0, 400));
   });
   await test("157. V9.70 \u2014 A15581 Mariana: cuatro, dual propuesta, DJ inclusi\xF3n/acotado", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     assert2.ok(/4/.test(parseHorarioFromText("Ser\xEDa temprano, a partir de las cuatro") ?? ""));
     assert2.ok(normalizeWrittenClockInText("a partir de las cuatro").includes("4"));
     assert2.ok(clientRequestsDualProposals("dos propuestas formal y otra casual"));
@@ -153800,7 +153936,7 @@ ${golfText}`,
     assert2.ok(!/la anoto para tu cotizaci/i.test(djInfo), djInfo.slice(0, 400));
   });
   await test("158. V9.70 \u2014 A15620 Mara: promo CierreRapido no captura 35 pax ni hora de env\xEDo", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     const maraPromo = [
       "Hola, escribo por la promo de cierre r\xE1pido (10% de descuento).",
       "C\xF3digo: CierreRapido",
@@ -153824,7 +153960,7 @@ ${golfText}`,
     assert2.equal(promoReply.match(/35\s*personas/gi)?.length ?? 0, 0, promoReply.slice(0, 400));
   });
   await test("159. V9.70 \u2014 A15701 Alejandra: Puerto Vallarta no repregunta ciudad", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     assert2.equal(parseZonaFromText("Puerto Vallarta")?.toLowerCase(), "puerto vallarta");
     assert2.ok(isUsableDireccionEvento("Puerto Vallarta"));
     const filled = /* @__PURE__ */ new Set([
@@ -153864,7 +154000,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*|en qu[eé] ciudad|ya tienen ciudad/i.test(reply), reply.slice(0, 400));
   });
   await test("160. V9.70 \u2014 A15707 danymelgozza: cotizaci\xF3n inicial no es env\xEDo de cotizaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     const opening = "Quiero hacer una cotizaci\xF3n de barra de sushis y nigiris para 25 personas";
     assert2.equal(clientWantsQuoteDelivery(opening), false);
     assert2.ok(clientWantsQuoteDelivery("Si, m\xE1ndame la cotizaci\xF3n por favor, y te confirmo todo"));
@@ -153885,7 +154021,7 @@ ${golfText}`,
     assert2.ok(/sushi|nigiri|25|personas|nombre|Lucy|Bodasesor/i.test(reply), reply.slice(0, 500));
   });
   await test("161. V9.70 \u2014 A15708 Itzel: una sola presentaci\xF3n Lucy", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     const firstIntro = "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor. Claro que te ayudo con tu evento. \xBFMe regalas tu nombre?";
     const reply = runGuards({
       aiResponse: "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor. \xA1Mucho gusto, Itzel! \xBFQu\xE9 tipo de evento tienes en mente celebrar?",
@@ -153904,7 +154040,7 @@ ${golfText}`,
     assert2.ok(/tipo de evento/i.test(reply), reply.slice(0, 400));
   });
   await test("162. V9.70 \u2014 A15705 Karla: Ser\xEDa De Catering no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     assert2.equal(sanitizeCrmNombre("Ser\xEDa De Catering"), null);
     assert2.equal(shouldUpdateName("Karla Rodr\xEDguez", "Ser\xEDa De Catering"), false);
     assert2.equal(shouldUpdateName("Ser\xEDa De Catering", "Karla Rodr\xEDguez"), true);
@@ -153923,7 +154059,7 @@ ${golfText}`,
     assert2.ok(!/Con gusto,\s*Ser[ií]a/i.test(reply), reply.slice(0, 400));
   });
   await test("163. V9.71 \u2014 A15775 Pamela: municipio GDL y meta-ciudad", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.71");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.72");
     assert2.ok(hasCityOrMetroSignal("San Pedro Tlaquepaque"));
     assert2.ok(isLocationMetaReferential("esa es la ciudad"));
     assert2.equal(parseZonaFromText("esa es la ciudad"), null);

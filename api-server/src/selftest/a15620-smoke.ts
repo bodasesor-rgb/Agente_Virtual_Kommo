@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Smoke A15620 Mara — promo CierreRapido: pedido mínimo ≠ invitados; hora de envío ≠ horario evento.
  * node ./scripts/run-a15620-smoke.mjs
  */
@@ -64,7 +64,7 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.71");
+assert.equal(LUCY_PROMPT_VERSION, "V9.72");
 
 assert.ok(isPromoTemplateMessage(MARA_PROMO));
 assert.ok(isPromoMinimumGuestLine("Pedido mínimo: 35 personas."));

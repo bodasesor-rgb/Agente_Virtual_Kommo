@@ -664,6 +664,26 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
         if (freshQ && qOverlap < 0.85) {
           mensaje = display ? `Perfecto, ${display}. ${freshQ}` : freshQ;
           applied.push("same-field-reask-trim");
+        } else if (
+          // A15791+: si el cliente aclaró horario/zona/dato útil, no "Sigo aquí".
+          input.currentMessage &&
+          (parseHorarioFromText(input.currentMessage) ||
+            parseZonaFromText(input.currentMessage) ||
+            parseFechaFromText(input.currentMessage) ||
+            parseInvitadosFromText(input.currentMessage) ||
+            parseCorreoFromText(input.currentMessage))
+        ) {
+          const pending = getNextPendingField(asExtracted(extracted), filled);
+          if (pending) {
+            mensaje = buildNaturalQuestion(pending, {
+              extracted: asExtracted(extracted),
+              filledSet: filled,
+              history: input.history ?? [],
+              currentMessage: input.currentMessage,
+              whatsappName: display,
+            });
+            applied.push("same-field-reask-advance-on-answer");
+          }
         } else {
           // Misma pregunta: no reenviar; acuse corto (el cliente aún no respondió).
           mensaje = display

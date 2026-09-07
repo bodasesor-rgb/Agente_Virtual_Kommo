@@ -40,7 +40,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.71");
+assert.equal(LUCY_PROMPT_VERSION, "V9.72");
 
 // ── Parser: paninis / typos sandwich ──
 const paniniMsg =
@@ -145,4 +145,4 @@ assert.match(pickBetterNombre("Daniela", "daniela loustaunau") ?? "", /daniela\s
 assert.equal(resolveKommoLeadNamePatch("daniela loustaunau", "Daniela"), null);
 assert.ok(!!resolveKommoLeadNamePatch("Daniela", "Daniela Loustaunau"));
 
-console.log("V9.71 class smoke OK");
+console.log("V9.72 class smoke OK");

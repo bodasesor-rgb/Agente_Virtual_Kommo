@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Smoke A15708 Itzel — no repetir presentación Lucy tras dar el nombre.
  * node ./scripts/run-a15708-smoke.mjs
  */
@@ -48,7 +48,7 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.71");
+assert.equal(LUCY_PROMPT_VERSION, "V9.72");
 
 const firstIntro =
   "¡Hola! Buen día. Soy Lucy, agente virtual de Bodasesor. Claro que te ayudo con tu evento. ¿Me regalas tu nombre?";

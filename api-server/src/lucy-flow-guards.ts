@@ -219,6 +219,7 @@ import {
   isVenueWithoutCity,
   extractVenueNameHint,
   hasCityOrMetroSignal,
+  looksLikeMxMunicipalityToponym,
   clientCorrectsLocation,
   isVenueSpaceDetail,
   applyLocationCorrectionToAddress,
@@ -253,6 +254,7 @@ import {
   isUsableFechaHorario,
   isUsableFechaEvento,
   isUsableHorarioEvento,
+  isRicherHorarioCapture,
   parseHorarioFromText,
   clientDefersHorario,
   clientRequestsDualProposals,
@@ -1956,6 +1958,8 @@ function lastAssistantAskedMoreServices(
     .filter((m) => m.role === "assistant" && typeof m.content === "string")
     .slice(-1)[0]?.content as string | undefined;
   if (!lastAssistant) return false;
+  // A15791+: "¿necesitan algún otro servicio?" basta (inferLucyAskedField a veces no marca req).
+  if (OTRO_SERVICIO_ASK_PATTERN.test(lastAssistant)) return true;
   return (
     inferLucyAskedField(lastAssistant) === "requerimientos" &&
     /alg[uú]n\s+otro\s+servicio|otro\s+servicio|algo\s+m[aá]s|qu[eé]\s+otros\s+servicios/i.test(
@@ -5735,7 +5739,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     return normalizeAdvisorReferences(body, display);
   }
 
-  // V9.30: salón/hacienda sin ciudad → no cerrar ubicación; pedir ciudad.
+  // V9.30: salón/hacienda/cabañas sin ciudad → no cerrar ubicación; pedir ciudad.
+  // A15791+: si el historial ya trae ciudad (Huasca), fusionar venue y no repreguntar.
   if (
     !cierreYaEnviado &&
     currentMessage &&
@@ -5748,11 +5753,42 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const askedZona = lastAsstZona
       ? inferLucyAskedField(lastAsstZona.content as string)
       : null;
+    const recoveredCity =
+      recoverZonaFromUserTexts(collectUserTexts(presHistory, undefined), undefined) ||
+      (extracted.direccion_evento &&
+      (hasCityOrMetroSignal(extracted.direccion_evento) ||
+        looksLikeMxMunicipalityToponym(extracted.direccion_evento))
+        ? extracted.direccion_evento
+        : null);
+    const venue = extractVenueNameHint(currentMessage) || currentMessage.trim();
+    if (recoveredCity && isUsableDireccionEvento(recoveredCity)) {
+      extracted.direccion_evento =
+        mergeZonaDetail(recoveredCity, venue) ?? `${recoveredCity}, ${venue}`;
+      filledSet.add("Lugar/dirección del evento");
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ =
+        pending && pending !== "zona" ? buildNaturalQuestion(pending, ctx) : null;
+      const body = [
+        display ? `Perfecto, ${display}.` : "Perfecto.",
+        `Anoto *${extracted.direccion_evento}*.`,
+        nextQ,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      log?.info(
+        { entityId, venue, recoveredCity },
+        "GUARD: A15791 — venue + ciudad del historial"
+      );
+      return normalizeAdvisorReferences(body, display);
+    }
     const zonaPending = !isFieldSatisfied("zona", filledSet, extracted);
     if (
       askedZona === "zona" ||
       (zonaPending &&
-        /sal[oó]n|hacienda|hotel|club|expo|jard[ií]n/i.test(currentMessage))
+        /sal[oó]n|hacienda|hotel|club|expo|jard[ií]n|caba[nñ]as?|cabanas?|villa|finca/i.test(
+          currentMessage
+        ))
     ) {
       if (
         extracted.direccion_evento &&
@@ -5762,7 +5798,6 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         extracted.direccion_evento = null;
         filledSet.delete("Lugar/dirección del evento");
       }
-      const venue = extractVenueNameHint(currentMessage);
       const display = getDisplayName(extracted, whatsappDisplayName);
       const body = [
         display ? `Listo, ${display}.` : "Listo.",
@@ -8289,20 +8324,37 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       justAnsweredReq ||
       lastAssistantAskedMoreServices(presHistory))
   ) {
+    filledSet.add("Requerimientos o servicios");
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
       mensaje = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
         extracted.nombre
       );
     } else {
-      const pending = getNextPendingField(extracted, filledSet);
-      mensaje = pending
-        ? buildNaturalQuestion(pending, ctx)
-        : buildClosing(
-            extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-            extracted.nombre
-          );
+      let pending = getNextPendingField(extracted, filledSet);
+      // A15791+: tras "por el momento no", no volver a "Queda anotado lo de Carpas".
+      if (pending === "requerimientos") {
+        const skipReq: PendingField[] = [
+          "correo",
+          "presupuesto",
+          "zona",
+          "fecha",
+          "horario",
+          "invitados",
+          "tipo_evento",
+        ];
+        pending = skipReq.find((f) => !isFieldSatisfied(f, filledSet, extracted)) ?? null;
+      }
+      if (pending) {
+        mensaje = buildNaturalQuestion(pending, ctx);
+      } else {
+        mensaje = buildClosing(
+          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+          extracted.nombre
+        );
+      }
     }
+    appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente no quiere más servicios — avanzar o cierre");
   } else if (
     allowSalesReplyOverride &&
@@ -9294,6 +9346,32 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       log?.info({ entityId }, "GUARD: horario capturado en turno — continuar flujo");
     }
   } else if (
+    // A15791+: "3pm a 1am" tras "De 3 a 1am" — refinar am/pm aunque horario ya esté filled.
+    horarioFromMsg &&
+    isUsableHorarioEvento(horarioFromMsg) &&
+    isRicherHorarioCapture(horarioFromMsg, extracted.horario_evento)
+  ) {
+    extracted.horario_evento = horarioFromMsg;
+    filledSet.add(CRM_HORARIO_LABEL);
+    syncLegacyFechaHorarioField(extracted);
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    const nextQ = nextFieldQuestion(
+      extracted,
+      filledSet,
+      whatsappDisplayName,
+      history,
+      currentMessage,
+      entityId
+    );
+    mensaje = [
+      nombre ? `Perfecto, ${nombre}.` : "Perfecto.",
+      `Anoto el horario *${horarioFromMsg}*.`,
+      nextQ && !mensajeAsksForField(nextQ, "horario") ? nextQ : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    log?.info({ entityId, horarioFromMsg }, "GUARD: A15791 — horario refinado con am/pm");
+  } else if (
     fechaFromMsg &&
     !isUsableFechaEvento(fechaFromMsg) &&
     looksLikeFechaDiscourseJunk(currentMessage ?? "")
@@ -9794,7 +9872,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
 
-  // A15701+: si ya hay ciudad usable (mensaje, historial o extracted), no re-preguntar zona.
+  // A15701+/A15791+: si ya hay ciudad usable (mensaje, historial o extracted), no re-preguntar zona.
   if (
     mensajeAsksForField(mensaje, "zona") &&
     !isFieldSatisfied("zona", filledSet, extracted)
@@ -9803,11 +9881,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       (currentMessage ? parseZonaFromText(currentMessage) : null) ||
       recoverZonaFromUserTexts(collectUserTexts(presHistory, currentMessage), currentMessage) ||
       (extracted.direccion_evento &&
-      hasCityOrMetroSignal(extracted.direccion_evento) &&
-      isUsableDireccionEvento(extracted.direccion_evento)
+      isUsableDireccionEvento(extracted.direccion_evento) &&
+      (hasCityOrMetroSignal(extracted.direccion_evento) ||
+        looksLikeMxMunicipalityToponym(extracted.direccion_evento))
         ? extracted.direccion_evento
         : null);
-    if (zonaNow && isUsableDireccionEvento(zonaNow) && hasCityOrMetroSignal(zonaNow)) {
+    if (
+      zonaNow &&
+      isUsableDireccionEvento(zonaNow) &&
+      (hasCityOrMetroSignal(zonaNow) || looksLikeMxMunicipalityToponym(zonaNow))
+    ) {
       extracted.direccion_evento =
         mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
       filledSet.add("Lugar/dirección del evento");
@@ -9821,7 +9904,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       ]
         .filter(Boolean)
         .join(" ");
-      log?.info({ entityId, zonaNow }, "GUARD: A15701 — ciudad capturada, no repetir zona");
+      log?.info({ entityId, zonaNow }, "GUARD: A15701/A15791 — ciudad capturada, no repetir zona");
     }
   }
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Smoke A15701 Alejandra — Puerto Vallarta = ciudad, no bucle de confirmación.
  * node ./scripts/run-a15701-smoke.mjs
  */
@@ -56,7 +56,7 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.71");
+assert.equal(LUCY_PROMPT_VERSION, "V9.72");
 
 assert.equal(parseZonaFromText("Puerto Vallarta")?.toLowerCase(), "puerto vallarta");
 assert.ok(isUsableDireccionEvento("Puerto Vallarta"));
