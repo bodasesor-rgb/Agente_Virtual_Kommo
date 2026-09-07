@@ -169,6 +169,8 @@ import {
   clientAsksDimensionRecommendation,
   recommendPistaDimensionsForGuests,
   recommendCarpaDimensionsForGuests,
+  buildCarpaGuestRecommendationLine,
+  recommendCarpaAreaM2ForGuests,
   clientMentionsCarpas,
   clientAsksServiceInfo,
   parseSalaProductFromText,
@@ -1633,6 +1635,10 @@ function buildCarpasSalesReply(
         .map((t) => parseSpaceDimensions(t))
         .find(Boolean);
       if (!histHasDims && !/\d+\s*x\s*\d+/i.test(extracted.requerimientos_evento ?? "")) {
+        const rec = buildCarpaGuestRecommendationLine(extracted.num_invitados ?? 0);
+        if (rec) {
+          return `${pickTransition(history)} ${ack} ${rec} ¿Te late esa base o ya tienes medidas del jardín?`.trim();
+        }
         return `${pickTransition(history)} ${ack} ¿Qué medidas aproximadas necesitas?`.trim();
       }
     }
@@ -1654,6 +1660,10 @@ function buildCarpasSalesReply(
     let body = `${ack}\n\n${catalog}`;
     if (!dims) {
       body = `${body}\n\nPara cotizar bien las carpas, ¿me compartes medidas aproximadas del área a cubrir (o del espacio)?`;
+      const rec = buildCarpaGuestRecommendationLine(extracted.num_invitados ?? 0);
+      if (rec) {
+        body = `${ack}\n\n${catalog}\n\n${rec} ¿Armamos con esa base o ya tienes medidas del jardín?`;
+      }
       return `${pickTransition(history)} ${body}`.trim();
     }
     const filledAfter = new Set(filledSet ?? []);
@@ -1716,6 +1726,28 @@ function buildCarpasSalesReply(
     return `${pickTransition(history)} ${body}`.trim();
   }
   if (!dims) {
+    const rec = buildCarpaGuestRecommendationLine(extracted.num_invitados ?? 0);
+    if (rec) {
+      const filledAfter = new Set(filledSet ?? []);
+      filledAfter.add("Requerimientos o servicios");
+      if (extracted.num_invitados && extracted.num_invitados > 0) {
+        const ref = recommendCarpaDimensionsForGuests(extracted.num_invitados);
+        if (!/\d+\s*m\s*[x×]/i.test(extracted.requerimientos_evento ?? "")) {
+          const merged = mergeServiceRequirements(
+            extracted.requerimientos_evento,
+            `Carpas (ref. ${ref})`,
+            6
+          );
+          if (merged) extracted.requerimientos_evento = merged;
+        }
+      }
+      const pending = getNextPendingField(extracted, filledAfter);
+      const nextQ =
+        pending && pending !== "requerimientos" && ctx
+          ? buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter })
+          : null;
+      return `${pickTransition(history)} ${ack} ${rec}${nextQ ? `\n\n${nextQ}` : ""}`.trim();
+    }
     return `${pickTransition(history)} ${ack}`.trim();
   }
 
@@ -4218,12 +4250,20 @@ export function buildDimensionRecommendationReply(
   }
 
   const carpaDims = recommendCarpaDimensionsForGuests(guests);
-  if (!parseSpaceDimensions(req)) {
+  const areaM2 = recommendCarpaAreaM2ForGuests(guests);
+  if (!parseSpaceDimensions(req) && guests > 0) {
     extracted.requerimientos_evento = `${req || "Carpas"} (ref. ${carpaDims})`;
   }
+  if (guests > 0) {
+    return (
+      `${greet}para que estén cómodos con *${guestLabel.replace(/^~/, "")}*, te recomiendo *${areaM2} m²* de carpa ` +
+      `(1.5 m² por invitado; ${carpaDims.replace(`${areaM2} m² `, "")}). ` +
+      `¿Armamos la propuesta con esa base o ya tienes medidas del jardín?`
+    );
+  }
   return (
-    `${greet}para ${guestLabel} con mesas redondas y pasillos, como referencia suele ir una carpa de *${carpaDims}* ` +
-    `(depende del acomodo y si llevan pista). ¿Tienes medidas del jardín o armamos la propuesta con esa base?`
+    `${greet}para tu número de invitados usamos *1.5 m² de carpa por persona* (así van cómodos con mesas y pasillos). ` +
+    `¿Cuántos invitados contemplan para recomendarte los metros?`
   );
 }
 
@@ -5439,6 +5479,49 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           log?.info({ entityId, n }, "GUARD: invitados desde mensaje actual");
         }
       }
+    }
+  }
+
+  // Carpas: con invitados recién capturados (o en este turno), ofrecer 1.5 m²/persona.
+  if (
+    !cierreYaEnviado &&
+    currentMessage &&
+    extracted.num_invitados &&
+    extracted.num_invitados > 0 &&
+    clientMentionsCarpas(extracted.requerimientos_evento ?? "") &&
+    !parseSpaceDimensions(extracted.requerimientos_evento ?? "") &&
+    !/ref\.\s*\d+\s*m/i.test(extracted.requerimientos_evento ?? "") &&
+    (parseInvitadosFromText(currentMessage, { askedInvitados: true }) ||
+      /^\d{1,4}\s*(personas?|invitados?|pax)?\.?$/i.test(currentMessage.trim()))
+  ) {
+    const n = extracted.num_invitados;
+    const rec = buildCarpaGuestRecommendationLine(n);
+    const ref = recommendCarpaDimensionsForGuests(n);
+    if (rec) {
+      const currentReq = extracted.requerimientos_evento?.trim() || "Carpas";
+      extracted.requerimientos_evento = /ref\.\s*\d+\s*m/i.test(currentReq)
+        ? currentReq
+        : /\bcarpas?\b/i.test(currentReq)
+          ? currentReq.replace(/\bcarpas?\b/i, `Carpas (ref. ${ref})`)
+          : `${currentReq}, Carpas (ref. ${ref})`;
+      filledSet.add("Requerimientos o servicios");
+      filledSet.add("Número de invitados");
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ =
+        pending && pending !== "requerimientos" && pending !== "invitados"
+          ? buildNaturalQuestion(pending, ctx)
+          : null;
+      const nombre = getDisplayName(extracted, whatsappDisplayName);
+      const body = [
+        nombre ? `Perfecto, ${nombre}.` : "Perfecto.",
+        `Anoto *${n} invitados*.`,
+        rec,
+        nextQ,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      log?.info({ entityId, n, ref }, "GUARD: carpas — recomendación 1.5 m²/invitado");
+      return normalizeAdvisorReferences(body, nombre);
     }
   }
 

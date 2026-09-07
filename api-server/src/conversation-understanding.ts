@@ -4681,14 +4681,56 @@ export function recommendPistaDimensionsForGuests(
   };
 }
 
-/** Referencia de carpa según invitados sentados + pasillos. */
+const STANDARD_CARPA_SIZES: Array<{ w: number; h: number; area: number }> = [
+  { w: 6, h: 6, area: 36 },
+  { w: 6, h: 9, area: 54 },
+  { w: 9, h: 9, area: 81 },
+  { w: 9, h: 12, area: 108 },
+  { w: 10, h: 12, area: 120 },
+  { w: 10, h: 15, area: 150 },
+  { w: 12, h: 15, area: 180 },
+  { w: 15, h: 15, area: 225 },
+  { w: 15, h: 18, area: 270 },
+  { w: 15, h: 21, area: 315 },
+  { w: 18, h: 21, area: 378 },
+];
+
+function pickStandardCarpaSize(targetAreaM2: number): { w: number; h: number } {
+  const pick =
+    STANDARD_CARPA_SIZES.find((s) => s.area >= targetAreaM2) ??
+    STANDARD_CARPA_SIZES[STANDARD_CARPA_SIZES.length - 1]!;
+  return { w: pick.w, h: pick.h };
+}
+
+/** m² de carpa por invitado para ir cómodos (mesas + pasillos). */
+export const CARPA_M2_PER_GUEST = 1.5;
+
+/** Área total recomendada de carpa (m²) = invitados × 1.5. */
+export function recommendCarpaAreaM2ForGuests(guests: number): number {
+  if (!Number.isFinite(guests) || guests <= 0) return 0;
+  return Math.ceil(guests * CARPA_M2_PER_GUEST);
+}
+
+/**
+ * Referencia de carpa según invitados: 1.5 m² por persona.
+ * Ej. 100 invitados → ~150 m² (aprox. 10m x 15m).
+ */
 export function recommendCarpaDimensionsForGuests(guests: number): string {
-  if (guests <= 0) return "6m x 9m";
-  if (guests <= 40) return "6m x 9m";
-  if (guests <= 80) return "9m x 12m";
-  if (guests <= 120) return "12m x 15m";
-  if (guests <= 180) return "15m x 18m";
-  return "15m x 21m o más";
+  if (guests <= 0) return "según invitados (1.5 m² por persona)";
+  const m2 = recommendCarpaAreaM2ForGuests(guests);
+  const { w, h } = pickStandardCarpaSize(m2);
+  return `${m2} m² (aprox. ${w}m x ${h}m)`;
+}
+
+/** Texto listo para WhatsApp al recomendar carpa por invitados. */
+export function buildCarpaGuestRecommendationLine(guests: number): string | null {
+  if (!Number.isFinite(guests) || guests <= 0) return null;
+  const m2 = recommendCarpaAreaM2ForGuests(guests);
+  const dims = recommendCarpaDimensionsForGuests(guests);
+  return (
+    `Para que estén cómodos con *${guests} invitados*, te recomiendo *${m2} m²* de carpa ` +
+    `(${CARPA_M2_PER_GUEST} m² por invitado; ${dims.replace(`${m2} m² `, "")}).`
+  );
 }
 
 /** Cliente pide pista de baile o tarima. */

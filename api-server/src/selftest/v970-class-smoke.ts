@@ -45,7 +45,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.72");
+assert.equal(LUCY_PROMPT_VERSION, "V9.73");
 
 // Nombre: Sofy Zavala no degradar a Sofia / Sofia con tilde
 assert.ok(namesShareNicknameRoot("Sofy", "Sofia"));
