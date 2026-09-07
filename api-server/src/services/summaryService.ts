@@ -34,6 +34,14 @@ function isUsableResumenServicio(value: string | null | undefined): boolean {
   return true;
 }
 
+/** A15841: "2026" del "8 de octubre del 2026" no es presupuesto. */
+function isCalendarYearOnlyAmount(value: string | null | undefined): boolean {
+  const t = value?.trim() ?? "";
+  if (!/^(19|20)\d{2}$/.test(t)) return false;
+  const n = parseInt(t, 10);
+  return n >= 1990 && n <= 2100;
+}
+
 function isUsableResumenUbicacion(value: string | null | undefined): boolean {
   const t = value?.trim() ?? "";
   if (!t) return false;
@@ -252,14 +260,15 @@ export function buildResumenClienteLargo(
   }
 
   // Presupuesto: tomar el mayor entre línea CRM, extracted y montos en la conversación.
-  let ppto: string | null = pptoFromLine;
+  let ppto: string | null = isCalendarYearOnlyAmount(pptoFromLine) ? null : pptoFromLine;
   const convAmounts = conversationText
-    ? [...conversationText.matchAll(/\$?\s*([\d][\d,]{2,})\b/g)]
-        .map((m) => parseInt(m[1]!.replace(/,/g, ""), 10))
+    ? [...conversationText.matchAll(/(\$\s*)?([\d][\d,]{2,})\b/g)]
+        .filter((m) => !!m[1] || !isCalendarYearOnlyAmount(m[2]))
+        .map((m) => parseInt(m[2]!.replace(/,/g, ""), 10))
         .filter((n) => !isNaN(n) && n >= 1000 && n <= 50_000_000)
     : [];
   const maxConv = convAmounts.length ? Math.max(...convAmounts) : 0;
-  const lineNum = pptoFromLine ? parseInt(pptoFromLine.replace(/[^\d]/g, ""), 10) : 0;
+  const lineNum = ppto ? parseInt(ppto.replace(/[^\d]/g, ""), 10) : 0;
   const extNum =
     extracted.presupuesto !== null && extracted.presupuesto > 0 ? extracted.presupuesto : 0;
   const bestPpto = Math.max(lineNum || 0, extNum || 0, maxConv || 0);

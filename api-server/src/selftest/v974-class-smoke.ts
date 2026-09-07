@@ -35,7 +35,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.74");
+assert.equal(LUCY_PROMPT_VERSION, "V9.75");
 
 {
   const closingWithLink = `Perfecto, ya tengo todo. He anotado la promoción de cierre rápido del 10% de descuento con el código CierreRapido. Con esta información, le pediré a mi equipo que prepare una cotización personalizada para ti.
@@ -44,8 +44,9 @@ Mientras tanto, te comparto nuestro catálogo general donde puedes ver los monta
 
 ¿Te gustaría que te envíe el catálogo con más detalle? Quedo a tu disposición por si necesitas cualquier otra cosa.`;
   assert.equal(clientAffirmsCatalogOffer("Ok gracias", closingWithLink), false);
-  assert.equal(clientAffirmsCatalogOffer("ok", closingWithLink), false);
   assert.equal(clientAffirmsCatalogOffer("gracias", closingWithLink), false);
+  // "Sí" / "ok" siguen aceptando la oferta explícita del turno anterior.
+  assert.ok(clientAffirmsCatalogOffer("Sí", closingWithLink));
   assert.ok(clientAffirmsCatalogOffer("Si mándamelo", closingWithLink));
   assert.ok(
     clientAffirmsCatalogOffer("Si", "¿Te gustaría que te envíe el catálogo con más detalle?")

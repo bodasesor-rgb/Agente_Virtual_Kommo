@@ -131804,6 +131804,15 @@ function assistantOfferedCatalogDetail(lastAssistantText) {
     lastAssistantText
   );
 }
+function isThanksOnlyAck(message) {
+  const t4 = message?.trim().toLowerCase() ?? "";
+  if (!t4) return false;
+  if (!/\bgracias\b/i.test(t4)) return false;
+  if (/\b(s[ií]|sip|claro|dale|por\s+favor|m[aá]nda|env[ií]a|pasa|link|enlace|cat[aá]logo)\b/i.test(t4)) {
+    return false;
+  }
+  return /^(ok|okay|va|perfecto|listo|muy\s+bien)?[\s,]*(muchas\s+|mil\s+)?gracias[\s.!]*$/i.test(t4);
+}
 function clientAffirmsCatalogOffer(message, lastAssistantText) {
   if (!message?.trim() || !assistantOfferedCatalogDetail(lastAssistantText)) return false;
   if (assistantAskedVagueEmbudoContinue(lastAssistantText)) return false;
@@ -131816,13 +131825,7 @@ function clientAffirmsCatalogOffer(message, lastAssistantText) {
     return true;
   }
   const alreadySentLink = /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(lastAssistantText ?? "");
-  const softAckOnly = /^(ok|okay|va|perfecto|claro|s[ií]|sip)([\s,]+gracias)?[\s.!]*$/i.test(t4) || /^(muchas\s+)?gracias[\s.!]*$/i.test(t4) || /^ok\s+gracias[\s.!]*$/i.test(t4);
-  const explicitResend = /\b(m[aá]nda(me)?(lo)?|env[ií]a(me)?(lo)?|pasa(me)?(lo)?|m[aá]s\s+detalle|el\s+link|el\s+enlace)\b/i.test(
-    t4
-  );
-  if (alreadySentLink && softAckOnly && !explicitResend) {
-    return false;
-  }
+  if (alreadySentLink && isThanksOnlyAck(t4)) return false;
   if (/^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|p[aá]samelo)([.!?]|\s|$)/i.test(
     t4
   )) {
@@ -132126,6 +132129,9 @@ function parseServicesFromText(text2) {
   if (/\b(únicamente|unicamente|solo|solamente)\s+(vajillas?|loza|cubiertos?)\b/i.test(t4) || /\b(únicamente|unicamente)\s+vajilla\b/i.test(t4)) {
     return dedupeServiceHierarchy(["Vajillas"], t4);
   }
+  if (clientSwapsPlatedMealForSnacks(t4)) {
+    return [resolveSnackSwapLabel(t4)];
+  }
   const found = [];
   const lower2 = text2.toLowerCase();
   const declined = clientDeclinesServiceFamilies(text2);
@@ -132320,7 +132326,29 @@ function clientWantsFoodOnlyQuote(text2) {
     t4
   ) || /\bsolo\s+(los\s+)?(antojitos?|puestos?(\s+de\s+comida)?)\b/i.test(t4);
 }
+function clientSwapsPlatedMealForSnacks(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  const declinesPlated = /\bno\s+(requiero|requerimos|quiero|queremos|necesito|necesitamos|busco|buscamos|ocupo|ocupamos|va(mos)?\s+a\s+querer)\b[^.!?]{0,40}\b(comida|men[uú]|banquete|alimentos?)\b/i.test(
+    t4
+  ) || /\bsin\s+(comida|men[uú]|banquete)\s+(de\s+)?tiempos?\b/i.test(t4);
+  if (!declinesPlated) return false;
+  return /\b(snacks?|snaks?|bocadillos?|canap[eé]s?|finger\s*food|botanas?)\b/i.test(t4);
+}
+function resolveSnackSwapLabel(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (/\bcanap[eé]s?\b/i.test(t4)) return "Canap\xE9s";
+  if (/\b(gourmet|premium|finos?)\b/i.test(t4)) return "Canap\xE9s";
+  return "Bocadillos";
+}
 function mergeServiceRequirements(existing, text2, max = 6) {
+  if (clientSwapsPlatedMealForSnacks(text2)) {
+    const snackLabel = resolveSnackSwapLabel(text2);
+    const kept = (existing ?? "").split(",").map((s7) => s7.trim()).filter(Boolean).filter((s7) => !PLATED_MEAL_LABEL_RE.test(s7.replace(/\s*\(espacio [^)]+\)/i, "").trim()));
+    const rest = kept.filter((s7) => !new RegExp(`^${snackLabel}$`, "i").test(s7));
+    const swapped = [snackLabel, ...rest].slice(0, max).join(", ");
+    return preserveSpaceAnnotation(swapped, `${existing ?? ""} ${text2 ?? ""}`);
+  }
   const declined = clientDeclinesServiceFamilies(text2);
   const existingClean = declined.length ? removeDeclinedFamiliesFromRequirements(existing, declined) : existing;
   const fromExisting = existingClean?.trim() ? parseServicesFromText(existingClean).filter((s7) => !serviceIsDeclined(s7, declined)) : [];
@@ -132347,7 +132375,16 @@ function mergeServiceRequirements(existing, text2, max = 6) {
   }
   const joined = merged.join(", ");
   const blob = `${existingClean ?? ""} ${text2 ?? ""}`.trim();
-  return removeVenueProvidedFromRequirements(joined, blob) ?? joined;
+  const withVenue = removeVenueProvidedFromRequirements(joined, blob) ?? joined;
+  return preserveSpaceAnnotation(withVenue, `${existingClean ?? ""} ${text2 ?? ""}`);
+}
+function preserveSpaceAnnotation(services, blob) {
+  if (!services.trim()) return services;
+  if (/\(espacio\s+[^)]+\)/i.test(services)) return services;
+  const prev = blob.match(/\(espacio\s+([^)]+)\)/i)?.[1]?.trim();
+  if (!prev) return services;
+  if (!clientMentionsCarpas(services) && !clientMentionsPistaTarima(services)) return services;
+  return `${services} (espacio ${prev})`;
 }
 function buildMultiServiceAck(services) {
   const list = formatServicesList(services);
@@ -134386,7 +134423,7 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     extracted.requerimientos_evento = null;
   }
 }
-var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
+var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
 var init_conversation_understanding = __esm({
   "src/conversation-understanding.ts"() {
     "use strict";
@@ -134726,6 +134763,7 @@ var init_conversation_understanding = __esm({
     NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
     VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue)\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.'-]{1,48})/i;
     JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
+    PLATED_MEAL_LABEL_RE = /^(banquete(\s+\w+)?|comida|men[uú].*tiempos?|tres\s+tiempos)$/i;
     STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
     CLOCK_AMPM = String.raw`(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)`;
     CLOCK_TOKEN = String.raw`\d{1,2}(?::\d{2})?`;
@@ -161070,6 +161108,7 @@ function applyEmailCaptureTone(mensaje, ctx) {
   if (/gracias por tu correo/i.test(out2)) return out2;
   const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
   out2 = out2.replace(/^(genial|perfecto|excelente|muy bien),?\s+/i, "").replace(/^mucho gusto,?\s+[^.!?]+[.!?]\s*/i, "");
+  out2 = out2.replace(/^(muchas\s+|mil\s+)?gracias(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i, "");
   out2 = stripLeadingDisplayName(out2, nombre);
   return `${thanks}${out2}`.trim();
 }
@@ -163904,10 +163943,7 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
       const lastTxt = lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : "";
       if (!messageOffersCatalogLink(lastTxt)) return false;
       if (clientAsksForCatalog(currentMessage)) return false;
-      const soft = clientSaysThanks(currentMessage) || /^(ok|okay|va|perfecto|claro|s[ií]|sip)([\s,]+gracias)?[\s.!]*$/i.test(
-        (currentMessage ?? "").trim()
-      );
-      return soft;
+      return isThanksOnlyAck(currentMessage);
     })()
   ) {
     mensaje = buildPostCierreThanksReply(extracted.nombre);
@@ -225398,7 +225434,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.74";
+var LUCY_PROMPT_VERSION = "V9.75";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -227687,6 +227723,12 @@ function isUsableResumenServicio(value) {
   }
   return true;
 }
+function isCalendarYearOnlyAmount(value) {
+  const t4 = value?.trim() ?? "";
+  if (!/^(19|20)\d{2}$/.test(t4)) return false;
+  const n5 = parseInt(t4, 10);
+  return n5 >= 1990 && n5 <= 2100;
+}
 function isUsableResumenUbicacion(value) {
   const t4 = value?.trim() ?? "";
   if (!t4) return false;
@@ -227762,10 +227804,10 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   } else {
     reqs = reqFromLines || (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) || reqFromConversation;
   }
-  let ppto = pptoFromLine;
-  const convAmounts = conversationText ? [...conversationText.matchAll(/\$?\s*([\d][\d,]{2,})\b/g)].map((m6) => parseInt(m6[1].replace(/,/g, ""), 10)).filter((n5) => !isNaN(n5) && n5 >= 1e3 && n5 <= 5e7) : [];
+  let ppto = isCalendarYearOnlyAmount(pptoFromLine) ? null : pptoFromLine;
+  const convAmounts = conversationText ? [...conversationText.matchAll(/(\$\s*)?([\d][\d,]{2,})\b/g)].filter((m6) => !!m6[1] || !isCalendarYearOnlyAmount(m6[2])).map((m6) => parseInt(m6[2].replace(/,/g, ""), 10)).filter((n5) => !isNaN(n5) && n5 >= 1e3 && n5 <= 5e7) : [];
   const maxConv = convAmounts.length ? Math.max(...convAmounts) : 0;
-  const lineNum = pptoFromLine ? parseInt(pptoFromLine.replace(/[^\d]/g, ""), 10) : 0;
+  const lineNum = ppto ? parseInt(ppto.replace(/[^\d]/g, ""), 10) : 0;
   const extNum = extracted.presupuesto !== null && extracted.presupuesto > 0 ? extracted.presupuesto : 0;
   const bestPpto = Math.max(lineNum || 0, extNum || 0, maxConv || 0);
   if (bestPpto >= 1e3) {

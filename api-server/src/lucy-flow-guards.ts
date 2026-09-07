@@ -235,6 +235,7 @@ import {
   isGettingReadyContext,
   parseWebLeadBrief,
   clientAsksForCatalog,
+  isThanksOnlyAck,
   clientWantsQuoteDelivery,
   clientAsksGenericMenuCatalog,
   clientWantsFullCatalog,
@@ -2742,6 +2743,8 @@ function applyEmailCaptureTone(mensaje: string, ctx: NaturalQuestionContext): st
   out = out
     .replace(/^(genial|perfecto|excelente|muy bien),?\s+/i, "")
     .replace(/^mucho gusto,?\s+[^.!?]+[.!?]\s*/i, "");
+  // A15841: el modelo ya abrió con "Gracias, Santeco." → no duplicar el agradecimiento.
+  out = out.replace(/^(muchas\s+|mil\s+)?gracias(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i, "");
   out = stripLeadingDisplayName(out, nombre);
   return `${thanks}${out}`.trim();
 }
@@ -7313,12 +7316,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           : "";
       if (!messageOffersCatalogLink(lastTxt)) return false;
       if (clientAsksForCatalog(currentMessage)) return false;
-      const soft =
-        clientSaysThanks(currentMessage) ||
-        /^(ok|okay|va|perfecto|claro|s[ií]|sip)([\s,]+gracias)?[\s.!]*$/i.test(
-          (currentMessage ?? "").trim()
-        );
-      return soft;
+      return isThanksOnlyAck(currentMessage);
     })()
   ) {
     mensaje = buildPostCierreThanksReply(extracted.nombre);

@@ -2021,6 +2021,20 @@ export function assistantOfferedCatalogDetail(
   );
 }
 
+/**
+ * A15815: "Ok gracias" / "gracias" solo cierran el turno; no piden nada.
+ * "Sí" o "sí gracias" siguen siendo aceptación de la oferta previa.
+ */
+export function isThanksOnlyAck(message: string | null | undefined): boolean {
+  const t = message?.trim().toLowerCase() ?? "";
+  if (!t) return false;
+  if (!/\bgracias\b/i.test(t)) return false;
+  if (/\b(s[ií]|sip|claro|dale|por\s+favor|m[aá]nda|env[ií]a|pasa|link|enlace|cat[aá]logo)\b/i.test(t)) {
+    return false;
+  }
+  return /^(ok|okay|va|perfecto|listo|muy\s+bien)?[\s,]*(muchas\s+|mil\s+)?gracias[\s.!]*$/i.test(t);
+}
+
 /** Lucy ofreció mandar el catálogo y el cliente acepta con un sí corto. */
 export function clientAffirmsCatalogOffer(
   message: string | undefined,
@@ -2042,20 +2056,11 @@ export function clientAffirmsCatalogOffer(
   if (/^m[aá]s\s+detalles?[\s.!]*$/i.test(t) || /^con\s+m[aá]s\s+detalle[\s.!]*$/i.test(t)) {
     return true;
   }
-  // A15815+: si Lucy YA mandó el link, "ok gracias" / "ok" ≠ reenviar el mismo catálogo.
+  // A15815+: si Lucy YA mandó el link, un "ok gracias" solo agradece — no lo reenviamos.
+  // "Sí" sigue siendo aceptación explícita de la oferta.
   const alreadySentLink =
     /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(lastAssistantText ?? "");
-  const softAckOnly =
-    /^(ok|okay|va|perfecto|claro|s[ií]|sip)([\s,]+gracias)?[\s.!]*$/i.test(t) ||
-    /^(muchas\s+)?gracias[\s.!]*$/i.test(t) ||
-    /^ok\s+gracias[\s.!]*$/i.test(t);
-  const explicitResend =
-    /\b(m[aá]nda(me)?(lo)?|env[ií]a(me)?(lo)?|pasa(me)?(lo)?|m[aá]s\s+detalle|el\s+link|el\s+enlace)\b/i.test(
-      t
-    );
-  if (alreadySentLink && softAckOnly && !explicitResend) {
-    return false;
-  }
+  if (alreadySentLink && isThanksOnlyAck(t)) return false;
   // "Sí", "Si por favor", "claro que sí", "mande por favor", "sí mándamelo", etc.
   if (
     /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|p[aá]samelo)([.!?]|\s|$)/i.test(
@@ -2604,6 +2609,10 @@ export function parseServicesFromText(text: string): string[] {
   ) {
     return dedupeServiceHierarchy(["Vajillas"], t);
   }
+  // A15841: "no requiero comida de tiempos, sólo snacks gourmet" → bocadillos, no Comida.
+  if (clientSwapsPlatedMealForSnacks(t)) {
+    return [resolveSnackSwapLabel(t)];
+  }
 
   const found: string[] = [];
   const lower = text.toLowerCase();
@@ -2917,11 +2926,49 @@ export function clientWantsFoodOnlyQuote(text: string | null | undefined): boole
 }
 
 /** Une servicios de un texto con los ya capturados (hasta max). */
+/** Etiquetas de comida de tiempos (plato servido) que un cambio a snacks retira. */
+const PLATED_MEAL_LABEL_RE = /^(banquete(\s+\w+)?|comida|men[uú].*tiempos?|tres\s+tiempos)$/i;
+
+/**
+ * A15841: "no requiero comida de tiempos, sólo quiero de snaks tipo gourmet"
+ * — cambia el banquete servido por bocadillos/canapés en vez de ignorarlo.
+ */
+export function clientSwapsPlatedMealForSnacks(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  const declinesPlated =
+    /\bno\s+(requiero|requerimos|quiero|queremos|necesito|necesitamos|busco|buscamos|ocupo|ocupamos|va(mos)?\s+a\s+querer)\b[^.!?]{0,40}\b(comida|men[uú]|banquete|alimentos?)\b/i.test(
+      t
+    ) || /\bsin\s+(comida|men[uú]|banquete)\s+(de\s+)?tiempos?\b/i.test(t);
+  if (!declinesPlated) return false;
+  return /\b(snacks?|snaks?|bocadillos?|canap[eé]s?|finger\s*food|botanas?)\b/i.test(t);
+}
+
+/** Etiqueta del snack pedido: gourmet → Canapés; genérico → Bocadillos. */
+export function resolveSnackSwapLabel(text: string | null | undefined): string {
+  const t = text?.trim() ?? "";
+  if (/\bcanap[eé]s?\b/i.test(t)) return "Canapés";
+  if (/\b(gourmet|premium|finos?)\b/i.test(t)) return "Canapés";
+  return "Bocadillos";
+}
+
 export function mergeServiceRequirements(
   existing: string | null | undefined,
   text: string | null | undefined,
   max = 6
 ): string | null {
+  // A15841: cambio de banquete servido a snacks — quitar tiempos, anotar canapés.
+  if (clientSwapsPlatedMealForSnacks(text)) {
+    const snackLabel = resolveSnackSwapLabel(text);
+    const kept = (existing ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .filter((s) => !PLATED_MEAL_LABEL_RE.test(s.replace(/\s*\(espacio [^)]+\)/i, "").trim()));
+    const rest = kept.filter((s) => !new RegExp(`^${snackLabel}$`, "i").test(s));
+    const swapped = [snackLabel, ...rest].slice(0, max).join(", ");
+    return preserveSpaceAnnotation(swapped, `${existing ?? ""} ${text ?? ""}`);
+  }
   // A15295: declinar familia → quitar del CRM y no re-agregar desde el mismo texto.
   const declined = clientDeclinesServiceFamilies(text);
   const existingClean = declined.length
@@ -2965,7 +3012,20 @@ export function mergeServiceRequirements(
   }
   const joined = merged.join(", ");
   const blob = `${existingClean ?? ""} ${text ?? ""}`.trim();
-  return removeVenueProvidedFromRequirements(joined, blob) ?? joined;
+  const withVenue = removeVenueProvidedFromRequirements(joined, blob) ?? joined;
+  // A15841: las medidas ya capturadas ("(espacio 15m x 15m)") no se pierden al
+  // sumar otro servicio — si no, el cierre vuelve a pedir largo × ancho.
+  return preserveSpaceAnnotation(withVenue, `${existingClean ?? ""} ${text ?? ""}`);
+}
+
+/** Reinyecta "(espacio 15m x 15m)" cuando el merge de servicios lo dejó fuera. */
+function preserveSpaceAnnotation(services: string, blob: string): string {
+  if (!services.trim()) return services;
+  if (/\(espacio\s+[^)]+\)/i.test(services)) return services;
+  const prev = blob.match(/\(espacio\s+([^)]+)\)/i)?.[1]?.trim();
+  if (!prev) return services;
+  if (!clientMentionsCarpas(services) && !clientMentionsPistaTarima(services)) return services;
+  return `${services} (espacio ${prev})`;
 }
 
 /** Ack cuando el cliente pidió varios servicios en un brief. */
