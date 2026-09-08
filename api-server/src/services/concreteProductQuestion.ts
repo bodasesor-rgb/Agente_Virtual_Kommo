@@ -247,7 +247,8 @@ export function buildConcreteProductQuestionReply(
       );
       parts.push(buildInstagramPhotosLine());
       parts.push(
-        `${team} también te puede mandar fotos específicas de lo que estamos cotizando.`
+        `${team.charAt(0).toUpperCase()}${team.slice(1)} también te puede mandar ` +
+          `fotos específicas de lo que estamos cotizando.`
       );
     }
     if (wantsLight) {

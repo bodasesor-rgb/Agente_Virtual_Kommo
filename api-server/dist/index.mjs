@@ -136615,7 +136615,7 @@ ${url2}`
       );
       parts2.push(buildInstagramPhotosLine());
       parts2.push(
-        `${team} tambi\xE9n te puede mandar fotos espec\xEDficas de lo que estamos cotizando.`
+        `${team.charAt(0).toUpperCase()}${team.slice(1)} tambi\xE9n te puede mandar fotos espec\xEDficas de lo que estamos cotizando.`
       );
     }
     if (wantsLight) {
