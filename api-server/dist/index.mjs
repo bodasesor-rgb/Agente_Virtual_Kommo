@@ -136498,6 +136498,10 @@ var init_serviceProgressiveOffer = __esm({
 });
 
 // src/services/concreteProductQuestion.ts
+function buildInstagramPhotosLine() {
+  return `En nuestro Instagram ${BODASESOR_INSTAGRAM_HANDLE} ver\xE1s fotos de eventos que ya montamos:
+${BODASESOR_INSTAGRAM_URL}`;
+}
 function isCentrosDeMesaFloral(text2) {
   return /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(
     text2
@@ -136526,6 +136530,16 @@ function clientAsksForPhotos(message) {
     caption
   ) || /\b(manda|env[ií]a|pasa|comparte|quiero|necesito|tienes|tienen|hay)\b/i.test(caption);
 }
+function clientAsksForSocialMedia(message) {
+  if (!message?.trim()) return false;
+  const t4 = (clientCaptionForServiceParse(message) || message).trim();
+  if (!t4) return false;
+  const NET = "instagram|insta\\b|redes\\s+sociales|red\\s+social|facebook";
+  return new RegExp(
+    `\\b(tienen|tienes|hay|cu[a\xE1]l\\s+es|pasa[sn]?(me)?|mand[a\xE1][sn]?(me)?|env[i\xED]a[sn]?(me)?|comparte[sn]?(me)?|s[i\xED]gue(nlos|nos)?|d[o\xF3]nde\\s+(los|las|est[a\xE1]n))\\b[^.?!]{0,30}\\b(${NET})\\b`,
+    "i"
+  ).test(t4) || new RegExp(`\\b(su|tu)\\s+(${NET})\\b`, "i").test(t4);
+}
 function clientAsksAboutLighting(message) {
   if (!message?.trim()) return false;
   const t4 = message.toLowerCase();
@@ -136546,7 +136560,7 @@ function clientAsksConcreteProductQuestion(message) {
   const t4 = (clientCaptionForServiceParse(message) || message).trim();
   if (!t4) return false;
   if (clientAsksForCatalog(t4) || CATALOG_WORD_RE.test(t4)) return true;
-  if (clientAsksForPhotos(t4) || clientAsksAboutLighting(t4) || clientAsksCapacityLayout(t4)) {
+  if (clientAsksForPhotos(t4) || clientAsksForSocialMedia(t4) || clientAsksAboutLighting(t4) || clientAsksCapacityLayout(t4)) {
     return true;
   }
   if ((/\?|¿/.test(t4) || /\bcuenta(n)?\s+con\b/i.test(t4)) && /\b(luz|luces|iluminaci|fotos?|capacidad|mesas?\s+por|cu[aá]ntas?\s+mesas?|incluye\s+luz)\b/i.test(
@@ -136584,9 +136598,13 @@ function buildConcreteProductQuestionReply(message, serviceHint) {
 ${url2}`;
   }
   const wantsPhotos = clientAsksForPhotos(caption);
+  const wantsSocial = clientAsksForSocialMedia(caption);
   const wantsLight = clientAsksAboutLighting(caption);
-  if (wantsPhotos || wantsLight) {
+  if (wantsPhotos || wantsSocial || wantsLight) {
     const parts2 = [];
+    if (!wantsPhotos && wantsSocial) {
+      parts2.push(`Claro. ${buildInstagramPhotosLine()}`);
+    }
     if (wantsPhotos) {
       const url2 = catalogLinkFor(
         /\bcarpas?|toldos?\b/i.test(cleanBlob) ? "carpas" : isCentrosDeMesaFloral(cleanBlob) ? "centros de mesa" : /\bsillas?|mesas?|mobiliario\b/i.test(cleanBlob) ? "mesas y sillas" : hint || "mobiliario"
@@ -136595,6 +136613,7 @@ ${url2}`;
         `Claro \u2014 te puedo compartir referencias visuales. Aqu\xED tienes el cat\xE1logo con fotos:
 ${url2}`
       );
+      parts2.push(buildInstagramPhotosLine());
       parts2.push(
         `${team} tambi\xE9n te puede mandar fotos espec\xEDficas de lo que estamos cotizando.`
       );
@@ -136618,7 +136637,7 @@ ${url2}`
 function shouldSkipSalesMenuForConcreteQuestion(message) {
   return clientAsksConcreteProductQuestion(message);
 }
-var CATALOG_WORD_RE;
+var BODASESOR_INSTAGRAM_HANDLE, BODASESOR_INSTAGRAM_URL, CATALOG_WORD_RE;
 var init_concreteProductQuestion = __esm({
   "src/services/concreteProductQuestion.ts"() {
     "use strict";
@@ -136627,6 +136646,8 @@ var init_concreteProductQuestion = __esm({
     init_catalogService();
     init_catalogWebKnowledge();
     init_imageProcessor();
+    BODASESOR_INSTAGRAM_HANDLE = "@bodasesormx";
+    BODASESOR_INSTAGRAM_URL = "https://instagram.com/bodasesormx";
     CATALOG_WORD_RE = /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b/i;
   }
 });
@@ -160694,7 +160715,14 @@ function buildProgressiveDetailAfterMenu(opts) {
       collectUserTexts(history, currentMessage).join(" ")
     );
     if (family) {
-      const queries = progressiveFamilyDetailQueries(family);
+      const familyQueries = progressiveFamilyDetailQueries(family);
+      const askedByClient = parseServicesFromText(
+        `${hint ?? ""} ${collectUserTexts(history, currentMessage).join(" ")}`
+      );
+      const matchedQueries = familyQueries.filter(
+        (q3) => askedByClient.some((s7) => s7.toLowerCase() === q3.toLowerCase())
+      );
+      const queries = matchedQueries.length ? matchedQueries : familyQueries;
       const chunks = [];
       for (const q3 of queries) {
         const d3 = buildCatalogServiceDetailAnswer(q3) || buildCatalogPriceAnswer(q3) || attachAvailableSheetDetail(q3, q3);
@@ -160705,11 +160733,11 @@ function buildProgressiveDetailAfterMenu(opts) {
         query: linkQ,
         serviceHint: hint || linkQ
       });
-      if (filledSet) {
+      if (filledSet && matchedQueries.length) {
         filledSet.add("Requerimientos o servicios");
         const merged = mergeServiceRequirements(
           extracted.requerimientos_evento,
-          queries[0] || family,
+          matchedQueries[0],
           6
         );
         if (merged) extracted.requerimientos_evento = merged;
@@ -225434,7 +225462,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.75";
+var LUCY_PROMPT_VERSION = "V9.76";
 
 // src/lib/buildMeta.ts
 var cached = null;

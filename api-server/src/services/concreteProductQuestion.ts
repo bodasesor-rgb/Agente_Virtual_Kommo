@@ -17,6 +17,15 @@ import {
 import { getCatalogWebUrlForQuery } from "./catalogWebKnowledge.js";
 import { clientCaptionForServiceParse } from "./imageProcessor.js";
 
+/** Instagram de Bodasesor — fotos reales de eventos montados. */
+export const BODASESOR_INSTAGRAM_HANDLE = "@bodasesormx";
+export const BODASESOR_INSTAGRAM_URL = "https://instagram.com/bodasesormx";
+
+/** Línea estándar para compartir el Instagram cuando piden ver fotos. */
+export function buildInstagramPhotosLine(): string {
+  return `En nuestro Instagram ${BODASESOR_INSTAGRAM_HANDLE} verás fotos de eventos que ya montamos:\n${BODASESOR_INSTAGRAM_URL}`;
+}
+
 /** Tipografía / typos de "catálogo" (CTALOGO, catalgo, catologo…). */
 export const CATALOG_WORD_RE =
   /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b/i;
@@ -78,6 +87,24 @@ export function clientAsksForPhotos(message?: string): boolean {
   );
 }
 
+/**
+ * Cliente pide las redes ("¿tienen Instagram?", "pásame su IG").
+ * Proximidad obligatoria: "los vi en Instagram, ¿cuánto cuesta?" NO es este caso.
+ */
+export function clientAsksForSocialMedia(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = (clientCaptionForServiceParse(message) || message).trim();
+  if (!t) return false;
+  const NET = "instagram|insta\\b|redes\\s+sociales|red\\s+social|facebook";
+  return (
+    new RegExp(
+      `\\b(tienen|tienes|hay|cu[aá]l\\s+es|pasa[sn]?(me)?|mand[aá][sn]?(me)?|env[ií]a[sn]?(me)?|` +
+        `comparte[sn]?(me)?|s[ií]gue(nlos|nos)?|d[oó]nde\\s+(los|las|est[aá]n))\\b[^.?!]{0,30}\\b(${NET})\\b`,
+      "i"
+    ).test(t) || new RegExp(`\\b(su|tu)\\s+(${NET})\\b`, "i").test(t)
+  );
+}
+
 /** Iluminación / luz en carpa u otro montaje. */
 export function clientAsksAboutLighting(message?: string): boolean {
   if (!message?.trim()) return false;
@@ -112,7 +139,12 @@ export function clientAsksConcreteProductQuestion(message?: string): boolean {
   const t = (clientCaptionForServiceParse(message) || message).trim();
   if (!t) return false;
   if (clientAsksForCatalog(t) || CATALOG_WORD_RE.test(t)) return true;
-  if (clientAsksForPhotos(t) || clientAsksAboutLighting(t) || clientAsksCapacityLayout(t)) {
+  if (
+    clientAsksForPhotos(t) ||
+    clientAsksForSocialMedia(t) ||
+    clientAsksAboutLighting(t) ||
+    clientAsksCapacityLayout(t)
+  ) {
     return true;
   }
   // "¿cuenta con X?" / ??? sobre un detalle no listado (no solo disponibilidad de SKU).
@@ -191,11 +223,15 @@ export function buildConcreteProductQuestionReply(
     return `Claro. Te dejo el *catálogo${label ? ` ${label}` : ""}*:\n${url}`;
   }
 
-  // 2) Fotos + (opcional) luz / otros.
+  // 2) Fotos / redes + (opcional) luz / otros.
   const wantsPhotos = clientAsksForPhotos(caption);
+  const wantsSocial = clientAsksForSocialMedia(caption);
   const wantsLight = clientAsksAboutLighting(caption);
-  if (wantsPhotos || wantsLight) {
+  if (wantsPhotos || wantsSocial || wantsLight) {
     const parts: string[] = [];
+    if (!wantsPhotos && wantsSocial) {
+      parts.push(`Claro. ${buildInstagramPhotosLine()}`);
+    }
     if (wantsPhotos) {
       const url = catalogLinkFor(
         /\bcarpas?|toldos?\b/i.test(cleanBlob)
@@ -209,6 +245,7 @@ export function buildConcreteProductQuestionReply(
       parts.push(
         `Claro — te puedo compartir referencias visuales. Aquí tienes el catálogo con fotos:\n${url}`
       );
+      parts.push(buildInstagramPhotosLine());
       parts.push(
         `${team} también te puede mandar fotos específicas de lo que estamos cotizando.`
       );

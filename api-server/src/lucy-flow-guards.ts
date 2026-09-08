@@ -2138,7 +2138,16 @@ function buildProgressiveDetailAfterMenu(opts: {
         collectUserTexts(history, currentMessage).join(" ")
       );
     if (family) {
-      const queries = progressiveFamilyDetailQueries(family);
+      const familyQueries = progressiveFamilyDetailQueries(family);
+      // A15841: un "sí" suelto no pide TODA la familia — si el cliente ya nombró
+      // SKUs de esa familia (Canapés), el detalle es de esos, nunca de Paella/Pozole.
+      const askedByClient = parseServicesFromText(
+        `${hint ?? ""} ${collectUserTexts(history, currentMessage).join(" ")}`
+      );
+      const matchedQueries = familyQueries.filter((q) =>
+        askedByClient.some((s) => s.toLowerCase() === q.toLowerCase())
+      );
+      const queries = matchedQueries.length ? matchedQueries : familyQueries;
       const chunks: string[] = [];
       for (const q of queries) {
         const d =
@@ -2152,11 +2161,12 @@ function buildProgressiveDetailAfterMenu(opts: {
         query: linkQ,
         serviceHint: hint || linkQ,
       });
-      if (filledSet) {
+      // Solo anotar en CRM lo que el cliente sí pidió (no el primer SKU del catálogo).
+      if (filledSet && matchedQueries.length) {
         filledSet.add("Requerimientos o servicios");
         const merged = mergeServiceRequirements(
           extracted.requerimientos_evento,
-          queries[0] || family,
+          matchedQueries[0]!,
           6
         );
         if (merged) extracted.requerimientos_evento = merged;

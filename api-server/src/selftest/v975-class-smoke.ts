@@ -12,7 +12,12 @@ import {
   parseServicesFromText,
   parseSpaceDimensions,
 } from "../conversation-understanding.js";
-import { requiredServiceDimensionsMissing } from "../lucy-flow-guards.js";
+import { applyLucyMessageGuards, requiredServiceDimensionsMissing } from "../lucy-flow-guards.js";
+import {
+  detectProgressiveFamily,
+  isBareProgressiveAffirmation,
+  progressiveFamilyDetailQueries,
+} from "../services/serviceProgressiveOffer.js";
 import { buildResumenClienteLargo } from "../services/summaryService.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
@@ -37,7 +42,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.75");
+assert.equal(LUCY_PROMPT_VERSION, "V9.76");
 
 // 1) Medidas de carpa no se pierden al sumar servicios → no se re-pregunta.
 {
@@ -102,6 +107,64 @@ assert.equal(LUCY_PROMPT_VERSION, "V9.75");
     "El evento es en 2026 y tenemos un presupuesto de $180,000 MXN"
   );
   assert.match(conMonto, /Presupuesto:\s*180000/i);
+}
+
+// 4) "si." tras un menú viejo no vuelca toda la familia (Paella/Pozole) ni la anota.
+{
+  const hint = "Banquete Formal, Canapés, Carpas, Meseros (espacio 15m x 15m)";
+  // La rama de "afirmación suelta" sigue viva: familia gastronomía con Paella dentro.
+  assert.equal(detectProgressiveFamily(hint), "gastronomia");
+  assert.ok(progressiveFamilyDetailQueries("gastronomia").includes("Paella"));
+  assert.ok(isBareProgressiveAffirmation("si."));
+  // Lo que evita el volcado es que el cliente ya nombró su SKU de esa familia.
+  assert.ok(parseServicesFromText(hint).includes("Canapés"));
+
+  const extracted = emptyExtracted({
+    nombre: "Santeco",
+    correo: "alejandraex@santeco.mx",
+    tipo_evento: "evento corporativo",
+    num_invitados: 120,
+    fecha_evento: "8 de octubre",
+    horario_evento: "de 18 a 22 hrs",
+    direccion_evento: "Insurgentes Sur 1446, Col. Actipan, CDMX",
+    requerimientos_evento: "Banquete Formal, Canapés, Carpas, Meseros (espacio 15m x 15m)",
+  });
+  const filled = new Set<string>([
+    "Nombre del cliente",
+    "Correo electrónico",
+    "Tipo de evento",
+    "Número de invitados",
+    "Fecha del evento",
+    "Horario del evento",
+    "Lugar/dirección del evento",
+    "Requerimientos o servicios",
+  ]);
+  const reply = applyLucyMessageGuards({
+    aiResponse: "Perfecto, Santeco.",
+    extracted,
+    filledSet: filled,
+    readyForClosing: false,
+    emailRefusedThisTurn: false,
+    history: [
+      {
+        role: "assistant",
+        content:
+          "Claro. En *Canapés* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros). ¿Cuál te late más?",
+      },
+      { role: "user", content: "música y personal de servicio." },
+      {
+        role: "assistant",
+        content: "Entendido, Santeco. Queda anotado lo de Banquete Formal, Canapés, Carpas, Meseros.",
+      },
+    ],
+    currentMessage: "si.",
+    whatsappDisplayName: "Santeco",
+    entityId: "A15841-si-no-inventa-familia",
+  });
+  assert.equal(/paella/i.test(reply), false, reply.slice(0, 400));
+  assert.equal(/pozole/i.test(reply), false, reply.slice(0, 400));
+  assert.equal(/paella|pozole/i.test(extracted.requerimientos_evento ?? ""), false, extracted.requerimientos_evento ?? "");
+  assert.match(extracted.requerimientos_evento ?? "", /espacio 15m x 15m/i);
 }
 
 console.log("V9.75 class smoke OK");
