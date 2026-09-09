@@ -131484,6 +131484,18 @@ function isPromoMinimumGuestLine(text2) {
   }
   return /\bm[ií]nimo\s*:?\s*\d+\s*personas?\b/i.test(t4) && !/\b(ser[ií]an?|somos|invitados?|asistentes?|para\s+\d+\s+personas)\b/i.test(t4);
 }
+function clientQuestionsServiceMinimum(message) {
+  const t4 = message?.trim() ?? "";
+  if (!t4) return false;
+  return /\b(veo\s+que|not[eé]|dice|indican?|aparecen?|tienen)\b[\s\S]{0,40}\bm[ií]n(\.|imo)?\b/i.test(
+    t4
+  ) || /\bm[ií]n(\.|imo)?\s*(?:de\s+)?(?:\d{2,3}|treinta\s+y\s+cinco)\s*personas?\b/i.test(t4) || /\bpara\s+(?:m[ií]n(\.|imo)?|min)\s*\d{2,3}\s*personas?\b/i.test(t4) || /\bpedido\s+m[ií]nimo\b/i.test(t4);
+}
+function buildBelowMinimumGuestReply(guestCount) {
+  const n5 = guestCount && guestCount > 0 ? guestCount : null;
+  const size = n5 ? `Para *${n5} personas*` : "Para grupos m\xE1s peque\xF1os";
+  return `${size} el banquete formal suele no ser lo m\xE1s pr\xE1ctico (el cat\xE1logo arranca cerca de 35). Igual te podemos armar una propuesta a la medida \u2014 coffee break, barra de alimentos o un men\xFA m\xE1s liviano. \xBFTe late alguna de esas opciones o prefieres que el equipo te sugiera seg\xFAn la junta?`;
+}
 function stripPromoTemplateMetadata(text2) {
   return text2.replace(/\bpedido\s+m[ií]nimo\s*:?\s*\d+\s*personas?\b/gi, " ").replace(/\bm[ií]nimo\s*:?\s*\d+\s*personas?\b/gi, " ").replace(/\b(desde|a\s+partir\s+de)\s+\d+\s*personas?\b/gi, " ").replace(/\bhorario\s+en\s+que\s+env[ií]o\s+este\s+mensaje\s*:?[^\n]*/gi, " ").replace(/\(?\s*hora\s+ciudad\s+de\s+m[eé]xico\s*\)?/gi, " ").replace(/\s+/g, " ").trim();
 }
@@ -131846,6 +131858,9 @@ function looksLikeGuestCountRange(text2) {
   if (/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed)) {
     return false;
   }
+  const hasGuestWord = /\b(personas?|invitad[oa]s?|asistentes?|comensales?|gente)\b/i.test(
+    trimmed
+  );
   const m6 = trimmed.match(/\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i);
   if (!m6) {
     const crm = trimmed.match(/^(\d{1,4})\s*[-–]\s*(\d{1,4})(?:\s*MXN)?$/i);
@@ -131854,14 +131869,14 @@ function looksLikeGuestCountRange(text2) {
     const b6 = parseInt(crm[2], 10);
     const lo3 = Math.min(a5, b6);
     const hi3 = Math.max(a5, b6);
-    if (lo3 <= 12 && hi3 <= 24 && hi3 - lo3 <= 16) return false;
+    if (lo3 <= 12 && hi3 <= 24 && hi3 - lo3 <= 16 && !hasGuestWord) return false;
     return a5 >= 10 && b6 >= 10 && a5 <= 2e3 && b6 <= 2e3 && Math.abs(a5 - b6) <= 500;
   }
   const a4 = parseInt(m6[1], 10);
   const b5 = parseInt(m6[2], 10);
   const lo2 = Math.min(a4, b5);
   const hi2 = Math.max(a4, b5);
-  if (lo2 <= 12 && hi2 <= 24 && hi2 - lo2 <= 16) return false;
+  if (lo2 <= 12 && hi2 <= 24 && hi2 - lo2 <= 16 && !hasGuestWord) return false;
   return a4 >= 10 && b5 >= 10 && a4 <= 2e3 && b5 <= 2e3 && Math.abs(a4 - b5) <= 500;
 }
 function clientAsksBanqueteVsTaquiza(message) {
@@ -132801,6 +132816,12 @@ function parseHorarioFromText(text2) {
   if (clientDefersHorario(clean)) {
     return "Sin definir (pendiente)";
   }
+  if (/\b(personas?|invitad[oa]s?|asistentes?|comensales?)\b/i.test(clean) && /\b\d{1,4}\s*(?:a|[-–]|hasta)\s*\d{1,4}\b/i.test(clean)) {
+    return null;
+  }
+  if (looksLikeGuestCountRange(clean)) {
+    return null;
+  }
   if (isClockTimeOnlySchedule(clean)) return normalizeHorarioCapture(clean);
   if (isMealTimeOnlySchedule(clean)) return clean;
   if (isScheduleLabeledClock(clean)) {
@@ -132834,9 +132855,12 @@ function parseHorarioFromText(text2) {
   );
   if (rangeAmpm?.[1]) {
     const frag = rangeAmpm[1].trim();
-    const without = clean.replace(rangeAmpm[1], "").trim();
-    if (!without || parseFechaFromText(without) || MONTH_PATTERN.test(without) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(without) || /\b(evento|ser[ií]a|ser[aá]|es|planean|planeamos|tendr[ií]a|horario)\b/i.test(without)) {
-      return frag.replace(/^de\s+/i, "de ").slice(0, 80);
+    if (!new RegExp(CLOCK_AMPM, "i").test(frag) && !/\b(hrs?|horas?)\b/i.test(frag) && !/\b(a\s+las?|de\s+las?)\b/i.test(clean)) {
+    } else {
+      const without = clean.replace(rangeAmpm[1], "").trim();
+      if (!without || parseFechaFromText(without) || MONTH_PATTERN.test(without) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(without) || /\b(evento|ser[ií]a|ser[aá]|es|planean|planeamos|tendr[ií]a|horario)\b/i.test(without)) {
+        return frag.replace(/^de\s+/i, "de ").slice(0, 80);
+      }
     }
   }
   const aPartir = clean.match(
@@ -132903,11 +132927,15 @@ function parseHorarioFromText(text2) {
     )
   );
   if (range?.[1]) {
-    const withoutRange = clean.replace(range[1], "").trim();
-    if (parseFechaFromText(withoutRange) || MONTH_PATTERN.test(withoutRange) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(withoutRange)) {
-      return range[1].trim();
+    const frag = range[1].trim();
+    if (!new RegExp(CLOCK_AMPM, "i").test(frag) && !/\b(hrs?|horas?)\b/i.test(frag)) {
+    } else {
+      const withoutRange = clean.replace(range[1], "").trim();
+      if (parseFechaFromText(withoutRange) || MONTH_PATTERN.test(withoutRange) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(withoutRange)) {
+        return frag;
+      }
+      if (!parseFechaFromText(clean)) return frag;
     }
-    if (!parseFechaFromText(clean)) return range[1].trim();
   }
   if (/\b(tarde|noche|mediod[ií]a|medio\s*d[ií]a|ma[nñ]ana)\b/i.test(clean) && clean.split(/\s+/).length <= 7 && !MONTH_PATTERN.test(clean)) {
     return normalizeHorarioCapture(clean).slice(0, 40);
@@ -161195,6 +161223,10 @@ function applyEmailCaptureTone(mensaje, ctx) {
     ""
   );
   out2 = out2.replace(
+    /^(muchas\s+|mil\s+)?gracias\s+por\s+la\s+correcci[oó]n(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i,
+    ""
+  );
+  out2 = out2.replace(
     /^(recibido|listo|anotado|entendido|de\s+acuerdo)(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i,
     ""
   );
@@ -162359,12 +162391,15 @@ ${nextQ}`;
     return body3;
   }
   if (!detail || !/nivel|precio|manejamos|\$/i.test(detail)) return null;
-  const link = buildCatalogWebLinkReply({ query: svc, serviceHint: svc });
-  let body2 = `${intro}
+  const link = /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(detail) ? null : buildCatalogWebLinkReply({ query: svc, serviceHint: svc });
+  let body2 = link ? `${intro}
 
 ${detail}
 
-${link}`.trim();
+${link}`.trim() : `${intro}
+
+${detail}`.trim();
+  body2 = dedupeCatalogUrlsInMessage(body2);
   const pending = getNextPendingField(extracted, filledSet);
   if (pending && pending !== "requerimientos" && pending !== "nombre") {
     const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });
@@ -164637,6 +164672,22 @@ ${pickVariant("nombre", presHistory, entityId)}` : `${LUCY_INTRO} ${buildGuardSe
 ${nextQ}` : priceReply;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: pregunta de precio mobiliario/periqueras \u2014 respuesta consultiva");
+  } else if (
+    // A15903 Verónica: "Veo que tus servicios son para min 35" — no saltar a fecha.
+    !cierreYaEnviado && currentMessage && clientQuestionsServiceMinimum(currentMessage)
+  ) {
+    const guests = extracted.num_invitados ?? (() => {
+      const raw = parseInvitadosFromText(currentMessage, { askedInvitados: true });
+      return raw && /^\d+$/.test(raw) ? parseInt(raw, 10) : null;
+    })();
+    const ack = buildBelowMinimumGuestReply(guests);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending && pending !== "requerimientos" && pending !== "invitados" ? buildNaturalQuestion(pending, ctx) : pending === "invitados" ? null : null;
+    mensaje = nextQ ? `${ack}
+
+${nextQ}` : ack;
+    appliedDirectReply = true;
+    log?.info({ entityId, guests }, "GUARD: A15903 \u2014 cliente cuestiona m\xEDnimo de personas");
   } else if ((justAnsweredReq || looksLikeMinimalServiceAsk(currentMessage)) && !cierreYaEnviado && isFieldSatisfied("nombre", filledSet, extracted) && !clientMentionsEntertainment(currentMessage) && !clientMentionsCarpas(currentMessage) && !clientAsksPrice(currentMessage) && buildSoftComplementOffer(extracted, presHistory, currentMessage)) {
     const soft = buildSoftComplementOffer(extracted, presHistory, currentMessage);
     const pending = getNextPendingField(extracted, filledSet);
@@ -166423,24 +166474,27 @@ function dedupeCatalogUrlsInMessage(text2) {
     return text2;
   }
   const seen = /* @__PURE__ */ new Set();
-  const lines = text2.split("\n");
-  const out2 = [];
-  for (let i6 = 0; i6 < lines.length; i6++) {
-    const line2 = lines[i6];
-    const urlMatch = line2.match(/https?:\/\/[^\s]*?(?:bodasesor|hostingersite)\.com\/catalogos[^\s]*/i);
-    if (urlMatch) {
-      const key = urlMatch[0].replace(/\/+$/, "").toLowerCase();
-      if (seen.has(key)) {
-        if (out2.length && /cat[aá]logo|claro,?\s+aqu[ií]\s+tienes/i.test(out2[out2.length - 1]) && !/https?:\/\//i.test(out2[out2.length - 1])) {
-          out2.pop();
-        }
-        continue;
-      }
+  let out2 = text2.replace(
+    /https?:\/\/[^\s]*?(?:bodasesor|hostingersite)\.com\/catalogos[^\s]*/gi,
+    (url2) => {
+      const key = url2.replace(/[),.;]+$/g, "").replace(/\/+$/, "").toLowerCase();
+      if (seen.has(key)) return "";
       seen.add(key);
+      return url2;
     }
-    out2.push(line2);
-  }
-  return out2.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  );
+  out2 = out2.split("\n").filter((line2, i6, arr) => {
+    const t4 = line2.trim();
+    if (!t4) return true;
+    if (/^(claro,?\s+aqu[ií]\s+tienes\s+el\s+cat[aá]logo[^\n:]*:|cat[aá]logo(?:\s+de\s+\*[^*]+\*)?:)$/i.test(
+      t4
+    )) {
+      const next = arr.slice(i6 + 1).find((l6) => l6.trim());
+      if (!next || !/https?:\/\/[^\s]*catalogos/i.test(next)) return false;
+    }
+    return true;
+  }).join("\n");
+  return out2.replace(/[ \t]{2,}/g, " ").replace(/ ?\n{3,}/g, "\n\n").replace(/\n[ \t]+/g, "\n").trim();
 }
 function stripGammaLinks(text2) {
   if (!text2 || !/gamma\.app/i.test(text2)) return text2;
@@ -225560,7 +225614,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.80";
+var LUCY_PROMPT_VERSION = "V9.81";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -227806,9 +227860,17 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
     out2.horario_evento = null;
     applied.push("horario-unusable-cleared");
   }
+  if (out2.horario_evento && (looksLikeGuestCountRange(out2.horario_evento) || /^\d{1,2}\s*[-–a]\s*\d{1,2}$/i.test(out2.horario_evento.trim())) && !/\b(am|pm|a\.?m\.?|p\.?m\.?|hrs?|horas?)\b/i.test(out2.horario_evento)) {
+    out2.horario_evento = null;
+    applied.push("horario-guest-range-cleared");
+  }
   if (out2.fecha_horario && !isUsableFechaHorario(out2.fecha_horario)) {
     out2.fecha_horario = null;
     applied.push("fecha-legacy-cleared");
+  }
+  if (out2.fecha_horario && /,\s*\d{1,2}\s*[-–]\s*\d{1,2}\s*$/i.test(out2.fecha_horario) && !/\b(am|pm|hrs?)\b/i.test(out2.fecha_horario)) {
+    out2.fecha_horario = out2.fecha_horario.replace(/,\s*\d{1,2}\s*[-–]\s*\d{1,2}\s*$/i, "").trim();
+    applied.push("fecha-legacy-guest-range-stripped");
   }
   if (out2.telefono && isBodasesorCompanyPhone(out2.telefono)) {
     out2.telefono = null;
@@ -229391,6 +229453,7 @@ ${keepQ}` : ack;
     mensaje = collapseDuplicatedInclusionReply(mensaje);
   }
   mensaje = stripClientServiceConfusionNotes(mensaje);
+  mensaje = dedupeCatalogUrlsInMessage(mensaje);
   {
     const conTono = stripMidMessageFiller(
       applyClientNameCadence({

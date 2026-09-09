@@ -218,9 +218,28 @@ export function applyCrmWriteInvariants(
     out.horario_evento = null;
     applied.push("horario-unusable-cleared");
   }
+  // A15903: "10 - 12" (aforo) no debe quedar como horario.
+  if (
+    out.horario_evento &&
+    (looksLikeGuestCountRange(out.horario_evento) ||
+      /^\d{1,2}\s*[-–a]\s*\d{1,2}$/i.test(out.horario_evento.trim())) &&
+    !/\b(am|pm|a\.?m\.?|p\.?m\.?|hrs?|horas?)\b/i.test(out.horario_evento)
+  ) {
+    out.horario_evento = null;
+    applied.push("horario-guest-range-cleared");
+  }
   if (out.fecha_horario && !isUsableFechaHorario(out.fecha_horario)) {
     out.fecha_horario = null;
     applied.push("fecha-legacy-cleared");
+  }
+  // A15903: legacy "Sin definir (pendiente), 10 - 12" → limpiar el rango de aforo.
+  if (
+    out.fecha_horario &&
+    /,\s*\d{1,2}\s*[-–]\s*\d{1,2}\s*$/i.test(out.fecha_horario) &&
+    !/\b(am|pm|hrs?)\b/i.test(out.fecha_horario)
+  ) {
+    out.fecha_horario = out.fecha_horario.replace(/,\s*\d{1,2}\s*[-–]\s*\d{1,2}\s*$/i, "").trim();
+    applied.push("fecha-legacy-guest-range-stripped");
   }
 
   // A15539: nunca escribir teléfonos de Bodasesor en el contacto del cliente.

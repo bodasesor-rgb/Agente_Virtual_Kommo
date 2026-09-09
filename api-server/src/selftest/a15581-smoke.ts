@@ -57,7 +57,7 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.80");
+assert.equal(LUCY_PROMPT_VERSION, "V9.81");
 
 const horarioCuatro = parseHorarioFromText("Sería temprano, a partir de las cuatro");
 assert.ok(horarioCuatro && /4|cuatro/i.test(horarioCuatro), horarioCuatro ?? "null");

@@ -283,6 +283,8 @@ import {
   clientAsksNamedServiceDetail,
   isPromoTemplateMessage,
   isTablewareRequestText,
+  clientQuestionsServiceMinimum,
+  buildBelowMinimumGuestReply,
   FECHA_MAX_ASKS,
   FECHA_AUTO_WAIVER,
 } from "./conversation-understanding.js";
@@ -2784,6 +2786,11 @@ function applyEmailCaptureTone(mensaje: string, ctx: NaturalQuestionContext): st
     /^(muchas\s+|mil\s+)?gracias\s+por\s+(?:el\s+dato|la\s+informaci[oó]n|compartir(?:lo|la)?|tu\s+respuesta)(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i,
     ""
   );
+  // A15903: "Gracias por tu correo. Gracias por la corrección, Verónica."
+  out = out.replace(
+    /^(muchas\s+|mil\s+)?gracias\s+por\s+la\s+correcci[oó]n(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i,
+    ""
+  );
   // A15878: "Recibido, Tania." tras "Gracias por tu correo, Tania." es el mismo acuse dos veces.
   out = out.replace(
     /^(recibido|listo|anotado|entendido|de\s+acuerdo)(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i,
@@ -4753,8 +4760,14 @@ export function buildDeferredKnownServiceOffer(opts: {
   }
   if (!detail || !/nivel|precio|manejamos|\$/i.test(detail)) return null;
 
-  const link = buildCatalogWebLinkReply({ query: svc, serviceHint: svc });
-  let body = `${intro}\n\n${detail}\n\n${link}`.trim();
+  // A15903: si el detalle del Sheet ya trae el link, no pegar buildCatalogWebLinkReply otra vez.
+  const link = /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(detail)
+    ? null
+    : buildCatalogWebLinkReply({ query: svc, serviceHint: svc });
+  let body = link
+    ? `${intro}\n\n${detail}\n\n${link}`.trim()
+    : `${intro}\n\n${detail}`.trim();
+  body = dedupeCatalogUrlsInMessage(body);
 
   const pending = getNextPendingField(extracted, filledSet);
   if (pending && pending !== "requerimientos" && pending !== "nombre") {
@@ -8325,6 +8338,29 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: pregunta de precio mobiliario/periqueras — respuesta consultiva");
   } else if (
+    // A15903 Verónica: "Veo que tus servicios son para min 35" — no saltar a fecha.
+    !cierreYaEnviado &&
+    currentMessage &&
+    clientQuestionsServiceMinimum(currentMessage)
+  ) {
+    const guests =
+      extracted.num_invitados ??
+      (() => {
+        const raw = parseInvitadosFromText(currentMessage, { askedInvitados: true });
+        return raw && /^\d+$/.test(raw) ? parseInt(raw, 10) : null;
+      })();
+    const ack = buildBelowMinimumGuestReply(guests);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ =
+      pending && pending !== "requerimientos" && pending !== "invitados"
+        ? buildNaturalQuestion(pending, ctx)
+        : pending === "invitados"
+          ? null
+          : null;
+    mensaje = nextQ ? `${ack}\n\n${nextQ}` : ack;
+    appliedDirectReply = true;
+    log?.info({ entityId, guests }, "GUARD: A15903 — cliente cuestiona mínimo de personas");
+  } else if (
     (justAnsweredReq || looksLikeMinimalServiceAsk(currentMessage)) &&
     !cierreYaEnviado &&
     isFieldSatisfied("nombre", filledSet, extracted) &&
@@ -10976,35 +11012,44 @@ export function stripClientServiceConfusionNotes(text: string): string {
   return out.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-/** A14995 / todas las ramas: no repetir la misma URL de catálogo dos veces. */
+/** A14995 / A15903: no repetir la misma URL de catálogo dos veces (ni en la misma línea). */
 export function dedupeCatalogUrlsInMessage(text: string): string {
   if (!text?.trim() || !/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text)) {
     return text;
   }
   const seen = new Set<string>();
-  const lines = text.split("\n");
-  const out: string[] = [];
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]!;
-    const urlMatch = line.match(/https?:\/\/[^\s]*?(?:bodasesor|hostingersite)\.com\/catalogos[^\s]*/i);
-    if (urlMatch) {
-      const key = urlMatch[0]!.replace(/\/+$/, "").toLowerCase();
-      if (seen.has(key)) {
-        // Quita también la línea de encabezado "Catálogo de…" / "Claro, aquí tienes…" previa si quedó huérfana.
-        if (
-          out.length &&
-          /cat[aá]logo|claro,?\s+aqu[ií]\s+tienes/i.test(out[out.length - 1]!) &&
-          !/https?:\/\//i.test(out[out.length - 1]!)
-        ) {
-          out.pop();
-        }
-        continue;
-      }
+  // Primero: URLs duplicadas en cualquier parte del texto (misma línea o varias).
+  let out = text.replace(
+    /https?:\/\/[^\s]*?(?:bodasesor|hostingersite)\.com\/catalogos[^\s]*/gi,
+    (url) => {
+      const key = url.replace(/[),.;]+$/g, "").replace(/\/+$/, "").toLowerCase();
+      if (seen.has(key)) return "";
       seen.add(key);
+      return url;
     }
-    out.push(line);
-  }
-  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  );
+  // Líneas que quedaron solo con el encabezado huérfano del catálogo.
+  out = out
+    .split("\n")
+    .filter((line, i, arr) => {
+      const t = line.trim();
+      if (!t) return true;
+      if (
+        /^(claro,?\s+aqu[ií]\s+tienes\s+el\s+cat[aá]logo[^\n:]*:|cat[aá]logo(?:\s+de\s+\*[^*]+\*)?:)$/i.test(
+          t
+        )
+      ) {
+        const next = arr.slice(i + 1).find((l) => l.trim());
+        if (!next || !/https?:\/\/[^\s]*catalogos/i.test(next)) return false;
+      }
+      return true;
+    })
+    .join("\n");
+  return out
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/ ?\n{3,}/g, "\n\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .trim();
 }
 
 /** Los links Gamma son solo conocimiento interno — nunca deben llegar al cliente. */

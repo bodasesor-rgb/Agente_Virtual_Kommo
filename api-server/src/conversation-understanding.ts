@@ -1422,6 +1422,34 @@ export function isPromoMinimumGuestLine(text: string | null | undefined): boolea
   );
 }
 
+/**
+ * A15903: el cliente cuestiona el mínimo del catálogo
+ * ("Veo que tus servicios son para min 35 personas").
+ */
+export function clientQuestionsServiceMinimum(message?: string | null): boolean {
+  const t = message?.trim() ?? "";
+  if (!t) return false;
+  return (
+    /\b(veo\s+que|not[eé]|dice|indican?|aparecen?|tienen)\b[\s\S]{0,40}\bm[ií]n(\.|imo)?\b/i.test(
+      t
+    ) ||
+    /\bm[ií]n(\.|imo)?\s*(?:de\s+)?(?:\d{2,3}|treinta\s+y\s+cinco)\s*personas?\b/i.test(t) ||
+    /\bpara\s+(?:m[ií]n(\.|imo)?|min)\s*\d{2,3}\s*personas?\b/i.test(t) ||
+    /\bpedido\s+m[ií]nimo\b/i.test(t)
+  );
+}
+
+/** Respuesta cuando el aforo va por debajo del mínimo típico de banquete. */
+export function buildBelowMinimumGuestReply(guestCount?: number | null): string {
+  const n = guestCount && guestCount > 0 ? guestCount : null;
+  const size = n ? `Para *${n} personas*` : "Para grupos más pequeños";
+  return (
+    `${size} el banquete formal suele no ser lo más práctico (el catálogo arranca cerca de 35). ` +
+    `Igual te podemos armar una propuesta a la medida — coffee break, barra de alimentos o un menú más liviano. ` +
+    `¿Te late alguna de esas opciones o prefieres que el equipo te sugiera según la junta?`
+  );
+}
+
 /** Quita metadatos de plantilla promo antes de parsear fecha/horario/invitados. */
 export function stripPromoTemplateMetadata(text: string): string {
   return text
@@ -2087,6 +2115,10 @@ export function looksLikeGuestCountRange(text: string | null | undefined): boole
   if (/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed)) {
     return false;
   }
+  // A15903: "10 - 12 personas" es aforo aunque el rango sea pequeño.
+  const hasGuestWord = /\b(personas?|invitad[oa]s?|asistentes?|comensales?|gente)\b/i.test(
+    trimmed
+  );
   const m = trimmed.match(/\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i);
   if (!m) {
     // Ya normalizado en CRM: "80 - 100 MXN" sin que el cliente haya dicho MXN.
@@ -2096,14 +2128,15 @@ export function looksLikeGuestCountRange(text: string | null | undefined): boole
     const b = parseInt(crm[2]!, 10);
     const lo = Math.min(a, b);
     const hi = Math.max(a, b);
-    if (lo <= 12 && hi <= 24 && hi - lo <= 16) return false;
+    // Sin "personas", 10-12 se parece a horario; con guest word sí cuenta.
+    if (lo <= 12 && hi <= 24 && hi - lo <= 16 && !hasGuestWord) return false;
     return a >= 10 && b >= 10 && a <= 2000 && b <= 2000 && Math.abs(a - b) <= 500;
   }
   const a = parseInt(m[1]!, 10);
   const b = parseInt(m[2]!, 10);
   const lo = Math.min(a, b);
   const hi = Math.max(a, b);
-  if (lo <= 12 && hi <= 24 && hi - lo <= 16) return false;
+  if (lo <= 12 && hi <= 24 && hi - lo <= 16 && !hasGuestWord) return false;
   return a >= 10 && b >= 10 && a <= 2000 && b <= 2000 && Math.abs(a - b) <= 500;
 }
 
@@ -3719,6 +3752,17 @@ export function parseHorarioFromText(text: string): string | null {
     return "Sin definir (pendiente)";
   }
 
+  // A15903: "10 - 12 personas" / "aproximadamente 10-12" ≠ horario.
+  if (
+    /\b(personas?|invitad[oa]s?|asistentes?|comensales?)\b/i.test(clean) &&
+    /\b\d{1,4}\s*(?:a|[-–]|hasta)\s*\d{1,4}\b/i.test(clean)
+  ) {
+    return null;
+  }
+  if (looksLikeGuestCountRange(clean)) {
+    return null;
+  }
+
   if (isClockTimeOnlySchedule(clean)) return normalizeHorarioCapture(clean);
   if (isMealTimeOnlySchedule(clean)) return clean;
 
@@ -3758,6 +3802,14 @@ export function parseHorarioFromText(text: string): string | null {
   );
   if (rangeAmpm?.[1]) {
     const frag = rangeAmpm[1].trim();
+    // A15903: "10-12" sin am/pm/hrs no es horario (suele ser aforo).
+    if (
+      !new RegExp(CLOCK_AMPM, "i").test(frag) &&
+      !/\b(hrs?|horas?)\b/i.test(frag) &&
+      !/\b(a\s+las?|de\s+las?)\b/i.test(clean)
+    ) {
+      /* no-op: seguir buscando */
+    } else {
     const without = clean.replace(rangeAmpm[1], "").trim();
     if (
       !without ||
@@ -3767,6 +3819,7 @@ export function parseHorarioFromText(text: string): string | null {
       /\b(evento|ser[ií]a|ser[aá]|es|planean|planeamos|tendr[ií]a|horario)\b/i.test(without)
     ) {
       return frag.replace(/^de\s+/i, "de ").slice(0, 80);
+    }
     }
   }
 
@@ -3848,15 +3901,24 @@ export function parseHorarioFromText(text: string): string | null {
     )
   );
   if (range?.[1]) {
+    const frag = range[1].trim();
+    // A15903: rango sin am/pm no es horario.
+    if (
+      !new RegExp(CLOCK_AMPM, "i").test(frag) &&
+      !/\b(hrs?|horas?)\b/i.test(frag)
+    ) {
+      /* seguir */
+    } else {
     const withoutRange = clean.replace(range[1], "").trim();
     if (
       parseFechaFromText(withoutRange) ||
       MONTH_PATTERN.test(withoutRange) ||
       /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(withoutRange)
     ) {
-      return range[1].trim();
+      return frag;
     }
-    if (!parseFechaFromText(clean)) return range[1].trim();
+    if (!parseFechaFromText(clean)) return frag;
+    }
   }
 
   if (

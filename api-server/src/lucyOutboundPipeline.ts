@@ -14,6 +14,7 @@ import {
   stripClientServiceConfusionNotes,
   getNextPendingField,
   buildNaturalQuestion,
+  dedupeCatalogUrlsInMessage,
 } from "./lucy-flow-guards.js";
 import { applyLucyGlobalAntiRepetition } from "./lucyOutboundAntiRepeat.js";
 import { applyClientNameCadence, stripMidMessageFiller } from "./lucyNaturalTone.js";
@@ -204,6 +205,8 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
   }
 
   mensaje = stripClientServiceConfusionNotes(mensaje);
+  // A15903: red de seguridad — misma URL de catálogo nunca dos veces.
+  mensaje = dedupeCatalogUrlsInMessage(mensaje);
 
   // A15897: tono — ni el nombre en cada mensaje ni muletillas sueltas antes de
   // la pregunta ("… dime si te interesa alguno. Claro que sí. ¿Cuántos…?").
