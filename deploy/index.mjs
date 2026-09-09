@@ -159068,6 +159068,8 @@ var init_schema2 = __esm({
       guestCount: integer("guest_count"),
       budget: decimal("budget", { precision: 10, scale: 2 }),
       messageCount: integer("message_count").notNull().default(0),
+      /** Turnos seguidos en que Lucy no entendió y repitió la pregunta (V9.78). */
+      unclearStreak: integer("unclear_streak").notNull().default(0),
       lastIntent: varchar("last_intent", { length: 100 }),
       sentiment: varchar("sentiment", { length: 50 }).default("neutral"),
       learningPhase: varchar("learning_phase", { length: 30 }),
@@ -159258,6 +159260,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   guest_count INTEGER,
   budget DECIMAL(10, 2),
   message_count INTEGER NOT NULL DEFAULT 0,
+  unclear_streak INTEGER NOT NULL DEFAULT 0,
   last_intent VARCHAR(100),
   sentiment VARCHAR(50) DEFAULT 'neutral',
   learning_phase VARCHAR(30),
@@ -159383,6 +159386,7 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS source VARCHAR(30);
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS learning_phase VARCHAR(30);
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_kommo_sync_at TIMESTAMP;
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_learning_extract_at TIMESTAMP;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS unclear_streak INTEGER NOT NULL DEFAULT 0;
 CREATE UNIQUE INDEX IF NOT EXISTS messages_kommo_message_id_idx ON messages (kommo_message_id) WHERE kommo_message_id IS NOT NULL;
 `;
   }
@@ -166573,6 +166577,7 @@ var init_learningSchema = __esm({
       `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS learning_phase VARCHAR(30)`,
       `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_kommo_sync_at TIMESTAMP`,
       `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_learning_extract_at TIMESTAMP`,
+      `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS unclear_streak INTEGER NOT NULL DEFAULT 0`,
       `CREATE UNIQUE INDEX IF NOT EXISTS messages_kommo_message_id_idx ON messages (kommo_message_id) WHERE kommo_message_id IS NOT NULL`,
       `CREATE TABLE IF NOT EXISTS learning_candidates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -225477,8 +225482,8 @@ function isLucyUnifiedLlmTurn() {
   return raw !== "0" && raw !== "false" && raw !== "off";
 }
 function getLucyChatHistoryMax() {
-  const n5 = Number(process.env["LUCY_CHAT_HISTORY_MAX"] ?? "6");
-  if (!Number.isFinite(n5) || n5 < 2) return 6;
+  const n5 = Number(process.env["LUCY_CHAT_HISTORY_MAX"] ?? "12");
+  if (!Number.isFinite(n5) || n5 < 2) return 12;
   return Math.min(Math.floor(n5), 40);
 }
 function getLucyFewShotMax() {
@@ -225510,7 +225515,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.77";
+var LUCY_PROMPT_VERSION = "V9.78";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -228187,6 +228192,21 @@ No vuelques niveles de cada SKU salvo que pidan detalle de uno.
 - Robots LED, batucada, shows = ENTRETENIMIENTO. No respondas con banquete.
 - Precio distribuidor / mayoreo \u2192 el equipo cotiza; no des precio de lista.
 
+### Cuando NO entiendas el mensaje (cr\xEDtico)
+Antes de escribir, compara con tu mensaje anterior del historial.
+- NUNCA repitas la misma pregunta ni una reformulaci\xF3n casi igual. Si tu respuesta
+  se parece a la anterior, no la mandes: cambia de estrategia.
+- Primer intento fallido \u2192 pregunta distinto y m\xE1s concreto, aterrizando el dato
+  con un ejemplo: "\xBFEl evento es para unas 50 personas o m\xE1s bien 150?"
+- Segundo intento fallido \u2192 deja de preguntar abierto y ofrece 2 o 3 opciones
+  numeradas para que solo elija:
+  "Para no darte vueltas, \xBFcu\xE1l te queda? 1) Banquete formal 2) Estaciones
+  casuales 3) Solo bocadillos"
+- NUNCA digas "no te entend\xED" a secas ni culpes al cliente. Asume que la que no
+  se explic\xF3 eres t\xFA: "Creo que no me expliqu\xE9 bien".
+- Si aun as\xED no avanza, ofrece pasar el caso al equipo. Nunca insistas una tercera
+  vez con lo mismo.
+
 ### Declinar / quitar un servicio (cr\xEDtico \u2014 A15295)
 Si el cliente dice que NO quiere algo, que lo quiten, o que \xE9l lo trae/pone
 ("no quiero alimentos", "qu\xEDtale la comida", "yo les voy a dar pizza", typos
@@ -229284,6 +229304,68 @@ ${keepQ}` : ack;
   return formatForWhatsApp(mensaje);
 }
 
+// src/lucyUnclearStreak.ts
+init_lucy_flow_guards();
+init_contact_name();
+var UNCLEAR_STREAK_ESCALATION = 3;
+var NEAR_DUPLICATE_RATIO = 0.7;
+var FUNNEL_FIELDS = [
+  "nombre",
+  "correo",
+  "tipo_evento",
+  "requerimientos",
+  "invitados",
+  "zona",
+  "fecha",
+  "horario",
+  "presupuesto"
+];
+function lastAssistantMessage(history) {
+  const last = [...history].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string");
+  const text2 = typeof last?.content === "string" ? last.content.trim() : "";
+  return text2 || null;
+}
+function fieldsAsked(mensaje) {
+  return FUNNEL_FIELDS.filter((f7) => mensajeAsksForField(mensaje, f7));
+}
+function isStuckLoopTurn(input) {
+  const { outboundMessage, filledBefore, filledAfter } = input;
+  if (input.cierreYaEnviado || input.isFirstInteraction) return false;
+  if (!outboundMessage.trim()) return false;
+  for (const label of filledAfter) {
+    if (!filledBefore.has(label)) return false;
+  }
+  const previous = lastAssistantMessage(input.history);
+  if (!previous) return false;
+  if (lucyTextOverlapRatio(outboundMessage, previous) >= NEAR_DUPLICATE_RATIO) {
+    return true;
+  }
+  const askedNow = fieldsAsked(outboundMessage);
+  if (askedNow.length === 0) return false;
+  const askedBefore = new Set(fieldsAsked(previous));
+  return askedNow.some((f7) => askedBefore.has(f7));
+}
+function nextUnclearStreak(previous, stuck) {
+  if (!stuck) return 0;
+  const base = Number.isFinite(previous) && (previous ?? 0) > 0 ? Math.floor(previous) : 0;
+  return base + 1;
+}
+function shouldEscalateForUnclear(streak) {
+  return streak >= UNCLEAR_STREAK_ESCALATION;
+}
+function buildUnclearHandoffMessage(clientName) {
+  const name2 = sanitizeDisplayName(clientName);
+  return [
+    `Creo que no me estoy explicando bien${name2 ? `, ${name2}` : ""}. Mejor te paso con nuestro equipo para que te atiendan directo y no darte m\xE1s vueltas.`,
+    "",
+    "Mientras te contactan, tambi\xE9n puedes marcar:",
+    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 \u2014 WhatsApp o l\xEDnea telef\xF3nica.",
+    "",
+    "Ya dej\xE9 tu caso listo para el equipo."
+  ].join("\n");
+}
+
 // src/lucyTurnProcessor.ts
 async function prepareLucyExtraction(input) {
   const { fullHistory, messageText, crmLines, extractFn } = input;
@@ -229409,8 +229491,10 @@ async function generateLucyOutbound(input) {
     messageCount,
     conversationAgeHours,
     prependToAiResponse,
+    unclearStreak = 0,
     log
   } = input;
+  const filledBefore = new Set(filledLabels);
   if (extracted.tipo_contacto === "proveedor") {
     const reply = buildProveedorHandoffReply({
       nombre: extracted.nombre ?? whatsappDisplayName,
@@ -229421,7 +229505,12 @@ async function generateLucyOutbound(input) {
       { entityId, empresa: extracted.empresa },
       "Proveedor/alianza detectado \u2014 handoff (sin embudo cliente)"
     );
-    return { mensajeParaCliente: reply, aiResponse: reply };
+    return {
+      mensajeParaCliente: reply,
+      aiResponse: reply,
+      unclearStreak: 0,
+      escalateUnclearToHuman: false
+    };
   }
   await enrichExtractedDireccionWithMaps(extracted, messageText).catch(() => void 0);
   const trainingExamples2 = await getTrainingExamples();
@@ -229556,7 +229645,35 @@ async function generateLucyOutbound(input) {
     entityId,
     log
   });
-  return { mensajeParaCliente, aiResponse };
+  const stuck = isStuckLoopTurn({
+    outboundMessage: mensajeParaCliente,
+    history: fullHistory,
+    filledBefore,
+    filledAfter: filledLabels,
+    cierreYaEnviado,
+    isFirstInteraction
+  });
+  let nextStreak = nextUnclearStreak(unclearStreak, stuck);
+  let escalateUnclearToHuman = false;
+  if (shouldEscalateForUnclear(nextStreak)) {
+    mensajeParaCliente = buildUnclearHandoffMessage(
+      extracted.nombre ?? whatsappDisplayName
+    );
+    escalateUnclearToHuman = true;
+    nextStreak = 0;
+    log?.warn?.(
+      { entityId, streak: UNCLEAR_STREAK_ESCALATION },
+      "GUARD: V9.78 \u2014 bucle de no-entend\xED \u2192 handoff a Humano Trabaja"
+    );
+  } else if (stuck) {
+    log?.info?.({ entityId, streak: nextStreak }, "GUARD: V9.78 \u2014 turno atorado (misma pregunta)");
+  }
+  return {
+    mensajeParaCliente,
+    aiResponse,
+    unclearStreak: nextStreak,
+    escalateUnclearToHuman
+  };
 }
 
 // src/routes/kommo.ts
@@ -230949,7 +231066,12 @@ async function processBatch(batch, accessToken, log) {
       );
     }
     const cierreYaEnviadoForGuards = cierreYaEnviado;
-    const { mensajeParaCliente, aiResponse } = await generateLucyOutbound({
+    const {
+      mensajeParaCliente,
+      aiResponse,
+      unclearStreak,
+      escalateUnclearToHuman
+    } = await generateLucyOutbound({
       messageText: combinedUserText,
       history,
       fullHistory,
@@ -230968,6 +231090,7 @@ async function processBatch(batch, accessToken, log) {
       messageCount,
       conversationAgeHours,
       prependToAiResponse,
+      unclearStreak: conversation.unclearStreak ?? 0,
       log
     });
     log.info({ aiResponse, extracted }, "OpenAI response received");
@@ -231084,6 +231207,7 @@ async function processBatch(batch, accessToken, log) {
       guestCount: extracted.num_invitados || conversation.guestCount,
       budget: extracted.presupuesto ? String(extracted.presupuesto) : conversation.budget,
       messageCount: conversation.messageCount + 1,
+      unclearStreak,
       lastIntent: intentResult.intent,
       sentiment: sentimentResult.sentiment,
       stage,
@@ -231189,7 +231313,8 @@ Ofrece: ${extracted.requerimientos_evento ?? "-"}
         );
       }
     } else {
-      if (clientAsksForHumanAdvisor(combinedUserText)) {
+      const pidioAsesor = clientAsksForHumanAdvisor(combinedUserText);
+      if (pidioAsesor || escalateUnclearToHuman) {
         try {
           await moverAHumanoTrabaja(
             subdomain,
@@ -231204,15 +231329,19 @@ Ofrece: ${extracted.requerimientos_evento ?? "-"}
               direccion: extracted.direccion_evento,
               presupuesto: extracted.presupuesto
             },
-            ["cliente", "pide_asesor"]
+            pidioAsesor ? ["cliente", "pide_asesor"] : ["cliente", "no_entendio"]
           );
           await agregarNota(
             subdomain,
             accessToken,
             entityId,
-            "\u{1F64B} Cliente pidi\xF3 hablar con un asesor/agente. Lucy canaliz\xF3 a Humano Trabaja y dej\xF3 de cotizar."
+            pidioAsesor ? "\u{1F64B} Cliente pidi\xF3 hablar con un asesor/agente. Lucy canaliz\xF3 a Humano Trabaja y dej\xF3 de cotizar." : `\u{1F501} Lucy no logr\xF3 entender al cliente en ${UNCLEAR_STREAK_ESCALATION} turnos seguidos (repet\xEDa la misma pregunta). Canalizado a Humano Trabaja.
+\xDAltimo mensaje del cliente: "${combinedUserText.slice(0, 200)}"`
           );
-          log.info({ entityId }, "Embudo: A15000 \u2014 handoff a Humano Trabaja por petici\xF3n de asesor");
+          log.info(
+            { entityId, motivo: pidioAsesor ? "pide_asesor" : "no_entendio" },
+            "Embudo: handoff a Humano Trabaja"
+          );
         } catch (err2) {
           log.warn({ err: err2, entityId }, "Embudo: handoff a Humano Trabaja fall\xF3");
         }

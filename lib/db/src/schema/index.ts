@@ -22,6 +22,8 @@ export const conversations = pgTable("conversations", {
   budget: decimal("budget", { precision: 10, scale: 2 }),
 
   messageCount: integer("message_count").notNull().default(0),
+  /** Turnos seguidos en que Lucy no entendió y repitió la pregunta (V9.78). */
+  unclearStreak: integer("unclear_streak").notNull().default(0),
   lastIntent: varchar("last_intent", { length: 100 }),
   sentiment: varchar("sentiment", { length: 50 }).default("neutral"),
 

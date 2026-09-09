@@ -11,6 +11,7 @@ const STATEMENTS = [
   `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS learning_phase VARCHAR(30)`,
   `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_kommo_sync_at TIMESTAMP`,
   `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_learning_extract_at TIMESTAMP`,
+  `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS unclear_streak INTEGER NOT NULL DEFAULT 0`,
   `CREATE UNIQUE INDEX IF NOT EXISTS messages_kommo_message_id_idx ON messages (kommo_message_id) WHERE kommo_message_id IS NOT NULL`,
   `CREATE TABLE IF NOT EXISTS learning_candidates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

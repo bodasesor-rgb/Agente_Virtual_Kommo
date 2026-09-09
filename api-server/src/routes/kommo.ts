@@ -95,6 +95,7 @@ import {
 } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
 import { prepareLucyExtraction, generateLucyOutbound } from "../lucyTurnProcessor.js";
+import { UNCLEAR_STREAK_ESCALATION } from "../lucyUnclearStreak.js";
 import { isLucyUnifiedLlmTurn } from "../lib/lucyCostControls.js";
 import {
   applyCapturesToCrm,
@@ -1834,7 +1835,12 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
 
     const cierreYaEnviadoForGuards = cierreYaEnviado;
 
-    const { mensajeParaCliente, aiResponse } = await generateLucyOutbound({
+    const {
+      mensajeParaCliente,
+      aiResponse,
+      unclearStreak,
+      escalateUnclearToHuman,
+    } = await generateLucyOutbound({
       messageText: combinedUserText,
       history,
       fullHistory,
@@ -1853,6 +1859,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       messageCount,
       conversationAgeHours,
       prependToAiResponse,
+      unclearStreak: conversation.unclearStreak ?? 0,
       log,
     });
 
@@ -2015,6 +2022,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         guestCount: extracted.num_invitados || conversation.guestCount,
         budget: extracted.presupuesto ? String(extracted.presupuesto) : conversation.budget,
         messageCount: conversation.messageCount + 1,
+        unclearStreak,
         lastIntent: intentResult.intent,
         sentiment: sentimentResult.sentiment,
         stage,
@@ -2148,8 +2156,10 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       }
     } else {
       // CLIENTE: movimiento a "Humano Trabaja" es SOLO manual (por Alejandro),
-      // EXCEPTO si el cliente pide explícitamente un asesor (A15000).
-      if (clientAsksForHumanAdvisor(combinedUserText)) {
+      // EXCEPTO si el cliente pide explícitamente un asesor (A15000) o si Lucy
+      // se quedó atorada repitiendo la misma pregunta sin entender (V9.78).
+      const pidioAsesor = clientAsksForHumanAdvisor(combinedUserText);
+      if (pidioAsesor || escalateUnclearToHuman) {
         try {
           await moverAHumanoTrabaja(
             subdomain,
@@ -2164,15 +2174,22 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
               direccion: extracted.direccion_evento,
               presupuesto: extracted.presupuesto,
             },
-            ["cliente", "pide_asesor"]
+            pidioAsesor ? ["cliente", "pide_asesor"] : ["cliente", "no_entendio"]
           );
           await agregarNota(
             subdomain,
             accessToken,
             entityId,
-            "🙋 Cliente pidió hablar con un asesor/agente. Lucy canalizó a Humano Trabaja y dejó de cotizar."
+            pidioAsesor
+              ? "🙋 Cliente pidió hablar con un asesor/agente. Lucy canalizó a Humano Trabaja y dejó de cotizar."
+              : `🔁 Lucy no logró entender al cliente en ${UNCLEAR_STREAK_ESCALATION} turnos seguidos ` +
+                `(repetía la misma pregunta). Canalizado a Humano Trabaja.\n` +
+                `Último mensaje del cliente: "${combinedUserText.slice(0, 200)}"`
           );
-          log.info({ entityId }, "Embudo: A15000 — handoff a Humano Trabaja por petición de asesor");
+          log.info(
+            { entityId, motivo: pidioAsesor ? "pide_asesor" : "no_entendio" },
+            "Embudo: handoff a Humano Trabaja"
+          );
         } catch (err) {
           log.warn({ err, entityId }, "Embudo: handoff a Humano Trabaja falló");
         }

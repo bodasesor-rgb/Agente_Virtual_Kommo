@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   guest_count INTEGER,
   budget DECIMAL(10, 2),
   message_count INTEGER NOT NULL DEFAULT 0,
+  unclear_streak INTEGER NOT NULL DEFAULT 0,
   last_intent VARCHAR(100),
   sentiment VARCHAR(50) DEFAULT 'neutral',
   learning_phase VARCHAR(30),
@@ -154,6 +155,7 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS source VARCHAR(30);
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS learning_phase VARCHAR(30);
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_kommo_sync_at TIMESTAMP;
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_learning_extract_at TIMESTAMP;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS unclear_streak INTEGER NOT NULL DEFAULT 0;
 CREATE UNIQUE INDEX IF NOT EXISTS messages_kommo_message_id_idx ON messages (kommo_message_id) WHERE kommo_message_id IS NOT NULL;
 `;
 

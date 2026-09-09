@@ -10,10 +10,14 @@ export function isLucyUnifiedLlmTurn(): boolean {
   return raw !== "0" && raw !== "false" && raw !== "off";
 }
 
-/** Máximo de mensajes user/assistant del historial hacia el LLM. Default: 6. */
+/**
+ * Máximo de mensajes user/assistant del historial hacia el LLM. Default: 12.
+ * V9.78: con 6 (3 turnos) el modelo perdía de vista su propia pregunta anterior
+ * y reformulaba la misma en bucle. 12 cubre el ida y vuelta típico.
+ */
 export function getLucyChatHistoryMax(): number {
-  const n = Number(process.env["LUCY_CHAT_HISTORY_MAX"] ?? "6");
-  if (!Number.isFinite(n) || n < 2) return 6;
+  const n = Number(process.env["LUCY_CHAT_HISTORY_MAX"] ?? "12");
+  if (!Number.isFinite(n) || n < 2) return 12;
   return Math.min(Math.floor(n), 40);
 }
 

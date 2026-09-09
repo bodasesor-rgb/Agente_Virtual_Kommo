@@ -46,6 +46,13 @@ import {
 } from "./lucy-flow-guards.js";
 import { finalizeLucyOutboundMessage } from "./lucyOutboundPipeline.js";
 import {
+  buildUnclearHandoffMessage,
+  isStuckLoopTurn,
+  nextUnclearStreak,
+  shouldEscalateForUnclear,
+  UNCLEAR_STREAK_ESCALATION,
+} from "./lucyUnclearStreak.js";
+import {
   getLucyFewShotMax,
   isLucyUnifiedLlmTurn,
   trimChatHistory,
@@ -242,6 +249,8 @@ export interface GenerateLucyOutboundInput {
   messageCount?: number;
   conversationAgeHours?: number;
   prependToAiResponse?: string;
+  /** Turnos atorados acumulados de este lead (columna conversations.unclear_streak). */
+  unclearStreak?: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   log?: { info: (obj: unknown, msg?: string) => void; warn: (obj: unknown, msg?: string) => void };
 }
@@ -249,6 +258,10 @@ export interface GenerateLucyOutboundInput {
 export interface GenerateLucyOutboundResult {
   mensajeParaCliente: string;
   aiResponse: string;
+  /** Contador de "no entendí" a persistir para el próximo turno. */
+  unclearStreak: number;
+  /** V9.78: se agotaron los reintentos — mover el lead a Humano Trabaja. */
+  escalateUnclearToHuman: boolean;
 }
 
 /** Prompt → OpenAI → catálogo → guards → formatForWhatsApp (las 3 rutas). */
@@ -274,8 +287,12 @@ export async function generateLucyOutbound(
     messageCount,
     conversationAgeHours,
     prependToAiResponse,
+    unclearStreak = 0,
     log,
   } = input;
+
+  // Foto del CRM antes del turno: si no crece, el mensaje del cliente no aportó nada.
+  const filledBefore = new Set(filledLabels);
 
   // A14936: proveedor / alianza → handoff fijo (sin formulario de evento).
   if (extracted.tipo_contacto === "proveedor") {
@@ -288,7 +305,12 @@ export async function generateLucyOutbound(
       { entityId, empresa: extracted.empresa },
       "Proveedor/alianza detectado — handoff (sin embudo cliente)"
     );
-    return { mensajeParaCliente: reply, aiResponse: reply };
+    return {
+      mensajeParaCliente: reply,
+      aiResponse: reply,
+      unclearStreak: 0,
+      escalateUnclearToHuman: false,
+    };
   }
 
   await enrichExtractedDireccionWithMaps(extracted, messageText).catch(() => undefined);
@@ -441,5 +463,37 @@ export async function generateLucyOutbound(
     log,
   });
 
-  return { mensajeParaCliente, aiResponse };
+  // V9.78: si volvemos a pedir lo mismo sin haber entendido nada, contamos la
+  // vuelta; a la tercera cortamos el bucle y pasamos el lead a un humano.
+  const stuck = isStuckLoopTurn({
+    outboundMessage: mensajeParaCliente,
+    history: fullHistory,
+    filledBefore,
+    filledAfter: filledLabels,
+    cierreYaEnviado,
+    isFirstInteraction,
+  });
+  let nextStreak = nextUnclearStreak(unclearStreak, stuck);
+  let escalateUnclearToHuman = false;
+
+  if (shouldEscalateForUnclear(nextStreak)) {
+    mensajeParaCliente = buildUnclearHandoffMessage(
+      extracted.nombre ?? whatsappDisplayName
+    );
+    escalateUnclearToHuman = true;
+    nextStreak = 0;
+    log?.warn?.(
+      { entityId, streak: UNCLEAR_STREAK_ESCALATION },
+      "GUARD: V9.78 — bucle de no-entendí → handoff a Humano Trabaja"
+    );
+  } else if (stuck) {
+    log?.info?.({ entityId, streak: nextStreak }, "GUARD: V9.78 — turno atorado (misma pregunta)");
+  }
+
+  return {
+    mensajeParaCliente,
+    aiResponse,
+    unclearStreak: nextStreak,
+    escalateUnclearToHuman,
+  };
 }
