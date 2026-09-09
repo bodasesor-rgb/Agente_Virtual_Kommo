@@ -132785,7 +132785,9 @@ function clientDefersHorario(text2) {
   if (!t4) return false;
   return /\bno\s+(cuento|tengo|tenemos|contamos)\s+con\s+(el\s+)?horario\b/i.test(t4) || /\b(a[uú]n|todav[ií]a)\s+no\s+(tengo|tenemos|cuento|contamos|hay|s[eé])\s+(el\s+)?horario\b/i.test(
     t4
-  ) || /\bhorario\s+(a[uú]n|todav[ií]a)\s+no\b/i.test(t4) || /\b(sin|no\s+tengo)\s+horario\s+(a[uú]n|definido|por\s+ahora|todav[ií]a)\b/i.test(t4) || /\bno\s+cuento\s+con\s+el\s+horario\b/i.test(t4) || /\bel\s+horario\s+(a[uú]n\s+)?(no\s+lo\s+tengo|est[aá]\s+por\s+definir|pendiente)\b/i.test(t4);
+  ) || /\bhorario\s+(a[uú]n|todav[ií]a)\s+no\b/i.test(t4) || /\b(sin|no\s+tengo)\s+horario\s+(a[uú]n|definido|por\s+ahora|todav[ií]a)\b/i.test(t4) || /\bno\s+cuento\s+con\s+el\s+horario\b/i.test(t4) || /\bel\s+horario\s+(a[uú]n\s+)?(no\s+lo\s+tengo|est[aá]\s+por\s+definir|pendiente)\b/i.test(t4) || // A15893 Suria: "2 horarios (aún no definidos)" / "horarios aún no definidos"
+  /\bhorarios?\b[\s\S]{0,40}\b(a[uú]n|todav[ií]a)\s+no\s+defin/i.test(t4) || /\b\d+\s+horarios?\b[\s\S]{0,40}\b(a[uú]n\s+no|por\s+definir|pendiente)/i.test(t4) || /\bhorarios?\s*\([^)]*(a[uú]n\s+no|por\s+definir|pendiente)/i.test(t4) || // "Aún no se definen" / typo "Aún no sé definen"
+  /\b(a[uú]n|todav[ií]a)\s+no\s+(?:se\s+|s[eé]\s+)?defin/i.test(t4) || /\b(a[uú]n|todav[ií]a)\s+no\s+definid/i.test(t4);
 }
 function parseHorarioFromText(text2) {
   const trimmed = text2.trim();
@@ -133871,7 +133873,8 @@ function detectPresupuestoRefusal(text2) {
   if (/\bno\s+se\b/.test(norm2) && /\b(cual|nivel|opcion|variante|paquete|incluir|incluye|podria\s+ser)\b/.test(norm2)) {
     return false;
   }
-  return /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t4) || /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t4) || /\bt[uú]\s+m[aá]ndame\b/i.test(t4) || /\bsi\s+quieres\s+vemos\b/i.test(t4) || /\b(no\s+s[eé](?!\s+puede)|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s*$|[.,!?]|\s+(cu[aá]nto|a[uú]n|si)\b)/i.test(t4) || /\ba[uú]n\s+no\s+(?:s[eé]|lo\s+s[eé]|s[eé]\s+cu[aá]nto)/i.test(t4) || /\btodav[ií]a\s+no\b/i.test(t4) || /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t4) || /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t4) || /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t4) || /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t4) || /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t4) || /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t4) || /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t4) || /\b(el\s+)?equipo\s+(me\s+)?propong/i.test(t4);
+  return /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t4) || /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t4) || /\bt[uú]\s+m[aá]ndame\b/i.test(t4) || /\bsi\s+quieres\s+vemos\b/i.test(t4) || /\b(no\s+s[eé](?!\s+puede)|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s*$|[.,!?]|\s+(cu[aá]nto|a[uú]n|si)\b)/i.test(t4) || // A15893: "Aún no sé definen" es horario, no presupuesto. "aún no sé" solo al final o con cuánto.
+  /\ba[uú]n\s+no\s+(?:lo\s+s[eé]|s[eé]\s+cu[aá]nto)(?!\s+defin)/i.test(t4) || /\ba[uú]n\s+no\s+s[eé](?!\s+defin)(?:\s*$|[.,!?])/i.test(t4) || /\btodav[ií]a\s+no\b/i.test(t4) || /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t4) || /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t4) || /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t4) || /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t4) || /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t4) || /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t4) || /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t4) || /\b(el\s+)?equipo\s+(me\s+)?propong/i.test(t4);
 }
 function isSoftDeferralNo(text2) {
   const t4 = (text2 ?? "").trim().replace(/[\s.,!¡]+$/g, "");
@@ -133881,9 +133884,13 @@ function isSoftDeferralNo(text2) {
   ) || /^no\s+(por\s+(ahora|el\s+momento)|de\s+momento|a[uú]n|todav[ií]a)$/i.test(t4);
 }
 function detectPresupuestoRefusalInContext(text2, lastAssistantText) {
+  if (clientDefersHorario(text2)) return false;
+  const asked = lastAssistantText ?? "";
+  if (asked.trim() && LUCY_FIELD_ASK_PATTERNS.horario.test(asked) && !LUCY_FIELD_ASK_PATTERNS.presupuesto.test(asked)) {
+    return false;
+  }
   if (detectPresupuestoRefusal(text2)) return true;
   if (!isSoftDeferralNo(text2)) return false;
-  const asked = lastAssistantText ?? "";
   if (!asked.trim()) return false;
   return LUCY_FIELD_ASK_PATTERNS.presupuesto.test(asked);
 }
@@ -160876,11 +160883,12 @@ ${nextQ}`;
       if (merged) extracted.requerimientos_evento = merged;
     }
     const soloCompleto = buildSoloVsCompletoOfferIfApplicable(resolvedServiceLabel);
-    const detail = soloCompleto || buildCatalogServiceDetailAnswer(resolvedServiceLabel) || buildGuardServiceAck(resolvedServiceLabel);
+    const catalogDetail = buildCatalogServiceDetailAnswer(resolvedServiceLabel);
+    const detail = soloCompleto || catalogDetail;
     return appendNext(
-      `${pickTransition(history)} Perfecto. Anoto *${resolvedServiceLabel}*.
+      detail ? `${pickTransition(history)} Perfecto. Anoto *${resolvedServiceLabel}*.
 
-${detail}`.trim(),
+${detail}`.trim() : `${pickTransition(history)} Perfecto. Anoto *${resolvedServiceLabel}*.`.trim(),
       resolvedServiceLabel
     );
   }
@@ -163340,10 +163348,11 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
       );
     }
     const defersHorario = !!(currentMessage && clientDefersHorario(currentMessage));
-    const messageIsPrimarilyHorario = !!currentMessage && (defersHorario || isClockTimeOnlySchedule(currentMessage) || isSimpleClockTime(currentMessage.trim()) || isScheduleLabeledClock(currentMessage) || /^(?:alrededor\s+de\s+)?(?:a\s+)?la\s+\d{1,2}\b/i.test(currentMessage.trim()) || /^(el\s+evento\s+)?(ser[ií]a|es|ser[aá]|qued[oó]|arranca|inicia|empieza)\b/i.test(
+    const takeHorarioDeferralReply = defersHorario && !isRichQuoteBrief(currentMessage);
+    const messageIsPrimarilyHorario = !!currentMessage && (takeHorarioDeferralReply || isClockTimeOnlySchedule(currentMessage) || isSimpleClockTime(currentMessage.trim()) || isScheduleLabeledClock(currentMessage) || /^(?:alrededor\s+de\s+)?(?:a\s+)?la\s+\d{1,2}\b/i.test(currentMessage.trim()) || /^(el\s+evento\s+)?(ser[ií]a|es|ser[aá]|qued[oó]|arranca|inicia|empieza)\b/i.test(
       currentMessage.trim()
     ) && !!horarioNow);
-    if (!cierreYaEnviado && currentMessage && !bareNumberIsInvitados && (lucyAskedHorario || horarioPending || defersHorario || messageIsPrimarilyHorario || (lucyAskedFecha || fechaPending) && !!horarioNow && messageIsPrimarilyHorario) && (defersHorario || isClockTimeOnlySchedule(currentMessage) || isMealTimeOnlySchedule(currentMessage) || isScheduleLabeledClock(currentMessage) || isSimpleClockTime(currentMessage.trim()) || !!horarioNow)) {
+    if (!cierreYaEnviado && currentMessage && !bareNumberIsInvitados && (lucyAskedHorario || horarioPending || takeHorarioDeferralReply || messageIsPrimarilyHorario || (lucyAskedFecha || fechaPending) && !!horarioNow && messageIsPrimarilyHorario) && (takeHorarioDeferralReply || isClockTimeOnlySchedule(currentMessage) || isMealTimeOnlySchedule(currentMessage) || isScheduleLabeledClock(currentMessage) || isSimpleClockTime(currentMessage.trim()) || !!horarioNow)) {
       const parsedHorario = (defersHorario ? "Sin definir (pendiente)" : horarioNow ?? parseHorarioFromText(currentMessage ?? "") ?? currentMessage.trim()).replace(/\s+/g, " ").slice(0, 80);
       if (!parsedHorario || !isUsableHorarioEvento(parsedHorario)) {
       } else {
@@ -163784,12 +163793,16 @@ ${buildNaturalQuestion(pending, ctx)}` : consultative;
     `${captionForServices} ${userBlobForServices}`
   );
   const demoteVagueFood = (list) => {
-    const concrete = list.filter(
-      (s7) => !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s7) && /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
-        s7
-      )
+    const withoutVague = list.filter(
+      (s7) => !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s7)
     );
-    return concrete.length > 0 ? concrete : list;
+    const isFoodSku = (s7) => /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
+      s7
+    );
+    const concreteFood = withoutVague.filter(isFoodSku);
+    const nonFood = withoutVague.filter((s7) => !isFoodSku(s7));
+    if (concreteFood.length > 0) return [...concreteFood, ...nonFood];
+    return withoutVague.length > 0 ? withoutVague : list;
   };
   const servicesFromTurn = demoteVagueFood(servicesFromTurnRaw);
   const servicesFromCurrentMessageConcrete = demoteVagueFood(servicesFromCurrentMessage);
@@ -164262,7 +164275,8 @@ ${nextQ}` : ""}`.trim();
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje \u2014 brief web con datos del formulario");
-  } else if (isFirstLucyReply(presHistory) && !cierreYaEnviado && currentMessage?.trim() && (isServiceRelatedMessage(currentMessage) || isValidRequerimientosValue(extracted.requerimientos_evento))) {
+  } else if (isFirstLucyReply(presHistory) && !conversationAlreadyStarted(filledSet, presHistory) && // A15893: historial vacío/perdido NO reabre la intro si el CRM ya tiene datos.
+  !funnelHasSubstance(filledSet, extracted) && !isFieldSatisfied("nombre", filledSet, extracted) && !cierreYaEnviado && currentMessage?.trim() && (isServiceRelatedMessage(currentMessage) || isValidRequerimientosValue(extracted.requerimientos_evento))) {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     if (messageHasSheetServiceDetail(mensaje) || isProgressiveOptionsMenuReply(mensaje)) {
@@ -164336,13 +164350,18 @@ ${catalog}`,
         filledSet.add("Requerimientos o servicios");
       }
       const soloCompleto = buildSoloVsCompletoOfferIfApplicable(label);
-      const detail = soloCompleto || buildCatalogServiceDetailAnswer(label) || buildGuardServiceAck(label);
+      const catalogDetail = buildCatalogServiceDetailAnswer(label);
+      const detail = soloCompleto || catalogDetail || null;
       const display = getDisplayName(extracted, whatsappDisplayName);
       const ack = display ? `Perfecto, ${display}. Anoto *${label}*.` : `Perfecto. Anoto *${label}*.`;
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
       mensaje = mergeWithPendingQuestion(
-        `${ack}
+        detail ? `${ack}
 
-${detail}`.trim(),
+${detail}${nextQ ? `
+
+${nextQ}` : ""}`.trim() : nextQ ? `${ack} ${nextQ}` : ack,
         filledSet,
         extracted,
         ctx
@@ -164427,7 +164446,16 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
       currentMessage
     ) ? concreteFromTurn || concreteFromHistory : null);
     if (!concreteFood || !foodFilter(concreteFood)) return false;
-    const label = resolveDetailQueryForFamily("barra_alimentos", `${currentMessage} ${concreteFood}`) || concreteFood;
+    if (/\b(periqueras?|mobiliario|mesas?|sillas?|meseros?|carpas?)\b/i.test(currentMessage) && parseServicesFromText(currentMessage).filter(
+      (s7) => !/banquete|barra|taquiza|comida|alimentos/i.test(s7)
+    ).length >= 1) {
+      return false;
+    }
+    const family = detectProgressiveFamily(`${currentMessage} ${concreteFood}`) || detectProgressiveFamily(concreteFood);
+    const label = family === "barra_alimentos" ? resolveDetailQueryForFamily(
+      "barra_alimentos",
+      `${currentMessage} ${concreteFood}`
+    ) || concreteFood : concreteFood;
     const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 8);
     if (merged) {
       extracted.requerimientos_evento = merged;
@@ -164435,7 +164463,8 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
     }
     const display = getDisplayName(extracted, whatsappDisplayName);
     const soloCompleto = buildSoloVsCompletoOfferIfApplicable(label);
-    const detail = soloCompleto || buildCatalogServiceDetailAnswer(label) || buildGuardServiceAck(label);
+    const catalogDetail = buildCatalogServiceDetailAnswer(label);
+    const detail = soloCompleto || catalogDetail || null;
     const ack = display ? `Perfecto, ${display}. Anoto *${label}*.` : `Perfecto. Anoto *${label}*.`;
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
@@ -165756,12 +165785,12 @@ ${pickVariant("nombre", history, entityId)}`.trim();
   }
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
   const presHistoryForIntro = input.presentationHistory ?? history;
-  const isOpeningTurn = (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) && !conversationAlreadyStarted(filledSet, presHistoryForIntro) && !lucyHasPresented(presHistoryForIntro);
+  const isOpeningTurn = (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) && !conversationAlreadyStarted(filledSet, presHistoryForIntro) && !funnelHasSubstance(filledSet, extracted) && !lucyHasPresented(presHistoryForIntro);
   if (isOpeningTurn && !/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
     mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
     log?.info({ entityId }, "GUARD: presentaci\xF3n Lucy a\xF1adida al primer mensaje");
   }
-  if (conversationAlreadyStarted(filledSet, presHistoryForIntro)) {
+  if (conversationAlreadyStarted(filledSet, presHistoryForIntro) || funnelHasSubstance(filledSet, extracted)) {
     mensaje = stripRepeatLucyIntro(mensaje, presHistoryForIntro, true);
   }
   const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
@@ -225531,7 +225560,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.79";
+var LUCY_PROMPT_VERSION = "V9.80";
 
 // src/lib/buildMeta.ts
 var cached = null;

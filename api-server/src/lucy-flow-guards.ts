@@ -2334,12 +2334,12 @@ function buildFoodSalesReply(
       if (merged) extracted.requerimientos_evento = merged;
     }
     const soloCompleto = buildSoloVsCompletoOfferIfApplicable(resolvedServiceLabel);
-    const detail =
-      soloCompleto ||
-      buildCatalogServiceDetailAnswer(resolvedServiceLabel) ||
-      buildGuardServiceAck(resolvedServiceLabel);
+    const catalogDetail = buildCatalogServiceDetailAnswer(resolvedServiceLabel);
+    const detail = soloCompleto || catalogDetail;
     return appendNext(
-      `${pickTransition(history)} Perfecto. Anoto *${resolvedServiceLabel}*.\n\n${detail}`.trim(),
+      detail
+        ? `${pickTransition(history)} Perfecto. Anoto *${resolvedServiceLabel}*.\n\n${detail}`.trim()
+        : `${pickTransition(history)} Perfecto. Anoto *${resolvedServiceLabel}*.`.trim(),
       resolvedServiceLabel
     );
   }
@@ -6332,11 +6332,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     // Nota: syncHorarioFromHistory puede haber marcado CRM_HORARIO_LABEL en este mismo turno;
     // igual hay que ACK (si no, cae a menú de comida por la palabra "comida").
     const defersHorario = !!(currentMessage && clientDefersHorario(currentMessage));
+    // A15893: waiver embebido en RFQ largo se sincroniza vía parseHorarioFromText;
+    // no secuestrar el turno entero (fecha/invitados/zona van en el mismo mensaje).
+    const takeHorarioDeferralReply =
+      defersHorario && !isRichQuoteBrief(currentMessage);
     // A15566: capturar rangos/a-partir/waiver; NO secuestrar briefs ricos
     // ("taquiza … a las 4:00 pm") solo porque traen una hora (regresión A15547).
     const messageIsPrimarilyHorario =
       !!currentMessage &&
-      (defersHorario ||
+      (takeHorarioDeferralReply ||
         isClockTimeOnlySchedule(currentMessage) ||
         isSimpleClockTime(currentMessage.trim()) ||
         isScheduleLabeledClock(currentMessage) ||
@@ -6351,10 +6355,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       !bareNumberIsInvitados &&
       (lucyAskedHorario ||
         horarioPending ||
-        defersHorario ||
+        takeHorarioDeferralReply ||
         messageIsPrimarilyHorario ||
         ((lucyAskedFecha || fechaPending) && !!horarioNow && messageIsPrimarilyHorario)) &&
-      (defersHorario ||
+      (takeHorarioDeferralReply ||
         isClockTimeOnlySchedule(currentMessage) ||
         isMealTimeOnlySchedule(currentMessage) ||
         isScheduleLabeledClock(currentMessage) ||
@@ -6959,15 +6963,19 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     `${captionForServices} ${userBlobForServices}`
   );
   // A15727+: "solo alimentos" + paninis/pizza/… → quedarse con el SKU concreto.
+  // A15893: conservar Mobiliario/periqueras junto al banquete (no tirar no-comida).
   const demoteVagueFood = (list: string[]) => {
-    const concrete = list.filter(
-      (s) =>
-        !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s) &&
-        /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
-          s
-        )
+    const withoutVague = list.filter(
+      (s) => !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s)
     );
-    return concrete.length > 0 ? concrete : list;
+    const isFoodSku = (s: string) =>
+      /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
+        s
+      );
+    const concreteFood = withoutVague.filter(isFoodSku);
+    const nonFood = withoutVague.filter((s) => !isFoodSku(s));
+    if (concreteFood.length > 0) return [...concreteFood, ...nonFood];
+    return withoutVague.length > 0 ? withoutVague : list;
   };
   const servicesFromTurn = demoteVagueFood(servicesFromTurnRaw);
   const servicesFromCurrentMessageConcrete = demoteVagueFood(servicesFromCurrentMessage);
@@ -7742,6 +7750,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: primer mensaje — brief web con datos del formulario");
   } else if (
     isFirstLucyReply(presHistory) &&
+    !conversationAlreadyStarted(filledSet, presHistory) &&
+    // A15893: historial vacío/perdido NO reabre la intro si el CRM ya tiene datos.
+    !funnelHasSubstance(filledSet, extracted) &&
+    !isFieldSatisfied("nombre", filledSet, extracted) &&
     !cierreYaEnviado &&
     currentMessage?.trim() &&
     (isServiceRelatedMessage(currentMessage) ||
@@ -7852,16 +7864,24 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         filledSet.add("Requerimientos o servicios");
       }
       const soloCompleto = buildSoloVsCompletoOfferIfApplicable(label);
-      const detail =
-        soloCompleto ||
-        buildCatalogServiceDetailAnswer(label) ||
-        buildGuardServiceAck(label);
+      const catalogDetail = buildCatalogServiceDetailAnswer(label);
+      // A15893: no duplicar Anoto + "¡Claro! … la anoto".
+      const detail = soloCompleto || catalogDetail || null;
       const display = getDisplayName(extracted, whatsappDisplayName);
       const ack = display
         ? `Perfecto, ${display}. Anoto *${label}*.`
         : `Perfecto. Anoto *${label}*.`;
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ =
+        pending && pending !== "requerimientos"
+          ? buildNaturalQuestion(pending, ctx)
+          : null;
       mensaje = mergeWithPendingQuestion(
-        `${ack}\n\n${detail}`.trim(),
+        detail
+          ? `${ack}\n\n${detail}${nextQ ? `\n\n${nextQ}` : ""}`.trim()
+          : nextQ
+            ? `${ack} ${nextQ}`
+            : ack,
         filledSet,
         extracted,
         ctx
@@ -7996,9 +8016,27 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           : null);
       if (!concreteFood || !foodFilter(concreteFood)) return false;
 
+      // A15893: "periqueras y banquete" no es solo comida — deja el multi-path.
+      if (
+        /\b(periqueras?|mobiliario|mesas?|sillas?|meseros?|carpas?)\b/i.test(currentMessage) &&
+        parseServicesFromText(currentMessage).filter(
+          (s) => !/banquete|barra|taquiza|comida|alimentos/i.test(s)
+        ).length >= 1
+      ) {
+        return false;
+      }
+
+      // A15893: banquete ≠ Barra de alimentos. Solo remapea si la familia es barra.
+      const family =
+        detectProgressiveFamily(`${currentMessage} ${concreteFood}`) ||
+        detectProgressiveFamily(concreteFood);
       const label =
-        resolveDetailQueryForFamily("barra_alimentos", `${currentMessage} ${concreteFood}`) ||
-        concreteFood;
+        family === "barra_alimentos"
+          ? resolveDetailQueryForFamily(
+              "barra_alimentos",
+              `${currentMessage} ${concreteFood}`
+            ) || concreteFood
+          : concreteFood;
       const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 8);
       if (merged) {
         extracted.requerimientos_evento = merged;
@@ -8006,10 +8044,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       }
       const display = getDisplayName(extracted, whatsappDisplayName);
       const soloCompleto = buildSoloVsCompletoOfferIfApplicable(label);
-      const detail =
-        soloCompleto ||
-        buildCatalogServiceDetailAnswer(label) ||
-        buildGuardServiceAck(label);
+      const catalogDetail = buildCatalogServiceDetailAnswer(label);
+      // A15893: no duplicar "Anoto X" + "¡Claro! X la anoto…".
+      const detail = soloCompleto || catalogDetail || null;
       const ack = display
         ? `Perfecto, ${display}. Anoto *${label}*.`
         : `Perfecto. Anoto *${label}*.`;
@@ -9921,6 +9958,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const isOpeningTurn =
     (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) &&
     !conversationAlreadyStarted(filledSet, presHistoryForIntro) &&
+    !funnelHasSubstance(filledSet, extracted) &&
     !lucyHasPresented(presHistoryForIntro);
   if (
     isOpeningTurn &&
@@ -9930,7 +9968,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: presentación Lucy añadida al primer mensaje");
   }
 
-  if (conversationAlreadyStarted(filledSet, presHistoryForIntro)) {
+  // A15893: historial vacío pero CRM ya avanzado → nunca re-presentar a Lucy.
+  if (
+    conversationAlreadyStarted(filledSet, presHistoryForIntro) ||
+    funnelHasSubstance(filledSet, extracted)
+  ) {
     mensaje = stripRepeatLucyIntro(mensaje, presHistoryForIntro, true);
   }
 

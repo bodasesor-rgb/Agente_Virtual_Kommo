@@ -3681,7 +3681,7 @@ export function clientAsksDjClarification(message?: string): boolean {
   return /^\s*[¿?]*\s*de\s+alg[uú]n\s+dj\s*[¿?]*\s*$/i.test(t);
 }
 
-/** A15566: cliente pospone horario ("no cuento con el horario aún"). */
+/** A15566 / A15893: cliente pospone horario ("aún no definidos", "aún no se definen"). */
 export function clientDefersHorario(text: string | null | undefined): boolean {
   const t = (text ?? "").trim();
   if (!t) return false;
@@ -3693,7 +3693,14 @@ export function clientDefersHorario(text: string | null | undefined): boolean {
     /\bhorario\s+(a[uú]n|todav[ií]a)\s+no\b/i.test(t) ||
     /\b(sin|no\s+tengo)\s+horario\s+(a[uú]n|definido|por\s+ahora|todav[ií]a)\b/i.test(t) ||
     /\bno\s+cuento\s+con\s+el\s+horario\b/i.test(t) ||
-    /\bel\s+horario\s+(a[uú]n\s+)?(no\s+lo\s+tengo|est[aá]\s+por\s+definir|pendiente)\b/i.test(t)
+    /\bel\s+horario\s+(a[uú]n\s+)?(no\s+lo\s+tengo|est[aá]\s+por\s+definir|pendiente)\b/i.test(t) ||
+    // A15893 Suria: "2 horarios (aún no definidos)" / "horarios aún no definidos"
+    /\bhorarios?\b[\s\S]{0,40}\b(a[uú]n|todav[ií]a)\s+no\s+defin/i.test(t) ||
+    /\b\d+\s+horarios?\b[\s\S]{0,40}\b(a[uú]n\s+no|por\s+definir|pendiente)/i.test(t) ||
+    /\bhorarios?\s*\([^)]*(a[uú]n\s+no|por\s+definir|pendiente)/i.test(t) ||
+    // "Aún no se definen" / typo "Aún no sé definen"
+    /\b(a[uú]n|todav[ií]a)\s+no\s+(?:se\s+|s[eé]\s+)?defin/i.test(t) ||
+    /\b(a[uú]n|todav[ií]a)\s+no\s+definid/i.test(t)
   );
 }
 
@@ -5493,7 +5500,9 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
     /\bt[uú]\s+m[aá]ndame\b/i.test(t) ||
     /\bsi\s+quieres\s+vemos\b/i.test(t) ||
     /\b(no\s+s[eé](?!\s+puede)|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s*$|[.,!?]|\s+(cu[aá]nto|a[uú]n|si)\b)/i.test(t) ||
-    /\ba[uú]n\s+no\s+(?:s[eé]|lo\s+s[eé]|s[eé]\s+cu[aá]nto)/i.test(t) ||
+    // A15893: "Aún no sé definen" es horario, no presupuesto. "aún no sé" solo al final o con cuánto.
+    /\ba[uú]n\s+no\s+(?:lo\s+s[eé]|s[eé]\s+cu[aá]nto)(?!\s+defin)/i.test(t) ||
+    /\ba[uú]n\s+no\s+s[eé](?!\s+defin)(?:\s*$|[.,!?])/i.test(t) ||
     /\btodav[ií]a\s+no\b/i.test(t) ||
     /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t) ||
     /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t) ||
@@ -5529,9 +5538,18 @@ export function detectPresupuestoRefusalInContext(
   text: string | null | undefined,
   lastAssistantText: string | null | undefined
 ): boolean {
+  // A15893: si el cliente está posponiendo el horario, nunca es waiver de presupuesto.
+  if (clientDefersHorario(text)) return false;
+  const asked = lastAssistantText ?? "";
+  if (
+    asked.trim() &&
+    LUCY_FIELD_ASK_PATTERNS.horario.test(asked) &&
+    !LUCY_FIELD_ASK_PATTERNS.presupuesto.test(asked)
+  ) {
+    return false;
+  }
   if (detectPresupuestoRefusal(text)) return true;
   if (!isSoftDeferralNo(text)) return false;
-  const asked = lastAssistantText ?? "";
   if (!asked.trim()) return false;
   return LUCY_FIELD_ASK_PATTERNS.presupuesto.test(asked);
 }

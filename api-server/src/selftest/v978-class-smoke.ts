@@ -20,7 +20,7 @@ import { getLucyChatHistoryMax, trimChatHistory } from "../lib/lucyCostControls.
 import { buildStaticSystemPrompt } from "../services/promptBuilder.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.79");
+assert.equal(LUCY_PROMPT_VERSION, "V9.80");
 
 const asst = (content: string) => ({ role: "assistant" as const, content });
 const user = (content: string) => ({ role: "user" as const, content });
