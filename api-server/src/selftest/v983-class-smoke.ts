@@ -23,6 +23,11 @@ import {
   buildGuardServiceAck,
   buildMobiliarioRentDetailReply,
 } from "../services/serviceKnowledge.js";
+import {
+  detectProgressiveFamily,
+  parseMobiliarioPieceChoice,
+  buildProgressiveOptionsMenu,
+} from "../services/serviceProgressiveOffer.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
@@ -54,9 +59,16 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
     buildMobiliarioRentDetailReply("Sería solo cotizar la mesa de dulces para 500 personas"),
     null
   );
+  assert.equal(parseMobiliarioPieceChoice("mesa de dulces para 500"), null);
+  assert.notEqual(
+    detectProgressiveFamily("Tienes el de mesa de dulces para 500 personas"),
+    "mobiliario"
+  );
   const ack = buildGuardServiceAck("Tienes el de mesa de dulces para 500 personas");
   assert.match(ack, /mesa de dulces/i);
-  assert.ok(!/mesas y sillas|renta de mesas/i.test(ack), ack);
+  assert.ok(!/mesas y sillas|renta de mesas|\*mobiliario\*/i.test(ack), ack);
+  const mobMenu = buildProgressiveOptionsMenu("mobiliario");
+  assert.ok(!/mesa de dulces/i.test(mobMenu));
 }
 
 // 2) Solo cotizar mesa de dulces → un SKU.
