@@ -350,8 +350,9 @@ function findInclusionSection(content: string, query: string, maxChars = 1100): 
 /** Solo buscar PDF si el query habla de un servicio/paquete — nunca por un nombre propio (A14964). */
 function queryHasServicePdfAnchor(query: string): boolean {
   const q = fold(query);
-  // q ya viene fold (sin acentos): canapes/canape — no usar \bcanap\b (falla con "canapes").
-  return /\b(banquete|taquiza|coffee|break|barra|catering|pizza|pasta|sushi|dj|pista|tarima|crepas?|canapes?|queso|dulce|postre|paella|pozole|brunch|desayuno|cena|mesero|mobiliario|carpa|iluminaci|pantalla|incluye|precio|nivel|paquete|formal|tiempos|tradicional|premium|basico|bocadillos?|entradas?|vajilla|mixolog|coctel|helado|fruta|inflable|softplay|letras?|valet|pirotecnia)\b/.test(
+  // A15918: "qué incluye su servicio" genérico NO basta — hace falta familia de servicio.
+  // (incluye|precio|nivel|paquete solos rankeaban Cocteles/Mixología por tokens de saludo).
+  return /\b(banquete|taquiza|coffee|break|barra|catering|pizza|pasta|sushi|dj|pista|tarima|crepas?|canapes?|queso|dulce|postre|paella|pozole|brunch|desayuno|cena|mesero|mobiliario|carpa|iluminaci|pantalla|formal|tiempos|tradicional|premium|basico|bocadillos?|entradas?|vajilla|mixolog|coctel|helado|fruta|inflable|softplay|letras?|valet|pirotecnia)\b/.test(
     q
   );
 }

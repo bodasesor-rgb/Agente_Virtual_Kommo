@@ -129401,7 +129401,7 @@ function findInclusionSection(content, query, maxChars = 1100) {
 }
 function queryHasServicePdfAnchor(query) {
   const q3 = fold(query);
-  return /\b(banquete|taquiza|coffee|break|barra|catering|pizza|pasta|sushi|dj|pista|tarima|crepas?|canapes?|queso|dulce|postre|paella|pozole|brunch|desayuno|cena|mesero|mobiliario|carpa|iluminaci|pantalla|incluye|precio|nivel|paquete|formal|tiempos|tradicional|premium|basico|bocadillos?|entradas?|vajilla|mixolog|coctel|helado|fruta|inflable|softplay|letras?|valet|pirotecnia)\b/.test(
+  return /\b(banquete|taquiza|coffee|break|barra|catering|pizza|pasta|sushi|dj|pista|tarima|crepas?|canapes?|queso|dulce|postre|paella|pozole|brunch|desayuno|cena|mesero|mobiliario|carpa|iluminaci|pantalla|formal|tiempos|tradicional|premium|basico|bocadillos?|entradas?|vajilla|mixolog|coctel|helado|fruta|inflable|softplay|letras?|valet|pirotecnia)\b/.test(
     q3
   );
 }
@@ -132142,7 +132142,7 @@ function parseCentrosDeMesaRequirement(text2) {
 function isTablewareRequestText(text2) {
   const t4 = text2?.trim() ?? "";
   if (!t4) return false;
-  return /\b(loza|vajillas?|cubiertos?|cuberter[ií]a|cristaler[ií]a|plato\s+trinche|platos?\s+trinche|plato\s+postre|platos?\s+postre|\b(cuchara|tenedor|cuchillo)s?\b)/i.test(
+  return /\b(loza|vajillas?|cubiertos?|cuberter[ií]a|cristaler[ií]a|plato\s+trinche|platos?\s+trinche|plato\s+postre|platos?\s+postre|cucharas?|tenedores?|cuchillos?)\b/i.test(
     t4
   );
 }
@@ -132859,7 +132859,8 @@ function clientDefersHorario(text2) {
     t4
   ) || /\bhorario\s+(a[uú]n|todav[ií]a)\s+no\b/i.test(t4) || /\b(sin|no\s+tengo)\s+horario\s+(a[uú]n|definido|por\s+ahora|todav[ií]a)\b/i.test(t4) || /\bno\s+cuento\s+con\s+el\s+horario\b/i.test(t4) || /\bel\s+horario\s+(a[uú]n\s+)?(no\s+lo\s+tengo|est[aá]\s+por\s+definir|pendiente)\b/i.test(t4) || // A15893 Suria: "2 horarios (aún no definidos)" / "horarios aún no definidos"
   /\bhorarios?\b[\s\S]{0,40}\b(a[uú]n|todav[ií]a)\s+no\s+defin/i.test(t4) || /\b\d+\s+horarios?\b[\s\S]{0,40}\b(a[uú]n\s+no|por\s+definir|pendiente)/i.test(t4) || /\bhorarios?\s*\([^)]*(a[uú]n\s+no|por\s+definir|pendiente)/i.test(t4) || // "Aún no se definen" / typo "Aún no sé definen"
-  /\b(a[uú]n|todav[ií]a)\s+no\s+(?:se\s+|s[eé]\s+)?defin/i.test(t4) || /\b(a[uú]n|todav[ií]a)\s+no\s+definid/i.test(t4);
+  /\b(a[uú]n|todav[ií]a)\s+no\s+(?:se\s+|s[eé]\s+)?defin/i.test(t4) || /\b(a[uú]n|todav[ií]a)\s+no\s+definid/i.test(t4) || // A15918: "No se sabe" / "no se sabe el horario"
+  /^\s*no\s+se\s+sabe\b/i.test(t4) || /\bno\s+se\s+sabe(\s+(el\s+)?horario)?\b/i.test(t4) || /^(no\s+s[eé]|ni\s+idea)[\s.,!]*$/i.test(t4);
 }
 function parseHorarioFromText(text2) {
   const trimmed = text2.trim();
@@ -134792,7 +134793,7 @@ var init_conversation_understanding = __esm({
       ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
       ["Mesa imperial", /\bmesa\s+imperial\b/i]
     ];
-    SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|loza|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+    SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
     SHORT_SERVICE_ALIASES = {
       pista: "pista de baile",
       tarima: "pista de baile",
@@ -163227,7 +163228,7 @@ ${link}
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
     );
   }
-  if (currentMessage && isTablewareRequestText(currentMessage) && !/\b(mesas?|sillas?|periqueras?|lounge)\b/i.test(currentMessage)) {
+  if (currentMessage && isTablewareRequestText(currentMessage) && !looksLikePersonFullName(currentMessage) && !looksLikeNameAnswerMessage(currentMessage) && !/\b(mesas?|sillas?|periqueras?|lounge)\b/i.test(currentMessage)) {
     const merged = mergeServiceRequirements(extracted.requerimientos_evento, "Vajillas", 8);
     if (merged) {
       extracted.requerimientos_evento = merged;
@@ -163876,6 +163877,20 @@ ${multiPackageDumpEarly}`,
       }
       const userBlobEarly = collectUserTexts(presHistory, currentMessage).join(" ");
       const serviceHintEarly = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(userBlobEarly) || findMentionedService(userBlobEarly) || (/\bcanap/i.test(`${currentMessage ?? ""} ${userBlobEarly}`) ? "Canap\xE9s" : null);
+      if (!serviceHintEarly && !parsePrimaryService(currentMessage ?? "") && !findMentionedService(currentMessage ?? "") && !hasSpecificFoodService(currentMessage ?? "")) {
+        const pendingInc = getNextPendingField(extracted, filledSet);
+        const askSvc = "Claro \u2014 con gusto te digo qu\xE9 incluye cada servicio. \xBFQu\xE9 te interesa cotizar? Por ejemplo: banquete, mobiliario, barra de bebidas, mesa de dulces\u2026";
+        const withName = !isFieldSatisfied("nombre", filledSet, extracted) && (isFirstLucyReply(presHistory) || forceFirstPresentation) ? `${LUCY_INTRO} ${askSvc}
+
+${pickVariant("nombre", presHistory, entityId)}` : pendingInc && pendingInc !== "requerimientos" ? `${pickTransition(presHistory)} ${askSvc}
+
+${buildNaturalQuestion(pendingInc, ctx)}` : `${pickTransition(presHistory)} ${askSvc}`;
+        log?.info({ entityId }, "GUARD: A15918 \u2014 inclusi\xF3n gen\xE9rica sin servicio \u2192 preguntar SKU");
+        return normalizeAdvisorReferences2(
+          withName.trim(),
+          extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+        );
+      }
       const specificItemEarly = buildSpecificInclusionItemReply(
         currentMessage ?? "",
         serviceHintEarly
@@ -163930,7 +163945,8 @@ ${multiPackageDumpEarly}`,
       const specificNivelAsk = /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(
         currentMessage ?? ""
       );
-      const pdfOnly = buildPdfInclusionReply(currentMessage ?? "") || (!specificNivelAsk && serviceHintEarly ? buildPdfInclusionReply(`${serviceHintEarly} ${currentMessage ?? ""}`) || buildPdfInclusionReply(serviceHintEarly) : null);
+      const pdfOnly = (serviceHintEarly ? buildPdfInclusionReply(`${serviceHintEarly} ${currentMessage ?? ""}`) || buildPdfInclusionReply(serviceHintEarly) : null) || // Solo PDF del mensaje si ya ancla un servicio concreto (A15918).
+      (parsePrimaryService(currentMessage ?? "") || findMentionedService(currentMessage ?? "") ? buildPdfInclusionReply(currentMessage ?? "") : null);
       if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
         const withLink = ensureCatalogWebLink(
           collapseDuplicatedInclusionReply(pdfOnly),
@@ -165397,7 +165413,8 @@ ${multiPackageDump}`,
             const specificNivelAsk = /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(
               currentMessage ?? ""
             );
-            return buildPdfInclusionReply(currentMessage ?? "") || (!specificNivelAsk && serviceHint ? buildPdfInclusionReply(`${serviceHint} ${currentMessage ?? ""}`) || buildPdfInclusionReply(serviceHint) : null);
+            const msgHasService = !!(parsePrimaryService(currentMessage ?? "") || findMentionedService(currentMessage ?? ""));
+            return (serviceHint && !specificNivelAsk ? buildPdfInclusionReply(`${serviceHint} ${currentMessage ?? ""}`) || buildPdfInclusionReply(serviceHint) : null) || (msgHasService ? buildPdfInclusionReply(currentMessage ?? "") : null);
           })();
           if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
             mensaje = pdfOnly;
@@ -225907,7 +225924,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.84";
+var LUCY_PROMPT_VERSION = "V9.85";
 
 // src/lib/buildMeta.ts
 var cached = null;

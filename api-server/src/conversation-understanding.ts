@@ -191,7 +191,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|loza|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -2636,7 +2636,8 @@ export function parseCentrosDeMesaRequirement(text: string | null | undefined): 
 export function isTablewareRequestText(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
-  return /\b(loza|vajillas?|cubiertos?|cuberter[ií]a|cristaler[ií]a|plato\s+trinche|platos?\s+trinche|plato\s+postre|platos?\s+postre|\b(cuchara|tenedor|cuchillo)s?\b)/i.test(
+  // A15918: "Lozano" ≠ loza — exigir límite de palabra al final.
+  return /\b(loza|vajillas?|cubiertos?|cuberter[ií]a|cristaler[ií]a|plato\s+trinche|platos?\s+trinche|plato\s+postre|platos?\s+postre|cucharas?|tenedores?|cuchillos?)\b/i.test(
     t
   );
 }
@@ -3799,7 +3800,7 @@ export function clientAsksDjClarification(message?: string): boolean {
   return /^\s*[¿?]*\s*de\s+alg[uú]n\s+dj\s*[¿?]*\s*$/i.test(t);
 }
 
-/** A15566 / A15893: cliente pospone horario ("aún no definidos", "aún no se definen"). */
+/** A15566 / A15893 / A15918: cliente pospone horario ("aún no definidos", "No se sabe"). */
 export function clientDefersHorario(text: string | null | undefined): boolean {
   const t = (text ?? "").trim();
   if (!t) return false;
@@ -3818,7 +3819,11 @@ export function clientDefersHorario(text: string | null | undefined): boolean {
     /\bhorarios?\s*\([^)]*(a[uú]n\s+no|por\s+definir|pendiente)/i.test(t) ||
     // "Aún no se definen" / typo "Aún no sé definen"
     /\b(a[uú]n|todav[ií]a)\s+no\s+(?:se\s+|s[eé]\s+)?defin/i.test(t) ||
-    /\b(a[uú]n|todav[ií]a)\s+no\s+definid/i.test(t)
+    /\b(a[uú]n|todav[ií]a)\s+no\s+definid/i.test(t) ||
+    // A15918: "No se sabe" / "no se sabe el horario"
+    /^\s*no\s+se\s+sabe\b/i.test(t) ||
+    /\bno\s+se\s+sabe(\s+(el\s+)?horario)?\b/i.test(t) ||
+    /^(no\s+s[eé]|ni\s+idea)[\s.,!]*$/i.test(t)
   );
 }
 

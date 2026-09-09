@@ -13,7 +13,7 @@ import {
 } from "../services/concreteProductQuestion.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.84");
+assert.equal(LUCY_PROMPT_VERSION, "V9.85");
 
 // 1) Pedido de fotos → catálogo + Instagram (los dos, no uno u otro).
 {

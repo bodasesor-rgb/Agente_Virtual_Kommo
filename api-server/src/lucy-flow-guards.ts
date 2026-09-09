@@ -5820,9 +5820,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   // A15486: vajilla ≠ menú de mesas/sillas (mobiliario).
+  // A15918: no disparar con nombres ("Choa Lozano" ≠ loza).
   if (
     currentMessage &&
     isTablewareRequestText(currentMessage) &&
+    !looksLikePersonFullName(currentMessage) &&
+    !looksLikeNameAnswerMessage(currentMessage) &&
     !/\b(mesas?|sillas?|periqueras?|lounge)\b/i.test(currentMessage)
   ) {
     const merged = mergeServiceRequirements(extracted.requerimientos_evento, "Vajillas", 8);
@@ -6832,6 +6835,29 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       (/\bcanap/i.test(`${currentMessage ?? ""} ${userBlobEarly}`)
         ? "Canapés"
         : null);
+    // A15918: "qué incluye su servicio" sin SKU → preguntar qué servicio, no volcar Mixología.
+    if (
+      !serviceHintEarly &&
+      !parsePrimaryService(currentMessage ?? "") &&
+      !findMentionedService(currentMessage ?? "") &&
+      !hasSpecificFoodService(currentMessage ?? "")
+    ) {
+      const pendingInc = getNextPendingField(extracted, filledSet);
+      const askSvc =
+        "Claro — con gusto te digo qué incluye cada servicio. ¿Qué te interesa cotizar? Por ejemplo: banquete, mobiliario, barra de bebidas, mesa de dulces…";
+      const withName =
+        !isFieldSatisfied("nombre", filledSet, extracted) &&
+        (isFirstLucyReply(presHistory) || forceFirstPresentation)
+          ? `${LUCY_INTRO} ${askSvc}\n\n${pickVariant("nombre", presHistory, entityId)}`
+          : pendingInc && pendingInc !== "requerimientos"
+            ? `${pickTransition(presHistory)} ${askSvc}\n\n${buildNaturalQuestion(pendingInc, ctx)}`
+            : `${pickTransition(presHistory)} ${askSvc}`;
+      log?.info({ entityId }, "GUARD: A15918 — inclusión genérica sin servicio → preguntar SKU");
+      return normalizeAdvisorReferences(
+        withName.trim(),
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
     // A15251: "¿incluye bebidas?" ANTES del menú progresivo (no re-listar familias).
     const specificItemEarly = buildSpecificInclusionItemReply(
       currentMessage ?? "",
@@ -6897,10 +6923,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         currentMessage ?? ""
       );
     const pdfOnly =
-      buildPdfInclusionReply(currentMessage ?? "") ||
-      (!specificNivelAsk && serviceHintEarly
+      (serviceHintEarly
         ? buildPdfInclusionReply(`${serviceHintEarly} ${currentMessage ?? ""}`) ||
           buildPdfInclusionReply(serviceHintEarly)
+        : null) ||
+      // Solo PDF del mensaje si ya ancla un servicio concreto (A15918).
+      (parsePrimaryService(currentMessage ?? "") || findMentionedService(currentMessage ?? "")
+        ? buildPdfInclusionReply(currentMessage ?? "")
         : null);
     if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
       const withLink = ensureCatalogWebLink(
@@ -9135,12 +9164,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(
           currentMessage ?? ""
         );
+      // A15918: no PDF por "qué incluye" genérico sin SKU anclado.
+      const msgHasService =
+        !!(parsePrimaryService(currentMessage ?? "") || findMentionedService(currentMessage ?? ""));
       return (
-        buildPdfInclusionReply(currentMessage ?? "") ||
-        (!specificNivelAsk && serviceHint
+        (serviceHint && !specificNivelAsk
           ? buildPdfInclusionReply(`${serviceHint} ${currentMessage ?? ""}`) ||
             buildPdfInclusionReply(serviceHint)
-          : null)
+          : null) ||
+        (msgHasService ? buildPdfInclusionReply(currentMessage ?? "") : null)
       );
     })();
     if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
