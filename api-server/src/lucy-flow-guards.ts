@@ -2779,6 +2779,11 @@ function applyEmailCaptureTone(mensaje: string, ctx: NaturalQuestionContext): st
     .replace(/^mucho gusto,?\s+[^.!?]+[.!?]\s*/i, "");
   // A15841: el modelo ya abrió con "Gracias, Santeco." → no duplicar el agradecimiento.
   out = out.replace(/^(muchas\s+|mil\s+)?gracias(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i, "");
+  // A15897: "Gracias por tu correo, Lizbeth. Gracias por el dato, Lizbeth."
+  out = out.replace(
+    /^(muchas\s+|mil\s+)?gracias\s+por\s+(?:el\s+dato|la\s+informaci[oó]n|compartir(?:lo|la)?|tu\s+respuesta)(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i,
+    ""
+  );
   // A15878: "Recibido, Tania." tras "Gracias por tu correo, Tania." es el mismo acuse dos veces.
   out = out.replace(
     /^(recibido|listo|anotado|entendido|de\s+acuerdo)(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i,
@@ -3778,6 +3783,12 @@ function ensureFunnelAfterSalesReply(
     return out;
   }
 
+  // A15897: una despedida no lleva pregunta pegada ("¡Que tengas un excelente
+  // día! ¿Qué día tienen en mente?" no tiene sentido).
+  if (isFarewellReply(out)) {
+    return out;
+  }
+
   // V9.43: eligió un producto / pidió detalle → no repetir el menú de niveles.
   out = rewriteRepeatedProductMenu(out, currentMessage, history, extracted, filledSet, ctx);
 
@@ -4486,6 +4497,18 @@ export function buildPostCierreThanksReply(clientName?: string | null): string {
   return nombre
     ? `¡Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.`
     : "¡Con gusto! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.";
+}
+
+/**
+ * A15897: mensaje de despedida (el cliente se despidió o pospuso). Ninguna capa
+ * posterior debe colgarle la siguiente pregunta del embudo.
+ */
+export function isFarewellReply(mensaje: string): boolean {
+  if (!mensaje?.trim()) return false;
+  return (
+    /quedo a tu disposici[oó]n por si decides avanzar/i.test(mensaje) ||
+    /que tengas un excelente d[ií]a/i.test(mensaje)
+  );
 }
 
 /** A15547: cliente pospone — cierre amable sin re-pedir correo. */

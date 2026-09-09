@@ -129979,7 +129979,7 @@ function rewriteJunkClientVocative(message, correctNombre) {
   if (!message?.trim()) return message;
   const correct = sanitizeDisplayName(correctNombre) ?? sanitizeCrmNombre(correctNombre)?.split(/\s+/)[0] ?? null;
   return message.replace(
-    /\b((?:¡?Mucho gusto|¡?Con gusto|Perfecto|Excelente|Genial|Listo|Claro|Hola|Gracias)[,!]?)(\s+)([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ'-]*)\b/gi,
+    /\b((?:¡?Mucho gusto|¡?Con gusto|Perfecto|Excelente|Genial|Listo|Claro|Hola|Gracias)[,!]?)(\s+)([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ'-]*)\b(?=\s*(?:[.,;:!?]|$))/gi,
     (full, greet, space, name2) => {
       if (!isServicePreferenceAsNombre(name2) && !isRoleOrDepartmentAsNombre(name2)) {
         return full;
@@ -131430,7 +131430,12 @@ function clientDeclinesMoreServices(message) {
 function clientSoftDeclinesLead(message) {
   if (!message?.trim()) return false;
   const t4 = message.trim().toLowerCase();
-  return /\bme\s+pongo\s+en\s+contacto\b/i.test(t4) || /\bsi\s+(?:nos|me)\s+interesa\b/i.test(t4) || /\bcuando\s+(?:nos|me)\s+interese\b/i.test(t4) || /\blo\s+evalu(o|amos|ar[eé])\b/i.test(t4) || /\bpor\s+ahora\b/i.test(t4) && /\bgracias\b/i.test(t4);
+  if (/\bme\s+pongo\s+en\s+contacto\b/i.test(t4)) return true;
+  if (/\blo\s+evalu(o|amos|ar[eé])\b/i.test(t4)) return true;
+  if (/\bpor\s+ahora\b/i.test(t4) && /\bgracias\b/i.test(t4)) return true;
+  const condicional = /\b(?:si|cuando)\s+(?:nos|me)\s+interes(?:a|e)\b/i.test(t4);
+  const contactoFuturo = /\b(?:avis|contact|escrib|marc|busc|hablam|llam|coment)(?:o|amos|ar[eé]|aremos)\b/i.test(t4);
+  return condicional && contactoFuturo;
 }
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
@@ -161178,6 +161183,10 @@ function applyEmailCaptureTone(mensaje, ctx) {
   out2 = out2.replace(/^(genial|perfecto|excelente|muy bien),?\s+/i, "").replace(/^mucho gusto,?\s+[^.!?]+[.!?]\s*/i, "");
   out2 = out2.replace(/^(muchas\s+|mil\s+)?gracias(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i, "");
   out2 = out2.replace(
+    /^(muchas\s+|mil\s+)?gracias\s+por\s+(?:el\s+dato|la\s+informaci[oó]n|compartir(?:lo|la)?|tu\s+respuesta)(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i,
+    ""
+  );
+  out2 = out2.replace(
     /^(recibido|listo|anotado|entendido|de\s+acuerdo)(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i,
     ""
   );
@@ -161761,6 +161770,9 @@ function ensureFunnelAfterSalesReply(mensaje, filledSet, extracted, ctx, current
   if (clientAsksForHumanAdvisor(currentMessage) || /55\s*4008\s*0373|canalizo con un asesor|Ya dejé tu caso listo para el equipo/i.test(out2)) {
     return out2;
   }
+  if (isFarewellReply(out2)) {
+    return out2;
+  }
   out2 = rewriteRepeatedProductMenu(out2, currentMessage, history, extracted, filledSet, ctx);
   if (/quieres que te d[eé] detalles de alguno/i.test(out2) && currentMessage && clientChoseBanqueteFormal(currentMessage)) {
     const shortEmptyCta = !isProgressiveOptionsMenuReply(out2) && !/bodasesor\.com\/catalogos/i.test(out2) && out2.replace(/\s+/g, " ").trim().length < 180;
@@ -162174,6 +162186,10 @@ function clientAsksPaymentOrQuoteDelivery(message) {
 function buildPostCierreThanksReply(clientName) {
   const nombre = sanitizeDisplayName(clientName);
   return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
+}
+function isFarewellReply(mensaje) {
+  if (!mensaje?.trim()) return false;
+  return /quedo a tu disposici[oó]n por si decides avanzar/i.test(mensaje) || /que tengas un excelente d[ií]a/i.test(mensaje);
 }
 function buildSoftLeadDeclineReply(clientName) {
   const nombre = sanitizeDisplayName(clientName);
@@ -225515,7 +225531,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.78";
+var LUCY_PROMPT_VERSION = "V9.79";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -228291,6 +228307,10 @@ Responde como asesora real de WhatsApp: amable, directa, 2\u20134 l\xEDneas.
 NO suenes a formulario ni a men\xFA autom\xE1tico.
 El bloque de cat\xE1logo/contexto del turno es REFERENCIA: \xFAsalo para no inventar; NO lo pegues.
 M\xE1ximo una pregunta de embudo por mensaje.
+El nombre del cliente se usa MUY de vez en cuando, no en cada mensaje: nadie escribe
+"Perfecto, Lizbeth" turno tras turno. Si ya lo nombraste hace poco, om\xEDtelo.
+Un mensaje = una idea hilada. Nada de pegar frases sueltas ("Claro que s\xED.") antes de
+la pregunta, ni despedirte y seguir preguntando en el mismo mensaje.
 Antes de preguntar, revisa historial + ESTADO ACTUAL: nunca repreguntes un dato ya dado.
 Si el cliente dio varios datos juntos, registra todos y pide solo lo que falte.
 Correo: si duda o no quiere darlo \u2192 "\xA1Claro, sin problema! Lo revisamos todo por este chat".`;
@@ -229184,6 +229204,51 @@ ${q3}` : display && !q3.includes(display) ? `Perfecto, ${display}. ${q3}` : q3;
   return { mensaje: mensaje.trim(), applied };
 }
 
+// src/lucyNaturalTone.ts
+var RECENT_ASSISTANT_TURNS = 2;
+var FILLER = String.raw`(?:Claro que s[ií]|Claro|Con gusto|Perfecto|Genial|Excelente|De acuerdo|Muy bien|Listo)`;
+function escapeRegExp(text2) {
+  return text2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function recentAssistantTexts2(history, limit2) {
+  if (!history?.length) return [];
+  const out2 = [];
+  for (let i6 = history.length - 1; i6 >= 0 && out2.length < limit2; i6 -= 1) {
+    const m6 = history[i6];
+    if (m6.role !== "assistant" || typeof m6.content !== "string") continue;
+    if (m6.content.trim()) out2.push(m6.content);
+  }
+  return out2;
+}
+function stripClientNameVocative(mensaje, clientName) {
+  const first = clientName.trim().split(/\s+/)[0];
+  if (!first || first.length < 2) return mensaje;
+  const n5 = escapeRegExp(first);
+  return mensaje.replace(new RegExp(String.raw`,\s*${n5}\b(?=\s*[.,;:!?]|\s*$)`, "gi"), "").replace(new RegExp(String.raw`(^|\n)\s*${n5}\s*,\s*`, "gi"), "$1").replace(/[ \t]{2,}/g, " ").replace(/\s+([.,;:!?])/g, "$1").trim();
+}
+function applyClientNameCadence(input) {
+  const mensaje = input.mensaje ?? "";
+  const first = input.clientName?.trim().split(/\s+/)[0];
+  if (!mensaje.trim() || !first || first.length < 2) return mensaje;
+  if (/\bnombre\b/i.test(mensaje)) return mensaje;
+  const pattern = new RegExp(String.raw`\b${escapeRegExp(first)}\b`, "i");
+  if (!pattern.test(mensaje)) return mensaje;
+  const yaLoDijo = recentAssistantTexts2(input.history, RECENT_ASSISTANT_TURNS).some(
+    (t4) => pattern.test(t4)
+  );
+  if (!yaLoDijo) return mensaje;
+  const stripped = stripClientNameVocative(mensaje, first);
+  return stripped.trim().length >= 8 ? stripped : mensaje;
+}
+function stripMidMessageFiller(mensaje) {
+  if (!mensaje?.trim()) return mensaje;
+  const out2 = mensaje.replace(
+    new RegExp(String.raw`(?<=[.!?…]["'»)*]?[ \t]+)¡?${FILLER}!?\.[ \t]+`, "gi"),
+    ""
+  );
+  return out2.replace(/[ \t]{2,}/g, " ").trim();
+}
+
 // src/lucyOutboundPipeline.ts
 init_conversation_understanding();
 init_serviceKnowledge();
@@ -229297,6 +229362,19 @@ ${keepQ}` : ack;
     mensaje = collapseDuplicatedInclusionReply(mensaje);
   }
   mensaje = stripClientServiceConfusionNotes(mensaje);
+  {
+    const conTono = stripMidMessageFiller(
+      applyClientNameCadence({
+        mensaje,
+        clientName: input.extracted.nombre,
+        history: input.history
+      })
+    );
+    if (conTono !== mensaje && conTono.trim().length >= 8) {
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: tono \u2014 vocativo/muletilla repetidos");
+      mensaje = conTono;
+    }
+  }
   if (!mensaje.trim()) {
     mensaje = input.cierreYaEnviado && clientSaysThanks(input.currentMessage) ? buildPostCierreThanksReply(input.extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
     input.log?.warn({ entityId: input.entityId }, "GUARD: mensaje vac\xEDo \u2014 respuesta de respaldo");

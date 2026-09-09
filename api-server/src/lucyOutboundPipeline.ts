@@ -16,6 +16,7 @@ import {
   buildNaturalQuestion,
 } from "./lucy-flow-guards.js";
 import { applyLucyGlobalAntiRepetition } from "./lucyOutboundAntiRepeat.js";
+import { applyClientNameCadence, stripMidMessageFiller } from "./lucyNaturalTone.js";
 import { maybeRefinarMensajeCierre } from "./services/lucyRedaction.js";
 import {
   clientAsksServiceInfo,
@@ -203,6 +204,22 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
   }
 
   mensaje = stripClientServiceConfusionNotes(mensaje);
+
+  // A15897: tono — ni el nombre en cada mensaje ni muletillas sueltas antes de
+  // la pregunta ("… dime si te interesa alguno. Claro que sí. ¿Cuántos…?").
+  {
+    const conTono = stripMidMessageFiller(
+      applyClientNameCadence({
+        mensaje,
+        clientName: input.extracted.nombre,
+        history: input.history,
+      })
+    );
+    if (conTono !== mensaje && conTono.trim().length >= 8) {
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: tono — vocativo/muletilla repetidos");
+      mensaje = conTono;
+    }
+  }
 
   if (!mensaje.trim()) {
     mensaje =

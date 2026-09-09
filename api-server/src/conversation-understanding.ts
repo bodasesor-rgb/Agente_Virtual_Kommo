@@ -1298,13 +1298,16 @@ export function clientDeclinesMoreServices(message?: string | null): boolean {
 export function clientSoftDeclinesLead(message?: string | null): boolean {
   if (!message?.trim()) return false;
   const t = message.trim().toLowerCase();
-  return (
-    /\bme\s+pongo\s+en\s+contacto\b/i.test(t) ||
-    /\bsi\s+(?:nos|me)\s+interesa\b/i.test(t) ||
-    /\bcuando\s+(?:nos|me)\s+interese\b/i.test(t) ||
-    /\blo\s+evalu(o|amos|ar[eé])\b/i.test(t) ||
-    (/\bpor\s+ahora\b/i.test(t) && /\bgracias\b/i.test(t))
-  );
+  if (/\bme\s+pongo\s+en\s+contacto\b/i.test(t)) return true;
+  if (/\blo\s+evalu(o|amos|ar[eé])\b/i.test(t)) return true;
+  if (/\bpor\s+ahora\b/i.test(t) && /\bgracias\b/i.test(t)) return true;
+
+  // A15897: "Sí me interesa. 60 invitados" es un SÍ, no una despedida. La lectura
+  // condicional necesita el verbo de contacto futuro ("les aviso si nos interesa").
+  const condicional = /\b(?:si|cuando)\s+(?:nos|me)\s+interes(?:a|e)\b/i.test(t);
+  const contactoFuturo =
+    /\b(?:avis|contact|escrib|marc|busc|hablam|llam|coment)(?:o|amos|ar[eé]|aremos)\b/i.test(t);
+  return condicional && contactoFuturo;
 }
 
 /** Cliente pregunta catering o comida (mapear a opciones de alimentos del catálogo). */

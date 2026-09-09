@@ -711,8 +711,10 @@ export function rewriteJunkClientVocative(
     sanitizeCrmNombre(correctNombre)?.split(/\s+/)[0] ??
     null;
 
+  // A15897: solo un vocativo real. "Perfecto, mesa y sillas anotadas" es una frase,
+  // no un saludo, y reescribirla dejaba "Perfecto, Lizbeth y sillas anotadas".
   return message.replace(
-    /\b((?:¡?Mucho gusto|¡?Con gusto|Perfecto|Excelente|Genial|Listo|Claro|Hola|Gracias)[,!]?)(\s+)([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ'-]*)\b/gi,
+    /\b((?:¡?Mucho gusto|¡?Con gusto|Perfecto|Excelente|Genial|Listo|Claro|Hola|Gracias)[,!]?)(\s+)([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ'-]*)\b(?=\s*(?:[.,;:!?]|$))/gi,
     (full, greet: string, space: string, name: string) => {
       if (!isServicePreferenceAsNombre(name) && !isRoleOrDepartmentAsNombre(name)) {
         return full;
