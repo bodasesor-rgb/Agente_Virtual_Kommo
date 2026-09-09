@@ -3415,13 +3415,14 @@ export function isSimpleClockTime(text: string | null | undefined): boolean {
   ) {
     return true;
   }
-  if (
-    new RegExp(
-      String.raw`^(?:a\s+las?\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
-      "i"
-    ).test(t)
-  ) {
-    return true;
+  // A15878: "55" (invitados) no es hora. Un reloj suelto debe caer en 0–24 h / 0–59 min.
+  const bareClock = t.match(
+    new RegExp(String.raw`^(?:a\s+las?\s+)?(\d{1,2})(?::(\d{2}))?\s*(?:${CLOCK_AMPM})?$`, "i")
+  );
+  if (bareClock) {
+    const hour = Number(bareClock[1]);
+    const minutes = bareClock[2] ? Number(bareClock[2]) : 0;
+    return hour <= 24 && minutes <= 59;
   }
   if (
     /^(?:a\s+las?\s+)?\d{1,2}(?::\d{2})?\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana)(?:\s*(?:hrs?|horas?))?$/i.test(
@@ -4827,6 +4828,21 @@ export function clientMentionsPistaTarima(message?: string): boolean {
   return /\bpista(\s+de\s+baile)?\b|\btarima/i.test(message);
 }
 
+/**
+ * Respuesta que solo niega o pospone ("No", "De momento no", "Aún no").
+ * A15878: no es nombre, ni zona, ni servicio — solo cierra la pregunta anterior.
+ */
+export function isNegativeOnlyReply(text: string | null | undefined): boolean {
+  const t = (text ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[.!¡,;\s]+$/g, "");
+  if (!t || t.length > 40) return false;
+  return /^(no|nop|nel|no\s+gracias|no\s+s[eé]|(?:a[uú]n|todav[ií]a|de\s+momento|por\s+(?:ahora|el\s+momento|lo\s+pronto))\s+no|no\s+(?:a[uú]n|todav[ií]a|de\s+momento|por\s+(?:ahora|el\s+momento)))$/i.test(
+    t
+  );
+}
+
 export function parseZonaFromText(text: string): string | null {
   // Quitar correos antes de parsear: un RFQ con email no es "solo un correo".
   const withoutEmails = text
@@ -4855,6 +4871,8 @@ export function parseZonaFromText(text: string): string | null {
   }
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
+  // A15878: "De momento no" es un rechazo, no un topónimo.
+  if (isNegativeOnlyReply(trimmed)) return null;
   if (isDimensionText(trimmed)) return null;
   // A15486: plantilla promo — no tomar CDMX del timezone.
   if (isPromoTemplateMessage(text)) {
@@ -5483,6 +5501,36 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
     /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t) ||
     /\b(el\s+)?equipo\s+(me\s+)?propong/i.test(t)
   );
+}
+
+/**
+ * "De momento no" / "Por ahora no" / "Aún no": pospone sin negar del todo.
+ * Solo significa algo con la pregunta previa a la vista (A15878).
+ */
+export function isSoftDeferralNo(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim().replace(/[\s.,!¡]+$/g, "");
+  if (!t || t.length > 40) return false;
+  return (
+    /^(de\s+momento|por\s+(ahora|el\s+momento|lo\s+pronto)|a[uú]n|todav[ií]a|hasta\s+ahora)\s+no$/i.test(
+      t
+    ) || /^no\s+(por\s+(ahora|el\s+momento)|de\s+momento|a[uú]n|todav[ií]a)$/i.test(t)
+  );
+}
+
+/**
+ * Rechazo de presupuesto leyendo la pregunta que lo provocó.
+ * A15878: "De momento no" cierra el presupuesto solo si Lucy acababa de pedirlo;
+ * tras "¿necesitan otro servicio?" es un decline de servicios, no un waiver.
+ */
+export function detectPresupuestoRefusalInContext(
+  text: string | null | undefined,
+  lastAssistantText: string | null | undefined
+): boolean {
+  if (detectPresupuestoRefusal(text)) return true;
+  if (!isSoftDeferralNo(text)) return false;
+  const asked = lastAssistantText ?? "";
+  if (!asked.trim()) return false;
+  return LUCY_FIELD_ASK_PATTERNS.presupuesto.test(asked);
 }
 
 /** Flag único: presupuesto ya resuelto (monto, waiver o “que propongan”). */

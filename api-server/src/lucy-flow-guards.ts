@@ -181,6 +181,7 @@ import {
   isLikelyProductNameNotLocation,
   isNonLocationBusinessPhrase,
   detectPresupuestoRefusal,
+  detectPresupuestoRefusalInContext,
   findPresupuestoInTexts,
   countLucyFieldAsks,
   PRESUPUESTO_MAX_ASKS,
@@ -428,6 +429,9 @@ export function syncFilledFromExtracted(filledSet: Set<string>, extracted: Extra
       filledSet.delete("Lugar/dirección del evento");
     } else if (
       extracted.nombre &&
+      // A15878: "Santa Fe" / "Pachuca" no son nombres de persona; namesAreLikelySamePerson
+      // responde true cuando no puede comparar, y eso borraba la ciudad del cliente.
+      sanitizeCrmNombre(extracted.direccion_evento) &&
       namesAreLikelySamePerson(extracted.nombre, extracted.direccion_evento)
     ) {
       extracted.direccion_evento = null;
@@ -681,6 +685,16 @@ export function isValidRequerimientosValue(value: string | null | undefined): bo
   ) {
     return false;
   }
+  // A15878: "evento empresarial" / "un evento" es el TIPO de evento; sin un servicio
+  // dentro, el embudo debe seguir preguntando qué necesitan (banquete, mobiliario…).
+  if (
+    /^(?:un[ao]?\s+)?(?:evento|fiesta|celebraci[oó]n|reuni[oó]n|festejo)(?:\s+(?:empresarial|corporativ[oa]|social|privad[oa]|familiar|escolar|infantil|peque[nñ][oa]|grande))?$/i.test(
+      trimmed
+    ) ||
+    /^\(?\s*(?:a[uú]n\s+)?por\s+definir\b/i.test(trimmed)
+  ) {
+    return false;
+  }
   // Servicios reales del catálogo siempre cuentan.
   if (parseServicesFromText(trimmed).length > 0 || isServiceRelatedMessage(trimmed)) return true;
   // Tipo de evento o temática sola ("fiesta toscana") ≠ requerimientos.
@@ -926,7 +940,17 @@ export function applyPresupuestoWaiver(
     return;
   }
 
-  if (texts.some((t) => detectPresupuestoRefusal(t))) {
+  // A15878: "De momento no" solo cuenta si Lucy acababa de preguntar el presupuesto.
+  const lastAssistantAsk = [...(history ?? [])]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string")?.content as
+    | string
+    | undefined;
+  const softDeferral = detectPresupuestoRefusalInContext(
+    texts[texts.length - 1] ?? "",
+    lastAssistantAsk
+  );
+  if (softDeferral || texts.some((t) => detectPresupuestoRefusal(t))) {
     const last = texts[texts.length - 1] ?? "";
     const label =
       /propuesta|opciones?/i.test(last) && !/\bno\s+(tengo|tenemos|cuento)\b/i.test(last)
@@ -2755,6 +2779,11 @@ function applyEmailCaptureTone(mensaje: string, ctx: NaturalQuestionContext): st
     .replace(/^mucho gusto,?\s+[^.!?]+[.!?]\s*/i, "");
   // A15841: el modelo ya abrió con "Gracias, Santeco." → no duplicar el agradecimiento.
   out = out.replace(/^(muchas\s+|mil\s+)?gracias(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i, "");
+  // A15878: "Recibido, Tania." tras "Gracias por tu correo, Tania." es el mismo acuse dos veces.
+  out = out.replace(
+    /^(recibido|listo|anotado|entendido|de\s+acuerdo)(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i,
+    ""
+  );
   out = stripLeadingDisplayName(out, nombre);
   return `${thanks}${out}`.trim();
 }
@@ -4182,6 +4211,10 @@ export function buildRequerimientosQuestion(
   const alreadyDumpedMenu = historyAlreadyHadServicesCatalog(history);
 
   if (service) {
+    // A15878: carpas/pista sin medidas → pedirlas, no repetir "Queda anotado lo de X."
+    if (requiredServiceDimensionsMissing(extracted)) {
+      return `${prefix}${buildRequiredServiceDimensionsQuestion(extracted)}`.trim();
+    }
     // Ya preguntamos "¿otro servicio?" o tiramos el menú → no repetir el follow-up.
     if (alreadyFollowedUp || alreadyDumpedMenu) {
       return `${prefix}Queda anotado lo de ${service}.`.trim();
@@ -6229,6 +6262,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const horarioNow = currentMessage ? parseHorarioFromText(currentMessage) : null;
     const lucyAskedHorario = inferLucyAskedField(lastFechaTxt) === "horario";
     const horarioPending = getNextPendingField(extracted, filledSet) === "horario";
+    // A15878: "55" tras "¿cuántos invitados?" es aforo, no las 5:55 ni las 55 h.
+    const bareNumberIsInvitados =
+      /^\d{1,4}$/.test((currentMessage ?? "").trim()) &&
+      !filledSet.has("Número de invitados") &&
+      (inferLucyAskedField(lastFechaTxt) === "invitados" ||
+        /invitados|cu[aá]ntas?\s+personas|asistir[aá]n/i.test(lastFechaTxt));
     const looksLikeFechaOnly =
       !!fechaNow &&
       !horarioNow &&
@@ -6286,6 +6325,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     if (
       !cierreYaEnviado &&
       currentMessage &&
+      !bareNumberIsInvitados &&
       (lucyAskedHorario ||
         horarioPending ||
         defersHorario ||
@@ -8111,7 +8151,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: primer mensaje — RFQ largo (ack + catálogo + nombre)");
   } else if (
     currentMessage &&
-    detectPresupuestoRefusal(currentMessage) &&
+    // A15878: "De momento no" cuenta como waiver solo si la pregunta previa fue de presupuesto.
+    detectPresupuestoRefusalInContext(
+      currentMessage,
+      [...presHistory]
+        .reverse()
+        .find((m) => m.role === "assistant" && typeof m.content === "string")?.content as
+        | string
+        | undefined
+    ) &&
     !isRichQuoteBrief(currentMessage) &&
     inferLucyAskedField(
       [...presHistory]
@@ -8141,7 +8189,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
     const pending = getNextPendingField(extracted, filledSet);
     const wantsPropuesta = /\bpropuesta\b/i.test(currentMessage ?? "");
-    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+    // A15878: con un dato pendiente el cierre se bloquea más abajo y el cliente
+    // recibía la pregunta a secas; mejor acusar el waiver y preguntar.
+    if (isReadyForClosing(filledSet) && !pending && !cierreYaEnviado) {
       // A15298: "una propuesta" con embudo completo → cierre limpio (sin re-pedir presupuesto).
       mensaje = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,

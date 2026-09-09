@@ -132618,11 +132618,13 @@ function isSimpleClockTime(text2) {
   )) {
     return true;
   }
-  if (new RegExp(
-    String.raw`^(?:a\s+las?\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
-    "i"
-  ).test(t4)) {
-    return true;
+  const bareClock = t4.match(
+    new RegExp(String.raw`^(?:a\s+las?\s+)?(\d{1,2})(?::(\d{2}))?\s*(?:${CLOCK_AMPM})?$`, "i")
+  );
+  if (bareClock) {
+    const hour = Number(bareClock[1]);
+    const minutes = bareClock[2] ? Number(bareClock[2]) : 0;
+    return hour <= 24 && minutes <= 59;
   }
   if (/^(?:a\s+las?\s+)?\d{1,2}(?::\d{2})?\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana)(?:\s*(?:hrs?|horas?))?$/i.test(
     t4
@@ -133485,6 +133487,13 @@ function clientMentionsPistaTarima(message) {
   if (!message?.trim()) return false;
   return /\bpista(\s+de\s+baile)?\b|\btarima/i.test(message);
 }
+function isNegativeOnlyReply(text2) {
+  const t4 = (text2 ?? "").trim().toLowerCase().replace(/[.!¡,;\s]+$/g, "");
+  if (!t4 || t4.length > 40) return false;
+  return /^(no|nop|nel|no\s+gracias|no\s+s[eé]|(?:a[uú]n|todav[ií]a|de\s+momento|por\s+(?:ahora|el\s+momento|lo\s+pronto))\s+no|no\s+(?:a[uú]n|todav[ií]a|de\s+momento|por\s+(?:ahora|el\s+momento)))$/i.test(
+    t4
+  );
+}
 function parseZonaFromText(text2) {
   const withoutEmails = text2.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, " ").replace(/\s+/g, " ").trim();
   const trimmed = withoutEmails.replace(/\(?\s*hora\s+ciudad\s+de\s+m[eé]xico\s*\)?/gi, " ").replace(/\bhorario\s+en\s+que\s+env[ií]o\s+este\s+mensaje\s*:?[^\n]*/gi, " ").replace(/\bcotizaci[oó]n(es)?\s+en\s+pdf\b/gi, " ").replace(/\b(en\s+)?pdf\b/gi, " ").replace(/^(s[ií][,.]?\s+)(?=[A-Za-zÁÉÍÓÚáéíóúñÑ])/i, "").replace(/\s+/g, " ").trim();
@@ -133497,6 +133506,7 @@ function parseZonaFromText(text2) {
   }
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
+  if (isNegativeOnlyReply(trimmed)) return null;
   if (isDimensionText(trimmed)) return null;
   if (isPromoTemplateMessage(text2)) {
     const realVenue = trimmed.match(
@@ -133857,6 +133867,20 @@ function detectPresupuestoRefusal(text2) {
     return false;
   }
   return /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t4) || /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t4) || /\bt[uú]\s+m[aá]ndame\b/i.test(t4) || /\bsi\s+quieres\s+vemos\b/i.test(t4) || /\b(no\s+s[eé](?!\s+puede)|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s*$|[.,!?]|\s+(cu[aá]nto|a[uú]n|si)\b)/i.test(t4) || /\ba[uú]n\s+no\s+(?:s[eé]|lo\s+s[eé]|s[eé]\s+cu[aá]nto)/i.test(t4) || /\btodav[ií]a\s+no\b/i.test(t4) || /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t4) || /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t4) || /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t4) || /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t4) || /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t4) || /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t4) || /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t4) || /\b(el\s+)?equipo\s+(me\s+)?propong/i.test(t4);
+}
+function isSoftDeferralNo(text2) {
+  const t4 = (text2 ?? "").trim().replace(/[\s.,!¡]+$/g, "");
+  if (!t4 || t4.length > 40) return false;
+  return /^(de\s+momento|por\s+(ahora|el\s+momento|lo\s+pronto)|a[uú]n|todav[ií]a|hasta\s+ahora)\s+no$/i.test(
+    t4
+  ) || /^no\s+(por\s+(ahora|el\s+momento)|de\s+momento|a[uú]n|todav[ií]a)$/i.test(t4);
+}
+function detectPresupuestoRefusalInContext(text2, lastAssistantText) {
+  if (detectPresupuestoRefusal(text2)) return true;
+  if (!isSoftDeferralNo(text2)) return false;
+  const asked = lastAssistantText ?? "";
+  if (!asked.trim()) return false;
+  return LUCY_FIELD_ASK_PATTERNS.presupuesto.test(asked);
 }
 function isPresupuestoResuelto(filledSet, texts = [], history) {
   if (filledSet.has("Presupuesto (MXN)")) return true;
@@ -159632,7 +159656,9 @@ function syncFilledFromExtracted(filledSet, extracted) {
     if (!isUsableDireccionEvento(extracted.direccion_evento) || looksLikeMealTimeNotLocation(extracted.direccion_evento) || isLikelyProductNameNotLocation(extracted.direccion_evento) || looksLikePersonFullName(extracted.direccion_evento) && !hasCityOrMetroSignal(extracted.direccion_evento)) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/direcci\xF3n del evento");
-    } else if (extracted.nombre && namesAreLikelySamePerson(extracted.nombre, extracted.direccion_evento)) {
+    } else if (extracted.nombre && // A15878: "Santa Fe" / "Pachuca" no son nombres de persona; namesAreLikelySamePerson
+    // responde true cuando no puede comparar, y eso borraba la ciudad del cliente.
+    sanitizeCrmNombre(extracted.direccion_evento) && namesAreLikelySamePerson(extracted.nombre, extracted.direccion_evento)) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/direcci\xF3n del evento");
     } else {
@@ -159807,6 +159833,11 @@ function isValidRequerimientosValue(value) {
   if (sanitizeCrmNombre(trimmed) && parseServicesFromText(trimmed).length === 0 && !isServiceRelatedMessage(trimmed) && trimmed.split(/\s+/).length <= 4 && !/\d/.test(trimmed)) {
     return false;
   }
+  if (/^(?:un[ao]?\s+)?(?:evento|fiesta|celebraci[oó]n|reuni[oó]n|festejo)(?:\s+(?:empresarial|corporativ[oa]|social|privad[oa]|familiar|escolar|infantil|peque[nñ][oa]|grande))?$/i.test(
+    trimmed
+  ) || /^\(?\s*(?:a[uú]n\s+)?por\s+definir\b/i.test(trimmed)) {
+    return false;
+  }
   if (parseServicesFromText(trimmed).length > 0 || isServiceRelatedMessage(trimmed)) return true;
   if (parseTipoEventoFromText(trimmed)) return false;
   if (clientMentionsItalianTheme(trimmed) && trimmed.length < 48) return false;
@@ -159953,7 +159984,12 @@ function applyPresupuestoWaiver(filledSet, mergedLines, texts, history) {
     filledSet.add("Presupuesto (MXN)");
     return;
   }
-  if (texts.some((t4) => detectPresupuestoRefusal(t4))) {
+  const lastAssistantAsk = [...history ?? []].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string")?.content;
+  const softDeferral = detectPresupuestoRefusalInContext(
+    texts[texts.length - 1] ?? "",
+    lastAssistantAsk
+  );
+  if (softDeferral || texts.some((t4) => detectPresupuestoRefusal(t4))) {
     const last = texts[texts.length - 1] ?? "";
     const label = /propuesta|opciones?/i.test(last) && !/\bno\s+(tengo|tenemos|cuento)\b/i.test(last) ? "Sin definir (cliente pidi\xF3 que propongamos)" : "Sin definir (cliente indic\xF3 que no tiene)";
     mergedLines.push(`- Presupuesto (MXN): ${label}`);
@@ -161137,6 +161173,10 @@ function applyEmailCaptureTone(mensaje, ctx) {
   const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
   out2 = out2.replace(/^(genial|perfecto|excelente|muy bien),?\s+/i, "").replace(/^mucho gusto,?\s+[^.!?]+[.!?]\s*/i, "");
   out2 = out2.replace(/^(muchas\s+|mil\s+)?gracias(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i, "");
+  out2 = out2.replace(
+    /^(recibido|listo|anotado|entendido|de\s+acuerdo)(\s*,\s*[^.!?,]{1,40})?\s*[.!]\s*/i,
+    ""
+  );
   out2 = stripLeadingDisplayName(out2, nombre);
   return `${thanks}${out2}`.trim();
 }
@@ -161968,6 +162008,9 @@ function buildRequerimientosQuestion(extracted, history, currentMessage, entityI
   );
   const alreadyDumpedMenu = historyAlreadyHadServicesCatalog(history);
   if (service) {
+    if (requiredServiceDimensionsMissing(extracted)) {
+      return `${prefix}${buildRequiredServiceDimensionsQuestion(extracted)}`.trim();
+    }
     if (alreadyFollowedUp || alreadyDumpedMenu) {
       return `${prefix}Queda anotado lo de ${service}.`.trim();
     }
@@ -163253,6 +163296,7 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
     const horarioNow = currentMessage ? parseHorarioFromText(currentMessage) : null;
     const lucyAskedHorario = inferLucyAskedField(lastFechaTxt) === "horario";
     const horarioPending = getNextPendingField(extracted, filledSet) === "horario";
+    const bareNumberIsInvitados = /^\d{1,4}$/.test((currentMessage ?? "").trim()) && !filledSet.has("N\xFAmero de invitados") && (inferLucyAskedField(lastFechaTxt) === "invitados" || /invitados|cu[aá]ntas?\s+personas|asistir[aá]n/i.test(lastFechaTxt));
     const looksLikeFechaOnly = !!fechaNow && !horarioNow && !parseFurnitureCatalogSkuFromText(currentMessage ?? "") && !parseCorreoFromText(currentMessage ?? "") && (lucyAskedFecha || fechaPending || /^(el\s+)?\d{1,2}\s+de\s+\w+/i.test((currentMessage ?? "").trim()));
     if (!cierreYaEnviado && fechaNow && looksLikeFechaOnly && isUsableFechaEvento(fechaNow) && !filledSet.has(CRM_FECHA_LABEL)) {
       extracted.fecha_evento = fechaNow;
@@ -163279,7 +163323,7 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
     const messageIsPrimarilyHorario = !!currentMessage && (defersHorario || isClockTimeOnlySchedule(currentMessage) || isSimpleClockTime(currentMessage.trim()) || isScheduleLabeledClock(currentMessage) || /^(?:alrededor\s+de\s+)?(?:a\s+)?la\s+\d{1,2}\b/i.test(currentMessage.trim()) || /^(el\s+evento\s+)?(ser[ií]a|es|ser[aá]|qued[oó]|arranca|inicia|empieza)\b/i.test(
       currentMessage.trim()
     ) && !!horarioNow);
-    if (!cierreYaEnviado && currentMessage && (lucyAskedHorario || horarioPending || defersHorario || messageIsPrimarilyHorario || (lucyAskedFecha || fechaPending) && !!horarioNow && messageIsPrimarilyHorario) && (defersHorario || isClockTimeOnlySchedule(currentMessage) || isMealTimeOnlySchedule(currentMessage) || isScheduleLabeledClock(currentMessage) || isSimpleClockTime(currentMessage.trim()) || !!horarioNow)) {
+    if (!cierreYaEnviado && currentMessage && !bareNumberIsInvitados && (lucyAskedHorario || horarioPending || defersHorario || messageIsPrimarilyHorario || (lucyAskedFecha || fechaPending) && !!horarioNow && messageIsPrimarilyHorario) && (defersHorario || isClockTimeOnlySchedule(currentMessage) || isMealTimeOnlySchedule(currentMessage) || isScheduleLabeledClock(currentMessage) || isSimpleClockTime(currentMessage.trim()) || !!horarioNow)) {
       const parsedHorario = (defersHorario ? "Sin definir (pendiente)" : horarioNow ?? parseHorarioFromText(currentMessage ?? "") ?? currentMessage.trim()).replace(/\s+/g, " ").slice(0, 80);
       if (!parsedHorario || !isUsableHorarioEvento(parsedHorario)) {
       } else {
@@ -164477,7 +164521,11 @@ ${catalog}`,
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje \u2014 RFQ largo (ack + cat\xE1logo + nombre)");
-  } else if (currentMessage && detectPresupuestoRefusal(currentMessage) && !isRichQuoteBrief(currentMessage) && inferLucyAskedField(
+  } else if (currentMessage && // A15878: "De momento no" cuenta como waiver solo si la pregunta previa fue de presupuesto.
+  detectPresupuestoRefusalInContext(
+    currentMessage,
+    [...presHistory].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string")?.content
+  ) && !isRichQuoteBrief(currentMessage) && inferLucyAskedField(
     [...presHistory].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string")?.content
   ) !== "correo" && !detectEmailRefusal([currentMessage])) {
     if (!filledSet.has("Presupuesto (MXN)")) {
@@ -164497,7 +164545,7 @@ ${catalog}`,
     }
     const pending = getNextPendingField(extracted, filledSet);
     const wantsPropuesta = /\bpropuesta\b/i.test(currentMessage ?? "");
-    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+    if (isReadyForClosing(filledSet) && !pending && !cierreYaEnviado) {
       mensaje = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
         extracted.nombre
@@ -225462,7 +225510,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.76";
+var LUCY_PROMPT_VERSION = "V9.77";
 
 // src/lib/buildMeta.ts
 var cached = null;
