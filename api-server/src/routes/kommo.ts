@@ -129,6 +129,7 @@ import {
   parseInvitadosFromText,
   parseServicesFromText,
   mergeServiceRequirements,
+  serviceRequirementsGainedDimensions,
   isUsableDireccionEvento,
   CRM_FECHA_LABEL,
   CRM_HORARIO_LABEL,
@@ -892,7 +893,7 @@ function buildCrmContext(
     }
   }
 
-  // A14929: si el cliente amplía servicios o sube presupuesto, actualizar aunque el campo ya esté lleno.
+  // A14929 / A15907: si el cliente amplía servicios o anota/corrige medidas, actualizar.
   if (currentMessage?.trim()) {
     const reqIdx = mergedLines.findIndex((l) => /^-?\s*Requerimientos o servicios:/i.test(l));
     if (reqIdx >= 0) {
@@ -902,7 +903,11 @@ function buildCrmContext(
       const mergedReq = mergeServiceRequirements(existingReq, currentMessage, 6);
       const prevCount = parseServicesFromText(existingReq).length;
       const nextCount = mergedReq ? parseServicesFromText(mergedReq).length : 0;
-      if (mergedReq && nextCount > prevCount) {
+      if (
+        mergedReq &&
+        (nextCount > prevCount ||
+          serviceRequirementsGainedDimensions(existingReq, mergedReq))
+      ) {
         mergedLines[reqIdx] = `- Requerimientos o servicios: ${mergedReq}`;
         extracted.requerimientos_evento = mergedReq;
       }

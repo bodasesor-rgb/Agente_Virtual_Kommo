@@ -204,6 +204,10 @@ import {
   parsePrimaryService,
   parseCentrosDeMesaRequirement,
   parseSpaceDimensions,
+  parseAllSpaceDimensions,
+  attachEspacioToRequirements,
+  buildCarpaRequirementsFromText,
+  serviceRequirementsGainedDimensions,
   isDimensionText,
   parseFechaFromText,
   parseTipoEventoFromText,
@@ -1604,13 +1608,18 @@ function buildCarpasSalesReply(
       return `${pickTransition(history)} ${concrete}`.trim();
     }
   }
-  const dims =
-    parseSpaceDimensions(msg) ||
-    (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null) ||
-    collectUserTexts(history, msg)
-      .map((t) => parseSpaceDimensions(t))
-      .find(Boolean) ||
-    null;
+  const dimsList =
+    parseAllSpaceDimensions(msg).length > 0
+      ? parseAllSpaceDimensions(msg)
+      : parseAllSpaceDimensions(extracted.requerimientos_evento ?? "").length > 0
+        ? parseAllSpaceDimensions(extracted.requerimientos_evento ?? "")
+        : (() => {
+            const fromHist = collectUserTexts(history, msg)
+              .map((t) => parseAllSpaceDimensions(t))
+              .find((d) => d.length > 0);
+            return fromHist ?? [];
+          })();
+  const dims = dimsList[0] ?? null;
   const variant = parseCarpaVariantFromText(msg);
   const transparent = /transparent/i.test(msg) || /transparent/i.test(variant ?? "");
   const alreadyHasCarpas = /\bcarpas?\b/i.test(extracted.requerimientos_evento ?? "");
@@ -1628,18 +1637,33 @@ function buildCarpasSalesReply(
     /\bmobiliario\b|\bmesas?\b|\bsillas?\b|\bperiqueras?\b/i.test(msg);
 
   if (filledSet) filledSet.add("Requerimientos o servicios");
+  const carpaBrief = buildCarpaRequirementsFromText(msg);
   const baseLabel =
     variant || (transparent ? "Carpas transparentes" : "Carpas");
   const label = alsoMobiliario ? `${baseLabel}, Mobiliario` : baseLabel;
   if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
-    extracted.requerimientos_evento = dims ? `${label} (${dims})` : label;
+    extracted.requerimientos_evento = carpaBrief
+      ? alsoMobiliario
+        ? attachEspacioToRequirements(
+            mergeServiceRequirements(carpaBrief, "Mobiliario", 6) ?? `${carpaBrief}, Mobiliario`,
+            dimsList
+          )
+        : carpaBrief
+      : dimsList.length
+        ? attachEspacioToRequirements(label, dimsList)
+        : label;
   } else {
-    const merged = mergeServiceRequirements(
-      extracted.requerimientos_evento,
-      dims ? `${label} (${dims})` : label,
-      6
-    );
+    const incoming =
+      carpaBrief ??
+      (dimsList.length ? attachEspacioToRequirements(label, dimsList) : label);
+    const merged = mergeServiceRequirements(extracted.requerimientos_evento, incoming, 6);
     if (merged) extracted.requerimientos_evento = merged;
+    else if (dimsList.length) {
+      extracted.requerimientos_evento = attachEspacioToRequirements(
+        extracted.requerimientos_evento,
+        dimsList
+      );
+    }
   }
 
   // Ya presentó las opciones reales y carpas está en CRM — no repetir el listado.
@@ -1703,12 +1727,13 @@ function buildCarpasSalesReply(
     return `${pickTransition(history)} ${body}`.trim();
   }
 
-  // Solo medidas tras ask de carpas (A15016: "De 6 x20").
-  if (dims && isDimensionText(msg)) {
+  // Solo medidas tras ask de carpas (A15016: "De 6 x20" / A15907: "6x8").
+  if (dimsList.length > 0 && isDimensionText(msg)) {
     const filledAfter = new Set(filledSet ?? []);
     filledAfter.add("Requerimientos o servicios");
     const pending = getNextPendingField(extracted, filledAfter);
-    const ack = `Perfecto — anoto medidas *${dims.replace(/m/gi, " m")}* para la carpa.`;
+    const dimsLabel = dimsList.join(" y ").replace(/m/gi, " m");
+    const ack = `Perfecto — anoto medidas *${dimsLabel}* para la carpa.`;
     if (pending && pending !== "requerimientos" && ctx) {
       const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
       return `${pickTransition(history)} ${ack}\n\n${nextQ}`.trim();
@@ -5377,19 +5402,51 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: V9.36 — cierre prematuro, se reabre el chat");
   }
 
-  // Captura estructural antes de cualquier rama: una respuesta "3 x 4" completa
-  // carpa/pista/tarima y evita que el cierre vuelva a pedir las medidas.
-  const dimensionsNow = parseSpaceDimensions(currentMessage ?? "");
+  // Captura estructural antes de cualquier rama: "3 x 4" / "6m x 8m" completa
+  // carpa/pista/tarima. A15907: también corrige medidas si el cliente responde al ask
+  // aunque ya hubiera un 2x2 parcial del brief.
+  const dimensionsNowList = parseAllSpaceDimensions(currentMessage ?? "");
   if (
-    dimensionsNow &&
+    dimensionsNowList.length > 0 &&
     (clientMentionsCarpas(extracted.requerimientos_evento ?? "") ||
-      clientMentionsPistaTarima(extracted.requerimientos_evento ?? ""))
+      clientMentionsPistaTarima(extracted.requerimientos_evento ?? "") ||
+      clientMentionsCarpas(currentMessage ?? ""))
   ) {
-    const req = extracted.requerimientos_evento?.trim() || "Servicio";
-    if (!parseSpaceDimensions(req)) {
-      extracted.requerimientos_evento = `${req} (espacio ${dimensionsNow})`;
+    const req = extracted.requerimientos_evento?.trim() || "Carpas";
+    const lastAsstForDims = [...presHistory].reverse().find((m) => m.role === "assistant");
+    const lucyAskedMedidas =
+      typeof lastAsstForDims?.content === "string" &&
+      /medidas|cu[aá]nto mide|largo\s*[×x]\s*ancho|área que quieres cubrir/i.test(
+        lastAsstForDims.content
+      );
+    const shouldAttach =
+      !parseSpaceDimensions(req) ||
+      isDimensionText(currentMessage) ||
+      lucyAskedMedidas;
+    if (shouldAttach) {
+      extracted.requerimientos_evento = attachEspacioToRequirements(req, dimensionsNowList);
     }
     filledSet.add("Requerimientos o servicios");
+  }
+
+  // A15907: si el CRM perdió "(espacio …)" pero el historial ya trae medidas, reinyectar
+  // antes del embudo/cierre (evita re-preguntar y el loop no_entendio).
+  if (
+    (clientMentionsCarpas(extracted.requerimientos_evento ?? "") ||
+      clientMentionsPistaTarima(extracted.requerimientos_evento ?? "")) &&
+    !parseSpaceDimensions(extracted.requerimientos_evento ?? "")
+  ) {
+    const histDims = parseAllSpaceDimensions(
+      collectUserTexts(presHistory, currentMessage).join(" ")
+    );
+    if (histDims.length > 0) {
+      extracted.requerimientos_evento = attachEspacioToRequirements(
+        extracted.requerimientos_evento?.trim() || "Carpas",
+        histDims
+      );
+      filledSet.add("Requerimientos o servicios");
+      log?.info({ entityId, histDims }, "GUARD: A15907 — medidas recuperadas del historial");
+    }
   }
 
   // A15164: recuperar nombre del historial/mensaje actual antes del embudo.
@@ -5520,16 +5577,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         askedEarly === "requerimientos" ||
         (lastAsstEarly && /medidas/i.test(lastAsstEarly.content as string))
       ) {
-        const histDims = collectUserTexts(presHistory, undefined)
-          .map((t) => parseSpaceDimensions(t))
-          .find(Boolean);
-        if (histDims && /carpa/i.test(extracted.requerimientos_evento ?? "")) {
-          const merged = mergeServiceRequirements(
-            extracted.requerimientos_evento,
-            `Carpas (espacio ${histDims})`,
-            6
+        const histDims = parseAllSpaceDimensions(
+          collectUserTexts(presHistory, undefined).join(" ")
+        );
+        if (histDims.length && /carpa|pista|tarima/i.test(extracted.requerimientos_evento ?? "")) {
+          extracted.requerimientos_evento = attachEspacioToRequirements(
+            extracted.requerimientos_evento ?? "Carpas",
+            histDims
           );
-          if (merged) extracted.requerimientos_evento = merged;
           filledSet.add("Requerimientos o servicios");
         }
       }

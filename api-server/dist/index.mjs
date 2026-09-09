@@ -131521,17 +131521,19 @@ function isLikelyProductNameNotLocation(value) {
 }
 function parseCarpaVariantFromText(text2) {
   const t4 = (text2 ?? "").trim();
-  if (!t4 || t4.length > 60) return null;
+  if (!t4) return null;
   if (/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida)\b/i.test(t4)) {
     return null;
   }
+  const shortOrCarpaBrief = t4.length <= 60 || /\bcarpas?\b/i.test(t4);
+  if (!shortOrCarpaBrief) return null;
   if (/^blancas?(\s+(carpa|tent))?$/i.test(t4) || /\bcarpa\s+blanca\b/i.test(t4)) {
     return "Carpa blanca";
   }
   if (/^negras?(\s+(carpa|tent))?$/i.test(t4) || /\bcarpa\s+negra\b/i.test(t4)) {
     return "Carpa negra";
   }
-  if (/^transparentes?(\s+(carpa|tent))?$/i.test(t4) || /\bcarpa\s+transparente\b/i.test(t4)) {
+  if (/^transparentes?(\s+(carpa|tent))?$/i.test(t4) || /\bcarpa\s+transparente\b/i.test(t4) || /\btransparentes?\b/i.test(t4) && /\bcarpas?\b/i.test(t4)) {
     return "Carpa transparente";
   }
   if (/^domos?(\s+(carpa|tent))?$/i.test(t4) || /\bcarpa\s+(?:tipo\s+)?domo\b/i.test(t4)) {
@@ -132396,15 +132398,40 @@ function mergeServiceRequirements(existing, text2, max = 6) {
   const joined = merged.join(", ");
   const blob = `${existingClean ?? ""} ${text2 ?? ""}`.trim();
   const withVenue = removeVenueProvidedFromRequirements(joined, blob) ?? joined;
+  const dimsFromText = parseAllSpaceDimensions(textTrim);
+  if (dimsFromText.length > 0 && (clientMentionsCarpas(withVenue) || clientMentionsPistaTarima(withVenue) || clientMentionsCarpas(blob) || clientMentionsPistaTarima(blob))) {
+    return attachEspacioToRequirements(withVenue, dimsFromText);
+  }
   return preserveSpaceAnnotation(withVenue, `${existingClean ?? ""} ${text2 ?? ""}`);
 }
 function preserveSpaceAnnotation(services, blob) {
   if (!services.trim()) return services;
+  if (!clientMentionsCarpas(services) && !clientMentionsPistaTarima(services)) {
+    return services;
+  }
   if (/\(espacio\s+[^)]+\)/i.test(services)) return services;
+  const bareOnServices = services.match(
+    /\((\d+\s*m?\s*[x×]\s*\d+\s*m?(?:\s+y\s+\d+\s*m?\s*[x×]\s*\d+\s*m?)*)\)/i
+  );
+  if (bareOnServices?.[1]) {
+    const dims = parseAllSpaceDimensions(bareOnServices[1]);
+    if (dims.length) return attachEspacioToRequirements(services, dims);
+  }
   const prev = blob.match(/\(espacio\s+([^)]+)\)/i)?.[1]?.trim();
-  if (!prev) return services;
-  if (!clientMentionsCarpas(services) && !clientMentionsPistaTarima(services)) return services;
-  return `${services} (espacio ${prev})`;
+  if (prev) {
+    const parsed = parseAllSpaceDimensions(prev);
+    return attachEspacioToRequirements(services, parsed.length ? parsed : [prev]);
+  }
+  const fromBlob3 = parseAllSpaceDimensions(blob);
+  if (fromBlob3.length) return attachEspacioToRequirements(services, fromBlob3);
+  return services;
+}
+function serviceRequirementsGainedDimensions(existing, next) {
+  const nextDims = parseAllSpaceDimensions(next ?? "");
+  if (nextDims.length === 0) return false;
+  const prevDims = parseAllSpaceDimensions(existing ?? "");
+  if (prevDims.length === 0) return true;
+  return nextDims.join("|") !== prevDims.join("|");
 }
 function buildMultiServiceAck(services) {
   const list = formatServicesList(services);
@@ -133469,14 +133496,78 @@ function applyLocationCorrectionToCrm(mergedLines, filledSet, extracted, current
   extracted.direccion_evento = next;
   return true;
 }
+function parseAllSpaceDimensions(text2) {
+  if (!text2?.trim()) return [];
+  const out2 = [];
+  const seen = /* @__PURE__ */ new Set();
+  const push = (a4, b5) => {
+    const d3 = `${a4}m x ${b5}m`;
+    if (seen.has(d3)) return;
+    seen.add(d3);
+    out2.push(d3);
+  };
+  for (const m6 of text2.matchAll(/\b(\d+)\s*metros?\s*(?:por|x)\s*(\d+)\s*metros?\b/gi)) {
+    push(m6[1], m6[2]);
+  }
+  for (const m6 of text2.matchAll(
+    /\bespacio\s+(?:es\s+de|de|mide)\s+(\d+)\s*metros?\s*(?:por|x)\s*(\d+)/gi
+  )) {
+    push(m6[1], m6[2]);
+  }
+  for (const m6 of text2.matchAll(/\b(\d+)\s*m?\s*[x×]\s*(\d+)\s*m?\b/gi)) {
+    push(m6[1], m6[2]);
+  }
+  return out2;
+}
+function formatEspacioAnnotation(dims) {
+  if (dims.length === 0) return "";
+  if (dims.length === 1) return `(espacio ${dims[0]})`;
+  return `(espacio ${dims.join(" y ")})`;
+}
+function attachEspacioToRequirements(req, dims) {
+  const list = (Array.isArray(dims) ? dims : [dims]).filter(Boolean);
+  const base = req.replace(/\s*\((?:espacio\s+)?[^)]*\d+\s*m?\s*[x×]\s*\d+[^)]*\)/gi, "").replace(/\s*—\s*espacio\s+\d+m\s*x\s*\d+m/gi, "").trim() || "Servicio";
+  if (list.length === 0) return base;
+  return `${base} ${formatEspacioAnnotation(list)}`.trim();
+}
 function parseSpaceDimensions(text2) {
-  const m6 = text2.match(/\b(\d+)\s*metros?\s*(por|x)\s*(\d+)\s*metros?\b/i);
-  if (m6) return `${m6[1]}m x ${m6[3]}m`;
-  const m22 = text2.match(/\bespacio\s+(?:es\s+de|de|mide)\s+(\d+)\s*metros?\s*(por|x)\s*(\d+)/i);
-  if (m22) return `${m22[1]}m x ${m22[3]}m`;
-  const m32 = text2.match(/\b(\d+)\s*m?\s*[x×]\s*(\d+)\s*m?\b/i);
-  if (m32) return `${m32[1]}m x ${m32[2]}m`;
-  return null;
+  return parseAllSpaceDimensions(text2)[0] ?? null;
+}
+function buildCarpaRequirementsFromText(text2) {
+  if (!text2?.trim()) return null;
+  if (!clientMentionsCarpas(text2) && !parseCarpaVariantFromText(text2)) return null;
+  const parts2 = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const m6 of text2.matchAll(
+    /\b(tela|lona|blanca|negra|transparentes?|domo)?\s*(?:de\s+)?(\d+)\s*m?\s*[x×]\s*(\d+)\s*m?\b/gi
+  )) {
+    const rawVar = (m6[1] ?? "").toLowerCase();
+    const dim = `${m6[2]}m x ${m6[3]}m`;
+    let label = dim;
+    if (/transparent/.test(rawVar)) label = `transparente ${dim}`;
+    else if (/tela|lona/.test(rawVar)) label = `tela ${dim}`;
+    else if (/blanca/.test(rawVar)) label = `blanca ${dim}`;
+    else if (/negra/.test(rawVar)) label = `negra ${dim}`;
+    else if (/domo/.test(rawVar)) label = `domo ${dim}`;
+    if (seen.has(label)) continue;
+    seen.add(label);
+    parts2.push(label);
+  }
+  const variant = parseCarpaVariantFromText(text2);
+  if (parts2.length >= 2) {
+    return `Carpas (${parts2.join(", ")})`;
+  }
+  if (parts2.length === 1) {
+    const base = variant && /transparent/i.test(variant) ? "Carpas transparentes" : "Carpas";
+    return `${base} (espacio ${parts2[0].replace(/^(tela|transparente|blanca|negra|domo)\s+/, "")})`;
+  }
+  const all3 = parseAllSpaceDimensions(text2);
+  if (all3.length > 1) return `Carpas ${formatEspacioAnnotation(all3)}`;
+  if (all3.length === 1) {
+    const base = variant ?? "Carpas";
+    return `${base} ${formatEspacioAnnotation(all3)}`;
+  }
+  return variant ?? "Carpas";
 }
 function clientAsksDimensionRecommendation(message) {
   if (!message?.trim()) return false;
@@ -134148,17 +134239,15 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
   if (msgIsLocation && zonaFromMsg && !filledSet.has("Lugar/direcci\xF3n del evento")) {
     captures.push({ label: "Lugar/direcci\xF3n del evento", value: zonaFromMsg });
   }
-  const dimsNow = parseSpaceDimensions(msg);
-  if (dimsNow && (isDimensionText(msg) || /medidas?/i.test(lastLucy) || /carpa|pista|tarima/i.test(lastLucy))) {
+  const dimsNowList = parseAllSpaceDimensions(msg);
+  if (dimsNowList.length > 0 && (isDimensionText(msg) || /medidas?/i.test(lastLucy) || /carpa|pista|tarima/i.test(lastLucy))) {
     const existingReq = captures.find((c5) => c5.label === "Requerimientos o servicios");
     if (existingReq) {
-      if (!existingReq.value.includes(dimsNow)) {
-        existingReq.value = `${existingReq.value.replace(/\s*\(espacio [^)]+\)/, "").trim()} (espacio ${dimsNow})`;
-      }
+      existingReq.value = attachEspacioToRequirements(existingReq.value, dimsNowList);
     } else {
       captures.push({
         label: "Requerimientos o servicios",
-        value: `Carpas (espacio ${dimsNow})`
+        value: attachEspacioToRequirements("Carpas", dimsNowList)
       });
     }
   }
@@ -134211,11 +134300,15 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
   if (!filledSet.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && !clientAsksCafeOrCateringChoice(msg) && (asked === "requerimientos" || isServiceRelatedMessage(msg))) {
     const services = parseServicesFromText(msg);
     const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
-    const dims = parseSpaceDimensions(msg);
-    if (service || isServiceRelatedMessage(msg)) {
-      let value = service ?? msg.slice(0, 120);
-      if (dims && service) value = `${service} (espacio ${dims})`;
-      else if (dims) value = `Tarima/pista \u2014 espacio ${dims}`;
+    const carpaBrief = clientMentionsCarpas(msg) ? buildCarpaRequirementsFromText(msg) : null;
+    const dims = parseAllSpaceDimensions(msg);
+    if (service || isServiceRelatedMessage(msg) || carpaBrief) {
+      let value = carpaBrief ?? service ?? msg.slice(0, 120);
+      if (!carpaBrief && dims.length && service) {
+        value = attachEspacioToRequirements(service, dims);
+      } else if (!carpaBrief && dims.length && !service) {
+        value = `Tarima/pista \u2014 espacio ${dims.join(" y ")}`;
+      }
       captures.push({
         label: "Requerimientos o servicios",
         value
@@ -134280,10 +134373,14 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
     if (!pending.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && !clientAsksCafeOrCateringChoice(msg) && isServiceRelatedMessage(msg)) {
       const services = parseServicesFromText(msg);
       const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
-      const dims2 = parseSpaceDimensions(msg);
-      let value = service ?? msg.trim().slice(0, 120);
-      if (dims2 && service) value = `${service} (espacio ${dims2})`;
-      else if (dims2 && /pista|tarima/i.test(msg)) value = `Pista de baile (espacio ${dims2})`;
+      const carpaBrief = clientMentionsCarpas(msg) ? buildCarpaRequirementsFromText(msg) : null;
+      const dims = parseAllSpaceDimensions(msg);
+      let value = carpaBrief ?? service ?? msg.trim().slice(0, 120);
+      if (!carpaBrief && dims.length && service) {
+        value = attachEspacioToRequirements(service, dims);
+      } else if (!carpaBrief && dims.length && /pista|tarima/i.test(msg)) {
+        value = `Pista de baile ${formatEspacioAnnotation(dims)}`;
+      }
       captures.push({
         label: "Requerimientos o servicios",
         value
@@ -134322,19 +134419,19 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
         }
       }
     }
-    const dims = parseSpaceDimensions(msg);
-    if (dims && /pista|tarima/i.test(userTexts.join(" "))) {
+    const dimsList = parseAllSpaceDimensions(msg);
+    if (dimsList.length && /pista|tarima|carpa/i.test(userTexts.join(" "))) {
       const reqIdx = captures.findIndex((c5) => c5.label === "Requerimientos o servicios");
       if (reqIdx >= 0) {
-        if (!captures[reqIdx].value.includes(dims)) {
-          const base = captures[reqIdx].value.replace(/\s*\(espacio [^)]+\)/, "").trim();
-          captures[reqIdx].value = `${base} (espacio ${dims})`;
-        }
+        captures[reqIdx].value = attachEspacioToRequirements(
+          captures[reqIdx].value,
+          dimsList
+        );
       } else if (!pending.has("Requerimientos o servicios")) {
-        const service = parsePrimaryService(userTexts.join(" ")) ?? "Pista de baile";
+        const service = parsePrimaryService(userTexts.join(" ")) ?? (/\bcarpa/i.test(msg) ? "Carpas" : "Pista de baile");
         captures.push({
           label: "Requerimientos o servicios",
-          value: `${service} (espacio ${dims})`
+          value: attachEspacioToRequirements(service, dimsList)
         });
         pending.add("Requerimientos o servicios");
       }
@@ -134346,19 +134443,23 @@ function appendSpaceDimensionsToRequerimientos(mergedLines, filledSet, history, 
   const userTexts = collectUserMessages(history, currentMessage);
   const contextText = userTexts.join(" ");
   if (!/pista|tarima|carpa/i.test(contextText)) return;
-  const dims = userTexts.map((t4) => parseSpaceDimensions(t4)).find(Boolean);
-  if (!dims) return;
+  const dimsNow = parseAllSpaceDimensions(currentMessage ?? "");
+  const dims = dimsNow.length > 0 ? dimsNow : parseAllSpaceDimensions(contextText);
+  if (dims.length === 0) return;
   const idx = mergedLines.findIndex((l6) => /^-?\s*Requerimientos o servicios:/i.test(l6));
   if (idx >= 0) {
-    if (!mergedLines[idx].includes(dims)) {
-      const base = mergedLines[idx].replace(/^-?\s*Requerimientos o servicios:\s*/i, "").replace(/\s*\(espacio [^)]+\)/, "").trim();
-      mergedLines[idx] = `- Requerimientos o servicios: ${base} (espacio ${dims})`;
+    const existing = mergedLines[idx].replace(/^-?\s*Requerimientos o servicios:\s*/i, "").trim();
+    const next = attachEspacioToRequirements(existing, dims);
+    if (next !== existing) {
+      mergedLines[idx] = `- Requerimientos o servicios: ${next}`;
     }
     return;
   }
   if (!filledSet.has("Requerimientos o servicios")) {
     const service = parsePrimaryService(contextText) ?? (/\bcarpa/i.test(contextText) ? "Carpas" : "Pista de baile");
-    mergedLines.push(`- Requerimientos o servicios: ${service} (espacio ${dims})`);
+    mergedLines.push(
+      `- Requerimientos o servicios: ${attachEspacioToRequirements(service, dims)}`
+    );
     filledSet.add("Requerimientos o servicios");
   }
 }
@@ -134387,7 +134488,7 @@ function applyCapturesToCrm(mergedLines, filledSet, captures) {
         const merged = mergeServiceRequirements(existing, value, 6);
         const prev = parseServicesFromText(existing).length;
         const next = merged ? parseServicesFromText(merged).length : 0;
-        if (merged && next > prev) {
+        if (merged && (next > prev || serviceRequirementsGainedDimensions(existing, merged))) {
           mergedLines[idx] = `- Requerimientos o servicios: ${merged}`;
         }
       }
@@ -160388,7 +160489,11 @@ ${nextQ}`.trim();
       return `${pickTransition(history)} ${concrete}`.trim();
     }
   }
-  const dims = parseSpaceDimensions(msg) || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null) || collectUserTexts(history, msg).map((t4) => parseSpaceDimensions(t4)).find(Boolean) || null;
+  const dimsList = parseAllSpaceDimensions(msg).length > 0 ? parseAllSpaceDimensions(msg) : parseAllSpaceDimensions(extracted.requerimientos_evento ?? "").length > 0 ? parseAllSpaceDimensions(extracted.requerimientos_evento ?? "") : (() => {
+    const fromHist = collectUserTexts(history, msg).map((t4) => parseAllSpaceDimensions(t4)).find((d3) => d3.length > 0);
+    return fromHist ?? [];
+  })();
+  const dims = dimsList[0] ?? null;
   const variant = parseCarpaVariantFromText(msg);
   const transparent = /transparent/i.test(msg) || /transparent/i.test(variant ?? "");
   const alreadyHasCarpas = /\bcarpas?\b/i.test(extracted.requerimientos_evento ?? "");
@@ -160398,17 +160503,24 @@ ${nextQ}`.trim();
   const asksCapacity = clientAsksCapacityLayout(msg);
   const alsoMobiliario = !asksCapacity && /\bmobiliario\b|\bmesas?\b|\bsillas?\b|\bperiqueras?\b/i.test(msg);
   if (filledSet) filledSet.add("Requerimientos o servicios");
+  const carpaBrief = buildCarpaRequirementsFromText(msg);
   const baseLabel = variant || (transparent ? "Carpas transparentes" : "Carpas");
   const label = alsoMobiliario ? `${baseLabel}, Mobiliario` : baseLabel;
   if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
-    extracted.requerimientos_evento = dims ? `${label} (${dims})` : label;
+    extracted.requerimientos_evento = carpaBrief ? alsoMobiliario ? attachEspacioToRequirements(
+      mergeServiceRequirements(carpaBrief, "Mobiliario", 6) ?? `${carpaBrief}, Mobiliario`,
+      dimsList
+    ) : carpaBrief : dimsList.length ? attachEspacioToRequirements(label, dimsList) : label;
   } else {
-    const merged = mergeServiceRequirements(
-      extracted.requerimientos_evento,
-      dims ? `${label} (${dims})` : label,
-      6
-    );
+    const incoming = carpaBrief ?? (dimsList.length ? attachEspacioToRequirements(label, dimsList) : label);
+    const merged = mergeServiceRequirements(extracted.requerimientos_evento, incoming, 6);
     if (merged) extracted.requerimientos_evento = merged;
+    else if (dimsList.length) {
+      extracted.requerimientos_evento = attachEspacioToRequirements(
+        extracted.requerimientos_evento,
+        dimsList
+      );
+    }
   }
   if (alreadyHasCarpas && alreadyPitched && !variant && !alsoMobiliario) {
     const filledAfter2 = new Set(filledSet ?? []);
@@ -160474,11 +160586,12 @@ ${nextQ}`.trim();
     }
     return `${pickTransition(history)} ${body2}`.trim();
   }
-  if (dims && isDimensionText(msg)) {
+  if (dimsList.length > 0 && isDimensionText(msg)) {
     const filledAfter2 = new Set(filledSet ?? []);
     filledAfter2.add("Requerimientos o servicios");
     const pending2 = getNextPendingField(extracted, filledAfter2);
-    const ack2 = `Perfecto \u2014 anoto medidas *${dims.replace(/m/gi, " m")}* para la carpa.`;
+    const dimsLabel = dimsList.join(" y ").replace(/m/gi, " m");
+    const ack2 = `Perfecto \u2014 anoto medidas *${dimsLabel}* para la carpa.`;
     if (pending2 && pending2 !== "requerimientos" && ctx) {
       const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
       return `${pickTransition(history)} ${ack2}
@@ -162762,13 +162875,31 @@ function applyLucyMessageGuards(input) {
     cierreYaEnviado = false;
     log?.info({ entityId }, "GUARD: V9.36 \u2014 cierre prematuro, se reabre el chat");
   }
-  const dimensionsNow = parseSpaceDimensions(currentMessage ?? "");
-  if (dimensionsNow && (clientMentionsCarpas(extracted.requerimientos_evento ?? "") || clientMentionsPistaTarima(extracted.requerimientos_evento ?? ""))) {
-    const req = extracted.requerimientos_evento?.trim() || "Servicio";
-    if (!parseSpaceDimensions(req)) {
-      extracted.requerimientos_evento = `${req} (espacio ${dimensionsNow})`;
+  const dimensionsNowList = parseAllSpaceDimensions(currentMessage ?? "");
+  if (dimensionsNowList.length > 0 && (clientMentionsCarpas(extracted.requerimientos_evento ?? "") || clientMentionsPistaTarima(extracted.requerimientos_evento ?? "") || clientMentionsCarpas(currentMessage ?? ""))) {
+    const req = extracted.requerimientos_evento?.trim() || "Carpas";
+    const lastAsstForDims = [...presHistory].reverse().find((m6) => m6.role === "assistant");
+    const lucyAskedMedidas = typeof lastAsstForDims?.content === "string" && /medidas|cu[aá]nto mide|largo\s*[×x]\s*ancho|área que quieres cubrir/i.test(
+      lastAsstForDims.content
+    );
+    const shouldAttach = !parseSpaceDimensions(req) || isDimensionText(currentMessage) || lucyAskedMedidas;
+    if (shouldAttach) {
+      extracted.requerimientos_evento = attachEspacioToRequirements(req, dimensionsNowList);
     }
     filledSet.add("Requerimientos o servicios");
+  }
+  if ((clientMentionsCarpas(extracted.requerimientos_evento ?? "") || clientMentionsPistaTarima(extracted.requerimientos_evento ?? "")) && !parseSpaceDimensions(extracted.requerimientos_evento ?? "")) {
+    const histDims = parseAllSpaceDimensions(
+      collectUserTexts(presHistory, currentMessage).join(" ")
+    );
+    if (histDims.length > 0) {
+      extracted.requerimientos_evento = attachEspacioToRequirements(
+        extracted.requerimientos_evento?.trim() || "Carpas",
+        histDims
+      );
+      filledSet.add("Requerimientos o servicios");
+      log?.info({ entityId, histDims }, "GUARD: A15907 \u2014 medidas recuperadas del historial");
+    }
   }
   if (!isFieldSatisfied("nombre", filledSet, extracted)) {
     const recoveredNombre = recoverClienteNombreFromHistory(presHistory, currentMessage);
@@ -162863,14 +162994,14 @@ function applyLucyMessageGuards(input) {
         }
       }
       if (askedEarly === "requerimientos" || lastAsstEarly && /medidas/i.test(lastAsstEarly.content)) {
-        const histDims = collectUserTexts(presHistory, void 0).map((t4) => parseSpaceDimensions(t4)).find(Boolean);
-        if (histDims && /carpa/i.test(extracted.requerimientos_evento ?? "")) {
-          const merged = mergeServiceRequirements(
-            extracted.requerimientos_evento,
-            `Carpas (espacio ${histDims})`,
-            6
+        const histDims = parseAllSpaceDimensions(
+          collectUserTexts(presHistory, void 0).join(" ")
+        );
+        if (histDims.length && /carpa|pista|tarima/i.test(extracted.requerimientos_evento ?? "")) {
+          extracted.requerimientos_evento = attachEspacioToRequirements(
+            extracted.requerimientos_evento ?? "Carpas",
+            histDims
           );
-          if (merged) extracted.requerimientos_evento = merged;
           filledSet.add("Requerimientos o servicios");
         }
       }
@@ -225614,7 +225745,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.81";
+var LUCY_PROMPT_VERSION = "V9.82";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -230647,7 +230778,7 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
       const mergedReq = mergeServiceRequirements(existingReq, currentMessage, 6);
       const prevCount = parseServicesFromText(existingReq).length;
       const nextCount = mergedReq ? parseServicesFromText(mergedReq).length : 0;
-      if (mergedReq && nextCount > prevCount) {
+      if (mergedReq && (nextCount > prevCount || serviceRequirementsGainedDimensions(existingReq, mergedReq))) {
         mergedLines[reqIdx2] = `- Requerimientos o servicios: ${mergedReq}`;
         extracted.requerimientos_evento = mergedReq;
       }
