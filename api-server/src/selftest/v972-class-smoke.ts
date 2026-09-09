@@ -39,7 +39,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.83");
+assert.equal(LUCY_PROMPT_VERSION, "V9.84");
 
 function check(label: string, cond: unknown, detail?: unknown) {
   if (!cond) {

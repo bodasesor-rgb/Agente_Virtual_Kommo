@@ -16,6 +16,37 @@ import {
   extractNumberedNivelFromLastAssistant,
   isTablewareRequestText,
 } from "../conversation-understanding.js";
+import { getCatalogWebUrlForQuery } from "./catalogWebKnowledge.js";
+
+/** Links de mobiliario cuando el cliente aún no eligió pieza (A15917). */
+export function buildBareMobiliarioCatalogLinks(): string {
+  const mesas =
+    getCatalogWebUrlForQuery("mesas y sillas") ||
+    "https://bodasesor.com/catalogos/mesas-y-sillas";
+  const peri =
+    getCatalogWebUrlForQuery("periqueras") ||
+    "https://bodasesor.com/catalogos/salas-y-periqueras";
+  return [
+    `• *Mesas y sillas*: ${mesas}`,
+    `• *Periqueras / salas*: ${peri}`,
+  ].join("\n");
+}
+
+/**
+ * A15917: "solo mobiliario" / "So mobiliario" → ack + pregunta de pieza + ambos catálogos
+ * (nunca el hub genérico solo).
+ */
+export function buildBareMobiliarioOfferBlock(): string {
+  return [
+    "Perfecto — anoto *mobiliario* para tu cotización.",
+    "¿Te gustaría *mesas y sillas*, *periqueras*, o ambas?",
+    "",
+    "Te dejo los catálogos:",
+    buildBareMobiliarioCatalogLinks(),
+    "",
+    "Dime cuál te late y seguimos.",
+  ].join("\n");
+}
 
 /** CTA único para TODAS las ramas (niveles Sheet + menús progresivos). A14982. */
 export const SERVICE_NIVEL_DETAIL_CTA = "¿Quieres que te dé detalles de alguno?";
@@ -460,17 +491,7 @@ const FAMILIES: FamilyDef[] = [
       }
       return "mobiliario";
     },
-    buildMenu: () =>
-      [
-        "Sí, contamos con *mobiliario*. ¿Qué es lo que buscas?",
-        "• Mesas",
-        "• Sillas",
-        "• Periqueras",
-        "• Salas lounge",
-        "También manejamos vajillas, mantelería, entelados y colgantes.",
-        "",
-        "Dime qué pieza te interesa y te paso modelos.",
-      ].join("\n"),
+    buildMenu: () => buildBareMobiliarioOfferBlock(),
   },
 ];
 
@@ -568,6 +589,15 @@ export function buildCateringCasualMenu(): string {
 
 export function isMobiliarioPieceMenuReply(text: string | null | undefined): boolean {
   if (!text?.trim()) return false;
+  // A15917: oferta bare con ambos catálogos.
+  if (
+    /anoto \*mobiliario\*|anoto mobiliario/i.test(text) &&
+    /mesas y sillas/i.test(text) &&
+    /periqueras/i.test(text) &&
+    /bodasesor\.com\/catalogos/i.test(text)
+  ) {
+    return true;
+  }
   // A15642: a veces el encabezado se corta y quedan solo viñetas Mesas/Sillas/Periqueras.
   if (
     /^[•*\-]\s*Mesas\b/im.test(text) &&
@@ -582,7 +612,7 @@ export function isMobiliarioPieceMenuReply(text: string | null | undefined): boo
     ) &&
     /\bmesas\b/i.test(text) &&
     /\bsillas\b/i.test(text) &&
-    /qu[eé] es lo que buscas|qu[eé] pieza|dime qu[eé]|Periqueras/i.test(text)
+    /qu[eé] es lo que buscas|qu[eé] pieza|dime qu[eé]|Periqueras|te gustar[ií]a/i.test(text)
   );
 }
 

@@ -114,6 +114,8 @@ import {
   historyOfferedMobiliarioPieceMenu,
   parseMobiliarioPieceChoice,
   buildMobiliarioPieceFollowUp,
+  buildBareMobiliarioOfferBlock,
+  buildBareMobiliarioCatalogLinks,
 } from "./services/serviceProgressiveOffer.js";
 import {
   buildConcreteProductQuestionReply,
@@ -4666,6 +4668,24 @@ export function buildMappedCatalogOfferBlock(
   ];
   let linked = 0;
   const seenUrls = new Set<string>();
+
+  // A15917: "Mobiliario" suelto → mesas/sillas + periqueras (no hub genérico ni un solo link).
+  const onlyBareMobiliario =
+    list.length === 1 &&
+    /^mobiliario$/i.test(list[0]!) &&
+    !/\b(mesas?|sillas?|periqueras?|lounge)\b/i.test(text);
+  if (onlyBareMobiliario) {
+    return [
+      "Perfecto — anoto *mobiliario*.",
+      "¿Te gustaría *mesas y sillas*, *periqueras*, o ambas?",
+      "",
+      "Te dejo los catálogos:",
+      buildBareMobiliarioCatalogLinks(),
+      "",
+      "Dime cuál te late y seguimos.",
+    ].join("\n");
+  }
+
   for (const svc of list) {
     let query = svc;
     let label = svc;
@@ -5100,7 +5120,7 @@ export function looksLikeDeadEndAck(mensaje: string): boolean {
 
 /** Pedido mínimo (ej. solo mesa y sillas) → ofrecer 1-2 complementos UNA vez. */
 const MINIMAL_SERVICE_PATTERN =
-  /\b(solo\s+)?(mesas?\s+y\s+sillas?|sillas?\s+y\s+mesas?|renta\s+de\s+(mesas?|sillas?)|solo\s+(mesas?|sillas?|mobiliario))\b/i;
+  /\b((?:solo|so)\s+)?(mesas?\s+y\s+sillas?|sillas?\s+y\s+mesas?|renta\s+de\s+(mesas?|sillas?)|(?:solo|so)\s+(mesas?|sillas?|mobiliario))\b/i;
 
 function historyAlreadyOfferedComplements(
   history: OpenAI.Chat.ChatCompletionMessageParam[]
@@ -5116,7 +5136,17 @@ function historyAlreadyOfferedComplements(
 }
 
 export function looksLikeMinimalServiceAsk(text: string | null | undefined): boolean {
-  return !!text && MINIMAL_SERVICE_PATTERN.test(text);
+  if (!text) return false;
+  // A15917: "solo/so mobiliario" sin pieza → menú de pieza, no soft complement de mesas/sillas.
+  if (
+    /\b(?:solo|so)\s+mobiliario\b/i.test(text) &&
+    !/\b(mesas?\s+y\s+sillas?|sillas?\s+y\s+mesas?|mesas?|sillas?|periqueras?)\b/i.test(
+      text.replace(/\b(?:solo|so)\s+mobiliario\b/gi, " ")
+    )
+  ) {
+    return false;
+  }
+  return MINIMAL_SERVICE_PATTERN.test(text);
 }
 
 /** Ofrece 1-2 complementos acordes al evento, sin forzar. Null si ya se ofreció o no aplica. */
@@ -8432,6 +8462,27 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId, guests }, "GUARD: A15903 — cliente cuestiona mínimo de personas");
   } else if (
+    // A15917: "So/Solo mobiliario" → pieza + ambos catálogos (antes del soft complement).
+    allowSalesReplyOverride &&
+    !cierreYaEnviado &&
+    /\b(?:solo|so)\s+mobiliario\b|^mobiliario$/i.test((currentMessage ?? "").trim()) &&
+    !/\b(mesas?|sillas?|periqueras?|lounge)\b/i.test(currentMessage ?? "") &&
+    !shouldSkipSalesMenuForConcreteQuestion(currentMessage)
+  ) {
+    filledSet.add("Requerimientos o servicios");
+    extracted.requerimientos_evento =
+      mergeServiceRequirements(extracted.requerimientos_evento, "Mobiliario", 6) ||
+      "Mobiliario";
+    mensaje = mergeWithPendingQuestion(
+      `${pickTransition(presHistory)} ${buildBareMobiliarioOfferBlock()}`.trim(),
+      filledSet,
+      extracted,
+      ctx
+    );
+    appliedSalesReply = true;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A15917 — solo mobiliario → pieza + ambos catálogos");
+  } else if (
     (justAnsweredReq || looksLikeMinimalServiceAsk(currentMessage)) &&
     !cierreYaEnviado &&
     isFieldSatisfied("nombre", filledSet, extracted) &&
@@ -8444,7 +8495,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ =
       pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
-    mensaje = nextQ ? `${soft} ${nextQ}` : soft;
+    mensaje = nextQ ? `${soft}\n\n${nextQ}` : soft;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: pedido mínimo — ofrecer complementos una vez");
   } else if (clientAsksLocation(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
@@ -8947,17 +8998,24 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     } else {
       const body =
         piece === "mobiliario"
-          ? buildProgressiveOptionsMenu("mobiliario")
+          ? buildBareMobiliarioOfferBlock()
           : buildMobiliarioPieceFollowUp(piece);
-      const catalogUrl =
-        getCatalogWebUrlForQuery("mesas y sillas") ||
-        getCatalogWebHubDeliveryUrl();
+      // Pieza concreta: un catálogo; bare mobiliario ya trae ambos links en el body.
       const withLink =
-        catalogUrl && !/bodasesor\.com\/catalogos/i.test(body)
-          ? `${body}\n\nCatálogo de mesas y sillas:\n${catalogUrl}`
-          : body;
+        piece === "mobiliario"
+          ? body
+          : (() => {
+              const catalogUrl =
+                (piece === "periqueras" || piece === "salas lounge"
+                  ? getCatalogWebUrlForQuery("periqueras")
+                  : getCatalogWebUrlForQuery("mesas y sillas")) ||
+                getCatalogWebHubDeliveryUrl();
+              return catalogUrl && !/bodasesor\.com\/catalogos/i.test(body)
+                ? `${body}\n\nCatálogo:\n${catalogUrl}`
+                : body;
+            })();
       mensaje = mergeWithPendingQuestion(
-        `${pickTransition(presHistory)} ${withLink}`,
+        `${pickTransition(presHistory)} ${withLink}`.trim(),
         filledSet,
         extracted,
         ctx
@@ -10822,6 +10880,35 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = dedupeCatalogUrlsInMessage(mensaje);
+
+  // A15917: hub genérico solo / URL pegada ≠ oferta de mobiliario.
+  // Si el cliente pidió mobiliario sin pieza, forzar menú + ambos catálogos.
+  {
+    const msgMob = currentMessage ?? "";
+    const reqMob = extracted.requerimientos_evento ?? "";
+    const bareMobAsk =
+      /\b(so(lo)?\s+)?mobiliario\b/i.test(msgMob) &&
+      !/\b(mesas?|sillas?|periqueras?|lounge)\b/i.test(msgMob);
+    const crmBareMob =
+      /^mobiliario$/i.test(reqMob.trim()) ||
+      (/^mobiliario\b/i.test(reqMob) && !/\b(mesas?|sillas?|periqueras?)\b/i.test(reqMob));
+    const looksLikeHubOnly =
+      /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos\/?(?:\s|$)/i.test(mensaje.trim()) ||
+      (/Te dejo el catálogo general/i.test(mensaje) &&
+        !/mesas-y-sillas|salas-y-periqueras/i.test(mensaje));
+    if (
+      !cierreYaEnviado &&
+      (bareMobAsk || crmBareMob) &&
+      (looksLikeHubOnly ||
+        (!/mesas-y-sillas/i.test(mensaje) &&
+          !/salas-y-periqueras/i.test(mensaje) &&
+          /bodasesor\.com\/catalogos\/?(?:\s|\?|$)/i.test(mensaje)))
+    ) {
+      const offer = buildBareMobiliarioOfferBlock();
+      mensaje = mergeWithPendingQuestion(offer, filledSet, extracted, ctx);
+      log?.info({ entityId }, "GUARD: A15917 — mobiliario bare → pieza + ambos catálogos");
+    }
+  }
 
   // A15910: reafirmar acote "solo X" al final (tras ramas de ventas que podrían re-sumar SKUs).
   {
