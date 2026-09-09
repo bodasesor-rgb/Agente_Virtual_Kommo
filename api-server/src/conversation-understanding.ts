@@ -2186,7 +2186,7 @@ const MONTH_PATTERN =
 
 /** Lexicón único de ciudad/metro MX — parsers, zona y anti-nombre (clase A15701+/A15775+). */
 const KNOWN_ZONES =
-  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|zapopan|tlaquepaque|san\s+pedro\s+tlaquepaque|tonal[aá]|tlajomulco(\s+de\s+z[uú][nñ]iga)?|el\s+salto|chapala|ajijic|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita|jalisco|huasca(\s+de\s+ocampo)?|real\s+del\s+monte|mineral\s+del\s+chico|tequisquiapan|bernal|taxco|tulancingo|actopan|ixmiquilpan|tepeji|amealco|tula(\s+de\s+allende)?)\b/i;
+  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|zapopan|tlaquepaque|san\s+pedro\s+tlaquepaque|tonal[aá]|tlajomulco(\s+de\s+z[uú][nñ]iga)?|el\s+salto|chapala|ajijic|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|teoloyucan|cuautitl[aá]n(\s+izcalli)?|zumpango|huehuetoca|coyotepec|tultepec|tultitl[aá]n|coacalco|tec[aá]mac|nextlalpan|tonanitla|jilotepec|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita|jalisco|huasca(\s+de\s+ocampo)?|real\s+del\s+monte|mineral\s+del\s+chico|tequisquiapan|bernal|taxco|tulancingo|actopan|ixmiquilpan|tepeji|amealco|tula(\s+de\s+allende)?)\b/i;
 
 /** `\b` de JS no trata á/é como letra — probar también sin diacríticos (Tonalá, León…). */
 function matchesKnownZone(text: string): boolean {
@@ -2221,7 +2221,7 @@ export function looksLikeMxMunicipalityToponym(text: string | null | undefined):
   const bare = t.normalize("NFD").replace(/\p{M}/gu, "");
   if (
     !/\b(de|del|de\s+los|de\s+las|de\s+la)\b/i.test(bare) &&
-    !/\b(huasca|tequisquiapan|bernal|taxco|tulancingo|zacatl[aá]n|amealco|tepeji|actopan|ixmiquilpan|tula|pachuca)\b/i.test(
+    !/\b(huasca|tequisquiapan|bernal|taxco|tulancingo|zacatl[aá]n|amealco|tepeji|actopan|ixmiquilpan|tula|pachuca|teoloyucan|cuautitl[aá]n|zumpango|huehuetoca|coyotepec|tultepec|tultitl[aá]n|coacalco|tec[aá]mac)\b/i.test(
       bare
     )
   ) {
@@ -2965,6 +2965,39 @@ export function clientWantsFoodOnlyQuote(text: string | null | undefined): boole
   );
 }
 
+/**
+ * A15910: "Sería solo cotizar la mesa de dulces" / "solo la mesa de dulces"
+ * → SKU único (quita Banquete Formal u otros del CRM).
+ */
+export function clientNarrowsToOnlyService(text: string | null | undefined): string | null {
+  const t = text?.trim() ?? "";
+  if (!t) return null;
+  if (!/\b(solo|solamente|[uú]nicamente)\b/i.test(t)) return null;
+  // Evitar "solo alimentos/comida" genérico (ya cubierto por clientWantsFoodOnlyQuote).
+  if (clientWantsFoodOnlyQuote(t) && !/\bmesa\s+de\s+dulces\b/i.test(t)) return null;
+  const narrowIntent =
+    /\b(cotizar|cotizaci[oó]n|quiero|necesito|ser[ií]a|dejamos?|quedamos?|anota)\b/i.test(t) ||
+    /\bsolo\s+(la\s+|el\s+|una\s+)?(mesa\s+de\s+dulces|banquete|taquiza|carpa|pista|barra)/i.test(t);
+  if (!narrowIntent) return null;
+  if (/\bmesa\s+de\s+dulces\b/i.test(t)) return "Mesa de dulces";
+  if (/\bmesa\s+de\s+postres?\b/i.test(t)) return "Mesa de postres";
+  const fromMsg = parseServicesFromText(t).filter(
+    (s) => !/^(Comida|Alimentos|Evento|Servicio)$/i.test(s)
+  );
+  if (fromMsg.length === 1) return fromMsg[0]!;
+  if (fromMsg.length > 1) {
+    // Preferir el servicio nombrado tras "solo …"
+    const afterSolo = t.match(
+      /\b(?:solo|solamente|[uú]nicamente)\s+(?:cotizar\s+)?(?:la\s+|el\s+|una\s+)?(.+?)(?:\s+para\s+\d|\s*$)/i
+    )?.[1];
+    if (afterSolo) {
+      const hit = parseServicesFromText(afterSolo);
+      if (hit.length === 1) return hit[0]!;
+    }
+  }
+  return null;
+}
+
 /** Une servicios de un texto con los ya capturados (hasta max). */
 /** Etiquetas de comida de tiempos (plato servido) que un cambio a snacks retira. */
 const PLATED_MEAL_LABEL_RE = /^(banquete(\s+\w+)?|comida|men[uú].*tiempos?|tres\s+tiempos)$/i;
@@ -3523,6 +3556,15 @@ export function isSimpleClockTime(text: string | null | undefined): boolean {
   ) {
     return true;
   }
+  // A15910: "después de las 3" / "después de las 3 de la tarde"
+  if (
+    new RegExp(
+      String.raw`^despu[eé]s\s+de\s+(?:las\s+)?${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?\s*(?:${CLOCK_AMPM})?$`,
+      "i"
+    ).test(t)
+  ) {
+    return true;
+  }
   // A15815: "De 6:30pm" / "de las 6:30 pm" (= inicio; exige am/pm para no confundir con día del mes).
   if (
     new RegExp(
@@ -3885,6 +3927,16 @@ export function parseHorarioFromText(text: string): string | null {
   if (desdeLas?.[1]) {
     return normalizeHorarioCapture(desdeLas[1]);
   }
+  // A15910: "después de las 3" / "Sería después de las 3 de la tarde"
+  const despuesDe = clean.match(
+    new RegExp(
+      String.raw`\b(despu[eé]s\s+de\s+(?:las\s+)?${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (despuesDe?.[1]) {
+    return normalizeHorarioCapture(despuesDe[1]);
+  }
 
   const aLasPhrase = clean.match(
     new RegExp(
@@ -4022,6 +4074,8 @@ export function isUsableHorarioEvento(value: string | null | undefined): boolean
   if (/pendiente/i.test(t) && /sin\s+definir|por\s+definir/i.test(t)) return true;
   // A15566: frases "a partir de las…" / rangos con am/pm ya normalizados.
   if (/\ba\s+partir\s+de\s+(?:las\s+)?\d/i.test(t)) return true;
+  // A15910: "después de las 3…"
+  if (/\bdespu[eé]s\s+de\s+(?:las\s+)?\d/i.test(t)) return true;
   // A15627: "a la 1" / "alrededor de la 1"
   if (/\b(?:alrededor\s+de\s+)?(?:a\s+)?la\s+\d{1,2}\b/i.test(t)) return true;
   if (isClockTimeOnlySchedule(t)) return true;
@@ -5179,6 +5233,21 @@ export function parseZonaFromText(text: string): string | null {
     const m = trimmed.match(KNOWN_ZONES);
     if (m && isUsableDireccionEvento(m[0]!.trim())) {
       const city = m[0]!.trim();
+      // A15910: "Teoloyucan estado de México…" → conservar municipio + estado.
+      if (/estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x/i.test(city) && m.index != null && m.index > 0) {
+        const before = trimmed.slice(0, m.index).trim();
+        const muni = before.match(
+          /(?:^|[\s,])([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ]{3,})\s*$/i
+        )?.[1];
+        if (
+          muni &&
+          !NON_LOCATION_WORDS.test(muni) &&
+          !/^(y|el|la|en|de|del|para|con|ser[ií]a|aun|a[uú]n|no|se|sabe)\b/i.test(muni)
+        ) {
+          const composedMuni = mergeZonaDetail(muni, city);
+          if (composedMuni && isUsableDireccionEvento(composedMuni)) return composedMuni;
+        }
+      }
       const venue = extractVenueNameHint(trimmed);
       if (venue && !KNOWN_ZONES.test(venue) && !hasCityOrMetroSignal(venue)) {
         const composed = mergeZonaDetail(venue, city);
@@ -5890,6 +5959,18 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
       trimmed
     )
   ) {
+    // A15910: "aún no se sabe el salón" ≠ rechazo de presupuesto.
+    if (
+      opts?.askedField !== "presupuesto" &&
+      !/\b(presupuesto|inversi[oó]n|cu[aá]nto\s+(?:puedo|pueden|tenemos)\s+gastar)\b/i.test(
+        trimmed
+      ) &&
+      /\b(sal[oó]n|venue|lugar|sede|ubicaci[oó]n|direcci[oó]n|colonia|jard[ií]n|casa|hotel|hacienda)\b/i.test(
+        trimmed
+      )
+    ) {
+      return null;
+    }
     return "Sin definir (cliente indicó que no tiene)";
   }
 

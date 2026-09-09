@@ -48,7 +48,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
 const closing = (svc: string | null, nombre: string | null) =>
   `Perfecto, ya tengo todo${nombre ? `, ${nombre}` : ""}. Le paso ${svc ?? "tu evento"} al equipo.`;
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.82");
+assert.equal(LUCY_PROMPT_VERSION, "V9.83");
 
 // 1) Un número suelto no es hora si no cabe en el reloj; "55" tras invitados es aforo.
 {

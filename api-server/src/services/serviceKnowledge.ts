@@ -126,10 +126,13 @@ export function parseMobiliarioRentItems(
     });
   }
   // Mesas genéricas solo si no hay picnic ya listado.
+  // A15910: "mesa de dulces/postres/quesos" ≠ renta de mesas (mobiliario).
   if (
     !items.some((i) => /picnic/i.test(i.label)) &&
     /\bmesas?\b/i.test(query) &&
-    !/\bmesas?\s+periqueras?\b/i.test(query)
+    !/\bmesas?\s+periqueras?\b/i.test(query) &&
+    !/\bmesas?\s+de\s+(dulces?|postres?|quesos?|botanas?|antojitos?|imperial)\b/i.test(query) &&
+    !/\bcentros?\s+de\s+mesas?\b/i.test(query)
   ) {
     const mesas = query.match(/(\d+)\s*mesas?\b/i);
     if (mesas || /\bmesas?\b/i.test(query)) {
@@ -150,6 +153,13 @@ function formatMobiliarioItem(item: { qty: number | null; label: string }): stri
  * V8.92: solo "mobiliario" → null (el menú progresivo pregunta la pieza primero).
  */
 export function buildMobiliarioRentDetailReply(query: string): string | null {
+  // A15910: mesa de dulces/postres ≠ mobiliario (mesas y sillas).
+  if (
+    /\bmesas?\s+de\s+(dulces?|postres?|quesos?|botanas?|antojitos?)\b/i.test(query) &&
+    !/\b(sillas?|periqueras?|mobiliario|lounge)\b/i.test(query)
+  ) {
+    return null;
+  }
   if (
     !/\b(mesas?|sillas?|mobiliario|periquera|lounge|picnic|bancos?)\b/i.test(query)
   ) {
@@ -246,6 +256,16 @@ export function buildGuardServiceAck(query: string): string {
     return (
       `¡Claro! Anoto${labelQty} (decoración floral) para tu cotización. ` +
       "Nuestro equipo te confirma estilos, precio e inclusiones según tu referencia."
+    );
+  }
+
+  // A15910: mesa de dulces/postres ≠ renta de mesas/sillas.
+  if (/\bmesas?\s+de\s+(dulces?|postres?|quesos?)\b/i.test(query) || /mesa\s+de\s+dulces/i.test(label)) {
+    const guests = query.match(/\b(\d{2,4})\s*(?:personas?|invitados?|pax)?\b/i)?.[1];
+    const scale = guests ? ` para *${guests}* personas` : "";
+    return (
+      `¡Claro! Anoto *mesa de dulces*${scale} para tu cotización. ` +
+      "Nuestro equipo arma la propuesta según estilo y cantidad."
     );
   }
 

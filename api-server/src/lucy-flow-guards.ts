@@ -157,6 +157,7 @@ import {
   clientDeclinesMoreServices,
   clientSoftDeclinesLead,
   clientWantsFoodOnlyQuote,
+  clientNarrowsToOnlyService,
   dedupeServiceHierarchy,
   looksLikeConflictingFoodAlternatives,
   preferPrimaryCatalogService,
@@ -3048,6 +3049,10 @@ export function buildOpeningAcknowledgment(
   if (isGettingReadyContext(userText)) return "Te ayudo con el catering para el getting ready.";
   // (isVagueFoodTerm se evalúa más arriba, antes de "me interesa cotizar")
   if (/\b(mesas?|sillas?|periqueras?|mobiliario|salas?\s*(lounge)?)\b/i.test(t)) {
+    // A15910: mesa de dulces ≠ mobiliario.
+    if (/\bmesas?\s+de\s+(dulces?|postres?|quesos?)\b/i.test(t)) {
+      return "Con gusto te ayudo con la mesa de dulces para tu evento.";
+    }
     if (/periqueras?/.test(t)) return "Te ayudo con la renta de periqueras y mesas tipo bar.";
     if (/salas?/.test(t)) return "Te ayudo con salas lounge y mobiliario para tu evento.";
     return "Te ayudo con la renta de mesas, sillas y mobiliario.";
@@ -7116,7 +7121,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
   const furnitureSkuTurn =
-    parseFurnitureCatalogSkuFromText(currentMessage ?? "") ||
+    (!/\bmesas?\s+de\s+(dulces?|postres?|quesos?)\b/i.test(currentMessage ?? "")
+      ? parseFurnitureCatalogSkuFromText(currentMessage ?? "")
+      : null) ||
     parseSalaProductFromText(currentMessage ?? "");
   if (furnitureSkuTurn) {
     extracted.requerimientos_evento = mergeServiceRequirements(
@@ -7125,6 +7132,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       6
     );
     if (extracted.requerimientos_evento) filledSet.add("Requerimientos o servicios");
+  }
+  // A15910: "Sería solo cotizar la mesa de dulces" → quitar Banquete/Mobiliario al final.
+  {
+    const onlySku = clientNarrowsToOnlyService(currentMessage);
+    if (onlySku) {
+      extracted.requerimientos_evento = onlySku;
+      filledSet.add("Requerimientos o servicios");
+      log?.info({ entityId, onlySku }, "GUARD: A15910 — servicios acotados a un solo SKU");
+    }
   }
 
   // Tras un menú / "¿otro servicio?", si el cliente ya nombró algo, no reabrir requisitos.
@@ -8854,7 +8870,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (
     // V8.92 / A15165 / A15642: menú de piezas mobiliario → modelos (también post-cierre).
     // Incluye "Mesas, sillas, plato trinche" aunque Lucy haya abierto menú de alimentos por error.
+    // A15910: mesa de dulces/postres ≠ piezas de mobiliario.
     allowSalesReplyOverride &&
+    !/\bmesas?\s+de\s+(dulces?|postres?|quesos?)\b/i.test(currentMessage ?? "") &&
     !shouldSkipSalesMenuForConcreteQuestion(currentMessage) &&
     !clientAsksForCatalog(currentMessage) &&
     !isEventTypeMealPhrase(currentMessage) &&
@@ -10038,7 +10056,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = stripRepeatLucyIntro(
       mensaje,
       presHistory,
-      conversationAlreadyStarted(filledSet, presHistory)
+      conversationAlreadyStarted(filledSet, presHistory) ||
+        funnelHasSubstance(filledSet, extracted)
     );
     return normalizeAdvisorReferences(mensaje, extracted.nombre);
   }
@@ -10065,6 +10084,27 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     funnelHasSubstance(filledSet, extracted)
   ) {
     mensaje = stripRepeatLucyIntro(mensaje, presHistoryForIntro, true);
+  }
+
+  // A15910: "¿Te gustaría más detalles…? Quedo atenta" no cierra ni avanza embudo.
+  if (
+    !cierreYaEnviado &&
+    /\b(quedo\s+atenta|te\s+gustar[ií]a\s+que\s+te\s+(d[eé]|compart[aá])\s+m[aá]s\s+detalles|si\s+necesitas\s+algo\s+m[aá]s)\b/i.test(
+      mensaje
+    ) &&
+    !/ya\s+tengo\s+todo|paso\s+(estos\s+)?datos|listo\s+para\s+cotizar/i.test(mensaje)
+  ) {
+    const pendingSoft = getNextPendingField(extracted, filledSet);
+    if (pendingSoft) {
+      mensaje = buildNaturalQuestion(pendingSoft, ctx);
+      log?.info({ entityId, pendingSoft }, "GUARD: A15910 — soft-exit reemplazado por embudo");
+    } else if (isReadyForClosing(filledSet)) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: A15910 — soft-exit reemplazado por cierre");
+    }
   }
 
   const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
@@ -10782,6 +10822,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = dedupeCatalogUrlsInMessage(mensaje);
+
+  // A15910: reafirmar acote "solo X" al final (tras ramas de ventas que podrían re-sumar SKUs).
+  {
+    const onlySkuFinal = clientNarrowsToOnlyService(currentMessage);
+    if (onlySkuFinal) {
+      extracted.requerimientos_evento = onlySkuFinal;
+      filledSet.add("Requerimientos o servicios");
+    }
+  }
 
   // Invariante final: ninguna rama puede cerrar carpas/pistas/tarimas sin medidas.
   if (

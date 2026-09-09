@@ -131905,7 +131905,7 @@ function looksLikeMxMunicipalityToponym(text2) {
     return false;
   }
   const bare = t4.normalize("NFD").replace(/\p{M}/gu, "");
-  if (!/\b(de|del|de\s+los|de\s+las|de\s+la)\b/i.test(bare) && !/\b(huasca|tequisquiapan|bernal|taxco|tulancingo|zacatl[aá]n|amealco|tepeji|actopan|ixmiquilpan|tula|pachuca)\b/i.test(
+  if (!/\b(de|del|de\s+los|de\s+las|de\s+la)\b/i.test(bare) && !/\b(huasca|tequisquiapan|bernal|taxco|tulancingo|zacatl[aá]n|amealco|tepeji|actopan|ixmiquilpan|tula|pachuca|teoloyucan|cuautitl[aá]n|zumpango|huehuetoca|coyotepec|tultepec|tultitl[aá]n|coacalco|tec[aá]mac)\b/i.test(
     bare
   )) {
     return false;
@@ -132348,6 +132348,30 @@ function clientWantsFoodOnlyQuote(text2) {
     t4
   ) || /\bsolo\s+(los\s+)?(antojitos?|puestos?(\s+de\s+comida)?)\b/i.test(t4);
 }
+function clientNarrowsToOnlyService(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return null;
+  if (!/\b(solo|solamente|[uú]nicamente)\b/i.test(t4)) return null;
+  if (clientWantsFoodOnlyQuote(t4) && !/\bmesa\s+de\s+dulces\b/i.test(t4)) return null;
+  const narrowIntent = /\b(cotizar|cotizaci[oó]n|quiero|necesito|ser[ií]a|dejamos?|quedamos?|anota)\b/i.test(t4) || /\bsolo\s+(la\s+|el\s+|una\s+)?(mesa\s+de\s+dulces|banquete|taquiza|carpa|pista|barra)/i.test(t4);
+  if (!narrowIntent) return null;
+  if (/\bmesa\s+de\s+dulces\b/i.test(t4)) return "Mesa de dulces";
+  if (/\bmesa\s+de\s+postres?\b/i.test(t4)) return "Mesa de postres";
+  const fromMsg = parseServicesFromText(t4).filter(
+    (s7) => !/^(Comida|Alimentos|Evento|Servicio)$/i.test(s7)
+  );
+  if (fromMsg.length === 1) return fromMsg[0];
+  if (fromMsg.length > 1) {
+    const afterSolo = t4.match(
+      /\b(?:solo|solamente|[uú]nicamente)\s+(?:cotizar\s+)?(?:la\s+|el\s+|una\s+)?(.+?)(?:\s+para\s+\d|\s*$)/i
+    )?.[1];
+    if (afterSolo) {
+      const hit = parseServicesFromText(afterSolo);
+      if (hit.length === 1) return hit[0];
+    }
+  }
+  return null;
+}
 function clientSwapsPlatedMealForSnacks(text2) {
   const t4 = text2?.trim() ?? "";
   if (!t4) return false;
@@ -132688,6 +132712,12 @@ function isSimpleClockTime(text2) {
     return true;
   }
   if (new RegExp(
+    String.raw`^despu[eé]s\s+de\s+(?:las\s+)?${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t4)) {
+    return true;
+  }
+  if (new RegExp(
     String.raw`^de\s+(?:las?\s+)?${CLOCK_TOKEN}\s*${CLOCK_AMPM}$`,
     "i"
   ).test(t4)) {
@@ -132908,6 +132938,15 @@ function parseHorarioFromText(text2) {
   if (desdeLas?.[1]) {
     return normalizeHorarioCapture(desdeLas[1]);
   }
+  const despuesDe = clean.match(
+    new RegExp(
+      String.raw`\b(despu[eé]s\s+de\s+(?:las\s+)?${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (despuesDe?.[1]) {
+    return normalizeHorarioCapture(despuesDe[1]);
+  }
   const aLasPhrase = clean.match(
     new RegExp(
       String.raw`^a\s+las?\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?)\s*(?:${CLOCK_AMPM})?$`,
@@ -133002,6 +133041,7 @@ function isUsableHorarioEvento(value) {
   if (/^sin\s+definir/i.test(t4)) return true;
   if (/pendiente/i.test(t4) && /sin\s+definir|por\s+definir/i.test(t4)) return true;
   if (/\ba\s+partir\s+de\s+(?:las\s+)?\d/i.test(t4)) return true;
+  if (/\bdespu[eé]s\s+de\s+(?:las\s+)?\d/i.test(t4)) return true;
   if (/\b(?:alrededor\s+de\s+)?(?:a\s+)?la\s+\d{1,2}\b/i.test(t4)) return true;
   if (isClockTimeOnlySchedule(t4)) return true;
   if (isMealTimeOnlySchedule(t4)) return true;
@@ -133710,6 +133750,16 @@ function parseZonaFromText(text2) {
     const m6 = trimmed.match(KNOWN_ZONES);
     if (m6 && isUsableDireccionEvento(m6[0].trim())) {
       const city = m6[0].trim();
+      if (/estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x/i.test(city) && m6.index != null && m6.index > 0) {
+        const before = trimmed.slice(0, m6.index).trim();
+        const muni = before.match(
+          /(?:^|[\s,])([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ]{3,})\s*$/i
+        )?.[1];
+        if (muni && !NON_LOCATION_WORDS.test(muni) && !/^(y|el|la|en|de|del|para|con|ser[ií]a|aun|a[uú]n|no|se|sabe)\b/i.test(muni)) {
+          const composedMuni = mergeZonaDetail(muni, city);
+          if (composedMuni && isUsableDireccionEvento(composedMuni)) return composedMuni;
+        }
+      }
       const venue = extractVenueNameHint(trimmed);
       if (venue && !KNOWN_ZONES.test(venue) && !hasCityOrMetroSignal(venue)) {
         const composed2 = mergeZonaDetail(venue, city);
@@ -134104,6 +134154,13 @@ function parsePresupuestoFromText(text2, opts) {
   if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones|todav[ií]a\s+no|despu[eé]s\s+vemos)\b/i.test(
     trimmed
   )) {
+    if (opts?.askedField !== "presupuesto" && !/\b(presupuesto|inversi[oó]n|cu[aá]nto\s+(?:puedo|pueden|tenemos)\s+gastar)\b/i.test(
+      trimmed
+    ) && /\b(sal[oó]n|venue|lugar|sede|ubicaci[oó]n|direcci[oó]n|colonia|jard[ií]n|casa|hotel|hacienda)\b/i.test(
+      trimmed
+    )) {
+      return null;
+    }
     return "Sin definir (cliente indic\xF3 que no tiene)";
   }
   if (parseFechaFromText(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b)/i.test(trimmed)) {
@@ -134924,7 +134981,7 @@ var init_conversation_understanding = __esm({
       quinientos: "500"
     };
     MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
-    KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|zapopan|tlaquepaque|san\s+pedro\s+tlaquepaque|tonal[aá]|tlajomulco(\s+de\s+z[uú][nñ]iga)?|el\s+salto|chapala|ajijic|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita|jalisco|huasca(\s+de\s+ocampo)?|real\s+del\s+monte|mineral\s+del\s+chico|tequisquiapan|bernal|taxco|tulancingo|actopan|ixmiquilpan|tepeji|amealco|tula(\s+de\s+allende)?)\b/i;
+    KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|zapopan|tlaquepaque|san\s+pedro\s+tlaquepaque|tonal[aá]|tlajomulco(\s+de\s+z[uú][nñ]iga)?|el\s+salto|chapala|ajijic|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|teoloyucan|cuautitl[aá]n(\s+izcalli)?|zumpango|huehuetoca|coyotepec|tultepec|tultitl[aá]n|coacalco|tec[aá]mac|nextlalpan|tonanitla|jilotepec|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita|jalisco|huasca(\s+de\s+ocampo)?|real\s+del\s+monte|mineral\s+del\s+chico|tequisquiapan|bernal|taxco|tulancingo|actopan|ixmiquilpan|tepeji|amealco|tula(\s+de\s+allende)?)\b/i;
     NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
     VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue)\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.'-]{1,48})/i;
     JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
@@ -135715,12 +135772,12 @@ function resolveCatalogWebSlug(query) {
   const t4 = query.trim().toLowerCase();
   const urlMatch = t4.match(/bodasesor\.com\/catalogos\/([a-z0-9-]+)/i);
   if (urlMatch?.[1]) return urlMatch[1];
-  if (/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(t4)) {
+  if (/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(t4) || /\bmesas?\s+de\s+(dulces?|postres?|quesos?)\b/i.test(t4)) {
     return null;
   }
   const aliases = [
-    // "mesas?" no debe matchear dentro de "centros de mesa" (ya filtrado arriba).
-    [/\b(mesas?\s*y\s*sillas?|sillas?|(?<!centros?\s+de\s+)mesas?|mobiliario|mobilairio)\b/i, "mesas-y-sillas"],
+    // "mesas?" no debe matchear dentro de "centros de mesa" / "mesa de dulces" (ya filtrado arriba).
+    [/\b(mesas?\s*y\s*sillas?|sillas?|(?<!centros?\s+de\s+)(?<!mesa\s+de\s+)mesas?|mobiliario|mobilairio)\b/i, "mesas-y-sillas"],
     [/\b(salas?|periqueras?|lounge)\b/i, "salas-y-periqueras"],
     [/\b(audio|iluminaci[oó]n|video|dj|sonido)\b/i, "audio-iluminacion-y-video"],
     [/\bbanquetes?\b/i, "banquete-formal"]
@@ -136876,7 +136933,7 @@ function parseMobiliarioRentItems(query) {
       label: "sillas"
     });
   }
-  if (!items.some((i6) => /picnic/i.test(i6.label)) && /\bmesas?\b/i.test(query) && !/\bmesas?\s+periqueras?\b/i.test(query)) {
+  if (!items.some((i6) => /picnic/i.test(i6.label)) && /\bmesas?\b/i.test(query) && !/\bmesas?\s+periqueras?\b/i.test(query) && !/\bmesas?\s+de\s+(dulces?|postres?|quesos?|botanas?|antojitos?|imperial)\b/i.test(query) && !/\bcentros?\s+de\s+mesas?\b/i.test(query)) {
     const mesas = query.match(/(\d+)\s*mesas?\b/i);
     if (mesas || /\bmesas?\b/i.test(query)) {
       items.push({
@@ -136891,6 +136948,9 @@ function formatMobiliarioItem(item) {
   return item.qty && item.qty > 0 ? `${item.qty} ${item.label}` : item.label;
 }
 function buildMobiliarioRentDetailReply(query) {
+  if (/\bmesas?\s+de\s+(dulces?|postres?|quesos?|botanas?|antojitos?)\b/i.test(query) && !/\b(sillas?|periqueras?|mobiliario|lounge)\b/i.test(query)) {
+    return null;
+  }
   if (!/\b(mesas?|sillas?|mobiliario|periquera|lounge|picnic|bancos?)\b/i.test(query)) {
     return null;
   }
@@ -136957,6 +137017,11 @@ function buildGuardServiceAck(query) {
     const qty = query.match(/\b(\d{1,3})\b/)?.[1];
     const labelQty = qty ? ` *${qty}* centros de mesa` : " *centros de mesa*";
     return `\xA1Claro! Anoto${labelQty} (decoraci\xF3n floral) para tu cotizaci\xF3n. Nuestro equipo te confirma estilos, precio e inclusiones seg\xFAn tu referencia.`;
+  }
+  if (/\bmesas?\s+de\s+(dulces?|postres?|quesos?)\b/i.test(query) || /mesa\s+de\s+dulces/i.test(label)) {
+    const guests = query.match(/\b(\d{2,4})\s*(?:personas?|invitados?|pax)?\b/i)?.[1];
+    const scale = guests ? ` para *${guests}* personas` : "";
+    return `\xA1Claro! Anoto *mesa de dulces*${scale} para tu cotizaci\xF3n. Nuestro equipo arma la propuesta seg\xFAn estilo y cantidad.`;
   }
   if (/\bpizzas?\b/i.test(query) && /\b(hacen|preparan|cocinan|montan|sirven|elaboran|en\s+el\s+evento|en\s+vivo)\b/i.test(query)) {
     return "S\xED: la *barra de pizzas* se monta en tu evento y se preparan al momento (estaci\xF3n con hornos/equipo seg\xFAn el paquete). Tambi\xE9n podemos sumar pastas u otras estaciones italianas si te interesa.";
@@ -161479,6 +161544,9 @@ function buildOpeningAcknowledgment(history, currentMessage) {
   }
   if (isGettingReadyContext(userText)) return "Te ayudo con el catering para el getting ready.";
   if (/\b(mesas?|sillas?|periqueras?|mobiliario|salas?\s*(lounge)?)\b/i.test(t4)) {
+    if (/\bmesas?\s+de\s+(dulces?|postres?|quesos?)\b/i.test(t4)) {
+      return "Con gusto te ayudo con la mesa de dulces para tu evento.";
+    }
     if (/periqueras?/.test(t4)) return "Te ayudo con la renta de periqueras y mesas tipo bar.";
     if (/salas?/.test(t4)) return "Te ayudo con salas lounge y mobiliario para tu evento.";
     return "Te ayudo con la renta de mesas, sillas y mobiliario.";
@@ -164020,7 +164088,7 @@ ${buildNaturalQuestion(pending, ctx)}` : consultative;
       filledSet.add("Requerimientos o servicios");
     }
   }
-  const furnitureSkuTurn = parseFurnitureCatalogSkuFromText(currentMessage ?? "") || parseSalaProductFromText(currentMessage ?? "");
+  const furnitureSkuTurn = (!/\bmesas?\s+de\s+(dulces?|postres?|quesos?)\b/i.test(currentMessage ?? "") ? parseFurnitureCatalogSkuFromText(currentMessage ?? "") : null) || parseSalaProductFromText(currentMessage ?? "");
   if (furnitureSkuTurn) {
     extracted.requerimientos_evento = mergeServiceRequirements(
       extracted.requerimientos_evento,
@@ -164028,6 +164096,14 @@ ${buildNaturalQuestion(pending, ctx)}` : consultative;
       6
     );
     if (extracted.requerimientos_evento) filledSet.add("Requerimientos o servicios");
+  }
+  {
+    const onlySku = clientNarrowsToOnlyService(currentMessage);
+    if (onlySku) {
+      extracted.requerimientos_evento = onlySku;
+      filledSet.add("Requerimientos o servicios");
+      log?.info({ entityId, onlySku }, "GUARD: A15910 \u2014 servicios acotados a un solo SKU");
+    }
   }
   if (!filledSet.has("Requerimientos o servicios") && historyAlreadyHadServicesCatalog(presHistory)) {
     const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
@@ -165127,7 +165203,8 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
   } else if (
     // V8.92 / A15165 / A15642: menú de piezas mobiliario → modelos (también post-cierre).
     // Incluye "Mesas, sillas, plato trinche" aunque Lucy haya abierto menú de alimentos por error.
-    allowSalesReplyOverride && !shouldSkipSalesMenuForConcreteQuestion(currentMessage) && !clientAsksForCatalog(currentMessage) && !isEventTypeMealPhrase(currentMessage) && (historyOfferedMobiliarioPieceMenu(presHistory) || historyOfferedAlimentosModoMenu(presHistory) || /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio|\bmesas?\b|\bperiqueras?\b|\bplato\s+trinche|\bvajillas?\b/i.test(
+    // A15910: mesa de dulces/postres ≠ piezas de mobiliario.
+    allowSalesReplyOverride && !/\bmesas?\s+de\s+(dulces?|postres?|quesos?)\b/i.test(currentMessage ?? "") && !shouldSkipSalesMenuForConcreteQuestion(currentMessage) && !clientAsksForCatalog(currentMessage) && !isEventTypeMealPhrase(currentMessage) && (historyOfferedMobiliarioPieceMenu(presHistory) || historyOfferedAlimentosModoMenu(presHistory) || /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio|\bmesas?\b|\bperiqueras?\b|\bplato\s+trinche|\bvajillas?\b/i.test(
       currentMessage ?? ""
     )) && currentMessage?.trim() && (parseMobiliarioPieceChoice(currentMessage) || isTablewareRequestText(currentMessage) || /\b(modelos?\s+de\s+)?sillas?\b/i.test(currentMessage ?? "") || /\bmesas?\b/i.test(currentMessage ?? "") || /\bperiqueras?\b/i.test(currentMessage ?? "") || /\bmobiliario|mobilairio\b/i.test(currentMessage ?? ""))
   ) {
@@ -165961,7 +166038,7 @@ ${pickVariant("nombre", history, entityId)}`.trim();
     mensaje = stripRepeatLucyIntro(
       mensaje,
       presHistory,
-      conversationAlreadyStarted(filledSet, presHistory)
+      conversationAlreadyStarted(filledSet, presHistory) || funnelHasSubstance(filledSet, extracted)
     );
     return normalizeAdvisorReferences2(mensaje, extracted.nombre);
   }
@@ -165974,6 +166051,21 @@ ${pickVariant("nombre", history, entityId)}`.trim();
   }
   if (conversationAlreadyStarted(filledSet, presHistoryForIntro) || funnelHasSubstance(filledSet, extracted)) {
     mensaje = stripRepeatLucyIntro(mensaje, presHistoryForIntro, true);
+  }
+  if (!cierreYaEnviado && /\b(quedo\s+atenta|te\s+gustar[ií]a\s+que\s+te\s+(d[eé]|compart[aá])\s+m[aá]s\s+detalles|si\s+necesitas\s+algo\s+m[aá]s)\b/i.test(
+    mensaje
+  ) && !/ya\s+tengo\s+todo|paso\s+(estos\s+)?datos|listo\s+para\s+cotizar/i.test(mensaje)) {
+    const pendingSoft = getNextPendingField(extracted, filledSet);
+    if (pendingSoft) {
+      mensaje = buildNaturalQuestion(pendingSoft, ctx);
+      log?.info({ entityId, pendingSoft }, "GUARD: A15910 \u2014 soft-exit reemplazado por embudo");
+    } else if (isReadyForClosing(filledSet)) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: A15910 \u2014 soft-exit reemplazado por cierre");
+    }
   }
   const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
   const priceSanitized = sanitizeInventedPrices(mensaje, currentMessage, ctxText);
@@ -166417,6 +166509,13 @@ ${buildNaturalQuestion(pending, ctx)}` : ack;
     log?.info({ entityId }, "GUARD: A15009 \u2014 reemplaz\xF3 Sigo aqu\xED residual");
   }
   mensaje = dedupeCatalogUrlsInMessage(mensaje);
+  {
+    const onlySkuFinal = clientNarrowsToOnlyService(currentMessage);
+    if (onlySkuFinal) {
+      extracted.requerimientos_evento = onlySkuFinal;
+      filledSet.add("Requerimientos o servicios");
+    }
+  }
   if (!cierreYaEnviado && requiredServiceDimensionsMissing(extracted) && isReadyForClosing(filledSet) && (responseLooksLikePrematureClose(mensaje) || looksLikeDeadEndAck(mensaje))) {
     const dimReply = buildDimensionRecommendationReply(extracted, currentMessage);
     mensaje = dimReply ?? buildRequiredServiceDimensionsQuestion(extracted);
@@ -225745,7 +225844,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.82";
+var LUCY_PROMPT_VERSION = "V9.83";
 
 // src/lib/buildMeta.ts
 var cached = null;
