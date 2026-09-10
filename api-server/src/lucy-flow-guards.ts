@@ -232,6 +232,9 @@ import {
   isVenueWithoutCity,
   extractVenueNameHint,
   extractStreetDetailHint,
+  extractLocatedPlaceHint,
+  looksLikeSupplierSearchNotVenue,
+  sanitizeDireccionCapture,
   isCityOnlyDireccion,
   hasCityOrMetroSignal,
   looksLikeMxMunicipalityToponym,
@@ -6028,9 +6031,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   // V9.30: salón/hacienda/cabañas sin ciudad → no cerrar ubicación; pedir ciudad.
   // A15791+: si el historial ya trae ciudad (Huasca), fusionar venue y no repreguntar.
+  // A15944: no disparar con RFQ de proveedor/sillas ("salón de fiestas y estamos buscando…").
   if (
     !cierreYaEnviado &&
     currentMessage &&
+    !looksLikeSupplierSearchNotVenue(currentMessage) &&
     isVenueWithoutCity(currentMessage) &&
     !isUsableDireccionEvento(currentMessage)
   ) {
@@ -6047,10 +6052,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         looksLikeMxMunicipalityToponym(extracted.direccion_evento))
         ? extracted.direccion_evento
         : null);
-    const venue = extractVenueNameHint(currentMessage) || currentMessage.trim();
-    if (recoveredCity && isUsableDireccionEvento(recoveredCity)) {
+    const venue = extractVenueNameHint(currentMessage);
+    if (!venue) {
+      // Sin nombre de sede limpio → no anotar basura; dejar seguir el embudo.
+    } else if (recoveredCity && isUsableDireccionEvento(recoveredCity)) {
       extracted.direccion_evento =
-        mergeZonaDetail(recoveredCity, venue) ?? `${recoveredCity}, ${venue}`;
+        sanitizeDireccionCapture(
+          mergeZonaDetail(recoveredCity, venue) ?? `${recoveredCity}, ${venue}`
+        ) ?? `${recoveredCity}, ${venue}`;
       filledSet.add("Lugar/dirección del evento");
       const display = getDisplayName(extracted, whatsappDisplayName);
       const pending = getNextPendingField(extracted, filledSet);
@@ -6071,11 +6080,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
     const zonaPending = !isFieldSatisfied("zona", filledSet, extracted);
     if (
-      askedZona === "zona" ||
-      (zonaPending &&
-        /sal[oó]n|hacienda|hotel|club|expo|jard[ií]n|caba[nñ]as?|cabanas?|villa|finca/i.test(
-          currentMessage
-        ))
+      venue &&
+      (askedZona === "zona" ||
+        (zonaPending &&
+          /sal[oó]n|hacienda|hotel|club|expo|jard[ií]n|caba[nñ]as?|cabanas?|villa|finca/i.test(
+            currentMessage
+          )))
     ) {
       if (
         extracted.direccion_evento &&
@@ -6088,7 +6098,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       const display = getDisplayName(extracted, whatsappDisplayName);
       const body = [
         display ? `Listo, ${display}.` : "Listo.",
-        venue ? `Anoto *${venue}*.` : null,
+        `Anoto *${venue}*.`,
         "Para cotizar bien necesito al menos la *ciudad* del evento. ¿En qué ciudad está?",
       ]
         .filter(Boolean)
@@ -6111,12 +6121,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   ) {
     const zonaNow = parseZonaFromText(currentMessage);
     if (zonaNow && isUsableDireccionEvento(zonaNow)) {
+      const cleanZona = sanitizeDireccionCapture(zonaNow) ?? zonaNow;
       if (!isFieldSatisfied("zona", filledSet, extracted)) {
-        extracted.direccion_evento = mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
+        extracted.direccion_evento =
+          sanitizeDireccionCapture(
+            mergeZonaDetail(extracted.direccion_evento, cleanZona) ?? cleanZona
+          ) ?? cleanZona;
         filledSet.add("Lugar/dirección del evento");
-      } else if (isRicherDireccionCapture(zonaNow, extracted.direccion_evento)) {
-        extracted.direccion_evento = zonaNow;
+      } else if (isRicherDireccionCapture(cleanZona, extracted.direccion_evento)) {
+        extracted.direccion_evento = cleanZona;
         filledSet.add("Lugar/dirección del evento");
+      } else if (extracted.direccion_evento) {
+        const scrubbed = sanitizeDireccionCapture(extracted.direccion_evento);
+        if (scrubbed && scrubbed !== extracted.direccion_evento) {
+          extracted.direccion_evento = scrubbed;
+        }
       }
     }
   }

@@ -2339,32 +2339,106 @@ export function isLocationMetaReferential(message?: string | null): boolean {
   );
 }
 
-const VENUE_NAME_PATTERN =
-  /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue|hospital(?:\s+general)?|cl[ií]nica|auditorio|universidad|museo|plaza|edificio|instituto|facultad|torre|caba[nñ]as?|cabanas?)\s+[A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{1,56})/i;
+/** Truncar basura de discurso al final/medio de un candidato de venue. */
+const VENUE_DISCOURSE_CUT =
+  /\s+(?:y\s+)?(?:estamos|estoy|buscando|buscamos|busco|necesito|necesitamos|contamos|queremos|quiero|nos\s+encontramos|se\s+llama|realmente|ya\s+que|porque|para\s+que|que\s+nos|con\s+un\s+tipo|complemento|proveedor|sillas?|invitados?)\b.*$/i;
 
-/** Nombre de salón/venue si el mensaje lo trae. */
+const VENUE_DISCOURSE_JUNK =
+  /\b(buscando|buscamos|busco|proveedor|nos\s+apoye|estamos\s+buscando|contamos\s+con|realmente|complemento\s+de|tipo\s+de\s+silla|basket|coordino\s+eventos)\b/i;
+
+/** Venue genérico sin nombre propio (no anotar como sede). */
+const VAGUE_VENUE_LABEL =
+  /^(?:un\s+|una\s+|el\s+|la\s+)?(?:sal[oó]n(?:\s+de\s+fiestas?)?|hotel|jard[ií]n|espacio|lugar|venue|edificio|terraza)$/i;
+
+function cleanVenueCandidate(raw: string): string | null {
+  let venue = raw
+    .trim()
+    .replace(/[.,;:]+$/g, "")
+    .replace(VENUE_DISCOURSE_CUT, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  // Quitar coletillas colgantes: "y nos encontramos en", "se llama"
+  venue = venue
+    .replace(/\s+(?:y\s+)?(?:nos\s+encontramos\s+en|se\s+llama|estamos\s+en)\s*$/i, "")
+    .replace(/^(?:el\s+|la\s+|un\s+|una\s+)/i, "")
+    .trim();
+  if (!venue || venue.length < 3) return null;
+  if (VAGUE_VENUE_LABEL.test(venue)) return null;
+  // Si aún queda discurso (p. ej. "salón de fiestas y estamos…"), rechazar.
+  if (VENUE_DISCOURSE_JUNK.test(venue) && !/\b(sal[oó]n|hotel|hacienda|plaza|hospital)\s+[A-ZÁÉÍÓÚÑ]/i.test(venue)) {
+    return null;
+  }
+  if (/\b(buscando|proveedor|sillas?|invitados?|coordino)\b/i.test(venue)) return null;
+  // Truncar a ~8 tokens de nombre propio
+  const words = venue.split(/\s+/);
+  if (words.length > 8) venue = words.slice(0, 8).join(" ");
+  return venue.length >= 3 ? venue : null;
+}
+
+const VENUE_NAME_PATTERN =
+  /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue|hospital(?:\s+general)?(?:\s+regional)?|cl[ií]nica|auditorio|universidad|museo|plaza|edificio|instituto|facultad|torre|caba[nñ]as?|cabanas?)\s+[A-ZÁÉÍÓÚÑ0-9][A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{0,40})/i;
+
+/** Nombre de salón/venue si el mensaje lo trae (A15944: sin tragarse discurso). */
 export function extractVenueNameHint(text: string | null | undefined): string | null {
   const t = (text ?? "").trim();
   if (!t) return null;
-  const m = t.match(VENUE_NAME_PATTERN);
-  if (m?.[1]) {
-    const venue = m[1]
-      .trim()
-      .replace(/[.,;:]+$/g, "")
-      .replace(/\s+(entre|cerca|junto|frente|en\s+la|en\s+el)\b.*$/i, "")
-      .trim();
-    if (venue.length >= 4) return venue;
+
+  // A15944: "el salón se llama Lemon Salón Terraza"
+  const seLlama = t.match(
+    /\b(?:el\s+|la\s+)?(?:sal[oó]n|hotel|hacienda|jard[ií]n|plaza|venue)?\s*se\s+llama\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{2,48}?)(?=\s+y\s+(?:nos|estamos|contamos|buscamos)|\s*[,.]|\s+(?:contamos|realmente|buscamos|buscando)\b|$)/i
+  );
+  if (seLlama?.[1]) {
+    const named = cleanVenueCandidate(seLlama[1]);
+    if (named) return named;
   }
-  // A15383: Horno 3 (Fundidora / Monterrey) no está en salon|hotel|hacienda.
+
+  // A15944: "nos encontramos en …" lo maneja extractLocatedPlaceHint / composeDetailed.
+  // Aquí solo como fallback si no hubo "se llama".
+  const encontramos = t.match(
+    /\b(?:nos\s+encontramos|estamos|ubicad[oa]s?)\s+en\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{2,48}?)(?=\s+y\s+(?:nos|estamos|contamos|buscamos)|\s*[,.]|\s+(?:contamos|realmente|buscamos|buscando)\b|$)/i
+  );
+  if (encontramos?.[1] && !KNOWN_ZONES.test(encontramos[1]) && !/^(el|la|un|una)\s+estado\b/i.test(encontramos[1])) {
+    const place = cleanVenueCandidate(encontramos[1]);
+    if (place && !matchesKnownZone(place) && place.split(/\s+/).length >= 2) {
+      // Preferir no devolver plaza genérica si más abajo hay "Salón X"; ya intentamos seLlama arriba.
+    }
+  }
+
+  // A15383: Horno 3
   const horno = t.match(/\bhorno\s*(\d+)\b/i);
   if (horno) return `Horno ${horno[1]}`;
+
   // A15942: "Adentro del Hospital General Regional 46"
   const hospital = t.match(
     /\b(?:adentro|dentro|en\s+el\s+interior)\s+del?\s+(hospital(?:\s+general)?(?:\s+regional)?\s+[A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.-]{1,40})/i
   );
   if (hospital?.[1]) {
-    return hospital[1].trim().replace(/[.,;:]+$/g, "").trim();
+    const h = cleanVenueCandidate(hospital[1]);
+    if (h) return h;
   }
+
+  // Nombre propio tras tipo: exige mayúscula/dígito tras el tipo ("Salón Los Olivos").
+  const m = t.match(VENUE_NAME_PATTERN);
+  if (m?.[1]) {
+    const venue = cleanVenueCandidate(m[1]);
+    if (venue) return venue;
+  }
+
+  // "Lemon Salón Terraza" (nombre antes del tipo)
+  const nameBeforeType = t.match(
+    /\b([A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚáéíóúñ0-9]+(?:\s+[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚáéíóúñ0-9]+){0,3}\s+sal[oó]n(?:\s+terraza)?)\b/i
+  );
+  if (nameBeforeType?.[1]) {
+    const venue = cleanVenueCandidate(nameBeforeType[1]);
+    if (venue) return venue;
+  }
+
+  // Fallback plaza/complejo si no hubo salón nombrado
+  if (encontramos?.[1]) {
+    const place = cleanVenueCandidate(encontramos[1]);
+    if (place && !matchesKnownZone(place) && place.split(/\s+/).length >= 2) return place;
+  }
+
   return null;
 }
 
@@ -2381,16 +2455,32 @@ export function extractStreetDetailHint(text: string | null | undefined): string
   if (entre?.[1] && entre[2]) {
     const a = entre[1].trim().replace(/[.,;:]+$/g, "");
     const b = entre[2].trim().replace(/[.,;:]+$/g, "");
-    if (a.length >= 2 && b.length >= 2) return `entre ${a} y ${b}`;
+    // No confundir "entre 90 y 100" (invitados) ni rangos de presupuesto.
+    if (/^\d+$/.test(a) && /^\d+$/.test(b)) return null;
+    if (a.length >= 2 && b.length >= 2 && !/^(buscando|proveedor|sillas?)$/i.test(a)) {
+      return `entre ${a} y ${b}`;
+    }
   }
   const calle = t.match(
     /\b((?:calle|av\.?|avenida|blvd\.?|boulevard|calzada|esq\.?|esquina(?:\s+con)?)\s+[A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'#-]{2,48})/i
   );
   if (calle?.[1]) {
-    const s = calle[1].trim().replace(/[.,;:]+$/g, "").trim();
-    if (s.length >= 6) return s;
+    const s = cleanVenueCandidate(calle[1]);
+    if (s && s.length >= 6) return s;
   }
   return null;
+}
+
+/** True si el texto parece búsqueda de proveedor/mobiliario, no una sede concreta. */
+export function looksLikeSupplierSearchNotVenue(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  if (/\bse\s+llama\b/i.test(t)) return false;
+  return (
+    /\b(buscando|buscamos|proveedor|nos\s+apoye|coordino\s+eventos|complemento\s+de\s+sillas|tipo\s+de\s+silla|basket\s+tony)\b/i.test(
+      t
+    ) && !extractVenueNameHint(t)
+  );
 }
 
 /**
@@ -2423,9 +2513,18 @@ export function isRicherDireccionCapture(
   incoming: string | null | undefined,
   existing: string | null | undefined
 ): boolean {
-  const next = (incoming ?? "").trim();
-  const prev = (existing ?? "").trim();
+  const nextRaw = (incoming ?? "").trim();
+  const prevRaw = (existing ?? "").trim();
+  const next = sanitizeDireccionCapture(nextRaw) ?? nextRaw;
+  const prev = sanitizeDireccionCapture(prevRaw) ?? prevRaw;
   if (!next || !isUsableDireccionEvento(next)) return false;
+  // No preferir basura de discurso aunque sea más larga.
+  if (/\b(buscando|proveedor|se\s+llama|nos\s+encontramos\s+en|contamos\s+con\s+\d+\s+invitados)\b/i.test(nextRaw) &&
+      !/\b(buscando|proveedor|se\s+llama|nos\s+encontramos\s+en)\b/i.test(next)) {
+    // next ya sanitizado: comparar limpio vs prev
+  } else if (/\b(buscando a un proveedor|estamos buscando|coordino eventos)\b/i.test(nextRaw)) {
+    return false;
+  }
   if (!prev || !isUsableDireccionEvento(prev)) return true;
   if (next.toLowerCase() === prev.toLowerCase()) return false;
   if (isCityOnlyDireccion(prev) && !isCityOnlyDireccion(next)) {
@@ -2433,32 +2532,96 @@ export function isRicherDireccionCapture(
     if (next.toLowerCase().includes(prevCore) || prevCore.includes(next.toLowerCase().slice(0, 12))) {
       return true;
     }
-    // Misma ciudad implícita vía merge usable
     if (shouldReplaceCrmDireccion(prev, next) && next.length > prev.length + 4) return true;
   }
   if (
     shouldReplaceCrmDireccion(prev, next) &&
     next.length > prev.length + 6 &&
-    (extractVenueNameHint(next) || extractStreetDetailHint(next) || next.includes(","))
+    (extractVenueNameHint(next) || extractStreetDetailHint(next) || extractLocatedPlaceHint(nextRaw) || next.includes(","))
   ) {
     return true;
   }
   return false;
 }
 
-/** Une ciudad + venue + calles del mismo mensaje (A15942). */
+/** Place/plaza tras "nos encontramos en" / "estamos en" (A15944 Green Plaza). */
+export function extractLocatedPlaceHint(text: string | null | undefined): string | null {
+  const t = (text ?? "").replace(/\s+/g, " ").trim();
+  if (!t) return null;
+  const m = t.match(
+    /\b(?:nos\s+encontramos|estamos|ubicad[oa]s?)\s+en\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{2,48}?)(?=\s+y\s+(?:nos|estamos|contamos|buscamos)|\s*[,.]|\s+(?:contamos|realmente|buscamos|buscando)\b|$)/i
+  );
+  if (!m?.[1]) return null;
+  const place = cleanVenueCandidate(m[1]);
+  if (!place) return null;
+  if (matchesKnownZone(place) || looksLikeMxMunicipalityToponym(place)) return null;
+  if (/^(el|la)\s+estado\b/i.test(place)) return null;
+  return place;
+}
+
+/** Une ciudad + venue + calles del mismo mensaje (A15942 / A15944). */
 export function composeDetailedEventLocation(text: string | null | undefined): string | null {
   const trimmed = (text ?? "").replace(/\s+/g, " ").trim();
   if (!trimmed) return null;
   const cityHit = trimmed.match(KNOWN_ZONES)?.[0]?.trim() ?? null;
   const venue = extractVenueNameHint(trimmed);
+  const located = extractLocatedPlaceHint(trimmed);
   const street = extractStreetDetailHint(trimmed);
-  if (!cityHit && !venue && !street) return null;
+  if (!cityHit && !venue && !located && !street) return null;
   let out: string | null = cityHit;
   if (venue) out = mergeZonaDetail(out, venue);
+  if (located && (!venue || foldLoc(located) !== foldLoc(venue))) {
+    out = mergeZonaDetail(out, located);
+  }
   if (street) out = mergeZonaDetail(out, street);
+  out = sanitizeDireccionCapture(out);
   if (out && isUsableDireccionEvento(out)) return out;
   return null;
+}
+
+function foldLoc(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Limpia ubicación CRM: quita frases colgantes y discurso (A15944).
+ * "Estado de México, salón se llama Lemon… y nos encontramos en" → limpio.
+ */
+export function sanitizeDireccionCapture(value: string | null | undefined): string | null {
+  let t = (value ?? "").replace(/\s+/g, " ").trim();
+  if (!t) return null;
+  // Quitar coletillas incompletas
+  t = t
+    .replace(/\b(?:el\s+)?sal[oó]n\s+se\s+llama\s+/gi, "")
+    .replace(/\b(?:y\s+)?nos\s+encontramos\s+en\s*$/gi, "")
+    .replace(/\b(?:y\s+)?nos\s+encontramos\s+en\b/gi, ", ")
+    .replace(/\bcontamos\s+con\s+\d+\s+invitados?\b.*$/gi, "")
+    .replace(/\brealmente\s+buscamos\b.*$/gi, "")
+    .replace(/\by\s+estamos\s+buscando\b.*$/gi, "")
+    .replace(/\bsal[oó]n\s+de\s+fiestas?\s+y\s+estamos\b.*$/gi, "")
+    .replace(/,\s*,+/g, ",")
+    .replace(/^,\s*|,\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  // Rechazar si sigue siendo puro discurso
+  if (/\b(buscando|proveedor|coordino\s+eventos|complemento\s+de\s+sillas)\b/i.test(t)) {
+    const city = t.match(KNOWN_ZONES)?.[0]?.trim();
+    const venue = extractVenueNameHint(t);
+    const located = extractLocatedPlaceHint(value ?? t);
+    if (city || venue || located) {
+      let out: string | null = city ?? null;
+      if (venue) out = mergeZonaDetail(out, venue);
+      if (located) out = mergeZonaDetail(out, located);
+      return out;
+    }
+    return city ?? null;
+  }
+  return t || null;
 }
 
 /**
@@ -2468,13 +2631,19 @@ export function composeDetailedEventLocation(text: string | null | undefined): s
 export function isVenueWithoutCity(text: string | null | undefined): boolean {
   const t = (text ?? "").trim();
   if (!t) return false;
+  // A15944: "buscamos proveedor / sillas" no es sede aunque diga "salón de fiestas".
+  if (looksLikeSupplierSearchNotVenue(t)) return false;
   if (hasCityOrMetroSignal(t) || KNOWN_ZONES.test(t) || looksLikeMxMunicipalityToponym(t)) {
     return false;
   }
+  const venue = extractVenueNameHint(t);
+  if (venue) return true;
   if (
     /\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club|expo|centro\s+(de\s+)?(convenciones|cultural)|venue|caba[nñ]as?|cabanas?|villas?|finca|lodge|hospital|cl[ií]nica|auditorio|universidad|museo)\b/i.test(
       t
-    )
+    ) &&
+    t.split(/\s+/).length <= 10 &&
+    !/\b(buscando|proveedor|sillas?|coordino)\b/i.test(t)
   ) {
     return true;
   }
@@ -5382,20 +5551,25 @@ export function parseZonaFromText(text: string): string | null {
           if (composedMuni && isUsableDireccionEvento(composedMuni)) return composedMuni;
         }
       }
-      // A15942: ciudad + hospital/salón + calles → guardar completo, no solo la ciudad.
+      // A15942/A15944: ciudad + salón/plaza/calles → guardar completo y limpio.
       const detailed = composeDetailedEventLocation(trimmed);
       if (detailed && isRicherDireccionCapture(detailed, city)) {
-        return detailed;
+        return sanitizeDireccionCapture(detailed) ?? detailed;
       }
       const venue = extractVenueNameHint(trimmed);
+      const located = extractLocatedPlaceHint(trimmed);
       const street = extractStreetDetailHint(trimmed);
       let composed: string | null = city;
       if (venue && !KNOWN_ZONES.test(venue)) {
         composed = mergeZonaDetail(composed, venue);
       }
+      if (located) {
+        composed = mergeZonaDetail(composed, located);
+      }
       if (street) {
         composed = mergeZonaDetail(composed, street);
       }
+      composed = sanitizeDireccionCapture(composed);
       if (composed && isUsableDireccionEvento(composed)) return composed;
       return city;
     }
