@@ -2260,7 +2260,7 @@ export function hasGeoLocationSignal(text: string): boolean {
   if (matchesKnownZone(t)) return true;
   if (looksLikeMxMunicipalityToponym(t)) return true;
   if (
-    /\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio|calle|av\.?|avenida|blvd|boulevard|cp\.?|c\.p\.?|cdmx|estado\s+de|edo\.?\s*m[eé]x|quer[eé]taro|puebla|monterrey|guadalajara|tlaquepaque|zapopan)\b/i.test(
+    /\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio|calle|av\.?|avenida|blvd|boulevard|cp\.?|c\.p\.?|cdmx|estado\s+de|edo\.?\s*m[eé]x|quer[eé]taro|puebla|monterrey|guadalajara|tlaquepaque|zapopan|hospital|entre\s+\w+\s+y)\b/i.test(
       t
     )
   ) {
@@ -2268,9 +2268,9 @@ export function hasGeoLocationSignal(text: string): boolean {
   }
   // "ciudad de X" / "Ciudad Juárez" — no la palabra suelta "ciudad".
   if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t)) return true;
-  // Venue con nombre propio: "Salón X", "Hotel Marriott", "Club de Golf X", "Expo Santa Fe"
+  // Venue con nombre propio: "Salón X", "Hotel Marriott", "Hospital General Regional 46"
   if (
-    /\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(\s+de\s+golf)?|expo|centro\s+de\s+convenciones)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]/i.test(
+    /\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(\s+de\s+golf)?|expo|centro\s+de\s+convenciones|hospital(?:\s+general)?|cl[ií]nica|auditorio)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ0-9]/i.test(
       t
     )
   ) {
@@ -2340,7 +2340,7 @@ export function isLocationMetaReferential(message?: string | null): boolean {
 }
 
 const VENUE_NAME_PATTERN =
-  /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue)\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.'-]{1,48})/i;
+  /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue|hospital(?:\s+general)?|cl[ií]nica|auditorio|universidad|museo|plaza|edificio|instituto|facultad|torre|caba[nñ]as?|cabanas?)\s+[A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{1,56})/i;
 
 /** Nombre de salón/venue si el mensaje lo trae. */
 export function extractVenueNameHint(text: string | null | undefined): string | null {
@@ -2348,12 +2348,116 @@ export function extractVenueNameHint(text: string | null | undefined): string | 
   if (!t) return null;
   const m = t.match(VENUE_NAME_PATTERN);
   if (m?.[1]) {
-    const venue = m[1].trim().replace(/[.,;:]+$/g, "").trim();
+    const venue = m[1]
+      .trim()
+      .replace(/[.,;:]+$/g, "")
+      .replace(/\s+(entre|cerca|junto|frente|en\s+la|en\s+el)\b.*$/i, "")
+      .trim();
     if (venue.length >= 4) return venue;
   }
   // A15383: Horno 3 (Fundidora / Monterrey) no está en salon|hotel|hacienda.
   const horno = t.match(/\bhorno\s*(\d+)\b/i);
   if (horno) return `Horno ${horno[1]}`;
+  // A15942: "Adentro del Hospital General Regional 46"
+  const hospital = t.match(
+    /\b(?:adentro|dentro|en\s+el\s+interior)\s+del?\s+(hospital(?:\s+general)?(?:\s+regional)?\s+[A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.-]{1,40})/i
+  );
+  if (hospital?.[1]) {
+    return hospital[1].trim().replace(/[.,;:]+$/g, "").trim();
+  }
+  return null;
+}
+
+/**
+ * Calles / cruce / referencias de acceso en el mensaje
+ * (ej. "Entre 8 de Julio y Lázaro Cárdenas").
+ */
+export function extractStreetDetailHint(text: string | null | undefined): string | null {
+  const t = (text ?? "").replace(/\s+/g, " ").trim();
+  if (!t) return null;
+  const entre = t.match(
+    /\bentre\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{1,40}?)\s+y\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{1,40})/i
+  );
+  if (entre?.[1] && entre[2]) {
+    const a = entre[1].trim().replace(/[.,;:]+$/g, "");
+    const b = entre[2].trim().replace(/[.,;:]+$/g, "");
+    if (a.length >= 2 && b.length >= 2) return `entre ${a} y ${b}`;
+  }
+  const calle = t.match(
+    /\b((?:calle|av\.?|avenida|blvd\.?|boulevard|calzada|esq\.?|esquina(?:\s+con)?)\s+[A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'#-]{2,48})/i
+  );
+  if (calle?.[1]) {
+    const s = calle[1].trim().replace(/[.,;:]+$/g, "").trim();
+    if (s.length >= 6) return s;
+  }
+  return null;
+}
+
+/**
+ * Ciudad/metro sola en CRM ("Guadalajara") — incompleta si el mensaje ya trae venue/calles.
+ */
+export function isCityOnlyDireccion(value: string | null | undefined): boolean {
+  const t = (value ?? "").trim();
+  if (!t) return false;
+  if (extractVenueNameHint(t) || extractStreetDetailHint(t)) return false;
+  if (
+    /\b(entre|calle|av\.?|avenida|blvd|hospital|sal[oó]n|hotel|hacienda|colonia\s+\w)/i.test(t) &&
+    t.split(/\s+/).length > 4
+  ) {
+    return false;
+  }
+  const stripped = t.replace(/^(en\s+)/i, "").replace(/[.,;:]+$/g, "").trim();
+  if (!stripped || stripped.split(/\s+/).length > 5) return false;
+  return (
+    matchesKnownZone(stripped) ||
+    looksLikeMxMunicipalityToponym(stripped) ||
+    hasCityOrMetroSignal(stripped)
+  );
+}
+
+/**
+ * True si `incoming` tiene más detalle de ubicación que `existing`
+ * (p. ej. ciudad+hospital+calles vs solo ciudad).
+ */
+export function isRicherDireccionCapture(
+  incoming: string | null | undefined,
+  existing: string | null | undefined
+): boolean {
+  const next = (incoming ?? "").trim();
+  const prev = (existing ?? "").trim();
+  if (!next || !isUsableDireccionEvento(next)) return false;
+  if (!prev || !isUsableDireccionEvento(prev)) return true;
+  if (next.toLowerCase() === prev.toLowerCase()) return false;
+  if (isCityOnlyDireccion(prev) && !isCityOnlyDireccion(next)) {
+    const prevCore = prev.replace(/^(en\s+)/i, "").trim().toLowerCase();
+    if (next.toLowerCase().includes(prevCore) || prevCore.includes(next.toLowerCase().slice(0, 12))) {
+      return true;
+    }
+    // Misma ciudad implícita vía merge usable
+    if (shouldReplaceCrmDireccion(prev, next) && next.length > prev.length + 4) return true;
+  }
+  if (
+    shouldReplaceCrmDireccion(prev, next) &&
+    next.length > prev.length + 6 &&
+    (extractVenueNameHint(next) || extractStreetDetailHint(next) || next.includes(","))
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** Une ciudad + venue + calles del mismo mensaje (A15942). */
+export function composeDetailedEventLocation(text: string | null | undefined): string | null {
+  const trimmed = (text ?? "").replace(/\s+/g, " ").trim();
+  if (!trimmed) return null;
+  const cityHit = trimmed.match(KNOWN_ZONES)?.[0]?.trim() ?? null;
+  const venue = extractVenueNameHint(trimmed);
+  const street = extractStreetDetailHint(trimmed);
+  if (!cityHit && !venue && !street) return null;
+  let out: string | null = cityHit;
+  if (venue) out = mergeZonaDetail(out, venue);
+  if (street) out = mergeZonaDetail(out, street);
+  if (out && isUsableDireccionEvento(out)) return out;
   return null;
 }
 
@@ -2368,7 +2472,7 @@ export function isVenueWithoutCity(text: string | null | undefined): boolean {
     return false;
   }
   if (
-    /\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club|expo|centro\s+(de\s+)?(convenciones|cultural)|venue|caba[nñ]as?|cabanas?|villas?|finca|lodge)\b/i.test(
+    /\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club|expo|centro\s+(de\s+)?(convenciones|cultural)|venue|caba[nñ]as?|cabanas?|villas?|finca|lodge|hospital|cl[ií]nica|auditorio|universidad|museo)\b/i.test(
       t
     )
   ) {
@@ -5278,11 +5382,21 @@ export function parseZonaFromText(text: string): string | null {
           if (composedMuni && isUsableDireccionEvento(composedMuni)) return composedMuni;
         }
       }
-      const venue = extractVenueNameHint(trimmed);
-      if (venue && !KNOWN_ZONES.test(venue) && !hasCityOrMetroSignal(venue)) {
-        const composed = mergeZonaDetail(venue, city);
-        if (composed && isUsableDireccionEvento(composed)) return composed;
+      // A15942: ciudad + hospital/salón + calles → guardar completo, no solo la ciudad.
+      const detailed = composeDetailedEventLocation(trimmed);
+      if (detailed && isRicherDireccionCapture(detailed, city)) {
+        return detailed;
       }
+      const venue = extractVenueNameHint(trimmed);
+      const street = extractStreetDetailHint(trimmed);
+      let composed: string | null = city;
+      if (venue && !KNOWN_ZONES.test(venue)) {
+        composed = mergeZonaDetail(composed, venue);
+      }
+      if (street) {
+        composed = mergeZonaDetail(composed, street);
+      }
+      if (composed && isUsableDireccionEvento(composed)) return composed;
       return city;
     }
   }
@@ -6743,15 +6857,25 @@ export function enrichExtractedFromConversation(
     const zona = parseZonaFromText(conversationText);
     if (zona && isUsableDireccionEvento(zona)) extracted.direccion_evento = zona;
   } else {
-    // Une ciudad + municipio si ambos aparecen en la conversación.
-    const zones = [...conversationText.matchAll(new RegExp(KNOWN_ZONES.source, "gi"))]
-      .map((m) => m[0]!.trim())
-      .filter(Boolean);
-    let merged = extracted.direccion_evento;
-    for (const z of zones) {
-      if (isUsableDireccionEvento(z)) merged = mergeZonaDetail(merged, z);
+    // A15942: no dejar solo "Guadalajara" si el mensaje trae hospital/calles.
+    const richer = parseZonaFromText(conversationText);
+    if (richer && isRicherDireccionCapture(richer, extracted.direccion_evento)) {
+      extracted.direccion_evento = richer;
+    } else {
+      // Une ciudad + municipio si ambos aparecen en la conversación.
+      const zones = [...conversationText.matchAll(new RegExp(KNOWN_ZONES.source, "gi"))]
+        .map((m) => m[0]!.trim())
+        .filter(Boolean);
+      let merged = extracted.direccion_evento;
+      for (const z of zones) {
+        if (isUsableDireccionEvento(z)) merged = mergeZonaDetail(merged, z);
+      }
+      const venue = extractVenueNameHint(conversationText);
+      const street = extractStreetDetailHint(conversationText);
+      if (venue) merged = mergeZonaDetail(merged, venue);
+      if (street) merged = mergeZonaDetail(merged, street);
+      if (merged) extracted.direccion_evento = merged;
     }
-    if (merged) extracted.direccion_evento = merged;
   }
 
   if (

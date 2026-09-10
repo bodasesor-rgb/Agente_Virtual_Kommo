@@ -21,6 +21,8 @@ import {
   isUnusableTipoEventoReply,
   parseFechaFromText,
   isRicherFechaCapture,
+  parseZonaFromText,
+  isRicherDireccionCapture,
 } from "./conversation-understanding.js";
 import { enrichExtractedFromText } from "./services/summaryService.js";
 import { enrichExtractedDireccionWithMaps } from "./services/geoResolve.js";
@@ -396,6 +398,13 @@ export async function generateLucyOutbound(
         const fromMsg = parseFechaFromText(messageText);
         if (fromMsg && isRicherFechaCapture(fromMsg, extracted.fecha_evento)) {
           extracted.fecha_evento = fromMsg;
+        }
+      }
+      // A15942: ciudad+venue+calles del mensaje gana sobre solo ciudad del LLM.
+      {
+        const fromMsg = parseZonaFromText(messageText);
+        if (fromMsg && isRicherDireccionCapture(fromMsg, extracted.direccion_evento)) {
+          extracted.direccion_evento = fromMsg;
         }
       }
       if (extracted.correo) {

@@ -14,7 +14,7 @@ import { SERVICE_KNOWLEDGE_GOLDEN_RULE } from "./serviceKnowledge.js";
 import { buildEventOfferCatalogHint } from "./catalogService.js";
 import { completeChat, fromOpenAiMessages, type ChatMessage } from "../lib/llmChat.js";
 import { getChatModel } from "../lib/llmEnv.js";
-import { isRicherFechaCapture } from "../conversation-understanding.js";
+import { isRicherFechaCapture, isRicherDireccionCapture } from "../conversation-understanding.js";
 
 /** Modelo activo (Gemini Flash-Lite por default si hay key). */
 export function getLucyRedactionModel(): string {
@@ -371,6 +371,16 @@ export function mergeExtractedPatch(
       typeof target.fecha_evento === "string" &&
       target.fecha_evento.trim() &&
       isRicherFechaCapture(target.fecha_evento, value)
+    ) {
+      continue;
+    }
+    // A15942: no pisar "Guadalajara, Hospital…" con solo "Guadalajara" del LLM.
+    if (
+      key === "direccion_evento" &&
+      typeof value === "string" &&
+      typeof target.direccion_evento === "string" &&
+      target.direccion_evento.trim() &&
+      isRicherDireccionCapture(target.direccion_evento, value)
     ) {
       continue;
     }

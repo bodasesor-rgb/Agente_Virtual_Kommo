@@ -131924,13 +131924,13 @@ function hasGeoLocationSignal(text2) {
   if (isLocationMetaReferential(t4)) return false;
   if (matchesKnownZone(t4)) return true;
   if (looksLikeMxMunicipalityToponym(t4)) return true;
-  if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio|calle|av\.?|avenida|blvd|boulevard|cp\.?|c\.p\.?|cdmx|estado\s+de|edo\.?\s*m[eé]x|quer[eé]taro|puebla|monterrey|guadalajara|tlaquepaque|zapopan)\b/i.test(
+  if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio|calle|av\.?|avenida|blvd|boulevard|cp\.?|c\.p\.?|cdmx|estado\s+de|edo\.?\s*m[eé]x|quer[eé]taro|puebla|monterrey|guadalajara|tlaquepaque|zapopan|hospital|entre\s+\w+\s+y)\b/i.test(
     t4
   )) {
     return true;
   }
   if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t4)) return true;
-  if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(\s+de\s+golf)?|expo|centro\s+de\s+convenciones)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]/i.test(
+  if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(\s+de\s+golf)?|expo|centro\s+de\s+convenciones|hospital(?:\s+general)?|cl[ií]nica|auditorio)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ0-9]/i.test(
     t4
   )) {
     return true;
@@ -131974,11 +131974,79 @@ function extractVenueNameHint(text2) {
   if (!t4) return null;
   const m6 = t4.match(VENUE_NAME_PATTERN);
   if (m6?.[1]) {
-    const venue = m6[1].trim().replace(/[.,;:]+$/g, "").trim();
+    const venue = m6[1].trim().replace(/[.,;:]+$/g, "").replace(/\s+(entre|cerca|junto|frente|en\s+la|en\s+el)\b.*$/i, "").trim();
     if (venue.length >= 4) return venue;
   }
   const horno = t4.match(/\bhorno\s*(\d+)\b/i);
   if (horno) return `Horno ${horno[1]}`;
+  const hospital = t4.match(
+    /\b(?:adentro|dentro|en\s+el\s+interior)\s+del?\s+(hospital(?:\s+general)?(?:\s+regional)?\s+[A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.-]{1,40})/i
+  );
+  if (hospital?.[1]) {
+    return hospital[1].trim().replace(/[.,;:]+$/g, "").trim();
+  }
+  return null;
+}
+function extractStreetDetailHint(text2) {
+  const t4 = (text2 ?? "").replace(/\s+/g, " ").trim();
+  if (!t4) return null;
+  const entre = t4.match(
+    /\bentre\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{1,40}?)\s+y\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{1,40})/i
+  );
+  if (entre?.[1] && entre[2]) {
+    const a4 = entre[1].trim().replace(/[.,;:]+$/g, "");
+    const b5 = entre[2].trim().replace(/[.,;:]+$/g, "");
+    if (a4.length >= 2 && b5.length >= 2) return `entre ${a4} y ${b5}`;
+  }
+  const calle = t4.match(
+    /\b((?:calle|av\.?|avenida|blvd\.?|boulevard|calzada|esq\.?|esquina(?:\s+con)?)\s+[A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'#-]{2,48})/i
+  );
+  if (calle?.[1]) {
+    const s7 = calle[1].trim().replace(/[.,;:]+$/g, "").trim();
+    if (s7.length >= 6) return s7;
+  }
+  return null;
+}
+function isCityOnlyDireccion(value) {
+  const t4 = (value ?? "").trim();
+  if (!t4) return false;
+  if (extractVenueNameHint(t4) || extractStreetDetailHint(t4)) return false;
+  if (/\b(entre|calle|av\.?|avenida|blvd|hospital|sal[oó]n|hotel|hacienda|colonia\s+\w)/i.test(t4) && t4.split(/\s+/).length > 4) {
+    return false;
+  }
+  const stripped = t4.replace(/^(en\s+)/i, "").replace(/[.,;:]+$/g, "").trim();
+  if (!stripped || stripped.split(/\s+/).length > 5) return false;
+  return matchesKnownZone(stripped) || looksLikeMxMunicipalityToponym(stripped) || hasCityOrMetroSignal(stripped);
+}
+function isRicherDireccionCapture(incoming, existing) {
+  const next = (incoming ?? "").trim();
+  const prev = (existing ?? "").trim();
+  if (!next || !isUsableDireccionEvento(next)) return false;
+  if (!prev || !isUsableDireccionEvento(prev)) return true;
+  if (next.toLowerCase() === prev.toLowerCase()) return false;
+  if (isCityOnlyDireccion(prev) && !isCityOnlyDireccion(next)) {
+    const prevCore = prev.replace(/^(en\s+)/i, "").trim().toLowerCase();
+    if (next.toLowerCase().includes(prevCore) || prevCore.includes(next.toLowerCase().slice(0, 12))) {
+      return true;
+    }
+    if (shouldReplaceCrmDireccion(prev, next) && next.length > prev.length + 4) return true;
+  }
+  if (shouldReplaceCrmDireccion(prev, next) && next.length > prev.length + 6 && (extractVenueNameHint(next) || extractStreetDetailHint(next) || next.includes(","))) {
+    return true;
+  }
+  return false;
+}
+function composeDetailedEventLocation(text2) {
+  const trimmed = (text2 ?? "").replace(/\s+/g, " ").trim();
+  if (!trimmed) return null;
+  const cityHit = trimmed.match(KNOWN_ZONES)?.[0]?.trim() ?? null;
+  const venue = extractVenueNameHint(trimmed);
+  const street = extractStreetDetailHint(trimmed);
+  if (!cityHit && !venue && !street) return null;
+  let out2 = cityHit;
+  if (venue) out2 = mergeZonaDetail(out2, venue);
+  if (street) out2 = mergeZonaDetail(out2, street);
+  if (out2 && isUsableDireccionEvento(out2)) return out2;
   return null;
 }
 function isVenueWithoutCity(text2) {
@@ -131987,7 +132055,7 @@ function isVenueWithoutCity(text2) {
   if (hasCityOrMetroSignal(t4) || KNOWN_ZONES.test(t4) || looksLikeMxMunicipalityToponym(t4)) {
     return false;
   }
-  if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club|expo|centro\s+(de\s+)?(convenciones|cultural)|venue|caba[nñ]as?|cabanas?|villas?|finca|lodge)\b/i.test(
+  if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club|expo|centro\s+(de\s+)?(convenciones|cultural)|venue|caba[nñ]as?|cabanas?|villas?|finca|lodge|hospital|cl[ií]nica|auditorio|universidad|museo)\b/i.test(
     t4
   )) {
     return true;
@@ -133777,11 +133845,20 @@ function parseZonaFromText(text2) {
           if (composedMuni && isUsableDireccionEvento(composedMuni)) return composedMuni;
         }
       }
-      const venue = extractVenueNameHint(trimmed);
-      if (venue && !KNOWN_ZONES.test(venue) && !hasCityOrMetroSignal(venue)) {
-        const composed2 = mergeZonaDetail(venue, city);
-        if (composed2 && isUsableDireccionEvento(composed2)) return composed2;
+      const detailed = composeDetailedEventLocation(trimmed);
+      if (detailed && isRicherDireccionCapture(detailed, city)) {
+        return detailed;
       }
+      const venue = extractVenueNameHint(trimmed);
+      const street = extractStreetDetailHint(trimmed);
+      let composed2 = city;
+      if (venue && !KNOWN_ZONES.test(venue)) {
+        composed2 = mergeZonaDetail(composed2, venue);
+      }
+      if (street) {
+        composed2 = mergeZonaDetail(composed2, street);
+      }
+      if (composed2 && isUsableDireccionEvento(composed2)) return composed2;
       return city;
     }
   }
@@ -134694,12 +134771,21 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     const zona = parseZonaFromText(conversationText);
     if (zona && isUsableDireccionEvento(zona)) extracted.direccion_evento = zona;
   } else {
-    const zones = [...conversationText.matchAll(new RegExp(KNOWN_ZONES.source, "gi"))].map((m6) => m6[0].trim()).filter(Boolean);
-    let merged = extracted.direccion_evento;
-    for (const z4 of zones) {
-      if (isUsableDireccionEvento(z4)) merged = mergeZonaDetail(merged, z4);
+    const richer = parseZonaFromText(conversationText);
+    if (richer && isRicherDireccionCapture(richer, extracted.direccion_evento)) {
+      extracted.direccion_evento = richer;
+    } else {
+      const zones = [...conversationText.matchAll(new RegExp(KNOWN_ZONES.source, "gi"))].map((m6) => m6[0].trim()).filter(Boolean);
+      let merged = extracted.direccion_evento;
+      for (const z4 of zones) {
+        if (isUsableDireccionEvento(z4)) merged = mergeZonaDetail(merged, z4);
+      }
+      const venue = extractVenueNameHint(conversationText);
+      const street = extractStreetDetailHint(conversationText);
+      if (venue) merged = mergeZonaDetail(merged, venue);
+      if (street) merged = mergeZonaDetail(merged, street);
+      if (merged) extracted.direccion_evento = merged;
     }
-    if (merged) extracted.direccion_evento = merged;
   }
   if (extracted.requerimientos_evento?.trim() && isGenericQuoteIntentRequerimiento(extracted.requerimientos_evento)) {
     extracted.requerimientos_evento = null;
@@ -135086,7 +135172,7 @@ var init_conversation_understanding = __esm({
     MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
     KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|zapopan|tlaquepaque|san\s+pedro\s+tlaquepaque|tonal[aá]|tlajomulco(\s+de\s+z[uú][nñ]iga)?|el\s+salto|chapala|ajijic|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|teoloyucan|cuautitl[aá]n(\s+izcalli)?|zumpango|huehuetoca|coyotepec|tultepec|tultitl[aá]n|coacalco|tec[aá]mac|nextlalpan|tonanitla|jilotepec|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita|jalisco|huasca(\s+de\s+ocampo)?|real\s+del\s+monte|mineral\s+del\s+chico|tequisquiapan|bernal|taxco|tulancingo|actopan|ixmiquilpan|tepeji|amealco|tula(\s+de\s+allende)?)\b/i;
     NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
-    VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue)\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.'-]{1,48})/i;
+    VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue|hospital(?:\s+general)?|cl[ií]nica|auditorio|universidad|museo|plaza|edificio|instituto|facultad|torre|caba[nñ]as?|cabanas?)\s+[A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{1,56})/i;
     JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
     PLATED_MEAL_LABEL_RE = /^(banquete(\s+\w+)?|comida|men[uú].*tiempos?|tres\s+tiempos)$/i;
     STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
@@ -163546,20 +163632,29 @@ ${nextQ}` : ack;
       return normalizeAdvisorReferences2(body2, display);
     }
   }
-  if (!cierreYaEnviado && currentMessage && !isLocationMetaReferential(currentMessage) && !isFieldSatisfied("zona", filledSet, extracted)) {
+  if (!cierreYaEnviado && currentMessage && !isLocationMetaReferential(currentMessage)) {
     const zonaNow = parseZonaFromText(currentMessage);
     if (zonaNow && isUsableDireccionEvento(zonaNow)) {
-      extracted.direccion_evento = mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
-      filledSet.add("Lugar/direcci\xF3n del evento");
+      if (!isFieldSatisfied("zona", filledSet, extracted)) {
+        extracted.direccion_evento = mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
+        filledSet.add("Lugar/direcci\xF3n del evento");
+      } else if (isRicherDireccionCapture(zonaNow, extracted.direccion_evento)) {
+        extracted.direccion_evento = zonaNow;
+        filledSet.add("Lugar/direcci\xF3n del evento");
+      }
     }
   }
   if (!cierreYaEnviado && currentMessage && (() => {
     const z4 = parseZonaFromText(currentMessage);
-    return !!z4 && currentMessage.trim().split(/\s+/).length <= 6 && (/^en\s+/i.test(currentMessage.trim()) || isLikelyUbicacionNotNombre(currentMessage) || /^[A-Za-zÁÉÍÓÚáéíóúñÑ][A-Za-zÁÉÍÓÚáéíóúñÑ\s.-]{2,40}$/i.test(currentMessage.trim()));
+    if (!z4 || !isUsableDireccionEvento(z4)) return false;
+    const words = currentMessage.trim().split(/\s+/).length;
+    const shortCity = words <= 6 && (/^en\s+/i.test(currentMessage.trim()) || isLikelyUbicacionNotNombre(currentMessage) || /^[A-Za-zÁÉÍÓÚáéíóúñÑ][A-Za-zÁÉÍÓÚáéíóúñÑ\s.-]{2,40}$/i.test(currentMessage.trim()));
+    const detailedLoc = words <= 60 && (extractVenueNameHint(currentMessage) || extractStreetDetailHint(currentMessage) || !isCityOnlyDireccion(z4) && /guadalajara|monterrey|cdmx|puebla|quer[eé]taro|hospital|entre\s+/i.test(currentMessage));
+    return shortCity || detailedLoc;
   })()) {
     const zonaNow = parseZonaFromText(currentMessage);
-    if (!isUsableDireccionEvento(extracted.direccion_evento) || shouldReplaceCrmDireccion(extracted.direccion_evento, zonaNow)) {
-      extracted.direccion_evento = mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
+    if (!isUsableDireccionEvento(extracted.direccion_evento) || shouldReplaceCrmDireccion(extracted.direccion_evento, zonaNow) || isRicherDireccionCapture(zonaNow, extracted.direccion_evento)) {
+      extracted.direccion_evento = isRicherDireccionCapture(zonaNow, extracted.direccion_evento) ? zonaNow : mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
       filledSet.add("Lugar/direcci\xF3n del evento");
     }
     const wantsPizza = /pizza/i.test(extracted.requerimientos_evento ?? "") || /pizza/i.test(collectUserTexts(presHistory, currentMessage).join(" "));
@@ -163570,14 +163665,15 @@ ${nextQ}` : ack;
     const svcNote = wantsPizza ? "Seguimos con la cotizaci\xF3n de *pizzas* para tu evento." : primarySvc ? `Seguimos con *${primarySvc}* y lo dem\xE1s que platicamos.` : null;
     const lastAsstCity = [...presHistory].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string");
     const lucyAskedCity = lastAsstCity && typeof lastAsstCity.content === "string" && /ciudad|ubicaci[oó]n|d[oó]nde|sal[oó]n|colonia/i.test(lastAsstCity.content);
-    if (wantsPizza || lucyAskedCity || primarySvc && currentMessage.trim().split(/\s+/).length <= 3) {
+    const detailedNow = !!extractVenueNameHint(currentMessage) || !!extractStreetDetailHint(currentMessage) || !isCityOnlyDireccion(extracted.direccion_evento ?? zonaNow);
+    if (wantsPizza || lucyAskedCity || detailedNow || primarySvc && currentMessage.trim().split(/\s+/).length <= 3) {
       const body2 = [
         display ? `Perfecto, ${display}.` : "Perfecto.",
         `Anoto la ubicaci\xF3n en *${extracted.direccion_evento ?? zonaNow}*.`,
         svcNote,
         nextQ
       ].filter(Boolean).join(" ");
-      log?.info({ entityId, zonaNow }, "GUARD: A15539 \u2014 ciudad corta \u2192 ack + embudo");
+      log?.info({ entityId, zonaNow }, "GUARD: A15539/A15942 \u2014 ubicaci\xF3n \u2192 ack + embudo");
       return normalizeAdvisorReferences2(body2, display);
     }
   }
@@ -226075,7 +226171,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.88";
+var LUCY_PROMPT_VERSION = "V9.89";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -229227,6 +229323,9 @@ function mergeExtractedPatch(target, patch) {
     if (key === "fecha_evento" && typeof value === "string" && typeof target.fecha_evento === "string" && target.fecha_evento.trim() && isRicherFechaCapture(target.fecha_evento, value)) {
       continue;
     }
+    if (key === "direccion_evento" && typeof value === "string" && typeof target.direccion_evento === "string" && target.direccion_evento.trim() && isRicherDireccionCapture(target.direccion_evento, value)) {
+      continue;
+    }
     target[key] = value;
   }
 }
@@ -230216,6 +230315,12 @@ async function generateLucyOutbound(input) {
         const fromMsg = parseFechaFromText(messageText);
         if (fromMsg && isRicherFechaCapture(fromMsg, extracted.fecha_evento)) {
           extracted.fecha_evento = fromMsg;
+        }
+      }
+      {
+        const fromMsg = parseZonaFromText(messageText);
+        if (fromMsg && isRicherDireccionCapture(fromMsg, extracted.direccion_evento)) {
+          extracted.direccion_evento = fromMsg;
         }
       }
       if (extracted.correo) {

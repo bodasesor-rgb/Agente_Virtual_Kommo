@@ -19,7 +19,7 @@ import {
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.88");
+assert.equal(LUCY_PROMPT_VERSION, "V9.89");
 
 function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   return {

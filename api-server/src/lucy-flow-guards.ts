@@ -219,6 +219,7 @@ import {
   parseInvitadosFromText,
   recoverInvitadosFromUserTexts,
   parseZonaFromText,
+  isRicherDireccionCapture,
   mergeZonaDetail,
   parseServicesFromText,
   mergeServiceRequirements,
@@ -230,6 +231,8 @@ import {
   isLocationDeferralOrVagueWorkplace,
   isVenueWithoutCity,
   extractVenueNameHint,
+  extractStreetDetailHint,
+  isCityOnlyDireccion,
   hasCityOrMetroSignal,
   looksLikeMxMunicipalityToponym,
   clientCorrectsLocation,
@@ -6100,37 +6103,55 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   // V9.34: anotar ciudad cuando el cliente responde con topónimo (evita bucle "¿en qué ciudad?").
   // A15775+: no anotar meta ("esa es la ciudad").
+  // A15942: también enriquecer si ya hay solo ciudad y el mensaje trae venue/calles.
   if (
     !cierreYaEnviado &&
     currentMessage &&
-    !isLocationMetaReferential(currentMessage) &&
-    !isFieldSatisfied("zona", filledSet, extracted)
+    !isLocationMetaReferential(currentMessage)
   ) {
     const zonaNow = parseZonaFromText(currentMessage);
     if (zonaNow && isUsableDireccionEvento(zonaNow)) {
-      extracted.direccion_evento = mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
-      filledSet.add("Lugar/dirección del evento");
+      if (!isFieldSatisfied("zona", filledSet, extracted)) {
+        extracted.direccion_evento = mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
+        filledSet.add("Lugar/dirección del evento");
+      } else if (isRicherDireccionCapture(zonaNow, extracted.direccion_evento)) {
+        extracted.direccion_evento = zonaNow;
+        filledSet.add("Lugar/dirección del evento");
+      }
     }
   }
 
   // A14938 / A15539: ciudad corta ("Atlixco") → ack + embudo (no menú de comida).
+  // A15942: también dirección detallada (ciudad + hospital/calles) tras preguntar ubicación.
   if (
     !cierreYaEnviado &&
     currentMessage &&
     (() => {
       const z = parseZonaFromText(currentMessage);
-      return (
-        !!z &&
-        currentMessage.trim().split(/\s+/).length <= 6 &&
+      if (!z || !isUsableDireccionEvento(z)) return false;
+      const words = currentMessage.trim().split(/\s+/).length;
+      const shortCity =
+        words <= 6 &&
         (/^en\s+/i.test(currentMessage.trim()) ||
           isLikelyUbicacionNotNombre(currentMessage) ||
-          /^[A-Za-zÁÉÍÓÚáéíóúñÑ][A-Za-zÁÉÍÓÚáéíóúñÑ\s.-]{2,40}$/i.test(currentMessage.trim()))
-      );
+          /^[A-Za-zÁÉÍÓÚáéíóúñÑ][A-Za-zÁÉÍÓÚáéíóúñÑ\s.-]{2,40}$/i.test(currentMessage.trim()));
+      const detailedLoc =
+        words <= 60 &&
+        (extractVenueNameHint(currentMessage) ||
+          extractStreetDetailHint(currentMessage) ||
+          (!isCityOnlyDireccion(z) && /guadalajara|monterrey|cdmx|puebla|quer[eé]taro|hospital|entre\s+/i.test(currentMessage)));
+      return shortCity || detailedLoc;
     })()
   ) {
     const zonaNow = parseZonaFromText(currentMessage)!;
-    if (!isUsableDireccionEvento(extracted.direccion_evento) || shouldReplaceCrmDireccion(extracted.direccion_evento, zonaNow)) {
-      extracted.direccion_evento = mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
+    if (
+      !isUsableDireccionEvento(extracted.direccion_evento) ||
+      shouldReplaceCrmDireccion(extracted.direccion_evento, zonaNow) ||
+      isRicherDireccionCapture(zonaNow, extracted.direccion_evento)
+    ) {
+      extracted.direccion_evento = isRicherDireccionCapture(zonaNow, extracted.direccion_evento)
+        ? zonaNow
+        : mergeZonaDetail(extracted.direccion_evento, zonaNow) ?? zonaNow;
       filledSet.add("Lugar/dirección del evento");
     }
     const wantsPizza =
@@ -6155,7 +6176,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       lastAsstCity &&
       typeof lastAsstCity.content === "string" &&
       /ciudad|ubicaci[oó]n|d[oó]nde|sal[oó]n|colonia/i.test(lastAsstCity.content);
-    if (wantsPizza || lucyAskedCity || (primarySvc && currentMessage.trim().split(/\s+/).length <= 3)) {
+    const detailedNow =
+      !!extractVenueNameHint(currentMessage) ||
+      !!extractStreetDetailHint(currentMessage) ||
+      !isCityOnlyDireccion(extracted.direccion_evento ?? zonaNow);
+    if (
+      wantsPizza ||
+      lucyAskedCity ||
+      detailedNow ||
+      (primarySvc && currentMessage.trim().split(/\s+/).length <= 3)
+    ) {
       const body = [
         display ? `Perfecto, ${display}.` : "Perfecto.",
         `Anoto la ubicación en *${extracted.direccion_evento ?? zonaNow}*.`,
@@ -6164,7 +6194,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       ]
         .filter(Boolean)
         .join(" ");
-      log?.info({ entityId, zonaNow }, "GUARD: A15539 — ciudad corta → ack + embudo");
+      log?.info({ entityId, zonaNow }, "GUARD: A15539/A15942 — ubicación → ack + embudo");
       return normalizeAdvisorReferences(body, display);
     }
   }
