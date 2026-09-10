@@ -65,6 +65,7 @@ import {
   withServiceAndGeneralCatalogLinks,
   stripUnsolicitedCatalogWebLinks,
   CATALOG_OFFER_QUESTION,
+  GENERAL_CATALOG_INVITE,
   SERVICE_NIVEL_DETAIL_CTA,
   messageOffersCatalogLink,
   buildPdfInclusionReply,
@@ -4703,6 +4704,9 @@ export function buildMappedCatalogOfferBlock(
       "Te dejo los catálogos:",
       buildBareMobiliarioCatalogLinks(),
       "",
+      GENERAL_CATALOG_INVITE,
+      getCatalogWebHubDeliveryUrl(),
+      "",
       "Dime cuál te late y seguimos.",
     ].join("\n");
   }
@@ -4750,7 +4754,7 @@ export function buildMappedCatalogOfferBlock(
   }
   if (linked === 0) return buildGenericCatalogHubBlock();
 
-  lines.push("", "Catálogo general:", getCatalogWebHubDeliveryUrl(), "");
+  lines.push("", GENERAL_CATALOG_INVITE, getCatalogWebHubDeliveryUrl(), "");
   lines.push(SERVICE_NIVEL_DETAIL_CTA);
   return lines.join("\n");
 }
@@ -7637,16 +7641,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       ? []
       : collectServicesForCatalogOffer({
           services: [...new Set(userNamedServices)],
-          // Preferir servicios del último pitch de Lucy si el cliente solo dijo "más detalle".
-          extracted:
-            userNamedServices.length > 0
-              ? {
-                  requerimientos_evento:
-                    lastAsstServices.length > 0
-                      ? lastAsstServices.join(", ")
-                      : extracted.requerimientos_evento,
-                }
-              : { requerimientos_evento: null },
+          // A15936: siempre incluir CRM — "sí" al catálogo no debe caer al hub genérico.
+          extracted: {
+            requerimientos_evento:
+              (lastAsstServices.length > 0
+                ? lastAsstServices.join(", ")
+                : null) ||
+              extracted.requerimientos_evento ||
+              (userNamedServices.length > 0 ? userNamedServices.join(", ") : null),
+          },
           history: presHistory,
           currentMessage,
         });

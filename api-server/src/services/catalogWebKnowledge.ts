@@ -89,13 +89,50 @@ export function resolveCatalogWebSlug(query: string | null | undefined): string 
     return null;
   }
 
-  // A15165: aliases explícitos (shows no tienen página propia → audio/iluminación o hub vía null).
+  // A15165 / A15936: aliases explícitos → slug de embeds.json (servicio + general).
+  // Más específico primero. Shows sin página propia → audio/iluminación.
   const aliases: Array<[RegExp, string]> = [
-    // "mesas?" no debe matchear dentro de "centros de mesa" / "mesa de dulces" (ya filtrado arriba).
-    [/\b(mesas?\s*y\s*sillas?|sillas?|(?<!centros?\s+de\s+)(?<!mesa\s+de\s+)mesas?|mobiliario|mobilairio)\b/i, "mesas-y-sillas"],
-    [/\b(salas?|periqueras?|lounge)\b/i, "salas-y-periqueras"],
-    [/\b(audio|iluminaci[oó]n|video|dj|sonido)\b/i, "audio-iluminacion-y-video"],
-    [/\bbanquetes?\b/i, "banquete-formal"],
+    [/\bmesas?\s*y\s*sillas?\b|\bsillas?\b|(?<!centros?\s+de\s+)(?<!mesa\s+de\s+)\bmesas?\b|\bmobiliario\b|\bmobilairio\b/i, "mesas-y-sillas"],
+    [/\bsalas?\b|\bperiqueras?\b|\blounge\b/i, "salas-y-periqueras"],
+    [/\baudio\b|\biluminaci[oó]n\b|\bvideo\b|\bdj\b|\bsonido\b/i, "audio-iluminacion-y-video"],
+    [/\btarimas?\b|\bpistas?\b|\bpista\s+de\s+baile\b/i, "tarimas-y-pistas"],
+    [/\bbanquete\s+mexicano\b|\bmexicano\s+\d\s*tiempos?\b/i, "banquete-mexicano"],
+    [/\bbanquete\s+kosher\b|\bkosher\b/i, "banquete-kosher"],
+    [/\bbanquete\s+navide|\bnavide[nñ]o\b/i, "banquete-navideno"],
+    [/\bbanquete\s+formal\b|\bbanquetes?\b|\bbufet\b|\bbuffet\b/i, "banquete-formal"],
+    [/\bbarra\s+americana\b/i, "barra-americana"],
+    [/\bbarra\s+yucateca\b|\byucateca\b/i, "barra-yucateca"],
+    [/\bbarra\s+de\s+bebidas?\b|\bbebidas?\s+alcoh|\bopen\s*bar\b/i, "barra-de-bebidas"],
+    [/\bbarra\s+de\s+caf[eé]|\bservicio\s+de\s+caf[eé]/i, "barra-de-cafe"],
+    [/\bbarra\s+de\s+crepas?\b|\bcrepas?\b/i, "barra-de-crepas"],
+    [/\bbarra\s+de\s+mariscos?\b|\bmariscos?\b/i, "barra-de-mariscos"],
+    [/\bbarra\s+de\s+paninis?\b|\bpaninis?\b|\bs[aá]ndwich/i, "barra-de-paninis"],
+    [/\bbarra\s+de\s+pastas?\b|\bpastas?\b/i, "barra-de-pastas-y-ensaladas"],
+    [/\bbarra\s+de\s+pizzas?\b|\bpizzas?\b/i, "barra-de-pizzas"],
+    [/\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i, "barra-de-sushi"],
+    [/\bcoffee\s*break\b|\bcoffeebreak\b/i, "coffee-break"],
+    [/\btaquiza\b/i, "taquiza"],
+    [/\bcanap[eé]s?\b/i, "canapes"],
+    [/\bbocadillos?\b/i, "bocadillos"],
+    [/\bmesa\s+de\s+dulces?\b/i, "mesa-de-dulces"],
+    [/\bmesa\s+de\s+postres?\b/i, "mesa-de-postres"],
+    [/\bmesa\s+de\s+quesos?\b/i, "mesa-de-quesos"],
+    [/\bpuestos?\s+de\s+comida\b|\bantojitos?\b|\bbanderillas?\b/i, "puestos-de-comida"],
+    [/\bpaellas?\b/i, "paella"],
+    [/\bpozole\b/i, "pozole-y-tostadas"],
+    [/\bparrillada\s+argentina\b/i, "parrillada-argentina"],
+    [/\bparrillada\s+(de\s+)?tacos?\b/i, "parrillada-tacos"],
+    [/\bdesayuno\b|\bbrunch\b/i, "desayuno-o-brunch"],
+    [/\bcupcakes?\b|\bbet[uú]n/i, "cupcakes-y-betun"],
+    [/\bhelados?\b|\bpaletas?\b/i, "paletas-de-hielo-y-helados"],
+    [/\bcarrito\s+de\s+snacks?\b/i, "carrito-de-snacks"],
+    [/\bcoctel|\bmixolog|\bc[oó]cteles?\b/i, "cocteleria-y-mixologia"],
+    [/\bm[oó]cteles?\b/i, "mocteles"],
+    [/\bvajillas?\b|\bloza\b/i, "vajillas"],
+    [/\bcolgantes?\b|\bwisteria\b/i, "colgantes-premium"],
+    [/\bentelados?\b/i, "entelados-para-techo"],
+    [/\bcomida\s+corrida\b/i, "comida-corrida"],
+    [/\bfiesta\s+infantil\b/i, "fiesta-infantil"],
   ];
   for (const [re, slug] of aliases) {
     if (re.test(t) && loadCatalogEmbeds().some((e) => e.slug === slug)) return slug;

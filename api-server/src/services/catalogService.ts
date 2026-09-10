@@ -796,6 +796,10 @@ function buildCategoryServicesAnswer(result: CatalogMatchResult): string {
 /** Pregunta legacy (aún válida si el cliente afirma); el link ya se manda con el detalle. */
 export const CATALOG_OFFER_QUESTION = "¿Quieres que te mande el catálogo con más detalle?";
 
+/** A15936: acompañar el catálogo del servicio con el general. */
+export const GENERAL_CATALOG_INVITE =
+  "Igual te envío el catálogo general, por si te gustaría agregar otro servicio:";
+
 /** Re-export: CTA único de niveles (todas las ramas). */
 export { SERVICE_NIVEL_DETAIL_CTA } from "./serviceProgressiveOffer.js";
 
@@ -2979,33 +2983,47 @@ export function buildCatalogWebLinkReply(opts: {
 
   const query = [opts.query, opts.serviceHint].filter(Boolean).join(" ").trim() || opts.query;
   const match = resolveCatalogWebLink(query);
+  const embedUrl = getCatalogWebUrlForQuery(query);
+  const hub = getCatalogWebHubDeliveryUrl();
+  const serviceUrl =
+    (match.kind === "service" && match.url
+      ? toDeliverableCatalogUrl(match.url)
+      : null) ||
+    (embedUrl ? toDeliverableCatalogUrl(embedUrl) : null);
 
-  if (match.kind === "service" && match.url) {
-    const label = match.serviceName ? ` de *${match.serviceName}*` : "";
-    return [
+  if (serviceUrl) {
+    const label =
+      match.serviceName
+        ? ` de *${match.serviceName}*`
+        : /\b[a-záéíóúñ]{3,}/i.test(query)
+          ? ` de *${query.trim().slice(0, 60)}*`
+          : "";
+    const lines = [
       `Claro, aquí tienes el catálogo${label}:`,
-      toDeliverableCatalogUrl(match.url),
-      "",
-      "Si quieres el de otro servicio, dímelo y te mando ese.",
-    ].join("\n");
+      serviceUrl,
+    ];
+    if (serviceUrl.replace(/\/+$/, "") !== hub.replace(/\/+$/, "")) {
+      lines.push("", GENERAL_CATALOG_INVITE, hub);
+    }
+    return lines.join("\n");
   }
 
   if (match.serviceName) {
     return [
       `Para *${match.serviceName}* aún no tengo el link web en el catálogo vivo.`,
       `Te dejo el índice general mientras el equipo te comparte el detalle:`,
-      getCatalogWebHubDeliveryUrl(),
+      hub,
     ].join("\n");
   }
 
   return [
     "Con gusto te paso el catálogo. ¿De qué servicio lo quieres, o te mando el general?",
-    getCatalogWebHubDeliveryUrl(),
+    hub,
   ].join("\n");
 }
 
 /**
- * A14975: al dar detalle de un servicio, enviar link del servicio + catálogo general
+ * A14975 / A15936: al dar detalle de un servicio, enviar link del servicio + catálogo general
  * (dos URLs distintas; sin duplicar el mismo link).
  */
 export function buildServicePlusGeneralCatalogReply(opts: {
@@ -3014,14 +3032,19 @@ export function buildServicePlusGeneralCatalogReply(opts: {
 }): string {
   const query = [opts.query, opts.serviceHint].filter(Boolean).join(" ").trim() || opts.query;
   const match = resolveCatalogWebLink(query);
+  const embedUrl = getCatalogWebUrlForQuery(query);
   const hub = getCatalogWebHubDeliveryUrl();
+  const serviceUrl =
+    (match.kind === "service" && match.url
+      ? toDeliverableCatalogUrl(match.url)
+      : null) ||
+    (embedUrl ? toDeliverableCatalogUrl(embedUrl) : null);
 
-  if (match.kind === "service" && match.url) {
-    const serviceUrl = toDeliverableCatalogUrl(match.url);
+  if (serviceUrl) {
     const label = match.serviceName ? ` de *${match.serviceName}*` : "";
     const lines = [`Catálogo${label}:`, serviceUrl];
     if (serviceUrl.replace(/\/+$/, "") !== hub.replace(/\/+$/, "")) {
-      lines.push("", "Catálogo general:", hub);
+      lines.push("", GENERAL_CATALOG_INVITE, hub);
     }
     return lines.join("\n");
   }

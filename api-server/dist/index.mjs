@@ -135792,11 +135792,47 @@ function resolveCatalogWebSlug(query) {
     return null;
   }
   const aliases = [
-    // "mesas?" no debe matchear dentro de "centros de mesa" / "mesa de dulces" (ya filtrado arriba).
-    [/\b(mesas?\s*y\s*sillas?|sillas?|(?<!centros?\s+de\s+)(?<!mesa\s+de\s+)mesas?|mobiliario|mobilairio)\b/i, "mesas-y-sillas"],
-    [/\b(salas?|periqueras?|lounge)\b/i, "salas-y-periqueras"],
-    [/\b(audio|iluminaci[oó]n|video|dj|sonido)\b/i, "audio-iluminacion-y-video"],
-    [/\bbanquetes?\b/i, "banquete-formal"]
+    [/\bmesas?\s*y\s*sillas?\b|\bsillas?\b|(?<!centros?\s+de\s+)(?<!mesa\s+de\s+)\bmesas?\b|\bmobiliario\b|\bmobilairio\b/i, "mesas-y-sillas"],
+    [/\bsalas?\b|\bperiqueras?\b|\blounge\b/i, "salas-y-periqueras"],
+    [/\baudio\b|\biluminaci[oó]n\b|\bvideo\b|\bdj\b|\bsonido\b/i, "audio-iluminacion-y-video"],
+    [/\btarimas?\b|\bpistas?\b|\bpista\s+de\s+baile\b/i, "tarimas-y-pistas"],
+    [/\bbanquete\s+mexicano\b|\bmexicano\s+\d\s*tiempos?\b/i, "banquete-mexicano"],
+    [/\bbanquete\s+kosher\b|\bkosher\b/i, "banquete-kosher"],
+    [/\bbanquete\s+navide|\bnavide[nñ]o\b/i, "banquete-navideno"],
+    [/\bbanquete\s+formal\b|\bbanquetes?\b|\bbufet\b|\bbuffet\b/i, "banquete-formal"],
+    [/\bbarra\s+americana\b/i, "barra-americana"],
+    [/\bbarra\s+yucateca\b|\byucateca\b/i, "barra-yucateca"],
+    [/\bbarra\s+de\s+bebidas?\b|\bbebidas?\s+alcoh|\bopen\s*bar\b/i, "barra-de-bebidas"],
+    [/\bbarra\s+de\s+caf[eé]|\bservicio\s+de\s+caf[eé]/i, "barra-de-cafe"],
+    [/\bbarra\s+de\s+crepas?\b|\bcrepas?\b/i, "barra-de-crepas"],
+    [/\bbarra\s+de\s+mariscos?\b|\bmariscos?\b/i, "barra-de-mariscos"],
+    [/\bbarra\s+de\s+paninis?\b|\bpaninis?\b|\bs[aá]ndwich/i, "barra-de-paninis"],
+    [/\bbarra\s+de\s+pastas?\b|\bpastas?\b/i, "barra-de-pastas-y-ensaladas"],
+    [/\bbarra\s+de\s+pizzas?\b|\bpizzas?\b/i, "barra-de-pizzas"],
+    [/\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i, "barra-de-sushi"],
+    [/\bcoffee\s*break\b|\bcoffeebreak\b/i, "coffee-break"],
+    [/\btaquiza\b/i, "taquiza"],
+    [/\bcanap[eé]s?\b/i, "canapes"],
+    [/\bbocadillos?\b/i, "bocadillos"],
+    [/\bmesa\s+de\s+dulces?\b/i, "mesa-de-dulces"],
+    [/\bmesa\s+de\s+postres?\b/i, "mesa-de-postres"],
+    [/\bmesa\s+de\s+quesos?\b/i, "mesa-de-quesos"],
+    [/\bpuestos?\s+de\s+comida\b|\bantojitos?\b|\bbanderillas?\b/i, "puestos-de-comida"],
+    [/\bpaellas?\b/i, "paella"],
+    [/\bpozole\b/i, "pozole-y-tostadas"],
+    [/\bparrillada\s+argentina\b/i, "parrillada-argentina"],
+    [/\bparrillada\s+(de\s+)?tacos?\b/i, "parrillada-tacos"],
+    [/\bdesayuno\b|\bbrunch\b/i, "desayuno-o-brunch"],
+    [/\bcupcakes?\b|\bbet[uú]n/i, "cupcakes-y-betun"],
+    [/\bhelados?\b|\bpaletas?\b/i, "paletas-de-hielo-y-helados"],
+    [/\bcarrito\s+de\s+snacks?\b/i, "carrito-de-snacks"],
+    [/\bcoctel|\bmixolog|\bc[oó]cteles?\b/i, "cocteleria-y-mixologia"],
+    [/\bm[oó]cteles?\b/i, "mocteles"],
+    [/\bvajillas?\b|\bloza\b/i, "vajillas"],
+    [/\bcolgantes?\b|\bwisteria\b/i, "colgantes-premium"],
+    [/\bentelados?\b/i, "entelados-para-techo"],
+    [/\bcomida\s+corrida\b/i, "comida-corrida"],
+    [/\bfiesta\s+infantil\b/i, "fiesta-infantil"]
   ];
   for (const [re4, slug] of aliases) {
     if (re4.test(t4) && loadCatalogEmbeds().some((e4) => e4.slug === slug)) return slug;
@@ -139084,37 +139120,43 @@ function buildCatalogWebLinkReply(opts) {
   }
   const query = [opts.query, opts.serviceHint].filter(Boolean).join(" ").trim() || opts.query;
   const match2 = resolveCatalogWebLink(query);
-  if (match2.kind === "service" && match2.url) {
-    const label = match2.serviceName ? ` de *${match2.serviceName}*` : "";
-    return [
+  const embedUrl = getCatalogWebUrlForQuery(query);
+  const hub = getCatalogWebHubDeliveryUrl();
+  const serviceUrl = (match2.kind === "service" && match2.url ? toDeliverableCatalogUrl(match2.url) : null) || (embedUrl ? toDeliverableCatalogUrl(embedUrl) : null);
+  if (serviceUrl) {
+    const label = match2.serviceName ? ` de *${match2.serviceName}*` : /\b[a-záéíóúñ]{3,}/i.test(query) ? ` de *${query.trim().slice(0, 60)}*` : "";
+    const lines = [
       `Claro, aqu\xED tienes el cat\xE1logo${label}:`,
-      toDeliverableCatalogUrl(match2.url),
-      "",
-      "Si quieres el de otro servicio, d\xEDmelo y te mando ese."
-    ].join("\n");
+      serviceUrl
+    ];
+    if (serviceUrl.replace(/\/+$/, "") !== hub.replace(/\/+$/, "")) {
+      lines.push("", GENERAL_CATALOG_INVITE, hub);
+    }
+    return lines.join("\n");
   }
   if (match2.serviceName) {
     return [
       `Para *${match2.serviceName}* a\xFAn no tengo el link web en el cat\xE1logo vivo.`,
       `Te dejo el \xEDndice general mientras el equipo te comparte el detalle:`,
-      getCatalogWebHubDeliveryUrl()
+      hub
     ].join("\n");
   }
   return [
     "Con gusto te paso el cat\xE1logo. \xBFDe qu\xE9 servicio lo quieres, o te mando el general?",
-    getCatalogWebHubDeliveryUrl()
+    hub
   ].join("\n");
 }
 function buildServicePlusGeneralCatalogReply(opts) {
   const query = [opts.query, opts.serviceHint].filter(Boolean).join(" ").trim() || opts.query;
   const match2 = resolveCatalogWebLink(query);
+  const embedUrl = getCatalogWebUrlForQuery(query);
   const hub = getCatalogWebHubDeliveryUrl();
-  if (match2.kind === "service" && match2.url) {
-    const serviceUrl = toDeliverableCatalogUrl(match2.url);
+  const serviceUrl = (match2.kind === "service" && match2.url ? toDeliverableCatalogUrl(match2.url) : null) || (embedUrl ? toDeliverableCatalogUrl(embedUrl) : null);
+  if (serviceUrl) {
     const label = match2.serviceName ? ` de *${match2.serviceName}*` : "";
     const lines = [`Cat\xE1logo${label}:`, serviceUrl];
     if (serviceUrl.replace(/\/+$/, "") !== hub.replace(/\/+$/, "")) {
-      lines.push("", "Cat\xE1logo general:", hub);
+      lines.push("", GENERAL_CATALOG_INVITE, hub);
     }
     return lines.join("\n");
   }
@@ -139156,7 +139198,7 @@ function messageOffersCatalogLink(text2) {
     text2
   );
 }
-var GENERIC_CATERING_MENU_MARKERS, REFRESH_MS, snapshot, refreshTimer, refreshing, MACRO_CATEGORIES, CATALOG_OFFER_QUESTION, INCLUSION_ITEM_PATTERNS, EVENT_OFFER_PATTERNS, BROAD_SOCIAL_OFFER, EVENT_OFFER_FALLBACK, CATALOG_WEB_HUB_URL, BODASESOR_CATALOG_WEB_URL;
+var GENERIC_CATERING_MENU_MARKERS, REFRESH_MS, snapshot, refreshTimer, refreshing, MACRO_CATEGORIES, CATALOG_OFFER_QUESTION, GENERAL_CATALOG_INVITE, INCLUSION_ITEM_PATTERNS, EVENT_OFFER_PATTERNS, BROAD_SOCIAL_OFFER, EVENT_OFFER_FALLBACK, CATALOG_WEB_HUB_URL, BODASESOR_CATALOG_WEB_URL;
 var init_catalogService = __esm({
   "src/services/catalogService.ts"() {
     "use strict";
@@ -139200,6 +139242,7 @@ var init_catalogService = __esm({
       }
     ];
     CATALOG_OFFER_QUESTION = "\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?";
+    GENERAL_CATALOG_INVITE = "Igual te env\xEDo el cat\xE1logo general, por si te gustar\xEDa agregar otro servicio:";
     INCLUSION_ITEM_PATTERNS = {
       bebidas: /\bbebidas?\b|\brefrescos?\b|\bbarman\b|\bbarra\s+de\s+bebidas?\b|\bvitroleros?\b|\bagua\s+fresca\b/i,
       meseros: /\bmeseros?\b|\bpersonal\s+de\s+servicio\b|\bstaff\s+de\s+servicio\b/i,
@@ -162520,6 +162563,9 @@ function buildMappedCatalogOfferBlock(services, sourceText) {
       "Te dejo los cat\xE1logos:",
       buildBareMobiliarioCatalogLinks(),
       "",
+      GENERAL_CATALOG_INVITE,
+      getCatalogWebHubDeliveryUrl(),
+      "",
       "Dime cu\xE1l te late y seguimos."
     ].join("\n");
   }
@@ -162558,7 +162604,7 @@ function buildMappedCatalogOfferBlock(services, sourceText) {
     }
   }
   if (linked === 0) return buildGenericCatalogHubBlock();
-  lines.push("", "Cat\xE1logo general:", getCatalogWebHubDeliveryUrl(), "");
+  lines.push("", GENERAL_CATALOG_INVITE, getCatalogWebHubDeliveryUrl(), "");
   lines.push(SERVICE_NIVEL_DETAIL_CTA);
   return lines.join("\n");
 }
@@ -164396,10 +164442,10 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     ];
     const mappedServices = wantFull ? [] : collectServicesForCatalogOffer({
       services: [...new Set(userNamedServices)],
-      // Preferir servicios del último pitch de Lucy si el cliente solo dijo "más detalle".
-      extracted: userNamedServices.length > 0 ? {
-        requerimientos_evento: lastAsstServices.length > 0 ? lastAsstServices.join(", ") : extracted.requerimientos_evento
-      } : { requerimientos_evento: null },
+      // A15936: siempre incluir CRM — "sí" al catálogo no debe caer al hub genérico.
+      extracted: {
+        requerimientos_evento: (lastAsstServices.length > 0 ? lastAsstServices.join(", ") : null) || extracted.requerimientos_evento || (userNamedServices.length > 0 ? userNamedServices.join(", ") : null)
+      },
       history: presHistory,
       currentMessage
     });
@@ -225942,7 +225988,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.86";
+var LUCY_PROMPT_VERSION = "V9.87";
 
 // src/lib/buildMeta.ts
 var cached = null;

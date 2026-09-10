@@ -35,7 +35,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.86");
+assert.equal(LUCY_PROMPT_VERSION, "V9.87");
 
 {
   const closingWithLink = `Perfecto, ya tengo todo. He anotado la promoción de cierre rápido del 10% de descuento con el código CierreRapido. Con esta información, le pediré a mi equipo que prepare una cotización personalizada para ti.
