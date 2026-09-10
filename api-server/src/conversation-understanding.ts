@@ -77,7 +77,9 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   // A15210: bare "mexicano" en "desayuno temático mexicano" ≠ Banquete Mexicano.
   // Banquete: "banquete mexicano", "mexicano N tiempos", o "mexicano" suelto (elección de menú).
   ["Banquete Mexicano", /\bbanquete\s+mexicano\b|\bmexicano\s+\d\s*tiempos?\b|\b\d\s*tiempos?\s+mexicanos?\b/i],
-  ["Banquete Formal", /\b(banquete\s+formal|banquetes?|bufet\b|buffet\b)\b/i],
+  // A15935: "banquete" / "solo el banquete" ≠ Banquete Formal — primero Formal vs Mexicano.
+  ["Banquete Formal", /\bbanquete\s+formal\b|\bformal\s+\d\s*tiempos?\b|\b\d\s*tiempos?\s+formales?\b|\bbufet\b|\bbuffet\b/i],
+  ["Banquete", /\bbanquetes?\b/i],
   // Barras específicas ANTES de genéricas (A14934 Barra Yucateca).
   ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
   // "americano" (bebida) ≠ Barra Americana (A14970).
@@ -819,6 +821,17 @@ export function hasSpecificFoodService(text: string): boolean {
   ) {
     return false;
   }
+  // A15935: "solo el banquete" / "banquete" sin Formal/Mexicano/tiempos ≠ SKU concreto.
+  if (
+    /\bbanquetes?\b/i.test(text) &&
+    !/\b(banquete\s+)?(formal|mexicano|kosher|navide[nñ]o)\b/i.test(text) &&
+    !/\b\d\s*tiempos?\b|\bbufet\b|\bbuffet\b/i.test(text) &&
+    !/\b(taquiza|coffee\s*break|barra\s+de|sushi|pizza|pasta|canap|bocadillo|parrillada|puestos?)\b/i.test(
+      text
+    )
+  ) {
+    return false;
+  }
   return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé](?!\p{L})|pizzas?|pastas?|crepas?|mariscos?|paninis?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?(?!\p{L})|bocadillos?|parrillada|brunch\s+buf[eé](?!\p{L})|desayuno\s+(?:buffet|ejecutivo|continental)|puestos?\s+de\s+comida|antojitos?|quesadillas?|paninis?|pizzas?|pastas?|crepas?|mariscos?|san+dw?ich|s[aá]ndwich|sanwich)\b/iu.test(
     text
   );
@@ -887,7 +900,7 @@ export function isVagueFoodTerm(text: string | null | undefined): boolean {
   {
     const concrete = parseServicesFromText(t).filter(
       (s) =>
-        !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s) &&
+        !/^(Comida|Alimentos|Banquete|banquete\s*\/\s*taquiza)$/i.test(s) &&
         /barra|banquete|taquiza|sushi|pizza|pasta|panini|crepa|marisco|pozole|paella|canap|bocadillo|coffee|desayuno|brunch|puestos/i.test(
           s
         )
@@ -2836,10 +2849,19 @@ export function dedupeServiceHierarchy(
     if (crepasIdx >= 0) found.splice(crepasIdx, 1);
   }
 
-  const specificBanquete = found.find((s) =>
+  const specificBanqueteVariant = found.find((s) =>
+    /Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s)
+  );
+  if (specificBanqueteVariant) {
+    // A15935: quitar paraguas "Banquete" si ya hay Formal/Mexicano/…
+    for (let i = found.length - 1; i >= 0; i--) {
+      if (/^Banquete$/i.test(found[i]!)) found.splice(i, 1);
+    }
+  }
+  const nonFormalBanquete = found.find((s) =>
     /Banquete\s+(Mexicano|Kosher|Navide)/i.test(s)
   );
-  if (specificBanquete) {
+  if (nonFormalBanquete) {
     const formalIdx = found.indexOf("Banquete Formal");
     if (formalIdx >= 0) found.splice(formalIdx, 1);
   }

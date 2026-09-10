@@ -42,7 +42,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.85");
+assert.equal(LUCY_PROMPT_VERSION, "V9.86");
 
 // ── Cargo / área WA ≠ nombre ──
 assert.ok(isRoleOrDepartmentAsNombre("Recepción"));

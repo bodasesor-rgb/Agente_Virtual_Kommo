@@ -675,6 +675,13 @@ export function isValidRequerimientosValue(value: string | null | undefined): bo
   ) {
     return false;
   }
+  // A15935: "Banquete" suelto sin Formal/Mexicano/tiempos ≠ requerimientos cerrados.
+  if (
+    /^banquetes?$/i.test(trimmed) &&
+    !/\b(formal|mexicano|kosher|navide|\d\s*tiempos?)\b/i.test(trimmed)
+  ) {
+    return false;
+  }
   // V9.40 A15380: "alimentos" / "comida" sin estilo ≠ requerimientos cerrados.
   if (needsAlimentosTipoClarification(trimmed)) return false;
   // "Hola soy Ana" / solo nombre ≠ requerimientos.
@@ -2116,6 +2123,16 @@ export function buildVagueFoodOptionsReply(
         return `${pickTransition(history)} ${buildCateringCasualMenu()}`.trim();
       }
     }
+    // A15935: "solo el banquete" / banquete sin variante → Formal/Mexicano (conversa, sin link).
+    if (
+      /\bbanquetes?\b/i.test(msg) &&
+      !/\b(formal|mexicano|kosher|navide|\d\s*tiempos?|catering|comida|alimentos?|taquiza|barra)\b/i.test(
+        msg.replace(/\bbanquetes?\b/gi, " ")
+      ) &&
+      !historyOfferedServiceOptionsMenu(history)
+    ) {
+      return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
+    }
     if (!historyOfferedAlimentosModoMenu(history) && !historyOfferedServiceOptionsMenu(history)) {
       const smallBirthday =
         /\bcumplea/i.test(tipo) && (inv > 0 ? inv <= 50 : /\bpeque[nñ]o\b/i.test(msg));
@@ -2330,7 +2347,7 @@ function buildFoodSalesReply(
   const allServices = (() => {
     const concrete = allServicesRaw.filter(
       (s) =>
-        !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s) &&
+        !/^(Comida|Alimentos|Banquete|banquete\s*\/\s*taquiza)$/i.test(s) &&
         /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
           s
         )
@@ -2348,10 +2365,24 @@ function buildFoodSalesReply(
     (crmService ? preferPrimaryCatalogService(parseServicesFromText(crmService)) || crmService : null);
 
   // Un solo SKU concreto de comida → detalle / solo vs completo (no menú vago ni multi genérico).
+  // A15935: "Banquete" paraguas → Formal/Mexicano (conversa, sin link).
   if (
     allServices.length === 1 &&
     resolvedServiceLabel &&
-    !/^(Comida|Alimentos)$/i.test(resolvedServiceLabel) &&
+    /^Banquete$/i.test(resolvedServiceLabel) &&
+    currentMessage &&
+    !/\b(formal|mexicano|kosher|navide|\d\s*tiempos?)\b/i.test(currentMessage)
+  ) {
+    if (filledSet) {
+      const merged = mergeServiceRequirements(extracted.requerimientos_evento, "banquete", 6);
+      if (merged) extracted.requerimientos_evento = merged;
+    }
+    return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
+  }
+  if (
+    allServices.length === 1 &&
+    resolvedServiceLabel &&
+    !/^(Comida|Alimentos|Banquete)$/i.test(resolvedServiceLabel) &&
     hasSpecificFoodService(currentMessage ?? "")
   ) {
     if (filledSet) {
@@ -2447,25 +2478,8 @@ function buildFoodSalesReply(
           menu = `${menu}\n\nCatálogo:\nhttps://bodasesor.com/catalogos/coffee-break`;
         }
       } else {
-        // V9.28: catálogo web; precios solo si el cliente los pide explícitamente.
-        if (!/bodasesor\.com\/catalogos/i.test(menu)) {
-          const station =
-            resolveSoloVsCompletoStationLabel(
-              currentMessage,
-              optionsFirst.family
-            ) ||
-            resolveSoloVsCompletoStationLabel(
-              mentionedService || serviceLabel || crmService,
-              optionsFirst.family
-            );
-          const webUrl =
-            (station && getCatalogWebUrlForQuery(station)) ||
-            getCatalogWebUrlForQuery(serviceLabel ?? "") ||
-            null;
-          if (webUrl && !menu.includes(webUrl)) {
-            menu = `${menu}\n\nCatálogo: ${webUrl}`;
-          }
-        }
+        // A15935: menú de opciones = conversación primero; el link va con el detalle
+        // cuando eligen variante o piden catálogo (no pegar URL en el menú).
       }
       return appendNext(`${pickTransition(history)} ${menu}`.trim(), serviceLabel);
     }
@@ -3341,6 +3355,13 @@ export function isFieldSatisfied(
       return hasTipoEvento(filledSet, extracted);
     case "requerimientos":
       if (needsAlimentosTipoClarification(extracted.requerimientos_evento)) return false;
+      // A15935: filledSet no basta si el valor sigue vago (p. ej. "Banquete" sin Formal/Mexicano).
+      if (
+        extracted.requerimientos_evento?.trim() &&
+        !isValidRequerimientosValue(extracted.requerimientos_evento)
+      ) {
+        return false;
+      }
       return (
         filledSet.has("Requerimientos o servicios") ||
         isValidRequerimientosValue(extracted.requerimientos_evento)
@@ -7098,7 +7119,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   // A15893: conservar Mobiliario/periqueras junto al banquete (no tirar no-comida).
   const demoteVagueFood = (list: string[]) => {
     const withoutVague = list.filter(
-      (s) => !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s)
+      (s) => !/^(Comida|Alimentos|Banquete|banquete\s*\/\s*taquiza)$/i.test(s)
     );
     const isFoodSku = (s: string) =>
       /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
@@ -8133,7 +8154,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         /\blo\s+que\s+(te\s+)?(mencione|dije|comente)\b/i.test(currentMessage) ||
         /\b(esa|eso)\s+ser[ií]a\s+(la\s+)?comida\b/i.test(currentMessage);
       const foodFilter = (s: string) =>
-        !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s) &&
+        !/^(Comida|Alimentos|Banquete|banquete\s*\/\s*taquiza)$/i.test(s) &&
         /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
           s
         );

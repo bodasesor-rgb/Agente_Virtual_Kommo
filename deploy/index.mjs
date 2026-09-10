@@ -131175,6 +131175,11 @@ function hasSpecificFoodService(text2) {
   )) {
     return false;
   }
+  if (/\bbanquetes?\b/i.test(text2) && !/\b(banquete\s+)?(formal|mexicano|kosher|navide[nñ]o)\b/i.test(text2) && !/\b\d\s*tiempos?\b|\bbufet\b|\bbuffet\b/i.test(text2) && !/\b(taquiza|coffee\s*break|barra\s+de|sushi|pizza|pasta|canap|bocadillo|parrillada|puestos?)\b/i.test(
+    text2
+  )) {
+    return false;
+  }
   return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé](?!\p{L})|pizzas?|pastas?|crepas?|mariscos?|paninis?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?(?!\p{L})|bocadillos?|parrillada|brunch\s+buf[eé](?!\p{L})|desayuno\s+(?:buffet|ejecutivo|continental)|puestos?\s+de\s+comida|antojitos?|quesadillas?|paninis?|pizzas?|pastas?|crepas?|mariscos?|san+dw?ich|s[aá]ndwich|sanwich)\b/iu.test(
     text2
   );
@@ -131213,7 +131218,7 @@ function isVagueFoodTerm(text2) {
   if (hasSpecificFoodService(t4)) return false;
   {
     const concrete = parseServicesFromText(t4).filter(
-      (s7) => !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s7) && /barra|banquete|taquiza|sushi|pizza|pasta|panini|crepa|marisco|pozole|paella|canap|bocadillo|coffee|desayuno|brunch|puestos/i.test(
+      (s7) => !/^(Comida|Alimentos|Banquete|banquete\s*\/\s*taquiza)$/i.test(s7) && /barra|banquete|taquiza|sushi|pizza|pasta|panini|crepa|marisco|pozole|paella|canap|bocadillo|coffee|desayuno|brunch|puestos/i.test(
         s7
       )
     );
@@ -132261,10 +132266,18 @@ function dedupeServiceHierarchy(services, sourceText) {
     const crepasIdx = found.indexOf("Crepas");
     if (crepasIdx >= 0) found.splice(crepasIdx, 1);
   }
-  const specificBanquete = found.find(
+  const specificBanqueteVariant = found.find(
+    (s7) => /Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s7)
+  );
+  if (specificBanqueteVariant) {
+    for (let i6 = found.length - 1; i6 >= 0; i6--) {
+      if (/^Banquete$/i.test(found[i6])) found.splice(i6, 1);
+    }
+  }
+  const nonFormalBanquete = found.find(
     (s7) => /Banquete\s+(Mexicano|Kosher|Navide)/i.test(s7)
   );
-  if (specificBanquete) {
+  if (nonFormalBanquete) {
     const formalIdx = found.indexOf("Banquete Formal");
     if (formalIdx >= 0) found.splice(formalIdx, 1);
   }
@@ -134682,7 +134695,9 @@ var init_conversation_understanding = __esm({
       // A15210: bare "mexicano" en "desayuno temático mexicano" ≠ Banquete Mexicano.
       // Banquete: "banquete mexicano", "mexicano N tiempos", o "mexicano" suelto (elección de menú).
       ["Banquete Mexicano", /\bbanquete\s+mexicano\b|\bmexicano\s+\d\s*tiempos?\b|\b\d\s*tiempos?\s+mexicanos?\b/i],
-      ["Banquete Formal", /\b(banquete\s+formal|banquetes?|bufet\b|buffet\b)\b/i],
+      // A15935: "banquete" / "solo el banquete" ≠ Banquete Formal — primero Formal vs Mexicano.
+      ["Banquete Formal", /\bbanquete\s+formal\b|\bformal\s+\d\s*tiempos?\b|\b\d\s*tiempos?\s+formales?\b|\bbufet\b|\bbuffet\b/i],
+      ["Banquete", /\bbanquetes?\b/i],
       // Barras específicas ANTES de genéricas (A14934 Barra Yucateca).
       ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
       // "americano" (bebida) ≠ Barra Americana (A14970).
@@ -160051,6 +160066,9 @@ function isValidRequerimientosValue(value) {
   ) && !/\b(formal|mexicano|\d\s*tiempos?|taquiza|coffee\s*break)\b/i.test(trimmed)) {
     return false;
   }
+  if (/^banquetes?$/i.test(trimmed) && !/\b(formal|mexicano|kosher|navide|\d\s*tiempos?)\b/i.test(trimmed)) {
+    return false;
+  }
   if (needsAlimentosTipoClarification(trimmed)) return false;
   if (/^(hola|buen[oa]s?\b|me\s+llamo|soy|mi\s+nombre\s+es)\b/i.test(trimmed) && parseServicesFromText(trimmed).length === 0 && !isServiceRelatedMessage(trimmed)) {
     return false;
@@ -160934,6 +160952,11 @@ function buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId
         return `${pickTransition(history)} ${buildCateringCasualMenu()}`.trim();
       }
     }
+    if (/\bbanquetes?\b/i.test(msg) && !/\b(formal|mexicano|kosher|navide|\d\s*tiempos?|catering|comida|alimentos?|taquiza|barra)\b/i.test(
+      msg.replace(/\bbanquetes?\b/gi, " ")
+    ) && !historyOfferedServiceOptionsMenu(history)) {
+      return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
+    }
     if (!historyOfferedAlimentosModoMenu(history) && !historyOfferedServiceOptionsMenu(history)) {
       const smallBirthday = /\bcumplea/i.test(tipo) && (inv > 0 ? inv <= 50 : /\bpeque[nñ]o\b/i.test(msg));
       if (smallBirthday) {
@@ -161085,7 +161108,7 @@ ${nextQ}`;
   const allServicesRaw = currentMessage ? dedupeServiceHierarchy(parseServicesFromText(clientCaptionForServiceParse(currentMessage))) : [];
   const allServices = (() => {
     const concrete = allServicesRaw.filter(
-      (s7) => !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s7) && /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
+      (s7) => !/^(Comida|Alimentos|Banquete|banquete\s*\/\s*taquiza)$/i.test(s7) && /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
         s7
       )
     );
@@ -161093,7 +161116,14 @@ ${nextQ}`;
   })();
   const crmService = isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento.trim() : null;
   const resolvedServiceLabel = preferPrimaryCatalogService(allServices) || mentionedService || parsePrimaryService(clientCaptionForServiceParse(currentMessage) || currentMessage || "") || (crmService ? preferPrimaryCatalogService(parseServicesFromText(crmService)) || crmService : null);
-  if (allServices.length === 1 && resolvedServiceLabel && !/^(Comida|Alimentos)$/i.test(resolvedServiceLabel) && hasSpecificFoodService(currentMessage ?? "")) {
+  if (allServices.length === 1 && resolvedServiceLabel && /^Banquete$/i.test(resolvedServiceLabel) && currentMessage && !/\b(formal|mexicano|kosher|navide|\d\s*tiempos?)\b/i.test(currentMessage)) {
+    if (filledSet) {
+      const merged = mergeServiceRequirements(extracted.requerimientos_evento, "banquete", 6);
+      if (merged) extracted.requerimientos_evento = merged;
+    }
+    return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
+  }
+  if (allServices.length === 1 && resolvedServiceLabel && !/^(Comida|Alimentos|Banquete)$/i.test(resolvedServiceLabel) && hasSpecificFoodService(currentMessage ?? "")) {
     if (filledSet) {
       filledSet.add("Requerimientos o servicios");
       const merged = mergeServiceRequirements(
@@ -161170,21 +161200,6 @@ Cat\xE1logo:
 https://bodasesor.com/catalogos/coffee-break`;
         }
       } else {
-        if (!/bodasesor\.com\/catalogos/i.test(menu)) {
-          const station = resolveSoloVsCompletoStationLabel(
-            currentMessage,
-            optionsFirst.family
-          ) || resolveSoloVsCompletoStationLabel(
-            mentionedService || serviceLabel || crmService,
-            optionsFirst.family
-          );
-          const webUrl = station && getCatalogWebUrlForQuery(station) || getCatalogWebUrlForQuery(serviceLabel ?? "") || null;
-          if (webUrl && !menu.includes(webUrl)) {
-            menu = `${menu}
-
-Cat\xE1logo: ${webUrl}`;
-          }
-        }
       }
       return appendNext(`${pickTransition(history)} ${menu}`.trim(), serviceLabel);
     }
@@ -161745,6 +161760,9 @@ function isFieldSatisfied(field, filledSet, extracted) {
       return hasTipoEvento(filledSet, extracted);
     case "requerimientos":
       if (needsAlimentosTipoClarification(extracted.requerimientos_evento)) return false;
+      if (extracted.requerimientos_evento?.trim() && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
+        return false;
+      }
       return filledSet.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
     case "invitados":
       return filledSet.has("N\xFAmero de invitados") || !!extracted.num_invitados;
@@ -164076,7 +164094,7 @@ ${buildNaturalQuestion(pending, ctx)}` : consultative;
   );
   const demoteVagueFood = (list) => {
     const withoutVague = list.filter(
-      (s7) => !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s7)
+      (s7) => !/^(Comida|Alimentos|Banquete|banquete\s*\/\s*taquiza)$/i.test(s7)
     );
     const isFoodSku = (s7) => /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
       s7
@@ -164727,7 +164745,7 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
   } else if (allowSalesReplyOverride && currentMessage && !cierreYaEnviado && !clientDeclinesAnyService(currentMessage) && !isEventTypeMealPhrase(currentMessage) && (() => {
     const userBlobFood = collectUserTexts(presHistory, currentMessage).join(" ");
     const referentialFood = isReferentialPriorAnswer(currentMessage) || /\blo\s+que\s+(te\s+)?(mencione|dije|comente)\b/i.test(currentMessage) || /\b(esa|eso)\s+ser[ií]a\s+(la\s+)?comida\b/i.test(currentMessage);
-    const foodFilter = (s7) => !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s7) && /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
+    const foodFilter = (s7) => !/^(Comida|Alimentos|Banquete|banquete\s*\/\s*taquiza)$/i.test(s7) && /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
       s7
     );
     const concreteFromTurn = preferPrimaryCatalogService(parseServicesFromText(currentMessage).filter(foodFilter)) || (hasSpecificFoodService(currentMessage) ? parsePrimaryService(currentMessage) || resolveDetailQueryForFamily("barra_alimentos", currentMessage) : null);
@@ -225924,7 +225942,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.85";
+var LUCY_PROMPT_VERSION = "V9.86";
 
 // src/lib/buildMeta.ts
 var cached = null;
