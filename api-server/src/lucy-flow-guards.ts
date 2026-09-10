@@ -298,6 +298,7 @@ import {
   clientAsksNamedServiceDetail,
   isPromoTemplateMessage,
   isTablewareRequestText,
+  isEnteladoRequestText,
   clientQuestionsServiceMinimum,
   buildBelowMinimumGuestReply,
   FECHA_MAX_ASKS,
@@ -5947,6 +5948,73 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
   }
 
+  // A15956: entelado para techo ≠ mobiliario / mesas / periqueras.
+  {
+    const userBlobEnt = collectUserTexts(presHistory, currentMessage).join(" ");
+    const asksFurnitureInstead =
+      /\b(mesas?\s+y\s+sillas?|periqueras?|sillas?\s+tiffany|salas?\s+lounge)\b/i.test(
+        currentMessage ?? ""
+      ) && !isEnteladoRequestText(currentMessage);
+    const enteladoInPlay =
+      !asksFurnitureInstead &&
+      (isEnteladoRequestText(currentMessage) ||
+        isEnteladoRequestText(extracted.requerimientos_evento) ||
+        (isEnteladoRequestText(userBlobEnt) &&
+          /medidas|estas?\s+son|pdf|sal[oó]n|me\s+llamo|soy\s+\w+|mi\s+nombre/i.test(
+            currentMessage ?? ""
+          )));
+    if (enteladoInPlay && currentMessage?.trim()) {
+      const merged = mergeServiceRequirements(
+        extracted.requerimientos_evento,
+        "Entelados para Techo",
+        8
+      );
+      if (merged) {
+        extracted.requerimientos_evento = merged;
+        filledSet.add("Requerimientos o servicios");
+      }
+      if (!extracted.tipo_evento?.trim()) {
+        const tipo =
+          parseTipoEventoFromText(currentMessage) || parseTipoEventoFromText(userBlobEnt);
+        if (tipo) {
+          extracted.tipo_evento = tipo;
+          filledSet.add("Tipo de evento");
+        }
+      }
+      const dims =
+        parseSpaceDimensions(currentMessage) || parseSpaceDimensions(userBlobEnt);
+      if (dims && !/espacio\s+\d/i.test(extracted.requerimientos_evento ?? "")) {
+        extracted.requerimientos_evento = `${extracted.requerimientos_evento}; espacio ${dims}`;
+      }
+      syncLegacyFechaHorarioField(extracted);
+      const ack =
+        buildGuardServiceAck(
+          isEnteladoRequestText(currentMessage)
+            ? currentMessage
+            : extracted.requerimientos_evento || "entelado para techo"
+        ) ||
+        "Perfecto — anoto *Entelados para Techo* para tu cotización.";
+      const dimsNote = dims
+        ? `\n\nAnoto medidas *${dims.replace(/m/gi, " m")}* para afinar la cotización.`
+        : /medidas|estas?\s+son|pdf/i.test(currentMessage)
+          ? "\n\nGracias por las medidas; el equipo las usa para afinar el entelado."
+          : "";
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ =
+        !cierreYaEnviado && pending && pending !== "requerimientos"
+          ? buildNaturalQuestion(pending, ctx)
+          : null;
+      const body = `${ack}${dimsNote}${
+        nextQ && !ack.includes(nextQ) ? `\n\n${nextQ}` : ""
+      }`.trim();
+      log?.info({ entityId }, "GUARD: A15956 — entelado (no menú mesas/sillas)");
+      return normalizeAdvisorReferences(
+        body,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
+
   // A15486: "Más detalle" tras oferta de catálogo → ficha del servicio ofertado (no Banquete del CRM).
   if (
     currentMessage &&
@@ -9154,12 +9222,45 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       8
     );
     if (merged) extracted.requerimientos_evento = merged;
+    // A15956: entelado/colgantes → SKU propio + catálogo correcto.
+    if (piece === "entelados" || piece === "entelado") {
+      const mergedEnt = mergeServiceRequirements(
+        extracted.requerimientos_evento,
+        "Entelados para Techo",
+        6
+      );
+      if (mergedEnt) extracted.requerimientos_evento = mergedEnt;
+    }
     const display = getDisplayName(extracted, whatsappDisplayName);
     const advanceWithAck =
       multiPieces ||
       mesasPeriquerasOnly ||
       (historyOfferedAlimentosModoMenu(presHistory) && piece !== "mobiliario");
-    if (advanceWithAck) {
+    if (piece === "entelados" || piece === "entelado" || piece === "colgantes" || piece === "colgante") {
+      const body = buildMobiliarioPieceFollowUp(piece);
+      const catalogQuery =
+        piece === "entelados" || piece === "entelado"
+          ? "entelados para techo"
+          : "colgantes premium";
+      const catalogUrl = getCatalogWebUrlForQuery(catalogQuery);
+      const catalogLabel =
+        piece === "entelados" || piece === "entelado"
+          ? "Catálogo de entelados"
+          : "Catálogo de colgantes";
+      const withLink =
+        catalogUrl && !/bodasesor\.com\/catalogos/i.test(body)
+          ? `${body}\n\n${catalogLabel}:\n${catalogUrl}`
+          : body;
+      mensaje = mergeWithPendingQuestion(
+        `${pickTransition(presHistory)} ${withLink}`.trim(),
+        filledSet,
+        extracted,
+        ctx
+      );
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId, piece }, "GUARD: A15956 — entelado/colgantes + catálogo");
+    } else if (advanceWithAck) {
       const labelText =
         mobLabels.length > 0
           ? mobLabels.map((l) => `*${l}*`).join(", ").replace(/, ([^,]*)$/, " y $1")
@@ -11140,6 +11241,43 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           : extracted.requerimientos_evento || currentMessage || "canapés";
       mensaje = buildGuardServiceAck(fixHint);
       log?.info({ entityId }, "GUARD: A15204 — comida ≠ mobiliario, dump reemplazado");
+    }
+  }
+
+  // A15956: entelado nunca termina como "anoto mobiliario" + mesas/periqueras.
+  {
+    const userBlobEnt = collectUserTexts(presHistory, currentMessage).join(" ");
+    const enteladoAsk =
+      isEnteladoRequestText(currentMessage) ||
+      isEnteladoRequestText(extracted.requerimientos_evento) ||
+      isEnteladoRequestText(userBlobEnt);
+    const wrongMobiliarioReply =
+      (/anoto\s+\*?mobiliario\*?/i.test(mensaje) ||
+        /Te gustar[ií]a \*?mesas y sillas\*?/i.test(mensaje) ||
+        (/catalogos\/mesas-y-sillas/i.test(mensaje) &&
+          /catalogos\/salas-y-periqueras/i.test(mensaje)) ||
+        (/contamos con \*mobiliario\*/i.test(mensaje) &&
+          /\bMesas\b/.test(mensaje) &&
+          /\bSillas\b/.test(mensaje))) &&
+      !/\bentelados?\s+para\s+techo\b/i.test(mensaje);
+    if (enteladoAsk && wrongMobiliarioReply) {
+      mensaje = buildGuardServiceAck(
+        isEnteladoRequestText(currentMessage)
+          ? currentMessage!
+          : extracted.requerimientos_evento || "entelado para techo"
+      );
+      if (extracted.requerimientos_evento && /mobiliario/i.test(extracted.requerimientos_evento)) {
+        extracted.requerimientos_evento = "Entelados para Techo";
+      } else {
+        const merged = mergeServiceRequirements(
+          extracted.requerimientos_evento,
+          "Entelados para Techo",
+          8
+        );
+        if (merged) extracted.requerimientos_evento = merged;
+      }
+      filledSet.add("Requerimientos o servicios");
+      log?.info({ entityId }, "GUARD: A15956 — entelado ≠ mobiliario, dump reemplazado");
     }
   }
 

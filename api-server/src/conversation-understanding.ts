@@ -2933,6 +2933,18 @@ export function isTablewareRequestText(text: string | null | undefined): boolean
   );
 }
 
+/** A15956: entelado / tela para techo ≠ menú de mesas/sillas (mobiliario). */
+export function isEnteladoRequestText(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  return (
+    /\bentelados?\b/i.test(t) ||
+    /\btela\s+(en\s+|de\s+|para\s+)?techo\b/i.test(t) ||
+    /\bentelados?\s+para\s+techo\b/i.test(t) ||
+    /\btecho\s+entelado\b/i.test(t)
+  );
+}
+
 export function parseServicesFromText(text: string): string[] {
   const t = text.trim();
   if (

@@ -703,6 +703,22 @@ export function buildMobiliarioPieceFollowUp(piece: string): string {
       "¿Quieres que te dé detalles de alguno o te paso el catálogo?",
     ].join("\n");
   }
+  // A15956: entelado / colgantes son SKU propios (no menú mesas/sillas).
+  if (p === "entelados" || p === "entelado") {
+    return [
+      "Perfecto — anoto *Entelados para Techo* para tu cotización.",
+      "Son telas / montajes para techo o cielo del salón; el equipo cotiza según medidas y estilo.",
+      "",
+      "¿Quieres que te mande el catálogo de entelados o seguimos con los datos del evento?",
+    ].join("\n");
+  }
+  if (p === "colgantes" || p === "colgante") {
+    return [
+      "Perfecto — anoto *Colgantes Premium* para tu cotización.",
+      "",
+      SERVICE_NIVEL_DETAIL_CTA,
+    ].join("\n");
+  }
   return [
     `Claro. Anoto *${piece}*.`,
     "",
@@ -980,6 +996,14 @@ export function shouldOfferOptionsBeforeDetail(opts: {
   const msg = opts.currentMessage?.trim() ?? "";
   const blob = `${msg} ${opts.serviceHint ?? ""}`.trim();
   if (!blob) return null;
+
+  // A15956: entelado concreto → detalle/ack del SKU, NUNCA menú mesas/sillas/periqueras.
+  if (
+    /\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b|\btecho\s+entelado\b/i.test(msg) ||
+    /\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b/i.test(opts.serviceHint ?? "")
+  ) {
+    return null;
+  }
 
   // A15165: saludo solo → no reabrir menú de CRM stale (Mobiliario).
   if (isGreetingOnlyMessage(msg) || /^(hola|buenas?|hey|hi)[\s.!]*$/i.test(msg)) {

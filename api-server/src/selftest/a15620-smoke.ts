@@ -64,7 +64,7 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.92");
+assert.equal(LUCY_PROMPT_VERSION, "V9.95");
 
 assert.ok(isPromoTemplateMessage(MARA_PROMO));
 assert.ok(isPromoMinimumGuestLine("Pedido mínimo: 35 personas."));

@@ -27,6 +27,7 @@ import {
   getCatalogWebHubDeliveryUrl,
 } from "./catalogService.js";
 import { clientAsksPrice } from "../price-guard.js";
+import { getCatalogWebUrlForQuery } from "./catalogWebKnowledge.js";
 import { buildConcreteProductQuestionReply } from "./concreteProductQuestion.js";
 import { advisorLabelForClient } from "../lib/bodasesorAdvisor.js";
 import { buildLucyInfoLearnedPriceReply } from "./lucyInfoPriceCache.js";
@@ -277,6 +278,25 @@ export function buildGuardServiceAck(query: string): string {
       `¡Claro! Anoto *mesa de dulces*${scale} para tu cotización. ` +
       "Nuestro equipo arma la propuesta según estilo y cantidad."
     );
+  }
+
+  // A15956: entelado para techo ≠ menú mesas/sillas/periqueras.
+  if (
+    /\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b|\btecho\s+entelado\b/i.test(query) ||
+    /entelados?\s+para\s+techo/i.test(label)
+  ) {
+    const catalogUrl =
+      getCatalogWebUrlForQuery("entelados para techo") ||
+      getCatalogWebUrlForQuery("entelado") ||
+      "https://bodasesor.com/catalogos/entelados-para-techo";
+    return [
+      "Perfecto — anoto *Entelados para Techo* para tu cotización.",
+      "Son telas / montajes para el techo o cielo del salón; el equipo cotiza según medidas y estilo.",
+      "",
+      `Catálogo de *entelados*:\n${catalogUrl}`,
+      "",
+      "Si ya tienes medidas del salón, mándamelas y afinamos. ¿Qué van a celebrar?",
+    ].join("\n");
   }
 
   // A14938: "¿Hacen las pizzas en el evento?" — sí, barra/estación montada.

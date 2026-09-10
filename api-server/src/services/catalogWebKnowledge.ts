@@ -89,9 +89,17 @@ export function resolveCatalogWebSlug(query: string | null | undefined): string 
     return null;
   }
 
+  // A15956: entelado / tela para techo ≠ mesas-y-sillas (antes de aliases de mobiliario).
+  if (/\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b|\btecho\s+entelado\b/i.test(t)) {
+    if (loadCatalogEmbeds().some((e) => e.slug === "entelados-para-techo")) {
+      return "entelados-para-techo";
+    }
+  }
+
   // A15165 / A15936: aliases explícitos → slug de embeds.json (servicio + general).
   // Más específico primero. Shows sin página propia → audio/iluminación.
   const aliases: Array<[RegExp, string]> = [
+    [/\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b/i, "entelados-para-techo"],
     [/\bmesas?\s*y\s*sillas?\b|\bsillas?\b|(?<!centros?\s+de\s+)(?<!mesa\s+de\s+)\bmesas?\b|\bmobiliario\b|\bmobilairio\b/i, "mesas-y-sillas"],
     [/\bsalas?\b|\bperiqueras?\b|\blounge\b/i, "salas-y-periqueras"],
     [/\baudio\b|\biluminaci[oó]n\b|\bvideo\b|\bdj\b|\bsonido\b/i, "audio-iluminacion-y-video"],
@@ -130,7 +138,6 @@ export function resolveCatalogWebSlug(query: string | null | undefined): string 
     [/\bm[oó]cteles?\b/i, "mocteles"],
     [/\bvajillas?\b|\bloza\b/i, "vajillas"],
     [/\bcolgantes?\b|\bwisteria\b/i, "colgantes-premium"],
-    [/\bentelados?\b/i, "entelados-para-techo"],
     [/\bcomida\s+corrida\b/i, "comida-corrida"],
     [/\bfiesta\s+infantil\b/i, "fiesta-infantil"],
   ];
