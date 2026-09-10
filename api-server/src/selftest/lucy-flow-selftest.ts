@@ -2110,7 +2110,8 @@ async function runAll(): Promise<void> {
   });
 
   await test("36. Modelo 3 niveles — Sheet, evento sin Sheet, solicitud especial", () => {
-    assert.ok(SERVICE_KNOWLEDGE_GOLDEN_RULE.includes("no esté en el catálogo"));
+    assert.ok(SERVICE_KNOWLEDGE_GOLDEN_RULE.includes("no está listado en el catálogo"));
+    assert.ok(/no inventes|NO inventes/i.test(SERVICE_KNOWLEDGE_GOLDEN_RULE));
     const catalogStatus = getCatalogStatus();
     if (catalogStatus.rowCount > 0) {
       assert.equal(classifyServiceKnowledgeLevel("taquiza"), 1);
@@ -2131,6 +2132,9 @@ async function runAll(): Promise<void> {
     assert.ok(/solicitud especial/i.test(level3!.guardAck), level3!.guardAck);
 
     assert.ok(/anoto/i.test(buildLevel2Ack("pirotecnia fría")));
+    assert.ok(/listado en el cat[aá]logo/i.test(buildLevel2Ack("pirotecnia fría")));
+    assert.ok(/bodasesor\.com\/catalogos/i.test(buildLevel2Ack("castillo inflable")));
+    assert.ok(!/manejamos \*pirotecnia/i.test(buildLevel2Ack("pirotecnia fría")));
     assert.ok(/disponibilidad/i.test(buildLevel3Ack("seguro de auto")));
 
     const filledPartial = new Set([
@@ -2407,7 +2411,9 @@ async function runAll(): Promise<void> {
 
     const ack = buildLevel2Ack("Parrillada Argentina");
     assert.ok(/parrillada argentina/i.test(ack), ack);
+    assert.ok(/listado en el cat[aá]logo/i.test(ack), ack);
     assert.ok(!/banquete/i.test(ack), ack);
+    assert.ok(!/manejamos \*Parrillada/i.test(ack), ack);
 
     const csvConParrillada = [
       csvBanqueteOnly,

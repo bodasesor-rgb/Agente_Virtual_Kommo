@@ -3480,8 +3480,9 @@ function shouldPreferAiResponse(
   if (messageOffersLevelsWithoutInclusions(trimmed)) return false;
   // A15165: never prefer Level-2 stub over catalog/template knowledge.
   if (
-    /\bla\s+anoto\s+para\s+tu\s+cotizaci[oó]n\b/i.test(trimmed) &&
-    /Nuestro equipo te confirma/i.test(trimmed)
+    (/\bla\s+anoto\s+para\s+tu\s+cotizaci[oó]n\b/i.test(trimmed) &&
+      /Nuestro equipo te confirma/i.test(trimmed)) ||
+    /no lo tengo listado en el cat[aá]logo/i.test(trimmed)
   ) {
     return false;
   }
@@ -3529,10 +3530,11 @@ function aiLooksLikeEntertainmentReply(
   if (!text?.trim() || text.trim().length < 40) return false;
   if (looksLikeServicesMenuDump(text) || responseLooksLikeGenericCateringMenu(text)) return false;
   if (responseHasInventedPrice(text)) return false;
-  // A15165: Level-2 vacío ("la anoto… equipo confirma") no sustituye plantilla + catálogo.
+  // A15165 / V9.94: Level-2 stub (viejo o calmado fuera de catálogo) no sustituye plantilla.
   if (
     /\bla\s+anoto\s+para\s+tu\s+cotizaci[oó]n\b/i.test(text) ||
-    /Nuestro equipo te confirma descripci[oó]n, precio e inclusiones/i.test(text)
+    /Nuestro equipo te confirma descripci[oó]n, precio e inclusiones/i.test(text) ||
+    /no lo tengo listado en el cat[aá]logo/i.test(text)
   ) {
     return false;
   }

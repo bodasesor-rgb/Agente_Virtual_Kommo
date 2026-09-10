@@ -39,9 +39,11 @@ import {
 export type ServiceKnowledgeLevel = 1 | 2 | 3;
 
 export const SERVICE_KNOWLEDGE_GOLDEN_RULE =
-  "Que un servicio no esté en el catálogo significa que no tengo el precio a la mano, " +
-  "NO que no sepa qué es. Acepta cualquier servicio de eventos, anótalo y avanza. " +
-  "Nunca te quedes pidiendo 'otros servicios' ni repitas la misma pregunta por no tener el dato.";
+  "Si un servicio no está listado en el catálogo web/Sheet: dilo con calma " +
+  "('no lo tengo listado en el catálogo'), anótalo y deja que el equipo confirme. " +
+  "NO inventes ficha, precio ni inclusiones. NO digas 'no lo hacemos' / 'no te puedo ayudar'. " +
+  "Ofrece el catálogo general o pregunta qué más cotizar. " +
+  "Nunca te quedes pidiendo 'otros servicios' en bucle ni inventes un SKU parecido.";
 
 /** Servicios claramente ajenos a eventos / Bodasesor. */
 const NON_EVENT_REQUEST_PATTERN =
@@ -85,10 +87,18 @@ export function classifyServiceKnowledgeLevel(query: string): ServiceKnowledgeLe
   return 2;
 }
 
-/** Acuse NIVEL 2 — servicio de eventos sin precio en Sheet. */
+/** Acuse NIVEL 2 — evento sin ficha en catálogo: honestidad suave, sin inventar. */
 export function buildLevel2Ack(serviceLabel: string): string {
   const label = serviceLabel.trim() || "ese servicio";
-  return `¡Claro! *${label}* la anoto para tu cotización. Nuestro equipo te confirma descripción, precio e inclusiones.`;
+  const hub = getCatalogWebHubDeliveryUrl();
+  return [
+    `Perfecto — *${label}* no lo tengo listado en el catálogo. Lo anoto y nuestro equipo confirma si lo podemos armar (descripción, precio e inclusiones).`,
+    "",
+    "Te dejo el catálogo general por si quieres ver otras opciones:",
+    hub,
+    "",
+    "¿Lo dejamos anotado o prefieres revisar otra opción del catálogo?",
+  ].join("\n");
 }
 
 /** Ítems de renta mobiliario con cantidad (A14987 picnic / periqueras / bancos). */
@@ -425,7 +435,7 @@ export function getServiceKnowledge(query: string): ServiceKnowledgeResult | nul
         "CONOCIMIENTO DE SERVICIO (solicitud especial — NIVEL 3):",
         `Servicio: ${label}`,
         "Acción: anota como solicitud especial. El equipo confirma disponibilidad.",
-        "NUNCA digas 'no lo tenemos'. NUNCA inventes precio.",
+        "Di con calma que no está en el catálogo listado. NUNCA digas 'no te puedo ayudar' ni 'no lo hacemos'. NUNCA inventes precio.",
         SERVICE_KNOWLEDGE_GOLDEN_RULE,
       ].join("\n"),
       guardAck: buildLevel3Ack(label),
@@ -437,10 +447,11 @@ export function getServiceKnowledge(query: string): ServiceKnowledgeResult | nul
     label,
     hasSheetPrice: false,
     promptBlock: [
-      "CONOCIMIENTO DE SERVICIO (eventos — NIVEL 2, sin precio en Sheet):",
+      "CONOCIMIENTO DE SERVICIO (eventos — NIVEL 2, sin ficha en catálogo/Sheet):",
       `Servicio: ${label}`,
-      "Acción: ACEPTA, anota en requerimientos y AVANZA al siguiente dato o cierre.",
-      "Acuse breve + siguiente pregunta. NUNCA inventes precio. NUNCA repitas '¿otros servicios?'.",
+      "Acción: dilo con calma ('no lo tengo listado en el catálogo'), anota en requerimientos y AVANZA.",
+      "No inventes ficha, precio ni inclusiones. Ofrece catálogo general o pregunta qué más cotizar.",
+      "NUNCA inventes un SKU parecido. NUNCA digas 'no te puedo ayudar' / 'no lo hacemos'.",
       SERVICE_KNOWLEDGE_GOLDEN_RULE,
     ].join("\n"),
     guardAck: buildLevel2Ack(label),

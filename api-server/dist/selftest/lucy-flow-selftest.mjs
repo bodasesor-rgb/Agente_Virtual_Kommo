@@ -132683,7 +132683,7 @@ function shouldSkipSalesMenuForConcreteQuestion(message) {
 }
 
 // src/services/serviceKnowledge.ts
-var SERVICE_KNOWLEDGE_GOLDEN_RULE = "Que un servicio no est\xE9 en el cat\xE1logo significa que no tengo el precio a la mano, NO que no sepa qu\xE9 es. Acepta cualquier servicio de eventos, an\xF3talo y avanza. Nunca te quedes pidiendo 'otros servicios' ni repitas la misma pregunta por no tener el dato.";
+var SERVICE_KNOWLEDGE_GOLDEN_RULE = "Si un servicio no est\xE1 listado en el cat\xE1logo web/Sheet: dilo con calma ('no lo tengo listado en el cat\xE1logo'), an\xF3talo y deja que el equipo confirme. NO inventes ficha, precio ni inclusiones. NO digas 'no lo hacemos' / 'no te puedo ayudar'. Ofrece el cat\xE1logo general o pregunta qu\xE9 m\xE1s cotizar. Nunca te quedes pidiendo 'otros servicios' en bucle ni inventes un SKU parecido.";
 var NON_EVENT_REQUEST_PATTERN = /\b(seguro\s+de|abogad|plomer|electricista|internet\s+en\s+casa|plan\s+de\s+celular|lavad|reparaci[oó]n\s+de\s+(auto|celular)|vpn|software\s+de\s+contab|consulta\s+m[eé]dic|veterinar|notari|traducci[oó]n\s+oficial|impresi[oó]n\s+de\s+actas)\b/i;
 var EVENT_CONTEXT_PATTERN = /\b(evento|fiesta|boda|xv|quince|cumple|corporativ|celebraci[oó]n|banquete|taquiza|barra|renta|valet|pirotecnia|mesa\s+imperial|flor|decoraci|animaci|dj|mobiliario|carpa|iluminaci|pantalla|mesero|catering|invitados)\b/i;
 function serviceLabelFromQuery(query) {
@@ -132712,7 +132712,15 @@ function classifyServiceKnowledgeLevel(query) {
 }
 function buildLevel2Ack(serviceLabel) {
   const label = serviceLabel.trim() || "ese servicio";
-  return `\xA1Claro! *${label}* la anoto para tu cotizaci\xF3n. Nuestro equipo te confirma descripci\xF3n, precio e inclusiones.`;
+  const hub = getCatalogWebHubDeliveryUrl();
+  return [
+    `Perfecto \u2014 *${label}* no lo tengo listado en el cat\xE1logo. Lo anoto y nuestro equipo confirma si lo podemos armar (descripci\xF3n, precio e inclusiones).`,
+    "",
+    "Te dejo el cat\xE1logo general por si quieres ver otras opciones:",
+    hub,
+    "",
+    "\xBFLo dejamos anotado o prefieres revisar otra opci\xF3n del cat\xE1logo?"
+  ].join("\n");
 }
 function parseMobiliarioRentItems(query) {
   const items = [];
@@ -132918,7 +132926,7 @@ function getServiceKnowledge(query) {
         "CONOCIMIENTO DE SERVICIO (solicitud especial \u2014 NIVEL 3):",
         `Servicio: ${label}`,
         "Acci\xF3n: anota como solicitud especial. El equipo confirma disponibilidad.",
-        "NUNCA digas 'no lo tenemos'. NUNCA inventes precio.",
+        "Di con calma que no est\xE1 en el cat\xE1logo listado. NUNCA digas 'no te puedo ayudar' ni 'no lo hacemos'. NUNCA inventes precio.",
         SERVICE_KNOWLEDGE_GOLDEN_RULE
       ].join("\n"),
       guardAck: buildLevel3Ack(label)
@@ -132929,10 +132937,11 @@ function getServiceKnowledge(query) {
     label,
     hasSheetPrice: false,
     promptBlock: [
-      "CONOCIMIENTO DE SERVICIO (eventos \u2014 NIVEL 2, sin precio en Sheet):",
+      "CONOCIMIENTO DE SERVICIO (eventos \u2014 NIVEL 2, sin ficha en cat\xE1logo/Sheet):",
       `Servicio: ${label}`,
-      "Acci\xF3n: ACEPTA, anota en requerimientos y AVANZA al siguiente dato o cierre.",
-      "Acuse breve + siguiente pregunta. NUNCA inventes precio. NUNCA repitas '\xBFotros servicios?'.",
+      "Acci\xF3n: dilo con calma ('no lo tengo listado en el cat\xE1logo'), anota en requerimientos y AVANZA.",
+      "No inventes ficha, precio ni inclusiones. Ofrece cat\xE1logo general o pregunta qu\xE9 m\xE1s cotizar.",
+      "NUNCA inventes un SKU parecido. NUNCA digas 'no te puedo ayudar' / 'no lo hacemos'.",
       SERVICE_KNOWLEDGE_GOLDEN_RULE
     ].join("\n"),
     guardAck: buildLevel2Ack(label)
@@ -137052,7 +137061,7 @@ function shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage
   }
   if (isDryRequerimientosAsk(trimmed)) return false;
   if (messageOffersLevelsWithoutInclusions(trimmed)) return false;
-  if (/\bla\s+anoto\s+para\s+tu\s+cotizaci[oó]n\b/i.test(trimmed) && /Nuestro equipo te confirma/i.test(trimmed)) {
+  if (/\bla\s+anoto\s+para\s+tu\s+cotizaci[oó]n\b/i.test(trimmed) && /Nuestro equipo te confirma/i.test(trimmed) || /no lo tengo listado en el cat[aá]logo/i.test(trimmed)) {
     return false;
   }
   const pending = getNextPendingField(extracted, filledSet);
@@ -137078,7 +137087,7 @@ function aiLooksLikeEntertainmentReply(text2, clientMessage) {
   if (!text2?.trim() || text2.trim().length < 40) return false;
   if (looksLikeServicesMenuDump(text2) || responseLooksLikeGenericCateringMenu(text2)) return false;
   if (responseHasInventedPrice(text2)) return false;
-  if (/\bla\s+anoto\s+para\s+tu\s+cotizaci[oó]n\b/i.test(text2) || /Nuestro equipo te confirma descripci[oó]n, precio e inclusiones/i.test(text2)) {
+  if (/\bla\s+anoto\s+para\s+tu\s+cotizaci[oó]n\b/i.test(text2) || /Nuestro equipo te confirma descripci[oó]n, precio e inclusiones/i.test(text2) || /no lo tengo listado en el cat[aá]logo/i.test(text2)) {
     return false;
   }
   if (/manejamos shows|Te dejo el cat[aá]logo general|happening,? espejos|l[aá]ser y m[aá]s opciones/i.test(
@@ -142926,7 +142935,10 @@ No vuelques niveles de cada SKU salvo que pidan detalle de uno.
 - Usa sentido com\xFAn: tema italiano \u2192 pastas/pizzas; pozolada \u2192 pozole; etc.
 - Palabra general ("comida", "alimentos", "catering") \u2260 servicio espec\xEDfico: ofrece
   banquete formal vs estaciones casuales y consigue el tipo. No lo dejes abierto.
-- Servicio fuera de lista \u2192 ac\xE9ptalo, an\xF3talo y avanza. Nunca "no lo tenemos".
+- Servicio fuera de lista \u2192 dilo con calma ("no lo tengo listado en el cat\xE1logo"),
+  an\xF3talo y deja que el equipo confirme. No inventes ficha, precio ni inclusiones.
+  Ofrece el cat\xE1logo general o pregunta qu\xE9 m\xE1s cotizar. Nunca inventes un SKU parecido
+  ni digas "no te puedo ayudar" / "no lo hacemos".
 - Robots LED, batucada, shows = ENTRETENIMIENTO. No respondas con banquete.
 - Precio distribuidor / mayoreo \u2192 el equipo cotiza; no des precio de lista.
 
@@ -144232,7 +144244,7 @@ function clientReplyForPaymentSlot(slot) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.93";
+var LUCY_PROMPT_VERSION = "V9.94";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -145681,7 +145693,8 @@ async function runAll() {
     );
   });
   await test("36. Modelo 3 niveles \u2014 Sheet, evento sin Sheet, solicitud especial", () => {
-    assert2.ok(SERVICE_KNOWLEDGE_GOLDEN_RULE.includes("no est\xE9 en el cat\xE1logo"));
+    assert2.ok(SERVICE_KNOWLEDGE_GOLDEN_RULE.includes("no est\xE1 listado en el cat\xE1logo"));
+    assert2.ok(/no inventes|NO inventes/i.test(SERVICE_KNOWLEDGE_GOLDEN_RULE));
     const catalogStatus = getCatalogStatus();
     if (catalogStatus.rowCount > 0) {
       assert2.equal(classifyServiceKnowledgeLevel("taquiza"), 1);
@@ -145699,6 +145712,9 @@ async function runAll() {
     assert2.equal(level3.level, 3);
     assert2.ok(/solicitud especial/i.test(level3.guardAck), level3.guardAck);
     assert2.ok(/anoto/i.test(buildLevel2Ack("pirotecnia fr\xEDa")));
+    assert2.ok(/listado en el cat[aá]logo/i.test(buildLevel2Ack("pirotecnia fr\xEDa")));
+    assert2.ok(/bodasesor\.com\/catalogos/i.test(buildLevel2Ack("castillo inflable")));
+    assert2.ok(!/manejamos \*pirotecnia/i.test(buildLevel2Ack("pirotecnia fr\xEDa")));
     assert2.ok(/disponibilidad/i.test(buildLevel3Ack("seguro de auto")));
     const filledPartial = /* @__PURE__ */ new Set([
       "Nombre del cliente",
@@ -145940,7 +145956,9 @@ async function runAll() {
     assert2.equal(buildCatalogPriceAnswer("quiero parrillada argentina"), null);
     const ack = buildLevel2Ack("Parrillada Argentina");
     assert2.ok(/parrillada argentina/i.test(ack), ack);
+    assert2.ok(/listado en el cat[aá]logo/i.test(ack), ack);
     assert2.ok(!/banquete/i.test(ack), ack);
+    assert2.ok(!/manejamos \*Parrillada/i.test(ack), ack);
     const csvConParrillada = [
       csvBanqueteOnly,
       '"Parrillada Argentina","Basica","$420.00","$8,400.00","TRUE","Cortes argentinos y guarniciones"'

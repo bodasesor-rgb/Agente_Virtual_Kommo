@@ -2290,6 +2290,7 @@ function mentionedServiceLabel(query: string): string | null {
   return parsePrimaryService(query);
 }
 
+/** Fuera de catálogo Sheet/web → ack calmado Nivel 2 (o Nivel 3 si es ajeno a eventos). */
 export function buildCatalogNotFoundAnswer(serviceLabel: string, query?: string): string {
   if (query && classifyServiceKnowledgeLevel(query) === 3) {
     return buildLevel3Ack(serviceLabel);
