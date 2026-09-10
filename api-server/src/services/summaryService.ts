@@ -1,10 +1,6 @@
 /**
- * summaryService.ts — Genera resumen automático de hasta 240 caracteres
- * con los requerimientos del cliente para guardarlo en el campo
- * "Requerimientos para el evento" de Kommo (field_id 1048776).
- *
- * Se usa SIEMPRE como valor del campo requerimientos_evento porque es
- * más fiable y estructurado que lo que extrae el LLM libremente.
+ * summaryService.ts — Resumen del lead para Kommo (campo largo).
+ * Debe dar claves operativas para cotizar, no copiar basura ni concatenar montos.
  */
 
 import type { ExtractedData } from "../types.js";
@@ -14,9 +10,12 @@ import {
   parseTipoEventoFromText,
   parseInvitadosFromText,
   parseFechaFromText,
+  parsePresupuestoFromText,
   isServiceRelatedMessage,
   isUsableDireccionEvento,
   isNonLocationBusinessPhrase,
+  sanitizeDireccionCapture,
+  parseZonaFromText,
 } from "../conversation-understanding.js";
 import { isGreetingOnlyMessage, isQuoteIntentMessage, sanitizeCrmNombre } from "../contact-name.js";
 
@@ -46,6 +45,11 @@ function isUsableResumenUbicacion(value: string | null | undefined): boolean {
   const t = value?.trim() ?? "";
   if (!t) return false;
   if (isNonLocationBusinessPhrase(t)) return false;
+  if (/\b(buscando|proveedor|se\s+llama|nos\s+encontramos\s+en|coordino\s+eventos)\b/i.test(t)) {
+    const cleaned = sanitizeDireccionCapture(t);
+    if (!cleaned) return false;
+    return isUsableDireccionEvento(cleaned);
+  }
   return isUsableDireccionEvento(t);
 }
 
@@ -65,22 +69,7 @@ function extraerEstilo(texto: string): string | null {
 }
 
 function extraerPresupuesto(texto: string): string | null {
-  const patrones = [
-    /presupuesto\s*(?:de|es)?\s*\$?\s*([\d,]+)\s*k?/i,
-    /tengo\s+\$?\s*([\d,]+)\s*k?/i,
-    /\$\s*([\d,]+)\s*k\b/i,
-  ];
-  for (const p of patrones) {
-    const m = texto.match(p);
-    if (m) {
-      const num = parseInt(m[1]!.replace(/,/g, ""), 10);
-      if (isNaN(num) || num <= 0) continue;
-      if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;
-      if (num >= 1_000) return `$${Math.round(num / 1_000)}k`;
-      return `$${num}`;
-    }
-  }
-  return null;
+  return parsePresupuestoFromText(texto, { askedField: "presupuesto" });
 }
 
 /**
@@ -120,7 +109,7 @@ export function generateSummary(conversationText: string): string {
   const invitados = extraerInvitados(texto);
   const servicios = extraerServicios(texto);
   const estilo = extraerEstilo(texto);
-  const presupuesto = extraerPresupuesto(texto);
+  const presupuesto = extraerPresupuesto(conversationText);
 
   const partes: string[] = [];
 
@@ -198,19 +187,159 @@ function pendingFields(mergedLines: string[], extracted: ExtractedData): string[
   return pending;
 }
 
+/** Piezas a rentar (sillas/mesas/carpas) — distinto de aforo del evento. */
+export function extractRentalPieceCount(text: string | null | undefined): {
+  count: number;
+  unit: string;
+} | null {
+  const t = text ?? "";
+  const m = t.match(
+    /\b(?:alrededor\s+de|aprox(?:imadamente)?|ocupamos|necesitamos?|buscamos?|renta(?:r|mos)?|son|de)?\s*(\d{1,3})\s*(sillas?|mesas?|periqueras?|carpas?|lounges?|piezas?)\b/i
+  );
+  if (!m) return null;
+  const count = parseInt(m[1]!, 10);
+  if (!Number.isFinite(count) || count < 1 || count > 500) return null;
+  return { count, unit: m[2]!.toLowerCase() };
+}
+
+/** Modelo/color de mobiliario u otros detalles de producto. */
+export function extractProductSpecHints(text: string | null | undefined): string[] {
+  const t = text ?? "";
+  const out: string[] = [];
+  const chair = t.match(
+    /\b(?:silla|tipo\s+de\s+silla)\s+(?:que\s+es\s+|es\s+)?(basket(?:\s+tony)?|tiffany|vers[aá]til|chiavari|cross\s*back|napole[oó]n)(?:\s+de\s+color\s+(\w+(?:\s+\w+)?))?/i
+  );
+  if (chair) {
+    let spec = `Silla ${chair[1]}`.replace(/\s+/g, " ");
+    if (chair[2]) spec += ` color ${chair[2]}`;
+    else {
+      const color = t.match(
+        /\b(?:color\s+)?(gris(?:\s+oscuro)?|blanc[oa]|negr[oa]|dorad[oa]|natural|madera)\b/i
+      );
+      if (color && /silla|basket|tiffany/i.test(t)) spec += ` ${color[1]}`;
+    }
+    out.push(spec);
+  } else if (/\bbasket(?:\s+tony)?\b/i.test(t) && /\bsilla/i.test(t)) {
+    const color = t.match(/\b(gris(?:\s+oscuro)?|blanc[oa]|negr[oa])\b/i);
+    out.push(`Silla basket${color ? ` ${color[1]}` : ""}`.trim());
+  }
+  const carpa = t.match(/\bcarpa\s+(tela|transparente|stretch|tipos?\s*\d)[^\n.]{0,40}/i);
+  if (carpa) out.push(carpa[0]!.replace(/\s+/g, " ").trim().slice(0, 60));
+  const nivel = t.match(
+    /\b((?:banquete|coffee\s*break|taquiza|brunch|desayuno)\s+\d(?:\s+tiempos?)?)\b/i
+  );
+  if (nivel) out.push(nivel[1]!.replace(/\s+/g, " "));
+  if (/\bsolo\s+alimentos?\b/i.test(t)) out.push("Modalidad: solo alimentos");
+  if (
+    /\b(entregar?|entrega|montar?)\s+(?:un\s+)?d[ií]a\s+antes\b|\bd[ií]a\s+antes\s+del\s+evento\b/i.test(
+      t
+    )
+  ) {
+    out.push("Pide entrega/montaje un día antes");
+  }
+  if (
+    /\bcomplemento\s+de\s+sillas?\b|\bya\s+contamos\s+con\s+(?:el\s+)?sal[oó]n\b/i.test(t)
+  ) {
+    out.push("Complemento: el salón ya tiene sillas; rentan faltantes");
+  }
+  return [...new Set(out)].slice(0, 6);
+}
+
+/**
+ * Presupuesto legible para el resumen: prioriza texto del cliente, nunca 130150.
+ */
+export function resolveResumenPresupuesto(
+  extracted: ExtractedData,
+  mergedLines: string[],
+  conversationText?: string
+): string | null {
+  const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
+  if (pptoFromLine && !isCalendarYearOnlyAmount(pptoFromLine)) {
+    const digitsOnly = pptoFromLine.replace(/[^\d]/g, "");
+    const looksConcat =
+      digitsOnly === "130150" ||
+      (/^\d{5,6}$/.test(digitsOnly) &&
+        digitsOnly.length % 2 === 0 &&
+        digitsOnly.slice(0, digitsOnly.length / 2) === digitsOnly.slice(digitsOnly.length / 2));
+    if (!looksConcat) {
+      if (/–|-|por\s+|acarreo|desplazamiento|flexible|sin definir|propong|econ/i.test(pptoFromLine)) {
+        return pptoFromLine;
+      }
+      if (/^\d+$/.test(pptoFromLine.trim()) && Number(pptoFromLine) >= 1000) {
+        return `$${Number(pptoFromLine).toLocaleString("es-MX")} MXN`;
+      }
+      if (!/^[\d]{5,}$/.test(digitsOnly)) return pptoFromLine;
+    }
+  }
+
+  if (conversationText?.trim()) {
+    for (const chunk of conversationText.split(/\n+/).reverse()) {
+      if (!/\b(presupuesto|silla|acarreo|desplazamiento|\$|pesos|por\s+cada)\b/i.test(chunk)) {
+        continue;
+      }
+      const p = parsePresupuestoFromText(chunk, { askedField: "presupuesto" });
+      if (p) return p;
+    }
+    const fromConv = parsePresupuestoFromText(conversationText, { askedField: "presupuesto" });
+    if (fromConv) return fromConv;
+  }
+
+  if (typeof extracted.presupuesto === "number" && extracted.presupuesto > 0) {
+    const n = extracted.presupuesto;
+    const s = String(n);
+    if (
+      n === 130150 ||
+      (s.length === 6 && s.slice(0, 3) === s.slice(3)) ||
+      (s.length === 4 && s.slice(0, 2) === s.slice(2))
+    ) {
+      return null;
+    }
+    return `$${n.toLocaleString("es-MX")} MXN`;
+  }
+  if (typeof extracted.presupuesto === "string" && (extracted.presupuesto as string).trim()) {
+    const s = String(extracted.presupuesto).trim();
+    if (/130150/.test(s.replace(/[^\d]/g, ""))) return null;
+    return s;
+  }
+  return null;
+}
+
+function formatUbicacionResumen(
+  raw: string | null | undefined,
+  conversationText?: string
+): string | null {
+  const cleaned = sanitizeDireccionCapture(raw) ?? raw?.trim() ?? null;
+  if (
+    cleaned &&
+    isUsableResumenUbicacion(cleaned) &&
+    !/\b(se\s+llama|buscando|nos\s+encontramos\s+en)\b/i.test(cleaned)
+  ) {
+    return cleaned;
+  }
+  if (conversationText) {
+    const fromMsg = parseZonaFromText(conversationText);
+    const san = sanitizeDireccionCapture(fromMsg) ?? fromMsg;
+    if (san && isUsableResumenUbicacion(san)) return san;
+  }
+  return cleaned && isUsableResumenUbicacion(cleaned) ? cleaned : null;
+}
+
 /**
  * Resumen estilo Conversation Summary para Kommo (campo 1048786).
- * Puntos clave + qué quiere el cliente (con detalle) + próximos pasos.
+ * Claves operativas + datos limpios (A15944: no basura, no 130150).
  */
 export function buildResumenClienteLargo(
   extracted: ExtractedData,
   mergedLines: string[],
   conversationText?: string
 ): string {
-  const nombre = pickFromMergedLines(mergedLines, /Nombre del cliente/i) || extracted.nombre?.trim() || null;
-  const correo = pickFromMergedLines(mergedLines, /Correo electrónico/i) || extracted.correo?.trim() || null;
+  const nombre =
+    pickFromMergedLines(mergedLines, /Nombre del cliente/i) || extracted.nombre?.trim() || null;
+  const correo =
+    pickFromMergedLines(mergedLines, /Correo electrónico/i) || extracted.correo?.trim() || null;
   const emailWaived = mergedLines.some((l) => /continuar por whatsapp/i.test(l));
-  const evento = pickFromMergedLines(mergedLines, /Tipo de evento/i) || extracted.tipo_evento?.trim() || null;
+  const evento =
+    pickFromMergedLines(mergedLines, /Tipo de evento/i) || extracted.tipo_evento?.trim() || null;
   const fecha =
     pickFromMergedLines(mergedLines, /Fecha del evento/i) ||
     extracted.fecha_evento?.trim() ||
@@ -224,26 +353,24 @@ export function buildResumenClienteLargo(
   const fechaResumen = horario && fecha ? `${fecha}, ${horario}` : fecha;
   const invitados =
     pickFromMergedLines(mergedLines, /Número de invitados/i) ||
-    (extracted.num_invitados !== null && extracted.num_invitados > 0 ? String(extracted.num_invitados) : null);
+    (extracted.num_invitados !== null && extracted.num_invitados > 0
+      ? String(extracted.num_invitados)
+      : null);
   const ubicacionRaw =
-    pickFromMergedLines(mergedLines, /Lugar\/dirección/i) || extracted.direccion_evento?.trim() || null;
-  const ubicacion = isUsableResumenUbicacion(ubicacionRaw) ? ubicacionRaw : null;
-  const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
+    pickFromMergedLines(mergedLines, /Lugar\/dirección/i) ||
+    extracted.direccion_evento?.trim() ||
+    null;
+  const ubicacion = formatUbicacionResumen(ubicacionRaw, conversationText);
 
   const reqFromLinesRaw = pickFromMergedLines(mergedLines, /Requerimientos/i);
   const reqFromLines = isUsableResumenServicio(reqFromLinesRaw) ? reqFromLinesRaw : null;
   const reqFromServicesRaw = extracted.requerimientos_evento?.trim();
   const reqFromServices = isUsableResumenServicio(reqFromServicesRaw) ? reqFromServicesRaw : null;
-  // NUNCA formatRequerimientoLabelFromQuery(conversationText completo):
-  // un "comida" suelto en el hilo mapeaba a Comida Corrida (A14943).
   const convServices =
     conversationText && conversationText.trim().length > 20
       ? parseServicesFromText(conversationText).slice(0, 6)
       : [];
-  const reqFromConversation =
-    convServices.length > 0 ? convServices.join(", ") : null;
-  // Preferir lista de servicios más completa (A14929: banquete+mobiliario+DJ vs "banquetes o catering").
-  // Si el conteo es igual, conservar el detalle ya guardado en CRM (Coffee Break para Eventos…).
+  const reqFromConversation = convServices.length > 0 ? convServices.join(", ") : null;
   const lineSvcCount = reqFromLines ? parseServicesFromText(reqFromLines).length : 0;
   const convSvcCount = convServices.length;
   const extractedSvcCount = reqFromServices ? parseServicesFromText(reqFromServices).length : 0;
@@ -259,23 +386,20 @@ export function buildResumenClienteLargo(
       reqFromConversation;
   }
 
-  // Presupuesto: tomar el mayor entre línea CRM, extracted y montos en la conversación.
-  let ppto: string | null = isCalendarYearOnlyAmount(pptoFromLine) ? null : pptoFromLine;
-  const convAmounts = conversationText
-    ? [...conversationText.matchAll(/(\$\s*)?([\d][\d,]{2,})\b/g)]
-        .filter((m) => !!m[1] || !isCalendarYearOnlyAmount(m[2]))
-        .map((m) => parseInt(m[2]!.replace(/,/g, ""), 10))
-        .filter((n) => !isNaN(n) && n >= 1000 && n <= 50_000_000)
-    : [];
-  const maxConv = convAmounts.length ? Math.max(...convAmounts) : 0;
-  const lineNum = ppto ? parseInt(ppto.replace(/[^\d]/g, ""), 10) : 0;
-  const extNum =
-    extracted.presupuesto !== null && extracted.presupuesto > 0 ? extracted.presupuesto : 0;
-  const bestPpto = Math.max(lineNum || 0, extNum || 0, maxConv || 0);
-  if (bestPpto >= 1000) {
-    ppto = String(bestPpto);
-  } else if (!ppto && extNum > 0) {
-    ppto = `$${extNum.toLocaleString("es-MX")} MXN`;
+  const blob = [conversationText, reqs, reqFromLinesRaw].filter(Boolean).join("\n");
+  const pieces = extractRentalPieceCount(blob);
+  const specs = extractProductSpecHints(blob);
+  const ppto = resolveResumenPresupuesto(extracted, mergedLines, conversationText);
+
+  let serviciosLine = reqs || "(aún por definir con más detalle)";
+  if (pieces && reqs && /mobiliario|silla|mesa|carpa|lounge/i.test(`${reqs} ${blob}`)) {
+    serviciosLine = `${reqs} — ${pieces.count} ${pieces.unit}`;
+  }
+  if (specs.length) {
+    const tip = specs.find((s) => /silla|carpa|banquete|coffee|taquiza|solo alimentos/i.test(s));
+    if (tip && !/basket|tiffany|silla\s+\d/i.test(serviciosLine)) {
+      serviciosLine = `${serviciosLine} (${tip})`;
+    }
   }
 
   const modo = extracted.modo_servicio?.trim();
@@ -284,19 +408,23 @@ export function buildResumenClienteLargo(
   const lineas: string[] = ["RESUMEN DE CONVERSACIÓN — Lucy", ""];
 
   lineas.push("Qué busca el cliente:");
-  if (reqs) lineas.push(`• Servicios: ${reqs}`);
-  else lineas.push("• Servicios: (aún por definir con más detalle)");
+  lineas.push(`• Servicios: ${serviciosLine}`);
   if (modo) lineas.push(`• Modalidad: ${modo}`);
   if (evento) lineas.push(`• Evento: ${evento}`);
   if (invitados) {
     const escalaAbierta = /sin definir|afluencia|no dispone|no (?:lo )?sabe/i.test(invitados);
-    lineas.push(
-      escalaAbierta
-        ? `• Escala: ${invitados}`
-        : `• Escala: ${invitados} personas / piezas`
-    );
+    lineas.push(escalaAbierta ? `• Invitados: ${invitados}` : `• Invitados del evento: ${invitados}`);
+  }
+  if (pieces) {
+    lineas.push(`• Piezas a cotizar: ${pieces.count} ${pieces.unit}`);
   }
   lineas.push("");
+
+  if (specs.length) {
+    lineas.push("Claves para cotizar:");
+    for (const s of specs) lineas.push(`• ${s}`);
+    lineas.push("");
+  }
 
   lineas.push("Datos capturados:");
   if (nombre) lineas.push(`• Nombre: ${nombre}`);

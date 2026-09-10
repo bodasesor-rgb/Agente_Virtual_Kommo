@@ -37,7 +37,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.90");
+assert.equal(LUCY_PROMPT_VERSION, "V9.91");
 
 // Lexicón metro GDL / municipios
 for (const city of [

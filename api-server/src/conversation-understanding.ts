@@ -6438,23 +6438,55 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
       if (opts?.askedField !== "presupuesto") return null;
       if (a < 500 && b < 500) return null;
     }
-    return `${aRaw} - ${bRaw} MXN`;
+    // A15944: "130 a 150 por cada silla" + acarreo/desplazamiento.
+    const unit = trimmed.match(
+      /\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona|pax|cabeza)\b|\/\s*(silla|pieza|mesa|pp)\b/i
+    );
+    const unitLabel = unit
+      ? /persona|pax|cabeza|pp/i.test(unit[1] || unit[2] || "")
+        ? "por persona"
+        : `por ${(unit[1] || unit[2] || "pieza").toLowerCase()}`
+      : null;
+    const ship = trimmed.match(
+      /\b(?:acarreo|desplazamiento|env[ií]o|flete)\s*(?:de\s*)?\$?\s*([\d][\d,.]*)/i
+    );
+    let out = unitLabel
+      ? `$${aRaw}–$${bRaw} MXN ${unitLabel}`
+      : `$${aRaw}–$${bRaw} MXN`;
+    if (ship?.[1]) {
+      out += ` + $${ship[1].replace(/,/g, "")} ${/acarreo/i.test(trimmed) ? "acarreo" : "desplazamiento"}`;
+    }
+    return out;
   }
 
   // "$500 por persona" del cliente sí; "manejamos … desde $300 por persona" de Lucy no (A14938).
-  const perPersonMatch = trimmed.match(
-    /\$?\s*([\d][\d,.]*)\s*(?:mxn|mnx|pesos)?\s*(?:por\s+(?:persona|cabeza)|x\s+persona|pp\b|c\/u\b)/i
+  // A15944: también "130 por silla" / "150 por cada silla".
+  const perUnitMatch = trimmed.match(
+    /\$?\s*([\d][\d,.]*)\s*(?:mxn|mnx|pesos)?\s*(?:por\s+(?:cada\s+)?(persona|cabeza|silla|pieza|mesa)|x\s+persona|pp\b|c\/u\b|\/\s*(silla|pieza|pp))/i
   );
-  if (perPersonMatch) {
+  if (perUnitMatch) {
     const hasBudgetIntent =
       opts?.askedField === "presupuesto" ||
-      /\b(presupuesto|rango|inversi[oó]n|budget|tope|menos\s+de|hasta|m[aá]ximo)\b/i.test(trimmed);
+      /\b(presupuesto|rango|inversi[oó]n|budget|tope|menos\s+de|hasta|m[aá]ximo|acarreo|desplazamiento)\b/i.test(
+        trimmed
+      );
     const looksLikeCatalogPitch =
       /\b(manejamos|desde|ofrecemos|tenemos|niveles?|incluye)\b/i.test(trimmed) ||
-      trimmed.length > 90;
+      trimmed.length > 120;
     if (hasBudgetIntent || !looksLikeCatalogPitch) {
-      const num = parseInt(perPersonMatch[1]!.replace(/,/g, ""), 10);
-      if (!isNaN(num) && num > 0) return `$${num.toLocaleString("es-MX")} MXN por persona`;
+      const num = parseInt(perUnitMatch[1]!.replace(/,/g, ""), 10);
+      const unitRaw = (perUnitMatch[2] || perUnitMatch[3] || "persona").toLowerCase();
+      const unitLabel = /persona|cabeza|pp/.test(unitRaw) ? "por persona" : `por ${unitRaw}`;
+      if (!isNaN(num) && num > 0) {
+        let out = `$${num.toLocaleString("es-MX")} MXN ${unitLabel}`;
+        const ship = trimmed.match(
+          /\b(?:acarreo|desplazamiento|env[ií]o|flete)\s*(?:de\s*)?\$?\s*([\d][\d,.]*)/i
+        );
+        if (ship?.[1]) {
+          out += ` + $${ship[1].replace(/,/g, "")} desplazamiento`;
+        }
+        return out;
+      }
     }
   }
 
@@ -6539,6 +6571,41 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
   }
 
   return null;
+}
+
+/**
+ * Convierte display de presupuesto a número CRM seguro.
+ * Nunca concatena rangos ("130–150" ≠ 130150).
+ */
+export function presupuestoToSafeNumber(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }
+  const t = value.trim();
+  if (!t || /sin definir|flexible|econ[oó]mic|propong|l[ií]mite/i.test(t)) return null;
+  // Rango: usar el techo del rango solo si es monto total (>=1000), no por-unidad.
+  const range = t.match(/\$?\s*([\d][\d,.]*)\s*[–\-a]\s*\$?\s*([\d][\d,.]*)/i);
+  if (range) {
+    const a = parseInt(range[1]!.replace(/,/g, ""), 10);
+    const b = parseInt(range[2]!.replace(/,/g, ""), 10);
+    if (!isNaN(a) && !isNaN(b)) {
+      const hi = Math.max(a, b);
+      if (/\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona)\b/i.test(t) && hi < 1000) {
+        return null; // unitario: no hay total único
+      }
+      if (hi >= 1000) return hi;
+      return null;
+    }
+  }
+  // Un solo monto (ignorar el del acarreo secundario si hay "por silla + $600")
+  const primary = t.split(/\s*\+\s*/)[0] ?? t;
+  const m = primary.match(/\$?\s*([\d][\d,.]*)/);
+  if (!m) return null;
+  const n = parseInt(m[1]!.replace(/,/g, ""), 10);
+  if (isNaN(n) || n <= 0) return null;
+  if (/\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona)\b/i.test(t) && n < 1000) return null;
+  return n;
 }
 
 function getLastLucyMessage(
@@ -7085,25 +7152,40 @@ export function enrichExtractedFromConversation(
     const presChunks = scrubbedConv
       .split(/\n|\.|;/)
       .map((s) => s.trim())
-      .filter((s) => /\b(presupuesto|mil\b|pesos|\$|k\b|inversi[oó]n|rango)\b/i.test(s));
+      .filter((s) =>
+        /\b(presupuesto|mil\b|pesos|\$|k\b|inversi[oó]n|rango|por\s+(?:cada\s+)?silla|acarreo|desplazamiento)\b/i.test(
+          s
+        )
+      );
     for (const chunk of presChunks) {
-      const pres = parsePresupuestoFromText(chunk);
+      const pres = parsePresupuestoFromText(chunk, { askedField: "presupuesto" });
       if (!pres) continue;
-      const num = parseInt(pres.replace(/[^\d]/g, ""), 10);
-      if (!isNaN(num) && num >= 1000) {
+      // A15944: nunca concatenar "130–150" → 130150.
+      const num = presupuestoToSafeNumber(pres);
+      if (num != null && num >= 1000) {
         extracted.presupuesto = num;
         break;
       }
+      // Rango por unidad (<1000): no forzar número CRM; la línea de resumen guarda el texto.
     }
   } else {
     // A14929: si el cliente sube el presupuesto en un mensaje posterior, tomar el mayor.
     // A15016: ignorar dígitos dentro de correos.
+    // A15944: no tomar 130/150 sueltos de "por silla" como techo de cotización.
     const scrubbed = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
     const amounts = [...scrubbed.matchAll(/(?<![A-Za-z0-9])\$?\s*([\d][\d,]{2,})\b/g)]
-      .map((m) => parseInt(m[1]!.replace(/,/g, ""), 10))
+      .map((m) => {
+        const n = parseInt(m[1]!.replace(/,/g, ""), 10);
+        const around = scrubbed.slice(Math.max(0, (m.index ?? 0) - 20), (m.index ?? 0) + 40);
+        if (/\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona)\b/i.test(around) && n < 1000) {
+          return NaN;
+        }
+        if (/\b\d+\s*[-–a]\s*\d+/i.test(around) && n < 1000) return NaN;
+        return n;
+      })
       .filter((n) => !isNaN(n) && n >= 1000 && n <= 50_000_000);
     const maxAmt = amounts.length ? Math.max(...amounts) : 0;
-    if (maxAmt > extracted.presupuesto) {
+    if (typeof extracted.presupuesto === "number" && maxAmt > extracted.presupuesto) {
       extracted.presupuesto = maxAmt;
     }
   }

@@ -38,7 +38,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.90");
+assert.equal(LUCY_PROMPT_VERSION, "V9.91");
 
 assert.ok(isServicePreferenceAsNombre("Sería De Catering"));
 assert.ok(isServicePreferenceAsNombre("Sería de catering"));

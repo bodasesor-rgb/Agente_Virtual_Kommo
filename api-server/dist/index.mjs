@@ -134473,17 +134473,41 @@ function parsePresupuestoFromText(text2, opts) {
       if (opts?.askedField !== "presupuesto") return null;
       if (a4 < 500 && b5 < 500) return null;
     }
-    return `${aRaw} - ${bRaw} MXN`;
+    const unit = trimmed.match(
+      /\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona|pax|cabeza)\b|\/\s*(silla|pieza|mesa|pp)\b/i
+    );
+    const unitLabel = unit ? /persona|pax|cabeza|pp/i.test(unit[1] || unit[2] || "") ? "por persona" : `por ${(unit[1] || unit[2] || "pieza").toLowerCase()}` : null;
+    const ship = trimmed.match(
+      /\b(?:acarreo|desplazamiento|env[ií]o|flete)\s*(?:de\s*)?\$?\s*([\d][\d,.]*)/i
+    );
+    let out2 = unitLabel ? `$${aRaw}\u2013$${bRaw} MXN ${unitLabel}` : `$${aRaw}\u2013$${bRaw} MXN`;
+    if (ship?.[1]) {
+      out2 += ` + $${ship[1].replace(/,/g, "")} ${/acarreo/i.test(trimmed) ? "acarreo" : "desplazamiento"}`;
+    }
+    return out2;
   }
-  const perPersonMatch = trimmed.match(
-    /\$?\s*([\d][\d,.]*)\s*(?:mxn|mnx|pesos)?\s*(?:por\s+(?:persona|cabeza)|x\s+persona|pp\b|c\/u\b)/i
+  const perUnitMatch = trimmed.match(
+    /\$?\s*([\d][\d,.]*)\s*(?:mxn|mnx|pesos)?\s*(?:por\s+(?:cada\s+)?(persona|cabeza|silla|pieza|mesa)|x\s+persona|pp\b|c\/u\b|\/\s*(silla|pieza|pp))/i
   );
-  if (perPersonMatch) {
-    const hasBudgetIntent = opts?.askedField === "presupuesto" || /\b(presupuesto|rango|inversi[oó]n|budget|tope|menos\s+de|hasta|m[aá]ximo)\b/i.test(trimmed);
-    const looksLikeCatalogPitch = /\b(manejamos|desde|ofrecemos|tenemos|niveles?|incluye)\b/i.test(trimmed) || trimmed.length > 90;
+  if (perUnitMatch) {
+    const hasBudgetIntent = opts?.askedField === "presupuesto" || /\b(presupuesto|rango|inversi[oó]n|budget|tope|menos\s+de|hasta|m[aá]ximo|acarreo|desplazamiento)\b/i.test(
+      trimmed
+    );
+    const looksLikeCatalogPitch = /\b(manejamos|desde|ofrecemos|tenemos|niveles?|incluye)\b/i.test(trimmed) || trimmed.length > 120;
     if (hasBudgetIntent || !looksLikeCatalogPitch) {
-      const num = parseInt(perPersonMatch[1].replace(/,/g, ""), 10);
-      if (!isNaN(num) && num > 0) return `$${num.toLocaleString("es-MX")} MXN por persona`;
+      const num = parseInt(perUnitMatch[1].replace(/,/g, ""), 10);
+      const unitRaw = (perUnitMatch[2] || perUnitMatch[3] || "persona").toLowerCase();
+      const unitLabel = /persona|cabeza|pp/.test(unitRaw) ? "por persona" : `por ${unitRaw}`;
+      if (!isNaN(num) && num > 0) {
+        let out2 = `$${num.toLocaleString("es-MX")} MXN ${unitLabel}`;
+        const ship = trimmed.match(
+          /\b(?:acarreo|desplazamiento|env[ií]o|flete)\s*(?:de\s*)?\$?\s*([\d][\d,.]*)/i
+        );
+        if (ship?.[1]) {
+          out2 += ` + $${ship[1].replace(/,/g, "")} desplazamiento`;
+        }
+        return out2;
+      }
     }
   }
   const menosDeMatch = trimmed.match(
@@ -134547,6 +134571,34 @@ function parsePresupuestoFromText(text2, opts) {
     return null;
   }
   return null;
+}
+function presupuestoToSafeNumber(value) {
+  if (value === null || value === void 0) return null;
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }
+  const t4 = value.trim();
+  if (!t4 || /sin definir|flexible|econ[oó]mic|propong|l[ií]mite/i.test(t4)) return null;
+  const range = t4.match(/\$?\s*([\d][\d,.]*)\s*[–\-a]\s*\$?\s*([\d][\d,.]*)/i);
+  if (range) {
+    const a4 = parseInt(range[1].replace(/,/g, ""), 10);
+    const b5 = parseInt(range[2].replace(/,/g, ""), 10);
+    if (!isNaN(a4) && !isNaN(b5)) {
+      const hi2 = Math.max(a4, b5);
+      if (/\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona)\b/i.test(t4) && hi2 < 1e3) {
+        return null;
+      }
+      if (hi2 >= 1e3) return hi2;
+      return null;
+    }
+  }
+  const primary = t4.split(/\s*\+\s*/)[0] ?? t4;
+  const m6 = primary.match(/\$?\s*([\d][\d,.]*)/);
+  if (!m6) return null;
+  const n5 = parseInt(m6[1].replace(/,/g, ""), 10);
+  if (isNaN(n5) || n5 <= 0) return null;
+  if (/\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona)\b/i.test(t4) && n5 < 1e3) return null;
+  return n5;
 }
 function getLastLucyMessage(history) {
   return history.filter((m6) => m6.role === "assistant" && typeof m6.content === "string").slice(-1)[0]?.content ?? "";
@@ -134907,21 +134959,33 @@ function enrichExtractedFromConversation(extracted, conversationText) {
   }
   if (extracted.presupuesto === null || extracted.presupuesto === void 0) {
     const scrubbedConv = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
-    const presChunks = scrubbedConv.split(/\n|\.|;/).map((s7) => s7.trim()).filter((s7) => /\b(presupuesto|mil\b|pesos|\$|k\b|inversi[oó]n|rango)\b/i.test(s7));
+    const presChunks = scrubbedConv.split(/\n|\.|;/).map((s7) => s7.trim()).filter(
+      (s7) => /\b(presupuesto|mil\b|pesos|\$|k\b|inversi[oó]n|rango|por\s+(?:cada\s+)?silla|acarreo|desplazamiento)\b/i.test(
+        s7
+      )
+    );
     for (const chunk of presChunks) {
-      const pres = parsePresupuestoFromText(chunk);
+      const pres = parsePresupuestoFromText(chunk, { askedField: "presupuesto" });
       if (!pres) continue;
-      const num = parseInt(pres.replace(/[^\d]/g, ""), 10);
-      if (!isNaN(num) && num >= 1e3) {
+      const num = presupuestoToSafeNumber(pres);
+      if (num != null && num >= 1e3) {
         extracted.presupuesto = num;
         break;
       }
     }
   } else {
     const scrubbed = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
-    const amounts = [...scrubbed.matchAll(/(?<![A-Za-z0-9])\$?\s*([\d][\d,]{2,})\b/g)].map((m6) => parseInt(m6[1].replace(/,/g, ""), 10)).filter((n5) => !isNaN(n5) && n5 >= 1e3 && n5 <= 5e7);
+    const amounts = [...scrubbed.matchAll(/(?<![A-Za-z0-9])\$?\s*([\d][\d,]{2,})\b/g)].map((m6) => {
+      const n5 = parseInt(m6[1].replace(/,/g, ""), 10);
+      const around = scrubbed.slice(Math.max(0, (m6.index ?? 0) - 20), (m6.index ?? 0) + 40);
+      if (/\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona)\b/i.test(around) && n5 < 1e3) {
+        return NaN;
+      }
+      if (/\b\d+\s*[-–a]\s*\d+/i.test(around) && n5 < 1e3) return NaN;
+      return n5;
+    }).filter((n5) => !isNaN(n5) && n5 >= 1e3 && n5 <= 5e7);
     const maxAmt = amounts.length ? Math.max(...amounts) : 0;
-    if (maxAmt > extracted.presupuesto) {
+    if (typeof extracted.presupuesto === "number" && maxAmt > extracted.presupuesto) {
       extracted.presupuesto = maxAmt;
     }
   }
@@ -226289,7 +226353,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.90";
+var LUCY_PROMPT_VERSION = "V9.91";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -228596,6 +228660,11 @@ function isUsableResumenUbicacion(value) {
   const t4 = value?.trim() ?? "";
   if (!t4) return false;
   if (isNonLocationBusinessPhrase(t4)) return false;
+  if (/\b(buscando|proveedor|se\s+llama|nos\s+encontramos\s+en|coordino\s+eventos)\b/i.test(t4)) {
+    const cleaned = sanitizeDireccionCapture(t4);
+    if (!cleaned) return false;
+    return isUsableDireccionEvento(cleaned);
+  }
   return isUsableDireccionEvento(t4);
 }
 function enrichExtractedFromText(extracted, conversationText) {
@@ -228638,6 +228707,106 @@ function pendingFields(mergedLines, extracted) {
   }
   return pending;
 }
+function extractRentalPieceCount(text2) {
+  const t4 = text2 ?? "";
+  const m6 = t4.match(
+    /\b(?:alrededor\s+de|aprox(?:imadamente)?|ocupamos|necesitamos?|buscamos?|renta(?:r|mos)?|son|de)?\s*(\d{1,3})\s*(sillas?|mesas?|periqueras?|carpas?|lounges?|piezas?)\b/i
+  );
+  if (!m6) return null;
+  const count2 = parseInt(m6[1], 10);
+  if (!Number.isFinite(count2) || count2 < 1 || count2 > 500) return null;
+  return { count: count2, unit: m6[2].toLowerCase() };
+}
+function extractProductSpecHints(text2) {
+  const t4 = text2 ?? "";
+  const out2 = [];
+  const chair = t4.match(
+    /\b(?:silla|tipo\s+de\s+silla)\s+(?:que\s+es\s+|es\s+)?(basket(?:\s+tony)?|tiffany|vers[aá]til|chiavari|cross\s*back|napole[oó]n)(?:\s+de\s+color\s+(\w+(?:\s+\w+)?))?/i
+  );
+  if (chair) {
+    let spec = `Silla ${chair[1]}`.replace(/\s+/g, " ");
+    if (chair[2]) spec += ` color ${chair[2]}`;
+    else {
+      const color = t4.match(
+        /\b(?:color\s+)?(gris(?:\s+oscuro)?|blanc[oa]|negr[oa]|dorad[oa]|natural|madera)\b/i
+      );
+      if (color && /silla|basket|tiffany/i.test(t4)) spec += ` ${color[1]}`;
+    }
+    out2.push(spec);
+  } else if (/\bbasket(?:\s+tony)?\b/i.test(t4) && /\bsilla/i.test(t4)) {
+    const color = t4.match(/\b(gris(?:\s+oscuro)?|blanc[oa]|negr[oa])\b/i);
+    out2.push(`Silla basket${color ? ` ${color[1]}` : ""}`.trim());
+  }
+  const carpa = t4.match(/\bcarpa\s+(tela|transparente|stretch|tipos?\s*\d)[^\n.]{0,40}/i);
+  if (carpa) out2.push(carpa[0].replace(/\s+/g, " ").trim().slice(0, 60));
+  const nivel = t4.match(
+    /\b((?:banquete|coffee\s*break|taquiza|brunch|desayuno)\s+\d(?:\s+tiempos?)?)\b/i
+  );
+  if (nivel) out2.push(nivel[1].replace(/\s+/g, " "));
+  if (/\bsolo\s+alimentos?\b/i.test(t4)) out2.push("Modalidad: solo alimentos");
+  if (/\b(entregar?|entrega|montar?)\s+(?:un\s+)?d[ií]a\s+antes\b|\bd[ií]a\s+antes\s+del\s+evento\b/i.test(
+    t4
+  )) {
+    out2.push("Pide entrega/montaje un d\xEDa antes");
+  }
+  if (/\bcomplemento\s+de\s+sillas?\b|\bya\s+contamos\s+con\s+(?:el\s+)?sal[oó]n\b/i.test(t4)) {
+    out2.push("Complemento: el sal\xF3n ya tiene sillas; rentan faltantes");
+  }
+  return [...new Set(out2)].slice(0, 6);
+}
+function resolveResumenPresupuesto(extracted, mergedLines, conversationText) {
+  const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
+  if (pptoFromLine && !isCalendarYearOnlyAmount(pptoFromLine)) {
+    const digitsOnly = pptoFromLine.replace(/[^\d]/g, "");
+    const looksConcat = digitsOnly === "130150" || /^\d{5,6}$/.test(digitsOnly) && digitsOnly.length % 2 === 0 && digitsOnly.slice(0, digitsOnly.length / 2) === digitsOnly.slice(digitsOnly.length / 2);
+    if (!looksConcat) {
+      if (/–|-|por\s+|acarreo|desplazamiento|flexible|sin definir|propong|econ/i.test(pptoFromLine)) {
+        return pptoFromLine;
+      }
+      if (/^\d+$/.test(pptoFromLine.trim()) && Number(pptoFromLine) >= 1e3) {
+        return `$${Number(pptoFromLine).toLocaleString("es-MX")} MXN`;
+      }
+      if (!/^[\d]{5,}$/.test(digitsOnly)) return pptoFromLine;
+    }
+  }
+  if (conversationText?.trim()) {
+    for (const chunk of conversationText.split(/\n+/).reverse()) {
+      if (!/\b(presupuesto|silla|acarreo|desplazamiento|\$|pesos|por\s+cada)\b/i.test(chunk)) {
+        continue;
+      }
+      const p5 = parsePresupuestoFromText(chunk, { askedField: "presupuesto" });
+      if (p5) return p5;
+    }
+    const fromConv = parsePresupuestoFromText(conversationText, { askedField: "presupuesto" });
+    if (fromConv) return fromConv;
+  }
+  if (typeof extracted.presupuesto === "number" && extracted.presupuesto > 0) {
+    const n5 = extracted.presupuesto;
+    const s7 = String(n5);
+    if (n5 === 130150 || s7.length === 6 && s7.slice(0, 3) === s7.slice(3) || s7.length === 4 && s7.slice(0, 2) === s7.slice(2)) {
+      return null;
+    }
+    return `$${n5.toLocaleString("es-MX")} MXN`;
+  }
+  if (typeof extracted.presupuesto === "string" && extracted.presupuesto.trim()) {
+    const s7 = String(extracted.presupuesto).trim();
+    if (/130150/.test(s7.replace(/[^\d]/g, ""))) return null;
+    return s7;
+  }
+  return null;
+}
+function formatUbicacionResumen(raw, conversationText) {
+  const cleaned = sanitizeDireccionCapture(raw) ?? raw?.trim() ?? null;
+  if (cleaned && isUsableResumenUbicacion(cleaned) && !/\b(se\s+llama|buscando|nos\s+encontramos\s+en)\b/i.test(cleaned)) {
+    return cleaned;
+  }
+  if (conversationText) {
+    const fromMsg = parseZonaFromText(conversationText);
+    const san = sanitizeDireccionCapture(fromMsg) ?? fromMsg;
+    if (san && isUsableResumenUbicacion(san)) return san;
+  }
+  return cleaned && isUsableResumenUbicacion(cleaned) ? cleaned : null;
+}
 function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   const nombre = pickFromMergedLines(mergedLines, /Nombre del cliente/i) || extracted.nombre?.trim() || null;
   const correo = pickFromMergedLines(mergedLines, /Correo electrónico/i) || extracted.correo?.trim() || null;
@@ -228648,8 +228817,7 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   const fechaResumen = horario && fecha ? `${fecha}, ${horario}` : fecha;
   const invitados = pickFromMergedLines(mergedLines, /Número de invitados/i) || (extracted.num_invitados !== null && extracted.num_invitados > 0 ? String(extracted.num_invitados) : null);
   const ubicacionRaw = pickFromMergedLines(mergedLines, /Lugar\/dirección/i) || extracted.direccion_evento?.trim() || null;
-  const ubicacion = isUsableResumenUbicacion(ubicacionRaw) ? ubicacionRaw : null;
-  const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
+  const ubicacion = formatUbicacionResumen(ubicacionRaw, conversationText);
   const reqFromLinesRaw = pickFromMergedLines(mergedLines, /Requerimientos/i);
   const reqFromLines = isUsableResumenServicio(reqFromLinesRaw) ? reqFromLinesRaw : null;
   const reqFromServicesRaw = extracted.requerimientos_evento?.trim();
@@ -228667,32 +228835,40 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   } else {
     reqs = reqFromLines || (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) || reqFromConversation;
   }
-  let ppto = isCalendarYearOnlyAmount(pptoFromLine) ? null : pptoFromLine;
-  const convAmounts = conversationText ? [...conversationText.matchAll(/(\$\s*)?([\d][\d,]{2,})\b/g)].filter((m6) => !!m6[1] || !isCalendarYearOnlyAmount(m6[2])).map((m6) => parseInt(m6[2].replace(/,/g, ""), 10)).filter((n5) => !isNaN(n5) && n5 >= 1e3 && n5 <= 5e7) : [];
-  const maxConv = convAmounts.length ? Math.max(...convAmounts) : 0;
-  const lineNum = ppto ? parseInt(ppto.replace(/[^\d]/g, ""), 10) : 0;
-  const extNum = extracted.presupuesto !== null && extracted.presupuesto > 0 ? extracted.presupuesto : 0;
-  const bestPpto = Math.max(lineNum || 0, extNum || 0, maxConv || 0);
-  if (bestPpto >= 1e3) {
-    ppto = String(bestPpto);
-  } else if (!ppto && extNum > 0) {
-    ppto = `$${extNum.toLocaleString("es-MX")} MXN`;
+  const blob = [conversationText, reqs, reqFromLinesRaw].filter(Boolean).join("\n");
+  const pieces = extractRentalPieceCount(blob);
+  const specs = extractProductSpecHints(blob);
+  const ppto = resolveResumenPresupuesto(extracted, mergedLines, conversationText);
+  let serviciosLine = reqs || "(a\xFAn por definir con m\xE1s detalle)";
+  if (pieces && reqs && /mobiliario|silla|mesa|carpa|lounge/i.test(`${reqs} ${blob}`)) {
+    serviciosLine = `${reqs} \u2014 ${pieces.count} ${pieces.unit}`;
+  }
+  if (specs.length) {
+    const tip = specs.find((s7) => /silla|carpa|banquete|coffee|taquiza|solo alimentos/i.test(s7));
+    if (tip && !/basket|tiffany|silla\s+\d/i.test(serviciosLine)) {
+      serviciosLine = `${serviciosLine} (${tip})`;
+    }
   }
   const modo = extracted.modo_servicio?.trim();
   const pendientes = pendingFields(mergedLines, extracted);
   const lineas = ["RESUMEN DE CONVERSACI\xD3N \u2014 Lucy", ""];
   lineas.push("Qu\xE9 busca el cliente:");
-  if (reqs) lineas.push(`\u2022 Servicios: ${reqs}`);
-  else lineas.push("\u2022 Servicios: (a\xFAn por definir con m\xE1s detalle)");
+  lineas.push(`\u2022 Servicios: ${serviciosLine}`);
   if (modo) lineas.push(`\u2022 Modalidad: ${modo}`);
   if (evento) lineas.push(`\u2022 Evento: ${evento}`);
   if (invitados) {
     const escalaAbierta = /sin definir|afluencia|no dispone|no (?:lo )?sabe/i.test(invitados);
-    lineas.push(
-      escalaAbierta ? `\u2022 Escala: ${invitados}` : `\u2022 Escala: ${invitados} personas / piezas`
-    );
+    lineas.push(escalaAbierta ? `\u2022 Invitados: ${invitados}` : `\u2022 Invitados del evento: ${invitados}`);
+  }
+  if (pieces) {
+    lineas.push(`\u2022 Piezas a cotizar: ${pieces.count} ${pieces.unit}`);
   }
   lineas.push("");
+  if (specs.length) {
+    lineas.push("Claves para cotizar:");
+    for (const s7 of specs) lineas.push(`\u2022 ${s7}`);
+    lineas.push("");
+  }
   lineas.push("Datos capturados:");
   if (nombre) lineas.push(`\u2022 Nombre: ${nombre}`);
   if (correo) lineas.push(`\u2022 Correo: ${correo}`);

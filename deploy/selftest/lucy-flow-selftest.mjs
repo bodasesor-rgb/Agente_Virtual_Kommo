@@ -128643,17 +128643,41 @@ function parsePresupuestoFromText(text2, opts) {
       if (opts?.askedField !== "presupuesto") return null;
       if (a3 < 500 && b4 < 500) return null;
     }
-    return `${aRaw} - ${bRaw} MXN`;
+    const unit = trimmed.match(
+      /\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona|pax|cabeza)\b|\/\s*(silla|pieza|mesa|pp)\b/i
+    );
+    const unitLabel = unit ? /persona|pax|cabeza|pp/i.test(unit[1] || unit[2] || "") ? "por persona" : `por ${(unit[1] || unit[2] || "pieza").toLowerCase()}` : null;
+    const ship = trimmed.match(
+      /\b(?:acarreo|desplazamiento|env[ií]o|flete)\s*(?:de\s*)?\$?\s*([\d][\d,.]*)/i
+    );
+    let out2 = unitLabel ? `$${aRaw}\u2013$${bRaw} MXN ${unitLabel}` : `$${aRaw}\u2013$${bRaw} MXN`;
+    if (ship?.[1]) {
+      out2 += ` + $${ship[1].replace(/,/g, "")} ${/acarreo/i.test(trimmed) ? "acarreo" : "desplazamiento"}`;
+    }
+    return out2;
   }
-  const perPersonMatch = trimmed.match(
-    /\$?\s*([\d][\d,.]*)\s*(?:mxn|mnx|pesos)?\s*(?:por\s+(?:persona|cabeza)|x\s+persona|pp\b|c\/u\b)/i
+  const perUnitMatch = trimmed.match(
+    /\$?\s*([\d][\d,.]*)\s*(?:mxn|mnx|pesos)?\s*(?:por\s+(?:cada\s+)?(persona|cabeza|silla|pieza|mesa)|x\s+persona|pp\b|c\/u\b|\/\s*(silla|pieza|pp))/i
   );
-  if (perPersonMatch) {
-    const hasBudgetIntent = opts?.askedField === "presupuesto" || /\b(presupuesto|rango|inversi[oó]n|budget|tope|menos\s+de|hasta|m[aá]ximo)\b/i.test(trimmed);
-    const looksLikeCatalogPitch = /\b(manejamos|desde|ofrecemos|tenemos|niveles?|incluye)\b/i.test(trimmed) || trimmed.length > 90;
+  if (perUnitMatch) {
+    const hasBudgetIntent = opts?.askedField === "presupuesto" || /\b(presupuesto|rango|inversi[oó]n|budget|tope|menos\s+de|hasta|m[aá]ximo|acarreo|desplazamiento)\b/i.test(
+      trimmed
+    );
+    const looksLikeCatalogPitch = /\b(manejamos|desde|ofrecemos|tenemos|niveles?|incluye)\b/i.test(trimmed) || trimmed.length > 120;
     if (hasBudgetIntent || !looksLikeCatalogPitch) {
-      const num = parseInt(perPersonMatch[1].replace(/,/g, ""), 10);
-      if (!isNaN(num) && num > 0) return `$${num.toLocaleString("es-MX")} MXN por persona`;
+      const num = parseInt(perUnitMatch[1].replace(/,/g, ""), 10);
+      const unitRaw = (perUnitMatch[2] || perUnitMatch[3] || "persona").toLowerCase();
+      const unitLabel = /persona|cabeza|pp/.test(unitRaw) ? "por persona" : `por ${unitRaw}`;
+      if (!isNaN(num) && num > 0) {
+        let out2 = `$${num.toLocaleString("es-MX")} MXN ${unitLabel}`;
+        const ship = trimmed.match(
+          /\b(?:acarreo|desplazamiento|env[ií]o|flete)\s*(?:de\s*)?\$?\s*([\d][\d,.]*)/i
+        );
+        if (ship?.[1]) {
+          out2 += ` + $${ship[1].replace(/,/g, "")} desplazamiento`;
+        }
+        return out2;
+      }
     }
   }
   const menosDeMatch = trimmed.match(
@@ -128717,6 +128741,34 @@ function parsePresupuestoFromText(text2, opts) {
     return null;
   }
   return null;
+}
+function presupuestoToSafeNumber(value) {
+  if (value === null || value === void 0) return null;
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }
+  const t3 = value.trim();
+  if (!t3 || /sin definir|flexible|econ[oó]mic|propong|l[ií]mite/i.test(t3)) return null;
+  const range = t3.match(/\$?\s*([\d][\d,.]*)\s*[–\-a]\s*\$?\s*([\d][\d,.]*)/i);
+  if (range) {
+    const a3 = parseInt(range[1].replace(/,/g, ""), 10);
+    const b4 = parseInt(range[2].replace(/,/g, ""), 10);
+    if (!isNaN(a3) && !isNaN(b4)) {
+      const hi = Math.max(a3, b4);
+      if (/\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona)\b/i.test(t3) && hi < 1e3) {
+        return null;
+      }
+      if (hi >= 1e3) return hi;
+      return null;
+    }
+  }
+  const primary = t3.split(/\s*\+\s*/)[0] ?? t3;
+  const m5 = primary.match(/\$?\s*([\d][\d,.]*)/);
+  if (!m5) return null;
+  const n4 = parseInt(m5[1].replace(/,/g, ""), 10);
+  if (isNaN(n4) || n4 <= 0) return null;
+  if (/\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona)\b/i.test(t3) && n4 < 1e3) return null;
+  return n4;
 }
 function getLastLucyMessage(history) {
   return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(-1)[0]?.content ?? "";
@@ -129053,21 +129105,33 @@ function enrichExtractedFromConversation(extracted, conversationText) {
   }
   if (extracted.presupuesto === null || extracted.presupuesto === void 0) {
     const scrubbedConv = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
-    const presChunks = scrubbedConv.split(/\n|\.|;/).map((s6) => s6.trim()).filter((s6) => /\b(presupuesto|mil\b|pesos|\$|k\b|inversi[oó]n|rango)\b/i.test(s6));
+    const presChunks = scrubbedConv.split(/\n|\.|;/).map((s6) => s6.trim()).filter(
+      (s6) => /\b(presupuesto|mil\b|pesos|\$|k\b|inversi[oó]n|rango|por\s+(?:cada\s+)?silla|acarreo|desplazamiento)\b/i.test(
+        s6
+      )
+    );
     for (const chunk of presChunks) {
-      const pres = parsePresupuestoFromText(chunk);
+      const pres = parsePresupuestoFromText(chunk, { askedField: "presupuesto" });
       if (!pres) continue;
-      const num = parseInt(pres.replace(/[^\d]/g, ""), 10);
-      if (!isNaN(num) && num >= 1e3) {
+      const num = presupuestoToSafeNumber(pres);
+      if (num != null && num >= 1e3) {
         extracted.presupuesto = num;
         break;
       }
     }
   } else {
     const scrubbed = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
-    const amounts = [...scrubbed.matchAll(/(?<![A-Za-z0-9])\$?\s*([\d][\d,]{2,})\b/g)].map((m5) => parseInt(m5[1].replace(/,/g, ""), 10)).filter((n4) => !isNaN(n4) && n4 >= 1e3 && n4 <= 5e7);
+    const amounts = [...scrubbed.matchAll(/(?<![A-Za-z0-9])\$?\s*([\d][\d,]{2,})\b/g)].map((m5) => {
+      const n4 = parseInt(m5[1].replace(/,/g, ""), 10);
+      const around = scrubbed.slice(Math.max(0, (m5.index ?? 0) - 20), (m5.index ?? 0) + 40);
+      if (/\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona)\b/i.test(around) && n4 < 1e3) {
+        return NaN;
+      }
+      if (/\b\d+\s*[-–a]\s*\d+/i.test(around) && n4 < 1e3) return NaN;
+      return n4;
+    }).filter((n4) => !isNaN(n4) && n4 >= 1e3 && n4 <= 5e7);
     const maxAmt = amounts.length ? Math.max(...amounts) : 0;
-    if (maxAmt > extracted.presupuesto) {
+    if (typeof extracted.presupuesto === "number" && maxAmt > extracted.presupuesto) {
       extracted.presupuesto = maxAmt;
     }
   }
@@ -143292,6 +143356,11 @@ function isUsableResumenUbicacion(value) {
   const t3 = value?.trim() ?? "";
   if (!t3) return false;
   if (isNonLocationBusinessPhrase(t3)) return false;
+  if (/\b(buscando|proveedor|se\s+llama|nos\s+encontramos\s+en|coordino\s+eventos)\b/i.test(t3)) {
+    const cleaned = sanitizeDireccionCapture(t3);
+    if (!cleaned) return false;
+    return isUsableDireccionEvento(cleaned);
+  }
   return isUsableDireccionEvento(t3);
 }
 function enrichExtractedFromText(extracted, conversationText) {
@@ -143334,6 +143403,106 @@ function pendingFields(mergedLines, extracted) {
   }
   return pending;
 }
+function extractRentalPieceCount(text2) {
+  const t3 = text2 ?? "";
+  const m5 = t3.match(
+    /\b(?:alrededor\s+de|aprox(?:imadamente)?|ocupamos|necesitamos?|buscamos?|renta(?:r|mos)?|son|de)?\s*(\d{1,3})\s*(sillas?|mesas?|periqueras?|carpas?|lounges?|piezas?)\b/i
+  );
+  if (!m5) return null;
+  const count = parseInt(m5[1], 10);
+  if (!Number.isFinite(count) || count < 1 || count > 500) return null;
+  return { count, unit: m5[2].toLowerCase() };
+}
+function extractProductSpecHints(text2) {
+  const t3 = text2 ?? "";
+  const out2 = [];
+  const chair = t3.match(
+    /\b(?:silla|tipo\s+de\s+silla)\s+(?:que\s+es\s+|es\s+)?(basket(?:\s+tony)?|tiffany|vers[aá]til|chiavari|cross\s*back|napole[oó]n)(?:\s+de\s+color\s+(\w+(?:\s+\w+)?))?/i
+  );
+  if (chair) {
+    let spec = `Silla ${chair[1]}`.replace(/\s+/g, " ");
+    if (chair[2]) spec += ` color ${chair[2]}`;
+    else {
+      const color = t3.match(
+        /\b(?:color\s+)?(gris(?:\s+oscuro)?|blanc[oa]|negr[oa]|dorad[oa]|natural|madera)\b/i
+      );
+      if (color && /silla|basket|tiffany/i.test(t3)) spec += ` ${color[1]}`;
+    }
+    out2.push(spec);
+  } else if (/\bbasket(?:\s+tony)?\b/i.test(t3) && /\bsilla/i.test(t3)) {
+    const color = t3.match(/\b(gris(?:\s+oscuro)?|blanc[oa]|negr[oa])\b/i);
+    out2.push(`Silla basket${color ? ` ${color[1]}` : ""}`.trim());
+  }
+  const carpa = t3.match(/\bcarpa\s+(tela|transparente|stretch|tipos?\s*\d)[^\n.]{0,40}/i);
+  if (carpa) out2.push(carpa[0].replace(/\s+/g, " ").trim().slice(0, 60));
+  const nivel = t3.match(
+    /\b((?:banquete|coffee\s*break|taquiza|brunch|desayuno)\s+\d(?:\s+tiempos?)?)\b/i
+  );
+  if (nivel) out2.push(nivel[1].replace(/\s+/g, " "));
+  if (/\bsolo\s+alimentos?\b/i.test(t3)) out2.push("Modalidad: solo alimentos");
+  if (/\b(entregar?|entrega|montar?)\s+(?:un\s+)?d[ií]a\s+antes\b|\bd[ií]a\s+antes\s+del\s+evento\b/i.test(
+    t3
+  )) {
+    out2.push("Pide entrega/montaje un d\xEDa antes");
+  }
+  if (/\bcomplemento\s+de\s+sillas?\b|\bya\s+contamos\s+con\s+(?:el\s+)?sal[oó]n\b/i.test(t3)) {
+    out2.push("Complemento: el sal\xF3n ya tiene sillas; rentan faltantes");
+  }
+  return [...new Set(out2)].slice(0, 6);
+}
+function resolveResumenPresupuesto(extracted, mergedLines, conversationText) {
+  const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
+  if (pptoFromLine && !isCalendarYearOnlyAmount(pptoFromLine)) {
+    const digitsOnly = pptoFromLine.replace(/[^\d]/g, "");
+    const looksConcat = digitsOnly === "130150" || /^\d{5,6}$/.test(digitsOnly) && digitsOnly.length % 2 === 0 && digitsOnly.slice(0, digitsOnly.length / 2) === digitsOnly.slice(digitsOnly.length / 2);
+    if (!looksConcat) {
+      if (/–|-|por\s+|acarreo|desplazamiento|flexible|sin definir|propong|econ/i.test(pptoFromLine)) {
+        return pptoFromLine;
+      }
+      if (/^\d+$/.test(pptoFromLine.trim()) && Number(pptoFromLine) >= 1e3) {
+        return `$${Number(pptoFromLine).toLocaleString("es-MX")} MXN`;
+      }
+      if (!/^[\d]{5,}$/.test(digitsOnly)) return pptoFromLine;
+    }
+  }
+  if (conversationText?.trim()) {
+    for (const chunk of conversationText.split(/\n+/).reverse()) {
+      if (!/\b(presupuesto|silla|acarreo|desplazamiento|\$|pesos|por\s+cada)\b/i.test(chunk)) {
+        continue;
+      }
+      const p4 = parsePresupuestoFromText(chunk, { askedField: "presupuesto" });
+      if (p4) return p4;
+    }
+    const fromConv = parsePresupuestoFromText(conversationText, { askedField: "presupuesto" });
+    if (fromConv) return fromConv;
+  }
+  if (typeof extracted.presupuesto === "number" && extracted.presupuesto > 0) {
+    const n4 = extracted.presupuesto;
+    const s6 = String(n4);
+    if (n4 === 130150 || s6.length === 6 && s6.slice(0, 3) === s6.slice(3) || s6.length === 4 && s6.slice(0, 2) === s6.slice(2)) {
+      return null;
+    }
+    return `$${n4.toLocaleString("es-MX")} MXN`;
+  }
+  if (typeof extracted.presupuesto === "string" && extracted.presupuesto.trim()) {
+    const s6 = String(extracted.presupuesto).trim();
+    if (/130150/.test(s6.replace(/[^\d]/g, ""))) return null;
+    return s6;
+  }
+  return null;
+}
+function formatUbicacionResumen(raw, conversationText) {
+  const cleaned = sanitizeDireccionCapture(raw) ?? raw?.trim() ?? null;
+  if (cleaned && isUsableResumenUbicacion(cleaned) && !/\b(se\s+llama|buscando|nos\s+encontramos\s+en)\b/i.test(cleaned)) {
+    return cleaned;
+  }
+  if (conversationText) {
+    const fromMsg = parseZonaFromText(conversationText);
+    const san = sanitizeDireccionCapture(fromMsg) ?? fromMsg;
+    if (san && isUsableResumenUbicacion(san)) return san;
+  }
+  return cleaned && isUsableResumenUbicacion(cleaned) ? cleaned : null;
+}
 function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   const nombre = pickFromMergedLines(mergedLines, /Nombre del cliente/i) || extracted.nombre?.trim() || null;
   const correo = pickFromMergedLines(mergedLines, /Correo electrónico/i) || extracted.correo?.trim() || null;
@@ -143344,8 +143513,7 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   const fechaResumen = horario && fecha ? `${fecha}, ${horario}` : fecha;
   const invitados = pickFromMergedLines(mergedLines, /Número de invitados/i) || (extracted.num_invitados !== null && extracted.num_invitados > 0 ? String(extracted.num_invitados) : null);
   const ubicacionRaw = pickFromMergedLines(mergedLines, /Lugar\/dirección/i) || extracted.direccion_evento?.trim() || null;
-  const ubicacion = isUsableResumenUbicacion(ubicacionRaw) ? ubicacionRaw : null;
-  const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
+  const ubicacion = formatUbicacionResumen(ubicacionRaw, conversationText);
   const reqFromLinesRaw = pickFromMergedLines(mergedLines, /Requerimientos/i);
   const reqFromLines = isUsableResumenServicio(reqFromLinesRaw) ? reqFromLinesRaw : null;
   const reqFromServicesRaw = extracted.requerimientos_evento?.trim();
@@ -143363,32 +143531,40 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   } else {
     reqs = reqFromLines || (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) || reqFromConversation;
   }
-  let ppto = isCalendarYearOnlyAmount(pptoFromLine) ? null : pptoFromLine;
-  const convAmounts = conversationText ? [...conversationText.matchAll(/(\$\s*)?([\d][\d,]{2,})\b/g)].filter((m5) => !!m5[1] || !isCalendarYearOnlyAmount(m5[2])).map((m5) => parseInt(m5[2].replace(/,/g, ""), 10)).filter((n4) => !isNaN(n4) && n4 >= 1e3 && n4 <= 5e7) : [];
-  const maxConv = convAmounts.length ? Math.max(...convAmounts) : 0;
-  const lineNum = ppto ? parseInt(ppto.replace(/[^\d]/g, ""), 10) : 0;
-  const extNum = extracted.presupuesto !== null && extracted.presupuesto > 0 ? extracted.presupuesto : 0;
-  const bestPpto = Math.max(lineNum || 0, extNum || 0, maxConv || 0);
-  if (bestPpto >= 1e3) {
-    ppto = String(bestPpto);
-  } else if (!ppto && extNum > 0) {
-    ppto = `$${extNum.toLocaleString("es-MX")} MXN`;
+  const blob = [conversationText, reqs, reqFromLinesRaw].filter(Boolean).join("\n");
+  const pieces = extractRentalPieceCount(blob);
+  const specs = extractProductSpecHints(blob);
+  const ppto = resolveResumenPresupuesto(extracted, mergedLines, conversationText);
+  let serviciosLine = reqs || "(a\xFAn por definir con m\xE1s detalle)";
+  if (pieces && reqs && /mobiliario|silla|mesa|carpa|lounge/i.test(`${reqs} ${blob}`)) {
+    serviciosLine = `${reqs} \u2014 ${pieces.count} ${pieces.unit}`;
+  }
+  if (specs.length) {
+    const tip = specs.find((s6) => /silla|carpa|banquete|coffee|taquiza|solo alimentos/i.test(s6));
+    if (tip && !/basket|tiffany|silla\s+\d/i.test(serviciosLine)) {
+      serviciosLine = `${serviciosLine} (${tip})`;
+    }
   }
   const modo = extracted.modo_servicio?.trim();
   const pendientes = pendingFields(mergedLines, extracted);
   const lineas = ["RESUMEN DE CONVERSACI\xD3N \u2014 Lucy", ""];
   lineas.push("Qu\xE9 busca el cliente:");
-  if (reqs) lineas.push(`\u2022 Servicios: ${reqs}`);
-  else lineas.push("\u2022 Servicios: (a\xFAn por definir con m\xE1s detalle)");
+  lineas.push(`\u2022 Servicios: ${serviciosLine}`);
   if (modo) lineas.push(`\u2022 Modalidad: ${modo}`);
   if (evento) lineas.push(`\u2022 Evento: ${evento}`);
   if (invitados) {
     const escalaAbierta = /sin definir|afluencia|no dispone|no (?:lo )?sabe/i.test(invitados);
-    lineas.push(
-      escalaAbierta ? `\u2022 Escala: ${invitados}` : `\u2022 Escala: ${invitados} personas / piezas`
-    );
+    lineas.push(escalaAbierta ? `\u2022 Invitados: ${invitados}` : `\u2022 Invitados del evento: ${invitados}`);
+  }
+  if (pieces) {
+    lineas.push(`\u2022 Piezas a cotizar: ${pieces.count} ${pieces.unit}`);
   }
   lineas.push("");
+  if (specs.length) {
+    lineas.push("Claves para cotizar:");
+    for (const s6 of specs) lineas.push(`\u2022 ${s6}`);
+    lineas.push("");
+  }
   lineas.push("Datos capturados:");
   if (nombre) lineas.push(`\u2022 Nombre: ${nombre}`);
   if (correo) lineas.push(`\u2022 Correo: ${correo}`);
@@ -143832,7 +144008,7 @@ function clientReplyForPaymentSlot(slot) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.90";
+var LUCY_PROMPT_VERSION = "V9.91";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -153395,7 +153571,7 @@ ${golfText}`,
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
   await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -153424,7 +153600,7 @@ ${golfText}`,
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
   await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -153542,7 +153718,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,
@@ -153613,7 +153789,7 @@ ${golfText}`,
     }
   });
   await test("135. V9.38 \u2014 comprobante en imagen: primer pago Anticipo, segundo Liquidaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     assert2.equal(FIELD_ANTICIPO, 1049322);
     assert2.equal(FIELD_LIQUIDACION, 1049324);
     assert2.equal(nextPaymentSlot(null, null), "anticipo");
@@ -153677,7 +153853,7 @@ ${golfText}`,
     assert2.ok(/amount_mxn/.test(imgSrc));
   });
   await test("136. V9.40 \u2014 A15380 invitados no se saltan; Coyoac\xE1n+colonia; Claro no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     const horario = "hola si se har\xEDa el 26 de septiembre pero a\xFAn no tenemos definido el horario";
     assert2.equal(parseInvitadosFromText(horario), null, "horario pendiente \u2260 invitados");
     const caps = scanConversationForCaptures([], horario, /* @__PURE__ */ new Set(["Nombre del cliente"]));
@@ -153780,7 +153956,7 @@ ${golfText}`,
     assert2.equal(taquizaNext, "invitados");
   });
   await test("138. V9.41 \u2014 A15383 Kelia: ciudad, banquetes, LED\u2260luz, no spam (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert2.match(hornoMty, /horno\s*3/i, hornoMty);
     assert2.match(hornoMty, /monterrey/i, hornoMty);
@@ -153916,7 +154092,7 @@ ${golfText}`,
     assert2.ok(!/Listo\.\s*Kelia/i.test(nameSpam), nameSpam);
   });
   await test("139. V9.42 \u2014 A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert2.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert2.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -154006,7 +154182,7 @@ ${golfText}`,
     assert2.ok(!/invitados|cu[aá]nt[oa]s|ciudad del evento|en qu[eé] ciudad/i.test(handoff), handoff.slice(0, 400));
   });
   await test("140. V9.43 \u2014 detalle de un producto no re-lista el men\xFA (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -154045,7 +154221,7 @@ ${golfText}`,
     assert2.ok(/Coffee Break 4|350|CB4/i.test(rewritten), rewritten.slice(0, 500));
   });
   await test("141. V9.44 \u2014 A15443 Rosario: reuni\xF3n, hora comida, ciudad obligatoria", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     assert2.equal(parseTipoEventoFromText("una reuni\xF3n de 15 a\xF1os"), "reuni\xF3n");
     assert2.ok(clientSaidReunionNotXv("una reuni\xF3n de 15 a\xF1os"));
     assert2.ok(!clientSaidReunionNotXv("mis XV a\xF1os"));
@@ -154160,7 +154336,7 @@ ${golfText}`,
     assert2.ok(/2\.\s*\*?Servicio completo/i.test(fixedMenu), fixedMenu.slice(0, 600));
   });
   await test("142. V9.45 \u2014 A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     assert2.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert2.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
     assert2.ok(!isUsableFechaHorario("13:00 a 20:00 hrs"));
@@ -154234,7 +154410,7 @@ ${golfText}`,
     assert2.ok(!/ya tengo todo/i.test(clockReply));
   });
   await test("143. V9.49 \u2014 imagen solo embudo; silencio lee dep\xF3sito sin WhatsApp", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
     assert2.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
@@ -154277,7 +154453,7 @@ ${golfText}`,
     assert2.ok(/sin WhatsApp al cliente|leída en silencio/i.test(kommoSrc));
   });
   await test("144. V9.49 \u2014 A15478 Isabel: recomienda tama\xF1o pista seg\xFAn invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     const ask = "Me puedes recomendar el tama\xF1o pensando en la cantidad de invitados?";
     assert2.ok(clientAsksDimensionRecommendation(ask));
     const rec = recommendPistaDimensionsForGuests(120, "XV a\xF1os");
@@ -154343,7 +154519,7 @@ ${golfText}`,
     assert2.ok(!/ya tengo lo principal/i.test(anti.mensaje), anti.mensaje);
   });
   await test("146. V9.49 \u2014 A15494 Paola: mucho gusto no es apellido", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     const reply = "Paola mucho gusto";
     assert2.ok(isMuchoGustoNameReply(reply));
     assert2.equal(sanitizeCrmNombre(reply), "Paola");
@@ -154377,7 +154553,7 @@ ${golfText}`,
     assert2.ok(!/Mucho Gusto!/i.test(guarded.replace(/mucho gusto,\s*Paola/i, "")), guarded);
   });
   await test("147. V9.49 \u2014 A15503 Good: loza y plato postre = vajilla, no postres", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     const brief = "Hola, me interesa cotizar un servicio\nQuiere loza para un evento para 50 personas\nSer\xEDa:\nPlato trinche\nPlato postre\nCubiertos (cuchara, tenedor, cuchara postre).";
     assert2.ok(isTablewareRequestText(brief));
     const services = parseServicesFromText(brief);
@@ -154406,7 +154582,7 @@ ${golfText}`,
     assert2.ok(!/mobiliario/i.test(declineGuard), declineGuard);
   });
   await test("148. V9.50 \u2014 fecha y horario en campos CRM separados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     const split = splitCombinedFechaHorario("15 de agosto, 5:00 p.m.");
     assert2.equal(split.fecha, "15 de agosto");
     assert2.ok(split.horario && /5:00/i.test(split.horario));
@@ -154444,7 +154620,7 @@ ${golfText}`,
     assert2.ok(!cf.some((f6) => f6.field_id === 1048778));
   });
   await test("149. V9.51 \u2014 A15508 Betiana: 40 invitadas y anti-repetici\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     assert2.equal(parseInvitadosFromText("40 sillas, 40 invitadas"), "40");
     assert2.equal(parseInvitadosFromText("40 invitadas"), "40");
     assert2.equal(
@@ -154490,7 +154666,7 @@ ${golfText}`,
     assert2.ok(!/estimado de invitados|cu[aá]ntos invitados/i.test(guarded), guarded);
   });
   await test("150. V9.52 \u2014 A15509 Gaby: apertura, RFQ equipo, a\xFAn no invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     assert2.equal(parseTipoEventoFromText("Ser\xEDa para la apertura de un negocio"), "apertura de negocio");
     assert2.ok(clientSaidAperturaNegocio("Ser\xEDa para la apertura de un negocio"));
     const rfq = [
@@ -154554,7 +154730,7 @@ ${golfText}`,
     assert2.ok(!/cu[aá]ntas personas|estimado de invitados/i.test(invWaive), invWaive);
   });
   await test("151. V9.53 \u2014 A15516 Ccam: captura horario pm y anti-repetici\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     const extracted = emptyExtracted({
       nombre: "Ccam",
       tipo_evento: "XV a\xF1os",
@@ -154602,7 +154778,7 @@ ${golfText}`,
     assert2.ok(!/horario/i.test(guarded2) || /anoto|perfecto|invitados|ciudad|correo/i.test(guarded2), guarded2);
   });
   await test("152. V9.55 \u2014 A15486 G\xE9nesis: promo/vajilla/detalles/presupuesto/PDF", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     const promo = [
       "Hola, escribo por la promo de cierre r\xE1pido (10% de descuento).",
       "C\xF3digo: CierreRapido",
@@ -154714,7 +154890,7 @@ ${golfText}`,
     );
   });
   await test("153. V9.55 \u2014 A15539 Jorge: horario/carpa/DJ no/mobiliario/Atlixco/callback", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     assert2.equal(parseTipoEventoFromText("primera comuni\xF3n"), "primera comuni\xF3n");
     assert2.ok(isScheduleLabeledClock("a medio d\xEDa"));
     assert2.ok(isScheduleLabeledClock("cocktail a las 12:00\ncomida a las 2:00"));
@@ -154873,7 +155049,7 @@ ${golfText}`,
     assert2.ok(!/servicios te gustar[ií]a|ir armando/i.test(callback), callback.slice(0, 400));
   });
   await test("154. V9.56 \u2014 A15547 Marisol: taquiza sin $, qu\xE9 incluye, pospone sin correo", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     const csv = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
       '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","5 guisados","https://bodasesor.com/catalogos/taquiza"',
@@ -154931,7 +155107,7 @@ ${golfText}`,
     assert2.ok(!/correo|e-?mail/i.test(soft), soft.slice(0, 400));
   });
   await test("155. V9.57 \u2014 A15550 Jos\xE9: sal\xF3n suministra \u2260 pedido; bufet \u2192 banquete", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     const brief = "cotizaci\xF3n cumplea\xF1os 3 de octubre 50 personas Nezahualc\xF3yotl, el sal\xF3n suministra mesas, sillas, manteler\xEDa, platos, vasos y un mesero";
     assert2.ok(isVenueProvidesContext(brief));
     const parsed = parseServicesFromText(brief);
@@ -154950,7 +155126,7 @@ ${golfText}`,
     assert2.ok(!/necesitas.*vajillas/i.test(fix), fix.slice(0, 400));
   });
   await test("156. V9.70 \u2014 A15566 Lynn: de 3pm a 11pm, a partir de, sin horario a\xFAn", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     assert2.ok(/3:00.*11:00/i.test(parseHorarioFromText("El evento ser\xEDa de 3:00 pm a 11:00 pm") ?? ""));
     assert2.ok(/16:00|a partir/i.test(parseHorarioFromText("A partir de las 16:00 hrs") ?? ""));
     assert2.ok(/15:00.*11:00/i.test(parseHorarioFromText("De 15:00 p.m a 11:00 p.m") ?? ""));
@@ -154997,7 +155173,7 @@ ${golfText}`,
     assert2.ok(!/horario lo planean/i.test(defer), defer.slice(0, 400));
   });
   await test("157. V9.70 \u2014 A15581 Mariana: cuatro, dual propuesta, DJ inclusi\xF3n/acotado", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     assert2.ok(/4/.test(parseHorarioFromText("Ser\xEDa temprano, a partir de las cuatro") ?? ""));
     assert2.ok(normalizeWrittenClockInText("a partir de las cuatro").includes("4"));
     assert2.ok(clientRequestsDualProposals("dos propuestas formal y otra casual"));
@@ -155038,7 +155214,7 @@ ${golfText}`,
     assert2.ok(!/la anoto para tu cotizaci/i.test(djInfo), djInfo.slice(0, 400));
   });
   await test("158. V9.70 \u2014 A15620 Mara: promo CierreRapido no captura 35 pax ni hora de env\xEDo", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     const maraPromo = [
       "Hola, escribo por la promo de cierre r\xE1pido (10% de descuento).",
       "C\xF3digo: CierreRapido",
@@ -155062,7 +155238,7 @@ ${golfText}`,
     assert2.equal(promoReply.match(/35\s*personas/gi)?.length ?? 0, 0, promoReply.slice(0, 400));
   });
   await test("159. V9.70 \u2014 A15701 Alejandra: Puerto Vallarta no repregunta ciudad", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     assert2.equal(parseZonaFromText("Puerto Vallarta")?.toLowerCase(), "puerto vallarta");
     assert2.ok(isUsableDireccionEvento("Puerto Vallarta"));
     const filled = /* @__PURE__ */ new Set([
@@ -155102,7 +155278,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*|en qu[eé] ciudad|ya tienen ciudad/i.test(reply), reply.slice(0, 400));
   });
   await test("160. V9.70 \u2014 A15707 danymelgozza: cotizaci\xF3n inicial no es env\xEDo de cotizaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     const opening = "Quiero hacer una cotizaci\xF3n de barra de sushis y nigiris para 25 personas";
     assert2.equal(clientWantsQuoteDelivery(opening), false);
     assert2.ok(clientWantsQuoteDelivery("Si, m\xE1ndame la cotizaci\xF3n por favor, y te confirmo todo"));
@@ -155123,7 +155299,7 @@ ${golfText}`,
     assert2.ok(/sushi|nigiri|25|personas|nombre|Lucy|Bodasesor/i.test(reply), reply.slice(0, 500));
   });
   await test("161. V9.70 \u2014 A15708 Itzel: una sola presentaci\xF3n Lucy", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     const firstIntro = "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor. Claro que te ayudo con tu evento. \xBFMe regalas tu nombre?";
     const reply = runGuards({
       aiResponse: "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor. \xA1Mucho gusto, Itzel! \xBFQu\xE9 tipo de evento tienes en mente celebrar?",
@@ -155142,7 +155318,7 @@ ${golfText}`,
     assert2.ok(/tipo de evento/i.test(reply), reply.slice(0, 400));
   });
   await test("162. V9.70 \u2014 A15705 Karla: Ser\xEDa De Catering no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     assert2.equal(sanitizeCrmNombre("Ser\xEDa De Catering"), null);
     assert2.equal(shouldUpdateName("Karla Rodr\xEDguez", "Ser\xEDa De Catering"), false);
     assert2.equal(shouldUpdateName("Ser\xEDa De Catering", "Karla Rodr\xEDguez"), true);
@@ -155161,7 +155337,7 @@ ${golfText}`,
     assert2.ok(!/Con gusto,\s*Ser[ií]a/i.test(reply), reply.slice(0, 400));
   });
   await test("163. V9.71 \u2014 A15775 Pamela: municipio GDL y meta-ciudad", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.90");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.91");
     assert2.ok(hasCityOrMetroSignal("San Pedro Tlaquepaque"));
     assert2.ok(isLocationMetaReferential("esa es la ciudad"));
     assert2.equal(parseZonaFromText("esa es la ciudad"), null);

@@ -16,7 +16,7 @@ import { applyLucyMessageGuards } from "../lucy-flow-guards.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.90");
+assert.equal(LUCY_PROMPT_VERSION, "V9.91");
 
 function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   return {
