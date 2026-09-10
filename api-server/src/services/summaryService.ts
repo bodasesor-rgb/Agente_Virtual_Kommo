@@ -194,7 +194,7 @@ export function extractRentalPieceCount(text: string | null | undefined): {
 } | null {
   const t = text ?? "";
   const m = t.match(
-    /\b(?:alrededor\s+de|aprox(?:imadamente)?|ocupamos|necesitamos?|buscamos?|renta(?:r|mos)?|son|de)?\s*(\d{1,3})\s*(sillas?|mesas?|periqueras?|carpas?|lounges?|piezas?)\b/i
+    /\b(?:alrededor\s+de|aprox(?:imadamente)?|ocupamos|necesitamos?|buscamos?|renta(?:r|mos)?|son|de)?\s*(\d{1,3})\s*(sillas?|mesas?|periqueras?|carpas?|lounges?|piezas?|manteles?)\b/i
   );
   if (!m) return null;
   const count = parseInt(m[1]!, 10);
@@ -202,10 +202,105 @@ export function extractRentalPieceCount(text: string | null | undefined): {
   return { count, unit: m[2]!.toLowerCase() };
 }
 
-/** Modelo/color de mobiliario u otros detalles de producto. */
+function pushUnique(out: string[], value: string | null | undefined, max = 10): void {
+  const v = (value ?? "").replace(/\s+/g, " ").trim();
+  if (!v || v.length < 3) return;
+  if (out.some((x) => x.toLowerCase() === v.toLowerCase())) return;
+  if (out.length >= max) return;
+  out.push(v.slice(0, 90));
+}
+
+/**
+ * Claves operativas para cotizar — todas las ramas (alimentos, barras, mobiliario,
+ * carpas, audio, etc.). No es un dump del chat: solo señales accionables.
+ */
 export function extractProductSpecHints(text: string | null | undefined): string[] {
   const t = text ?? "";
+  if (!t.trim()) return [];
   const out: string[] = [];
+
+  // ── Alimentos: banquete / nivel / tiempos ──
+  const banqueteTipo = t.match(
+    /\bbanquete\s+(formal|mexicano|gourmet|kosher|navide[nñ]o|premium|b[aá]sico|tradicional)(?:\s+(\d)\s*tiempos?)?/i
+  );
+  if (banqueteTipo) {
+    let label = `Banquete ${banqueteTipo[1]}`;
+    if (banqueteTipo[2]) label += ` ${banqueteTipo[2]} tiempos`;
+    pushUnique(out, label);
+  } else {
+    const tiempos = t.match(/\bbanquete(?:\s+\w+)?\s+(\d)\s*tiempos?\b|\b(\d)\s*tiempos?\b/i);
+    if (tiempos && /\bbanquete\b/i.test(t)) {
+      pushUnique(out, `Banquete ${tiempos[1] || tiempos[2]} tiempos`);
+    }
+  }
+  const coffeeN =
+    t.match(/\bcoffe{1,2}e?\s*break\s*([1-9])\b/i) || t.match(/\bcoffee\s*break\s*([1-9])\b/i);
+  if (coffeeN?.[1]) pushUnique(out, `Coffee Break ${coffeeN[1]}`);
+  const taquizaNivel = t.match(
+    /\btaquiza\s+(premium|b[aá]sica|tradicional|servicio\s+completo|por\s+pieza)\b/i
+  );
+  if (taquizaNivel) pushUnique(out, `Taquiza ${taquizaNivel[1]}`);
+  else if (/\btaquiza\b/i.test(t)) pushUnique(out, "Taquiza");
+  if (/\bbrunch\b/i.test(t)) {
+    const br = t.match(/\bbrunch\s+(buf[eé]t?|buffet|ejecutivo)?\b/i);
+    pushUnique(out, br?.[1] ? `Brunch ${br[1]}` : "Brunch");
+  }
+  if (/\bdesayuno\b/i.test(t)) {
+    const des = t.match(/\bdesayuno\s+(buffet|ejecutivo|continental|americano)\b/i);
+    pushUnique(out, des ? `Desayuno ${des[1]}` : null);
+  }
+
+  // ── Barras / mesas / carritos de alimentos ──
+  for (const m of t.matchAll(
+    /\bbarra\s+de\s+(alimentos?|pizzas?|pastas?|crepas?|mariscos?|paninis?|sushi|caf[eé]|bebidas?|cocteler[ií]a|mixolog[ií]a|botanas?|quesos?|ensaladas?|hot\s*dogs?|hamburguesas?|tacos?|antojitos?)\b/gi
+  )) {
+    pushUnique(out, m[0]!);
+  }
+  for (const m of t.matchAll(
+    /\bmesa\s+de\s+(dulces?|postres?|quesos?|frutas?|botanas?|cupcakes?|candy\s*bar)\b/gi
+  )) {
+    pushUnique(out, m[0]!);
+  }
+  for (const m of t.matchAll(
+    /\b(?:carrito|puesto|estaci[oó]n)\s+de\s+([A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s]{2,28})\b/gi
+  )) {
+    const item = m[1]!.trim();
+    if (!/^(la|el|los|las|comida|alimento)/i.test(item)) {
+      pushUnique(out, `${m[0]!.split(/\s+/)[0]} de ${item}`.replace(/\s+/g, " "));
+    }
+  }
+  if (/\bcanap[eé]s?\b/i.test(t)) pushUnique(out, "Canapés");
+  if (/\bbocadillos?\b/i.test(t)) pushUnique(out, "Bocadillos");
+  if (/\bparrillada\b/i.test(t)) pushUnique(out, "Parrillada");
+  if (/\bpaella\b/i.test(t)) pushUnique(out, "Paella");
+  if (/\bpozole\b/i.test(t)) pushUnique(out, "Pozole");
+  if (/\bsushi\b/i.test(t) && !out.some((x) => /sushi/i.test(x))) pushUnique(out, "Sushi");
+
+  // ── Modalidad servicio alimentos ──
+  if (/\bsolo\s+alimentos?\b/i.test(t)) pushUnique(out, "Modalidad: solo alimentos");
+  if (/\bservicio\s+completo\b/i.test(t) && /\b(banquete|taquiza|comida|alimentos?)\b/i.test(t)) {
+    pushUnique(out, "Modalidad: servicio completo");
+  }
+  if (/\bpor\s+pieza\b/i.test(t) && /\b(taquiza|taco|alimento)\b/i.test(t)) {
+    pushUnique(out, "Modalidad: por pieza");
+  }
+  if (/\bcon\s+meseros?\b|\bincluye\s+meseros?\b/i.test(t)) pushUnique(out, "Incluye / pide meseros");
+  if (/\bsin\s+meseros?\b/i.test(t)) pushUnique(out, "Sin meseros");
+
+  // ── Restricciones dietéticas ──
+  if (/\bkosher\b/i.test(t)) pushUnique(out, "Requisito: kosher");
+  if (/\bvegan[oa]s?\b/i.test(t)) pushUnique(out, "Requisito: vegano");
+  if (/\bvegetarian[oa]s?\b/i.test(t)) pushUnique(out, "Requisito: vegetariano");
+  if (/\bsin\s+gluten\b|\bgluten\s*free\b/i.test(t)) pushUnique(out, "Requisito: sin gluten");
+  if (/\balergia(?:s)?\s+a\s+([A-Za-zÁÉÍÓÚáéíóúñ][\w\s]{2,30})/i.test(t)) {
+    const al = t.match(/\balergia(?:s)?\s+a\s+([A-Za-zÁÉÍÓÚáéíóúñ][\w\s,]{2,40})/i);
+    if (al?.[1]) pushUnique(out, `Alergias: ${al[1].trim().slice(0, 40)}`);
+  }
+  if (/\bni[nñ]os?\b/i.test(t) && /\b(men[uú]|opci[oó]n|plato)\b/i.test(t)) {
+    pushUnique(out, "Pide menú / opción infantil");
+  }
+
+  // ── Mobiliario ──
   const chair = t.match(
     /\b(?:silla|tipo\s+de\s+silla)\s+(?:que\s+es\s+|es\s+)?(basket(?:\s+tony)?|tiffany|vers[aá]til|chiavari|cross\s*back|napole[oó]n)(?:\s+de\s+color\s+(\w+(?:\s+\w+)?))?/i
   );
@@ -218,31 +313,85 @@ export function extractProductSpecHints(text: string | null | undefined): string
       );
       if (color && /silla|basket|tiffany/i.test(t)) spec += ` ${color[1]}`;
     }
-    out.push(spec);
+    pushUnique(out, spec);
   } else if (/\bbasket(?:\s+tony)?\b/i.test(t) && /\bsilla/i.test(t)) {
     const color = t.match(/\b(gris(?:\s+oscuro)?|blanc[oa]|negr[oa])\b/i);
-    out.push(`Silla basket${color ? ` ${color[1]}` : ""}`.trim());
+    pushUnique(out, `Silla basket${color ? ` ${color[1]}` : ""}`.trim());
   }
-  const carpa = t.match(/\bcarpa\s+(tela|transparente|stretch|tipos?\s*\d)[^\n.]{0,40}/i);
-  if (carpa) out.push(carpa[0]!.replace(/\s+/g, " ").trim().slice(0, 60));
-  const nivel = t.match(
-    /\b((?:banquete|coffee\s*break|taquiza|brunch|desayuno)\s+\d(?:\s+tiempos?)?)\b/i
+  if (/\bperiqueras?\b/i.test(t)) pushUnique(out, "Periqueras");
+  if (/\b(?:salas?\s+lounge|lounge)\b/i.test(t)) pushUnique(out, "Salas lounge");
+  if (/\bmanteler[ií]a\b|\bmanteles?\b/i.test(t)) pushUnique(out, "Mantelería");
+  if (/\bvajillas?\b|\bloza\b/i.test(t)) pushUnique(out, "Vajillas / loza");
+  if (
+    /\bcomplemento\s+de\s+sillas?\b|\bya\s+contamos\s+con\s+(?:el\s+)?sal[oó]n\b/i.test(t)
+  ) {
+    pushUnique(out, "Complemento: el salón ya tiene sillas; rentan faltantes");
+  }
+
+  // ── Carpas / estructuras ──
+  const carpa = t.match(
+    /\bcarpas?\s+(?:de\s+)?(tela|transparentes?|stretch|tipos?\s*\d|blancas?|negras?)[^\n.]{0,40}/i
   );
-  if (nivel) out.push(nivel[1]!.replace(/\s+/g, " "));
-  if (/\bsolo\s+alimentos?\b/i.test(t)) out.push("Modalidad: solo alimentos");
+  if (carpa) pushUnique(out, carpa[0]!.replace(/\s+/g, " ").trim().slice(0, 70));
+  else if (/\bcarpas?\b/i.test(t)) pushUnique(out, "Carpas");
+  const dims = t.match(/\b(\d+)\s*m?\s*[x×]\s*(\d+)\s*m?\b/i);
+  if (dims && /\b(carpa|tarima|pista|espacio|sal[oó]n)\b/i.test(t)) {
+    pushUnique(out, `Medidas: ${dims[1]}m x ${dims[2]}m`);
+  }
+
+  // ── Audio / entretenimiento ──
+  if (/\b\bdj\b/i.test(t)) pushUnique(out, "DJ");
+  if (/\bpista\s+de\s+baile\b/i.test(t)) pushUnique(out, "Pista de baile");
+  if (/\btarima\b/i.test(t)) pushUnique(out, "Tarima");
+  if (/\biluminaci[oó]n\b/i.test(t)) pushUnique(out, "Iluminación");
+  if (/\bpantallas?\b/i.test(t)) pushUnique(out, "Pantallas");
+  if (/\bphoto\s*booth\b|\bcabina\s+de\s+fotos?\b/i.test(t)) pushUnique(out, "Photo booth");
+  if (/\bhora\s+loca\b/i.test(t)) pushUnique(out, "Hora loca");
+
+  // ── Bebidas / mixología ──
+  if (/\bmixolog[ií]a\b|\bcocteler[ií]a\b|\bc[oó]cteles?\b/i.test(t)) {
+    pushUnique(out, "Coctelería / mixología");
+  }
+  if (/\bbarra\s+de\s+bebidas?\b/i.test(t) && !out.some((x) => /barra de bebidas/i.test(x))) {
+    pushUnique(out, "Barra de bebidas");
+  }
+  if (/\bopen\s*bar\b|\bbarra\s+libre\b/i.test(t)) pushUnique(out, "Open bar / barra libre");
+
+  // ── Logística ──
   if (
     /\b(entregar?|entrega|montar?)\s+(?:un\s+)?d[ií]a\s+antes\b|\bd[ií]a\s+antes\s+del\s+evento\b/i.test(
       t
     )
   ) {
-    out.push("Pide entrega/montaje un día antes");
+    pushUnique(out, "Pide entrega/montaje un día antes");
   }
-  if (
-    /\bcomplemento\s+de\s+sillas?\b|\bya\s+contamos\s+con\s+(?:el\s+)?sal[oó]n\b/i.test(t)
-  ) {
-    out.push("Complemento: el salón ya tiene sillas; rentan faltantes");
+  if (/\b(?:acarreo|desplazamiento|flete|env[ií]o)\b/i.test(t)) {
+    const ship = t.match(
+      /\b(?:acarreo|desplazamiento|flete|env[ií]o)\s*(?:de\s*)?\$?\s*([\d][\d,.]*)/i
+    );
+    pushUnique(
+      out,
+      ship?.[1]
+        ? `Acarreo/desplazamiento ~$${ship[1].replace(/,/g, "")}`
+        : "Menciona acarreo/desplazamiento"
+    );
   }
-  return [...new Set(out)].slice(0, 6);
+  if (/\bcon\s+montaje\b|\bsin\s+montaje\b/i.test(t)) {
+    pushUnique(out, /\bsin\s+montaje\b/i.test(t) ? "Sin montaje" : "Con montaje");
+  }
+
+  // ── Espacio / medidas genéricas ya cubiertas; staff ──
+  if (/\bmeseros?\b/i.test(t) && !out.some((x) => /mesero/i.test(x))) {
+    const n = t.match(/\b(\d{1,2})\s*meseros?\b/i);
+    pushUnique(out, n ? `${n[1]} meseros` : "Meseros");
+  }
+
+  return out.slice(0, 10);
+}
+
+/** Alias claro para el resumen del lead. */
+export function extractQuoteKeyPoints(text: string | null | undefined): string[] {
+  return extractProductSpecHints(text);
 }
 
 /**
@@ -274,7 +423,11 @@ export function resolveResumenPresupuesto(
 
   if (conversationText?.trim()) {
     for (const chunk of conversationText.split(/\n+/).reverse()) {
-      if (!/\b(presupuesto|silla|acarreo|desplazamiento|\$|pesos|por\s+cada)\b/i.test(chunk)) {
+      if (
+        !/\b(presupuesto|silla|persona|pp\b|acarreo|desplazamiento|\$|pesos|por\s+cada|inversi[oó]n|rango)\b/i.test(
+          chunk
+        )
+      ) {
         continue;
       }
       const p = parsePresupuestoFromText(chunk, { askedField: "presupuesto" });
@@ -388,17 +541,34 @@ export function buildResumenClienteLargo(
 
   const blob = [conversationText, reqs, reqFromLinesRaw].filter(Boolean).join("\n");
   const pieces = extractRentalPieceCount(blob);
-  const specs = extractProductSpecHints(blob);
+  const specs = extractQuoteKeyPoints(blob);
   const ppto = resolveResumenPresupuesto(extracted, mergedLines, conversationText);
 
   let serviciosLine = reqs || "(aún por definir con más detalle)";
-  if (pieces && reqs && /mobiliario|silla|mesa|carpa|lounge/i.test(`${reqs} ${blob}`)) {
+  if (pieces && reqs && /mobiliario|silla|mesa|carpa|lounge|periquera|mantel/i.test(`${reqs} ${blob}`)) {
     serviciosLine = `${reqs} — ${pieces.count} ${pieces.unit}`;
   }
+  // Enriquecer con la clave más específica de alimentos/barra si el CRM solo dice genérico.
   if (specs.length) {
-    const tip = specs.find((s) => /silla|carpa|banquete|coffee|taquiza|solo alimentos/i.test(s));
-    if (tip && !/basket|tiffany|silla\s+\d/i.test(serviciosLine)) {
-      serviciosLine = `${serviciosLine} (${tip})`;
+    const foodTip = specs.find((s) =>
+      /banquete|coffee|taquiza|brunch|desayuno|barra de|mesa de|canap|parrillada|solo alimentos/i.test(
+        s
+      )
+    );
+    const furnTip = specs.find((s) => /silla|basket|tiffany|periquera|lounge/i.test(s));
+    const tip = foodTip || furnTip;
+    if (
+      tip &&
+      !serviciosLine.toLowerCase().includes(tip.toLowerCase().slice(0, Math.min(14, tip.length)))
+    ) {
+      // Si servicios es genérico ("Mobiliario"/"Banquete") agregar detalle.
+      if (
+        /^(mobiliario|banquete|alimentos?|catering|barras?)$/i.test(serviciosLine.trim()) ||
+        (/banquete/i.test(serviciosLine) && /tiempos|formal|mexicano/i.test(tip)) ||
+        (/mobiliario/i.test(serviciosLine) && /silla/i.test(tip))
+      ) {
+        serviciosLine = `${serviciosLine} (${tip})`;
+      }
     }
   }
 

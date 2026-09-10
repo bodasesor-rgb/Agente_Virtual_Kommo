@@ -226353,7 +226353,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.91";
+var LUCY_PROMPT_VERSION = "V9.92";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -228710,16 +228710,96 @@ function pendingFields(mergedLines, extracted) {
 function extractRentalPieceCount(text2) {
   const t4 = text2 ?? "";
   const m6 = t4.match(
-    /\b(?:alrededor\s+de|aprox(?:imadamente)?|ocupamos|necesitamos?|buscamos?|renta(?:r|mos)?|son|de)?\s*(\d{1,3})\s*(sillas?|mesas?|periqueras?|carpas?|lounges?|piezas?)\b/i
+    /\b(?:alrededor\s+de|aprox(?:imadamente)?|ocupamos|necesitamos?|buscamos?|renta(?:r|mos)?|son|de)?\s*(\d{1,3})\s*(sillas?|mesas?|periqueras?|carpas?|lounges?|piezas?|manteles?)\b/i
   );
   if (!m6) return null;
   const count2 = parseInt(m6[1], 10);
   if (!Number.isFinite(count2) || count2 < 1 || count2 > 500) return null;
   return { count: count2, unit: m6[2].toLowerCase() };
 }
+function pushUnique(out2, value, max = 10) {
+  const v4 = (value ?? "").replace(/\s+/g, " ").trim();
+  if (!v4 || v4.length < 3) return;
+  if (out2.some((x8) => x8.toLowerCase() === v4.toLowerCase())) return;
+  if (out2.length >= max) return;
+  out2.push(v4.slice(0, 90));
+}
 function extractProductSpecHints(text2) {
   const t4 = text2 ?? "";
+  if (!t4.trim()) return [];
   const out2 = [];
+  const banqueteTipo = t4.match(
+    /\bbanquete\s+(formal|mexicano|gourmet|kosher|navide[nñ]o|premium|b[aá]sico|tradicional)(?:\s+(\d)\s*tiempos?)?/i
+  );
+  if (banqueteTipo) {
+    let label = `Banquete ${banqueteTipo[1]}`;
+    if (banqueteTipo[2]) label += ` ${banqueteTipo[2]} tiempos`;
+    pushUnique(out2, label);
+  } else {
+    const tiempos = t4.match(/\bbanquete(?:\s+\w+)?\s+(\d)\s*tiempos?\b|\b(\d)\s*tiempos?\b/i);
+    if (tiempos && /\bbanquete\b/i.test(t4)) {
+      pushUnique(out2, `Banquete ${tiempos[1] || tiempos[2]} tiempos`);
+    }
+  }
+  const coffeeN = t4.match(/\bcoffe{1,2}e?\s*break\s*([1-9])\b/i) || t4.match(/\bcoffee\s*break\s*([1-9])\b/i);
+  if (coffeeN?.[1]) pushUnique(out2, `Coffee Break ${coffeeN[1]}`);
+  const taquizaNivel = t4.match(
+    /\btaquiza\s+(premium|b[aá]sica|tradicional|servicio\s+completo|por\s+pieza)\b/i
+  );
+  if (taquizaNivel) pushUnique(out2, `Taquiza ${taquizaNivel[1]}`);
+  else if (/\btaquiza\b/i.test(t4)) pushUnique(out2, "Taquiza");
+  if (/\bbrunch\b/i.test(t4)) {
+    const br2 = t4.match(/\bbrunch\s+(buf[eé]t?|buffet|ejecutivo)?\b/i);
+    pushUnique(out2, br2?.[1] ? `Brunch ${br2[1]}` : "Brunch");
+  }
+  if (/\bdesayuno\b/i.test(t4)) {
+    const des = t4.match(/\bdesayuno\s+(buffet|ejecutivo|continental|americano)\b/i);
+    pushUnique(out2, des ? `Desayuno ${des[1]}` : null);
+  }
+  for (const m6 of t4.matchAll(
+    /\bbarra\s+de\s+(alimentos?|pizzas?|pastas?|crepas?|mariscos?|paninis?|sushi|caf[eé]|bebidas?|cocteler[ií]a|mixolog[ií]a|botanas?|quesos?|ensaladas?|hot\s*dogs?|hamburguesas?|tacos?|antojitos?)\b/gi
+  )) {
+    pushUnique(out2, m6[0]);
+  }
+  for (const m6 of t4.matchAll(
+    /\bmesa\s+de\s+(dulces?|postres?|quesos?|frutas?|botanas?|cupcakes?|candy\s*bar)\b/gi
+  )) {
+    pushUnique(out2, m6[0]);
+  }
+  for (const m6 of t4.matchAll(
+    /\b(?:carrito|puesto|estaci[oó]n)\s+de\s+([A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s]{2,28})\b/gi
+  )) {
+    const item = m6[1].trim();
+    if (!/^(la|el|los|las|comida|alimento)/i.test(item)) {
+      pushUnique(out2, `${m6[0].split(/\s+/)[0]} de ${item}`.replace(/\s+/g, " "));
+    }
+  }
+  if (/\bcanap[eé]s?\b/i.test(t4)) pushUnique(out2, "Canap\xE9s");
+  if (/\bbocadillos?\b/i.test(t4)) pushUnique(out2, "Bocadillos");
+  if (/\bparrillada\b/i.test(t4)) pushUnique(out2, "Parrillada");
+  if (/\bpaella\b/i.test(t4)) pushUnique(out2, "Paella");
+  if (/\bpozole\b/i.test(t4)) pushUnique(out2, "Pozole");
+  if (/\bsushi\b/i.test(t4) && !out2.some((x8) => /sushi/i.test(x8))) pushUnique(out2, "Sushi");
+  if (/\bsolo\s+alimentos?\b/i.test(t4)) pushUnique(out2, "Modalidad: solo alimentos");
+  if (/\bservicio\s+completo\b/i.test(t4) && /\b(banquete|taquiza|comida|alimentos?)\b/i.test(t4)) {
+    pushUnique(out2, "Modalidad: servicio completo");
+  }
+  if (/\bpor\s+pieza\b/i.test(t4) && /\b(taquiza|taco|alimento)\b/i.test(t4)) {
+    pushUnique(out2, "Modalidad: por pieza");
+  }
+  if (/\bcon\s+meseros?\b|\bincluye\s+meseros?\b/i.test(t4)) pushUnique(out2, "Incluye / pide meseros");
+  if (/\bsin\s+meseros?\b/i.test(t4)) pushUnique(out2, "Sin meseros");
+  if (/\bkosher\b/i.test(t4)) pushUnique(out2, "Requisito: kosher");
+  if (/\bvegan[oa]s?\b/i.test(t4)) pushUnique(out2, "Requisito: vegano");
+  if (/\bvegetarian[oa]s?\b/i.test(t4)) pushUnique(out2, "Requisito: vegetariano");
+  if (/\bsin\s+gluten\b|\bgluten\s*free\b/i.test(t4)) pushUnique(out2, "Requisito: sin gluten");
+  if (/\balergia(?:s)?\s+a\s+([A-Za-zÁÉÍÓÚáéíóúñ][\w\s]{2,30})/i.test(t4)) {
+    const al = t4.match(/\balergia(?:s)?\s+a\s+([A-Za-zÁÉÍÓÚáéíóúñ][\w\s,]{2,40})/i);
+    if (al?.[1]) pushUnique(out2, `Alergias: ${al[1].trim().slice(0, 40)}`);
+  }
+  if (/\bni[nñ]os?\b/i.test(t4) && /\b(men[uú]|opci[oó]n|plato)\b/i.test(t4)) {
+    pushUnique(out2, "Pide men\xFA / opci\xF3n infantil");
+  }
   const chair = t4.match(
     /\b(?:silla|tipo\s+de\s+silla)\s+(?:que\s+es\s+|es\s+)?(basket(?:\s+tony)?|tiffany|vers[aá]til|chiavari|cross\s*back|napole[oó]n)(?:\s+de\s+color\s+(\w+(?:\s+\w+)?))?/i
   );
@@ -228732,27 +228812,66 @@ function extractProductSpecHints(text2) {
       );
       if (color && /silla|basket|tiffany/i.test(t4)) spec += ` ${color[1]}`;
     }
-    out2.push(spec);
+    pushUnique(out2, spec);
   } else if (/\bbasket(?:\s+tony)?\b/i.test(t4) && /\bsilla/i.test(t4)) {
     const color = t4.match(/\b(gris(?:\s+oscuro)?|blanc[oa]|negr[oa])\b/i);
-    out2.push(`Silla basket${color ? ` ${color[1]}` : ""}`.trim());
+    pushUnique(out2, `Silla basket${color ? ` ${color[1]}` : ""}`.trim());
   }
-  const carpa = t4.match(/\bcarpa\s+(tela|transparente|stretch|tipos?\s*\d)[^\n.]{0,40}/i);
-  if (carpa) out2.push(carpa[0].replace(/\s+/g, " ").trim().slice(0, 60));
-  const nivel = t4.match(
-    /\b((?:banquete|coffee\s*break|taquiza|brunch|desayuno)\s+\d(?:\s+tiempos?)?)\b/i
+  if (/\bperiqueras?\b/i.test(t4)) pushUnique(out2, "Periqueras");
+  if (/\b(?:salas?\s+lounge|lounge)\b/i.test(t4)) pushUnique(out2, "Salas lounge");
+  if (/\bmanteler[ií]a\b|\bmanteles?\b/i.test(t4)) pushUnique(out2, "Manteler\xEDa");
+  if (/\bvajillas?\b|\bloza\b/i.test(t4)) pushUnique(out2, "Vajillas / loza");
+  if (/\bcomplemento\s+de\s+sillas?\b|\bya\s+contamos\s+con\s+(?:el\s+)?sal[oó]n\b/i.test(t4)) {
+    pushUnique(out2, "Complemento: el sal\xF3n ya tiene sillas; rentan faltantes");
+  }
+  const carpa = t4.match(
+    /\bcarpas?\s+(?:de\s+)?(tela|transparentes?|stretch|tipos?\s*\d|blancas?|negras?)[^\n.]{0,40}/i
   );
-  if (nivel) out2.push(nivel[1].replace(/\s+/g, " "));
-  if (/\bsolo\s+alimentos?\b/i.test(t4)) out2.push("Modalidad: solo alimentos");
+  if (carpa) pushUnique(out2, carpa[0].replace(/\s+/g, " ").trim().slice(0, 70));
+  else if (/\bcarpas?\b/i.test(t4)) pushUnique(out2, "Carpas");
+  const dims = t4.match(/\b(\d+)\s*m?\s*[x×]\s*(\d+)\s*m?\b/i);
+  if (dims && /\b(carpa|tarima|pista|espacio|sal[oó]n)\b/i.test(t4)) {
+    pushUnique(out2, `Medidas: ${dims[1]}m x ${dims[2]}m`);
+  }
+  if (/\b\bdj\b/i.test(t4)) pushUnique(out2, "DJ");
+  if (/\bpista\s+de\s+baile\b/i.test(t4)) pushUnique(out2, "Pista de baile");
+  if (/\btarima\b/i.test(t4)) pushUnique(out2, "Tarima");
+  if (/\biluminaci[oó]n\b/i.test(t4)) pushUnique(out2, "Iluminaci\xF3n");
+  if (/\bpantallas?\b/i.test(t4)) pushUnique(out2, "Pantallas");
+  if (/\bphoto\s*booth\b|\bcabina\s+de\s+fotos?\b/i.test(t4)) pushUnique(out2, "Photo booth");
+  if (/\bhora\s+loca\b/i.test(t4)) pushUnique(out2, "Hora loca");
+  if (/\bmixolog[ií]a\b|\bcocteler[ií]a\b|\bc[oó]cteles?\b/i.test(t4)) {
+    pushUnique(out2, "Cocteler\xEDa / mixolog\xEDa");
+  }
+  if (/\bbarra\s+de\s+bebidas?\b/i.test(t4) && !out2.some((x8) => /barra de bebidas/i.test(x8))) {
+    pushUnique(out2, "Barra de bebidas");
+  }
+  if (/\bopen\s*bar\b|\bbarra\s+libre\b/i.test(t4)) pushUnique(out2, "Open bar / barra libre");
   if (/\b(entregar?|entrega|montar?)\s+(?:un\s+)?d[ií]a\s+antes\b|\bd[ií]a\s+antes\s+del\s+evento\b/i.test(
     t4
   )) {
-    out2.push("Pide entrega/montaje un d\xEDa antes");
+    pushUnique(out2, "Pide entrega/montaje un d\xEDa antes");
   }
-  if (/\bcomplemento\s+de\s+sillas?\b|\bya\s+contamos\s+con\s+(?:el\s+)?sal[oó]n\b/i.test(t4)) {
-    out2.push("Complemento: el sal\xF3n ya tiene sillas; rentan faltantes");
+  if (/\b(?:acarreo|desplazamiento|flete|env[ií]o)\b/i.test(t4)) {
+    const ship = t4.match(
+      /\b(?:acarreo|desplazamiento|flete|env[ií]o)\s*(?:de\s*)?\$?\s*([\d][\d,.]*)/i
+    );
+    pushUnique(
+      out2,
+      ship?.[1] ? `Acarreo/desplazamiento ~$${ship[1].replace(/,/g, "")}` : "Menciona acarreo/desplazamiento"
+    );
   }
-  return [...new Set(out2)].slice(0, 6);
+  if (/\bcon\s+montaje\b|\bsin\s+montaje\b/i.test(t4)) {
+    pushUnique(out2, /\bsin\s+montaje\b/i.test(t4) ? "Sin montaje" : "Con montaje");
+  }
+  if (/\bmeseros?\b/i.test(t4) && !out2.some((x8) => /mesero/i.test(x8))) {
+    const n5 = t4.match(/\b(\d{1,2})\s*meseros?\b/i);
+    pushUnique(out2, n5 ? `${n5[1]} meseros` : "Meseros");
+  }
+  return out2.slice(0, 10);
+}
+function extractQuoteKeyPoints(text2) {
+  return extractProductSpecHints(text2);
 }
 function resolveResumenPresupuesto(extracted, mergedLines, conversationText) {
   const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
@@ -228771,7 +228890,9 @@ function resolveResumenPresupuesto(extracted, mergedLines, conversationText) {
   }
   if (conversationText?.trim()) {
     for (const chunk of conversationText.split(/\n+/).reverse()) {
-      if (!/\b(presupuesto|silla|acarreo|desplazamiento|\$|pesos|por\s+cada)\b/i.test(chunk)) {
+      if (!/\b(presupuesto|silla|persona|pp\b|acarreo|desplazamiento|\$|pesos|por\s+cada|inversi[oó]n|rango)\b/i.test(
+        chunk
+      )) {
         continue;
       }
       const p5 = parsePresupuestoFromText(chunk, { askedField: "presupuesto" });
@@ -228837,16 +228958,24 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   }
   const blob = [conversationText, reqs, reqFromLinesRaw].filter(Boolean).join("\n");
   const pieces = extractRentalPieceCount(blob);
-  const specs = extractProductSpecHints(blob);
+  const specs = extractQuoteKeyPoints(blob);
   const ppto = resolveResumenPresupuesto(extracted, mergedLines, conversationText);
   let serviciosLine = reqs || "(a\xFAn por definir con m\xE1s detalle)";
-  if (pieces && reqs && /mobiliario|silla|mesa|carpa|lounge/i.test(`${reqs} ${blob}`)) {
+  if (pieces && reqs && /mobiliario|silla|mesa|carpa|lounge|periquera|mantel/i.test(`${reqs} ${blob}`)) {
     serviciosLine = `${reqs} \u2014 ${pieces.count} ${pieces.unit}`;
   }
   if (specs.length) {
-    const tip = specs.find((s7) => /silla|carpa|banquete|coffee|taquiza|solo alimentos/i.test(s7));
-    if (tip && !/basket|tiffany|silla\s+\d/i.test(serviciosLine)) {
-      serviciosLine = `${serviciosLine} (${tip})`;
+    const foodTip = specs.find(
+      (s7) => /banquete|coffee|taquiza|brunch|desayuno|barra de|mesa de|canap|parrillada|solo alimentos/i.test(
+        s7
+      )
+    );
+    const furnTip = specs.find((s7) => /silla|basket|tiffany|periquera|lounge/i.test(s7));
+    const tip = foodTip || furnTip;
+    if (tip && !serviciosLine.toLowerCase().includes(tip.toLowerCase().slice(0, Math.min(14, tip.length)))) {
+      if (/^(mobiliario|banquete|alimentos?|catering|barras?)$/i.test(serviciosLine.trim()) || /banquete/i.test(serviciosLine) && /tiempos|formal|mexicano/i.test(tip) || /mobiliario/i.test(serviciosLine) && /silla/i.test(tip)) {
+        serviciosLine = `${serviciosLine} (${tip})`;
+      }
     }
   }
   const modo = extracted.modo_servicio?.trim();
