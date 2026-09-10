@@ -132774,9 +132774,12 @@ function extractFechaCorrectionFragment(text2) {
   const t4 = (text2 ?? "").trim();
   if (!t4) return null;
   const dayMonth = t4.match(
-    /\b(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)\b/i
+    /\b(\d{1,2}\s+(?:de\s+)?(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)\b/i
   );
-  if (dayMonth?.[1]) return dayMonth[1].replace(/\s+/g, " ").trim();
+  if (dayMonth?.[1]) {
+    const normalized = parseFechaFromText(dayMonth[1]) || dayMonth[1].replace(/\s+/g, " ").trim();
+    return normalized;
+  }
   const sigue = t4.match(
     /\b(?:sigue\s+siendo|sigue\s+en|es\s+en|ser[ií]a\s+en|queda\s+en|corrige\s+a|cambia\s+a|en\s+vez\s+de\s+\w+\s+(?:pon|usa|deja))\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
   );
@@ -133898,10 +133901,55 @@ function isServiceLabelNotTipoEvento(label) {
   if (parseTipoEventoFromText(t4)) return false;
   return !!parsePrimaryService(t4);
 }
+function isMonthOnlyFecha(value) {
+  const t4 = (value ?? "").trim();
+  if (!t4) return false;
+  return /^(?:en\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/i.test(
+    t4
+  );
+}
+function isRicherFechaCapture(incoming, existing) {
+  const next = (incoming ?? "").trim();
+  const prev = (existing ?? "").trim();
+  if (!next || !isUsableFechaEvento(next)) return false;
+  if (!prev) return true;
+  if (next.toLowerCase() === prev.toLowerCase()) return false;
+  const nextHasDay = /\b\d{1,2}\s+(?:de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+    next
+  ) || /\b\d{1,2}[\/\-]\d{1,2}/.test(next);
+  const prevHasDay = /\b\d{1,2}\s+(?:de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+    prev
+  ) || /\b\d{1,2}[\/\-]\d{1,2}/.test(prev);
+  if (nextHasDay && (isMonthOnlyFecha(prev) || !prevHasDay)) return true;
+  if (nextHasDay && prevHasDay && /\b\d{4}\b/.test(next) && !/\b\d{4}\b/.test(prev)) return true;
+  if (next.length > prev.length + 2 && nextHasDay) return true;
+  return false;
+}
 function parseFechaFromText(text2) {
   const trimmed = text2.trim();
   if (isMealTimeOnlySchedule(trimmed)) return null;
   if (isClockTimeOnlySchedule(trimmed)) return null;
+  const MONTHS = "enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre";
+  const dayMonthBare = trimmed.match(
+    new RegExp(
+      `\\b(?:el\\s+)?(\\d{1,2})\\s+(?:de\\s+)?(${MONTHS})(?:\\s+(?:de\\s+)?(\\d{4}))?\\b`,
+      "i"
+    )
+  );
+  if (dayMonthBare) {
+    const day = dayMonthBare[1];
+    const month = dayMonthBare[2].toLowerCase();
+    const year = dayMonthBare[3];
+    const base = year ? `${day} de ${month} ${year}` : `${day} de ${month}`;
+    const horaMatch = trimmed.match(
+      /\ba\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?\b/i
+    );
+    if (horaMatch?.[1]) {
+      const h5 = horaMatch[1];
+      return `${base} a las ${h5}${h5.includes(":") ? "" : ":00"} horas`;
+    }
+    return base;
+  }
   const fechaMatch = trimmed.match(
     /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
   );
@@ -133941,8 +133989,42 @@ function parseFechaFromText(text2) {
     const day = relativeDay[0].replace(/^(s[ií]|ok|vale)[,.]?\s+/i, "").trim();
     return day.slice(0, 80);
   }
+  const numeric2 = trimmed.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
+  if (numeric2) {
+    const d3 = Number(numeric2[1]);
+    const m6 = Number(numeric2[2]);
+    if (d3 >= 1 && d3 <= 31 && m6 >= 1 && m6 <= 12) {
+      const monthNames = [
+        "enero",
+        "febrero",
+        "marzo",
+        "abril",
+        "mayo",
+        "junio",
+        "julio",
+        "agosto",
+        "septiembre",
+        "octubre",
+        "noviembre",
+        "diciembre"
+      ];
+      const month = monthNames[m6 - 1];
+      const yRaw = numeric2[3];
+      const year = yRaw ? yRaw.length === 2 ? `20${yRaw}` : yRaw : null;
+      return year ? `${d3} de ${month} ${year}` : `${d3} de ${month}`;
+    }
+  }
   if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
     if (looksLikeFechaDiscourseJunk(trimmed) || trimmed.length > 40 || trimmed.split(/\s+/).length > 5) {
+      const month = trimmed.match(
+        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+      );
+      if (month?.[1]) {
+        const m6 = month[1];
+        return m6.charAt(0).toUpperCase() + m6.slice(1).toLowerCase();
+      }
+    }
+    if (isMonthOnlyFecha(trimmed) || /^en\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/i.test(trimmed)) {
       const month = trimmed.match(
         /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
       );
@@ -134592,6 +134674,11 @@ function enrichExtractedFromConversation(extracted, conversationText) {
   if (!extracted.fecha_evento?.trim() && !promo) {
     const fecha = parseFechaFromText(parseText);
     if (fecha) extracted.fecha_evento = fecha;
+  } else if (!promo && extracted.fecha_evento?.trim()) {
+    const richer = parseFechaFromText(parseText);
+    if (richer && isRicherFechaCapture(richer, extracted.fecha_evento)) {
+      extracted.fecha_evento = richer;
+    }
   }
   if (!extracted.horario_evento?.trim() && !promo) {
     const horario = parseHorarioFromText(conversationText);
@@ -163656,8 +163743,8 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
     const lucyAskedHorario = inferLucyAskedField(lastFechaTxt) === "horario";
     const horarioPending = getNextPendingField(extracted, filledSet) === "horario";
     const bareNumberIsInvitados = /^\d{1,4}$/.test((currentMessage ?? "").trim()) && !filledSet.has("N\xFAmero de invitados") && (inferLucyAskedField(lastFechaTxt) === "invitados" || /invitados|cu[aá]ntas?\s+personas|asistir[aá]n/i.test(lastFechaTxt));
-    const looksLikeFechaOnly = !!fechaNow && !horarioNow && !parseFurnitureCatalogSkuFromText(currentMessage ?? "") && !parseCorreoFromText(currentMessage ?? "") && (lucyAskedFecha || fechaPending || /^(el\s+)?\d{1,2}\s+de\s+\w+/i.test((currentMessage ?? "").trim()));
-    if (!cierreYaEnviado && fechaNow && looksLikeFechaOnly && isUsableFechaEvento(fechaNow) && !filledSet.has(CRM_FECHA_LABEL)) {
+    const looksLikeFechaOnly = !!fechaNow && !horarioNow && !parseFurnitureCatalogSkuFromText(currentMessage ?? "") && !parseCorreoFromText(currentMessage ?? "") && (lucyAskedFecha || fechaPending || /^(el\s+)?\d{1,2}\s+(?:de\s+)?\w+/i.test((currentMessage ?? "").trim()));
+    if (!cierreYaEnviado && fechaNow && looksLikeFechaOnly && isUsableFechaEvento(fechaNow) && (!filledSet.has(CRM_FECHA_LABEL) || isRicherFechaCapture(fechaNow, extracted.fecha_evento))) {
       extracted.fecha_evento = fechaNow;
       filledSet.add(CRM_FECHA_LABEL);
       const horarioExtra = parseHorarioFromText(currentMessage ?? "");
@@ -225988,7 +226075,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.87";
+var LUCY_PROMPT_VERSION = "V9.88";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -228890,6 +228977,7 @@ init_serviceKnowledge();
 init_catalogService();
 init_llmChat();
 init_llmEnv();
+init_conversation_understanding();
 var PENDING_FIELD_LABELS = {
   nombre: "Nombre del cliente",
   correo: "Correo electr\xF3nico (opcional \u2014 intentar sin insistir)",
@@ -229136,6 +229224,9 @@ function mergeExtractedPatch(target, patch) {
   for (const [key, value] of Object.entries(patch)) {
     if (value === null || value === void 0) continue;
     if (typeof value === "string" && !value.trim()) continue;
+    if (key === "fecha_evento" && typeof value === "string" && typeof target.fecha_evento === "string" && target.fecha_evento.trim() && isRicherFechaCapture(target.fecha_evento, value)) {
+      continue;
+    }
     target[key] = value;
   }
 }
@@ -230121,6 +230212,12 @@ async function generateLucyOutbound(input) {
     if (unified.parsedOk && unified.extractedPatch) {
       mergeExtractedPatch(extracted, unified.extractedPatch);
       extracted.nombre = sanitizeCrmNombre(extracted.nombre);
+      {
+        const fromMsg = parseFechaFromText(messageText);
+        if (fromMsg && isRicherFechaCapture(fromMsg, extracted.fecha_evento)) {
+          extracted.fecha_evento = fromMsg;
+        }
+      }
       if (extracted.correo) {
         extracted.correo = filterClientEmail(
           parseCorreoFromText(extracted.correo) ?? extracted.correo

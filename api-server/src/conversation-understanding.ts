@@ -3653,9 +3653,12 @@ export function extractFechaCorrectionFragment(text: string | null | undefined):
   const t = (text ?? "").trim();
   if (!t) return null;
   const dayMonth = t.match(
-    /\b(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)\b/i
+    /\b(\d{1,2}\s+(?:de\s+)?(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)\b/i
   );
-  if (dayMonth?.[1]) return dayMonth[1].replace(/\s+/g, " ").trim();
+  if (dayMonth?.[1]) {
+    const normalized = parseFechaFromText(dayMonth[1]) || dayMonth[1].replace(/\s+/g, " ").trim();
+    return normalized;
+  }
   const sigue = t.match(
     /\b(?:sigue\s+siendo|sigue\s+en|es\s+en|ser[ií]a\s+en|queda\s+en|corrige\s+a|cambia\s+a|en\s+vez\s+de\s+\w+\s+(?:pon|usa|deja))\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
   );
@@ -5478,12 +5481,70 @@ export function isServiceLabelNotTipoEvento(label: string | null | undefined): b
   return !!parsePrimaryService(t);
 }
 
+/** Mes suelto en CRM ("Octubre") sin día — incompleto si el cliente ya dio el día. */
+export function isMonthOnlyFecha(value: string | null | undefined): boolean {
+  const t = (value ?? "").trim();
+  if (!t) return false;
+  return /^(?:en\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/i.test(
+    t
+  );
+}
+
+/** True si `incoming` tiene más detalle de fecha que `existing` (p. ej. día+mes vs solo mes). */
+export function isRicherFechaCapture(
+  incoming: string | null | undefined,
+  existing: string | null | undefined
+): boolean {
+  const next = (incoming ?? "").trim();
+  const prev = (existing ?? "").trim();
+  if (!next || !isUsableFechaEvento(next)) return false;
+  if (!prev) return true;
+  if (next.toLowerCase() === prev.toLowerCase()) return false;
+  const nextHasDay =
+    /\b\d{1,2}\s+(?:de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+      next
+    ) || /\b\d{1,2}[\/\-]\d{1,2}/.test(next);
+  const prevHasDay =
+    /\b\d{1,2}\s+(?:de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+      prev
+    ) || /\b\d{1,2}[\/\-]\d{1,2}/.test(prev);
+  if (nextHasDay && (isMonthOnlyFecha(prev) || !prevHasDay)) return true;
+  if (nextHasDay && prevHasDay && /\b\d{4}\b/.test(next) && !/\b\d{4}\b/.test(prev)) return true;
+  if (next.length > prev.length + 2 && nextHasDay) return true;
+  return false;
+}
+
 export function parseFechaFromText(text: string): string | null {
   const trimmed = text.trim();
   // A15443: "hora de comida" sola no es fecha del evento (sigue pidiendo día).
   if (isMealTimeOnlySchedule(trimmed)) return null;
   // A15419: "13:00 a 20:00 hrs" solo = horario, no cierra día.
   if (isClockTimeOnlySchedule(trimmed)) return null;
+
+  const MONTHS =
+    "enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre";
+
+  // A15941: "10 octubre" / "el 10 octubre 2026" (sin "de") → normalizar a "10 de octubre".
+  const dayMonthBare = trimmed.match(
+    new RegExp(
+      `\\b(?:el\\s+)?(\\d{1,2})\\s+(?:de\\s+)?(${MONTHS})(?:\\s+(?:de\\s+)?(\\d{4}))?\\b`,
+      "i"
+    )
+  );
+  if (dayMonthBare) {
+    const day = dayMonthBare[1]!;
+    const month = dayMonthBare[2]!.toLowerCase();
+    const year = dayMonthBare[3];
+    const base = year ? `${day} de ${month} ${year}` : `${day} de ${month}`;
+    const horaMatch = trimmed.match(
+      /\ba\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?\b/i
+    );
+    if (horaMatch?.[1]) {
+      const h = horaMatch[1];
+      return `${base} a las ${h}${h.includes(":") ? "" : ":00"} horas`;
+    }
+    return base;
+  }
 
   const fechaMatch = trimmed.match(
     /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
@@ -5538,9 +5599,51 @@ export function parseFechaFromText(text: string): string | null {
     return day.slice(0, 80);
   }
 
+  // A15941: "10/10" / "10-10-2026"
+  const numeric = trimmed.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
+  if (numeric) {
+    const d = Number(numeric[1]);
+    const m = Number(numeric[2]);
+    if (d >= 1 && d <= 31 && m >= 1 && m <= 12) {
+      const monthNames = [
+        "enero",
+        "febrero",
+        "marzo",
+        "abril",
+        "mayo",
+        "junio",
+        "julio",
+        "agosto",
+        "septiembre",
+        "octubre",
+        "noviembre",
+        "diciembre",
+      ];
+      const month = monthNames[m - 1]!;
+      const yRaw = numeric[3];
+      const year = yRaw
+        ? yRaw.length === 2
+          ? `20${yRaw}`
+          : yRaw
+        : null;
+      return year ? `${d} de ${month} ${year}` : `${d} de ${month}`;
+    }
+  }
+
   if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
     // Nunca guardar el mensaje completo: solo el mes (o "en septiembre").
+    // Si hay día+mes ya lo capturamos arriba; aquí solo mes suelto.
     if (looksLikeFechaDiscourseJunk(trimmed) || trimmed.length > 40 || trimmed.split(/\s+/).length > 5) {
+      const month = trimmed.match(
+        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+      );
+      if (month?.[1]) {
+        const m = month[1]!;
+        return m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
+      }
+    }
+    // "10 octubre" ya salió arriba; "octubre" / "en octubre" sueltos.
+    if (isMonthOnlyFecha(trimmed) || /^en\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/i.test(trimmed)) {
       const month = trimmed.match(
         /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
       );
@@ -6616,6 +6719,12 @@ export function enrichExtractedFromConversation(
   if (!extracted.fecha_evento?.trim() && !promo) {
     const fecha = parseFechaFromText(parseText);
     if (fecha) extracted.fecha_evento = fecha;
+  } else if (!promo && extracted.fecha_evento?.trim()) {
+    // A15941: no dejar "Octubre" si el mensaje trae "10 octubre".
+    const richer = parseFechaFromText(parseText);
+    if (richer && isRicherFechaCapture(richer, extracted.fecha_evento)) {
+      extracted.fecha_evento = richer;
+    }
   }
   if (!extracted.horario_evento?.trim() && !promo) {
     const horario = parseHorarioFromText(conversationText);

@@ -214,6 +214,7 @@ import {
   serviceRequirementsGainedDimensions,
   isDimensionText,
   parseFechaFromText,
+  isRicherFechaCapture,
   parseTipoEventoFromText,
   parseInvitadosFromText,
   recoverInvitadosFromUserTexts,
@@ -6429,13 +6430,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       !parseCorreoFromText(currentMessage ?? "") &&
       (lucyAskedFecha ||
         fechaPending ||
-        /^(el\s+)?\d{1,2}\s+de\s+\w+/i.test((currentMessage ?? "").trim()));
+        /^(el\s+)?\d{1,2}\s+(?:de\s+)?\w+/i.test((currentMessage ?? "").trim()));
     if (
       !cierreYaEnviado &&
       fechaNow &&
       looksLikeFechaOnly &&
       isUsableFechaEvento(fechaNow) &&
-      !filledSet.has(CRM_FECHA_LABEL)
+      (!filledSet.has(CRM_FECHA_LABEL) ||
+        isRicherFechaCapture(fechaNow, extracted.fecha_evento))
     ) {
       extracted.fecha_evento = fechaNow;
       filledSet.add(CRM_FECHA_LABEL);

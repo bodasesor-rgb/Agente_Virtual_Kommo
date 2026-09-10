@@ -19,6 +19,8 @@ import {
   sanitizeExtractedAmbiguousNumbers,
   inferLucyAskedField,
   isUnusableTipoEventoReply,
+  parseFechaFromText,
+  isRicherFechaCapture,
 } from "./conversation-understanding.js";
 import { enrichExtractedFromText } from "./services/summaryService.js";
 import { enrichExtractedDireccionWithMaps } from "./services/geoResolve.js";
@@ -389,6 +391,13 @@ export async function generateLucyOutbound(
     if (unified.parsedOk && unified.extractedPatch) {
       mergeExtractedPatch(extracted, unified.extractedPatch);
       extracted.nombre = sanitizeCrmNombre(extracted.nombre);
+      // A15941: el parser del mensaje gana sobre mes suelto del LLM ("Octubre" vs "10 octubre").
+      {
+        const fromMsg = parseFechaFromText(messageText);
+        if (fromMsg && isRicherFechaCapture(fromMsg, extracted.fecha_evento)) {
+          extracted.fecha_evento = fromMsg;
+        }
+      }
       if (extracted.correo) {
         extracted.correo = filterClientEmail(
           parseCorreoFromText(extracted.correo) ?? extracted.correo

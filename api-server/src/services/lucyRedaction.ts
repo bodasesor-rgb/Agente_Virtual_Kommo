@@ -14,6 +14,7 @@ import { SERVICE_KNOWLEDGE_GOLDEN_RULE } from "./serviceKnowledge.js";
 import { buildEventOfferCatalogHint } from "./catalogService.js";
 import { completeChat, fromOpenAiMessages, type ChatMessage } from "../lib/llmChat.js";
 import { getChatModel } from "../lib/llmEnv.js";
+import { isRicherFechaCapture } from "../conversation-understanding.js";
 
 /** Modelo activo (Gemini Flash-Lite por default si hay key). */
 export function getLucyRedactionModel(): string {
@@ -363,6 +364,16 @@ export function mergeExtractedPatch(
   >) {
     if (value === null || value === undefined) continue;
     if (typeof value === "string" && !value.trim()) continue;
+    // A15941: no pisar "10 de octubre" con solo "Octubre" del LLM.
+    if (
+      key === "fecha_evento" &&
+      typeof value === "string" &&
+      typeof target.fecha_evento === "string" &&
+      target.fecha_evento.trim() &&
+      isRicherFechaCapture(target.fecha_evento, value)
+    ) {
+      continue;
+    }
     (target as Record<string, unknown>)[key] = value;
   }
 }
