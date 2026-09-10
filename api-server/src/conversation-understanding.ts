@@ -16,7 +16,7 @@ import {
   sanitizeCrmNombre,
   sanitizeDisplayName,
 } from "./contact-name.js";
-import { filterClientEmail } from "./client-email.js";
+import { filterClientEmail, looksLikeValidClientEmail } from "./client-email.js";
 import { getAdvisorName, LEGACY_ADVISOR_NAMES } from "./lib/bodasesorAdvisor.js";
 import {
   clientDeclinesServiceFamilies,
@@ -449,8 +449,11 @@ export function clientAsksForRecommendations(message?: string): boolean {
     /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) ||
     /qu[eé]\s+opciones/i.test(t) ||
     /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) ||
-    /qu[eé]\s+(otros\s+)?servicios(\s+\w+){0,3}\s+(manejan|ofrecen|tienen|hay)/i.test(t) ||
-    /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen/i.test(t) ||
+    // A15165: "Qué otros servicios manejas" / "Tienes más servicios?"
+    /qu[eé]\s+(otros\s+)?servicios(\s+\w+){0,3}\s+(maneja(?:s|n)|ofreces?|tienen?|hay)/i.test(t) ||
+    /tienes?\s+m[aá]s\s+servicios?\b/i.test(t) ||
+    /m[aá]s\s+servicios?\s*\??\s*$/i.test(t) ||
+    /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen|qu[eé]\s+manejas/i.test(t) ||
     /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t) ||
     /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t) ||
     /algo\s+m[aá]s\s*\?/i.test(t)
@@ -2604,6 +2607,8 @@ export function sanitizeDireccionCapture(value: string | null | undefined): stri
     .replace(/\brealmente\s+buscamos\b.*$/gi, "")
     .replace(/\by\s+estamos\s+buscando\b.*$/gi, "")
     .replace(/\bsal[oó]n\s+de\s+fiestas?\s+y\s+estamos\b.*$/gi, "")
+    // A15165: "CDMX, espera" / coletillas de turno ("espera", "ahorita")
+    .replace(/[,.]?\s*\b(espera|ahorita|al\s+rato|en\s+un\s+momento)\s*$/gi, "")
     .replace(/,\s*,+/g, ",")
     .replace(/^,\s*|,\s*$/g, "")
     .replace(/\s+/g, " ")
@@ -3264,27 +3269,40 @@ export function clientWantsFoodOnlyQuote(text: string | null | undefined): boole
 /**
  * A15910: "Sería solo cotizar la mesa de dulces" / "solo la mesa de dulces"
  * → SKU único (quita Banquete Formal u otros del CRM).
+ * A15165: "Estoy buscando banquete mexicano" tras oferta errónea → reemplaza, no suma.
  */
 export function clientNarrowsToOnlyService(text: string | null | undefined): string | null {
   const t = text?.trim() ?? "";
   if (!t) return null;
-  if (!/\b(solo|solamente|[uú]nicamente)\b/i.test(t)) return null;
+  const hasSolo = /\b(solo|solamente|[uú]nicamente)\b/i.test(t);
+  // A15165: corrección explícita de servicio sin "solo".
+  const replaceIntent =
+    /\b(estoy\s+buscando|busco|quiero|necesito|me\s+interesa)\s+(?:un\s+|una\s+|el\s+|la\s+)?/i.test(
+      t
+    ) &&
+    /\b(banquete|taquiza|coffee\s*break|barra\s+de|mesa\s+de\s+dulces|carpa|pista|dj)\b/i.test(t) &&
+    !/\by\s+(tambi[eé]n|adem[aá]s)\b/i.test(t);
+  if (!hasSolo && !replaceIntent) return null;
   // Evitar "solo alimentos/comida" genérico (ya cubierto por clientWantsFoodOnlyQuote).
-  if (clientWantsFoodOnlyQuote(t) && !/\bmesa\s+de\s+dulces\b/i.test(t)) return null;
+  if (clientWantsFoodOnlyQuote(t) && !/\bmesa\s+de\s+dulces\b/i.test(t) && hasSolo) return null;
   const narrowIntent =
-    /\b(cotizar|cotizaci[oó]n|quiero|necesito|ser[ií]a|dejamos?|quedamos?|anota)\b/i.test(t) ||
-    /\bsolo\s+(la\s+|el\s+|una\s+)?(mesa\s+de\s+dulces|banquete|taquiza|carpa|pista|barra)/i.test(t);
-  if (!narrowIntent) return null;
+    hasSolo &&
+    (/\b(cotizar|cotizaci[oó]n|quiero|necesito|ser[ií]a|dejamos?|quedamos?|anota)\b/i.test(t) ||
+      /\bsolo\s+(la\s+|el\s+|una\s+)?(mesa\s+de\s+dulces|banquete|taquiza|carpa|pista|barra)/i.test(
+        t
+      ));
+  if (!narrowIntent && !replaceIntent) return null;
   if (/\bmesa\s+de\s+dulces\b/i.test(t)) return "Mesa de dulces";
   if (/\bmesa\s+de\s+postres?\b/i.test(t)) return "Mesa de postres";
+  if (/\bbanquete\s+mexicano\b/i.test(t)) return "Banquete Mexicano";
+  if (/\bbanquete\s+formal\b/i.test(t)) return "Banquete Formal";
   const fromMsg = parseServicesFromText(t).filter(
     (s) => !/^(Comida|Alimentos|Evento|Servicio)$/i.test(s)
   );
   if (fromMsg.length === 1) return fromMsg[0]!;
   if (fromMsg.length > 1) {
-    // Preferir el servicio nombrado tras "solo …"
     const afterSolo = t.match(
-      /\b(?:solo|solamente|[uú]nicamente)\s+(?:cotizar\s+)?(?:la\s+|el\s+|una\s+)?(.+?)(?:\s+para\s+\d|\s*$)/i
+      /\b(?:solo|solamente|[uú]nicamente|buscando|busco|quiero|necesito)\s+(?:cotizar\s+)?(?:la\s+|el\s+|una\s+|un\s+)?(.+?)(?:\s+para\s+\d|\s*$)/i
     )?.[1];
     if (afterSolo) {
       const hit = parseServicesFromText(afterSolo);
@@ -3326,6 +3344,11 @@ export function mergeServiceRequirements(
   text: string | null | undefined,
   max = 6
 ): string | null {
+  // A15165: "Estoy buscando banquete mexicano" → reemplaza CRM inventado, no suma Mobiliario.
+  const onlySku = clientNarrowsToOnlyService(text);
+  if (onlySku) {
+    return preserveSpaceAnnotation(onlySku, `${existing ?? ""} ${text ?? ""}`);
+  }
   // A15841: cambio de banquete servido a snacks — quitar tiempos, anotar canapés.
   if (clientSwapsPlatedMealForSnacks(text)) {
     const snackLabel = resolveSnackSwapLabel(text);
@@ -7202,7 +7225,12 @@ export function enrichExtractedFromConversation(
   // Recuperar correo del historial (A14943: no es campo Kommo durable).
   if (!extracted.correo?.trim()) {
     const fromConv = parseCorreoFromText(conversationText);
-    if (fromConv) extracted.correo = fromConv;
+    if (fromConv && looksLikeValidClientEmail(fromConv)) extracted.correo = fromConv;
+  } else {
+    // A15165: scrub basura GPT/CRM.
+    const cleaned = filterClientEmail(parseCorreoFromText(extracted.correo) ?? null);
+    extracted.correo =
+      cleaned && looksLikeValidClientEmail(cleaned) ? cleaned : null;
   }
 
   if (

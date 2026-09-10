@@ -3142,13 +3142,17 @@ export function buildFirstInteractionMessage(
 
   // V8.68: familia sin variante → menú de opciones (detalle + link tras elegir / "sí").
   // Multi-servicio / brief rico sigue con bloque de catálogo.
-  const svcHint =
-    (isValidRequerimientosValue(ctx.extracted.requerimientos_evento)
-      ? ctx.extracted.requerimientos_evento
-      : null) ||
-    parsePrimaryService(userText) ||
-    parsePrimaryService(ctx.currentMessage ?? "") ||
-    (multiServices.length === 1 ? multiServices[0]! : null);
+  // A15165: en saludo puro no usar CRM stale (Mobiliario) para volcar catálogos.
+  const greetingOnly = isGreetingOnlyMessage(ctx.currentMessage ?? "");
+  const svcHint = greetingOnly
+    ? parsePrimaryService(ctx.currentMessage ?? "") ||
+      (multiServices.length === 1 ? multiServices[0]! : null)
+    : (isValidRequerimientosValue(ctx.extracted.requerimientos_evento)
+        ? ctx.extracted.requerimientos_evento
+        : null) ||
+      parsePrimaryService(userText) ||
+      parsePrimaryService(ctx.currentMessage ?? "") ||
+      (multiServices.length === 1 ? multiServices[0]! : null);
   // A15205: comida vaga en primer contacto → formal vs casual (no banquete Formal/Mexicano).
   const vagueFoodFirst =
     !includeCatalog &&
@@ -4685,24 +4689,36 @@ export function buildMappedCatalogOfferBlock(
   sourceText?: string
 ): string {
   const text = sourceText ?? "";
-  const list = dedupeServiceHierarchy(
+  const declined = clientDeclinesServiceFamilies(text);
+  let list = dedupeServiceHierarchy(
     services.map((s) => s.trim()).filter(Boolean),
     text
   ).slice(0, 6);
+  // A15165: no re-ofrecer familias que el cliente rechazó en el mismo texto.
+  if (declined.length) {
+    const cleaned = removeDeclinedFamiliesFromRequirements(list.join(", "), declined);
+    list = cleaned
+      ? cleaned
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : [];
+  }
   if (!list.length) return buildGenericCatalogHubBlock();
 
   const lines: string[] = [
     "Con lo que pediste, estas opciones del catálogo te pueden servir:",
     "",
   ];
-  let linked = 0;
+  const linkedLines: string[] = [];
   const seenUrls = new Set<string>();
 
   // A15917: "Mobiliario" suelto → mesas/sillas + periqueras (no hub genérico ni un solo link).
   const onlyBareMobiliario =
     list.length === 1 &&
     /^mobiliario$/i.test(list[0]!) &&
-    !/\b(mesas?|sillas?|periqueras?|lounge)\b/i.test(text);
+    !/\b(mesas?|sillas?|periqueras?|lounge)\b/i.test(text) &&
+    !declined.includes("mobiliario");
   if (onlyBareMobiliario) {
     return [
       "Perfecto — anoto *mobiliario*.",
@@ -4741,7 +4757,6 @@ export function buildMappedCatalogOfferBlock(
       label = "Barra de bebidas";
     } else if (/^meseros?$/i.test(svc)) {
       // Sin página propia → no forzar link roto.
-      lines.push(`• *${label}*`);
       continue;
     }
     // Preferir slug web (embeds) — no depende del Sheet cargado (A14985).
@@ -4753,14 +4768,13 @@ export function buildMappedCatalogOfferBlock(
       const deliverable = toDeliverableCatalogUrl(webUrl);
       if (seenUrls.has(deliverable)) continue;
       seenUrls.add(deliverable);
-      lines.push(`• *${label}*: ${deliverable}`);
-      linked++;
-    } else {
-      lines.push(`• *${label}*`);
+      linkedLines.push(`• *${label}*: ${deliverable}`);
     }
   }
-  if (linked === 0) return buildGenericCatalogHubBlock();
+  // A15165: solo bullets con URL real (no Mobiliario/Hora loca sueltos).
+  if (!linkedLines.length) return buildGenericCatalogHubBlock();
 
+  lines.push(...linkedLines);
   lines.push("", GENERAL_CATALOG_INVITE, getCatalogWebHubDeliveryUrl(), "");
   lines.push(SERVICE_NIVEL_DETAIL_CTA);
   return lines.join("\n");
@@ -5760,6 +5774,23 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       isUsableDireccionEvento(extracted.direccion_evento)
         ? `Anoto la ubicación en *${extracted.direccion_evento}*.`
         : null;
+    // A15165: "Ya te lo di" tras correo ilegible — no fingir que lo tenemos.
+    const lastAsstForComplaint = [...presHistory]
+      .reverse()
+      .find((m) => m.role === "assistant" && typeof m.content === "string");
+    const askedComplaint = lastAsstForComplaint
+      ? inferLucyAskedField(lastAsstForComplaint.content as string)
+      : null;
+    const correoPendiente =
+      (askedComplaint === "correo" || pending === "correo") &&
+      !isEmailSatisfied(filledSet, extracted);
+    if (correoPendiente) {
+      const body = nombre
+        ? `Perdón, ${nombre} — no pude leer bien el correo. ¿Me lo escribes completo? Por ejemplo nombre@gmail.com`
+        : "Perdón — no pude leer bien el correo. ¿Me lo escribes completo? Por ejemplo nombre@gmail.com";
+      log?.info({ entityId }, "GUARD: A15165 — queja correo ilegible → pedir formato claro");
+      return normalizeAdvisorReferences(body, nombre);
+    }
     const ack = nombre
       ? `Perfecto, ${nombre}.${zonaAck ? ` ${zonaAck}` : " Ya lo tengo anotado."}`
       : `Perfecto.${zonaAck ? ` ${zonaAck}` : " Ya lo tengo anotado."}`;
@@ -6859,6 +6890,48 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
+  }
+
+  // A15165: "Qué otros servicios manejas" / "Tienes más servicios?" → lista, no embudo horario.
+  if (
+    !cierreYaEnviado &&
+    currentMessage?.trim() &&
+    clientAsksForRecommendations(currentMessage) &&
+    !clientAsksPrice(currentMessage) &&
+    !clientAsksInclusion(currentMessage) &&
+    !clientMentionsCatering(currentMessage) &&
+    !parsePrimaryService(currentMessage ?? "")
+  ) {
+    const rec = buildRecommendationsReply(
+      extracted,
+      history,
+      entityId,
+      currentMessage
+    );
+    log?.info({ entityId }, "GUARD: A15165 — más servicios / recomendaciones (return temprano)");
+    return normalizeAdvisorReferences(
+      rec,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+  }
+
+  // A15165: saludo solo (aunque CRM tenga Mobiliario stale) → NO catálogo ni "anoto mobiliario".
+  if (!cierreYaEnviado && isGreetingOnlyMessage(currentMessage ?? "")) {
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const pending = getNextPendingField(extracted, filledSet);
+    const greet = display
+      ? `¡Hola! Buen día. Soy Lucy, agente virtual de Bodasesor. Estoy aquí para ayudarte con lo que necesites para tu evento.`
+      : LUCY_INTRO;
+    // No usar requerimientos CRM como pregunta — pedir confirmación de qué cotizar.
+    const nextQ =
+      pending && pending !== "requerimientos"
+        ? buildNaturalQuestion(pending, ctx)
+        : isValidRequerimientosValue(extracted.requerimientos_evento)
+          ? `¿Seguimos con *${formatServicesList(parseServicesFromText(extracted.requerimientos_evento!))}*, o qué te gustaría cotizar?`
+          : "¿Qué te gustaría cotizar para tu evento?";
+    const body = `${greet} ${nextQ}`.trim();
+    log?.info({ entityId, pending }, "GUARD: A15165 — saludo puro sin catálogo CRM");
+    return normalizeAdvisorReferences(body, display);
   }
 
   // Salida temprana: "qué incluye / descripción de cada nivel" no debe perderse
@@ -9026,7 +9099,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     // V8.92 / A15165 / A15642: menú de piezas mobiliario → modelos (también post-cierre).
     // Incluye "Mesas, sillas, plato trinche" aunque Lucy haya abierto menú de alimentos por error.
     // A15910: mesa de dulces/postres ≠ piezas de mobiliario.
+    // A15165: "no quiero mobilairio" NUNCA debe abrir catálogo de periqueras.
     allowSalesReplyOverride &&
+    !clientDeclinesServiceFamilies(currentMessage).includes("mobiliario") &&
     !/\bmesas?\s+de\s+(dulces?|postres?|quesos?)\b/i.test(currentMessage ?? "") &&
     !shouldSkipSalesMenuForConcreteQuestion(currentMessage) &&
     !clientAsksForCatalog(currentMessage) &&
@@ -9297,7 +9372,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     allowSalesReplyOverride &&
     clientAsksServiceInfo(currentMessage) &&
     isServiceRelatedMessage(currentMessage) &&
-    !clientAsksPrice(currentMessage)
+    !clientAsksPrice(currentMessage) &&
+    // A15165: "Tienes más servicios?" / "qué servicios manejas" → recomendaciones, no embudo.
+    !clientAsksForRecommendations(currentMessage)
     // A15486: también post-cierre (antes bloqueaba con !cierreYaEnviado)
   ) {
     // Preferir oferta con niveles + pregunta de catálogo (como food-sales),
@@ -9384,6 +9461,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (
     allowSalesReplyOverride &&
     // V8.35: si pide info/detalle, reexplicar aunque el servicio ya esté capturado.
+    !clientAsksForRecommendations(currentMessage) &&
     (!serviceAlreadyCaptured ||
       clientAsksServiceInfo(currentMessage) ||
       clientAsksInclusion(currentMessage)) &&

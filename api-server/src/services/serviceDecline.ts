@@ -24,7 +24,7 @@ const FAMILY_SERVICE_RE: Record<DeclinedServiceFamily, RegExp> = {
     /^(Alimentos|Comida)$|banquete|taquiza|catering|pizzas?|barra\s+de\s+(pizzas?|pastas?|alimentos|sushi)|brunch|parrillada|sushi|canap|bocadillo|coffee\s*break|puestos?\s+de\s+comida|desayuno|paella|pozole|pasta/i,
   bebidas:
     /bebidas?|barra\s+de\s+bebidas|coctel|m[oó]cteles|mixolog|barra\s+de\s+caf[eé]/i,
-  mobiliario: /mobiliario|sillas?|mesas?(?!\s+de\s+(postres?|dulces?|quesos?|imperial))|periqueras?|salas?\s+lounge|tiffany/i,
+  mobiliario: /mobiliario|mobilairio|mibiliario|mobilario|sillas?|mesas?(?!\s+de\s+(postres?|dulces?|quesos?|imperial))|periqueras?|salas?\s+lounge|tiffany/i,
   carpas: /carpas?|capras?|toldos?|lonas?/i,
   decoracion: /decoraci[oó]n|centros?\s+de\s+mesa|florister|globos?|tem[aá]tica/i,
   entretenimiento: /show|dj\b|entretenimiento|hora\s+loca|photobooth|photo\s*booth|bailarinas|batucada|robots?/i,
@@ -47,7 +47,7 @@ const FAMILY_DECLINE_WORDS: Record<DeclinedServiceFamily, string> = {
   alimentos:
     "comida|comidas|alimentos?|pizzas?|banquete|taquiza|catering|barra\\s+de\\s+pizzas?|brunch|parrillada|sushi|canap[eé]s?|bocadillos?|coffee\\s*break",
   bebidas: "bebidas?|barra\\s+de\\s+bebidas|cocteler[ií]a|m[oó]cteles?|mixolog[ií]a",
-  mobiliario: "mobiliario|sillas?|mesas?|periqueras?|salas?",
+  mobiliario: "mobiliario|mobilairio|mibiliario|mobilario|sillas?|mesas?|periqueras?|salas?",
   carpas: "carpas?|capras?|toldos?|lonas?",
   decoracion: "decoraci[oó]n|centros?\\s+de\\s+mesa|flores?|globos?",
   entretenimiento: "show|dj|entretenimiento|hora\\s+loca|photobooth|photo\\s*booth",
@@ -202,8 +202,13 @@ export function clientDeclinesServiceFamilies(
   for (const family of Object.keys(FAMILY_DECLINE_WORDS) as DeclinedServiceFamily[]) {
     if (family === "mobiliario" && isMesaDulcesDeclinePhrase(t)) continue;
     const words = FAMILY_DECLINE_WORDS[family];
+    // A15165: "Pero yo no quiero Mobilairio" (pronombre entre no y quiero).
     const reNoQuiero = new RegExp(
-      `\\b(no|nop)(?:\\s+pero|\\s+peor)?\\s+(quiero|necesito|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
+      `\\b(no|nop)(?:\\s+pero|\\s+peor)?(?:\\s+yo)?\\s+(quiero|necesito|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
+      "i"
+    );
+    const reYoNoQuiero = new RegExp(
+      `\\b(?:pero\\s+)?yo\\s+no\\s+(quiero|necesito|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
       "i"
     );
     const reQuitale = new RegExp(
@@ -215,18 +220,32 @@ export function clientDeclinesServiceFamilies(
       `\\bque\\s+no\\s+(quiero|necesito)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
       "i"
     );
-    if (reNoQuiero.test(t) || reQuitale.test(t) || reSin.test(t) || reQueNo.test(t)) {
+    if (
+      reNoQuiero.test(t) ||
+      reYoNoQuiero.test(t) ||
+      reQuitale.test(t) ||
+      reSin.test(t) ||
+      reQueNo.test(t)
+    ) {
       out.add(family);
     }
   }
 
   // Typo frecuente: "comoda" ≈ comida
   if (
-    /\bno(?:\s+pero|\s+peor)?\s+(quiero\s+)?comoda\b/i.test(t) ||
+    /\bno(?:\s+pero|\s+peor)?(?:\s+yo)?\s+(quiero\s+)?comoda\b/i.test(t) ||
     /\bqu[ií]tale?\s+la\s+comoda\b/i.test(t) ||
     /\bno\s+quiero\s+comoda\b/i.test(t)
   ) {
     out.add("alimentos");
+  }
+
+  // A15165: typo mobilairio aunque no matchee el grupo (por si acaso).
+  if (
+    /\b(?:yo\s+)?no\s+(?:quiero|necesito)\s+(?:el\s+|la\s+)?mobilairio\b/i.test(t) ||
+    /\bmobilairio\b/i.test(t) && /\bno\s+(quiero|necesito)\b/i.test(t)
+  ) {
+    out.add("mobiliario");
   }
 
   return [...out];

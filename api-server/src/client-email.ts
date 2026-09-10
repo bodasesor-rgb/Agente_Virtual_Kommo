@@ -42,8 +42,21 @@ export function looksLikeValidClientEmail(email: string | null | undefined): boo
   const domain = norm.split("@")[1] ?? "";
   if (!domain || /\.\./.test(domain) || domain.startsWith(".") || domain.endsWith(".")) return false;
   if (SUSPICIOUS_TLD.test(domain)) return false;
+  // A15165: "Am@gmial" / host typo sin TLD ya falló arriba; también host "gmial".
+  if (/^(gmial|gmal|gmai|hotmial|yaho|outlok)(\.|$)/i.test(domain)) return false;
   const tld = domain.split(".").pop() ?? "";
   return tld.length >= 2 && /^[a-z]{2,}$/i.test(tld);
+}
+
+/**
+ * A15165: no persistir basura tipo "Am@gmial" / "A.gmail.com".
+ * Solo correos parseables y con forma válida.
+ */
+export function sanitizeStoredClientEmail(email: string | null | undefined): string | null {
+  const filtered = filterClientEmail(email);
+  if (!filtered) return null;
+  if (!looksLikeValidClientEmail(filtered)) return null;
+  return filtered;
 }
 
 export function buildEmailConfirmationPrompt(email: string): string {

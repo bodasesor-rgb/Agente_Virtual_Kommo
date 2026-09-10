@@ -4,7 +4,7 @@
  */
 import type OpenAI from "openai";
 import type { ExtractedData } from "./types.js";
-import { filterClientEmail } from "./client-email.js";
+import { filterClientEmail, looksLikeValidClientEmail, sanitizeStoredClientEmail } from "./client-email.js";
 import { resolveTipoContacto } from "./tipoContacto.js";
 import {
   buildProveedorHandoffReply,
@@ -99,7 +99,10 @@ export async function prepareLucyExtraction(
 
   extracted.nombre = sanitizeCrmNombre(extracted.nombre);
   if (extracted.correo) {
-    extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
+    // A15165: nunca caer a raw GPT ("Am@gmial" / "A.gmail.com").
+    extracted.correo = sanitizeStoredClientEmail(
+      parseCorreoFromText(extracted.correo) ?? extracted.correo
+    );
   }
 
   const conversationText = [
@@ -135,7 +138,9 @@ export async function prepareLucyExtraction(
   }
 
   if (extracted.correo) {
-    extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
+    extracted.correo = sanitizeStoredClientEmail(
+      parseCorreoFromText(extracted.correo) ?? extracted.correo
+    );
   }
   // A14964: GPT/CRM a veces guarda "Lo acabo de mencionar" como tipo.
   if (isUnusableTipoEventoReply(extracted.tipo_evento)) {
@@ -408,7 +413,7 @@ export async function generateLucyOutbound(
         }
       }
       if (extracted.correo) {
-        extracted.correo = filterClientEmail(
+        extracted.correo = sanitizeStoredClientEmail(
           parseCorreoFromText(extracted.correo) ?? extracted.correo
         );
       }

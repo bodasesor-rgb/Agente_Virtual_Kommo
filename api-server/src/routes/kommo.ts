@@ -93,7 +93,7 @@ import {
   shouldUpdateName,
   resolveKommoLeadNamePatch,
 } from "../contact-name.js";
-import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
+import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, sanitizeStoredClientEmail } from "../client-email.js";
 import { prepareLucyExtraction, generateLucyOutbound } from "../lucyTurnProcessor.js";
 import { UNCLEAR_STREAK_ESCALATION } from "../lucyUnclearStreak.js";
 import { isLucyUnifiedLlmTurn } from "../lib/lucyCostControls.js";
@@ -802,15 +802,15 @@ function buildCrmContext(
   if (!filledSet.has("Correo electrónico") && !filledSet.has(EMAIL_WAIVED_LABEL)) {
     const correoFromHistory = collectUserTexts(historyFull, currentMessage)
       .map((t) => parseCorreoFromText(t))
-      .map((e) => filterClientEmail(e))
+      .map((e) => sanitizeStoredClientEmail(e))
       .find(Boolean);
     const correoFromCrm = mergedLines
       .map((l) => parseCorreoFromText(l))
-      .map((e) => filterClientEmail(e))
+      .map((e) => sanitizeStoredClientEmail(e))
       .find(Boolean);
     const correoVal =
-      filterClientEmail(parseCorreoFromText(extracted.correo)) ??
-      filterClientEmail(parseCorreoFromText(clientEmailFromDB)) ??
+      sanitizeStoredClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo) ??
+      sanitizeStoredClientEmail(parseCorreoFromText(clientEmailFromDB) ?? clientEmailFromDB) ??
       correoFromHistory ??
       correoFromCrm ??
       null;
@@ -818,6 +818,9 @@ function buildCrmContext(
       mergedLines.push(`- Correo electrónico: ${correoVal}`);
       filledSet.add("Correo electrónico");
       extracted.correo = correoVal;
+    } else if (extracted.correo && !looksLikeValidClientEmail(extracted.correo)) {
+      // A15165: no guardar basura en CRM / resumen.
+      extracted.correo = null;
     }
   } else if (filledSet.has("Correo electrónico")) {
     const idx = mergedLines.findIndex((l) => /^-?\s*Correo electrónico:/i.test(l));
@@ -826,14 +829,20 @@ function buildCrmContext(
         ? mergedLines[idx]!.replace(/^-?\s*Correo electrónico:\s*/i, "").trim()
         : "";
     const newCorreo =
-      filterClientEmail(parseCorreoFromText(extracted.correo)) ??
-      filterClientEmail(parseCorreoFromText(currentMessage)) ??
+      sanitizeStoredClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo) ??
+      sanitizeStoredClientEmail(parseCorreoFromText(currentMessage)) ??
       null;
     if (newCorreo && (isOwnCompanyEmail(existingRaw) || newCorreo.toLowerCase() !== existingRaw.toLowerCase())) {
       if (idx >= 0) mergedLines[idx] = `- Correo electrónico: ${newCorreo}`;
       else mergedLines.push(`- Correo electrónico: ${newCorreo}`);
       filledSet.add("Correo electrónico");
       extracted.correo = newCorreo;
+    } else if (extracted.correo && !looksLikeValidClientEmail(extracted.correo)) {
+      extracted.correo = sanitizeStoredClientEmail(existingRaw) ?? null;
+      if (!extracted.correo && idx >= 0) {
+        filledSet.delete("Correo electrónico");
+        mergedLines.splice(idx, 1);
+      }
     }
   }
 

@@ -394,6 +394,23 @@ export function extractQuoteKeyPoints(text: string | null | undefined): string[]
   return extractProductSpecHints(text);
 }
 
+function isPresupuestoBasura(value: string | null | undefined): boolean {
+  const t = (value ?? "").replace(/\s+/g, " ").trim();
+  if (!t) return true;
+  if (t.length > 80) return true;
+  if (/\b(hola|buenas?|no\s+quiero|estoy\s+buscando|mobilairio|mobiliario)\b/i.test(t) && !/\$|pesos|presupuesto|mxn/i.test(t)) {
+    return true;
+  }
+  if (/\b(alejandro|perfecto|anoto)\b/i.test(t) && !/\$|pesos|mxn|\d{3,}/i.test(t)) {
+    return true;
+  }
+  // Chat blob pegado (varias frases sin cifra de presupuesto).
+  if ((t.match(/\b(si|pero|estoy|quiero|buscando)\b/gi) ?? []).length >= 2 && !/\$|\d{4,}/.test(t)) {
+    return true;
+  }
+  return false;
+}
+
 /**
  * Presupuesto legible para el resumen: prioriza texto del cliente, nunca 130150.
  */
@@ -403,7 +420,7 @@ export function resolveResumenPresupuesto(
   conversationText?: string
 ): string | null {
   const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
-  if (pptoFromLine && !isCalendarYearOnlyAmount(pptoFromLine)) {
+  if (pptoFromLine && !isCalendarYearOnlyAmount(pptoFromLine) && !isPresupuestoBasura(pptoFromLine)) {
     const digitsOnly = pptoFromLine.replace(/[^\d]/g, "");
     const looksConcat =
       digitsOnly === "130150" ||
@@ -417,12 +434,20 @@ export function resolveResumenPresupuesto(
       if (/^\d+$/.test(pptoFromLine.trim()) && Number(pptoFromLine) >= 1000) {
         return `$${Number(pptoFromLine).toLocaleString("es-MX")} MXN`;
       }
-      if (!/^[\d]{5,}$/.test(digitsOnly)) return pptoFromLine;
+      if (!/^[\d]{5,}$/.test(digitsOnly)) {
+        // A15165: no devolver discurso del chat como presupuesto.
+        if (isPresupuestoBasura(pptoFromLine)) return null;
+        if (/\$|pesos|mxn|presupuesto|sin definir|flexible|por\s+definir/i.test(pptoFromLine) || /^\d/.test(pptoFromLine.trim())) {
+          return pptoFromLine;
+        }
+        return null;
+      }
     }
   }
 
   if (conversationText?.trim()) {
     for (const chunk of conversationText.split(/\n+/).reverse()) {
+      if (isPresupuestoBasura(chunk)) continue;
       if (
         !/\b(presupuesto|silla|persona|pp\b|acarreo|desplazamiento|\$|pesos|por\s+cada|inversi[oó]n|rango)\b/i.test(
           chunk
@@ -431,10 +456,10 @@ export function resolveResumenPresupuesto(
         continue;
       }
       const p = parsePresupuestoFromText(chunk, { askedField: "presupuesto" });
-      if (p) return p;
+      if (p && !isPresupuestoBasura(p)) return p;
     }
     const fromConv = parsePresupuestoFromText(conversationText, { askedField: "presupuesto" });
-    if (fromConv) return fromConv;
+    if (fromConv && !isPresupuestoBasura(fromConv)) return fromConv;
   }
 
   if (typeof extracted.presupuesto === "number" && extracted.presupuesto > 0) {
@@ -452,6 +477,7 @@ export function resolveResumenPresupuesto(
   if (typeof extracted.presupuesto === "string" && (extracted.presupuesto as string).trim()) {
     const s = String(extracted.presupuesto).trim();
     if (/130150/.test(s.replace(/[^\d]/g, ""))) return null;
+    if (isPresupuestoBasura(s)) return null;
     return s;
   }
   return null;

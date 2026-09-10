@@ -16,6 +16,7 @@ import {
   extractNumberedNivelFromLastAssistant,
   isTablewareRequestText,
 } from "../conversation-understanding.js";
+import { isGreetingOnlyMessage } from "../contact-name.js";
 import { getCatalogWebUrlForQuery } from "./catalogWebKnowledge.js";
 
 /** Links de mobiliario cuando el cliente aún no eligió pieza (A15917). */
@@ -979,6 +980,11 @@ export function shouldOfferOptionsBeforeDetail(opts: {
   const msg = opts.currentMessage?.trim() ?? "";
   const blob = `${msg} ${opts.serviceHint ?? ""}`.trim();
   if (!blob) return null;
+
+  // A15165: saludo solo → no reabrir menú de CRM stale (Mobiliario).
+  if (isGreetingOnlyMessage(msg) || /^(hola|buenas?|hey|hi)[\s.!]*$/i.test(msg)) {
+    return null;
+  }
 
   // A15547: "qué incluye" → detalle del catálogo, no re-preguntar "detalles de alguno".
   if (/\bqu[eé]\s+incluye\b|\bqu[eé]\s+trae\b|\bque\s+incluye\b/i.test(msg)) {
