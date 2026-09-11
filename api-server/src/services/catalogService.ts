@@ -2897,6 +2897,14 @@ function scoreServiceForWebLink(query: string, row: SheetCatalogRow): number {
   // Distinciones críticas
   if (/\bcolgante/.test(nq) && /entelado|tela/.test(ns)) score -= 60;
   if (/\bentelad|tela\s+(en\s+)?techo/.test(nq) && /colgante/.test(ns)) score -= 60;
+  // Mesa de dulces/postres/quesos ≠ renta de mesas y sillas.
+  if (
+    /\bmesa\s+de\s+(dulces?|postres?|quesos?|botanas?|antojitos?)/.test(nq) &&
+    /mesas?\s+y\s+sillas|mobiliario|\bsillas?\b/.test(ns) &&
+    !/dulces|postres|quesos/.test(ns)
+  ) {
+    score -= 80;
+  }
   if (/\btaquiza\b/.test(nq) && /parrillada\s+tacos/.test(ns)) score -= 40;
   if (/parrillada\s+tacos/.test(nq) && /^taquiza$/.test(ns)) score -= 40;
   if (/\bargentina\b/.test(nq) && /parrillada\s+tacos/.test(ns)) score -= 30;

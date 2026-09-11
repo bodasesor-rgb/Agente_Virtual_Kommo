@@ -6119,6 +6119,22 @@ export function countLucyFieldAsks(
   ).length;
 }
 
+/** Cliente pidió opciones/propuesta en vez de dar un monto (respuesta corta). */
+export function clientAsksTeamOptionsInsteadOfBudget(
+  text: string | null | undefined
+): boolean {
+  const t = (text ?? "").trim();
+  if (!t || t.length > 80) return false;
+  if (/\$\s*\d|\b\d{3,}\s*(mil|pesos|mxn)\b/i.test(t)) return false;
+  return (
+    /^(?:una[s]?\s+)?opciones?(?:\s+por\s+favor)?[\s.,!]*$/i.test(t) ||
+    /^(?:la\s+)?opci[oó]n\s+base[\s.,!]*$/i.test(t) ||
+    /\bopciones?\s+por\s+favor\b/i.test(t) ||
+    /\bprefiero\s+(?:que\s+)?(?:me\s+)?(?:manden|propongan|den|pasen)\s+opciones\b/i.test(t) ||
+    /\bque\s+(?:el\s+)?equipo\s+(?:me\s+)?(?:proponga|presente)\b/i.test(t)
+  );
+}
+
 /** Cliente rechazó dar presupuesto (incluye "no" suelto tras pregunta de Lucy). */
 export function detectPresupuestoRefusal(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
@@ -6258,6 +6274,12 @@ export function detectPresupuestoRefusalInContext(
     return false;
   }
   if (detectPresupuestoRefusal(text)) return true;
+  if (
+    clientAsksTeamOptionsInsteadOfBudget(text) &&
+    LUCY_FIELD_ASK_PATTERNS.presupuesto.test(asked)
+  ) {
+    return true;
+  }
   if (!isSoftDeferralNo(text)) return false;
   if (!asked.trim()) return false;
   return LUCY_FIELD_ASK_PATTERNS.presupuesto.test(asked);

@@ -88,6 +88,22 @@ export function classifyServiceKnowledgeLevel(query: string): ServiceKnowledgeLe
   return 2;
 }
 
+/** Servicio con página o ficha: anotar y mandar el link real. Nunca "no lo tengo listado". */
+export function buildKnownCatalogAck(serviceLabel: string, query: string): string {
+  const name = serviceLabel.trim() || "ese servicio";
+  const url =
+    getCatalogWebUrlForQuery(query) ||
+    getCatalogWebUrlForQuery(name) ||
+    null;
+  if (!url) {
+    return `¡Claro! Anoto *${name}* para tu cotización. Nuestro equipo arma la propuesta según estilo y cantidad.`;
+  }
+  return [
+    `¡Claro! Anoto *${name}* para tu cotización.`,
+    `Catálogo de *${name}*:\n${url}`,
+  ].join("\n");
+}
+
 /** Acuse NIVEL 2 — evento sin ficha en catálogo: honestidad suave, sin inventar. */
 export function buildLevel2Ack(serviceLabel: string): string {
   const label = serviceLabel.trim() || "ese servicio";
@@ -242,21 +258,23 @@ export function buildLevel3Ack(serviceLabel: string): string {
 export function buildGuardServiceAck(query: string): string {
   const label = serviceLabelFromQuery(query);
   const level = classifyServiceKnowledgeLevel(query);
-  if (level === 1) {
+  const knownCatalogUrl =
+    getCatalogWebUrlForQuery(query) || getCatalogWebUrlForQuery(label);
+  if (level === 1 || knownCatalogUrl) {
     // A15627 / A15547: cotizar o nombrar el servicio ≠ volcar Sheet/PDF con $.
-    // Solo detalle con precios o dump de filas si pidieron precio, inclusiones o catálogo.
+    // Si el catálogo existe, NUNCA decir "no lo tengo listado" (A15961, todas las ramas).
     const wantsDetail =
       clientAsksPrice(query) ||
       clientAsksInclusion(query) ||
       clientAsksForCatalog(query);
-    if (wantsDetail) {
+    if (wantsDetail && level === 1) {
       const detail =
         buildCatalogServiceDetailAnswer(query) ??
         buildCatalogPriceAnswer(query) ??
         buildCatalogInclusionAnswer(query);
       if (detail) return detail;
     }
-    return buildLevel2Ack(label);
+    return buildKnownCatalogAck(label, query);
   }
   if (level === 3) return buildLevel3Ack(label);
 
@@ -270,14 +288,9 @@ export function buildGuardServiceAck(query: string): string {
     );
   }
 
-  // A15910: mesa de dulces/postres ≠ renta de mesas/sillas.
+  // A15910 / A15961: mesa de dulces/postres ≠ renta de mesas/sillas. Manda el catálogo real.
   if (/\bmesas?\s+de\s+(dulces?|postres?|quesos?)\b/i.test(query) || /mesa\s+de\s+dulces/i.test(label)) {
-    const guests = query.match(/\b(\d{2,4})\s*(?:personas?|invitados?|pax)?\b/i)?.[1];
-    const scale = guests ? ` para *${guests}* personas` : "";
-    return (
-      `¡Claro! Anoto *mesa de dulces*${scale} para tu cotización. ` +
-      "Nuestro equipo arma la propuesta según estilo y cantidad."
-    );
+    return buildKnownCatalogAck(label || "Mesa de dulces", query);
   }
 
   // A15956: entelado para techo ≠ menú mesas/sillas/periqueras.

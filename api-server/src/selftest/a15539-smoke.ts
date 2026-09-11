@@ -66,7 +66,7 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.95");
+assert.equal(LUCY_PROMPT_VERSION, "V9.96");
 assert.equal(parseTipoEventoFromText("primera comunión"), "primera comunión");
 assert.ok(isScheduleLabeledClock("a medio día"));
 assert.ok(isScheduleLabeledClock("cocktail a las 12:00\ncomida a las 2:00"));

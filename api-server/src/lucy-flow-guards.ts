@@ -186,6 +186,7 @@ import {
   isNonLocationBusinessPhrase,
   detectPresupuestoRefusal,
   detectPresupuestoRefusalInContext,
+  clientAsksTeamOptionsInsteadOfBudget,
   findPresupuestoInTexts,
   countLucyFieldAsks,
   PRESUPUESTO_MAX_ASKS,
@@ -999,6 +1000,7 @@ export function applyPresupuestoWaiver(
         /^(no\s+tengo|no\s+tenemos|no\s+cuento|sin|opciones?|propuestas?)[\s.,!]*$/i.test(
           t.trim()
         ) ||
+        clientAsksTeamOptionsInsteadOfBudget(t) ||
         (t.length <= 100 && /\b(una\s+)?propuesta\b/i.test(t))
     )
   ) {
@@ -1011,6 +1013,105 @@ export function applyPresupuestoWaiver(
     mergedLines.push(`- Presupuesto (MXN): ${PRESUPUESTO_AUTO_WAIVER}`);
     filledSet.add("Presupuesto (MXN)");
   }
+}
+
+function knownServiceCatalogBlock(
+  currentMessage: string | undefined,
+  serviceHint: string | null | undefined
+): string | null {
+  const blob = [currentMessage, serviceHint].filter(Boolean).join(" ");
+  const svc =
+    parsePrimaryService(blob) ||
+    parsePrimaryService(serviceHint ?? "") ||
+    serviceHint?.split(",")[0]?.trim() ||
+    null;
+  const url =
+    getCatalogWebUrlForQuery(svc) ||
+    getCatalogWebUrlForQuery(currentMessage) ||
+    getCatalogWebUrlForQuery(serviceHint);
+  if (!url) return null;
+  const label = svc || "ese servicio";
+  return `Catálogo de *${label}*:\n${url}`;
+}
+
+/** Quita una re-pregunta de presupuesto. No toca el resto del mensaje. */
+function stripPresupuestoQuestion(text: string): string {
+  const parts = text.split(/(?<=[.!?])\s+/);
+  const kept = parts.filter(
+    (s) =>
+      !mensajeAsksForField(s, "presupuesto") &&
+      !/¿[^?]{0,80}presupuesto[^?]{0,40}\?/i.test(s)
+  );
+  return kept.join(" ").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/**
+ * A15961 (todas las ramas): si el catálogo existe, no decir "no lo tengo listado"
+ * y no dejar "catálogo de X:" sin URL. Si ya pidieron presupuesto y respondieron
+ * "opciones", no volver a pedirlo.
+ */
+function repairKnownCatalogAndBudgetRepeat(
+  mensaje: string,
+  currentMessage: string | undefined,
+  serviceHint: string | null | undefined,
+  history: OpenAI.Chat.ChatCompletionMessageParam[]
+): string {
+  let out = mensaje;
+  const lastAssistant = [...history]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string")?.content as
+    | string
+    | undefined;
+  const askedBudget =
+    !!lastAssistant &&
+    (mensajeAsksForField(lastAssistant, "presupuesto") ||
+      /presupuesto|opci[oó]n\s+base/i.test(lastAssistant));
+  const wantsOptions = clientAsksTeamOptionsInsteadOfBudget(currentMessage);
+  if (askedBudget && wantsOptions) {
+    out = stripPresupuestoQuestion(out);
+  }
+
+  const namedNotListed = out.match(
+    /\*([^*]{2,60})\*\s+no lo tengo listado en el cat[aá]logo/i
+  );
+  const fromHint = parsePrimaryService(serviceHint ?? "") || serviceHint;
+  const fromMsg = parsePrimaryService(currentMessage ?? "");
+  const lookup =
+    namedNotListed?.[1] ||
+    (wantsOptions ? fromHint || fromMsg : fromMsg || fromHint);
+  const url =
+    getCatalogWebUrlForQuery(lookup) ||
+    getCatalogWebUrlForQuery(currentMessage) ||
+    getCatalogWebUrlForQuery(serviceHint);
+  if (url && /no lo tengo listado en el cat[aá]logo/i.test(out)) {
+    const label = (namedNotListed?.[1] || lookup || "ese servicio").trim();
+    const keepQuestion = out.match(
+      /(¿(?:Qu[eé]|Para|En|Ya|A\s+qu[eé]|Cu[aá]nt)[^?]+\?)\s*$/i
+    )?.[1];
+    const block = `¡Claro! Anoto *${label}* para tu cotización.\nCatálogo de *${label}*:\n${url}`;
+    out = keepQuestion && !/cat[aá]logo|anotado/i.test(keepQuestion)
+      ? `${block}\n\n${keepQuestion}`
+      : block;
+  }
+
+  const askedOptionsCatalog = askedBudget && wantsOptions;
+  if (
+    url &&
+    (askedOptionsCatalog || /cat[aá]logo/i.test(out)) &&
+    !/bodasesor\.com\/catalogos\/[a-z0-9-]+/i.test(out)
+  ) {
+    const label = (lookup || "ese servicio").toString().trim();
+    if (/cat[aá]logo/i.test(out)) {
+      out = out.replace(
+        /(cat[aá]logo(?:\s+de\s+(?:\*[^*]+\*|[^:\n.]{2,60}))?\s*:\s*)(?!\s*\n?\s*https?:)/i,
+        `$1\n${url}\n`
+      );
+    }
+    if (!/bodasesor\.com\/catalogos\/[a-z0-9-]+/i.test(out)) {
+      out = `${out.trim()}\n\nCatálogo de *${label}*:\n${url}`.trim();
+    }
+  }
+  return out.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 /** Evita insistir con presupuesto cuando ya se capturó o Lucy ya preguntó demasiadas veces. */
@@ -3053,11 +3154,24 @@ export function buildOpeningAcknowledgment(
       if (/coffee\s*break/i.test(serviceChunk) && services.length <= 1) {
         return "Vi que te interesa un coffee break para eventos corporativos.";
       }
-      if (/\b(mesas?|sillas?|mobiliario|periquera)\b/i.test(serviceChunk) && services.length <= 1) {
+      // "Mesa de dulces" contiene "mesa" pero NO es renta de mesas y sillas.
+      const foodTable =
+        /\bmesas?\s+de\s+(dulces?|postres?|quesos?|botanas?|antojitos?)\b/i.test(
+          serviceChunk
+        ) ||
+        services.some((s) => /dulces|postres|quesos/i.test(s));
+      const furnitureAsk =
+        !foodTable &&
+        (/\b(sillas?|mobiliario|periquera)\b/i.test(serviceChunk) ||
+          (/\bmesas?\b/i.test(serviceChunk) &&
+            !/\bcentros?\s+de\s+mesas?\b/i.test(serviceChunk)));
+      if (furnitureAsk && services.length <= 1 && !services.some((s) => /dulces|postres|quesos/i.test(s))) {
         return "Vi tu solicitud de renta de mesas y sillas para el evento.";
       }
       if (services.length === 1) {
-        return `Vi que te interesa cotizar ${services[0]}.`;
+        const url = getCatalogWebUrlForQuery(services[0]!);
+        const ack = `Vi que te interesa cotizar ${services[0]}.`;
+        return url ? `${ack}\nCatálogo de *${services[0]}*:\n${url}` : ack;
       }
       const short = serviceChunk.split(/[,.]/)[0]!.trim();
       if (short.length > 3) return `Vi tu solicitud de ${short}.`;
@@ -8609,22 +8723,30 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       }
     }
     const pending = getNextPendingField(extracted, filledSet);
-    const wantsPropuesta = /\bpropuesta\b/i.test(currentMessage ?? "");
+    const wantsPropuesta =
+      /\bpropuesta\b/i.test(currentMessage ?? "") ||
+      clientAsksTeamOptionsInsteadOfBudget(currentMessage);
+    const catalogBlock = knownServiceCatalogBlock(
+      currentMessage,
+      extracted.requerimientos_evento
+    );
+    const catalogPrefix = catalogBlock ? `${catalogBlock}\n\n` : "";
     // A15878: con un dato pendiente el cierre se bloquea más abajo y el cliente
     // recibía la pregunta a secas; mejor acusar el waiver y preguntar.
     if (isReadyForClosing(filledSet) && !pending && !cierreYaEnviado) {
-      // A15298: "una propuesta" con embudo completo → cierre limpio (sin re-pedir presupuesto).
-      mensaje = buildClosing(
+      // A15298 / A15961: "opciones" con embudo completo → catálogo del servicio + cierre, sin re-pedir presupuesto.
+      const close = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
         extracted.nombre
       );
+      mensaje = catalogPrefix ? `${catalogPrefix}${close}` : close;
     } else if (pending) {
       mensaje = wantsPropuesta
-        ? `¡Claro! Nuestro equipo te arma la propuesta. ${buildNaturalQuestion(pending, ctx)}`
+        ? `${catalogPrefix}¡Claro! Te paso opciones y nuestro equipo arma la propuesta. ${buildNaturalQuestion(pending, ctx)}`.trim()
         : `Sin problema, lo dejamos por definir. ${buildNaturalQuestion(pending, ctx)}`;
     } else {
       mensaje = wantsPropuesta
-        ? "¡Claro! Le paso todos los detalles a nuestro equipo para que te armen la propuesta y te la envíen. Si necesitas algo más, aquí sigo."
+        ? `${catalogPrefix}¡Claro! Le paso todos los detalles a nuestro equipo para que te armen la propuesta y te la envíen. Si necesitas algo más, aquí sigo.`.trim()
         : "Sin problema, lo dejamos por definir. Nuestro equipo te propone opciones según lo que platicamos.";
     }
     appliedDirectReply = true;
@@ -11494,6 +11616,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       presHistory
     );
   }
+
+  mensaje = repairKnownCatalogAndBudgetRepeat(
+    mensaje,
+    currentMessage,
+    extracted.requerimientos_evento,
+    presHistory
+  );
 
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }

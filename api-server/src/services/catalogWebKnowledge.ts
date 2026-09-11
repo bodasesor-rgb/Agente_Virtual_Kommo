@@ -81,10 +81,10 @@ export function resolveCatalogWebSlug(query: string | null | undefined): string 
   const urlMatch = t.match(/bodasesor\.com\/catalogos\/([a-z0-9-]+)/i);
   if (urlMatch?.[1]) return urlMatch[1];
 
-  // A15296 / A15910: centros de mesa / mesa de dulces ≠ slug mesas-y-sillas.
+  // A15296: centros de mesa = floral, no slug de mesas-y-sillas.
+  // Mesa de dulces/postres/quesos SÍ tiene página propia (alias más abajo).
   if (
-    /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(t) ||
-    /\bmesas?\s+de\s+(dulces?|postres?|quesos?)\b/i.test(t)
+    /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(t)
   ) {
     return null;
   }
@@ -100,7 +100,11 @@ export function resolveCatalogWebSlug(query: string | null | undefined): string 
   // Más específico primero. Shows sin página propia → audio/iluminación.
   const aliases: Array<[RegExp, string]> = [
     [/\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b/i, "entelados-para-techo"],
-    [/\bmesas?\s*y\s*sillas?\b|\bsillas?\b|(?<!centros?\s+de\s+)(?<!mesa\s+de\s+)\bmesas?\b|\bmobiliario\b|\bmobilairio\b/i, "mesas-y-sillas"],
+    // Antes de mesas-y-sillas: "mesa de dulces" no debe resolverse como mobiliario.
+    [/\bmesas?\s+de\s+dulces?\b/i, "mesa-de-dulces"],
+    [/\bmesas?\s+de\s+postres?\b/i, "mesa-de-postres"],
+    [/\bmesas?\s+de\s+quesos?\b/i, "mesa-de-quesos"],
+    [/\bmesas?\s*y\s*sillas?\b|\bsillas?\b|(?<!centros?\s+de\s+)(?<!mesa\s+de\s+)\bmesas?\b(?!\s+de\s+(?:dulces?|postres?|quesos?|botanas?|antojitos?))|\bmobiliario\b|\bmobilairio\b/i, "mesas-y-sillas"],
     [/\bsalas?\b|\bperiqueras?\b|\blounge\b/i, "salas-y-periqueras"],
     [/\baudio\b|\biluminaci[oó]n\b|\bvideo\b|\bdj\b|\bsonido\b/i, "audio-iluminacion-y-video"],
     [/\btarimas?\b|\bpistas?\b|\bpista\s+de\s+baile\b/i, "tarimas-y-pistas"],
