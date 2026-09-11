@@ -4939,20 +4939,15 @@ export function isDimensionText(text: string | null | undefined): boolean {
   if (!t) return false;
   // A15016: "De 6 x20" / "son 6x20" / "miden 6 x 20"
   // A15966: "15 metros de ancho por 25 metros de largo"
+  // A15966b: "10x15" / "10 por 15" / "ancho 10 largo 15" / "altura 4"
+  if (parseSpaceDimensions(t)) return true;
   const dePrefixed = t.replace(/^(de|son|miden|mide|aproximadamente|aprox\.?)\s+/i, "").trim();
   return (
-    /\b\d+\s*metros?\s*(?:de\s+)?(?:ancho|largo|fondo|frente)?\s*(?:por|x|×)\s*\d+\s*metros?(?:\s+de\s+(?:ancho|largo|fondo|frente))?/i.test(
-      t
-    ) ||
-    /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t) ||
-    /\b\d+\s*m\s*(por|x)\s*\d+\s*m\b/i.test(t) ||
-    /\b(?:ancho|largo)\s*(?:de\s*)?\d+\s*m/i.test(t) ||
-    /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t) ||
     /\bmedida(?:s)?\s+de\s+la\s+carpa\b/i.test(t) ||
-    /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t) ||
-    /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(dePrefixed) ||
-    /^\d+m\s*x\s*\d+m$/i.test(t) ||
-    /^\d+m\s*x\s*\d+m$/i.test(dePrefixed)
+    /\b(?:ancho|largo|altura|alto|fondo|frente)\b.{0,12}\b\d+/i.test(t) ||
+    /^\d+\s*(?:por|x|×)\s*\d+\s*(?:m|mts?|metros?)?(?:\s*(?:por|x|×)\s*\d+\s*(?:m|mts?|metros?)?)?$/i.test(
+      dePrefixed
+    )
   );
 }
 
@@ -5225,41 +5220,108 @@ export function parseAllSpaceDimensions(text: string): string[] {
   if (!text?.trim()) return [];
   const out: string[] = [];
   const seen = new Set<string>();
-  const push = (a: string, b: string) => {
-    const d = `${a}m x ${b}m`;
+  const push = (a: string, b: string, height?: string | null) => {
+    let d = `${a}m x ${b}m`;
+    if (height) d = `${d} x ${height}m alt`;
     if (seen.has(d)) return;
     seen.add(d);
     out.push(d);
   };
-  // A15966: "15 metros de ancho por 25 metros de largo" / "25 de largo x 15 de ancho"
+
+  const AXIS = "ancho|largo|fondo|frente|altura|alto|profundidad";
+  const UNIT = "metros?|mts?|m";
+
+  // Altura suelta: se adjunta a la primera planta si aparece.
+  const heightMatch = text.match(
+    new RegExp(`\\b(?:altura|alto)\\s*(?:de\\s*)?(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\b`, "i")
+  );
+  const heightOnly = heightMatch?.[1]?.replace(",", ".") ?? null;
+
+  // "ancho 10 (m) … largo 15 (m)" / "ancho: 10, largo: 15"
+  {
+    const ancho = text.match(
+      new RegExp(`\\bancho\\s*[:=]?\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\b`, "i")
+    )?.[1];
+    const largo = text.match(
+      new RegExp(`\\blargo\\s*[:=]?\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\b`, "i")
+    )?.[1];
+    const fondo = text.match(
+      new RegExp(`\\b(?:fondo|frente|profundidad)\\s*[:=]?\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\b`, "i")
+    )?.[1];
+    if (ancho && largo) push(ancho.replace(",", "."), largo.replace(",", "."), heightOnly);
+    else if (ancho && fondo) push(ancho.replace(",", "."), fondo.replace(",", "."), heightOnly);
+    else if (largo && fondo) push(largo.replace(",", "."), fondo.replace(",", "."), heightOnly);
+  }
+
+  // "15 metros de ancho por 25 metros de largo" / "10 de ancho x 15 de largo" / con altura
   for (const m of text.matchAll(
-    /\b(\d+)\s*(?:metros?|m)?\s*(?:de\s+)?(ancho|largo|fondo|frente)\s*(?:por|x|×)\s*(\d+)\s*(?:metros?|m)?\s*(?:de\s+)?(ancho|largo|fondo|frente)?\b/gi
+    new RegExp(
+      `\\b(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\s*(?:de\\s+)?(${AXIS})\\s*(?:por|x|×)\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\s*(?:de\\s+)?(${AXIS})?(?:\\s*(?:por|x|×)\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\s*(?:de\\s+)?(?:altura|alto))?\\b`,
+      "gi"
+    )
   )) {
-    const n1 = m[1]!;
-    const n2 = m[3]!;
+    const n1 = m[1]!.replace(",", ".");
+    const n2 = m[3]!.replace(",", ".");
     const axis1 = (m[2] ?? "").toLowerCase();
     const axis2 = (m[4] ?? "").toLowerCase();
-    // Preferir ancho × largo cuando se etiquetan.
-    if (/ancho/.test(axis1) && /largo/.test(axis2)) push(n1, n2);
-    else if (/largo/.test(axis1) && /ancho/.test(axis2)) push(n2, n1);
-    else push(n1, n2);
+    const h = m[5]?.replace(",", ".") || heightOnly;
+    const isH1 = /altura|alto/.test(axis1);
+    const isH2 = /altura|alto/.test(axis2);
+    if (isH1 || isH2) continue; // altura no define planta sola aquí
+    if (/ancho/.test(axis1) && /largo|fondo|frente|profundidad/.test(axis2)) push(n1, n2, h);
+    else if (/largo|fondo|frente|profundidad/.test(axis1) && /ancho/.test(axis2)) push(n2, n1, h);
+    else push(n1, n2, h);
   }
+
+  // "10 metros por 15 metros" / "10 mts por 15"
   for (const m of text.matchAll(
-    /\b(\d+)\s*metros?\s*(?:de\s+(?:ancho|largo|fondo|frente)\s*)?(?:por|x|×)\s*(\d+)\s*metros?(?:\s+de\s+(?:ancho|largo|fondo|frente))?\b/gi
+    new RegExp(
+      `\\b(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})\\s*(?:de\\s+(?:${AXIS})\\s*)?(?:por|x|×)\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?(?:\\s*de\\s+(?:${AXIS}))?\\b`,
+      "gi"
+    )
   )) {
-    push(m[1]!, m[2]!);
+    push(m[1]!.replace(",", "."), m[2]!.replace(",", "."), heightOnly);
   }
-  for (const m of text.matchAll(/\b(\d+)\s*metros?\s*(?:por|x)\s*(\d+)\s*metros?\b/gi)) {
-    push(m[1]!, m[2]!);
-  }
+
+  // "espacio es de 6 metros por 12"
   for (const m of text.matchAll(
-    /\bespacio\s+(?:es\s+de|de|mide)\s+(\d+)\s*metros?\s*(?:por|x)\s*(\d+)/gi
+    new RegExp(
+      `\\bespacio\\s+(?:es\\s+de|de|mide)\\s+(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\s*(?:por|x|×)\\s*(\\d+(?:[.,]\\d+)?)`,
+      "gi"
+    )
   )) {
-    push(m[1]!, m[2]!);
+    push(m[1]!.replace(",", "."), m[2]!.replace(",", "."), heightOnly);
   }
-  for (const m of text.matchAll(/\b(\d+)\s*m?\s*[x×]\s*(\d+)\s*m?\b/gi)) {
-    push(m[1]!, m[2]!);
+
+  // "10x15" / "10 x 15" / "10m×15m" / "10 x 15 x 4" (tercero = altura)
+  for (const m of text.matchAll(
+    /\b(\d+(?:[.,]\d+)?)\s*(?:m|mts?|metros?)?\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(?:m|mts?|metros?)?(?:\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(?:m|mts?|metros?)?)?\b/gi
+  )) {
+    push(m[1]!.replace(",", "."), m[2]!.replace(",", "."), m[3]?.replace(",", ".") || heightOnly);
   }
+
+  // "10 por 15" / "10 por 15 metros" — solo si hay contexto de medida o el mensaje es corto.
+  // Evita "120 por persona" / precios.
+  {
+    const dimContext =
+      /\b(medida|medidas|carpa|carpas|sal[oó]n|pista|tarima|entelado|espacio|jard[ií]n|metros?|mts?|\bm\b|ancho|largo|altura|alto|cubre|cubrir)\b/i.test(
+        text
+      ) ||
+      text.trim().length <= 40;
+    if (dimContext && !/\bpor\s+(persona|personas|invitado|invitados|pax|paquete|d[ií]a)\b/i.test(text)) {
+      for (const m of text.matchAll(
+        /\b(\d+(?:[.,]\d+)?)\s+por\s+(\d+(?:[.,]\d+)?)(?:\s*(?:m|mts?|metros?))?\b/gi
+      )) {
+        const a = Number(m[1]!.replace(",", "."));
+        const b = Number(m[2]!.replace(",", "."));
+        // Medidas de espacio razonables (no "3 por 1" menú ni "50 por 100" raros sin contexto fuerte)
+        if (a >= 2 && a <= 120 && b >= 2 && b <= 120) {
+          push(m[1]!.replace(",", "."), m[2]!.replace(",", "."), heightOnly);
+        }
+      }
+    }
+  }
+
   return out;
 }
 
@@ -5279,7 +5341,7 @@ export function attachEspacioToRequirements(
   const base =
     req
       .replace(/\s*\((?:espacio\s+)?[^)]*\d+\s*m?\s*[x×]\s*\d+[^)]*\)/gi, "")
-      .replace(/\s*—\s*espacio\s+\d+m\s*x\s*\d+m/gi, "")
+      .replace(/\s*—\s*espacio\s+\d+(?:\.\d+)?m\s*x\s*\d+(?:\.\d+)?m(?:\s*x\s*\d+(?:\.\d+)?m\s*alt)?/gi, "")
       .trim() || "Servicio";
   if (list.length === 0) return base;
   return `${base} ${formatEspacioAnnotation(list)}`.trim();

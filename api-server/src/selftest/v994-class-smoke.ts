@@ -14,7 +14,7 @@ import {
 import { buildCatalogNotFoundAnswer } from "../services/catalogService.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.94");
+assert.equal(LUCY_PROMPT_VERSION, "V9.98");
 assert.ok(/no está listado en el catálogo/i.test(SERVICE_KNOWLEDGE_GOLDEN_RULE));
 assert.ok(/NO inventes|no inventes/i.test(SERVICE_KNOWLEDGE_GOLDEN_RULE));
 

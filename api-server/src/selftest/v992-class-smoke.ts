@@ -11,7 +11,7 @@ import {
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.92");
+assert.equal(LUCY_PROMPT_VERSION, "V9.98");
 assert.deepEqual(extractQuoteKeyPoints("banquete formal 3 tiempos"), extractProductSpecHints("banquete formal 3 tiempos"));
 
 function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {

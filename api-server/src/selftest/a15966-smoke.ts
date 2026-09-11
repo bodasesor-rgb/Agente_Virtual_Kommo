@@ -17,7 +17,7 @@ import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 import { buildGuardServiceAck } from "../services/serviceKnowledge.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V9.97");
+assert.equal(LUCY_PROMPT_VERSION, "V9.98");
 
 function emptyExtracted(partial: Partial<ExtractedData> = {}): ExtractedData {
   return {
@@ -69,6 +69,23 @@ assert.equal(
   parseSpaceDimensions("15 metros de ancho por 25 metros de largo. Serían 375 m2"),
   "15m x 25m"
 );
+
+// Formatos comunes en todas las ramas (carpa / pista / entelado).
+for (const [raw, expected] of [
+  ["10x15", "10m x 15m"],
+  ["10 x 15", "10m x 15m"],
+  ["10 por 15", "10m x 15m"],
+  ["10 por 15 metros", "10m x 15m"],
+  ["10 metros por 15", "10m x 15m"],
+  ["10 de ancho por 15 de largo", "10m x 15m"],
+  ["ancho 10 largo 15", "10m x 15m"],
+  ["ancho: 10m, largo: 15m", "10m x 15m"],
+  ["10x15 altura 4", "10m x 15m x 4m alt"],
+  ["la carpa mide 10 por 15", "10m x 15m"],
+] as const) {
+  assert.ok(isDimensionText(raw), raw);
+  assert.equal(parseSpaceDimensions(raw), expected, raw);
+}
 
 const firstAck = buildGuardServiceAck(
   "Hola, me interesa cotizar un entelado para techo para mi evento. ¿Me pueden dar información?"

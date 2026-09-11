@@ -133580,10 +133580,11 @@ function parseInvitadosFromText(text2, opts) {
 function isDimensionText(text2) {
   const t4 = text2?.trim() ?? "";
   if (!t4) return false;
+  if (parseSpaceDimensions(t4)) return true;
   const dePrefixed = t4.replace(/^(de|son|miden|mide|aproximadamente|aprox\.?)\s+/i, "").trim();
-  return /\b\d+\s*metros?\s*(?:de\s+)?(?:ancho|largo|fondo|frente)?\s*(?:por|x|×)\s*\d+\s*metros?(?:\s+de\s+(?:ancho|largo|fondo|frente))?/i.test(
-    t4
-  ) || /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t4) || /\b\d+\s*m\s*(por|x)\s*\d+\s*m\b/i.test(t4) || /\b(?:ancho|largo)\s*(?:de\s*)?\d+\s*m/i.test(t4) || /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t4) || /\bmedida(?:s)?\s+de\s+la\s+carpa\b/i.test(t4) || /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t4) || /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(dePrefixed) || /^\d+m\s*x\s*\d+m$/i.test(t4) || /^\d+m\s*x\s*\d+m$/i.test(dePrefixed);
+  return /\bmedida(?:s)?\s+de\s+la\s+carpa\b/i.test(t4) || /\b(?:ancho|largo|altura|alto|fondo|frente)\b.{0,12}\b\d+/i.test(t4) || /^\d+\s*(?:por|x|×)\s*\d+\s*(?:m|mts?|metros?)?(?:\s*(?:por|x|×)\s*\d+\s*(?:m|mts?|metros?)?)?$/i.test(
+    dePrefixed
+  );
 }
 function isUsableDireccionEvento(value) {
   const t4 = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
@@ -133758,38 +133759,87 @@ function parseAllSpaceDimensions(text2) {
   if (!text2?.trim()) return [];
   const out2 = [];
   const seen = /* @__PURE__ */ new Set();
-  const push = (a4, b5) => {
-    const d3 = `${a4}m x ${b5}m`;
+  const push = (a4, b5, height) => {
+    let d3 = `${a4}m x ${b5}m`;
+    if (height) d3 = `${d3} x ${height}m alt`;
     if (seen.has(d3)) return;
     seen.add(d3);
     out2.push(d3);
   };
+  const AXIS = "ancho|largo|fondo|frente|altura|alto|profundidad";
+  const UNIT = "metros?|mts?|m";
+  const heightMatch = text2.match(
+    new RegExp(`\\b(?:altura|alto)\\s*(?:de\\s*)?(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\b`, "i")
+  );
+  const heightOnly = heightMatch?.[1]?.replace(",", ".") ?? null;
+  {
+    const ancho = text2.match(
+      new RegExp(`\\bancho\\s*[:=]?\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\b`, "i")
+    )?.[1];
+    const largo = text2.match(
+      new RegExp(`\\blargo\\s*[:=]?\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\b`, "i")
+    )?.[1];
+    const fondo = text2.match(
+      new RegExp(`\\b(?:fondo|frente|profundidad)\\s*[:=]?\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\b`, "i")
+    )?.[1];
+    if (ancho && largo) push(ancho.replace(",", "."), largo.replace(",", "."), heightOnly);
+    else if (ancho && fondo) push(ancho.replace(",", "."), fondo.replace(",", "."), heightOnly);
+    else if (largo && fondo) push(largo.replace(",", "."), fondo.replace(",", "."), heightOnly);
+  }
   for (const m6 of text2.matchAll(
-    /\b(\d+)\s*(?:metros?|m)?\s*(?:de\s+)?(ancho|largo|fondo|frente)\s*(?:por|x|×)\s*(\d+)\s*(?:metros?|m)?\s*(?:de\s+)?(ancho|largo|fondo|frente)?\b/gi
+    new RegExp(
+      `\\b(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\s*(?:de\\s+)?(${AXIS})\\s*(?:por|x|\xD7)\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\s*(?:de\\s+)?(${AXIS})?(?:\\s*(?:por|x|\xD7)\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\s*(?:de\\s+)?(?:altura|alto))?\\b`,
+      "gi"
+    )
   )) {
-    const n1 = m6[1];
-    const n22 = m6[3];
+    const n1 = m6[1].replace(",", ".");
+    const n22 = m6[3].replace(",", ".");
     const axis1 = (m6[2] ?? "").toLowerCase();
     const axis2 = (m6[4] ?? "").toLowerCase();
-    if (/ancho/.test(axis1) && /largo/.test(axis2)) push(n1, n22);
-    else if (/largo/.test(axis1) && /ancho/.test(axis2)) push(n22, n1);
-    else push(n1, n22);
+    const h5 = m6[5]?.replace(",", ".") || heightOnly;
+    const isH1 = /altura|alto/.test(axis1);
+    const isH2 = /altura|alto/.test(axis2);
+    if (isH1 || isH2) continue;
+    if (/ancho/.test(axis1) && /largo|fondo|frente|profundidad/.test(axis2)) push(n1, n22, h5);
+    else if (/largo|fondo|frente|profundidad/.test(axis1) && /ancho/.test(axis2)) push(n22, n1, h5);
+    else push(n1, n22, h5);
   }
   for (const m6 of text2.matchAll(
-    /\b(\d+)\s*metros?\s*(?:de\s+(?:ancho|largo|fondo|frente)\s*)?(?:por|x|×)\s*(\d+)\s*metros?(?:\s+de\s+(?:ancho|largo|fondo|frente))?\b/gi
+    new RegExp(
+      `\\b(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})\\s*(?:de\\s+(?:${AXIS})\\s*)?(?:por|x|\xD7)\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?(?:\\s*de\\s+(?:${AXIS}))?\\b`,
+      "gi"
+    )
   )) {
-    push(m6[1], m6[2]);
-  }
-  for (const m6 of text2.matchAll(/\b(\d+)\s*metros?\s*(?:por|x)\s*(\d+)\s*metros?\b/gi)) {
-    push(m6[1], m6[2]);
+    push(m6[1].replace(",", "."), m6[2].replace(",", "."), heightOnly);
   }
   for (const m6 of text2.matchAll(
-    /\bespacio\s+(?:es\s+de|de|mide)\s+(\d+)\s*metros?\s*(?:por|x)\s*(\d+)/gi
+    new RegExp(
+      `\\bespacio\\s+(?:es\\s+de|de|mide)\\s+(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\s*(?:por|x|\xD7)\\s*(\\d+(?:[.,]\\d+)?)`,
+      "gi"
+    )
   )) {
-    push(m6[1], m6[2]);
+    push(m6[1].replace(",", "."), m6[2].replace(",", "."), heightOnly);
   }
-  for (const m6 of text2.matchAll(/\b(\d+)\s*m?\s*[x×]\s*(\d+)\s*m?\b/gi)) {
-    push(m6[1], m6[2]);
+  for (const m6 of text2.matchAll(
+    /\b(\d+(?:[.,]\d+)?)\s*(?:m|mts?|metros?)?\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(?:m|mts?|metros?)?(?:\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(?:m|mts?|metros?)?)?\b/gi
+  )) {
+    push(m6[1].replace(",", "."), m6[2].replace(",", "."), m6[3]?.replace(",", ".") || heightOnly);
+  }
+  {
+    const dimContext = /\b(medida|medidas|carpa|carpas|sal[oó]n|pista|tarima|entelado|espacio|jard[ií]n|metros?|mts?|\bm\b|ancho|largo|altura|alto|cubre|cubrir)\b/i.test(
+      text2
+    ) || text2.trim().length <= 40;
+    if (dimContext && !/\bpor\s+(persona|personas|invitado|invitados|pax|paquete|d[ií]a)\b/i.test(text2)) {
+      for (const m6 of text2.matchAll(
+        /\b(\d+(?:[.,]\d+)?)\s+por\s+(\d+(?:[.,]\d+)?)(?:\s*(?:m|mts?|metros?))?\b/gi
+      )) {
+        const a4 = Number(m6[1].replace(",", "."));
+        const b5 = Number(m6[2].replace(",", "."));
+        if (a4 >= 2 && a4 <= 120 && b5 >= 2 && b5 <= 120) {
+          push(m6[1].replace(",", "."), m6[2].replace(",", "."), heightOnly);
+        }
+      }
+    }
   }
   return out2;
 }
@@ -133800,7 +133850,7 @@ function formatEspacioAnnotation(dims) {
 }
 function attachEspacioToRequirements(req, dims) {
   const list = (Array.isArray(dims) ? dims : [dims]).filter(Boolean);
-  const base = req.replace(/\s*\((?:espacio\s+)?[^)]*\d+\s*m?\s*[x×]\s*\d+[^)]*\)/gi, "").replace(/\s*—\s*espacio\s+\d+m\s*x\s*\d+m/gi, "").trim() || "Servicio";
+  const base = req.replace(/\s*\((?:espacio\s+)?[^)]*\d+\s*m?\s*[x×]\s*\d+[^)]*\)/gi, "").replace(/\s*—\s*espacio\s+\d+(?:\.\d+)?m\s*x\s*\d+(?:\.\d+)?m(?:\s*x\s*\d+(?:\.\d+)?m\s*alt)?/gi, "").trim() || "Servicio";
   if (list.length === 0) return base;
   return `${base} ${formatEspacioAnnotation(list)}`.trim();
 }
@@ -226771,7 +226821,7 @@ import { join as join2 } from "node:path";
 
 // api-server/src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.97";
+var LUCY_PROMPT_VERSION = "V9.98";
 
 // api-server/src/lib/buildMeta.ts
 var cached = null;
@@ -229694,8 +229744,9 @@ NO repitas el abanico. Descubre antes de detallar:
 - "entelado" / "tela para techo" / "entelado para techo" \u2192 anota *Entelados para Techo*
   (decoraci\xF3n a\xE9rea de techo). NUNCA lo trates como mobiliario gen\xE9rico ni ofrezcas
   mesas/sillas/periqueras. Pasa cat\xE1logo de entelados y pide medidas del sal\xF3n/carpa
-  (largo \xD7 ancho), igual que carpas. Si YA dieron medidas ("15 de ancho por 25 de largo",
-  "6x8", etc.), an\xF3talas, NO vuelvas a pedirlas ni reenv\xEDes el acuse completo.
+  (largo \xD7 ancho), igual que carpas. Acepta 10x15, 10 por 15, 10 metros por 15,
+  "15 de ancho por 25 de largo", "ancho 10 largo 15" y altura si la dan.
+  Si YA dieron medidas, an\xF3talas, NO vuelvas a pedirlas ni reenv\xEDes el acuse completo.
 - Ya eligi\xF3 pieza/opci\xF3n \u2192 3\u20135 modelos o niveles + pregunta cu\xE1l detallas.
 - Ya eligi\xF3 nivel/modelo \u2192 inclusiones (PDF Aprendizaje) + precio (Sheet) + link
   de cat\xE1logo de ESE servicio.
