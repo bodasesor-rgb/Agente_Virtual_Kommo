@@ -4437,17 +4437,25 @@ export function buildRequerimientosQuestion(
   return appendServiciosCatalogoHint(core, false, history);
 }
 
-/** Carpas, pistas y tarimas no pueden pasar a cierre sin largo × ancho. */
+/** Carpas, pistas, tarimas y entelado no pueden pasar a cierre sin largo × ancho. */
 export function requiredServiceDimensionsMissing(extracted: ExtractedData): boolean {
   const req = extracted.requerimientos_evento?.trim() ?? "";
   if (!req) return false;
   const requiresDimensions =
-    clientMentionsCarpas(req) || clientMentionsPistaTarima(req);
+    clientMentionsCarpas(req) ||
+    clientMentionsPistaTarima(req) ||
+    isEnteladoRequestText(req);
   return requiresDimensions && !parseSpaceDimensions(req);
 }
 
 export function buildRequiredServiceDimensionsQuestion(extracted: ExtractedData): string {
   const req = extracted.requerimientos_evento?.trim() ?? "";
+  if (isEnteladoRequestText(req) && !clientMentionsCarpas(req)) {
+    return (
+      "Antes de cerrar la solicitud necesito las medidas aproximadas del salón o carpa " +
+      "(largo × ancho) donde va el entelado. ¿Cuánto mide?"
+    );
+  }
   if (clientMentionsCarpas(req)) {
     return (
       "Antes de cerrar la solicitud necesito las medidas aproximadas de la carpa " +
@@ -5600,21 +5608,28 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: V9.36 — cierre prematuro, se reabre el chat");
   }
 
-  // Captura estructural antes de cualquier rama: "3 x 4" / "6m x 8m" completa
-  // carpa/pista/tarima. A15907: también corrige medidas si el cliente responde al ask
-  // aunque ya hubiera un 2x2 parcial del brief.
+  // Captura estructural antes de cualquier rama: "3 x 4" / "6m x 8m" / "15 de ancho por 25 de largo"
+  // completa carpa/pista/tarima/entelado. A15907 + A15966.
   const dimensionsNowList = parseAllSpaceDimensions(currentMessage ?? "");
-  if (
-    dimensionsNowList.length > 0 &&
-    (clientMentionsCarpas(extracted.requerimientos_evento ?? "") ||
-      clientMentionsPistaTarima(extracted.requerimientos_evento ?? "") ||
-      clientMentionsCarpas(currentMessage ?? ""))
-  ) {
-    const req = extracted.requerimientos_evento?.trim() || "Carpas";
+  const reqForDims = extracted.requerimientos_evento ?? "";
+  const needsSpaceDims =
+    clientMentionsCarpas(reqForDims) ||
+    clientMentionsPistaTarima(reqForDims) ||
+    isEnteladoRequestText(reqForDims) ||
+    clientMentionsCarpas(currentMessage ?? "") ||
+    isEnteladoRequestText(currentMessage ?? "");
+  if (dimensionsNowList.length > 0 && needsSpaceDims) {
+    const req =
+      extracted.requerimientos_evento?.trim() ||
+      (isEnteladoRequestText(currentMessage)
+        ? "Entelados para Techo"
+        : isEnteladoRequestText(reqForDims)
+          ? "Entelados para Techo"
+          : "Carpas");
     const lastAsstForDims = [...presHistory].reverse().find((m) => m.role === "assistant");
     const lucyAskedMedidas =
       typeof lastAsstForDims?.content === "string" &&
-      /medidas|cu[aá]nto mide|largo\s*[×x]\s*ancho|área que quieres cubrir/i.test(
+      /medidas|cu[aá]nto mide|largo\s*[×x]\s*ancho|área que quieres cubrir|medidas del sal[oó]n/i.test(
         lastAsstForDims.content
       );
     const shouldAttach =
@@ -5627,11 +5642,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     filledSet.add("Requerimientos o servicios");
   }
 
-  // A15907: si el CRM perdió "(espacio …)" pero el historial ya trae medidas, reinyectar
+  // A15907 / A15966: si el CRM perdió "(espacio …)" pero el historial ya trae medidas, reinyectar
   // antes del embudo/cierre (evita re-preguntar y el loop no_entendio).
   if (
     (clientMentionsCarpas(extracted.requerimientos_evento ?? "") ||
-      clientMentionsPistaTarima(extracted.requerimientos_evento ?? "")) &&
+      clientMentionsPistaTarima(extracted.requerimientos_evento ?? "") ||
+      isEnteladoRequestText(extracted.requerimientos_evento ?? "")) &&
     !parseSpaceDimensions(extracted.requerimientos_evento ?? "")
   ) {
     const histDims = parseAllSpaceDimensions(
@@ -5639,11 +5655,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
     if (histDims.length > 0) {
       extracted.requerimientos_evento = attachEspacioToRequirements(
-        extracted.requerimientos_evento?.trim() || "Carpas",
+        extracted.requerimientos_evento?.trim() ||
+          (isEnteladoRequestText(extracted.requerimientos_evento) ? "Entelados para Techo" : "Carpas"),
         histDims
       );
       filledSet.add("Requerimientos o servicios");
-      log?.info({ entityId, histDims }, "GUARD: A15907 — medidas recuperadas del historial");
+      log?.info({ entityId, histDims }, "GUARD: A15907/A15966 — medidas recuperadas del historial");
     }
   }
 
@@ -6062,68 +6079,123 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
   }
 
-  // A15956: entelado para techo ≠ mobiliario / mesas / periqueras.
+  // A15956 / A15966: entelado para techo ≠ mobiliario. Solo hijack al pedir el SKU
+  // o al dar medidas; NUNCA reenviar el acuse+catálogo en cada turno del embudo.
   {
     const userBlobEnt = collectUserTexts(presHistory, currentMessage).join(" ");
+    const msgEnt = currentMessage?.trim() ?? "";
     const asksFurnitureInstead =
-      /\b(mesas?\s+y\s+sillas?|periqueras?|sillas?\s+tiffany|salas?\s+lounge)\b/i.test(
-        currentMessage ?? ""
-      ) && !isEnteladoRequestText(currentMessage);
+      /\b(mesas?\s+y\s+sillas?|periqueras?|sillas?\s+tiffany|salas?\s+lounge)\b/i.test(msgEnt) &&
+      !isEnteladoRequestText(msgEnt);
+    const dimsNow =
+      parseSpaceDimensions(msgEnt) ||
+      (isDimensionText(msgEnt) ? parseSpaceDimensions(msgEnt) : null) ||
+      parseSpaceDimensions(userBlobEnt);
+    const dimsInReq = parseSpaceDimensions(extracted.requerimientos_evento ?? "");
+    const givingDimsForEntelado =
+      !!dimsNow &&
+      (isEnteladoRequestText(extracted.requerimientos_evento) ||
+        isEnteladoRequestText(userBlobEnt) ||
+        /medida(?:s)?\s+(?:de\s+)?(?:la\s+)?(?:carpa|sal[oó]n)|medidas?\s+del\s+sal[oó]n/i.test(
+          msgEnt
+        ));
+    const firstAskEntelado = isEnteladoRequestText(msgEnt);
     const enteladoInPlay =
       !asksFurnitureInstead &&
-      (isEnteladoRequestText(currentMessage) ||
-        isEnteladoRequestText(extracted.requerimientos_evento) ||
-        (isEnteladoRequestText(userBlobEnt) &&
-          /medidas|estas?\s+son|pdf|sal[oó]n|me\s+llamo|soy\s+\w+|mi\s+nombre/i.test(
-            currentMessage ?? ""
-          )));
-    if (enteladoInPlay && currentMessage?.trim()) {
+      msgEnt &&
+      (firstAskEntelado || givingDimsForEntelado);
+
+    if (enteladoInPlay) {
       const merged = mergeServiceRequirements(
         extracted.requerimientos_evento,
         "Entelados para Techo",
         8
       );
       if (merged) {
-        extracted.requerimientos_evento = merged;
+        // "medida de la carpa" ≠ pedir carpa como SKU (solo espacio del entelado).
+        const cleaned =
+          /medida(?:s)?\s+(?:de\s+)?(?:la\s+)?carpa|\bcarpa\b.{0,40}\b(metros?|ancho|largo|\d+\s*[x×])/i.test(
+            msgEnt
+          ) || isDimensionText(msgEnt)
+            ? merged
+                .split(/\s*,\s*/)
+                .filter((s) => !/^carpas?\b/i.test(s.trim()))
+                .join(", ")
+            : merged;
+        extracted.requerimientos_evento = cleaned;
         filledSet.add("Requerimientos o servicios");
       }
       if (!extracted.tipo_evento?.trim()) {
         const tipo =
-          parseTipoEventoFromText(currentMessage) || parseTipoEventoFromText(userBlobEnt);
+          parseTipoEventoFromText(msgEnt) || parseTipoEventoFromText(userBlobEnt);
         if (tipo) {
           extracted.tipo_evento = tipo;
           filledSet.add("Tipo de evento");
         }
       }
-      const dims =
-        parseSpaceDimensions(currentMessage) || parseSpaceDimensions(userBlobEnt);
-      if (dims && !/espacio\s+\d/i.test(extracted.requerimientos_evento ?? "")) {
-        extracted.requerimientos_evento = `${extracted.requerimientos_evento}; espacio ${dims}`;
+      const dims = dimsNow || dimsInReq;
+      if (dims) {
+        extracted.requerimientos_evento = attachEspacioToRequirements(
+          extracted.requerimientos_evento?.trim() || "Entelados para Techo",
+          dims
+        );
       }
       syncLegacyFechaHorarioField(extracted);
-      const ack =
-        buildGuardServiceAck(
-          isEnteladoRequestText(currentMessage)
-            ? currentMessage
-            : extracted.requerimientos_evento || "entelado para techo"
-        ) ||
-        "Perfecto — anoto *Entelados para Techo* para tu cotización.";
-      const dimsNote = dims
-        ? `\n\nAnoto medidas *${dims.replace(/m/gi, " m")}* para afinar la cotización.`
-        : /medidas|estas?\s+son|pdf/i.test(currentMessage)
-          ? "\n\nGracias por las medidas; el equipo las usa para afinar el entelado."
-          : "";
+
+      // Solo el primer pedido lleva catálogo completo; medidas = acuse corto.
+      if (givingDimsForEntelado && !firstAskEntelado) {
+        const dimsLabel = (dims ?? dimsNow ?? "").toString().replace(/m/gi, " m");
+        const ack = dimsLabel
+          ? `Perfecto — anoto medidas *${dimsLabel}* para el entelado.`
+          : "Perfecto — anoto las medidas para el entelado.";
+        const pending = getNextPendingField(extracted, filledSet);
+        const nextQ =
+          !cierreYaEnviado && pending && pending !== "requerimientos"
+            ? buildNaturalQuestion(pending, ctx)
+            : null;
+        const body = nextQ ? `${ack} ${nextQ}` : ack;
+        log?.info({ entityId, dims }, "GUARD: A15966 — medidas de entelado capturadas");
+        return normalizeAdvisorReferences(
+          body,
+          extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+        );
+      }
+
+      const catalogUrl =
+        getCatalogWebUrlForQuery("entelados para techo") ||
+        getCatalogWebUrlForQuery("entelado") ||
+        "https://bodasesor.com/catalogos/entelados-para-techo";
+      const lines = [
+        "Perfecto — anoto *Entelados para Techo* para tu cotización.",
+        "Son telas / montajes para el techo o cielo del salón; el equipo cotiza según medidas y estilo.",
+        "",
+        `Catálogo de *entelados*:\n${catalogUrl}`,
+      ];
+      if (dims) {
+        lines.push(
+          "",
+          `Anoto medidas *${dims.replace(/m/gi, " m")}* para afinar la cotización.`
+        );
+      } else {
+        lines.push(
+          "",
+          "Para cotizarlo necesito las medidas del salón o carpa (largo × ancho). ¿Cuánto mide?"
+        );
+      }
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ =
-        !cierreYaEnviado && pending && pending !== "requerimientos"
+        !cierreYaEnviado &&
+        pending &&
+        pending !== "requerimientos" &&
+        (dims || pending !== "requerimientos")
           ? buildNaturalQuestion(pending, ctx)
           : null;
-      const body = `${ack}${dimsNote}${
-        nextQ && !ack.includes(nextQ) ? `\n\n${nextQ}` : ""
-      }`.trim();
-      log?.info({ entityId }, "GUARD: A15956 — entelado (no menú mesas/sillas)");
+      if (nextQ && !lines.join(" ").includes(nextQ)) {
+        lines.push("", nextQ);
+      }
+      log?.info({ entityId, dims }, "GUARD: A15956/A15966 — entelado (no menú mesas/sillas)");
       return normalizeAdvisorReferences(
-        body,
+        lines.join("\n").trim(),
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
@@ -11623,6 +11695,48 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     extracted.requerimientos_evento,
     presHistory
   );
+
+  // A15966: si ya hay medidas en CRM/historial, nunca re-pedirlas ni reenviar el acuse de entelado.
+  {
+    const req = extracted.requerimientos_evento ?? "";
+    const hasDims =
+      !!parseSpaceDimensions(req) ||
+      !!parseSpaceDimensions(collectUserTexts(presHistory, currentMessage).join(" "));
+    if (hasDims) {
+      mensaje = mensaje
+        .replace(
+          /Si ya tienes medidas del sal[oó]n,?\s*m[aá]ndamelas y afinamos\.?\s*/gi,
+          ""
+        )
+        .replace(
+          /Para cotizarlo necesito las medidas del sal[oó]n o carpa[^?]*\?\s*/gi,
+          ""
+        )
+        .replace(
+          /Antes de cerrar la solicitud necesito las medidas aproximadas[^.?]*[.?]\s*/gi,
+          ""
+        )
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    }
+    // Si el cliente ya dio medidas y el mensaje sigue siendo el acuse largo de entelado, acortar.
+    if (
+      hasDims &&
+      isEnteladoRequestText(req) &&
+      /Perfecto — anoto \*Entelados para Techo\*/i.test(mensaje) &&
+      /Cat[aá]logo de \*entelados\*/i.test(mensaje) &&
+      !isEnteladoRequestText(currentMessage)
+    ) {
+      const dims = parseSpaceDimensions(req)!;
+      const pending = getNextPendingField(extracted, filledSet);
+      const ack = `Perfecto — anoto medidas *${dims.replace(/m/gi, " m")}* para el entelado.`;
+      const nextQ =
+        !cierreYaEnviado && pending && pending !== "requerimientos"
+          ? buildNaturalQuestion(pending, ctx)
+          : null;
+      mensaje = nextQ ? `${ack} ${nextQ}` : ack;
+    }
+  }
 
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }

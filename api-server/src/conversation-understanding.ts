@@ -1633,10 +1633,14 @@ export function clientMentionsCarpas(message?: string): boolean {
   );
 }
 
-/** Carpas / pista / tarima: hay que pedir medidas. */
+/** Carpas / pista / tarima / entelado: hay que pedir medidas. */
 export function clientMentionsMeasureRequiredService(message?: string): boolean {
   if (!message?.trim()) return false;
-  return clientMentionsCarpas(message) || clientMentionsPistaTarima(message);
+  return (
+    clientMentionsCarpas(message) ||
+    clientMentionsPistaTarima(message) ||
+    isEnteladoRequestText(message)
+  );
 }
 
 /** Cliente pide que lo llamen / atención personalizada por teléfono. */
@@ -4934,11 +4938,17 @@ export function isDimensionText(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
   // A15016: "De 6 x20" / "son 6x20" / "miden 6 x 20"
+  // A15966: "15 metros de ancho por 25 metros de largo"
   const dePrefixed = t.replace(/^(de|son|miden|mide|aproximadamente|aprox\.?)\s+/i, "").trim();
   return (
+    /\b\d+\s*metros?\s*(?:de\s+)?(?:ancho|largo|fondo|frente)?\s*(?:por|x|×)\s*\d+\s*metros?(?:\s+de\s+(?:ancho|largo|fondo|frente))?/i.test(
+      t
+    ) ||
     /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t) ||
     /\b\d+\s*m\s*(por|x)\s*\d+\s*m\b/i.test(t) ||
+    /\b(?:ancho|largo)\s*(?:de\s*)?\d+\s*m/i.test(t) ||
     /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t) ||
+    /\bmedida(?:s)?\s+de\s+la\s+carpa\b/i.test(t) ||
     /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t) ||
     /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(dePrefixed) ||
     /^\d+m\s*x\s*\d+m$/i.test(t) ||
@@ -5221,6 +5231,24 @@ export function parseAllSpaceDimensions(text: string): string[] {
     seen.add(d);
     out.push(d);
   };
+  // A15966: "15 metros de ancho por 25 metros de largo" / "25 de largo x 15 de ancho"
+  for (const m of text.matchAll(
+    /\b(\d+)\s*(?:metros?|m)?\s*(?:de\s+)?(ancho|largo|fondo|frente)\s*(?:por|x|×)\s*(\d+)\s*(?:metros?|m)?\s*(?:de\s+)?(ancho|largo|fondo|frente)?\b/gi
+  )) {
+    const n1 = m[1]!;
+    const n2 = m[3]!;
+    const axis1 = (m[2] ?? "").toLowerCase();
+    const axis2 = (m[4] ?? "").toLowerCase();
+    // Preferir ancho × largo cuando se etiquetan.
+    if (/ancho/.test(axis1) && /largo/.test(axis2)) push(n1, n2);
+    else if (/largo/.test(axis1) && /ancho/.test(axis2)) push(n2, n1);
+    else push(n1, n2);
+  }
+  for (const m of text.matchAll(
+    /\b(\d+)\s*metros?\s*(?:de\s+(?:ancho|largo|fondo|frente)\s*)?(?:por|x|×)\s*(\d+)\s*metros?(?:\s+de\s+(?:ancho|largo|fondo|frente))?\b/gi
+  )) {
+    push(m[1]!, m[2]!);
+  }
   for (const m of text.matchAll(/\b(\d+)\s*metros?\s*(?:por|x)\s*(\d+)\s*metros?\b/gi)) {
     push(m[1]!, m[2]!);
   }

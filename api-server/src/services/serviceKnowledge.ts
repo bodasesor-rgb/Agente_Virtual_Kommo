@@ -258,6 +258,52 @@ export function buildLevel3Ack(serviceLabel: string): string {
 export function buildGuardServiceAck(query: string): string {
   const label = serviceLabelFromQuery(query);
   const level = classifyServiceKnowledgeLevel(query);
+
+  // A15190 / A15296: centros de mesa = floral/decorativo (no menú de mobiliario ni niveles).
+  if (/\bcentros?\s+de\s+mesas?\b/i.test(query) || /centros?\s+de\s+mesa/i.test(label)) {
+    const qty = query.match(/\b(\d{1,3})\b/)?.[1];
+    const labelQty = qty ? ` *${qty}* centros de mesa` : " *centros de mesa*";
+    return (
+      `¡Claro! Anoto${labelQty} (decoración floral) para tu cotización. ` +
+      "Nuestro equipo te confirma estilos, precio e inclusiones según tu referencia."
+    );
+  }
+
+  // A15910 / A15961: mesa de dulces/postres ≠ renta de mesas/sillas. Manda el catálogo real.
+  if (/\bmesas?\s+de\s+(dulces?|postres?|quesos?)\b/i.test(query) || /mesa\s+de\s+dulces/i.test(label)) {
+    return buildKnownCatalogAck(label || "Mesa de dulces", query);
+  }
+
+  // A15956 / A15966: entelado pide medidas (como carpas); no menú mesas/sillas.
+  if (
+    /\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b|\btecho\s+entelado\b/i.test(query) ||
+    /entelados?\s+para\s+techo/i.test(label)
+  ) {
+    const catalogUrl =
+      getCatalogWebUrlForQuery("entelados para techo") ||
+      getCatalogWebUrlForQuery("entelado") ||
+      "https://bodasesor.com/catalogos/entelados-para-techo";
+    const dims = parseSpaceDimensions(query);
+    const lines = [
+      "Perfecto — anoto *Entelados para Techo* para tu cotización.",
+      "Son telas / montajes para el techo o cielo del salón; el equipo cotiza según medidas y estilo.",
+      "",
+      `Catálogo de *entelados*:\n${catalogUrl}`,
+    ];
+    if (dims) {
+      lines.push(
+        "",
+        `Anoto medidas *${dims.replace(/m/gi, " m")}* para afinar la cotización.`
+      );
+    } else {
+      lines.push(
+        "",
+        "Para cotizarlo necesito las medidas del salón o carpa (largo × ancho). ¿Cuánto mide?"
+      );
+    }
+    return lines.join("\n");
+  }
+
   const knownCatalogUrl =
     getCatalogWebUrlForQuery(query) || getCatalogWebUrlForQuery(label);
   if (level === 1 || knownCatalogUrl) {
@@ -277,40 +323,6 @@ export function buildGuardServiceAck(query: string): string {
     return buildKnownCatalogAck(label, query);
   }
   if (level === 3) return buildLevel3Ack(label);
-
-  // A15190 / A15296: centros de mesa = floral/decorativo (no menú de mobiliario ni niveles).
-  if (/\bcentros?\s+de\s+mesas?\b/i.test(query) || /centros?\s+de\s+mesa/i.test(label)) {
-    const qty = query.match(/\b(\d{1,3})\b/)?.[1];
-    const labelQty = qty ? ` *${qty}* centros de mesa` : " *centros de mesa*";
-    return (
-      `¡Claro! Anoto${labelQty} (decoración floral) para tu cotización. ` +
-      "Nuestro equipo te confirma estilos, precio e inclusiones según tu referencia."
-    );
-  }
-
-  // A15910 / A15961: mesa de dulces/postres ≠ renta de mesas/sillas. Manda el catálogo real.
-  if (/\bmesas?\s+de\s+(dulces?|postres?|quesos?)\b/i.test(query) || /mesa\s+de\s+dulces/i.test(label)) {
-    return buildKnownCatalogAck(label || "Mesa de dulces", query);
-  }
-
-  // A15956: entelado para techo ≠ menú mesas/sillas/periqueras.
-  if (
-    /\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b|\btecho\s+entelado\b/i.test(query) ||
-    /entelados?\s+para\s+techo/i.test(label)
-  ) {
-    const catalogUrl =
-      getCatalogWebUrlForQuery("entelados para techo") ||
-      getCatalogWebUrlForQuery("entelado") ||
-      "https://bodasesor.com/catalogos/entelados-para-techo";
-    return [
-      "Perfecto — anoto *Entelados para Techo* para tu cotización.",
-      "Son telas / montajes para el techo o cielo del salón; el equipo cotiza según medidas y estilo.",
-      "",
-      `Catálogo de *entelados*:\n${catalogUrl}`,
-      "",
-      "Si ya tienes medidas del salón, mándamelas y afinamos. ¿Qué van a celebrar?",
-    ].join("\n");
-  }
 
   // A14938: "¿Hacen las pizzas en el evento?" — sí, barra/estación montada.
   if (
