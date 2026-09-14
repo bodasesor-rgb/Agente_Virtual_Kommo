@@ -129704,6 +129704,7 @@ function isLikelyNotPersonNameMessage(text2) {
     return true;
   }
   if (isGreetingOnlyMessage(t4) || isQuoteIntentMessage(t4) || isAffirmativeOnlyMessage(t4)) return true;
+  if (/\bcon\s+(mucho\s+)?gusto\b/i.test(t4) && t4.split(/\s+/).length <= 5) return true;
   if (isMuchoGustoNameReply(t4)) return false;
   if (/^(s[ií][,.]?\s*)?(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)([.!?]|$)/i.test(
     t4
@@ -129769,7 +129770,26 @@ function isLikelyUbicacionNotNombre(text2) {
 function isAffirmativeOnlyMessage(text2) {
   const t4 = text2?.trim() ?? "";
   if (!t4) return false;
-  return /^(s[ií]|ok|vale|claro|de\s+acuerdo|por\s+supuesto|perfecto|correcto|exacto|as[ií]\s+es)[.!?\s,]*$/i.test(t4);
+  return /^(s[ií]|ok|vale|claro|de\s+acuerdo|por\s+supuesto|perfecto|correcto|exacto|as[ií]\s+es|claro\s+(que\s+s[ií]|con\s+gusto)|con\s+gusto|claro\s+con\s+gusto|con\s+mucho\s+gusto|por\s+supuesto\s+que\s+s[ií])[.!?\s,]*$/i.test(
+    t4
+  );
+}
+function isWeakOrJunkNombre(name2) {
+  const t4 = (name2 ?? "").trim();
+  if (!t4) return true;
+  if (isPlaceholderLeadName(t4)) return true;
+  if (isAffirmativeOnlyMessage(t4)) return true;
+  if (/\bcon\s+gusto\b/i.test(t4)) return true;
+  const parts2 = t4.split(/\s+/).filter(Boolean);
+  if (parts2.length === 1) {
+    const letters = (parts2[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (!letters || letters.length < 3) return true;
+    if (NAME_STOPWORDS.test(letters)) return true;
+    if (GREETING_NAME_PATTERN.test(letters)) return true;
+    if (NAME_COURTESY_OR_ROLE_TOKEN.test(letters)) return true;
+    if (/^(con|sin|por|para|de|del|la|el|los|las|un|una|y|o)$/i.test(letters)) return true;
+  }
+  return false;
 }
 function isPlaceholderLeadName(name2) {
   const trimmed = name2?.trim() ?? "";
@@ -129806,6 +129826,10 @@ function sanitizeDisplayName(name2) {
   if (/^(el|la|los|las|un|una)$/i.test(firstName2)) return null;
   if (/^\d+$/.test(firstName2)) return null;
   if (GREETING_NAME_PATTERN.test(firstName2)) return null;
+  if (NAME_STOPWORDS.test(firstName2)) return null;
+  if (NAME_COURTESY_OR_ROLE_TOKEN.test(firstName2) || COURTESY_NAME_TOKEN.test(firstName2)) return null;
+  if (isAffirmativeOnlyMessage(raw) || isAffirmativeOnlyMessage(cleaned)) return null;
+  if (isWeakOrJunkNombre(cleaned) || isWeakOrJunkNombre(firstName2)) return null;
   if (BOT_OR_META_NAME_TOKEN.test(firstName2)) return null;
   if (CATALOG_LEVEL_OR_BRAND_NAME.test(firstName2)) return null;
   if (isQuoteIntentMessage(raw)) return null;
@@ -129821,6 +129845,8 @@ function sanitizeCrmNombre(name2) {
   if (!raw || isPlaceholderLeadName(raw) || isQuoteIntentMessage(raw)) return null;
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
+  if (isAffirmativeOnlyMessage(raw)) return null;
+  if (isWeakOrJunkNombre(raw)) return null;
   if (isRepeatComplaintAsName(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw)) return null;
   if (isServicePreferenceAsNombre(raw)) return null;
@@ -129869,13 +129895,16 @@ function sanitizeCrmNombre(name2) {
     if (!letters) return false;
     if (BOT_OR_META_NAME_TOKEN.test(letters)) return false;
     if (COURTESY_NAME_TOKEN.test(letters)) return false;
+    if (NAME_COURTESY_OR_ROLE_TOKEN.test(letters)) return false;
+    if (NAME_STOPWORDS.test(letters)) return false;
     if (HANDOFF_OR_META_NAME_TOKEN.test(letters)) return false;
     if (CATALOG_LEVEL_OR_BRAND_NAME.test(letters)) return false;
     if (/^(boda|xv|cumpleanos|bautizo|aniversario|graduacion|es|una|un)$/i.test(letters)) return false;
     if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(token) && letters.length >= 1) return true;
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
   });
-  if (parts2.length === 0) return sanitizeDisplayName(cleaned);
+  if (parts2.length === 0) return null;
+  if (isWeakOrJunkNombre(parts2.join(" "))) return null;
   const candidate = parts2.slice(0, 4).map((part) => {
     const token = part.trim();
     if (/^[A-Za-zÁÉÍÓÚÜÑ]\.$/.test(token)) {
@@ -129894,7 +129923,10 @@ function shouldUpdateName(current, incoming) {
   if (!i6) return false;
   const iClean = sanitizeCrmNombre(i6) ?? sanitizeDisplayName(i6);
   if (!iClean) return false;
+  if (isWeakOrJunkNombre(iClean)) return false;
   if (!c5) return true;
+  if (isWeakOrJunkNombre(c5) && nombreWordCount(iClean) >= 2) return true;
+  if (isWeakOrJunkNombre(c5) && !isWeakOrJunkNombre(iClean)) return true;
   if (isLikelyUbicacionNotNombre(c5) || isRoleOrDepartmentAsNombre(c5) || CATALOG_LEVEL_OR_BRAND_NAME.test(c5.split(/\s+/)[0] ?? "") || !sanitizeCrmNombre(c5)) {
     return true;
   }
@@ -129963,6 +129995,12 @@ function isNombreMoreComplete(candidate, existing) {
 function pickBetterNombre(candidate, existing) {
   const eClean = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
   const iClean = sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
+  if (eClean && isWeakOrJunkNombre(eClean) && iClean && !isWeakOrJunkNombre(iClean)) {
+    return iClean;
+  }
+  if (iClean && isWeakOrJunkNombre(iClean) && eClean && !isWeakOrJunkNombre(eClean)) {
+    return eClean;
+  }
   if (eClean && iClean && namesAreLikelySamePerson(eClean, iClean)) {
     if (nombreWordCount(eClean) > nombreWordCount(iClean)) {
       return eClean;
@@ -129992,7 +130030,7 @@ function rewriteJunkClientVocative(message, correctNombre) {
 function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
   return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
 }
-var PHONE_LIKE, PLACEHOLDER_PATTERNS, ROLE_OR_DEPT_NAME_TOKEN, GREETING_NAME_PATTERN, COMPANY_OR_CHANNEL_PATTERN, BOT_OR_META_NAME_TOKEN, COURTESY_NAME_TOKEN, MUCHO_GUSTO_SUFFIX, MUCHO_GUSTO_LEADING, CATALOG_LEVEL_OR_BRAND_NAME, SENTENCE_VERB_PATTERN, HANDOFF_OR_META_NAME_TOKEN, PRICE_OR_SERVICE_NAME_TOKEN, NAME_STOPWORDS;
+var PHONE_LIKE, PLACEHOLDER_PATTERNS, ROLE_OR_DEPT_NAME_TOKEN, GREETING_NAME_PATTERN, COMPANY_OR_CHANNEL_PATTERN, BOT_OR_META_NAME_TOKEN, COURTESY_NAME_TOKEN, MUCHO_GUSTO_SUFFIX, MUCHO_GUSTO_LEADING, CATALOG_LEVEL_OR_BRAND_NAME, SENTENCE_VERB_PATTERN, HANDOFF_OR_META_NAME_TOKEN, PRICE_OR_SERVICE_NAME_TOKEN, NAME_STOPWORDS, NAME_COURTESY_OR_ROLE_TOKEN;
 var init_contact_name = __esm({
   "api-server/src/contact-name.ts"() {
     "use strict";
@@ -130011,7 +130049,7 @@ var init_contact_name = __esm({
     GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo|claro)$/i;
     COMPANY_OR_CHANNEL_PATTERN = /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
     BOT_OR_META_NAME_TOKEN = /^(lucy|llamo|llam[oó]|bodasesor|capybara|salesbot)$/i;
-    COURTESY_NAME_TOKEN = /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto)$/i;
+    COURTESY_NAME_TOKEN = /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto|servidor[ao]?|servidora)$/i;
     MUCHO_GUSTO_SUFFIX = /\s+mucho\s+gusto\b/gi;
     MUCHO_GUSTO_LEADING = /^mucho\s+gusto,?\s+/i;
     CATALOG_LEVEL_OR_BRAND_NAME = /^(premium|b[aá]sic[ao]|tradicional|solo\s*alimentos?|deluxe|vip|gold|silver|platinum|business|premium\s*events?)$/i;
@@ -130019,6 +130057,7 @@ var init_contact_name = __esm({
     HANDOFF_OR_META_NAME_TOKEN = /^(hablar|asesor|agente|humano|persona|ejecutivo|equipo|conmigo|contigo|por|favor)$/i;
     PRICE_OR_SERVICE_NAME_TOKEN = /^(cu[aá]nto|cu[aacute]nto|cuesta|cuestan|costo|precio|renta|rentar|cobran|vale|valen|mesas?|sillas?|periqueras?|salas?|mobiliario|personas?|invitados?)$/i;
     NAME_STOPWORDS = /^(en|de|del|la|el|los|las|un|una|al|para|por|con|sin|y|o)$/i;
+    NAME_COURTESY_OR_ROLE_TOKEN = /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto|servidor[ao]?|servidora|a\s+sus\s+[oó]rdenes|presente|mismo|misma)$/i;
   }
 });
 
@@ -226821,7 +226860,7 @@ import { join as join2 } from "node:path";
 
 // api-server/src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.98";
+var LUCY_PROMPT_VERSION = "V9.99";
 
 // api-server/src/lib/buildMeta.ts
 var cached = null;

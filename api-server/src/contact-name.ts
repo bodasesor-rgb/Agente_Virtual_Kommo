@@ -60,7 +60,7 @@ const BOT_OR_META_NAME_TOKEN =
 
 /** Saludos de cortesía que NO son apellido (A15494: "Paola mucho gusto"). */
 const COURTESY_NAME_TOKEN =
-  /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto)$/i;
+  /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto|servidor[ao]?|servidora)$/i;
 
 const MUCHO_GUSTO_SUFFIX = /\s+mucho\s+gusto\b/gi;
 const MUCHO_GUSTO_LEADING = /^mucho\s+gusto,?\s+/i;
@@ -246,6 +246,8 @@ export function isLikelyNotPersonNameMessage(text: string | null | undefined): b
     return true;
   }
   if (isGreetingOnlyMessage(t) || isQuoteIntentMessage(t) || isAffirmativeOnlyMessage(t)) return true;
+  // A16018: "Claro con gusto" / "con gusto" ≠ nombre.
+  if (/\bcon\s+(mucho\s+)?gusto\b/i.test(t) && t.split(/\s+/).length <= 5) return true;
   if (isMuchoGustoNameReply(t)) return false;
   // A15169: "Sí mándamelo" / "mándamelo" / "envíamelo" — pedido de envío, no nombre.
   if (
@@ -353,11 +355,36 @@ export function isLikelyUbicacionNotNombre(text: string | null | undefined): boo
   return false;
 }
 
-/** "sí", "ok", "claro" — afirmación, no es el nombre del cliente. */
+/** "sí", "ok", "claro", "claro con gusto" — afirmación, no es el nombre del cliente. */
 export function isAffirmativeOnlyMessage(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
-  return /^(s[ií]|ok|vale|claro|de\s+acuerdo|por\s+supuesto|perfecto|correcto|exacto|as[ií]\s+es)[.!?\s,]*$/i.test(t);
+  return /^(s[ií]|ok|vale|claro|de\s+acuerdo|por\s+supuesto|perfecto|correcto|exacto|as[ií]\s+es|claro\s+(que\s+s[ií]|con\s+gusto)|con\s+gusto|claro\s+con\s+gusto|con\s+mucho\s+gusto|por\s+supuesto\s+que\s+s[ií])[.!?\s,]*$/i.test(
+    t
+  );
+}
+
+/** Cortesía / rol pegado al nombre (A16018: "Guadalupe Bastida servidora"). */
+const NAME_COURTESY_OR_ROLE_TOKEN =
+  /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto|servidor[ao]?|servidora|a\s+sus\s+[oó]rdenes|presente|mismo|misma)$/i;
+
+/** Nombre CRM débil/basura: "Con", "Claro", un solo token preposición/cortesía. */
+export function isWeakOrJunkNombre(name: string | null | undefined): boolean {
+  const t = (name ?? "").trim();
+  if (!t) return true;
+  if (isPlaceholderLeadName(t)) return true;
+  if (isAffirmativeOnlyMessage(t)) return true;
+  if (/\bcon\s+gusto\b/i.test(t)) return true;
+  const parts = t.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) {
+    const letters = (parts[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (!letters || letters.length < 3) return true;
+    if (NAME_STOPWORDS.test(letters)) return true;
+    if (GREETING_NAME_PATTERN.test(letters)) return true;
+    if (NAME_COURTESY_OR_ROLE_TOKEN.test(letters)) return true;
+    if (/^(con|sin|por|para|de|del|la|el|los|las|un|una|y|o)$/i.test(letters)) return true;
+  }
+  return false;
 }
 
 export function isPlaceholderLeadName(name: string | null | undefined): boolean {
@@ -403,6 +430,10 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
   if (/^(el|la|los|las|un|una)$/i.test(firstName)) return null;
   if (/^\d+$/.test(firstName)) return null;
   if (GREETING_NAME_PATTERN.test(firstName)) return null;
+  if (NAME_STOPWORDS.test(firstName)) return null;
+  if (NAME_COURTESY_OR_ROLE_TOKEN.test(firstName) || COURTESY_NAME_TOKEN.test(firstName)) return null;
+  if (isAffirmativeOnlyMessage(raw) || isAffirmativeOnlyMessage(cleaned)) return null;
+  if (isWeakOrJunkNombre(cleaned) || isWeakOrJunkNombre(firstName)) return null;
   if (BOT_OR_META_NAME_TOKEN.test(firstName)) return null;
   if (CATALOG_LEVEL_OR_BRAND_NAME.test(firstName)) return null;
   if (isQuoteIntentMessage(raw)) return null;
@@ -424,6 +455,8 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
   if (!raw || isPlaceholderLeadName(raw) || isQuoteIntentMessage(raw)) return null;
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
+  if (isAffirmativeOnlyMessage(raw)) return null;
+  if (isWeakOrJunkNombre(raw)) return null;
   if (isRepeatComplaintAsName(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw)) return null;
   // A15705: WA/display "Sería De Catering" nunca va al CRM como nombre.
@@ -519,6 +552,8 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
     if (!letters) return false;
     if (BOT_OR_META_NAME_TOKEN.test(letters)) return false;
     if (COURTESY_NAME_TOKEN.test(letters)) return false;
+    if (NAME_COURTESY_OR_ROLE_TOKEN.test(letters)) return false;
+    if (NAME_STOPWORDS.test(letters)) return false;
     if (HANDOFF_OR_META_NAME_TOKEN.test(letters)) return false;
     if (CATALOG_LEVEL_OR_BRAND_NAME.test(letters)) return false;
     if (/^(boda|xv|cumpleanos|bautizo|aniversario|graduacion|es|una|un)$/i.test(letters)) return false;
@@ -526,7 +561,9 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
   });
 
-  if (parts.length === 0) return sanitizeDisplayName(cleaned);
+  // A16018: no caer a sanitizeDisplayName("con gusto") → "Con".
+  if (parts.length === 0) return null;
+  if (isWeakOrJunkNombre(parts.join(" "))) return null;
 
   const candidate = parts
     .slice(0, 4)
@@ -552,7 +589,11 @@ export function shouldUpdateName(current?: string, incoming?: string): boolean {
   if (!i) return false;
   const iClean = sanitizeCrmNombre(i) ?? sanitizeDisplayName(i);
   if (!iClean) return false;
+  if (isWeakOrJunkNombre(iClean)) return false;
   if (!c) return true;
+  // A16018: "Con" / basura WA puede reemplazarse por nombre real completo aunque no "parezcan" la misma persona.
+  if (isWeakOrJunkNombre(c) && nombreWordCount(iClean) >= 2) return true;
+  if (isWeakOrJunkNombre(c) && !isWeakOrJunkNombre(iClean)) return true;
   // Ubicación / nivel / basura en CRM → siempre reemplazable por un nombre real (A14929/A14938).
   if (
     isLikelyUbicacionNotNombre(c) ||
@@ -678,6 +719,13 @@ export function pickBetterNombre(
   // A15758+: "Sofía" no debe ganar sobre "Sofy Zavala" (mismo apodo, más completo).
   const eClean = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
   const iClean = sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
+  // A16018: basura "Con" pierde frente a nombre real.
+  if (eClean && isWeakOrJunkNombre(eClean) && iClean && !isWeakOrJunkNombre(iClean)) {
+    return iClean;
+  }
+  if (iClean && isWeakOrJunkNombre(iClean) && eClean && !isWeakOrJunkNombre(eClean)) {
+    return eClean;
+  }
   if (eClean && iClean && namesAreLikelySamePerson(eClean, iClean)) {
     if (nombreWordCount(eClean) > nombreWordCount(iClean)) {
       return eClean;
