@@ -204,6 +204,7 @@ import {
   recoverCorreoFromUserTexts,
   recoverZonaFromUserTexts,
   isUnusableTipoEventoReply,
+  isEventTypeOnlyMessage,
   isReferentialPriorAnswer,
   isLocationMetaReferential,
   clientComplainsAboutRepeat,
@@ -1061,6 +1062,21 @@ function repairKnownCatalogAndBudgetRepeat(
   history: OpenAI.Chat.ChatCompletionMessageParam[]
 ): string {
   let out = mensaje;
+  // A16046: si el cliente solo dijo el tipo de evento, nunca dejes "no lo tengo listado".
+  if (
+    isEventTypeOnlyMessage(currentMessage) &&
+    /no lo tengo listado|sobre el servicio de/i.test(out)
+  ) {
+    const tipo = parseTipoEventoFromText(currentMessage ?? "") ?? "evento";
+    out = out
+      .replace(/[^.!?\n]*no lo tengo listado[^.!?\n]*[.!?]?\s*/gi, " ")
+      .replace(/[^.!?\n]*sobre el servicio de[^.!?\n]*[.!?]?\s*/gi, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    if (!/anoto tu/i.test(out)) {
+      out = `Perfecto. Anoto tu *${tipo}*. ${out}`.trim();
+    }
+  }
   const lastAssistant = [...history]
     .reverse()
     .find((m) => m.role === "assistant" && typeof m.content === "string")?.content as
@@ -8347,6 +8363,34 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       : stripRepeatLucyIntro(`${nameAck} ¿En qué te puedo ayudar para tu evento?`, presHistory, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: nombre capturado — embudo sin catálogo/PDF");
+  } else if (
+    // A16046: "Boda civil" tras ask de tipo → embudo, NUNCA "servicio no listado".
+    !cierreYaEnviado &&
+    currentMessage?.trim() &&
+    isEventTypeOnlyMessage(currentMessage) &&
+    parseTipoEventoFromText(currentMessage) &&
+    (lastAskedField === "tipo_evento" ||
+      !isFieldSatisfied("tipo_evento", filledSet, extracted) ||
+      /no lo tengo listado|sobre el servicio/i.test(aiResponse))
+  ) {
+    const tipo = parseTipoEventoFromText(currentMessage)!;
+    extracted.tipo_evento = tipo;
+    filledSet.add("Tipo de evento");
+    // No contaminar requerimientos con el tipo.
+    if (
+      extracted.requerimientos_evento &&
+      extracted.requerimientos_evento.trim().toLowerCase() === tipo.toLowerCase()
+    ) {
+      extracted.requerimientos_evento = null;
+      filledSet.delete("Requerimientos o servicios");
+    }
+    const pending = getNextPendingField(extracted, filledSet);
+    const ack = `Perfecto. Anoto tu *${tipo}*.`;
+    mensaje = pending
+      ? stripRepeatLucyIntro(`${ack} ${buildNaturalQuestion(pending, { ...ctx, filledSet })}`.trim(), presHistory, true)
+      : stripRepeatLucyIntro(ack, presHistory, true);
+    appliedDirectReply = true;
+    log?.info({ entityId, tipo }, "GUARD: A16046 — tipo de evento ≠ servicio catálogo");
   } else if (deferredKnownServiceOffer) {
     mensaje = deferredKnownServiceOffer;
     appliedSalesReply = true;

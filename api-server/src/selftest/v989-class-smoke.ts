@@ -16,7 +16,7 @@ import { mergeExtractedPatch } from "../services/lucyRedaction.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.01");
+assert.equal(LUCY_PROMPT_VERSION, "V10.02");
 
 function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   return {

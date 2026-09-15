@@ -21,7 +21,7 @@ import {
 import { buildStaticSystemPrompt } from "../services/promptBuilder.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.01");
+assert.equal(LUCY_PROMPT_VERSION, "V10.02");
 
 const asst = (content: string) => ({ role: "assistant" as const, content });
 const user = (content: string) => ({ role: "user" as const, content });

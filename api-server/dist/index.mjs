@@ -132909,6 +132909,31 @@ function parseTipoEventoFromText(text2) {
   }
   return parseTipoEventoLabeled(text2);
 }
+function isEventTypeOnlyMessage(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4 || t4.length > 80) return false;
+  if (isUnusableTipoEventoReply(t4)) return false;
+  const tipo = parseTipoEventoFromText(t4);
+  if (!tipo) return false;
+  if (/\b(cotizar|precio|quiero|necesito|busco|me\s+interesa)\b.{0,50}\b(banquete|taquiza|carpas?|pista|tarima|mobiliario|dj|mesas?|sillas?|entelado|barra|sushi|catering)\b/i.test(
+    t4
+  )) {
+    return false;
+  }
+  if (isServiceRelatedMessage(t4)) {
+    const primary = parsePrimaryService(t4);
+    if (primary && !new RegExp(tipo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(primary)) {
+      return false;
+    }
+    if (/\b(banquete|taquiza|carpas?|pista|tarima|mobiliario|dj|mesas?\s+y\s+sillas?|entelado|barra\s+de|sushi|catering|mesa\s+de\s+dulces)\b/i.test(
+      t4
+    )) {
+      return false;
+    }
+  }
+  if (t4.split(/\s+/).filter(Boolean).length > 10) return false;
+  return true;
+}
 function clientSaidAperturaNegocio(text2) {
   const t4 = (text2 ?? "").trim();
   if (!t4) return false;
@@ -133695,6 +133720,9 @@ function isUsableDireccionEvento(value) {
   if (isLikelyProductNameNotLocation(t4)) return false;
   if (JUNK_DIRECCION_PATTERN.test(t4)) return false;
   if (isNonLocationBusinessPhrase(t4)) return false;
+  if ((isEventTypeOnlyMessage(t4) || parseTipoEventoFromText(t4)) && !hasCityOrMetroSignal(t4) && !KNOWN_ZONES.test(t4) && !looksLikeMxMunicipalityToponym(t4) && !hasGeoLocationSignal(t4)) {
+    return false;
+  }
   if (looksLikePersonFullName(t4) && !hasCityOrMetroSignal(t4) && !KNOWN_ZONES.test(t4)) {
     return false;
   }
@@ -135558,7 +135586,7 @@ var init_conversation_understanding = __esm({
     VENUE_DISCOURSE_JUNK = /\b(buscando|buscamos|busco|proveedor|nos\s+apoye|estamos\s+buscando|contamos\s+con|realmente|complemento\s+de|tipo\s+de\s+silla|basket|coordino\s+eventos)\b/i;
     VAGUE_VENUE_LABEL = /^(?:un\s+|una\s+|el\s+|la\s+)?(?:sal[oó]n(?:\s+de\s+fiestas?)?|hotel|jard[ií]n|espacio|lugar|venue|edificio|terraza)$/i;
     VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue|hospital(?:\s+general)?(?:\s+regional)?|cl[ií]nica|auditorio|universidad|museo|plaza|edificio|instituto|facultad|torre|caba[nñ]as?|cabanas?)\s+[A-ZÁÉÍÓÚÑ0-9][A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{0,40})/i;
-    JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
+    JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda(\s+civil)?|bautizo(\s+de\s+(ni[nñ][ao]|beb[eé]))?|graduaci[oó]n|cumplea[nñ]os|xv(\s*a[nñ]os?)?|quincea[nñ]era|baby\s*shower|primera\s+comuni[oó]n|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
     PLATED_MEAL_LABEL_RE = /^(banquete(\s+\w+)?|comida|men[uú].*tiempos?|tres\s+tiempos)$/i;
     STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
     CLOCK_AMPM = String.raw`(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)`;
@@ -137677,6 +137705,11 @@ function buildLevel3Ack(serviceLabel) {
   return `Tomo nota de tu solicitud especial (*${label}*). Nuestro equipo revisa disponibilidad y te confirma si podemos apoyarte.`;
 }
 function buildGuardServiceAck(query) {
+  if (isEventTypeOnlyMessage(query)) {
+    const tipoMatch = query.match(/\b(boda(\s+civil)?|bautizo|xv|cumplea[nñ]os|graduaci[oó]n|baby\s*shower)\b/i);
+    const label2 = tipoMatch?.[0] ?? "ese evento";
+    return `Perfecto. Anoto tu *${label2}*.`;
+  }
   const label = serviceLabelFromQuery(query);
   const level = classifyServiceKnowledgeLevel(query);
   if (/\bcentros?\s+de\s+mesas?\b/i.test(query) || /centros?\s+de\s+mesa/i.test(label)) {
@@ -137774,8 +137807,14 @@ ${getCatalogWebHubDeliveryUrl()}
 function getServiceKnowledge(query) {
   const trimmed = query.trim();
   if (!trimmed || trimmed.length < 3) return null;
+  if (isEventTypeOnlyMessage(trimmed)) return null;
   if (!isServiceRelatedMessage(trimmed) && !EVENT_CONTEXT_PATTERN.test(trimmed)) {
     if (!/\b(quiero|necesito|busco|cotizar|precio|incluye)\b/i.test(trimmed)) return null;
+  }
+  if (!isServiceRelatedMessage(trimmed) && EVENT_CONTEXT_PATTERN.test(trimmed) && !parsePrimaryService(trimmed) && !/\b(quiero|necesito|busco|cotizar|precio|incluye|banquete|taquiza|carpa|pista|mobiliario)\b/i.test(
+    trimmed
+  )) {
+    return null;
   }
   const label = serviceLabelFromQuery(trimmed);
   const level = classifyServiceKnowledgeLevel(trimmed);
@@ -160952,6 +160991,13 @@ function stripPresupuestoQuestion(text2) {
 }
 function repairKnownCatalogAndBudgetRepeat(mensaje, currentMessage, serviceHint, history) {
   let out2 = mensaje;
+  if (isEventTypeOnlyMessage(currentMessage) && /no lo tengo listado|sobre el servicio de/i.test(out2)) {
+    const tipo = parseTipoEventoFromText(currentMessage ?? "") ?? "evento";
+    out2 = out2.replace(/[^.!?\n]*no lo tengo listado[^.!?\n]*[.!?]?\s*/gi, " ").replace(/[^.!?\n]*sobre el servicio de[^.!?\n]*[.!?]?\s*/gi, " ").replace(/\s{2,}/g, " ").trim();
+    if (!/anoto tu/i.test(out2)) {
+      out2 = `Perfecto. Anoto tu *${tipo}*. ${out2}`.trim();
+    }
+  }
   const lastAssistant = [...history].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string")?.content;
   const askedBudget = !!lastAssistant && (mensajeAsksForField(lastAssistant, "presupuesto") || /presupuesto|opci[oó]n\s+base/i.test(lastAssistant));
   const wantsOptions = clientAsksTeamOptionsInsteadOfBudget(currentMessage);
@@ -165506,6 +165552,22 @@ ${nextQ}` : ""}`.trim();
     mensaje = nextQ ? stripRepeatLucyIntro(`${nameAck} ${nextQ}`.trim(), presHistory, true) : stripRepeatLucyIntro(`${nameAck} \xBFEn qu\xE9 te puedo ayudar para tu evento?`, presHistory, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: nombre capturado \u2014 embudo sin cat\xE1logo/PDF");
+  } else if (
+    // A16046: "Boda civil" tras ask de tipo → embudo, NUNCA "servicio no listado".
+    !cierreYaEnviado && currentMessage?.trim() && isEventTypeOnlyMessage(currentMessage) && parseTipoEventoFromText(currentMessage) && (lastAskedField === "tipo_evento" || !isFieldSatisfied("tipo_evento", filledSet, extracted) || /no lo tengo listado|sobre el servicio/i.test(aiResponse))
+  ) {
+    const tipo = parseTipoEventoFromText(currentMessage);
+    extracted.tipo_evento = tipo;
+    filledSet.add("Tipo de evento");
+    if (extracted.requerimientos_evento && extracted.requerimientos_evento.trim().toLowerCase() === tipo.toLowerCase()) {
+      extracted.requerimientos_evento = null;
+      filledSet.delete("Requerimientos o servicios");
+    }
+    const pending = getNextPendingField(extracted, filledSet);
+    const ack = `Perfecto. Anoto tu *${tipo}*.`;
+    mensaje = pending ? stripRepeatLucyIntro(`${ack} ${buildNaturalQuestion(pending, { ...ctx, filledSet })}`.trim(), presHistory, true) : stripRepeatLucyIntro(ack, presHistory, true);
+    appliedDirectReply = true;
+    log?.info({ entityId, tipo }, "GUARD: A16046 \u2014 tipo de evento \u2260 servicio cat\xE1logo");
   } else if (deferredKnownServiceOffer) {
     mensaje = deferredKnownServiceOffer;
     appliedSalesReply = true;
@@ -226989,7 +227051,7 @@ import { join as join2 } from "node:path";
 
 // api-server/src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.01";
+var LUCY_PROMPT_VERSION = "V10.02";
 
 // api-server/src/lib/buildMeta.ts
 var cached = null;

@@ -2753,7 +2753,7 @@ export function isVenueWithoutCity(text: string | null | undefined): boolean {
 
 /** Basura típica que GPT/parser meten como "ubicación". */
 const JUNK_DIRECCION_PATTERN =
-  /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
+  /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda(\s+civil)?|bautizo(\s+de\s+(ni[nñ][ao]|beb[eé]))?|graduaci[oó]n|cumplea[nñ]os|xv(\s*a[nñ]os?)?|quincea[nñ]era|baby\s*shower|primera\s+comuni[oó]n|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
 
 /**
  * Discurso / servicio / adjetivo sin señal geográfica — no es dirección del evento.
@@ -3789,6 +3789,43 @@ export function parseTipoEventoFromText(text: string): string | null {
     return label;
   }
   return parseTipoEventoLabeled(text);
+}
+
+/**
+ * A16046: "Boda civil" / "bautizo de niña" = tipo de evento, NO servicio de catálogo.
+ * Evita Level-2 "no lo tengo listado" y basura en ubicación.
+ */
+export function isEventTypeOnlyMessage(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim();
+  if (!t || t.length > 80) return false;
+  if (isUnusableTipoEventoReply(t)) return false;
+  const tipo = parseTipoEventoFromText(t);
+  if (!tipo) return false;
+  // Pedido claro de un servicio del catálogo junto al tipo → no es solo tipo.
+  if (
+    /\b(cotizar|precio|quiero|necesito|busco|me\s+interesa)\b.{0,50}\b(banquete|taquiza|carpas?|pista|tarima|mobiliario|dj|mesas?|sillas?|entelado|barra|sushi|catering)\b/i.test(
+      t
+    )
+  ) {
+    return false;
+  }
+  if (isServiceRelatedMessage(t)) {
+    const primary = parsePrimaryService(t);
+    // "boda" a veces aparece en labels; si hay SKU real distinto del tipo, no es solo tipo.
+    if (primary && !new RegExp(tipo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(primary)) {
+      return false;
+    }
+    // Servicio real (pista, banquete…) aunque el parser también vea "boda".
+    if (
+      /\b(banquete|taquiza|carpas?|pista|tarima|mobiliario|dj|mesas?\s+y\s+sillas?|entelado|barra\s+de|sushi|catering|mesa\s+de\s+dulces)\b/i.test(
+        t
+      )
+    ) {
+      return false;
+    }
+  }
+  if (t.split(/\s+/).filter(Boolean).length > 10) return false;
+  return true;
 }
 
 /**
@@ -5058,6 +5095,16 @@ export function isUsableDireccionEvento(value: string | null | undefined): boole
   if (isLikelyProductNameNotLocation(t)) return false;
   if (JUNK_DIRECCION_PATTERN.test(t)) return false;
   if (isNonLocationBusinessPhrase(t)) return false;
+  // A16046 / A16018: tipo de evento ≠ ubicación ("Bautizo de niña", "Boda civil").
+  if (
+    (isEventTypeOnlyMessage(t) || parseTipoEventoFromText(t)) &&
+    !hasCityOrMetroSignal(t) &&
+    !KNOWN_ZONES.test(t) &&
+    !looksLikeMxMunicipalityToponym(t) &&
+    !hasGeoLocationSignal(t)
+  ) {
+    return false;
+  }
   // "Isai Moreno" / nombre+apellido ≠ ciudad (A15378).
   if (looksLikePersonFullName(t) && !hasCityOrMetroSignal(t) && !KNOWN_ZONES.test(t)) {
     return false;

@@ -12,6 +12,7 @@ import {
   clientMentionsCarpas,
   clientMentionsPistaTarima,
   isServiceRelatedMessage,
+  isEventTypeOnlyMessage,
   parsePrimaryService,
   parseSalaProductFromText,
   parseSpaceDimensions,
@@ -256,6 +257,12 @@ export function buildLevel3Ack(serviceLabel: string): string {
 }
 
 export function buildGuardServiceAck(query: string): string {
+  // A16046: nunca Level-2 "no lo tengo listado" para un tipo de evento.
+  if (isEventTypeOnlyMessage(query)) {
+    const tipoMatch = query.match(/\b(boda(\s+civil)?|bautizo|xv|cumplea[nñ]os|graduaci[oó]n|baby\s*shower)\b/i);
+    const label = tipoMatch?.[0] ?? "ese evento";
+    return `Perfecto. Anoto tu *${label}*.`;
+  }
   const label = serviceLabelFromQuery(query);
   const level = classifyServiceKnowledgeLevel(query);
 
@@ -444,8 +451,21 @@ export interface ServiceKnowledgeResult {
 export function getServiceKnowledge(query: string): ServiceKnowledgeResult | null {
   const trimmed = query.trim();
   if (!trimmed || trimmed.length < 3) return null;
+  // A16046: "Boda civil" / tipo de evento ≠ servicio Level-2.
+  if (isEventTypeOnlyMessage(trimmed)) return null;
   if (!isServiceRelatedMessage(trimmed) && !EVENT_CONTEXT_PATTERN.test(trimmed)) {
     if (!/\b(quiero|necesito|busco|cotizar|precio|incluye)\b/i.test(trimmed)) return null;
+  }
+  // Tipo de evento que solo matcheó EVENT_CONTEXT (boda/xv) sin SKU → no Level-2.
+  if (
+    !isServiceRelatedMessage(trimmed) &&
+    EVENT_CONTEXT_PATTERN.test(trimmed) &&
+    !parsePrimaryService(trimmed) &&
+    !/\b(quiero|necesito|busco|cotizar|precio|incluye|banquete|taquiza|carpa|pista|mobiliario)\b/i.test(
+      trimmed
+    )
+  ) {
+    return null;
   }
 
   const label = serviceLabelFromQuery(trimmed);
