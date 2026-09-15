@@ -170,6 +170,9 @@ import {
   clientConfirmsOfferReview,
   clientMentionsLedRobotsOrBatucada,
   clientMentionsPistaTarima,
+  clientMentionsTarimaOnly,
+  preferTarimaLabelOverPista,
+  stripServiceDeclineClausesFromDireccion,
   clientAsksDimensionRecommendation,
   recommendPistaDimensionsForGuests,
   recommendCarpaDimensionsForGuests,
@@ -1663,14 +1666,24 @@ function buildPistaTarimaSalesReply(
     (isDimensionText(currentMessage ?? "") || clientCorrectsCarpaToPista(currentMessage)) &&
     !variant
   ) {
+    const wantTarima = preferTarimaLabelOverPista(
+      currentMessage,
+      extracted.requerimientos_evento
+    );
     const base =
       stripAccidentalCarpasFromPistaRequirements(extracted.requerimientos_evento)?.trim() ||
-      "Pista de baile";
-    const withPista = /pista|tarima/i.test(base) ? base : `Pista de baile; ${base}`;
+      (wantTarima ? "Tarima" : "Pista de baile");
+    const withLabel = wantTarima
+      ? /tarima|entarimad/i.test(base)
+        ? base.replace(/\bPista de baile\b/gi, "Tarima")
+        : `Tarima`
+      : /pista|tarima/i.test(base)
+        ? base
+        : `Pista de baile; ${base}`;
     if (dimsList.length > 0) {
-      extracted.requerimientos_evento = attachEspacioToRequirements(withPista, dimsList);
+      extracted.requerimientos_evento = attachEspacioToRequirements(withLabel, dimsList);
     } else {
-      extracted.requerimientos_evento = withPista;
+      extracted.requerimientos_evento = withLabel;
     }
     const filledAfter = new Set(filledSet ?? []);
     filledAfter.add("Requerimientos o servicios");
@@ -1678,11 +1691,12 @@ function buildPistaTarimaSalesReply(
     const dimsLabel = (dimsList.length > 0 ? dimsList : dims ? [dims] : [])
       .join(" y ")
       .replace(/m/gi, " m");
+    const noun = wantTarima ? "tarima" : "pista";
     const ack = clientCorrectsCarpaToPista(currentMessage)
       ? dimsLabel
-        ? `De acuerdo — seguimos con *pista de baile* (${dimsLabel}), no carpa.`
-        : "De acuerdo — seguimos con *pista de baile*, no carpa."
-      : `Perfecto — anoto medidas *${dimsLabel}* para la pista.`;
+        ? `De acuerdo — seguimos con *${wantTarima ? "tarima" : "pista de baile"}* (${dimsLabel}), no carpa.`
+        : `De acuerdo — seguimos con *${wantTarima ? "tarima" : "pista de baile"}*, no carpa.`
+      : `Perfecto — anoto medidas *${dimsLabel}* para la ${noun}.`;
     if (pending && pending !== "requerimientos" && ctx) {
       const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
       return collapseDuplicateMedidasAsk(
@@ -1712,7 +1726,43 @@ function buildPistaTarimaSalesReply(
   }
 
   // A14967: sin tipo elegido → menú corto (NO bombardear precios del PDF).
+  // A16074: solo tarima → no menú de pista de baile.
   if (!variant) {
+    if (
+      preferTarimaLabelOverPista(currentMessage, extracted.requerimientos_evento) ||
+      clientMentionsTarimaOnly(currentMessage)
+    ) {
+      const dimList =
+        dimsList.length > 0
+          ? dimsList
+          : dims
+            ? [dims]
+            : [];
+      extracted.requerimientos_evento =
+        dimList.length > 0
+          ? attachEspacioToRequirements("Tarima", dimList)
+          : mergeServiceRequirements(
+              (extracted.requerimientos_evento ?? "").replace(/\bPista de baile\b/gi, "").trim() ||
+                null,
+              "Tarima",
+              6
+            );
+      const filledAfter = new Set(filledSet ?? []);
+      filledAfter.add("Requerimientos o servicios");
+      if (dimList.length === 0) {
+        return collapseDuplicateMedidasAsk(
+          `${pickTransition(history)} Perfecto — anoto *tarima*. La cotizamos por m² según medidas. ¿Qué medidas aproximadas tiene el espacio (largo × ancho)?`.trim()
+        );
+      }
+      const pending = getNextPendingField(extracted, filledAfter);
+      const dimsLabel = dimList.join(" y ").replace(/m/gi, " m");
+      const ack = `Perfecto — anoto *tarima* (${dimsLabel}).`;
+      if (pending && pending !== "requerimientos" && ctx) {
+        const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
+        return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${ack}\n\n${nextQ}`.trim());
+      }
+      return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${ack}`.trim());
+    }
     const menu = buildPistaTarimaOptionsMenu(currentMessage, dims);
     return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${menu}`.trim());
   }
@@ -1926,7 +1976,14 @@ function buildCarpasSalesReply(
       currentMessage: msg,
       historyBlob: collectUserTexts(history, msg).join(" "),
     });
-    const noun = kind === "pista" ? "pista" : kind === "entelado" ? "entelado" : "carpa";
+    const noun =
+      kind === "pista"
+        ? "pista"
+        : kind === "tarima"
+          ? "tarima"
+          : kind === "entelado"
+            ? "entelado"
+            : "carpa";
     const ack = `Perfecto — anoto medidas *${dimsLabel}* para la ${noun}.`;
     if (pending && pending !== "requerimientos" && ctx) {
       const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
@@ -4554,6 +4611,12 @@ export function buildRequiredServiceDimensionsQuestion(extracted: ExtractedData)
       "(largo × ancho) o del área que quieres cubrir. ¿Cuánto mide?"
     );
   }
+  if (kind === "tarima") {
+    return (
+      "Antes de cerrar la solicitud necesito las medidas aproximadas de la tarima " +
+      "(largo × ancho). ¿Cuánto debe medir?"
+    );
+  }
   return (
     "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima " +
     "(largo × ancho). ¿Cuánto debe medir?"
@@ -6498,6 +6561,128 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
+  // A15642+ / A16074: "Comida"/"Cena" = tipo de evento — ANTES de zona/menú catering.
+  if (!cierreYaEnviado && currentMessage && isEventTypeMealPhrase(currentMessage)) {
+    const tipo = parseTipoEventoFromText(currentMessage) || "comida";
+    extracted.tipo_evento = tipo;
+    filledSet.add("Tipo de evento");
+    const fecha = parseFechaFromText(currentMessage);
+    if (fecha && isUsableFechaEvento(fecha)) {
+      extracted.fecha_evento = fecha;
+      filledSet.add(CRM_FECHA_LABEL);
+      syncLegacyFechaHorarioField(extracted);
+    }
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const fechaLabel = extracted.fecha_evento?.trim();
+    const tipoLabel = tipo.trim();
+    const ack = display
+      ? `Perfecto, ${display}. Anoto que es *${tipoLabel}*${fechaLabel ? ` el *${fechaLabel}*` : ""}.`
+      : `Perfecto. Anoto que es *${tipoLabel}*${fechaLabel ? ` el *${fechaLabel}*` : ""}.`;
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    log?.info({ entityId, tipo, fecha: fechaLabel }, "GUARD: A15642 — meal phrase = tipo de evento");
+    return normalizeAdvisorReferences(
+      nextQ ? `${ack} ${nextQ}` : ack,
+      extracted.nombre ?? display
+    );
+  }
+
+  // A15295 / A16074: declines ANTES de zona-ack ("No quiero pista" ≠ ubicación).
+  {
+    const recentUserForDecline = collectUserTexts(presHistory, undefined).slice(-4);
+    const declineFamilies = clientDeclinesServiceFamiliesWithContext(
+      currentMessage,
+      recentUserForDecline
+    );
+    if (!cierreYaEnviado && currentMessage?.trim() && declineFamilies.length > 0) {
+      extracted.requerimientos_evento = removeDeclinedFamiliesFromRequirements(
+        extracted.requerimientos_evento,
+        declineFamilies
+      );
+      const afterRaw = mergeServiceRequirements(
+        extracted.requerimientos_evento,
+        clientCaptionForServiceParse(currentMessage) || currentMessage,
+        6
+      );
+      const after = removeDeclinedFamiliesFromRequirements(afterRaw, declineFamilies);
+      extracted.requerimientos_evento = after;
+      if (after) filledSet.add("Requerimientos o servicios");
+      else filledSet.delete("Requerimientos o servicios");
+
+      // A16074: "SOLO LA TARIMA" / narrow junto con decline de catering/pista.
+      const onlySku = clientNarrowsToOnlyService(currentMessage);
+      if (onlySku) {
+        extracted.requerimientos_evento = onlySku;
+        filledSet.add("Requerimientos o servicios");
+      } else if (
+        declineFamilies.includes("pista") &&
+        (clientMentionsTarimaOnly(currentMessage) ||
+          preferTarimaLabelOverPista(currentMessage, after) ||
+          /\btarimas?\b|\bentarimad/i.test(
+            collectUserTexts(presHistory, currentMessage).join(" ")
+          ))
+      ) {
+        const dims = parseAllSpaceDimensions(
+          `${extracted.requerimientos_evento ?? ""} ${currentMessage}`
+        );
+        extracted.requerimientos_evento =
+          dims.length > 0
+            ? attachEspacioToRequirements("Tarima", dims)
+            : mergeServiceRequirements(extracted.requerimientos_evento, "Tarima", 6);
+        filledSet.add("Requerimientos o servicios");
+      } else if (
+        declineFamilies.includes("alimentos") &&
+        (clientMentionsTarimaOnly(currentMessage) ||
+          /\btarimas?\b|\bentarimad/i.test(
+            collectUserTexts(presHistory, currentMessage).join(" ")
+          ))
+      ) {
+        extracted.requerimientos_evento = mergeServiceRequirements(
+          extracted.requerimientos_evento,
+          "Tarima",
+          6
+        );
+        filledSet.add("Requerimientos o servicios");
+      }
+
+      if (extracted.direccion_evento) {
+        const cleanedZona = stripServiceDeclineClausesFromDireccion(extracted.direccion_evento);
+        extracted.direccion_evento = cleanedZona || extracted.direccion_evento;
+        if (/no\s+quiero\s+pista/i.test(extracted.direccion_evento)) {
+          extracted.direccion_evento = stripServiceDeclineClausesFromDireccion(
+            extracted.direccion_evento
+          );
+        }
+      }
+
+      const kept = after ? parseServicesFromText(after) : [];
+      const checklistMix =
+        kept.length > 0 &&
+        declineFamilies.includes("entretenimiento") &&
+        /\bdj\s+no\b|\bno\s*,?\s*dj\b/i.test(currentMessage);
+      const ack = checklistMix
+        ? `Perfecto: anoto *${formatServicesList(kept)}*; sin DJ.`
+        : buildServiceDeclineAck(declineFamilies);
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ =
+        pending && pending !== "requerimientos"
+          ? buildNaturalQuestion(pending, ctx)
+          : pending === "requerimientos"
+            ? checklistMix
+              ? "¿Algo más para la cotización?"
+              : "¿Qué más te gustaría incluir en la cotización (sin alimentos, si así lo prefieres)?"
+            : null;
+      log?.info(
+        { entityId, families: declineFamilies, checklistMix },
+        "GUARD: A15295 — declina familia de servicio (return temprano)"
+      );
+      return normalizeAdvisorReferences(
+        nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
+
   // V9.34: anotar ciudad cuando el cliente responde con topónimo (evita bucle "¿en qué ciudad?").
   // A15775+: no anotar meta ("esa es la ciudad").
   // A15942: también enriquecer si ya hay solo ciudad y el mensaje trae venue/calles.
@@ -7103,33 +7288,6 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
   }
 
-  // A15642+: "Es una comida/cena/brunch para el sábado…" → tipo + fecha, NO menú de catering.
-  if (!cierreYaEnviado && currentMessage && isEventTypeMealPhrase(currentMessage)) {
-    const tipo = parseTipoEventoFromText(currentMessage) || "comida";
-    extracted.tipo_evento = tipo;
-    filledSet.add("Tipo de evento");
-    const fecha = parseFechaFromText(currentMessage);
-    if (fecha && isUsableFechaEvento(fecha)) {
-      extracted.fecha_evento = fecha;
-      filledSet.add(CRM_FECHA_LABEL);
-      syncLegacyFechaHorarioField(extracted);
-    }
-    // Si el CRM ya trae mobiliario, no empujar alimentos.
-    const display = getDisplayName(extracted, whatsappDisplayName);
-    const fechaLabel = extracted.fecha_evento?.trim();
-    const tipoLabel = tipo.trim();
-    const ack = display
-      ? `Perfecto, ${display}. Anoto que es *${tipoLabel}*${fechaLabel ? ` el *${fechaLabel}*` : ""}.`
-      : `Perfecto. Anoto que es *${tipoLabel}*${fechaLabel ? ` el *${fechaLabel}*` : ""}.`;
-    const pending = getNextPendingField(extracted, filledSet);
-    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-    log?.info({ entityId, tipo, fecha: fechaLabel }, "GUARD: A15642 — meal phrase = tipo de evento");
-    return normalizeAdvisorReferences(
-      nextQ ? `${ack} ${nextQ}` : ack,
-      extracted.nombre ?? display
-    );
-  }
-
   // A15539: "carpa?" / "capra?" mid-flujo → anotar Carpas + embudo (no ignorar).
   if (
     !cierreYaEnviado &&
@@ -7188,59 +7346,6 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
             ? "¿Qué servicios te gustaría que coticemos para tu evento?"
             : null;
       log?.info({ entityId, venueLabels, before }, "GUARD: A15550 — salón ya incluye (return temprano)");
-      return normalizeAdvisorReferences(
-        nextQ ? `${ack} ${nextQ}` : ack,
-        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
-      );
-    }
-  }
-
-  // A15295 (todas las ramas): "no quiero comida / quítale alimentos" → quitar + ack + embudo.
-  // Debe ir ANTES de isVagueFoodTerm / catálogo pizza / re-anotar Alimentos.
-  {
-    const recentUserForDecline = collectUserTexts(presHistory, undefined).slice(-4);
-    const declineFamilies = clientDeclinesServiceFamiliesWithContext(
-      currentMessage,
-      recentUserForDecline
-    );
-    if (!cierreYaEnviado && currentMessage?.trim() && declineFamilies.length > 0) {
-      extracted.requerimientos_evento = removeDeclinedFamiliesFromRequirements(
-        extracted.requerimientos_evento,
-        declineFamilies
-      );
-      // Merge puede re-parsear "Comida" (typo fix) → volver a stripear familias declinadas.
-      const afterRaw = mergeServiceRequirements(
-        extracted.requerimientos_evento,
-        clientCaptionForServiceParse(currentMessage) || currentMessage,
-        6
-      );
-      const after = removeDeclinedFamiliesFromRequirements(afterRaw, declineFamilies);
-      extracted.requerimientos_evento = after;
-      if (after) filledSet.add("Requerimientos o servicios");
-      else filledSet.delete("Requerimientos o servicios");
-
-      // A15539: "bartender sí, DJ no, carpa sí" → anotar lo pedido + sin DJ.
-      const kept = after ? parseServicesFromText(after) : [];
-      const checklistMix =
-        kept.length > 0 &&
-        declineFamilies.includes("entretenimiento") &&
-        /\bdj\s+no\b|\bno\s*,?\s*dj\b/i.test(currentMessage);
-      const ack = checklistMix
-        ? `Perfecto: anoto *${formatServicesList(kept)}*; sin DJ.`
-        : buildServiceDeclineAck(declineFamilies);
-      const pending = getNextPendingField(extracted, filledSet);
-      const nextQ =
-        pending && pending !== "requerimientos"
-          ? buildNaturalQuestion(pending, ctx)
-          : pending === "requerimientos"
-            ? checklistMix
-              ? "¿Algo más para la cotización?"
-              : "¿Qué más te gustaría incluir en la cotización (sin alimentos, si así lo prefieres)?"
-            : null;
-      log?.info(
-        { entityId, families: declineFamilies, checklistMix },
-        "GUARD: A15295 — declina familia de servicio (return temprano)"
-      );
       return normalizeAdvisorReferences(
         nextQ ? `${ack} ${nextQ}` : ack,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
@@ -8750,9 +8855,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     !clientDeclinesAnyService(currentMessage) &&
     !clientAsksForRecommendations(currentMessage) &&
     // A15642: si ya cotizan mobiliario/mesas/sillas, no reabrir menú de alimentos.
-    !/\b(mobiliario|mesas?|sillas?|periqueras?|plato\s+trinche|vajillas?)\b/i.test(
+    // A16074: si ya es tarima/pista, tampoco reabrir catering por "Comida" tipo.
+    !/\b(mobiliario|mesas?|sillas?|periqueras?|plato\s+trinche|vajillas?|pista|tarima|entarimad)\b/i.test(
       `${extracted.requerimientos_evento ?? ""} ${collectUserTexts(presHistory).join(" ")}`
     ) &&
+    lastAskedField !== "tipo_evento" &&
+    !isEventTypeMealPhrase(currentMessage) &&
     // A15212: si ya hay SKU concreto (Puestos/Banquete/…), no reabrir banquete/taquiza/brunch.
     !preferPrimaryCatalogService(
       parseServicesFromText(extracted.requerimientos_evento ?? "")

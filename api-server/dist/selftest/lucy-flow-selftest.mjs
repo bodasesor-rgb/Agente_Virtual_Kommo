@@ -124445,7 +124445,9 @@ var FAMILY_SERVICE_RE = {
   carpas: /carpas?|capras?|toldos?|lonas?/i,
   decoracion: /decoraci[oó]n|centros?\s+de\s+mesa|florister|globos?|tem[aá]tica/i,
   entretenimiento: /show|dj\b|entretenimiento|hora\s+loca|photobooth|photo\s*booth|bailarinas|batucada|robots?/i,
-  pista: /pista|tarima/i,
+  // A16074: declinar pista NO quita tarima.
+  pista: /pista(\s+de\s+baile)?/i,
+  tarima: /^Tarima\b|tarimas?|entarimad/i,
   dulces: /mesa\s+de\s+dulces|postres?|cupcakes?|bet[uú]n|candy/i
 };
 function isMesaDulcesDeclinePhrase(t3) {
@@ -124458,7 +124460,8 @@ var FAMILY_DECLINE_WORDS = {
   carpas: "carpas?|capras?|toldos?|lonas?",
   decoracion: "decoraci[o\xF3]n|centros?\\s+de\\s+mesa|flores?|globos?",
   entretenimiento: "show|dj|entretenimiento|hora\\s+loca|photobooth|photo\\s*booth",
-  pista: "pista|tarima",
+  pista: "pista(\\s+de\\s+baile)?",
+  tarima: "tarimas?|entarimad[oa]s?",
   dulces: "mesa\\s+de\\s+dulces|mesa\\s+de\\s+postres?|postres?|dulces?|cupcakes?"
 };
 function captionOf(message) {
@@ -124545,6 +124548,16 @@ function clientDeclinesServiceFamilies(message) {
   if (/\bdj\s+no\b|\bno\s*,?\s*dj\b|\bdj\s*,?\s*no\b/i.test(t3)) {
     out2.add("entretenimiento");
   }
+  if (/\bpista(\s+de\s+baile)?\s+no\b|\bno\s*,?\s*pista(\s+de\s+baile)?\b|\bno\s+quiero\s+pista\b/i.test(
+    t3
+  )) {
+    out2.add("pista");
+  }
+  if (/\bno\s+(quiero\s+)?(el\s+)?(servicio\s+de\s+)?catering\b|\bsin\s+catering\b|\bno\s+comida\b/i.test(
+    t3
+  )) {
+    out2.add("alimentos");
+  }
   if (isVenueProvidesContext(t3)) {
     for (const label of venueProvidedServiceLabels(t3)) {
       if (label === "Mobiliario") out2.add("mobiliario");
@@ -124554,11 +124567,11 @@ function clientDeclinesServiceFamilies(message) {
     if (family === "mobiliario" && isMesaDulcesDeclinePhrase(t3)) continue;
     const words = FAMILY_DECLINE_WORDS[family];
     const reNoQuiero = new RegExp(
-      `\\b(no|nop)(?:\\s+pero|\\s+peor)?(?:\\s+yo)?\\s+(quiero|necesito|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
+      `\\b(no|nop)(?:\\s+pero|\\s+peor)?(?:\\s+yo)?\\s+(quiero|necesito|requiero|requerimos|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+|el\\s+servicio\\s+de\\s+)?(${words})\\b`,
       "i"
     );
     const reYoNoQuiero = new RegExp(
-      `\\b(?:pero\\s+)?yo\\s+no\\s+(quiero|necesito|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
+      `\\b(?:pero\\s+)?yo\\s+no\\s+(quiero|necesito|requiero|requerimos|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+|el\\s+servicio\\s+de\\s+)?(${words})\\b`,
       "i"
     );
     const reQuitale = new RegExp(
@@ -124625,7 +124638,9 @@ function declinedFamilyLabel(family) {
     case "entretenimiento":
       return "entretenimiento";
     case "pista":
-      return "pista / tarima";
+      return "pista de baile";
+    case "tarima":
+      return "tarima";
     case "dulces":
       return "mesa de dulces / postres";
   }
@@ -124787,7 +124802,9 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Men\xFA staff", /\bmen[uú]\s+(para\s+)?staff\b/iu],
   ["Men\xFA Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/iu],
   ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
-  ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
+  ["Pista de baile", /\bpista(\s+de\s+baile)?\b/i],
+  // A16074: tarima/entarimado ≠ pista de baile (cotización por m² aparte).
+  ["Tarima", /\btarimas?\b|\bentarimad[oa]s?\b|\bentarimado\b/i],
   ["Mariachi", /\bmariachis?\b/i],
   ["Baile regional", /\bbaile\s+regional\b|\bfolkl[oó]rico\b/i],
   ["Animaci\xF3n / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|shows?|pixel|espejos|l[aá]ser|laser)\b/i],
@@ -124851,10 +124868,14 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
   ["Mesa imperial", /\bmesa\s+imperial\b/i]
 ];
-var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|entarimad|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
 var SHORT_SERVICE_ALIASES = {
   pista: "pista de baile",
-  tarima: "pista de baile",
+  tarima: "Tarima",
+  tarimas: "Tarima",
+  entarimado: "Tarima",
+  entarimada: "Tarima",
+  entarimados: "Tarima",
   dj: "DJ",
   mesa: "mobiliario",
   mesas: "mobiliario",
@@ -124995,6 +125016,8 @@ var TIPO_EVENTO_PATTERNS = [
     /\b(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)\s+para\s+(el\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+)/i,
     "__meal_event__"
   ],
+  // A16074: "Comida" / "Cena" sueltos como respuesta a tipo de evento.
+  [/^(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)s?[.!?]*$/i, "__meal_event__"],
   // A14988 Ernesto: concierto es tipo de evento (no servicio).
   [/\bconciertos?\b/i, "concierto"],
   // A15205 Mariel: campamento / concentración deportiva.
@@ -125306,6 +125329,9 @@ function isEventTypeMealPhrase(text2) {
     t3
   ) || /\b(catering|banquete|taquiza|barra\s+de|alimentos?)\b/i.test(t3)) {
     return false;
+  }
+  if (/^(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)s?[.!?]*$/i.test(t3)) {
+    return true;
   }
   if (new RegExp(`\\bes\\s+un[a]?\\s+(${EVENT_MEAL_TYPE.source})\\b`, "i").test(t3)) return true;
   if (new RegExp(
@@ -125735,20 +125761,33 @@ function resolveSpaceMeasureServiceBase(opts) {
   if (clientCorrectsCarpaToPista(msg) || /\bes\s+pista\b/i.test(msg) && !clientMentionsCarpas(msg)) {
     return "pista";
   }
+  if (preferTarimaLabelOverPista(msg, req) || clientMentionsTarimaOnly(msg)) {
+    return "tarima";
+  }
+  if (/\btarimas?\b|\bentarimad/i.test(req) && !/\bpista(\s+de\s+baile)?\b/i.test(req)) {
+    return "tarima";
+  }
   if (isEnteladoRequestText(msg) || isEnteladoRequestText(req) && !clientMentionsPistaTarima(req) && !clientMentionsCarpas(req)) {
     return "entelado";
   }
-  const lucyAskedPista = /pista|tarima/i.test(last) && !/\bcarpas?\b/i.test(last);
+  const lucyAskedTarima = /\btarima|entarimad/i.test(last) && !/\bpista(\s+de\s+baile)?\b/i.test(last);
+  const lucyAskedPista = /\bpista(\s+de\s+baile)?\b/i.test(last) && !/\bcarpas?\b/i.test(last);
   const lucyAskedCarpa = /\bcarpas?\b/i.test(last) && !/pista|tarima/i.test(last);
-  if (clientMentionsPistaTarima(req) && !clientMentionsCarpas(req)) return "pista";
+  if (/\bTarima\b|\btarimas?\b|\bentarimad/i.test(req) && !/\bpista(\s+de\s+baile)?\b/i.test(req)) {
+    return "tarima";
+  }
+  if (/\bpista(\s+de\s+baile)?\b/i.test(req) && !clientMentionsCarpas(req)) return "pista";
   if (clientMentionsCarpas(req) && !clientMentionsPistaTarima(req)) return "carpa";
   if (clientMentionsPistaTarima(req) && clientMentionsCarpas(req)) {
+    if (lucyAskedTarima) return "tarima";
     if (lucyAskedPista) return "pista";
     if (lucyAskedCarpa) return "carpa";
-    return "pista";
+    return preferTarimaLabelOverPista(msg, req) ? "tarima" : "pista";
   }
+  if (lucyAskedTarima) return "tarima";
   if (lucyAskedPista) return "pista";
   if (lucyAskedCarpa) return "carpa";
+  if (clientMentionsTarimaOnly(msg) || clientMentionsTarimaOnly(hist)) return "tarima";
   if (clientMentionsPistaTarima(msg) || clientMentionsPistaTarima(hist)) return "pista";
   if (clientMentionsCarpas(msg) || clientMentionsCarpas(hist)) return "carpa";
   if (isEnteladoRequestText(last) || isEnteladoRequestText(hist)) return "entelado";
@@ -125756,6 +125795,7 @@ function resolveSpaceMeasureServiceBase(opts) {
 }
 function spaceMeasureServiceLabel(kind) {
   if (kind === "pista") return "Pista de baile";
+  if (kind === "tarima") return "Tarima";
   if (kind === "entelado") return "Entelados para Techo";
   return "Carpas";
 }
@@ -126341,6 +126381,7 @@ function foldLoc(s6) {
 function sanitizeDireccionCapture(value) {
   let t3 = (value ?? "").replace(/\s+/g, " ").trim();
   if (!t3) return null;
+  t3 = stripServiceDeclineClausesFromDireccion(t3);
   t3 = t3.replace(/\b(?:el\s+)?sal[oó]n\s+se\s+llama\s+/gi, "").replace(/\b(?:y\s+)?nos\s+encontramos\s+en\s*$/gi, "").replace(/\b(?:y\s+)?nos\s+encontramos\s+en\b/gi, ", ").replace(/\bcontamos\s+con\s+\d+\s+invitados?\b.*$/gi, "").replace(/\brealmente\s+buscamos\b.*$/gi, "").replace(/\by\s+estamos\s+buscando\b.*$/gi, "").replace(/\bsal[oó]n\s+de\s+fiestas?\s+y\s+estamos\b.*$/gi, "").replace(/[,.]?\s*\b(espera|ahorita|al\s+rato|en\s+un\s+momento)\s*$/gi, "").replace(/,\s*,+/g, ",").replace(/^,\s*|,\s*$/g, "").replace(/\s+/g, " ").trim();
   if (/\b(buscando|proveedor|coordino\s+eventos|complemento\s+de\s+sillas)\b/i.test(t3)) {
     const city = t3.match(KNOWN_ZONES)?.[0]?.trim();
@@ -126355,6 +126396,12 @@ function sanitizeDireccionCapture(value) {
     return city ?? null;
   }
   return t3 || null;
+}
+function stripServiceDeclineClausesFromDireccion(value) {
+  return value.replace(
+    /[,;]?\s*\bno\s+(quiero|necesito|requiero|requerimos)\s+(la\s+|el\s+|los\s+|las\s+|el\s+servicio\s+de\s+)?[^.!,;]{0,60}/gi,
+    ""
+  ).replace(/[,;]?\s*\bsolo\s+(la\s+|el\s+)?(tarima|pista|entarimad)[^.!,;]{0,40}/gi, "").replace(/[,;]?\s*\bnada\s+m[aá]s\s+que\s+[^.!,;]{0,40}/gi, "").replace(/,\s*,+/g, ",").replace(/^,\s*|,\s*$/g, "").replace(/\s+/g, " ").trim();
 }
 function isVenueWithoutCity(text2) {
   const t3 = (text2 ?? "").trim();
@@ -126748,20 +126795,23 @@ function clientWantsFoodOnlyQuote(text2) {
 function clientNarrowsToOnlyService(text2) {
   const t3 = text2?.trim() ?? "";
   if (!t3) return null;
-  const hasSolo = /\b(solo|solamente|[uú]nicamente)\b/i.test(t3);
+  const hasSolo = /\b(solo|solamente|[uú]nicamente)\b/i.test(t3) || /\bnada\s+m[aá]s\s+que\b/i.test(t3) || /\bno\s+(requiero|quiero|necesito)\s+nada\s+m[aá]s\s+(que\s+)?/i.test(t3);
   const replaceIntent = /\b(estoy\s+buscando|busco|quiero|necesito|me\s+interesa)\s+(?:un\s+|una\s+|el\s+|la\s+)?/i.test(
     t3
-  ) && /\b(banquete|taquiza|coffee\s*break|barra\s+de|mesa\s+de\s+dulces|carpa|pista|dj)\b/i.test(t3) && !/\by\s+(tambi[eé]n|adem[aá]s)\b/i.test(t3);
+  ) && /\b(banquete|taquiza|coffee\s*break|barra\s+de|mesa\s+de\s+dulces|carpa|pista|tarima|entarimad|dj)\b/i.test(t3) && !/\by\s+(tambi[eé]n|adem[aá]s)\b/i.test(t3);
   if (!hasSolo && !replaceIntent) return null;
   if (clientWantsFoodOnlyQuote(t3) && !/\bmesa\s+de\s+dulces\b/i.test(t3) && hasSolo) return null;
-  const narrowIntent = hasSolo && (/\b(cotizar|cotizaci[oó]n|quiero|necesito|ser[ií]a|dejamos?|quedamos?|anota)\b/i.test(t3) || /\bsolo\s+(la\s+|el\s+|una\s+)?(mesa\s+de\s+dulces|banquete|taquiza|carpa|pista|barra)/i.test(
+  const narrowIntent = hasSolo && (/\b(cotizar|cotizaci[oó]n|quiero|necesito|requiero|requerimos|ser[ií]a|dejamos?|quedamos?|anota)\b/i.test(t3) || /\bsolo\s+(la\s+|el\s+|una\s+)?(mesa\s+de\s+dulces|banquete|taquiza|carpa|pista|tarima|entarimad|barra)/i.test(
     t3
-  ));
+  ) || /\bnada\s+m[aá]s\s+que\s+(la\s+|el\s+)?(tarima|entarimad|pista|banquete|carpa)/i.test(t3));
   if (!narrowIntent && !replaceIntent) return null;
   if (/\bmesa\s+de\s+dulces\b/i.test(t3)) return "Mesa de dulces";
   if (/\bmesa\s+de\s+postres?\b/i.test(t3)) return "Mesa de postres";
   if (/\bbanquete\s+mexicano\b/i.test(t3)) return "Banquete Mexicano";
   if (/\bbanquete\s+formal\b/i.test(t3)) return "Banquete Formal";
+  if (/\b(tarimas?|entarimad[oa]s?)\b/i.test(t3) && !/\bpista(\s+de\s+baile)?\b/i.test(t3.replace(/\bno\s+(quiero|necesito|requiero).{0,20}pista\b/gi, " "))) {
+    return "Tarima";
+  }
   const fromMsg = parseServicesFromText(t3).filter(
     (s6) => !/^(Comida|Alimentos|Evento|Servicio)$/i.test(s6)
   );
@@ -128211,7 +128261,24 @@ function buildCarpaGuestRecommendationLine(guests) {
 }
 function clientMentionsPistaTarima(message) {
   if (!message?.trim()) return false;
-  return /\bpista(\s+de\s+baile)?\b|\btarima/i.test(message);
+  return /\bpista(\s+de\s+baile)?\b|\btarimas?\b|\bentarimad[oa]s?\b/i.test(message);
+}
+function clientMentionsTarimaOnly(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.trim();
+  if (!/\btarimas?\b|\bentarimad[oa]s?\b/i.test(t3)) return false;
+  if (/\bpista(\s+de\s+baile)?\b/i.test(t3) && !/\bno\s+(quiero|necesito|requiero).{0,20}pista\b/i.test(t3)) {
+    return false;
+  }
+  return true;
+}
+function preferTarimaLabelOverPista(message, existingReq) {
+  const blob = `${message ?? ""} ${existingReq ?? ""}`;
+  if (clientMentionsTarimaOnly(message ?? "") || /\btarimas?\b|\bentarimad/i.test(blob)) {
+    if (/\bno\s+(quiero|necesito|requiero).{0,30}pista\b/i.test(blob)) return true;
+    if (!/\bpista(\s+de\s+baile)?\b/i.test(message ?? "")) return true;
+  }
+  return false;
 }
 function isNegativeOnlyReply(text2) {
   const t3 = (text2 ?? "").trim().toLowerCase().replace(/[.!¡,;\s]+$/g, "");
@@ -128233,6 +128300,8 @@ function parseZonaFromText(text2) {
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
   if (isNegativeOnlyReply(trimmed)) return null;
+  if (clientDeclinesServiceFamilies(trimmed).length > 0) return null;
+  if (isEventTypeMealPhrase(trimmed)) return null;
   if (isDimensionText(trimmed)) return null;
   if (isPromoTemplateMessage(text2)) {
     const realVenue = trimmed.match(
@@ -128624,6 +128693,9 @@ function mergeZonaDetail(existing, incoming) {
   const prevRaw = existing?.trim() ?? "";
   const nextRaw = incoming?.trim() ?? "";
   if (looksLikeThemeColorNotLocation(nextRaw)) {
+    return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
+  }
+  if (/\bno\s+(quiero|necesito|requiero)\b/i.test(nextRaw) || /\bsolo\s+(la\s+)?(tarima|pista|entarimad)/i.test(nextRaw) || /\bsin\s+(catering|comida|pista|tarima)\b/i.test(nextRaw)) {
     return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
   }
   if (/^(pdf|excel|word|archivo|documento)s?$/i.test(nextRaw)) {
@@ -131088,7 +131160,8 @@ function detectServiceLabel(text2) {
   if (/mobiliario/.test(t3)) return "mobiliario";
   if (/carpas?|lonas?/.test(t3)) return "carpas";
   if (/pantallas?/.test(t3)) return "pantallas";
-  if (/pista(\s+de\s+baile)?|tarimas?/.test(t3)) return "pista de baile";
+  if (/pista(\s+de\s+baile)?/.test(t3) && !/tarimas?|entarimad/.test(t3)) return "pista de baile";
+  if (/tarimas?|entarimad/.test(t3)) return "tarima";
   if (/flor/.test(t3)) return "florister\xEDa";
   return "ese servicio";
 }
@@ -136108,18 +136181,23 @@ function buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId
   }
   const dimsList = parseAllSpaceDimensions(currentMessage ?? "").length > 0 ? parseAllSpaceDimensions(currentMessage ?? "") : parseAllSpaceDimensions(extracted.requerimientos_evento ?? "");
   if ((dims || dimsList.length > 0) && (isDimensionText(currentMessage ?? "") || clientCorrectsCarpaToPista(currentMessage)) && !variant) {
-    const base = stripAccidentalCarpasFromPistaRequirements(extracted.requerimientos_evento)?.trim() || "Pista de baile";
-    const withPista = /pista|tarima/i.test(base) ? base : `Pista de baile; ${base}`;
+    const wantTarima = preferTarimaLabelOverPista(
+      currentMessage,
+      extracted.requerimientos_evento
+    );
+    const base = stripAccidentalCarpasFromPistaRequirements(extracted.requerimientos_evento)?.trim() || (wantTarima ? "Tarima" : "Pista de baile");
+    const withLabel = wantTarima ? /tarima|entarimad/i.test(base) ? base.replace(/\bPista de baile\b/gi, "Tarima") : `Tarima` : /pista|tarima/i.test(base) ? base : `Pista de baile; ${base}`;
     if (dimsList.length > 0) {
-      extracted.requerimientos_evento = attachEspacioToRequirements(withPista, dimsList);
+      extracted.requerimientos_evento = attachEspacioToRequirements(withLabel, dimsList);
     } else {
-      extracted.requerimientos_evento = withPista;
+      extracted.requerimientos_evento = withLabel;
     }
     const filledAfter2 = new Set(filledSet ?? []);
     filledAfter2.add("Requerimientos o servicios");
     const pending2 = getNextPendingField(extracted, filledAfter2);
     const dimsLabel = (dimsList.length > 0 ? dimsList : dims ? [dims] : []).join(" y ").replace(/m/gi, " m");
-    const ack = clientCorrectsCarpaToPista(currentMessage) ? dimsLabel ? `De acuerdo \u2014 seguimos con *pista de baile* (${dimsLabel}), no carpa.` : "De acuerdo \u2014 seguimos con *pista de baile*, no carpa." : `Perfecto \u2014 anoto medidas *${dimsLabel}* para la pista.`;
+    const noun = wantTarima ? "tarima" : "pista";
+    const ack = clientCorrectsCarpaToPista(currentMessage) ? dimsLabel ? `De acuerdo \u2014 seguimos con *${wantTarima ? "tarima" : "pista de baile"}* (${dimsLabel}), no carpa.` : `De acuerdo \u2014 seguimos con *${wantTarima ? "tarima" : "pista de baile"}*, no carpa.` : `Perfecto \u2014 anoto medidas *${dimsLabel}* para la ${noun}.`;
     if (pending2 && pending2 !== "requerimientos" && ctx) {
       const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
       return collapseDuplicateMedidasAsk(
@@ -136141,6 +136219,31 @@ ${nextQ}`.trim()
     extracted.requerimientos_evento = `${extracted.requerimientos_evento}; pista/tarima ${dims}`;
   }
   if (!variant) {
+    if (preferTarimaLabelOverPista(currentMessage, extracted.requerimientos_evento) || clientMentionsTarimaOnly(currentMessage)) {
+      const dimList = dimsList.length > 0 ? dimsList : dims ? [dims] : [];
+      extracted.requerimientos_evento = dimList.length > 0 ? attachEspacioToRequirements("Tarima", dimList) : mergeServiceRequirements(
+        (extracted.requerimientos_evento ?? "").replace(/\bPista de baile\b/gi, "").trim() || null,
+        "Tarima",
+        6
+      );
+      const filledAfter2 = new Set(filledSet ?? []);
+      filledAfter2.add("Requerimientos o servicios");
+      if (dimList.length === 0) {
+        return collapseDuplicateMedidasAsk(
+          `${pickTransition(history)} Perfecto \u2014 anoto *tarima*. La cotizamos por m\xB2 seg\xFAn medidas. \xBFQu\xE9 medidas aproximadas tiene el espacio (largo \xD7 ancho)?`.trim()
+        );
+      }
+      const pending2 = getNextPendingField(extracted, filledAfter2);
+      const dimsLabel = dimList.join(" y ").replace(/m/gi, " m");
+      const ack = `Perfecto \u2014 anoto *tarima* (${dimsLabel}).`;
+      if (pending2 && pending2 !== "requerimientos" && ctx) {
+        const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
+        return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${ack}
+
+${nextQ}`.trim());
+      }
+      return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${ack}`.trim());
+    }
     const menu = buildPistaTarimaOptionsMenu(currentMessage, dims);
     return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${menu}`.trim());
   }
@@ -136318,7 +136421,7 @@ ${nextQ}`.trim();
       currentMessage: msg,
       historyBlob: collectUserTexts(history, msg).join(" ")
     });
-    const noun = kind === "pista" ? "pista" : kind === "entelado" ? "entelado" : "carpa";
+    const noun = kind === "pista" ? "pista" : kind === "tarima" ? "tarima" : kind === "entelado" ? "entelado" : "carpa";
     const ack2 = `Perfecto \u2014 anoto medidas *${dimsLabel}* para la ${noun}.`;
     if (pending2 && pending2 !== "requerimientos" && ctx) {
       const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
@@ -137971,6 +138074,9 @@ function buildRequiredServiceDimensionsQuestion(extracted) {
   if (kind === "carpa") {
     return "Antes de cerrar la solicitud necesito las medidas aproximadas de la carpa (largo \xD7 ancho) o del \xE1rea que quieres cubrir. \xBFCu\xE1nto mide?";
   }
+  if (kind === "tarima") {
+    return "Antes de cerrar la solicitud necesito las medidas aproximadas de la tarima (largo \xD7 ancho). \xBFCu\xE1nto debe medir?";
+  }
   return "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \xD7 ancho). \xBFCu\xE1nto debe medir?";
 }
 function buildDimensionRecommendationReply(extracted, currentMessage) {
@@ -139187,6 +139293,94 @@ ${catalogUrl}`
       return normalizeAdvisorReferences2(body2, display);
     }
   }
+  if (!cierreYaEnviado && currentMessage && isEventTypeMealPhrase(currentMessage)) {
+    const tipo = parseTipoEventoFromText(currentMessage) || "comida";
+    extracted.tipo_evento = tipo;
+    filledSet.add("Tipo de evento");
+    const fecha = parseFechaFromText(currentMessage);
+    if (fecha && isUsableFechaEvento(fecha)) {
+      extracted.fecha_evento = fecha;
+      filledSet.add(CRM_FECHA_LABEL);
+      syncLegacyFechaHorarioField(extracted);
+    }
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const fechaLabel = extracted.fecha_evento?.trim();
+    const tipoLabel = tipo.trim();
+    const ack = display ? `Perfecto, ${display}. Anoto que es *${tipoLabel}*${fechaLabel ? ` el *${fechaLabel}*` : ""}.` : `Perfecto. Anoto que es *${tipoLabel}*${fechaLabel ? ` el *${fechaLabel}*` : ""}.`;
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    log?.info({ entityId, tipo, fecha: fechaLabel }, "GUARD: A15642 \u2014 meal phrase = tipo de evento");
+    return normalizeAdvisorReferences2(
+      nextQ ? `${ack} ${nextQ}` : ack,
+      extracted.nombre ?? display
+    );
+  }
+  {
+    const recentUserForDecline = collectUserTexts(presHistory, void 0).slice(-4);
+    const declineFamilies = clientDeclinesServiceFamiliesWithContext(
+      currentMessage,
+      recentUserForDecline
+    );
+    if (!cierreYaEnviado && currentMessage?.trim() && declineFamilies.length > 0) {
+      extracted.requerimientos_evento = removeDeclinedFamiliesFromRequirements(
+        extracted.requerimientos_evento,
+        declineFamilies
+      );
+      const afterRaw = mergeServiceRequirements(
+        extracted.requerimientos_evento,
+        clientCaptionForServiceParse(currentMessage) || currentMessage,
+        6
+      );
+      const after = removeDeclinedFamiliesFromRequirements(afterRaw, declineFamilies);
+      extracted.requerimientos_evento = after;
+      if (after) filledSet.add("Requerimientos o servicios");
+      else filledSet.delete("Requerimientos o servicios");
+      const onlySku = clientNarrowsToOnlyService(currentMessage);
+      if (onlySku) {
+        extracted.requerimientos_evento = onlySku;
+        filledSet.add("Requerimientos o servicios");
+      } else if (declineFamilies.includes("pista") && (clientMentionsTarimaOnly(currentMessage) || preferTarimaLabelOverPista(currentMessage, after) || /\btarimas?\b|\bentarimad/i.test(
+        collectUserTexts(presHistory, currentMessage).join(" ")
+      ))) {
+        const dims = parseAllSpaceDimensions(
+          `${extracted.requerimientos_evento ?? ""} ${currentMessage}`
+        );
+        extracted.requerimientos_evento = dims.length > 0 ? attachEspacioToRequirements("Tarima", dims) : mergeServiceRequirements(extracted.requerimientos_evento, "Tarima", 6);
+        filledSet.add("Requerimientos o servicios");
+      } else if (declineFamilies.includes("alimentos") && (clientMentionsTarimaOnly(currentMessage) || /\btarimas?\b|\bentarimad/i.test(
+        collectUserTexts(presHistory, currentMessage).join(" ")
+      ))) {
+        extracted.requerimientos_evento = mergeServiceRequirements(
+          extracted.requerimientos_evento,
+          "Tarima",
+          6
+        );
+        filledSet.add("Requerimientos o servicios");
+      }
+      if (extracted.direccion_evento) {
+        const cleanedZona = stripServiceDeclineClausesFromDireccion(extracted.direccion_evento);
+        extracted.direccion_evento = cleanedZona || extracted.direccion_evento;
+        if (/no\s+quiero\s+pista/i.test(extracted.direccion_evento)) {
+          extracted.direccion_evento = stripServiceDeclineClausesFromDireccion(
+            extracted.direccion_evento
+          );
+        }
+      }
+      const kept = after ? parseServicesFromText(after) : [];
+      const checklistMix = kept.length > 0 && declineFamilies.includes("entretenimiento") && /\bdj\s+no\b|\bno\s*,?\s*dj\b/i.test(currentMessage);
+      const ack = checklistMix ? `Perfecto: anoto *${formatServicesList(kept)}*; sin DJ.` : buildServiceDeclineAck(declineFamilies);
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : pending === "requerimientos" ? checklistMix ? "\xBFAlgo m\xE1s para la cotizaci\xF3n?" : "\xBFQu\xE9 m\xE1s te gustar\xEDa incluir en la cotizaci\xF3n (sin alimentos, si as\xED lo prefieres)?" : null;
+      log?.info(
+        { entityId, families: declineFamilies, checklistMix },
+        "GUARD: A15295 \u2014 declina familia de servicio (return temprano)"
+      );
+      return normalizeAdvisorReferences2(
+        nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
   if (!cierreYaEnviado && currentMessage && !isLocationMetaReferential(currentMessage)) {
     const zonaNow = parseZonaFromText(currentMessage);
     if (zonaNow && isUsableDireccionEvento(zonaNow)) {
@@ -139551,28 +139745,6 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
       extracted.nombre ?? display
     );
   }
-  if (!cierreYaEnviado && currentMessage && isEventTypeMealPhrase(currentMessage)) {
-    const tipo = parseTipoEventoFromText(currentMessage) || "comida";
-    extracted.tipo_evento = tipo;
-    filledSet.add("Tipo de evento");
-    const fecha = parseFechaFromText(currentMessage);
-    if (fecha && isUsableFechaEvento(fecha)) {
-      extracted.fecha_evento = fecha;
-      filledSet.add(CRM_FECHA_LABEL);
-      syncLegacyFechaHorarioField(extracted);
-    }
-    const display = getDisplayName(extracted, whatsappDisplayName);
-    const fechaLabel = extracted.fecha_evento?.trim();
-    const tipoLabel = tipo.trim();
-    const ack = display ? `Perfecto, ${display}. Anoto que es *${tipoLabel}*${fechaLabel ? ` el *${fechaLabel}*` : ""}.` : `Perfecto. Anoto que es *${tipoLabel}*${fechaLabel ? ` el *${fechaLabel}*` : ""}.`;
-    const pending = getNextPendingField(extracted, filledSet);
-    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-    log?.info({ entityId, tipo, fecha: fechaLabel }, "GUARD: A15642 \u2014 meal phrase = tipo de evento");
-    return normalizeAdvisorReferences2(
-      nextQ ? `${ack} ${nextQ}` : ack,
-      extracted.nombre ?? display
-    );
-  }
   if (!cierreYaEnviado && currentMessage && /^(capras?|carpas?)\s*\??$/i.test(currentMessage.trim())) {
     const merged = mergeServiceRequirements(extracted.requerimientos_evento, "Carpas", 6);
     if (merged) {
@@ -139613,41 +139785,6 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : pending === "requerimientos" ? "\xBFQu\xE9 servicios te gustar\xEDa que coticemos para tu evento?" : null;
       log?.info({ entityId, venueLabels, before }, "GUARD: A15550 \u2014 sal\xF3n ya incluye (return temprano)");
-      return normalizeAdvisorReferences2(
-        nextQ ? `${ack} ${nextQ}` : ack,
-        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
-      );
-    }
-  }
-  {
-    const recentUserForDecline = collectUserTexts(presHistory, void 0).slice(-4);
-    const declineFamilies = clientDeclinesServiceFamiliesWithContext(
-      currentMessage,
-      recentUserForDecline
-    );
-    if (!cierreYaEnviado && currentMessage?.trim() && declineFamilies.length > 0) {
-      extracted.requerimientos_evento = removeDeclinedFamiliesFromRequirements(
-        extracted.requerimientos_evento,
-        declineFamilies
-      );
-      const afterRaw = mergeServiceRequirements(
-        extracted.requerimientos_evento,
-        clientCaptionForServiceParse(currentMessage) || currentMessage,
-        6
-      );
-      const after = removeDeclinedFamiliesFromRequirements(afterRaw, declineFamilies);
-      extracted.requerimientos_evento = after;
-      if (after) filledSet.add("Requerimientos o servicios");
-      else filledSet.delete("Requerimientos o servicios");
-      const kept = after ? parseServicesFromText(after) : [];
-      const checklistMix = kept.length > 0 && declineFamilies.includes("entretenimiento") && /\bdj\s+no\b|\bno\s*,?\s*dj\b/i.test(currentMessage);
-      const ack = checklistMix ? `Perfecto: anoto *${formatServicesList(kept)}*; sin DJ.` : buildServiceDeclineAck(declineFamilies);
-      const pending = getNextPendingField(extracted, filledSet);
-      const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : pending === "requerimientos" ? checklistMix ? "\xBFAlgo m\xE1s para la cotizaci\xF3n?" : "\xBFQu\xE9 m\xE1s te gustar\xEDa incluir en la cotizaci\xF3n (sin alimentos, si as\xED lo prefieres)?" : null;
-      log?.info(
-        { entityId, families: declineFamilies, checklistMix },
-        "GUARD: A15295 \u2014 declina familia de servicio (return temprano)"
-      );
       return normalizeAdvisorReferences2(
         nextQ ? `${ack} ${nextQ}` : ack,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
@@ -140618,9 +140755,10 @@ ${nextQ}` : ""}`.trim() : nextQ ? `${ack} ${nextQ}` : ack;
     return true;
   })()) {
   } else if (allowSalesReplyOverride && (isVagueFoodTerm(currentMessage) || clientAsksForFoodMenu(currentMessage)) && !isEventTypeMealPhrase(currentMessage) && !clientDeclinesAnyService(currentMessage) && !clientAsksForRecommendations(currentMessage) && // A15642: si ya cotizan mobiliario/mesas/sillas, no reabrir menú de alimentos.
-  !/\b(mobiliario|mesas?|sillas?|periqueras?|plato\s+trinche|vajillas?)\b/i.test(
+  // A16074: si ya es tarima/pista, tampoco reabrir catering por "Comida" tipo.
+  !/\b(mobiliario|mesas?|sillas?|periqueras?|plato\s+trinche|vajillas?|pista|tarima|entarimad)\b/i.test(
     `${extracted.requerimientos_evento ?? ""} ${collectUserTexts(presHistory).join(" ")}`
-  ) && // A15212: si ya hay SKU concreto (Puestos/Banquete/…), no reabrir banquete/taquiza/brunch.
+  ) && lastAskedField !== "tipo_evento" && !isEventTypeMealPhrase(currentMessage) && // A15212: si ya hay SKU concreto (Puestos/Banquete/…), no reabrir banquete/taquiza/brunch.
   !preferPrimaryCatalogService(
     parseServicesFromText(extracted.requerimientos_evento ?? "")
   )?.match(
@@ -144872,7 +145010,7 @@ function clientReplyForPaymentSlot(slot) {
 }
 
 // api-server/src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V10.02";
+var LUCY_PROMPT_VERSION = "V10.03";
 
 // api-server/src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -154512,7 +154650,7 @@ ${golfText}`,
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
   await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -154541,7 +154679,7 @@ ${golfText}`,
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
   await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -154659,7 +154797,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,
@@ -154730,7 +154868,7 @@ ${golfText}`,
     }
   });
   await test("135. V9.38 \u2014 comprobante en imagen: primer pago Anticipo, segundo Liquidaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     assert2.equal(FIELD_ANTICIPO, 1049322);
     assert2.equal(FIELD_LIQUIDACION, 1049324);
     assert2.equal(nextPaymentSlot(null, null), "anticipo");
@@ -154794,7 +154932,7 @@ ${golfText}`,
     assert2.ok(/amount_mxn/.test(imgSrc));
   });
   await test("136. V9.40 \u2014 A15380 invitados no se saltan; Coyoac\xE1n+colonia; Claro no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     const horario = "hola si se har\xEDa el 26 de septiembre pero a\xFAn no tenemos definido el horario";
     assert2.equal(parseInvitadosFromText(horario), null, "horario pendiente \u2260 invitados");
     const caps = scanConversationForCaptures([], horario, /* @__PURE__ */ new Set(["Nombre del cliente"]));
@@ -154897,7 +155035,7 @@ ${golfText}`,
     assert2.equal(taquizaNext, "invitados");
   });
   await test("138. V9.41 \u2014 A15383 Kelia: ciudad, banquetes, LED\u2260luz, no spam (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert2.match(hornoMty, /horno\s*3/i, hornoMty);
     assert2.match(hornoMty, /monterrey/i, hornoMty);
@@ -155033,7 +155171,7 @@ ${golfText}`,
     assert2.ok(!/Listo\.\s*Kelia/i.test(nameSpam), nameSpam);
   });
   await test("139. V9.42 \u2014 A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert2.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert2.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -155123,7 +155261,7 @@ ${golfText}`,
     assert2.ok(!/invitados|cu[aá]nt[oa]s|ciudad del evento|en qu[eé] ciudad/i.test(handoff), handoff.slice(0, 400));
   });
   await test("140. V9.43 \u2014 detalle de un producto no re-lista el men\xFA (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -155162,7 +155300,7 @@ ${golfText}`,
     assert2.ok(/Coffee Break 4|350|CB4/i.test(rewritten), rewritten.slice(0, 500));
   });
   await test("141. V9.44 \u2014 A15443 Rosario: reuni\xF3n, hora comida, ciudad obligatoria", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     assert2.equal(parseTipoEventoFromText("una reuni\xF3n de 15 a\xF1os"), "reuni\xF3n");
     assert2.ok(clientSaidReunionNotXv("una reuni\xF3n de 15 a\xF1os"));
     assert2.ok(!clientSaidReunionNotXv("mis XV a\xF1os"));
@@ -155277,7 +155415,7 @@ ${golfText}`,
     assert2.ok(/2\.\s*\*?Servicio completo/i.test(fixedMenu), fixedMenu.slice(0, 600));
   });
   await test("142. V9.45 \u2014 A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     assert2.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert2.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
     assert2.ok(!isUsableFechaHorario("13:00 a 20:00 hrs"));
@@ -155351,7 +155489,7 @@ ${golfText}`,
     assert2.ok(!/ya tengo todo/i.test(clockReply));
   });
   await test("143. V9.49 \u2014 imagen solo embudo; silencio lee dep\xF3sito sin WhatsApp", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
     assert2.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
@@ -155394,7 +155532,7 @@ ${golfText}`,
     assert2.ok(/sin WhatsApp al cliente|leída en silencio/i.test(kommoSrc));
   });
   await test("144. V9.49 \u2014 A15478 Isabel: recomienda tama\xF1o pista seg\xFAn invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     const ask = "Me puedes recomendar el tama\xF1o pensando en la cantidad de invitados?";
     assert2.ok(clientAsksDimensionRecommendation(ask));
     const rec = recommendPistaDimensionsForGuests(120, "XV a\xF1os");
@@ -155460,7 +155598,7 @@ ${golfText}`,
     assert2.ok(!/ya tengo lo principal/i.test(anti.mensaje), anti.mensaje);
   });
   await test("146. V9.49 \u2014 A15494 Paola: mucho gusto no es apellido", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     const reply = "Paola mucho gusto";
     assert2.ok(isMuchoGustoNameReply(reply));
     assert2.equal(sanitizeCrmNombre(reply), "Paola");
@@ -155494,7 +155632,7 @@ ${golfText}`,
     assert2.ok(!/Mucho Gusto!/i.test(guarded.replace(/mucho gusto,\s*Paola/i, "")), guarded);
   });
   await test("147. V9.49 \u2014 A15503 Good: loza y plato postre = vajilla, no postres", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     const brief = "Hola, me interesa cotizar un servicio\nQuiere loza para un evento para 50 personas\nSer\xEDa:\nPlato trinche\nPlato postre\nCubiertos (cuchara, tenedor, cuchara postre).";
     assert2.ok(isTablewareRequestText(brief));
     const services = parseServicesFromText(brief);
@@ -155523,7 +155661,7 @@ ${golfText}`,
     assert2.ok(!/mobiliario/i.test(declineGuard), declineGuard);
   });
   await test("148. V9.50 \u2014 fecha y horario en campos CRM separados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     const split = splitCombinedFechaHorario("15 de agosto, 5:00 p.m.");
     assert2.equal(split.fecha, "15 de agosto");
     assert2.ok(split.horario && /5:00/i.test(split.horario));
@@ -155561,7 +155699,7 @@ ${golfText}`,
     assert2.ok(!cf.some((f6) => f6.field_id === 1048778));
   });
   await test("149. V9.51 \u2014 A15508 Betiana: 40 invitadas y anti-repetici\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     assert2.equal(parseInvitadosFromText("40 sillas, 40 invitadas"), "40");
     assert2.equal(parseInvitadosFromText("40 invitadas"), "40");
     assert2.equal(
@@ -155607,7 +155745,7 @@ ${golfText}`,
     assert2.ok(!/estimado de invitados|cu[aá]ntos invitados/i.test(guarded), guarded);
   });
   await test("150. V9.52 \u2014 A15509 Gaby: apertura, RFQ equipo, a\xFAn no invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     assert2.equal(parseTipoEventoFromText("Ser\xEDa para la apertura de un negocio"), "apertura de negocio");
     assert2.ok(clientSaidAperturaNegocio("Ser\xEDa para la apertura de un negocio"));
     const rfq = [
@@ -155671,7 +155809,7 @@ ${golfText}`,
     assert2.ok(!/cu[aá]ntas personas|estimado de invitados/i.test(invWaive), invWaive);
   });
   await test("151. V9.53 \u2014 A15516 Ccam: captura horario pm y anti-repetici\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     const extracted = emptyExtracted({
       nombre: "Ccam",
       tipo_evento: "XV a\xF1os",
@@ -155719,7 +155857,7 @@ ${golfText}`,
     assert2.ok(!/horario/i.test(guarded2) || /anoto|perfecto|invitados|ciudad|correo/i.test(guarded2), guarded2);
   });
   await test("152. V9.55 \u2014 A15486 G\xE9nesis: promo/vajilla/detalles/presupuesto/PDF", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     const promo = [
       "Hola, escribo por la promo de cierre r\xE1pido (10% de descuento).",
       "C\xF3digo: CierreRapido",
@@ -155831,7 +155969,7 @@ ${golfText}`,
     );
   });
   await test("153. V9.55 \u2014 A15539 Jorge: horario/carpa/DJ no/mobiliario/Atlixco/callback", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     assert2.equal(parseTipoEventoFromText("primera comuni\xF3n"), "primera comuni\xF3n");
     assert2.ok(isScheduleLabeledClock("a medio d\xEDa"));
     assert2.ok(isScheduleLabeledClock("cocktail a las 12:00\ncomida a las 2:00"));
@@ -155990,7 +156128,7 @@ ${golfText}`,
     assert2.ok(!/servicios te gustar[ií]a|ir armando/i.test(callback), callback.slice(0, 400));
   });
   await test("154. V9.56 \u2014 A15547 Marisol: taquiza sin $, qu\xE9 incluye, pospone sin correo", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     const csv = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
       '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","5 guisados","https://bodasesor.com/catalogos/taquiza"',
@@ -156048,7 +156186,7 @@ ${golfText}`,
     assert2.ok(!/correo|e-?mail/i.test(soft), soft.slice(0, 400));
   });
   await test("155. V9.57 \u2014 A15550 Jos\xE9: sal\xF3n suministra \u2260 pedido; bufet \u2192 banquete", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     const brief = "cotizaci\xF3n cumplea\xF1os 3 de octubre 50 personas Nezahualc\xF3yotl, el sal\xF3n suministra mesas, sillas, manteler\xEDa, platos, vasos y un mesero";
     assert2.ok(isVenueProvidesContext(brief));
     const parsed = parseServicesFromText(brief);
@@ -156067,7 +156205,7 @@ ${golfText}`,
     assert2.ok(!/necesitas.*vajillas/i.test(fix), fix.slice(0, 400));
   });
   await test("156. V9.70 \u2014 A15566 Lynn: de 3pm a 11pm, a partir de, sin horario a\xFAn", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     assert2.ok(/3:00.*11:00/i.test(parseHorarioFromText("El evento ser\xEDa de 3:00 pm a 11:00 pm") ?? ""));
     assert2.ok(/16:00|a partir/i.test(parseHorarioFromText("A partir de las 16:00 hrs") ?? ""));
     assert2.ok(/15:00.*11:00/i.test(parseHorarioFromText("De 15:00 p.m a 11:00 p.m") ?? ""));
@@ -156114,7 +156252,7 @@ ${golfText}`,
     assert2.ok(!/horario lo planean/i.test(defer), defer.slice(0, 400));
   });
   await test("157. V9.70 \u2014 A15581 Mariana: cuatro, dual propuesta, DJ inclusi\xF3n/acotado", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     assert2.ok(/4/.test(parseHorarioFromText("Ser\xEDa temprano, a partir de las cuatro") ?? ""));
     assert2.ok(normalizeWrittenClockInText("a partir de las cuatro").includes("4"));
     assert2.ok(clientRequestsDualProposals("dos propuestas formal y otra casual"));
@@ -156155,7 +156293,7 @@ ${golfText}`,
     assert2.ok(!/la anoto para tu cotizaci/i.test(djInfo), djInfo.slice(0, 400));
   });
   await test("158. V9.70 \u2014 A15620 Mara: promo CierreRapido no captura 35 pax ni hora de env\xEDo", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     const maraPromo = [
       "Hola, escribo por la promo de cierre r\xE1pido (10% de descuento).",
       "C\xF3digo: CierreRapido",
@@ -156179,7 +156317,7 @@ ${golfText}`,
     assert2.equal(promoReply.match(/35\s*personas/gi)?.length ?? 0, 0, promoReply.slice(0, 400));
   });
   await test("159. V9.70 \u2014 A15701 Alejandra: Puerto Vallarta no repregunta ciudad", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     assert2.equal(parseZonaFromText("Puerto Vallarta")?.toLowerCase(), "puerto vallarta");
     assert2.ok(isUsableDireccionEvento("Puerto Vallarta"));
     const filled = /* @__PURE__ */ new Set([
@@ -156219,7 +156357,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*|en qu[eé] ciudad|ya tienen ciudad/i.test(reply), reply.slice(0, 400));
   });
   await test("160. V9.70 \u2014 A15707 danymelgozza: cotizaci\xF3n inicial no es env\xEDo de cotizaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     const opening = "Quiero hacer una cotizaci\xF3n de barra de sushis y nigiris para 25 personas";
     assert2.equal(clientWantsQuoteDelivery(opening), false);
     assert2.ok(clientWantsQuoteDelivery("Si, m\xE1ndame la cotizaci\xF3n por favor, y te confirmo todo"));
@@ -156240,7 +156378,7 @@ ${golfText}`,
     assert2.ok(/sushi|nigiri|25|personas|nombre|Lucy|Bodasesor/i.test(reply), reply.slice(0, 500));
   });
   await test("161. V9.70 \u2014 A15708 Itzel: una sola presentaci\xF3n Lucy", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     const firstIntro = "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor. Claro que te ayudo con tu evento. \xBFMe regalas tu nombre?";
     const reply = runGuards({
       aiResponse: "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor. \xA1Mucho gusto, Itzel! \xBFQu\xE9 tipo de evento tienes en mente celebrar?",
@@ -156259,7 +156397,7 @@ ${golfText}`,
     assert2.ok(/tipo de evento/i.test(reply), reply.slice(0, 400));
   });
   await test("162. V9.70 \u2014 A15705 Karla: Ser\xEDa De Catering no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     assert2.equal(sanitizeCrmNombre("Ser\xEDa De Catering"), null);
     assert2.equal(shouldUpdateName("Karla Rodr\xEDguez", "Ser\xEDa De Catering"), false);
     assert2.equal(shouldUpdateName("Ser\xEDa De Catering", "Karla Rodr\xEDguez"), true);
@@ -156278,7 +156416,7 @@ ${golfText}`,
     assert2.ok(!/Con gusto,\s*Ser[ií]a/i.test(reply), reply.slice(0, 400));
   });
   await test("163. V9.71 \u2014 A15775 Pamela: municipio GDL y meta-ciudad", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.03");
     assert2.ok(hasCityOrMetroSignal("San Pedro Tlaquepaque"));
     assert2.ok(isLocationMetaReferential("esa es la ciudad"));
     assert2.equal(parseZonaFromText("esa es la ciudad"), null);

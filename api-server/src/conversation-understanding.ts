@@ -126,7 +126,9 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Menú staff", /\bmen[uú]\s+(para\s+)?staff\b/iu],
   ["Menú Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/iu],
   ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
-  ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
+  ["Pista de baile", /\bpista(\s+de\s+baile)?\b/i],
+  // A16074: tarima/entarimado ≠ pista de baile (cotización por m² aparte).
+  ["Tarima", /\btarimas?\b|\bentarimad[oa]s?\b|\bentarimado\b/i],
   ["Mariachi", /\bmariachis?\b/i],
   ["Baile regional", /\bbaile\s+regional\b|\bfolkl[oó]rico\b/i],
   ["Animación / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|shows?|pixel|espejos|l[aá]ser|laser)\b/i],
@@ -193,11 +195,15 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|entarimad|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
-  tarima: "pista de baile",
+  tarima: "Tarima",
+  tarimas: "Tarima",
+  entarimado: "Tarima",
+  entarimada: "Tarima",
+  entarimados: "Tarima",
   dj: "DJ",
   mesa: "mobiliario",
   mesas: "mobiliario",
@@ -339,6 +345,8 @@ const TIPO_EVENTO_PATTERNS: Array<[RegExp, string]> = [
     /\b(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)\s+para\s+(el\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+)/i,
     "__meal_event__",
   ],
+  // A16074: "Comida" / "Cena" sueltos como respuesta a tipo de evento.
+  [/^(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)s?[.!?]*$/i, "__meal_event__"],
   // A14988 Ernesto: concierto es tipo de evento (no servicio).
   [/\bconciertos?\b/i, "concierto"],
   // A15205 Mariel: campamento / concentración deportiva.
@@ -858,6 +866,10 @@ export function isEventTypeMealPhrase(text: string | null | undefined): boolean 
     /\b(catering|banquete|taquiza|barra\s+de|alimentos?)\b/i.test(t)
   ) {
     return false;
+  }
+  // A16074: "Comida" / "Cena" sueltos = tipo, no menú de catering.
+  if (/^(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)s?[.!?]*$/i.test(t)) {
+    return true;
   }
   if (new RegExp(`\\bes\\s+un[a]?\\s+(${EVENT_MEAL_TYPE.source})\\b`, "i").test(t)) return true;
   if (
@@ -1665,7 +1677,7 @@ export function resolveSpaceMeasureServiceBase(opts: {
   lastLucy?: string | null;
   currentMessage?: string | null;
   historyBlob?: string | null;
-}): "pista" | "carpa" | "entelado" {
+}): "pista" | "carpa" | "entelado" | "tarima" {
   const req = opts.requerimientos ?? "";
   const last = opts.lastLucy ?? "";
   const msg = opts.currentMessage ?? "";
@@ -1673,29 +1685,45 @@ export function resolveSpaceMeasureServiceBase(opts: {
   if (clientCorrectsCarpaToPista(msg) || (/\bes\s+pista\b/i.test(msg) && !clientMentionsCarpas(msg))) {
     return "pista";
   }
+  if (preferTarimaLabelOverPista(msg, req) || clientMentionsTarimaOnly(msg)) {
+    return "tarima";
+  }
+  if (/\btarimas?\b|\bentarimad/i.test(req) && !/\bpista(\s+de\s+baile)?\b/i.test(req)) {
+    return "tarima";
+  }
   if (isEnteladoRequestText(msg) || (isEnteladoRequestText(req) && !clientMentionsPistaTarima(req) && !clientMentionsCarpas(req))) {
     return "entelado";
   }
-  const lucyAskedPista = /pista|tarima/i.test(last) && !/\bcarpas?\b/i.test(last);
+  const lucyAskedTarima =
+    /\btarima|entarimad/i.test(last) && !/\bpista(\s+de\s+baile)?\b/i.test(last);
+  const lucyAskedPista =
+    /\bpista(\s+de\s+baile)?\b/i.test(last) && !/\bcarpas?\b/i.test(last);
   const lucyAskedCarpa = /\bcarpas?\b/i.test(last) && !/pista|tarima/i.test(last);
-  if (clientMentionsPistaTarima(req) && !clientMentionsCarpas(req)) return "pista";
+  if (/\bTarima\b|\btarimas?\b|\bentarimad/i.test(req) && !/\bpista(\s+de\s+baile)?\b/i.test(req)) {
+    return "tarima";
+  }
+  if (/\bpista(\s+de\s+baile)?\b/i.test(req) && !clientMentionsCarpas(req)) return "pista";
   if (clientMentionsCarpas(req) && !clientMentionsPistaTarima(req)) return "carpa";
   // Contaminación pista+carpa: preferir lo que Lucy acaba de preguntar.
   if (clientMentionsPistaTarima(req) && clientMentionsCarpas(req)) {
+    if (lucyAskedTarima) return "tarima";
     if (lucyAskedPista) return "pista";
     if (lucyAskedCarpa) return "carpa";
-    return "pista";
+    return preferTarimaLabelOverPista(msg, req) ? "tarima" : "pista";
   }
+  if (lucyAskedTarima) return "tarima";
   if (lucyAskedPista) return "pista";
   if (lucyAskedCarpa) return "carpa";
+  if (clientMentionsTarimaOnly(msg) || clientMentionsTarimaOnly(hist)) return "tarima";
   if (clientMentionsPistaTarima(msg) || clientMentionsPistaTarima(hist)) return "pista";
   if (clientMentionsCarpas(msg) || clientMentionsCarpas(hist)) return "carpa";
   if (isEnteladoRequestText(last) || isEnteladoRequestText(hist)) return "entelado";
   return "carpa";
 }
 
-export function spaceMeasureServiceLabel(kind: "pista" | "carpa" | "entelado"): string {
+export function spaceMeasureServiceLabel(kind: "pista" | "carpa" | "entelado" | "tarima"): string {
   if (kind === "pista") return "Pista de baile";
+  if (kind === "tarima") return "Tarima";
   if (kind === "entelado") return "Entelados para Techo";
   return "Carpas";
 }
@@ -2692,6 +2720,8 @@ function foldLoc(s: string): string {
 export function sanitizeDireccionCapture(value: string | null | undefined): string | null {
   let t = (value ?? "").replace(/\s+/g, " ").trim();
   if (!t) return null;
+  // A16074: no guardar "No quiero pista…" / declines dentro de la ubicación.
+  t = stripServiceDeclineClausesFromDireccion(t);
   // Quitar coletillas incompletas
   t = t
     .replace(/\b(?:el\s+)?sal[oó]n\s+se\s+llama\s+/gi, "")
@@ -2721,6 +2751,21 @@ export function sanitizeDireccionCapture(value: string | null | undefined): stri
     return city ?? null;
   }
   return t || null;
+}
+
+/** Quita cláusulas de rechazo de servicio pegadas a la zona (A16074). */
+export function stripServiceDeclineClausesFromDireccion(value: string): string {
+  return value
+    .replace(
+      /[,;]?\s*\bno\s+(quiero|necesito|requiero|requerimos)\s+(la\s+|el\s+|los\s+|las\s+|el\s+servicio\s+de\s+)?[^.!,;]{0,60}/gi,
+      ""
+    )
+    .replace(/[,;]?\s*\bsolo\s+(la\s+|el\s+)?(tarima|pista|entarimad)[^.!,;]{0,40}/gi, "")
+    .replace(/[,;]?\s*\bnada\s+m[aá]s\s+que\s+[^.!,;]{0,40}/gi, "")
+    .replace(/,\s*,+/g, ",")
+    .replace(/^,\s*|,\s*$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**
@@ -3380,28 +3425,36 @@ export function clientWantsFoodOnlyQuote(text: string | null | undefined): boole
 export function clientNarrowsToOnlyService(text: string | null | undefined): string | null {
   const t = text?.trim() ?? "";
   if (!t) return null;
-  const hasSolo = /\b(solo|solamente|[uú]nicamente)\b/i.test(t);
+  const hasSolo =
+    /\b(solo|solamente|[uú]nicamente)\b/i.test(t) ||
+    /\bnada\s+m[aá]s\s+que\b/i.test(t) ||
+    /\bno\s+(requiero|quiero|necesito)\s+nada\s+m[aá]s\s+(que\s+)?/i.test(t);
   // A15165: corrección explícita de servicio sin "solo".
   const replaceIntent =
     /\b(estoy\s+buscando|busco|quiero|necesito|me\s+interesa)\s+(?:un\s+|una\s+|el\s+|la\s+)?/i.test(
       t
     ) &&
-    /\b(banquete|taquiza|coffee\s*break|barra\s+de|mesa\s+de\s+dulces|carpa|pista|dj)\b/i.test(t) &&
+    /\b(banquete|taquiza|coffee\s*break|barra\s+de|mesa\s+de\s+dulces|carpa|pista|tarima|entarimad|dj)\b/i.test(t) &&
     !/\by\s+(tambi[eé]n|adem[aá]s)\b/i.test(t);
   if (!hasSolo && !replaceIntent) return null;
   // Evitar "solo alimentos/comida" genérico (ya cubierto por clientWantsFoodOnlyQuote).
   if (clientWantsFoodOnlyQuote(t) && !/\bmesa\s+de\s+dulces\b/i.test(t) && hasSolo) return null;
   const narrowIntent =
     hasSolo &&
-    (/\b(cotizar|cotizaci[oó]n|quiero|necesito|ser[ií]a|dejamos?|quedamos?|anota)\b/i.test(t) ||
-      /\bsolo\s+(la\s+|el\s+|una\s+)?(mesa\s+de\s+dulces|banquete|taquiza|carpa|pista|barra)/i.test(
+    (/\b(cotizar|cotizaci[oó]n|quiero|necesito|requiero|requerimos|ser[ií]a|dejamos?|quedamos?|anota)\b/i.test(t) ||
+      /\bsolo\s+(la\s+|el\s+|una\s+)?(mesa\s+de\s+dulces|banquete|taquiza|carpa|pista|tarima|entarimad|barra)/i.test(
         t
-      ));
+      ) ||
+      /\bnada\s+m[aá]s\s+que\s+(la\s+|el\s+)?(tarima|entarimad|pista|banquete|carpa)/i.test(t));
   if (!narrowIntent && !replaceIntent) return null;
   if (/\bmesa\s+de\s+dulces\b/i.test(t)) return "Mesa de dulces";
   if (/\bmesa\s+de\s+postres?\b/i.test(t)) return "Mesa de postres";
   if (/\bbanquete\s+mexicano\b/i.test(t)) return "Banquete Mexicano";
   if (/\bbanquete\s+formal\b/i.test(t)) return "Banquete Formal";
+  // A16074: solo tarima / nada más que entarimado.
+  if (/\b(tarimas?|entarimad[oa]s?)\b/i.test(t) && !/\bpista(\s+de\s+baile)?\b/i.test(t.replace(/\bno\s+(quiero|necesito|requiero).{0,20}pista\b/gi, " "))) {
+    return "Tarima";
+  }
   const fromMsg = parseServicesFromText(t).filter(
     (s) => !/^(Comida|Alimentos|Evento|Servicio)$/i.test(s)
   );
@@ -5641,7 +5694,32 @@ export function buildCarpaGuestRecommendationLine(guests: number): string | null
 /** Cliente pide pista de baile o tarima. */
 export function clientMentionsPistaTarima(message?: string): boolean {
   if (!message?.trim()) return false;
-  return /\bpista(\s+de\s+baile)?\b|\btarima/i.test(message);
+  return /\bpista(\s+de\s+baile)?\b|\btarimas?\b|\bentarimad[oa]s?\b/i.test(message);
+}
+
+/** A16074: cliente pide tarima/entarimado (no pista de baile). */
+export function clientMentionsTarimaOnly(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  if (!/\btarimas?\b|\bentarimad[oa]s?\b/i.test(t)) return false;
+  // Si pide pista de baile explícita junto con tarima, no es “solo tarima”.
+  if (/\bpista(\s+de\s+baile)?\b/i.test(t) && !/\bno\s+(quiero|necesito|requiero).{0,20}pista\b/i.test(t)) {
+    return false;
+  }
+  return true;
+}
+
+/** Preferir etiqueta Tarima vs Pista de baile según el mensaje/CRM. */
+export function preferTarimaLabelOverPista(
+  message?: string | null,
+  existingReq?: string | null
+): boolean {
+  const blob = `${message ?? ""} ${existingReq ?? ""}`;
+  if (clientMentionsTarimaOnly(message ?? "") || /\btarimas?\b|\bentarimad/i.test(blob)) {
+    if (/\bno\s+(quiero|necesito|requiero).{0,30}pista\b/i.test(blob)) return true;
+    if (!/\bpista(\s+de\s+baile)?\b/i.test(message ?? "")) return true;
+  }
+  return false;
 }
 
 /**
@@ -5689,6 +5767,10 @@ export function parseZonaFromText(text: string): string | null {
   if (isAffirmativeOnlyMessage(trimmed)) return null;
   // A15878: "De momento no" es un rechazo, no un topónimo.
   if (isNegativeOnlyReply(trimmed)) return null;
+  // A16074: "No quiero pista de baile" / declines ≠ ubicación.
+  if (clientDeclinesServiceFamilies(trimmed).length > 0) return null;
+  // A16074: "Comida"/"Cena" sueltos = tipo de evento, no zona.
+  if (isEventTypeMealPhrase(trimmed)) return null;
   if (isDimensionText(trimmed)) return null;
   // A15486: plantilla promo — no tomar CDMX del timezone.
   if (isPromoTemplateMessage(text)) {
@@ -6252,6 +6334,14 @@ export function mergeZonaDetail(
   const nextRaw = incoming?.trim() ?? "";
   // A15295: no pegar "rojo y negro" (temática) a la zona.
   if (looksLikeThemeColorNotLocation(nextRaw)) {
+    return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
+  }
+  // A16074: no pegar declines / "no quiero pista" a la ubicación.
+  if (
+    /\bno\s+(quiero|necesito|requiero)\b/i.test(nextRaw) ||
+    /\bsolo\s+(la\s+)?(tarima|pista|entarimad)/i.test(nextRaw) ||
+    /\bsin\s+(catering|comida|pista|tarima)\b/i.test(nextRaw)
+  ) {
     return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
   }
   // A15486: nunca pegar "PDF" / formato de archivo a la ubicación.

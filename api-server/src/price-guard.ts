@@ -118,7 +118,8 @@ function detectServiceLabel(text: string): string {
   if (/mobiliario/.test(t)) return "mobiliario";
   if (/carpas?|lonas?/.test(t)) return "carpas";
   if (/pantallas?/.test(t)) return "pantallas";
-  if (/pista(\s+de\s+baile)?|tarimas?/.test(t)) return "pista de baile";
+  if (/pista(\s+de\s+baile)?/.test(t) && !/tarimas?|entarimad/.test(t)) return "pista de baile";
+  if (/tarimas?|entarimad/.test(t)) return "tarima";
   if (/flor/.test(t)) return "floristería";
   return "ese servicio";
 }

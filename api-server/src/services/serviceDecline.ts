@@ -16,6 +16,7 @@ export type DeclinedServiceFamily =
   | "decoracion"
   | "entretenimiento"
   | "pista"
+  | "tarima"
   | "dulces";
 
 /** Match de labels CRM / parseServices contra cada familia. */
@@ -28,7 +29,9 @@ const FAMILY_SERVICE_RE: Record<DeclinedServiceFamily, RegExp> = {
   carpas: /carpas?|capras?|toldos?|lonas?/i,
   decoracion: /decoraci[oó]n|centros?\s+de\s+mesa|florister|globos?|tem[aá]tica/i,
   entretenimiento: /show|dj\b|entretenimiento|hora\s+loca|photobooth|photo\s*booth|bailarinas|batucada|robots?/i,
-  pista: /pista|tarima/i,
+  // A16074: declinar pista NO quita tarima.
+  pista: /pista(\s+de\s+baile)?/i,
+  tarima: /^Tarima\b|tarimas?|entarimad/i,
   dulces: /mesa\s+de\s+dulces|postres?|cupcakes?|bet[uú]n|candy/i,
 };
 
@@ -51,7 +54,8 @@ const FAMILY_DECLINE_WORDS: Record<DeclinedServiceFamily, string> = {
   carpas: "carpas?|capras?|toldos?|lonas?",
   decoracion: "decoraci[oó]n|centros?\\s+de\\s+mesa|flores?|globos?",
   entretenimiento: "show|dj|entretenimiento|hora\\s+loca|photobooth|photo\\s*booth",
-  pista: "pista|tarima",
+  pista: "pista(\\s+de\\s+baile)?",
+  tarima: "tarimas?|entarimad[oa]s?",
   dulces: "mesa\\s+de\\s+dulces|mesa\\s+de\\s+postres?|postres?|dulces?|cupcakes?",
 };
 
@@ -191,6 +195,22 @@ export function clientDeclinesServiceFamilies(
   if (/\bdj\s+no\b|\bno\s*,?\s*dj\b|\bdj\s*,?\s*no\b/i.test(t)) {
     out.add("entretenimiento");
   }
+  // A16074: "pista no" / "no pista" / "no quiero pista de baile".
+  if (
+    /\bpista(\s+de\s+baile)?\s+no\b|\bno\s*,?\s*pista(\s+de\s+baile)?\b|\bno\s+quiero\s+pista\b/i.test(
+      t
+    )
+  ) {
+    out.add("pista");
+  }
+  // A16074: "no catering" / "no quiero el servicio de catering".
+  if (
+    /\bno\s+(quiero\s+)?(el\s+)?(servicio\s+de\s+)?catering\b|\bsin\s+catering\b|\bno\s+comida\b/i.test(
+      t
+    )
+  ) {
+    out.add("alimentos");
+  }
 
   // A15550: salón ya incluye mobiliario/vajilla/mesero → no es pedido de Bodasesor.
   if (isVenueProvidesContext(t)) {
@@ -204,11 +224,11 @@ export function clientDeclinesServiceFamilies(
     const words = FAMILY_DECLINE_WORDS[family];
     // A15165: "Pero yo no quiero Mobilairio" (pronombre entre no y quiero).
     const reNoQuiero = new RegExp(
-      `\\b(no|nop)(?:\\s+pero|\\s+peor)?(?:\\s+yo)?\\s+(quiero|necesito|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
+      `\\b(no|nop)(?:\\s+pero|\\s+peor)?(?:\\s+yo)?\\s+(quiero|necesito|requiero|requerimos|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+|el\\s+servicio\\s+de\\s+)?(${words})\\b`,
       "i"
     );
     const reYoNoQuiero = new RegExp(
-      `\\b(?:pero\\s+)?yo\\s+no\\s+(quiero|necesito|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
+      `\\b(?:pero\\s+)?yo\\s+no\\s+(quiero|necesito|requiero|requerimos|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+|el\\s+servicio\\s+de\\s+)?(${words})\\b`,
       "i"
     );
     const reQuitale = new RegExp(
@@ -329,7 +349,9 @@ export function declinedFamilyLabel(family: DeclinedServiceFamily): string {
     case "entretenimiento":
       return "entretenimiento";
     case "pista":
-      return "pista / tarima";
+      return "pista de baile";
+    case "tarima":
+      return "tarima";
     case "dulces":
       return "mesa de dulces / postres";
   }
