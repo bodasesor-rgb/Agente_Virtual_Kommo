@@ -103,6 +103,9 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
         num_invitados: input.extracted.num_invitados ?? null,
         tipo_evento: input.extracted.tipo_evento ?? null,
         modo_servicio: null,
+        proveedor_oferta: null,
+        proveedor_estado: null,
+        proveedor_catalogo: null,
       };
       const pending = getNextPendingField(
         extractedFallback,

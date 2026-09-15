@@ -26,22 +26,42 @@ export function looksLikeProveedorOutreach(text: string): boolean {
   return PROVEEDOR_OFFER.test(text);
 }
 
+/** A16075: el contacto aclara que es cliente (no proveedor). */
+export function looksLikeClienteCorrection(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  if (
+    /\b(no\s+soy\s+proveedor|no\s+somos\s+proveedores|me\s+confund[ií]|soy\s+cliente|somos\s+clientes|yo\s+no\s+vendo)\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  return CLIENTE_BUY.test(t);
+}
+
 /**
  * Resuelve tipo de contacto.
  * - Compra/cotización explícita → cliente (Saint-Gobain café, etc.)
  * - Oferta / alianza / venue invite → proveedor
  * - LLM dijo proveedor pero sin señal → cliente (evita falsos positivos)
  * - Señal fuerte de proveedor → proveedor aunque el LLM diga cliente
+ * - A16075: corrección "no soy proveedor" / cotizar evento → cliente
  */
 export function resolveTipoContacto(
   extracted: ExtractedData["tipo_contacto"],
-  conversationText: string
+  conversationText: string,
+  latestMessage?: string | null
 ): "cliente" | "proveedor" | null {
   const text = conversationText.trim();
-  if (!text) return extracted === "incierto" ? "cliente" : extracted;
+  const latest = (latestMessage ?? "").trim();
+  if (!text && !latest) return extracted === "incierto" ? "cliente" : extracted;
 
-  if (CLIENTE_BUY.test(text)) return "cliente";
-  if (PROVEEDOR_OFFER.test(text)) return "proveedor";
+  // Último mensaje gana si aclara que es cliente.
+  if (latest && looksLikeClienteCorrection(latest)) return "cliente";
+  if (CLIENTE_BUY.test(text) && !PROVEEDOR_OFFER.test(latest || text)) return "cliente";
+  if (latest && PROVEEDOR_OFFER.test(latest) && !CLIENTE_BUY.test(latest)) return "proveedor";
+  if (PROVEEDOR_OFFER.test(text) && !CLIENTE_BUY.test(text)) return "proveedor";
 
   if (extracted === "proveedor" && !PROVEEDOR_OFFER.test(text)) {
     return "cliente";

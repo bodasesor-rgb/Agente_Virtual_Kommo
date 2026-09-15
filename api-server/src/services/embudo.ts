@@ -232,7 +232,7 @@ export async function moverAZonaProveedores(
   }
 
   const nota =
-    `📦 PROVEEDOR / ALIANZA — no es cliente de eventos.\n` +
+    `📦 PROVEEDOR / ALIANZA — cuestionario completo.\n` +
     `Lucy lo canalizó a zona de proveedores (equipo revisa).\n\n` +
     `• Nombre: ${datos.nombre ?? "—"}\n` +
     `• Empresa / venue: ${datos.empresa ?? "—"}\n` +
@@ -260,6 +260,66 @@ export async function moverAZonaProveedores(
   } catch (err) {
     logger.warn({ err, leadId }, "Embudo: no se pudo marcar conversación proveedor");
   }
+}
+
+/**
+ * A16075: mal clasificado como proveedor → reactivar embudo de ventas (cliente).
+ * Quita lucy_desactivada, tag proveedor→cliente, regresa a Datos e Intereses.
+ */
+export async function reactivarEmbudoCliente(
+  subdomain: string,
+  accessToken: string,
+  leadId: string | number,
+  existingTags: string[] = []
+): Promise<void> {
+  const lead = await fetchLead(subdomain, accessToken, leadId);
+  const tags = lead?.tags?.length ? lead.tags : existingTags;
+
+  await removerTag(subdomain, accessToken, leadId, "lucy_desactivada", tags);
+  const afterSilence = tags.filter((t) => t !== "lucy_desactivada");
+  await removerTag(subdomain, accessToken, leadId, "proveedor", afterSilence);
+  const afterProv = afterSilence.filter((t) => t !== "proveedor");
+  if (!afterProv.includes("cliente")) {
+    await agregarTag(subdomain, accessToken, leadId, ["cliente"], afterProv);
+  }
+
+  const statusId = lead?.status_id ?? 0;
+  if (
+    !statusId ||
+    statusId === ETAPA.HUMANO_TRABAJA ||
+    statusId === resolveProveedorEtapa().statusId ||
+    statusId === ETAPA.LEADS_ENTRANTES
+  ) {
+    await moverEtapa(subdomain, accessToken, leadId, ETAPA.DATOS_E_INTERESES);
+  }
+
+  try {
+    const leadKey = String(leadId);
+    const existing = await db.query.conversations.findFirst({
+      where: eq(conversations.kommoLeadId, leadKey),
+    });
+    if (existing) {
+      await db
+        .update(conversations)
+        .set({
+          stage: "discovery",
+          status: "active",
+          learningPhase: "lucy_active",
+          updatedAt: new Date(),
+        })
+        .where(eq(conversations.kommoLeadId, leadKey));
+    }
+  } catch (err) {
+    logger.warn({ err, leadId }, "Embudo: no se pudo marcar conversación cliente tras recovery");
+  }
+
+  await agregarNota(
+    subdomain,
+    accessToken,
+    leadId,
+    "🔄 A16075: Contacto aclaró que es CLIENTE (no proveedor). Lucy reactivada en embudo de ventas."
+  );
+  logger.info({ leadId }, "Embudo: proveedor→cliente recovery — Lucy activa en ventas");
 }
 
 export async function agregarNota(
@@ -451,19 +511,30 @@ export interface DatosLead {
   tipo_contacto?: "cliente" | "proveedor" | "incierto" | null;
   empresa?: string | null;
   requerimientos_evento?: string | null;
+  telefono?: string | null;
+  nombre?: string | null;
+  proveedor_oferta?: string | null;
+  proveedor_estado?: string | null;
+  proveedor_catalogo?: string | null;
 }
 
 /**
  * Verifica si el lead tiene TODOS los datos necesarios para avanzar.
  * - CLIENTE: correo + fecha + num_invitados + tipo_evento + direccion
- * - PROVEEDOR: correo + empresa + requerimientos_evento (descripción de productos)
+ * - PROVEEDOR (A16075): oferta + estado + catálogo + (correo|teléfono) + (nombre|empresa)
  */
 export function tieneInformacionCompleta(datos: DatosLead): boolean {
   if (datos.tipo_contacto === "proveedor") {
-    const correoOk = !!datos.correo?.trim();
-    const empresaOk = !!datos.empresa?.trim();
-    const descOk = !!datos.requerimientos_evento && datos.requerimientos_evento.trim().length > 20;
-    return correoOk && empresaOk && descOk;
+    const ofertaOk = !!datos.proveedor_oferta?.trim() || (!!datos.requerimientos_evento && /Ofrece:\s*[^|—-]{3,}/i.test(datos.requerimientos_evento));
+    const estadoOk =
+      !!datos.proveedor_estado?.trim() ||
+      (!!datos.requerimientos_evento && /Estado:\s*[^|]+/i.test(datos.requerimientos_evento));
+    const catalogoOk =
+      !!datos.proveedor_catalogo?.trim() ||
+      (!!datos.requerimientos_evento && /Cat[aá]logo:\s*[^|]+/i.test(datos.requerimientos_evento));
+    const contactoOk = !!datos.correo?.trim() || !!datos.telefono?.trim();
+    const quienOk = !!datos.nombre?.trim() || !!datos.empresa?.trim();
+    return ofertaOk && estadoOk && catalogoOk && contactoOk && quienOk;
   }
   // Default: flujo cliente
   const correoOk = !!datos.correo?.trim();

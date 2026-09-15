@@ -17,7 +17,7 @@ import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 import { buildGuardServiceAck } from "../services/serviceKnowledge.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.03");
+assert.equal(LUCY_PROMPT_VERSION, "V10.04");
 
 function emptyExtracted(partial: Partial<ExtractedData> = {}): ExtractedData {
   return {

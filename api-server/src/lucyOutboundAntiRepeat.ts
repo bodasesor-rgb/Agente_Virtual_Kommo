@@ -146,6 +146,9 @@ function asExtracted(partial?: Partial<ExtractedData> | null): ExtractedData {
     num_invitados: partial?.num_invitados ?? null,
     tipo_evento: partial?.tipo_evento ?? null,
     modo_servicio: partial?.modo_servicio ?? null,
+    proveedor_oferta: partial?.proveedor_oferta ?? null,
+    proveedor_estado: partial?.proveedor_estado ?? null,
+    proveedor_catalogo: partial?.proveedor_catalogo ?? null,
   };
 }
 

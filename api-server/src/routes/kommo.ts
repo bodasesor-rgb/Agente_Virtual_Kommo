@@ -54,6 +54,7 @@ import {
   moverEtapa,
   moverAHumanoTrabaja,
   moverAZonaProveedores,
+  reactivarEmbudoCliente,
   recuperarDeNoContesta,
   programarSeguimiento,
   procesarSeguimientosPendientes,
@@ -95,6 +96,9 @@ import {
 } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, sanitizeStoredClientEmail } from "../client-email.js";
 import { prepareLucyExtraction, generateLucyOutbound } from "../lucyTurnProcessor.js";
+import { looksLikeClienteCorrection } from "../tipoContacto.js";
+import { proveedorQuestionnaireComplete } from "../lib/proveedorQuestionnaire.js";
+import { appendProveedorRow } from "../services/proveedorSheets.js";
 import { UNCLEAR_STREAK_ESCALATION } from "../lucyUnclearStreak.js";
 import { isLucyUnifiedLlmTurn } from "../lib/lucyCostControls.js";
 import {
@@ -306,6 +310,9 @@ async function extractData(
     num_invitados: null, tipo_evento: null,
     tipo_contacto: null, empresa: null,
     modo_servicio: null,
+    proveedor_oferta: null,
+    proveedor_estado: null,
+    proveedor_catalogo: null,
   };
 
   // V9.32: extract va dentro del turno unificado (1 call). Aquí solo enrich local.
@@ -402,6 +409,10 @@ Reglas estrictas:
         parsed.modo_servicio === "pedido_entrega" || parsed.modo_servicio === "servicio_montado"
           ? parsed.modo_servicio
           : null,
+      proveedor_oferta: typeof parsed.proveedor_oferta === "string" ? parsed.proveedor_oferta : null,
+      proveedor_estado: typeof parsed.proveedor_estado === "string" ? parsed.proveedor_estado : null,
+      proveedor_catalogo:
+        typeof parsed.proveedor_catalogo === "string" ? parsed.proveedor_catalogo : null,
     };
     hydrateScheduleFields(result);
     return result;
@@ -1647,7 +1658,33 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         }, leadKommo.tags);
         // Continuar — Lucy responde después de recuperar
       } else {
-        // Para otras etapas, verificar si Lucy debe responder
+        // Para otras etapas, verificar si Lucy debe responder.
+        // A16075: si estaba silenciada como proveedor pero aclara que es cliente → reactivar.
+        const silenciada = !lucyDebeResponder(leadKommo.status_id, leadKommo.tags);
+        const maybeClienteRecovery =
+          silenciada &&
+          (leadKommo.tags.includes("proveedor") || leadKommo.tags.includes("lucy_desactivada")) &&
+          looksLikeClienteCorrection(combinedUserText);
+        if (maybeClienteRecovery) {
+          try {
+            await reactivarEmbudoCliente(
+              subdomain,
+              accessToken,
+              entityId,
+              leadKommo.tags
+            );
+            leadKommo = (await fetchLead(subdomain, accessToken, entityId)) ?? {
+              ...leadKommo,
+              status_id: ETAPA.DATOS_E_INTERESES,
+              tags: leadKommo.tags
+                .filter((t) => t !== "lucy_desactivada" && t !== "proveedor")
+                .concat(leadKommo.tags.includes("cliente") ? [] : ["cliente"]),
+            };
+            log.info({ entityId }, "Embudo: A16075 recovery proveedor→cliente antes de silencio");
+          } catch (err) {
+            log.warn({ err, entityId }, "Embudo: recovery proveedor→cliente falló");
+          }
+        }
         const debeResponder = lucyDebeResponder(leadKommo.status_id, leadKommo.tags);
         if (!debeResponder) {
           log.info(
@@ -1772,7 +1809,11 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // ══════════════════════════════════════════════════════════════════════
     // PASO 5: Extracción de datos (pipeline unificado)
     // ══════════════════════════════════════════════════════════════════════
-    const { extracted, conversationText } = await prepareLucyExtraction({
+    const {
+      extracted,
+      conversationText,
+      proveedorRecoveredToCliente: recoveredFromExtraction,
+    } = await prepareLucyExtraction({
       fullHistory,
       messageText: combinedUserText,
       crmLines,
@@ -1781,6 +1822,21 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
 
     if (extracted.tipo_contacto === "proveedor" && extracted.requerimientos_evento) {
       log.info({ resumenProv: extracted.requerimientos_evento }, "Resumen proveedor generado");
+    }
+
+    if (recoveredFromExtraction) {
+      try {
+        const leadRec = await fetchLead(subdomain, accessToken, entityId);
+        await reactivarEmbudoCliente(
+          subdomain,
+          accessToken,
+          entityId,
+          leadRec?.tags ?? []
+        );
+        log.info({ entityId }, "Embudo: A16075 recovery tras extracción proveedor→cliente");
+      } catch (err) {
+        log.warn({ err, entityId }, "Embudo: recovery post-extracción falló");
+      }
     }
 
     const cierreYaEnviado = detectCierreEnviado(fullHistory, effectiveLastResponse);
@@ -1854,6 +1910,8 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       aiResponse,
       unclearStreak,
       escalateUnclearToHuman,
+      proveedorReadyForHandoff,
+      proveedorRecoveredToCliente,
     } = await generateLucyOutbound({
       messageText: combinedUserText,
       history,
@@ -2118,6 +2176,9 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // PASO 15: Tagging y verificación de datos completos
     // ══════════════════════════════════════════════════════════════════════
     const esProveedor = extracted.tipo_contacto === "proveedor";
+    const proveedorCompleto =
+      esProveedor &&
+      (proveedorReadyForHandoff === true || proveedorQuestionnaireComplete(extracted));
 
     // Agregar tag de tipo de contacto si ya se detectó (una sola vez)
     if (extracted.tipo_contacto === "proveedor" || extracted.tipo_contacto === "cliente") {
@@ -2131,10 +2192,58 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       }
     }
 
-    if (esProveedor) {
-      // PROVEEDOR / ALIANZA: tag + nota + mover a zona proveedores (Humano Trabaja
-      // por defecto, o KOMMO_PROVEEDOR_STATUS_ID). Lucy ya envió handoff y se silencia.
+    if (proveedorRecoveredToCliente || recoveredFromExtraction) {
       try {
+        const leadRec = await fetchLead(subdomain, accessToken, entityId);
+        await reactivarEmbudoCliente(
+          subdomain,
+          accessToken,
+          entityId,
+          leadRec?.tags ?? []
+        );
+      } catch (err) {
+        log.warn({ err, entityId }, "Embudo: recovery flags post-outbound falló");
+      }
+    }
+
+    if (esProveedor && proveedorCompleto) {
+      // A16075: solo al completar cuestionario → Sheets + zona proveedores (Lucy off).
+      try {
+        const sheetResult = await appendProveedorRow({
+          leadId: entityId,
+          nombre: extracted.nombre,
+          empresa: extracted.empresa,
+          correo: extracted.correo || conversation.clientEmail,
+          telefono: extracted.telefono,
+          oferta: extracted.proveedor_oferta ?? extracted.requerimientos_evento,
+          estado: extracted.proveedor_estado,
+          catalogo: extracted.proveedor_catalogo,
+          notas: extracted.requerimientos_evento,
+          kommoUrl: `https://${subdomain}.kommo.com/leads/detail/${entityId}`,
+        });
+        if (sheetResult.ok) {
+          await agregarNota(
+            subdomain,
+            accessToken,
+            entityId,
+            "📊 SHEETS_OK — fila append en pestaña Proveedores."
+          );
+        } else if (sheetResult.skipped) {
+          await agregarNota(
+            subdomain,
+            accessToken,
+            entityId,
+            "⚠️ Sheets skip — sin GOOGLE_SERVICE_ACCOUNT_JSON (cuestionario OK en Kommo)."
+          );
+        } else {
+          await agregarNota(
+            subdomain,
+            accessToken,
+            entityId,
+            `⚠️ Sheets append falló (${sheetResult.error ?? "unknown"}) — datos en nota Kommo.`
+          );
+        }
+
         const leadParaProv = await fetchLead(subdomain, accessToken, entityId);
         await moverAZonaProveedores(
           subdomain,
@@ -2148,26 +2257,38 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
           },
           leadParaProv?.tags ?? []
         );
-        log.info({ entityId }, "Embudo: proveedor/alianza → zona proveedores (Lucy off)");
+        log.info({ entityId }, "Embudo: proveedor completo → Sheets + zona proveedores (Lucy off)");
       } catch (err) {
         log.warn({ err, entityId }, "Embudo: mover a zona proveedores falló — nota de respaldo");
         const datosProveedor = {
           tipo_contacto: "proveedor" as const,
           correo: extracted.correo || conversation.clientEmail,
+          telefono: extracted.telefono,
           empresa: extracted.empresa,
+          nombre: extracted.nombre,
           requerimientos_evento: extracted.requerimientos_evento,
+          proveedor_oferta: extracted.proveedor_oferta,
+          proveedor_estado: extracted.proveedor_estado,
+          proveedor_catalogo: extracted.proveedor_catalogo,
         };
         await agregarNota(
           subdomain,
           accessToken,
           entityId,
-          `📦 PROVEEDOR / ALIANZA detectado — ${extracted.empresa ?? "Sin empresa"}\n` +
+          `📦 PROVEEDOR / ALIANZA completo — ${extracted.empresa ?? "Sin empresa"}\n` +
             `Contacto: ${extracted.nombre ?? "-"} | Correo: ${extracted.correo ?? "-"}\n` +
-            `Ofrece: ${extracted.requerimientos_evento ?? "-"}\n` +
+            `Ofrece: ${extracted.proveedor_oferta ?? extracted.requerimientos_evento ?? "-"}\n` +
+            `Estado: ${extracted.proveedor_estado ?? "-"}\n` +
+            `Catálogo: ${extracted.proveedor_catalogo ?? "-"}\n` +
             (tieneInformacionCompleta(datosProveedor) ? "✅ Datos suficientes\n" : "") +
             "⚠️ Revisar manualmente — no es cliente de eventos."
         );
       }
+    } else if (esProveedor) {
+      log.info(
+        { entityId, oferta: extracted.proveedor_oferta, estado: extracted.proveedor_estado },
+        "Embudo: proveedor en cuestionario — Lucy sigue activa"
+      );
     } else {
       // CLIENTE: movimiento a "Humano Trabaja" es SOLO manual (por Alejandro),
       // EXCEPTO si el cliente pide explícitamente un asesor (A15000) o si Lucy

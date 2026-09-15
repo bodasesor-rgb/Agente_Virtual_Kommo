@@ -58984,7 +58984,7 @@ var require_jws = __commonJS({
     exports.verify = VerifyStream.verify;
     exports.decode = VerifyStream.decode;
     exports.isValid = VerifyStream.isValid;
-    exports.createSign = function createSign(opts) {
+    exports.createSign = function createSign2(opts) {
       return new SignStream(opts);
     };
     exports.createVerify = function createVerify(opts) {
@@ -59098,7 +59098,7 @@ var require_getCredentials = __commonJS({
     var fs8 = __require("fs");
     var util_1 = __require("util");
     var errorWithCode_1 = require_errorWithCode();
-    var readFile2 = fs8.readFile ? (0, util_1.promisify)(fs8.readFile) : async () => {
+    var readFile3 = fs8.readFile ? (0, util_1.promisify)(fs8.readFile) : async () => {
       throw new errorWithCode_1.ErrorWithCode("use key rather than keyFile.", "MISSING_CREDENTIALS");
     };
     var ExtensionFiles;
@@ -59120,7 +59120,7 @@ var require_getCredentials = __commonJS({
        * @returns A promise that resolves with the credentials.
        */
       async getCredentials() {
-        const key = await readFile2(this.keyFilePath, "utf8");
+        const key = await readFile3(this.keyFilePath, "utf8");
         let body2;
         try {
           body2 = JSON.parse(key);
@@ -59146,7 +59146,7 @@ var require_getCredentials = __commonJS({
        * @returns A promise that resolves with the private key.
        */
       async getCredentials() {
-        const privateKey = await readFile2(this.keyFilePath, "utf8");
+        const privateKey = await readFile3(this.keyFilePath, "utf8");
         return { privateKey };
       }
     };
@@ -60776,7 +60776,7 @@ var require_filesubjecttokensupplier = __commonJS({
     exports.FileSubjectTokenSupplier = void 0;
     var util_1 = __require("util");
     var fs8 = __require("fs");
-    var readFile2 = (0, util_1.promisify)(fs8.readFile ?? (() => {
+    var readFile3 = (0, util_1.promisify)(fs8.readFile ?? (() => {
     }));
     var realpath = (0, util_1.promisify)(fs8.realpath ?? (() => {
     }));
@@ -60816,7 +60816,7 @@ var require_filesubjecttokensupplier = __commonJS({
           throw err2;
         }
         let subjectToken;
-        const rawText = await readFile2(parsedFilePath, { encoding: "utf8" });
+        const rawText = await readFile3(parsedFilePath, { encoding: "utf8" });
         if (this.formatType === "text") {
           subjectToken = rawText;
         } else if (this.formatType === "json" && this.subjectTokenFieldName) {
@@ -160585,11 +160585,24 @@ var init_modoServicio = __esm({
 });
 
 // api-server/src/tipoContacto.ts
-function resolveTipoContacto(extracted, conversationText) {
+function looksLikeClienteCorrection(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return false;
+  if (/\b(no\s+soy\s+proveedor|no\s+somos\s+proveedores|me\s+confund[ií]|soy\s+cliente|somos\s+clientes|yo\s+no\s+vendo)\b/i.test(
+    t4
+  )) {
+    return true;
+  }
+  return CLIENTE_BUY.test(t4);
+}
+function resolveTipoContacto(extracted, conversationText, latestMessage) {
   const text2 = conversationText.trim();
-  if (!text2) return extracted === "incierto" ? "cliente" : extracted;
-  if (CLIENTE_BUY.test(text2)) return "cliente";
-  if (PROVEEDOR_OFFER.test(text2)) return "proveedor";
+  const latest = (latestMessage ?? "").trim();
+  if (!text2 && !latest) return extracted === "incierto" ? "cliente" : extracted;
+  if (latest && looksLikeClienteCorrection(latest)) return "cliente";
+  if (CLIENTE_BUY.test(text2) && !PROVEEDOR_OFFER.test(latest || text2)) return "cliente";
+  if (latest && PROVEEDOR_OFFER.test(latest) && !CLIENTE_BUY.test(latest)) return "proveedor";
+  if (PROVEEDOR_OFFER.test(text2) && !CLIENTE_BUY.test(text2)) return "proveedor";
   if (extracted === "proveedor" && !PROVEEDOR_OFFER.test(text2)) {
     return "cliente";
   }
@@ -169307,7 +169320,7 @@ async function moverAZonaProveedores(subdomain, accessToken, leadId, datos, exis
   if (!etapaOk) {
     logger.warn({ leadId }, "Embudo: no se pudo mover etapa a zona proveedores");
   }
-  const nota = `\u{1F4E6} PROVEEDOR / ALIANZA \u2014 no es cliente de eventos.
+  const nota = `\u{1F4E6} PROVEEDOR / ALIANZA \u2014 cuestionario completo.
 Lucy lo canaliz\xF3 a zona de proveedores (equipo revisa).
 
 \u2022 Nombre: ${datos.nombre ?? "\u2014"}
@@ -169331,6 +169344,44 @@ Lucy lo canaliz\xF3 a zona de proveedores (equipo revisa).
   } catch (err2) {
     logger.warn({ err: err2, leadId }, "Embudo: no se pudo marcar conversaci\xF3n proveedor");
   }
+}
+async function reactivarEmbudoCliente(subdomain, accessToken, leadId, existingTags = []) {
+  const lead = await fetchLead(subdomain, accessToken, leadId);
+  const tags = lead?.tags?.length ? lead.tags : existingTags;
+  await removerTag(subdomain, accessToken, leadId, "lucy_desactivada", tags);
+  const afterSilence = tags.filter((t4) => t4 !== "lucy_desactivada");
+  await removerTag(subdomain, accessToken, leadId, "proveedor", afterSilence);
+  const afterProv = afterSilence.filter((t4) => t4 !== "proveedor");
+  if (!afterProv.includes("cliente")) {
+    await agregarTag(subdomain, accessToken, leadId, ["cliente"], afterProv);
+  }
+  const statusId = lead?.status_id ?? 0;
+  if (!statusId || statusId === ETAPA.HUMANO_TRABAJA || statusId === resolveProveedorEtapa().statusId || statusId === ETAPA.LEADS_ENTRANTES) {
+    await moverEtapa(subdomain, accessToken, leadId, ETAPA.DATOS_E_INTERESES);
+  }
+  try {
+    const leadKey = String(leadId);
+    const existing = await db.query.conversations.findFirst({
+      where: eq(conversations.kommoLeadId, leadKey)
+    });
+    if (existing) {
+      await db.update(conversations).set({
+        stage: "discovery",
+        status: "active",
+        learningPhase: "lucy_active",
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq(conversations.kommoLeadId, leadKey));
+    }
+  } catch (err2) {
+    logger.warn({ err: err2, leadId }, "Embudo: no se pudo marcar conversaci\xF3n cliente tras recovery");
+  }
+  await agregarNota(
+    subdomain,
+    accessToken,
+    leadId,
+    "\u{1F504} A16075: Contacto aclar\xF3 que es CLIENTE (no proveedor). Lucy reactivada en embudo de ventas."
+  );
+  logger.info({ leadId }, "Embudo: proveedor\u2192cliente recovery \u2014 Lucy activa en ventas");
 }
 async function agregarNota(subdomain, accessToken, leadId, texto) {
   try {
@@ -169441,10 +169492,12 @@ function lucyEtapaEsSilencioFuerte(statusId, tags) {
 }
 function tieneInformacionCompleta(datos) {
   if (datos.tipo_contacto === "proveedor") {
-    const correoOk2 = !!datos.correo?.trim();
-    const empresaOk = !!datos.empresa?.trim();
-    const descOk = !!datos.requerimientos_evento && datos.requerimientos_evento.trim().length > 20;
-    return correoOk2 && empresaOk && descOk;
+    const ofertaOk = !!datos.proveedor_oferta?.trim() || !!datos.requerimientos_evento && /Ofrece:\s*[^|—-]{3,}/i.test(datos.requerimientos_evento);
+    const estadoOk = !!datos.proveedor_estado?.trim() || !!datos.requerimientos_evento && /Estado:\s*[^|]+/i.test(datos.requerimientos_evento);
+    const catalogoOk = !!datos.proveedor_catalogo?.trim() || !!datos.requerimientos_evento && /Cat[aá]logo:\s*[^|]+/i.test(datos.requerimientos_evento);
+    const contactoOk = !!datos.correo?.trim() || !!datos.telefono?.trim();
+    const quienOk = !!datos.nombre?.trim() || !!datos.empresa?.trim();
+    return ofertaOk && estadoOk && catalogoOk && contactoOk && quienOk;
   }
   const correoOk = !!datos.correo?.trim();
   const fechaOk = !!datos.fecha_evento?.trim();
@@ -227189,7 +227242,7 @@ import { join as join2 } from "node:path";
 
 // api-server/src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.03";
+var LUCY_PROMPT_VERSION = "V10.04";
 
 // api-server/src/lib/buildMeta.ts
 var cached = null;
@@ -227638,7 +227691,8 @@ router.get("/health", async (_req, res) => {
       "gemini-history-trim",
       "gemini-media-once",
       "gemini-image-compress-1024",
-      "proveedor-alianza-handoff"
+      "proveedor-alianza-handoff",
+      "proveedor-questionnaire-sheets"
     ],
     learning: {
       note: "Panel /aprendizaje: chats, huecos Sheet e Informaci\xF3n para Lucy (PDF\u2192texto + tendencias). Sync Kommo; cron 5 min; auto-aprueba \u22650.85",
@@ -229884,6 +229938,197 @@ init_client_email();
 init_client_email();
 init_tipoContacto();
 
+// api-server/src/lib/proveedorQuestionnaire.ts
+var MX_ESTADO = /\b(Aguascalientes|Baja\s+California(\s+Sur)?|Campeche|Chiapas|Chihuahua|Ciudad\s+de\s+M[eé]xico|CDMX|CD\s*MX|Coahuila|Colima|Durango|Guanajuato|Guerrero|Hidalgo|Jalisco|Estado\s+de\s+M[eé]xico|Edomex|Edo\.?\s*Mex|Michoac[aá]n|Morelos|Nayarit|Nuevo\s+Le[oó]n|Oaxaca|Puebla|Quer[eé]taro|Quintana\s+Roo|San\s+Luis\s+Potos[ií]|Sinaloa|Sonora|Tabasco|Tamaulipas|Tlaxcala|Veracruz|Yucat[aá]n|Zacatecas|M[eé]xico)\b/i;
+function parseProveedorFieldsFromRequirements(req) {
+  const t4 = (req ?? "").trim();
+  if (!t4) {
+    return {
+      proveedor_oferta: null,
+      proveedor_estado: null,
+      proveedor_catalogo: null,
+      empresa: null
+    };
+  }
+  const empresa = t4.match(/PROVEEDOR:\s*([^-|]+?)\s*-\s*Ofrece/i)?.[1]?.trim() || t4.match(/Empresa:\s*([^|]+)/i)?.[1]?.trim() || null;
+  const oferta = t4.match(/Ofrece:\s*([^|]+)/i)?.[1]?.trim() || t4.match(/Oferta:\s*([^|]+)/i)?.[1]?.trim() || null;
+  const estado = t4.match(/Estado:\s*([^|]+)/i)?.[1]?.trim() || null;
+  const catalogo = t4.match(/Cat[aá]logo:\s*([^|]+)/i)?.[1]?.trim() || t4.match(/Lista\s+de\s+precios:\s*([^|]+)/i)?.[1]?.trim() || null;
+  return {
+    empresa: empresa && empresa !== "\u2014" ? empresa : null,
+    proveedor_oferta: oferta && !/^invitaci[oó]n\s+a\s+red/i.test(oferta) ? oferta : oferta,
+    proveedor_estado: estado,
+    proveedor_catalogo: catalogo
+  };
+}
+function formatProveedorRequirements(extracted) {
+  const empresa = extracted.empresa?.trim() || "\u2014";
+  const oferta = extracted.proveedor_oferta?.trim() || "\u2014";
+  const estado = extracted.proveedor_estado?.trim();
+  const catalogo = extracted.proveedor_catalogo?.trim();
+  const parts2 = [`PROVEEDOR: ${empresa} - Ofrece: ${oferta}`];
+  if (estado) parts2.push(`Estado: ${estado}`);
+  if (catalogo) parts2.push(`Cat\xE1logo: ${catalogo}`);
+  return parts2.join(" | ").slice(0, 500);
+}
+function hydrateProveedorFieldsFromRequirements(extracted) {
+  const parsed = parseProveedorFieldsFromRequirements(extracted.requerimientos_evento);
+  if (!extracted.empresa?.trim() && parsed.empresa) extracted.empresa = parsed.empresa;
+  if (!extracted.proveedor_oferta?.trim() && parsed.proveedor_oferta) {
+    extracted.proveedor_oferta = parsed.proveedor_oferta;
+  }
+  if (!extracted.proveedor_estado?.trim() && parsed.proveedor_estado) {
+    extracted.proveedor_estado = parsed.proveedor_estado;
+  }
+  if (!extracted.proveedor_catalogo?.trim() && parsed.proveedor_catalogo) {
+    extracted.proveedor_catalogo = parsed.proveedor_catalogo;
+  }
+}
+function hasContact(extracted) {
+  return !!(extracted.correo?.trim() || extracted.telefono?.trim());
+}
+function hasNombreOrEmpresa(extracted) {
+  return !!(extracted.nombre?.trim() || extracted.empresa?.trim());
+}
+function proveedorQuestionnaireComplete(extracted) {
+  if (extracted.tipo_contacto !== "proveedor") return false;
+  hydrateProveedorFieldsFromRequirements(extracted);
+  const ofertaOk = !!extracted.proveedor_oferta?.trim() && extracted.proveedor_oferta.trim().length >= 3;
+  const estadoOk = !!extracted.proveedor_estado?.trim();
+  const catalogoOk = !!extracted.proveedor_catalogo?.trim();
+  return ofertaOk && estadoOk && catalogoOk && hasContact(extracted) && hasNombreOrEmpresa(extracted);
+}
+function getNextProveedorQuestion(extracted) {
+  hydrateProveedorFieldsFromRequirements(extracted);
+  if (!extracted.proveedor_oferta?.trim() || extracted.proveedor_oferta.trim().length < 3) {
+    return "oferta";
+  }
+  if (!extracted.proveedor_estado?.trim()) return "estado";
+  if (!extracted.proveedor_catalogo?.trim()) return "catalogo";
+  if (!hasContact(extracted)) return "contacto";
+  if (!hasNombreOrEmpresa(extracted)) return "nombre_empresa";
+  return null;
+}
+function extractHttpUrl(text2) {
+  const m6 = text2.match(/https?:\/\/[^\s<>"']+/i);
+  return m6?.[0]?.replace(/[.,;)]+$/, "") ?? null;
+}
+function looksLikeCatalogDecline(text2) {
+  return /\b(no\s+tengo|a[uú]n\s+no|todav[ií]a\s+no|no\s+cuento\s+con|despu[eé]s\s+te\s+mando|te\s+lo\s+mando\s+despu[eé]s|sin\s+cat[aá]logo)\b/i.test(
+    text2
+  );
+}
+function looksLikeCatalogPromise(text2) {
+  return /\b(te\s+(lo\s+)?mando|te\s+envio|te\s+env[ií]o|adjunto|aqu[ií]\s+(va|est[aá])|lista\s+de\s+precios|cat[aá]logo|pdf|excel|drive\.google|dropbox)\b/i.test(
+    text2
+  );
+}
+function applyProveedorAnswer(extracted, message, _historyBlob) {
+  const msg = message?.trim() ?? "";
+  if (!msg) return;
+  hydrateProveedorFieldsFromRequirements(extracted);
+  if (!extracted.empresa?.trim()) {
+    const emp = extractEmpresaFromText(msg);
+    if (emp) extracted.empresa = emp;
+  }
+  const pending = getNextProveedorQuestion(extracted);
+  const url2 = extractHttpUrl(msg);
+  if (url2 && !extracted.proveedor_catalogo?.trim()) {
+    extracted.proveedor_catalogo = url2;
+  }
+  if (pending === "oferta" || !extracted.proveedor_oferta?.trim() && msg.length >= 8) {
+    if (pending === "oferta" || /\b(ofrezco|ofrecemos|manejamos|vendemos|somos|distribuidor|alianza|venue|hacienda)\b/i.test(msg)) {
+      if (!extracted.proveedor_oferta?.trim() || pending === "oferta") {
+        if (!MX_ESTADO.test(msg) || msg.split(/\s+/).length > 4) {
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(msg)) {
+            extracted.proveedor_oferta = msg.slice(0, 280);
+          }
+        }
+      }
+    }
+  }
+  if (pending === "estado" || !extracted.proveedor_estado?.trim() && MX_ESTADO.test(msg)) {
+    const estadoMatch = msg.match(MX_ESTADO);
+    if (estadoMatch) {
+      extracted.proveedor_estado = estadoMatch[0].trim();
+    } else if (pending === "estado" && msg.length >= 3 && msg.length <= 80) {
+      extracted.proveedor_estado = msg.slice(0, 80);
+    }
+  }
+  if (pending === "catalogo" || !extracted.proveedor_catalogo?.trim()) {
+    if (url2) {
+      extracted.proveedor_catalogo = url2;
+    } else if (looksLikeCatalogDecline(msg)) {
+      extracted.proveedor_catalogo = "A\xFAn no / lo env\xEDan despu\xE9s";
+    } else if (pending === "catalogo" && looksLikeCatalogPromise(msg)) {
+      extracted.proveedor_catalogo = msg.slice(0, 200);
+    } else if (pending === "catalogo" && msg.length >= 3) {
+      extracted.proveedor_catalogo = msg.slice(0, 200);
+    }
+  }
+  if (pending === "contacto") {
+    const email = msg.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/)?.[0];
+    if (email) extracted.correo = email;
+    const phone = msg.match(/(?:\+?52\s*)?(?:\d[\s-]*){10,}/)?.[0];
+    if (phone && phone.replace(/\D/g, "").length >= 10) {
+      extracted.telefono = phone.replace(/\s+/g, " ").trim();
+    }
+  }
+  if (pending === "nombre_empresa") {
+    if (!extracted.nombre?.trim() && /^[A-Za-zÁÉÍÓÚáéíóúñÑ][A-Za-zÁÉÍÓÚáéíóúñÑ\s.'-]{1,60}$/.test(msg)) {
+      extracted.nombre = msg.trim();
+    }
+    const emp = extractEmpresaFromText(msg) || (!extracted.empresa ? msg.slice(0, 80) : null);
+    if (emp && !extracted.empresa?.trim()) extracted.empresa = emp;
+  }
+  extracted.requerimientos_evento = formatProveedorRequirements(extracted);
+}
+function buildProveedorQuestionText(field, extracted) {
+  const name2 = extracted.nombre?.trim().split(/\s+/)[0];
+  const hi2 = name2 ? `${name2}, ` : "";
+  switch (field) {
+    case "oferta":
+      return `${hi2}para canalizarte bien con el equipo: \xBFqu\xE9 servicios o productos ofrecen?`;
+    case "estado":
+      return `${hi2}\xBFen qu\xE9 estado(s) de la Rep\xFAblica operan o dan cobertura?`;
+    case "catalogo":
+      return `${hi2}\xBFme puedes compartir tu *cat\xE1logo* o *lista de precios* (link, PDF o un resumen)? Si a\xFAn no lo tienes, d\xEDmelo igual.`;
+    case "contacto":
+      return `${hi2}\xBFme dejas un *correo* o *WhatsApp* de contacto comercial?`;
+    case "nombre_empresa":
+      return `${hi2}\xBFme confirmas tu *nombre* y el de tu *empresa* o venue?`;
+  }
+}
+function buildProveedorProgressReply(extracted) {
+  hydrateProveedorFieldsFromRequirements(extracted);
+  const next = getNextProveedorQuestion(extracted);
+  if (!next) {
+    return buildProveedorCompletionReply(extracted);
+  }
+  const ackBits = [];
+  if (extracted.proveedor_oferta?.trim()) ackBits.push("lo que ofrecen");
+  if (extracted.proveedor_estado?.trim()) ackBits.push("cobertura");
+  if (extracted.proveedor_catalogo?.trim()) ackBits.push("cat\xE1logo");
+  const ack = ackBits.length > 0 ? `Perfecto, ya anot\xE9 ${ackBits.join(", ")}. ` : "Gracias por escribirnos como proveedor / aliado. ";
+  return `${ack}${buildProveedorQuestionText(next, extracted)}`;
+}
+function buildProveedorCompletionReply(extracted) {
+  const name2 = extracted.nombre?.trim().split(/\s+/)[0];
+  const empresa = extracted.empresa?.trim();
+  const greet = name2 ? `Gracias, ${name2}.` : "Gracias.";
+  const who = empresa ? ` Ya tengo los datos de *${empresa}*.` : " Ya tengo tus datos de proveedor.";
+  return `${greet}${who} Los paso a nuestro equipo de *proveedores / alianzas* para que los revisen. Si les interesa, ellos te contactan. \xA1Que tengas excelente d\xEDa!`;
+}
+function scrubProveedorFieldsForCliente(extracted) {
+  extracted.tipo_contacto = "cliente";
+  extracted.proveedor_oferta = null;
+  extracted.proveedor_estado = null;
+  extracted.proveedor_catalogo = null;
+  if (/^PROVEEDOR:/i.test(extracted.requerimientos_evento ?? "")) {
+    extracted.requerimientos_evento = null;
+  }
+}
+
 // api-server/src/lib/proveedorHandoff.ts
 function extractEmpresaFromText(text2) {
   if (!text2?.trim()) return null;
@@ -229903,11 +230148,14 @@ function extractEmpresaFromText(text2) {
   return null;
 }
 function buildProveedorHandoffReply(opts) {
+  if (opts.extracted && proveedorQuestionnaireComplete(opts.extracted)) {
+    return buildProveedorCompletionReply(opts.extracted);
+  }
   const name2 = opts.nombre?.trim().split(/\s+/)[0] || null;
   const empresa = opts.empresa?.trim() || extractEmpresaFromText(opts.conversationText ?? "") || null;
   const greet = name2 ? `Gracias, ${name2}.` : "Gracias por escribirnos.";
   const who = empresa ? `Recibimos la invitaci\xF3n / propuesta de *${empresa}*.` : "Recibimos tu mensaje de alianza / proveedor.";
-  return `${greet} ${who} No cotizamos eventos por este canal cuando nos escriben como proveedor o venue aliado: paso tu contacto a nuestro equipo de *proveedores / alianzas* para que lo revisen. Si les interesa, ellos te responden. \xA1Que tengas buen d\xEDa!`;
+  return `${greet} ${who} Para canalizarte con el equipo de *proveedores / alianzas*, necesito unos datos r\xE1pidos (qu\xE9 ofrecen, cobertura y cat\xE1logo). \xBFQu\xE9 servicios o productos ofrecen?`;
 }
 function scrubClientFieldsForProveedor(extracted) {
   const out2 = { ...extracted };
@@ -229920,11 +230168,18 @@ function scrubClientFieldsForProveedor(extracted) {
   out2.horario_evento = null;
   out2.fecha_horario = null;
   if (!out2.empresa?.trim()) {
-    const fromReq = out2.requerimientos_evento?.match(
-      /PROVEEDOR:\s*([^-]+)\s*-/i
-    )?.[1]?.trim();
+    const fromReq = out2.requerimientos_evento?.match(/PROVEEDOR:\s*([^-]+)\s*-/i)?.[1]?.trim();
     out2.empresa = fromReq || null;
   }
+  hydrateProveedorFieldsFromRequirements(out2);
+  if (!out2.proveedor_oferta?.trim()) {
+    const desc2 = (out2.requerimientos_evento ?? "").replace(/^PROVEEDOR:\s*/i, "").trim();
+    if (desc2 && desc2.length > 8 && !/^Ofrece:\s*—/i.test(desc2)) {
+      const offer = desc2.match(/Ofrece:\s*([^|]+)/i)?.[1]?.trim();
+      if (offer && offer !== "\u2014") out2.proveedor_oferta = offer;
+    }
+  }
+  out2.requerimientos_evento = formatProveedorRequirements(out2);
   return out2;
 }
 
@@ -230701,7 +230956,10 @@ function asExtracted(partial) {
     fecha_horario: partial?.fecha_horario ?? null,
     num_invitados: partial?.num_invitados ?? null,
     tipo_evento: partial?.tipo_evento ?? null,
-    modo_servicio: partial?.modo_servicio ?? null
+    modo_servicio: partial?.modo_servicio ?? null,
+    proveedor_oferta: partial?.proveedor_oferta ?? null,
+    proveedor_estado: partial?.proveedor_estado ?? null,
+    proveedor_catalogo: partial?.proveedor_catalogo ?? null
   };
 }
 function firstName(clientName) {
@@ -231241,7 +231499,10 @@ async function finalizeLucyOutboundMessage(input) {
         fecha_horario: input.extracted.fecha_horario ?? null,
         num_invitados: input.extracted.num_invitados ?? null,
         tipo_evento: input.extracted.tipo_evento ?? null,
-        modo_servicio: null
+        modo_servicio: null,
+        proveedor_oferta: null,
+        proveedor_estado: null,
+        proveedor_catalogo: null
       };
       const pending = getNextPendingField(
         extractedFallback,
@@ -231412,16 +231673,29 @@ async function prepareLucyExtraction(input) {
     ...fullHistory.filter((m6) => m6.role === "user" && typeof m6.content === "string").map((m6) => m6.content),
     messageText
   ].join(" ");
-  extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
+  const priorProveedorSignal = extracted.tipo_contacto === "proveedor" || /^PROVEEDOR:/i.test(extracted.requerimientos_evento ?? "") || /\bPROVEEDOR\s*:/i.test(crmLines.join("\n"));
+  extracted.tipo_contacto = resolveTipoContacto(
+    extracted.tipo_contacto,
+    conversationText,
+    messageText
+  );
+  let proveedorRecoveredToCliente = false;
+  if (extracted.tipo_contacto === "cliente" && priorProveedorSignal && looksLikeClienteCorrection(messageText)) {
+    scrubProveedorFieldsForCliente(extracted);
+    proveedorRecoveredToCliente = true;
+  }
   if (extracted.tipo_contacto === "proveedor") {
     Object.assign(extracted, scrubClientFieldsForProveedor(extracted));
     if (!extracted.empresa?.trim()) {
       extracted.empresa = extractEmpresaFromText(conversationText);
     }
-    const empresa = extracted.empresa ?? "";
-    const desc2 = (extracted.requerimientos_evento ?? "").replace(/^PROVEEDOR:\s*/i, "").trim();
-    const offerHint = desc2 || (/\baliados?\b|\bvenue\b|\bhacienda\b/i.test(conversationText) ? "Invitaci\xF3n a red de aliados / venue" : "Oferta de proveedor");
-    extracted.requerimientos_evento = `PROVEEDOR: ${empresa ? empresa + " - " : ""}Ofrece: ${offerHint}`.slice(0, 240);
+    hydrateProveedorFieldsFromRequirements(extracted);
+    if (!extracted.proveedor_oferta?.trim()) {
+      const hint = /\baliados?\b|\bvenue\b|\bhacienda\b/i.test(conversationText) ? "Invitaci\xF3n a red de aliados / venue" : null;
+      if (hint) extracted.proveedor_oferta = hint;
+    }
+    applyProveedorAnswer(extracted, messageText, conversationText);
+    extracted.requerimientos_evento = formatProveedorRequirements(extracted);
   } else {
     enrichExtractedFromText(extracted, conversationText);
     sanitizeExtractedAmbiguousNumbers(extracted, messageText, { lastAskedField: lastAskedAmbig });
@@ -231437,7 +231711,7 @@ async function prepareLucyExtraction(input) {
   if (isUnusableTipoEventoReply(extracted.tipo_evento)) {
     extracted.tipo_evento = null;
   }
-  return { extracted, conversationText };
+  return { extracted, conversationText, proveedorRecoveredToCliente };
 }
 async function buildLucySystemPrompt(opts) {
   const intentResult = detectIntent(opts.messageText);
@@ -231528,20 +231802,31 @@ async function generateLucyOutbound(input) {
   } = input;
   const filledBefore = new Set(filledLabels);
   if (extracted.tipo_contacto === "proveedor") {
-    const reply = buildProveedorHandoffReply({
+    applyProveedorAnswer(extracted, messageText, conversationText);
+    const complete = proveedorQuestionnaireComplete(extracted);
+    const reply = complete ? buildProveedorHandoffReply({
       nombre: extracted.nombre ?? whatsappDisplayName,
       empresa: extracted.empresa,
-      conversationText
-    });
+      conversationText,
+      extracted
+    }) : buildProveedorProgressReply(extracted);
     log?.info?.(
-      { entityId, empresa: extracted.empresa },
-      "Proveedor/alianza detectado \u2014 handoff (sin embudo cliente)"
+      {
+        entityId,
+        empresa: extracted.empresa,
+        complete,
+        oferta: extracted.proveedor_oferta,
+        estado: extracted.proveedor_estado
+      },
+      complete ? "Proveedor \u2014 cuestionario completo (handoff)" : "Proveedor \u2014 embudo cuestionario (Lucy activa)"
     );
     return {
       mensajeParaCliente: reply,
       aiResponse: reply,
       unclearStreak: 0,
-      escalateUnclearToHuman: false
+      escalateUnclearToHuman: false,
+      proveedorReadyForHandoff: complete,
+      proveedorRecoveredToCliente: false
     };
   }
   await enrichExtractedDireccionWithMaps(extracted, messageText).catch(() => void 0);
@@ -231716,8 +232001,199 @@ async function generateLucyOutbound(input) {
     mensajeParaCliente,
     aiResponse,
     unclearStreak: nextStreak,
-    escalateUnclearToHuman
+    escalateUnclearToHuman,
+    proveedorReadyForHandoff: false,
+    proveedorRecoveredToCliente: false
   };
+}
+
+// api-server/src/routes/kommo.ts
+init_tipoContacto();
+
+// api-server/src/services/proveedorSheets.ts
+init_logger2();
+init_googleSheetsCatalog();
+import { createSign } from "node:crypto";
+import { readFile as readFile2 } from "node:fs/promises";
+var TAB_NAME = "Proveedores";
+var SHEETS_SCOPE = "https://www.googleapis.com/auth/spreadsheets";
+var HEADERS = [
+  "Timestamp",
+  "Lead ID",
+  "Nombre",
+  "Empresa",
+  "Correo",
+  "Tel\xE9fono",
+  "Qu\xE9 ofrece",
+  "Estado",
+  "Cat\xE1logo / precios",
+  "Notas",
+  "Kommo URL"
+];
+function resolveSpreadsheetId() {
+  const raw = process.env["GOOGLE_SHEETS_PROVEEDORES_ID"]?.trim() || process.env["GOOGLE_SHEETS_PRECIOS"]?.trim() || BODASESOR_PRECIOS_SHEET_ID;
+  const fromUrl = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  return fromUrl?.[1] ?? raw;
+}
+async function loadServiceAccount() {
+  const inline = process.env["GOOGLE_SERVICE_ACCOUNT_JSON"]?.trim();
+  if (inline) {
+    try {
+      const parsed = JSON.parse(inline);
+      if (parsed.client_email && parsed.private_key) return parsed;
+    } catch (err2) {
+      logger.warn({ err: err2 }, "proveedorSheets: GOOGLE_SERVICE_ACCOUNT_JSON inv\xE1lido");
+    }
+  }
+  const file = process.env["GOOGLE_SERVICE_ACCOUNT_FILE"]?.trim();
+  if (file) {
+    try {
+      const raw = await readFile2(file, "utf8");
+      const parsed = JSON.parse(raw);
+      if (parsed.client_email && parsed.private_key) return parsed;
+    } catch (err2) {
+      logger.warn({ err: err2, file }, "proveedorSheets: no se pudo leer service account file");
+    }
+  }
+  return null;
+}
+function b64url2(input) {
+  const buf = typeof input === "string" ? Buffer.from(input) : input;
+  return buf.toString("base64url");
+}
+async function getAccessToken(sa2) {
+  const now = Math.floor(Date.now() / 1e3);
+  const header = b64url2(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const claim = b64url2(
+    JSON.stringify({
+      iss: sa2.client_email,
+      scope: SHEETS_SCOPE,
+      aud: sa2.token_uri || "https://oauth2.googleapis.com/token",
+      iat: now,
+      exp: now + 3600
+    })
+  );
+  const unsigned = `${header}.${claim}`;
+  const signer = createSign("RSA-SHA256");
+  signer.update(unsigned);
+  signer.end();
+  const key = sa2.private_key.replace(/\\n/g, "\n");
+  const sig = b64url2(signer.sign(key));
+  const jwt = `${unsigned}.${sig}`;
+  const tokenUri = sa2.token_uri || "https://oauth2.googleapis.com/token";
+  const body2 = new URLSearchParams({
+    grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+    assertion: jwt
+  });
+  const res = await fetch(tokenUri, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body2
+  });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => "");
+    logger.warn({ status: res.status, errBody: errBody.slice(0, 300) }, "proveedorSheets: token OAuth fall\xF3");
+    return null;
+  }
+  const data = await res.json();
+  return data.access_token ?? null;
+}
+async function sheetsFetch(path7, token, init2) {
+  return fetch(`https://sheets.googleapis.com/v4${path7}`, {
+    ...init2,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      ...init2?.headers ?? {}
+    }
+  });
+}
+async function ensureProveedoresTab(spreadsheetId, token) {
+  const metaRes = await sheetsFetch(
+    `/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`,
+    token
+  );
+  if (!metaRes.ok) {
+    logger.warn({ status: metaRes.status }, "proveedorSheets: no se pudo leer meta del spreadsheet");
+    return false;
+  }
+  const meta = await metaRes.json();
+  const titles = (meta.sheets ?? []).map((s7) => s7.properties?.title ?? "");
+  if (!titles.includes(TAB_NAME)) {
+    const createRes = await sheetsFetch(`/spreadsheets/${spreadsheetId}:batchUpdate`, token, {
+      method: "POST",
+      body: JSON.stringify({
+        requests: [{ addSheet: { properties: { title: TAB_NAME } } }]
+      })
+    });
+    if (!createRes.ok) {
+      const errBody = await createRes.text().catch(() => "");
+      logger.warn(
+        { status: createRes.status, errBody: errBody.slice(0, 300) },
+        "proveedorSheets: no se pudo crear pesta\xF1a Proveedores"
+      );
+      return false;
+    }
+  }
+  const range = encodeURIComponent(`${TAB_NAME}!A1:K1`);
+  const getRes = await sheetsFetch(
+    `/spreadsheets/${spreadsheetId}/values/${range}`,
+    token
+  );
+  if (!getRes.ok) return true;
+  const values = await getRes.json();
+  const first = values.values?.[0]?.[0]?.trim();
+  if (!first) {
+    await sheetsFetch(`/spreadsheets/${spreadsheetId}/values/${range}?valueInputOption=RAW`, token, {
+      method: "PUT",
+      body: JSON.stringify({ values: [Array.from(HEADERS)] })
+    });
+  }
+  return true;
+}
+async function appendProveedorRow(row) {
+  const sa2 = await loadServiceAccount();
+  if (!sa2) {
+    logger.warn("proveedorSheets: sin service account \u2014 skip append");
+    return { ok: false, skipped: true, error: "missing_service_account" };
+  }
+  const token = await getAccessToken(sa2);
+  if (!token) return { ok: false, error: "oauth_failed" };
+  const spreadsheetId = resolveSpreadsheetId();
+  const ready = await ensureProveedoresTab(spreadsheetId, token);
+  if (!ready) return { ok: false, error: "ensure_tab_failed" };
+  const ts2 = (/* @__PURE__ */ new Date()).toLocaleString("es-MX", { timeZone: "America/Mexico_City" });
+  const values = [
+    [
+      ts2,
+      String(row.leadId),
+      row.nombre ?? "",
+      row.empresa ?? "",
+      row.correo ?? "",
+      row.telefono ?? "",
+      row.oferta ?? "",
+      row.estado ?? "",
+      row.catalogo ?? "",
+      row.notas ?? "",
+      row.kommoUrl ?? ""
+    ]
+  ];
+  const range = encodeURIComponent(`${TAB_NAME}!A:K`);
+  const res = await sheetsFetch(
+    `/spreadsheets/${spreadsheetId}/values/${range}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    token,
+    { method: "POST", body: JSON.stringify({ values }) }
+  );
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => "");
+    logger.warn(
+      { status: res.status, errBody: errBody.slice(0, 400), spreadsheetId },
+      "proveedorSheets: append fall\xF3"
+    );
+    return { ok: false, error: `append_${res.status}` };
+  }
+  logger.info({ spreadsheetId, leadId: row.leadId }, "proveedorSheets: fila append OK");
+  return { ok: true };
 }
 
 // api-server/src/routes/kommo.ts
@@ -232164,7 +232640,10 @@ async function extractData(history, latestUserText, crmAlreadyFilled = "") {
     tipo_evento: null,
     tipo_contacto: null,
     empresa: null,
-    modo_servicio: null
+    modo_servicio: null,
+    proveedor_oferta: null,
+    proveedor_estado: null,
+    proveedor_catalogo: null
   };
   if (isLucyUnifiedLlmTurn()) {
     return empty;
@@ -232247,7 +232726,10 @@ Reglas estrictas:
       tipo_evento: parsed.tipo_evento ?? null,
       tipo_contacto: tipoContacto,
       empresa: parsed.empresa ?? null,
-      modo_servicio: parsed.modo_servicio === "pedido_entrega" || parsed.modo_servicio === "servicio_montado" ? parsed.modo_servicio : null
+      modo_servicio: parsed.modo_servicio === "pedido_entrega" || parsed.modo_servicio === "servicio_montado" ? parsed.modo_servicio : null,
+      proveedor_oferta: typeof parsed.proveedor_oferta === "string" ? parsed.proveedor_oferta : null,
+      proveedor_estado: typeof parsed.proveedor_estado === "string" ? parsed.proveedor_estado : null,
+      proveedor_catalogo: typeof parsed.proveedor_catalogo === "string" ? parsed.proveedor_catalogo : null
     };
     hydrateScheduleFields(result);
     return result;
@@ -232719,8 +233201,8 @@ async function fetchLeadContactId(subdomain, accessToken, leadId) {
   }
 }
 async function updateKommoContact(subdomain, accessToken, contactId, extracted, log, currentContactName) {
-  const hasContact = extracted.nombre || extracted.telefono || extracted.correo;
-  if (!hasContact) return;
+  const hasContact2 = extracted.nombre || extracted.telefono || extracted.correo;
+  if (!hasContact2) return;
   const contactPayload = {};
   if (extracted.nombre) {
     const namePatch = resolveKommoLeadNamePatch(currentContactName, extracted.nombre);
@@ -232979,6 +233461,26 @@ async function processBatch(batch, accessToken, log) {
           direccion: leadKommo.direccion
         }, leadKommo.tags);
       } else {
+        const silenciada = !lucyDebeResponder(leadKommo.status_id, leadKommo.tags);
+        const maybeClienteRecovery = silenciada && (leadKommo.tags.includes("proveedor") || leadKommo.tags.includes("lucy_desactivada")) && looksLikeClienteCorrection(combinedUserText);
+        if (maybeClienteRecovery) {
+          try {
+            await reactivarEmbudoCliente(
+              subdomain,
+              accessToken,
+              entityId,
+              leadKommo.tags
+            );
+            leadKommo = await fetchLead(subdomain, accessToken, entityId) ?? {
+              ...leadKommo,
+              status_id: ETAPA.DATOS_E_INTERESES,
+              tags: leadKommo.tags.filter((t4) => t4 !== "lucy_desactivada" && t4 !== "proveedor").concat(leadKommo.tags.includes("cliente") ? [] : ["cliente"])
+            };
+            log.info({ entityId }, "Embudo: A16075 recovery proveedor\u2192cliente antes de silencio");
+          } catch (err2) {
+            log.warn({ err: err2, entityId }, "Embudo: recovery proveedor\u2192cliente fall\xF3");
+          }
+        }
         const debeResponder = lucyDebeResponder(leadKommo.status_id, leadKommo.tags);
         if (!debeResponder) {
           log.info(
@@ -233065,7 +233567,11 @@ async function processBatch(batch, accessToken, log) {
       historySource = historySource === "file" ? recoverySource : `${historySource}+${recoverySource}`;
     }
     log.info({ historyLength: history.length, historySource, crmLinesCount: crmLines.length }, "Context loaded");
-    const { extracted, conversationText } = await prepareLucyExtraction({
+    const {
+      extracted,
+      conversationText,
+      proveedorRecoveredToCliente: recoveredFromExtraction
+    } = await prepareLucyExtraction({
       fullHistory,
       messageText: combinedUserText,
       crmLines,
@@ -233073,6 +233579,20 @@ async function processBatch(batch, accessToken, log) {
     });
     if (extracted.tipo_contacto === "proveedor" && extracted.requerimientos_evento) {
       log.info({ resumenProv: extracted.requerimientos_evento }, "Resumen proveedor generado");
+    }
+    if (recoveredFromExtraction) {
+      try {
+        const leadRec = await fetchLead(subdomain, accessToken, entityId);
+        await reactivarEmbudoCliente(
+          subdomain,
+          accessToken,
+          entityId,
+          leadRec?.tags ?? []
+        );
+        log.info({ entityId }, "Embudo: A16075 recovery tras extracci\xF3n proveedor\u2192cliente");
+      } catch (err2) {
+        log.warn({ err: err2, entityId }, "Embudo: recovery post-extracci\xF3n fall\xF3");
+      }
     }
     const cierreYaEnviado = detectCierreEnviado(fullHistory, effectiveLastResponse);
     const leadNameFromCrm = crmLines.find((l6) => /Nombre del cliente:/i.test(l6))?.replace(/^-?\s*Nombre del cliente:\s*/i, "").trim();
@@ -233122,7 +233642,9 @@ async function processBatch(batch, accessToken, log) {
       mensajeParaCliente,
       aiResponse,
       unclearStreak,
-      escalateUnclearToHuman
+      escalateUnclearToHuman,
+      proveedorReadyForHandoff,
+      proveedorRecoveredToCliente
     } = await generateLucyOutbound({
       messageText: combinedUserText,
       history,
@@ -233320,6 +233842,7 @@ async function processBatch(batch, accessToken, log) {
       }
     }
     const esProveedor = extracted.tipo_contacto === "proveedor";
+    const proveedorCompleto = esProveedor && (proveedorReadyForHandoff === true || proveedorQuestionnaireComplete(extracted));
     if (extracted.tipo_contacto === "proveedor" || extracted.tipo_contacto === "cliente") {
       const leadParaTags = await fetchLead(subdomain, accessToken, entityId);
       if (leadParaTags) {
@@ -233330,8 +233853,55 @@ async function processBatch(batch, accessToken, log) {
         }
       }
     }
-    if (esProveedor) {
+    if (proveedorRecoveredToCliente || recoveredFromExtraction) {
       try {
+        const leadRec = await fetchLead(subdomain, accessToken, entityId);
+        await reactivarEmbudoCliente(
+          subdomain,
+          accessToken,
+          entityId,
+          leadRec?.tags ?? []
+        );
+      } catch (err2) {
+        log.warn({ err: err2, entityId }, "Embudo: recovery flags post-outbound fall\xF3");
+      }
+    }
+    if (esProveedor && proveedorCompleto) {
+      try {
+        const sheetResult = await appendProveedorRow({
+          leadId: entityId,
+          nombre: extracted.nombre,
+          empresa: extracted.empresa,
+          correo: extracted.correo || conversation.clientEmail,
+          telefono: extracted.telefono,
+          oferta: extracted.proveedor_oferta ?? extracted.requerimientos_evento,
+          estado: extracted.proveedor_estado,
+          catalogo: extracted.proveedor_catalogo,
+          notas: extracted.requerimientos_evento,
+          kommoUrl: `https://${subdomain}.kommo.com/leads/detail/${entityId}`
+        });
+        if (sheetResult.ok) {
+          await agregarNota(
+            subdomain,
+            accessToken,
+            entityId,
+            "\u{1F4CA} SHEETS_OK \u2014 fila append en pesta\xF1a Proveedores."
+          );
+        } else if (sheetResult.skipped) {
+          await agregarNota(
+            subdomain,
+            accessToken,
+            entityId,
+            "\u26A0\uFE0F Sheets skip \u2014 sin GOOGLE_SERVICE_ACCOUNT_JSON (cuestionario OK en Kommo)."
+          );
+        } else {
+          await agregarNota(
+            subdomain,
+            accessToken,
+            entityId,
+            `\u26A0\uFE0F Sheets append fall\xF3 (${sheetResult.error ?? "unknown"}) \u2014 datos en nota Kommo.`
+          );
+        }
         const leadParaProv = await fetchLead(subdomain, accessToken, entityId);
         await moverAZonaProveedores(
           subdomain,
@@ -233345,25 +233915,37 @@ async function processBatch(batch, accessToken, log) {
           },
           leadParaProv?.tags ?? []
         );
-        log.info({ entityId }, "Embudo: proveedor/alianza \u2192 zona proveedores (Lucy off)");
+        log.info({ entityId }, "Embudo: proveedor completo \u2192 Sheets + zona proveedores (Lucy off)");
       } catch (err2) {
         log.warn({ err: err2, entityId }, "Embudo: mover a zona proveedores fall\xF3 \u2014 nota de respaldo");
         const datosProveedor = {
           tipo_contacto: "proveedor",
           correo: extracted.correo || conversation.clientEmail,
+          telefono: extracted.telefono,
           empresa: extracted.empresa,
-          requerimientos_evento: extracted.requerimientos_evento
+          nombre: extracted.nombre,
+          requerimientos_evento: extracted.requerimientos_evento,
+          proveedor_oferta: extracted.proveedor_oferta,
+          proveedor_estado: extracted.proveedor_estado,
+          proveedor_catalogo: extracted.proveedor_catalogo
         };
         await agregarNota(
           subdomain,
           accessToken,
           entityId,
-          `\u{1F4E6} PROVEEDOR / ALIANZA detectado \u2014 ${extracted.empresa ?? "Sin empresa"}
+          `\u{1F4E6} PROVEEDOR / ALIANZA completo \u2014 ${extracted.empresa ?? "Sin empresa"}
 Contacto: ${extracted.nombre ?? "-"} | Correo: ${extracted.correo ?? "-"}
-Ofrece: ${extracted.requerimientos_evento ?? "-"}
+Ofrece: ${extracted.proveedor_oferta ?? extracted.requerimientos_evento ?? "-"}
+Estado: ${extracted.proveedor_estado ?? "-"}
+Cat\xE1logo: ${extracted.proveedor_catalogo ?? "-"}
 ` + (tieneInformacionCompleta(datosProveedor) ? "\u2705 Datos suficientes\n" : "") + "\u26A0\uFE0F Revisar manualmente \u2014 no es cliente de eventos."
         );
       }
+    } else if (esProveedor) {
+      log.info(
+        { entityId, oferta: extracted.proveedor_oferta, estado: extracted.proveedor_estado },
+        "Embudo: proveedor en cuestionario \u2014 Lucy sigue activa"
+      );
     } else {
       const pidioAsesor = clientAsksForHumanAdvisor(combinedUserText);
       if (pidioAsesor || escalateUnclearToHuman) {

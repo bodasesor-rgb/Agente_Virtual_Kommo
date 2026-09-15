@@ -64,6 +64,7 @@ router.get("/health", async (_req, res) => {
       "gemini-media-once",
       "gemini-image-compress-1024",
       "proveedor-alianza-handoff",
+      "proveedor-questionnaire-sheets",
     ],
     learning: {
       note: "Panel /aprendizaje: chats, huecos Sheet e Información para Lucy (PDF→texto + tendencias). Sync Kommo; cron 5 min; auto-aprueba ≥0.85",

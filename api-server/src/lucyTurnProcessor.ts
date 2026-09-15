@@ -5,12 +5,20 @@
 import type OpenAI from "openai";
 import type { ExtractedData } from "./types.js";
 import { filterClientEmail, looksLikeValidClientEmail, sanitizeStoredClientEmail } from "./client-email.js";
-import { resolveTipoContacto } from "./tipoContacto.js";
+import { resolveTipoContacto, looksLikeClienteCorrection } from "./tipoContacto.js";
 import {
   buildProveedorHandoffReply,
   extractEmpresaFromText,
   scrubClientFieldsForProveedor,
 } from "./lib/proveedorHandoff.js";
+import {
+  applyProveedorAnswer,
+  buildProveedorProgressReply,
+  formatProveedorRequirements,
+  hydrateProveedorFieldsFromRequirements,
+  proveedorQuestionnaireComplete,
+  scrubProveedorFieldsForCliente,
+} from "./lib/proveedorQuestionnaire.js";
 import { detectModoServicio } from "./modoServicio.js";
 import {
   applyWebLeadBrief,
@@ -78,6 +86,8 @@ export interface PrepareLucyExtractionInput {
 export interface PrepareLucyExtractionResult {
   extracted: ExtractedData;
   conversationText: string;
+  /** A16075: era proveedor (CRM/LLM) y el mensaje aclara que es cliente. */
+  proveedorRecoveredToCliente?: boolean;
 }
 
 /** Extracción + enrich unificados (misma pista CRM y mismo historial en las 3 rutas). */
@@ -112,23 +122,42 @@ export async function prepareLucyExtraction(
     messageText,
   ].join(" ");
 
-  // Resolver tipo ANTES de enriquecer (A14936: alianza ≠ embudo cliente).
-  extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
+  // Resolver tipo ANTES de enriquecer (A14936 / A16075).
+  const priorProveedorSignal =
+    extracted.tipo_contacto === "proveedor" ||
+    /^PROVEEDOR:/i.test(extracted.requerimientos_evento ?? "") ||
+    /\bPROVEEDOR\s*:/i.test(crmLines.join("\n"));
+
+  extracted.tipo_contacto = resolveTipoContacto(
+    extracted.tipo_contacto,
+    conversationText,
+    messageText
+  );
+
+  let proveedorRecoveredToCliente = false;
+  if (
+    extracted.tipo_contacto === "cliente" &&
+    priorProveedorSignal &&
+    looksLikeClienteCorrection(messageText)
+  ) {
+    scrubProveedorFieldsForCliente(extracted);
+    proveedorRecoveredToCliente = true;
+  }
 
   if (extracted.tipo_contacto === "proveedor") {
     Object.assign(extracted, scrubClientFieldsForProveedor(extracted));
     if (!extracted.empresa?.trim()) {
       extracted.empresa = extractEmpresaFromText(conversationText);
     }
-    const empresa = extracted.empresa ?? "";
-    const desc = (extracted.requerimientos_evento ?? "").replace(/^PROVEEDOR:\s*/i, "").trim();
-    const offerHint =
-      desc ||
-      (/\baliados?\b|\bvenue\b|\bhacienda\b/i.test(conversationText)
+    hydrateProveedorFieldsFromRequirements(extracted);
+    if (!extracted.proveedor_oferta?.trim()) {
+      const hint = /\baliados?\b|\bvenue\b|\bhacienda\b/i.test(conversationText)
         ? "Invitación a red de aliados / venue"
-        : "Oferta de proveedor");
-    extracted.requerimientos_evento =
-      `PROVEEDOR: ${empresa ? empresa + " - " : ""}Ofrece: ${offerHint}`.slice(0, 240);
+        : null;
+      if (hint) extracted.proveedor_oferta = hint;
+    }
+    applyProveedorAnswer(extracted, messageText, conversationText);
+    extracted.requerimientos_evento = formatProveedorRequirements(extracted);
   } else {
     enrichExtractedFromText(extracted, conversationText);
     sanitizeExtractedAmbiguousNumbers(extracted, messageText, { lastAskedField: lastAskedAmbig });
@@ -147,7 +176,7 @@ export async function prepareLucyExtraction(
     extracted.tipo_evento = null;
   }
 
-  return { extracted, conversationText };
+  return { extracted, conversationText, proveedorRecoveredToCliente };
 }
 
 export async function buildLucySystemPrompt(opts: {
@@ -271,6 +300,10 @@ export interface GenerateLucyOutboundResult {
   unclearStreak: number;
   /** V9.78: se agotaron los reintentos — mover el lead a Humano Trabaja. */
   escalateUnclearToHuman: boolean;
+  /** A16075: cuestionario proveedor listo → Sheets + zona proveedores. */
+  proveedorReadyForHandoff?: boolean;
+  /** A16075: mal clasificado; reactivar embudo cliente en Kommo. */
+  proveedorRecoveredToCliente?: boolean;
 }
 
 /** Prompt → OpenAI → catálogo → guards → formatForWhatsApp (las 3 rutas). */
@@ -303,22 +336,37 @@ export async function generateLucyOutbound(
   // Foto del CRM antes del turno: si no crece, el mensaje del cliente no aportó nada.
   const filledBefore = new Set(filledLabels);
 
-  // A14936: proveedor / alianza → handoff fijo (sin formulario de evento).
+  // A14936 / A16075: proveedor → embudo corto (no handoff hasta completar).
   if (extracted.tipo_contacto === "proveedor") {
-    const reply = buildProveedorHandoffReply({
-      nombre: extracted.nombre ?? whatsappDisplayName,
-      empresa: extracted.empresa,
-      conversationText,
-    });
+    applyProveedorAnswer(extracted, messageText, conversationText);
+    const complete = proveedorQuestionnaireComplete(extracted);
+    const reply = complete
+      ? buildProveedorHandoffReply({
+          nombre: extracted.nombre ?? whatsappDisplayName,
+          empresa: extracted.empresa,
+          conversationText,
+          extracted,
+        })
+      : buildProveedorProgressReply(extracted);
     log?.info?.(
-      { entityId, empresa: extracted.empresa },
-      "Proveedor/alianza detectado — handoff (sin embudo cliente)"
+      {
+        entityId,
+        empresa: extracted.empresa,
+        complete,
+        oferta: extracted.proveedor_oferta,
+        estado: extracted.proveedor_estado,
+      },
+      complete
+        ? "Proveedor — cuestionario completo (handoff)"
+        : "Proveedor — embudo cuestionario (Lucy activa)"
     );
     return {
       mensajeParaCliente: reply,
       aiResponse: reply,
       unclearStreak: 0,
       escalateUnclearToHuman: false,
+      proveedorReadyForHandoff: complete,
+      proveedorRecoveredToCliente: false,
     };
   }
 
@@ -518,5 +566,7 @@ export async function generateLucyOutbound(
     aiResponse,
     unclearStreak: nextStreak,
     escalateUnclearToHuman,
+    proveedorReadyForHandoff: false,
+    proveedorRecoveredToCliente: false,
   };
 }

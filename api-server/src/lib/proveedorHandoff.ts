@@ -3,13 +3,21 @@
  * proveedores, venues e invitaciones a red de aliados.
  */
 import type { ExtractedData } from "../types.js";
+import {
+  buildProveedorCompletionReply,
+  formatProveedorRequirements,
+  hydrateProveedorFieldsFromRequirements,
+  proveedorQuestionnaireComplete,
+} from "./proveedorQuestionnaire.js";
 
 /** Campos que Lucy puede pedir a un proveedor (nunca embudo de evento). */
 export const PROVEEDOR_FIELDS = [
   "Nombre del contacto",
   "Empresa",
-  "Correo electrónico",
+  "Correo o teléfono",
   "Qué ofrece / alianza",
+  "Estado / cobertura",
+  "Catálogo o lista de precios",
 ] as const;
 
 export function extractEmpresaFromText(text: string): string | null {
@@ -30,14 +38,21 @@ export function extractEmpresaFromText(text: string): string | null {
   return null;
 }
 
+/**
+ * Mensaje final cuando el cuestionario ya está completo
+ * (o fallback legacy si se llama sin datos).
+ */
 export function buildProveedorHandoffReply(opts: {
   nombre?: string | null;
   empresa?: string | null;
   conversationText?: string | null;
+  extracted?: ExtractedData | null;
 }): string {
-  const name =
-    opts.nombre?.trim().split(/\s+/)[0] ||
-    null;
+  if (opts.extracted && proveedorQuestionnaireComplete(opts.extracted)) {
+    return buildProveedorCompletionReply(opts.extracted);
+  }
+
+  const name = opts.nombre?.trim().split(/\s+/)[0] || null;
   const empresa =
     opts.empresa?.trim() ||
     extractEmpresaFromText(opts.conversationText ?? "") ||
@@ -50,9 +65,9 @@ export function buildProveedorHandoffReply(opts: {
 
   return (
     `${greet} ${who} ` +
-    "No cotizamos eventos por este canal cuando nos escriben como proveedor o venue aliado: " +
-    "paso tu contacto a nuestro equipo de *proveedores / alianzas* para que lo revisen. " +
-    "Si les interesa, ellos te responden. ¡Que tengas buen día!"
+    "Para canalizarte con el equipo de *proveedores / alianzas*, " +
+    "necesito unos datos rápidos (qué ofrecen, cobertura y catálogo). " +
+    "¿Qué servicios o productos ofrecen?"
   );
 }
 
@@ -69,10 +84,17 @@ export function scrubClientFieldsForProveedor(extracted: ExtractedData): Extract
   out.horario_evento = null;
   out.fecha_horario = null;
   if (!out.empresa?.trim()) {
-    const fromReq = out.requerimientos_evento?.match(
-      /PROVEEDOR:\s*([^-]+)\s*-/i
-    )?.[1]?.trim();
+    const fromReq = out.requerimientos_evento?.match(/PROVEEDOR:\s*([^-]+)\s*-/i)?.[1]?.trim();
     out.empresa = fromReq || null;
   }
+  hydrateProveedorFieldsFromRequirements(out);
+  if (!out.proveedor_oferta?.trim()) {
+    const desc = (out.requerimientos_evento ?? "").replace(/^PROVEEDOR:\s*/i, "").trim();
+    if (desc && desc.length > 8 && !/^Ofrece:\s*—/i.test(desc)) {
+      const offer = desc.match(/Ofrece:\s*([^|]+)/i)?.[1]?.trim();
+      if (offer && offer !== "—") out.proveedor_oferta = offer;
+    }
+  }
+  out.requerimientos_evento = formatProveedorRequirements(out);
   return out;
 }
