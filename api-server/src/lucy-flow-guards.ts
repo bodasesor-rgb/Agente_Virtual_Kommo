@@ -3940,19 +3940,27 @@ function ensureFunnelAfterSalesReply(
   let out = collapseRepeatedSentences(dedupeTransitionsInMessage(mensaje));
 
   // A15727+: quitar menú vago de comida si ya hay SKU concreto en CRM o historial.
+  // A16047: "Banquete" suelto (A15935) NO es SKU concreto — no borrar el menú formal/casual.
   {
     const foodBlob = `${extracted.requerimientos_evento ?? ""} ${collectUserTexts(history, currentMessage).join(" ")} ${currentMessage ?? ""}`;
     const concrete =
       preferPrimaryCatalogService(
         parseServicesFromText(foodBlob).filter(
           (s) =>
-            !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s) &&
+            !/^(Comida|Alimentos|Banquete|banquete\s*\/\s*taquiza)$/i.test(s) &&
             /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
               s
             )
         )
       ) || null;
-    if (concrete && /para\s+\*?comida\*?\s+del\s+evento/i.test(out)) {
+    // Alineado con hasSpecificFoodService: Banquete sin Formal/Mexicano/tiempos ≠ concreto.
+    const concreteOk =
+      concrete &&
+      !(
+        /^banquetes?$/i.test(concrete) ||
+        (!hasSpecificFoodService(foodBlob) && /^banquetes?/i.test(concrete))
+      );
+    if (concreteOk && /para\s+\*?comida\*?\s+del\s+evento/i.test(out)) {
       out = out
         .replace(/[^.!?\n¿]*para\s+\*?comida\*?\s+del\s+evento[^.!?\n]*[.!?]?\s*/gi, " ")
         .replace(/•\s*Un\s+\*?banquete\*?\s+m[aá]s\s+formal[^\n]*/gi, " ")
@@ -4005,6 +4013,15 @@ function ensureFunnelAfterSalesReply(
   }
 
   const pending = getNextPendingField(extracted, filledSet);
+  // A16047: si el strip o una rama dejó solo "¡Mucho gusto! De acuerdo." sin `?`,
+  // reabrir embudo también cuando pending es requerimientos/nombre.
+  if (pending && !/\?/.test(out) && !isFarewellReply(out)) {
+    const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });
+    if (nextQ && /\?/.test(nextQ)) {
+      out = `${out.trim()} ${nextQ}`.replace(/\s{2,}/g, " ").trim();
+      return out;
+    }
+  }
   if (!pending || pending === "requerimientos" || pending === "nombre") return out;
 
   if (pending === "invitados" && lastQuestionAsksForField(out, "fecha") && !lastQuestionAsksForField(out, "invitados")) {
@@ -5285,7 +5302,12 @@ export function looksLikeDeadEndAck(mensaje: string): boolean {
   return (
     /\b(ya\s+lo\s+tengo\s+anotad[oa]?|lo\s+tengo\s+anotad[oa]?|ya\s+lo\s+anoto|ya\s+anot[eé]|ya\s+tengo\s+lo\s+principal|seguimos\s+con\s+lo\s+que\s+ya\s+platicamos)\b/i.test(
       t
-    ) || (/^perfecto[^.!]*[.!]?\s*$/i.test(t) && t.length < 60)
+    ) ||
+    (/^perfecto[^.!]*[.!]?\s*$/i.test(t) && t.length < 60) ||
+    // A16047: "¡Mucho gusto, Alan! Claro que sí." / "De acuerdo." sin pregunta.
+    (/mucho\s+gusto\b/i.test(t) &&
+      t.length < 140 &&
+      /(claro(\s+que\s+s[ií])?|de\s+acuerdo|perfecto|vale|\bok\b)\s*[.!]*\s*$/i.test(t))
   );
 }
 

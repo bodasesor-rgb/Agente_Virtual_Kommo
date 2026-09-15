@@ -162700,12 +162700,13 @@ function ensureFunnelAfterSalesReply(mensaje, filledSet, extracted, ctx, current
     const foodBlob = `${extracted.requerimientos_evento ?? ""} ${collectUserTexts(history, currentMessage).join(" ")} ${currentMessage ?? ""}`;
     const concrete = preferPrimaryCatalogService(
       parseServicesFromText(foodBlob).filter(
-        (s7) => !/^(Comida|Alimentos|banquete\s*\/\s*taquiza)$/i.test(s7) && /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
+        (s7) => !/^(Comida|Alimentos|Banquete|banquete\s*\/\s*taquiza)$/i.test(s7) && /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
           s7
         )
       )
     ) || null;
-    if (concrete && /para\s+\*?comida\*?\s+del\s+evento/i.test(out2)) {
+    const concreteOk = concrete && !(/^banquetes?$/i.test(concrete) || !hasSpecificFoodService(foodBlob) && /^banquetes?/i.test(concrete));
+    if (concreteOk && /para\s+\*?comida\*?\s+del\s+evento/i.test(out2)) {
       out2 = out2.replace(/[^.!?\n¿]*para\s+\*?comida\*?\s+del\s+evento[^.!?\n]*[.!?]?\s*/gi, " ").replace(/•\s*Un\s+\*?banquete\*?\s+m[aá]s\s+formal[^\n]*/gi, " ").replace(/•\s*Algo\s+m[aá]s\s+\*?casual\*?[^\n]*/gi, " ").replace(/\b(Con gusto\.?\s*)?(Claro\.?\s*)+(?=\s*(De acuerdo|Perfecto|¿|Anoto)|\s*$)/gi, " ").replace(/\s{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
     }
   }
@@ -162726,6 +162727,13 @@ function ensureFunnelAfterSalesReply(mensaje, filledSet, extracted, ctx, current
     out2 = buildGuardServiceAck(currentMessage);
   }
   const pending = getNextPendingField(extracted, filledSet);
+  if (pending && !/\?/.test(out2) && !isFarewellReply(out2)) {
+    const nextQ2 = buildNaturalQuestion(pending, { ...ctx, filledSet });
+    if (nextQ2 && /\?/.test(nextQ2)) {
+      out2 = `${out2.trim()} ${nextQ2}`.replace(/\s{2,}/g, " ").trim();
+      return out2;
+    }
+  }
   if (!pending || pending === "requerimientos" || pending === "nombre") return out2;
   if (pending === "invitados" && lastQuestionAsksForField(out2, "fecha") && !lastQuestionAsksForField(out2, "invitados")) {
     out2 = out2.split(/\n+/).filter((line2) => !mensajeAsksForField(line2, "fecha")).join("\n").trim();
@@ -163495,7 +163503,8 @@ function looksLikeDeadEndAck(mensaje) {
   }
   return /\b(ya\s+lo\s+tengo\s+anotad[oa]?|lo\s+tengo\s+anotad[oa]?|ya\s+lo\s+anoto|ya\s+anot[eé]|ya\s+tengo\s+lo\s+principal|seguimos\s+con\s+lo\s+que\s+ya\s+platicamos)\b/i.test(
     t4
-  ) || /^perfecto[^.!]*[.!]?\s*$/i.test(t4) && t4.length < 60;
+  ) || /^perfecto[^.!]*[.!]?\s*$/i.test(t4) && t4.length < 60 || // A16047: "¡Mucho gusto, Alan! Claro que sí." / "De acuerdo." sin pregunta.
+  /mucho\s+gusto\b/i.test(t4) && t4.length < 140 && /(claro(\s+que\s+s[ií])?|de\s+acuerdo|perfecto|vale|\bok\b)\s*[.!]*\s*$/i.test(t4);
 }
 function historyAlreadyOfferedComplements(history) {
   return history.some(
@@ -226860,7 +226869,7 @@ import { join as join2 } from "node:path";
 
 // api-server/src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.99";
+var LUCY_PROMPT_VERSION = "V10.00";
 
 // api-server/src/lib/buildMeta.ts
 var cached = null;
