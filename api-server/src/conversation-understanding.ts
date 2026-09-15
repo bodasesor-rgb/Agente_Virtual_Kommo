@@ -1627,10 +1627,100 @@ export function clientAffirmsEmbudoContinue(
 /** Cliente menciona carpas o elige una variante disponible. */
 export function clientMentionsCarpas(message?: string): boolean {
   if (!message?.trim()) return false;
+  const t = message.trim();
+  // A16046: "No carpa" / "Es pista, no carpa" ≠ pedir carpas.
+  if (
+    /\b(no|sin)\s+(una?\s+)?carpas?\b/i.test(t) ||
+    /\bno\s+es\s+(una?\s+)?carpas?\b/i.test(t) ||
+    (/\bes\s+pista(\s+de\s+baile)?\b/i.test(t) && /\bcarpas?\b/i.test(t))
+  ) {
+    if (!/\b(quiero|necesito|cotizar|me\s+interesa|busco)\b.{0,30}\bcarpas?\b/i.test(t)) {
+      return false;
+    }
+  }
   return (
-    /\bcarpas?\b|\bcapras?\b|\btoldos?\b|\blonas?\b/i.test(message) ||
-    !!parseCarpaVariantFromText(message)
+    /\bcarpas?\b|\bcapras?\b|\btoldos?\b|\blonas?\b/i.test(t) ||
+    !!parseCarpaVariantFromText(t)
   );
+}
+
+/** A16046: corrige carpa → pista ("Es pista / No carpa"). */
+export function clientCorrectsCarpaToPista(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  return (
+    (/\bes\s+pista(\s+de\s+baile)?\b/i.test(t) && /\b(no|sin)\s+(una?\s+)?carpas?\b/i.test(t)) ||
+    /\bno\s+(es\s+)?(una?\s+)?carpas?\b/i.test(t) && /\bpista\b/i.test(t) ||
+    /^no\s+carpa\.?$/i.test(t) ||
+    /^es\s+pista(\s+de\s+baile)?\.?$/i.test(t)
+  );
+}
+
+/**
+ * Base de servicio para medidas (pista / carpa / entelado).
+ * Si hay pista en CRM o Lucy preguntó pista, no default a Carpas (A16046).
+ */
+export function resolveSpaceMeasureServiceBase(opts: {
+  requerimientos?: string | null;
+  lastLucy?: string | null;
+  currentMessage?: string | null;
+  historyBlob?: string | null;
+}): "pista" | "carpa" | "entelado" {
+  const req = opts.requerimientos ?? "";
+  const last = opts.lastLucy ?? "";
+  const msg = opts.currentMessage ?? "";
+  const hist = opts.historyBlob ?? "";
+  if (clientCorrectsCarpaToPista(msg) || (/\bes\s+pista\b/i.test(msg) && !clientMentionsCarpas(msg))) {
+    return "pista";
+  }
+  if (isEnteladoRequestText(msg) || (isEnteladoRequestText(req) && !clientMentionsPistaTarima(req) && !clientMentionsCarpas(req))) {
+    return "entelado";
+  }
+  const lucyAskedPista = /pista|tarima/i.test(last) && !/\bcarpas?\b/i.test(last);
+  const lucyAskedCarpa = /\bcarpas?\b/i.test(last) && !/pista|tarima/i.test(last);
+  if (clientMentionsPistaTarima(req) && !clientMentionsCarpas(req)) return "pista";
+  if (clientMentionsCarpas(req) && !clientMentionsPistaTarima(req)) return "carpa";
+  // Contaminación pista+carpa: preferir lo que Lucy acaba de preguntar.
+  if (clientMentionsPistaTarima(req) && clientMentionsCarpas(req)) {
+    if (lucyAskedPista) return "pista";
+    if (lucyAskedCarpa) return "carpa";
+    return "pista";
+  }
+  if (lucyAskedPista) return "pista";
+  if (lucyAskedCarpa) return "carpa";
+  if (clientMentionsPistaTarima(msg) || clientMentionsPistaTarima(hist)) return "pista";
+  if (clientMentionsCarpas(msg) || clientMentionsCarpas(hist)) return "carpa";
+  if (isEnteladoRequestText(last) || isEnteladoRequestText(hist)) return "entelado";
+  return "carpa";
+}
+
+export function spaceMeasureServiceLabel(kind: "pista" | "carpa" | "entelado"): string {
+  if (kind === "pista") return "Pista de baile";
+  if (kind === "entelado") return "Entelados para Techo";
+  return "Carpas";
+}
+
+/** Quita "Carpas" pegado por error cuando el pedido real es pista (A16046). */
+export function stripAccidentalCarpasFromPistaRequirements(
+  req: string | null | undefined
+): string | null {
+  const raw = (req ?? "").trim();
+  if (!raw) return raw || null;
+  if (!clientMentionsPistaTarima(raw) && !/\bpista\b/i.test(raw)) return raw;
+  if (!/\bcarpas?\b/i.test(raw)) return raw;
+  const dims = parseAllSpaceDimensions(raw);
+  let cleaned = raw
+    .replace(/\bCarpas?\b/gi, " ")
+    .replace(/\(espacio[^)]*\)/gi, " ")
+    .replace(/\s*[;,/]+\s*/g, "; ")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[;\s]+|[;\s]+$/g, "")
+    .trim();
+  if (!cleaned || !/pista|tarima/i.test(cleaned)) cleaned = "Pista de baile";
+  if (dims.length > 0) {
+    cleaned = attachEspacioToRequirements(cleaned, dims);
+  }
+  return cleaned;
 }
 
 /** Carpas / pista / tarima / entelado: hay que pedir medidas. */
@@ -6815,19 +6905,31 @@ export function captureContextualAnswer(
     captures.push({ label: "Lugar/dirección del evento", value: zonaFromMsg });
   }
 
-  // A15016 / A15907: medidas sueltas tras ask de carpas/pista (6x8, 6m x 8m).
+  // A15016 / A15907 / A16046: medidas sueltas tras ask de carpas/pista (6x8, 6m x 8m).
+  // Nunca default a "Carpas" si el contexto es pista/entelado.
   const dimsNowList = parseAllSpaceDimensions(msg);
   if (
     dimsNowList.length > 0 &&
-    (isDimensionText(msg) || /medidas?/i.test(lastLucy) || /carpa|pista|tarima/i.test(lastLucy))
+    (isDimensionText(msg) || /medidas?/i.test(lastLucy) || /carpa|pista|tarima|entelado/i.test(lastLucy))
   ) {
     const existingReq = captures.find((c) => c.label === "Requerimientos o servicios");
     if (existingReq) {
-      existingReq.value = attachEspacioToRequirements(existingReq.value, dimsNowList);
+      const cleaned =
+        stripAccidentalCarpasFromPistaRequirements(existingReq.value) ?? existingReq.value;
+      existingReq.value = attachEspacioToRequirements(cleaned, dimsNowList);
     } else {
+      const kind = resolveSpaceMeasureServiceBase({
+        requerimientos: null,
+        lastLucy,
+        currentMessage: msg,
+        historyBlob: history
+          .filter((m) => m.role === "user" && typeof m.content === "string")
+          .map((m) => m.content as string)
+          .join(" "),
+      });
       captures.push({
         label: "Requerimientos o servicios",
-        value: attachEspacioToRequirements("Carpas", dimsNowList),
+        value: attachEspacioToRequirements(spaceMeasureServiceLabel(kind), dimsNowList),
       });
     }
   }

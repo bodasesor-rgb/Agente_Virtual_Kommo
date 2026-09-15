@@ -176,6 +176,10 @@ import {
   buildCarpaGuestRecommendationLine,
   recommendCarpaAreaM2ForGuests,
   clientMentionsCarpas,
+  clientCorrectsCarpaToPista,
+  resolveSpaceMeasureServiceBase,
+  spaceMeasureServiceLabel,
+  stripAccidentalCarpasFromPistaRequirements,
   clientAsksServiceInfo,
   parseSalaProductFromText,
   parseFurnitureCatalogSkuFromText,
@@ -1625,6 +1629,53 @@ function buildPistaTarimaSalesReply(
   if (filledSet) {
     filledSet.add("Requerimientos o servicios");
   }
+
+  // A16046: limpiar Carpas pegado por error y acuse de medidas de pista.
+  if (clientCorrectsCarpaToPista(currentMessage) || clientMentionsPistaTarima(extracted.requerimientos_evento ?? "")) {
+    const cleaned = stripAccidentalCarpasFromPistaRequirements(extracted.requerimientos_evento);
+    if (cleaned) extracted.requerimientos_evento = cleaned;
+  }
+
+  const dimsList =
+    parseAllSpaceDimensions(currentMessage ?? "").length > 0
+      ? parseAllSpaceDimensions(currentMessage ?? "")
+      : parseAllSpaceDimensions(extracted.requerimientos_evento ?? "");
+
+  // Solo medidas (o corrección pista) sin variante → acuse + embudo, no menú de carpas.
+  if (
+    (dims || dimsList.length > 0) &&
+    (isDimensionText(currentMessage ?? "") || clientCorrectsCarpaToPista(currentMessage)) &&
+    !variant
+  ) {
+    const base =
+      stripAccidentalCarpasFromPistaRequirements(extracted.requerimientos_evento)?.trim() ||
+      "Pista de baile";
+    const withPista = /pista|tarima/i.test(base) ? base : `Pista de baile; ${base}`;
+    if (dimsList.length > 0) {
+      extracted.requerimientos_evento = attachEspacioToRequirements(withPista, dimsList);
+    } else {
+      extracted.requerimientos_evento = withPista;
+    }
+    const filledAfter = new Set(filledSet ?? []);
+    filledAfter.add("Requerimientos o servicios");
+    const pending = getNextPendingField(extracted, filledAfter);
+    const dimsLabel = (dimsList.length > 0 ? dimsList : dims ? [dims] : [])
+      .join(" y ")
+      .replace(/m/gi, " m");
+    const ack = clientCorrectsCarpaToPista(currentMessage)
+      ? dimsLabel
+        ? `De acuerdo — seguimos con *pista de baile* (${dimsLabel}), no carpa.`
+        : "De acuerdo — seguimos con *pista de baile*, no carpa."
+      : `Perfecto — anoto medidas *${dimsLabel}* para la pista.`;
+    if (pending && pending !== "requerimientos" && ctx) {
+      const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
+      return collapseDuplicateMedidasAsk(
+        `${pickTransition(history)} ${ack}\n\n${nextQ}`.trim()
+      );
+    }
+    return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${ack}`.trim());
+  }
+
   const reqLabel = variant
     ? dims
       ? `${variant.label} (${dims.replace(/m/gi, " m")})`
@@ -1848,12 +1899,19 @@ function buildCarpasSalesReply(
   }
 
   // Solo medidas tras ask de carpas (A15016: "De 6 x20" / A15907: "6x8").
+  // A16046: el acuse usa "carpa" solo si el contexto es carpa (no pista).
   if (dimsList.length > 0 && isDimensionText(msg)) {
     const filledAfter = new Set(filledSet ?? []);
     filledAfter.add("Requerimientos o servicios");
     const pending = getNextPendingField(extracted, filledAfter);
     const dimsLabel = dimsList.join(" y ").replace(/m/gi, " m");
-    const ack = `Perfecto — anoto medidas *${dimsLabel}* para la carpa.`;
+    const kind = resolveSpaceMeasureServiceBase({
+      requerimientos: extracted.requerimientos_evento,
+      currentMessage: msg,
+      historyBlob: collectUserTexts(history, msg).join(" "),
+    });
+    const noun = kind === "pista" ? "pista" : kind === "entelado" ? "entelado" : "carpa";
+    const ack = `Perfecto — anoto medidas *${dimsLabel}* para la ${noun}.`;
     if (pending && pending !== "requerimientos" && ctx) {
       const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
       return `${pickTransition(history)} ${ack}\n\n${nextQ}`.trim();
@@ -4467,13 +4525,14 @@ export function requiredServiceDimensionsMissing(extracted: ExtractedData): bool
 
 export function buildRequiredServiceDimensionsQuestion(extracted: ExtractedData): string {
   const req = extracted.requerimientos_evento?.trim() ?? "";
-  if (isEnteladoRequestText(req) && !clientMentionsCarpas(req)) {
+  const kind = resolveSpaceMeasureServiceBase({ requerimientos: req });
+  if (kind === "entelado") {
     return (
       "Antes de cerrar la solicitud necesito las medidas aproximadas del salón o carpa " +
       "(largo × ancho) donde va el entelado. ¿Cuánto mide?"
     );
   }
-  if (clientMentionsCarpas(req)) {
+  if (kind === "carpa") {
     return (
       "Antes de cerrar la solicitud necesito las medidas aproximadas de la carpa " +
       "(largo × ancho) o del área que quieres cubrir. ¿Cuánto mide?"
@@ -5641,18 +5700,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     clientMentionsCarpas(currentMessage ?? "") ||
     isEnteladoRequestText(currentMessage ?? "");
   if (dimensionsNowList.length > 0 && needsSpaceDims) {
-    const req =
-      extracted.requerimientos_evento?.trim() ||
-      (isEnteladoRequestText(currentMessage)
-        ? "Entelados para Techo"
-        : isEnteladoRequestText(reqForDims)
-          ? "Entelados para Techo"
-          : "Carpas");
     const lastAsstForDims = [...presHistory].reverse().find((m) => m.role === "assistant");
+    const lastLucyDims =
+      typeof lastAsstForDims?.content === "string" ? lastAsstForDims.content : "";
+    const kind = resolveSpaceMeasureServiceBase({
+      requerimientos: extracted.requerimientos_evento,
+      lastLucy: lastLucyDims,
+      currentMessage,
+      historyBlob: collectUserTexts(presHistory, currentMessage).join(" "),
+    });
+    const req =
+      stripAccidentalCarpasFromPistaRequirements(extracted.requerimientos_evento)?.trim() ||
+      spaceMeasureServiceLabel(kind);
     const lucyAskedMedidas =
-      typeof lastAsstForDims?.content === "string" &&
       /medidas|cu[aá]nto mide|largo\s*[×x]\s*ancho|área que quieres cubrir|medidas del sal[oó]n/i.test(
-        lastAsstForDims.content
+        lastLucyDims
       );
     const shouldAttach =
       !parseSpaceDimensions(req) ||
@@ -9292,12 +9354,60 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: A14988 — Revisar tras oferta → embudo (sin re-CTA)");
   } else if (
     allowSalesReplyOverride &&
-    (clientMentionsCarpas(currentMessage) ||
-      // A15016: "De 6 x20" tras ask de medidas de carpa.
+    // A16046: pista primero (dims o corrección "es pista no carpa") antes de carpas.
+    (clientMentionsPistaTarima(currentMessage) ||
+      clientCorrectsCarpaToPista(currentMessage) ||
+      (parsePistaTarimaVariant(currentMessage) &&
+        (/pista|tarima|estilo te late|opciones principales|vinil con logo|pintada a mano/i.test(
+          typeof lastAssistantMsg?.content === "string" ? lastAssistantMsg.content : ""
+        ) ||
+          /pista|tarima/i.test(extracted.requerimientos_evento ?? ""))) ||
       (!!parseSpaceDimensions(currentMessage ?? "") &&
-        /carpa/i.test(
-          `${extracted.requerimientos_evento ?? ""} ${collectUserTexts(presHistory, currentMessage).join(" ")}`
-        ) &&
+        isDimensionText(currentMessage) &&
+        resolveSpaceMeasureServiceBase({
+          requerimientos: extracted.requerimientos_evento,
+          lastLucy:
+            typeof lastAssistantMsg?.content === "string" ? lastAssistantMsg.content : "",
+          currentMessage,
+          historyBlob: collectUserTexts(presHistory, currentMessage).join(" "),
+        }) === "pista" &&
+        /medidas|pista|tarima/i.test(
+          typeof lastAssistantMsg?.content === "string" ? lastAssistantMsg.content : ""
+        )))
+  ) {
+    if (clientCorrectsCarpaToPista(currentMessage)) {
+      const cleaned =
+        stripAccidentalCarpasFromPistaRequirements(extracted.requerimientos_evento) ??
+        extracted.requerimientos_evento;
+      extracted.requerimientos_evento = /pista|tarima/i.test(cleaned ?? "")
+        ? cleaned
+        : cleaned
+          ? `Pista de baile; ${cleaned}`
+          : "Pista de baile";
+      filledSet.add("Requerimientos o servicios");
+    }
+    mensaje = buildPistaTarimaSalesReply(
+      extracted,
+      history,
+      currentMessage,
+      entityId,
+      filledSet,
+      ctx
+    );
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: pista/tarima — menú o detalle según elección");
+  } else if (
+    allowSalesReplyOverride &&
+    (clientMentionsCarpas(currentMessage) ||
+      // A15016: "De 6 x20" tras ask de medidas de carpa (no pista).
+      (!!parseSpaceDimensions(currentMessage ?? "") &&
+        resolveSpaceMeasureServiceBase({
+          requerimientos: extracted.requerimientos_evento,
+          lastLucy:
+            typeof lastAssistantMsg?.content === "string" ? lastAssistantMsg.content : "",
+          currentMessage,
+          historyBlob: collectUserTexts(presHistory, currentMessage).join(" "),
+        }) === "carpa" &&
         /medidas/i.test(
           typeof lastAssistantMsg?.content === "string" ? lastAssistantMsg.content : ""
         ))) &&
@@ -9321,29 +9431,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       log?.info({ entityId }, "GUARD: carpas — preferir redacción OpenAI");
     } else {
       mensaje = carpasTemplate;
-      appliedSalesReply = true;
-      log?.info({ entityId }, "GUARD: carpas — responder, agregar y pedir medidas");
-    }
-  } else if (
-    allowSalesReplyOverride &&
-    (clientMentionsPistaTarima(currentMessage) ||
-      // A14967: tras menú de tipos, "La LED" / "pintada" sin repetir "pista".
-      (parsePistaTarimaVariant(currentMessage) &&
-        (/pista|tarima|estilo te late|opciones principales|vinil con logo|pintada a mano/i.test(
-          typeof lastAssistantMsg?.content === "string" ? lastAssistantMsg.content : ""
-        ) ||
-          /pista|tarima/i.test(extracted.requerimientos_evento ?? ""))))
-  ) {
-    mensaje = buildPistaTarimaSalesReply(
-      extracted,
-      history,
-      currentMessage,
-      entityId,
-      filledSet,
-      ctx
-    );
     appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: pista/tarima — menú o detalle según elección");
+    log?.info({ entityId }, "GUARD: carpas — responder, agregar y pedir medidas");
+    }
   } else if (
     // V8.92: tras menú formal vs casual → banquete Formal/Mexicano o catering casual.
     allowSalesReplyOverride &&
