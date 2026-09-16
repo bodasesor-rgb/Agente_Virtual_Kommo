@@ -51,7 +51,8 @@ export const LUCY_FIELD_ASK_PATTERNS: Record<UnderstandingField, RegExp> = {
   nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
   correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
   tipo_evento:
-    /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
+    // A16095: "¿Qué van a celebrar?" (van a entre qué y celebr*)
+    /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+(van\s+a\s+)?celebr|van\s+a\s+celebrar|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
   requerimientos:
     // No usar "cotización" suelta: "la anoto para tu cotización" NO es pregunta de servicios.
     /pensado|servicios?|banquete|taquiza|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|plat[ií]came|otro\s+servicio|te\s+gustar[ií]a\s+cotizar|qu[eé].{0,40}cotizar|animaci[oó]n|hora\s+loca|happening|show|incluir\s+en\s+la\s+cotiz|\bmen[uú]\b(?!\s+staff)/i,
@@ -1116,7 +1117,12 @@ export function clientAsksLocation(message?: string): boolean {
     /zona\s+de\s+cobertura/i.test(t) ||
     /en\s+qu[eé]\s+ciudad\s+est[aá]n/i.test(t) ||
     /\b(est[aá]n|quedan)\s+ubicados?\b/i.test(t) ||
-    /\bd[oó]nde\s+tienen\s+(oficina|sucursal|local)\b/i.test(t)
+    /\bd[oó]nde\s+tienen\s+(oficina|sucursal|local)\b/i.test(t) ||
+    // A16095: "tendrá un lugar para poder visitarlos" / showroom.
+    /\b(lugar|oficina|sucursal|local|showroom|espacio)\s+(para\s+)?(poder\s+)?visitar/i.test(t) ||
+    /\b(puedo|podemos|podr[ií]amos|gustar[ií]a)\s+visitar(los|las|te|los)?\b/i.test(t) ||
+    /\bvisitar(los|las)?\b.{0,40}\b(oficina|sucursal|lugar|local|showroom)\b/i.test(t) ||
+    /\b(tienen|tendr[aá]|hay)\s+(un\s+)?lugar\s+(para\s+)?(visitar|conocer)/i.test(t)
   );
 }
 
@@ -2349,7 +2355,7 @@ export function looksLikeMxMunicipalityToponym(text: string | null | undefined):
   const words = t.split(/\s+/).filter(Boolean);
   if (words.length < 2 || words.length > 5) return false;
   if (
-    /\b(barra|pizza|pasta|crepa|sushi|banquete|taquiza|catering|carpa|dj|mobiliario|mesa|silla|sal[oó]n|hotel|hacienda|club|expo|cabana|caba[nñ]a|venue|servicio|evento|correo|presupuesto|cotizaci[oó]n)\b/i.test(
+    /\b(barra|pizza|pasta|crepa|sushi|banquete|taquiza|catering|carpa|dj|mobiliario|mesa|silla|sal[oó]n|hotel|hacienda|club|expo|cabana|caba[nñ]a|venue|servicio|evento|correo|presupuesto|cotizaci[oó]n|cumplea[nñ]os?|cumple|boda|bautizo|xv|quincea[nñ]era|graduaci[oó]n|baby\s*shower|aniversario|posada|suegra|esposo|esposa|novio|novia|padrinos?)\b/i.test(
       t
     )
   ) {
@@ -2722,6 +2728,24 @@ export function sanitizeDireccionCapture(value: string | null | undefined): stri
   if (!t) return null;
   // A16074: no guardar "No quiero pista…" / declines dentro de la ubicación.
   t = stripServiceDeclineClausesFromDireccion(t);
+  // A16095: tipo de evento (cumpleaños de…, boda civil…) nunca es dirección.
+  // No usar municipality/geo como escape: "cumpleaños de mi suegra" confundía el detector.
+  if (
+    (isEventTypeOnlyMessage(t) || parseTipoEventoFromText(t)) &&
+    !hasCityOrMetroSignal(t) &&
+    !KNOWN_ZONES.test(t)
+  ) {
+    return null;
+  }
+  if (
+    /\b(cumplea[nñ]os?|boda|bautizo|xv|quincea[nñ]era|graduaci[oó]n|baby\s*shower|aniversario|posada)\b/i.test(
+      t
+    ) &&
+    !hasCityOrMetroSignal(t) &&
+    !KNOWN_ZONES.test(t)
+  ) {
+    return null;
+  }
   // Quitar coletillas incompletas
   t = t
     .replace(/\b(?:el\s+)?sal[oó]n\s+se\s+llama\s+/gi, "")
@@ -5148,13 +5172,21 @@ export function isUsableDireccionEvento(value: string | null | undefined): boole
   if (isLikelyProductNameNotLocation(t)) return false;
   if (JUNK_DIRECCION_PATTERN.test(t)) return false;
   if (isNonLocationBusinessPhrase(t)) return false;
+  // A16095: "Un cumpleaños de mi suegra" / tipo de evento con parentesco ≠ ubicación.
+  if (
+    /\b(cumplea[nñ]os?|boda|bautizo|xv|quincea[nñ]era|graduaci[oó]n|baby\s*shower|aniversario|posada)\b/i.test(
+      t
+    ) &&
+    !hasCityOrMetroSignal(t) &&
+    !KNOWN_ZONES.test(t)
+  ) {
+    return false;
+  }
   // A16046 / A16018: tipo de evento ≠ ubicación ("Bautizo de niña", "Boda civil").
   if (
     (isEventTypeOnlyMessage(t) || parseTipoEventoFromText(t)) &&
     !hasCityOrMetroSignal(t) &&
-    !KNOWN_ZONES.test(t) &&
-    !looksLikeMxMunicipalityToponym(t) &&
-    !hasGeoLocationSignal(t)
+    !KNOWN_ZONES.test(t)
   ) {
     return false;
   }

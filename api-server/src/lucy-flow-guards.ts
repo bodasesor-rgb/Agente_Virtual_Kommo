@@ -1458,8 +1458,17 @@ export function buildHumanAdvisorHandoffAnswer(clientName?: string | null): stri
 }
 
 /** Respuesta estándar de ubicación y cobertura (prompt sección 7). */
-export function buildLocationAnswer(): string {
-  return "Estamos en Ciudad de México y trabajamos en toda la república. Según la fecha y el lugar de tu evento, coordinamos el servicio.";
+export function buildLocationAnswer(message?: string): string {
+  const base =
+    "Estamos en Ciudad de México y trabajamos en toda la república. Según la fecha y el lugar de tu evento, coordinamos el servicio.";
+  // A16095: "¿tendrá un lugar para visitarlos?" — sin showroom físico.
+  if (
+    message &&
+    /\bvisitar|showroom|sucursal|oficina|local\b|\blugar\s+(para\s+)?(poder\s+)?visitar/i.test(message)
+  ) {
+    return `${base} Por el momento todo lo coordinamos de forma digital para agilizar tu cotización; no manejamos visitas a un showroom.`;
+  }
+  return base;
 }
 
 /** Pitch / menú de comida italiana (A15302: barra italiana → pastas/pizzas, no bebidas). */
@@ -3127,7 +3136,15 @@ export function getNextPendingField(
     (!isUsableDireccionEvento(extracted.direccion_evento) ||
       looksLikeMealTimeNotLocation(extracted.direccion_evento))
   ) {
+    // A16095: no dejar basura de tipo-de-evento como "zona" satisfecha.
+    const junkDir = extracted.direccion_evento;
     filled.delete("Lugar/dirección del evento");
+    extracted.direccion_evento = null;
+    const asTipo = parseTipoEventoFromText(junkDir);
+    if (asTipo && !extracted.tipo_evento?.trim()) {
+      extracted.tipo_evento = asTipo;
+      filled.add("Tipo de evento");
+    }
   }
 
   const hasFecha =
@@ -3375,7 +3392,7 @@ export function buildFirstInteractionMessage(
 
   if (clientAsksLocation(ctx.currentMessage)) {
     const nameQ = pickVariant("nombre", history, ctx.entityId);
-    return `${intro}${buildLocationAnswer()} ${nameQ}`.trim();
+    return `${intro}${buildLocationAnswer(ctx.currentMessage)} ${nameQ}`.trim();
   }
 
   if (
@@ -5686,13 +5703,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     extracted,
   };
   // A15443: "hora de comida/fomida" nunca es ciudad ni fecha completa.
+  // A16095: "Un cumpleaños de mi suegra" ≠ dirección — limpiar y remapear a tipo.
   if (
     extracted.direccion_evento &&
     (looksLikeMealTimeNotLocation(extracted.direccion_evento) ||
       !isUsableDireccionEvento(extracted.direccion_evento))
   ) {
+    const junkDir = extracted.direccion_evento;
     extracted.direccion_evento = null;
     filledSet.delete("Lugar/dirección del evento");
+    const asTipo = parseTipoEventoFromText(junkDir);
+    if (asTipo && !extracted.tipo_evento?.trim()) {
+      extracted.tipo_evento = asTipo;
+      filledSet.add("Tipo de evento");
+      log?.info({ entityId, asTipo }, "GUARD: A16095 — dirección basura remapeada a tipo de evento");
+    }
   }
   if (extracted.fecha_evento && !isUsableFechaEvento(extracted.fecha_evento)) {
     extracted.fecha_evento = null;
@@ -8013,6 +8038,20 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: A15000 — cliente pidió asesor humano (handoff)");
   } else if (
+    // A16095: visita/sede mid-funnel (con nombre) — responder ANTES de presupuesto/cierre.
+    !cierreYaEnviado &&
+    currentMessage &&
+    (clientAsksLocation(currentMessage) ||
+      looksLikeCompanyLocationQuestionFragment(currentMessage)) &&
+    isFieldSatisfied("nombre", filledSet, extracted)
+  ) {
+    const loc = buildLocationAnswer(currentMessage);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    mensaje = nextQ ? `${loc} ${nextQ}` : loc;
+    appliedDirectReply = true;
+    log?.info({ entityId, pending }, "GUARD: A16095 — sede/visita mid-funnel + embudo");
+  } else if (
     cierreYaEnviado &&
     !clientDeclinesMoreServices(currentMessage) &&
     !clientSaysThanks(currentMessage) &&
@@ -9176,7 +9215,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: pedido mínimo — ofrecer complementos una vez");
   } else if (clientAsksLocation(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
-    mensaje = `${buildLocationAnswer()} ${pickVariant("nombre", presHistory, entityId)}`;
+    mensaje = `${buildLocationAnswer(currentMessage)} ${pickVariant("nombre", presHistory, entityId)}`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: ubicación + pedir nombre");
   } else if (

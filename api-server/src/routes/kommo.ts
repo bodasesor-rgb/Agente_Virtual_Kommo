@@ -135,6 +135,7 @@ import {
   mergeServiceRequirements,
   serviceRequirementsGainedDimensions,
   isUsableDireccionEvento,
+  sanitizeDireccionCapture,
   CRM_FECHA_LABEL,
   CRM_HORARIO_LABEL,
   hydrateScheduleFields,
@@ -905,6 +906,23 @@ function buildCrmContext(
         if (fromMsg && !(extracted.num_invitados && extracted.num_invitados === value && Number(value) < 1000)) {
           mergedLines.push(`- ${label}: ${fromMsg}`);
           filledSet.add(label);
+        }
+      } else if (label === "Lugar/dirección del evento") {
+        const raw = typeof value === "string" ? value : null;
+        const cleaned = sanitizeDireccionCapture(raw);
+        if (cleaned && isUsableDireccionEvento(cleaned)) {
+          mergedLines.push(`- ${label}: ${cleaned}`);
+          filledSet.add(label);
+          extracted.direccion_evento = cleaned;
+        } else {
+          // A16095: GPT a veces pone "cumpleaños de mi suegra" como ubicación.
+          extracted.direccion_evento = null;
+          const asTipo = raw ? parseTipoEventoFromText(raw) : null;
+          if (asTipo && !filledSet.has("Tipo de evento") && !extracted.tipo_evento?.trim()) {
+            extracted.tipo_evento = asTipo;
+            mergedLines.push(`- Tipo de evento: ${asTipo}`);
+            filledSet.add("Tipo de evento");
+          }
         }
       } else if (value !== null && value !== undefined && value !== 0) {
         mergedLines.push(`- ${label}: ${value}`);
