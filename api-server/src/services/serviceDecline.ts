@@ -32,7 +32,7 @@ const FAMILY_SERVICE_RE: Record<DeclinedServiceFamily, RegExp> = {
   // A16074: declinar pista NO quita tarima.
   pista: /pista(\s+de\s+baile)?/i,
   tarima: /^Tarima\b|tarimas?|entarimad/i,
-  dulces: /mesa\s+de\s+dulces|postres?|cupcakes?|bet[uú]n|candy/i,
+  dulces: /mesa\s+de\s+dulces|postres?|cupcakes?|bet[uú]n|pastel(es)?|fondant|candy/i,
 };
 
 /** "mesa de postre" al declinar ≠ mobiliario (mesas/sillas). */
@@ -56,7 +56,7 @@ const FAMILY_DECLINE_WORDS: Record<DeclinedServiceFamily, string> = {
   entretenimiento: "show|dj|entretenimiento|hora\\s+loca|photobooth|photo\\s*booth",
   pista: "pista(\\s+de\\s+baile)?",
   tarima: "tarimas?|entarimad[oa]s?",
-  dulces: "mesa\\s+de\\s+dulces|mesa\\s+de\\s+postres?|postres?|dulces?|cupcakes?",
+  dulces: "mesa\\s+de\\s+dulces|mesa\\s+de\\s+postres?|postres?|dulces?|cupcakes?|pastel(es)?|fondant",
 };
 
 function captionOf(message?: string | null): string {

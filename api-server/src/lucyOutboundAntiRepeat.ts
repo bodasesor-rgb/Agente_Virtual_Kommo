@@ -341,6 +341,11 @@ function stripCatalogOfferBlock(text: string): string {
       /\n*Te dejo el cat[aá]logo general[^\n]*\n?https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi,
       "\n"
     )
+    // A16097: misma línea "URL ¿Quieres que te mande el catálogo…?"
+    .replace(
+      /https?:\/\/\S*bodasesor\.com\/catalogos\S*\s*¿Quieres que te mande el cat[aá]logo[^\n?]{0,80}\?/gi,
+      ""
+    )
     .replace(/\n*https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi, "\n")
     .replace(/\n*¿Quieres que te mande el cat[aá]logo[^\n?]*\?\n*/gi, "\n");
   return t.replace(/\n{3,}/g, "\n\n").trim();

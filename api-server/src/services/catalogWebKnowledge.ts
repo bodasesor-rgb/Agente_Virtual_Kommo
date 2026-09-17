@@ -135,7 +135,7 @@ export function resolveCatalogWebSlug(query: string | null | undefined): string 
     [/\bparrillada\s+argentina\b/i, "parrillada-argentina"],
     [/\bparrillada\s+(de\s+)?tacos?\b/i, "parrillada-tacos"],
     [/\bdesayuno\b|\bbrunch\b/i, "desayuno-o-brunch"],
-    [/\bcupcakes?\b|\bbet[uú]n/i, "cupcakes-y-betun"],
+    [/\bcupcakes?\b|\bbet[uú]n|(?<!mesa\s+de\s+)\bpastel(es)?\b|\bfondant\b|\bcakes?\b/i, "cupcakes-y-betun"],
     [/\bhelados?\b|\bpaletas?\b/i, "paletas-de-hielo-y-helados"],
     [/\bcarrito\s+de\s+snacks?\b/i, "carrito-de-snacks"],
     [/\bcoctel|\bmixolog|\bc[oó]cteles?\b/i, "cocteleria-y-mixologia"],

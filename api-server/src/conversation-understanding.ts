@@ -107,12 +107,21 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Pozole y Tostadas", /\bpozole(\s+y\s+tostadas?)?\b|\bpozolada\b/i],
   // A14985: banderillas / antojitos de stand → Puestos de Comida (no "Snack" corporativo).
   ["Puestos de Comida", /\bpuestos?\s+de\s+comida\b|\bantojitos?\b|\bbanderillas?\b|\besquites?\b|\belotes?\b|\bgarnachas?\b|\bquesadillas?\b/i],
-  ["Cupcakes y Betún", /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})/iu],
+  // A16096: pastel/cake/fondant → familia Cupcakes y Betún (no Level-2).
+  // "mesa de pasteles" va a Mesa de postres (abajo), no aquí.
+  [
+    "Cupcakes y Betún",
+    /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})|(?<!mesa\s+de\s+)\bpastel(es)?\b(?!\s*er[ií]a)|\bfondant\b|\bcakes?\b(?!\s*topper)/iu,
+  ],
   ["Carrito de Snacks", /\bcarrito\s+de\s+snacks?\b|\bcarrito\s+de\s+snaks?\b/i],
   ["Paletas de Hielo y Helados", /\bpaletas?(\s+de\s+hielo)?\b|\bhelados?\b/i],
   ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
   // A15503: "plato postre" = vajilla, no servicio de postres.
-  ["Mesa de postres", /\bmesa\s+de\s+postres?\b|\bpostres?\s+(?:y|con|para|de\s+mesa)\b/i],
+  // A16096: "mesa de pasteles" = mesa, no pastel suelto.
+  [
+    "Mesa de postres",
+    /\bmesa\s+de\s+postres?\b|\bmesa\s+de\s+pasteles?\b|\bpostres?\s+(?:y|con|para|de\s+mesa)\b/i,
+  ],
   ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
   ["Canapés", /\bcanap[eé]s?(?!\p{L})/iu],
   ["Bocadillos", /\bbocadillos?\b/i],
@@ -196,7 +205,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|entarimad|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|pastel|fondant|\bcake\b|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|entarimad|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -245,6 +254,11 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
   cupcake: "Cupcakes y Betún",
   betun: "Cupcakes y Betún",
   betún: "Cupcakes y Betún",
+  // A16096
+  pastel: "Cupcakes y Betún",
+  pasteles: "Cupcakes y Betún",
+  cake: "Cupcakes y Betún",
+  fondant: "Cupcakes y Betún",
   entelado: "Entelados para Techo",
   entelados: "Entelados para Techo",
   colgantes: "Colgantes Premium",
@@ -3466,13 +3480,17 @@ export function clientNarrowsToOnlyService(text: string | null | undefined): str
   const narrowIntent =
     hasSolo &&
     (/\b(cotizar|cotizaci[oó]n|quiero|necesito|requiero|requerimos|ser[ií]a|dejamos?|quedamos?|anota)\b/i.test(t) ||
-      /\bsolo\s+(la\s+|el\s+|una\s+)?(mesa\s+de\s+dulces|banquete|taquiza|carpa|pista|tarima|entarimad|barra)/i.test(
+      /\bsolo\s+(la\s+|el\s+|una\s+|un\s+)?(mesa\s+de\s+dulces|banquete|taquiza|carpa|pista|tarima|entarimad|barra|pastel|cupcakes?|bet[uú]n)/i.test(
         t
       ) ||
-      /\bnada\s+m[aá]s\s+que\s+(la\s+|el\s+)?(tarima|entarimad|pista|banquete|carpa)/i.test(t));
+      /\bnada\s+m[aá]s\s+que\s+(la\s+|el\s+|un\s+)?(tarima|entarimad|pista|banquete|carpa|pastel)/i.test(t));
   if (!narrowIntent && !replaceIntent) return null;
   if (/\bmesa\s+de\s+dulces\b/i.test(t)) return "Mesa de dulces";
-  if (/\bmesa\s+de\s+postres?\b/i.test(t)) return "Mesa de postres";
+  if (/\bmesa\s+de\s+postres?\b|\bmesa\s+de\s+pasteles?\b/i.test(t)) return "Mesa de postres";
+  // A16096: "Solo pastel" antes del parse genérico.
+  if (/(?<!mesa\s+de\s+)\bpastel(es)?\b(?!\s*er[ií]a)|\bfondant\b|\bcakes?\b/iu.test(t)) {
+    return "Cupcakes y Betún";
+  }
   if (/\bbanquete\s+mexicano\b/i.test(t)) return "Banquete Mexicano";
   if (/\bbanquete\s+formal\b/i.test(t)) return "Banquete Formal";
   // A16074: solo tarima / nada más que entarimado.

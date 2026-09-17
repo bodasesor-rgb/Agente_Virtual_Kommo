@@ -128833,7 +128833,15 @@ var init_serviceSynonyms = __esm({
           "betunes",
           "fondant",
           "cupcakes y betun",
-          "cupcakes y bet\xFAn"
+          "cupcakes y bet\xFAn",
+          // A16096: pastel de evento (boda/cumpleaños) = misma familia de catálogo.
+          "pastel",
+          "pasteles",
+          "cake",
+          "pastel de boda",
+          "pastel de cumplea\xF1os",
+          "pastel de bautizo",
+          "pastel de xv"
         ]
       },
       {
@@ -130791,7 +130799,7 @@ var init_serviceDecline = __esm({
       // A16074: declinar pista NO quita tarima.
       pista: /pista(\s+de\s+baile)?/i,
       tarima: /^Tarima\b|tarimas?|entarimad/i,
-      dulces: /mesa\s+de\s+dulces|postres?|cupcakes?|bet[uú]n|candy/i
+      dulces: /mesa\s+de\s+dulces|postres?|cupcakes?|bet[uú]n|pastel(es)?|fondant|candy/i
     };
     FAMILY_DECLINE_WORDS = {
       alimentos: "comida|comidas|alimentos?|pizzas?|banquete|taquiza|catering|barra\\s+de\\s+pizzas?|brunch|parrillada|sushi|canap[e\xE9]s?|bocadillos?|coffee\\s*break",
@@ -130802,7 +130810,7 @@ var init_serviceDecline = __esm({
       entretenimiento: "show|dj|entretenimiento|hora\\s+loca|photobooth|photo\\s*booth",
       pista: "pista(\\s+de\\s+baile)?",
       tarima: "tarimas?|entarimad[oa]s?",
-      dulces: "mesa\\s+de\\s+dulces|mesa\\s+de\\s+postres?|postres?|dulces?|cupcakes?"
+      dulces: "mesa\\s+de\\s+dulces|mesa\\s+de\\s+postres?|postres?|dulces?|cupcakes?|pastel(es)?|fondant"
     };
   }
 });
@@ -132700,12 +132708,15 @@ function clientNarrowsToOnlyService(text2) {
   ) && /\b(banquete|taquiza|coffee\s*break|barra\s+de|mesa\s+de\s+dulces|carpa|pista|tarima|entarimad|dj)\b/i.test(t4) && !/\by\s+(tambi[eé]n|adem[aá]s)\b/i.test(t4);
   if (!hasSolo && !replaceIntent) return null;
   if (clientWantsFoodOnlyQuote(t4) && !/\bmesa\s+de\s+dulces\b/i.test(t4) && hasSolo) return null;
-  const narrowIntent = hasSolo && (/\b(cotizar|cotizaci[oó]n|quiero|necesito|requiero|requerimos|ser[ií]a|dejamos?|quedamos?|anota)\b/i.test(t4) || /\bsolo\s+(la\s+|el\s+|una\s+)?(mesa\s+de\s+dulces|banquete|taquiza|carpa|pista|tarima|entarimad|barra)/i.test(
+  const narrowIntent = hasSolo && (/\b(cotizar|cotizaci[oó]n|quiero|necesito|requiero|requerimos|ser[ií]a|dejamos?|quedamos?|anota)\b/i.test(t4) || /\bsolo\s+(la\s+|el\s+|una\s+|un\s+)?(mesa\s+de\s+dulces|banquete|taquiza|carpa|pista|tarima|entarimad|barra|pastel|cupcakes?|bet[uú]n)/i.test(
     t4
-  ) || /\bnada\s+m[aá]s\s+que\s+(la\s+|el\s+)?(tarima|entarimad|pista|banquete|carpa)/i.test(t4));
+  ) || /\bnada\s+m[aá]s\s+que\s+(la\s+|el\s+|un\s+)?(tarima|entarimad|pista|banquete|carpa|pastel)/i.test(t4));
   if (!narrowIntent && !replaceIntent) return null;
   if (/\bmesa\s+de\s+dulces\b/i.test(t4)) return "Mesa de dulces";
-  if (/\bmesa\s+de\s+postres?\b/i.test(t4)) return "Mesa de postres";
+  if (/\bmesa\s+de\s+postres?\b|\bmesa\s+de\s+pasteles?\b/i.test(t4)) return "Mesa de postres";
+  if (/(?<!mesa\s+de\s+)\bpastel(es)?\b(?!\s*er[ií]a)|\bfondant\b|\bcakes?\b/iu.test(t4)) {
+    return "Cupcakes y Bet\xFAn";
+  }
   if (/\bbanquete\s+mexicano\b/i.test(t4)) return "Banquete Mexicano";
   if (/\bbanquete\s+formal\b/i.test(t4)) return "Banquete Formal";
   if (/\b(tarimas?|entarimad[oa]s?)\b/i.test(t4) && !/\bpista(\s+de\s+baile)?\b/i.test(t4.replace(/\bno\s+(quiero|necesito|requiero).{0,20}pista\b/gi, " "))) {
@@ -135388,12 +135399,21 @@ var init_conversation_understanding = __esm({
       ["Pozole y Tostadas", /\bpozole(\s+y\s+tostadas?)?\b|\bpozolada\b/i],
       // A14985: banderillas / antojitos de stand → Puestos de Comida (no "Snack" corporativo).
       ["Puestos de Comida", /\bpuestos?\s+de\s+comida\b|\bantojitos?\b|\bbanderillas?\b|\besquites?\b|\belotes?\b|\bgarnachas?\b|\bquesadillas?\b/i],
-      ["Cupcakes y Bet\xFAn", /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})/iu],
+      // A16096: pastel/cake/fondant → familia Cupcakes y Betún (no Level-2).
+      // "mesa de pasteles" va a Mesa de postres (abajo), no aquí.
+      [
+        "Cupcakes y Bet\xFAn",
+        /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})|(?<!mesa\s+de\s+)\bpastel(es)?\b(?!\s*er[ií]a)|\bfondant\b|\bcakes?\b(?!\s*topper)/iu
+      ],
       ["Carrito de Snacks", /\bcarrito\s+de\s+snacks?\b|\bcarrito\s+de\s+snaks?\b/i],
       ["Paletas de Hielo y Helados", /\bpaletas?(\s+de\s+hielo)?\b|\bhelados?\b/i],
       ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
       // A15503: "plato postre" = vajilla, no servicio de postres.
-      ["Mesa de postres", /\bmesa\s+de\s+postres?\b|\bpostres?\s+(?:y|con|para|de\s+mesa)\b/i],
+      // A16096: "mesa de pasteles" = mesa, no pastel suelto.
+      [
+        "Mesa de postres",
+        /\bmesa\s+de\s+postres?\b|\bmesa\s+de\s+pasteles?\b|\bpostres?\s+(?:y|con|para|de\s+mesa)\b/i
+      ],
       ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
       ["Canap\xE9s", /\bcanap[eé]s?(?!\p{L})/iu],
       ["Bocadillos", /\bbocadillos?\b/i],
@@ -135474,7 +135494,7 @@ var init_conversation_understanding = __esm({
       ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
       ["Mesa imperial", /\bmesa\s+imperial\b/i]
     ];
-    SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|entarimad|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+    SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|pastel|fondant|\bcake\b|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|entarimad|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
     SHORT_SERVICE_ALIASES = {
       pista: "pista de baile",
       tarima: "Tarima",
@@ -135522,6 +135542,11 @@ var init_conversation_understanding = __esm({
       cupcake: "Cupcakes y Bet\xFAn",
       betun: "Cupcakes y Bet\xFAn",
       bet\u00FAn: "Cupcakes y Bet\xFAn",
+      // A16096
+      pastel: "Cupcakes y Bet\xFAn",
+      pasteles: "Cupcakes y Bet\xFAn",
+      cake: "Cupcakes y Bet\xFAn",
+      fondant: "Cupcakes y Bet\xFAn",
       entelado: "Entelados para Techo",
       entelados: "Entelados para Techo",
       colgantes: "Colgantes Premium",
@@ -136509,7 +136534,7 @@ function resolveCatalogWebSlug(query) {
     [/\bparrillada\s+argentina\b/i, "parrillada-argentina"],
     [/\bparrillada\s+(de\s+)?tacos?\b/i, "parrillada-tacos"],
     [/\bdesayuno\b|\bbrunch\b/i, "desayuno-o-brunch"],
-    [/\bcupcakes?\b|\bbet[uú]n/i, "cupcakes-y-betun"],
+    [/\bcupcakes?\b|\bbet[uú]n|(?<!mesa\s+de\s+)\bpastel(es)?\b|\bfondant\b|\bcakes?\b/i, "cupcakes-y-betun"],
     [/\bhelados?\b|\bpaletas?\b/i, "paletas-de-hielo-y-helados"],
     [/\bcarrito\s+de\s+snacks?\b/i, "carrito-de-snacks"],
     [/\bcoctel|\bmixolog|\bc[oó]cteles?\b/i, "cocteleria-y-mixologia"],
@@ -137353,16 +137378,18 @@ var init_serviceProgressiveOffer = __esm({
       },
       {
         family: "cupcakes_betun",
-        familyPattern: /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})/iu,
-        variantPattern: /\b(cl[aá]sico|decorado|cupcakes?|bet[uú]n)\b/i,
+        familyPattern: /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})|(?<!mesa\s+de\s+)\bpastel(es)?\b|\bfondant\b|\bcakes?\b/iu,
+        variantPattern: /\b(cl[aá]sico|decorado|cupcakes?|bet[uú]n|pastel|fondant|cake)\b/i,
         detailQueryFromText: (text2) => {
           if (/decorado/i.test(text2)) return "Bet\xFAn Decorado";
-          if (/cl[aá]sico|bet[uú]n/i.test(text2) && !/cupcake/i.test(text2)) return "Bet\xFAn Cl\xE1sico";
+          if (/fondant/i.test(text2)) return "Bet\xFAn Decorado";
+          if (/cl[aá]sico|bet[uú]n/i.test(text2) && !/cupcake|pastel|cake/i.test(text2)) return "Bet\xFAn Cl\xE1sico";
+          if (/pastel|cake/i.test(text2)) return "Cupcakes y Bet\xFAn";
           if (/cupcake/i.test(text2)) return "Cupcakes";
           return "Cupcakes y Bet\xFAn";
         },
         buildMenu: () => [
-          "Claro. En *Cupcakes y Bet\xFAn* manejamos *Cupcakes*, *Bet\xFAn Cl\xE1sico* y *Bet\xFAn Decorado*.",
+          "Claro. En *pasteles / Cupcakes y Bet\xFAn* manejamos *pastel*, *Cupcakes*, *Bet\xFAn Cl\xE1sico* y *Bet\xFAn Decorado*.",
           "",
           SERVICE_NIVEL_DETAIL_CTA
         ].join("\n")
@@ -138491,6 +138518,25 @@ function ensureCatalogWebLink(text2, query) {
 
 Cat\xE1logo${label}:
 ${toDeliverableCatalogUrl(url2)}`;
+  }
+  const qLower = q3.toLowerCase();
+  if (/\b(mobiliario|sillas?|mesas?|tiffany|periqueras?)\b/i.test(qLower)) {
+    const mobUrl = getCatalogWebUrlForQuery("mesas y sillas");
+    if (mobUrl) {
+      return `${body2}
+
+Cat\xE1logo de *mesas y sillas*:
+${toDeliverableCatalogUrl(mobUrl)}`;
+    }
+  }
+  if (/\b(pastel|cupcakes?|bet[uú]n|fondant)\b/i.test(qLower)) {
+    const cakeUrl = getCatalogWebUrlForQuery("pastel") || getCatalogWebUrlForQuery("cupcakes");
+    if (cakeUrl) {
+      return `${body2}
+
+Cat\xE1logo:
+${toDeliverableCatalogUrl(cakeUrl)}`;
+    }
   }
   return `${body2}
 
@@ -163515,9 +163561,6 @@ function buildMappedCatalogOfferBlock(services, sourceText) {
       "Te dejo los cat\xE1logos:",
       buildBareMobiliarioCatalogLinks(),
       "",
-      GENERAL_CATALOG_INVITE,
-      getCatalogWebHubDeliveryUrl(),
-      "",
       "Dime cu\xE1l te late y seguimos."
     ].join("\n");
   }
@@ -163527,6 +163570,12 @@ function buildMappedCatalogOfferBlock(services, sourceText) {
     if (/mobiliario/i.test(svc) && /\bperiqueras?\b/i.test(text2)) {
       query = "periqueras";
       label = "Periqueras (mobiliario)";
+    } else if (/mobiliario/i.test(svc) && /\b(mesas?|sillas?|tiffany|crossback|ghost)\b/i.test(text2)) {
+      query = "mesas y sillas";
+      label = "Mesas y sillas";
+    } else if (/^mobiliario$/i.test(svc)) {
+      query = "mesas y sillas";
+      label = "Mesas y sillas (mobiliario)";
     } else if (/^periqueras?$/i.test(svc)) {
       if (list.some((s7) => /mobiliario/i.test(s7)) && /\bperiqueras?\b/i.test(text2)) {
         continue;
@@ -163553,8 +163602,7 @@ function buildMappedCatalogOfferBlock(services, sourceText) {
   }
   if (!linkedLines.length) return buildGenericCatalogHubBlock();
   lines.push(...linkedLines);
-  lines.push("", GENERAL_CATALOG_INVITE, getCatalogWebHubDeliveryUrl(), "");
-  lines.push(SERVICE_NIVEL_DETAIL_CTA);
+  lines.push("", SERVICE_NIVEL_DETAIL_CTA);
   return lines.join("\n");
 }
 function historyAlreadyOfferedServiceDetail(history) {
@@ -166566,12 +166614,21 @@ ${catalogUrl}` : body2;
     } else if (advanceWithAck) {
       const labelText = mobLabels.length > 0 ? mobLabels.map((l6) => `*${l6}*`).join(", ").replace(/, ([^,]*)$/, " y $1") : `*${piece}*`;
       const ack = display ? `Perfecto, ${display}. Anoto ${labelText} para tu cotizaci\xF3n.` : `Perfecto. Anoto ${labelText} para tu cotizaci\xF3n.`;
+      const catalogUrl = getCatalogWebUrlForQuery(
+        /\bperiqueras?\b/i.test(msgMob) && !/\b(sillas?|mesas?|tiffany)\b/i.test(msgMob) ? "periqueras" : "mesas y sillas"
+      ) || null;
+      const withCatalog = catalogUrl && !/bodasesor\.com\/catalogos/i.test(ack) ? `${ack}
+
+Cat\xE1logo de *mesas y sillas*:
+${catalogUrl}` : ack;
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
-      mensaje = nextQ ? `${ack} ${nextQ}` : ack;
+      mensaje = nextQ ? `${withCatalog}
+
+${nextQ}` : withCatalog;
       appliedSalesReply = true;
       appliedDirectReply = true;
-      log?.info({ entityId, piece, multiPieces, mobLabels }, "GUARD: A15642/A15735 \u2014 mobiliario listado \u2192 embudo");
+      log?.info({ entityId, piece, multiPieces, mobLabels }, "GUARD: A15642/A15735/A16097 \u2014 mobiliario listado \u2192 embudo + cat\xE1logo");
     } else {
       const body2 = piece === "mobiliario" ? buildBareMobiliarioOfferBlock() : buildMobiliarioPieceFollowUp(piece);
       const withLink = piece === "mobiliario" ? body2 : (() => {
@@ -167849,6 +167906,11 @@ ${buildNaturalQuestion(pending, ctx)}` : ack;
     log?.info({ entityId }, "GUARD: A15009 \u2014 reemplaz\xF3 Sigo aqu\xED residual");
   }
   mensaje = dedupeCatalogUrlsInMessage(mensaje);
+  mensaje = preferSpecificCatalogOverHub(
+    mensaje,
+    `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
+  );
+  mensaje = reorderLeadingCatalogUrls(mensaje);
   {
     const msgMob = currentMessage ?? "";
     const reqMob = extracted.requerimientos_evento ?? "";
@@ -168075,7 +168137,15 @@ ${nextQ}` : `${ack} ${nextQ}`;
       mensaje = nextQ ? `${ack} ${nextQ}` : ack;
     }
   }
-  return normalizeAdvisorReferences2(mensaje, extracted.nombre);
+  return normalizeAdvisorReferences2(
+    reorderLeadingCatalogUrls(
+      preferSpecificCatalogOverHub(
+        mensaje,
+        `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
+      )
+    ),
+    extracted.nombre
+  );
 }
 function stripClientServiceConfusionNotes(text2) {
   if (!text2?.trim()) return text2;
@@ -168101,6 +168171,67 @@ function stripClientServiceConfusionNotes(text2) {
     "."
   );
   return out2.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+function reorderLeadingCatalogUrls(text2) {
+  if (!text2?.trim()) return text2;
+  const leadingRe = /^(?:\s*(?:https?:\/\/[^\s]*?(?:bodasesor|hostingersite)\.com\/catalogos[^\s]*)\s*)+/i;
+  const m6 = text2.match(leadingRe);
+  if (!m6) return text2;
+  const leading = m6[0];
+  const rest = text2.slice(leading.length).trim();
+  if (!rest) return text2.trim();
+  const urls = [
+    ...leading.matchAll(/https?:\/\/[^\s]*?(?:bodasesor|hostingersite)\.com\/catalogos[^\s]*/gi)
+  ].map((x8) => x8[0].replace(/[),.;]+$/g, ""));
+  if (!urls.length) return text2;
+  const urlBlock = urls.join("\n");
+  if (/^¿Quieres que te mande el cat[aá]logo/i.test(rest)) {
+    const pieces = rest.split(/(?<=\?)\s+/).map((p5) => p5.trim()).filter(Boolean);
+    const cta = pieces[0] ?? rest;
+    const after = pieces.slice(1).join(" ").trim();
+    if (after && /\?/.test(after)) {
+      return `${after}
+
+Cat\xE1logo:
+${urlBlock}
+
+${cta}`.replace(/\n{3,}/g, "\n\n").trim();
+    }
+    return `${cta}
+
+Cat\xE1logo:
+${urlBlock}${after ? `
+
+${after}` : ""}`.replace(/\n{3,}/g, "\n\n").trim();
+  }
+  return `${rest}
+
+Cat\xE1logo:
+${urlBlock}`.replace(/\n{3,}/g, "\n\n").trim();
+}
+function preferSpecificCatalogOverHub(text2, contextBlob) {
+  if (!text2?.trim()) return text2;
+  let out2 = text2;
+  if (/bodasesor\.com\/catalogos\/[a-z0-9-]+/i.test(out2)) {
+    out2 = out2.replace(/\n*Igual te env[ií]o el cat[aá]logo general[^\n]*\n*/gi, "\n").replace(
+      /\n*https?:\/\/(?:www\.)?(?:bodasesor|hostingersite)\.com\/catalogos\/?(?=\s|$|\?|¿)/gi,
+      "\n"
+    ).replace(/\n{3,}/g, "\n\n").trim();
+  }
+  const hubRe = /https?:\/\/(?:www\.)?(?:bodasesor|hostingersite)\.com\/catalogos\/?(?=[?\s]|¿|$)/gi;
+  if (!hubRe.test(out2)) return out2;
+  hubRe.lastIndex = 0;
+  const blob = `${contextBlob ?? ""} ${out2}`;
+  let replacement = null;
+  if (/\b(pastel|cupcakes?|bet[uú]n|fondant)\b/i.test(blob)) {
+    replacement = getCatalogWebUrlForQuery("pastel") || getCatalogWebUrlForQuery("cupcakes");
+  } else if (/\bperiqueras?\b/i.test(blob) && !/\b(sillas?|mesas?|tiffany)\b/i.test(blob)) {
+    replacement = getCatalogWebUrlForQuery("periqueras");
+  } else if (/\b(sillas?|mesas?|tiffany|crossback|mobiliario|mobilairio)\b/i.test(blob)) {
+    replacement = getCatalogWebUrlForQuery("mesas y sillas");
+  }
+  if (!replacement || /\/catalogos\/?$/i.test(replacement.replace(/\/+$/, ""))) return out2;
+  return out2.replace(hubRe, replacement);
 }
 function dedupeCatalogUrlsInMessage(text2) {
   if (!text2?.trim() || !/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text2)) {
@@ -227287,7 +227418,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.05";
+var LUCY_PROMPT_VERSION = "V10.06";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -231147,6 +231278,9 @@ function stripCatalogOfferBlock(text2) {
   let t4 = text2.replace(
     /\n*Te dejo el cat[aá]logo general[^\n]*\n?https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi,
     "\n"
+  ).replace(
+    /https?:\/\/\S*bodasesor\.com\/catalogos\S*\s*¿Quieres que te mande el cat[aá]logo[^\n?]{0,80}\?/gi,
+    ""
   ).replace(/\n*https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi, "\n").replace(/\n*¿Quieres que te mande el cat[aá]logo[^\n?]*\?\n*/gi, "\n");
   return t4.replace(/\n{3,}/g, "\n\n").trim();
 }
@@ -231618,6 +231752,11 @@ ${keepQ}` : ack;
   }
   mensaje = stripClientServiceConfusionNotes(mensaje);
   mensaje = dedupeCatalogUrlsInMessage(mensaje);
+  mensaje = preferSpecificCatalogOverHub(
+    mensaje,
+    `${input.currentMessage ?? ""} ${input.extracted.requerimientos_evento ?? ""}`
+  );
+  mensaje = reorderLeadingCatalogUrls(mensaje);
   {
     const conTono = stripMidMessageFiller(
       applyClientNameCadence({

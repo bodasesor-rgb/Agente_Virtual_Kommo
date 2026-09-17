@@ -826,6 +826,20 @@ export function ensureCatalogWebLink(
     const label = match.serviceName ? ` de *${match.serviceName}*` : "";
     return `${body}\n\nCatálogo${label}:\n${toDeliverableCatalogUrl(url)}`;
   }
+  // A16097: si el query tipifica mobiliario/pastel, no caer al hub genérico.
+  const qLower = q.toLowerCase();
+  if (/\b(mobiliario|sillas?|mesas?|tiffany|periqueras?)\b/i.test(qLower)) {
+    const mobUrl = getCatalogWebUrlForQuery("mesas y sillas");
+    if (mobUrl) {
+      return `${body}\n\nCatálogo de *mesas y sillas*:\n${toDeliverableCatalogUrl(mobUrl)}`;
+    }
+  }
+  if (/\b(pastel|cupcakes?|bet[uú]n|fondant)\b/i.test(qLower)) {
+    const cakeUrl = getCatalogWebUrlForQuery("pastel") || getCatalogWebUrlForQuery("cupcakes");
+    if (cakeUrl) {
+      return `${body}\n\nCatálogo:\n${toDeliverableCatalogUrl(cakeUrl)}`;
+    }
+  }
   return `${body}\n\nCatálogo:\n${getCatalogWebHubDeliveryUrl()}`;
 }
 

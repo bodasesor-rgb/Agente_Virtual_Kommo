@@ -15,6 +15,8 @@ import {
   getNextPendingField,
   buildNaturalQuestion,
   dedupeCatalogUrlsInMessage,
+  reorderLeadingCatalogUrls,
+  preferSpecificCatalogOverHub,
 } from "./lucy-flow-guards.js";
 import { applyLucyGlobalAntiRepetition } from "./lucyOutboundAntiRepeat.js";
 import { applyClientNameCadence, stripMidMessageFiller } from "./lucyNaturalTone.js";
@@ -210,6 +212,12 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
   mensaje = stripClientServiceConfusionNotes(mensaje);
   // A15903: red de seguridad — misma URL de catálogo nunca dos veces.
   mensaje = dedupeCatalogUrlsInMessage(mensaje);
+  // A16097: hub→slug concreto; nunca URL antes del texto.
+  mensaje = preferSpecificCatalogOverHub(
+    mensaje,
+    `${input.currentMessage ?? ""} ${input.extracted.requerimientos_evento ?? ""}`
+  );
+  mensaje = reorderLeadingCatalogUrls(mensaje);
 
   // A15897: tono — ni el nombre en cada mensaje ni muletillas sueltas antes de
   // la pregunta ("… dime si te interesa alguno. Claro que sí. ¿Cuántos…?").

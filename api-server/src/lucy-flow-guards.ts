@@ -5024,9 +5024,6 @@ export function buildMappedCatalogOfferBlock(
       "Te dejo los catálogos:",
       buildBareMobiliarioCatalogLinks(),
       "",
-      GENERAL_CATALOG_INVITE,
-      getCatalogWebHubDeliveryUrl(),
-      "",
       "Dime cuál te late y seguimos.",
     ].join("\n");
   }
@@ -5037,6 +5034,13 @@ export function buildMappedCatalogOfferBlock(
     if (/mobiliario/i.test(svc) && /\bperiqueras?\b/i.test(text)) {
       query = "periqueras";
       label = "Periqueras (mobiliario)";
+    } else if (/mobiliario/i.test(svc) && /\b(mesas?|sillas?|tiffany|crossback|ghost)\b/i.test(text)) {
+      // A16097: con piezas → slug mesas-y-sillas, nunca hub.
+      query = "mesas y sillas";
+      label = "Mesas y sillas";
+    } else if (/^mobiliario$/i.test(svc)) {
+      query = "mesas y sillas";
+      label = "Mesas y sillas (mobiliario)";
     } else if (/^periqueras?$/i.test(svc)) {
       // Evitar duplicar el mismo link si ya va como Mobiliario/Periqueras.
       if (list.some((s) => /mobiliario/i.test(s)) && /\bperiqueras?\b/i.test(text)) {
@@ -5072,8 +5076,8 @@ export function buildMappedCatalogOfferBlock(
   if (!linkedLines.length) return buildGenericCatalogHubBlock();
 
   lines.push(...linkedLines);
-  lines.push("", GENERAL_CATALOG_INVITE, getCatalogWebHubDeliveryUrl(), "");
-  lines.push(SERVICE_NIVEL_DETAIL_CTA);
+  // A16097: con slug(s) concretos no pegar hub genérico (ruido / URL suelta al final).
+  lines.push("", SERVICE_NIVEL_DETAIL_CTA);
   return lines.join("\n");
 }
 
@@ -9765,15 +9769,26 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       const ack = display
         ? `Perfecto, ${display}. Anoto ${labelText} para tu cotización.`
         : `Perfecto. Anoto ${labelText} para tu cotización.`;
+      // A16097: piezas concretas → link de mesas/sillas (nunca hub genérico al inicio).
+      const catalogUrl =
+        getCatalogWebUrlForQuery(
+          /\bperiqueras?\b/i.test(msgMob) && !/\b(sillas?|mesas?|tiffany)\b/i.test(msgMob)
+            ? "periqueras"
+            : "mesas y sillas"
+        ) || null;
+      const withCatalog =
+        catalogUrl && !/bodasesor\.com\/catalogos/i.test(ack)
+          ? `${ack}\n\nCatálogo de *mesas y sillas*:\n${catalogUrl}`
+          : ack;
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ =
         pending && pending !== "requerimientos"
           ? buildNaturalQuestion(pending, ctx)
           : null;
-      mensaje = nextQ ? `${ack} ${nextQ}` : ack;
+      mensaje = nextQ ? `${withCatalog}\n\n${nextQ}` : withCatalog;
       appliedSalesReply = true;
       appliedDirectReply = true;
-      log?.info({ entityId, piece, multiPieces, mobLabels }, "GUARD: A15642/A15735 — mobiliario listado → embudo");
+      log?.info({ entityId, piece, multiPieces, mobLabels }, "GUARD: A15642/A15735/A16097 — mobiliario listado → embudo + catálogo");
     } else {
       const body =
         piece === "mobiliario"
@@ -11665,6 +11680,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = dedupeCatalogUrlsInMessage(mensaje);
+  // A16097: hub → slug concreto cuando hay contexto; nunca URL antes del texto.
+  mensaje = preferSpecificCatalogOverHub(
+    mensaje,
+    `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
+  );
+  mensaje = reorderLeadingCatalogUrls(mensaje);
 
   // A15917: hub genérico solo / URL pegada ≠ oferta de mobiliario.
   // Si el cliente pidió mobiliario sin pieza, forzar menú + ambos catálogos.
@@ -12041,7 +12062,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  return normalizeAdvisorReferences(mensaje, extracted.nombre);
+  return normalizeAdvisorReferences(
+    reorderLeadingCatalogUrls(
+      preferSpecificCatalogOverHub(
+        mensaje,
+        `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
+      )
+    ),
+    extracted.nombre
+  );
 }
 
 /**
@@ -12072,6 +12101,72 @@ export function stripClientServiceConfusionNotes(text: string): string {
     "."
   );
   return out.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/** A16097: URL de catálogo nunca debe ir antes del texto al cliente. */
+export function reorderLeadingCatalogUrls(text: string): string {
+  if (!text?.trim()) return text;
+  const leadingRe =
+    /^(?:\s*(?:https?:\/\/[^\s]*?(?:bodasesor|hostingersite)\.com\/catalogos[^\s]*)\s*)+/i;
+  const m = text.match(leadingRe);
+  if (!m) return text;
+  const leading = m[0]!;
+  const rest = text.slice(leading.length).trim();
+  if (!rest) return text.trim();
+  const urls = [
+    ...leading.matchAll(/https?:\/\/[^\s]*?(?:bodasesor|hostingersite)\.com\/catalogos[^\s]*/gi),
+  ].map((x) => x[0]!.replace(/[),.;]+$/g, ""));
+  if (!urls.length) return text;
+  const urlBlock = urls.join("\n");
+  // "URL ¿Quieres…? ¿Qué tipo…?" → pregunta embudo primero, luego catálogo.
+  if (/^¿Quieres que te mande el cat[aá]logo/i.test(rest)) {
+    const pieces = rest.split(/(?<=\?)\s+/).map((p) => p.trim()).filter(Boolean);
+    const cta = pieces[0] ?? rest;
+    const after = pieces.slice(1).join(" ").trim();
+    if (after && /\?/.test(after)) {
+      return `${after}\n\nCatálogo:\n${urlBlock}\n\n${cta}`.replace(/\n{3,}/g, "\n\n").trim();
+    }
+    return `${cta}\n\nCatálogo:\n${urlBlock}${after ? `\n\n${after}` : ""}`
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+  return `${rest}\n\nCatálogo:\n${urlBlock}`.replace(/\n{3,}/g, "\n\n").trim();
+}
+
+/**
+ * A16097: si quedó el hub genérico pero el pedido es mobiliario/pastel, preferir slug concreto.
+ */
+export function preferSpecificCatalogOverHub(
+  text: string,
+  contextBlob?: string | null
+): string {
+  if (!text?.trim()) return text;
+  let out = text;
+  // Si ya hay slug concreto, quitar invite + hub genérico residual.
+  if (/bodasesor\.com\/catalogos\/[a-z0-9-]+/i.test(out)) {
+    out = out
+      .replace(/\n*Igual te env[ií]o el cat[aá]logo general[^\n]*\n*/gi, "\n")
+      .replace(
+        /\n*https?:\/\/(?:www\.)?(?:bodasesor|hostingersite)\.com\/catalogos\/?(?=\s|$|\?|¿)/gi,
+        "\n"
+      )
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+  const hubRe = /https?:\/\/(?:www\.)?(?:bodasesor|hostingersite)\.com\/catalogos\/?(?=[?\s]|¿|$)/gi;
+  if (!hubRe.test(out)) return out;
+  hubRe.lastIndex = 0;
+  const blob = `${contextBlob ?? ""} ${out}`;
+  let replacement: string | null = null;
+  if (/\b(pastel|cupcakes?|bet[uú]n|fondant)\b/i.test(blob)) {
+    replacement = getCatalogWebUrlForQuery("pastel") || getCatalogWebUrlForQuery("cupcakes");
+  } else if (/\bperiqueras?\b/i.test(blob) && !/\b(sillas?|mesas?|tiffany)\b/i.test(blob)) {
+    replacement = getCatalogWebUrlForQuery("periqueras");
+  } else if (/\b(sillas?|mesas?|tiffany|crossback|mobiliario|mobilairio)\b/i.test(blob)) {
+    replacement = getCatalogWebUrlForQuery("mesas y sillas");
+  }
+  if (!replacement || /\/catalogos\/?$/i.test(replacement.replace(/\/+$/, ""))) return out;
+  return out.replace(hubRe, replacement);
 }
 
 /** A14995 / A15903: no repetir la misma URL de catálogo dos veces (ni en la misma línea). */

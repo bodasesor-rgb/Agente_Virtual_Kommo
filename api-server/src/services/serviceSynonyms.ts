@@ -489,6 +489,14 @@ export const DEFAULT_SERVICE_SYNONYM_FAMILIES: ServiceSynonymFamily[] = [
       "fondant",
       "cupcakes y betun",
       "cupcakes y betún",
+      // A16096: pastel de evento (boda/cumpleaños) = misma familia de catálogo.
+      "pastel",
+      "pasteles",
+      "cake",
+      "pastel de boda",
+      "pastel de cumpleaños",
+      "pastel de bautizo",
+      "pastel de xv",
     ],
   },
   {

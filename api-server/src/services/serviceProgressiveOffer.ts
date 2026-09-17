@@ -399,17 +399,19 @@ const FAMILIES: FamilyDef[] = [
   },
   {
     family: "cupcakes_betun",
-    familyPattern: /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})/iu,
-    variantPattern: /\b(cl[aá]sico|decorado|cupcakes?|bet[uú]n)\b/i,
+    familyPattern: /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})|(?<!mesa\s+de\s+)\bpastel(es)?\b|\bfondant\b|\bcakes?\b/iu,
+    variantPattern: /\b(cl[aá]sico|decorado|cupcakes?|bet[uú]n|pastel|fondant|cake)\b/i,
     detailQueryFromText: (text) => {
       if (/decorado/i.test(text)) return "Betún Decorado";
-      if (/cl[aá]sico|bet[uú]n/i.test(text) && !/cupcake/i.test(text)) return "Betún Clásico";
+      if (/fondant/i.test(text)) return "Betún Decorado";
+      if (/cl[aá]sico|bet[uú]n/i.test(text) && !/cupcake|pastel|cake/i.test(text)) return "Betún Clásico";
+      if (/pastel|cake/i.test(text)) return "Cupcakes y Betún";
       if (/cupcake/i.test(text)) return "Cupcakes";
       return "Cupcakes y Betún";
     },
     buildMenu: () =>
       [
-        "Claro. En *Cupcakes y Betún* manejamos *Cupcakes*, *Betún Clásico* y *Betún Decorado*.",
+        "Claro. En *pasteles / Cupcakes y Betún* manejamos *pastel*, *Cupcakes*, *Betún Clásico* y *Betún Decorado*.",
         "",
         SERVICE_NIVEL_DETAIL_CTA,
       ].join("\n"),
