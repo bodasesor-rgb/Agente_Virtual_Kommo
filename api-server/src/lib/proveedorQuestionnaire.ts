@@ -52,7 +52,7 @@ export function parseProveedorFieldsFromRequirements(
     t.match(/PROVEEDOR:\s*([^-|]+?)\s*-\s*Ofrece/i)?.[1]?.trim() ||
     t.match(/Empresa:\s*([^|]+)/i)?.[1]?.trim() ||
     null;
-  const oferta =
+  const ofertaRaw =
     t.match(/Ofrece:\s*([^|]+)/i)?.[1]?.trim() ||
     t.match(/Oferta:\s*([^|]+)/i)?.[1]?.trim() ||
     null;
@@ -61,11 +61,13 @@ export function parseProveedorFieldsFromRequirements(
     t.match(/Cat[aá]logo:\s*([^|]+)/i)?.[1]?.trim() ||
     t.match(/Lista\s+de\s+precios:\s*([^|]+)/i)?.[1]?.trim() ||
     null;
+  const oferta =
+    ofertaRaw && ofertaRaw !== "—" && ofertaRaw.length >= 3 ? ofertaRaw : null;
   return {
     empresa: empresa && empresa !== "—" ? empresa : null,
-    proveedor_oferta: oferta && !/^invitaci[oó]n\s+a\s+red/i.test(oferta) ? oferta : oferta,
-    proveedor_estado: estado,
-    proveedor_catalogo: catalogo,
+    proveedor_oferta: oferta,
+    proveedor_estado: estado && estado !== "—" ? estado : null,
+    proveedor_catalogo: catalogo && catalogo !== "—" ? catalogo : null,
   };
 }
 
@@ -165,7 +167,19 @@ export function applyProveedorAnswer(
     extracted.proveedor_catalogo = url;
   }
 
-  if (pending === "oferta" || (!extracted.proveedor_oferta?.trim() && msg.length >= 8)) {
+  // A16121: "nos gustaría ser uno de sus provedores" es intención, no oferta.
+  const intentOnlyOferta =
+    /\b((nos\s+|me\s+)?(gustar[ií]a|dese[oa]mos?|queremos|quiero|quisiera)\s+ser(\s+uno\s+de)?\s+(sus\s+|los\s+|vuestros\s+)?prove[e]?dores?|ser(\s+uno\s+de)?\s+(sus\s+|los\s+)?prove[e]?dores?|quiero\s+ser\s+prove[e]?dor)\b/i.test(
+      msg
+    ) &&
+    !/\b(ofrezco|ofrecemos|manejamos|vendemos|distribuidor|banquete|taquiza|flor(es|al)|foto|video|m[uú]sica|dj|sal[oó]n|hacienda|mobiliario|iluminaci[oó]n)\b/i.test(
+      msg
+    );
+
+  if (
+    !intentOnlyOferta &&
+    (pending === "oferta" || (!extracted.proveedor_oferta?.trim() && msg.length >= 8))
+  ) {
     if (
       pending === "oferta" ||
       /\b(ofrezco|ofrecemos|manejamos|vendemos|somos|distribuidor|alianza|venue|hacienda)\b/i.test(msg)

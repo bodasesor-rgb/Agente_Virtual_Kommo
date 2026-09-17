@@ -160653,8 +160653,11 @@ var init_modoServicio = __esm({
 });
 
 // src/tipoContacto.ts
+function normalizeProveedorText(text2) {
+  return (text2 ?? "").replace(/\bprovedores?\b/gi, (m6) => m6.toLowerCase().endsWith("s") ? "proveedores" : "proveedor").replace(/\bprovvedores?\b/gi, (m6) => m6.toLowerCase().endsWith("s") ? "proveedores" : "proveedor");
+}
 function looksLikeClienteCorrection(text2) {
-  const t4 = (text2 ?? "").trim();
+  const t4 = normalizeProveedorText((text2 ?? "").trim());
   if (!t4) return false;
   if (/\b(no\s+soy\s+proveedor|no\s+somos\s+proveedores|me\s+confund[ií]|soy\s+cliente|somos\s+clientes|yo\s+no\s+vendo)\b/i.test(
     t4
@@ -160664,14 +160667,14 @@ function looksLikeClienteCorrection(text2) {
   return CLIENTE_BUY.test(t4);
 }
 function resolveTipoContacto(extracted, conversationText, latestMessage) {
-  const text2 = conversationText.trim();
-  const latest = (latestMessage ?? "").trim();
+  const text2 = normalizeProveedorText(conversationText.trim());
+  const latest = normalizeProveedorText((latestMessage ?? "").trim());
   if (!text2 && !latest) return extracted === "incierto" ? "cliente" : extracted;
   if (latest && looksLikeClienteCorrection(latest)) return "cliente";
   if (CLIENTE_BUY.test(text2) && !PROVEEDOR_OFFER.test(latest || text2)) return "cliente";
   if (latest && PROVEEDOR_OFFER.test(latest) && !CLIENTE_BUY.test(latest)) return "proveedor";
   if (PROVEEDOR_OFFER.test(text2) && !CLIENTE_BUY.test(text2)) return "proveedor";
-  if (extracted === "proveedor" && !PROVEEDOR_OFFER.test(text2)) {
+  if (extracted === "proveedor" && !PROVEEDOR_OFFER.test(text2) && !PROVEEDOR_OFFER.test(latest)) {
     return "cliente";
   }
   if (extracted === "incierto" || !extracted) return "cliente";
@@ -160691,14 +160694,15 @@ function clientAsksIfCompanyEmailCorrect(text2) {
 function buildCompanyEmailConfirmReply() {
   return "S\xED, capybaraeventos@gmail.com es el correo de Bodasesor \u2014 tu solicitud ya nos lleg\xF3 bien. Para enviarte la cotizaci\xF3n personalizada, \xBFme compartes tu correo de trabajo?";
 }
-var PROVEEDOR_SELL, PROVEEDOR_ALLIANCE, PROVEEDOR_OFFER, CLIENTE_BUY;
+var PROVEEDOR_SELL, PROVEEDOR_ALLIANCE, PROVEEDOR_BECOME, PROVEEDOR_OFFER, CLIENTE_BUY;
 var init_tipoContacto = __esm({
   "src/tipoContacto.ts"() {
     "use strict";
-    PROVEEDOR_SELL = /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|soy\s+proveedor|quiero\s+venderles|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidor\s+de|mi\s+empresa\s+ofrece|vendo\s+.+\s+a\s+eventos)\b/i;
+    PROVEEDOR_SELL = /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|soy\s+proveedor|somos\s+proveedores|quiero\s+venderles|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidor\s+de|mi\s+empresa\s+ofrece|vendo\s+.+\s+a\s+eventos)\b/i;
     PROVEEDOR_ALLIANCE = /\b(red\s+de\s+aliados|aliados?\s+comerciales?|alianza\s+comercial|aliado\s+comercial|registrarte\s+en\s+nuestra\s+base|invitarte\s+a\s+registrarte|te\s+invito\s+a\s+registrarte|ser\s+parte\s+de\s+nuestra\s+red|sumarte\s+a\s+(nuestra\s+)?red|formar\s+parte\s+de\s+nuestra\s+red|proveedores?\s+aliados?|cat[aá]logo\s+de\s+proveedores|beneficios\s+y\s+tarifas.{0,80}(?:venue|hacienda|sal[oó]n)|ejecutiv[oa]\s+de\s+ventas\s+en\s+(?:hacienda|sal[oó]n|venue|hotel)|nuestro\s+venue|red\s+de\s+proveedores|quiero\s+ser\s+proveedor|ofrecerles\s+(nuestro|mis|nuestros)|los\s+invito\s+a\s+(conocer|registr|formar)|invitarlos\s+a\s+(nuestra|formar|registr))\b/i;
+    PROVEEDOR_BECOME = /\b((nos\s+|me\s+)?(gustar[ií]a|dese[oa]mos?|queremos|quiero|quisiera)\s+ser(\s+uno\s+de)?\s+(sus\s+|los\s+|vuestros\s+)?proveedores?|ser(\s+uno\s+de)?\s+(sus\s+|los\s+)?proveedores?|como\s+(su\s+|uno\s+de\s+sus\s+)?proveedores?|unirme\s+como\s+proveedor|registrarme\s+como\s+proveedor)\b/i;
     PROVEEDOR_OFFER = new RegExp(
-      `(?:${PROVEEDOR_SELL.source})|(?:${PROVEEDOR_ALLIANCE.source})`,
+      `(?:${PROVEEDOR_SELL.source})|(?:${PROVEEDOR_ALLIANCE.source})|(?:${PROVEEDOR_BECOME.source})`,
       "i"
     );
     CLIENTE_BUY = /\b(solicit[oa]\s+(una\s+)?cotizaci[oó]n|quiero\s+cotizar|necesito\s+(servicio|cotiz|un\s+|una\s+)|requiero\s+(servicio|cotiz)|me\s+das\s+precio|me\s+interesa\s+contratar|busco\s+(servicio|cotiz|proveedor\s+de\s+catering|banquete|taquiza|caf[eé])|cotizaci[oó]n\s+de|precio\s+de|para\s+mi\s+(boda|evento|xv|fiesta)|mi\s+boda|nuestro\s+evento)\b/i;
@@ -227434,7 +227438,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.07";
+var LUCY_PROMPT_VERSION = "V10.08";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -230143,14 +230147,15 @@ function parseProveedorFieldsFromRequirements(req) {
     };
   }
   const empresa = t4.match(/PROVEEDOR:\s*([^-|]+?)\s*-\s*Ofrece/i)?.[1]?.trim() || t4.match(/Empresa:\s*([^|]+)/i)?.[1]?.trim() || null;
-  const oferta = t4.match(/Ofrece:\s*([^|]+)/i)?.[1]?.trim() || t4.match(/Oferta:\s*([^|]+)/i)?.[1]?.trim() || null;
+  const ofertaRaw = t4.match(/Ofrece:\s*([^|]+)/i)?.[1]?.trim() || t4.match(/Oferta:\s*([^|]+)/i)?.[1]?.trim() || null;
   const estado = t4.match(/Estado:\s*([^|]+)/i)?.[1]?.trim() || null;
   const catalogo = t4.match(/Cat[aá]logo:\s*([^|]+)/i)?.[1]?.trim() || t4.match(/Lista\s+de\s+precios:\s*([^|]+)/i)?.[1]?.trim() || null;
+  const oferta = ofertaRaw && ofertaRaw !== "\u2014" && ofertaRaw.length >= 3 ? ofertaRaw : null;
   return {
     empresa: empresa && empresa !== "\u2014" ? empresa : null,
-    proveedor_oferta: oferta && !/^invitaci[oó]n\s+a\s+red/i.test(oferta) ? oferta : oferta,
-    proveedor_estado: estado,
-    proveedor_catalogo: catalogo
+    proveedor_oferta: oferta,
+    proveedor_estado: estado && estado !== "\u2014" ? estado : null,
+    proveedor_catalogo: catalogo && catalogo !== "\u2014" ? catalogo : null
   };
 }
 function formatProveedorRequirements(extracted) {
@@ -230228,7 +230233,12 @@ function applyProveedorAnswer(extracted, message, _historyBlob) {
   if (url2 && !extracted.proveedor_catalogo?.trim()) {
     extracted.proveedor_catalogo = url2;
   }
-  if (pending === "oferta" || !extracted.proveedor_oferta?.trim() && msg.length >= 8) {
+  const intentOnlyOferta = /\b((nos\s+|me\s+)?(gustar[ií]a|dese[oa]mos?|queremos|quiero|quisiera)\s+ser(\s+uno\s+de)?\s+(sus\s+|los\s+|vuestros\s+)?prove[e]?dores?|ser(\s+uno\s+de)?\s+(sus\s+|los\s+)?prove[e]?dores?|quiero\s+ser\s+prove[e]?dor)\b/i.test(
+    msg
+  ) && !/\b(ofrezco|ofrecemos|manejamos|vendemos|distribuidor|banquete|taquiza|flor(es|al)|foto|video|m[uú]sica|dj|sal[oó]n|hacienda|mobiliario|iluminaci[oó]n)\b/i.test(
+    msg
+  );
+  if (!intentOnlyOferta && (pending === "oferta" || !extracted.proveedor_oferta?.trim() && msg.length >= 8)) {
     if (pending === "oferta" || /\b(ofrezco|ofrecemos|manejamos|vendemos|somos|distribuidor|alianza|venue|hacienda)\b/i.test(msg)) {
       if (!extracted.proveedor_oferta?.trim() || pending === "oferta") {
         if (!MX_ESTADO.test(msg) || msg.split(/\s+/).length > 4) {

@@ -38,7 +38,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.07");
+assert.equal(LUCY_PROMPT_VERSION, "V10.08");
 
 assert.ok(isAffirmativeOnlyMessage("Claro con gusto"));
 assert.ok(isAffirmativeOnlyMessage("claro con gusto"));
