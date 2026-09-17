@@ -20,6 +20,9 @@ import {
   clientAffirmsCatalogOffer,
   clientMentionsEntertainment,
   clientMentionsSpecialLiveAct,
+  clientMentionsCatering,
+  isVagueFoodTerm,
+  isServiceRelatedMessage,
   clientDeclinesMoreServices,
   clientAsksForHumanAdvisor,
   clientAsksServiceInfo,
@@ -241,11 +244,15 @@ function syncFilledFromCurrentAnswer(
     }
     case "requerimientos": {
       // A15003: "Photo Booth" / servicio nombrado = respuesta válida al embudo.
+      // A16116: "catering" / comida vaga también cuenta (antes caía en "Sigo aquí").
       const services = parseServicesFromText(t);
       if (
         services.length === 0 &&
         !SERVICE_HINT.test(t) &&
-        !clientMentionsEntertainment(t)
+        !clientMentionsEntertainment(t) &&
+        !clientMentionsCatering(t) &&
+        !isVagueFoodTerm(t) &&
+        !isServiceRelatedMessage(t)
       ) {
         return;
       }
@@ -258,6 +265,12 @@ function syncFilledFromCurrentAnswer(
         if (inputExtracted) {
           inputExtracted.requerimientos_evento = extracted.requerimientos_evento;
         }
+      } else if (
+        (clientMentionsCatering(t) || isVagueFoodTerm(t)) &&
+        !extracted.requerimientos_evento?.trim()
+      ) {
+        extracted.requerimientos_evento = "Alimentos";
+        if (inputExtracted) inputExtracted.requerimientos_evento = "Alimentos";
       }
       return;
     }
@@ -422,6 +435,10 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     ) ||
     clientMentionsEntertainment(input.currentMessage) ||
     clientMentionsSpecialLiveAct(input.currentMessage) ||
+    // A16116: catering / comida vaga NO es "dato pendiente" — evita "Sigo aquí".
+    clientMentionsCatering(input.currentMessage) ||
+    isVagueFoodTerm(input.currentMessage) ||
+    isServiceRelatedMessage(input.currentMessage) ||
     parseServicesFromText(input.currentMessage ?? "").length > 0 ||
     clientDeclinesMoreServices(input.currentMessage) ||
     clientAsksForHumanAdvisor(input.currentMessage) ||
@@ -674,12 +691,17 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
           applied.push("same-field-reask-trim");
         } else if (
           // A15791+: si el cliente aclaró horario/zona/dato útil, no "Sigo aquí".
+          // A16116: catering / servicio también es respuesta útil.
           input.currentMessage &&
           (parseHorarioFromText(input.currentMessage) ||
             parseZonaFromText(input.currentMessage) ||
             parseFechaFromText(input.currentMessage) ||
             parseInvitadosFromText(input.currentMessage) ||
-            parseCorreoFromText(input.currentMessage))
+            parseCorreoFromText(input.currentMessage) ||
+            clientMentionsCatering(input.currentMessage) ||
+            isVagueFoodTerm(input.currentMessage) ||
+            isServiceRelatedMessage(input.currentMessage) ||
+            parseServicesFromText(input.currentMessage).length > 0)
         ) {
           const pending = getNextPendingField(asExtracted(extracted), filled);
           if (pending) {

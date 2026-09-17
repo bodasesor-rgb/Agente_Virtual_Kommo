@@ -131329,11 +131329,16 @@ function isVagueFoodTerm(text2) {
     }
   }
   const cleaned = t4.replace(
-    /^(quer[ií]a|quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i,
+    /^(quer[ií]a|quiero|necesito|busco|solo|solamente|[uú]nicamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i,
     ""
-  ).replace(/^(una?|el|la|los|las|un\s+servicio\s+de)\s+/i, "").replace(/\s+para\s+(un\s+)?evento\b.*$/i, "").trim();
-  if (/^(comidas?|alimentos?|men[uú]s?|catering|banquetes?|algo\s+de\s+comer|servicio\s+de\s+banquetes?(\s+o\s+catering)?|banquetes?\s+o\s+catering)$/i.test(
+  ).replace(/^(una?|el|la|los|las|un\s+servicio\s+de|servicio\s+de)\s+/i, "").replace(/\s+para\s+(un\s+)?evento\b.*$/i, "").trim();
+  if (/^(comidas?|alimentos?|men[uú]s?|catering|banquetes?|algo\s+de\s+comer|servicio\s+de\s+(banquetes?|catering)(\s+o\s+catering)?|banquetes?\s+o\s+catering)$/i.test(
     cleaned
+  )) {
+    return true;
+  }
+  if (/\b([uú]nicamente|solo|solamente|nada\s+m[aá]s)\b.{0,40}\b(catering|comida|alimentos?|banquetes?)\b/i.test(
+    t4
   )) {
     return true;
   }
@@ -135494,7 +135499,7 @@ var init_conversation_understanding = __esm({
       ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
       ["Mesa imperial", /\bmesa\s+imperial\b/i]
     ];
-    SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|pastel|fondant|\bcake\b|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|entarimad|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+    SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|catering|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|pastel|fondant|\bcake\b|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|entarimad|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
     SHORT_SERVICE_ALIASES = {
       pista: "pista de baile",
       tarima: "Tarima",
@@ -167883,7 +167888,7 @@ ${nextQ}`;
     mensaje = buildHumanAdvisorHandoffAnswer(extracted.nombre);
     log?.info({ entityId }, "GUARD: A15009 \u2014 forz\xF3 handoff humano (anti mientras-tanto)");
   }
-  if (/Sigo aqu[ií]/i.test(mensaje) && (clientMentionsEntertainment(currentMessage) || clientMentionsSpecialLiveAct(currentMessage) || parseServicesFromText(currentMessage ?? "").length > 0 || clientAsksForHumanAdvisor(currentMessage) || isReferentialPriorAnswer(currentMessage) || clientComplainsAboutRepeat(currentMessage))) {
+  if (/Sigo aqu[ií]/i.test(mensaje) && (clientMentionsEntertainment(currentMessage) || clientMentionsSpecialLiveAct(currentMessage) || clientMentionsCatering(currentMessage) || isVagueFoodTerm(currentMessage) || isServiceRelatedMessage(currentMessage) || parseServicesFromText(currentMessage ?? "").length > 0 || clientAsksForHumanAdvisor(currentMessage) || isReferentialPriorAnswer(currentMessage) || clientComplainsAboutRepeat(currentMessage))) {
     if (clientAsksForHumanAdvisor(currentMessage)) {
       mensaje = buildHumanAdvisorHandoffAnswer(extracted.nombre);
     } else if (clientMentionsEntertainment(currentMessage) || clientMentionsSpecialLiveAct(currentMessage)) {
@@ -167895,6 +167900,17 @@ ${nextQ}`;
         filledSet,
         ctx
       );
+    } else if (clientMentionsCatering(currentMessage) || isVagueFoodTerm(currentMessage)) {
+      if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
+        extracted.requerimientos_evento = "Alimentos";
+        filledSet.add("Requerimientos o servicios");
+      }
+      mensaje = buildVagueFoodOptionsReply(
+        extracted,
+        presHistory,
+        currentMessage,
+        entityId
+      );
     } else {
       const pending = getNextPendingField(extracted, filledSet);
       const nombre = getDisplayName(extracted, whatsappDisplayName);
@@ -167903,7 +167919,7 @@ ${nextQ}`;
 
 ${buildNaturalQuestion(pending, ctx)}` : ack;
     }
-    log?.info({ entityId }, "GUARD: A15009 \u2014 reemplaz\xF3 Sigo aqu\xED residual");
+    log?.info({ entityId }, "GUARD: A15009/A16116 \u2014 reemplaz\xF3 Sigo aqu\xED residual");
   }
   mensaje = dedupeCatalogUrlsInMessage(mensaje);
   mensaje = preferSpecificCatalogOverHub(
@@ -227418,7 +227434,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.06";
+var LUCY_PROMPT_VERSION = "V10.07";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -231211,7 +231227,7 @@ function syncFilledFromCurrentAnswer(field, message, filled, extracted, inputExt
     }
     case "requerimientos": {
       const services = parseServicesFromText(t4);
-      if (services.length === 0 && !SERVICE_HINT.test(t4) && !clientMentionsEntertainment(t4)) {
+      if (services.length === 0 && !SERVICE_HINT.test(t4) && !clientMentionsEntertainment(t4) && !clientMentionsCatering(t4) && !isVagueFoodTerm(t4) && !isServiceRelatedMessage(t4)) {
         return;
       }
       filled.add("Requerimientos o servicios");
@@ -231221,6 +231237,9 @@ function syncFilledFromCurrentAnswer(field, message, filled, extracted, inputExt
         if (inputExtracted) {
           inputExtracted.requerimientos_evento = extracted.requerimientos_evento;
         }
+      } else if ((clientMentionsCatering(t4) || isVagueFoodTerm(t4)) && !extracted.requerimientos_evento?.trim()) {
+        extracted.requerimientos_evento = "Alimentos";
+        if (inputExtracted) inputExtracted.requerimientos_evento = "Alimentos";
       }
       return;
     }
@@ -231326,7 +231345,8 @@ function applyLucyGlobalAntiRepetition(input) {
   );
   const clientClarifyingService = /\brobots?\s*leds?\b|\bbatucada\b|\bbailarinas?\b|\bdancers?\b|\bvedettes?\b|\bphoto\s*booth|\bphotobooth|\bcabina\b|\bsolo\s+quiero\b|\bquiero\s+solo\b|\bambienta(?:r|ci[oó]n)\b/i.test(
     input.currentMessage ?? ""
-  ) || clientMentionsEntertainment(input.currentMessage) || clientMentionsSpecialLiveAct(input.currentMessage) || parseServicesFromText(input.currentMessage ?? "").length > 0 || clientDeclinesMoreServices(input.currentMessage) || clientAsksForHumanAdvisor(input.currentMessage) || isReferentialPriorAnswer(input.currentMessage) || clientComplainsAboutRepeat(input.currentMessage);
+  ) || clientMentionsEntertainment(input.currentMessage) || clientMentionsSpecialLiveAct(input.currentMessage) || // A16116: catering / comida vaga NO es "dato pendiente" — evita "Sigo aquí".
+  clientMentionsCatering(input.currentMessage) || isVagueFoodTerm(input.currentMessage) || isServiceRelatedMessage(input.currentMessage) || parseServicesFromText(input.currentMessage ?? "").length > 0 || clientDeclinesMoreServices(input.currentMessage) || clientAsksForHumanAdvisor(input.currentMessage) || isReferentialPriorAnswer(input.currentMessage) || clientComplainsAboutRepeat(input.currentMessage);
   if ((isReferentialPriorAnswer(input.currentMessage) || clientComplainsAboutRepeat(input.currentMessage)) && lastAsked === "correo" && !filled.has("Correo electr\xF3nico")) {
     const recovered = filterClientEmail(extracted.correo) || recoverCorreoFromUserTexts(
       (input.history ?? []).filter((m6) => m6.role === "user" && typeof m6.content === "string").map((m6) => m6.content),
@@ -231485,7 +231505,8 @@ ${q3}` : q3;
           applied.push("same-field-reask-trim");
         } else if (
           // A15791+: si el cliente aclaró horario/zona/dato útil, no "Sigo aquí".
-          input.currentMessage && (parseHorarioFromText(input.currentMessage) || parseZonaFromText(input.currentMessage) || parseFechaFromText(input.currentMessage) || parseInvitadosFromText(input.currentMessage) || parseCorreoFromText(input.currentMessage))
+          // A16116: catering / servicio también es respuesta útil.
+          input.currentMessage && (parseHorarioFromText(input.currentMessage) || parseZonaFromText(input.currentMessage) || parseFechaFromText(input.currentMessage) || parseInvitadosFromText(input.currentMessage) || parseCorreoFromText(input.currentMessage) || clientMentionsCatering(input.currentMessage) || isVagueFoodTerm(input.currentMessage) || isServiceRelatedMessage(input.currentMessage) || parseServicesFromText(input.currentMessage).length > 0)
         ) {
           const pending = getNextPendingField(asExtracted(extracted), filled);
           if (pending) {

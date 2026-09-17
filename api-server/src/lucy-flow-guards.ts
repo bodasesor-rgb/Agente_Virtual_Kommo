@@ -11644,11 +11644,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: A15009 — forzó handoff humano (anti mientras-tanto)");
   }
 
-  // A15009: si el cliente insiste con el mismo acto/servicio, no "Sigo aquí" residual.
+  // A15009 / A16116: si el cliente insiste con el mismo acto/servicio/catering, no "Sigo aquí" residual.
   if (
     /Sigo aqu[ií]/i.test(mensaje) &&
     (clientMentionsEntertainment(currentMessage) ||
       clientMentionsSpecialLiveAct(currentMessage) ||
+      clientMentionsCatering(currentMessage) ||
+      isVagueFoodTerm(currentMessage) ||
+      isServiceRelatedMessage(currentMessage) ||
       parseServicesFromText(currentMessage ?? "").length > 0 ||
       clientAsksForHumanAdvisor(currentMessage) ||
       isReferentialPriorAnswer(currentMessage) ||
@@ -11668,6 +11671,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         filledSet,
         ctx
       );
+    } else if (clientMentionsCatering(currentMessage) || isVagueFoodTerm(currentMessage)) {
+      if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
+        extracted.requerimientos_evento = "Alimentos";
+        filledSet.add("Requerimientos o servicios");
+      }
+      mensaje = buildVagueFoodOptionsReply(
+        extracted,
+        presHistory,
+        currentMessage,
+        entityId
+      );
     } else {
       const pending = getNextPendingField(extracted, filledSet);
       const nombre = getDisplayName(extracted, whatsappDisplayName);
@@ -11676,7 +11690,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         ? `${ack}\n\n${buildNaturalQuestion(pending, ctx)}`
         : ack;
     }
-    log?.info({ entityId }, "GUARD: A15009 — reemplazó Sigo aquí residual");
+    log?.info({ entityId }, "GUARD: A15009/A16116 — reemplazó Sigo aquí residual");
   }
 
   mensaje = dedupeCatalogUrlsInMessage(mensaje);

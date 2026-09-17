@@ -42,7 +42,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.06");
+assert.equal(LUCY_PROMPT_VERSION, "V10.07");
 
 // 1) Medidas de carpa no se pierden al sumar servicios → no se re-pregunta.
 {

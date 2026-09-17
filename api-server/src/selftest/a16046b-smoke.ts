@@ -21,7 +21,7 @@ import { applyCrmWriteInvariants } from "../lucyCrmInvariants.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.06");
+assert.equal(LUCY_PROMPT_VERSION, "V10.07");
 
 function emptyExtracted(partial: Partial<ExtractedData> = {}): ExtractedData {
   return {
