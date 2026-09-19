@@ -32,6 +32,7 @@ import { getCatalogWebUrlForQuery } from "./catalogWebKnowledge.js";
 import { buildConcreteProductQuestionReply } from "./concreteProductQuestion.js";
 import { advisorLabelForClient } from "../lib/bodasesorAdvisor.js";
 import { buildLucyInfoLearnedPriceReply } from "./lucyInfoPriceCache.js";
+import { parseChairModelFromText, CHAIR_MODEL_PATTERN } from "../lib/chairModels.js";
 import {
   buildProgressiveOptionsMenu,
   parseMobiliarioPieceChoice,
@@ -148,13 +149,7 @@ export function parseMobiliarioRentItems(
   }
   const sillas = query.match(/(\d+)\s*sillas?\b/i);
   if (/\bsillas?\b/i.test(query) && !/\bpicnic\b/i.test(query)) {
-    const model =
-      query.match(
-        /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde)\b/i
-      )?.[1] ?? null;
-    const modelLabel = model
-      ? model.replace(/\s+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-      : null;
+    const modelLabel = parseChairModelFromText(query);
     items.push({
       qty: sillas?.[1] ? parseInt(sillas[1], 10) : null,
       label: modelLabel ? `sillas ${modelLabel}` : "sillas",
@@ -215,10 +210,7 @@ export function buildMobiliarioRentDetailReply(query: string): string | null {
 
   // Pieza nombrada sin cantidad ni modelo concreto → menú de modelos (no dump).
   const hasQty = items.some((i) => i.qty != null && i.qty > 0);
-  const hasModel =
-    /\b(tiffany|crossback|ghost|wishbone|tolix|camila|antonella|basket|cabos|caroline|louis|mariantonieta|avant|luxor|imperial|picnic)\b/i.test(
-      query
-    );
+  const hasModel = CHAIR_MODEL_PATTERN.test(query) || /\b(luxor|imperial|picnic)\b/i.test(query);
   if (items.length >= 1 && !hasQty && !hasModel) {
     // "sillas" / "mesas" / "periqueras" sueltas → progressive follow-up.
     return null;

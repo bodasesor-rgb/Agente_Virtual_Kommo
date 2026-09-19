@@ -18,6 +18,11 @@ import {
 } from "../conversation-understanding.js";
 import { isGreetingOnlyMessage } from "../contact-name.js";
 import { getCatalogWebUrlForQuery } from "./catalogWebKnowledge.js";
+import {
+  chairModelAlternation,
+  parseChairModelFromText,
+  textMentionsChairModel,
+} from "../lib/chairModels.js";
 
 /** Links de mobiliario cuando el cliente aún no eligió pieza (A15917). */
 export function buildBareMobiliarioCatalogLinks(): string {
@@ -464,11 +469,15 @@ const FAMILIES: FamilyDef[] = [
   {
     family: "mobiliario",
     // A15190 / A15910: "centros de mesa" y "mesa de dulces/postres" ≠ familia mobiliario.
-    familyPattern:
-      /^(?!.*\b(?:centros?\s+de\s+mesas?|mesas?\s+de\s+(?:dulces?|postres?|quesos?))\b).*\b(?:mobiliario|periqueras?|salas?\s+lounge|mesas?\s+y\s+sillas?|renta\s+de\s+(?:mesas?|sillas?|mobiliario)|entelados?|colgantes?|vajillas?|barras?\s+de\s+mobiliario|(?:\d+\s+)?sillas?\s+(?:wishbone|tiffany|crossback|ghost|tolix|camila)|(?:wishbone|tiffany|crossback|ghost)\b)/i,
+    familyPattern: new RegExp(
+      `^(?!.*\\b(?:centros?\\s+de\\s+mesas?|mesas?\\s+de\\s+(?:dulces?|postres?|quesos?))\\b).*\\b(?:mobiliario|periqueras?|salas?\\s+lounge|mesas?\\s+y\\s+sillas?|renta\\s+de\\s+(?:mesas?|sillas?|mobiliario)|entelados?|colgantes?|vajillas?|barras?\\s+de\\s+mobiliario|(?:\\d+\\s+)?sillas?\\s+(?:${chairModelAlternation()})|(?:${chairModelAlternation()})\\b)`,
+      "i"
+    ),
     // Pieza concreta (mesas/sillas/…) o modelo (Tiffany/Crossback…).
-    variantPattern:
-      /\b(periqueras?|lounge|luxor|tiffany|crossback|imperial|ghost|wishbone|tolix|camila|antonella|basket|cabos|caroline|mar[ií]a|avant\s*garde|louis\s*xv|mariantonieta|manteler[ií]a|vajilla|sillas?|(?<!centros?\s+de\s)(?<!mesa\s+de\s)mesas?(?!\s+de\s+(?:dulces?|postres?|quesos?))|picnic|bancos?|renta\s+de\s+mesas|entelado|colgante|wisteria)\b/i,
+    variantPattern: new RegExp(
+      `\\b(periqueras?|lounge|luxor|imperial|manteler[ií]a|vajilla|sillas?|(?<!centros?\\s+de\\s)(?<!mesa\\s+de\\s)mesas?(?!\\s+de\\s+(?:dulces?|postres?|quesos?))|picnic|bancos?|renta\\s+de\\s+mesas|entelado|colgante|wisteria|${chairModelAlternation()})\\b`,
+      "i"
+    ),
     detailQueryFromText: (text) => {
       if (
         /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:de\s+)?mesas?\b|\bdecoraci[oó]n\s+de\s+mesas?\b/i.test(
@@ -484,14 +493,9 @@ const FAMILIES: FamilyDef[] = [
       if (/vajilla|cuberter|cristaler/i.test(text)) return "Vajillas";
       if (/periquera/i.test(text)) return "periqueras";
       if (/lounge|luxor/i.test(text)) return "salas lounge";
-      // A16166: modelo de silla → query enfocado al PDF (Wishbone $200, no mesas Vintage).
-      const chairModel = text.match(
-        /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde)\b/i
-      )?.[1];
-      if (chairModel) {
-        const nice = chairModel.replace(/\s+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-        return `Silla ${nice}`;
-      }
+      // A16166+: modelo de silla → query PDF enfocado (no mesas Vintage).
+      const chairModel = parseChairModelFromText(text);
+      if (chairModel) return `Silla ${chairModel}`;
       if (/\bsillas?\b/i.test(text)) return "sillas";
       if (
         /(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)|picnic/i.test(
@@ -665,12 +669,12 @@ export function parseMobiliarioPieceChoice(text: string | null | undefined): str
 export function buildSillasModelMenu(): string {
   return [
     "Claro. En *sillas* manejamos varios modelos; por ejemplo:",
-    "• *Tiffany* (clásica / versátil)",
-    "• *Crossback* (rústico / vintage)",
-    "• *Ghost* (minimalista)",
-    "• *Camila*, *Tolix*, *Wishbone*, *Louis XV* y más",
+    "• *Tiffany* / *Tiffany Infantil*",
+    "• *Crossback*, *Ghost*, *Wishbone*",
+    "• *Tolix*, *Louis XV*, *Mariantonieta*, *Avant Garde*",
+    "• *Camila*, *Antonella*, *Basket*, *Cabos*, *Caroline*, *Smith*, *María*",
     "",
-    "¿De cuál te paso detalle, o te mando el *catálogo de mesas y sillas*?",
+    "¿De cuál te paso detalle (precio), o te mando el *catálogo de mesas y sillas*?",
   ].join("\n");
 }
 
@@ -972,18 +976,11 @@ function defFor(family: ProgressiveFamily): FamilyDef {
 export function hasConcreteServiceVariant(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
-  // A16166: "100 sillas wishbone" es concreto aunque no diga "mobiliario".
-  if (
-    /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde)\b/i.test(
-      t
-    )
-  ) {
-    return true;
-  }
+  // A16166+: sillas + modelo del catálogo (cualquier modelo) es concreto.
+  if (textMentionsChairModel(t)) return true;
   for (const fam of FAMILIES) {
     if (fam.familyPattern.test(t) && fam.variantPattern.test(t)) return true;
   }
-  // Nivel suelto con servicio en contexto se maneja en clientWantsServiceDetail.
   return false;
 }
 

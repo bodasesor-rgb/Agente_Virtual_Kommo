@@ -148,6 +148,7 @@ export function stripStalePriceTalk(mensaje: string, currentMessage?: string): s
 }
 
 import { advisorLabelForClient } from "./lib/bodasesorAdvisor.js";
+import { parseChairModelFromText, CHAIR_MODEL_PATTERN } from "./lib/chairModels.js";
 
 /** Respuesta consultiva (Replit) para servicios sin precio en catálogo — info útil + cotización. */
 export function buildConsultativeNoPriceReply(message?: string): string | null {
@@ -157,14 +158,13 @@ export function buildConsultativeNoPriceReply(message?: string): string | null {
 
   // Si el panel ya cargó el PDF de ese servicio, citar precios aprendidos (no “sin tarifa”).
   if (
-    /pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\b|lounge|luxor|chesterfield|camila|wishbone|tiffany|crossback|ghost|tolix/.test(
+    /pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\b|lounge|luxor|chesterfield/.test(
       t,
-    )
+    ) ||
+    CHAIR_MODEL_PATTERN.test(message)
   ) {
-    // A16166: preferir query con modelo si viene en el mensaje.
-    const model = message.match(
-      /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta)\b/i
-    )?.[1];
+    // A16166+: preferir query con modelo si viene en el mensaje / CRM blob.
+    const model = parseChairModelFromText(message);
     const fromPdf = buildLucyInfoLearnedPriceReply(
       model ? `precio sillas ${model}` : message
     );

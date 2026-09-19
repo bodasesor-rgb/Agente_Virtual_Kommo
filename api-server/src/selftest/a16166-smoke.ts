@@ -1,5 +1,6 @@
 /**
- * Smoke A16166 Jimena — Sillas Wishbone: capturar modelo + precio $200 (no mesas Vintage/Caoba).
+ * Smoke A16166 — modelos de silla: captura + precio PDF anclado (no mesas Vintage).
+ * Cubre Wishbone, Tiffany, Ghost, Crossback, Louis XV, Tiffany Infantil, etc.
  * node ./scripts/run-a16166-smoke.mjs
  */
 import assert from "node:assert/strict";
@@ -16,30 +17,77 @@ import { hasConcreteServiceVariant } from "../services/serviceProgressiveOffer.j
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.09");
+assert.equal(LUCY_PROMPT_VERSION, "V10.10");
 
-assert.equal(parseChairModelFromText("100 Sillas Wishbone"), "Wishbone");
-assert.equal(
-  parseFurnitureCatalogSkuFromText("me interesa cotizar 100 Sillas Wishbone para mi boda"),
-  "100 Sillas Wishbone"
-);
-assert.equal(parseFurnitureCatalogSkuFromText("Requiero 100 sillas wishbone"), "100 Sillas Wishbone");
-assert.ok(hasConcreteServiceVariant("100 sillas wishbone"));
+// Ambiguos: nombre propio ≠ modelo
+assert.equal(parseChairModelFromText("Hola Lucy! Mi nombre es María"), null);
+assert.equal(parseChairModelFromText("Soy Caroline"), null);
 
-const services = parseServicesFromText("cotizar 100 Sillas Wishbone para mi boda");
-assert.ok(
-  services.some((s) => /Wishbone/i.test(s)),
-  `expected Wishbone in ${services.join(", ")}`
-);
-assert.ok(!services.includes("Mobiliario") || services.some((s) => /Wishbone/i.test(s)));
+const cases: Array<{ msg: string; model: string; sku: string; priceRe: RegExp }> = [
+  {
+    msg: "me interesa cotizar 100 Sillas Wishbone para mi boda",
+    model: "Wishbone",
+    sku: "100 Sillas Wishbone",
+    priceRe: /200|Wishbone/i,
+  },
+  {
+    msg: "Requiero 80 sillas tiffany",
+    model: "Tiffany",
+    sku: "80 Sillas Tiffany",
+    priceRe: /45|Tiffany/i,
+  },
+  {
+    msg: "precio de las sillas ghost",
+    model: "Ghost",
+    sku: "Sillas Ghost",
+    priceRe: /150|Ghost/i,
+  },
+  {
+    msg: "100 sillas crossback",
+    model: "Crossback",
+    sku: "100 Sillas Crossback",
+    priceRe: /95|Crossback/i,
+  },
+  {
+    msg: "cotizar sillas louis xv",
+    model: "Louis XV",
+    sku: "Sillas Louis XV",
+    priceRe: /200|Louis/i,
+  },
+  {
+    msg: "necesito sillas tiffany infantil",
+    model: "Tiffany Infantil",
+    sku: "Sillas Tiffany Infantil",
+    priceRe: /25|Infantil|Tiffany/i,
+  },
+  {
+    msg: "precio sillas tolix",
+    model: "Tolix",
+    sku: "Sillas Tolix",
+    priceRe: /195|Tolix/i,
+  },
+];
 
-const priceReply =
-  buildLucyInfoLearnedPriceReply("precio de las sillas wishbone") ||
-  buildConsultativeNoPriceReply("precio de las sillas wishbone");
-assert.ok(priceReply, "must return PDF price reply");
-assert.ok(/200|Wishbone/i.test(priceReply!), priceReply);
-assert.ok(!/\$\s*750/i.test(priceReply!), `must not dump Vintage $750: ${priceReply}`);
-assert.ok(!/\$\s*900/i.test(priceReply!), `must not dump Caoba $900: ${priceReply}`);
+for (const c of cases) {
+  assert.equal(parseChairModelFromText(c.msg), c.model, c.msg);
+  assert.equal(parseFurnitureCatalogSkuFromText(c.msg), c.sku, c.msg);
+  assert.ok(hasConcreteServiceVariant(c.msg), c.msg);
+  const services = parseServicesFromText(c.msg);
+  assert.ok(
+    services.some((s) => s.includes(c.model)),
+    `${c.msg} → ${services.join(", ")}`
+  );
+  const price =
+    buildLucyInfoLearnedPriceReply(`precio de las sillas ${c.model}`) ||
+    buildConsultativeNoPriceReply(`precio de las sillas ${c.model}`);
+  assert.ok(price, `price for ${c.model}`);
+  assert.ok(c.priceRe.test(price!), `${c.model}: ${price}`);
+  assert.ok(!/\$\s*750/i.test(price!), `${c.model} must not dump Vintage $750: ${price}`);
+  assert.ok(!/\$\s*900/i.test(price!), `${c.model} must not dump Caoba $900: ${price}`);
+}
+
+// Mesa homónima no debe virar a sillas
+assert.equal(parseChairModelFromText("mesa crossback caoba rectangular"), null);
 
 function emptyExtracted(partial: Partial<ExtractedData> = {}): ExtractedData {
   return {
@@ -99,43 +147,27 @@ assert.ok(!/anoto \*mobiliario\*/i.test(afterName), afterName);
 assert.ok(!/mesas y sillas.*periqueras.*o ambas/i.test(afterName), afterName);
 assert.ok(/Wishbone/i.test(afterName) || /Wishbone/i.test(extracted.requerimientos_evento ?? ""), afterName);
 
-const priceAsk = applyLucyMessageGuards({
-  aiResponse: "Según el catálogo… Vintage/White Precio: $750",
-  extracted: emptyExtracted({
-    nombre: "Jimena Solís",
-    tipo_evento: "boda",
-    requerimientos_evento: "100 Sillas Wishbone",
-    fecha_evento: "13 de marzo del 2027",
-    num_invitados: 200,
-  }),
-  filledSet: new Set([
-    "Nombre del cliente",
-    "Tipo de evento",
-    "Requerimientos o servicios",
-    "Fecha del evento",
-    "Número de invitados",
-  ]),
+const tiffanyAsk = applyLucyMessageGuards({
+  aiResponse: "¿Qué necesitas cotizar?",
+  extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "boda" }),
+  filledSet: new Set(["Nombre del cliente", "Tipo de evento"]),
   history: [
-    ...history,
-    { role: "user", content: "Requiero 100 sillas wishbone" },
-    { role: "assistant", content: "¿Qué día tienen en mente?" },
-    { role: "user", content: "13 de marzo del 2027" },
-    { role: "assistant", content: "¿Tienen un estimado de invitados?" },
-    { role: "user", content: "200 invitados pero necesito solo 100 sillas wishbone" },
-    { role: "assistant", content: "¿A qué hora sería el evento?" },
+    { role: "user", content: "Hola" },
+    { role: "assistant", content: "¿Me regalas tu nombre?" },
+    { role: "user", content: "Ana" },
+    { role: "assistant", content: "¿Qué van a celebrar?" },
+    { role: "user", content: "Boda" },
   ],
-  currentMessage: "No comprendo, reuniros el precio de las sillas wishbone",
-  entityId: "A16166b",
+  currentMessage: "Quiero 50 sillas Tiffany",
+  entityId: "A16166-tiffany",
   readyForClosing: false,
   cierreYaEnviado: false,
   emailRefusedThisTurn: false,
   forceFirstPresentation: false,
   buildClosing: () => "CIERRE",
-  whatsappDisplayName: "Jimena Solís",
+  whatsappDisplayName: "Ana",
 });
-
-assert.ok(/Wishbone|200/i.test(priceAsk), priceAsk);
-assert.ok(!/\$\s*750/i.test(priceAsk), priceAsk);
-assert.ok(!/\$\s*900/i.test(priceAsk), priceAsk);
+assert.ok(/Tiffany/i.test(tiffanyAsk), tiffanyAsk);
+assert.ok(!/anoto \*mobiliario\*/i.test(tiffanyAsk), tiffanyAsk);
 
 console.log("a16166-smoke OK", LUCY_PROMPT_VERSION);

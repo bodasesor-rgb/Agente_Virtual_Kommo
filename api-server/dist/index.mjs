@@ -129165,6 +129165,135 @@ var init_serviceSynonyms = __esm({
   }
 });
 
+// src/lib/chairModels.ts
+function chairModelAlternation() {
+  return [
+    "tiffany\\s+infantil",
+    "louis\\s*xv",
+    "luis\\s*xv",
+    "avant\\s*garde",
+    "mariantonieta",
+    "wishbone",
+    "tiffany",
+    "crossback",
+    "ghost",
+    "tolix",
+    "camila",
+    "antonella",
+    "basket",
+    "cabos",
+    "caroline",
+    "smith",
+    "mar[i\xED]a"
+  ].join("|");
+}
+function fold(s7) {
+  return s7.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+}
+function textMentionsChairModel(text2) {
+  return parseChairModelFromText(text2) != null;
+}
+function parseChairModelFromText(text2) {
+  const t4 = String(text2 || "").trim();
+  if (!t4) return null;
+  const hasSillas = /\bsillas?\b/i.test(t4);
+  const hasMesa = /\bmesas?\b/i.test(t4);
+  const priceOrCotizar = /\b(precio|cotiz|cu[aá]nto\s+cuesta|requiero|necesito|quiero|anoto|renta)\b/i.test(t4) || /\bmobiliario\b/i.test(t4);
+  if (hasMesa && !hasSillas && !priceOrCotizar) return null;
+  if (hasMesa && !hasSillas && /\bmesa\s+(rectangular|redonda|cuadrada|picnic|centro)\b/i.test(t4)) {
+    return null;
+  }
+  const ambiguousNames = /* @__PURE__ */ new Set([
+    "Mar\xEDa",
+    "Smith",
+    "Caroline",
+    "Camila",
+    "Antonella",
+    "Cabos",
+    "Basket"
+  ]);
+  for (const { pattern, canonical } of CHAIR_MODEL_ALIASES) {
+    if (!pattern.test(t4)) continue;
+    if (ambiguousNames.has(canonical) && !hasSillas && !priceOrCotizar) continue;
+    return canonical;
+  }
+  return null;
+}
+function chairModelTokensFromQuery(query) {
+  const f7 = fold(query);
+  const hits = [];
+  for (const tok of CHAIR_MODEL_FOLD_TOKENS) {
+    if (f7.includes(tok) && !hits.includes(tok)) hits.push(tok);
+  }
+  const model = parseChairModelFromText(query);
+  if (model) {
+    const mf = fold(model);
+    if (!hits.includes(mf)) hits.unshift(mf);
+  }
+  return hits;
+}
+function parseChairQtyFromText(text2) {
+  const t4 = String(text2 || "");
+  const model = parseChairModelFromText(t4);
+  if (model) {
+    const esc = model.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+    const withModel = t4.match(new RegExp(`(\\d+)\\s*sillas?(?:\\s+\\w+){0,4}\\s*${esc}`, "i")) || t4.match(new RegExp(`(\\d+)\\s*(?:sillas?\\s+)?${esc}`, "i"));
+    if (withModel?.[1]) return parseInt(withModel[1], 10);
+  }
+  const plain = t4.match(/(\d+)\s*sillas?\b/i);
+  return plain?.[1] ? parseInt(plain[1], 10) : null;
+}
+function formatChairSku(text2) {
+  const model = parseChairModelFromText(text2);
+  if (!model) return null;
+  const qty = parseChairQtyFromText(text2);
+  return qty && qty > 0 ? `${qty} Sillas ${model}` : `Sillas ${model}`;
+}
+var CHAIR_MODEL_ALIASES, CHAIR_MODEL_PATTERN, CHAIR_MODEL_FOLD_TOKENS;
+var init_chairModels = __esm({
+  "src/lib/chairModels.ts"() {
+    "use strict";
+    CHAIR_MODEL_ALIASES = [
+      { pattern: /\btiffany\s+infantil\b/i, canonical: "Tiffany Infantil" },
+      { pattern: /\blouis\s*xv\b|\bluis\s*xv\b/i, canonical: "Louis XV" },
+      { pattern: /\bavant\s*garde\b/i, canonical: "Avant Garde" },
+      { pattern: /\bmariantonieta\b/i, canonical: "Mariantonieta" },
+      { pattern: /\bmar[ií]a\b/i, canonical: "Mar\xEDa" },
+      { pattern: /\bwishbone\b/i, canonical: "Wishbone" },
+      { pattern: /\btiffany\b/i, canonical: "Tiffany" },
+      { pattern: /\bcrossback\b/i, canonical: "Crossback" },
+      { pattern: /\bghost\b/i, canonical: "Ghost" },
+      { pattern: /\btolix\b/i, canonical: "Tolix" },
+      { pattern: /\bcamila\b/i, canonical: "Camila" },
+      { pattern: /\bantonella\b/i, canonical: "Antonella" },
+      { pattern: /\bbasket\b/i, canonical: "Basket" },
+      { pattern: /\bcabos\b/i, canonical: "Cabos" },
+      { pattern: /\bcaroline\b/i, canonical: "Caroline" },
+      { pattern: /\bsmith\b/i, canonical: "Smith" }
+    ];
+    CHAIR_MODEL_PATTERN = new RegExp(`\\b(?:${chairModelAlternation()})\\b`, "i");
+    CHAIR_MODEL_FOLD_TOKENS = [
+      "tiffany infantil",
+      "louis xv",
+      "luis xv",
+      "avant garde",
+      "mariantonieta",
+      "wishbone",
+      "tiffany",
+      "crossback",
+      "ghost",
+      "tolix",
+      "camila",
+      "antonella",
+      "basket",
+      "cabos",
+      "caroline",
+      "smith",
+      "maria"
+    ];
+  }
+});
+
 // src/services/lucyInfoPriceCache.ts
 import { existsSync as existsSync2, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -129176,7 +129305,7 @@ function cacheState() {
   }
   return g7.__lucyInfoPriceCache;
 }
-function fold(text2) {
+function fold2(text2) {
   return (text2 || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ñ/g, "n");
 }
 function refreshLucyInfoPriceCache(input) {
@@ -129186,7 +129315,7 @@ function refreshLucyInfoPriceCache(input) {
     content: d3.content.trim(),
     kind: d3.kind
   }));
-  state.corpusFold = fold(state.docs.map((d3) => `${d3.title}
+  state.corpusFold = fold2(state.docs.map((d3) => `${d3.title}
 ${d3.content}`).join("\n\n"));
 }
 function getLucyInfoCachedDocs() {
@@ -129218,8 +129347,8 @@ function lucyInfoSupportsPriceClaim(mensaje) {
 }
 function scoreDoc(doc, tokens) {
   if (!tokens.length) return 0;
-  const title = fold(doc.title);
-  const body2 = fold(doc.content);
+  const title = fold2(doc.title);
+  const body2 = fold2(doc.content);
   let s7 = 0;
   for (const tok of tokens) {
     if (title.includes(tok)) s7 += 14;
@@ -129229,11 +129358,11 @@ function scoreDoc(doc, tokens) {
   return s7;
 }
 function isMobiliarioPdfTitle(title) {
-  const t4 = fold(title);
+  const t4 = fold2(title);
   return /\bmesas?\b.*\bsillas?\b|\bsillas?\b.*\bmesas?\b/.test(t4) || /\bmobiliario\b|\bperiqueras?\b|\bsalas?\s+lounge\b|\bluxor\b/.test(t4);
 }
 function isFoodServiceQuery(text2) {
-  const t4 = fold(text2);
+  const t4 = fold2(text2);
   return /\b(canap|bocadillo|banquete|catering|taquiza|paella|pozole|pizza|pasta|sushi|crepa|coffee\s*break|barra\s+de|parrillada|brunch|desayuno|coctel|mixolog|moctel|americano|marisco|panini|yucateca)\b/.test(
     t4
   );
@@ -129252,7 +129381,7 @@ function pdfDocMatchesStrictQuery(query, docTitle) {
   return true;
 }
 function tokenize(text2) {
-  const raw = fold(text2).replace(/[^a-z0-9\s]/g, " ");
+  const raw = fold2(text2).replace(/[^a-z0-9\s]/g, " ");
   const stop2 = /* @__PURE__ */ new Set([
     "de",
     "del",
@@ -129326,9 +129455,9 @@ function tokenize(text2) {
 }
 function findInclusionSection(content, query, maxChars = 1100) {
   if (!content?.trim()) return null;
-  const q3 = fold(query);
+  const q3 = fold2(query);
   const c5 = content;
-  const f7 = fold(c5);
+  const f7 = fold2(c5);
   const anchors = [];
   const cb = q3.match(/coffee\s*break\s*(\d)/);
   if (cb) {
@@ -129366,7 +129495,7 @@ function findInclusionSection(content, query, maxChars = 1100) {
   let bestIdx = -1;
   let bestScore = -1;
   for (const a4 of anchors) {
-    const fa2 = fold(a4);
+    const fa2 = fold2(a4);
     if (fa2.length < 2) continue;
     let from = 0;
     while (from < f7.length) {
@@ -129408,7 +129537,7 @@ function findInclusionSection(content, query, maxChars = 1100) {
   return slice.slice(0, maxChars);
 }
 function queryHasServicePdfAnchor(query) {
-  const q3 = fold(query);
+  const q3 = fold2(query);
   return /\b(banquete|taquiza|coffee|break|barra|catering|pizza|pasta|sushi|dj|pista|tarima|crepas?|canapes?|queso|dulce|postre|paella|pozole|brunch|desayuno|cena|mesero|mobiliario|carpa|iluminaci|pantalla|formal|tiempos|tradicional|premium|basico|bocadillos?|entradas?|vajilla|mixolog|coctel|helado|fruta|inflable|softplay|letras?|valet|pirotecnia)\b/.test(
     q3
   );
@@ -129439,9 +129568,9 @@ function buildLucyInfoInclusionReply(query, maxChars = 1100) {
     "barra americana",
     "bocadillo"
   ];
-  const qf = fold(query);
+  const qf = fold2(query);
   const preferred = ranked.filter((x8) => {
-    const title = fold(x8.d.title);
+    const title = fold2(x8.d.title);
     return serviceHints.some((h5) => qf.includes(h5) && title.includes(h5));
   });
   const pool2 = preferred.length ? preferred : ranked;
@@ -129537,15 +129666,52 @@ function extractModelAnchoredPriceWindows(content, modelTokens) {
   const seen = /* @__PURE__ */ new Set();
   for (const tok of modelTokens) {
     if (tok.length < 3) continue;
-    const esc = tok.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const near = new RegExp(
-      `.{0,50}${esc}.{0,140}\\$\\s*[\\d,.]+.{0,50}|.{0,50}\\$\\s*[\\d,.]+.{0,80}${esc}.{0,50}`,
+    const esc = tok.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+    const modeloPrecio = new RegExp(
+      `Modelo:\\s*${esc}[^$]{0,80}?Precio:\\s*\\$\\s*[\\d,.]+(?:\\s*MXN)?`,
       "gi"
     );
     let m6;
-    while ((m6 = near.exec(content)) && out2.length < 6) {
+    while ((m6 = modeloPrecio.exec(content)) && out2.length < 2) {
       const w5 = m6[0].replace(/\s+/g, " ").trim();
-      const key = fold(w5).slice(0, 80);
+      const f7 = fold2(w5);
+      if (/\bmesa\b/.test(f7)) continue;
+      const key = f7.slice(0, 100);
+      if (w5.length > 12 && !seen.has(key)) {
+        seen.add(key);
+        out2.push(w5.slice(0, 180));
+      }
+    }
+    const sillaPrecio = new RegExp(
+      `Silla\\s+${esc}(?:(?!\\bMesa\\b).){0,160}?Precio:\\s*\\$\\s*[\\d,.]+(?:\\s*MXN)?`,
+      "gi"
+    );
+    while ((m6 = sillaPrecio.exec(content)) && out2.length < 2) {
+      const w5 = m6[0].replace(/\s+/g, " ").trim();
+      const f7 = fold2(w5);
+      if (/\bmesa\b/.test(f7)) continue;
+      const key = f7.slice(0, 100);
+      if (w5.length > 12 && !seen.has(key)) {
+        seen.add(key);
+        out2.push(w5.slice(0, 180));
+      }
+    }
+  }
+  if (out2.length) return out2.slice(0, 2);
+  for (const tok of modelTokens) {
+    if (tok.length < 3) continue;
+    const esc = tok.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+    const near = new RegExp(
+      `.{0,40}${esc}.{0,90}\\$\\s*[\\d,.]+.{0,30}`,
+      "gi"
+    );
+    let m6;
+    while ((m6 = near.exec(content)) && out2.length < 2) {
+      const w5 = m6[0].replace(/\s+/g, " ").trim();
+      const f7 = fold2(w5);
+      if (/\b(mesa|tablon)\b/.test(f7) && !/\bsilla/.test(f7)) continue;
+      if (/\bmesa\b/.test(f7)) continue;
+      const key = f7.slice(0, 80);
       if (w5.length > 12 && !seen.has(key)) {
         seen.add(key);
         out2.push(w5);
@@ -129553,21 +129719,6 @@ function extractModelAnchoredPriceWindows(content, modelTokens) {
     }
   }
   return out2;
-}
-function chairModelTokensFromQuery(query) {
-  const f7 = fold(query);
-  const models = [
-    "wishbone",
-    "tiffany",
-    "crossback",
-    "ghost",
-    "tolix",
-    "camila",
-    "louis xv",
-    "mariantonieta",
-    "avant garde"
-  ];
-  return models.filter((m6) => f7.includes(m6.replace(/\s+/g, " ")) || f7.includes(m6.replace(/\s+/g, "")));
 }
 function buildLucyInfoPriceSnippet(query, maxChars = 520) {
   ensureCacheFromSeedSync();
@@ -129587,7 +129738,7 @@ function buildLucyInfoPriceSnippet(query, maxChars = 520) {
   }
   const windows = extractPriceWindows(top.content, chairAsk ? 80 : 10);
   const scored = windows.map((l6) => {
-    const f7 = fold(l6);
+    const f7 = fold2(l6);
     let s7 = 0;
     for (const tok of tokens) if (f7.includes(tok)) s7 += 3;
     for (const tok of modelTokens) if (f7.includes(tok)) s7 += 25;
@@ -129609,18 +129760,16 @@ function buildLucyInfoLearnedPriceReply(message) {
   const focusedPista = /\b(pintada|led|iluminada|madera\s+premium|vinil|charol|logo|tarima\s+b[aá]sica|escenario|estrado)\b/i.test(
     message
   );
-  const chairModel = message.match(
-    /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde)\b/i
-  )?.[1];
-  const priceQuery = chairModel ? `Silla ${chairModel.replace(/\s+/g, " ")} precio` : message;
+  const chairModel = parseChairModelFromText(message);
+  const priceQuery = chairModel ? `Silla ${chairModel} precio` : message;
   const snip = buildLucyInfoPriceSnippet(priceQuery, focusedPista || !!chairModel ? 420 : 520);
   if (!snip) return null;
-  const t4 = fold(message);
+  const t4 = fold2(message);
   let ask = "\xBFLo agregamos a tu cotizaci\xF3n?";
   if (/pista|tarima|baile/.test(t4)) {
     ask = "\xBFQu\xE9 medidas aproximadas tiene el espacio?";
   } else if (chairModel || /silla/.test(t4) && !/mesa/.test(t4)) {
-    ask = "\xBFCu\xE1ntas sillas necesitas y para cu\xE1ndo?";
+    ask = chairModel ? `\xBFCu\xE1ntas sillas *${chairModel}* necesitas y para cu\xE1ndo?` : "\xBFCu\xE1ntas sillas necesitas y para cu\xE1ndo?";
   } else if (/periquera|mesa|silla|sala|mobiliario|lounge|luxor/.test(t4)) {
     ask = "\xBFCu\xE1ntas piezas necesitas y para cu\xE1ndo?";
   }
@@ -129634,6 +129783,7 @@ var init_lucyInfoPriceCache = __esm({
   "src/services/lucyInfoPriceCache.ts"() {
     "use strict";
     init_serviceSynonyms();
+    init_chairModels();
     STRICT_PDF_SERVICE_FAMILIES = /* @__PURE__ */ new Set([
       "barra_cafe",
       "coffee_break",
@@ -130874,16 +131024,16 @@ var init_serviceDecline = __esm({
 });
 
 // src/services/geoResolve.ts
-function fold2(s7) {
+function fold3(s7) {
   return s7.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 function addPart(parts2, raw) {
   const t4 = raw?.trim().replace(/[.,;:]+$/g, "").replace(/\s+/g, " ");
   if (!t4 || t4.length < 2) return;
-  const key = fold2(t4);
+  const key = fold3(t4);
   if (/^(es|la|el|de|del|en)$/i.test(t4)) return;
   for (let i6 = 0; i6 < parts2.length; i6++) {
-    const pk = fold2(parts2[i6]);
+    const pk = fold3(parts2[i6]);
     if (pk === key || pk.includes(key)) return;
     if (key.includes(pk) && t4.length > parts2[i6].length) {
       parts2[i6] = t4;
@@ -130933,8 +131083,8 @@ function mergeAddr(a4, b5) {
   const next = b5?.trim() ?? "";
   if (!next) return prev || null;
   if (!prev) return next;
-  if (fold2(prev).includes(fold2(next))) return prev;
-  if (fold2(next).includes(fold2(prev))) return next;
+  if (fold3(prev).includes(fold3(next))) return prev;
+  if (fold3(next).includes(fold3(prev))) return next;
   return `${prev}, ${next}`;
 }
 function direccionNeedsMapsLookup(text2) {
@@ -130984,7 +131134,7 @@ async function geocodeNominatim(query) {
 async function lookupDireccionInMaps(query) {
   const q3 = query.trim();
   if (q3.length < 4 || q3.length > 120) return null;
-  const cacheKey = fold2(q3);
+  const cacheKey = fold3(q3);
   if (mapsCache.has(cacheKey)) return mapsCache.get(cacheKey) ?? null;
   let hit = null;
   try {
@@ -131009,7 +131159,7 @@ async function enrichExtractedDireccionWithMaps(extracted, messageText) {
   const hit = await lookupDireccionInMaps(lookupQ);
   if (!hit) return;
   const cityBit = hit.city?.trim();
-  if (cityBit && current && !fold2(current).includes(fold2(cityBit))) {
+  if (cityBit && current && !fold3(current).includes(fold3(cityBit))) {
     extracted.direccion_evento = mergeAddr(current, cityBit);
   } else if (!current && hit.formatted) {
     extracted.direccion_evento = hit.formatted.split(",").slice(0, 3).join(",").trim();
@@ -131711,17 +131861,6 @@ function parseSalaProductFromText(text2) {
   }
   return null;
 }
-function parseChairModelFromText(text2) {
-  const t4 = String(text2 || "").trim();
-  if (!t4) return null;
-  const m6 = t4.match(CHAIR_MODEL_PATTERN);
-  if (!m6?.[1]) return null;
-  const raw = m6[1].replace(/\s+/g, " ").trim();
-  if (/^louis\s*xv$/i.test(raw)) return "Louis XV";
-  if (/^avant\s*garde$/i.test(raw)) return "Avant Garde";
-  if (/^mariantonieta$/i.test(raw)) return "Mariantonieta";
-  return raw.replace(/\b\w/g, (c5) => c5.toUpperCase());
-}
 function parseFurnitureCatalogSkuFromText(text2) {
   const t4 = String(text2 || "").trim();
   if (!t4) return null;
@@ -131735,12 +131874,7 @@ function parseFurnitureCatalogSkuFromText(text2) {
   if (sala && !/^Salas lounge$/i.test(sala) && !/^\d+\s+salas?\s+lounge$/i.test(sala)) {
     return sala;
   }
-  const chair = parseChairModelFromText(t4);
-  if (chair) {
-    const qty = t4.match(/(\d+)\s*sillas?(?:\s+\w+){0,3}\s*(?:wishbone|tiffany|crossback|ghost|tolix|camila|louis|mariantonieta|avant)/i)?.[1] || t4.match(/(\d+)\s*(?:sillas?\s+)?(?:wishbone|tiffany|crossback|ghost|tolix|camila)/i)?.[1] || t4.match(/(\d+)\s*sillas?\b/i)?.[1] || null;
-    return qty ? `${qty} Sillas ${chair}` : `Sillas ${chair}`;
-  }
-  return null;
+  return formatChairSku(t4);
 }
 function assistantAskedVagueEmbudoContinue(text2) {
   if (!text2?.trim()) return false;
@@ -132609,11 +132743,11 @@ function parseServicesFromText(text2) {
     if (idx >= 0) found[idx] = salaProduct;
     else if (!found.some((s7) => /sala|luxor/i.test(s7))) found.push(salaProduct);
   }
-  const chairSku = parseFurnitureCatalogSkuFromText(text2);
-  if (chairSku && /^(\d+\s+)?Sillas\s+/i.test(chairSku)) {
+  const chairSku = formatChairSku(text2);
+  if (chairSku) {
     const idxMob = found.findIndex((s7) => /^Mobiliario$/i.test(s7) || /^mesas?\s+y\s+sillas?$/i.test(s7));
     if (idxMob >= 0) found[idxMob] = chairSku;
-    else if (!found.some((s7) => /sillas?\s+(wishbone|tiffany|crossback|ghost)/i.test(s7))) {
+    else if (!found.some((s7) => /^(\d+\s+)?Sillas\s+/i.test(s7))) {
       found.unshift(chairSku);
     }
   }
@@ -135418,7 +135552,7 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     extracted.requerimientos_evento = null;
   }
 }
-var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CHAIR_MODEL_PATTERN, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_DISCOURSE_CUT, VENUE_DISCOURSE_JUNK, VAGUE_VENUE_LABEL, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
+var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_DISCOURSE_CUT, VENUE_DISCOURSE_JUNK, VAGUE_VENUE_LABEL, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
 var init_conversation_understanding = __esm({
   "src/conversation-understanding.ts"() {
     "use strict";
@@ -135427,6 +135561,8 @@ var init_conversation_understanding = __esm({
     init_bodasesorAdvisor();
     init_serviceDecline();
     init_geoResolve();
+    init_chairModels();
+    init_chairModels();
     CRM_FECHA_LABEL = "Fecha del evento";
     CRM_HORARIO_LABEL = "Horario del evento";
     LEGACY_CRM_FECHA_HORARIO_LABEL = "Fecha y horario";
@@ -135749,7 +135885,6 @@ var init_conversation_understanding = __esm({
     EVENT_MEAL_TYPE = /comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail/i;
     NON_GUEST_UNIT_PATTERN = /\b\d+\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?|pantallas?|paquetes?|juegos?|m[oó]dulos?|piezas?)\b/i;
     CARPA_OPTIONS_TEXT = "blancas, negras, transparentes y tipo domo";
-    CHAIR_MODEL_PATTERN = /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde|antonella|basket|cabos|caroline)\b/i;
     CATALOG_TYPO_RE = /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b/i;
     WRITTEN_NUMBERS = {
       uno: "1",
@@ -135919,12 +136054,10 @@ function buildConsultativeNoPriceReply(message) {
   if (!message?.trim()) return null;
   const t4 = message.toLowerCase();
   const team = advisorLabelForClient();
-  if (/pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\b|lounge|luxor|chesterfield|camila|wishbone|tiffany|crossback|ghost|tolix/.test(
+  if (/pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\b|lounge|luxor|chesterfield/.test(
     t4
-  )) {
-    const model = message.match(
-      /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta)\b/i
-    )?.[1];
+  ) || CHAIR_MODEL_PATTERN.test(message)) {
+    const model = parseChairModelFromText(message);
     const fromPdf = buildLucyInfoLearnedPriceReply(
       model ? `precio sillas ${model}` : message
     );
@@ -135980,6 +136113,7 @@ var init_price_guard = __esm({
     init_lucyInfoPriceCache();
     init_conversation_understanding();
     init_bodasesorAdvisor();
+    init_chairModels();
     NO_LISTED_PRICE_PATTERN = /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|mesas?|sillas?|periqueras?|salas?\s*(lounge)?|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
     LISTED_PRICE_PATTERN = /banquete|taquiza|parrillada|barra\s+(de\s+)?(bebidas?|alimentos?|caf[eé]|pizzas?|sushi|crepas?|mariscos?|pastas?)|mesa\s+de\s+dulces|cocteler[ií]a|mixolog[ií]a|coffee\s*break|brunch|paella|m[oó]cteles?|canap[eé]s|pozole|americana|kosher|navide[nñ]o/i;
     dynamicListedPattern = null;
@@ -136875,7 +137009,7 @@ function banqueteDetailQuery(text2) {
   if (tiempos3) return "Banquete Formal 3 tiempos";
   return "banquete";
 }
-function fold3(s7) {
+function fold4(s7) {
   return s7.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
 }
 function buildAlimentosModoMenu() {
@@ -136969,12 +137103,12 @@ function parseMobiliarioPieceChoice(text2) {
 function buildSillasModelMenu() {
   return [
     "Claro. En *sillas* manejamos varios modelos; por ejemplo:",
-    "\u2022 *Tiffany* (cl\xE1sica / vers\xE1til)",
-    "\u2022 *Crossback* (r\xFAstico / vintage)",
-    "\u2022 *Ghost* (minimalista)",
-    "\u2022 *Camila*, *Tolix*, *Wishbone*, *Louis XV* y m\xE1s",
+    "\u2022 *Tiffany* / *Tiffany Infantil*",
+    "\u2022 *Crossback*, *Ghost*, *Wishbone*",
+    "\u2022 *Tolix*, *Louis XV*, *Mariantonieta*, *Avant Garde*",
+    "\u2022 *Camila*, *Antonella*, *Basket*, *Cabos*, *Caroline*, *Smith*, *Mar\xEDa*",
     "",
-    "\xBFDe cu\xE1l te paso detalle, o te mando el *cat\xE1logo de mesas y sillas*?"
+    "\xBFDe cu\xE1l te paso detalle (precio), o te mando el *cat\xE1logo de mesas y sillas*?"
   ].join("\n");
 }
 function isSillasModelMenuReply(text2) {
@@ -137032,7 +137166,7 @@ function buildMobiliarioPieceFollowUp(piece) {
   ].join("\n");
 }
 function catalogNivelLabelFromText(text2) {
-  const t4 = fold3(text2 ?? "");
+  const t4 = fold4(text2 ?? "");
   if (!t4) return null;
   if (/\bsolo\s+alimentos?\b/.test(t4)) return "Solo Alimentos";
   if (/\bservicio\s+completo\b/.test(t4) || /(?:^|\s)completo(?:\s|$)/.test(t4)) {
@@ -137082,7 +137216,7 @@ function isBareProgressiveAffirmation(text2) {
 function clientWantsServiceDetail(text2, history) {
   const t4 = text2?.trim() ?? "";
   if (!t4) return false;
-  const n5 = fold3(t4);
+  const n5 = fold4(t4);
   if (/\b(horario|hora|d[ií]a\s+no|sin\s+d[ií]a|fecha|invitados|personas|ciudad|correo|e-?mail|comun[ií]ca(?:me|nos)?|p[aá]same\s+con)\b/i.test(
     t4
   ) || /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–]|a|hasta)\s*\d{1,2}(?:\s*(?:am|pm|hrs?|horas?))?/i.test(t4)) {
@@ -137145,11 +137279,7 @@ function defFor(family) {
 function hasConcreteServiceVariant(text2) {
   const t4 = text2?.trim() ?? "";
   if (!t4) return false;
-  if (/\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde)\b/i.test(
-    t4
-  )) {
-    return true;
-  }
+  if (textMentionsChairModel(t4)) return true;
   for (const fam of FAMILIES) {
     if (fam.familyPattern.test(t4) && fam.variantPattern.test(t4)) return true;
   }
@@ -137308,6 +137438,7 @@ var init_serviceProgressiveOffer = __esm({
     init_conversation_understanding();
     init_contact_name();
     init_catalogWebKnowledge();
+    init_chairModels();
     SERVICE_NIVEL_DETAIL_CTA = "\xBFQuieres que te d\xE9 detalles de alguno?";
     FAMILIES = [
       {
@@ -137536,9 +137667,15 @@ var init_serviceProgressiveOffer = __esm({
       {
         family: "mobiliario",
         // A15190 / A15910: "centros de mesa" y "mesa de dulces/postres" ≠ familia mobiliario.
-        familyPattern: /^(?!.*\b(?:centros?\s+de\s+mesas?|mesas?\s+de\s+(?:dulces?|postres?|quesos?))\b).*\b(?:mobiliario|periqueras?|salas?\s+lounge|mesas?\s+y\s+sillas?|renta\s+de\s+(?:mesas?|sillas?|mobiliario)|entelados?|colgantes?|vajillas?|barras?\s+de\s+mobiliario|(?:\d+\s+)?sillas?\s+(?:wishbone|tiffany|crossback|ghost|tolix|camila)|(?:wishbone|tiffany|crossback|ghost)\b)/i,
+        familyPattern: new RegExp(
+          `^(?!.*\\b(?:centros?\\s+de\\s+mesas?|mesas?\\s+de\\s+(?:dulces?|postres?|quesos?))\\b).*\\b(?:mobiliario|periqueras?|salas?\\s+lounge|mesas?\\s+y\\s+sillas?|renta\\s+de\\s+(?:mesas?|sillas?|mobiliario)|entelados?|colgantes?|vajillas?|barras?\\s+de\\s+mobiliario|(?:\\d+\\s+)?sillas?\\s+(?:${chairModelAlternation()})|(?:${chairModelAlternation()})\\b)`,
+          "i"
+        ),
         // Pieza concreta (mesas/sillas/…) o modelo (Tiffany/Crossback…).
-        variantPattern: /\b(periqueras?|lounge|luxor|tiffany|crossback|imperial|ghost|wishbone|tolix|camila|antonella|basket|cabos|caroline|mar[ií]a|avant\s*garde|louis\s*xv|mariantonieta|manteler[ií]a|vajilla|sillas?|(?<!centros?\s+de\s)(?<!mesa\s+de\s)mesas?(?!\s+de\s+(?:dulces?|postres?|quesos?))|picnic|bancos?|renta\s+de\s+mesas|entelado|colgante|wisteria)\b/i,
+        variantPattern: new RegExp(
+          `\\b(periqueras?|lounge|luxor|imperial|manteler[i\xED]a|vajilla|sillas?|(?<!centros?\\s+de\\s)(?<!mesa\\s+de\\s)mesas?(?!\\s+de\\s+(?:dulces?|postres?|quesos?))|picnic|bancos?|renta\\s+de\\s+mesas|entelado|colgante|wisteria|${chairModelAlternation()})\\b`,
+          "i"
+        ),
         detailQueryFromText: (text2) => {
           if (/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:de\s+)?mesas?\b|\bdecoraci[oó]n\s+de\s+mesas?\b/i.test(
             text2
@@ -137552,13 +137689,8 @@ var init_serviceProgressiveOffer = __esm({
           if (/vajilla|cuberter|cristaler/i.test(text2)) return "Vajillas";
           if (/periquera/i.test(text2)) return "periqueras";
           if (/lounge|luxor/i.test(text2)) return "salas lounge";
-          const chairModel = text2.match(
-            /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde)\b/i
-          )?.[1];
-          if (chairModel) {
-            const nice = chairModel.replace(/\s+/g, " ").replace(/\b\w/g, (c5) => c5.toUpperCase());
-            return `Silla ${nice}`;
-          }
+          const chairModel = parseChairModelFromText(text2);
+          if (chairModel) return `Silla ${chairModel}`;
           if (/\bsillas?\b/i.test(text2)) return "sillas";
           if (/(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)|picnic/i.test(
             text2
@@ -137853,10 +137985,7 @@ function parseMobiliarioRentItems(query) {
   }
   const sillas = query.match(/(\d+)\s*sillas?\b/i);
   if (/\bsillas?\b/i.test(query) && !/\bpicnic\b/i.test(query)) {
-    const model = query.match(
-      /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde)\b/i
-    )?.[1] ?? null;
-    const modelLabel = model ? model.replace(/\s+/g, " ").replace(/\b\w/g, (c5) => c5.toUpperCase()) : null;
+    const modelLabel = parseChairModelFromText(query);
     items.push({
       qty: sillas?.[1] ? parseInt(sillas[1], 10) : null,
       label: modelLabel ? `sillas ${modelLabel}` : "sillas"
@@ -137891,9 +138020,7 @@ function buildMobiliarioRentDetailReply(query) {
   const bareMobiliario = items.length === 0 && /\bmobiliario\b/i.test(query) && !/\b(mesas?|sillas?|periquera|lounge|picnic|bancos?|tiffany|crossback|ghost)\b/i.test(query);
   if (bareMobiliario) return null;
   const hasQty = items.some((i6) => i6.qty != null && i6.qty > 0);
-  const hasModel = /\b(tiffany|crossback|ghost|wishbone|tolix|camila|antonella|basket|cabos|caroline|louis|mariantonieta|avant|luxor|imperial|picnic)\b/i.test(
-    query
-  );
+  const hasModel = CHAIR_MODEL_PATTERN.test(query) || /\b(luxor|imperial|picnic)\b/i.test(query);
   if (items.length >= 1 && !hasQty && !hasModel) {
     return null;
   }
@@ -138104,6 +138231,7 @@ var init_serviceKnowledge = __esm({
     init_concreteProductQuestion();
     init_bodasesorAdvisor();
     init_lucyInfoPriceCache();
+    init_chairModels();
     init_serviceProgressiveOffer();
     SERVICE_KNOWLEDGE_GOLDEN_RULE = "Si un servicio no est\xE1 listado en el cat\xE1logo web/Sheet: dilo con calma ('no lo tengo listado en el cat\xE1logo'), an\xF3talo y deja que el equipo confirme. NO inventes ficha, precio ni inclusiones. NO digas 'no lo hacemos' / 'no te puedo ayudar'. Ofrece el cat\xE1logo general o pregunta qu\xE9 m\xE1s cotizar. Nunca te quedes pidiendo 'otros servicios' en bucle ni inventes un SKU parecido.";
     NON_EVENT_REQUEST_PATTERN = /\b(seguro\s+de|abogad|plomer|electricista|internet\s+en\s+casa|plan\s+de\s+celular|lavad|reparaci[oó]n\s+de\s+(auto|celular)|vpn|software\s+de\s+contab|consulta\s+m[eé]dic|veterinar|notari|traducci[oó]n\s+oficial|impresi[oó]n\s+de\s+actas)\b/i;
@@ -168069,8 +168197,8 @@ ${buildNaturalQuestion(pending, ctx)}` : ack;
     const msgMob = currentMessage ?? "";
     const reqMob = extracted.requerimientos_evento ?? "";
     const bareMobAsk = /\b(so(lo)?\s+)?mobiliario\b/i.test(msgMob) && !/\b(mesas?|sillas?|periqueras?|lounge)\b/i.test(msgMob);
-    const crmBareMob = (/^mobiliario$/i.test(reqMob.trim()) || /^mobiliario\b/i.test(reqMob) && !/\b(mesas?|sillas?|periqueras?)\b/i.test(reqMob)) && // A16166: CRM ya tiene Wishbone/Tiffany… → no reabrir menú bare.
-    !/\b(wishbone|tiffany|crossback|ghost|tolix|camila)\b/i.test(reqMob) && !/\b(wishbone|tiffany|crossback|ghost)\b/i.test(msgMob);
+    const crmBareMob = (/^mobiliario$/i.test(reqMob.trim()) || /^mobiliario\b/i.test(reqMob) && !/\b(mesas?|sillas?|periqueras?)\b/i.test(reqMob)) && // A16166+: CRM/mensaje ya tiene modelo de silla → no reabrir menú bare.
+    !CHAIR_MODEL_PATTERN.test(reqMob) && !CHAIR_MODEL_PATTERN.test(msgMob);
     const looksLikeHubOnly = /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos\/?(?:\s|$)/i.test(mensaje.trim()) || /Te dejo el catálogo general/i.test(mensaje) && !/mesas-y-sillas|salas-y-periqueras/i.test(mensaje);
     if (!cierreYaEnviado && (bareMobAsk || crmBareMob) && (looksLikeHubOnly || !/mesas-y-sillas/i.test(mensaje) && !/salas-y-periqueras/i.test(mensaje) && /bodasesor\.com\/catalogos\/?(?:\s|\?|$)/i.test(mensaje))) {
       const offer = buildBareMobiliarioOfferBlock();
@@ -227573,7 +227701,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.09";
+var LUCY_PROMPT_VERSION = "V10.10";
 
 // src/lib/buildMeta.ts
 var cached = null;

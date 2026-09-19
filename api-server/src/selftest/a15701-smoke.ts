@@ -56,7 +56,7 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.09");
+assert.equal(LUCY_PROMPT_VERSION, "V10.10");
 
 assert.equal(parseZonaFromText("Puerto Vallarta")?.toLowerCase(), "puerto vallarta");
 assert.ok(isUsableDireccionEvento("Puerto Vallarta"));

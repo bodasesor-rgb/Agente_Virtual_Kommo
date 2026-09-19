@@ -29,6 +29,19 @@ import {
   venueProvidedServiceLabels,
 } from "./services/serviceDecline.js";
 import { composeEventLocation } from "./services/geoResolve.js";
+import {
+  CHAIR_MODEL_PATTERN,
+  parseChairModelFromText,
+  formatChairSku,
+  textMentionsChairModel,
+} from "./lib/chairModels.js";
+
+export {
+  CHAIR_MODEL_PATTERN,
+  parseChairModelFromText,
+  formatChairSku,
+  textMentionsChairModel,
+} from "./lib/chairModels.js";
 
 export type UnderstandingField =
   | "nombre"
@@ -1608,21 +1621,7 @@ export function parseSalaProductFromText(text: string): string | null {
   return null;
 }
 
-/** Modelos de silla del catálogo Mesas-y-Sillas (A16166 Wishbone). */
-export const CHAIR_MODEL_PATTERN =
-  /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde|antonella|basket|cabos|caroline)\b/i;
-
-export function parseChairModelFromText(text: string | null | undefined): string | null {
-  const t = String(text || "").trim();
-  if (!t) return null;
-  const m = t.match(CHAIR_MODEL_PATTERN);
-  if (!m?.[1]) return null;
-  const raw = m[1].replace(/\s+/g, " ").trim();
-  if (/^louis\s*xv$/i.test(raw)) return "Louis XV";
-  if (/^avant\s*garde$/i.test(raw)) return "Avant Garde";
-  if (/^mariantonieta$/i.test(raw)) return "Mariantonieta";
-  return raw.replace(/\b\w/g, (c) => c.toUpperCase());
-}
+/** Modelos de silla: ver `lib/chairModels.ts` (re-export arriba). */
 
 /**
  * SKUs concretos de mobiliario del catálogo (A15297 / A16166).
@@ -1650,17 +1649,8 @@ export function parseFurnitureCatalogSkuFromText(text: string): string | null {
   ) {
     return sala;
   }
-  // A16166: "100 Sillas Wishbone" / "sillas wishbone" / "precio wishbone"
-  const chair = parseChairModelFromText(t);
-  if (chair) {
-    const qty =
-      t.match(/(\d+)\s*sillas?(?:\s+\w+){0,3}\s*(?:wishbone|tiffany|crossback|ghost|tolix|camila|louis|mariantonieta|avant)/i)?.[1] ||
-      t.match(/(\d+)\s*(?:sillas?\s+)?(?:wishbone|tiffany|crossback|ghost|tolix|camila)/i)?.[1] ||
-      t.match(/(\d+)\s*sillas?\b/i)?.[1] ||
-      null;
-    return qty ? `${qty} Sillas ${chair}` : `Sillas ${chair}`;
-  }
-  return null;
+  // A16166+: cualquier modelo de silla del catálogo (Wishbone, Tiffany, Ghost…).
+  return formatChairSku(t);
 }
 
 /** Lucy usó filler genérico en vez de la pregunta real del embudo (A15297). */
@@ -3243,12 +3233,12 @@ export function parseServicesFromText(text: string): string[] {
     else if (!found.some((s) => /sala|luxor/i.test(s))) found.push(salaProduct);
   }
 
-  // A16166: sillas Wishbone/Tiffany… → SKU concreto (no solo "Mobiliario").
-  const chairSku = parseFurnitureCatalogSkuFromText(text);
-  if (chairSku && /^(\d+\s+)?Sillas\s+/i.test(chairSku)) {
+  // A16166+: sillas + modelo (Wishbone/Tiffany/Ghost…) → SKU concreto (no solo "Mobiliario").
+  const chairSku = formatChairSku(text);
+  if (chairSku) {
     const idxMob = found.findIndex((s) => /^Mobiliario$/i.test(s) || /^mesas?\s+y\s+sillas?$/i.test(s));
     if (idxMob >= 0) found[idxMob] = chairSku;
-    else if (!found.some((s) => /sillas?\s+(wishbone|tiffany|crossback|ghost)/i.test(s))) {
+    else if (!found.some((s) => /^(\d+\s+)?Sillas\s+/i.test(s))) {
       found.unshift(chairSku);
     }
   }

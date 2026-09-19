@@ -9,6 +9,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expandQueryWithServiceSynonyms } from "./serviceSynonyms.js";
+import { chairModelTokensFromQuery, parseChairModelFromText } from "../lib/chairModels.js";
 
 export type LucyInfoCacheDoc = {
   title: string;
@@ -509,22 +510,63 @@ function extractPriceWindows(content: string, max = 8): string[] {
     .slice(0, max);
 }
 
-/** A16166: anclar ventanas al modelo (Wishbone) — no a las primeras mesas Vintage/Caoba. */
+/** A16166: anclar ventanas al modelo de *silla* — no arrastrar mesas Vintage/Caoba vecinas. */
 function extractModelAnchoredPriceWindows(content: string, modelTokens: string[]): string[] {
   if (!content?.trim() || !modelTokens.length) return [];
   const out: string[] = [];
   const seen = new Set<string>();
   for (const tok of modelTokens) {
     if (tok.length < 3) continue;
-    const esc = tok.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const near = new RegExp(
-      `.{0,50}${esc}.{0,140}\\$\\s*[\\d,.]+.{0,50}|.{0,50}\\$\\s*[\\d,.]+.{0,80}${esc}.{0,50}`,
+    const esc = tok.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+    // Ficha corta: Modelo: X Precio: $N (sin pasar por "Mesa…").
+    const modeloPrecio = new RegExp(
+      `Modelo:\\s*${esc}[^$]{0,80}?Precio:\\s*\\$\\s*[\\d,.]+(?:\\s*MXN)?`,
       "gi"
     );
     let m: RegExpExecArray | null;
-    while ((m = near.exec(content)) && out.length < 6) {
+    while ((m = modeloPrecio.exec(content)) && out.length < 2) {
       const w = m[0]!.replace(/\s+/g, " ").trim();
-      const key = fold(w).slice(0, 80);
+      const f = fold(w);
+      if (/\bmesa\b/.test(f)) continue;
+      const key = f.slice(0, 100);
+      if (w.length > 12 && !seen.has(key)) {
+        seen.add(key);
+        out.push(w.slice(0, 180));
+      }
+    }
+    // "Silla Crossback … Precio: $95" sin la palabra Mesa en el tramo.
+    const sillaPrecio = new RegExp(
+      `Silla\\s+${esc}(?:(?!\\bMesa\\b).){0,160}?Precio:\\s*\\$\\s*[\\d,.]+(?:\\s*MXN)?`,
+      "gi"
+    );
+    while ((m = sillaPrecio.exec(content)) && out.length < 2) {
+      const w = m[0]!.replace(/\s+/g, " ").trim();
+      const f = fold(w);
+      if (/\bmesa\b/.test(f)) continue;
+      const key = f.slice(0, 100);
+      if (w.length > 12 && !seen.has(key)) {
+        seen.add(key);
+        out.push(w.slice(0, 180));
+      }
+    }
+  }
+  if (out.length) return out.slice(0, 2);
+
+  // Fallback amplio, descartando mesas/tablones.
+  for (const tok of modelTokens) {
+    if (tok.length < 3) continue;
+    const esc = tok.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+    const near = new RegExp(
+      `.{0,40}${esc}.{0,90}\\$\\s*[\\d,.]+.{0,30}`,
+      "gi"
+    );
+    let m: RegExpExecArray | null;
+    while ((m = near.exec(content)) && out.length < 2) {
+      const w = m[0]!.replace(/\s+/g, " ").trim();
+      const f = fold(w);
+      if (/\b(mesa|tablon)\b/.test(f) && !/\bsilla/.test(f)) continue;
+      if (/\bmesa\b/.test(f)) continue;
+      const key = f.slice(0, 80);
       if (w.length > 12 && !seen.has(key)) {
         seen.add(key);
         out.push(w);
@@ -532,22 +574,6 @@ function extractModelAnchoredPriceWindows(content: string, modelTokens: string[]
     }
   }
   return out;
-}
-
-function chairModelTokensFromQuery(query: string): string[] {
-  const f = fold(query);
-  const models = [
-    "wishbone",
-    "tiffany",
-    "crossback",
-    "ghost",
-    "tolix",
-    "camila",
-    "louis xv",
-    "mariantonieta",
-    "avant garde",
-  ];
-  return models.filter((m) => f.includes(m.replace(/\s+/g, " ")) || f.includes(m.replace(/\s+/g, "")));
 }
 
 /** Líneas con precio del PDF más relevante a la pregunta. */
@@ -569,7 +595,7 @@ export function buildLucyInfoPriceSnippet(query: string, maxChars = 520): string
     modelTokens.length > 0 ||
     (/\bsillas?\b/i.test(query) && !/\bmesas?\b/i.test(query));
 
-  // A16166: primero ventanas ancladas al modelo (Wishbone $200), no first-N $ del PDF.
+  // Primero ventanas ancladas al modelo concreto.
   const anchored = extractModelAnchoredPriceWindows(top.content, modelTokens);
   if (anchored.length) {
     const body = anchored.join(" · ").slice(0, maxChars);
@@ -621,12 +647,10 @@ export function buildLucyInfoLearnedPriceReply(message: string): string | null {
     /\b(pintada|led|iluminada|madera\s+premium|vinil|charol|logo|tarima\s+b[aá]sica|escenario|estrado)\b/i.test(
       message
     );
-  // A16166: si piden silla+modelo, forzar query al modelo (no "precio de las sillas" genérico).
-  const chairModel = message.match(
-    /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde)\b/i
-  )?.[1];
+  // A16166+: silla + modelo → query enfocado (no dump de mesas Vintage).
+  const chairModel = parseChairModelFromText(message);
   const priceQuery = chairModel
-    ? `Silla ${chairModel.replace(/\s+/g, " ")} precio`
+    ? `Silla ${chairModel} precio`
     : message;
   const snip = buildLucyInfoPriceSnippet(priceQuery, focusedPista || !!chairModel ? 420 : 520);
   if (!snip) return null;
@@ -635,11 +659,12 @@ export function buildLucyInfoLearnedPriceReply(message: string): string | null {
   if (/pista|tarima|baile/.test(t)) {
     ask = "¿Qué medidas aproximadas tiene el espacio?";
   } else if (chairModel || (/silla/.test(t) && !/mesa/.test(t))) {
-    ask = "¿Cuántas sillas necesitas y para cuándo?";
+    ask = chairModel
+      ? `¿Cuántas sillas *${chairModel}* necesitas y para cuándo?`
+      : "¿Cuántas sillas necesitas y para cuándo?";
   } else if (/periquera|mesa|silla|sala|mobiliario|lounge|luxor/.test(t)) {
     ask = "¿Cuántas piezas necesitas y para cuándo?";
   }
-  // Evitar preguntar medidas dos veces si el snippet ya lo trae.
   const body = snip.replace(/\s*¿Qué medidas aproximadas tiene el espacio\?\s*/gi, " ").trim();
   return `Según el catálogo que ya cargamos en Aprendizaje:\n${body}\n${ask}`;
 }

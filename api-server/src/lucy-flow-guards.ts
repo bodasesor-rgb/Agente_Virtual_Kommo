@@ -186,6 +186,7 @@ import {
   clientAsksServiceInfo,
   parseSalaProductFromText,
   parseFurnitureCatalogSkuFromText,
+  CHAIR_MODEL_PATTERN,
   clientAffirmsEmbudoContinue,
   assistantAskedVagueEmbudoContinue,
   parseCarpaVariantFromText,
@@ -11749,9 +11750,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const crmBareMob =
       (/^mobiliario$/i.test(reqMob.trim()) ||
         (/^mobiliario\b/i.test(reqMob) && !/\b(mesas?|sillas?|periqueras?)\b/i.test(reqMob))) &&
-      // A16166: CRM ya tiene Wishbone/Tiffany… → no reabrir menú bare.
-      !/\b(wishbone|tiffany|crossback|ghost|tolix|camila)\b/i.test(reqMob) &&
-      !/\b(wishbone|tiffany|crossback|ghost)\b/i.test(msgMob);
+      // A16166+: CRM/mensaje ya tiene modelo de silla → no reabrir menú bare.
+      !CHAIR_MODEL_PATTERN.test(reqMob) &&
+      !CHAIR_MODEL_PATTERN.test(msgMob);
     const looksLikeHubOnly =
       /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos\/?(?:\s|$)/i.test(mensaje.trim()) ||
       (/Te dejo el catálogo general/i.test(mensaje) &&
