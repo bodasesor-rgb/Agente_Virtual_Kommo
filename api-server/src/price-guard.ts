@@ -157,11 +157,17 @@ export function buildConsultativeNoPriceReply(message?: string): string | null {
 
   // Si el panel ya cargó el PDF de ese servicio, citar precios aprendidos (no “sin tarifa”).
   if (
-    /pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\b|lounge|luxor|chesterfield|camila/.test(
+    /pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\b|lounge|luxor|chesterfield|camila|wishbone|tiffany|crossback|ghost|tolix/.test(
       t,
     )
   ) {
-    const fromPdf = buildLucyInfoLearnedPriceReply(message);
+    // A16166: preferir query con modelo si viene en el mensaje.
+    const model = message.match(
+      /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta)\b/i
+    )?.[1];
+    const fromPdf = buildLucyInfoLearnedPriceReply(
+      model ? `precio sillas ${model}` : message
+    );
     if (fromPdf) return fromPdf;
   }
 

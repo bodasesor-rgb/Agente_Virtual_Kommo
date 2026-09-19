@@ -125733,6 +125733,18 @@ function parseSalaProductFromText(text2) {
   }
   return null;
 }
+var CHAIR_MODEL_PATTERN = /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde|antonella|basket|cabos|caroline)\b/i;
+function parseChairModelFromText(text2) {
+  const t3 = String(text2 || "").trim();
+  if (!t3) return null;
+  const m5 = t3.match(CHAIR_MODEL_PATTERN);
+  if (!m5?.[1]) return null;
+  const raw = m5[1].replace(/\s+/g, " ").trim();
+  if (/^louis\s*xv$/i.test(raw)) return "Louis XV";
+  if (/^avant\s*garde$/i.test(raw)) return "Avant Garde";
+  if (/^mariantonieta$/i.test(raw)) return "Mariantonieta";
+  return raw.replace(/\b\w/g, (c4) => c4.toUpperCase());
+}
 function parseFurnitureCatalogSkuFromText(text2) {
   const t3 = String(text2 || "").trim();
   if (!t3) return null;
@@ -125745,6 +125757,11 @@ function parseFurnitureCatalogSkuFromText(text2) {
   const sala = parseSalaProductFromText(t3);
   if (sala && !/^Salas lounge$/i.test(sala) && !/^\d+\s+salas?\s+lounge$/i.test(sala)) {
     return sala;
+  }
+  const chair = parseChairModelFromText(t3);
+  if (chair) {
+    const qty = t3.match(/(\d+)\s*sillas?(?:\s+\w+){0,3}\s*(?:wishbone|tiffany|crossback|ghost|tolix|camila|louis|mariantonieta|avant)/i)?.[1] || t3.match(/(\d+)\s*(?:sillas?\s+)?(?:wishbone|tiffany|crossback|ghost|tolix|camila)/i)?.[1] || t3.match(/(\d+)\s*sillas?\b/i)?.[1] || null;
+    return qty ? `${qty} Sillas ${chair}` : `Sillas ${chair}`;
   }
   return null;
 }
@@ -126653,6 +126670,14 @@ function parseServicesFromText(text2) {
     const idx = found.findIndex((s6) => /salas?\s*lounge/i.test(s6));
     if (idx >= 0) found[idx] = salaProduct;
     else if (!found.some((s6) => /sala|luxor/i.test(s6))) found.push(salaProduct);
+  }
+  const chairSku = parseFurnitureCatalogSkuFromText(text2);
+  if (chairSku && /^(\d+\s+)?Sillas\s+/i.test(chairSku)) {
+    const idxMob = found.findIndex((s6) => /^Mobiliario$/i.test(s6) || /^mesas?\s+y\s+sillas?$/i.test(s6));
+    if (idxMob >= 0) found[idxMob] = chairSku;
+    else if (!found.some((s6) => /sillas?\s+(wishbone|tiffany|crossback|ghost)/i.test(s6))) {
+      found.unshift(chairSku);
+    }
   }
   const normalized = normalizeShortServicePhrase(text2);
   if (normalized) {
@@ -131119,6 +131144,44 @@ function extractPriceWindows(content, max = 8) {
   if (windows.length) return windows;
   return (content || "").split(/\n+/).map((l5) => l5.trim()).filter((l5) => l5.length > 8 && /\$\s*\d/.test(l5)).slice(0, max);
 }
+function extractModelAnchoredPriceWindows(content, modelTokens) {
+  if (!content?.trim() || !modelTokens.length) return [];
+  const out2 = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const tok of modelTokens) {
+    if (tok.length < 3) continue;
+    const esc = tok.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const near = new RegExp(
+      `.{0,50}${esc}.{0,140}\\$\\s*[\\d,.]+.{0,50}|.{0,50}\\$\\s*[\\d,.]+.{0,80}${esc}.{0,50}`,
+      "gi"
+    );
+    let m5;
+    while ((m5 = near.exec(content)) && out2.length < 6) {
+      const w4 = m5[0].replace(/\s+/g, " ").trim();
+      const key = fold2(w4).slice(0, 80);
+      if (w4.length > 12 && !seen.has(key)) {
+        seen.add(key);
+        out2.push(w4);
+      }
+    }
+  }
+  return out2;
+}
+function chairModelTokensFromQuery(query) {
+  const f6 = fold2(query);
+  const models = [
+    "wishbone",
+    "tiffany",
+    "crossback",
+    "ghost",
+    "tolix",
+    "camila",
+    "louis xv",
+    "mariantonieta",
+    "avant garde"
+  ];
+  return models.filter((m5) => f6.includes(m5.replace(/\s+/g, " ")) || f6.includes(m5.replace(/\s+/g, "")));
+}
 function buildLucyInfoPriceSnippet(query, maxChars = 520) {
   ensureCacheFromSeedSync();
   const docs = cacheState().docs;
@@ -131128,12 +131191,26 @@ function buildLucyInfoPriceSnippet(query, maxChars = 520) {
   const ranked = [...docs].map((d2) => ({ d: d2, s: scoreDoc(d2, tokens) })).filter((x7) => x7.s >= 8).sort((a3, b4) => b4.s - a3.s);
   if (!ranked.length) return null;
   const top = ranked[0].d;
-  const windows = extractPriceWindows(top.content, 10);
+  const modelTokens = chairModelTokensFromQuery(query);
+  const chairAsk = modelTokens.length > 0 || /\bsillas?\b/i.test(query) && !/\bmesas?\b/i.test(query);
+  const anchored = extractModelAnchoredPriceWindows(top.content, modelTokens);
+  if (anchored.length) {
+    const body3 = anchored.join(" \xB7 ").slice(0, maxChars);
+    return `*${top.title}*: ${body3}`;
+  }
+  const windows = extractPriceWindows(top.content, chairAsk ? 80 : 10);
   const scored = windows.map((l5) => {
     const f6 = fold2(l5);
     let s6 = 0;
     for (const tok of tokens) if (f6.includes(tok)) s6 += 3;
+    for (const tok of modelTokens) if (f6.includes(tok)) s6 += 25;
     if (/\$\s*\d/.test(l5)) s6 += 1;
+    if (chairAsk) {
+      if (/\bsilla/.test(f6)) s6 += 8;
+      if (/\b(mesa|tablon|tabl[oó]n|vintage\s*\/?\s*white|caoba\s+natural)\b/.test(f6) && !/\bsilla/.test(f6)) {
+        s6 -= 15;
+      }
+    }
     return { l: l5, s: s6 };
   }).sort((a3, b4) => b4.s - a3.s);
   const picked = (scored.some((x7) => x7.s > 1) ? scored.filter((x7) => x7.s > 1) : scored).map((x7) => x7.l).slice(0, 5);
@@ -131145,12 +131222,18 @@ function buildLucyInfoLearnedPriceReply(message) {
   const focusedPista = /\b(pintada|led|iluminada|madera\s+premium|vinil|charol|logo|tarima\s+b[aá]sica|escenario|estrado)\b/i.test(
     message
   );
-  const snip = buildLucyInfoPriceSnippet(message, focusedPista ? 420 : 520);
+  const chairModel = message.match(
+    /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde)\b/i
+  )?.[1];
+  const priceQuery = chairModel ? `Silla ${chairModel.replace(/\s+/g, " ")} precio` : message;
+  const snip = buildLucyInfoPriceSnippet(priceQuery, focusedPista || !!chairModel ? 420 : 520);
   if (!snip) return null;
   const t3 = fold2(message);
   let ask = "\xBFLo agregamos a tu cotizaci\xF3n?";
   if (/pista|tarima|baile/.test(t3)) {
     ask = "\xBFQu\xE9 medidas aproximadas tiene el espacio?";
+  } else if (chairModel || /silla/.test(t3) && !/mesa/.test(t3)) {
+    ask = "\xBFCu\xE1ntas sillas necesitas y para cu\xE1ndo?";
   } else if (/periquera|mesa|silla|sala|mobiliario|lounge|luxor/.test(t3)) {
     ask = "\xBFCu\xE1ntas piezas necesitas y para cu\xE1ndo?";
   }
@@ -131247,10 +131330,15 @@ function buildConsultativeNoPriceReply(message) {
   if (!message?.trim()) return null;
   const t3 = message.toLowerCase();
   const team = advisorLabelForClient();
-  if (/pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\b|lounge|luxor|chesterfield|camila/.test(
+  if (/pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\b|lounge|luxor|chesterfield|camila|wishbone|tiffany|crossback|ghost|tolix/.test(
     t3
   )) {
-    const fromPdf = buildLucyInfoLearnedPriceReply(message);
+    const model = message.match(
+      /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta)\b/i
+    )?.[1];
+    const fromPdf = buildLucyInfoLearnedPriceReply(
+      model ? `precio sillas ${model}` : message
+    );
     if (fromPdf) return fromPdf;
   }
   if (/\bcarpas?\b|lonas?\b|toldos?\b/.test(t3)) {
@@ -132417,7 +132505,7 @@ var FAMILIES = [
   {
     family: "mobiliario",
     // A15190 / A15910: "centros de mesa" y "mesa de dulces/postres" ≠ familia mobiliario.
-    familyPattern: /^(?!.*\b(?:centros?\s+de\s+mesas?|mesas?\s+de\s+(?:dulces?|postres?|quesos?))\b).*\b(?:mobiliario|periqueras?|salas?\s+lounge|mesas?\s+y\s+sillas?|renta\s+de\s+(?:mesas?|sillas?|mobiliario)|entelados?|colgantes?|vajillas?|barras?\s+de\s+mobiliario)\b/i,
+    familyPattern: /^(?!.*\b(?:centros?\s+de\s+mesas?|mesas?\s+de\s+(?:dulces?|postres?|quesos?))\b).*\b(?:mobiliario|periqueras?|salas?\s+lounge|mesas?\s+y\s+sillas?|renta\s+de\s+(?:mesas?|sillas?|mobiliario)|entelados?|colgantes?|vajillas?|barras?\s+de\s+mobiliario|(?:\d+\s+)?sillas?\s+(?:wishbone|tiffany|crossback|ghost|tolix|camila)|(?:wishbone|tiffany|crossback|ghost)\b)/i,
     // Pieza concreta (mesas/sillas/…) o modelo (Tiffany/Crossback…).
     variantPattern: /\b(periqueras?|lounge|luxor|tiffany|crossback|imperial|ghost|wishbone|tolix|camila|antonella|basket|cabos|caroline|mar[ií]a|avant\s*garde|louis\s*xv|mariantonieta|manteler[ií]a|vajilla|sillas?|(?<!centros?\s+de\s)(?<!mesa\s+de\s)mesas?(?!\s+de\s+(?:dulces?|postres?|quesos?))|picnic|bancos?|renta\s+de\s+mesas|entelado|colgante|wisteria)\b/i,
     detailQueryFromText: (text2) => {
@@ -132433,6 +132521,13 @@ var FAMILIES = [
       if (/vajilla|cuberter|cristaler/i.test(text2)) return "Vajillas";
       if (/periquera/i.test(text2)) return "periqueras";
       if (/lounge|luxor/i.test(text2)) return "salas lounge";
+      const chairModel = text2.match(
+        /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde)\b/i
+      )?.[1];
+      if (chairModel) {
+        const nice = chairModel.replace(/\s+/g, " ").replace(/\b\w/g, (c4) => c4.toUpperCase());
+        return `Silla ${nice}`;
+      }
       if (/\bsillas?\b/i.test(text2)) return "sillas";
       if (/(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)|picnic/i.test(
         text2
@@ -132765,6 +132860,11 @@ function defFor(family) {
 function hasConcreteServiceVariant(text2) {
   const t3 = text2?.trim() ?? "";
   if (!t3) return false;
+  if (/\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde)\b/i.test(
+    t3
+  )) {
+    return true;
+  }
   for (const fam of FAMILIES) {
     if (fam.familyPattern.test(t3) && fam.variantPattern.test(t3)) return true;
   }
@@ -133138,9 +133238,13 @@ function parseMobiliarioRentItems(query) {
   }
   const sillas = query.match(/(\d+)\s*sillas?\b/i);
   if (/\bsillas?\b/i.test(query) && !/\bpicnic\b/i.test(query)) {
+    const model = query.match(
+      /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde)\b/i
+    )?.[1] ?? null;
+    const modelLabel = model ? model.replace(/\s+/g, " ").replace(/\b\w/g, (c4) => c4.toUpperCase()) : null;
     items.push({
       qty: sillas?.[1] ? parseInt(sillas[1], 10) : null,
-      label: "sillas"
+      label: modelLabel ? `sillas ${modelLabel}` : "sillas"
     });
   }
   if (!items.some((i5) => /picnic/i.test(i5.label)) && /\bmesas?\b/i.test(query) && !/\bmesas?\s+periqueras?\b/i.test(query) && !/\bmesas?\s+de\s+(dulces?|postres?|quesos?|botanas?|antojitos?|imperial)\b/i.test(query) && !/\bcentros?\s+de\s+mesas?\b/i.test(query)) {
@@ -141026,9 +141130,13 @@ ${pickVariant("nombre", presHistory, entityId)}` : `${LUCY_INTRO} ${buildGuardSe
     // A14933: precio ANTES de upsell mantelería / detalle mobiliario genérico.
     !cierreYaEnviado && currentMessage && clientAsksPrice(currentMessage) && mentionsNoListedPriceService(currentMessage ?? "")
   ) {
-    const priceReply = buildConsultativeNoPriceReply(currentMessage ?? "") || buildAlejandroPriceReply(
-      findMentionedService(currentMessage ?? "") || "mobiliario",
-      currentMessage ?? ""
+    const priceBlob = [
+      currentMessage ?? "",
+      extracted.requerimientos_evento ?? ""
+    ].filter(Boolean).join(" ");
+    const priceReply = buildConsultativeNoPriceReply(priceBlob) || buildAlejandroPriceReply(
+      findMentionedService(priceBlob) || "mobiliario",
+      priceBlob
     );
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ = pending && pending !== "requerimientos" && !isFieldSatisfied("nombre", filledSet, extracted) ? buildNaturalQuestion("nombre", ctx) : pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
@@ -141400,86 +141508,112 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
     )) && currentMessage?.trim() && (parseMobiliarioPieceChoice(currentMessage) || isTablewareRequestText(currentMessage) || /\b(modelos?\s+de\s+)?sillas?\b/i.test(currentMessage ?? "") || /\bmesas?\b/i.test(currentMessage ?? "") || /\bperiqueras?\b/i.test(currentMessage ?? "") || /\bmobiliario|mobilairio\b/i.test(currentMessage ?? ""))
   ) {
     const msgMob = currentMessage ?? "";
-    const mesasPeriquerasOnly = /\bmesas?\s+periqueras?\b/i.test(msgMob);
-    const piece = parseMobiliarioPieceChoice(currentMessage) || (/\bsillas?\b/i.test(msgMob) ? "sillas" : mesasPeriquerasOnly || /\bperiqueras?\b/i.test(msgMob) ? "periqueras" : /\bmesas?\b/i.test(msgMob) ? "mesas" : "mobiliario");
-    filledSet.add("Requerimientos o servicios");
-    const mobLabels = [];
-    if (/\bperiqueras?\b/i.test(msgMob) || mesasPeriquerasOnly) mobLabels.push("periqueras");
-    if (/\bsillas?\b/i.test(msgMob)) mobLabels.push("sillas");
-    if (/\bmesas?\b/i.test(msgMob) && !mesasPeriquerasOnly) mobLabels.push("mesas");
-    if (isTablewareRequestText(currentMessage)) mobLabels.push("plato trinche");
-    const multiPieces = mobLabels.length >= 2;
-    const reqBlob = multiPieces ? currentMessage : piece === "mobiliario" ? "Mobiliario" : isTablewareRequestText(currentMessage) ? `${piece}, plato trinche` : `Mobiliario: ${piece}`;
-    const merged = mergeServiceRequirements(
-      extracted.requerimientos_evento,
-      reqBlob,
-      8
-    );
-    if (merged) extracted.requerimientos_evento = merged;
-    if (piece === "entelados" || piece === "entelado") {
-      const mergedEnt = mergeServiceRequirements(
+    const chairSkuMsg = parseFurnitureCatalogSkuFromText(msgMob);
+    if (chairSkuMsg && /^(\d+\s+)?Sillas\s+/i.test(chairSkuMsg)) {
+      const mergedChair = mergeServiceRequirements(
         extracted.requerimientos_evento,
-        "Entelados para Techo",
+        chairSkuMsg,
         6
       );
-      if (mergedEnt) extracted.requerimientos_evento = mergedEnt;
-    }
-    const display = getDisplayName(extracted, whatsappDisplayName);
-    const advanceWithAck = multiPieces || mesasPeriquerasOnly || historyOfferedAlimentosModoMenu(presHistory) && piece !== "mobiliario";
-    if (piece === "entelados" || piece === "entelado" || piece === "colgantes" || piece === "colgante") {
-      const body2 = buildMobiliarioPieceFollowUp(piece);
-      const catalogQuery = piece === "entelados" || piece === "entelado" ? "entelados para techo" : "colgantes premium";
-      const catalogUrl = getCatalogWebUrlForQuery(catalogQuery);
-      const catalogLabel = piece === "entelados" || piece === "entelado" ? "Cat\xE1logo de entelados" : "Cat\xE1logo de colgantes";
-      const withLink = catalogUrl && !/bodasesor\.com\/catalogos/i.test(body2) ? `${body2}
+      if (mergedChair) extracted.requerimientos_evento = mergedChair;
+      filledSet.add("Requerimientos o servicios");
+      const displayChair = getDisplayName(extracted, whatsappDisplayName);
+      const catalogUrlChair = getCatalogWebUrlForQuery("mesas y sillas") || null;
+      const ackChair = displayChair ? `Perfecto, ${displayChair}. Anoto *${chairSkuMsg}* para tu cotizaci\xF3n.` : `Perfecto. Anoto *${chairSkuMsg}* para tu cotizaci\xF3n.`;
+      const withCat = catalogUrlChair && !/bodasesor\.com\/catalogos/i.test(ackChair) ? `${ackChair}
+
+Cat\xE1logo de *mesas y sillas*:
+${catalogUrlChair}` : ackChair;
+      const pendingChair = getNextPendingField(extracted, filledSet);
+      const nextChair = pendingChair && pendingChair !== "requerimientos" ? buildNaturalQuestion(pendingChair, ctx) : null;
+      mensaje = nextChair ? `${withCat}
+
+${nextChair}` : withCat;
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId, chairSkuMsg }, "GUARD: A16166 \u2014 silla modelo anotada (no men\xFA)");
+    } else {
+      const mesasPeriquerasOnly = /\bmesas?\s+periqueras?\b/i.test(msgMob);
+      const piece = parseMobiliarioPieceChoice(currentMessage) || (/\bsillas?\b/i.test(msgMob) ? "sillas" : mesasPeriquerasOnly || /\bperiqueras?\b/i.test(msgMob) ? "periqueras" : /\bmesas?\b/i.test(msgMob) ? "mesas" : "mobiliario");
+      filledSet.add("Requerimientos o servicios");
+      const mobLabels = [];
+      if (/\bperiqueras?\b/i.test(msgMob) || mesasPeriquerasOnly) mobLabels.push("periqueras");
+      if (/\bsillas?\b/i.test(msgMob)) mobLabels.push("sillas");
+      if (/\bmesas?\b/i.test(msgMob) && !mesasPeriquerasOnly) mobLabels.push("mesas");
+      if (isTablewareRequestText(currentMessage)) mobLabels.push("plato trinche");
+      const multiPieces = mobLabels.length >= 2;
+      const reqBlob = multiPieces ? currentMessage : piece === "mobiliario" ? "Mobiliario" : isTablewareRequestText(currentMessage) ? `${piece}, plato trinche` : `Mobiliario: ${piece}`;
+      const merged = mergeServiceRequirements(
+        extracted.requerimientos_evento,
+        reqBlob,
+        8
+      );
+      if (merged) extracted.requerimientos_evento = merged;
+      if (piece === "entelados" || piece === "entelado") {
+        const mergedEnt = mergeServiceRequirements(
+          extracted.requerimientos_evento,
+          "Entelados para Techo",
+          6
+        );
+        if (mergedEnt) extracted.requerimientos_evento = mergedEnt;
+      }
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const advanceWithAck = multiPieces || mesasPeriquerasOnly || historyOfferedAlimentosModoMenu(presHistory) && piece !== "mobiliario";
+      if (piece === "entelados" || piece === "entelado" || piece === "colgantes" || piece === "colgante") {
+        const body2 = buildMobiliarioPieceFollowUp(piece);
+        const catalogQuery = piece === "entelados" || piece === "entelado" ? "entelados para techo" : "colgantes premium";
+        const catalogUrl = getCatalogWebUrlForQuery(catalogQuery);
+        const catalogLabel = piece === "entelados" || piece === "entelado" ? "Cat\xE1logo de entelados" : "Cat\xE1logo de colgantes";
+        const withLink = catalogUrl && !/bodasesor\.com\/catalogos/i.test(body2) ? `${body2}
 
 ${catalogLabel}:
 ${catalogUrl}` : body2;
-      mensaje = mergeWithPendingQuestion(
-        `${pickTransition(presHistory)} ${withLink}`.trim(),
-        filledSet,
-        extracted,
-        ctx
-      );
-      appliedSalesReply = true;
-      appliedDirectReply = true;
-      log?.info({ entityId, piece }, "GUARD: A15956 \u2014 entelado/colgantes + cat\xE1logo");
-    } else if (advanceWithAck) {
-      const labelText = mobLabels.length > 0 ? mobLabels.map((l5) => `*${l5}*`).join(", ").replace(/, ([^,]*)$/, " y $1") : `*${piece}*`;
-      const ack = display ? `Perfecto, ${display}. Anoto ${labelText} para tu cotizaci\xF3n.` : `Perfecto. Anoto ${labelText} para tu cotizaci\xF3n.`;
-      const catalogUrl = getCatalogWebUrlForQuery(
-        /\bperiqueras?\b/i.test(msgMob) && !/\b(sillas?|mesas?|tiffany)\b/i.test(msgMob) ? "periqueras" : "mesas y sillas"
-      ) || null;
-      const withCatalog = catalogUrl && !/bodasesor\.com\/catalogos/i.test(ack) ? `${ack}
+        mensaje = mergeWithPendingQuestion(
+          `${pickTransition(presHistory)} ${withLink}`.trim(),
+          filledSet,
+          extracted,
+          ctx
+        );
+        appliedSalesReply = true;
+        appliedDirectReply = true;
+        log?.info({ entityId, piece }, "GUARD: A15956 \u2014 entelado/colgantes + cat\xE1logo");
+      } else if (advanceWithAck) {
+        const labelText = mobLabels.length > 0 ? mobLabels.map((l5) => `*${l5}*`).join(", ").replace(/, ([^,]*)$/, " y $1") : `*${piece}*`;
+        const ack = display ? `Perfecto, ${display}. Anoto ${labelText} para tu cotizaci\xF3n.` : `Perfecto. Anoto ${labelText} para tu cotizaci\xF3n.`;
+        const catalogUrl = getCatalogWebUrlForQuery(
+          /\bperiqueras?\b/i.test(msgMob) && !/\b(sillas?|mesas?|tiffany)\b/i.test(msgMob) ? "periqueras" : "mesas y sillas"
+        ) || null;
+        const withCatalog = catalogUrl && !/bodasesor\.com\/catalogos/i.test(ack) ? `${ack}
 
 Cat\xE1logo de *mesas y sillas*:
 ${catalogUrl}` : ack;
-      const pending = getNextPendingField(extracted, filledSet);
-      const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
-      mensaje = nextQ ? `${withCatalog}
+        const pending = getNextPendingField(extracted, filledSet);
+        const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
+        mensaje = nextQ ? `${withCatalog}
 
 ${nextQ}` : withCatalog;
-      appliedSalesReply = true;
-      appliedDirectReply = true;
-      log?.info({ entityId, piece, multiPieces, mobLabels }, "GUARD: A15642/A15735/A16097 \u2014 mobiliario listado \u2192 embudo + cat\xE1logo");
-    } else {
-      const body2 = piece === "mobiliario" ? buildBareMobiliarioOfferBlock() : buildMobiliarioPieceFollowUp(piece);
-      const withLink = piece === "mobiliario" ? body2 : (() => {
-        const catalogUrl = (piece === "periqueras" || piece === "salas lounge" ? getCatalogWebUrlForQuery("periqueras") : getCatalogWebUrlForQuery("mesas y sillas")) || getCatalogWebHubDeliveryUrl();
-        return catalogUrl && !/bodasesor\.com\/catalogos/i.test(body2) ? `${body2}
+        appliedSalesReply = true;
+        appliedDirectReply = true;
+        log?.info({ entityId, piece, multiPieces, mobLabels }, "GUARD: A15642/A15735/A16097 \u2014 mobiliario listado \u2192 embudo + cat\xE1logo");
+      } else {
+        const body2 = piece === "mobiliario" ? buildBareMobiliarioOfferBlock() : buildMobiliarioPieceFollowUp(piece);
+        const withLink = piece === "mobiliario" ? body2 : (() => {
+          const catalogUrl = (piece === "periqueras" || piece === "salas lounge" ? getCatalogWebUrlForQuery("periqueras") : getCatalogWebUrlForQuery("mesas y sillas")) || getCatalogWebHubDeliveryUrl();
+          return catalogUrl && !/bodasesor\.com\/catalogos/i.test(body2) ? `${body2}
 
 Cat\xE1logo:
 ${catalogUrl}` : body2;
-      })();
-      mensaje = mergeWithPendingQuestion(
-        `${pickTransition(presHistory)} ${withLink}`.trim(),
-        filledSet,
-        extracted,
-        ctx
-      );
-      appliedSalesReply = true;
-      appliedDirectReply = true;
-      log?.info({ entityId, piece }, "GUARD: mobiliario/sillas \u2192 men\xFA de modelos + cat\xE1logo");
+        })();
+        mensaje = mergeWithPendingQuestion(
+          `${pickTransition(presHistory)} ${withLink}`.trim(),
+          filledSet,
+          extracted,
+          ctx
+        );
+        appliedSalesReply = true;
+        appliedDirectReply = true;
+        log?.info({ entityId, piece }, "GUARD: mobiliario/sillas \u2192 men\xFA de modelos + cat\xE1logo");
+      }
     }
   } else if (allowSalesReplyOverride && !cierreYaEnviado && historyOfferedServiceOptionsMenu(presHistory) && clientWantsServiceDetail(currentMessage, presHistory)) {
     const progressiveDetail = buildProgressiveDetailAfterMenu({
@@ -142759,7 +142893,8 @@ ${buildNaturalQuestion(pending, ctx)}` : ack;
     const msgMob = currentMessage ?? "";
     const reqMob = extracted.requerimientos_evento ?? "";
     const bareMobAsk = /\b(so(lo)?\s+)?mobiliario\b/i.test(msgMob) && !/\b(mesas?|sillas?|periqueras?|lounge)\b/i.test(msgMob);
-    const crmBareMob = /^mobiliario$/i.test(reqMob.trim()) || /^mobiliario\b/i.test(reqMob) && !/\b(mesas?|sillas?|periqueras?)\b/i.test(reqMob);
+    const crmBareMob = (/^mobiliario$/i.test(reqMob.trim()) || /^mobiliario\b/i.test(reqMob) && !/\b(mesas?|sillas?|periqueras?)\b/i.test(reqMob)) && // A16166: CRM ya tiene Wishbone/Tiffany… → no reabrir menú bare.
+    !/\b(wishbone|tiffany|crossback|ghost|tolix|camila)\b/i.test(reqMob) && !/\b(wishbone|tiffany|crossback|ghost)\b/i.test(msgMob);
     const looksLikeHubOnly = /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos\/?(?:\s|$)/i.test(mensaje.trim()) || /Te dejo el catálogo general/i.test(mensaje) && !/mesas-y-sillas|salas-y-periqueras/i.test(mensaje);
     if (!cierreYaEnviado && (bareMobAsk || crmBareMob) && (looksLikeHubOnly || !/mesas-y-sillas/i.test(mensaje) && !/salas-y-periqueras/i.test(mensaje) && /bodasesor\.com\/catalogos\/?(?:\s|\?|$)/i.test(mensaje))) {
       const offer = buildBareMobiliarioOfferBlock();
@@ -145430,7 +145565,7 @@ function clientReplyForPaymentSlot(slot) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V10.08";
+var LUCY_PROMPT_VERSION = "V10.09";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -155072,7 +155207,7 @@ ${golfText}`,
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
   await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -155101,7 +155236,7 @@ ${golfText}`,
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
   await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -155219,7 +155354,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,
@@ -155290,7 +155425,7 @@ ${golfText}`,
     }
   });
   await test("135. V9.38 \u2014 comprobante en imagen: primer pago Anticipo, segundo Liquidaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     assert2.equal(FIELD_ANTICIPO, 1049322);
     assert2.equal(FIELD_LIQUIDACION, 1049324);
     assert2.equal(nextPaymentSlot(null, null), "anticipo");
@@ -155354,7 +155489,7 @@ ${golfText}`,
     assert2.ok(/amount_mxn/.test(imgSrc));
   });
   await test("136. V9.40 \u2014 A15380 invitados no se saltan; Coyoac\xE1n+colonia; Claro no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     const horario = "hola si se har\xEDa el 26 de septiembre pero a\xFAn no tenemos definido el horario";
     assert2.equal(parseInvitadosFromText(horario), null, "horario pendiente \u2260 invitados");
     const caps = scanConversationForCaptures([], horario, /* @__PURE__ */ new Set(["Nombre del cliente"]));
@@ -155457,7 +155592,7 @@ ${golfText}`,
     assert2.equal(taquizaNext, "invitados");
   });
   await test("138. V9.41 \u2014 A15383 Kelia: ciudad, banquetes, LED\u2260luz, no spam (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert2.match(hornoMty, /horno\s*3/i, hornoMty);
     assert2.match(hornoMty, /monterrey/i, hornoMty);
@@ -155593,7 +155728,7 @@ ${golfText}`,
     assert2.ok(!/Listo\.\s*Kelia/i.test(nameSpam), nameSpam);
   });
   await test("139. V9.42 \u2014 A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert2.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert2.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -155683,7 +155818,7 @@ ${golfText}`,
     assert2.ok(!/invitados|cu[aá]nt[oa]s|ciudad del evento|en qu[eé] ciudad/i.test(handoff), handoff.slice(0, 400));
   });
   await test("140. V9.43 \u2014 detalle de un producto no re-lista el men\xFA (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -155722,7 +155857,7 @@ ${golfText}`,
     assert2.ok(/Coffee Break 4|350|CB4/i.test(rewritten), rewritten.slice(0, 500));
   });
   await test("141. V9.44 \u2014 A15443 Rosario: reuni\xF3n, hora comida, ciudad obligatoria", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     assert2.equal(parseTipoEventoFromText("una reuni\xF3n de 15 a\xF1os"), "reuni\xF3n");
     assert2.ok(clientSaidReunionNotXv("una reuni\xF3n de 15 a\xF1os"));
     assert2.ok(!clientSaidReunionNotXv("mis XV a\xF1os"));
@@ -155837,7 +155972,7 @@ ${golfText}`,
     assert2.ok(/2\.\s*\*?Servicio completo/i.test(fixedMenu), fixedMenu.slice(0, 600));
   });
   await test("142. V9.45 \u2014 A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     assert2.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert2.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
     assert2.ok(!isUsableFechaHorario("13:00 a 20:00 hrs"));
@@ -155911,7 +156046,7 @@ ${golfText}`,
     assert2.ok(!/ya tengo todo/i.test(clockReply));
   });
   await test("143. V9.49 \u2014 imagen solo embudo; silencio lee dep\xF3sito sin WhatsApp", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
     assert2.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
@@ -155954,7 +156089,7 @@ ${golfText}`,
     assert2.ok(/sin WhatsApp al cliente|leída en silencio/i.test(kommoSrc));
   });
   await test("144. V9.49 \u2014 A15478 Isabel: recomienda tama\xF1o pista seg\xFAn invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     const ask = "Me puedes recomendar el tama\xF1o pensando en la cantidad de invitados?";
     assert2.ok(clientAsksDimensionRecommendation(ask));
     const rec = recommendPistaDimensionsForGuests(120, "XV a\xF1os");
@@ -156020,7 +156155,7 @@ ${golfText}`,
     assert2.ok(!/ya tengo lo principal/i.test(anti.mensaje), anti.mensaje);
   });
   await test("146. V9.49 \u2014 A15494 Paola: mucho gusto no es apellido", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     const reply = "Paola mucho gusto";
     assert2.ok(isMuchoGustoNameReply(reply));
     assert2.equal(sanitizeCrmNombre(reply), "Paola");
@@ -156054,7 +156189,7 @@ ${golfText}`,
     assert2.ok(!/Mucho Gusto!/i.test(guarded.replace(/mucho gusto,\s*Paola/i, "")), guarded);
   });
   await test("147. V9.49 \u2014 A15503 Good: loza y plato postre = vajilla, no postres", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     const brief = "Hola, me interesa cotizar un servicio\nQuiere loza para un evento para 50 personas\nSer\xEDa:\nPlato trinche\nPlato postre\nCubiertos (cuchara, tenedor, cuchara postre).";
     assert2.ok(isTablewareRequestText(brief));
     const services = parseServicesFromText(brief);
@@ -156083,7 +156218,7 @@ ${golfText}`,
     assert2.ok(!/mobiliario/i.test(declineGuard), declineGuard);
   });
   await test("148. V9.50 \u2014 fecha y horario en campos CRM separados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     const split = splitCombinedFechaHorario("15 de agosto, 5:00 p.m.");
     assert2.equal(split.fecha, "15 de agosto");
     assert2.ok(split.horario && /5:00/i.test(split.horario));
@@ -156121,7 +156256,7 @@ ${golfText}`,
     assert2.ok(!cf.some((f6) => f6.field_id === 1048778));
   });
   await test("149. V9.51 \u2014 A15508 Betiana: 40 invitadas y anti-repetici\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     assert2.equal(parseInvitadosFromText("40 sillas, 40 invitadas"), "40");
     assert2.equal(parseInvitadosFromText("40 invitadas"), "40");
     assert2.equal(
@@ -156167,7 +156302,7 @@ ${golfText}`,
     assert2.ok(!/estimado de invitados|cu[aá]ntos invitados/i.test(guarded), guarded);
   });
   await test("150. V9.52 \u2014 A15509 Gaby: apertura, RFQ equipo, a\xFAn no invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     assert2.equal(parseTipoEventoFromText("Ser\xEDa para la apertura de un negocio"), "apertura de negocio");
     assert2.ok(clientSaidAperturaNegocio("Ser\xEDa para la apertura de un negocio"));
     const rfq = [
@@ -156231,7 +156366,7 @@ ${golfText}`,
     assert2.ok(!/cu[aá]ntas personas|estimado de invitados/i.test(invWaive), invWaive);
   });
   await test("151. V9.53 \u2014 A15516 Ccam: captura horario pm y anti-repetici\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     const extracted = emptyExtracted({
       nombre: "Ccam",
       tipo_evento: "XV a\xF1os",
@@ -156279,7 +156414,7 @@ ${golfText}`,
     assert2.ok(!/horario/i.test(guarded2) || /anoto|perfecto|invitados|ciudad|correo/i.test(guarded2), guarded2);
   });
   await test("152. V9.55 \u2014 A15486 G\xE9nesis: promo/vajilla/detalles/presupuesto/PDF", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     const promo = [
       "Hola, escribo por la promo de cierre r\xE1pido (10% de descuento).",
       "C\xF3digo: CierreRapido",
@@ -156391,7 +156526,7 @@ ${golfText}`,
     );
   });
   await test("153. V9.55 \u2014 A15539 Jorge: horario/carpa/DJ no/mobiliario/Atlixco/callback", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     assert2.equal(parseTipoEventoFromText("primera comuni\xF3n"), "primera comuni\xF3n");
     assert2.ok(isScheduleLabeledClock("a medio d\xEDa"));
     assert2.ok(isScheduleLabeledClock("cocktail a las 12:00\ncomida a las 2:00"));
@@ -156550,7 +156685,7 @@ ${golfText}`,
     assert2.ok(!/servicios te gustar[ií]a|ir armando/i.test(callback), callback.slice(0, 400));
   });
   await test("154. V9.56 \u2014 A15547 Marisol: taquiza sin $, qu\xE9 incluye, pospone sin correo", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     const csv = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
       '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","5 guisados","https://bodasesor.com/catalogos/taquiza"',
@@ -156608,7 +156743,7 @@ ${golfText}`,
     assert2.ok(!/correo|e-?mail/i.test(soft), soft.slice(0, 400));
   });
   await test("155. V9.57 \u2014 A15550 Jos\xE9: sal\xF3n suministra \u2260 pedido; bufet \u2192 banquete", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     const brief = "cotizaci\xF3n cumplea\xF1os 3 de octubre 50 personas Nezahualc\xF3yotl, el sal\xF3n suministra mesas, sillas, manteler\xEDa, platos, vasos y un mesero";
     assert2.ok(isVenueProvidesContext(brief));
     const parsed = parseServicesFromText(brief);
@@ -156627,7 +156762,7 @@ ${golfText}`,
     assert2.ok(!/necesitas.*vajillas/i.test(fix), fix.slice(0, 400));
   });
   await test("156. V9.70 \u2014 A15566 Lynn: de 3pm a 11pm, a partir de, sin horario a\xFAn", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     assert2.ok(/3:00.*11:00/i.test(parseHorarioFromText("El evento ser\xEDa de 3:00 pm a 11:00 pm") ?? ""));
     assert2.ok(/16:00|a partir/i.test(parseHorarioFromText("A partir de las 16:00 hrs") ?? ""));
     assert2.ok(/15:00.*11:00/i.test(parseHorarioFromText("De 15:00 p.m a 11:00 p.m") ?? ""));
@@ -156674,7 +156809,7 @@ ${golfText}`,
     assert2.ok(!/horario lo planean/i.test(defer), defer.slice(0, 400));
   });
   await test("157. V9.70 \u2014 A15581 Mariana: cuatro, dual propuesta, DJ inclusi\xF3n/acotado", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     assert2.ok(/4/.test(parseHorarioFromText("Ser\xEDa temprano, a partir de las cuatro") ?? ""));
     assert2.ok(normalizeWrittenClockInText("a partir de las cuatro").includes("4"));
     assert2.ok(clientRequestsDualProposals("dos propuestas formal y otra casual"));
@@ -156715,7 +156850,7 @@ ${golfText}`,
     assert2.ok(!/la anoto para tu cotizaci/i.test(djInfo), djInfo.slice(0, 400));
   });
   await test("158. V9.70 \u2014 A15620 Mara: promo CierreRapido no captura 35 pax ni hora de env\xEDo", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     const maraPromo = [
       "Hola, escribo por la promo de cierre r\xE1pido (10% de descuento).",
       "C\xF3digo: CierreRapido",
@@ -156739,7 +156874,7 @@ ${golfText}`,
     assert2.equal(promoReply.match(/35\s*personas/gi)?.length ?? 0, 0, promoReply.slice(0, 400));
   });
   await test("159. V9.70 \u2014 A15701 Alejandra: Puerto Vallarta no repregunta ciudad", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     assert2.equal(parseZonaFromText("Puerto Vallarta")?.toLowerCase(), "puerto vallarta");
     assert2.ok(isUsableDireccionEvento("Puerto Vallarta"));
     const filled = /* @__PURE__ */ new Set([
@@ -156779,7 +156914,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*|en qu[eé] ciudad|ya tienen ciudad/i.test(reply), reply.slice(0, 400));
   });
   await test("160. V9.70 \u2014 A15707 danymelgozza: cotizaci\xF3n inicial no es env\xEDo de cotizaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     const opening = "Quiero hacer una cotizaci\xF3n de barra de sushis y nigiris para 25 personas";
     assert2.equal(clientWantsQuoteDelivery(opening), false);
     assert2.ok(clientWantsQuoteDelivery("Si, m\xE1ndame la cotizaci\xF3n por favor, y te confirmo todo"));
@@ -156800,7 +156935,7 @@ ${golfText}`,
     assert2.ok(/sushi|nigiri|25|personas|nombre|Lucy|Bodasesor/i.test(reply), reply.slice(0, 500));
   });
   await test("161. V9.70 \u2014 A15708 Itzel: una sola presentaci\xF3n Lucy", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     const firstIntro = "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor. Claro que te ayudo con tu evento. \xBFMe regalas tu nombre?";
     const reply = runGuards({
       aiResponse: "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor. \xA1Mucho gusto, Itzel! \xBFQu\xE9 tipo de evento tienes en mente celebrar?",
@@ -156819,7 +156954,7 @@ ${golfText}`,
     assert2.ok(/tipo de evento/i.test(reply), reply.slice(0, 400));
   });
   await test("162. V9.70 \u2014 A15705 Karla: Ser\xEDa De Catering no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     assert2.equal(sanitizeCrmNombre("Ser\xEDa De Catering"), null);
     assert2.equal(shouldUpdateName("Karla Rodr\xEDguez", "Ser\xEDa De Catering"), false);
     assert2.equal(shouldUpdateName("Ser\xEDa De Catering", "Karla Rodr\xEDguez"), true);
@@ -156838,7 +156973,7 @@ ${golfText}`,
     assert2.ok(!/Con gusto,\s*Ser[ií]a/i.test(reply), reply.slice(0, 400));
   });
   await test("163. V9.71 \u2014 A15775 Pamela: municipio GDL y meta-ciudad", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.09");
     assert2.ok(hasCityOrMetroSignal("San Pedro Tlaquepaque"));
     assert2.ok(isLocationMetaReferential("esa es la ciudad"));
     assert2.equal(parseZonaFromText("esa es la ciudad"), null);

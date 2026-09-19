@@ -9142,11 +9142,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     currentMessage && clientAsksPrice(currentMessage) &&
     mentionsNoListedPriceService(currentMessage ?? "")
   ) {
+    // A16166: si CRM ya tiene Wishbone y preguntan "precio de las sillas", anclar al modelo.
+    const priceBlob = [
+      currentMessage ?? "",
+      extracted.requerimientos_evento ?? "",
+    ]
+      .filter(Boolean)
+      .join(" ");
     const priceReply =
-      buildConsultativeNoPriceReply(currentMessage ?? "") ||
+      buildConsultativeNoPriceReply(priceBlob) ||
       buildAlejandroPriceReply(
-        findMentionedService(currentMessage ?? "") || "mobiliario",
-        currentMessage ?? ""
+        findMentionedService(priceBlob) || "mobiliario",
+        priceBlob
       );
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ =
@@ -9691,6 +9698,35 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       /\bmobiliario|mobilairio\b/i.test(currentMessage ?? ""))
   ) {
     const msgMob = currentMessage ?? "";
+    // A16166: ya trajeron modelo (Wishbone/Tiffany…) → anotar SKU y avanzar, no menú de modelos.
+    const chairSkuMsg = parseFurnitureCatalogSkuFromText(msgMob);
+    if (chairSkuMsg && /^(\d+\s+)?Sillas\s+/i.test(chairSkuMsg)) {
+      const mergedChair = mergeServiceRequirements(
+        extracted.requerimientos_evento,
+        chairSkuMsg,
+        6
+      );
+      if (mergedChair) extracted.requerimientos_evento = mergedChair;
+      filledSet.add("Requerimientos o servicios");
+      const displayChair = getDisplayName(extracted, whatsappDisplayName);
+      const catalogUrlChair = getCatalogWebUrlForQuery("mesas y sillas") || null;
+      const ackChair = displayChair
+        ? `Perfecto, ${displayChair}. Anoto *${chairSkuMsg}* para tu cotización.`
+        : `Perfecto. Anoto *${chairSkuMsg}* para tu cotización.`;
+      const withCat =
+        catalogUrlChair && !/bodasesor\.com\/catalogos/i.test(ackChair)
+          ? `${ackChair}\n\nCatálogo de *mesas y sillas*:\n${catalogUrlChair}`
+          : ackChair;
+      const pendingChair = getNextPendingField(extracted, filledSet);
+      const nextChair =
+        pendingChair && pendingChair !== "requerimientos"
+          ? buildNaturalQuestion(pendingChair, ctx)
+          : null;
+      mensaje = nextChair ? `${withCat}\n\n${nextChair}` : withCat;
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId, chairSkuMsg }, "GUARD: A16166 — silla modelo anotada (no menú)");
+    } else {
     // A15735+: "mesas periqueras" = periqueras (no mesas + periqueras ni "mesas, sillas").
     const mesasPeriquerasOnly = /\bmesas?\s+periqueras?\b/i.test(msgMob);
     const piece =
@@ -9818,6 +9854,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       appliedDirectReply = true;
       log?.info({ entityId, piece }, "GUARD: mobiliario/sillas → menú de modelos + catálogo");
     }
+    } // A16166: fin else (sin modelo de silla)
   } else if (
     allowSalesReplyOverride &&
     !cierreYaEnviado &&
@@ -11710,8 +11747,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       /\b(so(lo)?\s+)?mobiliario\b/i.test(msgMob) &&
       !/\b(mesas?|sillas?|periqueras?|lounge)\b/i.test(msgMob);
     const crmBareMob =
-      /^mobiliario$/i.test(reqMob.trim()) ||
-      (/^mobiliario\b/i.test(reqMob) && !/\b(mesas?|sillas?|periqueras?)\b/i.test(reqMob));
+      (/^mobiliario$/i.test(reqMob.trim()) ||
+        (/^mobiliario\b/i.test(reqMob) && !/\b(mesas?|sillas?|periqueras?)\b/i.test(reqMob))) &&
+      // A16166: CRM ya tiene Wishbone/Tiffany… → no reabrir menú bare.
+      !/\b(wishbone|tiffany|crossback|ghost|tolix|camila)\b/i.test(reqMob) &&
+      !/\b(wishbone|tiffany|crossback|ghost)\b/i.test(msgMob);
     const looksLikeHubOnly =
       /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos\/?(?:\s|$)/i.test(mensaje.trim()) ||
       (/Te dejo el catálogo general/i.test(mensaje) &&

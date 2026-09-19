@@ -509,6 +509,47 @@ function extractPriceWindows(content: string, max = 8): string[] {
     .slice(0, max);
 }
 
+/** A16166: anclar ventanas al modelo (Wishbone) — no a las primeras mesas Vintage/Caoba. */
+function extractModelAnchoredPriceWindows(content: string, modelTokens: string[]): string[] {
+  if (!content?.trim() || !modelTokens.length) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const tok of modelTokens) {
+    if (tok.length < 3) continue;
+    const esc = tok.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const near = new RegExp(
+      `.{0,50}${esc}.{0,140}\\$\\s*[\\d,.]+.{0,50}|.{0,50}\\$\\s*[\\d,.]+.{0,80}${esc}.{0,50}`,
+      "gi"
+    );
+    let m: RegExpExecArray | null;
+    while ((m = near.exec(content)) && out.length < 6) {
+      const w = m[0]!.replace(/\s+/g, " ").trim();
+      const key = fold(w).slice(0, 80);
+      if (w.length > 12 && !seen.has(key)) {
+        seen.add(key);
+        out.push(w);
+      }
+    }
+  }
+  return out;
+}
+
+function chairModelTokensFromQuery(query: string): string[] {
+  const f = fold(query);
+  const models = [
+    "wishbone",
+    "tiffany",
+    "crossback",
+    "ghost",
+    "tolix",
+    "camila",
+    "louis xv",
+    "mariantonieta",
+    "avant garde",
+  ];
+  return models.filter((m) => f.includes(m.replace(/\s+/g, " ")) || f.includes(m.replace(/\s+/g, "")));
+}
+
 /** Líneas con precio del PDF más relevante a la pregunta. */
 export function buildLucyInfoPriceSnippet(query: string, maxChars = 520): string | null {
   ensureCacheFromSeedSync();
@@ -523,19 +564,46 @@ export function buildLucyInfoPriceSnippet(query: string, maxChars = 520): string
   if (!ranked.length) return null;
 
   const top = ranked[0]!.d;
-  const windows = extractPriceWindows(top.content, 10);
+  const modelTokens = chairModelTokensFromQuery(query);
+  const chairAsk =
+    modelTokens.length > 0 ||
+    (/\bsillas?\b/i.test(query) && !/\bmesas?\b/i.test(query));
+
+  // A16166: primero ventanas ancladas al modelo (Wishbone $200), no first-N $ del PDF.
+  const anchored = extractModelAnchoredPriceWindows(top.content, modelTokens);
+  if (anchored.length) {
+    const body = anchored.join(" · ").slice(0, maxChars);
+    return `*${top.title}*: ${body}`;
+  }
+
+  // Con modelo/sillas: escanear muchas ventanas y puntuar; penalizar mesas Vintage/Caoba.
+  const windows = extractPriceWindows(top.content, chairAsk ? 80 : 10);
 
   const scored = windows
     .map((l) => {
       const f = fold(l);
       let s = 0;
       for (const tok of tokens) if (f.includes(tok)) s += 3;
+      for (const tok of modelTokens) if (f.includes(tok)) s += 25;
       if (/\$\s*\d/.test(l)) s += 1;
+      if (chairAsk) {
+        if (/\bsilla/.test(f)) s += 8;
+        if (
+          /\b(mesa|tablon|tabl[oó]n|vintage\s*\/?\s*white|caoba\s+natural)\b/.test(f) &&
+          !/\bsilla/.test(f)
+        ) {
+          s -= 15;
+        }
+      }
       return { l, s };
     })
     .sort((a, b) => b.s - a.s);
 
-  const picked = (scored.some((x) => x.s > 1) ? scored.filter((x) => x.s > 1) : scored)
+  const picked = (
+    scored.some((x) => x.s > 1)
+      ? scored.filter((x) => x.s > 1)
+      : scored
+  )
     .map((x) => x.l)
     .slice(0, 5);
   if (!picked.length) return null;
@@ -553,12 +621,21 @@ export function buildLucyInfoLearnedPriceReply(message: string): string | null {
     /\b(pintada|led|iluminada|madera\s+premium|vinil|charol|logo|tarima\s+b[aá]sica|escenario|estrado)\b/i.test(
       message
     );
-  const snip = buildLucyInfoPriceSnippet(message, focusedPista ? 420 : 520);
+  // A16166: si piden silla+modelo, forzar query al modelo (no "precio de las sillas" genérico).
+  const chairModel = message.match(
+    /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde)\b/i
+  )?.[1];
+  const priceQuery = chairModel
+    ? `Silla ${chairModel.replace(/\s+/g, " ")} precio`
+    : message;
+  const snip = buildLucyInfoPriceSnippet(priceQuery, focusedPista || !!chairModel ? 420 : 520);
   if (!snip) return null;
   const t = fold(message);
   let ask = "¿Lo agregamos a tu cotización?";
   if (/pista|tarima|baile/.test(t)) {
     ask = "¿Qué medidas aproximadas tiene el espacio?";
+  } else if (chairModel || (/silla/.test(t) && !/mesa/.test(t))) {
+    ask = "¿Cuántas sillas necesitas y para cuándo?";
   } else if (/periquera|mesa|silla|sala|mobiliario|lounge|luxor/.test(t)) {
     ask = "¿Cuántas piezas necesitas y para cuándo?";
   }

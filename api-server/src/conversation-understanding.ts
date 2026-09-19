@@ -1608,9 +1608,25 @@ export function parseSalaProductFromText(text: string): string | null {
   return null;
 }
 
+/** Modelos de silla del catálogo Mesas-y-Sillas (A16166 Wishbone). */
+export const CHAIR_MODEL_PATTERN =
+  /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde|antonella|basket|cabos|caroline)\b/i;
+
+export function parseChairModelFromText(text: string | null | undefined): string | null {
+  const t = String(text || "").trim();
+  if (!t) return null;
+  const m = t.match(CHAIR_MODEL_PATTERN);
+  if (!m?.[1]) return null;
+  const raw = m[1].replace(/\s+/g, " ").trim();
+  if (/^louis\s*xv$/i.test(raw)) return "Louis XV";
+  if (/^avant\s*garde$/i.test(raw)) return "Avant Garde";
+  if (/^mariantonieta$/i.test(raw)) return "Mariantonieta";
+  return raw.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 /**
- * SKUs concretos de mobiliario del catálogo (A15297).
- * "Mesa Centro Rectangular Mármol", "Mesa Centro Mármol Redonda", salas nombradas.
+ * SKUs concretos de mobiliario del catálogo (A15297 / A16166).
+ * "Mesa Centro Rectangular Mármol", salas nombradas, sillas Wishbone/Tiffany…
  */
 export function parseFurnitureCatalogSkuFromText(text: string): string | null {
   const t = String(text || "").trim();
@@ -1633,6 +1649,16 @@ export function parseFurnitureCatalogSkuFromText(text: string): string | null {
     !/^\d+\s+salas?\s+lounge$/i.test(sala)
   ) {
     return sala;
+  }
+  // A16166: "100 Sillas Wishbone" / "sillas wishbone" / "precio wishbone"
+  const chair = parseChairModelFromText(t);
+  if (chair) {
+    const qty =
+      t.match(/(\d+)\s*sillas?(?:\s+\w+){0,3}\s*(?:wishbone|tiffany|crossback|ghost|tolix|camila|louis|mariantonieta|avant)/i)?.[1] ||
+      t.match(/(\d+)\s*(?:sillas?\s+)?(?:wishbone|tiffany|crossback|ghost|tolix|camila)/i)?.[1] ||
+      t.match(/(\d+)\s*sillas?\b/i)?.[1] ||
+      null;
+    return qty ? `${qty} Sillas ${chair}` : `Sillas ${chair}`;
   }
   return null;
 }
@@ -3215,6 +3241,16 @@ export function parseServicesFromText(text: string): string[] {
     const idx = found.findIndex((s) => /salas?\s*lounge/i.test(s));
     if (idx >= 0) found[idx] = salaProduct;
     else if (!found.some((s) => /sala|luxor/i.test(s))) found.push(salaProduct);
+  }
+
+  // A16166: sillas Wishbone/Tiffany… → SKU concreto (no solo "Mobiliario").
+  const chairSku = parseFurnitureCatalogSkuFromText(text);
+  if (chairSku && /^(\d+\s+)?Sillas\s+/i.test(chairSku)) {
+    const idxMob = found.findIndex((s) => /^Mobiliario$/i.test(s) || /^mesas?\s+y\s+sillas?$/i.test(s));
+    if (idxMob >= 0) found[idxMob] = chairSku;
+    else if (!found.some((s) => /sillas?\s+(wishbone|tiffany|crossback|ghost)/i.test(s))) {
+      found.unshift(chairSku);
+    }
   }
 
   const normalized = normalizeShortServicePhrase(text);

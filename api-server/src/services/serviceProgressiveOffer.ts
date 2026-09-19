@@ -465,7 +465,7 @@ const FAMILIES: FamilyDef[] = [
     family: "mobiliario",
     // A15190 / A15910: "centros de mesa" y "mesa de dulces/postres" ≠ familia mobiliario.
     familyPattern:
-      /^(?!.*\b(?:centros?\s+de\s+mesas?|mesas?\s+de\s+(?:dulces?|postres?|quesos?))\b).*\b(?:mobiliario|periqueras?|salas?\s+lounge|mesas?\s+y\s+sillas?|renta\s+de\s+(?:mesas?|sillas?|mobiliario)|entelados?|colgantes?|vajillas?|barras?\s+de\s+mobiliario)\b/i,
+      /^(?!.*\b(?:centros?\s+de\s+mesas?|mesas?\s+de\s+(?:dulces?|postres?|quesos?))\b).*\b(?:mobiliario|periqueras?|salas?\s+lounge|mesas?\s+y\s+sillas?|renta\s+de\s+(?:mesas?|sillas?|mobiliario)|entelados?|colgantes?|vajillas?|barras?\s+de\s+mobiliario|(?:\d+\s+)?sillas?\s+(?:wishbone|tiffany|crossback|ghost|tolix|camila)|(?:wishbone|tiffany|crossback|ghost)\b)/i,
     // Pieza concreta (mesas/sillas/…) o modelo (Tiffany/Crossback…).
     variantPattern:
       /\b(periqueras?|lounge|luxor|tiffany|crossback|imperial|ghost|wishbone|tolix|camila|antonella|basket|cabos|caroline|mar[ií]a|avant\s*garde|louis\s*xv|mariantonieta|manteler[ií]a|vajilla|sillas?|(?<!centros?\s+de\s)(?<!mesa\s+de\s)mesas?(?!\s+de\s+(?:dulces?|postres?|quesos?))|picnic|bancos?|renta\s+de\s+mesas|entelado|colgante|wisteria)\b/i,
@@ -484,6 +484,14 @@ const FAMILIES: FamilyDef[] = [
       if (/vajilla|cuberter|cristaler/i.test(text)) return "Vajillas";
       if (/periquera/i.test(text)) return "periqueras";
       if (/lounge|luxor/i.test(text)) return "salas lounge";
+      // A16166: modelo de silla → query enfocado al PDF (Wishbone $200, no mesas Vintage).
+      const chairModel = text.match(
+        /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde)\b/i
+      )?.[1];
+      if (chairModel) {
+        const nice = chairModel.replace(/\s+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        return `Silla ${nice}`;
+      }
       if (/\bsillas?\b/i.test(text)) return "sillas";
       if (
         /(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)|picnic/i.test(
@@ -964,6 +972,14 @@ function defFor(family: ProgressiveFamily): FamilyDef {
 export function hasConcreteServiceVariant(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
+  // A16166: "100 sillas wishbone" es concreto aunque no diga "mobiliario".
+  if (
+    /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde)\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
   for (const fam of FAMILIES) {
     if (fam.familyPattern.test(t) && fam.variantPattern.test(t)) return true;
   }

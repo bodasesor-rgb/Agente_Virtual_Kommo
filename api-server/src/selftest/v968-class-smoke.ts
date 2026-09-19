@@ -40,7 +40,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.08");
+assert.equal(LUCY_PROMPT_VERSION, "V10.09");
 
 // ── Parser: paninis / typos sandwich ──
 const paniniMsg =

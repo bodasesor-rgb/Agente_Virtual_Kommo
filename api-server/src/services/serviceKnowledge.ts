@@ -148,9 +148,16 @@ export function parseMobiliarioRentItems(
   }
   const sillas = query.match(/(\d+)\s*sillas?\b/i);
   if (/\bsillas?\b/i.test(query) && !/\bpicnic\b/i.test(query)) {
+    const model =
+      query.match(
+        /\b(wishbone|tiffany|crossback|ghost|tolix|camila|louis\s*xv|mariantonieta|avant\s*garde)\b/i
+      )?.[1] ?? null;
+    const modelLabel = model
+      ? model.replace(/\s+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+      : null;
     items.push({
       qty: sillas?.[1] ? parseInt(sillas[1], 10) : null,
-      label: "sillas",
+      label: modelLabel ? `sillas ${modelLabel}` : "sillas",
     });
   }
   // Mesas genéricas solo si no hay picnic ya listado.
