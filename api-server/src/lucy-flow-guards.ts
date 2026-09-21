@@ -16,6 +16,8 @@ import {
   looksLikePersonFullName,
   clientAsksCompanyIdentity,
   buildCompanyIdentityReply,
+  clientAsksLucyIdentity,
+  buildLucyIdentityReply,
 } from "./contact-name.js";
 import {
   buildEmailConfirmationPrompt,
@@ -5650,6 +5652,7 @@ function buildNameMismatchReplyIfNeeded(
     isLikelyNotPersonNameMessage(currentMessage) ||
     isQuoteIntentMessage(currentMessage) ||
     clientAsksCompanyIdentity(currentMessage) ||
+    clientAsksLucyIdentity(currentMessage) ||
     isAmbiguousShortNumber(currentMessage, { lastAskedField })
   ) {
     return null;
@@ -6834,10 +6837,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       !isEquipmentListRfq(currentMessage)
     )
   ) {
-    // Primer contacto: intro aunque el brief ya traiga correo (A15007 lo llena antes).
+    // Primer contacto: intro SIEMPRE (A16228 — aunque el brief ya traiga nombre/correo).
     const isOpening =
       (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
-      !filledSet.has("Nombre del cliente") &&
+      !lucyHasPresented(presHistory) &&
       !presHistory.some((m) => m.role === "assistant");
     syncRichBriefIntoExtracted(extracted, filledSet, currentMessage);
     const services = parseServicesFromText(
@@ -6871,11 +6874,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const pendingAfter = getNextPendingField(extracted, filledSet);
     if (isReadyForClosing(filledSet)) {
       log?.info({ entityId }, "GUARD: V9.23 — RFQ rico completo → cierre");
+      const closeBody = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      // A16228: si es primer outbound, presentar a Lucy antes del cierre.
+      const withIntro =
+        isOpening && !/soy\s+lucy/i.test(closeBody)
+          ? `${LUCY_INTRO} ${closeBody}`.trim()
+          : closeBody;
       return normalizeAdvisorReferences(
-        buildClosing(
-          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-          extracted.nombre
-        ),
+        withIntro,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
@@ -6888,7 +6897,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       : `${intro}${ack}${catalogBlock}`.trim();
     log?.info(
       { entityId, pending: pendingAfter, catalog: !!catalogBlock, opening: isOpening },
-      "GUARD: V9.23 — RFQ rico: sync + ack + embudo (sin dump)"
+      "GUARD: A16228/V9.23 — RFQ rico: intro Lucy + ack + embudo"
     );
     return normalizeAdvisorReferences(
       body,
@@ -8177,6 +8186,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildCompanyEmailConfirmReply();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente preguntó por correo de Bodasesor");
+  } else if (clientAsksLucyIdentity(currentMessage)) {
+    // A16228: "¿con quién tengo el gusto?" / "quién eres" → siempre presentarse (también post-cierre).
+    const knownName =
+      sanitizeCrmNombre(extracted.nombre) ??
+      sanitizeCrmNombre(whatsappDisplayName) ??
+      sanitizeDisplayName(whatsappDisplayName);
+    mensaje = buildLucyIdentityReply(knownName);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16228 — cliente preguntó identidad de Lucy");
   } else if (clientAsksCompanyIdentity(currentMessage)) {
     const knownName =
       sanitizeCrmNombre(extracted.nombre) ??
@@ -8625,11 +8643,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     !clientMentionsPistaTarima(currentMessage) &&
     // Show / MC / hora loca → rama de entretenimiento (manda catálogo propio).
     !clientMentionsEntertainment(currentMessage) &&
-    // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
+    // Primer turno: buildFirstInteractionMessage ya arma intro + ack + catálogo
+    // (con o sin nombre — A16228 RFQ con nombre en el brief).
     !(
       (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
-      !conversationAlreadyStarted(filledSet, presHistory) &&
-      !isFieldSatisfied("nombre", filledSet, extracted)
+      !lucyHasPresented(presHistory) &&
+      !history.some((m) => m.role === "assistant")
     )
   ) {
     // A14987: RFQ de renta mobiliario (picnic/periqueras/bancos) → detalle concreto,
@@ -9029,13 +9048,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: primer mensaje — temática italiana");
   } else if (
     (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
-    !conversationAlreadyStarted(filledSet, presHistory) &&
-    isRichQuoteBrief(currentMessage) &&
-    !isFieldSatisfied("nombre", filledSet, extracted)
+    !lucyHasPresented(presHistory) &&
+    !history.some((m) => m.role === "assistant") &&
+    isRichQuoteBrief(currentMessage)
   ) {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: primer mensaje — RFQ largo (ack + catálogo + nombre)");
+    log?.info({ entityId }, "GUARD: A16228 — primer mensaje RFQ largo (intro Lucy siempre)");
   } else if (
     currentMessage &&
     // A15878: "De momento no" cuenta como waiver solo si la pregunta previa fue de presupuesto.
@@ -9130,13 +9149,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: servicio consultivo en primer turno + detalle Sheet");
   } else if (
     (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
-    !conversationAlreadyStarted(filledSet, presHistory) &&
-    !isFieldSatisfied("nombre", filledSet, extracted)
+    !lucyHasPresented(presHistory) &&
+    !history.some((m) => m.role === "assistant")
   ) {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     if (messageHasSheetServiceDetail(mensaje)) appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: primer mensaje — presentación Lucy + nombre (+ detalle si hay servicio)");
+    log?.info({ entityId }, "GUARD: A16228 — primer mensaje presentación Lucy (con o sin nombre)");
   } else if (
     // A14933: precio ANTES de upsell mantelería / detalle mobiliario genérico.
     !cierreYaEnviado &&
@@ -10920,17 +10939,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         log?.info({ entityId }, "GUARD: precio del Sheet en rama de ventas");
       }
     }
-    // Primer turno con pitch de venta: intro Lucy + nombre si falta (A14929).
+    // Primer turno con pitch de venta: intro Lucy siempre (A16228 — aunque ya haya nombre).
     if (
       (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
-      !conversationAlreadyStarted(filledSet, presHistory) &&
       !lucyHasPresented(presHistory) &&
-      !isFieldSatisfied("nombre", filledSet, extracted)
+      !history.some((m) => m.role === "assistant")
     ) {
       if (!/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
         mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
       }
       if (
+        !isFieldSatisfied("nombre", filledSet, extracted) &&
         !mensajeAsksForField(mensaje, "nombre") &&
         !/\b(cu[aá]l\s+es\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre)\b/i.test(
           mensaje
@@ -10949,11 +10968,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         presHistory
       );
     }
+    // Solo quitar intro si Lucy YA se presentó en el hilo (A16228: no strip en 1er outbound).
     mensaje = stripRepeatLucyIntro(
       mensaje,
       presHistory,
-      conversationAlreadyStarted(filledSet, presHistory) ||
-        funnelHasSubstance(filledSet, extracted)
+      lucyHasPresented(presHistory)
     );
     return normalizeAdvisorReferences(mensaje, extracted.nombre);
   }
@@ -10961,24 +10980,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
 
   const presHistoryForIntro = input.presentationHistory ?? history;
+  // A16228: primer outbound siempre con intro, aunque el RFQ ya traiga nombre/fecha/servicios.
   const isOpeningTurn =
     (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) &&
-    !conversationAlreadyStarted(filledSet, presHistoryForIntro) &&
-    !funnelHasSubstance(filledSet, extracted) &&
-    !lucyHasPresented(presHistoryForIntro);
+    !lucyHasPresented(presHistoryForIntro) &&
+    !history.some((m) => m.role === "assistant");
   if (
     isOpeningTurn &&
     !/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)
   ) {
     mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
-    log?.info({ entityId }, "GUARD: presentación Lucy añadida al primer mensaje");
+    log?.info({ entityId }, "GUARD: A16228 — presentación Lucy añadida al primer mensaje");
   }
 
-  // A15893: historial vacío pero CRM ya avanzado → nunca re-presentar a Lucy.
-  if (
-    conversationAlreadyStarted(filledSet, presHistoryForIntro) ||
-    funnelHasSubstance(filledSet, extracted)
-  ) {
+  // Solo strip de intro repetida si Lucy ya se presentó antes en el historial.
+  if (lucyHasPresented(presHistoryForIntro)) {
     mensaje = stripRepeatLucyIntro(mensaje, presHistoryForIntro, true);
   }
 

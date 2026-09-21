@@ -129951,6 +129951,17 @@ function buildCompanyIdentityReply(clientName) {
   const base = "S\xED, soy Lucy de Bodasesor (Cap&Bara Eventos). Te ayudo a armar tu cotizaci\xF3n por aqu\xED.";
   return nombre ? `${base} \xBFSeguimos, ${nombre}?` : `${base} \xBFMe regalas tu nombre para iniciar?`;
 }
+function clientAsksLucyIdentity(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  if (COMPANY_OR_CHANNEL_PATTERN.test(t4) || /cap\s*[&y]?\s*bata/i.test(t4)) return false;
+  return /\bcon\s+qui[eé]n\s+tengo\s+el\s+gusto\b/i.test(t4) || /\bcon\s+qui[eé]n\s+hablo\b/i.test(t4) || /\bqui[eé]n\s+(eres|sos|es\s+usted)\b/i.test(t4) || /\b(c[oó]mo\s+te\s+llamas|cual\s+es\s+tu\s+nombre|cu[aá]l\s+es\s+tu\s+nombre)\b/i.test(t4) || /\bme\s+(puedes\s+)?presentas?\b/i.test(t4) || /\bte\s+puedes\s+presentar\b/i.test(t4) || /\bqui[eé]n\s+me\s+(atiende|escribe|contesta)\b/i.test(t4);
+}
+function buildLucyIdentityReply(clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  const base = "Soy *Lucy*, agente virtual de Bodasesor. Te ayudo a armar tu cotizaci\xF3n por aqu\xED.";
+  return nombre ? `${base} \xBFEn qu\xE9 m\xE1s te apoyo, ${nombre}?` : `${base} \xBFEn qu\xE9 te puedo ayudar?`;
+}
 function isServicePreferenceAsNombre(text2) {
   const t4 = text2?.trim() ?? "";
   if (!t4) return false;
@@ -164178,7 +164189,7 @@ function makeQuestionCtx(input) {
   };
 }
 function buildNameMismatchReplyIfNeeded(currentMessage, extracted, filledSet, whatsappDisplayName, lastAskedField) {
-  if (!currentMessage || isFieldSatisfied("nombre", filledSet, extracted) || isGreetingOnlyMessage(currentMessage) || isLikelyNotPersonNameMessage(currentMessage) || isQuoteIntentMessage(currentMessage) || clientAsksCompanyIdentity(currentMessage) || isAmbiguousShortNumber(currentMessage, { lastAskedField })) {
+  if (!currentMessage || isFieldSatisfied("nombre", filledSet, extracted) || isGreetingOnlyMessage(currentMessage) || isLikelyNotPersonNameMessage(currentMessage) || isQuoteIntentMessage(currentMessage) || clientAsksCompanyIdentity(currentMessage) || clientAsksLucyIdentity(currentMessage) || isAmbiguousShortNumber(currentMessage, { lastAskedField })) {
     return null;
   }
   const existingNombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeCrmNombre(whatsappDisplayName) ?? null;
@@ -164949,7 +164960,7 @@ ${catalogUrl}`
     }
   }
   if (!cierreYaEnviado && currentMessage && (isRichQuoteBrief(currentMessage) || isEquipmentListRfq(currentMessage)) && !(isMobiliarioRentalPedido(currentMessage) && parseMobiliarioRentItems(currentMessage).length >= 1 && parseServicesFromText(currentMessage).filter((s7) => !/mobiliario/i.test(s7)).length === 0 && !isEquipmentListRfq(currentMessage))) {
-    const isOpening = (forceFirstPresentation || isFirstLucyReply(presHistory)) && !filledSet.has("Nombre del cliente") && !presHistory.some((m6) => m6.role === "assistant");
+    const isOpening = (forceFirstPresentation || isFirstLucyReply(presHistory)) && !lucyHasPresented(presHistory) && !presHistory.some((m6) => m6.role === "assistant");
     syncRichBriefIntoExtracted(extracted, filledSet, currentMessage);
     const services = parseServicesFromText(
       `${extracted.requerimientos_evento ?? ""} ${currentMessage}`
@@ -164971,11 +164982,13 @@ ${buildPackageCatalogOfferBlock(services, currentMessage)}` : "";
     const pendingAfter = getNextPendingField(extracted, filledSet);
     if (isReadyForClosing(filledSet)) {
       log?.info({ entityId }, "GUARD: V9.23 \u2014 RFQ rico completo \u2192 cierre");
+      const closeBody = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      const withIntro = isOpening && !/soy\s+lucy/i.test(closeBody) ? `${LUCY_INTRO} ${closeBody}`.trim() : closeBody;
       return normalizeAdvisorReferences2(
-        buildClosing(
-          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-          extracted.nombre
-        ),
+        withIntro,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
@@ -164986,7 +164999,7 @@ ${buildPackageCatalogOfferBlock(services, currentMessage)}` : "";
 ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
     log?.info(
       { entityId, pending: pendingAfter, catalog: !!catalogBlock, opening: isOpening },
-      "GUARD: V9.23 \u2014 RFQ rico: sync + ack + embudo (sin dump)"
+      "GUARD: A16228/V9.23 \u2014 RFQ rico: intro Lucy + ack + embudo"
     );
     return normalizeAdvisorReferences2(
       body2,
@@ -165820,6 +165833,11 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     mensaje = buildCompanyEmailConfirmReply();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 por correo de Bodasesor");
+  } else if (clientAsksLucyIdentity(currentMessage)) {
+    const knownName = sanitizeCrmNombre(extracted.nombre) ?? sanitizeCrmNombre(whatsappDisplayName) ?? sanitizeDisplayName(whatsappDisplayName);
+    mensaje = buildLucyIdentityReply(knownName);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16228 \u2014 cliente pregunt\xF3 identidad de Lucy");
   } else if (clientAsksCompanyIdentity(currentMessage)) {
     const knownName = sanitizeCrmNombre(extracted.nombre) ?? sanitizeCrmNombre(whatsappDisplayName) ?? sanitizeDisplayName(whatsappDisplayName);
     mensaje = buildCompanyIdentityReply(knownName);
@@ -166109,8 +166127,9 @@ ${buildPackageCatalogOfferBlock(
   (servicesFromCurrentMessageConcrete.length >= 2 || isRichQuoteBrief(currentMessage)) && !cierreYaEnviado && // A15000: RFQ multi-servicio ("opciones de alimentos + meseros + mobiliario")
   // NO se trata como pregunta puntual aunque diga "opciones"/"costo".
   !(clientAsksServiceInfo(currentMessage) && servicesFromCurrentMessageConcrete.length < 2) && !clientMentionsCarpas(currentMessage) && !clientMentionsPistaTarima(currentMessage) && // Show / MC / hora loca → rama de entretenimiento (manda catálogo propio).
-  !clientMentionsEntertainment(currentMessage) && // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
-  !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted))) {
+  !clientMentionsEntertainment(currentMessage) && // Primer turno: buildFirstInteractionMessage ya arma intro + ack + catálogo
+  // (con o sin nombre — A16228 RFQ con nombre en el brief).
+  !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !lucyHasPresented(presHistory) && !history.some((m6) => m6.role === "assistant"))) {
     if (isMobiliarioRentalPedido(currentMessage) && !clientMentionsCarpas(currentMessage) && parseMobiliarioRentItems(currentMessage ?? "").length >= 1 && servicesFromCurrentMessageConcrete.filter((s7) => !/mobiliario/i.test(s7)).length === 0 && !isEquipmentListRfq(currentMessage)) {
       if (extracted.direccion_evento && (/^color\b/i.test(extracted.direccion_evento.trim()) || isNonLocationBusinessPhrase(extracted.direccion_evento))) {
         extracted.direccion_evento = null;
@@ -166366,10 +166385,10 @@ ${catalog}`,
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje \u2014 tem\xE1tica italiana");
-  } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && isRichQuoteBrief(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
+  } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !lucyHasPresented(presHistory) && !history.some((m6) => m6.role === "assistant") && isRichQuoteBrief(currentMessage)) {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: primer mensaje \u2014 RFQ largo (ack + cat\xE1logo + nombre)");
+    log?.info({ entityId }, "GUARD: A16228 \u2014 primer mensaje RFQ largo (intro Lucy siempre)");
   } else if (currentMessage && // A15878: "De momento no" cuenta como waiver solo si la pregunta previa fue de presupuesto.
   detectPresupuestoRefusalInContext(
     currentMessage,
@@ -166425,11 +166444,11 @@ ${pickVariant("nombre", presHistory, entityId)}` : `${LUCY_INTRO} ${buildGuardSe
     appliedDirectReply = true;
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: servicio consultivo en primer turno + detalle Sheet");
-  } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted)) {
+  } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !lucyHasPresented(presHistory) && !history.some((m6) => m6.role === "assistant")) {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     if (messageHasSheetServiceDetail(mensaje)) appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: primer mensaje \u2014 presentaci\xF3n Lucy + nombre (+ detalle si hay servicio)");
+    log?.info({ entityId }, "GUARD: A16228 \u2014 primer mensaje presentaci\xF3n Lucy (con o sin nombre)");
   } else if (
     // A14933: precio ANTES de upsell mantelería / detalle mobiliario genérico.
     !cierreYaEnviado && currentMessage && clientAsksPrice(currentMessage) && mentionsNoListedPriceService(currentMessage ?? "")
@@ -167681,11 +167700,11 @@ ${buildNaturalQuestion(pendingFinal, ctx)}` : fromCatalog;
         log?.info({ entityId }, "GUARD: precio del Sheet en rama de ventas");
       }
     }
-    if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !lucyHasPresented(presHistory) && !isFieldSatisfied("nombre", filledSet, extracted)) {
+    if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !lucyHasPresented(presHistory) && !history.some((m6) => m6.role === "assistant")) {
       if (!/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
         mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
       }
-      if (!mensajeAsksForField(mensaje, "nombre") && !/\b(cu[aá]l\s+es\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre)\b/i.test(
+      if (!isFieldSatisfied("nombre", filledSet, extracted) && !mensajeAsksForField(mensaje, "nombre") && !/\b(cu[aá]l\s+es\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre)\b/i.test(
         mensaje
       )) {
         mensaje = `${mensaje}
@@ -167706,18 +167725,18 @@ ${pickVariant("nombre", history, entityId)}`.trim();
     mensaje = stripRepeatLucyIntro(
       mensaje,
       presHistory,
-      conversationAlreadyStarted(filledSet, presHistory) || funnelHasSubstance(filledSet, extracted)
+      lucyHasPresented(presHistory)
     );
     return normalizeAdvisorReferences2(mensaje, extracted.nombre);
   }
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
   const presHistoryForIntro = input.presentationHistory ?? history;
-  const isOpeningTurn = (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) && !conversationAlreadyStarted(filledSet, presHistoryForIntro) && !funnelHasSubstance(filledSet, extracted) && !lucyHasPresented(presHistoryForIntro);
+  const isOpeningTurn = (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) && !lucyHasPresented(presHistoryForIntro) && !history.some((m6) => m6.role === "assistant");
   if (isOpeningTurn && !/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
     mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
-    log?.info({ entityId }, "GUARD: presentaci\xF3n Lucy a\xF1adida al primer mensaje");
+    log?.info({ entityId }, "GUARD: A16228 \u2014 presentaci\xF3n Lucy a\xF1adida al primer mensaje");
   }
-  if (conversationAlreadyStarted(filledSet, presHistoryForIntro) || funnelHasSubstance(filledSet, extracted)) {
+  if (lucyHasPresented(presHistoryForIntro)) {
     mensaje = stripRepeatLucyIntro(mensaje, presHistoryForIntro, true);
   }
   if (!cierreYaEnviado && /\b(quedo\s+atenta|te\s+gustar[ií]a\s+que\s+te\s+(d[eé]|compart[aá])\s+m[aá]s\s+detalles|si\s+necesitas\s+algo\s+m[aá]s)\b/i.test(
@@ -227701,7 +227720,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.10";
+var LUCY_PROMPT_VERSION = "V10.11";
 
 // src/lib/buildMeta.ts
 var cached = null;

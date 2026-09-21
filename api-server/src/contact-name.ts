@@ -300,6 +300,32 @@ export function buildCompanyIdentityReply(clientName?: string | null): string {
 }
 
 /**
+ * A16228: cliente pregunta quién es Lucy / con quién habla (no Cap&Bara ni asesor humano).
+ */
+export function clientAsksLucyIdentity(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  // Empresa/canal → otra rama.
+  if (COMPANY_OR_CHANNEL_PATTERN.test(t) || /cap\s*[&y]?\s*bata/i.test(t)) return false;
+  return (
+    /\bcon\s+qui[eé]n\s+tengo\s+el\s+gusto\b/i.test(t) ||
+    /\bcon\s+qui[eé]n\s+hablo\b/i.test(t) ||
+    /\bqui[eé]n\s+(eres|sos|es\s+usted)\b/i.test(t) ||
+    /\b(c[oó]mo\s+te\s+llamas|cual\s+es\s+tu\s+nombre|cu[aá]l\s+es\s+tu\s+nombre)\b/i.test(t) ||
+    /\bme\s+(puedes\s+)?presentas?\b/i.test(t) ||
+    /\bte\s+puedes\s+presentar\b/i.test(t) ||
+    /\bqui[eé]n\s+me\s+(atiende|escribe|contesta)\b/i.test(t)
+  );
+}
+
+export function buildLucyIdentityReply(clientName?: string | null): string {
+  const nombre = sanitizeDisplayName(clientName);
+  const base =
+    "Soy *Lucy*, agente virtual de Bodasesor. Te ayudo a armar tu cotización por aquí.";
+  return nombre ? `${base} ¿En qué más te apoyo, ${nombre}?` : `${base} ¿En qué te puedo ayudar?`;
+}
+
+/**
  * Preferencia de servicio / display WA ≠ nombre (clase A15705+).
  * Cubre: "Sería De Catering", "Prefiero banquete", "Solo mobiliario", "De Taquiza", etc.
  */

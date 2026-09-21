@@ -19,7 +19,7 @@ import { buildLucyInfoInclusionReply } from "../services/lucyInfoPriceCache.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.10");
+assert.equal(LUCY_PROMPT_VERSION, "V10.11");
 
 function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   return {
