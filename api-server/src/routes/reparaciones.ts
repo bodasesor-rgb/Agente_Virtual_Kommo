@@ -45,9 +45,13 @@ router.get("/reparaciones/stats", async (_req: Request, res: Response) => {
 
 router.post("/reparaciones/run", async (req: Request, res: Response) => {
   try {
+    const onlyToday = req.body?.onlyToday !== false;
     const result = await runLucyAuditorBatch({
-      limitLeads: Math.min(Number(req.body?.limitLeads ?? 12), 30),
+      limitLeads: Math.min(Number(req.body?.limitLeads ?? (onlyToday ? 50 : 20)), 80),
       useFlash: req.body?.useFlash !== false,
+      onlyToday,
+      syncFromKommo: req.body?.syncFromKommo !== false,
+      oncePerDay: false,
     });
     res.json({ ok: true, ...result });
   } catch (err) {

@@ -131,7 +131,12 @@ btnRun.addEventListener("click", async () => {
     const res = await fetch("/api/reparaciones/run", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ limitLeads: 12 }),
+      body: JSON.stringify({
+        limitLeads: 50,
+        onlyToday: true,
+        syncFromKommo: true,
+        useFlash: true,
+      }),
     });
     if (res.status === 401) {
       // Cron público existe; para panel sin login usamos cron
@@ -139,13 +144,13 @@ btnRun.addEventListener("click", async () => {
         r.json()
       );
       alert(
-        `Auditoría (cron): ${cron.scanned ?? 0} chats · ${cron.recorded ?? 0} registradas · Flash ${cron.flashCalls ?? 0}`
+        `Auditoría (cron): ${cron.scanned ?? 0} chats · sync ${cron.syncedFromKommo ?? 0} · ${cron.recorded ?? 0} registradas · Flash ${cron.flashCalls ?? 0}`
       );
     } else {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "falló");
       alert(
-        `Auditoría: ${data.scanned} chats · ${data.recorded} registradas · Flash ${data.flashCalls}`
+        `Auditoría: ${data.scanned} chats · sync Kommo ${data.syncedFromKommo ?? 0} · ${data.recorded} registradas · Flash ${data.flashCalls}`
       );
     }
     await refresh();

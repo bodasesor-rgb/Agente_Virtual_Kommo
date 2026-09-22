@@ -136,7 +136,9 @@ export function runAuditorHeuristics(turns: TranscriptTurn[]): HeuristicFinding[
 }
 
 export function transcriptNeedsFlash(turns: TranscriptTurn[], heuristicCount: number): boolean {
+  // Si ya hay hallazgo heurístico, no gastar Flash en ese chat.
   if (heuristicCount > 0) return false;
   const assistants = turns.filter((t) => t.role === "assistant").length;
-  return assistants >= 4 && turns.length >= 8;
+  // Umbral bajo: chats con Lucy (2+ replies) y algo de ida/vuelta.
+  return assistants >= 2 && turns.length >= 4;
 }

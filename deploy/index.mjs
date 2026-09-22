@@ -434,6 +434,43 @@ var init_openaiEnv = __esm({
   }
 });
 
+// src/lib/kommoEnv.ts
+function getKommoAccessToken() {
+  return process.env["KOMMO_ACCESS_TOKEN"]?.trim() || process.env["KOMMO_TOKEN_LARGA_DURACION"]?.trim() || process.env["KOMMO_LONG_LIVED_TOKEN"]?.trim() || "";
+}
+function normalizeKommoSubdomain(raw) {
+  let s7 = raw.trim().replace(/\s+/g, "").toLowerCase();
+  if (!s7) return "";
+  const fromUrl = s7.match(/^(?:https?:\/\/)?([a-z0-9-]+)\.kommo\.com\/?$/);
+  if (fromUrl?.[1]) return fromUrl[1];
+  s7 = s7.replace(/^https?:\/\//, "");
+  s7 = s7.replace(/\.kommo\.com.*$/, "");
+  s7 = s7.replace(/\/.*$/, "");
+  return s7;
+}
+function getKommoSubdomain() {
+  const raw = process.env["KOMMO_SUBDOMAIN"]?.trim() || process.env["SUBDOMINIO_KOMMO"]?.trim() || process.env["KOMMO_SUBDOMINIO"]?.trim() || "";
+  return normalizeKommoSubdomain(raw);
+}
+function isKommoConfigured() {
+  return getKommoAccessToken().length > 0 && getKommoSubdomain().length > 0;
+}
+function ensureKommoEnv() {
+  const token = getKommoAccessToken();
+  if (token && !process.env["KOMMO_ACCESS_TOKEN"]?.trim()) {
+    process.env["KOMMO_ACCESS_TOKEN"] = token;
+  }
+  const subdomain = getKommoSubdomain();
+  if (subdomain && !process.env["KOMMO_SUBDOMAIN"]?.trim()) {
+    process.env["KOMMO_SUBDOMAIN"] = subdomain;
+  }
+}
+var init_kommoEnv = __esm({
+  "src/lib/kommoEnv.ts"() {
+    "use strict";
+  }
+});
+
 // ../node_modules/ms/index.js
 var require_ms = __commonJS({
   "../node_modules/ms/index.js"(exports, module2) {
@@ -188212,7 +188249,7 @@ function runAuditorHeuristics(turns) {
 function transcriptNeedsFlash(turns, heuristicCount) {
   if (heuristicCount > 0) return false;
   const assistants = turns.filter((t4) => t4.role === "assistant").length;
-  return assistants >= 4 && turns.length >= 8;
+  return assistants >= 2 && turns.length >= 4;
 }
 var URL_RE, CLOSE_RE, PRICE_RE, DETAIL_RE, FUNNEL_Q_RE;
 var init_lucyAuditorHeuristics = __esm({
@@ -188544,50 +188581,123 @@ __export(lucyAuditor_exports, {
 function getLastDailyAuditDay() {
   return lastDailyRunDay;
 }
-async function loadTodayTranscripts(limitLeads = 40) {
-  const since = startOfMexicoCityDay();
-  const convs = await db.select({ leadId: conversations.kommoLeadId }).from(conversations).where(gte(conversations.updatedAt, since)).orderBy(desc(conversations.updatedAt)).limit(limitLeads);
-  const out2 = [];
-  for (const c5 of convs) {
-    const rows = await db.select({
-      role: messages.role,
-      content: messages.content
-    }).from(messages).where(
-      and(eq(messages.kommoLeadId, c5.leadId), gte(messages.timestamp, since))
-    ).orderBy(messages.timestamp).limit(60);
-    if (rows.length < 2) continue;
-    if (!rows.some((r5) => r5.role === "assistant")) continue;
-    out2.push({
-      leadId: c5.leadId,
-      turns: rows.map((r5) => ({
-        role: r5.role,
-        content: r5.content ?? ""
-      }))
-    });
-  }
-  return out2;
+async function loadLeadIdsWithMessagesSince(since, limitLeads) {
+  const rows = await db.select({
+    leadId: messages.kommoLeadId,
+    lastAt: sql`max(${messages.timestamp})`.as("last_at")
+  }).from(messages).where(gte(messages.timestamp, since)).groupBy(messages.kommoLeadId).orderBy(desc(sql`max(${messages.timestamp})`)).limit(limitLeads);
+  return rows.map((r5) => String(r5.leadId)).filter(Boolean);
 }
-async function loadRecentTranscripts(limitLeads = 12) {
-  const convs = await db.select({ leadId: conversations.kommoLeadId }).from(conversations).orderBy(desc(conversations.updatedAt)).limit(limitLeads);
+async function loadLeadIdsRecent(limitLeads) {
+  const rows = await db.select({
+    leadId: messages.kommoLeadId,
+    lastAt: sql`max(${messages.timestamp})`.as("last_at")
+  }).from(messages).groupBy(messages.kommoLeadId).orderBy(desc(sql`max(${messages.timestamp})`)).limit(limitLeads);
+  return rows.map((r5) => String(r5.leadId)).filter(Boolean);
+}
+async function loadTurnsForLead(leadId, since, limit2 = 60) {
+  const rows = await db.select({
+    role: messages.role,
+    content: messages.content
+  }).from(messages).where(
+    since ? and(eq(messages.kommoLeadId, leadId), gte(messages.timestamp, since)) : eq(messages.kommoLeadId, leadId)
+  ).orderBy(messages.timestamp).limit(limit2);
+  return rows.map((r5) => ({
+    role: r5.role,
+    content: r5.content ?? ""
+  }));
+}
+async function syncTodayLeadsFromKommo(limitLeads) {
+  const subdomain = getKommoSubdomain();
+  const accessToken = getKommoAccessToken();
+  if (!subdomain || !accessToken) {
+    logger.warn("lucyAuditor: sin Kommo \u2014 no se puede sync del d\xEDa");
+    return 0;
+  }
+  const sinceSec = Math.floor(startOfMexicoCityDay().getTime() / 1e3);
+  const leadIds = /* @__PURE__ */ new Set();
+  const urls = [
+    `https://${subdomain}.kommo.com/api/v4/leads?filter[pipeline_id]=${PIPELINE_ID}&limit=${Math.min(limitLeads, 100)}&order[updated_at]=desc`,
+    ...[ETAPA.DATOS_E_INTERESES, ETAPA.LEADS_ENTRANTES, ETAPA.NO_CONTESTA, ETAPA.HUMANO_TRABAJA].map(
+      (statusId) => `https://${subdomain}.kommo.com/api/v4/leads?filter[statuses][0][pipeline_id]=${PIPELINE_ID}&filter[statuses][0][status_id]=${statusId}&limit=50&order[updated_at]=desc`
+    )
+  ];
+  for (const url2 of urls) {
+    try {
+      const res = await fetch(url2, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      for (const lead of data._embedded?.leads ?? []) {
+        if (lead.id == null) continue;
+        if (lead.updated_at != null && lead.updated_at < sinceSec) continue;
+        leadIds.add(String(lead.id));
+        if (leadIds.size >= limitLeads) break;
+      }
+      if (leadIds.size >= Math.min(20, limitLeads)) break;
+    } catch (err2) {
+      logger.warn({ err: err2 }, "lucyAuditor: list leads Kommo fall\xF3");
+    }
+  }
+  let synced = 0;
+  const ids = [...leadIds].slice(0, limitLeads);
+  for (const leadId of ids) {
+    try {
+      const conv = await db.query.conversations.findFirst({
+        where: eq(conversations.kommoLeadId, leadId)
+      });
+      const talkId = await resolveKommoTalkId({
+        subdomain,
+        accessToken,
+        leadId,
+        knownTalkId: conv?.kommoTalkId ?? null,
+        knownChatId: conv?.kommoChatId ?? null
+      });
+      if (!talkId) continue;
+      if (!conv) {
+        await db.insert(conversations).values({
+          kommoLeadId: leadId,
+          kommoChatId: leadId,
+          kommoTalkId: String(talkId),
+          status: "active",
+          stage: "discovery"
+        });
+      } else {
+        await db.update(conversations).set({ kommoTalkId: String(talkId), updatedAt: /* @__PURE__ */ new Date() }).where(eq(conversations.kommoLeadId, leadId));
+      }
+      await syncLeadTranscript({
+        kommoLeadId: leadId,
+        talkId: String(talkId),
+        subdomain,
+        accessToken
+      });
+      synced += 1;
+    } catch (err2) {
+      logger.warn({ err: err2, leadId }, "lucyAuditor: sync lead fall\xF3");
+    }
+  }
+  logger.info({ synced, candidates: ids.length }, "lucyAuditor: sync Kommo del d\xEDa");
+  return synced;
+}
+async function loadTranscriptsForLeadIds(leadIds, since) {
   const out2 = [];
-  for (const c5 of convs) {
-    const rows = await db.select({
-      role: messages.role,
-      content: messages.content
-    }).from(messages).where(eq(messages.kommoLeadId, c5.leadId)).orderBy(messages.timestamp).limit(40);
-    if (rows.length < 2) continue;
-    out2.push({
-      leadId: c5.leadId,
-      turns: rows.map((r5) => ({
-        role: r5.role,
-        content: r5.content ?? ""
-      }))
-    });
+  for (const leadId of leadIds) {
+    const turns = await loadTurnsForLead(leadId, since);
+    if (turns.length < 2) continue;
+    const hasReply = turns.some(
+      (t4) => t4.role === "assistant" || t4.role === "human"
+    );
+    if (!hasReply) continue;
+    out2.push({ leadId, turns });
   }
   return out2;
 }
 function formatTranscript(turns) {
-  return turns.map((t4) => `${t4.role === "assistant" ? "LUCY" : "CLIENTE"}: ${t4.content}`).join("\n").slice(0, 6e3);
+  return turns.map((t4) => {
+    const who = t4.role === "assistant" ? "LUCY" : t4.role === "human" ? "HUMANO" : "CLIENTE";
+    return `${who}: ${t4.content}`;
+  }).join("\n").slice(0, 6e3);
 }
 async function runLucyAuditorBatch(opts) {
   const dayKey2 = mexicoCityDayKey();
@@ -188602,13 +188712,20 @@ async function runLucyAuditorBatch(opts) {
       quota: getAuditorQuotaSnapshot()
     };
   }
-  const limitLeads = opts?.limitLeads ?? (opts?.onlyToday ? 40 : 12);
-  const useFlash = opts?.useFlash !== false;
   const onlyToday = opts?.onlyToday === true;
+  const limitLeads = opts?.limitLeads ?? (onlyToday ? 50 : 20);
+  const useFlash = opts?.useFlash !== false;
+  const syncFromKommo = opts?.syncFromKommo !== false && onlyToday;
+  let syncedFromKommo = 0;
+  if (syncFromKommo) {
+    syncedFromKommo = await syncTodayLeadsFromKommo(limitLeads);
+  }
+  const since = onlyToday ? startOfMexicoCityDay() : null;
+  const leadIds = onlyToday ? await loadLeadIdsWithMessagesSince(since, limitLeads) : await loadLeadIdsRecent(limitLeads);
   let flashCalls = 0;
   let findings = 0;
   let recorded = 0;
-  const transcripts = onlyToday ? await loadTodayTranscripts(limitLeads) : await loadRecentTranscripts(limitLeads);
+  const transcripts = await loadTranscriptsForLeadIds(leadIds, since);
   for (const { leadId, turns } of transcripts) {
     const heuristic = runAuditorHeuristics(turns);
     for (const f7 of heuristic) {
@@ -188624,7 +188741,8 @@ async function runLucyAuditorBatch(opts) {
       });
       if (ok) recorded += 1;
     }
-    if (useFlash && transcriptNeedsFlash(turns, heuristic.length) && canSpendAuditorCall()) {
+    const hasLucy = turns.some((t4) => t4.role === "assistant");
+    if (useFlash && hasLucy && transcriptNeedsFlash(turns, heuristic.length) && canSpendAuditorCall()) {
       const llmFindings = await runAuditorLlm(formatTranscript(turns));
       flashCalls += 1;
       for (const f7 of llmFindings) {
@@ -188651,6 +188769,7 @@ async function runLucyAuditorBatch(opts) {
     findings,
     recorded,
     flashCalls,
+    syncedFromKommo,
     dayKey: dayKey2,
     quota: getAuditorQuotaSnapshot()
   };
@@ -188661,6 +188780,7 @@ async function runLucyAuditorDaily() {
   return runLucyAuditorBatch({
     onlyToday: true,
     oncePerDay: true,
+    syncFromKommo: true,
     limitLeads: 50,
     useFlash: true
   });
@@ -188671,11 +188791,15 @@ var init_lucyAuditor = __esm({
     "use strict";
     await init_src2();
     init_drizzle_orm();
+    init_kommoEnv();
     init_logger2();
     init_lucyAuditorHeuristics();
     init_lucyAuditorLlm();
     await init_lucyRepairStore();
     init_lucyAuditorTime();
+    await init_chatIngest();
+    init_kommoTalks();
+    await init_embudo();
     init_lucyAuditorLlm();
     init_lucyAuditorTime();
     lastDailyRunDay = null;
@@ -228584,38 +228708,7 @@ var init_dist3 = __esm({
 
 // src/index.ts
 init_openaiEnv();
-
-// src/lib/kommoEnv.ts
-function getKommoAccessToken() {
-  return process.env["KOMMO_ACCESS_TOKEN"]?.trim() || process.env["KOMMO_TOKEN_LARGA_DURACION"]?.trim() || process.env["KOMMO_LONG_LIVED_TOKEN"]?.trim() || "";
-}
-function normalizeKommoSubdomain(raw) {
-  let s7 = raw.trim().replace(/\s+/g, "").toLowerCase();
-  if (!s7) return "";
-  const fromUrl = s7.match(/^(?:https?:\/\/)?([a-z0-9-]+)\.kommo\.com\/?$/);
-  if (fromUrl?.[1]) return fromUrl[1];
-  s7 = s7.replace(/^https?:\/\//, "");
-  s7 = s7.replace(/\.kommo\.com.*$/, "");
-  s7 = s7.replace(/\/.*$/, "");
-  return s7;
-}
-function getKommoSubdomain() {
-  const raw = process.env["KOMMO_SUBDOMAIN"]?.trim() || process.env["SUBDOMINIO_KOMMO"]?.trim() || process.env["KOMMO_SUBDOMINIO"]?.trim() || "";
-  return normalizeKommoSubdomain(raw);
-}
-function isKommoConfigured() {
-  return getKommoAccessToken().length > 0 && getKommoSubdomain().length > 0;
-}
-function ensureKommoEnv() {
-  const token = getKommoAccessToken();
-  if (token && !process.env["KOMMO_ACCESS_TOKEN"]?.trim()) {
-    process.env["KOMMO_ACCESS_TOKEN"] = token;
-  }
-  const subdomain = getKommoSubdomain();
-  if (subdomain && !process.env["KOMMO_SUBDOMAIN"]?.trim()) {
-    process.env["KOMMO_SUBDOMAIN"] = subdomain;
-  }
-}
+init_kommoEnv();
 
 // src/app.ts
 var import_express14 = __toESM(require_express2(), 1);
@@ -228896,6 +228989,7 @@ function lucyCostControlsSummary() {
 
 // src/routes/health.ts
 init_lucyGeminiSpend();
+init_kommoEnv();
 init_authJwt();
 init_catalogService();
 
@@ -234289,6 +234383,9 @@ async function recordKnowledgeGapIfNeeded(opts) {
   }
 }
 
+// src/routes/kommo.ts
+init_kommoEnv();
+
 // src/silentWatchCrm.ts
 init_lucy_flow_guards();
 init_contact_name();
@@ -237601,9 +237698,13 @@ router12.get("/reparaciones/stats", async (_req, res) => {
 });
 router12.post("/reparaciones/run", async (req, res) => {
   try {
+    const onlyToday = req.body?.onlyToday !== false;
     const result = await runLucyAuditorBatch({
-      limitLeads: Math.min(Number(req.body?.limitLeads ?? 12), 30),
-      useFlash: req.body?.useFlash !== false
+      limitLeads: Math.min(Number(req.body?.limitLeads ?? (onlyToday ? 50 : 20)), 80),
+      useFlash: req.body?.useFlash !== false,
+      onlyToday,
+      syncFromKommo: req.body?.syncFromKommo !== false,
+      oncePerDay: false
     });
     res.json({ ok: true, ...result });
   } catch (err2) {
