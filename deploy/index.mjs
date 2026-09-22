@@ -169659,9 +169659,13 @@ var init_learningExtractor = __esm({
 
 // src/services/chatIngest.ts
 import { createHash as createHash3 } from "crypto";
-function mapKommoAuthor(authorType) {
-  if (authorType === "external") return "client";
-  if (authorType === "bot") return "lucy";
+function mapKommoAuthor(authorType, authorName) {
+  const t4 = (authorType ?? "").trim().toLowerCase();
+  const n5 = (authorName ?? "").trim().toLowerCase();
+  if (t4 === "external" || t4 === "customer" || t4 === "client") return "client";
+  if (t4 === "bot" || t4 === "robot" || t4 === "ai" || n5.includes("lucy") || n5.includes("bodasesor bot")) {
+    return "lucy";
+  }
   return "human_agent";
 }
 function roleFromAuthor(author) {
@@ -169765,7 +169769,7 @@ async function syncLeadTranscript(input) {
   const raw = await fetchKommoTalkMessages(input.subdomain, input.accessToken, input.talkId, 80);
   let inserted = 0;
   for (const msg of raw) {
-    const authorType = mapKommoAuthor(msg.author?.type);
+    const authorType = mapKommoAuthor(msg.author?.type, msg.author?.name);
     const kommoMessageId = msg.id != null ? String(msg.id) : contentHash(input.kommoLeadId, authorType, msg.text);
     const ok = await persistChatMessage({
       kommoLeadId: input.kommoLeadId,
@@ -188159,6 +188163,14 @@ var init_learning = __esm({
 });
 
 // src/services/lucyAuditorHeuristics.ts
+function isOutgoing(t4) {
+  const r5 = String(t4.role ?? "").toLowerCase();
+  return r5 === "assistant" || r5 === "human" || r5 === "bot" || r5 === "lucy";
+}
+function isClient(t4) {
+  const r5 = String(t4.role ?? "").toLowerCase();
+  return r5 === "user" || r5 === "client" || r5 === "customer";
+}
 function normalizeText(t4) {
   return t4.toLowerCase().replace(/https?:\/\/\S+/g, "URL").replace(/\s+/g, " ").trim().slice(0, 280);
 }
@@ -188176,8 +188188,8 @@ function similar(a4, b5) {
 }
 function runAuditorHeuristics(turns) {
   const findings = [];
-  const assistants = turns.filter((t4) => t4.role === "assistant" && t4.content?.trim());
-  const users2 = turns.filter((t4) => t4.role === "user" && t4.content?.trim());
+  const assistants = turns.filter((t4) => isOutgoing(t4) && t4.content?.trim());
+  const users2 = turns.filter((t4) => isClient(t4) && t4.content?.trim());
   for (let i6 = 1; i6 < assistants.length; i6++) {
     const prev = extractUrls(assistants[i6 - 1].content);
     const cur = extractUrls(assistants[i6].content);
@@ -188248,7 +188260,7 @@ function runAuditorHeuristics(turns) {
 }
 function transcriptNeedsFlash(turns, heuristicCount) {
   if (heuristicCount > 0) return false;
-  const assistants = turns.filter((t4) => t4.role === "assistant").length;
+  const assistants = turns.filter((t4) => isOutgoing(t4)).length;
   return assistants >= 2 && turns.length >= 4;
 }
 var URL_RE, CLOSE_RE, PRICE_RE, DETAIL_RE, FUNNEL_Q_RE;
@@ -188728,6 +188740,7 @@ async function runLucyAuditorBatch(opts) {
       flashCalls: 0,
       skipped: "already_ran_today",
       dayKey: dayKey2,
+      summary: "Ya se corri\xF3 la auditor\xEDa autom\xE1tica hoy.",
       quota: getAuditorQuotaSnapshot()
     };
     report({ type: "result", result: result2 });
@@ -188736,6 +188749,7 @@ async function runLucyAuditorBatch(opts) {
   const onlyToday = opts?.onlyToday === true;
   const limitLeads = opts?.limitLeads ?? (onlyToday ? 50 : 20);
   const useFlash = opts?.useFlash !== false;
+  const forceFlash = opts?.forceFlash === true;
   const syncFromKommo = opts?.syncFromKommo !== false && onlyToday;
   let syncedFromKommo = 0;
   if (syncFromKommo) {
@@ -188746,6 +188760,8 @@ async function runLucyAuditorBatch(opts) {
   let flashCalls = 0;
   let findings = 0;
   let recorded = 0;
+  let withLucy = 0;
+  let tooShort = 0;
   const transcripts = await loadTranscriptsForLeadIds(leadIds, since);
   report({
     type: "phase",
@@ -188755,6 +188771,12 @@ async function runLucyAuditorBatch(opts) {
   for (let i6 = 0; i6 < transcripts.length; i6++) {
     const { leadId, turns } = transcripts[i6];
     let chatFindings = 0;
+    const assistantTurns = turns.filter((t4) => t4.role === "assistant").length;
+    const lucyLike = assistantTurns > 0 || turns.some(
+      (t4) => t4.role !== "user" && /bodasesor\.com\/catalogos|perfect[oa],?\s*ya tengo todo/i.test(t4.content)
+    );
+    if (lucyLike) withLucy += 1;
+    else if (turns.length < 4) tooShort += 1;
     const heuristic = runAuditorHeuristics(turns);
     for (const f7 of heuristic) {
       findings += 1;
@@ -188778,8 +188800,8 @@ async function runLucyAuditorBatch(opts) {
         source: "heuristic"
       });
     }
-    const hasLucy = turns.some((t4) => t4.role === "assistant");
-    if (useFlash && hasLucy && transcriptNeedsFlash(turns, heuristic.length) && canSpendAuditorCall()) {
+    const shouldFlash = useFlash && canSpendAuditorCall() && turns.length >= 3 && (forceFlash ? lucyLike || turns.length >= 4 : lucyLike && transcriptNeedsFlash(turns, heuristic.length));
+    if (shouldFlash) {
       const llmFindings = await runAuditorLlm(formatTranscript(turns));
       flashCalls += 1;
       for (const f7 of llmFindings) {
@@ -188820,6 +188842,7 @@ async function runLucyAuditorBatch(opts) {
   if (opts?.oncePerDay) {
     lastDailyRunDay = dayKey2;
   }
+  const summary = transcripts.length === 0 ? `No encontr\xE9 chats del d\xEDa${syncedFromKommo ? ` (sync Kommo ${syncedFromKommo})` : ""}.` : findings === 0 ? `Revis\xE9 ${transcripts.length} chat(s)${syncedFromKommo ? `, sync ${syncedFromKommo}` : ""}. Flash en ${flashCalls}. Sin errores detectados` + (withLucy ? ` (${withLucy} con Lucy).` : " (pocos con rol Lucy reconocible).") : `Revis\xE9 ${transcripts.length} chat(s): ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.`;
   const result = {
     scanned: transcripts.length,
     findings,
@@ -188827,9 +188850,12 @@ async function runLucyAuditorBatch(opts) {
     flashCalls,
     syncedFromKommo,
     dayKey: dayKey2,
+    withLucy,
+    tooShort,
+    summary,
     quota: getAuditorQuotaSnapshot()
   };
-  report({ type: "phase", phase: "done", message: "Auditor\xEDa terminada" });
+  report({ type: "phase", phase: "done", message: summary });
   report({ type: "result", result });
   logger.info(result, "lucyAuditor batch finished");
   return result;
@@ -188839,6 +188865,7 @@ async function runLucyAuditorDaily() {
     onlyToday: true,
     oncePerDay: true,
     syncFromKommo: true,
+    forceFlash: true,
     limitLeads: 50,
     useFlash: true
   });
@@ -237762,6 +237789,7 @@ router12.post("/reparaciones/run", async (req, res) => {
       useFlash: req.body?.useFlash !== false,
       onlyToday,
       syncFromKommo: req.body?.syncFromKommo !== false,
+      forceFlash: req.body?.forceFlash !== false,
       oncePerDay: false
     });
     res.json({ ok: true, ...result });
@@ -237792,6 +237820,7 @@ router12.post("/reparaciones/run-stream", async (req, res) => {
       useFlash: req.body?.useFlash !== false,
       onlyToday,
       syncFromKommo: req.body?.syncFromKommo !== false,
+      forceFlash: req.body?.forceFlash !== false,
       oncePerDay: false,
       onProgress: (ev) => send(ev)
     });

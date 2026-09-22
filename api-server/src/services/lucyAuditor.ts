@@ -34,6 +34,12 @@ export type AuditorRunResult = {
   syncedFromKommo?: number;
   skipped?: string;
   dayKey?: string;
+  /** Chats con respuesta de Lucy (role assistant). */
+  withLucy?: number;
+  /** Chats demasiado cortos para Flash. */
+  tooShort?: number;
+  /** Resumen legible para el panel. */
+  summary?: string;
   quota: ReturnType<typeof getAuditorQuotaSnapshot>;
 };
 
@@ -284,6 +290,11 @@ export async function runLucyAuditorBatch(opts?: {
   oncePerDay?: boolean;
   /** Antes de escanear, sincroniza leads del día desde Kommo → BD. */
   syncFromKommo?: boolean;
+  /**
+   * Panel / auditoría forzada: gasta Flash en chats con ida y vuelta
+   * aunque no pasen el umbral estricto (hasta el cupo diario).
+   */
+  forceFlash?: boolean;
   onProgress?: (ev: AuditorProgressEvent) => void;
 }): Promise<AuditorRunResult> {
   const dayKey = mexicoCityDayKey();
@@ -303,6 +314,7 @@ export async function runLucyAuditorBatch(opts?: {
       flashCalls: 0,
       skipped: "already_ran_today",
       dayKey,
+      summary: "Ya se corrió la auditoría automática hoy.",
       quota: getAuditorQuotaSnapshot(),
     };
     report({ type: "result", result });
@@ -312,6 +324,7 @@ export async function runLucyAuditorBatch(opts?: {
   const onlyToday = opts?.onlyToday === true;
   const limitLeads = opts?.limitLeads ?? (onlyToday ? 50 : 20);
   const useFlash = opts?.useFlash !== false;
+  const forceFlash = opts?.forceFlash === true;
   const syncFromKommo = opts?.syncFromKommo !== false && onlyToday;
 
   let syncedFromKommo = 0;
@@ -327,6 +340,8 @@ export async function runLucyAuditorBatch(opts?: {
   let flashCalls = 0;
   let findings = 0;
   let recorded = 0;
+  let withLucy = 0;
+  let tooShort = 0;
 
   const transcripts = await loadTranscriptsForLeadIds(leadIds, since);
   report({
@@ -338,6 +353,19 @@ export async function runLucyAuditorBatch(opts?: {
   for (let i = 0; i < transcripts.length; i++) {
     const { leadId, turns } = transcripts[i]!;
     let chatFindings = 0;
+
+    const assistantTurns = turns.filter((t) => t.role === "assistant").length;
+    // A veces Kommo marca a Lucy como "internal"/humano; si hay links de catálogo
+    // en mensajes no-user, trátalos como Lucy para el umbral de Flash.
+    const lucyLike =
+      assistantTurns > 0 ||
+      turns.some(
+        (t) =>
+          t.role !== "user" &&
+          /bodasesor\.com\/catalogos|perfect[oa],?\s*ya tengo todo/i.test(t.content)
+      );
+    if (lucyLike) withLucy += 1;
+    else if (turns.length < 4) tooShort += 1;
 
     const heuristic = runAuditorHeuristics(turns);
     for (const f of heuristic) {
@@ -363,13 +391,15 @@ export async function runLucyAuditorBatch(opts?: {
       });
     }
 
-    const hasLucy = turns.some((t) => t.role === "assistant");
-    if (
+    const shouldFlash =
       useFlash &&
-      hasLucy &&
-      transcriptNeedsFlash(turns, heuristic.length) &&
-      canSpendAuditorCall()
-    ) {
+      canSpendAuditorCall() &&
+      turns.length >= 3 &&
+      (forceFlash
+        ? lucyLike || turns.length >= 4
+        : lucyLike && transcriptNeedsFlash(turns, heuristic.length));
+
+    if (shouldFlash) {
       const llmFindings = await runAuditorLlm(formatTranscript(turns));
       flashCalls += 1;
       for (const f of llmFindings) {
@@ -413,6 +443,15 @@ export async function runLucyAuditorBatch(opts?: {
     lastDailyRunDay = dayKey;
   }
 
+  const summary =
+    transcripts.length === 0
+      ? `No encontré chats del día${syncedFromKommo ? ` (sync Kommo ${syncedFromKommo})` : ""}.`
+      : findings === 0
+        ? `Revisé ${transcripts.length} chat(s)${syncedFromKommo ? `, sync ${syncedFromKommo}` : ""}. ` +
+          `Flash en ${flashCalls}. Sin errores detectados` +
+          (withLucy ? ` (${withLucy} con Lucy).` : " (pocos con rol Lucy reconocible).")
+        : `Revisé ${transcripts.length} chat(s): ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.`;
+
   const result: AuditorRunResult = {
     scanned: transcripts.length,
     findings,
@@ -420,9 +459,12 @@ export async function runLucyAuditorBatch(opts?: {
     flashCalls,
     syncedFromKommo,
     dayKey,
+    withLucy,
+    tooShort,
+    summary,
     quota: getAuditorQuotaSnapshot(),
   };
-  report({ type: "phase", phase: "done", message: "Auditoría terminada" });
+  report({ type: "phase", phase: "done", message: summary });
   report({ type: "result", result });
   logger.info(result, "lucyAuditor batch finished");
   return result;
@@ -434,6 +476,7 @@ export async function runLucyAuditorDaily(): Promise<AuditorRunResult> {
     onlyToday: true,
     oncePerDay: true,
     syncFromKommo: true,
+    forceFlash: true,
     limitLeads: 50,
     useFlash: true,
   });

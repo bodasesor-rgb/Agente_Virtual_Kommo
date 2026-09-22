@@ -11,6 +11,17 @@ export type HeuristicFinding = {
 
 export type TranscriptTurn = { role: "user" | "assistant" | string; content: string };
 
+/** Lucy o respuesta saliente (a veces Kommo la marca como human/internal). */
+function isOutgoing(t: TranscriptTurn): boolean {
+  const r = String(t.role ?? "").toLowerCase();
+  return r === "assistant" || r === "human" || r === "bot" || r === "lucy";
+}
+
+function isClient(t: TranscriptTurn): boolean {
+  const r = String(t.role ?? "").toLowerCase();
+  return r === "user" || r === "client" || r === "customer";
+}
+
 const URL_RE = /https?:\/\/[^\s)]+/gi;
 const CLOSE_RE = /\bya tengo todo\b|\bcotizaci[oó]n personalizada\b/i;
 const PRICE_RE = /\b(precio|costo|cu[aá]nto\s+cuesta|cotiz)/i;
@@ -44,8 +55,8 @@ function similar(a: string, b: string): boolean {
 /** Exportado para smoke. */
 export function runAuditorHeuristics(turns: TranscriptTurn[]): HeuristicFinding[] {
   const findings: HeuristicFinding[] = [];
-  const assistants = turns.filter((t) => t.role === "assistant" && t.content?.trim());
-  const users = turns.filter((t) => t.role === "user" && t.content?.trim());
+  const assistants = turns.filter((t) => isOutgoing(t) && t.content?.trim());
+  const users = turns.filter((t) => isClient(t) && t.content?.trim());
 
   // loop_links: mismas URLs en 2+ replies consecutivas/cercanas
   for (let i = 1; i < assistants.length; i++) {
@@ -138,7 +149,7 @@ export function runAuditorHeuristics(turns: TranscriptTurn[]): HeuristicFinding[
 export function transcriptNeedsFlash(turns: TranscriptTurn[], heuristicCount: number): boolean {
   // Si ya hay hallazgo heurístico, no gastar Flash en ese chat.
   if (heuristicCount > 0) return false;
-  const assistants = turns.filter((t) => t.role === "assistant").length;
+  const assistants = turns.filter((t) => isOutgoing(t)).length;
   // Umbral bajo: chats con Lucy (2+ replies) y algo de ida/vuelta.
   return assistants >= 2 && turns.length >= 4;
 }

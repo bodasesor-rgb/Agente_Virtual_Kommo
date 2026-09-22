@@ -141,9 +141,11 @@ function handleProgressEvent(ev) {
     detailEl.textContent = ev.message || "falló la auditoría";
   } else if (ev.type === "result") {
     const r = ev.result ?? {};
-    phaseEl.textContent = "Listo";
+    phaseEl.textContent = r.findings > 0 ? "Hallazgos encontrados" : "Sin errores";
     setBar(r.scanned ?? 0, r.scanned ?? 0);
-    detailEl.textContent = `${r.scanned ?? 0} chats · sync ${r.syncedFromKommo ?? 0} · ${r.recorded ?? 0} registradas · Flash ${r.flashCalls ?? 0}`;
+    detailEl.textContent =
+      r.summary ||
+      `${r.scanned ?? 0} chats · sync ${r.syncedFromKommo ?? 0} · ${r.recorded ?? 0} registradas · Flash ${r.flashCalls ?? 0}`;
   }
 }
 
@@ -165,6 +167,7 @@ async function runAuditWithProgress() {
       onlyToday: true,
       syncFromKommo: true,
       useFlash: true,
+      forceFlash: true,
     }),
   });
 
@@ -187,6 +190,7 @@ async function runAuditWithProgress() {
         onlyToday: true,
         syncFromKommo: true,
         useFlash: true,
+        forceFlash: true,
       }),
     }).then((r) => r.json());
     if (fallback.error) throw new Error(fallback.error);

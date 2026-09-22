@@ -13,9 +13,23 @@ export interface KommoTalkMessage {
   author?: { type?: string; name?: string };
 }
 
-export function mapKommoAuthor(authorType?: string): AuthorType {
-  if (authorType === "external") return "client";
-  if (authorType === "bot") return "lucy";
+export function mapKommoAuthor(
+  authorType?: string,
+  authorName?: string
+): AuthorType {
+  const t = (authorType ?? "").trim().toLowerCase();
+  const n = (authorName ?? "").trim().toLowerCase();
+  if (t === "external" || t === "customer" || t === "client") return "client";
+  // Lucy / bots de Kommo o Meta suelen venir como bot; a veces el nombre es Lucy.
+  if (
+    t === "bot" ||
+    t === "robot" ||
+    t === "ai" ||
+    n.includes("lucy") ||
+    n.includes("bodasesor bot")
+  ) {
+    return "lucy";
+  }
   return "human_agent";
 }
 
@@ -172,7 +186,7 @@ export async function syncLeadTranscript(input: {
   let inserted = 0;
 
   for (const msg of raw) {
-    const authorType = mapKommoAuthor(msg.author?.type);
+    const authorType = mapKommoAuthor(msg.author?.type, msg.author?.name);
     const kommoMessageId = msg.id != null ? String(msg.id) : contentHash(input.kommoLeadId, authorType, msg.text!);
     const ok = await persistChatMessage({
       kommoLeadId: input.kommoLeadId,

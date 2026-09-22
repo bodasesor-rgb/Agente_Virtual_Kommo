@@ -51,6 +51,7 @@ router.post("/reparaciones/run", async (req: Request, res: Response) => {
       useFlash: req.body?.useFlash !== false,
       onlyToday,
       syncFromKommo: req.body?.syncFromKommo !== false,
+      forceFlash: req.body?.forceFlash !== false,
       oncePerDay: false,
     });
     res.json({ ok: true, ...result });
@@ -83,6 +84,7 @@ router.post("/reparaciones/run-stream", async (req: Request, res: Response) => {
       useFlash: req.body?.useFlash !== false,
       onlyToday,
       syncFromKommo: req.body?.syncFromKommo !== false,
+      forceFlash: req.body?.forceFlash !== false,
       oncePerDay: false,
       onProgress: (ev) => send(ev),
     });
