@@ -42,16 +42,23 @@ export function trimChatHistory<T extends { role: string }>(
   return dialog.slice(-maxMessages);
 }
 
+export function isLucyGoogleGroundingEnabled(): boolean {
+  const raw = (process.env["LUCY_GOOGLE_GROUNDING"] ?? "0").trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "on" || raw === "yes";
+}
+
 export function lucyCostControlsSummary(): {
   unified_llm_turn: boolean;
   chat_history_max: number;
   few_shot_max: number;
   context_cache_env: string;
+  google_grounding: boolean;
 } {
   return {
     unified_llm_turn: isLucyUnifiedLlmTurn(),
     chat_history_max: getLucyChatHistoryMax(),
     few_shot_max: getLucyFewShotMax(),
     context_cache_env: (process.env["GEMINI_CONTEXT_CACHE"] ?? "0").trim() || "0",
+    google_grounding: isLucyGoogleGroundingEnabled(),
   };
 }

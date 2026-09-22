@@ -147,6 +147,21 @@ export function stripStalePriceTalk(mensaje: string, currentMessage?: string): s
     .trim();
 }
 
+/**
+ * V10.17: si el cliente NO pidió precio, quita montos voluntarios (incluso de catálogo).
+ * Ideas/venta primero; $ solo bajo demanda.
+ */
+export function stripUnsolicitedPriceClaims(
+  mensaje: string,
+  currentMessage?: string
+): string {
+  if (!mensaje?.trim()) return mensaje;
+  if (clientAsksPrice(currentMessage)) return mensaje;
+  if (!messageClaimsPrice(mensaje)) return mensaje;
+  const cleaned = stripPriceSentences(mensaje);
+  return cleaned.length >= 12 ? cleaned : mensaje;
+}
+
 import { advisorLabelForClient } from "./lib/bodasesorAdvisor.js";
 import { parseChairModelFromText, CHAIR_MODEL_PATTERN } from "./lib/chairModels.js";
 

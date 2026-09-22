@@ -36,6 +36,7 @@ import { enrichExtractedFromText } from "./services/summaryService.js";
 import { enrichExtractedDireccionWithMaps } from "./services/geoResolve.js";
 import { sanitizeCrmNombre } from "./contact-name.js";
 import { buildDynamicPrompt, buildStaticSystemPrompt, buildDynamicTurnContext } from "./services/promptBuilder.js";
+import { fetchTrendGroundingSnippet } from "./services/googleGrounding.js";
 import {
   buildRedactionBriefing,
   completeLucyRedaction,
@@ -421,11 +422,15 @@ export async function generateLucyOutbound(
     const leadScore = calculateLeadScore(scoreContext);
     const stage = detectStage(scoreContext);
     await warmLucyInfoPriceCache().catch(() => 0);
-    const [catalogBlock, lucyInfoBlock] = await Promise.all([
+    const [catalogBlock, lucyInfoBlock, trendGroundingSnippet] = await Promise.all([
       getCatalogPromptBlock(),
       buildLucyInfoPromptBlock({
         queryText: [messageText, conversationText].filter(Boolean).join("\n"),
       }).catch(() => ""),
+      fetchTrendGroundingSnippet({
+        messageText,
+        tipoEvento: extracted.tipo_evento,
+      }).catch(() => null),
     ]);
     const dynamicContext = buildDynamicTurnContext({
       stage,
@@ -439,6 +444,7 @@ export async function generateLucyOutbound(
       lucyInfoBlock: lucyInfoBlock || undefined,
       slimCatalog: true,
       messageText,
+      trendGroundingSnippet,
     });
 
     const unified = await completeLucyUnifiedTurn({

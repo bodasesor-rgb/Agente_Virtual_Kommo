@@ -3,6 +3,7 @@ import { HealthCheckResponse } from "@workspace/api-zod";
 import { getOpenAiApiKey, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import { llmConfigSummary, llmKeyPrefix } from "../lib/llmEnv.js";
 import { getGeminiCallStats } from "../lib/llmChat.js";
+import { getGoogleGroundingStats, isGoogleGroundingEnabled } from "../services/googleGrounding.js";
 import { getImageCompressStats } from "../lib/imageCompress.js";
 import { getGeminiContextCacheStats } from "../lib/geminiContextCache.js";
 import { lucyCostControlsSummary } from "../lib/lucyCostControls.js";
@@ -103,8 +104,10 @@ router.get("/health", async (_req, res) => {
     gemini_context_cache: getGeminiContextCacheStats(),
     gemini_image_compress: getImageCompressStats(),
     gemini_cost_controls: lucyCostControlsSummary(),
+    google_grounding_enabled: isGoogleGroundingEnabled(),
+    google_grounding_stats: getGoogleGroundingStats(),
     gemini_policy:
-      "V9.32: flash-lite; 1 call/turno (extract+reply JSON); GEMINI_CONTEXT_CACHE default off; historial≤6; few-shot 0; system estático vs contexto dinámico. Sin Nano Banana/Imagen.",
+      "V10.17: flash-lite; 1 call/turno; tips locales; Google Grounding OPT-IN (LUCY_GOOGLE_GROUNDING=1) solo ideas; historial corto; few-shot 0.",
     kommo_configured: isKommoConfigured(),
     kommo_subdomain: getKommoSubdomain() || null,
     lucy_outbound: {

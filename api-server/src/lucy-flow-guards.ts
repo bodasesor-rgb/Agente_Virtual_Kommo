@@ -47,6 +47,7 @@ import {
   responseHasInventedPrice,
   sanitizeInventedPrices,
   stripStalePriceTalk,
+  stripUnsolicitedPriceClaims,
 } from "./price-guard.js";
 import {
   buildLucyInfoLearnedPriceReply,
@@ -1363,6 +1364,7 @@ function normalizeAdvisorReferences(mensaje: string, name?: string | null): stri
   ) {
     out = sanitizeInventedPrices(out, ctx.currentMessage);
     out = stripStalePriceTalk(out, ctx.currentMessage);
+    out = stripUnsolicitedPriceClaims(out, ctx.currentMessage);
   }
 
   return out.replace(/\s{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
@@ -11190,6 +11192,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = stripStalePriceTalk(mensaje, currentMessage);
+  mensaje = stripUnsolicitedPriceClaims(mensaje, currentMessage);
   if (
     !trulyReadyForClosing &&
     !cierreYaEnviado &&

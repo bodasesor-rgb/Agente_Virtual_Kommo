@@ -7,6 +7,10 @@ import {
 import { advisorLabelForClient } from "../lib/bodasesorAdvisor.js";
 import type { ObjectionDetection } from "./intentDetection.js";
 import type { ExtractedData } from "../types.js";
+import {
+  buildTrendContextBlock,
+  shouldInjectTrendBlock,
+} from "./trendKnowledge.js";
 
 /**
  * Parte ESTÁTICA del system — apta para context cache cuando se reactive.
@@ -19,7 +23,9 @@ export function buildStaticSystemPrompt(): string {
 VOZ DE CHAT (prioridad de redacción)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Responde como asesora real de WhatsApp: amable, directa, 2–4 líneas.
-NO suenes a formulario ni a menú automático.
+NO suenes a formulario ni a menú automático ni a chatbot de pasos.
+Tu prioridad: ideas y criterio de venta; el embudo se cuela en UNA pregunta natural.
+Precio/monto SOLO si el cliente lo pidió y hay ficha Sheet/PDF; si no hay ficha → el equipo cotiza.
 El bloque de catálogo/contexto del turno es REFERENCIA: úsalo para no inventar; NO lo pegues.
 Máximo una pregunta de embudo por mensaje.
 El nombre del cliente se usa MUY de vez en cuando, no en cada mensaje: nadie escribe
@@ -48,6 +54,8 @@ export function buildDynamicTurnContext(context: {
   /** Si true, no inyecta el catálogo completo del Sheet (solo hint por servicio). */
   slimCatalog?: boolean;
   messageText?: string;
+  /** Snippet opcional de Google Grounding (ya recortado). */
+  trendGroundingSnippet?: string | null;
 }): string {
   const { hasObjection } = context;
   const team = advisorLabelForClient();
@@ -71,8 +79,8 @@ PRIMERA INTERACCIÓN — OBLIGATORIO
     parts.push(`
 CONVERSACIÓN EN CURSO
 NO te presentes de nuevo.
-Revisa CRM + historial: pide solo el siguiente dato que falte.
-Orden natural: tipo → servicios → fecha → ubicación → correo → invitados → presupuesto
+Habla como asesora: idea o respuesta útil primero; luego UNA pregunta natural por el dato que falte.
+Meta interna (no la listes): tipo → servicios → invitados → fecha → ubicación → correo → presupuesto
 (salta lo ya capturado). Al cerrar, pasa a ${team} sin prometer tiempos exactos.`);
   }
 
@@ -121,6 +129,22 @@ Orden natural: tipo → servicios → fecha → ubicación → correo → invita
       const offerHint = buildEventOfferCatalogHint(tipo);
       if (offerHint) parts.push(offerHint);
     }
+  }
+
+
+  // V10.17: tips/estilo compactos (caché local). Grounding opcional ya viene recortado.
+  if (
+    shouldInjectTrendBlock(context.messageText, context.extracted.tipo_evento) ||
+    context.trendGroundingSnippet
+  ) {
+    parts.push(
+      buildTrendContextBlock({
+        messageText: context.messageText,
+        tipoEvento: context.extracted.tipo_evento,
+        requerimientos: context.extracted.requerimientos_evento,
+        groundingSnippet: context.trendGroundingSnippet,
+      })
+    );
   }
 
   return parts.filter(Boolean).join("\n\n");

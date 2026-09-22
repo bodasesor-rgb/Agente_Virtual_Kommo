@@ -154,6 +154,9 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
   }
 
   lines.push(
+    "V10.17 ROL DE VENTA: prioriza ideas y generar negocio; embudo = 1 pregunta natural, no checklist.",
+    "Precio/monto SOLO si el cliente lo pidió y hay ficha Sheet/PDF; si no hay ficha → el equipo/vendedor humano cotiza.",
+    "Si NO pidió precio, no sueltes montos; usa el bloque IDEAS/TENDENCIAS si viene.",
     "NUNCA inventes precios, inclusiones, disponibilidad ni detalles fuera de Sheet/PDF. Si no hay dato: confirma con el equipo.",
     "Si preguntan qué incluye: usa Sheet (Que Incluye) o PDF del panel Aprendizaje. Sin detalle → link del catálogo web. Jamás inventes cervezas, vinos, platillos ni marcas.",
     SERVICE_KNOWLEDGE_GOLDEN_RULE,

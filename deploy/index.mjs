@@ -89869,6 +89869,572 @@ var init_llmChat = __esm({
   }
 });
 
+// src/contact-name.ts
+function isRoleOrDepartmentAsNombre(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return false;
+  if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t4)) return false;
+  const parts2 = t4.split(/\s+/).filter(Boolean);
+  if (parts2.length === 0 || parts2.length > 5) return false;
+  const first = (parts2[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+  if (ROLE_OR_DEPT_NAME_TOKEN.test(first) || ROLE_OR_DEPT_NAME_TOKEN.test(t4)) return true;
+  if (/^(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n|compras)\b/i.test(t4) && parts2.length <= 4) {
+    return true;
+  }
+  return false;
+}
+function isMuchoGustoNameReply(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  return /^(?:soy\s+|me\s+llamo\s+)?[A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{0,30}(?:\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{0,30})?\s+mucho\s+gusto\s*[.!]?\s*$/i.test(
+    t4
+  );
+}
+function stripMuchoGustoSalutation(raw) {
+  let out2 = raw.trim();
+  out2 = out2.replace(MUCHO_GUSTO_LEADING, "").trim();
+  out2 = out2.replace(MUCHO_GUSTO_SUFFIX, "").trim();
+  return out2;
+}
+function isRepeatComplaintAsName(text2) {
+  return /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé])\b/i.test(text2) || /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(text2) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(text2) || /\bya\s+respond[ií]\b/i.test(text2);
+}
+function isGreetingToLucy(text2) {
+  return /^(hola|hello|hi|hey)[,!]?\s+lucy\b/i.test(text2.trim());
+}
+function stripRoleNameCorrectionClause(raw) {
+  return raw.replace(
+    /[,.]?\s*no\s+(?:la\s+|el\s+)?(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n)\b.*$/i,
+    ""
+  ).replace(/[.!🙂😊😉]*$/u, "").trim();
+}
+function stripPresentationPrefixLocal(raw) {
+  const t4 = raw.trim();
+  const esName = t4.match(
+    /^\s*es\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{1,30}(?:\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{1,30}){0,3})\s*$/i
+  );
+  if (esName?.[1]) return stripRoleNameCorrectionClause(esName[1].trim());
+  const mid = t4.match(
+    /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+(.+)$/i
+  );
+  if (mid?.[1]) return stripRoleNameCorrectionClause(mid[1].trim());
+  const m6 = t4.match(/^\s*(?:c[oó]mo)\s+(.+)$/i);
+  return stripRoleNameCorrectionClause((m6?.[1] ?? t4).trim());
+}
+function isQuoteIntentMessage(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  if (/^soy\s+/i.test(t4) || /^me\s+llamo\s+/i.test(t4)) return false;
+  return /^(quiero|necesito|requiero|busco|me\s+interesa)\b/i.test(t4) || /\b(hacer\s+una?\s+)?cotiz/i.test(t4) || /\bquiero\s+(hacer|una|un)\b/i.test(t4);
+}
+function isGreetingOnlyMessage(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  if (/^soy\s+/i.test(t4) || /^me\s+llamo\s+/i.test(t4)) return false;
+  const normalized = t4.normalize("NFD").replace(/\p{M}/gu, "").replace(/[!?.,…¡¿]+/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  const withoutHola = normalized.replace(/^(hola|hello|hi|hey)\s+/, "");
+  if (/^(hola|hello|hi|hey)$/.test(normalized)) return true;
+  if (/^(buen(os|as)?\s+)?(dias?|tardes?|noches?)(\s+(a\s+todos|equipo))?$/.test(withoutHola)) {
+    return true;
+  }
+  if (/^que\s*tal$/.test(normalized) || /^buenas?$/.test(normalized) || /^saludos?$/.test(normalized)) {
+    return true;
+  }
+  if (/^(hola|hello|hi|hey|buenas?)([,\s]+)+(informacion|info|ayuda|cotizar|cotizacion)\s*$/.test(
+    normalized
+  )) {
+    return true;
+  }
+  if (/^(buen(os|as)?\s+(dias?|tardes?|noches?))([,\s]+)+(informacion|info|ayuda|cotizar|cotizacion)\s*$/.test(
+    normalized
+  )) {
+    return true;
+  }
+  return false;
+}
+function looksLikePersonFullName(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  const parts2 = t4.split(/\s+/);
+  if (parts2.length < 2 || parts2.length > 5) return false;
+  if (/\bmucho\s+gusto\b/i.test(t4)) return false;
+  return parts2.every((part) => {
+    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (NAME_STOPWORDS.test(letters)) return false;
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(part) && letters.length >= 1) return true;
+    return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
+  });
+}
+function isLikelyNotPersonNameMessage(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return true;
+  if (isGreetingToLucy(t4)) return true;
+  if (isRepeatComplaintAsName(t4)) return true;
+  if (/(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t4)) return false;
+  if (/^\s*es\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]/i.test(t4) && t4.split(/\s+/).length <= 5) return false;
+  if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t4) && t4.split(/\s+/).length <= 5) return false;
+  if (isServicePreferenceAsNombre(t4)) return true;
+  if (isRoleOrDepartmentAsNombre(t4)) return true;
+  if (/\?/.test(t4)) return true;
+  if (SENTENCE_VERB_PATTERN.test(t4)) return true;
+  if (/\bcu[aá]nto\s+(cuesta|cuestan|vale|valen|cobran|sale)\b/i.test(t4) || /\b(precio|costo|tarifa)\s+(de|para|por)\b/i.test(t4) || /\bcu[aá]nto\s+cuesta\s+la\s+renta\b/i.test(t4)) {
+    return true;
+  }
+  if (isGreetingOnlyMessage(t4) || isQuoteIntentMessage(t4) || isAffirmativeOnlyMessage(t4)) return true;
+  if (/\bcon\s+(mucho\s+)?gusto\b/i.test(t4) && t4.split(/\s+/).length <= 5) return true;
+  if (isMuchoGustoNameReply(t4)) return false;
+  if (/^(s[ií][,.]?\s*)?(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)([.!?]|$)/i.test(
+    t4
+  )) {
+    return true;
+  }
+  if (isLikelyUbicacionNotNombre(t4)) return true;
+  if (COMPANY_OR_CHANNEL_PATTERN.test(t4)) return true;
+  if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona)\b/i.test(t4)) return true;
+  if (/\b(asesor|agente|humano)\b/i.test(t4) && t4.split(/\s+/).length <= 5) return true;
+  if (/\b(crepas?|sushi|poke|banquete|taquiza|catering|coffee\s*break|brunch|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mobiliario|salas?\s+lounge|photo\s*booth|photobooth|cabina|nigiris?)\b/i.test(
+    t4
+  ) && !/^(soy|me\s+llamo)/i.test(t4)) {
+    return true;
+  }
+  if (looksLikePersonFullName(t4)) return false;
+  if (t4.split(/\s+/).length >= 4) return true;
+  return false;
+}
+function clientAsksCompanyIdentity(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  if (!COMPANY_OR_CHANNEL_PATTERN.test(t4) && !/cap\s*[&y]?\s*bata/i.test(t4)) return false;
+  return /\?/i.test(t4) || /\b(comunico|hablo|escribo|estoy|este\s+(es|chat|n[uú]mero)|es\s+(el|la)|son)\b/i.test(t4);
+}
+function buildCompanyIdentityReply(clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  const base = "S\xED, soy Lucy de Bodasesor (Cap&Bara Eventos). Te ayudo a armar tu cotizaci\xF3n por aqu\xED.";
+  return nombre ? `${base} \xBFSeguimos, ${nombre}?` : `${base} \xBFMe regalas tu nombre para iniciar?`;
+}
+function clientAsksLucyIdentity(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  if (COMPANY_OR_CHANNEL_PATTERN.test(t4) || /cap\s*[&y]?\s*bata/i.test(t4)) return false;
+  return /\bcon\s+qui[eé]n\s+tengo\s+el\s+gusto\b/i.test(t4) || /\bcon\s+qui[eé]n\s+hablo\b/i.test(t4) || /\bqui[eé]n\s+(eres|sos|es\s+usted)\b/i.test(t4) || /\b(c[oó]mo\s+te\s+llamas|cual\s+es\s+tu\s+nombre|cu[aá]l\s+es\s+tu\s+nombre)\b/i.test(t4) || /\bme\s+(puedes\s+)?presentas?\b/i.test(t4) || /\bte\s+puedes\s+presentar\b/i.test(t4) || /\bqui[eé]n\s+me\s+(atiende|escribe|contesta)\b/i.test(t4);
+}
+function buildLucyIdentityReply(clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  const base = "Soy *Lucy*, agente virtual de Bodasesor. Te ayudo a armar tu cotizaci\xF3n por aqu\xED.";
+  return nombre ? `${base} \xBFEn qu\xE9 m\xE1s te apoyo, ${nombre}?` : `${base} \xBFEn qu\xE9 te puedo ayudar?`;
+}
+function isServicePreferenceAsNombre(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t4)) return false;
+  const serviceFamily = /\b(catering|banquete|taquiza|coffee(\s*break)?|brunch|comida|alimentos?|formal|casual|desayuno|canap[eé]s?|barra|sushi|pizza|pasta|nigiri|mobiliario|mesas?|sillas?|periqueras?|carpas?|pista|dj|bebidas?|mixolog[ií]a|helado|crepas?|photo\s*booth|photobooth|vajillas?|loza)\b/i;
+  if (/\b(ser[ií]a(n)?|prefiero|preferimos|quiero|necesito|busco|solo|solamente|nada\s+m[aá]s)\s+(de\s+|un\s+|una\s+|el\s+|la\s+)?/i.test(
+    t4
+  ) && serviceFamily.test(t4)) {
+    return true;
+  }
+  if (/^(de\s+)?(catering|banquete|taquiza|coffee(\s*break)?|brunch|mobiliario)(\s+\w+){0,2}$/i.test(t4)) {
+    return true;
+  }
+  if (/^ser[ií]a(n)?$/i.test(t4)) return true;
+  if (t4.split(/\s+/).length <= 4 && serviceFamily.test(t4) && !looksLikePersonFullName(t4)) {
+    return true;
+  }
+  return false;
+}
+function isLikelyUbicacionNotNombre(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4 || /^(me llamo|soy)\s+/i.test(t4)) return false;
+  if (/^en\s+[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ.'\s-]{2,40}$/i.test(t4) && t4.split(/\s+/).length <= 6) {
+    return true;
+  }
+  if (/\b(cdmx|cd\.?\s*m\.?x\.?|ciudad de m[eé]xico|polanco|narvarte|santa\s*fe|cuernavaca|morelos|coyoac[aá]n|tlalpan|tlalnepantla|naucalpan|ecatepec|atizap[aá]n|sat[eé]lite|interlomas|expo\s+santa|estado\s+de\s+m[eé]xico|edo\.?\s*mex|canc[uú]n|cancun|guadalajara|monterrey|puebla|quer[eé]taro|m[eé]rida|tulum|playa\s+del\s+carmen|toluca|acapulco|veracruz|tijuana|valle\s+de\s+bravo|mesa\s+rica|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|pachuca|tlaxcala|jiutepec|aguascalientes|chihuahua|oaxaca|morelia|saltillo|huatulco|sayulita|ixtapa|zihuatanejo)\b/i.test(
+    t4
+  ) && t4.split(/\s+/).length <= 5) {
+    return true;
+  }
+  return false;
+}
+function isAffirmativeOnlyMessage(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  return /^(s[ií]|ok|vale|claro|de\s+acuerdo|por\s+supuesto|perfecto|correcto|exacto|as[ií]\s+es|claro\s+(que\s+s[ií]|con\s+gusto)|con\s+gusto|claro\s+con\s+gusto|con\s+mucho\s+gusto|por\s+supuesto\s+que\s+s[ií])[.!?\s,]*$/i.test(
+    t4
+  );
+}
+function isWeakOrJunkNombre(name2) {
+  const t4 = (name2 ?? "").trim();
+  if (!t4) return true;
+  if (isPlaceholderLeadName(t4)) return true;
+  if (isAffirmativeOnlyMessage(t4)) return true;
+  if (/\bcon\s+gusto\b/i.test(t4)) return true;
+  const parts2 = t4.split(/\s+/).filter(Boolean);
+  if (parts2.length === 1) {
+    const letters = (parts2[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (!letters || letters.length < 3) return true;
+    if (NAME_STOPWORDS.test(letters)) return true;
+    if (GREETING_NAME_PATTERN.test(letters)) return true;
+    if (NAME_COURTESY_OR_ROLE_TOKEN.test(letters)) return true;
+    if (/^(con|sin|por|para|de|del|la|el|los|las|un|una|y|o)$/i.test(letters)) return true;
+  }
+  return false;
+}
+function isPlaceholderLeadName(name2) {
+  const trimmed = name2?.trim() ?? "";
+  if (!trimmed) return true;
+  if (trimmed.length < 2) return true;
+  if (PHONE_LIKE.test(trimmed.replace(/\s/g, ""))) return true;
+  if (isRoleOrDepartmentAsNombre(trimmed)) return true;
+  return PLACEHOLDER_PATTERNS.some((p5) => p5.test(trimmed));
+}
+function stripLeadingNameFillers(name2) {
+  let out2 = name2.trim();
+  const filler = /^(claro|ok(?:ay)?|vale|bueno|pues|mira|hola|eh+|este)\s+/i;
+  for (let i6 = 0; i6 < 3; i6++) {
+    const next = out2.replace(filler, "").trim();
+    if (next === out2) break;
+    out2 = next;
+  }
+  return out2;
+}
+function sanitizeDisplayName(name2) {
+  const raw = stripMuchoGustoSalutation(name2?.trim() ?? "");
+  if (!raw || isPlaceholderLeadName(raw)) return null;
+  if (isGreetingToLucy(raw)) return null;
+  if (isGreetingOnlyMessage(raw)) return null;
+  const stripped = stripPresentationPrefixLocal(raw);
+  const cleaned = stripLeadingNameFillers(
+    stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim()
+  );
+  if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
+  if (isGreetingOnlyMessage(cleaned)) return null;
+  const firstToken = cleaned.split(/\s+/)[0] ?? "";
+  const firstName2 = firstToken.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+  if (!firstName2 || firstName2.length < 2) return null;
+  if (/^(el|la|los|las|un|una)$/i.test(firstName2)) return null;
+  if (/^\d+$/.test(firstName2)) return null;
+  if (GREETING_NAME_PATTERN.test(firstName2)) return null;
+  if (NAME_STOPWORDS.test(firstName2)) return null;
+  if (NAME_COURTESY_OR_ROLE_TOKEN.test(firstName2) || COURTESY_NAME_TOKEN.test(firstName2)) return null;
+  if (isAffirmativeOnlyMessage(raw) || isAffirmativeOnlyMessage(cleaned)) return null;
+  if (isWeakOrJunkNombre(cleaned) || isWeakOrJunkNombre(firstName2)) return null;
+  if (BOT_OR_META_NAME_TOKEN.test(firstName2)) return null;
+  if (CATALOG_LEVEL_OR_BRAND_NAME.test(firstName2)) return null;
+  if (isQuoteIntentMessage(raw)) return null;
+  if (isLikelyUbicacionNotNombre(raw) || isLikelyUbicacionNotNombre(cleaned)) return null;
+  if (isLikelyNotPersonNameMessage(raw) || isLikelyNotPersonNameMessage(cleaned)) return null;
+  if (/^(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)$/i.test(firstName2)) {
+    return null;
+  }
+  return firstName2.charAt(0).toUpperCase() + firstName2.slice(1).toLowerCase();
+}
+function sanitizeCrmNombre(name2) {
+  const raw = stripMuchoGustoSalutation(name2?.trim() ?? "");
+  if (!raw || isPlaceholderLeadName(raw) || isQuoteIntentMessage(raw)) return null;
+  if (isGreetingToLucy(raw)) return null;
+  if (isGreetingOnlyMessage(raw)) return null;
+  if (isAffirmativeOnlyMessage(raw)) return null;
+  if (isWeakOrJunkNombre(raw)) return null;
+  if (isRepeatComplaintAsName(raw)) return null;
+  if (isLikelyUbicacionNotNombre(raw)) return null;
+  if (isServicePreferenceAsNombre(raw)) return null;
+  if (isRoleOrDepartmentAsNombre(raw)) return null;
+  const strippedHandoff = raw.replace(/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/gi, " ").replace(/\b(hablar|asesor|agente|humano)\b/gi, " ").replace(/\s+/g, " ").trim();
+  if (strippedHandoff && strippedHandoff !== raw && strippedHandoff.length >= 2) {
+    return sanitizeCrmNombre(strippedHandoff);
+  }
+  if (!strippedHandoff) return null;
+  const isPresentation = /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw);
+  if (!isPresentation && isLikelyNotPersonNameMessage(raw)) {
+    if (/\bcu[aá]nto\s+(cuesta|cuestan|vale|valen|cobran)\b/i.test(raw) || /\b(precio|costo)\b.{0,20}\b(renta|mesa|silla|periquera)/i.test(raw) || PRICE_OR_SERVICE_NAME_TOKEN.test((raw.split(/\s+/)[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, ""))) {
+      return null;
+    }
+    const maybeRepair = stripPresentationPrefixLocal(raw).replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim().split(/\s+/).filter((part) => {
+      const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
+      return letters.length >= 2 && !BOT_OR_META_NAME_TOKEN.test(letters) && !COURTESY_NAME_TOKEN.test(letters) && !HANDOFF_OR_META_NAME_TOKEN.test(letters) && !CATALOG_LEVEL_OR_BRAND_NAME.test(letters) && !GREETING_NAME_PATTERN.test(letters) && !PRICE_OR_SERVICE_NAME_TOKEN.test(letters) && !SENTENCE_VERB_PATTERN.test(letters) && !/^(la|el|los|las|de|del|para|por|un|una|con|sin|tipo|bar)$/i.test(letters);
+    });
+    if (maybeRepair.length === 0 || maybeRepair.length === raw.split(/\s+/).length) {
+      return null;
+    }
+    if (maybeRepair.length <= 2 && raw.split(/\s+/).length >= 5) {
+      return null;
+    }
+    const repaired = maybeRepair.slice(0, 4).join(" ");
+    if (SENTENCE_VERB_PATTERN.test(repaired) || isLikelyNotPersonNameMessage(repaired)) return null;
+    if (PRICE_OR_SERVICE_NAME_TOKEN.test(maybeRepair[0] ?? "")) return null;
+    return maybeRepair.slice(0, 4).map((part) => {
+      const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
+      return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
+    }).join(" ");
+  }
+  const stripped = stripPresentationPrefixLocal(raw);
+  const cleaned = stripLeadingNameFillers(
+    stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(
+      /\b(es\s+)?(una?\s+)?(boda|xv\s*a[nñ]os?|cumplea[nñ]os|bautizo|baby\s*shower|aniversario|graduaci[oó]n|evento\s+corporativo)\b/gi,
+      " "
+    ).replace(/\s+/g, " ").trim()
+  );
+  if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
+  if (isGreetingOnlyMessage(cleaned)) return null;
+  if (isLikelyUbicacionNotNombre(cleaned)) return null;
+  const parts2 = cleaned.split(/\s+/).filter((part) => {
+    const token = part.trim();
+    const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (!letters) return false;
+    if (BOT_OR_META_NAME_TOKEN.test(letters)) return false;
+    if (COURTESY_NAME_TOKEN.test(letters)) return false;
+    if (NAME_COURTESY_OR_ROLE_TOKEN.test(letters)) return false;
+    if (NAME_STOPWORDS.test(letters)) return false;
+    if (HANDOFF_OR_META_NAME_TOKEN.test(letters)) return false;
+    if (CATALOG_LEVEL_OR_BRAND_NAME.test(letters)) return false;
+    if (/^(boda|xv|cumpleanos|bautizo|aniversario|graduacion|es|una|un)$/i.test(letters)) return false;
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(token) && letters.length >= 1) return true;
+    return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
+  });
+  if (parts2.length === 0) return null;
+  if (isWeakOrJunkNombre(parts2.join(" "))) return null;
+  const candidate = parts2.slice(0, 4).map((part) => {
+    const token = part.trim();
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.$/.test(token)) {
+      return `${token.charAt(0).toUpperCase()}.`;
+    }
+    const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
+    return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
+  }).join(" ");
+  if (SENTENCE_VERB_PATTERN.test(candidate)) return null;
+  if (CATALOG_LEVEL_OR_BRAND_NAME.test(candidate.split(/\s+/)[0] ?? "")) return null;
+  return candidate;
+}
+function shouldUpdateName(current, incoming) {
+  const c5 = (current ?? "").trim();
+  const i6 = (incoming ?? "").trim();
+  if (!i6) return false;
+  const iClean = sanitizeCrmNombre(i6) ?? sanitizeDisplayName(i6);
+  if (!iClean) return false;
+  if (isWeakOrJunkNombre(iClean)) return false;
+  if (!c5) return true;
+  if (isWeakOrJunkNombre(c5) && nombreWordCount(iClean) >= 2) return true;
+  if (isWeakOrJunkNombre(c5) && !isWeakOrJunkNombre(iClean)) return true;
+  if (isLikelyUbicacionNotNombre(c5) || isRoleOrDepartmentAsNombre(c5) || CATALOG_LEVEL_OR_BRAND_NAME.test(c5.split(/\s+/)[0] ?? "") || !sanitizeCrmNombre(c5)) {
+    return true;
+  }
+  if (!namesAreLikelySamePerson(c5, iClean)) return false;
+  const cClean = sanitizeCrmNombre(c5) ?? sanitizeDisplayName(c5) ?? c5;
+  if (nombreWordCount(iClean) < nombreWordCount(cClean)) return false;
+  const cRawNorm = c5.toLowerCase().replace(/\s+/g, " ").trim();
+  if (cClean.toLowerCase() !== cRawNorm && iClean.toLowerCase() === cClean.toLowerCase()) {
+    return true;
+  }
+  if (cClean.toLowerCase() === iClean.toLowerCase()) return false;
+  return isNombreMoreComplete(iClean, cClean);
+}
+function resolveKommoLeadNamePatch(currentLeadName, candidateNombre) {
+  const patch = sanitizeCrmNombre(candidateNombre) ?? sanitizeDisplayName(candidateNombre);
+  if (!patch) return null;
+  if (!shouldUpdateName(currentLeadName ?? void 0, patch)) return null;
+  return patch;
+}
+function normalizeNameTokens(name2) {
+  return name2.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").split(/\s+/).filter((t4) => t4.length >= 2);
+}
+function namesShareNicknameRoot(a4, b5) {
+  const na2 = (a4 ?? "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z]/g, "");
+  const nb = (b5 ?? "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z]/g, "");
+  if (!na2 || !nb) return false;
+  if (na2 === nb) return true;
+  if (na2.length < 3 || nb.length < 3) return false;
+  const shorter = na2.length <= nb.length ? na2 : nb;
+  const longer = na2.length > nb.length ? na2 : nb;
+  if (longer.startsWith(shorter) && shorter.length >= 3) return true;
+  let common = 0;
+  while (common < shorter.length && shorter[common] === longer[common]) common++;
+  return common >= 3 && Math.abs(na2.length - nb.length) <= 3;
+}
+function namesAreLikelySamePerson(existing, incoming) {
+  const e4 = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+  const i6 = sanitizeCrmNombre(incoming) ?? sanitizeDisplayName(incoming);
+  if (!e4 || !i6) return true;
+  const te4 = normalizeNameTokens(e4);
+  const ti2 = normalizeNameTokens(i6);
+  if (!te4.length || !ti2.length) return true;
+  if (te4[0] === ti2[0]) return true;
+  if (namesShareNicknameRoot(te4[0], ti2[0])) return true;
+  return te4.some((t4) => ti2.includes(t4)) || ti2.some((t4) => te4.includes(t4));
+}
+function buildNameConfirmationPrompt(existing, incoming) {
+  return `Para anotarte bien: \xBFeres ${incoming.trim()} o sigo contigo como ${existing.trim()}?`;
+}
+function nombreWordCount(name2) {
+  const crm = sanitizeCrmNombre(name2);
+  if (!crm) return sanitizeDisplayName(name2) ? 1 : 0;
+  return crm.split(/\s+/).filter(Boolean).length;
+}
+function isNombreMoreComplete(candidate, existing) {
+  const c5 = sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
+  const e4 = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+  if (!c5) return false;
+  if (!e4) return true;
+  const cw = nombreWordCount(c5);
+  const ew = nombreWordCount(e4);
+  if (cw > ew) return true;
+  if (cw < ew) return false;
+  return c5.length >= e4.length;
+}
+function pickBetterNombre(candidate, existing) {
+  const eClean = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+  const iClean = sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
+  if (eClean && isWeakOrJunkNombre(eClean) && iClean && !isWeakOrJunkNombre(iClean)) {
+    return iClean;
+  }
+  if (iClean && isWeakOrJunkNombre(iClean) && eClean && !isWeakOrJunkNombre(eClean)) {
+    return eClean;
+  }
+  if (eClean && iClean && namesAreLikelySamePerson(eClean, iClean)) {
+    if (nombreWordCount(eClean) > nombreWordCount(iClean)) {
+      return eClean;
+    }
+    if (nombreWordCount(eClean) === nombreWordCount(iClean) && eClean.length > iClean.length && namesShareNicknameRoot(eClean.split(/\s+/)[0], iClean.split(/\s+/)[0])) {
+    }
+  }
+  if (isNombreMoreComplete(candidate, existing)) {
+    return sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
+  }
+  return sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+}
+function rewriteJunkClientVocative(message, correctNombre) {
+  if (!message?.trim()) return message;
+  const correct = sanitizeDisplayName(correctNombre) ?? sanitizeCrmNombre(correctNombre)?.split(/\s+/)[0] ?? null;
+  return message.replace(
+    /\b((?:¡?Mucho gusto|¡?Con gusto|Perfecto|Excelente|Genial|Listo|Claro|Hola|Gracias)[,!]?)(\s+)([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ'-]*)\b(?=\s*(?:[.,;:!?]|$))/gi,
+    (full, greet, space, name2) => {
+      if (!isServicePreferenceAsNombre(name2) && !isRoleOrDepartmentAsNombre(name2)) {
+        return full;
+      }
+      if (correct) return `${greet}${space}${correct}`;
+      return greet.replace(/,$/, "").trim();
+    }
+  );
+}
+function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
+  return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
+}
+var PHONE_LIKE, PLACEHOLDER_PATTERNS, ROLE_OR_DEPT_NAME_TOKEN, GREETING_NAME_PATTERN, COMPANY_OR_CHANNEL_PATTERN, BOT_OR_META_NAME_TOKEN, COURTESY_NAME_TOKEN, MUCHO_GUSTO_SUFFIX, MUCHO_GUSTO_LEADING, CATALOG_LEVEL_OR_BRAND_NAME, SENTENCE_VERB_PATTERN, HANDOFF_OR_META_NAME_TOKEN, PRICE_OR_SERVICE_NAME_TOKEN, NAME_STOPWORDS, NAME_COURTESY_OR_ROLE_TOKEN;
+var init_contact_name = __esm({
+  "src/contact-name.ts"() {
+    "use strict";
+    PHONE_LIKE = /^\+?\d[\d\s\-().]{7,}$/;
+    PLACEHOLDER_PATTERNS = [
+      /^nuevo\s+lead$/i,
+      /^lead\s*#?\d+$/i,
+      /^contacto\s*#?\d+$/i,
+      /^whatsapp\s*#?\d+$/i,
+      /^sin\s+nombre$/i,
+      /^unknown$/i,
+      /^cliente$/i,
+      /^\d+$/
+    ];
+    ROLE_OR_DEPT_NAME_TOKEN = /^(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n|compras|rh|rr\.?\s*hh?|recursos\s+humanos|atenci[oó]n(\s+a\s+clientes)?|customer\s+service|front\s+desk|concierge|reservaciones?|reservations?|informaci[oó]n|info|oficina|office|operaciones|log[ií]stica|eventos?|coordinaci[oó]n|coordinador[ao]?|asistente|secretaria|secretar[ií]a)$/i;
+    GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo|claro)$/i;
+    COMPANY_OR_CHANNEL_PATTERN = /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
+    BOT_OR_META_NAME_TOKEN = /^(lucy|llamo|llam[oó]|bodasesor|capybara|salesbot)$/i;
+    COURTESY_NAME_TOKEN = /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto|servidor[ao]?|servidora)$/i;
+    MUCHO_GUSTO_SUFFIX = /\s+mucho\s+gusto\b/gi;
+    MUCHO_GUSTO_LEADING = /^mucho\s+gusto,?\s+/i;
+    CATALOG_LEVEL_OR_BRAND_NAME = /^(premium|b[aá]sic[ao]|tradicional|solo\s*alimentos?|deluxe|vip|gold|silver|platinum|business|premium\s*events?)$/i;
+    SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|hablar|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale|manda|m[aá]nda|mandame|m[aá]ndame|mandamelo|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|pasa|p[aá]same|conocer)\b/i;
+    HANDOFF_OR_META_NAME_TOKEN = /^(hablar|asesor|agente|humano|persona|ejecutivo|equipo|conmigo|contigo|por|favor)$/i;
+    PRICE_OR_SERVICE_NAME_TOKEN = /^(cu[aá]nto|cu[aacute]nto|cuesta|cuestan|costo|precio|renta|rentar|cobran|vale|valen|mesas?|sillas?|periqueras?|salas?|mobiliario|personas?|invitados?)$/i;
+    NAME_STOPWORDS = /^(en|de|del|la|el|los|las|un|una|al|para|por|con|sin|y|o)$/i;
+    NAME_COURTESY_OR_ROLE_TOKEN = /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto|servidor[ao]?|servidora|a\s+sus\s+[oó]rdenes|presente|mismo|misma)$/i;
+  }
+});
+
+// src/lib/bodasesorAdvisor.ts
+function getAdvisorName() {
+  return process.env["BODASESOR_ADVISOR_NAME"]?.trim() || process.env["KOMMO_ADVISOR_NAME"]?.trim() || "Alejandro";
+}
+function advisorLabelForClient(_clientName) {
+  return "nuestro equipo";
+}
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function isStaffAdvisorName(name2) {
+  const raw = name2?.trim() ?? "";
+  if (!raw) return false;
+  const first = raw.split(/\s+/)[0]?.toLowerCase() ?? "";
+  const staff = /* @__PURE__ */ new Set([
+    getAdvisorName().toLowerCase(),
+    ...LEGACY_ADVISOR_NAMES.map((n5) => n5.toLowerCase()),
+    "lucy",
+    "bodasesor",
+    "kommo"
+  ]);
+  return staff.has(raw.toLowerCase()) || staff.has(first);
+}
+function isLegacyAdvisorName(name2) {
+  const lower2 = name2.toLowerCase();
+  return LEGACY_ADVISOR_NAMES.some((legacy) => legacy.toLowerCase() === lower2);
+}
+function replaceAdvisorTokensPreservingClientName(text2, token, replacement, clientName) {
+  const clientFirst = clientName?.trim().split(/\s+/)[0];
+  if (!clientFirst || clientFirst.toLowerCase() !== token.toLowerCase()) {
+    return text2.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
+  }
+  const placeholder = "\uE000CLIENT_NAME\uE001";
+  const clientEsc = escapeRegex(clientFirst);
+  let out2 = text2.replace(
+    new RegExp(`(${CLIENT_GREETING_PREFIX.source})${clientEsc}\\b`, "gi"),
+    `$1${placeholder}`
+  );
+  out2 = out2.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
+  return out2.replace(new RegExp(placeholder, "g"), clientFirst);
+}
+function normalizeAdvisorReferences(text2, clientName) {
+  const advisor = advisorLabelForClient(clientName);
+  if (!text2?.trim()) return text2;
+  let out2 = rewriteJunkClientVocative(text2, clientName);
+  for (const legacy of LEGACY_ADVISOR_NAMES) {
+    out2 = out2.replace(new RegExp(`\\b${legacy}\\b`, "gi"), advisor);
+  }
+  out2 = out2.replace(
+    /\b(le\s+paso\s+estos\s+datos\s+a|paso\s+estos\s+datos\s+a)\s+(?!nuestro\b)[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/gi,
+    `$1 ${advisor}`
+  );
+  out2 = out2.replace(
+    /\b(voy\s+a\s+)?pasar(le)?\s+esta\s+informaci[oó]n\s+a\s+(?!nuestro\b)[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/gi,
+    advisor === "nuestro equipo" ? "voy a pasar esta informaci\xF3n a nuestro equipo" : `voy a pasar esta informaci\xF3n a ${advisor}`
+  );
+  out2 = out2.replace(/\b(\p{L}+)\s+\1\b/giu, "$1");
+  out2 = out2.replace(
+    /\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)\s+te\s+(arma|armar[aá]|incluir[aá]|cotiza)/g,
+    (m6, name2) => {
+      if (isLegacyAdvisorName(name2)) return m6.replace(name2, advisor);
+      if (name2.toLowerCase() === getAdvisorName().toLowerCase()) {
+        return m6.replace(name2, advisor);
+      }
+      return m6;
+    }
+  );
+  out2 = replaceAdvisorTokensPreservingClientName(out2, getAdvisorName(), advisor, clientName);
+  return out2;
+}
+function stripInternalCrmBlock(mensaje) {
+  if (!/DATOS DEL CLIENTE:|Información completa obtenida/i.test(mensaje)) return mensaje;
+  const cut = mensaje.search(/DATOS DEL CLIENTE:|Información completa obtenida/i);
+  if (cut > 0) return mensaje.slice(0, cut).trim();
+  return "";
+}
+var LEGACY_ADVISOR_NAMES, CLIENT_GREETING_PREFIX;
+var init_bodasesorAdvisor = __esm({
+  "src/lib/bodasesorAdvisor.ts"() {
+    "use strict";
+    init_contact_name();
+    LEGACY_ADVISOR_NAMES = ["Rodrigo"];
+    CLIENT_GREETING_PREFIX = /(Mucho gusto,?|Hola,?|Genial,?|Perfecto,?|Excelente,?|Listo,?|Claro,?|Qué padre,?)\s*/i;
+  }
+});
+
 // ../node_modules/bmp-ts/dist/esm/header-types.js
 var HeaderTypes, header_types_default;
 var init_header_types = __esm({
@@ -129808,486 +130374,6 @@ var init_lucyInfoPriceCache = __esm({
   }
 });
 
-// src/contact-name.ts
-function isRoleOrDepartmentAsNombre(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4) return false;
-  if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t4)) return false;
-  const parts2 = t4.split(/\s+/).filter(Boolean);
-  if (parts2.length === 0 || parts2.length > 5) return false;
-  const first = (parts2[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
-  if (ROLE_OR_DEPT_NAME_TOKEN.test(first) || ROLE_OR_DEPT_NAME_TOKEN.test(t4)) return true;
-  if (/^(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n|compras)\b/i.test(t4) && parts2.length <= 4) {
-    return true;
-  }
-  return false;
-}
-function isMuchoGustoNameReply(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return false;
-  return /^(?:soy\s+|me\s+llamo\s+)?[A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{0,30}(?:\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{0,30})?\s+mucho\s+gusto\s*[.!]?\s*$/i.test(
-    t4
-  );
-}
-function stripMuchoGustoSalutation(raw) {
-  let out2 = raw.trim();
-  out2 = out2.replace(MUCHO_GUSTO_LEADING, "").trim();
-  out2 = out2.replace(MUCHO_GUSTO_SUFFIX, "").trim();
-  return out2;
-}
-function isRepeatComplaintAsName(text2) {
-  return /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé])\b/i.test(text2) || /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(text2) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(text2) || /\bya\s+respond[ií]\b/i.test(text2);
-}
-function isGreetingToLucy(text2) {
-  return /^(hola|hello|hi|hey)[,!]?\s+lucy\b/i.test(text2.trim());
-}
-function stripRoleNameCorrectionClause(raw) {
-  return raw.replace(
-    /[,.]?\s*no\s+(?:la\s+|el\s+)?(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n)\b.*$/i,
-    ""
-  ).replace(/[.!🙂😊😉]*$/u, "").trim();
-}
-function stripPresentationPrefixLocal(raw) {
-  const t4 = raw.trim();
-  const esName = t4.match(
-    /^\s*es\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{1,30}(?:\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{1,30}){0,3})\s*$/i
-  );
-  if (esName?.[1]) return stripRoleNameCorrectionClause(esName[1].trim());
-  const mid = t4.match(
-    /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+(.+)$/i
-  );
-  if (mid?.[1]) return stripRoleNameCorrectionClause(mid[1].trim());
-  const m6 = t4.match(/^\s*(?:c[oó]mo)\s+(.+)$/i);
-  return stripRoleNameCorrectionClause((m6?.[1] ?? t4).trim());
-}
-function isQuoteIntentMessage(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return false;
-  if (/^soy\s+/i.test(t4) || /^me\s+llamo\s+/i.test(t4)) return false;
-  return /^(quiero|necesito|requiero|busco|me\s+interesa)\b/i.test(t4) || /\b(hacer\s+una?\s+)?cotiz/i.test(t4) || /\bquiero\s+(hacer|una|un)\b/i.test(t4);
-}
-function isGreetingOnlyMessage(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return false;
-  if (/^soy\s+/i.test(t4) || /^me\s+llamo\s+/i.test(t4)) return false;
-  const normalized = t4.normalize("NFD").replace(/\p{M}/gu, "").replace(/[!?.,…¡¿]+/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
-  const withoutHola = normalized.replace(/^(hola|hello|hi|hey)\s+/, "");
-  if (/^(hola|hello|hi|hey)$/.test(normalized)) return true;
-  if (/^(buen(os|as)?\s+)?(dias?|tardes?|noches?)(\s+(a\s+todos|equipo))?$/.test(withoutHola)) {
-    return true;
-  }
-  if (/^que\s*tal$/.test(normalized) || /^buenas?$/.test(normalized) || /^saludos?$/.test(normalized)) {
-    return true;
-  }
-  if (/^(hola|hello|hi|hey|buenas?)([,\s]+)+(informacion|info|ayuda|cotizar|cotizacion)\s*$/.test(
-    normalized
-  )) {
-    return true;
-  }
-  if (/^(buen(os|as)?\s+(dias?|tardes?|noches?))([,\s]+)+(informacion|info|ayuda|cotizar|cotizacion)\s*$/.test(
-    normalized
-  )) {
-    return true;
-  }
-  return false;
-}
-function looksLikePersonFullName(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return false;
-  const parts2 = t4.split(/\s+/);
-  if (parts2.length < 2 || parts2.length > 5) return false;
-  if (/\bmucho\s+gusto\b/i.test(t4)) return false;
-  return parts2.every((part) => {
-    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
-    if (NAME_STOPWORDS.test(letters)) return false;
-    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(part) && letters.length >= 1) return true;
-    return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
-  });
-}
-function isLikelyNotPersonNameMessage(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return true;
-  if (isGreetingToLucy(t4)) return true;
-  if (isRepeatComplaintAsName(t4)) return true;
-  if (/(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t4)) return false;
-  if (/^\s*es\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]/i.test(t4) && t4.split(/\s+/).length <= 5) return false;
-  if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t4) && t4.split(/\s+/).length <= 5) return false;
-  if (isServicePreferenceAsNombre(t4)) return true;
-  if (isRoleOrDepartmentAsNombre(t4)) return true;
-  if (/\?/.test(t4)) return true;
-  if (SENTENCE_VERB_PATTERN.test(t4)) return true;
-  if (/\bcu[aá]nto\s+(cuesta|cuestan|vale|valen|cobran|sale)\b/i.test(t4) || /\b(precio|costo|tarifa)\s+(de|para|por)\b/i.test(t4) || /\bcu[aá]nto\s+cuesta\s+la\s+renta\b/i.test(t4)) {
-    return true;
-  }
-  if (isGreetingOnlyMessage(t4) || isQuoteIntentMessage(t4) || isAffirmativeOnlyMessage(t4)) return true;
-  if (/\bcon\s+(mucho\s+)?gusto\b/i.test(t4) && t4.split(/\s+/).length <= 5) return true;
-  if (isMuchoGustoNameReply(t4)) return false;
-  if (/^(s[ií][,.]?\s*)?(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)([.!?]|$)/i.test(
-    t4
-  )) {
-    return true;
-  }
-  if (isLikelyUbicacionNotNombre(t4)) return true;
-  if (COMPANY_OR_CHANNEL_PATTERN.test(t4)) return true;
-  if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona)\b/i.test(t4)) return true;
-  if (/\b(asesor|agente|humano)\b/i.test(t4) && t4.split(/\s+/).length <= 5) return true;
-  if (/\b(crepas?|sushi|poke|banquete|taquiza|catering|coffee\s*break|brunch|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mobiliario|salas?\s+lounge|photo\s*booth|photobooth|cabina|nigiris?)\b/i.test(
-    t4
-  ) && !/^(soy|me\s+llamo)/i.test(t4)) {
-    return true;
-  }
-  if (looksLikePersonFullName(t4)) return false;
-  if (t4.split(/\s+/).length >= 4) return true;
-  return false;
-}
-function clientAsksCompanyIdentity(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim();
-  if (!COMPANY_OR_CHANNEL_PATTERN.test(t4) && !/cap\s*[&y]?\s*bata/i.test(t4)) return false;
-  return /\?/i.test(t4) || /\b(comunico|hablo|escribo|estoy|este\s+(es|chat|n[uú]mero)|es\s+(el|la)|son)\b/i.test(t4);
-}
-function buildCompanyIdentityReply(clientName) {
-  const nombre = sanitizeDisplayName(clientName);
-  const base = "S\xED, soy Lucy de Bodasesor (Cap&Bara Eventos). Te ayudo a armar tu cotizaci\xF3n por aqu\xED.";
-  return nombre ? `${base} \xBFSeguimos, ${nombre}?` : `${base} \xBFMe regalas tu nombre para iniciar?`;
-}
-function clientAsksLucyIdentity(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim();
-  if (COMPANY_OR_CHANNEL_PATTERN.test(t4) || /cap\s*[&y]?\s*bata/i.test(t4)) return false;
-  return /\bcon\s+qui[eé]n\s+tengo\s+el\s+gusto\b/i.test(t4) || /\bcon\s+qui[eé]n\s+hablo\b/i.test(t4) || /\bqui[eé]n\s+(eres|sos|es\s+usted)\b/i.test(t4) || /\b(c[oó]mo\s+te\s+llamas|cual\s+es\s+tu\s+nombre|cu[aá]l\s+es\s+tu\s+nombre)\b/i.test(t4) || /\bme\s+(puedes\s+)?presentas?\b/i.test(t4) || /\bte\s+puedes\s+presentar\b/i.test(t4) || /\bqui[eé]n\s+me\s+(atiende|escribe|contesta)\b/i.test(t4);
-}
-function buildLucyIdentityReply(clientName) {
-  const nombre = sanitizeDisplayName(clientName);
-  const base = "Soy *Lucy*, agente virtual de Bodasesor. Te ayudo a armar tu cotizaci\xF3n por aqu\xED.";
-  return nombre ? `${base} \xBFEn qu\xE9 m\xE1s te apoyo, ${nombre}?` : `${base} \xBFEn qu\xE9 te puedo ayudar?`;
-}
-function isServicePreferenceAsNombre(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return false;
-  if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t4)) return false;
-  const serviceFamily = /\b(catering|banquete|taquiza|coffee(\s*break)?|brunch|comida|alimentos?|formal|casual|desayuno|canap[eé]s?|barra|sushi|pizza|pasta|nigiri|mobiliario|mesas?|sillas?|periqueras?|carpas?|pista|dj|bebidas?|mixolog[ií]a|helado|crepas?|photo\s*booth|photobooth|vajillas?|loza)\b/i;
-  if (/\b(ser[ií]a(n)?|prefiero|preferimos|quiero|necesito|busco|solo|solamente|nada\s+m[aá]s)\s+(de\s+|un\s+|una\s+|el\s+|la\s+)?/i.test(
-    t4
-  ) && serviceFamily.test(t4)) {
-    return true;
-  }
-  if (/^(de\s+)?(catering|banquete|taquiza|coffee(\s*break)?|brunch|mobiliario)(\s+\w+){0,2}$/i.test(t4)) {
-    return true;
-  }
-  if (/^ser[ií]a(n)?$/i.test(t4)) return true;
-  if (t4.split(/\s+/).length <= 4 && serviceFamily.test(t4) && !looksLikePersonFullName(t4)) {
-    return true;
-  }
-  return false;
-}
-function isLikelyUbicacionNotNombre(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4 || /^(me llamo|soy)\s+/i.test(t4)) return false;
-  if (/^en\s+[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ.'\s-]{2,40}$/i.test(t4) && t4.split(/\s+/).length <= 6) {
-    return true;
-  }
-  if (/\b(cdmx|cd\.?\s*m\.?x\.?|ciudad de m[eé]xico|polanco|narvarte|santa\s*fe|cuernavaca|morelos|coyoac[aá]n|tlalpan|tlalnepantla|naucalpan|ecatepec|atizap[aá]n|sat[eé]lite|interlomas|expo\s+santa|estado\s+de\s+m[eé]xico|edo\.?\s*mex|canc[uú]n|cancun|guadalajara|monterrey|puebla|quer[eé]taro|m[eé]rida|tulum|playa\s+del\s+carmen|toluca|acapulco|veracruz|tijuana|valle\s+de\s+bravo|mesa\s+rica|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|pachuca|tlaxcala|jiutepec|aguascalientes|chihuahua|oaxaca|morelia|saltillo|huatulco|sayulita|ixtapa|zihuatanejo)\b/i.test(
-    t4
-  ) && t4.split(/\s+/).length <= 5) {
-    return true;
-  }
-  return false;
-}
-function isAffirmativeOnlyMessage(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return false;
-  return /^(s[ií]|ok|vale|claro|de\s+acuerdo|por\s+supuesto|perfecto|correcto|exacto|as[ií]\s+es|claro\s+(que\s+s[ií]|con\s+gusto)|con\s+gusto|claro\s+con\s+gusto|con\s+mucho\s+gusto|por\s+supuesto\s+que\s+s[ií])[.!?\s,]*$/i.test(
-    t4
-  );
-}
-function isWeakOrJunkNombre(name2) {
-  const t4 = (name2 ?? "").trim();
-  if (!t4) return true;
-  if (isPlaceholderLeadName(t4)) return true;
-  if (isAffirmativeOnlyMessage(t4)) return true;
-  if (/\bcon\s+gusto\b/i.test(t4)) return true;
-  const parts2 = t4.split(/\s+/).filter(Boolean);
-  if (parts2.length === 1) {
-    const letters = (parts2[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
-    if (!letters || letters.length < 3) return true;
-    if (NAME_STOPWORDS.test(letters)) return true;
-    if (GREETING_NAME_PATTERN.test(letters)) return true;
-    if (NAME_COURTESY_OR_ROLE_TOKEN.test(letters)) return true;
-    if (/^(con|sin|por|para|de|del|la|el|los|las|un|una|y|o)$/i.test(letters)) return true;
-  }
-  return false;
-}
-function isPlaceholderLeadName(name2) {
-  const trimmed = name2?.trim() ?? "";
-  if (!trimmed) return true;
-  if (trimmed.length < 2) return true;
-  if (PHONE_LIKE.test(trimmed.replace(/\s/g, ""))) return true;
-  if (isRoleOrDepartmentAsNombre(trimmed)) return true;
-  return PLACEHOLDER_PATTERNS.some((p5) => p5.test(trimmed));
-}
-function stripLeadingNameFillers(name2) {
-  let out2 = name2.trim();
-  const filler = /^(claro|ok(?:ay)?|vale|bueno|pues|mira|hola|eh+|este)\s+/i;
-  for (let i6 = 0; i6 < 3; i6++) {
-    const next = out2.replace(filler, "").trim();
-    if (next === out2) break;
-    out2 = next;
-  }
-  return out2;
-}
-function sanitizeDisplayName(name2) {
-  const raw = stripMuchoGustoSalutation(name2?.trim() ?? "");
-  if (!raw || isPlaceholderLeadName(raw)) return null;
-  if (isGreetingToLucy(raw)) return null;
-  if (isGreetingOnlyMessage(raw)) return null;
-  const stripped = stripPresentationPrefixLocal(raw);
-  const cleaned = stripLeadingNameFillers(
-    stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim()
-  );
-  if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
-  if (isGreetingOnlyMessage(cleaned)) return null;
-  const firstToken = cleaned.split(/\s+/)[0] ?? "";
-  const firstName2 = firstToken.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
-  if (!firstName2 || firstName2.length < 2) return null;
-  if (/^(el|la|los|las|un|una)$/i.test(firstName2)) return null;
-  if (/^\d+$/.test(firstName2)) return null;
-  if (GREETING_NAME_PATTERN.test(firstName2)) return null;
-  if (NAME_STOPWORDS.test(firstName2)) return null;
-  if (NAME_COURTESY_OR_ROLE_TOKEN.test(firstName2) || COURTESY_NAME_TOKEN.test(firstName2)) return null;
-  if (isAffirmativeOnlyMessage(raw) || isAffirmativeOnlyMessage(cleaned)) return null;
-  if (isWeakOrJunkNombre(cleaned) || isWeakOrJunkNombre(firstName2)) return null;
-  if (BOT_OR_META_NAME_TOKEN.test(firstName2)) return null;
-  if (CATALOG_LEVEL_OR_BRAND_NAME.test(firstName2)) return null;
-  if (isQuoteIntentMessage(raw)) return null;
-  if (isLikelyUbicacionNotNombre(raw) || isLikelyUbicacionNotNombre(cleaned)) return null;
-  if (isLikelyNotPersonNameMessage(raw) || isLikelyNotPersonNameMessage(cleaned)) return null;
-  if (/^(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)$/i.test(firstName2)) {
-    return null;
-  }
-  return firstName2.charAt(0).toUpperCase() + firstName2.slice(1).toLowerCase();
-}
-function sanitizeCrmNombre(name2) {
-  const raw = stripMuchoGustoSalutation(name2?.trim() ?? "");
-  if (!raw || isPlaceholderLeadName(raw) || isQuoteIntentMessage(raw)) return null;
-  if (isGreetingToLucy(raw)) return null;
-  if (isGreetingOnlyMessage(raw)) return null;
-  if (isAffirmativeOnlyMessage(raw)) return null;
-  if (isWeakOrJunkNombre(raw)) return null;
-  if (isRepeatComplaintAsName(raw)) return null;
-  if (isLikelyUbicacionNotNombre(raw)) return null;
-  if (isServicePreferenceAsNombre(raw)) return null;
-  if (isRoleOrDepartmentAsNombre(raw)) return null;
-  const strippedHandoff = raw.replace(/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/gi, " ").replace(/\b(hablar|asesor|agente|humano)\b/gi, " ").replace(/\s+/g, " ").trim();
-  if (strippedHandoff && strippedHandoff !== raw && strippedHandoff.length >= 2) {
-    return sanitizeCrmNombre(strippedHandoff);
-  }
-  if (!strippedHandoff) return null;
-  const isPresentation = /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw);
-  if (!isPresentation && isLikelyNotPersonNameMessage(raw)) {
-    if (/\bcu[aá]nto\s+(cuesta|cuestan|vale|valen|cobran)\b/i.test(raw) || /\b(precio|costo)\b.{0,20}\b(renta|mesa|silla|periquera)/i.test(raw) || PRICE_OR_SERVICE_NAME_TOKEN.test((raw.split(/\s+/)[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, ""))) {
-      return null;
-    }
-    const maybeRepair = stripPresentationPrefixLocal(raw).replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim().split(/\s+/).filter((part) => {
-      const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
-      return letters.length >= 2 && !BOT_OR_META_NAME_TOKEN.test(letters) && !COURTESY_NAME_TOKEN.test(letters) && !HANDOFF_OR_META_NAME_TOKEN.test(letters) && !CATALOG_LEVEL_OR_BRAND_NAME.test(letters) && !GREETING_NAME_PATTERN.test(letters) && !PRICE_OR_SERVICE_NAME_TOKEN.test(letters) && !SENTENCE_VERB_PATTERN.test(letters) && !/^(la|el|los|las|de|del|para|por|un|una|con|sin|tipo|bar)$/i.test(letters);
-    });
-    if (maybeRepair.length === 0 || maybeRepair.length === raw.split(/\s+/).length) {
-      return null;
-    }
-    if (maybeRepair.length <= 2 && raw.split(/\s+/).length >= 5) {
-      return null;
-    }
-    const repaired = maybeRepair.slice(0, 4).join(" ");
-    if (SENTENCE_VERB_PATTERN.test(repaired) || isLikelyNotPersonNameMessage(repaired)) return null;
-    if (PRICE_OR_SERVICE_NAME_TOKEN.test(maybeRepair[0] ?? "")) return null;
-    return maybeRepair.slice(0, 4).map((part) => {
-      const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
-      return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
-    }).join(" ");
-  }
-  const stripped = stripPresentationPrefixLocal(raw);
-  const cleaned = stripLeadingNameFillers(
-    stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(
-      /\b(es\s+)?(una?\s+)?(boda|xv\s*a[nñ]os?|cumplea[nñ]os|bautizo|baby\s*shower|aniversario|graduaci[oó]n|evento\s+corporativo)\b/gi,
-      " "
-    ).replace(/\s+/g, " ").trim()
-  );
-  if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
-  if (isGreetingOnlyMessage(cleaned)) return null;
-  if (isLikelyUbicacionNotNombre(cleaned)) return null;
-  const parts2 = cleaned.split(/\s+/).filter((part) => {
-    const token = part.trim();
-    const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
-    if (!letters) return false;
-    if (BOT_OR_META_NAME_TOKEN.test(letters)) return false;
-    if (COURTESY_NAME_TOKEN.test(letters)) return false;
-    if (NAME_COURTESY_OR_ROLE_TOKEN.test(letters)) return false;
-    if (NAME_STOPWORDS.test(letters)) return false;
-    if (HANDOFF_OR_META_NAME_TOKEN.test(letters)) return false;
-    if (CATALOG_LEVEL_OR_BRAND_NAME.test(letters)) return false;
-    if (/^(boda|xv|cumpleanos|bautizo|aniversario|graduacion|es|una|un)$/i.test(letters)) return false;
-    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(token) && letters.length >= 1) return true;
-    return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
-  });
-  if (parts2.length === 0) return null;
-  if (isWeakOrJunkNombre(parts2.join(" "))) return null;
-  const candidate = parts2.slice(0, 4).map((part) => {
-    const token = part.trim();
-    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.$/.test(token)) {
-      return `${token.charAt(0).toUpperCase()}.`;
-    }
-    const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
-    return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
-  }).join(" ");
-  if (SENTENCE_VERB_PATTERN.test(candidate)) return null;
-  if (CATALOG_LEVEL_OR_BRAND_NAME.test(candidate.split(/\s+/)[0] ?? "")) return null;
-  return candidate;
-}
-function shouldUpdateName(current, incoming) {
-  const c5 = (current ?? "").trim();
-  const i6 = (incoming ?? "").trim();
-  if (!i6) return false;
-  const iClean = sanitizeCrmNombre(i6) ?? sanitizeDisplayName(i6);
-  if (!iClean) return false;
-  if (isWeakOrJunkNombre(iClean)) return false;
-  if (!c5) return true;
-  if (isWeakOrJunkNombre(c5) && nombreWordCount(iClean) >= 2) return true;
-  if (isWeakOrJunkNombre(c5) && !isWeakOrJunkNombre(iClean)) return true;
-  if (isLikelyUbicacionNotNombre(c5) || isRoleOrDepartmentAsNombre(c5) || CATALOG_LEVEL_OR_BRAND_NAME.test(c5.split(/\s+/)[0] ?? "") || !sanitizeCrmNombre(c5)) {
-    return true;
-  }
-  if (!namesAreLikelySamePerson(c5, iClean)) return false;
-  const cClean = sanitizeCrmNombre(c5) ?? sanitizeDisplayName(c5) ?? c5;
-  if (nombreWordCount(iClean) < nombreWordCount(cClean)) return false;
-  const cRawNorm = c5.toLowerCase().replace(/\s+/g, " ").trim();
-  if (cClean.toLowerCase() !== cRawNorm && iClean.toLowerCase() === cClean.toLowerCase()) {
-    return true;
-  }
-  if (cClean.toLowerCase() === iClean.toLowerCase()) return false;
-  return isNombreMoreComplete(iClean, cClean);
-}
-function resolveKommoLeadNamePatch(currentLeadName, candidateNombre) {
-  const patch = sanitizeCrmNombre(candidateNombre) ?? sanitizeDisplayName(candidateNombre);
-  if (!patch) return null;
-  if (!shouldUpdateName(currentLeadName ?? void 0, patch)) return null;
-  return patch;
-}
-function normalizeNameTokens(name2) {
-  return name2.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").split(/\s+/).filter((t4) => t4.length >= 2);
-}
-function namesShareNicknameRoot(a4, b5) {
-  const na2 = (a4 ?? "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z]/g, "");
-  const nb = (b5 ?? "").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z]/g, "");
-  if (!na2 || !nb) return false;
-  if (na2 === nb) return true;
-  if (na2.length < 3 || nb.length < 3) return false;
-  const shorter = na2.length <= nb.length ? na2 : nb;
-  const longer = na2.length > nb.length ? na2 : nb;
-  if (longer.startsWith(shorter) && shorter.length >= 3) return true;
-  let common = 0;
-  while (common < shorter.length && shorter[common] === longer[common]) common++;
-  return common >= 3 && Math.abs(na2.length - nb.length) <= 3;
-}
-function namesAreLikelySamePerson(existing, incoming) {
-  const e4 = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
-  const i6 = sanitizeCrmNombre(incoming) ?? sanitizeDisplayName(incoming);
-  if (!e4 || !i6) return true;
-  const te4 = normalizeNameTokens(e4);
-  const ti2 = normalizeNameTokens(i6);
-  if (!te4.length || !ti2.length) return true;
-  if (te4[0] === ti2[0]) return true;
-  if (namesShareNicknameRoot(te4[0], ti2[0])) return true;
-  return te4.some((t4) => ti2.includes(t4)) || ti2.some((t4) => te4.includes(t4));
-}
-function buildNameConfirmationPrompt(existing, incoming) {
-  return `Para anotarte bien: \xBFeres ${incoming.trim()} o sigo contigo como ${existing.trim()}?`;
-}
-function nombreWordCount(name2) {
-  const crm = sanitizeCrmNombre(name2);
-  if (!crm) return sanitizeDisplayName(name2) ? 1 : 0;
-  return crm.split(/\s+/).filter(Boolean).length;
-}
-function isNombreMoreComplete(candidate, existing) {
-  const c5 = sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
-  const e4 = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
-  if (!c5) return false;
-  if (!e4) return true;
-  const cw = nombreWordCount(c5);
-  const ew = nombreWordCount(e4);
-  if (cw > ew) return true;
-  if (cw < ew) return false;
-  return c5.length >= e4.length;
-}
-function pickBetterNombre(candidate, existing) {
-  const eClean = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
-  const iClean = sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
-  if (eClean && isWeakOrJunkNombre(eClean) && iClean && !isWeakOrJunkNombre(iClean)) {
-    return iClean;
-  }
-  if (iClean && isWeakOrJunkNombre(iClean) && eClean && !isWeakOrJunkNombre(eClean)) {
-    return eClean;
-  }
-  if (eClean && iClean && namesAreLikelySamePerson(eClean, iClean)) {
-    if (nombreWordCount(eClean) > nombreWordCount(iClean)) {
-      return eClean;
-    }
-    if (nombreWordCount(eClean) === nombreWordCount(iClean) && eClean.length > iClean.length && namesShareNicknameRoot(eClean.split(/\s+/)[0], iClean.split(/\s+/)[0])) {
-    }
-  }
-  if (isNombreMoreComplete(candidate, existing)) {
-    return sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
-  }
-  return sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
-}
-function rewriteJunkClientVocative(message, correctNombre) {
-  if (!message?.trim()) return message;
-  const correct = sanitizeDisplayName(correctNombre) ?? sanitizeCrmNombre(correctNombre)?.split(/\s+/)[0] ?? null;
-  return message.replace(
-    /\b((?:¡?Mucho gusto|¡?Con gusto|Perfecto|Excelente|Genial|Listo|Claro|Hola|Gracias)[,!]?)(\s+)([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ'-]*)\b(?=\s*(?:[.,;:!?]|$))/gi,
-    (full, greet, space, name2) => {
-      if (!isServicePreferenceAsNombre(name2) && !isRoleOrDepartmentAsNombre(name2)) {
-        return full;
-      }
-      if (correct) return `${greet}${space}${correct}`;
-      return greet.replace(/,$/, "").trim();
-    }
-  );
-}
-function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
-  return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
-}
-var PHONE_LIKE, PLACEHOLDER_PATTERNS, ROLE_OR_DEPT_NAME_TOKEN, GREETING_NAME_PATTERN, COMPANY_OR_CHANNEL_PATTERN, BOT_OR_META_NAME_TOKEN, COURTESY_NAME_TOKEN, MUCHO_GUSTO_SUFFIX, MUCHO_GUSTO_LEADING, CATALOG_LEVEL_OR_BRAND_NAME, SENTENCE_VERB_PATTERN, HANDOFF_OR_META_NAME_TOKEN, PRICE_OR_SERVICE_NAME_TOKEN, NAME_STOPWORDS, NAME_COURTESY_OR_ROLE_TOKEN;
-var init_contact_name = __esm({
-  "src/contact-name.ts"() {
-    "use strict";
-    PHONE_LIKE = /^\+?\d[\d\s\-().]{7,}$/;
-    PLACEHOLDER_PATTERNS = [
-      /^nuevo\s+lead$/i,
-      /^lead\s*#?\d+$/i,
-      /^contacto\s*#?\d+$/i,
-      /^whatsapp\s*#?\d+$/i,
-      /^sin\s+nombre$/i,
-      /^unknown$/i,
-      /^cliente$/i,
-      /^\d+$/
-    ];
-    ROLE_OR_DEPT_NAME_TOKEN = /^(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n|compras|rh|rr\.?\s*hh?|recursos\s+humanos|atenci[oó]n(\s+a\s+clientes)?|customer\s+service|front\s+desk|concierge|reservaciones?|reservations?|informaci[oó]n|info|oficina|office|operaciones|log[ií]stica|eventos?|coordinaci[oó]n|coordinador[ao]?|asistente|secretaria|secretar[ií]a)$/i;
-    GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo|claro)$/i;
-    COMPANY_OR_CHANNEL_PATTERN = /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
-    BOT_OR_META_NAME_TOKEN = /^(lucy|llamo|llam[oó]|bodasesor|capybara|salesbot)$/i;
-    COURTESY_NAME_TOKEN = /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto|servidor[ao]?|servidora)$/i;
-    MUCHO_GUSTO_SUFFIX = /\s+mucho\s+gusto\b/gi;
-    MUCHO_GUSTO_LEADING = /^mucho\s+gusto,?\s+/i;
-    CATALOG_LEVEL_OR_BRAND_NAME = /^(premium|b[aá]sic[ao]|tradicional|solo\s*alimentos?|deluxe|vip|gold|silver|platinum|business|premium\s*events?)$/i;
-    SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|hablar|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale|manda|m[aá]nda|mandame|m[aá]ndame|mandamelo|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|pasa|p[aá]same|conocer)\b/i;
-    HANDOFF_OR_META_NAME_TOKEN = /^(hablar|asesor|agente|humano|persona|ejecutivo|equipo|conmigo|contigo|por|favor)$/i;
-    PRICE_OR_SERVICE_NAME_TOKEN = /^(cu[aá]nto|cu[aacute]nto|cuesta|cuestan|costo|precio|renta|rentar|cobran|vale|valen|mesas?|sillas?|periqueras?|salas?|mobiliario|personas?|invitados?)$/i;
-    NAME_STOPWORDS = /^(en|de|del|la|el|los|las|un|una|al|para|por|con|sin|y|o)$/i;
-    NAME_COURTESY_OR_ROLE_TOKEN = /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto|servidor[ao]?|servidora|a\s+sus\s+[oó]rdenes|presente|mismo|misma)$/i;
-  }
-});
-
 // src/client-email.ts
 function normalizeEmail(email) {
   const trimmed = email?.trim().toLowerCase() ?? "";
@@ -130339,92 +130425,6 @@ var init_client_email = __esm({
       ].map((e4) => e4.toLowerCase())
     );
     SUSPICIOUS_TLD = /\.(comm|con|cmo|gmial|gmal|gmai|hotmial|yaho|outlok)\b/i;
-  }
-});
-
-// src/lib/bodasesorAdvisor.ts
-function getAdvisorName() {
-  return process.env["BODASESOR_ADVISOR_NAME"]?.trim() || process.env["KOMMO_ADVISOR_NAME"]?.trim() || "Alejandro";
-}
-function advisorLabelForClient(_clientName) {
-  return "nuestro equipo";
-}
-function escapeRegex(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-function isStaffAdvisorName(name2) {
-  const raw = name2?.trim() ?? "";
-  if (!raw) return false;
-  const first = raw.split(/\s+/)[0]?.toLowerCase() ?? "";
-  const staff = /* @__PURE__ */ new Set([
-    getAdvisorName().toLowerCase(),
-    ...LEGACY_ADVISOR_NAMES.map((n5) => n5.toLowerCase()),
-    "lucy",
-    "bodasesor",
-    "kommo"
-  ]);
-  return staff.has(raw.toLowerCase()) || staff.has(first);
-}
-function isLegacyAdvisorName(name2) {
-  const lower2 = name2.toLowerCase();
-  return LEGACY_ADVISOR_NAMES.some((legacy) => legacy.toLowerCase() === lower2);
-}
-function replaceAdvisorTokensPreservingClientName(text2, token, replacement, clientName) {
-  const clientFirst = clientName?.trim().split(/\s+/)[0];
-  if (!clientFirst || clientFirst.toLowerCase() !== token.toLowerCase()) {
-    return text2.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
-  }
-  const placeholder = "\uE000CLIENT_NAME\uE001";
-  const clientEsc = escapeRegex(clientFirst);
-  let out2 = text2.replace(
-    new RegExp(`(${CLIENT_GREETING_PREFIX.source})${clientEsc}\\b`, "gi"),
-    `$1${placeholder}`
-  );
-  out2 = out2.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
-  return out2.replace(new RegExp(placeholder, "g"), clientFirst);
-}
-function normalizeAdvisorReferences(text2, clientName) {
-  const advisor = advisorLabelForClient(clientName);
-  if (!text2?.trim()) return text2;
-  let out2 = rewriteJunkClientVocative(text2, clientName);
-  for (const legacy of LEGACY_ADVISOR_NAMES) {
-    out2 = out2.replace(new RegExp(`\\b${legacy}\\b`, "gi"), advisor);
-  }
-  out2 = out2.replace(
-    /\b(le\s+paso\s+estos\s+datos\s+a|paso\s+estos\s+datos\s+a)\s+(?!nuestro\b)[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/gi,
-    `$1 ${advisor}`
-  );
-  out2 = out2.replace(
-    /\b(voy\s+a\s+)?pasar(le)?\s+esta\s+informaci[oó]n\s+a\s+(?!nuestro\b)[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/gi,
-    advisor === "nuestro equipo" ? "voy a pasar esta informaci\xF3n a nuestro equipo" : `voy a pasar esta informaci\xF3n a ${advisor}`
-  );
-  out2 = out2.replace(/\b(\p{L}+)\s+\1\b/giu, "$1");
-  out2 = out2.replace(
-    /\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)\s+te\s+(arma|armar[aá]|incluir[aá]|cotiza)/g,
-    (m6, name2) => {
-      if (isLegacyAdvisorName(name2)) return m6.replace(name2, advisor);
-      if (name2.toLowerCase() === getAdvisorName().toLowerCase()) {
-        return m6.replace(name2, advisor);
-      }
-      return m6;
-    }
-  );
-  out2 = replaceAdvisorTokensPreservingClientName(out2, getAdvisorName(), advisor, clientName);
-  return out2;
-}
-function stripInternalCrmBlock(mensaje) {
-  if (!/DATOS DEL CLIENTE:|Información completa obtenida/i.test(mensaje)) return mensaje;
-  const cut = mensaje.search(/DATOS DEL CLIENTE:|Información completa obtenida/i);
-  if (cut > 0) return mensaje.slice(0, cut).trim();
-  return "";
-}
-var LEGACY_ADVISOR_NAMES, CLIENT_GREETING_PREFIX;
-var init_bodasesorAdvisor = __esm({
-  "src/lib/bodasesorAdvisor.ts"() {
-    "use strict";
-    init_contact_name();
-    LEGACY_ADVISOR_NAMES = ["Rodrigo"];
-    CLIENT_GREETING_PREFIX = /(Mucho gusto,?|Hola,?|Genial,?|Perfecto,?|Excelente,?|Listo,?|Claro,?|Qué padre,?)\s*/i;
   }
 });
 
@@ -136098,6 +136098,13 @@ function stripStalePriceTalk(mensaje, currentMessage) {
   if (!currentMessage?.trim() || clientAsksPrice(currentMessage)) return mensaje;
   if (/\bdj\b|precio|cu[aá]nto\s+cuesta/i.test(currentMessage)) return mensaje;
   return mensaje.split(/(?<=[.!?])\s+|\n+/).filter((s7) => !/\bdj\b/i.test(s7) || clientAsksPrice(currentMessage)).filter((s7) => !/alejandro te (incluye|da) el precio/i.test(s7)).join(" ").replace(/\s{2,}/g, " ").trim();
+}
+function stripUnsolicitedPriceClaims(mensaje, currentMessage) {
+  if (!mensaje?.trim()) return mensaje;
+  if (clientAsksPrice(currentMessage)) return mensaje;
+  if (!messageClaimsPrice(mensaje)) return mensaje;
+  const cleaned = stripPriceSentences(mensaje);
+  return cleaned.length >= 12 ? cleaned : mensaje;
 }
 function buildConsultativeNoPriceReply(message) {
   if (!message?.trim()) return null;
@@ -161603,6 +161610,7 @@ function normalizeAdvisorReferences2(mensaje, name2) {
   if (ctx.currentMessage && !clientAsksPrice(ctx.currentMessage) && !clientAsksInclusion(ctx.currentMessage) && !mentionsListedPriceService(ctx.currentMessage) && /\$\s*\d/.test(out2) && !/bodasesor\.com\/catalogos/i.test(out2)) {
     out2 = sanitizeInventedPrices(out2, ctx.currentMessage);
     out2 = stripStalePriceTalk(out2, ctx.currentMessage);
+    out2 = stripUnsolicitedPriceClaims(out2, ctx.currentMessage);
   }
   return out2.replace(/\s{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }
@@ -167905,6 +167913,7 @@ ${pickVariant("nombre", history, entityId)}`.trim();
     }
   }
   mensaje = stripStalePriceTalk(mensaje, currentMessage);
+  mensaje = stripUnsolicitedPriceClaims(mensaje, currentMessage);
   if (!trulyReadyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
     let pendingAfter = getNextPendingField(extracted, filledSet);
     if (pendingAfter === "presupuesto" && countLucyFieldAsks(presHistory, "presupuesto") >= PRESUPUESTO_MAX_ASKS) {
@@ -227818,6 +227827,176 @@ var UpdateExampleResponse = objectType({
 init_openaiEnv();
 init_llmEnv();
 init_llmChat();
+
+// src/services/googleGrounding.ts
+init_node();
+init_llmEnv();
+
+// src/services/trendKnowledge.ts
+init_bodasesorAdvisor();
+var TREND_IDEA_PATTERN = /\b(?:tendenci(?:a|as)|ideas?\s+(?:de\s+)?(?:decoraci[oó]n|evento|fiesta|boda|xv|ambient)|inspiraci[oó]n|mood\s*board|estilos?\b|tem[aá]tica|ambiente|qu[eé]\s+(?:se\s+)?(?:usa|lleva|est[aá]\s+usando)|novedades?|recomendaci[oó]n(?:es)?|c[oó]mo\s+(?:armar|decorar|montar)|qu[eé]\s+(?:me\s+)?(?:recomiendas?|sugieres?)|opciones?\s+de\s+(?:decor|estilo)|look\b|vibe\b|aesthetic)\b/i;
+var STYLE_CUES = [
+  { pattern: /\bboho|bohemio/i, label: "boho" },
+  { pattern: /\br[uú]stic/i, label: "r\xFAstico" },
+  { pattern: /\belegante|formal|black\s*tie/i, label: "elegante" },
+  { pattern: /\bminimal(?:ista)?/i, label: "minimalista" },
+  { pattern: /\bne[oó]n|fluo/i, label: "ne\xF3n / fiesta" },
+  { pattern: /\bjard[ií]n|garden|al\s+aire\s+libre|exterior/i, label: "jard\xEDn / exterior" },
+  { pattern: /\bcoquette|rosad[oa]|pink/i, label: "coquette / rosa" },
+  { pattern: /\bvintage|retr[oó]/i, label: "vintage" },
+  { pattern: /\bindustrial|loft/i, label: "industrial" },
+  { pattern: /\btropical|player[oa]|beach/i, label: "tropical" },
+  { pattern: /\bm[eé]xico|mexicana|folkl[oó]r/i, label: "mexicana" },
+  { pattern: /\bxv|quince/i, label: "XV a\xF1os" },
+  { pattern: /\bboda|wedding/i, label: "boda" },
+  { pattern: /\bcorporativ|empresarial|gala/i, label: "corporativo" }
+];
+var TIPS_BY_EVENT = {
+  boda: [
+    "Iluminaci\xF3n c\xE1lida + lounge peque\xF1o suele elevar el ambiente sin saturar.",
+    "Carpa + entelado + pista iluminada arma un look completo en jard\xEDn.",
+    "Estaciones casuales + barra de bebidas liberan el sal\xF3n vs banquete fijo."
+  ],
+  xv: [
+    "Entrada con luces o LED wall + pista grande marca el momento del vals.",
+    "Mobiliario lounge en zona VIP + periqueras en c\xF3ctel funciona muy bien.",
+    "Mesa de dulces + barra de postres refuerza el tema de color."
+  ],
+  corporativo: [
+    "Coffee break + pantallas LED + audio claro = formato profesional limpio.",
+    "Periqueras + branding en backdrop para networking sin montaje pesado.",
+    "Si hay premiaci\xF3n: tarima + iluminaci\xF3n enfocada al escenario."
+  ],
+  cumple: [
+    "Tem\xE1tica clara (color/estilo) + mesa de dulces + DJ suele cerrar bien.",
+    "Para jard\xEDn: carpa + iluminaci\xF3n tipo edison + estaciones de comida."
+  ],
+  default: [
+    "Primero define el vibe (elegante, fiesta, jard\xEDn) y luego encaja servicios.",
+    "Combina 2\u20133 piezas ancla (espacio, comida, ambiente) antes de saturar extras.",
+    "Si el espacio es chico, prioriza iluminaci\xF3n y mobiliario lounge sobre montajes grandes."
+  ]
+};
+function eventKey(tipo) {
+  const t4 = (tipo ?? "").toLowerCase();
+  if (/boda|wedding/.test(t4)) return "boda";
+  if (/xv|quince/.test(t4)) return "xv";
+  if (/corporativ|empresarial|gala|conferenc/.test(t4)) return "corporativo";
+  if (/cumple|birthday|aniversario/.test(t4)) return "cumple";
+  return "default";
+}
+function clientWantsIdeasOrTrends(message) {
+  if (!message?.trim()) return false;
+  return TREND_IDEA_PATTERN.test(message);
+}
+function extractStyleCues(...texts) {
+  const blob = texts.filter(Boolean).join(" \n ");
+  if (!blob.trim()) return [];
+  const found = [];
+  for (const { pattern, label } of STYLE_CUES) {
+    if (pattern.test(blob) && !found.includes(label)) found.push(label);
+    if (found.length >= 4) break;
+  }
+  return found;
+}
+function pickTips(tipoEvento, max = 2) {
+  const tips = TIPS_BY_EVENT[eventKey(tipoEvento)] ?? TIPS_BY_EVENT.default;
+  return tips.slice(0, max);
+}
+function buildTrendContextBlock(opts) {
+  const cues = extractStyleCues(opts.messageText, opts.tipoEvento, opts.requerimientos);
+  const tips = pickTips(opts.tipoEvento, cues.length ? 1 : 2);
+  const team = advisorLabelForClient();
+  const wantsIdeas = clientWantsIdeasOrTrends(opts.messageText);
+  const lines = [
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 IDEAS / TENDENCIAS (compacto \u2014 sin precios) \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "Usa esto para asesorar y generar negocio. NO cites montos aqu\xED.",
+    `Precio solo si el cliente lo pidi\xF3 y hay ficha Sheet/PDF; si no, ${team} cotiza.`
+  ];
+  if (cues.length) {
+    lines.push(`Estilo/vibe detectado: ${cues.join(", ")}.`);
+  }
+  if (tips.length) {
+    lines.push(`Ideas \xFAtiles: ${tips.join(" ")}`);
+  }
+  if (opts.groundingSnippet?.trim()) {
+    const snip = opts.groundingSnippet.trim().length > 500 ? `${opts.groundingSnippet.trim().slice(0, 497)}\u2026` : opts.groundingSnippet.trim();
+    lines.push(`Notas al d\xEDa (grounding): ${snip}`);
+  } else if (wantsIdeas) {
+    lines.push(
+      "El cliente pide ideas: propone 1\u20132 sugerencias concretas atadas a servicios Bodasesor y pide 1 dato del embudo."
+    );
+  }
+  const block = lines.join("\n");
+  return block.length > 900 ? `${block.slice(0, 897)}\u2026` : block;
+}
+function shouldInjectTrendBlock(messageText, tipoEvento) {
+  if (clientWantsIdeasOrTrends(messageText)) return true;
+  if (extractStyleCues(messageText, tipoEvento).length > 0) return true;
+  return !!(tipoEvento && tipoEvento.trim().length >= 3);
+}
+
+// src/services/googleGrounding.ts
+var groundingStats = {
+  attempts: 0,
+  hits: 0,
+  skips: 0,
+  errors: 0,
+  lastAt: null,
+  lastChars: 0
+};
+function getGoogleGroundingStats() {
+  return { ...groundingStats };
+}
+function isGoogleGroundingEnabled() {
+  const raw = (process.env["LUCY_GOOGLE_GROUNDING"] ?? "0").trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "on" || raw === "yes";
+}
+async function fetchTrendGroundingSnippet(opts) {
+  if (!isGoogleGroundingEnabled()) {
+    groundingStats.skips += 1;
+    return null;
+  }
+  if (!clientWantsIdeasOrTrends(opts.messageText)) {
+    groundingStats.skips += 1;
+    return null;
+  }
+  const key = getGeminiApiKey();
+  if (!key) {
+    groundingStats.skips += 1;
+    return null;
+  }
+  groundingStats.attempts += 1;
+  groundingStats.lastAt = (/* @__PURE__ */ new Date()).toISOString();
+  try {
+    const ai2 = new GoogleGenAI2({ apiKey: key });
+    const eventHint = opts.tipoEvento?.trim() ? ` (evento: ${opts.tipoEvento.trim()})` : "";
+    const prompt = `Eres asesora de eventos en M\xE9xico. Resume en m\xE1ximo 3 vi\xF1etas cortas tendencias o ideas de ambientaci\xF3n relevantes a: "${opts.messageText.slice(0, 280)}"${eventHint}. Sin precios ni marcas inventadas. Solo ideas accionables. Espa\xF1ol neutro MX.`;
+    const response = await ai2.models.generateContent({
+      model: DEFAULT_GEMINI_MODEL,
+      contents: prompt,
+      config: {
+        temperature: 0.4,
+        maxOutputTokens: 280,
+        tools: [{ googleSearch: {} }]
+      }
+    });
+    const text2 = (response.text ?? "").trim().replace(/\s+/g, " ");
+    if (!text2 || text2.length < 20) {
+      groundingStats.errors += 1;
+      return null;
+    }
+    const clipped = text2.length > 480 ? `${text2.slice(0, 477)}\u2026` : text2;
+    groundingStats.hits += 1;
+    groundingStats.lastChars = clipped.length;
+    return clipped;
+  } catch {
+    groundingStats.errors += 1;
+    return null;
+  }
+}
+
+// src/routes/health.ts
 init_imageCompress();
 init_geminiContextCache();
 
@@ -227841,12 +228020,17 @@ function trimChatHistory(messages2, maxMessages = getLucyChatHistoryMax()) {
   if (dialog.length <= maxMessages) return dialog;
   return dialog.slice(-maxMessages);
 }
+function isLucyGoogleGroundingEnabled() {
+  const raw = (process.env["LUCY_GOOGLE_GROUNDING"] ?? "0").trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "on" || raw === "yes";
+}
 function lucyCostControlsSummary() {
   return {
     unified_llm_turn: isLucyUnifiedLlmTurn(),
     chat_history_max: getLucyChatHistoryMax(),
     few_shot_max: getLucyFewShotMax(),
-    context_cache_env: (process.env["GEMINI_CONTEXT_CACHE"] ?? "0").trim() || "0"
+    context_cache_env: (process.env["GEMINI_CONTEXT_CACHE"] ?? "0").trim() || "0",
+    google_grounding: isLucyGoogleGroundingEnabled()
   };
 }
 
@@ -227860,7 +228044,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.16";
+var LUCY_PROMPT_VERSION = "V10.17";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -228349,7 +228533,9 @@ router.get("/health", async (_req, res) => {
     gemini_context_cache: getGeminiContextCacheStats(),
     gemini_image_compress: getImageCompressStats(),
     gemini_cost_controls: lucyCostControlsSummary(),
-    gemini_policy: "V9.32: flash-lite; 1 call/turno (extract+reply JSON); GEMINI_CONTEXT_CACHE default off; historial\u22646; few-shot 0; system est\xE1tico vs contexto din\xE1mico. Sin Nano Banana/Imagen.",
+    google_grounding_enabled: isGoogleGroundingEnabled(),
+    google_grounding_stats: getGoogleGroundingStats(),
+    gemini_policy: "V10.17: flash-lite; 1 call/turno; tips locales; Google Grounding OPT-IN (LUCY_GOOGLE_GROUNDING=1) solo ideas; historial corto; few-shot 0.",
     kommo_configured: isKommoConfigured(),
     kommo_subdomain: getKommoSubdomain() || null,
     lucy_outbound: {
@@ -230829,6 +231015,20 @@ datos del lead y dejarlo listo para que ${TEAM} arme la propuesta.
 ${ADVISOR} es el asesor humano interno; al cliente di "${TEAM}" (nunca un nombre
 de asesor inventado). T\xFA calificas y asesoras; no inventas precios ni inclusiones.
 
+===================================================================
+## 0b. ROL DE VENTA (agente humano, no chatbot de pasos)
+===================================================================
+Tu meta es generar negocio: ideas, estilo, combinaciones de servicios y criterio.
+No eres un cuestionario que dispara campo tras campo.
+- Embudo = meta interna: mezcla UNA pregunta natural en la charla tras aportar valor.
+- Precio/monto: SOLO si el cliente lo pide expl\xEDcitamente Y hay paquete/ficha en Sheet/PDF.
+  Si pide precio y no hay ficha publicada \u2192 dilo con naturalidad: el precio lo arma ${TEAM} /
+  el vendedor humano; t\xFA sigues con ideas y capturando datos.
+- Si NO pidi\xF3 precio: no sueltes montos; vende con ideas (ambiente, look, qu\xE9 encaja).
+- Tendencias / "qu\xE9 se usa ahora": usa el bloque IDEAS/TENDENCIAS del turno si viene;
+  no inventes datos de moda fuera de ese bloque ni del cat\xE1logo.
+- Siempre termina con una pregunta \xFAtil (dato faltante o confirmaci\xF3n de idea) \u2014 nunca dejes el chat muerto.
+
 Antes de cada respuesta recibes ESTADO ACTUAL con lo ya capturado. Es tu memoria:
 obed\xE9celo. Nunca preguntes algo que ya est\xE9 ah\xED.
 
@@ -230966,7 +231166,7 @@ presupuesto (o waiver). Correo es importante pero opcional si prefiere WhatsApp.
 ===================================================================
 Lee el mensaje y responde DIRECTO lo que pregunt\xF3, en ese mismo turno.
 - Ubicaci\xF3n \u2192 cobertura (ver \xA77).
-- Precio \u2192 cifra/rango del Sheet, o "se cotiza a la medida" + sigue.
+- Precio \u2192 SOLO si lo pidi\xF3: cifra/rango del Sheet/PDF, o "eso te lo arma el equipo" si no hay ficha. Si NO pidi\xF3 precio, no lo menciones.
 - "qu\xE9 tienen de X" / "\xBFcuentan con X?" \u2192 S\xCD/NO con detalle breve y pregunta si
   lo sumamos. NUNCA digas solo "lo anoto".
 - Carpas, pista o tarima \u2192 pide medidas aproximadas (y tipo si a\xFAn no lo dijeron).
@@ -231072,6 +231272,9 @@ lugar de tu evento, coordinamos el servicio."
 - NUNCA links gamma.app.
 - NUNCA inventes precios, inclusiones ("qu\xE9 incluye"), disponibilidad o detalles
   que no est\xE9n confirmados en Sheet/PDF.
+- NO sueltes precios si el cliente no los pidi\xF3. Primero ideas y siguiente dato.
+- Si pide precio y hay ficha \u2192 da el monto/rango del Sheet.
+- Si pide precio y NO hay ficha \u2192 el vendedor humano / equipo cotiza; t\xFA no inventas.
 - Si no tienes el dato exacto:
   "Buena pregunta \u2014 eso lo confirmo con el equipo para darte el dato exacto
   y no equivocarme." Luego contin\xFAa con lo que falte del embudo.
@@ -231125,7 +231328,9 @@ function buildStaticSystemPrompt() {
 VOZ DE CHAT (prioridad de redacci\xF3n)
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 Responde como asesora real de WhatsApp: amable, directa, 2\u20134 l\xEDneas.
-NO suenes a formulario ni a men\xFA autom\xE1tico.
+NO suenes a formulario ni a men\xFA autom\xE1tico ni a chatbot de pasos.
+Tu prioridad: ideas y criterio de venta; el embudo se cuela en UNA pregunta natural.
+Precio/monto SOLO si el cliente lo pidi\xF3 y hay ficha Sheet/PDF; si no hay ficha \u2192 el equipo cotiza.
 El bloque de cat\xE1logo/contexto del turno es REFERENCIA: \xFAsalo para no inventar; NO lo pegues.
 M\xE1ximo una pregunta de embudo por mensaje.
 El nombre del cliente se usa MUY de vez en cuando, no en cada mensaje: nadie escribe
@@ -231157,8 +231362,8 @@ PRIMERA INTERACCI\xD3N \u2014 OBLIGATORIO
     parts2.push(`
 CONVERSACI\xD3N EN CURSO
 NO te presentes de nuevo.
-Revisa CRM + historial: pide solo el siguiente dato que falte.
-Orden natural: tipo \u2192 servicios \u2192 fecha \u2192 ubicaci\xF3n \u2192 correo \u2192 invitados \u2192 presupuesto
+Habla como asesora: idea o respuesta \xFAtil primero; luego UNA pregunta natural por el dato que falte.
+Meta interna (no la listes): tipo \u2192 servicios \u2192 invitados \u2192 fecha \u2192 ubicaci\xF3n \u2192 correo \u2192 presupuesto
 (salta lo ya capturado). Al cerrar, pasa a ${team} sin prometer tiempos exactos.`);
   }
   if (hasObjection?.hasObjection && hasObjection.type) {
@@ -231199,6 +231404,16 @@ ${clipped}`);
       const offerHint = buildEventOfferCatalogHint(tipo);
       if (offerHint) parts2.push(offerHint);
     }
+  }
+  if (shouldInjectTrendBlock(context.messageText, context.extracted.tipo_evento) || context.trendGroundingSnippet) {
+    parts2.push(
+      buildTrendContextBlock({
+        messageText: context.messageText,
+        tipoEvento: context.extracted.tipo_evento,
+        requerimientos: context.extracted.requerimientos_evento,
+        groundingSnippet: context.trendGroundingSnippet
+      })
+    );
   }
   return parts2.filter(Boolean).join("\n\n");
 }
@@ -231346,6 +231561,9 @@ function buildRedactionBriefing(input) {
     );
   }
   lines.push(
+    "V10.17 ROL DE VENTA: prioriza ideas y generar negocio; embudo = 1 pregunta natural, no checklist.",
+    "Precio/monto SOLO si el cliente lo pidi\xF3 y hay ficha Sheet/PDF; si no hay ficha \u2192 el equipo/vendedor humano cotiza.",
+    "Si NO pidi\xF3 precio, no sueltes montos; usa el bloque IDEAS/TENDENCIAS si viene.",
     "NUNCA inventes precios, inclusiones, disponibilidad ni detalles fuera de Sheet/PDF. Si no hay dato: confirma con el equipo.",
     "Si preguntan qu\xE9 incluye: usa Sheet (Que Incluye) o PDF del panel Aprendizaje. Sin detalle \u2192 link del cat\xE1logo web. Jam\xE1s inventes cervezas, vinos, platillos ni marcas.",
     SERVICE_KNOWLEDGE_GOLDEN_RULE,
@@ -232544,11 +232762,15 @@ async function generateLucyOutbound(input) {
     const leadScore = calculateLeadScore(scoreContext);
     const stage = detectStage(scoreContext);
     await warmLucyInfoPriceCache().catch(() => 0);
-    const [catalogBlock, lucyInfoBlock] = await Promise.all([
+    const [catalogBlock, lucyInfoBlock, trendGroundingSnippet] = await Promise.all([
       getCatalogPromptBlock(),
       buildLucyInfoPromptBlock({
         queryText: [messageText, conversationText].filter(Boolean).join("\n")
-      }).catch(() => "")
+      }).catch(() => ""),
+      fetchTrendGroundingSnippet({
+        messageText,
+        tipoEvento: extracted.tipo_evento
+      }).catch(() => null)
     ]);
     const dynamicContext = buildDynamicTurnContext({
       stage,
@@ -232561,7 +232783,8 @@ async function generateLucyOutbound(input) {
       catalogBlock,
       lucyInfoBlock: lucyInfoBlock || void 0,
       slimCatalog: true,
-      messageText
+      messageText,
+      trendGroundingSnippet
     });
     const unified = await completeLucyUnifiedTurn({
       staticSystem: buildStaticSystemPrompt(),
