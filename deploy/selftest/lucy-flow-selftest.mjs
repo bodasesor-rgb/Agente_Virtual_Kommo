@@ -110862,6 +110862,17 @@ function sanitizeDisplayName(name2) {
   }
   return firstName2.charAt(0).toUpperCase() + firstName2.slice(1).toLowerCase();
 }
+function preferRicherClientNombre(existing, incoming) {
+  const e3 = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+  const i5 = sanitizeCrmNombre(incoming) ?? sanitizeDisplayName(incoming);
+  if (!i5) return e3;
+  if (!e3) return i5;
+  const eTok = e3.split(/\s+/).filter(Boolean).length;
+  const iTok = i5.split(/\s+/).filter(Boolean).length;
+  if (iTok > eTok && i5.length >= e3.length + 3) return i5;
+  if (iTok === eTok && i5.length > e3.length + 2) return i5;
+  return e3;
+}
 function sanitizeCrmNombre(name2) {
   const raw = stripMuchoGustoSalutation(name2?.trim() ?? "");
   if (!raw || isPlaceholderLeadName(raw) || isQuoteIntentMessage(raw)) return null;
@@ -124937,7 +124948,8 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
   ["Canap\xE9s", /\bcanap[eé]s?(?!\p{L})/iu],
   ["Bocadillos", /\bbocadillos?\b/i],
-  ["Entradas", /\bentradas?\b/i],
+  // A16259: entrada del salón ≠ Entradas (bocadillos).
+  ["Entradas", /\bentradas?\b(?!\s+del\s+sal[oó]n)(?!\s+(?:principal|del\s+evento|del\s+lugar))/i],
   // Tiempos de comida corporativos (briefs con varios servicios).
   ["Desayuno", /\bdesayunos?\b/i],
   ["Brunch", /\bbrunch\b/i],
@@ -125142,6 +125154,7 @@ var TIPO_EVENTO_PATTERNS = [
   ],
   [/\b(aniversario(\s+de\s+\d{1,2}\s*a[nñ]os?)?|reencuentro)\b/i, "aniversario"],
   [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV a\xF1os"],
+  [/\bfiesta\s+de\s+fin\s+de\s+a[nñ]o\b/i, "fiesta de fin de a\xF1o"],
   [/\b(fin\s+de\s+a[nñ]o|fiesta\s+de\s+empresa|eventos?\s+de\s+empresa|de\s+empresa)\b/i, "evento corporativo"],
   [/\b(eventos?\s+corporativos?|convenci[oó]n(es)?|conferencias?|corporativos?)\b/i, "evento corporativo"],
   [/\b(cumplea[nñ]os?|cumple)\b/i, "cumplea\xF1os"],
@@ -125693,7 +125706,7 @@ function clientMentionsSpecialLiveAct(message) {
   if (/\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca|entretenimiento)\b/i.test(t3) || /\bgrupo\s+vers[aá]til\b/i.test(t3)) {
     return false;
   }
-  return /\bcirco\b/i.test(t3) || /\bblue\s*mans?\b|\bblueman\b/i.test(t3) || /\b(mago|magia|ilusionista)\b/i.test(t3) || /\b(payasos?|malabares?|acr[oó]batas?|trapecio|contorsion)\b/i.test(t3) || // "show blueman" / "show X" con nombre propio (no "show de…").
+  return /\bcirco\b/i.test(t3) || /\bblue\s*mans?\b|\bblueman\b/i.test(t3) || /\b(mago|magia|ilusionista)\b/i.test(t3) || /\bcrudo\s*wheel\b|\bshow\s+crudo\b/i.test(t3) || /\bacrobacia\s+a[eé]rea\b/i.test(t3) || /\b(payasos?|malabares?|acr[oó]batas?|trapecio|contorsion)\b/i.test(t3) || // "show blueman" / "show X" con nombre propio (no "show de…").
   /\bshow\s+[a-záéíóúüñ][\wáéíóúüñ.-]{2,}(?!\s+de\b)/i.test(t3) && !/\bshow\s+(de|en|para|con|un|una|el|la|los|las)\b/i.test(t3) || /\b(quiero|busco|necesito|interes[aá]|cotiz)\b.{0,40}\bcirco\b/i.test(t3);
 }
 function parseSpecialLiveActLabel(message) {
@@ -125702,6 +125715,8 @@ function parseSpecialLiveActLabel(message) {
   if (/\bcirco\b/i.test(t3)) return "Circo para eventos";
   if (/\bblue\s*mans?\b|\bblueman\b/i.test(t3)) return "Show Blue Man";
   if (/\b(mago|magia|ilusionista)\b/i.test(t3)) return "Show de magia";
+  if (/\bcrudo\s*wheel\b|\bshow\s+crudo\b/i.test(t3)) return "Show crudo wheel";
+  if (/\bacrobacia\s+a[eé]rea\b|\bshow\s+acrobacia\b/i.test(t3)) return "Show acrobacia a\xE9rea";
   if (/\b(payasos?|malabares?|acr[oó]batas?)\b/i.test(t3)) return "Actos de circo / animaci\xF3n";
   if (/\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca)\b/i.test(t3) || /\bgrupo\s+vers[aá]til\b/i.test(t3)) {
     return null;
@@ -125734,7 +125749,7 @@ function clientDeclinesMoreServices(message) {
     return false;
   }
   if (isPointingReferentialEmoji(message)) return true;
-  return /^(no|nop)[\s.,!]*$/i.test(t3) || /\bsolo\s+(con\s+)?eso\b/i.test(t3) || /\bsolo\s+ese\b/i.test(t3) || /\bsolamente\s+eso\b/i.test(t3) || /\bnada\s+m[aá]s\b/i.test(t3) || /\bno\s+quiero\s+nada\s+m[aá]s\b/i.test(t3) || /\bno\s+quiero\s+(nada\s+)?m[aá]s\b/i.test(t3) || /\bning[uú]n[a]?\b/i.test(t3) || /\bning[uú]n\s+otro\b/i.test(t3) || /\bninguno\s+de\s+(esos|ellos|estos)\b/i.test(t3) || /\bno[.\s,¡!]+gracias\b/i.test(t3) || /\bno\s+gracias\b/i.test(t3) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t3) || /\beso\s+es\s+todo\b/i.test(t3) || /\bes\s+todo\b/i.test(t3) || /\bya\s+no\b/i.test(t3) || /\bno\s+m[aá]s\b/i.test(t3) || /\blisto\s+as[ií]\b/i.test(t3) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t3) || /\bno\s+me\s+interesa\b/i.test(t3) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t3) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t3) || /\bpor\s+ahora\s+no\b/i.test(t3) || // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
+  return /^(no|nop)[\s.,!]*$/i.test(t3) || /\bsolo\s+(con\s+)?eso\b/i.test(t3) || /\bsolo\s+ese\b/i.test(t3) || /\bsolamente\s+eso\b/i.test(t3) || /\bnada\s+m[aá]s\b/i.test(t3) || /\bno\s+quiero\s+nada\s+m[aá]s\b/i.test(t3) || /\bno\s+quiero\s+(nada\s+)?m[aá]s\b/i.test(t3) || /\bning[uú]n[a]?\b/i.test(t3) || /\bning[uú]n\s+otro\b/i.test(t3) || /\bninguno\s+de\s+(esos|ellos|estos)\b/i.test(t3) || /\bno[.\s,¡!]+gracias\b/i.test(t3) || /\bno\s+gracias\b/i.test(t3) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t3) || /\beso\s+es\s+todo\b/i.test(t3) || /\bes\s+todo\b/i.test(t3) || /\bya\s+no\b/i.test(t3) || /\bno\s+m[aá]s\b/i.test(t3) || /\blisto\s+as[ií]\b/i.test(t3) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t3) || /\bya\s+con\s+eso\b/i.test(t3) || /\bser[ií]a\s+todo\b/i.test(t3) || /\bsolo\s+eso\b/i.test(t3) || /\bya\s+(est[aá]|queda)\s+(bien|listo)\b/i.test(t3) || /\bno\s+me\s+interesa\b/i.test(t3) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t3) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t3) || /\bpor\s+ahora\s+no\b/i.test(t3) || // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
   /\bsolo\s+quiero\b/i.test(t3) && !/\bcomida\b|\bcotiz/i.test(t3) || /\bquiero\s+solo\b/i.test(t3) && !/\bcomida\b|\bcotiz/i.test(t3);
 }
 function clientChoosesOtherCatalogOption(message) {
@@ -126564,7 +126579,7 @@ function sanitizeDireccionCapture(value) {
   ) && !hasCityOrMetroSignal(t3) && !KNOWN_ZONES.test(t3)) {
     return null;
   }
-  t3 = t3.replace(/\b(?:el\s+)?sal[oó]n\s+se\s+llama\s+/gi, "").replace(/\b(?:y\s+)?nos\s+encontramos\s+en\s*$/gi, "").replace(/\b(?:y\s+)?nos\s+encontramos\s+en\b/gi, ", ").replace(/\bcontamos\s+con\s+\d+\s+invitados?\b.*$/gi, "").replace(/\brealmente\s+buscamos\b.*$/gi, "").replace(/\by\s+estamos\s+buscando\b.*$/gi, "").replace(/\bsal[oó]n\s+de\s+fiestas?\s+y\s+estamos\b.*$/gi, "").replace(/[,.]?\s*\b(espera|ahorita|al\s+rato|en\s+un\s+momento)\s*$/gi, "").replace(/,\s*,+/g, ",").replace(/^,\s*|,\s*$/g, "").replace(/\s+/g, " ").trim();
+  t3 = t3.replace(/\b(?:el\s+)?sal[oó]n\s+se\s+llama\s+/gi, "").replace(/\b(?:y\s+)?nos\s+encontramos\s+en\s*$/gi, "").replace(/\b(?:y\s+)?nos\s+encontramos\s+en\b/gi, ", ").replace(/\bcontamos\s+con\s+\d+\s+invitados?\b.*$/gi, "").replace(/\brealmente\s+buscamos\b.*$/gi, "").replace(/\by\s+estamos\s+buscando\b.*$/gi, "").replace(/\bsal[oó]n\s+de\s+fiestas?\s+y\s+estamos\b.*$/gi, "").replace(/[,.]?\s*\b(espera|ahorita|al\s+rato|en\s+un\s+momento)\s*$/gi, "").replace(/[,;]?\s*(?:para\s+)?(?:la\s+)?entrada\s+del\s+sal[oó]n\b[^,]*/gi, "").replace(/[,;]?\s*piso\s+y\s+algo\b[^,]*/gi, "").replace(/[,;]?\s*(?:show\s+)?en\s+piso\b[^,]*/gi, "").replace(/[,;]?\s*con\s+q(?:ue)?\s+comenzar\s+el\s+baile\b[^,]*/gi, "").replace(/[,;]?\s*decoraci[oó]n(?:\s+para\s+la\s+entrada[^,]*)?/gi, "").replace(/,\s*,+/g, ",").replace(/^,\s*|,\s*$/g, "").replace(/\s+/g, " ").trim();
   if (/\b(buscando|proveedor|coordino\s+eventos|complemento\s+de\s+sillas)\b/i.test(t3)) {
     const city = t3.match(KNOWN_ZONES)?.[0]?.trim();
     const venue = extractVenueNameHint(t3);
@@ -127881,7 +127896,23 @@ function isUnusableTipoEventoReply(text2) {
   if (/\?/.test(t3) && t3.length <= 80 && !parseTipoEventoFromText(t3)) return true;
   if (clientComplainsAboutRepeat(t3) || isReferentialPriorAnswer(t3)) return true;
   if (parseCorreoFromText(t3)) return true;
+  if (looksLikePersonNameAsEventType(t3)) return true;
   return false;
+}
+function looksLikePersonNameAsEventType(text2) {
+  const raw = (text2 ?? "").trim();
+  if (!raw || raw.length > 90) return false;
+  if (parseTipoEventoFromText(raw)) return false;
+  if (isServiceRelatedMessage(raw)) return false;
+  if (/\d/.test(raw) || /@/.test(raw) || /\?/.test(raw)) return false;
+  const words = raw.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 6) return false;
+  if (/\b(fiesta|boda|evento|cumple|xv|corporativ|empresa|fin\s+de\s+a[nñ]o|posada|bautizo|graduaci)/i.test(raw)) {
+    return false;
+  }
+  return words.every(
+    (w4) => /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ'’.-]{1,30}$/u.test(w4) || /^(de|del|la|los|las|y|e|da|do|di|van|von)$/i.test(w4)
+  );
 }
 function clientAsksCafeOrCateringChoice(text2) {
   const t3 = text2?.trim() ?? "";
@@ -129378,8 +129409,8 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
             captures.push({ label: "Tipo de evento", value: tipoHist });
           }
         }
-      } else if (tipo == null && msg.length >= 2 && !/@/.test(msg) && !isUnusableTipoEventoReply(msg)) {
-        captures.push({ label: "Tipo de evento", value: msg });
+      } else if (tipo == null && msg.length >= 2 && msg.length <= 60 && !/@/.test(msg) && !isUnusableTipoEventoReply(msg) && !looksLikePersonNameAsEventType(msg) && !looksLikeNameAnswerMessage(msg)) {
+        captures.push({ label: "Tipo de evento", value: msg.slice(0, 80) });
       }
     }
   }
@@ -129729,6 +129760,9 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
     applied.push("nombre-invalid-cleared");
   } else if (out2.nombre) {
     const cleaned = sanitizeCrmNombre(out2.nombre);
+    if (out2.tipo_evento && looksLikePersonNameAsEventType(out2.tipo_evento)) {
+      out2.tipo_evento = null;
+    }
     if (!cleaned) {
       out2.nombre = null;
       applied.push("nombre-sanitize-null");
@@ -135728,7 +135762,7 @@ function mensajeMencionaCatalogoServicios(mensaje) {
     mensaje
   );
 }
-var OTRO_SERVICIO_ASK_PATTERN = /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b|qu[eé]\s+otros\s+servicios|algo\s+m[aá]s\s+para\s+(el\s+)?evento|solo\s+el\s+.+\s+o\s+tambi[eé]n|necesitan?\s+alg[uú]n\s+otro|cotizar\s+alg[uú]n\s+otro/i;
+var OTRO_SERVICIO_ASK_PATTERN = /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b|qu[eé]\s+otros\s+servicios|algo\s+m[aá]s\s+para\s+(el\s+)?evento|solo\s+el\s+.+\s+o\s+tambi[eé]n|necesitan?\s+alg[uú]n\s+otro|cotizar\s+alg[uú]n\s+otro|te\s+sumo\s+(mobiliario|iluminaci|audio)|seguimos\s+solo\s+con\s+lo\s+que\s+ya|hay\s+algo\s+m[aá]s\s+que\s+quieras\s+sumar|algo\s+m[aá]s\s+que\s+quieras\s+(agregar|sumar)/i;
 function looksLikeServicesMenuDump(text2) {
   if (!text2?.trim()) return false;
   const t3 = text2.toLowerCase();
@@ -138650,6 +138684,9 @@ function buildPostCierreCallbackAck(clientName) {
 function buildContinueEngagementQuestion(extracted, currentMessage) {
   if (clientRequestsCallback(currentMessage) || clientSignalsUrgency(currentMessage)) {
     return "\xBFTe marco el equipo hoy por tel\xE9fono, o prefieres que te escriban primero por este chat?";
+  }
+  if (clientDeclinesMoreServices(currentMessage) || clientSaysThanks(currentMessage)) {
+    return "\xBFConfirmamos que el equipo te escriba por aqu\xED con la propuesta, o prefieres esperar el correo?";
   }
   const req = extracted.requerimientos_evento ?? "";
   if (/carpas?|tarima|entarim|colgantes|entelado/i.test(req)) {
@@ -145647,6 +145684,12 @@ async function prepareLucyExtraction(input) {
   sanitizeExtractedAmbiguousNumbers(extracted, messageText, { lastAskedField: lastAskedAmbig });
   applyWebLeadBrief(extracted, messageText);
   extracted.nombre = sanitizeCrmNombre(extracted.nombre);
+  {
+    const fromMsg = looksLikeNameAnswerMessage(messageText) ? sanitizeCrmNombre(messageText) ?? null : null;
+    if (fromMsg && fromMsg.split(/\s+/).length >= 2) {
+      extracted.nombre = preferRicherClientNombre(extracted.nombre, fromMsg);
+    }
+  }
   if (extracted.correo) {
     extracted.correo = sanitizeStoredClientEmail(
       parseCorreoFromText(extracted.correo) ?? extracted.correo
@@ -146037,7 +146080,7 @@ function clientReplyForPaymentSlot(slot) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V10.18";
+var LUCY_PROMPT_VERSION = "V10.19";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -155679,7 +155722,7 @@ ${golfText}`,
     assert2.match(extractVenueNameHint("Sal\xF3n Hacienda Los Olivos") ?? "", /Hacienda Los Olivos/i);
   });
   await test("133. V9.35 \u2014 banquete Torre\xF3n primer turno pide fecha/invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -155708,7 +155751,7 @@ ${golfText}`,
     assert2.ok(!/solo\s+alimentos.*780/i.test(reply) || /fecha|invitados|correo/i.test(reply));
   });
   await test("134. V9.36 \u2014 Isai: no cierra, no confunde nombre con ciudad, urgencia \u2260 tel\xE9fono", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     assert2.equal(parseZonaFromText("Isai Moreno"), null);
     assert2.ok(!isUsableDireccionEvento("Isai Moreno"));
     assert2.ok(!detectPresupuestoRefusal("A Qui por WhatsApp no se puede"));
@@ -155826,7 +155869,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*/i.test(reply), reply.slice(0, 300));
   });
   await test("131. V9.32 \u2014 unified turn + cache off + history trim + static system", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     const prev = {
       u: process.env.LUCY_UNIFIED_LLM_TURN,
       h: process.env.LUCY_CHAT_HISTORY_MAX,
@@ -155897,7 +155940,7 @@ ${golfText}`,
     }
   });
   await test("135. V9.38 \u2014 comprobante en imagen: primer pago Anticipo, segundo Liquidaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     assert2.equal(FIELD_ANTICIPO, 1049322);
     assert2.equal(FIELD_LIQUIDACION, 1049324);
     assert2.equal(nextPaymentSlot(null, null), "anticipo");
@@ -155961,7 +156004,7 @@ ${golfText}`,
     assert2.ok(/amount_mxn/.test(imgSrc));
   });
   await test("136. V9.40 \u2014 A15380 invitados no se saltan; Coyoac\xE1n+colonia; Claro no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     const horario = "hola si se har\xEDa el 26 de septiembre pero a\xFAn no tenemos definido el horario";
     assert2.equal(parseInvitadosFromText(horario), null, "horario pendiente \u2260 invitados");
     const caps = scanConversationForCaptures([], horario, /* @__PURE__ */ new Set(["Nombre del cliente"]));
@@ -156064,7 +156107,7 @@ ${golfText}`,
     assert2.equal(taquizaNext, "invitados");
   });
   await test("138. V9.41 \u2014 A15383 Kelia: ciudad, banquetes, LED\u2260luz, no spam (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     const hornoMty = parseZonaFromText("En horno 3 Monterrey") ?? "";
     assert2.match(hornoMty, /horno\s*3/i, hornoMty);
     assert2.match(hornoMty, /monterrey/i, hornoMty);
@@ -156200,7 +156243,7 @@ ${golfText}`,
     assert2.ok(!/Listo\.\s*Kelia/i.test(nameSpam), nameSpam);
   });
   await test("139. V9.42 \u2014 A15391 Mariana: CB4 detalle, 4. mariana, asesor, horario", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     const menu = buildProgressiveOptionsMenu("coffee_break");
     assert2.equal(extractNumberedNivelFromLastAssistant("4. mariana", menu), "Coffee Break 4");
     assert2.ok(isCatalogLevelSelection("4. mariana", menu));
@@ -156290,7 +156333,7 @@ ${golfText}`,
     assert2.ok(!/invitados|cu[aá]nt[oa]s|ciudad del evento|en qu[eé] ciudad/i.test(handoff), handoff.slice(0, 400));
   });
   await test("140. V9.43 \u2014 detalle de un producto no re-lista el men\xFA (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     setCatalogSnapshotForTests(
       parseSheetCatalogCsv(
         [
@@ -156329,7 +156372,7 @@ ${golfText}`,
     assert2.ok(/Coffee Break 4|350|CB4/i.test(rewritten), rewritten.slice(0, 500));
   });
   await test("141. V9.44 \u2014 A15443 Rosario: reuni\xF3n, hora comida, ciudad obligatoria", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     assert2.equal(parseTipoEventoFromText("una reuni\xF3n de 15 a\xF1os"), "reuni\xF3n");
     assert2.ok(clientSaidReunionNotXv("una reuni\xF3n de 15 a\xF1os"));
     assert2.ok(!clientSaidReunionNotXv("mis XV a\xF1os"));
@@ -156444,7 +156487,7 @@ ${golfText}`,
     assert2.ok(/2\.\s*\*?Servicio completo/i.test(fixedMenu), fixedMenu.slice(0, 600));
   });
   await test("142. V9.45 \u2014 A15419 Stephanie: fechas y direcciones (todas las ramas)", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     assert2.equal(parseFechaFromText("13:00 a 20:00 hrs"), null);
     assert2.ok(isClockTimeOnlySchedule("13:00 a 20:00 hrs"));
     assert2.ok(!isUsableFechaHorario("13:00 a 20:00 hrs"));
@@ -156518,7 +156561,7 @@ ${golfText}`,
     assert2.ok(!/ya tengo todo/i.test(clockReply));
   });
   await test("143. V9.49 \u2014 imagen solo embudo; silencio lee dep\xF3sito sin WhatsApp", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.DATOS_E_INTERESES, []));
     assert2.ok(lucyDebeResponderImagenAlCliente(ETAPA.LEADS_ENTRANTES, []));
     assert2.equal(lucyDebeResponderImagenAlCliente(ETAPA.HUMANO_TRABAJA, []), false);
@@ -156561,7 +156604,7 @@ ${golfText}`,
     assert2.ok(/sin WhatsApp al cliente|leída en silencio/i.test(kommoSrc));
   });
   await test("144. V9.49 \u2014 A15478 Isabel: recomienda tama\xF1o pista seg\xFAn invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     const ask = "Me puedes recomendar el tama\xF1o pensando en la cantidad de invitados?";
     assert2.ok(clientAsksDimensionRecommendation(ask));
     const rec = recommendPistaDimensionsForGuests(120, "XV a\xF1os");
@@ -156627,7 +156670,7 @@ ${golfText}`,
     assert2.ok(!/ya tengo lo principal/i.test(anti.mensaje), anti.mensaje);
   });
   await test("146. V9.49 \u2014 A15494 Paola: mucho gusto no es apellido", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     const reply = "Paola mucho gusto";
     assert2.ok(isMuchoGustoNameReply(reply));
     assert2.equal(sanitizeCrmNombre(reply), "Paola");
@@ -156661,7 +156704,7 @@ ${golfText}`,
     assert2.ok(!/Mucho Gusto!/i.test(guarded.replace(/mucho gusto,\s*Paola/i, "")), guarded);
   });
   await test("147. V9.49 \u2014 A15503 Good: loza y plato postre = vajilla, no postres", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     const brief = "Hola, me interesa cotizar un servicio\nQuiere loza para un evento para 50 personas\nSer\xEDa:\nPlato trinche\nPlato postre\nCubiertos (cuchara, tenedor, cuchara postre).";
     assert2.ok(isTablewareRequestText(brief));
     const services = parseServicesFromText(brief);
@@ -156690,7 +156733,7 @@ ${golfText}`,
     assert2.ok(!/mobiliario/i.test(declineGuard), declineGuard);
   });
   await test("148. V9.50 \u2014 fecha y horario en campos CRM separados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     const split = splitCombinedFechaHorario("15 de agosto, 5:00 p.m.");
     assert2.equal(split.fecha, "15 de agosto");
     assert2.ok(split.horario && /5:00/i.test(split.horario));
@@ -156728,7 +156771,7 @@ ${golfText}`,
     assert2.ok(!cf.some((f6) => f6.field_id === 1048778));
   });
   await test("149. V9.51 \u2014 A15508 Betiana: 40 invitadas y anti-repetici\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     assert2.equal(parseInvitadosFromText("40 sillas, 40 invitadas"), "40");
     assert2.equal(parseInvitadosFromText("40 invitadas"), "40");
     assert2.equal(
@@ -156774,7 +156817,7 @@ ${golfText}`,
     assert2.ok(!/estimado de invitados|cu[aá]ntos invitados/i.test(guarded), guarded);
   });
   await test("150. V9.52 \u2014 A15509 Gaby: apertura, RFQ equipo, a\xFAn no invitados", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     assert2.equal(parseTipoEventoFromText("Ser\xEDa para la apertura de un negocio"), "apertura de negocio");
     assert2.ok(clientSaidAperturaNegocio("Ser\xEDa para la apertura de un negocio"));
     const rfq = [
@@ -156838,7 +156881,7 @@ ${golfText}`,
     assert2.ok(!/cu[aá]ntas personas|estimado de invitados/i.test(invWaive), invWaive);
   });
   await test("151. V9.53 \u2014 A15516 Ccam: captura horario pm y anti-repetici\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     const extracted = emptyExtracted({
       nombre: "Ccam",
       tipo_evento: "XV a\xF1os",
@@ -156886,7 +156929,7 @@ ${golfText}`,
     assert2.ok(!/horario/i.test(guarded2) || /anoto|perfecto|invitados|ciudad|correo/i.test(guarded2), guarded2);
   });
   await test("152. V9.55 \u2014 A15486 G\xE9nesis: promo/vajilla/detalles/presupuesto/PDF", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     const promo = [
       "Hola, escribo por la promo de cierre r\xE1pido (10% de descuento).",
       "C\xF3digo: CierreRapido",
@@ -156998,7 +157041,7 @@ ${golfText}`,
     );
   });
   await test("153. V9.55 \u2014 A15539 Jorge: horario/carpa/DJ no/mobiliario/Atlixco/callback", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     assert2.equal(parseTipoEventoFromText("primera comuni\xF3n"), "primera comuni\xF3n");
     assert2.ok(isScheduleLabeledClock("a medio d\xEDa"));
     assert2.ok(isScheduleLabeledClock("cocktail a las 12:00\ncomida a las 2:00"));
@@ -157157,7 +157200,7 @@ ${golfText}`,
     assert2.ok(!/servicios te gustar[ií]a|ir armando/i.test(callback), callback.slice(0, 400));
   });
   await test("154. V9.56 \u2014 A15547 Marisol: taquiza sin $, qu\xE9 incluye, pospone sin correo", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     const csv = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
       '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","5 guisados","https://bodasesor.com/catalogos/taquiza"',
@@ -157215,7 +157258,7 @@ ${golfText}`,
     assert2.ok(!/correo|e-?mail/i.test(soft), soft.slice(0, 400));
   });
   await test("155. V9.57 \u2014 A15550 Jos\xE9: sal\xF3n suministra \u2260 pedido; bufet \u2192 banquete", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     const brief = "cotizaci\xF3n cumplea\xF1os 3 de octubre 50 personas Nezahualc\xF3yotl, el sal\xF3n suministra mesas, sillas, manteler\xEDa, platos, vasos y un mesero";
     assert2.ok(isVenueProvidesContext(brief));
     const parsed = parseServicesFromText(brief);
@@ -157234,7 +157277,7 @@ ${golfText}`,
     assert2.ok(!/necesitas.*vajillas/i.test(fix), fix.slice(0, 400));
   });
   await test("156. V9.70 \u2014 A15566 Lynn: de 3pm a 11pm, a partir de, sin horario a\xFAn", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     assert2.ok(/3:00.*11:00/i.test(parseHorarioFromText("El evento ser\xEDa de 3:00 pm a 11:00 pm") ?? ""));
     assert2.ok(/16:00|a partir/i.test(parseHorarioFromText("A partir de las 16:00 hrs") ?? ""));
     assert2.ok(/15:00.*11:00/i.test(parseHorarioFromText("De 15:00 p.m a 11:00 p.m") ?? ""));
@@ -157281,7 +157324,7 @@ ${golfText}`,
     assert2.ok(!/horario lo planean/i.test(defer), defer.slice(0, 400));
   });
   await test("157. V9.70 \u2014 A15581 Mariana: cuatro, dual propuesta, DJ inclusi\xF3n/acotado", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     assert2.ok(/4/.test(parseHorarioFromText("Ser\xEDa temprano, a partir de las cuatro") ?? ""));
     assert2.ok(normalizeWrittenClockInText("a partir de las cuatro").includes("4"));
     assert2.ok(clientRequestsDualProposals("dos propuestas formal y otra casual"));
@@ -157322,7 +157365,7 @@ ${golfText}`,
     assert2.ok(!/la anoto para tu cotizaci/i.test(djInfo), djInfo.slice(0, 400));
   });
   await test("158. V9.70 \u2014 A15620 Mara: promo CierreRapido no captura 35 pax ni hora de env\xEDo", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     const maraPromo = [
       "Hola, escribo por la promo de cierre r\xE1pido (10% de descuento).",
       "C\xF3digo: CierreRapido",
@@ -157346,7 +157389,7 @@ ${golfText}`,
     assert2.equal(promoReply.match(/35\s*personas/gi)?.length ?? 0, 0, promoReply.slice(0, 400));
   });
   await test("159. V9.70 \u2014 A15701 Alejandra: Puerto Vallarta no repregunta ciudad", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     assert2.equal(parseZonaFromText("Puerto Vallarta")?.toLowerCase(), "puerto vallarta");
     assert2.ok(isUsableDireccionEvento("Puerto Vallarta"));
     const filled = /* @__PURE__ */ new Set([
@@ -157386,7 +157429,7 @@ ${golfText}`,
     assert2.ok(!/confirmas la \*ciudad\*|en qu[eé] ciudad|ya tienen ciudad/i.test(reply), reply.slice(0, 400));
   });
   await test("160. V9.70 \u2014 A15707 danymelgozza: cotizaci\xF3n inicial no es env\xEDo de cotizaci\xF3n", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     const opening = "Quiero hacer una cotizaci\xF3n de barra de sushis y nigiris para 25 personas";
     assert2.equal(clientWantsQuoteDelivery(opening), false);
     assert2.ok(clientWantsQuoteDelivery("Si, m\xE1ndame la cotizaci\xF3n por favor, y te confirmo todo"));
@@ -157407,7 +157450,7 @@ ${golfText}`,
     assert2.ok(/sushi|nigiri|25|personas|nombre|Lucy|Bodasesor/i.test(reply), reply.slice(0, 500));
   });
   await test("161. V9.70 \u2014 A15708 Itzel: una sola presentaci\xF3n Lucy", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     const firstIntro = "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor. Claro que te ayudo con tu evento. \xBFMe regalas tu nombre?";
     const reply = runGuards({
       aiResponse: "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor. \xA1Mucho gusto, Itzel! \xBFQu\xE9 tipo de evento tienes en mente celebrar?",
@@ -157426,7 +157469,7 @@ ${golfText}`,
     assert2.ok(/tipo de evento/i.test(reply), reply.slice(0, 400));
   });
   await test("162. V9.70 \u2014 A15705 Karla: Ser\xEDa De Catering no es nombre", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     assert2.equal(sanitizeCrmNombre("Ser\xEDa De Catering"), null);
     assert2.equal(shouldUpdateName("Karla Rodr\xEDguez", "Ser\xEDa De Catering"), false);
     assert2.equal(shouldUpdateName("Ser\xEDa De Catering", "Karla Rodr\xEDguez"), true);
@@ -157445,7 +157488,7 @@ ${golfText}`,
     assert2.ok(!/Con gusto,\s*Ser[ií]a/i.test(reply), reply.slice(0, 400));
   });
   await test("163. V9.71 \u2014 A15775 Pamela: municipio GDL y meta-ciudad", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V10.18");
+    assert2.equal(LUCY_PROMPT_VERSION, "V10.19");
     assert2.ok(hasCityOrMetroSignal("San Pedro Tlaquepaque"));
     assert2.ok(isLocationMetaReferential("esa es la ciudad"));
     assert2.equal(parseZonaFromText("esa es la ciudad"), null);

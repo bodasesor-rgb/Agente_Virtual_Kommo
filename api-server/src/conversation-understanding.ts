@@ -14,6 +14,7 @@ import {
   isServicePreferenceAsNombre,
   looksLikePersonFullName,
   sanitizeCrmNombre,
+  preferRicherClientNombre,
   sanitizeDisplayName,
 } from "./contact-name.js";
 import { filterClientEmail, looksLikeValidClientEmail } from "./client-email.js";
@@ -138,7 +139,8 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
   ["Canapés", /\bcanap[eé]s?(?!\p{L})/iu],
   ["Bocadillos", /\bbocadillos?\b/i],
-  ["Entradas", /\bentradas?\b/i],
+  // A16259: entrada del salón ≠ Entradas (bocadillos).
+  ["Entradas", /\bentradas?\b(?!\s+del\s+sal[oó]n)(?!\s+(?:principal|del\s+evento|del\s+lugar))/i],
   // Tiempos de comida corporativos (briefs con varios servicios).
   ["Desayuno", /\bdesayunos?\b/i],
   ["Brunch", /\bbrunch\b/i],
@@ -348,6 +350,7 @@ const TIPO_EVENTO_PATTERNS: Array<[RegExp, string]> = [
   ],
   [/\b(aniversario(\s+de\s+\d{1,2}\s*a[nñ]os?)?|reencuentro)\b/i, "aniversario"],
   [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV años"],
+  [/\bfiesta\s+de\s+fin\s+de\s+a[nñ]o\b/i, "fiesta de fin de año"],
   [/\b(fin\s+de\s+a[nñ]o|fiesta\s+de\s+empresa|eventos?\s+de\s+empresa|de\s+empresa)\b/i, "evento corporativo"],
   [/\b(eventos?\s+corporativos?|convenci[oó]n(es)?|conferencias?|corporativos?)\b/i, "evento corporativo"],
   [/\b(cumplea[nñ]os?|cumple)\b/i, "cumpleaños"],
@@ -1273,6 +1276,8 @@ export function clientMentionsSpecialLiveAct(message?: string | null): boolean {
     /\bcirco\b/i.test(t) ||
     /\bblue\s*mans?\b|\bblueman\b/i.test(t) ||
     /\b(mago|magia|ilusionista)\b/i.test(t) ||
+    /\bcrudo\s*wheel\b|\bshow\s+crudo\b/i.test(t) ||
+    /\bacrobacia\s+a[eé]rea\b/i.test(t) ||
     /\b(payasos?|malabares?|acr[oó]batas?|trapecio|contorsion)\b/i.test(t) ||
     // "show blueman" / "show X" con nombre propio (no "show de…").
     /\bshow\s+[a-záéíóúüñ][\wáéíóúüñ.-]{2,}(?!\s+de\b)/i.test(t) &&
@@ -1288,6 +1293,8 @@ export function parseSpecialLiveActLabel(message?: string | null): string | null
   if (/\bcirco\b/i.test(t)) return "Circo para eventos";
   if (/\bblue\s*mans?\b|\bblueman\b/i.test(t)) return "Show Blue Man";
   if (/\b(mago|magia|ilusionista)\b/i.test(t)) return "Show de magia";
+  if (/\bcrudo\s*wheel\b|\bshow\s+crudo\b/i.test(t)) return "Show crudo wheel";
+  if (/\bacrobacia\s+a[eé]rea\b|\bshow\s+acrobacia\b/i.test(t)) return "Show acrobacia aérea";
   if (/\b(payasos?|malabares?|acr[oó]batas?)\b/i.test(t)) return "Actos de circo / animación";
   if (
     /\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca)\b/i.test(t) ||
@@ -1360,6 +1367,10 @@ export function clientDeclinesMoreServices(message?: string | null): boolean {
     /\bno\s+m[aá]s\b/i.test(t) ||
     /\blisto\s+as[ií]\b/i.test(t) ||
     /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t) ||
+    /\bya\s+con\s+eso\b/i.test(t) ||
+    /\bser[ií]a\s+todo\b/i.test(t) ||
+    /\bsolo\s+eso\b/i.test(t) ||
+    /\bya\s+(est[aá]|queda)\s+(bien|listo)\b/i.test(t) ||
     /\bno\s+me\s+interesa\b/i.test(t) ||
     /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t) ||
     /\bpor\s+(el\s+)?momento\s+no\b/i.test(t) ||
@@ -2821,6 +2832,12 @@ export function sanitizeDireccionCapture(value: string | null | undefined): stri
     .replace(/\bsal[oó]n\s+de\s+fiestas?\s+y\s+estamos\b.*$/gi, "")
     // A15165: "CDMX, espera" / coletillas de turno ("espera", "ahorita")
     .replace(/[,.]?\s*\b(espera|ahorita|al\s+rato|en\s+un\s+momento)\s*$/gi, "")
+    // A16259: no mezclar show en piso / entrada del salón / decoración en la ubicación.
+    .replace(/[,;]?\s*(?:para\s+)?(?:la\s+)?entrada\s+del\s+sal[oó]n\b[^,]*/gi, "")
+    .replace(/[,;]?\s*piso\s+y\s+algo\b[^,]*/gi, "")
+    .replace(/[,;]?\s*(?:show\s+)?en\s+piso\b[^,]*/gi, "")
+    .replace(/[,;]?\s*con\s+q(?:ue)?\s+comenzar\s+el\s+baile\b[^,]*/gi, "")
+    .replace(/[,;]?\s*decoraci[oó]n(?:\s+para\s+la\s+entrada[^,]*)?/gi, "")
     .replace(/,\s*,+/g, ",")
     .replace(/^,\s*|,\s*$/g, "")
     .replace(/\s+/g, " ")
@@ -4947,7 +4964,27 @@ export function isUnusableTipoEventoReply(text: string | null | undefined): bool
   if (/\?/.test(t) && t.length <= 80 && !parseTipoEventoFromText(t)) return true;
   if (clientComplainsAboutRepeat(t) || isReferentialPriorAnswer(t)) return true;
   if (parseCorreoFromText(t)) return true;
+  // A16259: nombre de persona ≠ tipo de evento.
+  if (looksLikePersonNameAsEventType(t)) return true;
   return false;
+}
+
+/** A16259: "Betsy Alejandra Ancona Perrusquia" no es tipo de evento. */
+export function looksLikePersonNameAsEventType(text: string | null | undefined): boolean {
+  const raw = (text ?? "").trim();
+  if (!raw || raw.length > 90) return false;
+  if (parseTipoEventoFromText(raw)) return false;
+  if (isServiceRelatedMessage(raw)) return false;
+  if (/\d/.test(raw) || /@/.test(raw) || /\?/.test(raw)) return false;
+  const words = raw.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 6) return false;
+  if (/\b(fiesta|boda|evento|cumple|xv|corporativ|empresa|fin\s+de\s+a[nñ]o|posada|bautizo|graduaci)/i.test(raw)) {
+    return false;
+  }
+  return words.every((w) =>
+    /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ'’.-]{1,30}$/u.test(w) ||
+    /^(de|del|la|los|las|y|e|da|do|di|van|von)$/i.test(w)
+  );
 }
 
 /** Cliente pregunta si solo hay café o también catering de comida (A14964). */
@@ -7302,8 +7339,16 @@ export function captureContextualAnswer(
             captures.push({ label: "Tipo de evento", value: tipoHist });
           }
         }
-      } else if (tipo == null && msg.length >= 2 && !/@/.test(msg) && !isUnusableTipoEventoReply(msg)) {
-        captures.push({ label: "Tipo de evento", value: msg });
+      } else if (
+        tipo == null &&
+        msg.length >= 2 &&
+        msg.length <= 60 &&
+        !/@/.test(msg) &&
+        !isUnusableTipoEventoReply(msg) &&
+        !looksLikePersonNameAsEventType(msg) &&
+        !looksLikeNameAnswerMessage(msg)
+      ) {
+        captures.push({ label: "Tipo de evento", value: msg.slice(0, 80) });
       }
     }
   }

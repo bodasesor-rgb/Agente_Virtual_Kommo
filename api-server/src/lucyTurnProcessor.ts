@@ -27,6 +27,7 @@ import {
   sanitizeExtractedAmbiguousNumbers,
   inferLucyAskedField,
   isUnusableTipoEventoReply,
+  looksLikeNameAnswerMessage,
   parseFechaFromText,
   isRicherFechaCapture,
   parseZonaFromText,
@@ -34,7 +35,7 @@ import {
 } from "./conversation-understanding.js";
 import { enrichExtractedFromText } from "./services/summaryService.js";
 import { enrichExtractedDireccionWithMaps } from "./services/geoResolve.js";
-import { sanitizeCrmNombre } from "./contact-name.js";
+import { sanitizeCrmNombre, preferRicherClientNombre } from "./contact-name.js";
 import { buildDynamicPrompt, buildStaticSystemPrompt, buildDynamicTurnContext } from "./services/promptBuilder.js";
 import { fetchTrendGroundingSnippet } from "./services/googleGrounding.js";
 import {
@@ -111,6 +112,15 @@ export async function prepareLucyExtraction(
   applyWebLeadBrief(extracted, messageText);
 
   extracted.nombre = sanitizeCrmNombre(extracted.nombre);
+  // A16259 richer nombre: si el mensaje trae nombre completo, gana al de WhatsApp.
+  {
+    const fromMsg = looksLikeNameAnswerMessage(messageText)
+      ? (sanitizeCrmNombre(messageText) ?? null)
+      : null;
+    if (fromMsg && fromMsg.split(/\s+/).length >= 2) {
+      extracted.nombre = preferRicherClientNombre(extracted.nombre, fromMsg);
+    }
+  }
   if (extracted.correo) {
     // A15165: nunca caer a raw GPT ("Am@gmial" / "A.gmail.com").
     extracted.correo = sanitizeStoredClientEmail(

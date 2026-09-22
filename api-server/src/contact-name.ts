@@ -476,6 +476,22 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
 }
 
 /** Nombre completo para CRM (conserva apellido cuando viene de WhatsApp/Kommo). */
+/** A16259: nombre escrito completo gana al display corto de WhatsApp ("Ale" → "Betsy Alejandra…"). */
+export function preferRicherClientNombre(
+  existing: string | null | undefined,
+  incoming: string | null | undefined
+): string | null {
+  const e = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+  const i = sanitizeCrmNombre(incoming) ?? sanitizeDisplayName(incoming);
+  if (!i) return e;
+  if (!e) return i;
+  const eTok = e.split(/\s+/).filter(Boolean).length;
+  const iTok = i.split(/\s+/).filter(Boolean).length;
+  if (iTok > eTok && i.length >= e.length + 3) return i;
+  if (iTok === eTok && i.length > e.length + 2) return i;
+  return e;
+}
+
 export function sanitizeCrmNombre(name: string | null | undefined): string | null {
   const raw = stripMuchoGustoSalutation(name?.trim() ?? "");
   if (!raw || isPlaceholderLeadName(raw) || isQuoteIntentMessage(raw)) return null;

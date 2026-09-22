@@ -363,7 +363,7 @@ export function mensajeMencionaCatalogoServicios(mensaje: string): boolean {
 
 /** Follow-up de "¿otro servicio?" en cualquier variante (para anti-bucle). */
 export const OTRO_SERVICIO_ASK_PATTERN =
-  /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b|qu[eé]\s+otros\s+servicios|algo\s+m[aá]s\s+para\s+(el\s+)?evento|solo\s+el\s+.+\s+o\s+tambi[eé]n|necesitan?\s+alg[uú]n\s+otro|cotizar\s+alg[uú]n\s+otro/i;
+  /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b|qu[eé]\s+otros\s+servicios|algo\s+m[aá]s\s+para\s+(el\s+)?evento|solo\s+el\s+.+\s+o\s+tambi[eé]n|necesitan?\s+alg[uú]n\s+otro|cotizar\s+alg[uú]n\s+otro|te\s+sumo\s+(mobiliario|iluminaci|audio)|seguimos\s+solo\s+con\s+lo\s+que\s+ya|hay\s+algo\s+m[aá]s\s+que\s+quieras\s+sumar|algo\s+m[aá]s\s+que\s+quieras\s+(agregar|sumar)/i;
 
 /** Lista genérica de servicios / "¿otro servicio?" — para cortar el bucle anti-menú. */
 export function looksLikeServicesMenuDump(text: string): boolean {
@@ -2308,7 +2308,7 @@ function hasMeaningfulRequerimientos(extracted: ExtractedData, filledSet: Set<st
   return req.length > 0;
 }
 
-function lastAssistantAskedMoreServices(
+export function lastAssistantAskedMoreServices(
   history: OpenAI.Chat.ChatCompletionMessageParam[]
 ): boolean {
   const lastAssistant = history
@@ -4973,6 +4973,10 @@ export function buildContinueEngagementQuestion(
 ): string {
   if (clientRequestsCallback(currentMessage) || clientSignalsUrgency(currentMessage)) {
     return "¿Te marco el equipo hoy por teléfono, o prefieres que te escriban primero por este chat?";
+  }
+  // A16259: no re-preguntar upsell cuando el cliente ya dijo que no / solo eso.
+  if (clientDeclinesMoreServices(currentMessage) || clientSaysThanks(currentMessage)) {
+    return "¿Confirmamos que el equipo te escriba por aquí con la propuesta, o prefieres esperar el correo?";
   }
   const req = extracted.requerimientos_evento ?? "";
   if (/carpas?|tarima|entarim|colgantes|entelado/i.test(req)) {

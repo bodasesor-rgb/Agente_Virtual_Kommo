@@ -90128,6 +90128,17 @@ function sanitizeDisplayName(name2) {
   }
   return firstName2.charAt(0).toUpperCase() + firstName2.slice(1).toLowerCase();
 }
+function preferRicherClientNombre(existing, incoming) {
+  const e4 = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+  const i6 = sanitizeCrmNombre(incoming) ?? sanitizeDisplayName(incoming);
+  if (!i6) return e4;
+  if (!e4) return i6;
+  const eTok = e4.split(/\s+/).filter(Boolean).length;
+  const iTok = i6.split(/\s+/).filter(Boolean).length;
+  if (iTok > eTok && i6.length >= e4.length + 3) return i6;
+  if (iTok === eTok && i6.length > e4.length + 2) return i6;
+  return e4;
+}
 function sanitizeCrmNombre(name2) {
   const raw = stripMuchoGustoSalutation(name2?.trim() ?? "");
   if (!raw || isPlaceholderLeadName(raw) || isQuoteIntentMessage(raw)) return null;
@@ -131695,7 +131706,7 @@ function clientMentionsSpecialLiveAct(message) {
   if (/\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca|entretenimiento)\b/i.test(t4) || /\bgrupo\s+vers[aá]til\b/i.test(t4)) {
     return false;
   }
-  return /\bcirco\b/i.test(t4) || /\bblue\s*mans?\b|\bblueman\b/i.test(t4) || /\b(mago|magia|ilusionista)\b/i.test(t4) || /\b(payasos?|malabares?|acr[oó]batas?|trapecio|contorsion)\b/i.test(t4) || // "show blueman" / "show X" con nombre propio (no "show de…").
+  return /\bcirco\b/i.test(t4) || /\bblue\s*mans?\b|\bblueman\b/i.test(t4) || /\b(mago|magia|ilusionista)\b/i.test(t4) || /\bcrudo\s*wheel\b|\bshow\s+crudo\b/i.test(t4) || /\bacrobacia\s+a[eé]rea\b/i.test(t4) || /\b(payasos?|malabares?|acr[oó]batas?|trapecio|contorsion)\b/i.test(t4) || // "show blueman" / "show X" con nombre propio (no "show de…").
   /\bshow\s+[a-záéíóúüñ][\wáéíóúüñ.-]{2,}(?!\s+de\b)/i.test(t4) && !/\bshow\s+(de|en|para|con|un|una|el|la|los|las)\b/i.test(t4) || /\b(quiero|busco|necesito|interes[aá]|cotiz)\b.{0,40}\bcirco\b/i.test(t4);
 }
 function parseSpecialLiveActLabel(message) {
@@ -131704,6 +131715,8 @@ function parseSpecialLiveActLabel(message) {
   if (/\bcirco\b/i.test(t4)) return "Circo para eventos";
   if (/\bblue\s*mans?\b|\bblueman\b/i.test(t4)) return "Show Blue Man";
   if (/\b(mago|magia|ilusionista)\b/i.test(t4)) return "Show de magia";
+  if (/\bcrudo\s*wheel\b|\bshow\s+crudo\b/i.test(t4)) return "Show crudo wheel";
+  if (/\bacrobacia\s+a[eé]rea\b|\bshow\s+acrobacia\b/i.test(t4)) return "Show acrobacia a\xE9rea";
   if (/\b(payasos?|malabares?|acr[oó]batas?)\b/i.test(t4)) return "Actos de circo / animaci\xF3n";
   if (/\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca)\b/i.test(t4) || /\bgrupo\s+vers[aá]til\b/i.test(t4)) {
     return null;
@@ -131736,7 +131749,7 @@ function clientDeclinesMoreServices(message) {
     return false;
   }
   if (isPointingReferentialEmoji(message)) return true;
-  return /^(no|nop)[\s.,!]*$/i.test(t4) || /\bsolo\s+(con\s+)?eso\b/i.test(t4) || /\bsolo\s+ese\b/i.test(t4) || /\bsolamente\s+eso\b/i.test(t4) || /\bnada\s+m[aá]s\b/i.test(t4) || /\bno\s+quiero\s+nada\s+m[aá]s\b/i.test(t4) || /\bno\s+quiero\s+(nada\s+)?m[aá]s\b/i.test(t4) || /\bning[uú]n[a]?\b/i.test(t4) || /\bning[uú]n\s+otro\b/i.test(t4) || /\bninguno\s+de\s+(esos|ellos|estos)\b/i.test(t4) || /\bno[.\s,¡!]+gracias\b/i.test(t4) || /\bno\s+gracias\b/i.test(t4) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t4) || /\beso\s+es\s+todo\b/i.test(t4) || /\bes\s+todo\b/i.test(t4) || /\bya\s+no\b/i.test(t4) || /\bno\s+m[aá]s\b/i.test(t4) || /\blisto\s+as[ií]\b/i.test(t4) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t4) || /\bno\s+me\s+interesa\b/i.test(t4) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t4) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t4) || /\bpor\s+ahora\s+no\b/i.test(t4) || // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
+  return /^(no|nop)[\s.,!]*$/i.test(t4) || /\bsolo\s+(con\s+)?eso\b/i.test(t4) || /\bsolo\s+ese\b/i.test(t4) || /\bsolamente\s+eso\b/i.test(t4) || /\bnada\s+m[aá]s\b/i.test(t4) || /\bno\s+quiero\s+nada\s+m[aá]s\b/i.test(t4) || /\bno\s+quiero\s+(nada\s+)?m[aá]s\b/i.test(t4) || /\bning[uú]n[a]?\b/i.test(t4) || /\bning[uú]n\s+otro\b/i.test(t4) || /\bninguno\s+de\s+(esos|ellos|estos)\b/i.test(t4) || /\bno[.\s,¡!]+gracias\b/i.test(t4) || /\bno\s+gracias\b/i.test(t4) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t4) || /\beso\s+es\s+todo\b/i.test(t4) || /\bes\s+todo\b/i.test(t4) || /\bya\s+no\b/i.test(t4) || /\bno\s+m[aá]s\b/i.test(t4) || /\blisto\s+as[ií]\b/i.test(t4) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t4) || /\bya\s+con\s+eso\b/i.test(t4) || /\bser[ií]a\s+todo\b/i.test(t4) || /\bsolo\s+eso\b/i.test(t4) || /\bya\s+(est[aá]|queda)\s+(bien|listo)\b/i.test(t4) || /\bno\s+me\s+interesa\b/i.test(t4) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t4) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t4) || /\bpor\s+ahora\s+no\b/i.test(t4) || // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
   /\bsolo\s+quiero\b/i.test(t4) && !/\bcomida\b|\bcotiz/i.test(t4) || /\bquiero\s+solo\b/i.test(t4) && !/\bcomida\b|\bcotiz/i.test(t4);
 }
 function clientChoosesOtherCatalogOption(message) {
@@ -132526,7 +132539,7 @@ function sanitizeDireccionCapture(value) {
   ) && !hasCityOrMetroSignal(t4) && !KNOWN_ZONES.test(t4)) {
     return null;
   }
-  t4 = t4.replace(/\b(?:el\s+)?sal[oó]n\s+se\s+llama\s+/gi, "").replace(/\b(?:y\s+)?nos\s+encontramos\s+en\s*$/gi, "").replace(/\b(?:y\s+)?nos\s+encontramos\s+en\b/gi, ", ").replace(/\bcontamos\s+con\s+\d+\s+invitados?\b.*$/gi, "").replace(/\brealmente\s+buscamos\b.*$/gi, "").replace(/\by\s+estamos\s+buscando\b.*$/gi, "").replace(/\bsal[oó]n\s+de\s+fiestas?\s+y\s+estamos\b.*$/gi, "").replace(/[,.]?\s*\b(espera|ahorita|al\s+rato|en\s+un\s+momento)\s*$/gi, "").replace(/,\s*,+/g, ",").replace(/^,\s*|,\s*$/g, "").replace(/\s+/g, " ").trim();
+  t4 = t4.replace(/\b(?:el\s+)?sal[oó]n\s+se\s+llama\s+/gi, "").replace(/\b(?:y\s+)?nos\s+encontramos\s+en\s*$/gi, "").replace(/\b(?:y\s+)?nos\s+encontramos\s+en\b/gi, ", ").replace(/\bcontamos\s+con\s+\d+\s+invitados?\b.*$/gi, "").replace(/\brealmente\s+buscamos\b.*$/gi, "").replace(/\by\s+estamos\s+buscando\b.*$/gi, "").replace(/\bsal[oó]n\s+de\s+fiestas?\s+y\s+estamos\b.*$/gi, "").replace(/[,.]?\s*\b(espera|ahorita|al\s+rato|en\s+un\s+momento)\s*$/gi, "").replace(/[,;]?\s*(?:para\s+)?(?:la\s+)?entrada\s+del\s+sal[oó]n\b[^,]*/gi, "").replace(/[,;]?\s*piso\s+y\s+algo\b[^,]*/gi, "").replace(/[,;]?\s*(?:show\s+)?en\s+piso\b[^,]*/gi, "").replace(/[,;]?\s*con\s+q(?:ue)?\s+comenzar\s+el\s+baile\b[^,]*/gi, "").replace(/[,;]?\s*decoraci[oó]n(?:\s+para\s+la\s+entrada[^,]*)?/gi, "").replace(/,\s*,+/g, ",").replace(/^,\s*|,\s*$/g, "").replace(/\s+/g, " ").trim();
   if (/\b(buscando|proveedor|coordino\s+eventos|complemento\s+de\s+sillas)\b/i.test(t4)) {
     const city = t4.match(KNOWN_ZONES)?.[0]?.trim();
     const venue = extractVenueNameHint(t4);
@@ -133816,7 +133829,23 @@ function isUnusableTipoEventoReply(text2) {
   if (/\?/.test(t4) && t4.length <= 80 && !parseTipoEventoFromText(t4)) return true;
   if (clientComplainsAboutRepeat(t4) || isReferentialPriorAnswer(t4)) return true;
   if (parseCorreoFromText(t4)) return true;
+  if (looksLikePersonNameAsEventType(t4)) return true;
   return false;
+}
+function looksLikePersonNameAsEventType(text2) {
+  const raw = (text2 ?? "").trim();
+  if (!raw || raw.length > 90) return false;
+  if (parseTipoEventoFromText(raw)) return false;
+  if (isServiceRelatedMessage(raw)) return false;
+  if (/\d/.test(raw) || /@/.test(raw) || /\?/.test(raw)) return false;
+  const words = raw.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 6) return false;
+  if (/\b(fiesta|boda|evento|cumple|xv|corporativ|empresa|fin\s+de\s+a[nñ]o|posada|bautizo|graduaci)/i.test(raw)) {
+    return false;
+  }
+  return words.every(
+    (w5) => /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ'’.-]{1,30}$/u.test(w5) || /^(de|del|la|los|las|y|e|da|do|di|van|von)$/i.test(w5)
+  );
 }
 function clientAsksCafeOrCateringChoice(text2) {
   const t4 = text2?.trim() ?? "";
@@ -135271,8 +135300,8 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
             captures.push({ label: "Tipo de evento", value: tipoHist });
           }
         }
-      } else if (tipo == null && msg.length >= 2 && !/@/.test(msg) && !isUnusableTipoEventoReply(msg)) {
-        captures.push({ label: "Tipo de evento", value: msg });
+      } else if (tipo == null && msg.length >= 2 && msg.length <= 60 && !/@/.test(msg) && !isUnusableTipoEventoReply(msg) && !looksLikePersonNameAsEventType(msg) && !looksLikeNameAnswerMessage(msg)) {
+        captures.push({ label: "Tipo de evento", value: msg.slice(0, 80) });
       }
     }
   }
@@ -135684,7 +135713,8 @@ var init_conversation_understanding = __esm({
       ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
       ["Canap\xE9s", /\bcanap[eé]s?(?!\p{L})/iu],
       ["Bocadillos", /\bbocadillos?\b/i],
-      ["Entradas", /\bentradas?\b/i],
+      // A16259: entrada del salón ≠ Entradas (bocadillos).
+      ["Entradas", /\bentradas?\b(?!\s+del\s+sal[oó]n)(?!\s+(?:principal|del\s+evento|del\s+lugar))/i],
       // Tiempos de comida corporativos (briefs con varios servicios).
       ["Desayuno", /\bdesayunos?\b/i],
       ["Brunch", /\bbrunch\b/i],
@@ -135889,6 +135919,7 @@ var init_conversation_understanding = __esm({
       ],
       [/\b(aniversario(\s+de\s+\d{1,2}\s*a[nñ]os?)?|reencuentro)\b/i, "aniversario"],
       [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV a\xF1os"],
+      [/\bfiesta\s+de\s+fin\s+de\s+a[nñ]o\b/i, "fiesta de fin de a\xF1o"],
       [/\b(fin\s+de\s+a[nñ]o|fiesta\s+de\s+empresa|eventos?\s+de\s+empresa|de\s+empresa)\b/i, "evento corporativo"],
       [/\b(eventos?\s+corporativos?|convenci[oó]n(es)?|conferencias?|corporativos?)\b/i, "evento corporativo"],
       [/\b(cumplea[nñ]os?|cumple)\b/i, "cumplea\xF1os"],
@@ -163840,6 +163871,9 @@ function buildContinueEngagementQuestion(extracted, currentMessage) {
   if (clientRequestsCallback(currentMessage) || clientSignalsUrgency(currentMessage)) {
     return "\xBFTe marco el equipo hoy por tel\xE9fono, o prefieres que te escriban primero por este chat?";
   }
+  if (clientDeclinesMoreServices(currentMessage) || clientSaysThanks(currentMessage)) {
+    return "\xBFConfirmamos que el equipo te escriba por aqu\xED con la propuesta, o prefieres esperar el correo?";
+  }
   const req = extracted.requerimientos_evento ?? "";
   if (/carpas?|tarima|entarim|colgantes|entelado/i.test(req)) {
     return "\xBFTe sumo mobiliario, iluminaci\xF3n o audio, o seguimos solo con lo que ya anotamos?";
@@ -168757,7 +168791,7 @@ var init_lucy_flow_guards = __esm({
     ];
     LUCY_INTRO = "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor.";
     SERVICIOS_CATALOGO_HINT_ADICIONAL = "Tambi\xE9n podemos sumar bebidas, DJ, iluminaci\xF3n, carpas o mobiliario si te hace falta.";
-    OTRO_SERVICIO_ASK_PATTERN = /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b|qu[eé]\s+otros\s+servicios|algo\s+m[aá]s\s+para\s+(el\s+)?evento|solo\s+el\s+.+\s+o\s+tambi[eé]n|necesitan?\s+alg[uú]n\s+otro|cotizar\s+alg[uú]n\s+otro/i;
+    OTRO_SERVICIO_ASK_PATTERN = /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b|qu[eé]\s+otros\s+servicios|algo\s+m[aá]s\s+para\s+(el\s+)?evento|solo\s+el\s+.+\s+o\s+tambi[eé]n|necesitan?\s+alg[uú]n\s+otro|cotizar\s+alg[uú]n\s+otro|te\s+sumo\s+(mobiliario|iluminaci|audio)|seguimos\s+solo\s+con\s+lo\s+que\s+ya|hay\s+algo\s+m[aá]s\s+que\s+quieras\s+sumar|algo\s+m[aá]s\s+que\s+quieras\s+(agregar|sumar)/i;
     CORREO_MAX_ASKS = 2;
     FIELD_ASK_PATTERNS = {
       nombre: /cu[aá]l\s+es\s+tu\s+nombre|regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
@@ -228049,7 +228083,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.18";
+var LUCY_PROMPT_VERSION = "V10.19";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -230157,6 +230191,7 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
 }
 
 // src/lucyCrmInvariants.ts
+init_conversation_understanding();
 init_contact_name();
 init_conversation_understanding();
 function userTextsBlob(userTexts) {
@@ -230207,6 +230242,9 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
     applied.push("nombre-invalid-cleared");
   } else if (out2.nombre) {
     const cleaned = sanitizeCrmNombre(out2.nombre);
+    if (out2.tipo_evento && looksLikePersonNameAsEventType(out2.tipo_evento)) {
+      out2.tipo_evento = null;
+    }
     if (!cleaned) {
       out2.nombre = null;
       applied.push("nombre-sanitize-null");
@@ -232569,6 +232607,12 @@ async function prepareLucyExtraction(input) {
   sanitizeExtractedAmbiguousNumbers(extracted, messageText, { lastAskedField: lastAskedAmbig });
   applyWebLeadBrief(extracted, messageText);
   extracted.nombre = sanitizeCrmNombre(extracted.nombre);
+  {
+    const fromMsg = looksLikeNameAnswerMessage(messageText) ? sanitizeCrmNombre(messageText) ?? null : null;
+    if (fromMsg && fromMsg.split(/\s+/).length >= 2) {
+      extracted.nombre = preferRicherClientNombre(extracted.nombre, fromMsg);
+    }
+  }
   if (extracted.correo) {
     extracted.correo = sanitizeStoredClientEmail(
       parseCorreoFromText(extracted.correo) ?? extracted.correo

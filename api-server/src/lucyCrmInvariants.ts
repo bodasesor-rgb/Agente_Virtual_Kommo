@@ -4,6 +4,7 @@
  * aunque el regex del ticket concreto no exista aún.
  */
 import type { ExtractedData } from "./types.js";
+import { looksLikePersonNameAsEventType } from "./conversation-understanding.js";
 import {
   isLikelyUbicacionNotNombre,
   isLikelyNotPersonNameMessage,
@@ -96,6 +97,9 @@ export function applyCrmWriteInvariants(
     applied.push("nombre-invalid-cleared");
   } else if (out.nombre) {
     const cleaned = sanitizeCrmNombre(out.nombre);
+  if (out.tipo_evento && looksLikePersonNameAsEventType(out.tipo_evento)) {
+    out.tipo_evento = null;
+  }
     if (!cleaned) {
       out.nombre = null;
       applied.push("nombre-sanitize-null");
