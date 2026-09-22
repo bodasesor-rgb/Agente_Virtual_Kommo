@@ -110739,6 +110739,71 @@ var init_kommoTalks = __esm({
   }
 });
 
+// src/lib/kommoWebhookParse.ts
+function asRecord(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+}
+function firstWebhookItem(value) {
+  if (Array.isArray(value)) {
+    return asRecord(value[0]);
+  }
+  const obj = asRecord(value);
+  if (!obj) return null;
+  return asRecord(obj["0"]);
+}
+function pickId(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) return value.trim();
+  return null;
+}
+function extractKommoIncomingMessage(body2) {
+  if (!body2) return null;
+  const nestedMessage = asRecord(body2["message"]);
+  const fromMessage = firstWebhookItem(nestedMessage?.["add"]);
+  if (fromMessage) return fromMessage;
+  const nestedMessages = asRecord(body2["messages"]);
+  const fromMessages = firstWebhookItem(nestedMessages?.["add"]);
+  if (fromMessages) return fromMessages;
+  if (!body2["leads"] && !body2["unsorted"] && !body2["talk"] && !body2["outgoing_message"]) {
+    const fromRoot = firstWebhookItem(body2["add"]);
+    if (fromRoot && (fromRoot["chat_id"] || fromRoot["text"] || fromRoot["entity_id"] || fromRoot["element_id"])) {
+      return fromRoot;
+    }
+  }
+  return null;
+}
+function extractKommoUnsortedAdd(body2) {
+  const unsorted = asRecord(body2?.["unsorted"]);
+  return firstWebhookItem(unsorted?.["add"]);
+}
+function extractKommoEntityId(msg) {
+  if (!msg) return null;
+  return pickId(msg["entity_id"]) ?? pickId(msg["element_id"]) ?? pickId(msg["lead_id"]);
+}
+function extractKommoChatId(msg) {
+  if (!msg) return null;
+  const id = pickId(msg["chat_id"]);
+  return id == null ? null : String(id);
+}
+function extractKommoMessageText(msg) {
+  if (!msg) return "";
+  if (typeof msg["text"] === "string" && msg["text"].trim()) return msg["text"];
+  if (typeof msg["message"] === "string" && msg["message"].trim()) return msg["message"];
+  const nested = asRecord(msg["message"]);
+  if (typeof nested?.["text"] === "string" && nested["text"].trim()) return nested["text"];
+  return typeof msg["text"] === "string" ? msg["text"] : "";
+}
+function isChatUnsortedCategory(category) {
+  const c4 = String(category ?? "").toLowerCase();
+  if (!c4) return true;
+  return /chat|whats|waba|telegram|facebook|instagram|messenger|sip/.test(c4);
+}
+var init_kommoWebhookParse = __esm({
+  "src/lib/kommoWebhookParse.ts"() {
+    "use strict";
+  }
+});
+
 // src/selftest/lucy-flow-selftest.ts
 import assert2 from "node:assert/strict";
 
@@ -146158,65 +146223,8 @@ function resetWebhookDedupForTests() {
   processedAt.clear();
 }
 
-// src/lib/kommoWebhookParse.ts
-function asRecord(value) {
-  return value && typeof value === "object" && !Array.isArray(value) ? value : null;
-}
-function firstWebhookItem(value) {
-  if (Array.isArray(value)) {
-    return asRecord(value[0]);
-  }
-  const obj = asRecord(value);
-  if (!obj) return null;
-  return asRecord(obj["0"]);
-}
-function pickId(value) {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim()) return value.trim();
-  return null;
-}
-function extractKommoIncomingMessage(body2) {
-  if (!body2) return null;
-  const nestedMessage = asRecord(body2["message"]);
-  const fromMessage = firstWebhookItem(nestedMessage?.["add"]);
-  if (fromMessage) return fromMessage;
-  const nestedMessages = asRecord(body2["messages"]);
-  const fromMessages = firstWebhookItem(nestedMessages?.["add"]);
-  if (fromMessages) return fromMessages;
-  if (!body2["leads"] && !body2["unsorted"] && !body2["talk"] && !body2["outgoing_message"]) {
-    const fromRoot = firstWebhookItem(body2["add"]);
-    if (fromRoot && (fromRoot["chat_id"] || fromRoot["text"] || fromRoot["entity_id"] || fromRoot["element_id"])) {
-      return fromRoot;
-    }
-  }
-  return null;
-}
-function extractKommoUnsortedAdd(body2) {
-  const unsorted = asRecord(body2?.["unsorted"]);
-  return firstWebhookItem(unsorted?.["add"]);
-}
-function extractKommoEntityId(msg) {
-  if (!msg) return null;
-  return pickId(msg["entity_id"]) ?? pickId(msg["element_id"]) ?? pickId(msg["lead_id"]);
-}
-function extractKommoChatId(msg) {
-  if (!msg) return null;
-  const id = pickId(msg["chat_id"]);
-  return id == null ? null : String(id);
-}
-function extractKommoMessageText(msg) {
-  if (!msg) return "";
-  if (typeof msg["text"] === "string" && msg["text"].trim()) return msg["text"];
-  if (typeof msg["message"] === "string" && msg["message"].trim()) return msg["message"];
-  const nested = asRecord(msg["message"]);
-  if (typeof nested?.["text"] === "string" && nested["text"].trim()) return nested["text"];
-  return typeof msg["text"] === "string" ? msg["text"] : "";
-}
-function isChatUnsortedCategory(category) {
-  const c4 = String(category ?? "").toLowerCase();
-  if (!c4) return true;
-  return /chat|whats|waba|telegram|facebook|instagram|messenger|sip/.test(c4);
-}
+// src/selftest/lucy-flow-selftest.ts
+init_kommoWebhookParse();
 
 // src/services/incomingLeadRecovery.ts
 init_logger2();

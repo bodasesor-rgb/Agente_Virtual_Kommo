@@ -126,9 +126,21 @@ export async function fetchTalkIdFromLeadChats(
     );
     if (!res.ok) return null;
     const data = (await res.json()) as {
-      _embedded?: { chats?: Array<{ id?: string | number; chat_id?: string | number }> };
+      _embedded?: {
+        chats?: Array<{
+          id?: string | number;
+          chat_id?: string | number;
+          talk_id?: string | number;
+        }>;
+      };
     };
     const chats = data._embedded?.chats ?? [];
+    // Prefer talk_id: /talks/{id}/messages exige talk, no chat_id de WhatsApp.
+    for (const chat of chats) {
+      if (chat.talk_id != null && String(chat.talk_id).trim()) {
+        return String(chat.talk_id);
+      }
+    }
     for (const chat of chats) {
       const id = chat.id ?? chat.chat_id;
       if (id != null && String(id).trim()) return String(id);
@@ -174,7 +186,8 @@ export async function fetchTalkIdFromTalksFilter(
 
 /**
  * Resuelve el mejor talkId disponible para un lead.
- * Orden: known → chats del lead → filtro de talks.
+ * Orden: knownTalkId → filtro talks (entity) → chats.talk_id → chats.id → knownChatId.
+ * knownChatId es último: a menudo es chat WhatsApp ≠ talk_id de /messages.
  */
 export async function resolveKommoTalkId(opts: {
   subdomain: string;
@@ -184,17 +197,6 @@ export async function resolveKommoTalkId(opts: {
   knownChatId?: string | null;
 }): Promise<string | null> {
   if (opts.knownTalkId?.trim()) return opts.knownTalkId.trim();
-  if (opts.knownChatId?.trim()) {
-    // En muchos webhooks Kommo el chat_id sirve para Talks; lo usamos como candidato.
-    // Si falla el sync, el cron reintentará con resolve desde API.
-  }
-
-  const fromChats = await fetchTalkIdFromLeadChats(
-    opts.subdomain,
-    opts.accessToken,
-    opts.leadId
-  );
-  if (fromChats) return fromChats;
 
   const fromTalks = await fetchTalkIdFromTalksFilter(
     opts.subdomain,
@@ -202,6 +204,13 @@ export async function resolveKommoTalkId(opts: {
     opts.leadId
   );
   if (fromTalks) return fromTalks;
+
+  const fromChats = await fetchTalkIdFromLeadChats(
+    opts.subdomain,
+    opts.accessToken,
+    opts.leadId
+  );
+  if (fromChats) return fromChats;
 
   if (opts.knownChatId?.trim()) return opts.knownChatId.trim();
   return null;

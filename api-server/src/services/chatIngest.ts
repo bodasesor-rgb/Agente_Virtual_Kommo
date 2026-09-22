@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { db, conversations, messages } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { extractKommoMessageText } from "../lib/kommoWebhookParse.js";
 import { logger } from "../lib/logger.js";
 import { ensureLearningSchema } from "./learningSchema.js";
 
@@ -9,6 +10,7 @@ export type AuthorType = "client" | "lucy" | "human_agent";
 export interface KommoTalkMessage {
   id?: string | number;
   text?: string;
+  message?: { text?: string } | string;
   created_at?: number;
   author?: { type?: string; name?: string };
 }
@@ -50,18 +52,46 @@ export async function fetchKommoTalkMessages(
   subdomain: string,
   accessToken: string,
   talkId: string,
-  limit = 50
+  limit = 80
 ): Promise<KommoTalkMessage[]> {
-  try {
-    const url = `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=${limit}&order=asc`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { _embedded?: { messages?: KommoTalkMessage[] } };
-    return (data._embedded?.messages ?? []).filter((m) => m.text?.trim());
-  } catch (err) {
-    logger.warn({ err, talkId }, "chatIngest: error leyendo Talks API");
-    return [];
+  const urls = [
+    `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=${limit}&order=asc`,
+    `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=${limit}&order=desc`,
+  ];
+  const byId = new Map<string, KommoTalkMessage>();
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) continue;
+      const data = (await res.json()) as {
+        _embedded?: { messages?: KommoTalkMessage[] };
+      };
+      let msgs = data._embedded?.messages ?? [];
+      if (url.includes("order=desc")) msgs = [...msgs].reverse();
+      for (const m of msgs) {
+        const text = extractKommoMessageText(
+          m as unknown as Record<string, unknown>
+        ).trim();
+        if (!text) continue;
+        const key =
+          m.id != null
+            ? String(m.id)
+            : contentHash("talk", "client", text);
+        byId.set(key, { ...m, text });
+      }
+      // Con ≥2 mensajes de texto ya tenemos transcript auditable; no hace falta 2do orden.
+      if (byId.size >= 2) break;
+    } catch (err) {
+      logger.warn({ err, talkId }, "chatIngest: error leyendo Talks API");
+    }
   }
+
+  const list = [...byId.values()];
+  list.sort((a, b) => Number(a.created_at ?? 0) - Number(b.created_at ?? 0));
+  return list;
 }
 
 export async function persistChatMessage(input: {

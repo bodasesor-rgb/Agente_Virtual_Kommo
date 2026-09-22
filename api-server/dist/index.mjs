@@ -169260,6 +169260,90 @@ var init_learningSchema = __esm({
   }
 });
 
+// src/lib/kommoWebhookParse.ts
+function asRecord(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+}
+function firstWebhookItem(value) {
+  if (Array.isArray(value)) {
+    return asRecord(value[0]);
+  }
+  const obj = asRecord(value);
+  if (!obj) return null;
+  return asRecord(obj["0"]);
+}
+function pickId(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) return value.trim();
+  return null;
+}
+function extractKommoIncomingMessage(body2) {
+  if (!body2) return null;
+  const nestedMessage = asRecord(body2["message"]);
+  const fromMessage = firstWebhookItem(nestedMessage?.["add"]);
+  if (fromMessage) return fromMessage;
+  const nestedMessages = asRecord(body2["messages"]);
+  const fromMessages = firstWebhookItem(nestedMessages?.["add"]);
+  if (fromMessages) return fromMessages;
+  if (!body2["leads"] && !body2["unsorted"] && !body2["talk"] && !body2["outgoing_message"]) {
+    const fromRoot = firstWebhookItem(body2["add"]);
+    if (fromRoot && (fromRoot["chat_id"] || fromRoot["text"] || fromRoot["entity_id"] || fromRoot["element_id"])) {
+      return fromRoot;
+    }
+  }
+  return null;
+}
+function extractKommoTalkAdd(body2) {
+  const talk = asRecord(body2?.["talk"]);
+  return firstWebhookItem(talk?.["add"]);
+}
+function extractKommoUnsortedAdd(body2) {
+  const unsorted = asRecord(body2?.["unsorted"]);
+  return firstWebhookItem(unsorted?.["add"]);
+}
+function extractKommoEntityId(msg) {
+  if (!msg) return null;
+  return pickId(msg["entity_id"]) ?? pickId(msg["element_id"]) ?? pickId(msg["lead_id"]);
+}
+function extractKommoChatId(msg) {
+  if (!msg) return null;
+  const id = pickId(msg["chat_id"]);
+  return id == null ? null : String(id);
+}
+function extractKommoTalkId(msg) {
+  if (!msg) return null;
+  const id = pickId(msg["talk_id"]);
+  return id == null ? null : String(id);
+}
+function extractKommoMessageText(msg) {
+  if (!msg) return "";
+  if (typeof msg["text"] === "string" && msg["text"].trim()) return msg["text"];
+  if (typeof msg["message"] === "string" && msg["message"].trim()) return msg["message"];
+  const nested = asRecord(msg["message"]);
+  if (typeof nested?.["text"] === "string" && nested["text"].trim()) return nested["text"];
+  return typeof msg["text"] === "string" ? msg["text"] : "";
+}
+function isChatUnsortedCategory(category) {
+  const c5 = String(category ?? "").toLowerCase();
+  if (!c5) return true;
+  return /chat|whats|waba|telegram|facebook|instagram|messenger|sip/.test(c5);
+}
+function webhookBodyShape(body2) {
+  const keys = body2 ? Object.keys(body2) : [];
+  return {
+    keys,
+    hasMessageAdd: Boolean(asRecord(body2?.["message"])?.["add"]),
+    hasRootAdd: Array.isArray(body2?.["add"]) || Boolean(asRecord(body2?.["add"])?.["0"]),
+    hasUnsorted: Boolean(body2?.["unsorted"]),
+    hasTalk: Boolean(body2?.["talk"])
+  };
+}
+var init_kommoWebhookParse = __esm({
+  "src/lib/kommoWebhookParse.ts"() {
+    "use strict";
+  }
+});
+
 // src/lib/trainingPaths.ts
 import { existsSync as existsSync8 } from "fs";
 import { join as join6, dirname as dirname3 } from "path";
@@ -169676,17 +169760,37 @@ function roleFromAuthor(author) {
 function contentHash(leadId, author, text2) {
   return createHash3("sha256").update(`${leadId}|${author}|${text2.trim()}`).digest("hex").slice(0, 40);
 }
-async function fetchKommoTalkMessages(subdomain, accessToken, talkId, limit2 = 50) {
-  try {
-    const url2 = `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=${limit2}&order=asc`;
-    const res = await fetch(url2, { headers: { Authorization: `Bearer ${accessToken}` } });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (data._embedded?.messages ?? []).filter((m6) => m6.text?.trim());
-  } catch (err2) {
-    logger.warn({ err: err2, talkId }, "chatIngest: error leyendo Talks API");
-    return [];
+async function fetchKommoTalkMessages(subdomain, accessToken, talkId, limit2 = 80) {
+  const urls = [
+    `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=${limit2}&order=asc`,
+    `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=${limit2}&order=desc`
+  ];
+  const byId = /* @__PURE__ */ new Map();
+  for (const url2 of urls) {
+    try {
+      const res = await fetch(url2, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      let msgs = data._embedded?.messages ?? [];
+      if (url2.includes("order=desc")) msgs = [...msgs].reverse();
+      for (const m6 of msgs) {
+        const text2 = extractKommoMessageText(
+          m6
+        ).trim();
+        if (!text2) continue;
+        const key = m6.id != null ? String(m6.id) : contentHash("talk", "client", text2);
+        byId.set(key, { ...m6, text: text2 });
+      }
+      if (byId.size >= 2) break;
+    } catch (err2) {
+      logger.warn({ err: err2, talkId }, "chatIngest: error leyendo Talks API");
+    }
   }
+  const list = [...byId.values()];
+  list.sort((a4, b5) => Number(a4.created_at ?? 0) - Number(b5.created_at ?? 0));
+  return list;
 }
 async function persistChatMessage(input) {
   await ensureLearningSchema();
@@ -169810,6 +169914,7 @@ var init_chatIngest = __esm({
     "use strict";
     await init_src2();
     init_drizzle_orm();
+    init_kommoWebhookParse();
     init_logger2();
     await init_learningSchema();
   }
@@ -169901,6 +170006,11 @@ async function fetchTalkIdFromLeadChats(subdomain, accessToken, leadId) {
     const data = await res.json();
     const chats = data._embedded?.chats ?? [];
     for (const chat of chats) {
+      if (chat.talk_id != null && String(chat.talk_id).trim()) {
+        return String(chat.talk_id);
+      }
+    }
+    for (const chat of chats) {
       const id = chat.id ?? chat.chat_id;
       if (id != null && String(id).trim()) return String(id);
     }
@@ -169934,20 +170044,18 @@ async function fetchTalkIdFromTalksFilter(subdomain, accessToken, leadId) {
 }
 async function resolveKommoTalkId(opts) {
   if (opts.knownTalkId?.trim()) return opts.knownTalkId.trim();
-  if (opts.knownChatId?.trim()) {
-  }
-  const fromChats = await fetchTalkIdFromLeadChats(
-    opts.subdomain,
-    opts.accessToken,
-    opts.leadId
-  );
-  if (fromChats) return fromChats;
   const fromTalks = await fetchTalkIdFromTalksFilter(
     opts.subdomain,
     opts.accessToken,
     opts.leadId
   );
   if (fromTalks) return fromTalks;
+  const fromChats = await fetchTalkIdFromLeadChats(
+    opts.subdomain,
+    opts.accessToken,
+    opts.leadId
+  );
+  if (fromChats) return fromChats;
   if (opts.knownChatId?.trim()) return opts.knownChatId.trim();
   return null;
 }
@@ -188624,7 +188732,7 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
   const accessToken = getKommoAccessToken();
   if (!subdomain || !accessToken) {
     logger.warn("lucyAuditor: sin Kommo \u2014 no se puede sync del d\xEDa");
-    return { synced: 0, leadIds: [] };
+    return { synced: 0, syncedWithMessages: 0, emptyTalks: 0, leadIds: [] };
   }
   const sinceSec = Math.floor(startOfMexicoCityDay().getTime() / 1e3);
   const leadIds = /* @__PURE__ */ new Set();
@@ -188658,6 +188766,8 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
     }
   }
   let synced = 0;
+  let syncedWithMessages = 0;
+  let emptyTalks = 0;
   const ids = [...leadIds].slice(0, limitLeads);
   for (let i6 = 0; i6 < ids.length; i6++) {
     const leadId = ids[i6];
@@ -188676,7 +188786,8 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
         subdomain,
         accessToken,
         leadId,
-        knownTalkId: conv?.kommoTalkId ?? null,
+        // No reusar knownTalkId ciego: a veces era chat_id y Talks queda vacío.
+        knownTalkId: null,
         knownChatId: conv?.kommoChatId ?? null
       });
       if (!talkId) continue;
@@ -188691,32 +188802,60 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
       } else {
         await db.update(conversations).set({ kommoTalkId: String(talkId), updatedAt: /* @__PURE__ */ new Date() }).where(eq(conversations.kommoLeadId, leadId));
       }
-      await syncLeadTranscript({
+      let syncResult = await syncLeadTranscript({
         kommoLeadId: leadId,
         talkId: String(talkId),
         subdomain,
         accessToken
       });
+      if (syncResult.total === 0 && conv?.kommoTalkId && String(conv.kommoTalkId) !== String(talkId)) {
+        const retry2 = await syncLeadTranscript({
+          kommoLeadId: leadId,
+          talkId: String(conv.kommoTalkId),
+          subdomain,
+          accessToken
+        });
+        if (retry2.total > syncResult.total) {
+          syncResult = retry2;
+          await db.update(conversations).set({
+            kommoTalkId: String(conv.kommoTalkId),
+            updatedAt: /* @__PURE__ */ new Date()
+          }).where(eq(conversations.kommoLeadId, leadId));
+        }
+      }
       synced += 1;
+      if (syncResult.total > 0) syncedWithMessages += 1;
+      else emptyTalks += 1;
     } catch (err2) {
       logger.warn({ err: err2, leadId }, "lucyAuditor: sync lead fall\xF3");
     }
   }
-  logger.info({ synced, candidates: ids.length }, "lucyAuditor: sync Kommo del d\xEDa");
-  return { synced, leadIds: ids };
+  logger.info(
+    { synced, syncedWithMessages, emptyTalks, candidates: ids.length },
+    "lucyAuditor: sync Kommo del d\xEDa"
+  );
+  return { synced, syncedWithMessages, emptyTalks, leadIds: ids };
 }
 async function loadTranscriptsForLeadIds(leadIds, since) {
   const out2 = [];
+  let emptyOrShort = 0;
+  let noReply = 0;
   for (const leadId of leadIds) {
     const turns = await loadTurnsForLead(leadId, since);
-    if (turns.length < 2) continue;
+    if (turns.length < 2) {
+      emptyOrShort += 1;
+      continue;
+    }
     const hasReply = turns.some(
       (t4) => t4.role === "assistant" || t4.role === "human"
     );
-    if (!hasReply) continue;
+    if (!hasReply) {
+      noReply += 1;
+      continue;
+    }
     out2.push({ leadId, turns });
   }
-  return out2;
+  return { transcripts: out2, emptyOrShort, noReply };
 }
 function formatTranscript(turns) {
   return turns.map((t4) => {
@@ -188752,10 +188891,14 @@ async function runLucyAuditorBatch(opts) {
   const forceFlash = opts?.forceFlash === true;
   const syncFromKommo = opts?.syncFromKommo !== false && onlyToday;
   let syncedFromKommo = 0;
+  let syncedWithMessages = 0;
+  let emptyTalks = 0;
   let kommoLeadIds = [];
   if (syncFromKommo) {
     const sync = await syncTodayLeadsFromKommo(limitLeads, report);
     syncedFromKommo = sync.synced;
+    syncedWithMessages = sync.syncedWithMessages;
+    emptyTalks = sync.emptyTalks;
     kommoLeadIds = sync.leadIds;
   }
   const since = onlyToday ? startOfMexicoCityDay() : null;
@@ -188769,7 +188912,9 @@ async function runLucyAuditorBatch(opts) {
   let withLucy = 0;
   let tooShort = 0;
   const turnsSince = kommoLeadIds.length > 0 ? null : since;
-  const transcripts = await loadTranscriptsForLeadIds(leadIds, turnsSince);
+  const loaded = await loadTranscriptsForLeadIds(leadIds, turnsSince);
+  const transcripts = loaded.transcripts;
+  const noReply = loaded.noReply;
   report({
     type: "phase",
     phase: "scan",
@@ -188849,13 +188994,17 @@ async function runLucyAuditorBatch(opts) {
   if (opts?.oncePerDay) {
     lastDailyRunDay = dayKey2;
   }
-  const summary = transcripts.length === 0 ? `No encontr\xE9 chats del d\xEDa${syncedFromKommo ? ` (sync Kommo ${syncedFromKommo})` : ""}.` : findings === 0 ? `Revis\xE9 ${transcripts.length} chat(s)${syncedFromKommo ? `, sync ${syncedFromKommo}` : ""}. Flash en ${flashCalls}. Sin errores detectados` + (withLucy ? ` (${withLucy} con Lucy).` : " (pocos con rol Lucy reconocible).") : `Revis\xE9 ${transcripts.length} chat(s): ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.`;
+  const skipHint = emptyTalks || noReply || loaded.emptyOrShort ? ` (Talks vac\xEDos ${emptyTalks}, sin respuesta ${noReply}, cortos ${loaded.emptyOrShort})` : "";
+  const summary = transcripts.length === 0 ? `No encontr\xE9 chats auditables del d\xEDa${syncedFromKommo ? ` (sync Kommo ${syncedFromKommo}, con msgs ${syncedWithMessages})` : ""}${skipHint}.` : findings === 0 ? `Revis\xE9 ${transcripts.length} chat(s)${syncedFromKommo ? `, sync ${syncedFromKommo}/${syncedWithMessages} con msgs` : ""}. Flash en ${flashCalls}. Sin errores detectados` + (withLucy ? ` (${withLucy} con Lucy).` : " (pocos con rol Lucy reconocible).") + skipHint : `Revis\xE9 ${transcripts.length} chat(s): ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.${skipHint}`;
   const result = {
     scanned: transcripts.length,
     findings,
     recorded,
     flashCalls,
     syncedFromKommo,
+    syncedWithMessages,
+    emptyTalks,
+    noReply,
     dayKey: dayKey2,
     withLucy,
     tooShort,
@@ -234183,87 +234332,7 @@ async function appendProveedorRow(row) {
 // src/routes/kommo.ts
 init_conversation_understanding();
 init_whatsappDirectSender();
-
-// src/lib/kommoWebhookParse.ts
-function asRecord(value) {
-  return value && typeof value === "object" && !Array.isArray(value) ? value : null;
-}
-function firstWebhookItem(value) {
-  if (Array.isArray(value)) {
-    return asRecord(value[0]);
-  }
-  const obj = asRecord(value);
-  if (!obj) return null;
-  return asRecord(obj["0"]);
-}
-function pickId(value) {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim()) return value.trim();
-  return null;
-}
-function extractKommoIncomingMessage(body2) {
-  if (!body2) return null;
-  const nestedMessage = asRecord(body2["message"]);
-  const fromMessage = firstWebhookItem(nestedMessage?.["add"]);
-  if (fromMessage) return fromMessage;
-  const nestedMessages = asRecord(body2["messages"]);
-  const fromMessages = firstWebhookItem(nestedMessages?.["add"]);
-  if (fromMessages) return fromMessages;
-  if (!body2["leads"] && !body2["unsorted"] && !body2["talk"] && !body2["outgoing_message"]) {
-    const fromRoot = firstWebhookItem(body2["add"]);
-    if (fromRoot && (fromRoot["chat_id"] || fromRoot["text"] || fromRoot["entity_id"] || fromRoot["element_id"])) {
-      return fromRoot;
-    }
-  }
-  return null;
-}
-function extractKommoTalkAdd(body2) {
-  const talk = asRecord(body2?.["talk"]);
-  return firstWebhookItem(talk?.["add"]);
-}
-function extractKommoUnsortedAdd(body2) {
-  const unsorted = asRecord(body2?.["unsorted"]);
-  return firstWebhookItem(unsorted?.["add"]);
-}
-function extractKommoEntityId(msg) {
-  if (!msg) return null;
-  return pickId(msg["entity_id"]) ?? pickId(msg["element_id"]) ?? pickId(msg["lead_id"]);
-}
-function extractKommoChatId(msg) {
-  if (!msg) return null;
-  const id = pickId(msg["chat_id"]);
-  return id == null ? null : String(id);
-}
-function extractKommoTalkId(msg) {
-  if (!msg) return null;
-  const id = pickId(msg["talk_id"]);
-  return id == null ? null : String(id);
-}
-function extractKommoMessageText(msg) {
-  if (!msg) return "";
-  if (typeof msg["text"] === "string" && msg["text"].trim()) return msg["text"];
-  if (typeof msg["message"] === "string" && msg["message"].trim()) return msg["message"];
-  const nested = asRecord(msg["message"]);
-  if (typeof nested?.["text"] === "string" && nested["text"].trim()) return nested["text"];
-  return typeof msg["text"] === "string" ? msg["text"] : "";
-}
-function isChatUnsortedCategory(category) {
-  const c5 = String(category ?? "").toLowerCase();
-  if (!c5) return true;
-  return /chat|whats|waba|telegram|facebook|instagram|messenger|sip/.test(c5);
-}
-function webhookBodyShape(body2) {
-  const keys = body2 ? Object.keys(body2) : [];
-  return {
-    keys,
-    hasMessageAdd: Boolean(asRecord(body2?.["message"])?.["add"]),
-    hasRootAdd: Array.isArray(body2?.["add"]) || Boolean(asRecord(body2?.["add"])?.["0"]),
-    hasUnsorted: Boolean(body2?.["unsorted"]),
-    hasTalk: Boolean(body2?.["talk"])
-  };
-}
-
-// src/routes/kommo.ts
+init_kommoWebhookParse();
 await init_kommoMirror();
 await init_chatIngest();
 await init_learningSync();

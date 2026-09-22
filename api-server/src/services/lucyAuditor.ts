@@ -32,6 +32,12 @@ export type AuditorRunResult = {
   recorded: number;
   flashCalls: number;
   syncedFromKommo?: number;
+  /** Sync con ≥1 mensaje de texto en Talks. */
+  syncedWithMessages?: number;
+  /** Sync OK pero Talks vacío / sin texto. */
+  emptyTalks?: number;
+  /** Candidatos con msgs en BD pero sin respuesta Lucy/humano. */
+  noReply?: number;
   skipped?: string;
   dayKey?: string;
   /** Chats con respuesta de Lucy (role assistant). */
@@ -136,17 +142,22 @@ async function loadTurnsForLead(
 /**
  * Trae de Kommo los leads tocados hoy y sincroniza transcripts a BD.
  * Así el auditor ve los chats del día aunque el webhook no haya persistido todos.
- * @returns { synced, leadIds } leadIds = candidatos del día (aunque no insertara msgs nuevos).
+ * @returns { synced, leadIds, ... } leadIds = candidatos del día (aunque no insertara msgs nuevos).
  */
 async function syncTodayLeadsFromKommo(
   limitLeads: number,
   onProgress?: (ev: AuditorProgressEvent) => void
-): Promise<{ synced: number; leadIds: string[] }> {
+): Promise<{
+  synced: number;
+  syncedWithMessages: number;
+  emptyTalks: number;
+  leadIds: string[];
+}> {
   const subdomain = getKommoSubdomain();
   const accessToken = getKommoAccessToken();
   if (!subdomain || !accessToken) {
     logger.warn("lucyAuditor: sin Kommo — no se puede sync del día");
-    return { synced: 0, leadIds: [] };
+    return { synced: 0, syncedWithMessages: 0, emptyTalks: 0, leadIds: [] };
   }
 
   const sinceSec = Math.floor(startOfMexicoCityDay().getTime() / 1000);
@@ -194,6 +205,8 @@ async function syncTodayLeadsFromKommo(
   }
 
   let synced = 0;
+  let syncedWithMessages = 0;
+  let emptyTalks = 0;
   const ids = [...leadIds].slice(0, limitLeads);
   for (let i = 0; i < ids.length; i++) {
     const leadId = ids[i]!;
@@ -212,7 +225,8 @@ async function syncTodayLeadsFromKommo(
         subdomain,
         accessToken,
         leadId,
-        knownTalkId: conv?.kommoTalkId ?? null,
+        // No reusar knownTalkId ciego: a veces era chat_id y Talks queda vacío.
+        knownTalkId: null,
         knownChatId: conv?.kommoChatId ?? null,
       });
       if (!talkId) continue;
@@ -230,40 +244,78 @@ async function syncTodayLeadsFromKommo(
           .set({ kommoTalkId: String(talkId), updatedAt: new Date() })
           .where(eq(conversations.kommoLeadId, leadId));
       }
-      await syncLeadTranscript({
+      let syncResult = await syncLeadTranscript({
         kommoLeadId: leadId,
         talkId: String(talkId),
         subdomain,
         accessToken,
       });
+      // Si Talks vacío y teníamos un id guardado distinto, probar el otro candidato.
+      if (
+        syncResult.total === 0 &&
+        conv?.kommoTalkId &&
+        String(conv.kommoTalkId) !== String(talkId)
+      ) {
+        const retry = await syncLeadTranscript({
+          kommoLeadId: leadId,
+          talkId: String(conv.kommoTalkId),
+          subdomain,
+          accessToken,
+        });
+        if (retry.total > syncResult.total) {
+          syncResult = retry;
+          await db
+            .update(conversations)
+            .set({
+              kommoTalkId: String(conv.kommoTalkId),
+              updatedAt: new Date(),
+            })
+            .where(eq(conversations.kommoLeadId, leadId));
+        }
+      }
       synced += 1;
+      if (syncResult.total > 0) syncedWithMessages += 1;
+      else emptyTalks += 1;
     } catch (err) {
       logger.warn({ err, leadId }, "lucyAuditor: sync lead falló");
     }
   }
 
-  logger.info({ synced, candidates: ids.length }, "lucyAuditor: sync Kommo del día");
-  return { synced, leadIds: ids };
+  logger.info(
+    { synced, syncedWithMessages, emptyTalks, candidates: ids.length },
+    "lucyAuditor: sync Kommo del día"
+  );
+  return { synced, syncedWithMessages, emptyTalks, leadIds: ids };
 }
 
 async function loadTranscriptsForLeadIds(
   leadIds: string[],
   since: Date | null
-): Promise<Array<{ leadId: string; turns: TranscriptTurn[] }>> {
+): Promise<{
+  transcripts: Array<{ leadId: string; turns: TranscriptTurn[] }>;
+  emptyOrShort: number;
+  noReply: number;
+}> {
   const out: Array<{ leadId: string; turns: TranscriptTurn[] }> = [];
+  let emptyOrShort = 0;
+  let noReply = 0;
   for (const leadId of leadIds) {
     const turns = await loadTurnsForLead(leadId, since);
-    if (turns.length < 2) continue;
+    if (turns.length < 2) {
+      emptyOrShort += 1;
+      continue;
+    }
     // Lucy o agente: hace falta al menos una respuesta no-cliente.
     const hasReply = turns.some(
       (t) => t.role === "assistant" || t.role === "human"
     );
-    if (!hasReply) continue;
-    // Para auditar calidad de Lucy preferimos chats con assistant; si no, igual
-    // contamos si hay humano (Alejandro) para no perder el lead del día.
+    if (!hasReply) {
+      noReply += 1;
+      continue;
+    }
     out.push({ leadId, turns });
   }
-  return out;
+  return { transcripts: out, emptyOrShort, noReply };
 }
 
 function formatTranscript(turns: TranscriptTurn[]): string {
@@ -328,10 +380,14 @@ export async function runLucyAuditorBatch(opts?: {
   const syncFromKommo = opts?.syncFromKommo !== false && onlyToday;
 
   let syncedFromKommo = 0;
+  let syncedWithMessages = 0;
+  let emptyTalks = 0;
   let kommoLeadIds: string[] = [];
   if (syncFromKommo) {
     const sync = await syncTodayLeadsFromKommo(limitLeads, report);
     syncedFromKommo = sync.synced;
+    syncedWithMessages = sync.syncedWithMessages;
+    emptyTalks = sync.emptyTalks;
     kommoLeadIds = sync.leadIds;
   }
 
@@ -353,7 +409,9 @@ export async function runLucyAuditorBatch(opts?: {
 
   // Si vinieron de Kommo sync, leer historial completo (since=null).
   const turnsSince = kommoLeadIds.length > 0 ? null : since;
-  const transcripts = await loadTranscriptsForLeadIds(leadIds, turnsSince);
+  const loaded = await loadTranscriptsForLeadIds(leadIds, turnsSince);
+  const transcripts = loaded.transcripts;
+  const noReply = loaded.noReply;
   report({
     type: "phase",
     phase: "scan",
@@ -453,14 +511,20 @@ export async function runLucyAuditorBatch(opts?: {
     lastDailyRunDay = dayKey;
   }
 
+  const skipHint =
+    emptyTalks || noReply || loaded.emptyOrShort
+      ? ` (Talks vacíos ${emptyTalks}, sin respuesta ${noReply}, cortos ${loaded.emptyOrShort})`
+      : "";
+
   const summary =
     transcripts.length === 0
-      ? `No encontré chats del día${syncedFromKommo ? ` (sync Kommo ${syncedFromKommo})` : ""}.`
+      ? `No encontré chats auditables del día${syncedFromKommo ? ` (sync Kommo ${syncedFromKommo}, con msgs ${syncedWithMessages})` : ""}${skipHint}.`
       : findings === 0
-        ? `Revisé ${transcripts.length} chat(s)${syncedFromKommo ? `, sync ${syncedFromKommo}` : ""}. ` +
+        ? `Revisé ${transcripts.length} chat(s)${syncedFromKommo ? `, sync ${syncedFromKommo}/${syncedWithMessages} con msgs` : ""}. ` +
           `Flash en ${flashCalls}. Sin errores detectados` +
-          (withLucy ? ` (${withLucy} con Lucy).` : " (pocos con rol Lucy reconocible).")
-        : `Revisé ${transcripts.length} chat(s): ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.`;
+          (withLucy ? ` (${withLucy} con Lucy).` : " (pocos con rol Lucy reconocible).") +
+          skipHint
+        : `Revisé ${transcripts.length} chat(s): ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.${skipHint}`;
 
   const result: AuditorRunResult = {
     scanned: transcripts.length,
@@ -468,6 +532,9 @@ export async function runLucyAuditorBatch(opts?: {
     recorded,
     flashCalls,
     syncedFromKommo,
+    syncedWithMessages,
+    emptyTalks,
+    noReply,
     dayKey,
     withLucy,
     tooShort,
