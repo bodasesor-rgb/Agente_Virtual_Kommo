@@ -143,15 +143,25 @@ async function loadHomeStats() {
           : health.gemini_configured
             ? "Gemini"
             : "LLM";
-    // Modelo real de chat (mismo que responde WhatsApp / Kommo).
+    // Solo lo que reporta el servidor (sin inventar IDs en el cliente).
+    const lastUsed = health.gemini_call_stats?.lastModel;
     const chatModel =
-      health.llm_model ||
-      health.gemini_allowed_model ||
-      (llmProvider === "gemini" ? "gemini-3.1-flash-lite" : "—");
+      (typeof lastUsed === "string" && lastUsed.trim()) ||
+      (typeof health.llm_model === "string" && health.llm_model.trim()) ||
+      "—";
+    const chatLabel =
+      typeof lastUsed === "string" && lastUsed.trim()
+        ? `Chat Lucy · última llamada`
+        : llmOk
+          ? `Chat Lucy · ${llmLabel}`
+          : `Chat Lucy · sin key`;
 
     const cardRepairs = document.getElementById("card-reparaciones-desc");
     if (cardRepairs) {
-      cardRepairs.textContent = `Auditor offline (${auditorModel}) que revisa chats: bucles, cierres mal, campos. Nunca escribe al cliente; solo propone/registra fixes.`;
+      cardRepairs.textContent =
+        auditorModel !== "—"
+          ? `Auditor offline (${auditorModel}) que revisa chats: bucles, cierres mal, campos. Nunca escribe al cliente; solo propone/registra fixes.`
+          : `Auditor offline que revisa chats: bucles, cierres mal, campos. Nunca escribe al cliente; solo propone/registra fixes.`;
     }
 
     const online = ops?.overall === "ok" || (health.status === "ok" && llmOk);
@@ -173,8 +183,8 @@ async function loadHomeStats() {
         "stat-icon-openai",
         "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z",
         chatModel,
-        llmOk ? `Chat Lucy · ${llmLabel}` : `Chat Lucy · sin key`,
-        llmOk ? "stat-ok" : "stat-warn",
+        chatLabel,
+        llmOk && chatModel !== "—" ? "stat-ok" : "stat-warn",
       ),
       statCard(
         "stat-icon-gaps",

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Estado de Lucy — Bodasesor</title>
   <base href="/estado/" />
-  <link rel="stylesheet" href="/estado/styles.css?v=3" />
+  <link rel="stylesheet" href="/estado/styles.css?v=4" />
 </head>
 <body>
   <div class="page">
@@ -37,14 +37,14 @@
       <ul>
         <li><strong>Última actualización</strong> — prompt y fecha/hora del último deploy en Hostinger</li>
         <li><strong>Servidor</strong> — si Lucy está en línea (uptime)</li>
-        <li><strong>Chat Lucy</strong> — modelo real que responde (p. ej. <code>gemini-3.1-flash-lite</code>) con la key <code>gemini_ia</code></li>
-        <li><strong>Auditor</strong> — modelo real de Reparaciones (p. ej. <code>gemini-2.5-flash</code>); nunca escribe al cliente</li>
+        <li><strong>Chat Lucy</strong> — <span id="info-chat-model">cargando modelo…</span> (key <code>gemini_ia</code>)</li>
+        <li><strong>Auditor</strong> — <span id="info-auditor-model">cargando modelo…</span>; nunca escribe al cliente</li>
         <li><strong>Catálogo</strong> — precios del Google Sheet; si hay error, «Reparar» recarga</li>
         <li><strong>Aprendizaje</strong> — preguntas pendientes que aún no le enseñaste</li>
       </ul>
       <p class="muted small">GitHub hace ping cada 5 min para que Hostinger no duerma. El catálogo se actualiza solo cada ~30 min.</p>
     </section>
   </div>
-  <script src="/estado/app.js?v=3" type="module"></script>
+  <script src="/estado/app.js?v=4" type="module"></script>
 </body>
 </html>

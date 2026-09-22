@@ -43,6 +43,34 @@ async function loadStatus() {
     )
     .join("");
 
+  // Modelos reales desde API (sin IDs inventados en el HTML).
+  const infoChat = document.getElementById("info-chat-model");
+  const infoAuditor = document.getElementById("info-auditor-model");
+  try {
+    const [health, repairs] = await Promise.all([
+      fetch("/api/health").then((r) => (r.ok ? r.json() : null)),
+      fetch("/api/reparaciones/stats").then((r) => (r.ok ? r.json() : null)),
+    ]);
+    if (infoChat) {
+      const last = health?.gemini_call_stats?.lastModel;
+      const configured = health?.llm_model;
+      infoChat.textContent =
+        typeof last === "string" && last.trim()
+          ? `última llamada ${last}`
+          : typeof configured === "string" && configured.trim()
+            ? configured
+            : "sin dato del servidor";
+    }
+    if (infoAuditor) {
+      const m = repairs?.auditor_model;
+      infoAuditor.textContent =
+        typeof m === "string" && m.trim() ? m : "sin dato del servidor";
+    }
+  } catch {
+    if (infoChat) infoChat.textContent = "sin dato del servidor";
+    if (infoAuditor) infoAuditor.textContent = "sin dato del servidor";
+  }
+
   btnHeal.disabled = false;
   btnHeal.title = "Recargar catálogo del Sheet";
 }
