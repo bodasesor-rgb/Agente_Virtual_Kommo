@@ -1,5 +1,5 @@
 /**
- * Smoke V10.19 — invita ideas + precio solo bajo demanda + tips + grounding opt-in off.
+ * Smoke V10.20 — invita ideas + precio solo bajo demanda + tips + grounding opt-in off.
  * node ./scripts/run-v1017-smoke.mjs
  */
 import assert from "node:assert/strict";
@@ -16,7 +16,7 @@ import { lucyCostControlsSummary } from "../lib/lucyCostControls.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import { emptyExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.19");
+assert.equal(LUCY_PROMPT_VERSION, "V10.20");
 assert.equal(isGoogleGroundingEnabled(), false);
 assert.equal(lucyCostControlsSummary().google_grounding, false);
 
@@ -76,4 +76,4 @@ const dyn = buildDynamicTurnContext({
 assert.ok(/IDEAS|TENDENCIAS|Estilo|Ideas utiles|Ideas útiles|INVITA/i.test(dyn), dyn.slice(0, 500));
 
 assert.ok(typeof getGoogleGroundingStats().attempts === "number");
-console.log("V10.19 smoke OK");
+console.log("V10.20 smoke OK");

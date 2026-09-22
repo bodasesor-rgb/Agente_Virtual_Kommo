@@ -54,7 +54,7 @@ export const DEFAULT_SERVICE_SYNONYM_FAMILIES: ServiceSynonymFamily[] = [
       "plated",
       "emplatado",
     ],
-    excludeIf: ["mexicano", "navideno", "navideño", "kosher", "taquiza", "tacos"],
+    excludeIf: ["mexicano", "navideno", "navideño", "kosher", "taquiza", "tacos", "conmemorativ", "medico", "médico", "gala"],
   },
   {
     key: "banquete_kosher",

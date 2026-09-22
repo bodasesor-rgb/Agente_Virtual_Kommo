@@ -1079,8 +1079,8 @@ export function buildSoloVsCompletoModeAnswer(
     [
       `Para *${svc}* tenemos dos caminos:`,
       "",
-      "1. *Solo alimentos* (solo la comida)",
-      "2. *Servicio completo* (incluye bebidas, mobiliario y meseros)",
+      "1. *Solo alimentos* — comida con personal de cocina",
+      "2. *Servicio completo* — bebidas, meseros, decoración y vajilla incluidos",
       "",
       "¿Cuál te late más?",
     ].join("\n"),
@@ -1110,8 +1110,8 @@ export function buildSoloVsCompletoModeAnswerWithPrices(
     [
       `Para *${svc}* tenemos dos caminos:`,
       "",
-      `1. *Solo alimentos*${soloPrice ? ` — ${soloPrice}` : ""} (solo la comida)`,
-      `2. *Servicio completo*${desdePrice ? ` — desde ${desdePrice}` : ""} (incluye bebidas, mobiliario y meseros)`,
+      `1. *Solo alimentos*${soloPrice ? ` — ${soloPrice}` : ""} — comida con personal de cocina`,
+      `2. *Servicio completo*${desdePrice ? ` — desde ${desdePrice}` : ""} — bebidas, meseros, decoración y vajilla incluidos`,
       "",
       "¿Cuál te late más?",
     ].join("\n"),

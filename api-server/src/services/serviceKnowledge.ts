@@ -14,6 +14,7 @@ import {
   clientMentionsEntertainment,
   isServiceRelatedMessage,
   isEventTypeOnlyMessage,
+  isOccasionMealEventType,
   parsePrimaryService,
   parseSalaProductFromText,
   parseSpaceDimensions,
@@ -268,8 +269,11 @@ export function buildLevel3Ack(serviceLabel: string): string {
 }
 
 export function buildGuardServiceAck(query: string): string {
-  // A16046: nunca Level-2 "no lo tengo listado" para un tipo de evento.
-  if (isEventTypeOnlyMessage(query)) {
+  // A16046 / A16263: nunca Level-2 "no lo tengo listado" para un tipo de evento.
+  if (isEventTypeOnlyMessage(query) || isOccasionMealEventType(query)) {
+    if (isOccasionMealEventType(query)) {
+      return "Perfecto. Anoto tu *cena conmemorativa*. ¿Cuántos invitados tienen contemplados?";
+    }
     const tipoMatch = query.match(/\b(boda(\s+civil)?|bautizo|xv|cumplea[nñ]os|graduaci[oó]n|baby\s*shower)\b/i);
     const label = tipoMatch?.[0] ?? "ese evento";
     return `Perfecto. Anoto tu *${label}*.`;
@@ -480,7 +484,7 @@ export function getServiceKnowledge(query: string): ServiceKnowledgeResult | nul
   const trimmed = query.trim();
   if (!trimmed || trimmed.length < 3) return null;
   // A16046: "Boda civil" / tipo de evento ≠ servicio Level-2.
-  if (isEventTypeOnlyMessage(trimmed)) return null;
+  if (isEventTypeOnlyMessage(trimmed) || isOccasionMealEventType(trimmed)) return null;
   if (!isServiceRelatedMessage(trimmed) && !EVENT_CONTEXT_PATTERN.test(trimmed)) {
     if (!/\b(quiero|necesito|busco|cotizar|precio|incluye)\b/i.test(trimmed)) return null;
   }

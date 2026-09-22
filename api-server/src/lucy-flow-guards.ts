@@ -6309,7 +6309,11 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     clientAsksNamedServiceDetail(currentMessage) &&
     !clientAsksPaymentOrQuoteDelivery(currentMessage)
   ) {
-    const named = preferPrimaryCatalogService(parseServicesFromText(currentMessage));
+    const named = preferPrimaryCatalogService(
+      parseServicesFromText(
+        `${currentMessage} ${extracted.requerimientos_evento ?? ""}`
+      )
+    );
     const detailQuery = named || currentMessage.trim();
     if (named) {
       const merged = mergeServiceRequirements(extracted.requerimientos_evento, named, 8);
@@ -6318,7 +6322,30 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
         filledSet.add("Requerimientos o servicios");
       }
     }
+    // A16263: Yucateca / estaciones → Solo alimentos vs completo ANTES de links.
+    if (!clientAsksPrice(currentMessage)) {
+      const stationHint =
+        named ||
+        preferPrimaryCatalogService(
+          parseServicesFromText(extracted.requerimientos_evento ?? "")
+        ) ||
+        detailQuery;
+      const soloCompleto = buildSoloVsCompletoOfferIfApplicable(stationHint);
+      if (soloCompleto) {
+        log?.info(
+          { entityId, stationHint, cierreYaEnviado },
+          "GUARD: A16263 — solo alimentos vs completo (detalle nombrado)"
+        );
+        return normalizeAdvisorReferences(
+          soloCompleto,
+          extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+        );
+      }
+    }
     const detail =
+      (clientAsksPrice(currentMessage)
+        ? buildCatalogPriceAnswer(detailQuery)
+        : null) ||
       buildFoodSalesReply(
         extracted,
         history,
@@ -8036,11 +8063,16 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     ) ||
     clientAffirmsCatalogOffer(currentMessage, recentCatalogOffer);
 
+  // A16263: no cerrar si pide precio / detalle / info (ej. "costo de la yucateca").
   if (
     trulyReadyForClosing &&
     !cierreYaEnviado &&
     !requerimientosNeedsFollowUp(extracted, filledSet) &&
-    !clientWantsCatalogNow
+    !clientWantsCatalogNow &&
+    !clientAsksPrice(currentMessage) &&
+    !clientAsksNamedServiceDetail(currentMessage) &&
+    !clientAsksServiceInfo(currentMessage) &&
+    !clientAsksInclusion(currentMessage)
   ) {
     return normalizeAdvisorReferences(
       buildClosing(
@@ -8061,8 +8093,14 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   // si el cliente hace una pregunta real (con "?") dejamos pasar la respuesta de venta.
   const readyToCloseAndReqDone =
     trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet);
+  // A16263: precio/detalle de estación también abre venta aunque el embudo esté completo.
   const allowSalesReplyOverride =
-    !readyToCloseAndReqDone || (currentMessage?.includes("?") ?? false);
+    !readyToCloseAndReqDone ||
+    (currentMessage?.includes("?") ?? false) ||
+    clientAsksPrice(currentMessage) ||
+    clientAsksNamedServiceDetail(currentMessage) ||
+    clientAsksServiceInfo(currentMessage) ||
+    clientAsksInclusion(currentMessage);
   const mentionedServiceNow = currentMessage ? findMentionedService(currentMessage) : null;
   // Solo "ya capturado" si venía de turnos previos — no por el merge de este mismo turno
   // (si no, se salta el ack de venta y solo queda la siguiente pregunta del embudo).

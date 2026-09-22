@@ -147,7 +147,8 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   // A15212: typo frecuente "snaks".
   ["Snack", /\bsnacks?\b|\bsnaks?\b/i],
   ["Comida", /\bcomidas?\b/i],
-  ["Cena", /\bcenas?\b/i],
+  // A16263: "cena conmemorativa / día del médico" = tipo, no SKU Cena.
+  ["Cena", /\bcenas?\b(?!\s+conmemorativ)(?!\s+empresarial)(?!\s+(?:de\s+)?gala)(?!\s+navide)/i],
   ["Menú staff", /\bmen[uú]\s+(para\s+)?staff\b/iu],
   ["Menú Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/iu],
   ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
@@ -367,6 +368,7 @@ const TIPO_EVENTO_PATTERNS: Array<[RegExp, string]> = [
   [/\bparrillada\b/i, "parrillada"],
   [/\bcarne\s+asada\b/i, "carne asada"],
   [/\bposada\b/i, "posada"],
+  [/\bcena\s+conmemorativa\b|\bcomida\s+conmemorativa\b|\bd[ií]a\s+del\s+m[eé]dico\b|\bcena\s+(?:de\s+)?gala\b|\bcena\s+empresarial\b/i, "cena conmemorativa"],
   [/\bcena\s+navide[nñ]a\b/i, "cena navideña"],
   // A15642+: meal-as-event-type (comida/cena/brunch/…) — no catering.
   [
@@ -1443,6 +1445,27 @@ export function clientMentionsCatering(message?: string): boolean {
 export function clientAsksNamedServiceDetail(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.trim();
+  // A16263: "Yucateca qué opción de alimentos" / "regala detalles de los solicitados"
+  if (
+    /\b(opci[oó]n|opciones)\s+de\s+alimentos?\b/i.test(t) ||
+    /\bqu[eé]\s+opci[oó]n\b/i.test(t) ||
+    /\b(regala|pasa|manda|dame|quiero)\s+detalles?\b/i.test(t) ||
+    /\bdetalles?\s+de\s+los\s+solicitados\b/i.test(t)
+  ) {
+    // "detalles de los solicitados" / "regala detalles" sin SKU en el texto:
+    // el guard usa requerimientos CRM (Yucateca/Crepas ya anotados).
+    if (
+      /\bdetalles?\s+de\s+los\s+solicitados\b/i.test(t) ||
+      /\b(regala|pasa|manda|dame)\s+detalles?\b/i.test(t)
+    ) {
+      return true;
+    }
+    return (
+      parseServicesFromText(t).length > 0 ||
+      isServiceRelatedMessage(t) ||
+      /\b(yucateca|crepas?|taquiza|pastas?|pizzas?|sushi|parrillada|banquete|barra)\b/i.test(t)
+    );
+  }
   if (
     !/\b(m[aá]s\s+)?detalles?\s+(de|del|sobre|para)\b/i.test(t) &&
     !/\b(m[aá]s\s+)?detalle\b/i.test(t)
@@ -3231,11 +3254,15 @@ export function parseServicesFromText(text: string): string[] {
       /\b(desayuno|comida|cena|coffee)\b/i.test(text) &&
       !snackIsAntojito);
 
+  // A16263: ocasión (cena conmemorativa / día del médico) ≠ SKU Cena/Comida.
+  const occasionMeal = isOccasionMealEventType(text);
+
   for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
     if (label === "Comida" && !hasMealListContext) continue;
     // Snack corporativo solo en menú multi-tiempo; con antojitos → Puestos de Comida.
     if (label === "Snack" && (snackIsAntojito || !hasCorporateMealList)) continue;
     if (label === "Mesa de postres" && isTablewareRequestText(text)) continue;
+    if (occasionMeal && /^(Cena|Comida)$/i.test(label)) continue;
     if (pattern.test(text) || pattern.test(lower)) found.push(label);
   }
 
@@ -3971,14 +3998,33 @@ export function parseTipoEventoFromText(text: string): string | null {
   return parseTipoEventoLabeled(text);
 }
 
+/** A16263: cena/comida de ocasión (conmemorativa, día del médico, gala) ≠ catering SKU. */
+export function isOccasionMealEventType(text: string | null | undefined): boolean {
+  const raw = (text ?? "").trim();
+  if (!raw) return false;
+  if (/\b(cotizar|precio|barra\s+de|taquiza|banquete\s+formal|yucateca|crepas?)\b/i.test(raw) &&
+      !/\bconmemorativ|d[ií]a\s+del\s+m[eé]dico|gala\b/i.test(raw)) {
+    return false;
+  }
+  return (
+    /\b(cena|comida|almuerzo|brunch)\s+conmemorativ/i.test(raw) ||
+    /\bd[ií]a\s+del\s+m[eé]dico\b/i.test(raw) ||
+    /\b(cena|comida)\s+(de\s+)?gala\b/i.test(raw) ||
+    /\b(cena|comida)\s+empresarial\b/i.test(raw) ||
+    /\bconmemorativ\w*\s+por\b/i.test(raw)
+  );
+}
+
 /**
  * A16046: "Boda civil" / "bautizo de niña" = tipo de evento, NO servicio de catálogo.
  * Evita Level-2 "no lo tengo listado" y basura en ubicación.
  */
 export function isEventTypeOnlyMessage(text: string | null | undefined): boolean {
   const t = (text ?? "").trim();
-  if (!t || t.length > 80) return false;
+  if (!t || t.length > 100) return false;
   if (isUnusableTipoEventoReply(t)) return false;
+  // A16263: cena/comida conmemorativa / día del médico = TIPO, no SKU Level-2.
+  if (isOccasionMealEventType(t)) return true;
   const tipo = parseTipoEventoFromText(t);
   if (!tipo) return false;
   // Pedido claro de un servicio del catálogo junto al tipo → no es solo tipo.
@@ -4370,7 +4416,8 @@ function normalizeHorarioCapture(text: string): string {
 
 /** A15581: "a partir de las cuatro" → "a partir de las 4" antes de parsear reloj. */
 export function normalizeWrittenClockInText(text: string): string {
-  let out = text;
+  // A16263: "10;30" / "22;30" → "10:30"
+  let out = text.replace(/\b(\d{1,2});(\d{2})\b/g, "$1:$2");
   for (const [word, digit] of Object.entries(WRITTEN_NUMBERS)) {
     const n = parseInt(digit, 10);
     if (n < 1 || n > 12) continue;
@@ -4493,6 +4540,17 @@ export function parseHorarioFromText(text: string): string | null {
 
   if (clientDefersHorario(clean)) {
     return "Sin definir (pendiente)";
+  }
+  // A16263 nocturno: "Nocturno Aproximadamente 10:30" → anotar hora (PM si 10 y nocturno).
+  {
+    const noc = clean.match(/\bnocturn[oa]\b[\s,.]*(?:aprox(?:imadamente)?\s*)?(\d{1,2})(?::(\d{2}))?\b/i);
+    if (noc) {
+      let h = Number(noc[1]);
+      const m = noc[2] ?? "00";
+      if (h > 0 && h <= 12) h += 12;
+      if (h === 24) h = 12;
+      return `${String(h).padStart(2, "0")}:${m}`;
+    }
   }
 
   // A15903: "10 - 12 personas" / "aproximadamente 10-12" ≠ horario.

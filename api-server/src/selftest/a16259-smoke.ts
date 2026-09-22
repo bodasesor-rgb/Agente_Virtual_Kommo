@@ -23,7 +23,7 @@ import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import { emptyExtractedData } from "../types.js";
 import type OpenAI from "openai";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.19");
+assert.equal(LUCY_PROMPT_VERSION, "V10.20");
 
 assert.equal(looksLikePersonNameAsEventType("Betsy Alejandra Ancona Perrusquia"), true);
 assert.equal(isUnusableTipoEventoReply("Betsy Alejandra Ancona Perrusquia"), true);

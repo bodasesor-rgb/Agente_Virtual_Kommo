@@ -128976,7 +128976,7 @@ var init_serviceSynonyms = __esm({
           "plated",
           "emplatado"
         ],
-        excludeIf: ["mexicano", "navideno", "navide\xF1o", "kosher", "taquiza", "tacos"]
+        excludeIf: ["mexicano", "navideno", "navide\xF1o", "kosher", "taquiza", "tacos", "conmemorativ", "medico", "m\xE9dico", "gala"]
       },
       {
         key: "banquete_kosher",
@@ -131779,6 +131779,12 @@ function clientMentionsCatering(message) {
 function clientAsksNamedServiceDetail(message) {
   if (!message?.trim()) return false;
   const t4 = message.trim();
+  if (/\b(opci[oó]n|opciones)\s+de\s+alimentos?\b/i.test(t4) || /\bqu[eé]\s+opci[oó]n\b/i.test(t4) || /\b(regala|pasa|manda|dame|quiero)\s+detalles?\b/i.test(t4) || /\bdetalles?\s+de\s+los\s+solicitados\b/i.test(t4)) {
+    if (/\bdetalles?\s+de\s+los\s+solicitados\b/i.test(t4) || /\b(regala|pasa|manda|dame)\s+detalles?\b/i.test(t4)) {
+      return true;
+    }
+    return parseServicesFromText(t4).length > 0 || isServiceRelatedMessage(t4) || /\b(yucateca|crepas?|taquiza|pastas?|pizzas?|sushi|parrillada|banquete|barra)\b/i.test(t4);
+  }
   if (!/\b(m[aá]s\s+)?detalles?\s+(de|del|sobre|para)\b/i.test(t4) && !/\b(m[aá]s\s+)?detalle\b/i.test(t4)) {
     return false;
   }
@@ -132755,10 +132761,12 @@ function parseServicesFromText(text2) {
   const hasMealListContext = /\b(desayuno|snack|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text2) || (text2.match(/,/g) ?? []).length >= 1 || /\b(desayuno|snack|comida|cena)\b.+\b(desayuno|snack|comida|cena)\b/i.test(text2);
   const snackIsAntojito = /\bsnacks?\b/i.test(text2) && /\b(banderillas?|antojitos?|esquites?|elotes?|garnachas?|quesadillas?)\b/i.test(text2);
   const hasCorporateMealList = /\b(desayuno|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text2) || /\bsnack\b/i.test(text2) && /\b(desayuno|comida|cena|coffee)\b/i.test(text2) && !snackIsAntojito;
+  const occasionMeal = isOccasionMealEventType(text2);
   for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
     if (label === "Comida" && !hasMealListContext) continue;
     if (label === "Snack" && (snackIsAntojito || !hasCorporateMealList)) continue;
     if (label === "Mesa de postres" && isTablewareRequestText(text2)) continue;
+    if (occasionMeal && /^(Cena|Comida)$/i.test(label)) continue;
     if (pattern.test(text2) || pattern.test(lower2)) found.push(label);
   }
   if (!found.includes("Banquete Mexicano") && /\bmexicano\b/i.test(text2) && !/\b(desayuno|brunch|tem[aá]tico)\b/i.test(text2) && (/^mexicano[\s.,!]*$/i.test(text2.trim()) || /\b(banquete|formal|tiempos|comida\s+mexicana|men[uú]\s+mexicano)\b/i.test(text2))) {
@@ -133231,10 +133239,19 @@ function parseTipoEventoFromText(text2) {
   }
   return parseTipoEventoLabeled(text2);
 }
+function isOccasionMealEventType(text2) {
+  const raw = (text2 ?? "").trim();
+  if (!raw) return false;
+  if (/\b(cotizar|precio|barra\s+de|taquiza|banquete\s+formal|yucateca|crepas?)\b/i.test(raw) && !/\bconmemorativ|d[ií]a\s+del\s+m[eé]dico|gala\b/i.test(raw)) {
+    return false;
+  }
+  return /\b(cena|comida|almuerzo|brunch)\s+conmemorativ/i.test(raw) || /\bd[ií]a\s+del\s+m[eé]dico\b/i.test(raw) || /\b(cena|comida)\s+(de\s+)?gala\b/i.test(raw) || /\b(cena|comida)\s+empresarial\b/i.test(raw) || /\bconmemorativ\w*\s+por\b/i.test(raw);
+}
 function isEventTypeOnlyMessage(text2) {
   const t4 = (text2 ?? "").trim();
-  if (!t4 || t4.length > 80) return false;
+  if (!t4 || t4.length > 100) return false;
   if (isUnusableTipoEventoReply(t4)) return false;
+  if (isOccasionMealEventType(t4)) return true;
   const tipo = parseTipoEventoFromText(t4);
   if (!tipo) return false;
   if (/\b(cotizar|precio|quiero|necesito|busco|me\s+interesa)\b.{0,50}\b(banquete|taquiza|carpas?|pista|tarima|mobiliario|dj|mesas?|sillas?|entelado|barra|sushi|catering)\b/i.test(
@@ -133458,7 +133475,7 @@ function normalizeHorarioCapture(text2) {
   ).replace(/\s+/g, " ").trim().slice(0, 80);
 }
 function normalizeWrittenClockInText(text2) {
-  let out2 = text2;
+  let out2 = text2.replace(/\b(\d{1,2});(\d{2})\b/g, "$1:$2");
   for (const [word, digit] of Object.entries(WRITTEN_NUMBERS)) {
     const n5 = parseInt(digit, 10);
     if (n5 < 1 || n5 > 12) continue;
@@ -133533,6 +133550,16 @@ function parseHorarioFromText(text2) {
   if (/\bhorario\s+en\s+que\s+env[ií]o\b/i.test(trimmed)) return null;
   if (clientDefersHorario(clean)) {
     return "Sin definir (pendiente)";
+  }
+  {
+    const noc = clean.match(/\bnocturn[oa]\b[\s,.]*(?:aprox(?:imadamente)?\s*)?(\d{1,2})(?::(\d{2}))?\b/i);
+    if (noc) {
+      let h5 = Number(noc[1]);
+      const m6 = noc[2] ?? "00";
+      if (h5 > 0 && h5 <= 12) h5 += 12;
+      if (h5 === 24) h5 = 12;
+      return `${String(h5).padStart(2, "0")}:${m6}`;
+    }
   }
   if (/\b(personas?|invitad[oa]s?|asistentes?|comensales?)\b/i.test(clean) && /\b\d{1,4}\s*(?:a|[-–]|hasta)\s*\d{1,4}\b/i.test(clean)) {
     return null;
@@ -135721,7 +135748,8 @@ var init_conversation_understanding = __esm({
       // A15212: typo frecuente "snaks".
       ["Snack", /\bsnacks?\b|\bsnaks?\b/i],
       ["Comida", /\bcomidas?\b/i],
-      ["Cena", /\bcenas?\b/i],
+      // A16263: "cena conmemorativa / día del médico" = tipo, no SKU Cena.
+      ["Cena", /\bcenas?\b(?!\s+conmemorativ)(?!\s+empresarial)(?!\s+(?:de\s+)?gala)(?!\s+navide)/i],
       ["Men\xFA staff", /\bmen[uú]\s+(para\s+)?staff\b/iu],
       ["Men\xFA Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/iu],
       ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
@@ -135936,6 +135964,7 @@ var init_conversation_understanding = __esm({
       [/\bparrillada\b/i, "parrillada"],
       [/\bcarne\s+asada\b/i, "carne asada"],
       [/\bposada\b/i, "posada"],
+      [/\bcena\s+conmemorativa\b|\bcomida\s+conmemorativa\b|\bd[ií]a\s+del\s+m[eé]dico\b|\bcena\s+(?:de\s+)?gala\b|\bcena\s+empresarial\b/i, "cena conmemorativa"],
       [/\bcena\s+navide[nñ]a\b/i, "cena navide\xF1a"],
       // A15642+: meal-as-event-type (comida/cena/brunch/…) — no catering.
       [
@@ -138150,7 +138179,10 @@ function buildLevel3Ack(serviceLabel) {
   return `Tomo nota de tu solicitud especial (*${label}*). Nuestro equipo revisa disponibilidad y te confirma si podemos apoyarte.`;
 }
 function buildGuardServiceAck(query) {
-  if (isEventTypeOnlyMessage(query)) {
+  if (isEventTypeOnlyMessage(query) || isOccasionMealEventType(query)) {
+    if (isOccasionMealEventType(query)) {
+      return "Perfecto. Anoto tu *cena conmemorativa*. \xBFCu\xE1ntos invitados tienen contemplados?";
+    }
     const tipoMatch = query.match(/\b(boda(\s+civil)?|bautizo|xv|cumplea[nñ]os|graduaci[oó]n|baby\s*shower)\b/i);
     const label2 = tipoMatch?.[0] ?? "ese evento";
     return `Perfecto. Anoto tu *${label2}*.`;
@@ -138257,7 +138289,7 @@ ${getCatalogWebHubDeliveryUrl()}
 function getServiceKnowledge(query) {
   const trimmed = query.trim();
   if (!trimmed || trimmed.length < 3) return null;
-  if (isEventTypeOnlyMessage(trimmed)) return null;
+  if (isEventTypeOnlyMessage(trimmed) || isOccasionMealEventType(trimmed)) return null;
   if (!isServiceRelatedMessage(trimmed) && !EVENT_CONTEXT_PATTERN.test(trimmed)) {
     if (!/\b(quiero|necesito|busco|cotizar|precio|incluye)\b/i.test(trimmed)) return null;
   }
@@ -139046,8 +139078,8 @@ function buildSoloVsCompletoModeAnswer(svc, _rows) {
     [
       `Para *${svc}* tenemos dos caminos:`,
       "",
-      "1. *Solo alimentos* (solo la comida)",
-      "2. *Servicio completo* (incluye bebidas, mobiliario y meseros)",
+      "1. *Solo alimentos* \u2014 comida con personal de cocina",
+      "2. *Servicio completo* \u2014 bebidas, meseros, decoraci\xF3n y vajilla incluidos",
       "",
       "\xBFCu\xE1l te late m\xE1s?"
     ].join("\n"),
@@ -139067,8 +139099,8 @@ function buildSoloVsCompletoModeAnswerWithPrices(svc, rows) {
     [
       `Para *${svc}* tenemos dos caminos:`,
       "",
-      `1. *Solo alimentos*${soloPrice ? ` \u2014 ${soloPrice}` : ""} (solo la comida)`,
-      `2. *Servicio completo*${desdePrice ? ` \u2014 desde ${desdePrice}` : ""} (incluye bebidas, mobiliario y meseros)`,
+      `1. *Solo alimentos*${soloPrice ? ` \u2014 ${soloPrice}` : ""} \u2014 comida con personal de cocina`,
+      `2. *Servicio completo*${desdePrice ? ` \u2014 desde ${desdePrice}` : ""} \u2014 bebidas, meseros, decoraci\xF3n y vajilla incluidos`,
       "",
       "\xBFCu\xE1l te late m\xE1s?"
     ].join("\n"),
@@ -164695,7 +164727,11 @@ ${nextQ}` : ack;
     );
   }
   if (currentMessage && clientAsksNamedServiceDetail(currentMessage) && !clientAsksPaymentOrQuoteDelivery(currentMessage)) {
-    const named = preferPrimaryCatalogService(parseServicesFromText(currentMessage));
+    const named = preferPrimaryCatalogService(
+      parseServicesFromText(
+        `${currentMessage} ${extracted.requerimientos_evento ?? ""}`
+      )
+    );
     const detailQuery = named || currentMessage.trim();
     if (named) {
       const merged = mergeServiceRequirements(extracted.requerimientos_evento, named, 8);
@@ -164704,7 +164740,23 @@ ${nextQ}` : ack;
         filledSet.add("Requerimientos o servicios");
       }
     }
-    const detail = buildFoodSalesReply(
+    if (!clientAsksPrice(currentMessage)) {
+      const stationHint = named || preferPrimaryCatalogService(
+        parseServicesFromText(extracted.requerimientos_evento ?? "")
+      ) || detailQuery;
+      const soloCompleto = buildSoloVsCompletoOfferIfApplicable(stationHint);
+      if (soloCompleto) {
+        log?.info(
+          { entityId, stationHint, cierreYaEnviado },
+          "GUARD: A16263 \u2014 solo alimentos vs completo (detalle nombrado)"
+        );
+        return normalizeAdvisorReferences2(
+          soloCompleto,
+          extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+        );
+      }
+    }
+    const detail = (clientAsksPrice(currentMessage) ? buildCatalogPriceAnswer(detailQuery) : null) || buildFoodSalesReply(
       extracted,
       history,
       entityId,
@@ -165831,7 +165883,7 @@ ${buildNaturalQuestion(pending, ctx)}` : consultative;
     currentMessage,
     lastAssistantForCatalogGate && typeof lastAssistantForCatalogGate.content === "string" ? lastAssistantForCatalogGate.content : null
   ) || clientAffirmsCatalogOffer(currentMessage, recentCatalogOffer);
-  if (trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet) && !clientWantsCatalogNow) {
+  if (trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet) && !clientWantsCatalogNow && !clientAsksPrice(currentMessage) && !clientAsksNamedServiceDetail(currentMessage) && !clientAsksServiceInfo(currentMessage) && !clientAsksInclusion(currentMessage)) {
     return normalizeAdvisorReferences2(
       buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
@@ -165845,7 +165897,7 @@ ${buildNaturalQuestion(pending, ctx)}` : consultative;
   const emailOk = isEmailSatisfied(filledSet, extracted);
   const needsNextStep = emailOk && !trulyReadyForClosing && !cierreYaEnviado;
   const readyToCloseAndReqDone = trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet);
-  const allowSalesReplyOverride = !readyToCloseAndReqDone || (currentMessage?.includes("?") ?? false);
+  const allowSalesReplyOverride = !readyToCloseAndReqDone || (currentMessage?.includes("?") ?? false) || clientAsksPrice(currentMessage) || clientAsksNamedServiceDetail(currentMessage) || clientAsksServiceInfo(currentMessage) || clientAsksInclusion(currentMessage);
   const mentionedServiceNow = currentMessage ? findMentionedService(currentMessage) : null;
   const serviceAlreadyCaptured = !!mentionedServiceNow && !!reqBeforeServiceMerge && reqBeforeServiceMerge.toLowerCase().includes(mentionedServiceNow.toLowerCase());
   const requerimientosFollowUpAlreadyAsked = historyAlreadyHadServicesCatalog(presHistory);
@@ -228083,7 +228135,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.19";
+var LUCY_PROMPT_VERSION = "V10.20";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -228574,7 +228626,7 @@ router.get("/health", async (_req, res) => {
     gemini_cost_controls: lucyCostControlsSummary(),
     google_grounding_enabled: isGoogleGroundingEnabled(),
     google_grounding_stats: getGoogleGroundingStats(),
-    gemini_policy: "V10.17: flash-lite; 1 call/turno; tips locales; Google Grounding OPT-IN (LUCY_GOOGLE_GROUNDING=1) solo ideas; historial corto; few-shot 0.",
+    gemini_policy: "V10.20: A16263 cena ocasi\xF3n\u2260SKU; estaciones solo vs completo; precio no cierra; flash-lite; grounding OPT-IN.",
     kommo_configured: isKommoConfigured(),
     kommo_subdomain: getKommoSubdomain() || null,
     lucy_outbound: {
