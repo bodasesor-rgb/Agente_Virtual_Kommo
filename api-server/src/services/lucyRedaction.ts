@@ -110,6 +110,7 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
         lines.push(
           `OFRECIMIENTO TEMPRANO — tipo de evento ya conocido: ${tipo}.`,
           "Propón con criterio servicios que encajen (del catálogo) y pregunta qué le gustaría ir armando.",
+          "INVITA a dar ideas: ofrece en una frase si quiere ideas de lo que se puede armar para su evento (sí/no). Si acepta, da 1–2 ideas concretas.",
           "Suena asesora experta, cálida y natural. Varía palabras. NO digas solo «¿qué servicios quieres cotizar?» sin proponer.",
           SERVICE_KNOWLEDGE_GOLDEN_RULE
         );
@@ -154,7 +155,8 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
   }
 
   lines.push(
-    "V10.17 ROL DE VENTA: prioriza ideas y generar negocio; embudo = 1 pregunta natural, no checklist.",
+    "V10.18 ROL DE VENTA: prioriza ideas y generar negocio; embudo = 1 pregunta natural, no checklist.",
+    "INVITA a dar ideas de forma proactiva cuando ya haya tipo de evento o al hablar de servicios (sin listas largas ni en cada turno).",
     "Precio/monto SOLO si el cliente lo pidió y hay ficha Sheet/PDF; si no hay ficha → el equipo/vendedor humano cotiza.",
     "Si NO pidió precio, no sueltes montos; usa el bloque IDEAS/TENDENCIAS si viene.",
     "NUNCA inventes precios, inclusiones, disponibilidad ni detalles fuera de Sheet/PDF. Si no hay dato: confirma con el equipo.",

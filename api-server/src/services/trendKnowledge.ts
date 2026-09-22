@@ -1,10 +1,13 @@
-﻿/**
+/**
  * Tendencias / ideas de venta — capa barata en tokens.
  * - Siempre: tips compactos en caché (sin LLM extra).
  * - Opcional: Google Grounding solo si LUCY_GOOGLE_GROUNDING=1 e intent de ideas.
  */
 
 import { advisorLabelForClient } from "../lib/bodasesorAdvisor.js";
+
+const ACCEPTS_IDEAS_PATTERN =
+  /\b(?:s[ií](?:\s+por\s+favor)?|claro|dale|va|ok|okay|sale|perfecto)\b.{0,40}\b(?:ideas?|recomendaci|sugerenc)|\b(?:dame|quiero|pásame|pasame|necesito)\s+ideas?\b|\bideas?\s+por\s+favor\b/i;
 
 const TREND_IDEA_PATTERN =
   /\b(?:tendenci(?:a|as)|ideas?\s+(?:de\s+)?(?:decoraci[oó]n|evento|fiesta|boda|xv|ambient)|inspiraci[oó]n|mood\s*board|estilos?\b|tem[aá]tica|ambiente|qu[eé]\s+(?:se\s+)?(?:usa|lleva|est[aá]\s+usando)|novedades?|recomendaci[oó]n(?:es)?|c[oó]mo\s+(?:armar|decorar|montar)|qu[eé]\s+(?:me\s+)?(?:recomiendas?|sugieres?)|opciones?\s+de\s+(?:decor|estilo)|look\b|vibe\b|aesthetic)\b/i;
@@ -66,7 +69,7 @@ function eventKey(tipo?: string | null): keyof typeof TIPS_BY_EVENT {
 /** True si el cliente pide ideas, tendencias, estilo o recomendación creativa. */
 export function clientWantsIdeasOrTrends(message?: string): boolean {
   if (!message?.trim()) return false;
-  return TREND_IDEA_PATTERN.test(message);
+  return TREND_IDEA_PATTERN.test(message) || ACCEPTS_IDEAS_PATTERN.test(message);
 }
 
 /** Estilos/vibes detectados en texto (mensaje + CRM). Máx 4. */
@@ -121,7 +124,11 @@ export function buildTrendContextBlock(opts: {
     lines.push(`Notas al día (grounding): ${snip}`);
   } else if (wantsIdeas) {
     lines.push(
-      "El cliente pide ideas: propone 1–2 sugerencias concretas atadas a servicios Bodasesor y pide 1 dato del embudo."
+      "El cliente pidió/aceptó ideas: propone 1–2 sugerencias concretas atadas a servicios Bodasesor y pide 1 dato del embudo."
+    );
+  } else if (opts.tipoEvento || cues.length) {
+    lines.push(
+      "INVITA ideas (proactivo, 1 frase): pregunta si quiere ideas de lo que se puede armar para su evento. No listes 8 cosas; solo invita."
     );
   }
 

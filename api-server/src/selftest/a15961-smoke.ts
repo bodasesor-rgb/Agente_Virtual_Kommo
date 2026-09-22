@@ -17,7 +17,7 @@ import {
   resolveCatalogWebSlug,
 } from "../services/catalogWebKnowledge.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.17");
+assert.equal(LUCY_PROMPT_VERSION, "V10.18");
 
 function emptyExtracted(partial: Partial<ExtractedData> = {}): ExtractedData {
   return {

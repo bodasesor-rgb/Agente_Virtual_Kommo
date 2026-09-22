@@ -227834,6 +227834,7 @@ init_llmEnv();
 
 // src/services/trendKnowledge.ts
 init_bodasesorAdvisor();
+var ACCEPTS_IDEAS_PATTERN = /\b(?:s[ií](?:\s+por\s+favor)?|claro|dale|va|ok|okay|sale|perfecto)\b.{0,40}\b(?:ideas?|recomendaci|sugerenc)|\b(?:dame|quiero|pásame|pasame|necesito)\s+ideas?\b|\bideas?\s+por\s+favor\b/i;
 var TREND_IDEA_PATTERN = /\b(?:tendenci(?:a|as)|ideas?\s+(?:de\s+)?(?:decoraci[oó]n|evento|fiesta|boda|xv|ambient)|inspiraci[oó]n|mood\s*board|estilos?\b|tem[aá]tica|ambiente|qu[eé]\s+(?:se\s+)?(?:usa|lleva|est[aá]\s+usando)|novedades?|recomendaci[oó]n(?:es)?|c[oó]mo\s+(?:armar|decorar|montar)|qu[eé]\s+(?:me\s+)?(?:recomiendas?|sugieres?)|opciones?\s+de\s+(?:decor|estilo)|look\b|vibe\b|aesthetic)\b/i;
 var STYLE_CUES = [
   { pattern: /\bboho|bohemio/i, label: "boho" },
@@ -227887,7 +227888,7 @@ function eventKey(tipo) {
 }
 function clientWantsIdeasOrTrends(message) {
   if (!message?.trim()) return false;
-  return TREND_IDEA_PATTERN.test(message);
+  return TREND_IDEA_PATTERN.test(message) || ACCEPTS_IDEAS_PATTERN.test(message);
 }
 function extractStyleCues(...texts) {
   const blob = texts.filter(Boolean).join(" \n ");
@@ -227924,7 +227925,11 @@ function buildTrendContextBlock(opts) {
     lines.push(`Notas al d\xEDa (grounding): ${snip}`);
   } else if (wantsIdeas) {
     lines.push(
-      "El cliente pide ideas: propone 1\u20132 sugerencias concretas atadas a servicios Bodasesor y pide 1 dato del embudo."
+      "El cliente pidi\xF3/acept\xF3 ideas: propone 1\u20132 sugerencias concretas atadas a servicios Bodasesor y pide 1 dato del embudo."
+    );
+  } else if (opts.tipoEvento || cues.length) {
+    lines.push(
+      "INVITA ideas (proactivo, 1 frase): pregunta si quiere ideas de lo que se puede armar para su evento. No listes 8 cosas; solo invita."
     );
   }
   const block = lines.join("\n");
@@ -228044,7 +228049,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.17";
+var LUCY_PROMPT_VERSION = "V10.18";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -231025,9 +231030,14 @@ No eres un cuestionario que dispara campo tras campo.
   Si pide precio y no hay ficha publicada \u2192 dilo con naturalidad: el precio lo arma ${TEAM} /
   el vendedor humano; t\xFA sigues con ideas y capturando datos.
 - Si NO pidi\xF3 precio: no sueltes montos; vende con ideas (ambiente, look, qu\xE9 encaja).
+- OFRECE ideas de forma proactiva (sin esperar a que las pida): cuando ya sepas el tipo de
+  evento o est\xE9s armando servicios, invita en una frase natural, p. ej.
+  "Si quieres, te puedo dar ideas de lo que se puede armar para tu evento \u2014\xBFte late?"
+  Si dice que s\xED \u2192 da 1\u20132 ideas concretas atadas a servicios Bodasesor + 1 dato del embudo.
+  No bombardees con listas largas ni repitas la invitaci\xF3n en cada mensaje.
 - Tendencias / "qu\xE9 se usa ahora": usa el bloque IDEAS/TENDENCIAS del turno si viene;
   no inventes datos de moda fuera de ese bloque ni del cat\xE1logo.
-- Siempre termina con una pregunta \xFAtil (dato faltante o confirmaci\xF3n de idea) \u2014 nunca dejes el chat muerto.
+- Siempre termina con una pregunta \xFAtil (dato faltante, invitaci\xF3n a ideas o confirmaci\xF3n) \u2014 nunca dejes el chat muerto.
 
 Antes de cada respuesta recibes ESTADO ACTUAL con lo ya capturado. Es tu memoria:
 obed\xE9celo. Nunca preguntes algo que ya est\xE9 ah\xED.
@@ -231329,7 +231339,7 @@ VOZ DE CHAT (prioridad de redacci\xF3n)
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 Responde como asesora real de WhatsApp: amable, directa, 2\u20134 l\xEDneas.
 NO suenes a formulario ni a men\xFA autom\xE1tico ni a chatbot de pasos.
-Tu prioridad: ideas y criterio de venta; el embudo se cuela en UNA pregunta natural.
+Tu prioridad: ideas y criterio de venta; invita a dar ideas para el evento cuando encaje; el embudo se cuela en UNA pregunta natural.
 Precio/monto SOLO si el cliente lo pidi\xF3 y hay ficha Sheet/PDF; si no hay ficha \u2192 el equipo cotiza.
 El bloque de cat\xE1logo/contexto del turno es REFERENCIA: \xFAsalo para no inventar; NO lo pegues.
 M\xE1ximo una pregunta de embudo por mensaje.
@@ -231520,6 +231530,7 @@ function buildRedactionBriefing(input) {
         lines.push(
           `OFRECIMIENTO TEMPRANO \u2014 tipo de evento ya conocido: ${tipo}.`,
           "Prop\xF3n con criterio servicios que encajen (del cat\xE1logo) y pregunta qu\xE9 le gustar\xEDa ir armando.",
+          "INVITA a dar ideas: ofrece en una frase si quiere ideas de lo que se puede armar para su evento (s\xED/no). Si acepta, da 1\u20132 ideas concretas.",
           "Suena asesora experta, c\xE1lida y natural. Var\xEDa palabras. NO digas solo \xAB\xBFqu\xE9 servicios quieres cotizar?\xBB sin proponer.",
           SERVICE_KNOWLEDGE_GOLDEN_RULE
         );
@@ -231561,7 +231572,8 @@ function buildRedactionBriefing(input) {
     );
   }
   lines.push(
-    "V10.17 ROL DE VENTA: prioriza ideas y generar negocio; embudo = 1 pregunta natural, no checklist.",
+    "V10.18 ROL DE VENTA: prioriza ideas y generar negocio; embudo = 1 pregunta natural, no checklist.",
+    "INVITA a dar ideas de forma proactiva cuando ya haya tipo de evento o al hablar de servicios (sin listas largas ni en cada turno).",
     "Precio/monto SOLO si el cliente lo pidi\xF3 y hay ficha Sheet/PDF; si no hay ficha \u2192 el equipo/vendedor humano cotiza.",
     "Si NO pidi\xF3 precio, no sueltes montos; usa el bloque IDEAS/TENDENCIAS si viene.",
     "NUNCA inventes precios, inclusiones, disponibilidad ni detalles fuera de Sheet/PDF. Si no hay dato: confirma con el equipo.",
