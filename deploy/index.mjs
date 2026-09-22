@@ -188624,7 +188624,7 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
   const accessToken = getKommoAccessToken();
   if (!subdomain || !accessToken) {
     logger.warn("lucyAuditor: sin Kommo \u2014 no se puede sync del d\xEDa");
-    return 0;
+    return { synced: 0, leadIds: [] };
   }
   const sinceSec = Math.floor(startOfMexicoCityDay().getTime() / 1e3);
   const leadIds = /* @__PURE__ */ new Set();
@@ -188703,7 +188703,7 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
     }
   }
   logger.info({ synced, candidates: ids.length }, "lucyAuditor: sync Kommo del d\xEDa");
-  return synced;
+  return { synced, leadIds: ids };
 }
 async function loadTranscriptsForLeadIds(leadIds, since) {
   const out2 = [];
@@ -188752,17 +188752,24 @@ async function runLucyAuditorBatch(opts) {
   const forceFlash = opts?.forceFlash === true;
   const syncFromKommo = opts?.syncFromKommo !== false && onlyToday;
   let syncedFromKommo = 0;
+  let kommoLeadIds = [];
   if (syncFromKommo) {
-    syncedFromKommo = await syncTodayLeadsFromKommo(limitLeads, report);
+    const sync = await syncTodayLeadsFromKommo(limitLeads, report);
+    syncedFromKommo = sync.synced;
+    kommoLeadIds = sync.leadIds;
   }
   const since = onlyToday ? startOfMexicoCityDay() : null;
-  const leadIds = onlyToday ? await loadLeadIdsWithMessagesSince(since, limitLeads) : await loadLeadIdsRecent(limitLeads);
+  const fromDb = onlyToday ? await loadLeadIdsWithMessagesSince(since, limitLeads) : await loadLeadIdsRecent(limitLeads);
+  const leadIds = [
+    .../* @__PURE__ */ new Set([...kommoLeadIds.length ? kommoLeadIds : [], ...fromDb])
+  ].slice(0, limitLeads);
   let flashCalls = 0;
   let findings = 0;
   let recorded = 0;
   let withLucy = 0;
   let tooShort = 0;
-  const transcripts = await loadTranscriptsForLeadIds(leadIds, since);
+  const turnsSince = kommoLeadIds.length > 0 ? null : since;
+  const transcripts = await loadTranscriptsForLeadIds(leadIds, turnsSince);
   report({
     type: "phase",
     phase: "scan",

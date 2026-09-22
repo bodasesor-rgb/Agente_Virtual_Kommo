@@ -136,16 +136,17 @@ async function loadTurnsForLead(
 /**
  * Trae de Kommo los leads tocados hoy y sincroniza transcripts a BD.
  * Así el auditor ve los chats del día aunque el webhook no haya persistido todos.
+ * @returns { synced, leadIds } leadIds = candidatos del día (aunque no insertara msgs nuevos).
  */
 async function syncTodayLeadsFromKommo(
   limitLeads: number,
   onProgress?: (ev: AuditorProgressEvent) => void
-): Promise<number> {
+): Promise<{ synced: number; leadIds: string[] }> {
   const subdomain = getKommoSubdomain();
   const accessToken = getKommoAccessToken();
   if (!subdomain || !accessToken) {
     logger.warn("lucyAuditor: sin Kommo — no se puede sync del día");
-    return 0;
+    return { synced: 0, leadIds: [] };
   }
 
   const sinceSec = Math.floor(startOfMexicoCityDay().getTime() / 1000);
@@ -194,7 +195,6 @@ async function syncTodayLeadsFromKommo(
 
   let synced = 0;
   const ids = [...leadIds].slice(0, limitLeads);
-  // Secuencial con tope: evita saturar Kommo / Hostinger timeout.
   for (let i = 0; i < ids.length; i++) {
     const leadId = ids[i]!;
     onProgress?.({
@@ -243,7 +243,7 @@ async function syncTodayLeadsFromKommo(
   }
 
   logger.info({ synced, candidates: ids.length }, "lucyAuditor: sync Kommo del día");
-  return synced;
+  return { synced, leadIds: ids };
 }
 
 async function loadTranscriptsForLeadIds(
@@ -328,14 +328,22 @@ export async function runLucyAuditorBatch(opts?: {
   const syncFromKommo = opts?.syncFromKommo !== false && onlyToday;
 
   let syncedFromKommo = 0;
+  let kommoLeadIds: string[] = [];
   if (syncFromKommo) {
-    syncedFromKommo = await syncTodayLeadsFromKommo(limitLeads, report);
+    const sync = await syncTodayLeadsFromKommo(limitLeads, report);
+    syncedFromKommo = sync.synced;
+    kommoLeadIds = sync.leadIds;
   }
 
   const since = onlyToday ? startOfMexicoCityDay() : null;
-  const leadIds = onlyToday
+  // Tras sync Kommo: auditar esos leads (transcript completo), no solo msgs
+  // con timestamp "hoy" — muchos ya estaban en BD con fecha vieja.
+  const fromDb = onlyToday
     ? await loadLeadIdsWithMessagesSince(since!, limitLeads)
     : await loadLeadIdsRecent(limitLeads);
+  const leadIds = [
+    ...new Set([...(kommoLeadIds.length ? kommoLeadIds : []), ...fromDb]),
+  ].slice(0, limitLeads);
 
   let flashCalls = 0;
   let findings = 0;
@@ -343,7 +351,9 @@ export async function runLucyAuditorBatch(opts?: {
   let withLucy = 0;
   let tooShort = 0;
 
-  const transcripts = await loadTranscriptsForLeadIds(leadIds, since);
+  // Si vinieron de Kommo sync, leer historial completo (since=null).
+  const turnsSince = kommoLeadIds.length > 0 ? null : since;
+  const transcripts = await loadTranscriptsForLeadIds(leadIds, turnsSince);
   report({
     type: "phase",
     phase: "scan",
