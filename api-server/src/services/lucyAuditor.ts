@@ -36,6 +36,8 @@ export type AuditorRunResult = {
   syncedWithMessages?: number;
   /** Sync OK pero Talks vacío / sin texto. */
   emptyTalks?: number;
+  /** Kommo 403 Invalid scope al leer /talks/.../messages (falta External chat history). */
+  kommoMessagesScopeDenied?: boolean;
   /** Muestra de leads sin transcript (diagnóstico). */
   emptySamples?: Array<{
     leadId: string;
@@ -158,6 +160,7 @@ async function syncTodayLeadsFromKommo(
   syncedWithMessages: number;
   emptyTalks: number;
   emptySamples: Array<{ leadId: string; candidates: string[]; total: number }>;
+  kommoMessagesScopeDenied: boolean;
   leadIds: string[];
 }> {
   const subdomain = getKommoSubdomain();
@@ -169,6 +172,7 @@ async function syncTodayLeadsFromKommo(
       syncedWithMessages: 0,
       emptyTalks: 0,
       emptySamples: [],
+      kommoMessagesScopeDenied: false,
       leadIds: [],
     };
   }
@@ -220,6 +224,7 @@ async function syncTodayLeadsFromKommo(
   let synced = 0;
   let syncedWithMessages = 0;
   let emptyTalks = 0;
+  let kommoMessagesScopeDenied = false;
   const emptySamples: Array<{
     leadId: string;
     candidates: string[];
@@ -254,7 +259,7 @@ async function syncTodayLeadsFromKommo(
       }
 
       let bestTalkId = candidates[0]!;
-      let syncResult = { inserted: 0, total: 0 };
+      let syncResult = { inserted: 0, total: 0, scopeDenied: false as boolean | undefined };
       for (const talkId of candidates) {
         const attempt = await syncLeadTranscript({
           kommoLeadId: leadId,
@@ -262,11 +267,14 @@ async function syncTodayLeadsFromKommo(
           subdomain,
           accessToken,
         });
+        if (attempt.scopeDenied) kommoMessagesScopeDenied = true;
         if (attempt.total > syncResult.total) {
           syncResult = attempt;
           bestTalkId = talkId;
         }
         if (attempt.total >= 2) break;
+        // Sin scope no tiene sentido probar más talk_ids.
+        if (attempt.scopeDenied) break;
       }
 
       if (!conv) {
@@ -295,16 +303,38 @@ async function syncTodayLeadsFromKommo(
           });
         }
       }
+
+      // Si Kommo niega el scope, abortar el resto del sync (mismo token).
+      if (kommoMessagesScopeDenied) {
+        logger.warn(
+          "lucyAuditor: Kommo 403 Invalid scope en /talks/.../messages — falta scope «External chat history»"
+        );
+        break;
+      }
     } catch (err) {
       logger.warn({ err, leadId }, "lucyAuditor: sync lead falló");
     }
   }
 
   logger.info(
-    { synced, syncedWithMessages, emptyTalks, emptySamples, candidates: ids.length },
+    {
+      synced,
+      syncedWithMessages,
+      emptyTalks,
+      emptySamples,
+      kommoMessagesScopeDenied,
+      candidates: ids.length,
+    },
     "lucyAuditor: sync Kommo del día"
   );
-  return { synced, syncedWithMessages, emptyTalks, emptySamples, leadIds: ids };
+  return {
+    synced,
+    syncedWithMessages,
+    emptyTalks,
+    emptySamples,
+    kommoMessagesScopeDenied,
+    leadIds: ids,
+  };
 }
 
 async function loadTranscriptsForLeadIds(
@@ -401,6 +431,7 @@ export async function runLucyAuditorBatch(opts?: {
   let syncedFromKommo = 0;
   let syncedWithMessages = 0;
   let emptyTalks = 0;
+  let kommoMessagesScopeDenied = false;
   let emptySamples: Array<{ leadId: string; candidates: string[]; total: number }> =
     [];
   let kommoLeadIds: string[] = [];
@@ -410,6 +441,7 @@ export async function runLucyAuditorBatch(opts?: {
     syncedWithMessages = sync.syncedWithMessages;
     emptyTalks = sync.emptyTalks;
     emptySamples = sync.emptySamples;
+    kommoMessagesScopeDenied = sync.kommoMessagesScopeDenied;
     kommoLeadIds = sync.leadIds;
   }
 
@@ -533,14 +565,15 @@ export async function runLucyAuditorBatch(opts?: {
     lastDailyRunDay = dayKey;
   }
 
-  const skipHint =
-    emptyTalks || noReply || loaded.emptyOrShort
+  const skipHint = kommoMessagesScopeDenied
+    ? " Kommo denegó leer mensajes (403 Invalid scope): activa «External chat history» en la integración y reautoriza el token."
+    : emptyTalks || noReply || loaded.emptyOrShort
       ? ` (Talks vacíos ${emptyTalks}, sin respuesta ${noReply}, cortos ${loaded.emptyOrShort})`
       : "";
 
   const summary =
     transcripts.length === 0
-      ? `No encontré chats auditables del día${syncedFromKommo ? ` (sync Kommo ${syncedFromKommo}, con msgs ${syncedWithMessages})` : ""}${skipHint}.`
+      ? `No encontré chats auditables del día${syncedFromKommo ? ` (sync Kommo ${syncedFromKommo}, con msgs ${syncedWithMessages})` : ""}.${skipHint}`
       : findings === 0
         ? `Revisé ${transcripts.length} chat(s)${syncedFromKommo ? `, sync ${syncedFromKommo}/${syncedWithMessages} con msgs` : ""}. ` +
           `Flash en ${flashCalls}. Sin errores detectados` +
@@ -557,6 +590,7 @@ export async function runLucyAuditorBatch(opts?: {
     syncedWithMessages,
     emptyTalks,
     emptySamples,
+    kommoMessagesScopeDenied,
     noReply,
     dayKey,
     withLucy,

@@ -169753,6 +169753,7 @@ var chatIngest_exports = {};
 __export(chatIngest_exports, {
   captureInboundWhileLucyInactive: () => captureInboundWhileLucyInactive,
   fetchKommoTalkMessages: () => fetchKommoTalkMessages,
+  fetchKommoTalkMessagesDetailed: () => fetchKommoTalkMessagesDetailed,
   mapKommoAuthor: () => mapKommoAuthor,
   persistChatMessage: () => persistChatMessage,
   roleFromAuthor: () => roleFromAuthor,
@@ -169778,6 +169779,15 @@ function contentHash(leadId, author, text2) {
   return createHash3("sha256").update(`${leadId}|${author}|${text2.trim()}`).digest("hex").slice(0, 40);
 }
 async function fetchKommoTalkMessages(subdomain, accessToken, talkId, limit2 = 80) {
+  const result = await fetchKommoTalkMessagesDetailed(
+    subdomain,
+    accessToken,
+    talkId,
+    limit2
+  );
+  return result.messages;
+}
+async function fetchKommoTalkMessagesDetailed(subdomain, accessToken, talkId, limit2 = 80) {
   const urls = [
     `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=${limit2}&order=asc`,
     `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=${limit2}&order=desc`
@@ -169785,12 +169795,19 @@ async function fetchKommoTalkMessages(subdomain, accessToken, talkId, limit2 = 8
   const byId = /* @__PURE__ */ new Map();
   let lastStatus = 0;
   let rawCount = 0;
+  let scopeDenied = false;
   for (const url2 of urls) {
     try {
       const res = await fetch(url2, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
       lastStatus = res.status;
+      if (res.status === 403) {
+        scopeDenied = true;
+        const body2 = await res.text().catch(() => "");
+        if (/invalid scope/i.test(body2)) scopeDenied = true;
+        break;
+      }
       if (!res.ok) continue;
       const data = await res.json();
       let msgs = data._embedded?.messages ?? [];
@@ -169811,13 +169828,13 @@ async function fetchKommoTalkMessages(subdomain, accessToken, talkId, limit2 = 8
   }
   if (byId.size === 0) {
     logger.info(
-      { talkId, lastStatus, rawCount },
+      { talkId, lastStatus, rawCount, scopeDenied },
       "chatIngest: Talks sin texto usable"
     );
   }
   const list = [...byId.values()];
   list.sort((a4, b5) => Number(a4.created_at ?? 0) - Number(b5.created_at ?? 0));
-  return list;
+  return { messages: list, lastStatus, rawCount, scopeDenied };
 }
 async function persistChatMessage(input) {
   await ensureLearningSchema();
@@ -169897,7 +169914,13 @@ async function captureInboundWhileLucyInactive(input) {
 }
 async function syncLeadTranscript(input) {
   await ensureLearningSchema();
-  const raw = await fetchKommoTalkMessages(input.subdomain, input.accessToken, input.talkId, 80);
+  const fetched = await fetchKommoTalkMessagesDetailed(
+    input.subdomain,
+    input.accessToken,
+    input.talkId,
+    80
+  );
+  const raw = fetched.messages;
   let inserted = 0;
   for (const msg of raw) {
     const authorType = mapKommoAuthor(msg.author?.type, msg.author?.name);
@@ -169913,10 +169936,20 @@ async function syncLeadTranscript(input) {
   }
   await db.update(conversations).set({ lastKommoSyncAt: /* @__PURE__ */ new Date(), updatedAt: /* @__PURE__ */ new Date() }).where(eq(conversations.kommoLeadId, input.kommoLeadId));
   logger.info(
-    { leadId: input.kommoLeadId, inserted, total: raw.length },
+    {
+      leadId: input.kommoLeadId,
+      inserted,
+      total: raw.length,
+      scopeDenied: fetched.scopeDenied,
+      lastStatus: fetched.lastStatus
+    },
     "chatIngest: transcript sincronizado"
   );
-  return { inserted, total: raw.length };
+  return {
+    inserted,
+    total: raw.length,
+    scopeDenied: fetched.scopeDenied
+  };
 }
 async function setLearningPhase(kommoLeadId, phase) {
   await ensureLearningSchema();
@@ -188794,6 +188827,7 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
       syncedWithMessages: 0,
       emptyTalks: 0,
       emptySamples: [],
+      kommoMessagesScopeDenied: false,
       leadIds: []
     };
   }
@@ -188831,6 +188865,7 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
   let synced = 0;
   let syncedWithMessages = 0;
   let emptyTalks = 0;
+  let kommoMessagesScopeDenied = false;
   const emptySamples = [];
   const ids = [...leadIds].slice(0, limitLeads);
   for (let i6 = 0; i6 < ids.length; i6++) {
@@ -188860,7 +188895,7 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
         continue;
       }
       let bestTalkId = candidates[0];
-      let syncResult = { inserted: 0, total: 0 };
+      let syncResult = { inserted: 0, total: 0, scopeDenied: false };
       for (const talkId of candidates) {
         const attempt = await syncLeadTranscript({
           kommoLeadId: leadId,
@@ -188868,11 +188903,13 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
           subdomain,
           accessToken
         });
+        if (attempt.scopeDenied) kommoMessagesScopeDenied = true;
         if (attempt.total > syncResult.total) {
           syncResult = attempt;
           bestTalkId = talkId;
         }
         if (attempt.total >= 2) break;
+        if (attempt.scopeDenied) break;
       }
       if (!conv) {
         await db.insert(conversations).values({
@@ -188897,15 +188934,35 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
           });
         }
       }
+      if (kommoMessagesScopeDenied) {
+        logger.warn(
+          "lucyAuditor: Kommo 403 Invalid scope en /talks/.../messages \u2014 falta scope \xABExternal chat history\xBB"
+        );
+        break;
+      }
     } catch (err2) {
       logger.warn({ err: err2, leadId }, "lucyAuditor: sync lead fall\xF3");
     }
   }
   logger.info(
-    { synced, syncedWithMessages, emptyTalks, emptySamples, candidates: ids.length },
+    {
+      synced,
+      syncedWithMessages,
+      emptyTalks,
+      emptySamples,
+      kommoMessagesScopeDenied,
+      candidates: ids.length
+    },
     "lucyAuditor: sync Kommo del d\xEDa"
   );
-  return { synced, syncedWithMessages, emptyTalks, emptySamples, leadIds: ids };
+  return {
+    synced,
+    syncedWithMessages,
+    emptyTalks,
+    emptySamples,
+    kommoMessagesScopeDenied,
+    leadIds: ids
+  };
 }
 async function loadTranscriptsForLeadIds(leadIds, since) {
   const out2 = [];
@@ -188964,6 +189021,7 @@ async function runLucyAuditorBatch(opts) {
   let syncedFromKommo = 0;
   let syncedWithMessages = 0;
   let emptyTalks = 0;
+  let kommoMessagesScopeDenied = false;
   let emptySamples = [];
   let kommoLeadIds = [];
   if (syncFromKommo) {
@@ -188972,6 +189030,7 @@ async function runLucyAuditorBatch(opts) {
     syncedWithMessages = sync.syncedWithMessages;
     emptyTalks = sync.emptyTalks;
     emptySamples = sync.emptySamples;
+    kommoMessagesScopeDenied = sync.kommoMessagesScopeDenied;
     kommoLeadIds = sync.leadIds;
   }
   const since = onlyToday ? startOfMexicoCityDay() : null;
@@ -189067,8 +189126,8 @@ async function runLucyAuditorBatch(opts) {
   if (opts?.oncePerDay) {
     lastDailyRunDay = dayKey2;
   }
-  const skipHint = emptyTalks || noReply || loaded.emptyOrShort ? ` (Talks vac\xEDos ${emptyTalks}, sin respuesta ${noReply}, cortos ${loaded.emptyOrShort})` : "";
-  const summary = transcripts.length === 0 ? `No encontr\xE9 chats auditables del d\xEDa${syncedFromKommo ? ` (sync Kommo ${syncedFromKommo}, con msgs ${syncedWithMessages})` : ""}${skipHint}.` : findings === 0 ? `Revis\xE9 ${transcripts.length} chat(s)${syncedFromKommo ? `, sync ${syncedFromKommo}/${syncedWithMessages} con msgs` : ""}. Flash en ${flashCalls}. Sin errores detectados` + (withLucy ? ` (${withLucy} con Lucy).` : " (pocos con rol Lucy reconocible).") + skipHint : `Revis\xE9 ${transcripts.length} chat(s): ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.${skipHint}`;
+  const skipHint = kommoMessagesScopeDenied ? " Kommo deneg\xF3 leer mensajes (403 Invalid scope): activa \xABExternal chat history\xBB en la integraci\xF3n y reautoriza el token." : emptyTalks || noReply || loaded.emptyOrShort ? ` (Talks vac\xEDos ${emptyTalks}, sin respuesta ${noReply}, cortos ${loaded.emptyOrShort})` : "";
+  const summary = transcripts.length === 0 ? `No encontr\xE9 chats auditables del d\xEDa${syncedFromKommo ? ` (sync Kommo ${syncedFromKommo}, con msgs ${syncedWithMessages})` : ""}.${skipHint}` : findings === 0 ? `Revis\xE9 ${transcripts.length} chat(s)${syncedFromKommo ? `, sync ${syncedFromKommo}/${syncedWithMessages} con msgs` : ""}. Flash en ${flashCalls}. Sin errores detectados` + (withLucy ? ` (${withLucy} con Lucy).` : " (pocos con rol Lucy reconocible).") + skipHint : `Revis\xE9 ${transcripts.length} chat(s): ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.${skipHint}`;
   const result = {
     scanned: transcripts.length,
     findings,
@@ -189078,6 +189137,7 @@ async function runLucyAuditorBatch(opts) {
     syncedWithMessages,
     emptyTalks,
     emptySamples,
+    kommoMessagesScopeDenied,
     noReply,
     dayKey: dayKey2,
     withLucy,

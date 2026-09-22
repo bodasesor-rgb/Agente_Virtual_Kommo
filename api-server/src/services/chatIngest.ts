@@ -54,6 +54,26 @@ export async function fetchKommoTalkMessages(
   talkId: string,
   limit = 80
 ): Promise<KommoTalkMessage[]> {
+  const result = await fetchKommoTalkMessagesDetailed(
+    subdomain,
+    accessToken,
+    talkId,
+    limit
+  );
+  return result.messages;
+}
+
+export async function fetchKommoTalkMessagesDetailed(
+  subdomain: string,
+  accessToken: string,
+  talkId: string,
+  limit = 80
+): Promise<{
+  messages: KommoTalkMessage[];
+  lastStatus: number;
+  rawCount: number;
+  scopeDenied: boolean;
+}> {
   const urls = [
     `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=${limit}&order=asc`,
     `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=${limit}&order=desc`,
@@ -61,6 +81,7 @@ export async function fetchKommoTalkMessages(
   const byId = new Map<string, KommoTalkMessage>();
   let lastStatus = 0;
   let rawCount = 0;
+  let scopeDenied = false;
 
   for (const url of urls) {
     try {
@@ -68,6 +89,12 @@ export async function fetchKommoTalkMessages(
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       lastStatus = res.status;
+      if (res.status === 403) {
+        scopeDenied = true;
+        const body = await res.text().catch(() => "");
+        if (/invalid scope/i.test(body)) scopeDenied = true;
+        break;
+      }
       if (!res.ok) continue;
       const data = (await res.json()) as {
         _embedded?: { messages?: KommoTalkMessage[] };
@@ -86,7 +113,6 @@ export async function fetchKommoTalkMessages(
             : contentHash("talk", "client", text);
         byId.set(key, { ...m, text });
       }
-      // Con ≥2 mensajes de texto ya tenemos transcript auditable; no hace falta 2do orden.
       if (byId.size >= 2) break;
     } catch (err) {
       logger.warn({ err, talkId }, "chatIngest: error leyendo Talks API");
@@ -95,14 +121,14 @@ export async function fetchKommoTalkMessages(
 
   if (byId.size === 0) {
     logger.info(
-      { talkId, lastStatus, rawCount },
+      { talkId, lastStatus, rawCount, scopeDenied },
       "chatIngest: Talks sin texto usable"
     );
   }
 
   const list = [...byId.values()];
   list.sort((a, b) => Number(a.created_at ?? 0) - Number(b.created_at ?? 0));
-  return list;
+  return { messages: list, lastStatus, rawCount, scopeDenied };
 }
 
 export async function persistChatMessage(input: {
@@ -221,9 +247,15 @@ export async function syncLeadTranscript(input: {
   talkId: string;
   subdomain: string;
   accessToken: string;
-}): Promise<{ inserted: number; total: number }> {
+}): Promise<{ inserted: number; total: number; scopeDenied?: boolean }> {
   await ensureLearningSchema();
-  const raw = await fetchKommoTalkMessages(input.subdomain, input.accessToken, input.talkId, 80);
+  const fetched = await fetchKommoTalkMessagesDetailed(
+    input.subdomain,
+    input.accessToken,
+    input.talkId,
+    80
+  );
+  const raw = fetched.messages;
   let inserted = 0;
 
   for (const msg of raw) {
@@ -245,11 +277,21 @@ export async function syncLeadTranscript(input: {
     .where(eq(conversations.kommoLeadId, input.kommoLeadId));
 
   logger.info(
-    { leadId: input.kommoLeadId, inserted, total: raw.length },
+    {
+      leadId: input.kommoLeadId,
+      inserted,
+      total: raw.length,
+      scopeDenied: fetched.scopeDenied,
+      lastStatus: fetched.lastStatus,
+    },
     "chatIngest: transcript sincronizado"
   );
 
-  return { inserted, total: raw.length };
+  return {
+    inserted,
+    total: raw.length,
+    scopeDenied: fetched.scopeDenied,
+  };
 }
 
 export async function setLearningPhase(
