@@ -115,6 +115,7 @@ async function loadHomeStats() {
       /* stats opcionales */
     }
 
+    let auditorModel = "—";
     try {
       const repairs = await fetch("/api/reparaciones/stats").then((r) =>
         r.ok ? r.json() : null,
@@ -123,6 +124,7 @@ async function loadHomeStats() {
         const n = (repairs.open ?? 0) + (repairs.auto_flagged ?? 0);
         openRepairs = String(n);
         repairsClass = n > 0 ? "stat-warn" : "stat-ok";
+        if (repairs.auditor_model) auditorModel = String(repairs.auditor_model);
       }
     } catch {
       /* opcional */
@@ -141,10 +143,16 @@ async function loadHomeStats() {
           : health.gemini_configured
             ? "Gemini"
             : "LLM";
-    const llmModel =
+    // Modelo real de chat (mismo que responde WhatsApp / Kommo).
+    const chatModel =
       health.llm_model ||
       health.gemini_allowed_model ||
-      (llmProvider === "gemini" ? "flash-lite" : "");
+      (llmProvider === "gemini" ? "gemini-3.1-flash-lite" : "—");
+
+    const cardRepairs = document.getElementById("card-reparaciones-desc");
+    if (cardRepairs) {
+      cardRepairs.textContent = `Auditor offline (${auditorModel}) que revisa chats: bucles, cierres mal, campos. Nunca escribe al cliente; solo propone/registra fixes.`;
+    }
 
     const online = ops?.overall === "ok" || (health.status === "ok" && llmOk);
     const deployLabel = health.built_at_display
@@ -164,9 +172,16 @@ async function loadHomeStats() {
       statCard(
         "stat-icon-openai",
         "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z",
-        llmOk ? "Conectada" : "Sin key",
-        llmModel ? `${llmLabel} · ${llmModel}` : llmLabel,
+        chatModel,
+        llmOk ? `Chat Lucy · ${llmLabel}` : `Chat Lucy · sin key`,
         llmOk ? "stat-ok" : "stat-warn",
+      ),
+      statCard(
+        "stat-icon-gaps",
+        "M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z",
+        auditorModel,
+        "Auditor · Reparaciones",
+        auditorModel !== "—" ? "stat-ok" : "stat-warn",
       ),
       statCard(
         "stat-icon-catalog",

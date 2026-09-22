@@ -454,6 +454,8 @@ svg {
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.1;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .stat-label {
@@ -708,7 +710,7 @@ svg {
               </div>
               <div class="feature-body">
                 <h2>Reparaciones Lucy</h2>
-                <p>Auditor barato (Flash) que revisa chats: bucles, cierres mal, campos. Nunca escribe al cliente; solo propone/registra fixes.</p>
+                <p id="card-reparaciones-desc">Auditor offline que revisa chats: bucles, cierres mal, campos. Nunca escribe al cliente; solo propone/registra fixes.</p>
                 <span class="feature-cta">Abrir reparaciones <span aria-hidden="true">→</span></span>
               </div>
             </article>
@@ -760,6 +762,6 @@ svg {
     </main>
   </div>
 
-  <script src="/panel/app.js?v=7" type="module"></script>
+  <script src="/panel/app.js?v=8" type="module"></script>
 </body>
 </html>

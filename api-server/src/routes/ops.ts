@@ -52,10 +52,10 @@ async function buildOpsStatus(): Promise<{
   const llm = llmConfigSummary();
   checks.push({
     id: "llm",
-    label: llm.provider === "gemini" ? "Gemini (Flash-Lite)" : "OpenAI",
+    label: llm.provider === "gemini" ? `Chat · ${llm.model}` : `Chat · OpenAI (${llm.model})`,
     status: isLlmConfigured() ? "ok" : "error",
     detail: isLlmConfigured()
-      ? `${llm.provider} · ${llm.model} (${llmKeyPrefix() ?? "key"})`
+      ? `${llm.provider} · modelo real ${llm.model} (${llmKeyPrefix() ?? "key"})`
       : llm.provider === "gemini"
         ? "Falta gemini_ia en Hostinger — Lucy no puede usar Gemini"
         : "Falta OPEN_AI en Hostinger — Lucy no puede usar GPT",
@@ -122,12 +122,12 @@ async function buildOpsStatus(): Promise<{
     const openN = repairStats.open + repairStats.auto_flagged;
     checks.push({
       id: "auditor",
-      label: "Auditor reparaciones",
+      label: `Auditor · ${quota.model}`,
       status: quota.remaining === 0 ? "warn" : openN > 10 ? "warn" : "ok",
       detail:
         quota.remaining === 0
-          ? `Cupo Flash agotado hoy (${quota.callsToday}/${quota.maxPerDay}) · ${openN} abiertas`
-          : `${quota.model} · ${quota.callsToday}/${quota.maxPerDay} Flash · ${openN} abiertas`,
+          ? `Cupo agotado hoy (${quota.callsToday}/${quota.maxPerDay}) · ${openN} abiertas`
+          : `${quota.callsToday}/${quota.maxPerDay} llamadas hoy · ${openN} abiertas · nunca escribe al cliente`,
     });
   } catch {
     /* auditor opcional */

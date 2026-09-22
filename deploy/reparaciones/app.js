@@ -18,9 +18,11 @@ async function loadStats() {
   document.getElementById("stat-open").textContent = String(s.open ?? 0);
   document.getElementById("stat-flagged").textContent = String(s.auto_flagged ?? 0);
   document.getElementById("stat-resolved").textContent = String(s.resolved ?? 0);
+  const model = String(s.auditor_model ?? "—");
+  document.getElementById("stat-model").textContent = model;
   document.getElementById("stat-quota").textContent =
     `${s.auditor_calls_today ?? 0}/${s.auditor_max_per_day ?? 40}`;
-  if (s.auditor_model) modelEl.textContent = s.auditor_model;
+  if (modelEl) modelEl.textContent = model;
 }
 
 function cardHtml(r) {

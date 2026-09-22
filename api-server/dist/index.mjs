@@ -237262,9 +237262,9 @@ async function buildOpsStatus() {
   const llm = llmConfigSummary();
   checks.push({
     id: "llm",
-    label: llm.provider === "gemini" ? "Gemini (Flash-Lite)" : "OpenAI",
+    label: llm.provider === "gemini" ? `Chat \xB7 ${llm.model}` : `Chat \xB7 OpenAI (${llm.model})`,
     status: isLlmConfigured() ? "ok" : "error",
-    detail: isLlmConfigured() ? `${llm.provider} \xB7 ${llm.model} (${llmKeyPrefix() ?? "key"})` : llm.provider === "gemini" ? "Falta gemini_ia en Hostinger \u2014 Lucy no puede usar Gemini" : "Falta OPEN_AI en Hostinger \u2014 Lucy no puede usar GPT"
+    detail: isLlmConfigured() ? `${llm.provider} \xB7 modelo real ${llm.model} (${llmKeyPrefix() ?? "key"})` : llm.provider === "gemini" ? "Falta gemini_ia en Hostinger \u2014 Lucy no puede usar Gemini" : "Falta OPEN_AI en Hostinger \u2014 Lucy no puede usar GPT"
   });
   if (isOpenAiConfigured()) {
     checks.push({
@@ -237315,9 +237315,9 @@ async function buildOpsStatus() {
     const openN = repairStats.open + repairStats.auto_flagged;
     checks.push({
       id: "auditor",
-      label: "Auditor reparaciones",
+      label: `Auditor \xB7 ${quota.model}`,
       status: quota.remaining === 0 ? "warn" : openN > 10 ? "warn" : "ok",
-      detail: quota.remaining === 0 ? `Cupo Flash agotado hoy (${quota.callsToday}/${quota.maxPerDay}) \xB7 ${openN} abiertas` : `${quota.model} \xB7 ${quota.callsToday}/${quota.maxPerDay} Flash \xB7 ${openN} abiertas`
+      detail: quota.remaining === 0 ? `Cupo agotado hoy (${quota.callsToday}/${quota.maxPerDay}) \xB7 ${openN} abiertas` : `${quota.callsToday}/${quota.maxPerDay} llamadas hoy \xB7 ${openN} abiertas \xB7 nunca escribe al cliente`
     });
   } catch {
   }
