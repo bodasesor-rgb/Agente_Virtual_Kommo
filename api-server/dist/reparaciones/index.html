@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reparaciones Lucy — Bodasesor</title>
+  <base href="/reparaciones/" />
+  <link rel="stylesheet" href="/reparaciones/styles.css?v=1" />
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <div>
+        <p class="eyebrow">Auditor offline</p>
+        <h1>Reparaciones Lucy</h1>
+        <p class="subtitle">
+          Errores detectados (bucles, cierres mal, campos) y reparaciones propuestas.
+          El auditor <strong>nunca escribe al cliente</strong> · modelo
+          <code id="auditor-model">gemini-2.5-flash</code>.
+        </p>
+      </div>
+      <div class="header-actions">
+        <a href="/panel">← Panel</a>
+        <button type="button" id="btn-run" class="btn-primary">Auditar ahora</button>
+        <button type="button" id="btn-refresh" class="btn-ghost">Actualizar</button>
+      </div>
+    </header>
+
+    <div class="stats" id="stats">
+      <div class="stat"><strong id="stat-open">—</strong><span>Abiertas</span></div>
+      <div class="stat"><strong id="stat-flagged">—</strong><span>Auto-flag</span></div>
+      <div class="stat"><strong id="stat-resolved">—</strong><span>Resueltas</span></div>
+      <div class="stat"><strong id="stat-quota">—</strong><span>Flash hoy</span></div>
+    </div>
+
+    <div class="filters">
+      <button type="button" class="chip active" data-status="open">Abiertas</button>
+      <button type="button" class="chip" data-status="resolved">Resueltas</button>
+      <button type="button" class="chip" data-status="dismissed">Descartadas</button>
+      <button type="button" class="chip" data-status="all">Todas</button>
+    </div>
+
+    <div id="list" class="list"></div>
+    <p id="empty" class="muted empty hidden">Sin hallazgos en este filtro.</p>
+  </div>
+  <script src="/reparaciones/app.js?v=1" type="module"></script>
+</body>
+</html>

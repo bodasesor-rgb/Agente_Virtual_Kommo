@@ -6,6 +6,7 @@ const VIEWS = {
     frame: "/aprendizaje/?tab=info",
     title: "Información para Lucy — PDFs y tips",
   },
+  reparaciones: { frame: "/reparaciones", title: "Reparaciones Lucy" },
   estado: { frame: "/estado", title: "Estado de Lucy" },
 };
 
@@ -58,6 +59,7 @@ function parseHash() {
     hash === "simulador" ||
     hash === "aprendizaje" ||
     hash === "aprendizaje-info" ||
+    hash === "reparaciones" ||
     hash === "estado"
   ) {
     return hash;
@@ -98,6 +100,8 @@ async function loadHomeStats() {
     const catalog = health.catalog ?? {};
     let pendingGaps = "—";
     let gapsClass = "";
+    let openRepairs = "—";
+    let repairsClass = "";
 
     try {
       const gaps = await fetch("/api/knowledge-gaps/stats").then((r) =>
@@ -109,6 +113,19 @@ async function loadHomeStats() {
       }
     } catch {
       /* stats opcionales */
+    }
+
+    try {
+      const repairs = await fetch("/api/reparaciones/stats").then((r) =>
+        r.ok ? r.json() : null,
+      );
+      if (repairs) {
+        const n = (repairs.open ?? 0) + (repairs.auto_flagged ?? 0);
+        openRepairs = String(n);
+        repairsClass = n > 0 ? "stat-warn" : "stat-ok";
+      }
+    } catch {
+      /* opcional */
     }
 
     const llmProvider = String(health.llm_provider ?? "").toLowerCase();
@@ -163,6 +180,13 @@ async function loadHomeStats() {
         pendingGaps,
         "Preguntas pendientes",
         gapsClass,
+      ),
+      statCard(
+        "stat-icon-gaps",
+        "M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z",
+        openRepairs,
+        "Reparaciones abiertas",
+        repairsClass,
       ),
       statCard(
         "stat-icon-version",

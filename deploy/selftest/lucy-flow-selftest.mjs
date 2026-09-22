@@ -105775,11 +105775,12 @@ __export(schema_exports, {
   leadScores: () => leadScores,
   learningCandidates: () => learningCandidates,
   lucyInfoDocuments: () => lucyInfoDocuments,
+  lucyRepairs: () => lucyRepairs,
   messages: () => messages,
   trainingExamples: () => trainingExamples,
   users: () => users
 });
-var conversations, leadScores, messages, dailyMetrics, followUpEvents, users, trainingExamples, learningCandidates, knowledgeGaps, lucyInfoDocuments;
+var conversations, leadScores, messages, dailyMetrics, followUpEvents, users, trainingExamples, learningCandidates, knowledgeGaps, lucyRepairs, lucyInfoDocuments;
 var init_schema2 = __esm({
   "../lib/db/src/schema/index.ts"() {
     "use strict";
@@ -105907,6 +105908,23 @@ var init_schema2 = __esm({
       dedupeKey: text("dedupe_key").unique(),
       answeredAt: timestamp("answered_at"),
       answeredBy: text("answered_by"),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    });
+    lucyRepairs = pgTable("lucy_repairs", {
+      id: uuid("id").primaryKey().defaultRandom(),
+      kommoLeadId: text("kommo_lead_id"),
+      category: varchar("category", { length: 40 }).notNull().default("other"),
+      severity: varchar("severity", { length: 20 }).notNull().default("warn"),
+      evidence: text("evidence").notNull(),
+      proposedRepair: text("proposed_repair").notNull(),
+      appliedRepair: text("applied_repair"),
+      status: varchar("status", { length: 20 }).notNull().default("open"),
+      source: varchar("source", { length: 20 }).notNull().default("heuristic"),
+      model: text("model"),
+      dedupeKey: text("dedupe_key").unique(),
+      resolvedAt: timestamp("resolved_at"),
+      resolvedBy: text("resolved_by"),
       createdAt: timestamp("created_at").notNull().defaultNow(),
       updatedAt: timestamp("updated_at").notNull().defaultNow()
     });
@@ -106106,6 +106124,24 @@ CREATE TABLE IF NOT EXISTS knowledge_gaps (
   dedupe_key TEXT UNIQUE,
   answered_at TIMESTAMP,
   answered_by TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS lucy_repairs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kommo_lead_id TEXT,
+  category VARCHAR(40) NOT NULL DEFAULT 'other',
+  severity VARCHAR(20) NOT NULL DEFAULT 'warn',
+  evidence TEXT NOT NULL,
+  proposed_repair TEXT NOT NULL,
+  applied_repair TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'open',
+  source VARCHAR(20) NOT NULL DEFAULT 'heuristic',
+  model TEXT,
+  dedupe_key TEXT UNIQUE,
+  resolved_at TIMESTAMP,
+  resolved_by TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

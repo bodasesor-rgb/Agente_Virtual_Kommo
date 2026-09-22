@@ -114,6 +114,25 @@ async function buildOpsStatus(): Promise<{
     detail: `${build.lucy_prompt} · ${build.built_at_display}${build.git_commit_short ? ` · commit ${build.git_commit_short}` : ""}`,
   });
 
+  try {
+    const { getAuditorQuotaSnapshot } = await import("../services/lucyAuditorLlm.js");
+    const { getLucyRepairStats } = await import("../services/lucyRepairStore.js");
+    const quota = getAuditorQuotaSnapshot();
+    const repairStats = await getLucyRepairStats();
+    const openN = repairStats.open + repairStats.auto_flagged;
+    checks.push({
+      id: "auditor",
+      label: "Auditor reparaciones",
+      status: quota.remaining === 0 ? "warn" : openN > 10 ? "warn" : "ok",
+      detail:
+        quota.remaining === 0
+          ? `Cupo Flash agotado hoy (${quota.callsToday}/${quota.maxPerDay}) · ${openN} abiertas`
+          : `${quota.model} · ${quota.callsToday}/${quota.maxPerDay} Flash · ${openN} abiertas`,
+    });
+  } catch {
+    /* auditor opcional */
+  }
+
   const hasError = checks.some((c) => c.status === "error");
   const hasWarn = checks.some((c) => c.status === "warn");
 

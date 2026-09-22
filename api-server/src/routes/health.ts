@@ -107,7 +107,7 @@ router.get("/health", async (_req, res) => {
     google_grounding_enabled: isGoogleGroundingEnabled(),
     google_grounding_stats: getGoogleGroundingStats(),
     gemini_policy:
-      "V10.20: A16263 cena ocasión≠SKU; estaciones solo vs completo; precio no cierra; flash-lite; grounding OPT-IN.",
+      "V10.20: A16263 + auditor reparaciones (gemini-2.5-flash offline, nunca WhatsApp); flash-lite chat.",
     kommo_configured: isKommoConfigured(),
     kommo_subdomain: getKommoSubdomain() || null,
     lucy_outbound: {

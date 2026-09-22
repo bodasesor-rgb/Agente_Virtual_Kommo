@@ -146,6 +146,24 @@ CREATE TABLE IF NOT EXISTS knowledge_gaps (
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS lucy_repairs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kommo_lead_id TEXT,
+  category VARCHAR(40) NOT NULL DEFAULT 'other',
+  severity VARCHAR(20) NOT NULL DEFAULT 'warn',
+  evidence TEXT NOT NULL,
+  proposed_repair TEXT NOT NULL,
+  applied_repair TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'open',
+  source VARCHAR(20) NOT NULL DEFAULT 'heuristic',
+  model TEXT,
+  dedupe_key TEXT UNIQUE,
+  resolved_at TIMESTAMP,
+  resolved_by TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
 `;
 
 const MIGRATION_SQL = `

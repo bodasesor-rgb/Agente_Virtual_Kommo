@@ -3215,6 +3215,18 @@ router.get("/kommo/cron/learning", async (req: Request, res: Response) => {
   await handleLearningCron(req, res);
 });
 
+router.get("/kommo/cron/reparaciones", async (req: Request, res: Response) => {
+  if (!assertCronAuthorized(req, res)) return;
+  try {
+    const { runLucyAuditorBatch } = await import("../services/lucyAuditor.js");
+    const result = await runLucyAuditorBatch({ limitLeads: 10, useFlash: true });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    req.log?.error?.({ err }, "Cron reparaciones: error");
+    res.status(500).json({ error: "cron_failed" });
+  }
+});
+
 // ─── Reactivar Lucy manualmente ───────────────────────────────────────────────
 // POST /api/kommo/lucy/activar/:leadId
 // Quita lucy_desactivada, mueve de Humano Trabaja a Datos e Intereses si aplica,

@@ -94,7 +94,17 @@ function mountEstado(basePath: string) {
 
 mountEstado("/estado");
 
-mountEstado("/estado");
+const reparacionesDir = path.join(__dirname, "reparaciones");
+const reparacionesIndex = path.join(reparacionesDir, "index.html");
+
+function mountReparaciones(basePath: string) {
+  app.get([basePath, `${basePath}/`], (_req, res) => {
+    res.sendFile(reparacionesIndex);
+  });
+  app.use(basePath, express.static(reparacionesDir, { index: false }));
+}
+
+mountReparaciones("/reparaciones");
 
 /** Catálogos livianos: click-to-load (Gamma solo bajo demanda). */
 const catalogosLightDir = path.join(__dirname, "catalogos-light");

@@ -21251,27 +21251,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods19 = METHODS.map((method) => method.toLowerCase());
-    module2.exports = Router13;
+    module2.exports = Router14;
     module2.exports.Route = Route;
-    function Router13(options) {
-      if (!(this instanceof Router13)) {
-        return new Router13(options);
+    function Router14(options) {
+      if (!(this instanceof Router14)) {
+        return new Router14(options);
       }
       const opts = options || {};
-      function router13(req, res, next) {
-        router13.handle(req, res, next);
+      function router14(req, res, next) {
+        router14.handle(req, res, next);
       }
-      Object.setPrototypeOf(router13, this);
-      router13.caseSensitive = opts.caseSensitive;
-      router13.mergeParams = opts.mergeParams;
-      router13.params = {};
-      router13.strict = opts.strict;
-      router13.stack = [];
-      return router13;
+      Object.setPrototypeOf(router14, this);
+      router14.caseSensitive = opts.caseSensitive;
+      router14.mergeParams = opts.mergeParams;
+      router14.params = {};
+      router14.strict = opts.strict;
+      router14.stack = [];
+      return router14;
     }
-    Router13.prototype = function() {
+    Router14.prototype = function() {
     };
-    Router13.prototype.param = function param(name2, fn3) {
+    Router14.prototype.param = function param(name2, fn3) {
       if (!name2) {
         throw new TypeError("argument name is required");
       }
@@ -21291,7 +21291,7 @@ var require_router = __commonJS({
       params.push(fn3);
       return this;
     };
-    Router13.prototype.handle = function handle2(req, res, callback) {
+    Router14.prototype.handle = function handle2(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -21418,7 +21418,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router13.prototype.use = function use(handler) {
+    Router14.prototype.use = function use(handler) {
       let offset = 0;
       let path7 = "/";
       if (typeof handler !== "function") {
@@ -21451,7 +21451,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router13.prototype.route = function route(path7) {
+    Router14.prototype.route = function route(path7) {
       const route2 = new Route(path7);
       const layer = new Layer(path7, {
         sensitive: this.caseSensitive,
@@ -21466,7 +21466,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods19.concat("all").forEach(function(method) {
-      Router13.prototype[method] = function(path7) {
+      Router14.prototype[method] = function(path7) {
         const route = this.route(path7);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -21649,13 +21649,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils3().compileTrust;
     var resolve2 = __require("node:path").resolve;
     var once = require_once();
-    var Router13 = require_router();
+    var Router14 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports = module2.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init2() {
-      var router13 = null;
+      var router14 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -21664,13 +21664,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router13 === null) {
-            router13 = new Router13({
+          if (router14 === null) {
+            router14 = new Router14({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router13;
+          return router14;
         }
       });
     };
@@ -21741,15 +21741,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router13 = this.router;
+      var router14 = this.router;
       fns.forEach(function(fn4) {
         if (!fn4 || !fn4.handle || !fn4.set) {
-          return router13.use(path7, fn4);
+          return router14.use(path7, fn4);
         }
         debug2(".use app under %s", path7);
         fn4.mountpath = path7;
         fn4.parent = this;
-        router13.use(path7, function mounted_app(req, res, next) {
+        router14.use(path7, function mounted_app(req, res, next) {
           var orig = req.app;
           fn4.handle(req, res, function(err2) {
             Object.setPrototypeOf(req, orig.request);
@@ -24397,7 +24397,7 @@ var require_express = __commonJS({
     var EventEmitter2 = __require("node:events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router13 = require_router();
+    var Router14 = require_router();
     var req = require_request();
     var res = require_response();
     exports = module2.exports = createApplication;
@@ -24419,8 +24419,8 @@ var require_express = __commonJS({
     exports.application = proto;
     exports.request = req;
     exports.response = res;
-    exports.Route = Router13.Route;
-    exports.Router = Router13;
+    exports.Route = Router14.Route;
+    exports.Router = Router14;
     exports.json = bodyParser.json;
     exports.raw = bodyParser.raw;
     exports.static = require_serve_static();
@@ -160500,11 +160500,12 @@ __export(schema_exports, {
   leadScores: () => leadScores,
   learningCandidates: () => learningCandidates,
   lucyInfoDocuments: () => lucyInfoDocuments,
+  lucyRepairs: () => lucyRepairs,
   messages: () => messages,
   trainingExamples: () => trainingExamples,
   users: () => users
 });
-var conversations, leadScores, messages, dailyMetrics, followUpEvents, users, trainingExamples, learningCandidates, knowledgeGaps, lucyInfoDocuments;
+var conversations, leadScores, messages, dailyMetrics, followUpEvents, users, trainingExamples, learningCandidates, knowledgeGaps, lucyRepairs, lucyInfoDocuments;
 var init_schema2 = __esm({
   "../lib/db/src/schema/index.ts"() {
     "use strict";
@@ -160632,6 +160633,23 @@ var init_schema2 = __esm({
       dedupeKey: text("dedupe_key").unique(),
       answeredAt: timestamp("answered_at"),
       answeredBy: text("answered_by"),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    });
+    lucyRepairs = pgTable("lucy_repairs", {
+      id: uuid("id").primaryKey().defaultRandom(),
+      kommoLeadId: text("kommo_lead_id"),
+      category: varchar("category", { length: 40 }).notNull().default("other"),
+      severity: varchar("severity", { length: 20 }).notNull().default("warn"),
+      evidence: text("evidence").notNull(),
+      proposedRepair: text("proposed_repair").notNull(),
+      appliedRepair: text("applied_repair"),
+      status: varchar("status", { length: 20 }).notNull().default("open"),
+      source: varchar("source", { length: 20 }).notNull().default("heuristic"),
+      model: text("model"),
+      dedupeKey: text("dedupe_key").unique(),
+      resolvedAt: timestamp("resolved_at"),
+      resolvedBy: text("resolved_by"),
       createdAt: timestamp("created_at").notNull().defaultNow(),
       updatedAt: timestamp("updated_at").notNull().defaultNow()
     });
@@ -160831,6 +160849,24 @@ CREATE TABLE IF NOT EXISTS knowledge_gaps (
   dedupe_key TEXT UNIQUE,
   answered_at TIMESTAMP,
   answered_by TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS lucy_repairs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kommo_lead_id TEXT,
+  category VARCHAR(40) NOT NULL DEFAULT 'other',
+  severity VARCHAR(20) NOT NULL DEFAULT 'warn',
+  evidence TEXT NOT NULL,
+  proposed_repair TEXT NOT NULL,
+  applied_repair TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'open',
+  source VARCHAR(20) NOT NULL DEFAULT 'heuristic',
+  model TEXT,
+  dedupe_key TEXT UNIQUE,
+  resolved_at TIMESTAMP,
+  resolved_by TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -187910,6 +187946,486 @@ var init_learning = __esm({
       }
     });
     learning_default = router2;
+  }
+});
+
+// src/services/lucyAuditorHeuristics.ts
+function normalizeText(t4) {
+  return t4.toLowerCase().replace(/https?:\/\/\S+/g, "URL").replace(/\s+/g, " ").trim().slice(0, 280);
+}
+function extractUrls(t4) {
+  return [...t4.match(URL_RE) ?? []].map((u5) => u5.replace(/[.,;!?)]+$/, ""));
+}
+function similar(a4, b5) {
+  const na2 = normalizeText(a4);
+  const nb = normalizeText(b5);
+  if (!na2 || !nb) return false;
+  if (na2 === nb) return true;
+  if (na2.length > 40 && nb.includes(na2.slice(0, 60))) return true;
+  if (nb.length > 40 && na2.includes(nb.slice(0, 60))) return true;
+  return false;
+}
+function runAuditorHeuristics(turns) {
+  const findings = [];
+  const assistants = turns.filter((t4) => t4.role === "assistant" && t4.content?.trim());
+  const users2 = turns.filter((t4) => t4.role === "user" && t4.content?.trim());
+  for (let i6 = 1; i6 < assistants.length; i6++) {
+    const prev = extractUrls(assistants[i6 - 1].content);
+    const cur = extractUrls(assistants[i6].content);
+    if (prev.length === 0 || cur.length === 0) continue;
+    const overlap = cur.filter((u5) => prev.some((p5) => p5 === u5));
+    if (overlap.length >= 1 && similar(assistants[i6 - 1].content, assistants[i6].content)) {
+      findings.push({
+        category: "loop_links",
+        severity: "warn",
+        evidence: `Lucy repiti\xF3 links (${overlap.slice(0, 2).join(", ")}) en respuestas seguidas.`,
+        proposedRepair: "Evitar reenviar el mismo cat\xE1logo/link si el cliente pide detalle o precio; responder con solo/completo o Sheet."
+      });
+      break;
+    }
+  }
+  for (let i6 = 1; i6 < assistants.length; i6++) {
+    if (similar(assistants[i6 - 1].content, assistants[i6].content)) {
+      findings.push({
+        category: "repeat_reply",
+        severity: "warn",
+        evidence: `Respuesta casi id\xE9ntica repetida: \xAB${normalizeText(assistants[i6].content).slice(0, 120)}\u2026\xBB`,
+        proposedRepair: "Anti-repeat: no volver a emitir el mismo cuerpo; avanzar embudo o dar detalle nuevo."
+      });
+      break;
+    }
+  }
+  for (let i6 = 0; i6 < turns.length; i6++) {
+    const t4 = turns[i6];
+    if (t4.role !== "assistant" || !CLOSE_RE.test(t4.content)) continue;
+    const prevUser = [...turns.slice(0, i6)].reverse().find((x8) => x8.role === "user");
+    if (prevUser && (PRICE_RE.test(prevUser.content) || DETAIL_RE.test(prevUser.content))) {
+      findings.push({
+        category: "premature_close",
+        severity: "error",
+        evidence: `Cierre \xABya tengo todo\xBB tras cliente pedir precio/detalle: \xAB${prevUser.content.slice(0, 100)}\xBB`,
+        proposedRepair: "No cerrar si clientAsksPrice / clientAsksNamedServiceDetail; responder Sheet o solo vs completo."
+      });
+      break;
+    }
+  }
+  for (const a4 of assistants) {
+    if (/no lo tengo listado/i.test(a4.content) && /\bcena\b/i.test(a4.content)) {
+      findings.push({
+        category: "bad_field",
+        severity: "error",
+        evidence: `Level-2 sobre Cena (posible ocasi\xF3n): \xAB${a4.content.slice(0, 140)}\xBB`,
+        proposedRepair: "isOccasionMealEventType: cena conmemorativa/d\xEDa del m\xE9dico = tipo de evento, no SKU Cena."
+      });
+      break;
+    }
+  }
+  const funnelAsks = assistants.map((a4) => a4.content.match(FUNNEL_Q_RE)?.[0]?.toLowerCase()).filter(Boolean);
+  const counts = /* @__PURE__ */ new Map();
+  for (const q3 of funnelAsks) counts.set(q3, (counts.get(q3) ?? 0) + 1);
+  for (const [q3, n5] of counts) {
+    if (n5 >= 3) {
+      findings.push({
+        category: "stuck_funnel",
+        severity: "warn",
+        evidence: `Pregunta de embudo \xAB${q3}\xBB repetida ${n5} veces.`,
+        proposedRepair: "Marcar campo satisfecho o cambiar de pregunta; no repreguntar el mismo slot."
+      });
+      break;
+    }
+  }
+  void users2;
+  return findings;
+}
+function transcriptNeedsFlash(turns, heuristicCount) {
+  if (heuristicCount > 0) return false;
+  const assistants = turns.filter((t4) => t4.role === "assistant").length;
+  return assistants >= 4 && turns.length >= 8;
+}
+var URL_RE, CLOSE_RE, PRICE_RE, DETAIL_RE, FUNNEL_Q_RE;
+var init_lucyAuditorHeuristics = __esm({
+  "src/services/lucyAuditorHeuristics.ts"() {
+    "use strict";
+    URL_RE = /https?:\/\/[^\s)]+/gi;
+    CLOSE_RE = /\bya tengo todo\b|\bcotizaci[oó]n personalizada\b/i;
+    PRICE_RE = /\b(precio|costo|cu[aá]nto\s+cuesta|cotiz)/i;
+    DETAIL_RE = /\b(detalle|detalles|opci[oó]n\s+de\s+alimentos|qu[eé]\s+incluye)/i;
+    FUNNEL_Q_RE = /\b(cu[aá]ntos?\s+invitados|qu[eé]\s+d[ií]a|a\s+qu[eé]\s+hora|en\s+qu[eé]\s+ciudad|correo|presupuesto|qu[eé]\s+van\s+a\s+celebrar|regalas?\s+tu\s+nombre)/i;
+  }
+});
+
+// src/services/lucyAuditorLlm.ts
+var lucyAuditorLlm_exports = {};
+__export(lucyAuditorLlm_exports, {
+  DEFAULT_AUDITOR_MODEL: () => DEFAULT_AUDITOR_MODEL,
+  canSpendAuditorCall: () => canSpendAuditorCall,
+  getAuditorMaxCallsPerDay: () => getAuditorMaxCallsPerDay,
+  getAuditorModel: () => getAuditorModel,
+  getAuditorQuotaSnapshot: () => getAuditorQuotaSnapshot,
+  runAuditorLlm: () => runAuditorLlm
+});
+function getAuditorModel() {
+  const raw = (process.env["LUCY_AUDITOR_MODEL"] ?? DEFAULT_AUDITOR_MODEL).trim();
+  if (!raw || BLOCKED_AUDITOR.test(raw)) return DEFAULT_AUDITOR_MODEL;
+  return raw;
+}
+function getAuditorMaxCallsPerDay() {
+  const n5 = Number(process.env["LUCY_AUDITOR_MAX_CALLS_PER_DAY"] ?? "40");
+  if (!Number.isFinite(n5) || n5 < 0) return 40;
+  return Math.min(Math.floor(n5), 200);
+}
+function todayKey() {
+  return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+}
+function getAuditorQuotaSnapshot() {
+  const key = todayKey();
+  if (key !== dayKey) {
+    dayKey = key;
+    callsToday = 0;
+  }
+  const maxPerDay = getAuditorMaxCallsPerDay();
+  return {
+    callsToday,
+    maxPerDay,
+    model: getAuditorModel(),
+    remaining: Math.max(0, maxPerDay - callsToday)
+  };
+}
+function canSpendAuditorCall() {
+  return getAuditorQuotaSnapshot().remaining > 0 && isLlmConfigured();
+}
+function noteAuditorCall() {
+  const key = todayKey();
+  if (key !== dayKey) {
+    dayKey = key;
+    callsToday = 0;
+  }
+  callsToday += 1;
+}
+async function runAuditorLlm(transcript) {
+  if (!canSpendAuditorCall()) return [];
+  const model = getAuditorModel();
+  const key = getGeminiApiKey();
+  if (!key) return [];
+  noteAuditorCall();
+  const ai2 = new GoogleGenAI2({ apiKey: key });
+  const prompt = [
+    "Eres auditor de calidad de Lucy (agente Bodasesor). NUNCA escribes al cliente.",
+    "Revisa el transcript y detecta SOLO: bucles de links, respuestas repetidas,",
+    "cierre prematuro (ya tengo todo) cuando ped\xEDan precio/detalle, campos mal",
+    "(cena ocasi\xF3n como SKU), embudo trabado (misma pregunta 3+ veces).",
+    "Responde JSON array: [{category,severity,evidence,proposedRepair}]",
+    "category: loop_links|repeat_reply|premature_close|bad_field|stuck_funnel|other",
+    "severity: info|warn|error. proposedRepair: acci\xF3n concreta para el equipo/c\xF3digo.",
+    "Si no hay problemas, responde [].",
+    "",
+    "TRANSCRIPT:",
+    transcript.slice(0, 6e3)
+  ].join("\n");
+  try {
+    const result = await ai2.models.generateContent({
+      model,
+      contents: prompt,
+      config: {
+        temperature: 0.1,
+        maxOutputTokens: 800,
+        responseMimeType: "application/json"
+      }
+    });
+    const text2 = (result.text ?? "").trim();
+    if (!text2) return [];
+    const parsed = JSON.parse(text2);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((x8) => x8 && typeof x8 === "object").map((x8) => {
+      const o6 = x8;
+      return {
+        category: String(o6.category ?? "other").slice(0, 40),
+        severity: ["info", "warn", "error"].includes(String(o6.severity)) ? o6.severity : "warn",
+        evidence: String(o6.evidence ?? "").slice(0, 800),
+        proposedRepair: String(o6.proposedRepair ?? "").slice(0, 800)
+      };
+    }).filter((f7) => f7.evidence && f7.proposedRepair);
+  } catch (err2) {
+    logger.warn({ err: err2, model }, "runAuditorLlm fall\xF3");
+    return [];
+  }
+}
+var DEFAULT_AUDITOR_MODEL, BLOCKED_AUDITOR, dayKey, callsToday;
+var init_lucyAuditorLlm = __esm({
+  "src/services/lucyAuditorLlm.ts"() {
+    "use strict";
+    init_node();
+    init_llmEnv();
+    init_logger2();
+    DEFAULT_AUDITOR_MODEL = "gemini-2.5-flash";
+    BLOCKED_AUDITOR = /(?:^|\/)(imagen|nano[-\s]?banana|gemini-[\w.-]*-image|gemini-.*-pro|gemini-ultra|gemini-3\.6)(?:$|\/|-)/i;
+    dayKey = "";
+    callsToday = 0;
+  }
+});
+
+// src/services/lucyRepairSchema.ts
+async function ensureLucyRepairSchema() {
+  if (ensured4) return;
+  try {
+    await db.execute(sql.raw(CREATE_TABLE3));
+    await db.execute(
+      sql.raw(
+        `CREATE INDEX IF NOT EXISTS lucy_repairs_status_idx ON lucy_repairs (status, created_at DESC)`
+      )
+    );
+  } catch (err2) {
+    logger.warn({ err: err2 }, "lucyRepairSchema: fall\xF3");
+  }
+  ensured4 = true;
+}
+var ensured4, CREATE_TABLE3;
+var init_lucyRepairSchema = __esm({
+  async "src/services/lucyRepairSchema.ts"() {
+    "use strict";
+    await init_src2();
+    init_drizzle_orm();
+    init_logger2();
+    ensured4 = false;
+    CREATE_TABLE3 = `
+CREATE TABLE IF NOT EXISTS lucy_repairs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kommo_lead_id TEXT,
+  category VARCHAR(40) NOT NULL DEFAULT 'other',
+  severity VARCHAR(20) NOT NULL DEFAULT 'warn',
+  evidence TEXT NOT NULL,
+  proposed_repair TEXT NOT NULL,
+  applied_repair TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'open',
+  source VARCHAR(20) NOT NULL DEFAULT 'heuristic',
+  model TEXT,
+  dedupe_key TEXT UNIQUE,
+  resolved_at TIMESTAMP,
+  resolved_by TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+)`;
+  }
+});
+
+// src/services/lucyRepairStore.ts
+var lucyRepairStore_exports = {};
+__export(lucyRepairStore_exports, {
+  countOpenRepairs: () => countOpenRepairs,
+  dismissLucyRepair: () => dismissLucyRepair,
+  getLucyRepairStats: () => getLucyRepairStats,
+  listLucyRepairs: () => listLucyRepairs,
+  recordLucyRepair: () => recordLucyRepair,
+  resolveLucyRepair: () => resolveLucyRepair
+});
+function rowToDto3(row) {
+  return {
+    id: row.id,
+    kommoLeadId: row.kommoLeadId ?? void 0,
+    category: row.category,
+    severity: row.severity,
+    evidence: row.evidence,
+    proposedRepair: row.proposedRepair,
+    appliedRepair: row.appliedRepair ?? void 0,
+    status: row.status,
+    source: row.source,
+    model: row.model ?? void 0,
+    createdAt: row.createdAt.toISOString(),
+    resolvedAt: row.resolvedAt?.toISOString(),
+    resolvedBy: row.resolvedBy ?? void 0
+  };
+}
+function normalizeDedupeKey2(category, leadId, evidence) {
+  const e4 = evidence.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 160);
+  return `${category}:${leadId ?? "none"}:${e4}`;
+}
+async function listLucyRepairs(status = "open", limit2 = 50) {
+  await ensureLucyRepairSchema();
+  const q3 = db.select().from(lucyRepairs).orderBy(desc(lucyRepairs.createdAt)).limit(limit2);
+  if (status === "all") {
+    const rows2 = await q3;
+    return rows2.map(rowToDto3);
+  }
+  const rows = await db.select().from(lucyRepairs).where(eq(lucyRepairs.status, status)).orderBy(desc(lucyRepairs.createdAt)).limit(limit2);
+  return rows.map(rowToDto3);
+}
+async function getLucyRepairStats() {
+  await ensureLucyRepairSchema();
+  const rows = await db.select().from(lucyRepairs);
+  const { getAuditorQuotaSnapshot: getAuditorQuotaSnapshot2 } = await Promise.resolve().then(() => (init_lucyAuditorLlm(), lucyAuditorLlm_exports));
+  const quota = getAuditorQuotaSnapshot2();
+  return {
+    open: rows.filter((r5) => r5.status === "open").length,
+    auto_flagged: rows.filter((r5) => r5.status === "auto_flagged").length,
+    resolved: rows.filter((r5) => r5.status === "resolved").length,
+    dismissed: rows.filter((r5) => r5.status === "dismissed").length,
+    auditor_calls_today: quota.callsToday,
+    auditor_max_per_day: quota.maxPerDay,
+    auditor_model: quota.model
+  };
+}
+async function recordLucyRepair(input) {
+  const evidence = input.evidence?.trim();
+  const proposed = input.proposedRepair?.trim();
+  if (!evidence || !proposed) return false;
+  await ensureLucyRepairSchema();
+  const category = (input.category || "other").trim().slice(0, 40);
+  const leadId = input.kommoLeadId ? String(input.kommoLeadId) : void 0;
+  const dedupeKey2 = normalizeDedupeKey2(category, leadId, evidence);
+  try {
+    const [existing] = await db.select().from(lucyRepairs).where(eq(lucyRepairs.dedupeKey, dedupeKey2)).limit(1);
+    if (existing) {
+      if (existing.status === "dismissed" || existing.status === "resolved") return false;
+      await db.update(lucyRepairs).set({
+        evidence,
+        proposedRepair: proposed,
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq(lucyRepairs.id, existing.id));
+      return true;
+    }
+    await db.insert(lucyRepairs).values({
+      kommoLeadId: leadId ?? null,
+      category,
+      severity: input.severity ?? "warn",
+      evidence,
+      proposedRepair: proposed,
+      status: input.status ?? "auto_flagged",
+      source: input.source ?? "heuristic",
+      model: input.model ?? null,
+      dedupeKey: dedupeKey2
+    });
+    logger.info({ category, leadId, source: input.source }, "lucy_repair registrado");
+    return true;
+  } catch (err2) {
+    logger.warn({ err: err2, dedupeKey: dedupeKey2 }, "recordLucyRepair: fall\xF3");
+    return false;
+  }
+}
+async function resolveLucyRepair(id, appliedRepair, reviewer) {
+  await ensureLucyRepairSchema();
+  const [updated] = await db.update(lucyRepairs).set({
+    status: "resolved",
+    appliedRepair: appliedRepair?.trim() || "Marcado resuelto desde panel",
+    resolvedAt: /* @__PURE__ */ new Date(),
+    resolvedBy: reviewer ?? null,
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(eq(lucyRepairs.id, id)).returning();
+  return updated ? rowToDto3(updated) : null;
+}
+async function dismissLucyRepair(id, reviewer) {
+  await ensureLucyRepairSchema();
+  const updated = await db.update(lucyRepairs).set({
+    status: "dismissed",
+    resolvedBy: reviewer ?? null,
+    resolvedAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(eq(lucyRepairs.id, id)).returning({ id: lucyRepairs.id });
+  return updated.length > 0;
+}
+async function countOpenRepairs() {
+  await ensureLucyRepairSchema();
+  const rows = await db.select({ n: sql`count(*)::int` }).from(lucyRepairs).where(eq(lucyRepairs.status, "open"));
+  return Number(rows[0]?.n ?? 0);
+}
+var init_lucyRepairStore = __esm({
+  async "src/services/lucyRepairStore.ts"() {
+    "use strict";
+    await init_src2();
+    init_drizzle_orm();
+    await init_lucyRepairSchema();
+    init_logger2();
+  }
+});
+
+// src/services/lucyAuditor.ts
+var lucyAuditor_exports = {};
+__export(lucyAuditor_exports, {
+  getAuditorQuotaSnapshot: () => getAuditorQuotaSnapshot,
+  runLucyAuditorBatch: () => runLucyAuditorBatch
+});
+async function loadRecentTranscripts(limitLeads = 12) {
+  const convs = await db.select({ leadId: conversations.kommoLeadId }).from(conversations).orderBy(desc(conversations.updatedAt)).limit(limitLeads);
+  const out2 = [];
+  for (const c5 of convs) {
+    const rows = await db.select({
+      role: messages.role,
+      content: messages.content
+    }).from(messages).where(eq(messages.kommoLeadId, c5.leadId)).orderBy(messages.timestamp).limit(40);
+    if (rows.length < 2) continue;
+    out2.push({
+      leadId: c5.leadId,
+      turns: rows.map((r5) => ({
+        role: r5.role,
+        content: r5.content ?? ""
+      }))
+    });
+  }
+  return out2;
+}
+function formatTranscript(turns) {
+  return turns.map((t4) => `${t4.role === "assistant" ? "LUCY" : "CLIENTE"}: ${t4.content}`).join("\n").slice(0, 6e3);
+}
+async function runLucyAuditorBatch(opts) {
+  const limitLeads = opts?.limitLeads ?? 12;
+  const useFlash = opts?.useFlash !== false;
+  let flashCalls = 0;
+  let findings = 0;
+  let recorded = 0;
+  const transcripts = await loadRecentTranscripts(limitLeads);
+  for (const { leadId, turns } of transcripts) {
+    const heuristic = runAuditorHeuristics(turns);
+    for (const f7 of heuristic) {
+      findings += 1;
+      const ok = await recordLucyRepair({
+        kommoLeadId: leadId,
+        category: f7.category,
+        severity: f7.severity,
+        evidence: f7.evidence,
+        proposedRepair: f7.proposedRepair,
+        status: "auto_flagged",
+        source: "heuristic"
+      });
+      if (ok) recorded += 1;
+    }
+    if (useFlash && transcriptNeedsFlash(turns, heuristic.length) && canSpendAuditorCall()) {
+      const llmFindings = await runAuditorLlm(formatTranscript(turns));
+      flashCalls += 1;
+      for (const f7 of llmFindings) {
+        findings += 1;
+        const ok = await recordLucyRepair({
+          kommoLeadId: leadId,
+          category: f7.category,
+          severity: f7.severity,
+          evidence: f7.evidence,
+          proposedRepair: f7.proposedRepair,
+          status: "open",
+          source: "flash",
+          model: getAuditorModel()
+        });
+        if (ok) recorded += 1;
+      }
+    }
+  }
+  const result = {
+    scanned: transcripts.length,
+    findings,
+    recorded,
+    flashCalls,
+    quota: getAuditorQuotaSnapshot()
+  };
+  logger.info(result, "lucyAuditor batch finished");
+  return result;
+}
+var init_lucyAuditor = __esm({
+  async "src/services/lucyAuditor.ts"() {
+    "use strict";
+    await init_src2();
+    init_drizzle_orm();
+    init_logger2();
+    init_lucyAuditorHeuristics();
+    init_lucyAuditorLlm();
+    await init_lucyRepairStore();
+    init_lucyAuditorLlm();
   }
 });
 
@@ -227849,13 +228365,13 @@ function ensureKommoEnv() {
 }
 
 // src/app.ts
-var import_express13 = __toESM(require_express2(), 1);
+var import_express14 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
 import path6 from "node:path";
 
 // src/routes/index.ts
-var import_express12 = __toESM(require_express2(), 1);
+var import_express13 = __toESM(require_express2(), 1);
 
 // src/routes/health.ts
 var import_express = __toESM(require_express2(), 1);
@@ -228626,7 +229142,7 @@ router.get("/health", async (_req, res) => {
     gemini_cost_controls: lucyCostControlsSummary(),
     google_grounding_enabled: isGoogleGroundingEnabled(),
     google_grounding_stats: getGoogleGroundingStats(),
-    gemini_policy: "V10.20: A16263 cena ocasi\xF3n\u2260SKU; estaciones solo vs completo; precio no cierra; flash-lite; grounding OPT-IN.",
+    gemini_policy: "V10.20: A16263 + auditor reparaciones (gemini-2.5-flash offline, nunca WhatsApp); flash-lite chat.",
     kommo_configured: isKommoConfigured(),
     kommo_subdomain: getKommoSubdomain() || null,
     lucy_outbound: {
@@ -235693,6 +236209,17 @@ router3.get("/kommo/cron/learning", async (req, res) => {
   const { handleLearningCron: handleLearningCron2 } = await init_learning().then(() => learning_exports);
   await handleLearningCron2(req, res);
 });
+router3.get("/kommo/cron/reparaciones", async (req, res) => {
+  if (!assertCronAuthorized(req, res)) return;
+  try {
+    const { runLucyAuditorBatch: runLucyAuditorBatch2 } = await init_lucyAuditor().then(() => lucyAuditor_exports);
+    const result = await runLucyAuditorBatch2({ limitLeads: 10, useFlash: true });
+    res.json({ ok: true, ...result });
+  } catch (err2) {
+    req.log?.error?.({ err: err2 }, "Cron reparaciones: error");
+    res.status(500).json({ error: "cron_failed" });
+  }
+});
 router3.post("/kommo/lucy/activar/:leadId", async (req, res) => {
   const subdomain = process.env["KOMMO_SUBDOMAIN"]?.trim().replace(/\s+/g, "").toLowerCase() ?? "";
   const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";
@@ -236702,6 +237229,20 @@ async function buildOpsStatus() {
     status: "ok",
     detail: `${build.lucy_prompt} \xB7 ${build.built_at_display}${build.git_commit_short ? ` \xB7 commit ${build.git_commit_short}` : ""}`
   });
+  try {
+    const { getAuditorQuotaSnapshot: getAuditorQuotaSnapshot2 } = await Promise.resolve().then(() => (init_lucyAuditorLlm(), lucyAuditorLlm_exports));
+    const { getLucyRepairStats: getLucyRepairStats2 } = await init_lucyRepairStore().then(() => lucyRepairStore_exports);
+    const quota = getAuditorQuotaSnapshot2();
+    const repairStats = await getLucyRepairStats2();
+    const openN = repairStats.open + repairStats.auto_flagged;
+    checks.push({
+      id: "auditor",
+      label: "Auditor reparaciones",
+      status: quota.remaining === 0 ? "warn" : openN > 10 ? "warn" : "ok",
+      detail: quota.remaining === 0 ? `Cupo Flash agotado hoy (${quota.callsToday}/${quota.maxPerDay}) \xB7 ${openN} abiertas` : `${quota.model} \xB7 ${quota.callsToday}/${quota.maxPerDay} Flash \xB7 ${openN} abiertas`
+    });
+  } catch {
+  }
   const hasError = checks.some((c5) => c5.status === "error");
   const hasWarn = checks.some((c5) => c5.status === "warn");
   return {
@@ -236760,24 +237301,107 @@ router11.post("/ops/heal", async (_req, res) => {
 });
 var ops_default = router11;
 
-// src/routes/index.ts
+// src/routes/reparaciones.ts
+var import_express12 = __toESM(require_express2(), 1);
+await init_lucyRepairStore();
+await init_lucyAuditor();
 var router12 = (0, import_express12.Router)();
-router12.use(health_default);
-router12.use(ops_default);
-router12.use(catalog_default);
-router12.use(kommo_default);
-router12.use(lucy_default);
-router12.use(auth_default);
-router12.use(knowledgeGaps_default);
-router12.use(lucyInfo_default);
-router12.use(learning_default);
-router12.use(examples_default);
-router12.use(analytics_default);
-var routes_default = router12;
+router12.get("/reparaciones", async (req, res) => {
+  try {
+    const statusParam = String(req.query.status ?? "open");
+    const status = ["open", "auto_flagged", "resolved", "dismissed", "all"].includes(statusParam) ? statusParam : "open";
+    if (statusParam === "open") {
+      const open2 = await listLucyRepairs("open", 40);
+      const flagged = await listLucyRepairs("auto_flagged", 40);
+      const merged = [...flagged, ...open2].sort((a4, b5) => b5.createdAt.localeCompare(a4.createdAt)).slice(0, 50);
+      res.json({ repairs: merged, total: merged.length });
+      return;
+    }
+    const repairs = await listLucyRepairs(status, Math.min(Number(req.query.limit ?? 50), 100));
+    res.json({ repairs, total: repairs.length });
+  } catch {
+    res.status(500).json({ error: "failed_to_load_reparaciones" });
+  }
+});
+router12.get("/reparaciones/stats", async (_req, res) => {
+  try {
+    res.json(await getLucyRepairStats());
+  } catch {
+    res.status(500).json({ error: "failed_to_load_stats" });
+  }
+});
+router12.post("/reparaciones/run", async (req, res) => {
+  try {
+    const result = await runLucyAuditorBatch({
+      limitLeads: Math.min(Number(req.body?.limitLeads ?? 12), 30),
+      useFlash: req.body?.useFlash !== false
+    });
+    res.json({ ok: true, ...result });
+  } catch (err2) {
+    req.log?.error?.({ err: err2 }, "reparaciones/run failed");
+    res.status(500).json({ error: "audit_failed" });
+  }
+});
+router12.post("/reparaciones/cron", async (req, res) => {
+  try {
+    const result = await runLucyAuditorBatch({ limitLeads: 10, useFlash: true });
+    res.json({ ok: true, ...result });
+  } catch (err2) {
+    req.log?.error?.({ err: err2 }, "reparaciones/cron failed");
+    res.status(500).json({ error: "cron_failed" });
+  }
+});
+router12.post("/reparaciones/:id/resolve", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const updated = await resolveLucyRepair(
+      id,
+      typeof req.body?.appliedRepair === "string" ? req.body.appliedRepair : void 0,
+      "panel"
+    );
+    if (!updated) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    res.json(updated);
+  } catch {
+    res.status(500).json({ error: "resolve_failed" });
+  }
+});
+router12.post("/reparaciones/:id/dismiss", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const ok = await dismissLucyRepair(id, "panel");
+    if (!ok) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "dismiss_failed" });
+  }
+});
+var reparaciones_default = router12;
+
+// src/routes/index.ts
+var router13 = (0, import_express13.Router)();
+router13.use(health_default);
+router13.use(ops_default);
+router13.use(reparaciones_default);
+router13.use(catalog_default);
+router13.use(kommo_default);
+router13.use(lucy_default);
+router13.use(auth_default);
+router13.use(knowledgeGaps_default);
+router13.use(lucyInfo_default);
+router13.use(learning_default);
+router13.use(examples_default);
+router13.use(analytics_default);
+var routes_default = router13;
 
 // src/app.ts
 init_logger2();
-var app = (0, import_express13.default)();
+var app = (0, import_express14.default)();
 var simuladorDir = path6.join(__dirname, "simulador");
 var simuladorIndex = path6.join(simuladorDir, "index.html");
 app.set("trust proxy", 1);
@@ -236801,13 +237425,13 @@ app.use(
   })
 );
 app.use((0, import_cors.default)());
-app.use(import_express13.default.json({ limit: "30mb" }));
-app.use(import_express13.default.urlencoded({ extended: true, limit: "30mb" }));
+app.use(import_express14.default.json({ limit: "30mb" }));
+app.use(import_express14.default.urlencoded({ extended: true, limit: "30mb" }));
 function mountSimulador(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(simuladorIndex);
   });
-  app.use(basePath, import_express13.default.static(simuladorDir, { index: false }));
+  app.use(basePath, import_express14.default.static(simuladorDir, { index: false }));
 }
 mountSimulador("/simulador");
 mountSimulador("/simulator");
@@ -236817,7 +237441,7 @@ function mountAdmin(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(adminIndex);
   });
-  app.use(basePath, import_express13.default.static(adminDir, { index: false }));
+  app.use(basePath, import_express14.default.static(adminDir, { index: false }));
 }
 mountAdmin("/lucy-admin");
 mountAdmin("/admin");
@@ -236827,7 +237451,7 @@ function mountAprendizaje(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(aprendizajeIndex);
   });
-  app.use(basePath, import_express13.default.static(aprendizajeDir, { index: false }));
+  app.use(basePath, import_express14.default.static(aprendizajeDir, { index: false }));
 }
 mountAprendizaje("/aprendizaje");
 var panelDir = path6.join(__dirname, "panel");
@@ -236836,7 +237460,7 @@ function mountPanel(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(panelIndex);
   });
-  app.use(basePath, import_express13.default.static(panelDir, { index: false }));
+  app.use(basePath, import_express14.default.static(panelDir, { index: false }));
 }
 mountPanel("/panel");
 var estadoDir = path6.join(__dirname, "estado");
@@ -236845,10 +237469,18 @@ function mountEstado(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(estadoIndex);
   });
-  app.use(basePath, import_express13.default.static(estadoDir, { index: false }));
+  app.use(basePath, import_express14.default.static(estadoDir, { index: false }));
 }
 mountEstado("/estado");
-mountEstado("/estado");
+var reparacionesDir = path6.join(__dirname, "reparaciones");
+var reparacionesIndex = path6.join(reparacionesDir, "index.html");
+function mountReparaciones(basePath) {
+  app.get([basePath, `${basePath}/`], (_req, res) => {
+    res.sendFile(reparacionesIndex);
+  });
+  app.use(basePath, import_express14.default.static(reparacionesDir, { index: false }));
+}
+mountReparaciones("/reparaciones");
 var catalogosLightDir = path6.join(__dirname, "catalogos-light");
 var catalogosLightIndex = path6.join(catalogosLightDir, "index.html");
 app.get(["/catalogos", "/catalogos/"], (_req, res) => {

@@ -10,6 +10,7 @@ import knowledgeGapsRouter from "./knowledgeGaps";
 import lucyInfoRouter from "./lucyInfo";
 import catalogRouter from "./catalog";
 import opsRouter from "./ops";
+import reparacionesRouter from "./reparaciones";
 
 const router: IRouter = Router();
 
@@ -17,8 +18,9 @@ const router: IRouter = Router();
 // router.use(requireAuth) sin path aplican auth a TODA petición que pase por
 // ellos — si van antes, bloquean knowledge-gaps/ops/aprendizaje con 401.
 router.use(healthRouter);
-// Ops público (panel Estado / Reparar) — ANTES de cualquier router.use(requireAuth).
+// Ops + Reparaciones públicos (panel) — ANTES de cualquier router.use(requireAuth).
 router.use(opsRouter);
+router.use(reparacionesRouter);
 router.use(catalogRouter);
 router.use(kommoRouter);
 router.use(lucyRouter);

@@ -185,6 +185,10 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   await cp(estadoSrc, path.join(distDir, "estado"), { recursive: true });
   console.log("[build] Estado copiado a dist/estado/");
 
+  const reparacionesSrc = path.resolve(artifactDir, "public/reparaciones");
+  await cp(reparacionesSrc, path.join(distDir, "reparaciones"), { recursive: true });
+  console.log("[build] Reparaciones copiado a dist/reparaciones/");
+
   const catalogosLightSrc = path.resolve(artifactDir, "public/catalogos-light");
   await cp(catalogosLightSrc, path.join(distDir, "catalogos-light"), { recursive: true });
   console.log("[build] Catálogos livianos copiados a dist/catalogos-light/");

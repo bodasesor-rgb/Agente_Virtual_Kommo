@@ -214,6 +214,30 @@ export type KnowledgeGapRecord = typeof knowledgeGaps.$inferSelect;
 export type InsertKnowledgeGap = typeof knowledgeGaps.$inferInsert;
 
 // ═══════════════════════════════════════════════════════════════════════════
+// REPARACIONES LUCY — auditor offline (nunca escribe al cliente)
+// ═══════════════════════════════════════════════════════════════════════════
+export const lucyRepairs = pgTable("lucy_repairs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kommoLeadId: text("kommo_lead_id"),
+  category: varchar("category", { length: 40 }).notNull().default("other"),
+  severity: varchar("severity", { length: 20 }).notNull().default("warn"),
+  evidence: text("evidence").notNull(),
+  proposedRepair: text("proposed_repair").notNull(),
+  appliedRepair: text("applied_repair"),
+  status: varchar("status", { length: 20 }).notNull().default("open"),
+  source: varchar("source", { length: 20 }).notNull().default("heuristic"),
+  model: text("model"),
+  dedupeKey: text("dedupe_key").unique(),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedBy: text("resolved_by"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type LucyRepairRecord = typeof lucyRepairs.$inferSelect;
+export type InsertLucyRepair = typeof lucyRepairs.$inferInsert;
+
+// ═══════════════════════════════════════════════════════════════════════════
 // INFORMACIÓN MANUAL PARA LUCY (PDFs→texto + tendencias / consejos)
 // Panel /aprendizaje → pestaña «Información para Lucy»
 // ═══════════════════════════════════════════════════════════════════════════
