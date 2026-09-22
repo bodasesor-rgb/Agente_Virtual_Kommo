@@ -188607,7 +188607,7 @@ async function loadTurnsForLead(leadId, since, limit2 = 60) {
     content: r5.content ?? ""
   }));
 }
-async function syncTodayLeadsFromKommo(limitLeads) {
+async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
   const subdomain = getKommoSubdomain();
   const accessToken = getKommoAccessToken();
   if (!subdomain || !accessToken) {
@@ -188622,6 +188622,11 @@ async function syncTodayLeadsFromKommo(limitLeads) {
       (statusId) => `https://${subdomain}.kommo.com/api/v4/leads?filter[statuses][0][pipeline_id]=${PIPELINE_ID}&filter[statuses][0][status_id]=${statusId}&limit=50&order[updated_at]=desc`
     )
   ];
+  onProgress?.({
+    type: "phase",
+    phase: "sync",
+    message: "Buscando leads del d\xEDa en Kommo\u2026"
+  });
   for (const url2 of urls) {
     try {
       const res = await fetch(url2, {
@@ -188642,7 +188647,15 @@ async function syncTodayLeadsFromKommo(limitLeads) {
   }
   let synced = 0;
   const ids = [...leadIds].slice(0, limitLeads);
-  for (const leadId of ids) {
+  for (let i6 = 0; i6 < ids.length; i6++) {
+    const leadId = ids[i6];
+    onProgress?.({
+      type: "sync",
+      current: i6 + 1,
+      total: ids.length,
+      leadId,
+      synced
+    });
     try {
       const conv = await db.query.conversations.findFirst({
         where: eq(conversations.kommoLeadId, leadId)
@@ -188701,8 +188714,14 @@ function formatTranscript(turns) {
 }
 async function runLucyAuditorBatch(opts) {
   const dayKey2 = mexicoCityDayKey();
+  const report = (ev) => {
+    try {
+      opts?.onProgress?.(ev);
+    } catch {
+    }
+  };
   if (opts?.oncePerDay && lastDailyRunDay === dayKey2) {
-    return {
+    const result2 = {
       scanned: 0,
       findings: 0,
       recorded: 0,
@@ -188711,6 +188730,8 @@ async function runLucyAuditorBatch(opts) {
       dayKey: dayKey2,
       quota: getAuditorQuotaSnapshot()
     };
+    report({ type: "result", result: result2 });
+    return result2;
   }
   const onlyToday = opts?.onlyToday === true;
   const limitLeads = opts?.limitLeads ?? (onlyToday ? 50 : 20);
@@ -188718,7 +188739,7 @@ async function runLucyAuditorBatch(opts) {
   const syncFromKommo = opts?.syncFromKommo !== false && onlyToday;
   let syncedFromKommo = 0;
   if (syncFromKommo) {
-    syncedFromKommo = await syncTodayLeadsFromKommo(limitLeads);
+    syncedFromKommo = await syncTodayLeadsFromKommo(limitLeads, report);
   }
   const since = onlyToday ? startOfMexicoCityDay() : null;
   const leadIds = onlyToday ? await loadLeadIdsWithMessagesSince(since, limitLeads) : await loadLeadIdsRecent(limitLeads);
@@ -188726,10 +188747,18 @@ async function runLucyAuditorBatch(opts) {
   let findings = 0;
   let recorded = 0;
   const transcripts = await loadTranscriptsForLeadIds(leadIds, since);
-  for (const { leadId, turns } of transcripts) {
+  report({
+    type: "phase",
+    phase: "scan",
+    message: `Revisando ${transcripts.length} chat(s)\u2026`
+  });
+  for (let i6 = 0; i6 < transcripts.length; i6++) {
+    const { leadId, turns } = transcripts[i6];
+    let chatFindings = 0;
     const heuristic = runAuditorHeuristics(turns);
     for (const f7 of heuristic) {
       findings += 1;
+      chatFindings += 1;
       const ok = await recordLucyRepair({
         kommoLeadId: leadId,
         category: f7.category,
@@ -188740,6 +188769,14 @@ async function runLucyAuditorBatch(opts) {
         source: "heuristic"
       });
       if (ok) recorded += 1;
+      report({
+        type: "finding",
+        leadId,
+        category: f7.category,
+        severity: f7.severity,
+        evidence: f7.evidence,
+        source: "heuristic"
+      });
     }
     const hasLucy = turns.some((t4) => t4.role === "assistant");
     if (useFlash && hasLucy && transcriptNeedsFlash(turns, heuristic.length) && canSpendAuditorCall()) {
@@ -188747,6 +188784,7 @@ async function runLucyAuditorBatch(opts) {
       flashCalls += 1;
       for (const f7 of llmFindings) {
         findings += 1;
+        chatFindings += 1;
         const ok = await recordLucyRepair({
           kommoLeadId: leadId,
           category: f7.category,
@@ -188758,8 +188796,26 @@ async function runLucyAuditorBatch(opts) {
           model: getAuditorModel()
         });
         if (ok) recorded += 1;
+        report({
+          type: "finding",
+          leadId,
+          category: f7.category,
+          severity: f7.severity,
+          evidence: f7.evidence,
+          source: "flash"
+        });
       }
     }
+    report({
+      type: "chat",
+      current: i6 + 1,
+      total: transcripts.length,
+      leadId,
+      findings,
+      recorded,
+      flashCalls,
+      ok: chatFindings === 0
+    });
   }
   if (opts?.oncePerDay) {
     lastDailyRunDay = dayKey2;
@@ -188773,6 +188829,8 @@ async function runLucyAuditorBatch(opts) {
     dayKey: dayKey2,
     quota: getAuditorQuotaSnapshot()
   };
+  report({ type: "phase", phase: "done", message: "Auditor\xEDa terminada" });
+  report({ type: "result", result });
   logger.info(result, "lucyAuditor batch finished");
   return result;
 }
@@ -237710,6 +237768,42 @@ router12.post("/reparaciones/run", async (req, res) => {
   } catch (err2) {
     req.log?.error?.({ err: err2 }, "reparaciones/run failed");
     res.status(500).json({ error: "audit_failed" });
+  }
+});
+router12.post("/reparaciones/run-stream", async (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  if (typeof res.flushHeaders === "function") {
+    res.flushHeaders();
+  }
+  const send = (payload) => {
+    if (res.writableEnded) return;
+    res.write(`data: ${JSON.stringify(payload)}
+
+`);
+  };
+  const onlyToday = req.body?.onlyToday !== false;
+  try {
+    send({ type: "phase", phase: "sync", message: "Iniciando auditor\xEDa\u2026" });
+    const result = await runLucyAuditorBatch({
+      limitLeads: Math.min(Number(req.body?.limitLeads ?? (onlyToday ? 50 : 20)), 80),
+      useFlash: req.body?.useFlash !== false,
+      onlyToday,
+      syncFromKommo: req.body?.syncFromKommo !== false,
+      oncePerDay: false,
+      onProgress: (ev) => send(ev)
+    });
+    send({ type: "result", result: { ok: true, ...result } });
+  } catch (err2) {
+    req.log?.error?.({ err: err2 }, "reparaciones/run-stream failed");
+    send({
+      type: "error",
+      message: err2 instanceof Error ? err2.message : "audit_failed"
+    });
+  } finally {
+    if (!res.writableEnded) res.end();
   }
 });
 router12.post("/reparaciones/cron", async (req, res) => {

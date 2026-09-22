@@ -37,6 +37,35 @@ export type AuditorRunResult = {
   quota: ReturnType<typeof getAuditorQuotaSnapshot>;
 };
 
+export type AuditorProgressEvent =
+  | { type: "phase"; phase: "sync" | "scan" | "done"; message: string }
+  | {
+      type: "sync";
+      current: number;
+      total: number;
+      leadId?: string;
+      synced: number;
+    }
+  | {
+      type: "chat";
+      current: number;
+      total: number;
+      leadId: string;
+      findings: number;
+      recorded: number;
+      flashCalls: number;
+      ok: boolean;
+    }
+  | {
+      type: "finding";
+      leadId: string;
+      category: string;
+      severity: string;
+      evidence: string;
+      source: string;
+    }
+  | { type: "result"; result: AuditorRunResult };
+
 let lastDailyRunDay: string | null = null;
 
 export function getLastDailyAuditDay(): string | null {
@@ -102,7 +131,10 @@ async function loadTurnsForLead(
  * Trae de Kommo los leads tocados hoy y sincroniza transcripts a BD.
  * Así el auditor ve los chats del día aunque el webhook no haya persistido todos.
  */
-async function syncTodayLeadsFromKommo(limitLeads: number): Promise<number> {
+async function syncTodayLeadsFromKommo(
+  limitLeads: number,
+  onProgress?: (ev: AuditorProgressEvent) => void
+): Promise<number> {
   const subdomain = getKommoSubdomain();
   const accessToken = getKommoAccessToken();
   if (!subdomain || !accessToken) {
@@ -124,6 +156,12 @@ async function syncTodayLeadsFromKommo(limitLeads: number): Promise<number> {
         `&limit=50&order[updated_at]=desc`
     ),
   ];
+
+  onProgress?.({
+    type: "phase",
+    phase: "sync",
+    message: "Buscando leads del día en Kommo…",
+  });
 
   for (const url of urls) {
     try {
@@ -151,7 +189,15 @@ async function syncTodayLeadsFromKommo(limitLeads: number): Promise<number> {
   let synced = 0;
   const ids = [...leadIds].slice(0, limitLeads);
   // Secuencial con tope: evita saturar Kommo / Hostinger timeout.
-  for (const leadId of ids) {
+  for (let i = 0; i < ids.length; i++) {
+    const leadId = ids[i]!;
+    onProgress?.({
+      type: "sync",
+      current: i + 1,
+      total: ids.length,
+      leadId,
+      synced,
+    });
     try {
       const conv = await db.query.conversations.findFirst({
         where: eq(conversations.kommoLeadId, leadId),
@@ -238,10 +284,19 @@ export async function runLucyAuditorBatch(opts?: {
   oncePerDay?: boolean;
   /** Antes de escanear, sincroniza leads del día desde Kommo → BD. */
   syncFromKommo?: boolean;
+  onProgress?: (ev: AuditorProgressEvent) => void;
 }): Promise<AuditorRunResult> {
   const dayKey = mexicoCityDayKey();
+  const report = (ev: AuditorProgressEvent) => {
+    try {
+      opts?.onProgress?.(ev);
+    } catch {
+      /* UI no debe tumbar el batch */
+    }
+  };
+
   if (opts?.oncePerDay && lastDailyRunDay === dayKey) {
-    return {
+    const result: AuditorRunResult = {
       scanned: 0,
       findings: 0,
       recorded: 0,
@@ -250,6 +305,8 @@ export async function runLucyAuditorBatch(opts?: {
       dayKey,
       quota: getAuditorQuotaSnapshot(),
     };
+    report({ type: "result", result });
+    return result;
   }
 
   const onlyToday = opts?.onlyToday === true;
@@ -259,7 +316,7 @@ export async function runLucyAuditorBatch(opts?: {
 
   let syncedFromKommo = 0;
   if (syncFromKommo) {
-    syncedFromKommo = await syncTodayLeadsFromKommo(limitLeads);
+    syncedFromKommo = await syncTodayLeadsFromKommo(limitLeads, report);
   }
 
   const since = onlyToday ? startOfMexicoCityDay() : null;
@@ -272,11 +329,20 @@ export async function runLucyAuditorBatch(opts?: {
   let recorded = 0;
 
   const transcripts = await loadTranscriptsForLeadIds(leadIds, since);
+  report({
+    type: "phase",
+    phase: "scan",
+    message: `Revisando ${transcripts.length} chat(s)…`,
+  });
 
-  for (const { leadId, turns } of transcripts) {
+  for (let i = 0; i < transcripts.length; i++) {
+    const { leadId, turns } = transcripts[i]!;
+    let chatFindings = 0;
+
     const heuristic = runAuditorHeuristics(turns);
     for (const f of heuristic) {
       findings += 1;
+      chatFindings += 1;
       const ok = await recordLucyRepair({
         kommoLeadId: leadId,
         category: f.category,
@@ -287,6 +353,14 @@ export async function runLucyAuditorBatch(opts?: {
         source: "heuristic",
       });
       if (ok) recorded += 1;
+      report({
+        type: "finding",
+        leadId,
+        category: f.category,
+        severity: f.severity,
+        evidence: f.evidence,
+        source: "heuristic",
+      });
     }
 
     const hasLucy = turns.some((t) => t.role === "assistant");
@@ -300,6 +374,7 @@ export async function runLucyAuditorBatch(opts?: {
       flashCalls += 1;
       for (const f of llmFindings) {
         findings += 1;
+        chatFindings += 1;
         const ok = await recordLucyRepair({
           kommoLeadId: leadId,
           category: f.category,
@@ -311,8 +386,27 @@ export async function runLucyAuditorBatch(opts?: {
           model: getAuditorModel(),
         });
         if (ok) recorded += 1;
+        report({
+          type: "finding",
+          leadId,
+          category: f.category,
+          severity: f.severity,
+          evidence: f.evidence,
+          source: "flash",
+        });
       }
     }
+
+    report({
+      type: "chat",
+      current: i + 1,
+      total: transcripts.length,
+      leadId,
+      findings,
+      recorded,
+      flashCalls,
+      ok: chatFindings === 0,
+    });
   }
 
   if (opts?.oncePerDay) {
@@ -328,6 +422,8 @@ export async function runLucyAuditorBatch(opts?: {
     dayKey,
     quota: getAuditorQuotaSnapshot(),
   };
+  report({ type: "phase", phase: "done", message: "Auditoría terminada" });
+  report({ type: "result", result });
   logger.info(result, "lucyAuditor batch finished");
   return result;
 }

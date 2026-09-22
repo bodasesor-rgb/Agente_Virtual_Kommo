@@ -60,6 +60,44 @@ router.post("/reparaciones/run", async (req: Request, res: Response) => {
   }
 });
 
+/** SSE: progreso en vivo (sync + chats + hallazgos). */
+router.post("/reparaciones/run-stream", async (req: Request, res: Response) => {
+  res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  if (typeof (res as Response & { flushHeaders?: () => void }).flushHeaders === "function") {
+    (res as Response & { flushHeaders: () => void }).flushHeaders();
+  }
+
+  const send = (payload: unknown) => {
+    if (res.writableEnded) return;
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  };
+
+  const onlyToday = req.body?.onlyToday !== false;
+  try {
+    send({ type: "phase", phase: "sync", message: "Iniciando auditoría…" });
+    const result = await runLucyAuditorBatch({
+      limitLeads: Math.min(Number(req.body?.limitLeads ?? (onlyToday ? 50 : 20)), 80),
+      useFlash: req.body?.useFlash !== false,
+      onlyToday,
+      syncFromKommo: req.body?.syncFromKommo !== false,
+      oncePerDay: false,
+      onProgress: (ev) => send(ev),
+    });
+    send({ type: "result", result: { ok: true, ...result } });
+  } catch (err) {
+    req.log?.error?.({ err }, "reparaciones/run-stream failed");
+    send({
+      type: "error",
+      message: err instanceof Error ? err.message : "audit_failed",
+    });
+  } finally {
+    if (!res.writableEnded) res.end();
+  }
+});
+
 router.post("/reparaciones/cron", async (req: Request, res: Response) => {
   try {
     const { runLucyAuditorDaily } = await import("../services/lucyAuditor.js");

@@ -3,6 +3,12 @@ const emptyEl = document.getElementById("empty");
 const btnRun = document.getElementById("btn-run");
 const btnRefresh = document.getElementById("btn-refresh");
 const modelEl = document.getElementById("auditor-model");
+const progressEl = document.getElementById("audit-progress");
+const phaseEl = document.getElementById("audit-phase");
+const counterEl = document.getElementById("audit-counter");
+const barFillEl = document.getElementById("audit-bar-fill");
+const detailEl = document.getElementById("audit-detail");
+const liveFindingsEl = document.getElementById("audit-live-findings");
 
 let currentStatus = "open";
 
@@ -84,6 +90,142 @@ async function refresh() {
   await loadList();
 }
 
+function setProgressVisible(on) {
+  progressEl.classList.toggle("hidden", !on);
+}
+
+function setBar(current, total) {
+  const pct = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
+  barFillEl.style.width = `${pct}%`;
+  counterEl.textContent = `${current} / ${total}`;
+}
+
+function appendLiveFinding(ev) {
+  const li = document.createElement("li");
+  li.className = ev.severity === "error" ? "error" : ev.severity === "warn" ? "warn" : "";
+  li.innerHTML = `<span class="tag">${escapeHtml(ev.category)}</span>Lead ${escapeHtml(ev.leadId)} · ${escapeHtml(ev.evidence)}`;
+  liveFindingsEl.prepend(li);
+  while (liveFindingsEl.children.length > 40) {
+    liveFindingsEl.lastElementChild?.remove();
+  }
+}
+
+function handleProgressEvent(ev) {
+  if (!ev || typeof ev !== "object") return;
+  if (ev.type === "phase") {
+    phaseEl.textContent =
+      ev.phase === "sync"
+        ? "Sincronizando Kommo…"
+        : ev.phase === "scan"
+          ? "Leyendo chats…"
+          : ev.phase === "done"
+            ? "Listo"
+            : ev.message || "…";
+    detailEl.textContent = ev.message || "";
+  } else if (ev.type === "sync") {
+    phaseEl.textContent = "Sincronizando Kommo…";
+    setBar(ev.current ?? 0, ev.total ?? 0);
+    detailEl.textContent = ev.leadId
+      ? `Lead ${ev.leadId} · sincronizados ${ev.synced ?? 0}`
+      : `Sincronizados ${ev.synced ?? 0}`;
+  } else if (ev.type === "chat") {
+    phaseEl.textContent = "Leyendo chats…";
+    setBar(ev.current ?? 0, ev.total ?? 0);
+    detailEl.textContent = ev.ok
+      ? `Lead ${ev.leadId} · sin errores · hallazgos ${ev.findings ?? 0} · Flash ${ev.flashCalls ?? 0}`
+      : `Lead ${ev.leadId} · con hallazgos · total ${ev.findings ?? 0} · Flash ${ev.flashCalls ?? 0}`;
+  } else if (ev.type === "finding") {
+    appendLiveFinding(ev);
+  } else if (ev.type === "error") {
+    phaseEl.textContent = "Error";
+    detailEl.textContent = ev.message || "falló la auditoría";
+  } else if (ev.type === "result") {
+    const r = ev.result ?? {};
+    phaseEl.textContent = "Listo";
+    setBar(r.scanned ?? 0, r.scanned ?? 0);
+    detailEl.textContent = `${r.scanned ?? 0} chats · sync ${r.syncedFromKommo ?? 0} · ${r.recorded ?? 0} registradas · Flash ${r.flashCalls ?? 0}`;
+  }
+}
+
+async function runAuditWithProgress() {
+  setProgressVisible(true);
+  liveFindingsEl.innerHTML = "";
+  setBar(0, 0);
+  phaseEl.textContent = "Iniciando…";
+  detailEl.textContent = "Conectando con el auditor…";
+
+  const res = await fetch("/api/reparaciones/run-stream", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "text/event-stream",
+    },
+    body: JSON.stringify({
+      limitLeads: 50,
+      onlyToday: true,
+      syncFromKommo: true,
+      useFlash: true,
+    }),
+  });
+
+  if (res.status === 401) {
+    const cron = await fetch("/api/reparaciones/cron", { method: "POST" }).then((r) => r.json());
+    handleProgressEvent({
+      type: "result",
+      result: cron,
+    });
+    return cron;
+  }
+
+  if (!res.ok || !res.body) {
+    // Fallback sin stream
+    const fallback = await fetch("/api/reparaciones/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        limitLeads: 50,
+        onlyToday: true,
+        syncFromKommo: true,
+        useFlash: true,
+      }),
+    }).then((r) => r.json());
+    if (fallback.error) throw new Error(fallback.error);
+    handleProgressEvent({ type: "result", result: fallback });
+    return fallback;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let lastResult = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop() ?? "";
+    for (const chunk of parts) {
+      const line = chunk
+        .split("\n")
+        .map((l) => l.trim())
+        .find((l) => l.startsWith("data:"));
+      if (!line) continue;
+      try {
+        const ev = JSON.parse(line.slice(5).trim());
+        handleProgressEvent(ev);
+        if (ev.type === "result") lastResult = ev.result;
+        if (ev.type === "error") throw new Error(ev.message || "audit_failed");
+      } catch (err) {
+        if (err instanceof SyntaxError) continue;
+        throw err;
+      }
+    }
+  }
+
+  return lastResult;
+}
+
 listEl.addEventListener("click", async (ev) => {
   const btn = ev.target.closest("[data-act]");
   if (!btn) return;
@@ -128,34 +270,12 @@ btnRun.addEventListener("click", async () => {
   btnRun.disabled = true;
   btnRun.textContent = "Auditando…";
   try {
-    const res = await fetch("/api/reparaciones/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        limitLeads: 50,
-        onlyToday: true,
-        syncFromKommo: true,
-        useFlash: true,
-      }),
-    });
-    if (res.status === 401) {
-      // Cron público existe; para panel sin login usamos cron
-      const cron = await fetch("/api/reparaciones/cron", { method: "POST" }).then((r) =>
-        r.json()
-      );
-      alert(
-        `Auditoría (cron): ${cron.scanned ?? 0} chats · sync ${cron.syncedFromKommo ?? 0} · ${cron.recorded ?? 0} registradas · Flash ${cron.flashCalls ?? 0}`
-      );
-    } else {
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "falló");
-      alert(
-        `Auditoría: ${data.scanned} chats · sync Kommo ${data.syncedFromKommo ?? 0} · ${data.recorded} registradas · Flash ${data.flashCalls}`
-      );
-    }
+    await runAuditWithProgress();
     await refresh();
   } catch (err) {
-    alert(err.message || "Error al auditar");
+    phaseEl.textContent = "Error";
+    detailEl.textContent = err.message || "Error al auditar";
+    setProgressVisible(true);
   } finally {
     btnRun.disabled = false;
     btnRun.textContent = "Auditar ahora";

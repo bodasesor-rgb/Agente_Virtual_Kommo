@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Reparaciones Lucy — Bodasesor</title>
   <base href="/reparaciones/" />
-  <link rel="stylesheet" href="/reparaciones/styles.css?v=3" />
+  <link rel="stylesheet" href="/reparaciones/styles.css?v=4" />
 </head>
 <body>
   <div class="page">
@@ -36,6 +36,16 @@
       <div class="stat"><strong id="stat-spend">—</strong><span>Gasto auditor hoy</span></div>
     </div>
 
+    <section id="audit-progress" class="audit-progress hidden" aria-live="polite">
+      <div class="audit-progress-top">
+        <strong id="audit-phase">Preparando…</strong>
+        <span id="audit-counter" class="muted">0 / 0</span>
+      </div>
+      <div class="audit-bar"><div id="audit-bar-fill" class="audit-bar-fill"></div></div>
+      <p id="audit-detail" class="muted audit-detail">—</p>
+      <ul id="audit-live-findings" class="audit-live-findings"></ul>
+    </section>
+
     <div class="filters">
       <button type="button" class="chip active" data-status="open">Abiertas</button>
       <button type="button" class="chip" data-status="resolved">Resueltas</button>
@@ -46,6 +56,6 @@
     <div id="list" class="list"></div>
     <p id="empty" class="muted empty hidden">Sin hallazgos en este filtro.</p>
   </div>
-  <script src="/reparaciones/app.js?v=5" type="module"></script>
+  <script src="/reparaciones/app.js?v=6" type="module"></script>
 </body>
 </html>
