@@ -111,6 +111,78 @@ router.post("/reparaciones/cron", async (req: Request, res: Response) => {
   }
 });
 
+/** Diagnóstico: candidatos talk_id + respuesta cruda de Talks messages. */
+router.get("/reparaciones/probe-talk", async (req: Request, res: Response) => {
+  try {
+    const leadId = String(req.query.leadId ?? "").trim();
+    if (!leadId) {
+      res.status(400).json({ error: "leadId_required" });
+      return;
+    }
+    const { getKommoAccessToken, getKommoSubdomain } = await import(
+      "../lib/kommoEnv.js"
+    );
+    const { listKommoTalkIdCandidates } = await import("../services/kommoTalks.js");
+    const { fetchKommoTalkMessages } = await import("../services/chatIngest.js");
+    const subdomain = getKommoSubdomain();
+    const accessToken = getKommoAccessToken();
+    if (!subdomain || !accessToken) {
+      res.status(500).json({ error: "kommo_not_configured" });
+      return;
+    }
+
+    const candidates = await listKommoTalkIdCandidates({
+      subdomain,
+      accessToken,
+      leadId,
+    });
+
+    const talksListUrl =
+      `https://${subdomain}.kommo.com/api/v4/talks` +
+      `?filter[entity_id]=${encodeURIComponent(leadId)}&filter[entity_type]=lead&limit=10`;
+    const talksRes = await fetch(talksListUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const talksBody = await talksRes.text();
+
+    const probes = [];
+    for (const talkId of candidates.slice(0, 5)) {
+      const msgUrl =
+        `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=5&order=desc`;
+      const msgRes = await fetch(msgUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const msgText = await msgRes.text();
+      const parsed = await fetchKommoTalkMessages(
+        subdomain,
+        accessToken,
+        talkId,
+        10
+      );
+      probes.push({
+        talkId,
+        httpStatus: msgRes.status,
+        bodyPreview: msgText.slice(0, 500),
+        parsedTextCount: parsed.length,
+      });
+    }
+
+    res.json({
+      leadId,
+      candidates,
+      talksListStatus: talksRes.status,
+      talksListPreview: talksBody.slice(0, 800),
+      probes,
+    });
+  } catch (err) {
+    req.log?.error?.({ err }, "reparaciones/probe-talk failed");
+    res.status(500).json({
+      error: "probe_failed",
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
+});
+
 router.post("/reparaciones/:id/resolve", async (req: Request, res: Response) => {
   const { id } = req.params as { id: string };
   try {

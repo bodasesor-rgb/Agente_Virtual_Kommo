@@ -36,6 +36,12 @@ export type AuditorRunResult = {
   syncedWithMessages?: number;
   /** Sync OK pero Talks vacío / sin texto. */
   emptyTalks?: number;
+  /** Muestra de leads sin transcript (diagnóstico). */
+  emptySamples?: Array<{
+    leadId: string;
+    candidates: string[];
+    total: number;
+  }>;
   /** Candidatos con msgs en BD pero sin respuesta Lucy/humano. */
   noReply?: number;
   skipped?: string;
@@ -151,13 +157,20 @@ async function syncTodayLeadsFromKommo(
   synced: number;
   syncedWithMessages: number;
   emptyTalks: number;
+  emptySamples: Array<{ leadId: string; candidates: string[]; total: number }>;
   leadIds: string[];
 }> {
   const subdomain = getKommoSubdomain();
   const accessToken = getKommoAccessToken();
   if (!subdomain || !accessToken) {
     logger.warn("lucyAuditor: sin Kommo — no se puede sync del día");
-    return { synced: 0, syncedWithMessages: 0, emptyTalks: 0, leadIds: [] };
+    return {
+      synced: 0,
+      syncedWithMessages: 0,
+      emptyTalks: 0,
+      emptySamples: [],
+      leadIds: [],
+    };
   }
 
   const sinceSec = Math.floor(startOfMexicoCityDay().getTime() / 1000);
@@ -207,6 +220,11 @@ async function syncTodayLeadsFromKommo(
   let synced = 0;
   let syncedWithMessages = 0;
   let emptyTalks = 0;
+  const emptySamples: Array<{
+    leadId: string;
+    candidates: string[];
+    total: number;
+  }> = [];
   const ids = [...leadIds].slice(0, limitLeads);
   for (let i = 0; i < ids.length; i++) {
     const leadId = ids[i]!;
@@ -228,7 +246,12 @@ async function syncTodayLeadsFromKommo(
         knownTalkId: conv?.kommoTalkId ?? null,
         knownChatId: conv?.kommoChatId ?? null,
       });
-      if (candidates.length === 0) continue;
+      if (candidates.length === 0) {
+        if (emptySamples.length < 5) {
+          emptySamples.push({ leadId, candidates: [], total: 0 });
+        }
+        continue;
+      }
 
       let bestTalkId = candidates[0]!;
       let syncResult = { inserted: 0, total: 0 };
@@ -262,17 +285,26 @@ async function syncTodayLeadsFromKommo(
       }
       synced += 1;
       if (syncResult.total > 0) syncedWithMessages += 1;
-      else emptyTalks += 1;
+      else {
+        emptyTalks += 1;
+        if (emptySamples.length < 5) {
+          emptySamples.push({
+            leadId,
+            candidates,
+            total: syncResult.total,
+          });
+        }
+      }
     } catch (err) {
       logger.warn({ err, leadId }, "lucyAuditor: sync lead falló");
     }
   }
 
   logger.info(
-    { synced, syncedWithMessages, emptyTalks, candidates: ids.length },
+    { synced, syncedWithMessages, emptyTalks, emptySamples, candidates: ids.length },
     "lucyAuditor: sync Kommo del día"
   );
-  return { synced, syncedWithMessages, emptyTalks, leadIds: ids };
+  return { synced, syncedWithMessages, emptyTalks, emptySamples, leadIds: ids };
 }
 
 async function loadTranscriptsForLeadIds(
@@ -369,12 +401,15 @@ export async function runLucyAuditorBatch(opts?: {
   let syncedFromKommo = 0;
   let syncedWithMessages = 0;
   let emptyTalks = 0;
+  let emptySamples: Array<{ leadId: string; candidates: string[]; total: number }> =
+    [];
   let kommoLeadIds: string[] = [];
   if (syncFromKommo) {
     const sync = await syncTodayLeadsFromKommo(limitLeads, report);
     syncedFromKommo = sync.synced;
     syncedWithMessages = sync.syncedWithMessages;
     emptyTalks = sync.emptyTalks;
+    emptySamples = sync.emptySamples;
     kommoLeadIds = sync.leadIds;
   }
 
@@ -521,6 +556,7 @@ export async function runLucyAuditorBatch(opts?: {
     syncedFromKommo,
     syncedWithMessages,
     emptyTalks,
+    emptySamples,
     noReply,
     dayKey,
     withLucy,

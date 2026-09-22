@@ -435,6 +435,13 @@ var init_openaiEnv = __esm({
 });
 
 // src/lib/kommoEnv.ts
+var kommoEnv_exports = {};
+__export(kommoEnv_exports, {
+  ensureKommoEnv: () => ensureKommoEnv,
+  getKommoAccessToken: () => getKommoAccessToken,
+  getKommoSubdomain: () => getKommoSubdomain,
+  isKommoConfigured: () => isKommoConfigured
+});
 function getKommoAccessToken() {
   return process.env["KOMMO_ACCESS_TOKEN"]?.trim() || process.env["KOMMO_TOKEN_LARGA_DURACION"]?.trim() || process.env["KOMMO_LONG_LIVED_TOKEN"]?.trim() || "";
 }
@@ -169742,6 +169749,16 @@ var init_learningExtractor = __esm({
 });
 
 // src/services/chatIngest.ts
+var chatIngest_exports = {};
+__export(chatIngest_exports, {
+  captureInboundWhileLucyInactive: () => captureInboundWhileLucyInactive,
+  fetchKommoTalkMessages: () => fetchKommoTalkMessages,
+  mapKommoAuthor: () => mapKommoAuthor,
+  persistChatMessage: () => persistChatMessage,
+  roleFromAuthor: () => roleFromAuthor,
+  setLearningPhase: () => setLearningPhase,
+  syncLeadTranscript: () => syncLeadTranscript
+});
 import { createHash as createHash3 } from "crypto";
 function mapKommoAuthor(authorType, authorName) {
   const t4 = (authorType ?? "").trim().toLowerCase();
@@ -169931,6 +169948,17 @@ var init_chatIngest = __esm({
 });
 
 // src/services/kommoTalks.ts
+var kommoTalks_exports = {};
+__export(kommoTalks_exports, {
+  classifyKommoOrigin: () => classifyKommoOrigin,
+  fetchTalkIdFromLeadChats: () => fetchTalkIdFromLeadChats,
+  fetchTalkIdFromTalksFilter: () => fetchTalkIdFromTalksFilter,
+  fetchTalkOrigin: () => fetchTalkOrigin,
+  listKommoTalkIdCandidates: () => listKommoTalkIdCandidates,
+  resolveKommoTalkId: () => resolveKommoTalkId,
+  sendKommoTalkMessage: () => sendKommoTalkMessage,
+  usesKommoExternalSend: () => usesKommoExternalSend
+});
 function classifyKommoOrigin(origin2) {
   const o6 = (origin2 ?? "").trim().toLowerCase();
   if (!o6) return "unknown";
@@ -170016,6 +170044,10 @@ function pushCandidate(out2, value) {
   const s7 = String(value).trim();
   if (!out2.includes(s7)) out2.push(s7);
 }
+async function fetchTalkIdFromLeadChats(subdomain, accessToken, leadId) {
+  const ids = await listTalkIdsFromLeadChats(subdomain, accessToken, leadId);
+  return ids[0] ?? null;
+}
 async function listTalkIdsFromLeadChats(subdomain, accessToken, leadId) {
   const out2 = [];
   try {
@@ -170033,6 +170065,10 @@ async function listTalkIdsFromLeadChats(subdomain, accessToken, leadId) {
     logger.warn({ err: err2, leadId }, "kommoTalks: error leyendo chats del lead");
   }
   return out2;
+}
+async function fetchTalkIdFromTalksFilter(subdomain, accessToken, leadId) {
+  const ids = await listTalkIdsFromTalksFilter(subdomain, accessToken, leadId);
+  return ids[0] ?? null;
 }
 async function listTalkIdsFromTalksFilter(subdomain, accessToken, leadId) {
   const entityId = String(leadId);
@@ -188753,7 +188789,13 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
   const accessToken = getKommoAccessToken();
   if (!subdomain || !accessToken) {
     logger.warn("lucyAuditor: sin Kommo \u2014 no se puede sync del d\xEDa");
-    return { synced: 0, syncedWithMessages: 0, emptyTalks: 0, leadIds: [] };
+    return {
+      synced: 0,
+      syncedWithMessages: 0,
+      emptyTalks: 0,
+      emptySamples: [],
+      leadIds: []
+    };
   }
   const sinceSec = Math.floor(startOfMexicoCityDay().getTime() / 1e3);
   const leadIds = /* @__PURE__ */ new Set();
@@ -188789,6 +188831,7 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
   let synced = 0;
   let syncedWithMessages = 0;
   let emptyTalks = 0;
+  const emptySamples = [];
   const ids = [...leadIds].slice(0, limitLeads);
   for (let i6 = 0; i6 < ids.length; i6++) {
     const leadId = ids[i6];
@@ -188810,7 +188853,12 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
         knownTalkId: conv?.kommoTalkId ?? null,
         knownChatId: conv?.kommoChatId ?? null
       });
-      if (candidates.length === 0) continue;
+      if (candidates.length === 0) {
+        if (emptySamples.length < 5) {
+          emptySamples.push({ leadId, candidates: [], total: 0 });
+        }
+        continue;
+      }
       let bestTalkId = candidates[0];
       let syncResult = { inserted: 0, total: 0 };
       for (const talkId of candidates) {
@@ -188839,16 +188887,25 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
       }
       synced += 1;
       if (syncResult.total > 0) syncedWithMessages += 1;
-      else emptyTalks += 1;
+      else {
+        emptyTalks += 1;
+        if (emptySamples.length < 5) {
+          emptySamples.push({
+            leadId,
+            candidates,
+            total: syncResult.total
+          });
+        }
+      }
     } catch (err2) {
       logger.warn({ err: err2, leadId }, "lucyAuditor: sync lead fall\xF3");
     }
   }
   logger.info(
-    { synced, syncedWithMessages, emptyTalks, candidates: ids.length },
+    { synced, syncedWithMessages, emptyTalks, emptySamples, candidates: ids.length },
     "lucyAuditor: sync Kommo del d\xEDa"
   );
-  return { synced, syncedWithMessages, emptyTalks, leadIds: ids };
+  return { synced, syncedWithMessages, emptyTalks, emptySamples, leadIds: ids };
 }
 async function loadTranscriptsForLeadIds(leadIds, since) {
   const out2 = [];
@@ -188907,12 +188964,14 @@ async function runLucyAuditorBatch(opts) {
   let syncedFromKommo = 0;
   let syncedWithMessages = 0;
   let emptyTalks = 0;
+  let emptySamples = [];
   let kommoLeadIds = [];
   if (syncFromKommo) {
     const sync = await syncTodayLeadsFromKommo(limitLeads, report);
     syncedFromKommo = sync.synced;
     syncedWithMessages = sync.syncedWithMessages;
     emptyTalks = sync.emptyTalks;
+    emptySamples = sync.emptySamples;
     kommoLeadIds = sync.leadIds;
   }
   const since = onlyToday ? startOfMexicoCityDay() : null;
@@ -189018,6 +189077,7 @@ async function runLucyAuditorBatch(opts) {
     syncedFromKommo,
     syncedWithMessages,
     emptyTalks,
+    emptySamples,
     noReply,
     dayKey: dayKey2,
     withLucy,
@@ -237933,6 +237993,67 @@ router12.post("/reparaciones/cron", async (req, res) => {
   } catch (err2) {
     req.log?.error?.({ err: err2 }, "reparaciones/cron failed");
     res.status(500).json({ error: "cron_failed" });
+  }
+});
+router12.get("/reparaciones/probe-talk", async (req, res) => {
+  try {
+    const leadId = String(req.query.leadId ?? "").trim();
+    if (!leadId) {
+      res.status(400).json({ error: "leadId_required" });
+      return;
+    }
+    const { getKommoAccessToken: getKommoAccessToken2, getKommoSubdomain: getKommoSubdomain2 } = await Promise.resolve().then(() => (init_kommoEnv(), kommoEnv_exports));
+    const { listKommoTalkIdCandidates: listKommoTalkIdCandidates2 } = await Promise.resolve().then(() => (init_kommoTalks(), kommoTalks_exports));
+    const { fetchKommoTalkMessages: fetchKommoTalkMessages2 } = await init_chatIngest().then(() => chatIngest_exports);
+    const subdomain = getKommoSubdomain2();
+    const accessToken = getKommoAccessToken2();
+    if (!subdomain || !accessToken) {
+      res.status(500).json({ error: "kommo_not_configured" });
+      return;
+    }
+    const candidates = await listKommoTalkIdCandidates2({
+      subdomain,
+      accessToken,
+      leadId
+    });
+    const talksListUrl = `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${encodeURIComponent(leadId)}&filter[entity_type]=lead&limit=10`;
+    const talksRes = await fetch(talksListUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const talksBody = await talksRes.text();
+    const probes = [];
+    for (const talkId of candidates.slice(0, 5)) {
+      const msgUrl = `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=5&order=desc`;
+      const msgRes = await fetch(msgUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      const msgText = await msgRes.text();
+      const parsed = await fetchKommoTalkMessages2(
+        subdomain,
+        accessToken,
+        talkId,
+        10
+      );
+      probes.push({
+        talkId,
+        httpStatus: msgRes.status,
+        bodyPreview: msgText.slice(0, 500),
+        parsedTextCount: parsed.length
+      });
+    }
+    res.json({
+      leadId,
+      candidates,
+      talksListStatus: talksRes.status,
+      talksListPreview: talksBody.slice(0, 800),
+      probes
+    });
+  } catch (err2) {
+    req.log?.error?.({ err: err2 }, "reparaciones/probe-talk failed");
+    res.status(500).json({
+      error: "probe_failed",
+      message: err2 instanceof Error ? err2.message : String(err2)
+    });
   }
 });
 router12.post("/reparaciones/:id/resolve", async (req, res) => {
