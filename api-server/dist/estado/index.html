@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Estado de Lucy — Bodasesor</title>
   <base href="/estado/" />
-  <link rel="stylesheet" href="/estado/styles.css?v=1" />
+  <link rel="stylesheet" href="/estado/styles.css?v=2" />
 </head>
 <body>
   <div class="page">
@@ -37,13 +37,13 @@
       <ul>
         <li><strong>Última actualización</strong> — prompt y fecha/hora del último deploy en Hostinger</li>
         <li><strong>Servidor</strong> — si Lucy está en línea (uptime)</li>
-        <li><strong>OpenAI</strong> — si la key está configurada en Hostinger</li>
+        <li><strong>Gemini</strong> — si <code>gemini_ia</code> está configurada en Hostinger (OpenAI solo como fallback / Whisper)</li>
         <li><strong>Catálogo</strong> — precios del Google Sheet; si hay error, «Reparar» recarga</li>
         <li><strong>Aprendizaje</strong> — preguntas pendientes que aún no le enseñaste</li>
       </ul>
       <p class="muted small">GitHub hace ping cada 5 min para que Hostinger no duerma. El catálogo se actualiza solo cada ~30 min.</p>
     </section>
   </div>
-  <script src="/estado/app.js?v=1" type="module"></script>
+  <script src="/estado/app.js?v=2" type="module"></script>
 </body>
 </html>

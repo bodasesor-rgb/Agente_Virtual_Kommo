@@ -10,7 +10,7 @@ import {
 
 const router: IRouter = Router();
 
-router.use(requireAuth);
+router.use("/examples", requireAuth);
 
 // GET /api/examples
 router.get("/examples", async (_req: Request, res: Response) => {

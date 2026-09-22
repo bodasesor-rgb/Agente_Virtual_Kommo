@@ -17,6 +17,8 @@ const router: IRouter = Router();
 // router.use(requireAuth) sin path aplican auth a TODA petición que pase por
 // ellos — si van antes, bloquean knowledge-gaps/ops/aprendizaje con 401.
 router.use(healthRouter);
+// Ops público (panel Estado / Reparar) — ANTES de cualquier router.use(requireAuth).
+router.use(opsRouter);
 router.use(catalogRouter);
 router.use(kommoRouter);
 router.use(lucyRouter);
@@ -25,7 +27,6 @@ router.use(knowledgeGapsRouter);
 router.use(lucyInfoRouter);
 // learning ANTES de examples/analytics: tiene GET públicos del panel /aprendizaje.
 router.use(learningRouter);
-router.use(opsRouter);
 router.use(examplesRouter);
 router.use(analyticsRouter);
 

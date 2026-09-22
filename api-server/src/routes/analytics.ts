@@ -4,7 +4,7 @@ import { eq, gte, desc, sql, and } from "drizzle-orm";
 import { requireAuth } from "../middleware/requireAuth.js";
 
 const router = Router();
-router.use(requireAuth);
+router.use("/analytics", requireAuth);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // GET /api/analytics/overview - Resumen general

@@ -75,7 +75,11 @@ router.get("/aprendizaje/from-chats", async (req: Request, res: Response) => {
   }
 });
 
-router.use(requireAuth);
+/**
+ * Auth solo bajo /learning/* — NUNCA router.use(requireAuth) sin path:
+ * Express entra a este router en TODA petición /api/* y bloquearía ops/estado (401).
+ */
+router.use("/learning", requireAuth);
 
 router.get("/learning/candidates", async (req: Request, res: Response) => {
   try {

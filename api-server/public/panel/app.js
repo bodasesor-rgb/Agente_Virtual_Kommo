@@ -93,7 +93,8 @@ function statCard(iconClass, iconPath, value, label, extraClass = "") {
 async function loadHomeStats() {
   try {
     const health = await fetch("/api/health").then((r) => r.json());
-    const ops = await fetch("/api/ops/status").then((r) => (r.ok ? r.json() : null));
+    const opsRes = await fetch("/api/ops/status");
+    const ops = opsRes.ok ? await opsRes.json() : null;
     const catalog = health.catalog ?? {};
     let pendingGaps = "—";
     let gapsClass = "";
@@ -110,7 +111,25 @@ async function loadHomeStats() {
       /* stats opcionales */
     }
 
-    const online = ops?.overall === "ok" || (health.status === "ok" && health.openai_configured);
+    const llmProvider = String(health.llm_provider ?? "").toLowerCase();
+    const llmOk = Boolean(
+      health.llm_configured ??
+        (llmProvider === "gemini" ? health.gemini_configured : health.openai_configured),
+    );
+    const llmLabel =
+      llmProvider === "gemini"
+        ? "Gemini"
+        : llmProvider === "openai"
+          ? "OpenAI"
+          : health.gemini_configured
+            ? "Gemini"
+            : "LLM";
+    const llmModel =
+      health.llm_model ||
+      health.gemini_allowed_model ||
+      (llmProvider === "gemini" ? "flash-lite" : "");
+
+    const online = ops?.overall === "ok" || (health.status === "ok" && llmOk);
     const deployLabel = health.built_at_display
       ? `${health.lucy_prompt ?? "?"} · ${health.built_at_display}`
       : health.lucy_prompt ?? "?";
@@ -128,9 +147,9 @@ async function loadHomeStats() {
       statCard(
         "stat-icon-openai",
         "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z",
-        health.openai_configured ? "Conectada" : "Sin key",
-        "OpenAI",
-        health.openai_configured ? "stat-ok" : "stat-warn",
+        llmOk ? "Conectada" : "Sin key",
+        llmModel ? `${llmLabel} · ${llmModel}` : llmLabel,
+        llmOk ? "stat-ok" : "stat-warn",
       ),
       statCard(
         "stat-icon-catalog",

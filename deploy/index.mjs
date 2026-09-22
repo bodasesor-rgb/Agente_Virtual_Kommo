@@ -187832,7 +187832,7 @@ var init_learning = __esm({
         res.status(500).json({ error: "failed_to_load_chat_learning" });
       }
     });
-    router2.use(requireAuth);
+    router2.use("/learning", requireAuth);
     router2.get("/learning/candidates", async (req, res) => {
       try {
         const status = req.query.status || "pending";
@@ -236067,7 +236067,7 @@ var import_express5 = __toESM(require_express2(), 1);
 init_requireAuth();
 await init_trainingStore();
 var router5 = (0, import_express5.Router)();
-router5.use(requireAuth);
+router5.use("/examples", requireAuth);
 router5.get("/examples", async (_req, res) => {
   try {
     const examples = await listTrainingExamples();
@@ -236135,7 +236135,7 @@ await init_src2();
 init_drizzle_orm();
 init_requireAuth();
 var router6 = (0, import_express6.Router)();
-router6.use(requireAuth);
+router6.use("/analytics", requireAuth);
 router6.get("/analytics/overview", async (_req, res) => {
   try {
     const [totalResult] = await db.select({ count: sql`count(*)`.as("count") }).from(conversations);
@@ -236736,16 +236736,13 @@ router11.post("/ops/heal", async (_req, res) => {
   const healed = [];
   const errors = [];
   try {
-    const before = getCatalogStatus();
-    if (!before.loaded || before.lastError) {
-      try {
-        await refreshCatalog(true);
-        healed.push("catalog_refreshed");
-        logger.info("ops/heal: cat\xE1logo recargado");
-      } catch (err2) {
-        errors.push(err2 instanceof Error ? err2.message : String(err2));
-      }
-    }
+    await refreshCatalog(true);
+    healed.push("catalog_refreshed");
+    logger.info("ops/heal: cat\xE1logo recargado");
+  } catch (err2) {
+    errors.push(err2 instanceof Error ? err2.message : String(err2));
+  }
+  try {
     const status = await buildOpsStatus();
     res.json({
       ok: errors.length === 0,
@@ -236766,6 +236763,7 @@ var ops_default = router11;
 // src/routes/index.ts
 var router12 = (0, import_express12.Router)();
 router12.use(health_default);
+router12.use(ops_default);
 router12.use(catalog_default);
 router12.use(kommo_default);
 router12.use(lucy_default);
@@ -236773,7 +236771,6 @@ router12.use(auth_default);
 router12.use(knowledgeGaps_default);
 router12.use(lucyInfo_default);
 router12.use(learning_default);
-router12.use(ops_default);
 router12.use(examples_default);
 router12.use(analytics_default);
 var routes_default = router12;

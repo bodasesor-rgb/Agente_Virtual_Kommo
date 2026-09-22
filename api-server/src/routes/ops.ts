@@ -151,18 +151,16 @@ router.post("/ops/heal", async (_req: Request, res: Response) => {
   const healed: string[] = [];
   const errors: string[] = [];
 
+  // Permitir forzar recarga del Sheet aunque no haya error previo.
   try {
-    const before = getCatalogStatus();
-    if (!before.loaded || before.lastError) {
-      try {
-        await refreshCatalog(true);
-        healed.push("catalog_refreshed");
-        logger.info("ops/heal: catálogo recargado");
-      } catch (err) {
-        errors.push(err instanceof Error ? err.message : String(err));
-      }
-    }
+    await refreshCatalog(true);
+    healed.push("catalog_refreshed");
+    logger.info("ops/heal: catálogo recargado");
+  } catch (err) {
+    errors.push(err instanceof Error ? err.message : String(err));
+  }
 
+  try {
     const status = await buildOpsStatus();
     res.json({
       ok: errors.length === 0,

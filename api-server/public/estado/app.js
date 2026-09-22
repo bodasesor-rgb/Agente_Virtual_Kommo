@@ -43,18 +43,17 @@ async function loadStatus() {
     )
     .join("");
 
-  btnHeal.disabled = !(data.healActions?.length > 0);
-  btnHeal.title =
-    data.healActions?.length > 0
-      ? "Recargar catálogo del Sheet"
-      : "No hay reparaciones automáticas pendientes";
+  btnHeal.disabled = false;
+  btnHeal.title = "Recargar catálogo del Sheet";
 }
 
 async function runHeal() {
   btnHeal.disabled = true;
   btnHeal.textContent = "Reparando…";
   try {
-    const data = await fetch("/api/ops/heal", { method: "POST" }).then((r) => r.json());
+    const res = await fetch("/api/ops/heal", { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     if (data.healed?.length) {
       overallText.textContent = `Reparado: ${data.healed.join(", ")}`;
     }
