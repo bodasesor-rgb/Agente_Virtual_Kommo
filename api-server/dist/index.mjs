@@ -160931,7 +160931,7 @@ var init_local = __esm({
     init_dist2();
     init_pglite();
     init_schema2();
-    LOCAL_DB_DIR = process.env["LUCY_LOCAL_DB_PATH"] ?? path5.resolve(process.cwd(), "data", "lucy-pgdata");
+    LOCAL_DB_DIR = process.env["LUCY_LOCAL_DB_PATH"] ?? path5.resolve(process.cwd(), "..", "lucy-data", "pgdata");
     client = null;
     localDb = null;
     INIT_SQL = `
@@ -161175,13 +161175,36 @@ var init_logger2 = __esm({
 });
 
 // src/chat-history.ts
-import { readFileSync as readFileSync6, writeFileSync, existsSync as existsSync7 } from "fs";
+var chat_history_exports = {};
+__export(chat_history_exports, {
+  appendHistory: () => appendHistory,
+  clearHistory: () => clearHistory,
+  getHistory: () => getHistory,
+  listHistoryKeys: () => listHistoryKeys
+});
+import { readFileSync as readFileSync6, writeFileSync, existsSync as existsSync7, mkdirSync as mkdirSync2 } from "fs";
 import { join as join5, dirname as dirname2 } from "path";
 import { fileURLToPath as fileURLToPath4 } from "url";
+function resolveHistoryFile() {
+  const fromEnv = process.env["LUCY_CHAT_HISTORY_PATH"]?.trim();
+  if (fromEnv) return fromEnv;
+  const sibling = join5(process.cwd(), "..", "lucy-data", "chat-history.json");
+  const legacy = join5(__dirname2, "../../data/chat-history.json");
+  return sibling || legacy;
+}
 function load() {
   try {
-    if (existsSync7(DATA_FILE)) {
-      return JSON.parse(readFileSync6(DATA_FILE, "utf-8"));
+    const file = resolveHistoryFile();
+    const legacy = join5(__dirname2, "../../data/chat-history.json");
+    if (!existsSync7(file) && existsSync7(legacy) && file !== legacy) {
+      try {
+        mkdirSync2(dirname2(file), { recursive: true });
+        writeFileSync(file, readFileSync6(legacy, "utf-8"));
+      } catch {
+      }
+    }
+    if (existsSync7(file)) {
+      return JSON.parse(readFileSync6(file, "utf-8"));
     }
   } catch {
   }
@@ -161189,12 +161212,17 @@ function load() {
 }
 function save(store2) {
   try {
-    writeFileSync(DATA_FILE, JSON.stringify(store2), "utf-8");
+    const file = resolveHistoryFile();
+    mkdirSync2(dirname2(file), { recursive: true });
+    writeFileSync(file, JSON.stringify(store2), "utf-8");
   } catch {
   }
 }
 function getHistory(chatId) {
   return store[chatId] ?? [];
+}
+function listHistoryKeys() {
+  return Object.keys(store);
 }
 function clearHistory(chatId) {
   delete store[chatId];
@@ -161210,12 +161238,11 @@ function appendHistory(chatId, userText, assistantText) {
   store[chatId] = history;
   save(store);
 }
-var __dirname2, DATA_FILE, MAX_MESSAGES, store;
+var __dirname2, MAX_MESSAGES, store;
 var init_chat_history = __esm({
   "src/chat-history.ts"() {
     "use strict";
     __dirname2 = dirname2(fileURLToPath4(import.meta.url));
-    DATA_FILE = join5(__dirname2, "../../data/chat-history.json");
     MAX_MESSAGES = 40;
     store = load();
   }
@@ -169754,8 +169781,10 @@ __export(chatIngest_exports, {
   captureInboundWhileLucyInactive: () => captureInboundWhileLucyInactive,
   fetchKommoTalkMessages: () => fetchKommoTalkMessages,
   fetchKommoTalkMessagesDetailed: () => fetchKommoTalkMessagesDetailed,
+  hydrateMessagesFromChatHistory: () => hydrateMessagesFromChatHistory,
   mapKommoAuthor: () => mapKommoAuthor,
   persistChatMessage: () => persistChatMessage,
+  persistLucyExchange: () => persistLucyExchange,
   roleFromAuthor: () => roleFromAuthor,
   setLearningPhase: () => setLearningPhase,
   syncLeadTranscript: () => syncLeadTranscript
@@ -169950,6 +169979,54 @@ async function syncLeadTranscript(input) {
     total: raw.length,
     scopeDenied: fetched.scopeDenied
   };
+}
+async function persistLucyExchange(kommoLeadId, userText, assistantText) {
+  const leadId = String(kommoLeadId);
+  const user = userText.trim();
+  const assistant = assistantText.trim();
+  if (user) {
+    await persistChatMessage({
+      kommoLeadId: leadId,
+      content: user,
+      authorType: "client",
+      kommoMessageId: contentHash(leadId, "client", user),
+      source: "lucy_turn"
+    });
+  }
+  if (assistant) {
+    await persistChatMessage({
+      kommoLeadId: leadId,
+      content: assistant,
+      authorType: "lucy",
+      kommoMessageId: contentHash(leadId, "lucy", assistant),
+      source: "lucy_turn"
+    });
+  }
+}
+async function hydrateMessagesFromChatHistory() {
+  await ensureLearningSchema();
+  const { getHistory: getHistory2, listHistoryKeys: listHistoryKeys2 } = await Promise.resolve().then(() => (init_chat_history(), chat_history_exports));
+  const keys = listHistoryKeys2();
+  let inserted = 0;
+  for (const key of keys) {
+    const turns = getHistory2(key);
+    for (const t4 of turns) {
+      const content = typeof t4.content === "string" ? t4.content.trim() : "";
+      if (!content) continue;
+      const role = String(t4.role ?? "");
+      const authorType = role === "assistant" || role === "bot" ? "lucy" : "client";
+      const ok = await persistChatMessage({
+        kommoLeadId: key,
+        content,
+        authorType,
+        kommoMessageId: contentHash(key, authorType, content),
+        source: "chat_history"
+      });
+      if (ok) inserted += 1;
+    }
+  }
+  logger.info({ keys: keys.length, inserted }, "chatIngest: hydrate desde chat-history");
+  return { keys: keys.length, inserted };
 }
 async function setLearningPhase(kommoLeadId, phase) {
   await ensureLearningSchema();
@@ -188817,19 +188894,12 @@ async function loadTurnsForLead(leadId, since, limit2 = 60) {
     content: r5.content ?? ""
   }));
 }
-async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
+async function listTodayLeadIdsFromKommo(limitLeads, onProgress) {
   const subdomain = getKommoSubdomain();
   const accessToken = getKommoAccessToken();
   if (!subdomain || !accessToken) {
-    logger.warn("lucyAuditor: sin Kommo \u2014 no se puede sync del d\xEDa");
-    return {
-      synced: 0,
-      syncedWithMessages: 0,
-      emptyTalks: 0,
-      emptySamples: [],
-      kommoMessagesScopeDenied: false,
-      leadIds: []
-    };
+    logger.warn("lucyAuditor: sin Kommo \u2014 no se listan leads del d\xEDa");
+    return [];
   }
   const sinceSec = Math.floor(startOfMexicoCityDay().getTime() / 1e3);
   const leadIds = /* @__PURE__ */ new Set();
@@ -188842,7 +188912,7 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
   onProgress?.({
     type: "phase",
     phase: "sync",
-    message: "Buscando leads del d\xEDa en Kommo\u2026"
+    message: "Listando leads del d\xEDa en Kommo (sin leer mensajes)\u2026"
   });
   for (const url2 of urls) {
     try {
@@ -188862,107 +188932,9 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
       logger.warn({ err: err2 }, "lucyAuditor: list leads Kommo fall\xF3");
     }
   }
-  let synced = 0;
-  let syncedWithMessages = 0;
-  let emptyTalks = 0;
-  let kommoMessagesScopeDenied = false;
-  const emptySamples = [];
   const ids = [...leadIds].slice(0, limitLeads);
-  for (let i6 = 0; i6 < ids.length; i6++) {
-    const leadId = ids[i6];
-    onProgress?.({
-      type: "sync",
-      current: i6 + 1,
-      total: ids.length,
-      leadId,
-      synced
-    });
-    try {
-      const conv = await db.query.conversations.findFirst({
-        where: eq(conversations.kommoLeadId, leadId)
-      });
-      const candidates = await listKommoTalkIdCandidates({
-        subdomain,
-        accessToken,
-        leadId,
-        knownTalkId: conv?.kommoTalkId ?? null,
-        knownChatId: conv?.kommoChatId ?? null
-      });
-      if (candidates.length === 0) {
-        if (emptySamples.length < 5) {
-          emptySamples.push({ leadId, candidates: [], total: 0 });
-        }
-        continue;
-      }
-      let bestTalkId = candidates[0];
-      let syncResult = { inserted: 0, total: 0, scopeDenied: false };
-      for (const talkId of candidates) {
-        const attempt = await syncLeadTranscript({
-          kommoLeadId: leadId,
-          talkId,
-          subdomain,
-          accessToken
-        });
-        if (attempt.scopeDenied) kommoMessagesScopeDenied = true;
-        if (attempt.total > syncResult.total) {
-          syncResult = attempt;
-          bestTalkId = talkId;
-        }
-        if (attempt.total >= 2) break;
-        if (attempt.scopeDenied) break;
-      }
-      if (!conv) {
-        await db.insert(conversations).values({
-          kommoLeadId: leadId,
-          kommoChatId: leadId,
-          kommoTalkId: String(bestTalkId),
-          status: "active",
-          stage: "discovery"
-        });
-      } else {
-        await db.update(conversations).set({ kommoTalkId: String(bestTalkId), updatedAt: /* @__PURE__ */ new Date() }).where(eq(conversations.kommoLeadId, leadId));
-      }
-      synced += 1;
-      if (syncResult.total > 0) syncedWithMessages += 1;
-      else {
-        emptyTalks += 1;
-        if (emptySamples.length < 5) {
-          emptySamples.push({
-            leadId,
-            candidates,
-            total: syncResult.total
-          });
-        }
-      }
-      if (kommoMessagesScopeDenied) {
-        logger.warn(
-          "lucyAuditor: Kommo 403 Invalid scope en /talks/.../messages \u2014 falta scope \xABExternal chat history\xBB"
-        );
-        break;
-      }
-    } catch (err2) {
-      logger.warn({ err: err2, leadId }, "lucyAuditor: sync lead fall\xF3");
-    }
-  }
-  logger.info(
-    {
-      synced,
-      syncedWithMessages,
-      emptyTalks,
-      emptySamples,
-      kommoMessagesScopeDenied,
-      candidates: ids.length
-    },
-    "lucyAuditor: sync Kommo del d\xEDa"
-  );
-  return {
-    synced,
-    syncedWithMessages,
-    emptyTalks,
-    emptySamples,
-    kommoMessagesScopeDenied,
-    leadIds: ids
-  };
+  logger.info({ candidates: ids.length }, "lucyAuditor: leads Kommo del d\xEDa (solo IDs)");
+  return ids;
 }
 async function loadTranscriptsForLeadIds(leadIds, since) {
   const out2 = [];
@@ -189017,40 +188989,40 @@ async function runLucyAuditorBatch(opts) {
   const limitLeads = opts?.limitLeads ?? (onlyToday ? 50 : 20);
   const useFlash = opts?.useFlash !== false;
   const forceFlash = opts?.forceFlash === true;
-  const syncFromKommo = opts?.syncFromKommo !== false && onlyToday;
-  let syncedFromKommo = 0;
-  let syncedWithMessages = 0;
-  let emptyTalks = 0;
-  let kommoMessagesScopeDenied = false;
-  let emptySamples = [];
+  const listKommo = opts?.syncFromKommo !== false && onlyToday;
+  report({
+    type: "phase",
+    phase: "sync",
+    message: "Cargando historial local (webhook / chat-history)\u2026"
+  });
+  const hydrated = await hydrateMessagesFromChatHistory();
+  const historyKeys = listHistoryKeys().length;
   let kommoLeadIds = [];
-  if (syncFromKommo) {
-    const sync = await syncTodayLeadsFromKommo(limitLeads, report);
-    syncedFromKommo = sync.synced;
-    syncedWithMessages = sync.syncedWithMessages;
-    emptyTalks = sync.emptyTalks;
-    emptySamples = sync.emptySamples;
-    kommoMessagesScopeDenied = sync.kommoMessagesScopeDenied;
-    kommoLeadIds = sync.leadIds;
+  if (listKommo) {
+    kommoLeadIds = await listTodayLeadIdsFromKommo(limitLeads, report);
   }
   const since = onlyToday ? startOfMexicoCityDay() : null;
   const fromDb = onlyToday ? await loadLeadIdsWithMessagesSince(since, limitLeads) : await loadLeadIdsRecent(limitLeads);
-  const leadIds = [
-    .../* @__PURE__ */ new Set([...kommoLeadIds.length ? kommoLeadIds : [], ...fromDb])
-  ].slice(0, limitLeads);
+  const localSet = new Set(fromDb);
+  const historySet = new Set(listHistoryKeys());
+  const preferred = [
+    ...fromDb,
+    ...kommoLeadIds.filter((id) => localSet.has(id) || historySet.has(id)),
+    ...[...historySet].filter((id) => !localSet.has(id))
+  ];
+  const leadIds = [...new Set(preferred)].slice(0, limitLeads);
   let flashCalls = 0;
   let findings = 0;
   let recorded = 0;
   let withLucy = 0;
   let tooShort = 0;
-  const turnsSince = kommoLeadIds.length > 0 ? null : since;
-  const loaded = await loadTranscriptsForLeadIds(leadIds, turnsSince);
+  const loaded = await loadTranscriptsForLeadIds(leadIds, null);
   const transcripts = loaded.transcripts;
   const noReply = loaded.noReply;
   report({
     type: "phase",
     phase: "scan",
-    message: `Revisando ${transcripts.length} chat(s)\u2026`
+    message: `Revisando ${transcripts.length} chat(s) locales\u2026`
   });
   for (let i6 = 0; i6 < transcripts.length; i6++) {
     const { leadId, turns } = transcripts[i6];
@@ -189126,18 +189098,17 @@ async function runLucyAuditorBatch(opts) {
   if (opts?.oncePerDay) {
     lastDailyRunDay = dayKey2;
   }
-  const skipHint = kommoMessagesScopeDenied ? " Kommo deneg\xF3 leer mensajes (403 Invalid scope): activa \xABExternal chat history\xBB en la integraci\xF3n y reautoriza el token." : emptyTalks || noReply || loaded.emptyOrShort ? ` (Talks vac\xEDos ${emptyTalks}, sin respuesta ${noReply}, cortos ${loaded.emptyOrShort})` : "";
-  const summary = transcripts.length === 0 ? `No encontr\xE9 chats auditables del d\xEDa${syncedFromKommo ? ` (sync Kommo ${syncedFromKommo}, con msgs ${syncedWithMessages})` : ""}.${skipHint}` : findings === 0 ? `Revis\xE9 ${transcripts.length} chat(s)${syncedFromKommo ? `, sync ${syncedFromKommo}/${syncedWithMessages} con msgs` : ""}. Flash en ${flashCalls}. Sin errores detectados` + (withLucy ? ` (${withLucy} con Lucy).` : " (pocos con rol Lucy reconocible).") + skipHint : `Revis\xE9 ${transcripts.length} chat(s): ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.${skipHint}`;
+  const modeHint = " Modo local: historial del webhook/Hostinger (Kommo no permite leer Talks).";
+  const summary = transcripts.length === 0 ? `No encontr\xE9 chats locales auditables` + (hydrated.keys ? ` (${hydrated.keys} en chat-history, +${hydrated.inserted} importados)` : "") + `.` + modeHint : findings === 0 ? `Revis\xE9 ${transcripts.length} chat(s) locales` + (hydrated.inserted ? ` (+${hydrated.inserted} del historial)` : "") + `. Flash ${flashCalls}. Sin errores detectados` + (withLucy ? ` (${withLucy} con Lucy).` : ".") + modeHint : `Revis\xE9 ${transcripts.length} chat(s) locales: ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.` + modeHint;
   const result = {
     scanned: transcripts.length,
     findings,
     recorded,
     flashCalls,
-    syncedFromKommo,
-    syncedWithMessages,
-    emptyTalks,
-    emptySamples,
-    kommoMessagesScopeDenied,
+    syncedFromKommo: kommoLeadIds.length,
+    hydratedFromHistory: hydrated.inserted,
+    historyKeys,
+    kommoMessagesScopeDenied: true,
     noReply,
     dayKey: dayKey2,
     withLucy,
@@ -189168,12 +189139,12 @@ var init_lucyAuditor = __esm({
     init_drizzle_orm();
     init_kommoEnv();
     init_logger2();
+    init_chat_history();
     init_lucyAuditorHeuristics();
     init_lucyAuditorLlm();
     await init_lucyRepairStore();
     init_lucyAuditorTime();
     await init_chatIngest();
-    init_kommoTalks();
     await init_embudo();
     init_lucyAuditorLlm();
     init_lucyAuditorTime();
@@ -235617,6 +235588,8 @@ async function handleLucyInactiveInbound(opts) {
   });
   if (channel !== "failed") {
     appendHistory(entityKey, text2, emergencyMsg);
+    void persistLucyExchange(entityKey, text2, emergencyMsg).catch(() => {
+    });
     lastResponseCache.set(entityKey, emergencyMsg);
     void agregarNota(
       subdomain,
@@ -235888,6 +235861,8 @@ async function processBatch(batch, accessToken, log) {
       log.info({ entityId }, "Lead calificado \u2014 campos CRM y resumen 1048786 actualizados (sin nota duplicada)");
     }
     appendHistory(histKey, combinedUserText, mensajeParaCliente);
+    void persistLucyExchange(histKey, combinedUserText, mensajeParaCliente).catch(() => {
+    });
     lastResponseCache.set(String(entityId), mensajeParaCliente);
     void recordKnowledgeGapIfNeeded({
       kommoLeadId: entityId,
@@ -236677,6 +236652,8 @@ router3.post("/kommo/salesbot", async (req, res) => {
     });
     log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
     appendHistory(histKey, messageText, mensajeParaCliente);
+    void persistLucyExchange(histKey, messageText, mensajeParaCliente).catch(() => {
+    });
     if (entityId) {
       lastResponseCache.set(String(entityId), mensajeParaCliente);
     }
@@ -237064,6 +237041,8 @@ router3.post("/kommo/simulator", async (req, res) => {
       log
     });
     appendHistory(histKey, messageText, mensajeParaCliente);
+    void persistLucyExchange(histKey, messageText, mensajeParaCliente).catch(() => {
+    });
     lastResponseCache.set(histKey, mensajeParaCliente);
     void recordKnowledgeGapIfNeeded({
       kommoLeadId: leadId,

@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
  * Arranque Hostinger — verifica archivos y lanza Lucy.
+ * Datos persistentes viven en ../lucy-data (fuera de deploy/) para no
+ * borrarse en cada git pull / redeploy.
  */
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -25,6 +27,19 @@ if (!process.env.OPENAI_API_KEY?.trim() && process.env.OPEN_AI?.trim()) {
 if (!process.env.OPENAI_API_KEY && !process.env.OPEN_AI) {
   console.warn("[start] AVISO: OPEN_AI / OPENAI_API_KEY no configurada — Lucy no podrá usar GPT");
 }
+
+// Persistencia fuera de deploy/ (Hostinger no debe wipear historial al redeploy).
+const dataRoot = process.env.LUCY_DATA_DIR?.trim() || join(here, "..", "lucy-data");
+mkdirSync(dataRoot, { recursive: true });
+if (!process.env.LUCY_DATA_DIR?.trim()) process.env.LUCY_DATA_DIR = dataRoot;
+if (!process.env.LUCY_LOCAL_DB_PATH?.trim()) {
+  process.env.LUCY_LOCAL_DB_PATH = join(dataRoot, "pgdata");
+}
+if (!process.env.LUCY_CHAT_HISTORY_PATH?.trim()) {
+  process.env.LUCY_CHAT_HISTORY_PATH = join(dataRoot, "chat-history.json");
+}
+mkdirSync(process.env.LUCY_LOCAL_DB_PATH, { recursive: true });
+console.log(`[start] Datos persistentes → ${dataRoot}`);
 
 console.log("[start] Archivos OK, arrancando Lucy...");
 await import("./index.mjs");

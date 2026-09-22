@@ -7,7 +7,7 @@ import * as schema from "./schema/index.js";
 
 const LOCAL_DB_DIR =
   process.env["LUCY_LOCAL_DB_PATH"] ??
-  path.resolve(process.cwd(), "data", "lucy-pgdata");
+  path.resolve(process.cwd(), "..", "lucy-data", "pgdata");
 
 let client: PGlite | null = null;
 let localDb: ReturnType<typeof drizzle> | null = null;

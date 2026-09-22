@@ -58,7 +58,7 @@ if (!hasGemini && !hasOpenAi) {
 console.log("[start] Archivos OK, arrancando Lucy desde deploy/...");
 
 try {
-  const { readFileSync, existsSync: exists } = await import("node:fs");
+  const { readFileSync, existsSync: exists, mkdirSync } = await import("node:fs");
   const { join: j } = await import("node:path");
   const metaPath = j(deployDir, "build-meta.json");
   if (exists(metaPath)) {
@@ -68,6 +68,18 @@ try {
         (meta.git_commit_short ? ` · commit ${meta.git_commit_short}` : ""),
     );
   }
+  // Persistencia fuera de deploy/ (git pull no borra historial).
+  const dataRoot = process.env.LUCY_DATA_DIR?.trim() || j(root, "lucy-data");
+  mkdirSync(dataRoot, { recursive: true });
+  if (!process.env.LUCY_DATA_DIR?.trim()) process.env.LUCY_DATA_DIR = dataRoot;
+  if (!process.env.LUCY_LOCAL_DB_PATH?.trim()) {
+    process.env.LUCY_LOCAL_DB_PATH = j(dataRoot, "pgdata");
+  }
+  if (!process.env.LUCY_CHAT_HISTORY_PATH?.trim()) {
+    process.env.LUCY_CHAT_HISTORY_PATH = j(dataRoot, "chat-history.json");
+  }
+  mkdirSync(process.env.LUCY_LOCAL_DB_PATH, { recursive: true });
+  console.log(`[start] Datos persistentes → ${dataRoot}`);
 } catch {
   /* opcional */
 }

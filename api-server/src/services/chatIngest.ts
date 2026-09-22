@@ -294,6 +294,68 @@ export async function syncLeadTranscript(input: {
   };
 }
 
+export async function persistLucyExchange(
+  kommoLeadId: string,
+  userText: string,
+  assistantText: string
+): Promise<void> {
+  const leadId = String(kommoLeadId);
+  const user = userText.trim();
+  const assistant = assistantText.trim();
+  if (user) {
+    await persistChatMessage({
+      kommoLeadId: leadId,
+      content: user,
+      authorType: "client",
+      kommoMessageId: contentHash(leadId, "client", user),
+      source: "lucy_turn",
+    });
+  }
+  if (assistant) {
+    await persistChatMessage({
+      kommoLeadId: leadId,
+      content: assistant,
+      authorType: "lucy",
+      kommoMessageId: contentHash(leadId, "lucy", assistant),
+      source: "lucy_turn",
+    });
+  }
+}
+
+/**
+ * Importa chat-history.json → tabla messages (idempotente).
+ * Fuente principal del auditor cuando Kommo no da scope de historial.
+ */
+export async function hydrateMessagesFromChatHistory(): Promise<{
+  keys: number;
+  inserted: number;
+}> {
+  await ensureLearningSchema();
+  const { getHistory, listHistoryKeys } = await import("../chat-history.js");
+  const keys = listHistoryKeys();
+  let inserted = 0;
+  for (const key of keys) {
+    const turns = getHistory(key);
+    for (const t of turns) {
+      const content = typeof t.content === "string" ? t.content.trim() : "";
+      if (!content) continue;
+      const role = String(t.role ?? "");
+      const authorType: AuthorType =
+        role === "assistant" || role === "bot" ? "lucy" : "client";
+      const ok = await persistChatMessage({
+        kommoLeadId: key,
+        content,
+        authorType,
+        kommoMessageId: contentHash(key, authorType, content),
+        source: "chat_history",
+      });
+      if (ok) inserted += 1;
+    }
+  }
+  logger.info({ keys: keys.length, inserted }, "chatIngest: hydrate desde chat-history");
+  return { keys: keys.length, inserted };
+}
+
 export async function setLearningPhase(
   kommoLeadId: string,
   phase: "lucy_active" | "human_active" | "post_quote" | "closed"

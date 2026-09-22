@@ -161,7 +161,7 @@ import {
   webhookBodyShape,
 } from "../lib/kommoWebhookParse.js";
 import { deliverLucyOutbound } from "../services/kommoMirror.js";
-import { captureInboundWhileLucyInactive, setLearningPhase } from "../services/chatIngest.js";
+import { captureInboundWhileLucyInactive, setLearningPhase, persistLucyExchange } from "../services/chatIngest.js";
 import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
 import { getKommoAccessToken, getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
@@ -1493,6 +1493,7 @@ async function handleLucyInactiveInbound(opts: {
 
   if (channel !== "failed") {
     appendHistory(entityKey, text, emergencyMsg);
+    void persistLucyExchange(entityKey, text, emergencyMsg).catch(() => {});
     lastResponseCache.set(entityKey, emergencyMsg);
     void agregarNota(
       subdomain,
@@ -1984,6 +1985,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // cierreYaEnviado detecte correctamente la firma del mensaje de cierre
     // en mensajes futuros.
     appendHistory(histKey, combinedUserText, mensajeParaCliente);
+    void persistLucyExchange(histKey, combinedUserText, mensajeParaCliente).catch(() => {});
     lastResponseCache.set(String(entityId), mensajeParaCliente);
 
     void recordKnowledgeGapIfNeeded({
@@ -2994,6 +2996,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
 
     // Guardar mensaje REAL enviado (no aiResponse) para que cierreYaEnviado funcione.
     appendHistory(histKey, messageText, mensajeParaCliente);
+    void persistLucyExchange(histKey, messageText, mensajeParaCliente).catch(() => {});
     if (entityId) {
       lastResponseCache.set(String(entityId), mensajeParaCliente);
     }
@@ -3488,6 +3491,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     });
 
     appendHistory(histKey, messageText, mensajeParaCliente);
+    void persistLucyExchange(histKey, messageText, mensajeParaCliente).catch(() => {});
     lastResponseCache.set(histKey, mensajeParaCliente);
 
     void recordKnowledgeGapIfNeeded({

@@ -1,11 +1,15 @@
 /**
  * Auditor offline de Lucy.
  * REGLA: nunca envía WhatsApp, nunca escribe en Kommo talks, nunca reescribe al cliente.
+ *
+ * Fuente de transcripts: historial local del webhook (BD + chat-history.json).
+ * Kommo no otorga «External chat history» → no se lee /talks/.../messages.
  */
-import { db, conversations, messages } from "@workspace/db";
+import { db, messages } from "@workspace/db";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { getKommoAccessToken, getKommoSubdomain } from "../lib/kommoEnv.js";
 import { logger } from "../lib/logger.js";
+import { listHistoryKeys } from "../chat-history.js";
 import {
   runAuditorHeuristics,
   transcriptNeedsFlash,
@@ -19,8 +23,7 @@ import {
 } from "./lucyAuditorLlm.js";
 import { recordLucyRepair } from "./lucyRepairStore.js";
 import { mexicoCityDayKey, startOfMexicoCityDay } from "./lucyAuditorTime.js";
-import { syncLeadTranscript } from "./chatIngest.js";
-import { listKommoTalkIdCandidates } from "./kommoTalks.js";
+import { hydrateMessagesFromChatHistory } from "./chatIngest.js";
 import { ETAPA, PIPELINE_ID } from "./embudo.js";
 
 export { getAuditorQuotaSnapshot } from "./lucyAuditorLlm.js";
@@ -31,28 +34,19 @@ export type AuditorRunResult = {
   findings: number;
   recorded: number;
   flashCalls: number;
+  /** Leads del día listados en Kommo (solo IDs). */
   syncedFromKommo?: number;
-  /** Sync con ≥1 mensaje de texto en Talks. */
-  syncedWithMessages?: number;
-  /** Sync OK pero Talks vacío / sin texto. */
-  emptyTalks?: number;
-  /** Kommo 403 Invalid scope al leer /talks/.../messages (falta External chat history). */
+  /** Mensajes nuevos importados desde chat-history.json. */
+  hydratedFromHistory?: number;
+  /** Claves en chat-history.json. */
+  historyKeys?: number;
+  /** Siempre true: no usamos Talks messages (scope no disponible). */
   kommoMessagesScopeDenied?: boolean;
-  /** Muestra de leads sin transcript (diagnóstico). */
-  emptySamples?: Array<{
-    leadId: string;
-    candidates: string[];
-    total: number;
-  }>;
-  /** Candidatos con msgs en BD pero sin respuesta Lucy/humano. */
   noReply?: number;
   skipped?: string;
   dayKey?: string;
-  /** Chats con respuesta de Lucy (role assistant). */
   withLucy?: number;
-  /** Chats demasiado cortos para Flash. */
   tooShort?: number;
-  /** Resumen legible para el panel. */
   summary?: string;
   quota: ReturnType<typeof getAuditorQuotaSnapshot>;
 };
@@ -92,7 +86,6 @@ export function getLastDailyAuditDay(): string | null {
   return lastDailyRunDay;
 }
 
-/** Leads con mensajes reales desde `since` (BD), no por conversations.updatedAt. */
 async function loadLeadIdsWithMessagesSince(
   since: Date,
   limitLeads: number
@@ -148,33 +141,17 @@ async function loadTurnsForLead(
 }
 
 /**
- * Trae de Kommo los leads tocados hoy y sincroniza transcripts a BD.
- * Así el auditor ve los chats del día aunque el webhook no haya persistido todos.
- * @returns { synced, leadIds, ... } leadIds = candidatos del día (aunque no insertara msgs nuevos).
+ * Lista leads actualizados hoy en Kommo (solo IDs; no lee mensajes).
  */
-async function syncTodayLeadsFromKommo(
+async function listTodayLeadIdsFromKommo(
   limitLeads: number,
   onProgress?: (ev: AuditorProgressEvent) => void
-): Promise<{
-  synced: number;
-  syncedWithMessages: number;
-  emptyTalks: number;
-  emptySamples: Array<{ leadId: string; candidates: string[]; total: number }>;
-  kommoMessagesScopeDenied: boolean;
-  leadIds: string[];
-}> {
+): Promise<string[]> {
   const subdomain = getKommoSubdomain();
   const accessToken = getKommoAccessToken();
   if (!subdomain || !accessToken) {
-    logger.warn("lucyAuditor: sin Kommo — no se puede sync del día");
-    return {
-      synced: 0,
-      syncedWithMessages: 0,
-      emptyTalks: 0,
-      emptySamples: [],
-      kommoMessagesScopeDenied: false,
-      leadIds: [],
-    };
+    logger.warn("lucyAuditor: sin Kommo — no se listan leads del día");
+    return [];
   }
 
   const sinceSec = Math.floor(startOfMexicoCityDay().getTime() / 1000);
@@ -195,7 +172,7 @@ async function syncTodayLeadsFromKommo(
   onProgress?.({
     type: "phase",
     phase: "sync",
-    message: "Buscando leads del día en Kommo…",
+    message: "Listando leads del día en Kommo (sin leer mensajes)…",
   });
 
   for (const url of urls) {
@@ -205,9 +182,7 @@ async function syncTodayLeadsFromKommo(
       });
       if (!res.ok) continue;
       const data = (await res.json()) as {
-        _embedded?: {
-          leads?: Array<{ id?: number; updated_at?: number }>;
-        };
+        _embedded?: { leads?: Array<{ id?: number; updated_at?: number }> };
       };
       for (const lead of data._embedded?.leads ?? []) {
         if (lead.id == null) continue;
@@ -221,120 +196,9 @@ async function syncTodayLeadsFromKommo(
     }
   }
 
-  let synced = 0;
-  let syncedWithMessages = 0;
-  let emptyTalks = 0;
-  let kommoMessagesScopeDenied = false;
-  const emptySamples: Array<{
-    leadId: string;
-    candidates: string[];
-    total: number;
-  }> = [];
   const ids = [...leadIds].slice(0, limitLeads);
-  for (let i = 0; i < ids.length; i++) {
-    const leadId = ids[i]!;
-    onProgress?.({
-      type: "sync",
-      current: i + 1,
-      total: ids.length,
-      leadId,
-      synced,
-    });
-    try {
-      const conv = await db.query.conversations.findFirst({
-        where: eq(conversations.kommoLeadId, leadId),
-      });
-      const candidates = await listKommoTalkIdCandidates({
-        subdomain,
-        accessToken,
-        leadId,
-        knownTalkId: conv?.kommoTalkId ?? null,
-        knownChatId: conv?.kommoChatId ?? null,
-      });
-      if (candidates.length === 0) {
-        if (emptySamples.length < 5) {
-          emptySamples.push({ leadId, candidates: [], total: 0 });
-        }
-        continue;
-      }
-
-      let bestTalkId = candidates[0]!;
-      let syncResult = { inserted: 0, total: 0, scopeDenied: false as boolean | undefined };
-      for (const talkId of candidates) {
-        const attempt = await syncLeadTranscript({
-          kommoLeadId: leadId,
-          talkId,
-          subdomain,
-          accessToken,
-        });
-        if (attempt.scopeDenied) kommoMessagesScopeDenied = true;
-        if (attempt.total > syncResult.total) {
-          syncResult = attempt;
-          bestTalkId = talkId;
-        }
-        if (attempt.total >= 2) break;
-        // Sin scope no tiene sentido probar más talk_ids.
-        if (attempt.scopeDenied) break;
-      }
-
-      if (!conv) {
-        await db.insert(conversations).values({
-          kommoLeadId: leadId,
-          kommoChatId: leadId,
-          kommoTalkId: String(bestTalkId),
-          status: "active",
-          stage: "discovery",
-        });
-      } else {
-        await db
-          .update(conversations)
-          .set({ kommoTalkId: String(bestTalkId), updatedAt: new Date() })
-          .where(eq(conversations.kommoLeadId, leadId));
-      }
-      synced += 1;
-      if (syncResult.total > 0) syncedWithMessages += 1;
-      else {
-        emptyTalks += 1;
-        if (emptySamples.length < 5) {
-          emptySamples.push({
-            leadId,
-            candidates,
-            total: syncResult.total,
-          });
-        }
-      }
-
-      // Si Kommo niega el scope, abortar el resto del sync (mismo token).
-      if (kommoMessagesScopeDenied) {
-        logger.warn(
-          "lucyAuditor: Kommo 403 Invalid scope en /talks/.../messages — falta scope «External chat history»"
-        );
-        break;
-      }
-    } catch (err) {
-      logger.warn({ err, leadId }, "lucyAuditor: sync lead falló");
-    }
-  }
-
-  logger.info(
-    {
-      synced,
-      syncedWithMessages,
-      emptyTalks,
-      emptySamples,
-      kommoMessagesScopeDenied,
-      candidates: ids.length,
-    },
-    "lucyAuditor: sync Kommo del día"
-  );
-  return {
-    synced,
-    syncedWithMessages,
-    emptyTalks,
-    emptySamples,
-    kommoMessagesScopeDenied,
-    leadIds: ids,
-  };
+  logger.info({ candidates: ids.length }, "lucyAuditor: leads Kommo del día (solo IDs)");
+  return ids;
 }
 
 async function loadTranscriptsForLeadIds(
@@ -349,12 +213,13 @@ async function loadTranscriptsForLeadIds(
   let emptyOrShort = 0;
   let noReply = 0;
   for (const leadId of leadIds) {
+    // Historial local completo: el webhook puede haber guardado con timestamps
+    // de hydratación; no filtrar por "hoy" si el lead ya es candidato.
     const turns = await loadTurnsForLead(leadId, since);
     if (turns.length < 2) {
       emptyOrShort += 1;
       continue;
     }
-    // Lucy o agente: hace falta al menos una respuesta no-cliente.
     const hasReply = turns.some(
       (t) => t.role === "assistant" || t.role === "human"
     );
@@ -385,16 +250,10 @@ function formatTranscript(turns: TranscriptTurn[]): string {
 export async function runLucyAuditorBatch(opts?: {
   limitLeads?: number;
   useFlash?: boolean;
-  /** Solo chats con actividad hoy (Mexico City). */
   onlyToday?: boolean;
-  /** Si ya corrió el daily hoy, no repetir (cron diario). */
   oncePerDay?: boolean;
-  /** Antes de escanear, sincroniza leads del día desde Kommo → BD. */
+  /** Lista IDs del día en Kommo (no lee mensajes). */
   syncFromKommo?: boolean;
-  /**
-   * Panel / auditoría forzada: gasta Flash en chats con ida y vuelta
-   * aunque no pasen el umbral estricto (hasta el cupo diario).
-   */
   forceFlash?: boolean;
   onProgress?: (ev: AuditorProgressEvent) => void;
 }): Promise<AuditorRunResult> {
@@ -426,34 +285,35 @@ export async function runLucyAuditorBatch(opts?: {
   const limitLeads = opts?.limitLeads ?? (onlyToday ? 50 : 20);
   const useFlash = opts?.useFlash !== false;
   const forceFlash = opts?.forceFlash === true;
-  const syncFromKommo = opts?.syncFromKommo !== false && onlyToday;
+  const listKommo = opts?.syncFromKommo !== false && onlyToday;
 
-  let syncedFromKommo = 0;
-  let syncedWithMessages = 0;
-  let emptyTalks = 0;
-  let kommoMessagesScopeDenied = false;
-  let emptySamples: Array<{ leadId: string; candidates: string[]; total: number }> =
-    [];
+  report({
+    type: "phase",
+    phase: "sync",
+    message: "Cargando historial local (webhook / chat-history)…",
+  });
+  const hydrated = await hydrateMessagesFromChatHistory();
+  const historyKeys = listHistoryKeys().length;
+
   let kommoLeadIds: string[] = [];
-  if (syncFromKommo) {
-    const sync = await syncTodayLeadsFromKommo(limitLeads, report);
-    syncedFromKommo = sync.synced;
-    syncedWithMessages = sync.syncedWithMessages;
-    emptyTalks = sync.emptyTalks;
-    emptySamples = sync.emptySamples;
-    kommoMessagesScopeDenied = sync.kommoMessagesScopeDenied;
-    kommoLeadIds = sync.leadIds;
+  if (listKommo) {
+    kommoLeadIds = await listTodayLeadIdsFromKommo(limitLeads, report);
   }
 
   const since = onlyToday ? startOfMexicoCityDay() : null;
-  // Tras sync Kommo: auditar esos leads (transcript completo), no solo msgs
-  // con timestamp "hoy" — muchos ya estaban en BD con fecha vieja.
   const fromDb = onlyToday
     ? await loadLeadIdsWithMessagesSince(since!, limitLeads)
     : await loadLeadIdsRecent(limitLeads);
-  const leadIds = [
-    ...new Set([...(kommoLeadIds.length ? kommoLeadIds : []), ...fromDb]),
-  ].slice(0, limitLeads);
+
+  // Preferir leads con transcript local; cruzar con IDs Kommo del día.
+  const localSet = new Set(fromDb);
+  const historySet = new Set(listHistoryKeys());
+  const preferred = [
+    ...fromDb,
+    ...kommoLeadIds.filter((id) => localSet.has(id) || historySet.has(id)),
+    ...[...historySet].filter((id) => !localSet.has(id)),
+  ];
+  const leadIds = [...new Set(preferred)].slice(0, limitLeads);
 
   let flashCalls = 0;
   let findings = 0;
@@ -461,15 +321,14 @@ export async function runLucyAuditorBatch(opts?: {
   let withLucy = 0;
   let tooShort = 0;
 
-  // Si vinieron de Kommo sync, leer historial completo (since=null).
-  const turnsSince = kommoLeadIds.length > 0 ? null : since;
-  const loaded = await loadTranscriptsForLeadIds(leadIds, turnsSince);
+  // Tras hydrate, leer historial completo de esos leads (since=null).
+  const loaded = await loadTranscriptsForLeadIds(leadIds, null);
   const transcripts = loaded.transcripts;
   const noReply = loaded.noReply;
   report({
     type: "phase",
     phase: "scan",
-    message: `Revisando ${transcripts.length} chat(s)…`,
+    message: `Revisando ${transcripts.length} chat(s) locales…`,
   });
 
   for (let i = 0; i < transcripts.length; i++) {
@@ -477,8 +336,6 @@ export async function runLucyAuditorBatch(opts?: {
     let chatFindings = 0;
 
     const assistantTurns = turns.filter((t) => t.role === "assistant").length;
-    // A veces Kommo marca a Lucy como "internal"/humano; si hay links de catálogo
-    // en mensajes no-user, trátalos como Lucy para el umbral de Flash.
     const lucyLike =
       assistantTurns > 0 ||
       turns.some(
@@ -565,32 +422,33 @@ export async function runLucyAuditorBatch(opts?: {
     lastDailyRunDay = dayKey;
   }
 
-  const skipHint = kommoMessagesScopeDenied
-    ? " Kommo denegó leer mensajes (403 Invalid scope): activa «External chat history» en la integración y reautoriza el token."
-    : emptyTalks || noReply || loaded.emptyOrShort
-      ? ` (Talks vacíos ${emptyTalks}, sin respuesta ${noReply}, cortos ${loaded.emptyOrShort})`
-      : "";
+  const modeHint =
+    " Modo local: historial del webhook/Hostinger (Kommo no permite leer Talks).";
 
   const summary =
     transcripts.length === 0
-      ? `No encontré chats auditables del día${syncedFromKommo ? ` (sync Kommo ${syncedFromKommo}, con msgs ${syncedWithMessages})` : ""}.${skipHint}`
+      ? `No encontré chats locales auditables` +
+        (hydrated.keys ? ` (${hydrated.keys} en chat-history, +${hydrated.inserted} importados)` : "") +
+        `.` +
+        modeHint
       : findings === 0
-        ? `Revisé ${transcripts.length} chat(s)${syncedFromKommo ? `, sync ${syncedFromKommo}/${syncedWithMessages} con msgs` : ""}. ` +
-          `Flash en ${flashCalls}. Sin errores detectados` +
-          (withLucy ? ` (${withLucy} con Lucy).` : " (pocos con rol Lucy reconocible).") +
-          skipHint
-        : `Revisé ${transcripts.length} chat(s): ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.${skipHint}`;
+        ? `Revisé ${transcripts.length} chat(s) locales` +
+          (hydrated.inserted ? ` (+${hydrated.inserted} del historial)` : "") +
+          `. Flash ${flashCalls}. Sin errores detectados` +
+          (withLucy ? ` (${withLucy} con Lucy).` : ".") +
+          modeHint
+        : `Revisé ${transcripts.length} chat(s) locales: ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.` +
+          modeHint;
 
   const result: AuditorRunResult = {
     scanned: transcripts.length,
     findings,
     recorded,
     flashCalls,
-    syncedFromKommo,
-    syncedWithMessages,
-    emptyTalks,
-    emptySamples,
-    kommoMessagesScopeDenied,
+    syncedFromKommo: kommoLeadIds.length,
+    hydratedFromHistory: hydrated.inserted,
+    historyKeys,
+    kommoMessagesScopeDenied: true,
     noReply,
     dayKey,
     withLucy,
@@ -604,7 +462,7 @@ export async function runLucyAuditorBatch(opts?: {
   return result;
 }
 
-/** Cron diario / botón: chats del día (Mexico), sync Kommo, una vez en cron. */
+/** Cron diario / botón: chats locales del día + Flash forzado. */
 export async function runLucyAuditorDaily(): Promise<AuditorRunResult> {
   return runLucyAuditorBatch({
     onlyToday: true,
