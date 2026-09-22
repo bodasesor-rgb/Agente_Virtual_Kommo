@@ -13,7 +13,7 @@ import { hasSpecificFoodService } from "../conversation-understanding.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.14");
+assert.equal(LUCY_PROMPT_VERSION, "V10.15");
 
 function emptyExtracted(partial: Partial<ExtractedData> = {}): ExtractedData {
   return {

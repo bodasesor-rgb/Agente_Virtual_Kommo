@@ -4954,6 +4954,8 @@ export function buildPostCierreCallbackAck(clientName?: string | null): string {
 
 /**
  * A16244: Lucy nunca “mata” el chat. Si no hay `?`, pregunta que invite a seguir.
+ * Regla GLOBAL — se aplica en el wrapper de applyLucyMessageGuards (todas las ramas),
+ * en anti-repeat y en finalizeLucyOutboundMessage.
  */
 export function buildContinueEngagementQuestion(
   extracted: ExtractedData,
@@ -4969,7 +4971,10 @@ export function buildContinueEngagementQuestion(
   return "¿Hay algo más que quieras sumar a la cotización, o te urge que el equipo te contacte hoy?";
 }
 
-/** Red final: todo WhatsApp saliente debe invitar a continuar (siempre con `?`). */
+/**
+ * Red final invariable: todo WhatsApp saliente debe invitar a continuar (siempre con `?`).
+ * No depende de la rama (venta, foto, cierre, catálogo, handoff).
+ */
 export function ensureOutboundAlwaysAsks(
   mensaje: string,
   opts: {
@@ -5779,7 +5784,24 @@ function buildNameMismatchReplyIfNeeded(
   return null;
 }
 
+/**
+ * A16244 / A16244b: invariante GLOBAL en TODAS las ramas.
+ * Ningún WhatsApp de Lucy puede salir sin una pregunta que invite a seguir.
+ */
 export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
+  const mensaje = applyLucyMessageGuardsRaw(input);
+  // Si aún hay dato pendiente, no tratar como cierre aunque el flag diga lo contrario.
+  const stillPending = !!getNextPendingField(input.extracted, input.filledSet);
+  return ensureOutboundAlwaysAsks(mensaje, {
+    extracted: input.extracted,
+    filledSet: input.filledSet,
+    ctx: makeQuestionCtx(input),
+    currentMessage: input.currentMessage,
+    cierreYaEnviado: Boolean(input.cierreYaEnviado) && !stillPending,
+  });
+}
+
+function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   const {
     extracted,
     filledSet,
@@ -12245,15 +12267,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  // A16244: regla dura — Lucy nunca cierra el chat sin una pregunta que invite a seguir.
-  mensaje = ensureOutboundAlwaysAsks(mensaje, {
-    extracted,
-    filledSet,
-    ctx,
-    currentMessage,
-    cierreYaEnviado,
-  });
-
+  // A16244: ensureOutboundAlwaysAsks vive en el wrapper exportado (todas las ramas,
+  // incluidos early-return). Aquí solo normalizamos el texto final.
   return normalizeAdvisorReferences(
     reorderLeadingCatalogUrls(
       preferSpecificCatalogOverHub(

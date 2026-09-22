@@ -14,7 +14,7 @@ import { isRichQuoteBrief } from "../conversation-understanding.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.14");
+assert.equal(LUCY_PROMPT_VERSION, "V10.15");
 
 assert.ok(clientAsksLucyIdentity("con quién tengo el gusto?"));
 assert.ok(clientAsksLucyIdentity("¿Quién eres?"));

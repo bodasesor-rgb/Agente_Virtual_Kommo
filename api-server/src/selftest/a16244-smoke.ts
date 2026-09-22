@@ -19,7 +19,7 @@ import {
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.14");
+assert.equal(LUCY_PROMPT_VERSION, "V10.15");
 
 function emptyExtracted(partial: Partial<ExtractedData> = {}): ExtractedData {
   return {
@@ -128,5 +128,31 @@ const hooked = ensureOutboundAlwaysAsks(
 );
 assert.ok(/\?/.test(hooked), hooked);
 assert.ok(buildContinueEngagementQuestion(extracted).includes("?"));
+
+// A16244b: early-return de ubicación (rama directa) también debe salir con `?`
+// aunque el AI/cuerpo no pregunte — el wrapper global lo fuerza.
+const earlyBranch = applyLucyMessageGuards({
+  aiResponse: "Ok.",
+  extracted: emptyExtracted({
+    nombre: "Diana",
+    requerimientos_evento: "Carpas",
+    num_invitados: 50,
+  }),
+  filledSet: new Set([
+    "Nombre del cliente",
+    "Requerimientos o servicios",
+    "Número de invitados",
+  ]),
+  readyForClosing: false,
+  cierreYaEnviado: false,
+  emailRefusedThisTurn: false,
+  history: [
+    { role: "assistant", content: "¿En qué ciudad lo arman?" },
+  ] as OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage: "Ciudad de México",
+  buildClosing: () => "CIERRE sin pregunta",
+});
+assert.ok(/\?/.test(earlyBranch), `early branch must ask: ${earlyBranch}`);
+assert.ok(/ciudad de m[eé]xico|ubicaci/i.test(earlyBranch), earlyBranch);
 
 console.log("A16244 smoke OK —", LUCY_PROMPT_VERSION);

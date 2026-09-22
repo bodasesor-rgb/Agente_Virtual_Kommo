@@ -21,7 +21,7 @@ import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import { proveedorSheetsConfigured } from "../services/proveedorSheets.js";
 import type OpenAI from "openai";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.14");
+assert.equal(LUCY_PROMPT_VERSION, "V10.15");
 
 const lety =
   "Hola Lucy. Te escribe Lety, soy ejecutiva de ventas en Hacienda Los Arcángeles, " +

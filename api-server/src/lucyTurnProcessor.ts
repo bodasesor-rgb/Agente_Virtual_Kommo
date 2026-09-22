@@ -55,6 +55,8 @@ import { getTrainingExamples } from "./lib/training.js";
 import {
   applyLucyMessageGuards,
   detectEmailRefusal,
+  ensureOutboundAlwaysAsks,
+  getNextPendingField,
 } from "./lucy-flow-guards.js";
 import { finalizeLucyOutboundMessage } from "./lucyOutboundPipeline.js";
 import {
@@ -340,7 +342,7 @@ export async function generateLucyOutbound(
   if (extracted.tipo_contacto === "proveedor") {
     applyProveedorAnswer(extracted, messageText, conversationText);
     const complete = proveedorQuestionnaireComplete(extracted);
-    const reply = complete
+    let reply = complete
       ? buildProveedorHandoffReply({
           nombre: extracted.nombre ?? whatsappDisplayName,
           empresa: extracted.empresa,
@@ -348,6 +350,10 @@ export async function generateLucyOutbound(
           extracted,
         })
       : buildProveedorProgressReply(extracted);
+    // A16244b: regla global — tampoco el embudo proveedor puede matar el chat.
+    if (!/\?/.test(reply)) {
+      reply = `${reply.trim()}\n\n¿Te confirmo por aquí cuando el equipo revise tu propuesta?`;
+    }
     log?.info?.(
       {
         entityId,
@@ -559,6 +565,24 @@ export async function generateLucyOutbound(
     );
   } else if (stuck) {
     log?.info?.({ entityId, streak: nextStreak }, "GUARD: V9.78 — turno atorado (misma pregunta)");
+  }
+
+  // A16244b: invariante GLOBAL al final de TODAS las ramas (guards, anti-repeat, handoff).
+  {
+    const stillPending = !!getNextPendingField(extracted, filledLabels);
+    mensajeParaCliente = ensureOutboundAlwaysAsks(mensajeParaCliente, {
+      extracted,
+      filledSet: filledLabels,
+      ctx: {
+        extracted,
+        filledSet: filledLabels,
+        history: fullHistory,
+        currentMessage: messageText,
+        whatsappName: whatsappDisplayName,
+      },
+      currentMessage: messageText,
+      cierreYaEnviado: Boolean(cierreYaEnviado) && !stillPending,
+    });
   }
 
   return {

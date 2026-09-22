@@ -42,7 +42,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.14");
+assert.equal(LUCY_PROMPT_VERSION, "V10.15");
 
 // ── Clase meal-as-event-type (A15642+) ──
 for (const phrase of [

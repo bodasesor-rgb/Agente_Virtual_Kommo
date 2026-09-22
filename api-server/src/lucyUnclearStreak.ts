@@ -110,5 +110,6 @@ export function buildUnclearHandoffMessage(clientName?: string | null): string {
     "Gerencia / corporativo: 56 4671 0585 — WhatsApp o línea telefónica.",
     "",
     "Ya dejé tu caso listo para el equipo.",
+    "¿Prefieres que te marque Ventas o Gerencia primero?",
   ].join("\n");
 }

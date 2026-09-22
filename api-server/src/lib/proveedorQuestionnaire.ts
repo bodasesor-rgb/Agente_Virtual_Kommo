@@ -281,7 +281,8 @@ export function buildProveedorCompletionReply(extracted: ExtractedData): string 
   return (
     `${greet}${who} ` +
     "Los paso a nuestro equipo de *proveedores / alianzas* para que los revisen. " +
-    "Si les interesa, ellos te contactan. ¡Que tengas excelente día!"
+    "Si les interesa, ellos te contactan. " +
+    "¿Te confirmo por aquí cuando el equipo revise tu propuesta?"
   );
 }
 

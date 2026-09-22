@@ -164285,6 +164285,17 @@ function buildNameMismatchReplyIfNeeded(currentMessage, extracted, filledSet, wh
   return null;
 }
 function applyLucyMessageGuards(input) {
+  const mensaje = applyLucyMessageGuardsRaw(input);
+  const stillPending = !!getNextPendingField(input.extracted, input.filledSet);
+  return ensureOutboundAlwaysAsks(mensaje, {
+    extracted: input.extracted,
+    filledSet: input.filledSet,
+    ctx: makeQuestionCtx(input),
+    currentMessage: input.currentMessage,
+    cierreYaEnviado: Boolean(input.cierreYaEnviado) && !stillPending
+  });
+}
+function applyLucyMessageGuardsRaw(input) {
   const {
     extracted,
     filledSet,
@@ -168530,13 +168541,6 @@ ${nextQ}` : `${ack} ${nextQ}`;
       mensaje = nextQ ? `${ack} ${nextQ}` : ack;
     }
   }
-  mensaje = ensureOutboundAlwaysAsks(mensaje, {
-    extracted,
-    filledSet,
-    ctx,
-    currentMessage,
-    cierreYaEnviado
-  });
   return normalizeAdvisorReferences2(
     reorderLeadingCatalogUrls(
       preferSpecificCatalogOverHub(
@@ -227818,7 +227822,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.14";
+var LUCY_PROMPT_VERSION = "V10.15";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -230699,7 +230703,7 @@ function buildProveedorCompletionReply(extracted) {
   const empresa = extracted.empresa?.trim();
   const greet = name2 ? `Gracias, ${name2}.` : "Gracias.";
   const who = empresa ? ` Ya tengo los datos de *${empresa}*.` : " Ya tengo tus datos de proveedor.";
-  return `${greet}${who} Los paso a nuestro equipo de *proveedores / alianzas* para que los revisen. Si les interesa, ellos te contactan. \xA1Que tengas excelente d\xEDa!`;
+  return `${greet}${who} Los paso a nuestro equipo de *proveedores / alianzas* para que los revisen. Si les interesa, ellos te contactan. \xBFTe confirmo por aqu\xED cuando el equipo revise tu propuesta?`;
 }
 function scrubProveedorFieldsForCliente(extracted) {
   extracted.tipo_contacto = "cliente";
@@ -232283,7 +232287,8 @@ function buildUnclearHandoffMessage(clientName) {
     "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
     "Gerencia / corporativo: 56 4671 0585 \u2014 WhatsApp o l\xEDnea telef\xF3nica.",
     "",
-    "Ya dej\xE9 tu caso listo para el equipo."
+    "Ya dej\xE9 tu caso listo para el equipo.",
+    "\xBFPrefieres que te marque Ventas o Gerencia primero?"
   ].join("\n");
 }
 
@@ -232436,12 +232441,17 @@ async function generateLucyOutbound(input) {
   if (extracted.tipo_contacto === "proveedor") {
     applyProveedorAnswer(extracted, messageText, conversationText);
     const complete = proveedorQuestionnaireComplete(extracted);
-    const reply = complete ? buildProveedorHandoffReply({
+    let reply = complete ? buildProveedorHandoffReply({
       nombre: extracted.nombre ?? whatsappDisplayName,
       empresa: extracted.empresa,
       conversationText,
       extracted
     }) : buildProveedorProgressReply(extracted);
+    if (!/\?/.test(reply)) {
+      reply = `${reply.trim()}
+
+\xBFTe confirmo por aqu\xED cuando el equipo revise tu propuesta?`;
+    }
     log?.info?.(
       {
         entityId,
@@ -232628,6 +232638,22 @@ async function generateLucyOutbound(input) {
     );
   } else if (stuck) {
     log?.info?.({ entityId, streak: nextStreak }, "GUARD: V9.78 \u2014 turno atorado (misma pregunta)");
+  }
+  {
+    const stillPending = !!getNextPendingField(extracted, filledLabels);
+    mensajeParaCliente = ensureOutboundAlwaysAsks(mensajeParaCliente, {
+      extracted,
+      filledSet: filledLabels,
+      ctx: {
+        extracted,
+        filledSet: filledLabels,
+        history: fullHistory,
+        currentMessage: messageText,
+        whatsappName: whatsappDisplayName
+      },
+      currentMessage: messageText,
+      cierreYaEnviado: Boolean(cierreYaEnviado) && !stillPending
+    });
   }
   return {
     mensajeParaCliente,
