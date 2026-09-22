@@ -4166,10 +4166,31 @@ function ensureFunnelAfterSalesReply(
   const pending = getNextPendingField(extracted, filledSet);
   // A16047: si el strip o una rama dejó solo "¡Mucho gusto! De acuerdo." sin `?`,
   // reabrir embudo también cuando pending es requerimientos/nombre.
+  // A16238: si "requerimientos" solo produce otro ack muerto, saltar al siguiente dato.
   if (pending && !/\?/.test(out) && !isFarewellReply(out)) {
-    const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });
-    if (nextQ && /\?/.test(nextQ)) {
-      out = `${out.trim()} ${nextQ}`.replace(/\s{2,}/g, " ").trim();
+    let nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });
+    if (
+      nextQ &&
+      (!/\?/.test(nextQ) || looksLikeDeadEndAck(nextQ)) &&
+      pending === "requerimientos"
+    ) {
+      const skipReq: PendingField[] = [
+        "invitados",
+        "fecha",
+        "horario",
+        "zona",
+        "correo",
+        "presupuesto",
+      ];
+      const alt = skipReq.find((f) => !isFieldSatisfied(f, filledSet, extracted)) ?? null;
+      if (alt) {
+        nextQ = buildNaturalQuestion(alt, { ...ctx, filledSet });
+      }
+    }
+    if (nextQ && /\?/.test(nextQ) && !looksLikeDeadEndAck(nextQ)) {
+      out = looksLikeDeadEndAck(out)
+        ? `${out.trim()}\n\n${nextQ}`
+        : `${out.trim()} ${nextQ}`.replace(/\s{2,}/g, " ").trim();
       return out;
     }
   }
@@ -4540,16 +4561,22 @@ export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionCo
   return prefix ? `${prefix}${variant}` : variant;
 }
 
+/** A16238: Banquete/catering vago — re-preguntar formal vs casual (nunca ack sin `?`). */
+function buildBanqueteModoClarifier(prefix: string): string {
+  return `${prefix}Para afinar el banquete/catering, ¿lo prefieres más *formal* (tiempos) o *casual* (taquiza / barras)?`.trim();
+}
+
 export function buildRequerimientosQuestion(
   extracted: ExtractedData,
   history: OpenAI.Chat.ChatCompletionMessageParam[],
   currentMessage?: string,
   entityId?: string | number
 ): string {
-  if (
+  const foodStillVague =
     needsAlimentosTipoClarification(extracted.requerimientos_evento) ||
-    isVagueFoodTerm(currentMessage)
-  ) {
+    isVagueFoodTerm(currentMessage);
+
+  if (foodStillVague) {
     if (historyOfferedAlimentosModoMenu(history)) {
       if (clientChoseBanqueteFormal(currentMessage)) {
         return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
@@ -4557,10 +4584,15 @@ export function buildRequerimientosQuestion(
       if (clientChoseCateringCasual(currentMessage)) {
         return `${pickTransition(history)} ${buildCateringCasualMenu()}`.trim();
       }
+      // A16238 Paola: menú ya salió; el cliente respondió otra cosa (p.ej. "50 personas").
+      // Re-preguntar modo — NUNCA caer a "Queda anotado lo de Banquete" sin pregunta.
+      return buildBanqueteModoClarifier(`${pickTransition(history)} `);
     }
     if (!historyOfferedAlimentosModoMenu(history) && !historyOfferedServiceOptionsMenu(history)) {
       return `${pickTransition(history)} ${buildAlimentosModoMenu()}`.trim();
     }
+    // Catálogo de servicios ya tirado pero comida sigue vaga.
+    return buildBanqueteModoClarifier(`${pickTransition(history)} `);
   }
 
   const userText = collectUserTexts(history, currentMessage).join(" ");
@@ -4585,6 +4617,14 @@ export function buildRequerimientosQuestion(
     }
     // Ya preguntamos "¿otro servicio?" o tiramos el menú → no repetir el follow-up.
     if (alreadyFollowedUp || alreadyDumpedMenu) {
+      // A16238: bare "Queda anotado lo de X" mataba el chat. Si Banquete sigue vago, aclarar;
+      // si el servicio ya es concreto, el ack corto lo reabre ensureFunnel / antiRepeat.
+      if (
+        needsAlimentosTipoClarification(service) ||
+        /^banquetes?$/i.test(String(service).trim())
+      ) {
+        return buildBanqueteModoClarifier(prefix);
+      }
       return `${prefix}Queda anotado lo de ${service}.`.trim();
     }
     const idx = variantIndex("requerimientos", history, entityId);
@@ -5465,6 +5505,8 @@ export function looksLikeDeadEndAck(mensaje: string): boolean {
     /\b(ya\s+lo\s+tengo\s+anotad[oa]?|lo\s+tengo\s+anotad[oa]?|ya\s+lo\s+anoto|ya\s+anot[eé]|ya\s+tengo\s+lo\s+principal|seguimos\s+con\s+lo\s+que\s+ya\s+platicamos)\b/i.test(
       t
     ) ||
+    // A16238: "Queda anotado lo de Banquete." sin `?` mataba el embudo (Paola).
+    /\bqueda\s+anotado\s+lo\s+de\b/i.test(t) ||
     (/^perfecto[^.!]*[.!]?\s*$/i.test(t) && t.length < 60) ||
     // A16047: "¡Mucho gusto, Alan! Claro que sí." / "De acuerdo." sin pregunta.
     (/mucho\s+gusto\b/i.test(t) &&

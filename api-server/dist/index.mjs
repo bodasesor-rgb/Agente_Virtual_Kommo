@@ -132558,6 +132558,9 @@ function looksLikeDiscourseNotPlace(text2) {
   if (isLocationMetaReferential(t4)) return true;
   if (JUNK_DIRECCION_PATTERN.test(t4)) return true;
   if (looksLikeMealTimeNotLocation(t4)) return true;
+  if (/\binformaci[oó]n\s+de\s+(ambos|los\s+dos|todo)\b/i.test(t4) || /\bpodr[ií]as?\s+(darme|dar(me)?|compartir)\s+informaci/i.test(t4) || /\bdarme\s+informaci[oó]n\b/i.test(t4)) {
+    return true;
+  }
   if (hasGeoLocationSignal(t4) || KNOWN_ZONES.test(t4)) return false;
   const lower2 = t4.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
   if (/\b(es|son|esta|estan|esta|estan|quiero|necesito|busco|tengo|hay|muy|mas|mas|importante|necesario|urgente|parece|creo|pienso)\b/.test(
@@ -163313,9 +163316,25 @@ function ensureFunnelAfterSalesReply(mensaje, filledSet, extracted, ctx, current
   }
   const pending = getNextPendingField(extracted, filledSet);
   if (pending && !/\?/.test(out2) && !isFarewellReply(out2)) {
-    const nextQ2 = buildNaturalQuestion(pending, { ...ctx, filledSet });
-    if (nextQ2 && /\?/.test(nextQ2)) {
-      out2 = `${out2.trim()} ${nextQ2}`.replace(/\s{2,}/g, " ").trim();
+    let nextQ2 = buildNaturalQuestion(pending, { ...ctx, filledSet });
+    if (nextQ2 && (!/\?/.test(nextQ2) || looksLikeDeadEndAck(nextQ2)) && pending === "requerimientos") {
+      const skipReq = [
+        "invitados",
+        "fecha",
+        "horario",
+        "zona",
+        "correo",
+        "presupuesto"
+      ];
+      const alt = skipReq.find((f7) => !isFieldSatisfied(f7, filledSet, extracted)) ?? null;
+      if (alt) {
+        nextQ2 = buildNaturalQuestion(alt, { ...ctx, filledSet });
+      }
+    }
+    if (nextQ2 && /\?/.test(nextQ2) && !looksLikeDeadEndAck(nextQ2)) {
+      out2 = looksLikeDeadEndAck(out2) ? `${out2.trim()}
+
+${nextQ2}` : `${out2.trim()} ${nextQ2}`.replace(/\s{2,}/g, " ").trim();
       return out2;
     }
   }
@@ -163536,8 +163555,12 @@ function buildNaturalQuestion(field, ctx) {
   }
   return prefix ? `${prefix}${variant}` : variant;
 }
+function buildBanqueteModoClarifier(prefix) {
+  return `${prefix}Para afinar el banquete/catering, \xBFlo prefieres m\xE1s *formal* (tiempos) o *casual* (taquiza / barras)?`.trim();
+}
 function buildRequerimientosQuestion(extracted, history, currentMessage, entityId) {
-  if (needsAlimentosTipoClarification(extracted.requerimientos_evento) || isVagueFoodTerm(currentMessage)) {
+  const foodStillVague = needsAlimentosTipoClarification(extracted.requerimientos_evento) || isVagueFoodTerm(currentMessage);
+  if (foodStillVague) {
     if (historyOfferedAlimentosModoMenu(history)) {
       if (clientChoseBanqueteFormal(currentMessage)) {
         return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
@@ -163545,10 +163568,12 @@ function buildRequerimientosQuestion(extracted, history, currentMessage, entityI
       if (clientChoseCateringCasual(currentMessage)) {
         return `${pickTransition(history)} ${buildCateringCasualMenu()}`.trim();
       }
+      return buildBanqueteModoClarifier(`${pickTransition(history)} `);
     }
     if (!historyOfferedAlimentosModoMenu(history) && !historyOfferedServiceOptionsMenu(history)) {
       return `${pickTransition(history)} ${buildAlimentosModoMenu()}`.trim();
     }
+    return buildBanqueteModoClarifier(`${pickTransition(history)} `);
   }
   const userText = collectUserTexts(history, currentMessage).join(" ");
   const fromExtracted = isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento.trim() : null;
@@ -163563,6 +163588,9 @@ function buildRequerimientosQuestion(extracted, history, currentMessage, entityI
       return `${prefix}${buildRequiredServiceDimensionsQuestion(extracted)}`.trim();
     }
     if (alreadyFollowedUp || alreadyDumpedMenu) {
+      if (needsAlimentosTipoClarification(service) || /^banquetes?$/i.test(String(service).trim())) {
+        return buildBanqueteModoClarifier(prefix);
+      }
       return `${prefix}Queda anotado lo de ${service}.`.trim();
     }
     const idx = variantIndex("requerimientos", history, entityId);
@@ -164094,7 +164122,8 @@ function looksLikeDeadEndAck(mensaje) {
   }
   return /\b(ya\s+lo\s+tengo\s+anotad[oa]?|lo\s+tengo\s+anotad[oa]?|ya\s+lo\s+anoto|ya\s+anot[eé]|ya\s+tengo\s+lo\s+principal|seguimos\s+con\s+lo\s+que\s+ya\s+platicamos)\b/i.test(
     t4
-  ) || /^perfecto[^.!]*[.!]?\s*$/i.test(t4) && t4.length < 60 || // A16047: "¡Mucho gusto, Alan! Claro que sí." / "De acuerdo." sin pregunta.
+  ) || // A16238: "Queda anotado lo de Banquete." sin `?` mataba el embudo (Paola).
+  /\bqueda\s+anotado\s+lo\s+de\b/i.test(t4) || /^perfecto[^.!]*[.!]?\s*$/i.test(t4) && t4.length < 60 || // A16047: "¡Mucho gusto, Alan! Claro que sí." / "De acuerdo." sin pregunta.
   /mucho\s+gusto\b/i.test(t4) && t4.length < 140 && /(claro(\s+que\s+s[ií])?|de\s+acuerdo|perfecto|vale|\bok\b)\s*[.!]*\s*$/i.test(t4);
 }
 function historyAlreadyOfferedComplements(history) {
@@ -227720,7 +227749,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.11";
+var LUCY_PROMPT_VERSION = "V10.12";
 
 // src/lib/buildMeta.ts
 var cached = null;

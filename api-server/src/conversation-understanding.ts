@@ -2872,6 +2872,14 @@ export function looksLikeDiscourseNotPlace(text: string | null | undefined): boo
   if (isLocationMetaReferential(t)) return true;
   if (JUNK_DIRECCION_PATTERN.test(t)) return true;
   if (looksLikeMealTimeNotLocation(t)) return true;
+  // A16238: pedidos de info / "ambos" ≠ sede del evento.
+  if (
+    /\binformaci[oó]n\s+de\s+(ambos|los\s+dos|todo)\b/i.test(t) ||
+    /\bpodr[ií]as?\s+(darme|dar(me)?|compartir)\s+informaci/i.test(t) ||
+    /\bdarme\s+informaci[oó]n\b/i.test(t)
+  ) {
+    return true;
+  }
   if (hasGeoLocationSignal(t) || KNOWN_ZONES.test(t)) return false;
   const lower = t
     .toLowerCase()
