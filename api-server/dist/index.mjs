@@ -132279,7 +132279,7 @@ function looksLikeMxMunicipalityToponym(text2) {
   if (!t4 || t4.length > 56) return false;
   const words = t4.split(/\s+/).filter(Boolean);
   if (words.length < 2 || words.length > 5) return false;
-  if (/\b(barra|pizza|pasta|crepa|sushi|banquete|taquiza|catering|carpa|dj|mobiliario|mesa|silla|sal[oó]n|hotel|hacienda|club|expo|cabana|caba[nñ]a|venue|servicio|evento|correo|presupuesto|cotizaci[oó]n|cumplea[nñ]os?|cumple|boda|bautizo|xv|quincea[nñ]era|graduaci[oó]n|baby\s*shower|aniversario|posada|suegra|esposo|esposa|novio|novia|padrinos?)\b/i.test(
+  if (/\b(barra|pizza|pasta|crepa|sushi|banquete|taquiza|catering|carpa|dj|mobiliario|mesa|silla|sal[oó]n|hotel|hacienda|club|expo|cabana|caba[nñ]a|venue|servicio|evento|correo|presupuesto|cotizaci[oó]n|cumplea[nñ]os?|cumple|boda|bautizo|xv|quincea[nñ]era|graduaci[oó]n|baby\s*shower|aniversario|posada|suegra|esposo|esposa|novio|novia|padrinos?|podr[ií]as?|darme|dame|dar(me)?|informaci[oó]n|ambos|ambas|opciones?|propuestas?|compartir|regalas?)\b/i.test(
     t4
   )) {
     return false;
@@ -133451,6 +133451,9 @@ function clientRequestsDualProposals(message) {
   if (!message?.trim()) return false;
   const t4 = message.toLowerCase();
   if (/\b(dos|2)\s+propuestas?\b/i.test(t4)) return true;
+  if (/\b(?:informaci[oó]n|info)\s+de\s+(ambos|los\s+dos|las\s+dos)\b/i.test(t4) || /\b(ambos|ambas)\s+(opciones?|propuestas?|estilos?|men[uú]s?)\b/i.test(t4) || /\b(los|las)\s+dos\b/i.test(t4) || /\bambas?\s+opciones?\b/i.test(t4)) {
+    return true;
+  }
   return /\bpropuesta\b/i.test(t4) && /\b(banquete|formal)\b/i.test(t4) && /\b(casual|relajad)\b/i.test(t4);
 }
 function buildDualProposalAck(displayName) {
@@ -227749,7 +227752,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.12";
+var LUCY_PROMPT_VERSION = "V10.13";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -233812,7 +233815,7 @@ function buildPatchPayload(extracted, mergedLines, conversationText, currentLead
     values: [{ value: resumenLargo }]
   });
   const direccionForCrm = crmStoredValue(mergedLines, "Lugar/direcci\xF3n del evento") ?? extracted.direccion_evento;
-  if (isValidExtractedString(direccionForCrm))
+  if (isValidExtractedString(direccionForCrm) && isUsableDireccionEvento(direccionForCrm))
     customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap2552(direccionForCrm) }] });
   const reqStored = crmStoredValue(mergedLines, "Requerimientos o servicios");
   const reqForCrm = reqStored ?? (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null);

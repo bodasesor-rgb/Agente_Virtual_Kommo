@@ -2393,7 +2393,7 @@ export function looksLikeMxMunicipalityToponym(text: string | null | undefined):
   const words = t.split(/\s+/).filter(Boolean);
   if (words.length < 2 || words.length > 5) return false;
   if (
-    /\b(barra|pizza|pasta|crepa|sushi|banquete|taquiza|catering|carpa|dj|mobiliario|mesa|silla|sal[oó]n|hotel|hacienda|club|expo|cabana|caba[nñ]a|venue|servicio|evento|correo|presupuesto|cotizaci[oó]n|cumplea[nñ]os?|cumple|boda|bautizo|xv|quincea[nñ]era|graduaci[oó]n|baby\s*shower|aniversario|posada|suegra|esposo|esposa|novio|novia|padrinos?)\b/i.test(
+    /\b(barra|pizza|pasta|crepa|sushi|banquete|taquiza|catering|carpa|dj|mobiliario|mesa|silla|sal[oó]n|hotel|hacienda|club|expo|cabana|caba[nñ]a|venue|servicio|evento|correo|presupuesto|cotizaci[oó]n|cumplea[nñ]os?|cumple|boda|bautizo|xv|quincea[nñ]era|graduaci[oó]n|baby\s*shower|aniversario|posada|suegra|esposo|esposa|novio|novia|padrinos?|podr[ií]as?|darme|dame|dar(me)?|informaci[oó]n|ambos|ambas|opciones?|propuestas?|compartir|regalas?)\b/i.test(
       t
     )
   ) {
@@ -4347,6 +4347,15 @@ export function clientRequestsDualProposals(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
   if (/\b(dos|2)\s+propuestas?\b/i.test(t)) return true;
+  // A16238: "Podrías darme información de ambos" / "los dos" / "ambas opciones".
+  if (
+    /\b(?:informaci[oó]n|info)\s+de\s+(ambos|los\s+dos|las\s+dos)\b/i.test(t) ||
+    /\b(ambos|ambas)\s+(opciones?|propuestas?|estilos?|men[uú]s?)\b/i.test(t) ||
+    /\b(los|las)\s+dos\b/i.test(t) ||
+    /\bambas?\s+opciones?\b/i.test(t)
+  ) {
+    return true;
+  }
   return (
     /\bpropuesta\b/i.test(t) &&
     /\b(banquete|formal)\b/i.test(t) &&

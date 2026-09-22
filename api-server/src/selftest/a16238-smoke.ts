@@ -14,11 +14,13 @@ import {
 import {
   isUsableDireccionEvento,
   looksLikeDiscourseNotPlace,
+  looksLikeMxMunicipalityToponym,
+  clientRequestsDualProposals,
 } from "../conversation-understanding.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.12");
+assert.equal(LUCY_PROMPT_VERSION, "V10.13");
 
 function emptyExtracted(partial: Partial<ExtractedData> = {}): ExtractedData {
   return {
@@ -49,6 +51,10 @@ assert.equal(
 
 assert.ok(looksLikeDiscourseNotPlace("Podrías darme información de ambos"));
 assert.equal(isUsableDireccionEvento("Podrías darme información de ambos"), false);
+assert.equal(looksLikeMxMunicipalityToponym("Podrías darme información de ambos"), false);
+assert.ok(clientRequestsDualProposals("Podrías darme información de ambos"));
+assert.ok(clientRequestsDualProposals("me das info de ambos"));
+assert.ok(clientRequestsDualProposals("las dos opciones"));
 
 const historyConMenu: OpenAI.Chat.ChatCompletionMessageParam[] = [
   {
@@ -130,5 +136,36 @@ const outCotiza = applyLucyMessageGuards({
   buildClosing: () => "CIERRE",
 });
 assert.ok(/\?/.test(outCotiza), `cotización no mata chat: ${outCotiza}`);
+
+// A16238b: "información de ambos" → dual propuesta, no "Además del Banquete".
+const dual = applyLucyMessageGuards({
+  aiResponse: "Además del Banquete, ¿te gustaría cotizar algún otro servicio?",
+  extracted: emptyExtracted({
+    nombre: "Paola",
+    tipo_evento: "boda",
+    requerimientos_evento: "Banquete",
+  }),
+  filledSet: new Set([
+    "Nombre del cliente",
+    "Tipo de evento",
+    "Requerimientos o servicios",
+  ]),
+  readyForClosing: false,
+  cierreYaEnviado: false,
+  emailRefusedThisTurn: false,
+  history: [
+    {
+      role: "assistant",
+      content:
+        "Claro. Para *comida* del evento, ¿qué te gustaría?\n" +
+        "• Un *banquete* más formal\n• Algo más *casual* tipo catering",
+    },
+  ],
+  currentMessage: "Podrías darme información de ambos",
+  buildClosing: () => "CIERRE",
+});
+assert.ok(/dos propuestas|formal.*casual|casual.*formal/i.test(dual), dual);
+assert.ok(!/adem[aá]s del banquete/i.test(dual), dual);
+assert.ok(!/queda anotado lo de banquete/i.test(dual), dual);
 
 console.log("A16238 smoke OK —", LUCY_PROMPT_VERSION);

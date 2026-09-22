@@ -1301,7 +1301,8 @@ function buildPatchPayload(
   // Tipo de evento / Ubicación / Requerimientos ya capturados.
   const direccionForCrm =
     crmStoredValue(mergedLines, "Lugar/dirección del evento") ?? extracted.direccion_evento;
-  if (isValidExtractedString(direccionForCrm))
+  // A16238: no escribir basura tipo "Podrías darme información de ambos" como ubicación.
+  if (isValidExtractedString(direccionForCrm) && isUsableDireccionEvento(direccionForCrm))
     customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap255(direccionForCrm) }] });
 
   const reqStored = crmStoredValue(mergedLines, "Requerimientos o servicios");
