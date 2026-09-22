@@ -188337,12 +188337,61 @@ var init_lucyRepairStore = __esm({
   }
 });
 
+// src/services/lucyAuditorTime.ts
+function mexicoCityDayKey(d3 = /* @__PURE__ */ new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(d3);
+}
+function startOfMexicoCityDay(d3 = /* @__PURE__ */ new Date()) {
+  const day = mexicoCityDayKey(d3);
+  return /* @__PURE__ */ new Date(`${day}T00:00:00-06:00`);
+}
+var init_lucyAuditorTime = __esm({
+  "src/services/lucyAuditorTime.ts"() {
+    "use strict";
+  }
+});
+
 // src/services/lucyAuditor.ts
 var lucyAuditor_exports = {};
 __export(lucyAuditor_exports, {
   getAuditorQuotaSnapshot: () => getAuditorQuotaSnapshot,
-  runLucyAuditorBatch: () => runLucyAuditorBatch
+  getLastDailyAuditDay: () => getLastDailyAuditDay,
+  mexicoCityDayKey: () => mexicoCityDayKey,
+  runLucyAuditorBatch: () => runLucyAuditorBatch,
+  runLucyAuditorDaily: () => runLucyAuditorDaily,
+  startOfMexicoCityDay: () => startOfMexicoCityDay
 });
+function getLastDailyAuditDay() {
+  return lastDailyRunDay;
+}
+async function loadTodayTranscripts(limitLeads = 40) {
+  const since = startOfMexicoCityDay();
+  const convs = await db.select({ leadId: conversations.kommoLeadId }).from(conversations).where(gte(conversations.updatedAt, since)).orderBy(desc(conversations.updatedAt)).limit(limitLeads);
+  const out2 = [];
+  for (const c5 of convs) {
+    const rows = await db.select({
+      role: messages.role,
+      content: messages.content
+    }).from(messages).where(
+      and(eq(messages.kommoLeadId, c5.leadId), gte(messages.timestamp, since))
+    ).orderBy(messages.timestamp).limit(60);
+    if (rows.length < 2) continue;
+    if (!rows.some((r5) => r5.role === "assistant")) continue;
+    out2.push({
+      leadId: c5.leadId,
+      turns: rows.map((r5) => ({
+        role: r5.role,
+        content: r5.content ?? ""
+      }))
+    });
+  }
+  return out2;
+}
 async function loadRecentTranscripts(limitLeads = 12) {
   const convs = await db.select({ leadId: conversations.kommoLeadId }).from(conversations).orderBy(desc(conversations.updatedAt)).limit(limitLeads);
   const out2 = [];
@@ -188366,12 +188415,25 @@ function formatTranscript(turns) {
   return turns.map((t4) => `${t4.role === "assistant" ? "LUCY" : "CLIENTE"}: ${t4.content}`).join("\n").slice(0, 6e3);
 }
 async function runLucyAuditorBatch(opts) {
-  const limitLeads = opts?.limitLeads ?? 12;
+  const dayKey2 = mexicoCityDayKey();
+  if (opts?.oncePerDay && lastDailyRunDay === dayKey2) {
+    return {
+      scanned: 0,
+      findings: 0,
+      recorded: 0,
+      flashCalls: 0,
+      skipped: "already_ran_today",
+      dayKey: dayKey2,
+      quota: getAuditorQuotaSnapshot()
+    };
+  }
+  const limitLeads = opts?.limitLeads ?? (opts?.onlyToday ? 40 : 12);
   const useFlash = opts?.useFlash !== false;
+  const onlyToday = opts?.onlyToday === true;
   let flashCalls = 0;
   let findings = 0;
   let recorded = 0;
-  const transcripts = await loadRecentTranscripts(limitLeads);
+  const transcripts = onlyToday ? await loadTodayTranscripts(limitLeads) : await loadRecentTranscripts(limitLeads);
   for (const { leadId, turns } of transcripts) {
     const heuristic = runAuditorHeuristics(turns);
     for (const f7 of heuristic) {
@@ -188380,7 +188442,7 @@ async function runLucyAuditorBatch(opts) {
         kommoLeadId: leadId,
         category: f7.category,
         severity: f7.severity,
-        evidence: f7.evidence,
+        evidence: `[${dayKey2}] ${f7.evidence}`,
         proposedRepair: f7.proposedRepair,
         status: "auto_flagged",
         source: "heuristic"
@@ -188396,7 +188458,7 @@ async function runLucyAuditorBatch(opts) {
           kommoLeadId: leadId,
           category: f7.category,
           severity: f7.severity,
-          evidence: f7.evidence,
+          evidence: `[${dayKey2}] ${f7.evidence}`,
           proposedRepair: f7.proposedRepair,
           status: "open",
           source: "flash",
@@ -188406,16 +188468,29 @@ async function runLucyAuditorBatch(opts) {
       }
     }
   }
+  if (opts?.oncePerDay) {
+    lastDailyRunDay = dayKey2;
+  }
   const result = {
     scanned: transcripts.length,
     findings,
     recorded,
     flashCalls,
+    dayKey: dayKey2,
     quota: getAuditorQuotaSnapshot()
   };
   logger.info(result, "lucyAuditor batch finished");
   return result;
 }
+async function runLucyAuditorDaily() {
+  return runLucyAuditorBatch({
+    onlyToday: true,
+    oncePerDay: true,
+    limitLeads: 50,
+    useFlash: true
+  });
+}
+var lastDailyRunDay;
 var init_lucyAuditor = __esm({
   async "src/services/lucyAuditor.ts"() {
     "use strict";
@@ -188425,7 +188500,10 @@ var init_lucyAuditor = __esm({
     init_lucyAuditorHeuristics();
     init_lucyAuditorLlm();
     await init_lucyRepairStore();
+    init_lucyAuditorTime();
     init_lucyAuditorLlm();
+    init_lucyAuditorTime();
+    lastDailyRunDay = null;
   }
 });
 
@@ -236212,9 +236290,9 @@ router3.get("/kommo/cron/learning", async (req, res) => {
 router3.get("/kommo/cron/reparaciones", async (req, res) => {
   if (!assertCronAuthorized(req, res)) return;
   try {
-    const { runLucyAuditorBatch: runLucyAuditorBatch2 } = await init_lucyAuditor().then(() => lucyAuditor_exports);
-    const result = await runLucyAuditorBatch2({ limitLeads: 10, useFlash: true });
-    res.json({ ok: true, ...result });
+    const { runLucyAuditorDaily: runLucyAuditorDaily2 } = await init_lucyAuditor().then(() => lucyAuditor_exports);
+    const result = await runLucyAuditorDaily2();
+    res.json({ ok: true, mode: "daily", ...result });
   } catch (err2) {
     req.log?.error?.({ err: err2 }, "Cron reparaciones: error");
     res.status(500).json({ error: "cron_failed" });
@@ -237344,8 +237422,9 @@ router12.post("/reparaciones/run", async (req, res) => {
 });
 router12.post("/reparaciones/cron", async (req, res) => {
   try {
-    const result = await runLucyAuditorBatch({ limitLeads: 10, useFlash: true });
-    res.json({ ok: true, ...result });
+    const { runLucyAuditorDaily: runLucyAuditorDaily2 } = await init_lucyAuditor().then(() => lucyAuditor_exports);
+    const result = await runLucyAuditorDaily2();
+    res.json({ ok: true, mode: "daily", ...result });
   } catch (err2) {
     req.log?.error?.({ err: err2 }, "reparaciones/cron failed");
     res.status(500).json({ error: "cron_failed" });

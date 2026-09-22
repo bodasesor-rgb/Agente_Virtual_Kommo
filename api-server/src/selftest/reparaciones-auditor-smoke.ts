@@ -1,11 +1,15 @@
-/**
- * Smoke: heurísticas del auditor Lucy (sin LLM, sin outbound).
- */
 import assert from "node:assert/strict";
 import { runAuditorHeuristics } from "../services/lucyAuditorHeuristics.js";
-import { getAuditorModel, DEFAULT_AUDITOR_MODEL } from "../services/lucyAuditorLlm.js";
+import {
+  getAuditorModel,
+  DEFAULT_AUDITOR_MODEL,
+} from "../services/lucyAuditorLlm.js";
+import { mexicoCityDayKey, startOfMexicoCityDay } from "../services/lucyAuditorTime.js";
 
 assert.equal(getAuditorModel(), DEFAULT_AUDITOR_MODEL);
+assert.match(mexicoCityDayKey(), /^\d{4}-\d{2}-\d{2}$/);
+assert.ok(startOfMexicoCityDay() instanceof Date);
+assert.ok(startOfMexicoCityDay().getTime() <= Date.now());
 
 const loop = runAuditorHeuristics([
   { role: "user", content: "Si por favor Yucateca" },

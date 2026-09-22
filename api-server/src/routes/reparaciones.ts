@@ -58,8 +58,9 @@ router.post("/reparaciones/run", async (req: Request, res: Response) => {
 
 router.post("/reparaciones/cron", async (req: Request, res: Response) => {
   try {
-    const result = await runLucyAuditorBatch({ limitLeads: 10, useFlash: true });
-    res.json({ ok: true, ...result });
+    const { runLucyAuditorDaily } = await import("../services/lucyAuditor.js");
+    const result = await runLucyAuditorDaily();
+    res.json({ ok: true, mode: "daily", ...result });
   } catch (err) {
     req.log?.error?.({ err }, "reparaciones/cron failed");
     res.status(500).json({ error: "cron_failed" });

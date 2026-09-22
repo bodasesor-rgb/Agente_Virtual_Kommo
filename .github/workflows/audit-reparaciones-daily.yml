@@ -1,0 +1,47 @@
+name: Auditor diario Reparaciones Lucy
+
+# Una vez al día (≈ 22:00 Mexico / 04:00 UTC): revisa chats del día civil
+# America/Mexico_City. Heurísticas gratis + gemini-2.5-flash con cupo.
+# Nunca escribe al cliente.
+
+on:
+  schedule:
+    # 04:00 UTC ≈ 22:00 CST (Mexico) / 23:00 CDT
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Ping health
+        env:
+          LUCY_PUBLIC_URL: ${{ vars.LUCY_PUBLIC_URL }}
+        run: |
+          BASE="${LUCY_PUBLIC_URL:-https://midnightblue-mosquito-424375.hostingersite.com}"
+          HTTP=$(curl -sS -o /tmp/h.json -w "%{http_code}" --max-time 45 "${BASE%/}/api/health" || echo "000")
+          echo "health=$HTTP"
+          cat /tmp/h.json || true
+          test "$HTTP" = "200"
+
+      - name: Cron auditor diario (chats del día)
+        env:
+          LUCY_PUBLIC_URL: ${{ vars.LUCY_PUBLIC_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          BASE="${LUCY_PUBLIC_URL:-https://midnightblue-mosquito-424375.hostingersite.com}"
+          URL="${BASE%/}/api/kommo/cron/reparaciones"
+          if [ -n "$CRON_SECRET" ]; then
+            URL="${URL}?secret=${CRON_SECRET}"
+          fi
+          echo "Auditor diario → $URL"
+          HTTP=$(curl -sS -o /tmp/audit.json -w "%{http_code}" --max-time 120 "$URL" || echo "000")
+          cat /tmp/audit.json || true
+          echo ""
+          echo "http=$HTTP"
+          if [ "$HTTP" != "200" ]; then
+            echo "ERROR: auditor HTTP $HTTP"
+            exit 1
+          fi
+          node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/audit.json','utf8')); console.log('day='+(j.dayKey||'?')+' scanned='+(j.scanned??'?')+' recorded='+(j.recorded??'?')+' flash='+(j.flashCalls??'?')+' skipped='+(j.skipped||'-'))"

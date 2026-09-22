@@ -3218,9 +3218,9 @@ router.get("/kommo/cron/learning", async (req: Request, res: Response) => {
 router.get("/kommo/cron/reparaciones", async (req: Request, res: Response) => {
   if (!assertCronAuthorized(req, res)) return;
   try {
-    const { runLucyAuditorBatch } = await import("../services/lucyAuditor.js");
-    const result = await runLucyAuditorBatch({ limitLeads: 10, useFlash: true });
-    res.json({ ok: true, ...result });
+    const { runLucyAuditorDaily } = await import("../services/lucyAuditor.js");
+    const result = await runLucyAuditorDaily();
+    res.json({ ok: true, mode: "daily", ...result });
   } catch (err) {
     req.log?.error?.({ err }, "Cron reparaciones: error");
     res.status(500).json({ error: "cron_failed" });
