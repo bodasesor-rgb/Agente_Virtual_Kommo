@@ -17,6 +17,7 @@ import {
   dedupeCatalogUrlsInMessage,
   reorderLeadingCatalogUrls,
   preferSpecificCatalogOverHub,
+  ensureOutboundAlwaysAsks,
 } from "./lucy-flow-guards.js";
 import { applyLucyGlobalAntiRepetition } from "./lucyOutboundAntiRepeat.js";
 import { applyClientNameCadence, stripMidMessageFiller } from "./lucyNaturalTone.js";
@@ -241,6 +242,27 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
         ? buildPostCierreThanksReply(input.extracted.nombre)
         : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
     input.log?.warn({ entityId: input.entityId }, "GUARD: mensaje vacío — respuesta de respaldo");
+  }
+
+  // A16244: última red — nunca WhatsApp sin pregunta que invite a seguir.
+  {
+    const before = mensaje;
+    mensaje = ensureOutboundAlwaysAsks(mensaje, {
+      extracted: input.extracted,
+      filledSet: input.filledSet,
+      ctx: {
+        extracted: input.extracted,
+        filledSet: input.filledSet,
+        history: input.history ?? [],
+        currentMessage: input.currentMessage,
+        whatsappName: input.extracted.nombre,
+      },
+      currentMessage: input.currentMessage,
+      cierreYaEnviado: input.cierreYaEnviado,
+    });
+    if (mensaje !== before) {
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: A16244 — always-ask continue");
+    }
   }
 
   return formatForWhatsApp(mensaje);

@@ -48,6 +48,7 @@ import {
   looksLikeDeadEndAck,
   requiredServiceDimensionsMissing,
   buildDimensionRecommendationReply,
+  ensureOutboundAlwaysAsks,
   buildRequiredServiceDimensionsQuestion,
   type PendingField,
 } from "./lucy-flow-guards.js";
@@ -837,6 +838,26 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
             : q;
       applied.push("dead-end-ack-continue");
     }
+  }
+
+  // A16244: nunca salir a WhatsApp sin pregunta que invite a seguir.
+  {
+    const extractedFull = asExtracted(extracted);
+    const before = mensaje;
+    mensaje = ensureOutboundAlwaysAsks(mensaje, {
+      extracted: extractedFull,
+      filledSet: filled,
+      ctx: {
+        extracted: extractedFull,
+        filledSet: filled,
+        history: input.history ?? [],
+        currentMessage: input.currentMessage,
+        whatsappName: display,
+      },
+      currentMessage: input.currentMessage,
+      cierreYaEnviado: cierre,
+    });
+    if (mensaje !== before) applied.push("always-ask-continue");
   }
 
   return { mensaje: mensaje.trim(), applied };

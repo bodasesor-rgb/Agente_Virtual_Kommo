@@ -11,7 +11,7 @@ import { parseServicesFromText } from "../conversation-understanding.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.13");
+assert.equal(LUCY_PROMPT_VERSION, "V10.14");
 
 function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   return {

@@ -131977,7 +131977,10 @@ function stripAccidentalCarpasFromPistaRequirements(req) {
 function clientRequestsCallback(message) {
   if (!message?.trim()) return false;
   const t4 = message.toLowerCase();
-  return /\b(m[aá]rquenme|marquenme|ll[aá]menme|llamarme|me\s+marcan|me\s+llaman)\b/i.test(t4) || /\bme\s+pueden\s+(marcar|llamar)\b/i.test(t4) || /\b(pueden|pueden\s+ustedes)\s+(marcar|llamar)\b/i.test(t4) || /\batenci[oó]n\s+personalizada\b/i.test(t4) || /\bque\s+me\s+(marquen|llamen)\b/i.test(t4) || /\bnecesito\s+que\s+me\s+(marquen|llamen)\b/i.test(t4) || // A15539 Jorge: "que me llamen si están interesados"
+  return /\b(m[aá]rquenme|marquenme|ll[aá]menme|llamarme|me\s+marcan|me\s+llaman)\b/i.test(t4) || /\bme\s+pueden\s+(marcar|llamar)\b/i.test(t4) || /\b(pueden|pueden\s+ustedes)\s+(marcar|llamar)\b/i.test(t4) || /\batenci[oó]n\s+personalizada\b/i.test(t4) || /\bque\s+me\s+(marquen|llamen)\b/i.test(t4) || /\bnecesito\s+que\s+me\s+(marquen|llamen)\b/i.test(t4) || // A16244: "Necesito que me llamen lo más pronto posible"
+  /\b(llamen|marquen|llamar|marcar).{0,30}(lo\s+m[aá]s\s+pronto|cuanto\s+antes|urgente)\b/i.test(
+    t4
+  ) || // A15539 Jorge: "que me llamen si están interesados"
   /\b(llamen|marquen)\s+si\s+(est[aá]n|estan)\s+interesados?\b/i.test(t4) || /\bme\s+(pueden\s+)?llamar\s+si\b/i.test(t4) || /\beste\s+es\s+mi\s+tel(e[eé]?fono)?\b/i.test(t4);
 }
 function clientSignalsUrgency(message) {
@@ -134009,6 +134012,10 @@ function isDimensionText(text2) {
 function isUsableDireccionEvento(value) {
   const t4 = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
   if (!t4) return false;
+  if (/^(el\s+)?techos?$/i.test(t4)) return false;
+  if (/\btechos?\b/i.test(t4) && !hasCityOrMetroSignal(t4) && !KNOWN_ZONES.test(t4) && t4.split(/\s+/).length <= 4) {
+    return false;
+  }
   if (isLocationMetaReferential(t4)) return false;
   if (/^(pdf|excel|word|archivo|documento)s?$/i.test(t4)) return false;
   if (/,?\s*pdf\s*$/i.test(t4) && !KNOWN_ZONES.test(t4.replace(/,?\s*pdf\s*$/i, ""))) return false;
@@ -134266,6 +134273,17 @@ function parseAllSpaceDimensions(text2) {
         if (a4 >= 2 && a4 <= 120 && b5 >= 2 && b5 <= 120) {
           push(m6[1].replace(",", "."), m6[2].replace(",", "."), heightOnly);
         }
+      }
+    }
+  }
+  if (out2.length === 0) {
+    for (const m6 of text2.matchAll(
+      /\b(\d+(?:[.,]\d+)?)\s*(?:m\s*[²2]|metros?\s*cuadrados?)\b/gi
+    )) {
+      const area = Number(m6[1].replace(",", "."));
+      if (area >= 4 && area <= 5e3) {
+        const side = Math.max(2, Math.round(Math.sqrt(area) * 10) / 10);
+        push(String(side), String(side), heightOnly);
       }
     }
   }
@@ -163758,27 +163776,58 @@ function clientAsksPaymentOrQuoteDelivery(message) {
 }
 function buildPostCierreThanksReply(clientName) {
   const nombre = sanitizeDisplayName(clientName);
-  return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
+  return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. \xBFQuieres que te confirmen por aqu\xED cuando te contacten, o prefieres esperar el correo?` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. \xBFQuieres que te confirmen por aqu\xED cuando te contacten, o prefieres esperar el correo?";
 }
 function isFarewellReply(mensaje) {
   if (!mensaje?.trim()) return false;
-  return /quedo a tu disposici[oó]n por si decides avanzar/i.test(mensaje) || /que tengas un excelente d[ií]a/i.test(mensaje);
+  return /quedo a tu disposici[oó]n por si decides avanzar/i.test(mensaje) || /que tengas un excelente d[ií]a/i.test(mensaje) || // A16244 / A15547: pospone — no pegar embudo encima.
+  /cuando quieras retomamos/i.test(mensaje) || /te escribo en unos d[ií]as/i.test(mensaje);
 }
 function buildSoftLeadDeclineReply(clientName) {
   const nombre = sanitizeDisplayName(clientName);
-  return nombre ? `Perfecto, ${nombre}. Quedo a tu disposici\xF3n por si decides avanzar con nosotros. \xA1Que tengas un excelente d\xEDa!` : "Perfecto. Quedo a tu disposici\xF3n por si decides avanzar con nosotros. \xA1Que tengas un excelente d\xEDa!";
+  return nombre ? `Perfecto, ${nombre}. Quedo a tu disposici\xF3n por si decides avanzar con nosotros. \xBFTe escribo en unos d\xEDas para retomar, o prefieres t\xFA avisar por aqu\xED?` : "Perfecto. Quedo a tu disposici\xF3n por si decides avanzar con nosotros. \xBFTe escribo en unos d\xEDas para retomar, o prefieres t\xFA avisar por aqu\xED?";
 }
 function buildPostCierrePaymentHandoffReply(clientName) {
   const nombre = sanitizeDisplayName(clientName);
   const hi2 = nombre ? `${nombre}, ` : "";
   return [
     `Claro que s\xED, ${hi2}nuestro equipo te env\xEDa la cotizaci\xF3n y los datos para el anticipo (50%) por el correo que ya tenemos.`,
-    "En breve te atienden para confirmar montos y forma de pago."
+    "En breve te atienden para confirmar montos y forma de pago.",
+    "\xBFTe urge m\xE1s el anticipo o primero revisas la cotizaci\xF3n completa?"
   ].join(" ");
 }
 function buildPostCierreCallbackAck(clientName) {
   const nombre = sanitizeDisplayName(clientName);
-  return nombre ? `Con gusto, ${nombre}. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.` : "Con gusto. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.";
+  return nombre ? `Con gusto, ${nombre}. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo. \xBFPrefieres que te marque Ventas o Gerencia primero?` : "Con gusto. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo. \xBFPrefieres que te marque Ventas o Gerencia primero?";
+}
+function buildContinueEngagementQuestion(extracted, currentMessage) {
+  if (clientRequestsCallback(currentMessage) || clientSignalsUrgency(currentMessage)) {
+    return "\xBFTe marco el equipo hoy por tel\xE9fono, o prefieres que te escriban primero por este chat?";
+  }
+  const req = extracted.requerimientos_evento ?? "";
+  if (/carpas?|tarima|entarim|colgantes|entelado/i.test(req)) {
+    return "\xBFTe sumo mobiliario, iluminaci\xF3n o audio, o seguimos solo con lo que ya anotamos?";
+  }
+  return "\xBFHay algo m\xE1s que quieras sumar a la cotizaci\xF3n, o te urge que el equipo te contacte hoy?";
+}
+function ensureOutboundAlwaysAsks(mensaje, opts) {
+  let out2 = (mensaje || "").trim();
+  if (/\?/.test(out2)) return out2;
+  if (!opts.cierreYaEnviado) {
+    const pending = getNextPendingField(opts.extracted, opts.filledSet);
+    if (pending) {
+      const nextQ = buildNaturalQuestion(pending, opts.ctx);
+      if (nextQ && /\?/.test(nextQ) && !looksLikeDeadEndAck(nextQ)) {
+        return out2 ? `${out2}
+
+${nextQ}`.trim() : nextQ;
+      }
+    }
+  }
+  const hook = buildContinueEngagementQuestion(opts.extracted, opts.currentMessage);
+  return out2 ? `${out2}
+
+${hook}`.trim() : hook;
 }
 function lastAssistantWasPhoneAnswer(history) {
   const last = [...history].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string");
@@ -164126,7 +164175,8 @@ function looksLikeDeadEndAck(mensaje) {
   return /\b(ya\s+lo\s+tengo\s+anotad[oa]?|lo\s+tengo\s+anotad[oa]?|ya\s+lo\s+anoto|ya\s+anot[eé]|ya\s+tengo\s+lo\s+principal|seguimos\s+con\s+lo\s+que\s+ya\s+platicamos)\b/i.test(
     t4
   ) || // A16238: "Queda anotado lo de Banquete." sin `?` mataba el embudo (Paola).
-  /\bqueda\s+anotado\s+lo\s+de\b/i.test(t4) || /^perfecto[^.!]*[.!]?\s*$/i.test(t4) && t4.length < 60 || // A16047: "¡Mucho gusto, Alan! Claro que sí." / "De acuerdo." sin pregunta.
+  /\bqueda\s+anotado\s+lo\s+de\b/i.test(t4) || // A16244 Diana: "Seguimos con *Colgantes Premium* y lo demás que platicamos."
+  /\bseguimos\s+con\s+\*/i.test(t4) || /\blo\s+dem[aá]s\s+que\s+platicamos\b/i.test(t4) || /bodasesor\.com\/catalogos/i.test(t4) && t4.length < 280 && !/¿|quieres|gustar|prefieres|sumo|sumar/i.test(t4) || /^perfecto[^.!]*[.!]?\s*$/i.test(t4) && t4.length < 60 || // A16047: "¡Mucho gusto, Alan! Claro que sí." / "De acuerdo." sin pregunta.
   /mucho\s+gusto\b/i.test(t4) && t4.length < 140 && /(claro(\s+que\s+s[ií])?|de\s+acuerdo|perfecto|vale|\bok\b)\s*[.!]*\s*$/i.test(t4);
 }
 function historyAlreadyOfferedComplements(history) {
@@ -164974,7 +165024,7 @@ ${catalogUrl}`
     const wantsPizza = /pizza/i.test(extracted.requerimientos_evento ?? "") || /pizza/i.test(collectUserTexts(presHistory, currentMessage).join(" "));
     const primarySvc = preferPrimaryCatalogService(parseServicesFromText(extracted.requerimientos_evento ?? "")) || null;
     const pending = getNextPendingField(extracted, filledSet);
-    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : buildContinueEngagementQuestion(extracted, currentMessage);
     const display = getDisplayName(extracted, whatsappDisplayName);
     const svcNote = wantsPizza ? "Seguimos con la cotizaci\xF3n de *pizzas* para tu evento." : primarySvc ? `Seguimos con *${primarySvc}* y lo dem\xE1s que platicamos.` : null;
     const lastAsstCity = [...presHistory].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string");
@@ -165821,6 +165871,15 @@ Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
     mensaje = buildPostCierreCallbackAck(extracted.nombre);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 gracias tras pedir llamada");
+  } else if (
+    // A16244: "Okay"/"Sí" tras teléfonos ≠ volver a tirar el catálogo hub.
+    cierreYaEnviado && lastAssistantWasPhoneAnswer(presHistory) && /^(ok(ay)?|va|dale|s[ií]|sip|perfecto|listo|gracias)[.!]*$/i.test(
+      (currentMessage ?? "").trim()
+    )
+  ) {
+    mensaje = buildPostCierreCallbackAck(extracted.nombre);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16244 \u2014 ack corto tras tel\xE9fonos (no cat\xE1logo)");
   } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && (clientAddsToQuote(currentMessage) || parseServicesFromText(currentMessage ?? "").length >= 1 && !isRichQuoteBrief(currentMessage) && /\b(queremos|quisiera|sumamos|adem[aá]s|tambi[eé]n|helado|frutas?|crepas?)\b/i.test(
     currentMessage ?? ""
   ))) {
@@ -168471,6 +168530,13 @@ ${nextQ}` : `${ack} ${nextQ}`;
       mensaje = nextQ ? `${ack} ${nextQ}` : ack;
     }
   }
+  mensaje = ensureOutboundAlwaysAsks(mensaje, {
+    extracted,
+    filledSet,
+    ctx,
+    currentMessage,
+    cierreYaEnviado
+  });
   return normalizeAdvisorReferences2(
     reorderLeadingCatalogUrls(
       preferSpecificCatalogOverHub(
@@ -227752,7 +227818,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.13";
+var LUCY_PROMPT_VERSION = "V10.14";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -231932,6 +231998,24 @@ ${q3}` : display && !q3.includes(display) ? `Perfecto, ${display}. ${q3}` : q3;
       applied.push("dead-end-ack-continue");
     }
   }
+  {
+    const extractedFull = asExtracted(extracted);
+    const before = mensaje;
+    mensaje = ensureOutboundAlwaysAsks(mensaje, {
+      extracted: extractedFull,
+      filledSet: filled,
+      ctx: {
+        extracted: extractedFull,
+        filledSet: filled,
+        history: input.history ?? [],
+        currentMessage: input.currentMessage,
+        whatsappName: display
+      },
+      currentMessage: input.currentMessage,
+      cierreYaEnviado: cierre
+    });
+    if (mensaje !== before) applied.push("always-ask-continue");
+  }
   return { mensaje: mensaje.trim(), applied };
 }
 
@@ -232118,6 +232202,25 @@ ${keepQ}` : ack;
   if (!mensaje.trim()) {
     mensaje = input.cierreYaEnviado && clientSaysThanks(input.currentMessage) ? buildPostCierreThanksReply(input.extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
     input.log?.warn({ entityId: input.entityId }, "GUARD: mensaje vac\xEDo \u2014 respuesta de respaldo");
+  }
+  {
+    const before = mensaje;
+    mensaje = ensureOutboundAlwaysAsks(mensaje, {
+      extracted: input.extracted,
+      filledSet: input.filledSet,
+      ctx: {
+        extracted: input.extracted,
+        filledSet: input.filledSet,
+        history: input.history ?? [],
+        currentMessage: input.currentMessage,
+        whatsappName: input.extracted.nombre
+      },
+      currentMessage: input.currentMessage,
+      cierreYaEnviado: input.cierreYaEnviado
+    });
+    if (mensaje !== before) {
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: A16244 \u2014 always-ask continue");
+    }
   }
   return formatForWhatsApp(mensaje);
 }

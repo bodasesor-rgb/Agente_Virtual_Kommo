@@ -4907,28 +4907,31 @@ export function clientAsksPaymentOrQuoteDelivery(message?: string): boolean {
 export function buildPostCierreThanksReply(clientName?: string | null): string {
   const nombre = sanitizeDisplayName(clientName);
   return nombre
-    ? `¡Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.`
-    : "¡Con gusto! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.";
+    ? `¡Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotización. ¿Quieres que te confirmen por aquí cuando te contacten, o prefieres esperar el correo?`
+    : "¡Con gusto! Nuestro equipo ya tiene tus datos para la cotización. ¿Quieres que te confirmen por aquí cuando te contacten, o prefieres esperar el correo?";
 }
 
 /**
- * A15897: mensaje de despedida (el cliente se despidió o pospuso). Ninguna capa
- * posterior debe colgarle la siguiente pregunta del embudo.
+ * A15897: mensaje de despedida (el cliente se despidió o pospuso).
+ * A16244: aún así debe invitar a seguir (siempre con `?`).
  */
 export function isFarewellReply(mensaje: string): boolean {
   if (!mensaje?.trim()) return false;
   return (
     /quedo a tu disposici[oó]n por si decides avanzar/i.test(mensaje) ||
-    /que tengas un excelente d[ií]a/i.test(mensaje)
+    /que tengas un excelente d[ií]a/i.test(mensaje) ||
+    // A16244 / A15547: pospone — no pegar embudo encima.
+    /cuando quieras retomamos/i.test(mensaje) ||
+    /te escribo en unos d[ií]as/i.test(mensaje)
   );
 }
 
-/** A15547: cliente pospone — cierre amable sin re-pedir correo. */
+/** A15547: cliente pospone — cierre amable; A16244 siempre deja gancho con `?`. */
 export function buildSoftLeadDeclineReply(clientName?: string | null): string {
   const nombre = sanitizeDisplayName(clientName);
   return nombre
-    ? `Perfecto, ${nombre}. Quedo a tu disposición por si decides avanzar con nosotros. ¡Que tengas un excelente día!`
-    : "Perfecto. Quedo a tu disposición por si decides avanzar con nosotros. ¡Que tengas un excelente día!";
+    ? `Perfecto, ${nombre}. Quedo a tu disposición por si decides avanzar con nosotros. ¿Te escribo en unos días para retomar, o prefieres tú avisar por aquí?`
+    : "Perfecto. Quedo a tu disposición por si decides avanzar con nosotros. ¿Te escribo en unos días para retomar, o prefieres tú avisar por aquí?";
 }
 
 export function buildPostCierrePaymentHandoffReply(clientName?: string | null): string {
@@ -4937,6 +4940,7 @@ export function buildPostCierrePaymentHandoffReply(clientName?: string | null): 
   return [
     `Claro que sí, ${hi}nuestro equipo te envía la cotización y los datos para el anticipo (50%) por el correo que ya tenemos.`,
     "En breve te atienden para confirmar montos y forma de pago.",
+    "¿Te urge más el anticipo o primero revisas la cotización completa?",
   ].join(" ");
 }
 
@@ -4944,8 +4948,55 @@ export function buildPostCierrePaymentHandoffReply(clientName?: string | null): 
 export function buildPostCierreCallbackAck(clientName?: string | null): string {
   const nombre = sanitizeDisplayName(clientName);
   return nombre
-    ? `Con gusto, ${nombre}. Un asesor te puede atender por esos números; tu caso ya quedó con el equipo.`
-    : "Con gusto. Un asesor te puede atender por esos números; tu caso ya quedó con el equipo.";
+    ? `Con gusto, ${nombre}. Un asesor te puede atender por esos números; tu caso ya quedó con el equipo. ¿Prefieres que te marque Ventas o Gerencia primero?`
+    : "Con gusto. Un asesor te puede atender por esos números; tu caso ya quedó con el equipo. ¿Prefieres que te marque Ventas o Gerencia primero?";
+}
+
+/**
+ * A16244: Lucy nunca “mata” el chat. Si no hay `?`, pregunta que invite a seguir.
+ */
+export function buildContinueEngagementQuestion(
+  extracted: ExtractedData,
+  currentMessage?: string | null
+): string {
+  if (clientRequestsCallback(currentMessage) || clientSignalsUrgency(currentMessage)) {
+    return "¿Te marco el equipo hoy por teléfono, o prefieres que te escriban primero por este chat?";
+  }
+  const req = extracted.requerimientos_evento ?? "";
+  if (/carpas?|tarima|entarim|colgantes|entelado/i.test(req)) {
+    return "¿Te sumo mobiliario, iluminación o audio, o seguimos solo con lo que ya anotamos?";
+  }
+  return "¿Hay algo más que quieras sumar a la cotización, o te urge que el equipo te contacte hoy?";
+}
+
+/** Red final: todo WhatsApp saliente debe invitar a continuar (siempre con `?`). */
+export function ensureOutboundAlwaysAsks(
+  mensaje: string,
+  opts: {
+    extracted: ExtractedData;
+    filledSet: Set<string>;
+    ctx: NaturalQuestionContext;
+    currentMessage?: string | null;
+    cierreYaEnviado?: boolean;
+  }
+): string {
+  let out = (mensaje || "").trim();
+  if (/\?/.test(out)) return out;
+
+  if (!opts.cierreYaEnviado) {
+    const pending = getNextPendingField(opts.extracted, opts.filledSet);
+    if (pending) {
+      const nextQ = buildNaturalQuestion(pending, opts.ctx);
+      if (nextQ && /\?/.test(nextQ) && !looksLikeDeadEndAck(nextQ)) {
+        return out
+          ? `${out}\n\n${nextQ}`.trim()
+          : nextQ;
+      }
+    }
+  }
+
+  const hook = buildContinueEngagementQuestion(opts.extracted, opts.currentMessage);
+  return out ? `${out}\n\n${hook}`.trim() : hook;
 }
 
 function lastAssistantWasPhoneAnswer(
@@ -5507,6 +5558,12 @@ export function looksLikeDeadEndAck(mensaje: string): boolean {
     ) ||
     // A16238: "Queda anotado lo de Banquete." sin `?` mataba el embudo (Paola).
     /\bqueda\s+anotado\s+lo\s+de\b/i.test(t) ||
+    // A16244 Diana: "Seguimos con *Colgantes Premium* y lo demás que platicamos."
+    /\bseguimos\s+con\s+\*/i.test(t) ||
+    /\blo\s+dem[aá]s\s+que\s+platicamos\b/i.test(t) ||
+    (/bodasesor\.com\/catalogos/i.test(t) &&
+      t.length < 280 &&
+      !/¿|quieres|gustar|prefieres|sumo|sumar/i.test(t)) ||
     (/^perfecto[^.!]*[.!]?\s*$/i.test(t) && t.length < 60) ||
     // A16047: "¡Mucho gusto, Alan! Claro que sí." / "De acuerdo." sin pregunta.
     (/mucho\s+gusto\b/i.test(t) &&
@@ -6827,7 +6884,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       preferPrimaryCatalogService(parseServicesFromText(extracted.requerimientos_evento ?? "")) ||
       null;
     const pending = getNextPendingField(extracted, filledSet);
-    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    const nextQ = pending
+      ? buildNaturalQuestion(pending, ctx)
+      : buildContinueEngagementQuestion(extracted, currentMessage);
     const display = getDisplayName(extracted, whatsappDisplayName);
     const svcNote = wantsPizza
       ? "Seguimos con la cotización de *pizzas* para tu evento."
@@ -8143,6 +8202,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildPostCierreCallbackAck(extracted.nombre);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre — gracias tras pedir llamada");
+  } else if (
+    // A16244: "Okay"/"Sí" tras teléfonos ≠ volver a tirar el catálogo hub.
+    cierreYaEnviado &&
+    lastAssistantWasPhoneAnswer(presHistory) &&
+    /^(ok(ay)?|va|dale|s[ií]|sip|perfecto|listo|gracias)[.!]*$/i.test(
+      (currentMessage ?? "").trim()
+    )
+  ) {
+    mensaje = buildPostCierreCallbackAck(extracted.nombre);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16244 — ack corto tras teléfonos (no catálogo)");
   } else if (
     cierreYaEnviado &&
     !clientDeclinesMoreServices(currentMessage) &&
@@ -12174,6 +12244,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       mensaje = nextQ ? `${ack} ${nextQ}` : ack;
     }
   }
+
+  // A16244: regla dura — Lucy nunca cierra el chat sin una pregunta que invite a seguir.
+  mensaje = ensureOutboundAlwaysAsks(mensaje, {
+    extracted,
+    filledSet,
+    ctx,
+    currentMessage,
+    cierreYaEnviado,
+  });
 
   return normalizeAdvisorReferences(
     reorderLeadingCatalogUrls(

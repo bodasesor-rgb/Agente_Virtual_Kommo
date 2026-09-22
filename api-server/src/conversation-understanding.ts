@@ -1816,6 +1816,10 @@ export function clientRequestsCallback(message?: string): boolean {
     /\batenci[oó]n\s+personalizada\b/i.test(t) ||
     /\bque\s+me\s+(marquen|llamen)\b/i.test(t) ||
     /\bnecesito\s+que\s+me\s+(marquen|llamen)\b/i.test(t) ||
+    // A16244: "Necesito que me llamen lo más pronto posible"
+    /\b(llamen|marquen|llamar|marcar).{0,30}(lo\s+m[aá]s\s+pronto|cuanto\s+antes|urgente)\b/i.test(
+      t
+    ) ||
     // A15539 Jorge: "que me llamen si están interesados"
     /\b(llamen|marquen)\s+si\s+(est[aá]n|estan)\s+interesados?\b/i.test(t) ||
     /\bme\s+(pueden\s+)?llamar\s+si\b/i.test(t) ||
@@ -5228,6 +5232,16 @@ export function isDimensionText(text: string | null | undefined): boolean {
 export function isUsableDireccionEvento(value: string | null | undefined): boolean {
   const t = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
   if (!t) return false;
+  // A16244: "techo" / pieza arquitectónica ≠ sede del evento.
+  if (/^(el\s+)?techos?$/i.test(t)) return false;
+  if (
+    /\btechos?\b/i.test(t) &&
+    !hasCityOrMetroSignal(t) &&
+    !KNOWN_ZONES.test(t) &&
+    t.split(/\s+/).length <= 4
+  ) {
+    return false;
+  }
   // A15775+: "esa es la ciudad" nunca es sede.
   if (isLocationMetaReferential(t)) return false;
   // A15486: "PDF" / archivo ≠ sede.
@@ -5609,6 +5623,19 @@ export function parseAllSpaceDimensions(text: string): string[] {
         if (a >= 2 && a <= 120 && b >= 2 && b <= 120) {
           push(m[1]!.replace(",", "."), m[2]!.replace(",", "."), heightOnly);
         }
+      }
+    }
+  }
+
+  // A16244: "25m2" / "25 m²" / "mide 25 metros cuadrados" → aprox. lado×lado.
+  if (out.length === 0) {
+    for (const m of text.matchAll(
+      /\b(\d+(?:[.,]\d+)?)\s*(?:m\s*[²2]|metros?\s*cuadrados?)\b/gi
+    )) {
+      const area = Number(m[1]!.replace(",", "."));
+      if (area >= 4 && area <= 5000) {
+        const side = Math.max(2, Math.round(Math.sqrt(area) * 10) / 10);
+        push(String(side), String(side), heightOnly);
       }
     }
   }

@@ -17,7 +17,7 @@ import { hasConcreteServiceVariant } from "../services/serviceProgressiveOffer.j
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.13");
+assert.equal(LUCY_PROMPT_VERSION, "V10.14");
 
 // Ambiguos: nombre propio ≠ modelo
 assert.equal(parseChairModelFromText("Hola Lucy! Mi nombre es María"), null);
