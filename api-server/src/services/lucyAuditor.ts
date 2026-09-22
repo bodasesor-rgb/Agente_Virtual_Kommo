@@ -20,7 +20,7 @@ import {
 import { recordLucyRepair } from "./lucyRepairStore.js";
 import { mexicoCityDayKey, startOfMexicoCityDay } from "./lucyAuditorTime.js";
 import { syncLeadTranscript } from "./chatIngest.js";
-import { resolveKommoTalkId } from "./kommoTalks.js";
+import { listKommoTalkIdCandidates } from "./kommoTalks.js";
 import { ETAPA, PIPELINE_ID } from "./embudo.js";
 
 export { getAuditorQuotaSnapshot } from "./lucyAuditorLlm.js";
@@ -221,57 +221,44 @@ async function syncTodayLeadsFromKommo(
       const conv = await db.query.conversations.findFirst({
         where: eq(conversations.kommoLeadId, leadId),
       });
-      const talkId = await resolveKommoTalkId({
+      const candidates = await listKommoTalkIdCandidates({
         subdomain,
         accessToken,
         leadId,
-        // No reusar knownTalkId ciego: a veces era chat_id y Talks queda vacío.
-        knownTalkId: null,
+        knownTalkId: conv?.kommoTalkId ?? null,
         knownChatId: conv?.kommoChatId ?? null,
       });
-      if (!talkId) continue;
+      if (candidates.length === 0) continue;
+
+      let bestTalkId = candidates[0]!;
+      let syncResult = { inserted: 0, total: 0 };
+      for (const talkId of candidates) {
+        const attempt = await syncLeadTranscript({
+          kommoLeadId: leadId,
+          talkId,
+          subdomain,
+          accessToken,
+        });
+        if (attempt.total > syncResult.total) {
+          syncResult = attempt;
+          bestTalkId = talkId;
+        }
+        if (attempt.total >= 2) break;
+      }
+
       if (!conv) {
         await db.insert(conversations).values({
           kommoLeadId: leadId,
           kommoChatId: leadId,
-          kommoTalkId: String(talkId),
+          kommoTalkId: String(bestTalkId),
           status: "active",
           stage: "discovery",
         });
       } else {
         await db
           .update(conversations)
-          .set({ kommoTalkId: String(talkId), updatedAt: new Date() })
+          .set({ kommoTalkId: String(bestTalkId), updatedAt: new Date() })
           .where(eq(conversations.kommoLeadId, leadId));
-      }
-      let syncResult = await syncLeadTranscript({
-        kommoLeadId: leadId,
-        talkId: String(talkId),
-        subdomain,
-        accessToken,
-      });
-      // Si Talks vacío y teníamos un id guardado distinto, probar el otro candidato.
-      if (
-        syncResult.total === 0 &&
-        conv?.kommoTalkId &&
-        String(conv.kommoTalkId) !== String(talkId)
-      ) {
-        const retry = await syncLeadTranscript({
-          kommoLeadId: leadId,
-          talkId: String(conv.kommoTalkId),
-          subdomain,
-          accessToken,
-        });
-        if (retry.total > syncResult.total) {
-          syncResult = retry;
-          await db
-            .update(conversations)
-            .set({
-              kommoTalkId: String(conv.kommoTalkId),
-              updatedAt: new Date(),
-            })
-            .where(eq(conversations.kommoLeadId, leadId));
-        }
       }
       synced += 1;
       if (syncResult.total > 0) syncedWithMessages += 1;

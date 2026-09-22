@@ -114,17 +114,39 @@ export async function sendKommoTalkMessage(opts: {
   }
 }
 
+function looksLikeNumericTalkId(value: string | number | null | undefined): boolean {
+  if (value == null) return false;
+  const s = String(value).trim();
+  return /^\d{1,12}$/.test(s);
+}
+
+function pushCandidate(out: string[], value: string | number | null | undefined): void {
+  if (!looksLikeNumericTalkId(value)) return;
+  const s = String(value).trim();
+  if (!out.includes(s)) out.push(s);
+}
+
 export async function fetchTalkIdFromLeadChats(
   subdomain: string,
   accessToken: string,
   leadId: string | number
 ): Promise<string | null> {
+  const ids = await listTalkIdsFromLeadChats(subdomain, accessToken, leadId);
+  return ids[0] ?? null;
+}
+
+async function listTalkIdsFromLeadChats(
+  subdomain: string,
+  accessToken: string,
+  leadId: string | number
+): Promise<string[]> {
+  const out: string[] = [];
   try {
     const res = await fetch(
       `https://${subdomain}.kommo.com/api/v4/leads/${leadId}?with=contacts,tags,chats`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
-    if (!res.ok) return null;
+    if (!res.ok) return out;
     const data = (await res.json()) as {
       _embedded?: {
         chats?: Array<{
@@ -134,22 +156,15 @@ export async function fetchTalkIdFromLeadChats(
         }>;
       };
     };
-    const chats = data._embedded?.chats ?? [];
-    // Prefer talk_id: /talks/{id}/messages exige talk, no chat_id de WhatsApp.
-    for (const chat of chats) {
-      if (chat.talk_id != null && String(chat.talk_id).trim()) {
-        return String(chat.talk_id);
-      }
+    for (const chat of data._embedded?.chats ?? []) {
+      // Solo talk_id numérico sirve para GET /talks/{id}/messages.
+      pushCandidate(out, chat.talk_id);
+      pushCandidate(out, chat.id);
     }
-    for (const chat of chats) {
-      const id = chat.id ?? chat.chat_id;
-      if (id != null && String(id).trim()) return String(id);
-    }
-    return null;
   } catch (err) {
     logger.warn({ err, leadId }, "kommoTalks: error leyendo chats del lead");
-    return null;
   }
+  return out;
 }
 
 /** Lista talks ligados al lead (entity_type lead). */
@@ -158,11 +173,21 @@ export async function fetchTalkIdFromTalksFilter(
   accessToken: string,
   leadId: string | number
 ): Promise<string | null> {
+  const ids = await listTalkIdsFromTalksFilter(subdomain, accessToken, leadId);
+  return ids[0] ?? null;
+}
+
+async function listTalkIdsFromTalksFilter(
+  subdomain: string,
+  accessToken: string,
+  leadId: string | number
+): Promise<string[]> {
   const entityId = String(leadId);
+  const out: string[] = [];
   const urls = [
-    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&filter[entity_type]=leads&limit=10`,
-    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&filter[entity_type]=lead&limit=10`,
-    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&limit=10`,
+    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&filter[entity_type]=lead&limit=25`,
+    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&filter[entity_type]=leads&limit=25`,
+    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&limit=25`,
   ];
 
   for (const url of urls) {
@@ -170,24 +195,59 @@ export async function fetchTalkIdFromTalksFilter(
       const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
       if (!res.ok) continue;
       const data = (await res.json()) as {
-        _embedded?: { talks?: Array<{ id?: string | number; talk_id?: string | number }> };
+        _embedded?: {
+          talks?: Array<{ id?: string | number; talk_id?: string | number }>;
+        };
       };
       const talks = data._embedded?.talks ?? [];
       for (const talk of talks) {
-        const id = talk.id ?? talk.talk_id;
-        if (id != null && String(id).trim()) return String(id);
+        // Docs Kommo: el id de conversación es talk_id (no chat_id UUID).
+        pushCandidate(out, talk.talk_id);
+        pushCandidate(out, talk.id);
       }
+      if (out.length > 0) break;
     } catch {
       // probar siguiente URL
     }
   }
-  return null;
+  return out;
+}
+
+/**
+ * Todos los candidatos numéricos de talk_id para un lead (orden de preferencia).
+ * El caller debe probar sync hasta que Talks devuelva mensajes.
+ */
+export async function listKommoTalkIdCandidates(opts: {
+  subdomain: string;
+  accessToken: string;
+  leadId: string | number;
+  knownTalkId?: string | null;
+  knownChatId?: string | null;
+}): Promise<string[]> {
+  const out: string[] = [];
+  pushCandidate(out, opts.knownTalkId);
+
+  const fromTalks = await listTalkIdsFromTalksFilter(
+    opts.subdomain,
+    opts.accessToken,
+    opts.leadId
+  );
+  for (const id of fromTalks) pushCandidate(out, id);
+
+  const fromChats = await listTalkIdsFromLeadChats(
+    opts.subdomain,
+    opts.accessToken,
+    opts.leadId
+  );
+  for (const id of fromChats) pushCandidate(out, id);
+
+  pushCandidate(out, opts.knownChatId);
+  return out;
 }
 
 /**
  * Resuelve el mejor talkId disponible para un lead.
- * Orden: knownTalkId → filtro talks (entity) → chats.talk_id → chats.id → knownChatId.
- * knownChatId es último: a menudo es chat WhatsApp ≠ talk_id de /messages.
+ * Preferencia: knownTalkId → filtro talks → chats.talk_id → knownChatId (si numérico).
  */
 export async function resolveKommoTalkId(opts: {
   subdomain: string;
@@ -196,22 +256,6 @@ export async function resolveKommoTalkId(opts: {
   knownTalkId?: string | null;
   knownChatId?: string | null;
 }): Promise<string | null> {
-  if (opts.knownTalkId?.trim()) return opts.knownTalkId.trim();
-
-  const fromTalks = await fetchTalkIdFromTalksFilter(
-    opts.subdomain,
-    opts.accessToken,
-    opts.leadId
-  );
-  if (fromTalks) return fromTalks;
-
-  const fromChats = await fetchTalkIdFromLeadChats(
-    opts.subdomain,
-    opts.accessToken,
-    opts.leadId
-  );
-  if (fromChats) return fromChats;
-
-  if (opts.knownChatId?.trim()) return opts.knownChatId.trim();
-  return null;
+  const ids = await listKommoTalkIdCandidates(opts);
+  return ids[0] ?? null;
 }

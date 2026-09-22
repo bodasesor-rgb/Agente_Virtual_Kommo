@@ -169766,14 +169766,18 @@ async function fetchKommoTalkMessages(subdomain, accessToken, talkId, limit2 = 8
     `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=${limit2}&order=desc`
   ];
   const byId = /* @__PURE__ */ new Map();
+  let lastStatus = 0;
+  let rawCount = 0;
   for (const url2 of urls) {
     try {
       const res = await fetch(url2, {
         headers: { Authorization: `Bearer ${accessToken}` }
       });
+      lastStatus = res.status;
       if (!res.ok) continue;
       const data = await res.json();
       let msgs = data._embedded?.messages ?? [];
+      rawCount = Math.max(rawCount, msgs.length);
       if (url2.includes("order=desc")) msgs = [...msgs].reverse();
       for (const m6 of msgs) {
         const text2 = extractKommoMessageText(
@@ -169787,6 +169791,12 @@ async function fetchKommoTalkMessages(subdomain, accessToken, talkId, limit2 = 8
     } catch (err2) {
       logger.warn({ err: err2, talkId }, "chatIngest: error leyendo Talks API");
     }
+  }
+  if (byId.size === 0) {
+    logger.info(
+      { talkId, lastStatus, rawCount },
+      "chatIngest: Talks sin texto usable"
+    );
   }
   const list = [...byId.values()];
   list.sort((a4, b5) => Number(a4.created_at ?? 0) - Number(b5.created_at ?? 0));
@@ -169996,36 +170006,41 @@ async function sendKommoTalkMessage(opts) {
     return { ok: false, error: err2 instanceof Error ? err2.message : "error de red" };
   }
 }
-async function fetchTalkIdFromLeadChats(subdomain, accessToken, leadId) {
+function looksLikeNumericTalkId(value) {
+  if (value == null) return false;
+  const s7 = String(value).trim();
+  return /^\d{1,12}$/.test(s7);
+}
+function pushCandidate(out2, value) {
+  if (!looksLikeNumericTalkId(value)) return;
+  const s7 = String(value).trim();
+  if (!out2.includes(s7)) out2.push(s7);
+}
+async function listTalkIdsFromLeadChats(subdomain, accessToken, leadId) {
+  const out2 = [];
   try {
     const res = await fetch(
       `https://${subdomain}.kommo.com/api/v4/leads/${leadId}?with=contacts,tags,chats`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
-    if (!res.ok) return null;
+    if (!res.ok) return out2;
     const data = await res.json();
-    const chats = data._embedded?.chats ?? [];
-    for (const chat of chats) {
-      if (chat.talk_id != null && String(chat.talk_id).trim()) {
-        return String(chat.talk_id);
-      }
+    for (const chat of data._embedded?.chats ?? []) {
+      pushCandidate(out2, chat.talk_id);
+      pushCandidate(out2, chat.id);
     }
-    for (const chat of chats) {
-      const id = chat.id ?? chat.chat_id;
-      if (id != null && String(id).trim()) return String(id);
-    }
-    return null;
   } catch (err2) {
     logger.warn({ err: err2, leadId }, "kommoTalks: error leyendo chats del lead");
-    return null;
   }
+  return out2;
 }
-async function fetchTalkIdFromTalksFilter(subdomain, accessToken, leadId) {
+async function listTalkIdsFromTalksFilter(subdomain, accessToken, leadId) {
   const entityId = String(leadId);
+  const out2 = [];
   const urls = [
-    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&filter[entity_type]=leads&limit=10`,
-    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&filter[entity_type]=lead&limit=10`,
-    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&limit=10`
+    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&filter[entity_type]=lead&limit=25`,
+    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&filter[entity_type]=leads&limit=25`,
+    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&limit=25`
   ];
   for (const url2 of urls) {
     try {
@@ -170034,30 +170049,36 @@ async function fetchTalkIdFromTalksFilter(subdomain, accessToken, leadId) {
       const data = await res.json();
       const talks = data._embedded?.talks ?? [];
       for (const talk of talks) {
-        const id = talk.id ?? talk.talk_id;
-        if (id != null && String(id).trim()) return String(id);
+        pushCandidate(out2, talk.talk_id);
+        pushCandidate(out2, talk.id);
       }
+      if (out2.length > 0) break;
     } catch {
     }
   }
-  return null;
+  return out2;
+}
+async function listKommoTalkIdCandidates(opts) {
+  const out2 = [];
+  pushCandidate(out2, opts.knownTalkId);
+  const fromTalks = await listTalkIdsFromTalksFilter(
+    opts.subdomain,
+    opts.accessToken,
+    opts.leadId
+  );
+  for (const id of fromTalks) pushCandidate(out2, id);
+  const fromChats = await listTalkIdsFromLeadChats(
+    opts.subdomain,
+    opts.accessToken,
+    opts.leadId
+  );
+  for (const id of fromChats) pushCandidate(out2, id);
+  pushCandidate(out2, opts.knownChatId);
+  return out2;
 }
 async function resolveKommoTalkId(opts) {
-  if (opts.knownTalkId?.trim()) return opts.knownTalkId.trim();
-  const fromTalks = await fetchTalkIdFromTalksFilter(
-    opts.subdomain,
-    opts.accessToken,
-    opts.leadId
-  );
-  if (fromTalks) return fromTalks;
-  const fromChats = await fetchTalkIdFromLeadChats(
-    opts.subdomain,
-    opts.accessToken,
-    opts.leadId
-  );
-  if (fromChats) return fromChats;
-  if (opts.knownChatId?.trim()) return opts.knownChatId.trim();
-  return null;
+  const ids = await listKommoTalkIdCandidates(opts);
+  return ids[0] ?? null;
 }
 var init_kommoTalks = __esm({
   "src/services/kommoTalks.ts"() {
@@ -188782,46 +188803,39 @@ async function syncTodayLeadsFromKommo(limitLeads, onProgress) {
       const conv = await db.query.conversations.findFirst({
         where: eq(conversations.kommoLeadId, leadId)
       });
-      const talkId = await resolveKommoTalkId({
+      const candidates = await listKommoTalkIdCandidates({
         subdomain,
         accessToken,
         leadId,
-        // No reusar knownTalkId ciego: a veces era chat_id y Talks queda vacío.
-        knownTalkId: null,
+        knownTalkId: conv?.kommoTalkId ?? null,
         knownChatId: conv?.kommoChatId ?? null
       });
-      if (!talkId) continue;
+      if (candidates.length === 0) continue;
+      let bestTalkId = candidates[0];
+      let syncResult = { inserted: 0, total: 0 };
+      for (const talkId of candidates) {
+        const attempt = await syncLeadTranscript({
+          kommoLeadId: leadId,
+          talkId,
+          subdomain,
+          accessToken
+        });
+        if (attempt.total > syncResult.total) {
+          syncResult = attempt;
+          bestTalkId = talkId;
+        }
+        if (attempt.total >= 2) break;
+      }
       if (!conv) {
         await db.insert(conversations).values({
           kommoLeadId: leadId,
           kommoChatId: leadId,
-          kommoTalkId: String(talkId),
+          kommoTalkId: String(bestTalkId),
           status: "active",
           stage: "discovery"
         });
       } else {
-        await db.update(conversations).set({ kommoTalkId: String(talkId), updatedAt: /* @__PURE__ */ new Date() }).where(eq(conversations.kommoLeadId, leadId));
-      }
-      let syncResult = await syncLeadTranscript({
-        kommoLeadId: leadId,
-        talkId: String(talkId),
-        subdomain,
-        accessToken
-      });
-      if (syncResult.total === 0 && conv?.kommoTalkId && String(conv.kommoTalkId) !== String(talkId)) {
-        const retry2 = await syncLeadTranscript({
-          kommoLeadId: leadId,
-          talkId: String(conv.kommoTalkId),
-          subdomain,
-          accessToken
-        });
-        if (retry2.total > syncResult.total) {
-          syncResult = retry2;
-          await db.update(conversations).set({
-            kommoTalkId: String(conv.kommoTalkId),
-            updatedAt: /* @__PURE__ */ new Date()
-          }).where(eq(conversations.kommoLeadId, leadId));
-        }
+        await db.update(conversations).set({ kommoTalkId: String(bestTalkId), updatedAt: /* @__PURE__ */ new Date() }).where(eq(conversations.kommoLeadId, leadId));
       }
       synced += 1;
       if (syncResult.total > 0) syncedWithMessages += 1;

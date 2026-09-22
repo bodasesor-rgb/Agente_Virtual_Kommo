@@ -59,17 +59,21 @@ export async function fetchKommoTalkMessages(
     `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=${limit}&order=desc`,
   ];
   const byId = new Map<string, KommoTalkMessage>();
+  let lastStatus = 0;
+  let rawCount = 0;
 
   for (const url of urls) {
     try {
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
+      lastStatus = res.status;
       if (!res.ok) continue;
       const data = (await res.json()) as {
         _embedded?: { messages?: KommoTalkMessage[] };
       };
       let msgs = data._embedded?.messages ?? [];
+      rawCount = Math.max(rawCount, msgs.length);
       if (url.includes("order=desc")) msgs = [...msgs].reverse();
       for (const m of msgs) {
         const text = extractKommoMessageText(
@@ -87,6 +91,13 @@ export async function fetchKommoTalkMessages(
     } catch (err) {
       logger.warn({ err, talkId }, "chatIngest: error leyendo Talks API");
     }
+  }
+
+  if (byId.size === 0) {
+    logger.info(
+      { talkId, lastStatus, rawCount },
+      "chatIngest: Talks sin texto usable"
+    );
   }
 
   const list = [...byId.values()];
