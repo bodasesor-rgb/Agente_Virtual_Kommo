@@ -431,7 +431,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     );
   // A14962 / A14988 / A15003 / A15007: clarificación o referencia no es "dato pendiente".
   const clientClarifyingService =
-    /\brobots?\s*leds?\b|\bbatucada\b|\bbailarinas?\b|\bdancers?\b|\bvedettes?\b|\bphoto\s*booth|\bphotobooth|\bcabina\b|\bsolo\s+quiero\b|\bquiero\s+solo\b|\bambienta(?:r|ci[oó]n)\b/i.test(
+    /\brobots?\s*leds?\b|\bbatucada\b|\bbailarin(?:es|as?|a)?\b|\bdancers?\b|\bvedettes?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail|\bphoto\s*booth|\bphotobooth|\bcabina\b|\bsolo\s+quiero\b|\bquiero\s+solo\b|\bambienta(?:r|ci[oó]n)\b/i.test(
       input.currentMessage ?? ""
     ) ||
     clientMentionsEntertainment(input.currentMessage) ||

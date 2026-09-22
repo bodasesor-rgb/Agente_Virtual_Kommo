@@ -15,7 +15,7 @@ import { applyLucyGlobalAntiRepetition } from "../lucyOutboundAntiRepeat.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.15");
+assert.equal(LUCY_PROMPT_VERSION, "V10.16");
 
 const cateringMsg = "Únicamente servicio de catering";
 assert.ok(SERVICE_HINT.test(cateringMsg), "SERVICE_HINT must match catering");

@@ -17,7 +17,7 @@ import { scrubClientFieldsForProveedor } from "../lib/proveedorHandoff.js";
 import { emptyExtractedData } from "../types.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.15");
+assert.equal(LUCY_PROMPT_VERSION, "V10.16");
 
 const jazmin = "nos gustaría ser uno de sus provedores";
 assert.equal(normalizeProveedorText(jazmin), "nos gustaría ser uno de sus proveedores");

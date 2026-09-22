@@ -160,6 +160,7 @@ import {
   extractNumberedNivelFromLastAssistant,
   sanitizeExtractedAmbiguousNumbers,
   clientDeclinesMoreServices,
+  clientChoosesOtherCatalogOption,
   clientSoftDeclinesLead,
   clientWantsFoodOnlyQuote,
   clientNarrowsToOnlyService,
@@ -2104,8 +2105,11 @@ function buildEntertainmentSalesReply(
   const wantsMariachi = /\bmariachis?\b/i.test(msg);
   const wantsRegionalDance = /\bbaile\s+regional\b|\bfolkl[oó]rico\b/i.test(msg);
   const wantsBatucada = /\bbatucada\b/i.test(msg);
-  // A14988: bailarinas / dancers para concierto u otro evento.
-  const wantsBailarinas = /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(msg);
+  // A14988 / A16254: bailarinas / bailarines / dancers / hombres que bailen.
+  const wantsBailarinas =
+    /\bbailarin(?:es|as?|a)?\b|\bdancers?\b|\bvedettes?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i.test(
+      msg
+    );
   // A15003: photo booth / cabina de fotos.
   const wantsPhotoBooth =
     /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
@@ -2152,7 +2156,11 @@ function buildEntertainmentSalesReply(
     ideas =
       "Es entretenimiento / show en vivo: el equipo confirma disponibilidad, formato y propuesta.";
   } else if (wantsBailarinas) {
-    intro = `Perfecto — anoto *bailarinas* para ${eventLabel}.`;
+    const male =
+      /\bbailarines?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i.test(msg) &&
+      !/\bbailarinas?\b|\bvedettes?\b/i.test(msg);
+    const labelBail = male ? "bailarines" : "bailarinas";
+    intro = `Perfecto — anoto *${labelBail}* para ${eventLabel}.`;
     ideas =
       "Es entretenimiento / show en vivo: el equipo arma la propuesta según duración, estilo y el espacio.";
   } else if (wantsRobots && wantsBatucada) {
@@ -8163,6 +8171,23 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     mensaje = buildPostCierrePaymentHandoffReply(extracted.nombre);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: A15016 — post-cierre pago/anticipo → equipo");
+  } else if (
+    // A16254: "Voy a ver otra opción" — no re-volcar menú completo de cumpleaños.
+    !cierreYaEnviado &&
+    currentMessage &&
+    clientChoosesOtherCatalogOption(currentMessage)
+  ) {
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ =
+      pending && pending !== "requerimientos"
+        ? buildNaturalQuestion(pending, ctx)
+        : "¿Qué otra opción te late revisar (show, DJ, animación, alimentos…)?";
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = display
+      ? `Claro, ${display}. Sin problema — dejamos eso de lado por ahora. ${nextQ}`
+      : `Claro. Sin problema — dejamos eso de lado por ahora. ${nextQ}`;
+    appliedDirectReply = true;
+    log?.info({ entityId, pending }, "GUARD: A16254 — otra opción (sin dump genérico)");
   } else if (clientSoftDeclinesLead(currentMessage)) {
     mensaje = buildSoftLeadDeclineReply(
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
@@ -9639,7 +9664,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
           clientMentionsLedRobotsOrBatucada(
             collectUserTexts(presHistory, currentMessage).join(" ")
           ) ||
-          /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(
+          /\bbailarin(?:es|as?|a)?\b|\bdancers?\b|\bvedettes?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i.test(
             `${extracted.requerimientos_evento ?? ""} ${collectUserTexts(presHistory, currentMessage).join(" ")}`
           ))))
   ) {

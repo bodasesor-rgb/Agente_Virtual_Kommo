@@ -11,6 +11,7 @@ import {
   CARPA_OPTIONS_TEXT,
   clientMentionsCarpas,
   clientMentionsPistaTarima,
+  clientMentionsEntertainment,
   isServiceRelatedMessage,
   isEventTypeOnlyMessage,
   parsePrimaryService,
@@ -63,6 +64,17 @@ export function serviceLabelFromQuery(query: string): string {
   if (parsed) return parsed;
   // A15383: nunca citar la pregunta del cliente como SKU (*¿qué opciones manejan?*).
   if (/[¿?]/.test(trimmed) || trimmed.length > 60) return "ese servicio";
+  // A16254: no usar mensajes multi-línea / con fecha como nombre de servicio
+  // ("Necesito hombres q bailen\n24 de octubre").
+  if (
+    /\n/.test(trimmed) ||
+    trimmed.split(/\s+/).length > 8 ||
+    /\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+      trimmed
+    )
+  ) {
+    return "ese servicio";
+  }
   return trimmed.slice(0, 80);
 }
 
@@ -263,6 +275,23 @@ export function buildGuardServiceAck(query: string): string {
     return `Perfecto. Anoto tu *${label}*.`;
   }
   const label = serviceLabelFromQuery(query);
+
+  // A16254: bailarines / bailarinas / show en vivo — nunca "no lo tengo listado".
+  if (
+    clientMentionsEntertainment(query) ||
+    /\bbailarin/i.test(label) ||
+    /\bbailarin(?:es|as?|a)?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail/i.test(query)
+  ) {
+    const male =
+      /\bbailarines?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i.test(query) &&
+      !/\bbailarinas?\b|\bvedettes?\b/i.test(query);
+    const nice = male ? "bailarines" : /bailarinas?/i.test(label) || /bailar/i.test(query) ? "bailarinas" : label;
+    return (
+      `Perfecto — anoto *${nice}* (entretenimiento / show en vivo) para tu cotización. ` +
+      "El equipo arma la propuesta según duración, estilo y el espacio."
+    );
+  }
+
   const level = classifyServiceKnowledgeLevel(query);
 
   // A15190 / A15296: centros de mesa = floral/decorativo (no menú de mobiliario ni niveles).

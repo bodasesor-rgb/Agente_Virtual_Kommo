@@ -131680,8 +131680,10 @@ function clientMentionsEntertainment(message) {
   if (!message?.trim()) return false;
   const t4 = message.toLowerCase();
   return /\bshows?\b/i.test(t4) || /\bgrupo\s+vers[aá]til\b/i.test(t4) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t4) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento|espect[aá]culos?)\b/i.test(t4) || /\bmariachis?\b|\bbaile\s+regional\b|\bfolkl[oó]rico\b/i.test(t4) || /\bpercusi[oó]n.{0,24}leds?\b|\bleds?.{0,24}percusi[oó]n\b/i.test(t4) || /\bgrupo\s+(vers[aá]til|b[aá]sico|m[aá]s\s+b[aá]sico)\b/i.test(t4) || /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t4) || /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(shows?|maestro|animaci)/i.test(t4) || // A14962 Vane: batucada / robots LED / ambientación de show
-  /\bbatucada\b/i.test(t4) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t4) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|shows?|robots?|leds?)\b/i.test(t4) || // A14988 Ernesto: bailarinas para concierto
-  /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(t4) || // A15003 Juan: photo booth / cabina
+  /\bbatucada\b/i.test(t4) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t4) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|shows?|robots?|leds?)\b/i.test(t4) || // A14988 Ernesto / A16254 Marlen: bailarinas, bailarines, hombres que bailen
+  /\bbailarin(?:es|as?|a)?\b|\bdancers?\b|\bvedettes?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i.test(
+    t4
+  ) || // A15003 Juan: photo booth / cabina
   /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
     t4
   ) || // A15009 Erick: circo / Blue Man / actos en vivo especiales
@@ -131736,6 +131738,13 @@ function clientDeclinesMoreServices(message) {
   if (isPointingReferentialEmoji(message)) return true;
   return /^(no|nop)[\s.,!]*$/i.test(t4) || /\bsolo\s+(con\s+)?eso\b/i.test(t4) || /\bsolo\s+ese\b/i.test(t4) || /\bsolamente\s+eso\b/i.test(t4) || /\bnada\s+m[aá]s\b/i.test(t4) || /\bno\s+quiero\s+nada\s+m[aá]s\b/i.test(t4) || /\bno\s+quiero\s+(nada\s+)?m[aá]s\b/i.test(t4) || /\bning[uú]n[a]?\b/i.test(t4) || /\bning[uú]n\s+otro\b/i.test(t4) || /\bninguno\s+de\s+(esos|ellos|estos)\b/i.test(t4) || /\bno[.\s,¡!]+gracias\b/i.test(t4) || /\bno\s+gracias\b/i.test(t4) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t4) || /\beso\s+es\s+todo\b/i.test(t4) || /\bes\s+todo\b/i.test(t4) || /\bya\s+no\b/i.test(t4) || /\bno\s+m[aá]s\b/i.test(t4) || /\blisto\s+as[ií]\b/i.test(t4) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t4) || /\bno\s+me\s+interesa\b/i.test(t4) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t4) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t4) || /\bpor\s+ahora\s+no\b/i.test(t4) || // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
   /\bsolo\s+quiero\b/i.test(t4) && !/\bcomida\b|\bcotiz/i.test(t4) || /\bquiero\s+solo\b/i.test(t4) && !/\bcomida\b|\bcotiz/i.test(t4);
+}
+function clientChoosesOtherCatalogOption(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim().toLowerCase();
+  return /\b(voy\s+a\s+ver|prefiero\s+ver|mejor\s+veo|reviso|quiero\s+ver)\s+(otra|otras)\s+opci/i.test(
+    t4
+  ) || /\bprefiero\s+revisar\s+otra\b/i.test(t4) || /^otra\s+opci[oó]n[.!]*$/i.test(t4);
 }
 function clientSoftDeclinesLead(message) {
   if (!message?.trim()) return false;
@@ -135697,8 +135706,11 @@ var init_conversation_understanding = __esm({
       // A15009 Erick: circo / Blue Man.
       ["Circo para eventos", /\bcirco(\s+para\s+eventos?)?\b/i],
       ["Show Blue Man", /\bblue\s*mans?\b|\bblueman\b/i],
-      // A14988 Ernesto: bailarinas / dancers = entretenimiento (no oferta genérica Nivel 1).
-      ["Bailarinas", /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i],
+      // A14988 Ernesto / A16254 Marlen: bailarinas/bailarines / dancers = entretenimiento.
+      [
+        "Bailarinas",
+        /\bbailarin(?:es|as?|a)?\b|\bdancers?\b|\bvedettes?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i
+      ],
       // A14962: robots LED / batucada = entretenimiento, NUNCA banquete.
       ["Robots LED", /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b|\bpercusi[oó]n.{0,24}leds?\b|\bleds?.{0,24}percusi[oó]n\b/i],
       ["Batucada", /\bbatucada\b|\bambienta(?:r|ci[oó]n)\b.{0,40}\bbatucada\b|\bbatucada\b.{0,40}\bambient/i],
@@ -135752,7 +135764,7 @@ var init_conversation_understanding = __esm({
       ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
       ["Mesa imperial", /\bmesa\s+imperial\b/i]
     ];
-    SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|catering|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|pastel|fondant|\bcake\b|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|entarimad|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+    SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|catering|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|pastel|fondant|\bcake\b|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|entarimad|baile|bailarin\w*|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
     SHORT_SERVICE_ALIASES = {
       pista: "pista de baile",
       tarima: "Tarima",
@@ -135840,6 +135852,8 @@ var init_conversation_understanding = __esm({
       "tarimas y pistas": "Pista de baile",
       bailarina: "Bailarinas",
       bailarinas: "Bailarinas",
+      bailarin: "Bailarinas",
+      bailarines: "Bailarinas",
       dancers: "Bailarinas",
       dancer: "Bailarinas",
       vedette: "Bailarinas",
@@ -137953,6 +137967,11 @@ function serviceLabelFromQuery(query) {
   const parsed = parsePrimaryService(trimmed);
   if (parsed) return parsed;
   if (/[¿?]/.test(trimmed) || trimmed.length > 60) return "ese servicio";
+  if (/\n/.test(trimmed) || trimmed.split(/\s+/).length > 8 || /\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+    trimmed
+  )) {
+    return "ese servicio";
+  }
   return trimmed.slice(0, 80);
 }
 function isDubiousNonEventRequest(query) {
@@ -138099,6 +138118,11 @@ function buildGuardServiceAck(query) {
     return `Perfecto. Anoto tu *${label2}*.`;
   }
   const label = serviceLabelFromQuery(query);
+  if (clientMentionsEntertainment(query) || /\bbailarin/i.test(label) || /\bbailarin(?:es|as?|a)?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail/i.test(query)) {
+    const male = /\bbailarines?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i.test(query) && !/\bbailarinas?\b|\bvedettes?\b/i.test(query);
+    const nice = male ? "bailarines" : /bailarinas?/i.test(label) || /bailar/i.test(query) ? "bailarinas" : label;
+    return `Perfecto \u2014 anoto *${nice}* (entretenimiento / show en vivo) para tu cotizaci\xF3n. El equipo arma la propuesta seg\xFAn duraci\xF3n, estilo y el espacio.`;
+  }
   const level = classifyServiceKnowledgeLevel(query);
   if (/\bcentros?\s+de\s+mesas?\b/i.test(query) || /centros?\s+de\s+mesa/i.test(label)) {
     const qty = query.match(/\b(\d{1,3})\b/)?.[1];
@@ -162058,7 +162082,9 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
   const wantsMariachi = /\bmariachis?\b/i.test(msg);
   const wantsRegionalDance = /\bbaile\s+regional\b|\bfolkl[oó]rico\b/i.test(msg);
   const wantsBatucada = /\bbatucada\b/i.test(msg);
-  const wantsBailarinas = /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(msg);
+  const wantsBailarinas = /\bbailarin(?:es|as?|a)?\b|\bdancers?\b|\bvedettes?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i.test(
+    msg
+  );
   const wantsPhotoBooth = /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
     msg
   );
@@ -162089,7 +162115,9 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
     intro = `Perfecto \u2014 anoto *${act}* para ${eventLabel}.`;
     ideas = "Es entretenimiento / show en vivo: el equipo confirma disponibilidad, formato y propuesta.";
   } else if (wantsBailarinas) {
-    intro = `Perfecto \u2014 anoto *bailarinas* para ${eventLabel}.`;
+    const male = /\bbailarines?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i.test(msg) && !/\bbailarinas?\b|\bvedettes?\b/i.test(msg);
+    const labelBail = male ? "bailarines" : "bailarinas";
+    intro = `Perfecto \u2014 anoto *${labelBail}* para ${eventLabel}.`;
     ideas = "Es entretenimiento / show en vivo: el equipo arma la propuesta seg\xFAn duraci\xF3n, estilo y el espacio.";
   } else if (wantsRobots && wantsBatucada) {
     intro = `Perfecto \u2014 anoto *robots LED* para ambientar la *batucada* en ${eventLabel}.`;
@@ -165841,6 +165869,16 @@ Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
     mensaje = buildPostCierrePaymentHandoffReply(extracted.nombre);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: A15016 \u2014 post-cierre pago/anticipo \u2192 equipo");
+  } else if (
+    // A16254: "Voy a ver otra opción" — no re-volcar menú completo de cumpleaños.
+    !cierreYaEnviado && currentMessage && clientChoosesOtherCatalogOption(currentMessage)
+  ) {
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : "\xBFQu\xE9 otra opci\xF3n te late revisar (show, DJ, animaci\xF3n, alimentos\u2026)?";
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = display ? `Claro, ${display}. Sin problema \u2014 dejamos eso de lado por ahora. ${nextQ}` : `Claro. Sin problema \u2014 dejamos eso de lado por ahora. ${nextQ}`;
+    appliedDirectReply = true;
+    log?.info({ entityId, pending }, "GUARD: A16254 \u2014 otra opci\xF3n (sin dump gen\xE9rico)");
   } else if (clientSoftDeclinesLead(currentMessage)) {
     mensaje = buildSoftLeadDeclineReply(
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
@@ -166799,7 +166837,7 @@ ${nextQ}` : `Entendido \u2014 nos quedamos solo con *${label}*. El equipo arma l
     collectUserTexts(presHistory, currentMessage).join(" ")
   ) || clientMentionsLedRobotsOrBatucada(
     collectUserTexts(presHistory, currentMessage).join(" ")
-  ) || /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(
+  ) || /\bbailarin(?:es|as?|a)?\b|\bdancers?\b|\bvedettes?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i.test(
     `${extracted.requerimientos_evento ?? ""} ${collectUserTexts(presHistory, currentMessage).join(" ")}`
   )))) {
     const userEntBlob = collectUserTexts(presHistory, currentMessage).join(" ");
@@ -227822,7 +227860,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.15";
+var LUCY_PROMPT_VERSION = "V10.16";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -231737,7 +231775,7 @@ function applyLucyGlobalAntiRepetition(input) {
   const clientAskedServiceInfo = /\binformaci[oó]n|\binfo\b|\bdame\s+(info|detalle|datos)|\bme\s+(pueden|pueden)\s+dar|\bcu[eé]ntenme|\bexpl[ií]ca/i.test(
     input.currentMessage ?? ""
   );
-  const clientClarifyingService = /\brobots?\s*leds?\b|\bbatucada\b|\bbailarinas?\b|\bdancers?\b|\bvedettes?\b|\bphoto\s*booth|\bphotobooth|\bcabina\b|\bsolo\s+quiero\b|\bquiero\s+solo\b|\bambienta(?:r|ci[oó]n)\b/i.test(
+  const clientClarifyingService = /\brobots?\s*leds?\b|\bbatucada\b|\bbailarin(?:es|as?|a)?\b|\bdancers?\b|\bvedettes?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail|\bphoto\s*booth|\bphotobooth|\bcabina\b|\bsolo\s+quiero\b|\bquiero\s+solo\b|\bambienta(?:r|ci[oó]n)\b/i.test(
     input.currentMessage ?? ""
   ) || clientMentionsEntertainment(input.currentMessage) || clientMentionsSpecialLiveAct(input.currentMessage) || // A16116: catering / comida vaga NO es "dato pendiente" — evita "Sigo aquí".
   clientMentionsCatering(input.currentMessage) || isVagueFoodTerm(input.currentMessage) || isServiceRelatedMessage(input.currentMessage) || parseServicesFromText(input.currentMessage ?? "").length > 0 || clientDeclinesMoreServices(input.currentMessage) || clientAsksForHumanAdvisor(input.currentMessage) || isReferentialPriorAnswer(input.currentMessage) || clientComplainsAboutRepeat(input.currentMessage);

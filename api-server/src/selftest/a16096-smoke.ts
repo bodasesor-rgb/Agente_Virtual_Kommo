@@ -15,7 +15,7 @@ import { getCatalogWebUrlForQuery } from "../services/catalogWebKnowledge.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.15");
+assert.equal(LUCY_PROMPT_VERSION, "V10.16");
 
 function emptyExtracted(partial: Partial<ExtractedData> = {}): ExtractedData {
   return {

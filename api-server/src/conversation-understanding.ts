@@ -160,8 +160,11 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   // A15009 Erick: circo / Blue Man.
   ["Circo para eventos", /\bcirco(\s+para\s+eventos?)?\b/i],
   ["Show Blue Man", /\bblue\s*mans?\b|\bblueman\b/i],
-  // A14988 Ernesto: bailarinas / dancers = entretenimiento (no oferta genérica Nivel 1).
-  ["Bailarinas", /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i],
+  // A14988 Ernesto / A16254 Marlen: bailarinas/bailarines / dancers = entretenimiento.
+  [
+    "Bailarinas",
+    /\bbailarin(?:es|as?|a)?\b|\bdancers?\b|\bvedettes?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i,
+  ],
   // A14962: robots LED / batucada = entretenimiento, NUNCA banquete.
   ["Robots LED", /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b|\bpercusi[oó]n.{0,24}leds?\b|\bleds?.{0,24}percusi[oó]n\b/i],
   ["Batucada", /\bbatucada\b|\bambienta(?:r|ci[oó]n)\b.{0,40}\bbatucada\b|\bbatucada\b.{0,40}\bambient/i],
@@ -218,7 +221,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|catering|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|pastel|fondant|\bcake\b|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|entarimad|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|catering|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|pastel|fondant|\bcake\b|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|entarimad|baile|bailarin\w*|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -307,6 +310,8 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
   "tarimas y pistas": "Pista de baile",
   bailarina: "Bailarinas",
   bailarinas: "Bailarinas",
+  bailarin: "Bailarinas",
+  bailarines: "Bailarinas",
   dancers: "Bailarinas",
   dancer: "Bailarinas",
   vedette: "Bailarinas",
@@ -1237,8 +1242,10 @@ export function clientMentionsEntertainment(message?: string): boolean {
     /\bbatucada\b/i.test(t) ||
     /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t) ||
     /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|shows?|robots?|leds?)\b/i.test(t) ||
-    // A14988 Ernesto: bailarinas para concierto
-    /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(t) ||
+    // A14988 Ernesto / A16254 Marlen: bailarinas, bailarines, hombres que bailen
+    /\bbailarin(?:es|as?|a)?\b|\bdancers?\b|\bvedettes?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i.test(
+      t
+    ) ||
     // A15003 Juan: photo booth / cabina
     /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
       t
@@ -1360,6 +1367,21 @@ export function clientDeclinesMoreServices(message?: string | null): boolean {
     // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
     (/\bsolo\s+quiero\b/i.test(t) && !/\bcomida\b|\bcotiz/i.test(t)) ||
     (/\bquiero\s+solo\b/i.test(t) && !/\bcomida\b|\bcotiz/i.test(t))
+  );
+}
+
+/**
+ * A16254: "Voy a ver otra opción" tras Level-2 / catálogo — no re-volcar menú genérico.
+ */
+export function clientChoosesOtherCatalogOption(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim().toLowerCase();
+  return (
+    /\b(voy\s+a\s+ver|prefiero\s+ver|mejor\s+veo|reviso|quiero\s+ver)\s+(otra|otras)\s+opci/i.test(
+      t
+    ) ||
+    /\bprefiero\s+revisar\s+otra\b/i.test(t) ||
+    /^otra\s+opci[oó]n[.!]*$/i.test(t)
   );
 }
 
