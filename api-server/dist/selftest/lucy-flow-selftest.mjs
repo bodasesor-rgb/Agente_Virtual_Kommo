@@ -56942,6 +56942,118 @@ var init_geminiContextCache = __esm({
   }
 });
 
+// src/services/lucyAuditorTime.ts
+function mexicoCityDayKey(d2 = /* @__PURE__ */ new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(d2);
+}
+var init_lucyAuditorTime = __esm({
+  "src/services/lucyAuditorTime.ts"() {
+    "use strict";
+  }
+});
+
+// src/lib/lucyGeminiSpend.ts
+function emptyChannel() {
+  return {
+    calls: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    cachedTokens: 0,
+    usdEstimate: 0,
+    lastModel: null,
+    lastAt: null
+  };
+}
+function ensureToday() {
+  const key = mexicoCityDayKey();
+  if (key !== spendDayKey) {
+    spendDayKey = key;
+    chatSpend = emptyChannel();
+    auditorSpend = emptyChannel();
+  }
+}
+function envRate(name2, fallback) {
+  const n4 = Number(process.env[name2] ?? "");
+  if (!Number.isFinite(n4) || n4 < 0) return fallback;
+  return n4;
+}
+function getModelRates(model) {
+  const m5 = model.trim().toLowerCase();
+  const base = DEFAULT_RATES[m5] ?? FALLBACK_RATES;
+  const inputPerM = envRate("LUCY_GEMINI_USD_INPUT_PER_M", base.inputPerM);
+  const outputPerM = envRate("LUCY_GEMINI_USD_OUTPUT_PER_M", base.outputPerM);
+  const cachedPerM = envRate("LUCY_GEMINI_USD_CACHED_PER_M", base.cachedPerM);
+  if (m5.includes("flash-lite") || m5.includes("3.1-flash-lite")) {
+    return {
+      inputPerM: envRate("LUCY_CHAT_USD_INPUT_PER_M", inputPerM),
+      outputPerM: envRate("LUCY_CHAT_USD_OUTPUT_PER_M", outputPerM),
+      cachedPerM: envRate("LUCY_CHAT_USD_CACHED_PER_M", cachedPerM)
+    };
+  }
+  if (m5.includes("2.5-flash") || m5.includes("auditor")) {
+    return {
+      inputPerM: envRate("LUCY_AUDITOR_USD_INPUT_PER_M", inputPerM),
+      outputPerM: envRate("LUCY_AUDITOR_USD_OUTPUT_PER_M", outputPerM),
+      cachedPerM: envRate("LUCY_AUDITOR_USD_CACHED_PER_M", cachedPerM)
+    };
+  }
+  return { inputPerM, outputPerM, cachedPerM };
+}
+function estimateUsd(model, inputTokens, outputTokens, cachedTokens) {
+  const rates = getModelRates(model);
+  const billableInput = Math.max(0, inputTokens - cachedTokens);
+  const usd = billableInput / 1e6 * rates.inputPerM + cachedTokens / 1e6 * rates.cachedPerM + outputTokens / 1e6 * rates.outputPerM;
+  return Math.round(usd * 1e6) / 1e6;
+}
+function asNonNegInt(n4) {
+  const v3 = Number(n4 ?? 0);
+  if (!Number.isFinite(v3) || v3 < 0) return 0;
+  return Math.floor(v3);
+}
+function recordGeminiSpend(opts) {
+  ensureToday();
+  const model = (opts.model || "unknown").trim() || "unknown";
+  const usage = opts.usage ?? {};
+  const inputTokens = asNonNegInt(usage.promptTokenCount);
+  const outputTokens = asNonNegInt(usage.candidatesTokenCount);
+  const cachedTokens = asNonNegInt(usage.cachedContentTokenCount);
+  const usd = estimateUsd(model, inputTokens, outputTokens, cachedTokens);
+  const bucket = opts.channel === "auditor" ? auditorSpend : chatSpend;
+  bucket.calls += 1;
+  bucket.inputTokens += inputTokens;
+  bucket.outputTokens += outputTokens;
+  bucket.cachedTokens += cachedTokens;
+  bucket.usdEstimate = Math.round((bucket.usdEstimate + usd) * 1e6) / 1e6;
+  bucket.lastModel = model;
+  bucket.lastAt = (/* @__PURE__ */ new Date()).toISOString();
+}
+var DEFAULT_RATES, FALLBACK_RATES, spendDayKey, chatSpend, auditorSpend;
+var init_lucyGeminiSpend = __esm({
+  "src/lib/lucyGeminiSpend.ts"() {
+    "use strict";
+    init_lucyAuditorTime();
+    DEFAULT_RATES = {
+      "gemini-3.1-flash-lite": { inputPerM: 0.1, outputPerM: 0.4, cachedPerM: 0.025 },
+      "gemini-2.5-flash": { inputPerM: 0.15, outputPerM: 0.6, cachedPerM: 0.0375 },
+      "gemini-2.0-flash": { inputPerM: 0.1, outputPerM: 0.4, cachedPerM: 0.025 },
+      "gemini-2.0-flash-lite": { inputPerM: 0.075, outputPerM: 0.3, cachedPerM: 0.01875 }
+    };
+    FALLBACK_RATES = {
+      inputPerM: 0.15,
+      outputPerM: 0.6,
+      cachedPerM: 0.0375
+    };
+    spendDayKey = "";
+    chatSpend = emptyChannel();
+    auditorSpend = emptyChannel();
+  }
+});
+
 // src/lib/llmChat.ts
 function getGeminiCallStats() {
   return {
@@ -57072,6 +57184,20 @@ async function completeWithGemini(opts) {
       ...opts.json ? { responseMimeType: "application/json" } : {}
     }
   });
+  try {
+    const usage = response.usageMetadata;
+    recordGeminiSpend({
+      channel: "chat",
+      model: DEFAULT_GEMINI_MODEL,
+      usage: usage ? {
+        promptTokenCount: Number(usage.promptTokenCount ?? 0),
+        candidatesTokenCount: Number(usage.candidatesTokenCount ?? 0),
+        cachedContentTokenCount: Number(usage.cachedContentTokenCount ?? 0),
+        totalTokenCount: Number(usage.totalTokenCount ?? 0)
+      } : null
+    });
+  } catch {
+  }
   const text2 = (response.text ?? "").trim();
   return { text: text2, provider: "gemini", model: DEFAULT_GEMINI_MODEL };
 }
@@ -57172,6 +57298,7 @@ var init_llmChat = __esm({
     init_openaiEnv();
     init_llmEnv();
     init_geminiContextCache();
+    init_lucyGeminiSpend();
     geminiCallStats = {
       total: 0,
       byPurpose: {},

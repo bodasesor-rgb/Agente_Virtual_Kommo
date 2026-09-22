@@ -117,9 +117,27 @@ async function buildOpsStatus(): Promise<{
   try {
     const { getAuditorQuotaSnapshot } = await import("../services/lucyAuditorLlm.js");
     const { getLucyRepairStats } = await import("../services/lucyRepairStore.js");
+    const { getGeminiSpendSnapshot, formatUsd } = await import(
+      "../lib/lucyGeminiSpend.js"
+    );
     const quota = getAuditorQuotaSnapshot();
     const repairStats = await getLucyRepairStats();
+    const spend = getGeminiSpendSnapshot();
     const openN = repairStats.open + repairStats.auto_flagged;
+
+    checks.push({
+      id: "spend_chat",
+      label: `Gasto chat hoy ${formatUsd(spend.chat.usdEstimate)}`,
+      status: spend.warn.chat ? "warn" : "ok",
+      detail: `${spend.chat.calls} llamadas · ${spend.chat.inputTokens + spend.chat.outputTokens} tokens · día ${spend.dayKey} · estimado Lucy (no factura Google)`,
+    });
+    checks.push({
+      id: "spend_auditor",
+      label: `Gasto auditor hoy ${formatUsd(spend.auditor.usdEstimate)}`,
+      status: spend.warn.auditor || quota.remaining === 0 ? "warn" : "ok",
+      detail: `${spend.auditor.calls} llamadas · ${spend.auditor.inputTokens + spend.auditor.outputTokens} tokens · cupo ${quota.callsToday}/${quota.maxPerDay} · ${openN} abiertas`,
+    });
+
     checks.push({
       id: "auditor",
       label: `Auditor · ${quota.model}`,

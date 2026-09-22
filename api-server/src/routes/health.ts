@@ -7,6 +7,7 @@ import { getGoogleGroundingStats, isGoogleGroundingEnabled } from "../services/g
 import { getImageCompressStats } from "../lib/imageCompress.js";
 import { getGeminiContextCacheStats } from "../lib/geminiContextCache.js";
 import { lucyCostControlsSummary } from "../lib/lucyCostControls.js";
+import { getGeminiSpendSnapshot } from "../lib/lucyGeminiSpend.js";
 import { getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
 import { isAuthConfigured } from "../lib/authJwt.js";
 import { getCatalogStatus } from "../services/catalogService.js";
@@ -101,6 +102,7 @@ router.get("/health", async (_req, res) => {
     gemini_allowed_model: llm.gemini_allowed_model,
     gemini_blocked_image_models: llm.gemini_blocked_image_models,
     gemini_call_stats: getGeminiCallStats(),
+    gemini_spend: getGeminiSpendSnapshot(),
     gemini_context_cache: getGeminiContextCacheStats(),
     gemini_image_compress: getImageCompressStats(),
     gemini_cost_controls: lucyCostControlsSummary(),

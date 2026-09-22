@@ -23,6 +23,7 @@ import {
   getGeminiContextCacheStats,
   getOrCreateSystemCache,
 } from "./geminiContextCache.js";
+import { recordGeminiSpend } from "./lucyGeminiSpend.js";
 
 /** Contadores en memoria para /api/health (diagnóstico de gasto). */
 const geminiCallStats = {
@@ -257,6 +258,25 @@ async function completeWithGemini(opts: CompleteChatOptions): Promise<CompleteCh
       ...(opts.json ? { responseMimeType: "application/json" } : {}),
     },
   });
+
+  try {
+    const usage = (response as { usageMetadata?: Record<string, unknown> })
+      .usageMetadata;
+    recordGeminiSpend({
+      channel: "chat",
+      model: DEFAULT_GEMINI_MODEL,
+      usage: usage
+        ? {
+            promptTokenCount: Number(usage.promptTokenCount ?? 0),
+            candidatesTokenCount: Number(usage.candidatesTokenCount ?? 0),
+            cachedContentTokenCount: Number(usage.cachedContentTokenCount ?? 0),
+            totalTokenCount: Number(usage.totalTokenCount ?? 0),
+          }
+        : null,
+    });
+  } catch {
+    /* métricas no deben tumbar el chat */
+  }
 
   const text = (response.text ?? "").trim();
   return { text, provider: "gemini", model: DEFAULT_GEMINI_MODEL };

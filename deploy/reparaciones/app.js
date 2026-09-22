@@ -22,6 +22,18 @@ async function loadStats() {
   document.getElementById("stat-model").textContent = model;
   document.getElementById("stat-quota").textContent =
     `${s.auditor_calls_today ?? 0}/${s.auditor_max_per_day ?? 40}`;
+  const usd = Number(s.auditor_usd_today);
+  const tokens = Number(s.auditor_tokens_today ?? 0);
+  const spendEl = document.getElementById("stat-spend");
+  if (spendEl) {
+    if (Number.isFinite(usd)) {
+      const money =
+        usd > 0 && usd < 0.01 ? `~$${usd.toFixed(4)}` : `~$${usd.toFixed(2)}`;
+      spendEl.textContent = tokens > 0 ? `${money} · ${tokens} tok` : money;
+    } else {
+      spendEl.textContent = "—";
+    }
+  }
   if (modelEl) modelEl.textContent = model;
 }
 

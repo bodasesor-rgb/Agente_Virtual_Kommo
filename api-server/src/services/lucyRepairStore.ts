@@ -83,11 +83,16 @@ export async function getLucyRepairStats(): Promise<{
   auditor_calls_today: number;
   auditor_max_per_day: number;
   auditor_model: string;
+  auditor_usd_today: number;
+  auditor_tokens_today: number;
+  spend_day_key: string;
 }> {
   await ensureLucyRepairSchema();
   const rows = await db.select().from(lucyRepairs);
   const { getAuditorQuotaSnapshot } = await import("./lucyAuditorLlm.js");
+  const { getGeminiSpendSnapshot } = await import("../lib/lucyGeminiSpend.js");
   const quota = getAuditorQuotaSnapshot();
+  const spend = getGeminiSpendSnapshot();
   return {
     open: rows.filter((r) => r.status === "open").length,
     auto_flagged: rows.filter((r) => r.status === "auto_flagged").length,
@@ -96,6 +101,10 @@ export async function getLucyRepairStats(): Promise<{
     auditor_calls_today: quota.callsToday,
     auditor_max_per_day: quota.maxPerDay,
     auditor_model: quota.model,
+    auditor_usd_today: spend.auditor.usdEstimate,
+    auditor_tokens_today:
+      spend.auditor.inputTokens + spend.auditor.outputTokens,
+    spend_day_key: spend.dayKey,
   };
 }
 

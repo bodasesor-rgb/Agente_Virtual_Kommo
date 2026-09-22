@@ -89621,6 +89621,163 @@ var init_geminiContextCache = __esm({
   }
 });
 
+// src/services/lucyAuditorTime.ts
+function mexicoCityDayKey(d3 = /* @__PURE__ */ new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Mexico_City",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(d3);
+}
+function startOfMexicoCityDay(d3 = /* @__PURE__ */ new Date()) {
+  const day = mexicoCityDayKey(d3);
+  return /* @__PURE__ */ new Date(`${day}T00:00:00-06:00`);
+}
+var init_lucyAuditorTime = __esm({
+  "src/services/lucyAuditorTime.ts"() {
+    "use strict";
+  }
+});
+
+// src/lib/lucyGeminiSpend.ts
+var lucyGeminiSpend_exports = {};
+__export(lucyGeminiSpend_exports, {
+  estimateUsd: () => estimateUsd,
+  formatUsd: () => formatUsd,
+  getGeminiSpendSnapshot: () => getGeminiSpendSnapshot,
+  getModelRates: () => getModelRates,
+  recordGeminiSpend: () => recordGeminiSpend
+});
+function emptyChannel() {
+  return {
+    calls: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    cachedTokens: 0,
+    usdEstimate: 0,
+    lastModel: null,
+    lastAt: null
+  };
+}
+function ensureToday() {
+  const key = mexicoCityDayKey();
+  if (key !== spendDayKey) {
+    spendDayKey = key;
+    chatSpend = emptyChannel();
+    auditorSpend = emptyChannel();
+  }
+}
+function envRate(name2, fallback) {
+  const n5 = Number(process.env[name2] ?? "");
+  if (!Number.isFinite(n5) || n5 < 0) return fallback;
+  return n5;
+}
+function getModelRates(model) {
+  const m6 = model.trim().toLowerCase();
+  const base = DEFAULT_RATES[m6] ?? FALLBACK_RATES;
+  const inputPerM = envRate("LUCY_GEMINI_USD_INPUT_PER_M", base.inputPerM);
+  const outputPerM = envRate("LUCY_GEMINI_USD_OUTPUT_PER_M", base.outputPerM);
+  const cachedPerM = envRate("LUCY_GEMINI_USD_CACHED_PER_M", base.cachedPerM);
+  if (m6.includes("flash-lite") || m6.includes("3.1-flash-lite")) {
+    return {
+      inputPerM: envRate("LUCY_CHAT_USD_INPUT_PER_M", inputPerM),
+      outputPerM: envRate("LUCY_CHAT_USD_OUTPUT_PER_M", outputPerM),
+      cachedPerM: envRate("LUCY_CHAT_USD_CACHED_PER_M", cachedPerM)
+    };
+  }
+  if (m6.includes("2.5-flash") || m6.includes("auditor")) {
+    return {
+      inputPerM: envRate("LUCY_AUDITOR_USD_INPUT_PER_M", inputPerM),
+      outputPerM: envRate("LUCY_AUDITOR_USD_OUTPUT_PER_M", outputPerM),
+      cachedPerM: envRate("LUCY_AUDITOR_USD_CACHED_PER_M", cachedPerM)
+    };
+  }
+  return { inputPerM, outputPerM, cachedPerM };
+}
+function estimateUsd(model, inputTokens, outputTokens, cachedTokens) {
+  const rates = getModelRates(model);
+  const billableInput = Math.max(0, inputTokens - cachedTokens);
+  const usd = billableInput / 1e6 * rates.inputPerM + cachedTokens / 1e6 * rates.cachedPerM + outputTokens / 1e6 * rates.outputPerM;
+  return Math.round(usd * 1e6) / 1e6;
+}
+function asNonNegInt(n5) {
+  const v4 = Number(n5 ?? 0);
+  if (!Number.isFinite(v4) || v4 < 0) return 0;
+  return Math.floor(v4);
+}
+function recordGeminiSpend(opts) {
+  ensureToday();
+  const model = (opts.model || "unknown").trim() || "unknown";
+  const usage = opts.usage ?? {};
+  const inputTokens = asNonNegInt(usage.promptTokenCount);
+  const outputTokens = asNonNegInt(usage.candidatesTokenCount);
+  const cachedTokens = asNonNegInt(usage.cachedContentTokenCount);
+  const usd = estimateUsd(model, inputTokens, outputTokens, cachedTokens);
+  const bucket = opts.channel === "auditor" ? auditorSpend : chatSpend;
+  bucket.calls += 1;
+  bucket.inputTokens += inputTokens;
+  bucket.outputTokens += outputTokens;
+  bucket.cachedTokens += cachedTokens;
+  bucket.usdEstimate = Math.round((bucket.usdEstimate + usd) * 1e6) / 1e6;
+  bucket.lastModel = model;
+  bucket.lastAt = (/* @__PURE__ */ new Date()).toISOString();
+}
+function warnLimit(envName, fallback) {
+  const n5 = Number(process.env[envName] ?? fallback);
+  if (!Number.isFinite(n5) || n5 < 0) return fallback;
+  return n5;
+}
+function cloneChannel(c5) {
+  return { ...c5 };
+}
+function getGeminiSpendSnapshot() {
+  ensureToday();
+  const chatUsdLimit = warnLimit("LUCY_COST_WARN_CHAT_USD", 2);
+  const auditorUsdLimit = warnLimit("LUCY_COST_WARN_AUDITOR_USD", 0.5);
+  const chat = cloneChannel(chatSpend);
+  const auditor = cloneChannel(auditorSpend);
+  return {
+    dayKey: spendDayKey,
+    note: "Estimado Lucy (tokens \xD7 precios publicados). No es la factura de Google. Se reinicia al redeploy / nuevo d\xEDa Mexico.",
+    chat,
+    auditor,
+    totalUsdEstimate: Math.round((chat.usdEstimate + auditor.usdEstimate) * 1e6) / 1e6,
+    warn: {
+      chat: chat.usdEstimate >= chatUsdLimit,
+      auditor: auditor.usdEstimate >= auditorUsdLimit,
+      chatUsdLimit,
+      auditorUsdLimit
+    }
+  };
+}
+function formatUsd(n5) {
+  if (!Number.isFinite(n5)) return "$0";
+  if (n5 > 0 && n5 < 0.01) return `~$${n5.toFixed(4)}`;
+  return `~$${n5.toFixed(2)}`;
+}
+var DEFAULT_RATES, FALLBACK_RATES, spendDayKey, chatSpend, auditorSpend;
+var init_lucyGeminiSpend = __esm({
+  "src/lib/lucyGeminiSpend.ts"() {
+    "use strict";
+    init_lucyAuditorTime();
+    DEFAULT_RATES = {
+      "gemini-3.1-flash-lite": { inputPerM: 0.1, outputPerM: 0.4, cachedPerM: 0.025 },
+      "gemini-2.5-flash": { inputPerM: 0.15, outputPerM: 0.6, cachedPerM: 0.0375 },
+      "gemini-2.0-flash": { inputPerM: 0.1, outputPerM: 0.4, cachedPerM: 0.025 },
+      "gemini-2.0-flash-lite": { inputPerM: 0.075, outputPerM: 0.3, cachedPerM: 0.01875 }
+    };
+    FALLBACK_RATES = {
+      inputPerM: 0.15,
+      outputPerM: 0.6,
+      cachedPerM: 0.0375
+    };
+    spendDayKey = "";
+    chatSpend = emptyChannel();
+    auditorSpend = emptyChannel();
+  }
+});
+
 // src/lib/llmChat.ts
 function getGeminiCallStats() {
   return {
@@ -89751,6 +89908,20 @@ async function completeWithGemini(opts) {
       ...opts.json ? { responseMimeType: "application/json" } : {}
     }
   });
+  try {
+    const usage = response.usageMetadata;
+    recordGeminiSpend({
+      channel: "chat",
+      model: DEFAULT_GEMINI_MODEL,
+      usage: usage ? {
+        promptTokenCount: Number(usage.promptTokenCount ?? 0),
+        candidatesTokenCount: Number(usage.candidatesTokenCount ?? 0),
+        cachedContentTokenCount: Number(usage.cachedContentTokenCount ?? 0),
+        totalTokenCount: Number(usage.totalTokenCount ?? 0)
+      } : null
+    });
+  } catch {
+  }
   const text2 = (response.text ?? "").trim();
   return { text: text2, provider: "gemini", model: DEFAULT_GEMINI_MODEL };
 }
@@ -89851,6 +90022,7 @@ var init_llmChat = __esm({
     init_openaiEnv();
     init_llmEnv();
     init_geminiContextCache();
+    init_lucyGeminiSpend();
     geminiCallStats = {
       total: 0,
       byPurpose: {},
@@ -188132,6 +188304,22 @@ async function runAuditorLlm(transcript) {
         responseMimeType: "application/json"
       }
     });
+    try {
+      const usage = result.usageMetadata;
+      recordGeminiSpend({
+        channel: "auditor",
+        model,
+        usage: usage ? {
+          promptTokenCount: Number(usage.promptTokenCount ?? 0),
+          candidatesTokenCount: Number(usage.candidatesTokenCount ?? 0),
+          cachedContentTokenCount: Number(
+            usage.cachedContentTokenCount ?? 0
+          ),
+          totalTokenCount: Number(usage.totalTokenCount ?? 0)
+        } : null
+      });
+    } catch {
+    }
     const text2 = (result.text ?? "").trim();
     if (!text2) return [];
     const parsed = JSON.parse(text2);
@@ -188156,6 +188344,7 @@ var init_lucyAuditorLlm = __esm({
     "use strict";
     init_node();
     init_llmEnv();
+    init_lucyGeminiSpend();
     init_logger2();
     DEFAULT_AUDITOR_MODEL = "gemini-2.5-flash";
     BLOCKED_AUDITOR = /(?:^|\/)(imagen|nano[-\s]?banana|gemini-[\w.-]*-image|gemini-.*-pro|gemini-ultra|gemini-3\.6)(?:$|\/|-)/i;
@@ -188253,7 +188442,9 @@ async function getLucyRepairStats() {
   await ensureLucyRepairSchema();
   const rows = await db.select().from(lucyRepairs);
   const { getAuditorQuotaSnapshot: getAuditorQuotaSnapshot2 } = await Promise.resolve().then(() => (init_lucyAuditorLlm(), lucyAuditorLlm_exports));
+  const { getGeminiSpendSnapshot: getGeminiSpendSnapshot2 } = await Promise.resolve().then(() => (init_lucyGeminiSpend(), lucyGeminiSpend_exports));
   const quota = getAuditorQuotaSnapshot2();
+  const spend = getGeminiSpendSnapshot2();
   return {
     open: rows.filter((r5) => r5.status === "open").length,
     auto_flagged: rows.filter((r5) => r5.status === "auto_flagged").length,
@@ -188261,7 +188452,10 @@ async function getLucyRepairStats() {
     dismissed: rows.filter((r5) => r5.status === "dismissed").length,
     auditor_calls_today: quota.callsToday,
     auditor_max_per_day: quota.maxPerDay,
-    auditor_model: quota.model
+    auditor_model: quota.model,
+    auditor_usd_today: spend.auditor.usdEstimate,
+    auditor_tokens_today: spend.auditor.inputTokens + spend.auditor.outputTokens,
+    spend_day_key: spend.dayKey
   };
 }
 async function recordLucyRepair(input) {
@@ -188334,25 +188528,6 @@ var init_lucyRepairStore = __esm({
     init_drizzle_orm();
     await init_lucyRepairSchema();
     init_logger2();
-  }
-});
-
-// src/services/lucyAuditorTime.ts
-function mexicoCityDayKey(d3 = /* @__PURE__ */ new Date()) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Mexico_City",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(d3);
-}
-function startOfMexicoCityDay(d3 = /* @__PURE__ */ new Date()) {
-  const day = mexicoCityDayKey(d3);
-  return /* @__PURE__ */ new Date(`${day}T00:00:00-06:00`);
-}
-var init_lucyAuditorTime = __esm({
-  "src/services/lucyAuditorTime.ts"() {
-    "use strict";
   }
 });
 
@@ -228720,6 +228895,7 @@ function lucyCostControlsSummary() {
 }
 
 // src/routes/health.ts
+init_lucyGeminiSpend();
 init_authJwt();
 init_catalogService();
 
@@ -229215,6 +229391,7 @@ router.get("/health", async (_req, res) => {
     gemini_allowed_model: llm.gemini_allowed_model,
     gemini_blocked_image_models: llm.gemini_blocked_image_models,
     gemini_call_stats: getGeminiCallStats(),
+    gemini_spend: getGeminiSpendSnapshot(),
     gemini_context_cache: getGeminiContextCacheStats(),
     gemini_image_compress: getImageCompressStats(),
     gemini_cost_controls: lucyCostControlsSummary(),
@@ -237310,9 +237487,23 @@ async function buildOpsStatus() {
   try {
     const { getAuditorQuotaSnapshot: getAuditorQuotaSnapshot2 } = await Promise.resolve().then(() => (init_lucyAuditorLlm(), lucyAuditorLlm_exports));
     const { getLucyRepairStats: getLucyRepairStats2 } = await init_lucyRepairStore().then(() => lucyRepairStore_exports);
+    const { getGeminiSpendSnapshot: getGeminiSpendSnapshot2, formatUsd: formatUsd2 } = await Promise.resolve().then(() => (init_lucyGeminiSpend(), lucyGeminiSpend_exports));
     const quota = getAuditorQuotaSnapshot2();
     const repairStats = await getLucyRepairStats2();
+    const spend = getGeminiSpendSnapshot2();
     const openN = repairStats.open + repairStats.auto_flagged;
+    checks.push({
+      id: "spend_chat",
+      label: `Gasto chat hoy ${formatUsd2(spend.chat.usdEstimate)}`,
+      status: spend.warn.chat ? "warn" : "ok",
+      detail: `${spend.chat.calls} llamadas \xB7 ${spend.chat.inputTokens + spend.chat.outputTokens} tokens \xB7 d\xEDa ${spend.dayKey} \xB7 estimado Lucy (no factura Google)`
+    });
+    checks.push({
+      id: "spend_auditor",
+      label: `Gasto auditor hoy ${formatUsd2(spend.auditor.usdEstimate)}`,
+      status: spend.warn.auditor || quota.remaining === 0 ? "warn" : "ok",
+      detail: `${spend.auditor.calls} llamadas \xB7 ${spend.auditor.inputTokens + spend.auditor.outputTokens} tokens \xB7 cupo ${quota.callsToday}/${quota.maxPerDay} \xB7 ${openN} abiertas`
+    });
     checks.push({
       id: "auditor",
       label: `Auditor \xB7 ${quota.model}`,

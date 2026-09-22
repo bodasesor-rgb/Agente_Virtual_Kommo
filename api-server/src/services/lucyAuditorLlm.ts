@@ -5,6 +5,7 @@
  */
 import { GoogleGenAI } from "@google/genai";
 import { getGeminiApiKey, isLlmConfigured } from "../lib/llmEnv.js";
+import { recordGeminiSpend } from "../lib/lucyGeminiSpend.js";
 import { logger } from "../lib/logger.js";
 
 export const DEFAULT_AUDITOR_MODEL = "gemini-2.5-flash";
@@ -108,6 +109,26 @@ export async function runAuditorLlm(transcript: string): Promise<AuditorLlmFindi
         responseMimeType: "application/json",
       },
     });
+    try {
+      const usage = (result as { usageMetadata?: Record<string, unknown> })
+        .usageMetadata;
+      recordGeminiSpend({
+        channel: "auditor",
+        model,
+        usage: usage
+          ? {
+              promptTokenCount: Number(usage.promptTokenCount ?? 0),
+              candidatesTokenCount: Number(usage.candidatesTokenCount ?? 0),
+              cachedContentTokenCount: Number(
+                usage.cachedContentTokenCount ?? 0
+              ),
+              totalTokenCount: Number(usage.totalTokenCount ?? 0),
+            }
+          : null,
+      });
+    } catch {
+      /* métricas no deben tumbar el auditor */
+    }
     const text = (result.text ?? "").trim();
     if (!text) return [];
     const parsed = JSON.parse(text) as unknown;
