@@ -12,7 +12,9 @@ import { logger } from "../lib/logger.js";
 import { listHistoryKeys } from "../chat-history.js";
 import {
   runAuditorHeuristics,
+  runCrmFieldHeuristics,
   transcriptNeedsFlash,
+  type CrmFieldSnapshot,
   type TranscriptTurn,
 } from "./lucyAuditorHeuristics.js";
 import {
@@ -138,6 +140,47 @@ async function loadTurnsForLead(
     role: r.role,
     content: r.content ?? "",
   }));
+}
+
+/** Lee campos del panel Kommo (CRM). No requiere External chat history. */
+async function fetchCrmFieldSnapshot(leadId: string): Promise<CrmFieldSnapshot | null> {
+  const subdomain = getKommoSubdomain();
+  const accessToken = getKommoAccessToken();
+  if (!subdomain || !accessToken) return null;
+  try {
+    const res = await fetch(
+      `https://${subdomain}.kommo.com/api/v4/leads/${leadId}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      custom_fields_values?: Array<{
+        field_id?: number;
+        values?: Array<{ value?: unknown }>;
+      }>;
+    };
+    const get = (id: number): string | null => {
+      const f = data.custom_fields_values?.find((x) => x.field_id === id);
+      const v = f?.values?.[0]?.value;
+      if (v == null) return null;
+      if (typeof v === "number") return String(v);
+      if (typeof v === "string" && v.trim()) return v.trim();
+      return null;
+    };
+    return {
+      direccion: get(1048774),
+      requerimientos: get(1048776),
+      fecha_evento: get(1048778),
+      horario_evento: get(1049358),
+      num_invitados: get(1048780),
+      tipo_evento: get(1048782),
+      presupuesto: get(1048784),
+      resumen_ia: get(1048786),
+    };
+  } catch (err) {
+    logger.warn({ err, leadId }, "lucyAuditor: no se pudo leer CRM del lead");
+    return null;
+  }
 }
 
 /**
@@ -305,12 +348,12 @@ export async function runLucyAuditorBatch(opts?: {
     ? await loadLeadIdsWithMessagesSince(since!, limitLeads)
     : await loadLeadIdsRecent(limitLeads);
 
-  // Preferir leads con transcript local; cruzar con IDs Kommo del día.
+  // Preferir leads con transcript local; incluir IDs Kommo del día (CRM).
   const localSet = new Set(fromDb);
   const historySet = new Set(listHistoryKeys());
   const preferred = [
     ...fromDb,
-    ...kommoLeadIds.filter((id) => localSet.has(id) || historySet.has(id)),
+    ...kommoLeadIds,
     ...[...historySet].filter((id) => !localSet.has(id)),
   ];
   const leadIds = [...new Set(preferred)].slice(0, limitLeads);
@@ -320,68 +363,38 @@ export async function runLucyAuditorBatch(opts?: {
   let recorded = 0;
   let withLucy = 0;
   let tooShort = 0;
+  let noReply = 0;
+  let scannedChats = 0;
 
-  // Tras hydrate, leer historial completo de esos leads (since=null).
-  const loaded = await loadTranscriptsForLeadIds(leadIds, null);
-  const transcripts = loaded.transcripts;
-  const noReply = loaded.noReply;
   report({
     type: "phase",
     phase: "scan",
-    message: `Revisando ${transcripts.length} chat(s) locales…`,
+    message: `Revisando ${leadIds.length} lead(s) (chat local + CRM)…`,
   });
 
-  for (let i = 0; i < transcripts.length; i++) {
-    const { leadId, turns } = transcripts[i]!;
+  for (let i = 0; i < leadIds.length; i++) {
+    const leadId = leadIds[i]!;
     let chatFindings = 0;
+    const turns = await loadTurnsForLead(leadId, null);
+    const hasReply = turns.some(
+      (t) => t.role === "assistant" || t.role === "human"
+    );
 
-    const assistantTurns = turns.filter((t) => t.role === "assistant").length;
-    const lucyLike =
-      assistantTurns > 0 ||
-      turns.some(
-        (t) =>
-          t.role !== "user" &&
-          /bodasesor\.com\/catalogos|perfect[oa],?\s*ya tengo todo/i.test(t.content)
-      );
-    if (lucyLike) withLucy += 1;
-    else if (turns.length < 4) tooShort += 1;
+    if (turns.length >= 2 && hasReply) {
+      scannedChats += 1;
+      const assistantTurns = turns.filter((t) => t.role === "assistant").length;
+      const lucyLike =
+        assistantTurns > 0 ||
+        turns.some(
+          (t) =>
+            t.role !== "user" &&
+            /bodasesor\.com\/catalogos|perfect[oa],?\s*ya tengo todo/i.test(t.content)
+        );
+      if (lucyLike) withLucy += 1;
+      else if (turns.length < 4) tooShort += 1;
 
-    const heuristic = runAuditorHeuristics(turns);
-    for (const f of heuristic) {
-      findings += 1;
-      chatFindings += 1;
-      const ok = await recordLucyRepair({
-        kommoLeadId: leadId,
-        category: f.category,
-        severity: f.severity,
-        evidence: `[${dayKey}] ${f.evidence}`,
-        proposedRepair: f.proposedRepair,
-        status: "auto_flagged",
-        source: "heuristic",
-      });
-      if (ok) recorded += 1;
-      report({
-        type: "finding",
-        leadId,
-        category: f.category,
-        severity: f.severity,
-        evidence: f.evidence,
-        source: "heuristic",
-      });
-    }
-
-    const shouldFlash =
-      useFlash &&
-      canSpendAuditorCall() &&
-      turns.length >= 3 &&
-      (forceFlash
-        ? lucyLike || turns.length >= 4
-        : lucyLike && transcriptNeedsFlash(turns, heuristic.length));
-
-    if (shouldFlash) {
-      const llmFindings = await runAuditorLlm(formatTranscript(turns));
-      flashCalls += 1;
-      for (const f of llmFindings) {
+      const heuristic = runAuditorHeuristics(turns);
+      for (const f of heuristic) {
         findings += 1;
         chatFindings += 1;
         const ok = await recordLucyRepair({
@@ -390,9 +403,8 @@ export async function runLucyAuditorBatch(opts?: {
           severity: f.severity,
           evidence: `[${dayKey}] ${f.evidence}`,
           proposedRepair: f.proposedRepair,
-          status: "open",
-          source: "flash",
-          model: getAuditorModel(),
+          status: "auto_flagged",
+          source: "heuristic",
         });
         if (ok) recorded += 1;
         report({
@@ -401,7 +413,73 @@ export async function runLucyAuditorBatch(opts?: {
           category: f.category,
           severity: f.severity,
           evidence: f.evidence,
-          source: "flash",
+          source: "heuristic",
+        });
+      }
+
+      const shouldFlash =
+        useFlash &&
+        canSpendAuditorCall() &&
+        turns.length >= 3 &&
+        (forceFlash
+          ? lucyLike || turns.length >= 4
+          : lucyLike && transcriptNeedsFlash(turns, heuristic.length));
+
+      if (shouldFlash) {
+        const llmFindings = await runAuditorLlm(formatTranscript(turns));
+        flashCalls += 1;
+        for (const f of llmFindings) {
+          findings += 1;
+          chatFindings += 1;
+          const ok = await recordLucyRepair({
+            kommoLeadId: leadId,
+            category: f.category,
+            severity: f.severity,
+            evidence: `[${dayKey}] ${f.evidence}`,
+            proposedRepair: f.proposedRepair,
+            status: "open",
+            source: "flash",
+            model: getAuditorModel(),
+          });
+          if (ok) recorded += 1;
+          report({
+            type: "finding",
+            leadId,
+            category: f.category,
+            severity: f.severity,
+            evidence: f.evidence,
+            source: "flash",
+          });
+        }
+      }
+    } else if (turns.length >= 2 && !hasReply) {
+      noReply += 1;
+    }
+
+    // Panel Kommo: siempre (bugs de mapeo aunque no haya chat local).
+    const crm = await fetchCrmFieldSnapshot(leadId);
+    if (crm) {
+      const crmFindings = runCrmFieldHeuristics(crm);
+      for (const f of crmFindings) {
+        findings += 1;
+        chatFindings += 1;
+        const ok = await recordLucyRepair({
+          kommoLeadId: leadId,
+          category: f.category,
+          severity: f.severity,
+          evidence: `[${dayKey}] ${f.evidence}`,
+          proposedRepair: f.proposedRepair,
+          status: "auto_flagged",
+          source: "heuristic",
+        });
+        if (ok) recorded += 1;
+        report({
+          type: "finding",
+          leadId,
+          category: f.category,
+          severity: f.severity,
+          evidence: f.evidence,
+          source: "crm",
         });
       }
     }
@@ -409,7 +487,7 @@ export async function runLucyAuditorBatch(opts?: {
     report({
       type: "chat",
       current: i + 1,
-      total: transcripts.length,
+      total: leadIds.length,
       leadId,
       findings,
       recorded,
@@ -423,25 +501,25 @@ export async function runLucyAuditorBatch(opts?: {
   }
 
   const modeHint =
-    " Modo local: historial del webhook/Hostinger (Kommo no permite leer Talks).";
+    " Modo local: chat por webhook + campos CRM del panel Kommo (sin leer Talks).";
 
   const summary =
-    transcripts.length === 0
-      ? `No encontré chats locales auditables` +
+    leadIds.length === 0
+      ? `No encontré leads para auditar` +
         (hydrated.keys ? ` (${hydrated.keys} en chat-history, +${hydrated.inserted} importados)` : "") +
         `.` +
         modeHint
       : findings === 0
-        ? `Revisé ${transcripts.length} chat(s) locales` +
+        ? `Revisé ${leadIds.length} lead(s) (${scannedChats} con chat local)` +
           (hydrated.inserted ? ` (+${hydrated.inserted} del historial)` : "") +
           `. Flash ${flashCalls}. Sin errores detectados` +
           (withLucy ? ` (${withLucy} con Lucy).` : ".") +
           modeHint
-        : `Revisé ${transcripts.length} chat(s) locales: ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.` +
+        : `Revisé ${leadIds.length} lead(s) (${scannedChats} con chat): ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.` +
           modeHint;
 
   const result: AuditorRunResult = {
-    scanned: transcripts.length,
+    scanned: leadIds.length,
     findings,
     recorded,
     flashCalls,

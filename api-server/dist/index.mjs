@@ -188536,6 +188536,89 @@ function runAuditorHeuristics(turns) {
   void users2;
   return findings;
 }
+function runCrmFieldHeuristics(crm) {
+  const findings = [];
+  const tipo = (crm.tipo_evento ?? "").trim();
+  const req = (crm.requerimientos ?? "").trim();
+  const fecha = (crm.fecha_evento ?? "").trim();
+  const horario = (crm.horario_evento ?? "").trim();
+  const invitados = (crm.num_invitados ?? "").trim();
+  const presupuesto = (crm.presupuesto ?? "").trim();
+  if (tipo) {
+    if (/\b\d+\s*d[ií]as?\b/i.test(tipo) || /\b\d+\s*horas?\b/i.test(tipo) || /^un evento\b/i.test(tipo)) {
+      findings.push({
+        category: "bad_field",
+        severity: "error",
+        evidence: `CRM Tipo de evento parece duraci\xF3n/detalle, no tipo: \xAB${tipo.slice(0, 120)}\xBB`,
+        proposedRepair: "No mapear duraci\xF3n (\xAB6 d\xEDas\xBB) a tipo_evento; tipo = boda/XV/corporativo/etc."
+      });
+    }
+    if (/^(carpas?|iluminaci[oó]n|banquete|barra|meseros?|dj|sonido|entelado|pista)\b/i.test(
+      tipo
+    ) || req && tipo.toLowerCase() === req.toLowerCase()) {
+      findings.push({
+        category: "bad_field",
+        severity: "error",
+        evidence: `CRM Tipo de evento parece servicio/SKU: \xAB${tipo.slice(0, 120)}\xBB`,
+        proposedRepair: "Servicios van en Requerimientos; Tipo de evento es ocasi\xF3n (boda, XV, etc.)."
+      });
+    }
+  }
+  if (fecha && /\b\d{1,2}\s*(am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)\b/i.test(fecha)) {
+    findings.push({
+      category: "bad_field",
+      severity: "warn",
+      evidence: `CRM Fecha parece horario: \xAB${fecha.slice(0, 80)}\xBB`,
+      proposedRepair: "Separar fecha_evento vs horario_evento."
+    });
+  }
+  if (horario && /\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+    horario
+  )) {
+    findings.push({
+      category: "bad_field",
+      severity: "warn",
+      evidence: `CRM Horario parece fecha: \xAB${horario.slice(0, 80)}\xBB`,
+      proposedRepair: "No guardar la fecha en horario_evento."
+    });
+  }
+  if (invitados && !/^\d{1,6}$/.test(invitados.replace(/[,.\s]/g, ""))) {
+    if (!/\d/.test(invitados)) {
+      findings.push({
+        category: "bad_field",
+        severity: "warn",
+        evidence: `CRM Invitados no num\xE9rico: \xAB${invitados.slice(0, 80)}\xBB`,
+        proposedRepair: "num_invitados debe ser entero (pax)."
+      });
+    }
+  }
+  const resumen = (crm.resumen_ia ?? "").toLowerCase();
+  if ((/^\$?0\b/.test(presupuesto) || presupuesto === "0") && /sin definir|presupuesto/.test(resumen)) {
+    findings.push({
+      category: "bad_field",
+      severity: "info",
+      evidence: `CRM Presupuesto \xAB${presupuesto}\xBB con resumen que habla de presupuesto indefinido.`,
+      proposedRepair: "No forzar $0 si el cliente dijo sin definir; dejar vac\xEDo o texto coherente."
+    });
+  }
+  for (const [label, val] of [
+    ["Requerimientos", req],
+    ["Direcci\xF3n", crm.direccion ?? ""],
+    ["Resumen IA", crm.resumen_ia ?? ""]
+  ]) {
+    const v4 = val.trim();
+    if (v4.length >= 250 || /\.\.\.$/.test(v4)) {
+      findings.push({
+        category: "bad_field",
+        severity: "info",
+        evidence: `CRM ${label} parece truncado (${v4.length} chars): \xAB${v4.slice(-40)}\xBB`,
+        proposedRepair: "Detalle largo \u2192 Respuesta IA Largo / nota; campos cortos solo con resumen."
+      });
+      break;
+    }
+  }
+  return findings;
+}
 function transcriptNeedsFlash(turns, heuristicCount) {
   if (heuristicCount > 0) return false;
   const assistants = turns.filter((t4) => isOutgoing(t4)).length;
@@ -188897,6 +188980,40 @@ async function loadTurnsForLead(leadId, since, limit2 = 60) {
     content: r5.content ?? ""
   }));
 }
+async function fetchCrmFieldSnapshot(leadId) {
+  const subdomain = getKommoSubdomain();
+  const accessToken = getKommoAccessToken();
+  if (!subdomain || !accessToken) return null;
+  try {
+    const res = await fetch(
+      `https://${subdomain}.kommo.com/api/v4/leads/${leadId}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const get = (id) => {
+      const f7 = data.custom_fields_values?.find((x8) => x8.field_id === id);
+      const v4 = f7?.values?.[0]?.value;
+      if (v4 == null) return null;
+      if (typeof v4 === "number") return String(v4);
+      if (typeof v4 === "string" && v4.trim()) return v4.trim();
+      return null;
+    };
+    return {
+      direccion: get(1048774),
+      requerimientos: get(1048776),
+      fecha_evento: get(1048778),
+      horario_evento: get(1049358),
+      num_invitados: get(1048780),
+      tipo_evento: get(1048782),
+      presupuesto: get(1048784),
+      resumen_ia: get(1048786)
+    };
+  } catch (err2) {
+    logger.warn({ err: err2, leadId }, "lucyAuditor: no se pudo leer CRM del lead");
+    return null;
+  }
+}
 async function listTodayLeadIdsFromKommo(limitLeads, onProgress) {
   const subdomain = getKommoSubdomain();
   const accessToken = getKommoAccessToken();
@@ -188938,27 +189055,6 @@ async function listTodayLeadIdsFromKommo(limitLeads, onProgress) {
   const ids = [...leadIds].slice(0, limitLeads);
   logger.info({ candidates: ids.length }, "lucyAuditor: leads Kommo del d\xEDa (solo IDs)");
   return ids;
-}
-async function loadTranscriptsForLeadIds(leadIds, since) {
-  const out2 = [];
-  let emptyOrShort = 0;
-  let noReply = 0;
-  for (const leadId of leadIds) {
-    const turns = await loadTurnsForLead(leadId, since);
-    if (turns.length < 2) {
-      emptyOrShort += 1;
-      continue;
-    }
-    const hasReply = turns.some(
-      (t4) => t4.role === "assistant" || t4.role === "human"
-    );
-    if (!hasReply) {
-      noReply += 1;
-      continue;
-    }
-    out2.push({ leadId, turns });
-  }
-  return { transcripts: out2, emptyOrShort, noReply };
 }
 function formatTranscript(turns) {
   return turns.map((t4) => {
@@ -189010,7 +189106,7 @@ async function runLucyAuditorBatch(opts) {
   const historySet = new Set(listHistoryKeys());
   const preferred = [
     ...fromDb,
-    ...kommoLeadIds.filter((id) => localSet.has(id) || historySet.has(id)),
+    ...kommoLeadIds,
     ...[...historySet].filter((id) => !localSet.has(id))
   ];
   const leadIds = [...new Set(preferred)].slice(0, limitLeads);
@@ -189019,51 +189115,30 @@ async function runLucyAuditorBatch(opts) {
   let recorded = 0;
   let withLucy = 0;
   let tooShort = 0;
-  const loaded = await loadTranscriptsForLeadIds(leadIds, null);
-  const transcripts = loaded.transcripts;
-  const noReply = loaded.noReply;
+  let noReply = 0;
+  let scannedChats = 0;
   report({
     type: "phase",
     phase: "scan",
-    message: `Revisando ${transcripts.length} chat(s) locales\u2026`
+    message: `Revisando ${leadIds.length} lead(s) (chat local + CRM)\u2026`
   });
-  for (let i6 = 0; i6 < transcripts.length; i6++) {
-    const { leadId, turns } = transcripts[i6];
+  for (let i6 = 0; i6 < leadIds.length; i6++) {
+    const leadId = leadIds[i6];
     let chatFindings = 0;
-    const assistantTurns = turns.filter((t4) => t4.role === "assistant").length;
-    const lucyLike = assistantTurns > 0 || turns.some(
-      (t4) => t4.role !== "user" && /bodasesor\.com\/catalogos|perfect[oa],?\s*ya tengo todo/i.test(t4.content)
+    const turns = await loadTurnsForLead(leadId, null);
+    const hasReply = turns.some(
+      (t4) => t4.role === "assistant" || t4.role === "human"
     );
-    if (lucyLike) withLucy += 1;
-    else if (turns.length < 4) tooShort += 1;
-    const heuristic = runAuditorHeuristics(turns);
-    for (const f7 of heuristic) {
-      findings += 1;
-      chatFindings += 1;
-      const ok = await recordLucyRepair({
-        kommoLeadId: leadId,
-        category: f7.category,
-        severity: f7.severity,
-        evidence: `[${dayKey2}] ${f7.evidence}`,
-        proposedRepair: f7.proposedRepair,
-        status: "auto_flagged",
-        source: "heuristic"
-      });
-      if (ok) recorded += 1;
-      report({
-        type: "finding",
-        leadId,
-        category: f7.category,
-        severity: f7.severity,
-        evidence: f7.evidence,
-        source: "heuristic"
-      });
-    }
-    const shouldFlash = useFlash && canSpendAuditorCall() && turns.length >= 3 && (forceFlash ? lucyLike || turns.length >= 4 : lucyLike && transcriptNeedsFlash(turns, heuristic.length));
-    if (shouldFlash) {
-      const llmFindings = await runAuditorLlm(formatTranscript(turns));
-      flashCalls += 1;
-      for (const f7 of llmFindings) {
+    if (turns.length >= 2 && hasReply) {
+      scannedChats += 1;
+      const assistantTurns = turns.filter((t4) => t4.role === "assistant").length;
+      const lucyLike = assistantTurns > 0 || turns.some(
+        (t4) => t4.role !== "user" && /bodasesor\.com\/catalogos|perfect[oa],?\s*ya tengo todo/i.test(t4.content)
+      );
+      if (lucyLike) withLucy += 1;
+      else if (turns.length < 4) tooShort += 1;
+      const heuristic = runAuditorHeuristics(turns);
+      for (const f7 of heuristic) {
         findings += 1;
         chatFindings += 1;
         const ok = await recordLucyRepair({
@@ -189072,9 +189147,8 @@ async function runLucyAuditorBatch(opts) {
           severity: f7.severity,
           evidence: `[${dayKey2}] ${f7.evidence}`,
           proposedRepair: f7.proposedRepair,
-          status: "open",
-          source: "flash",
-          model: getAuditorModel()
+          status: "auto_flagged",
+          source: "heuristic"
         });
         if (ok) recorded += 1;
         report({
@@ -189083,14 +189157,70 @@ async function runLucyAuditorBatch(opts) {
           category: f7.category,
           severity: f7.severity,
           evidence: f7.evidence,
-          source: "flash"
+          source: "heuristic"
+        });
+      }
+      const shouldFlash = useFlash && canSpendAuditorCall() && turns.length >= 3 && (forceFlash ? lucyLike || turns.length >= 4 : lucyLike && transcriptNeedsFlash(turns, heuristic.length));
+      if (shouldFlash) {
+        const llmFindings = await runAuditorLlm(formatTranscript(turns));
+        flashCalls += 1;
+        for (const f7 of llmFindings) {
+          findings += 1;
+          chatFindings += 1;
+          const ok = await recordLucyRepair({
+            kommoLeadId: leadId,
+            category: f7.category,
+            severity: f7.severity,
+            evidence: `[${dayKey2}] ${f7.evidence}`,
+            proposedRepair: f7.proposedRepair,
+            status: "open",
+            source: "flash",
+            model: getAuditorModel()
+          });
+          if (ok) recorded += 1;
+          report({
+            type: "finding",
+            leadId,
+            category: f7.category,
+            severity: f7.severity,
+            evidence: f7.evidence,
+            source: "flash"
+          });
+        }
+      }
+    } else if (turns.length >= 2 && !hasReply) {
+      noReply += 1;
+    }
+    const crm = await fetchCrmFieldSnapshot(leadId);
+    if (crm) {
+      const crmFindings = runCrmFieldHeuristics(crm);
+      for (const f7 of crmFindings) {
+        findings += 1;
+        chatFindings += 1;
+        const ok = await recordLucyRepair({
+          kommoLeadId: leadId,
+          category: f7.category,
+          severity: f7.severity,
+          evidence: `[${dayKey2}] ${f7.evidence}`,
+          proposedRepair: f7.proposedRepair,
+          status: "auto_flagged",
+          source: "heuristic"
+        });
+        if (ok) recorded += 1;
+        report({
+          type: "finding",
+          leadId,
+          category: f7.category,
+          severity: f7.severity,
+          evidence: f7.evidence,
+          source: "crm"
         });
       }
     }
     report({
       type: "chat",
       current: i6 + 1,
-      total: transcripts.length,
+      total: leadIds.length,
       leadId,
       findings,
       recorded,
@@ -189101,10 +189231,10 @@ async function runLucyAuditorBatch(opts) {
   if (opts?.oncePerDay) {
     lastDailyRunDay = dayKey2;
   }
-  const modeHint = " Modo local: historial del webhook/Hostinger (Kommo no permite leer Talks).";
-  const summary = transcripts.length === 0 ? `No encontr\xE9 chats locales auditables` + (hydrated.keys ? ` (${hydrated.keys} en chat-history, +${hydrated.inserted} importados)` : "") + `.` + modeHint : findings === 0 ? `Revis\xE9 ${transcripts.length} chat(s) locales` + (hydrated.inserted ? ` (+${hydrated.inserted} del historial)` : "") + `. Flash ${flashCalls}. Sin errores detectados` + (withLucy ? ` (${withLucy} con Lucy).` : ".") + modeHint : `Revis\xE9 ${transcripts.length} chat(s) locales: ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.` + modeHint;
+  const modeHint = " Modo local: chat por webhook + campos CRM del panel Kommo (sin leer Talks).";
+  const summary = leadIds.length === 0 ? `No encontr\xE9 leads para auditar` + (hydrated.keys ? ` (${hydrated.keys} en chat-history, +${hydrated.inserted} importados)` : "") + `.` + modeHint : findings === 0 ? `Revis\xE9 ${leadIds.length} lead(s) (${scannedChats} con chat local)` + (hydrated.inserted ? ` (+${hydrated.inserted} del historial)` : "") + `. Flash ${flashCalls}. Sin errores detectados` + (withLucy ? ` (${withLucy} con Lucy).` : ".") + modeHint : `Revis\xE9 ${leadIds.length} lead(s) (${scannedChats} con chat): ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.` + modeHint;
   const result = {
-    scanned: transcripts.length,
+    scanned: leadIds.length,
     findings,
     recorded,
     flashCalls,

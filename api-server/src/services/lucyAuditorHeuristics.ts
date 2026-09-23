@@ -11,6 +11,18 @@ export type HeuristicFinding = {
 
 export type TranscriptTurn = { role: "user" | "assistant" | string; content: string };
 
+/** Snapshot de campos CRM que Lucy escribe en el panel Kommo. */
+export type CrmFieldSnapshot = {
+  tipo_evento?: string | null;
+  requerimientos?: string | null;
+  fecha_evento?: string | null;
+  horario_evento?: string | null;
+  num_invitados?: string | null;
+  presupuesto?: string | null;
+  direccion?: string | null;
+  resumen_ia?: string | null;
+};
+
 /** Lucy o respuesta saliente (a veces Kommo la marca como human/internal). */
 function isOutgoing(t: TranscriptTurn): boolean {
   const r = String(t.role ?? "").toLowerCase();
@@ -142,6 +154,122 @@ export function runAuditorHeuristics(turns: TranscriptTurn[]): HeuristicFinding[
 
   // Señal para Flash: pocos hallazgos pero conversación larga
   void users;
+
+  return findings;
+}
+
+/**
+ * Heurísticas sobre campos del panel Kommo (lo que Lucy guardó).
+ * Detecta bugs que no se ven solo en el chat (tipo=SKU, duración como tipo, etc.).
+ */
+export function runCrmFieldHeuristics(crm: CrmFieldSnapshot): HeuristicFinding[] {
+  const findings: HeuristicFinding[] = [];
+  const tipo = (crm.tipo_evento ?? "").trim();
+  const req = (crm.requerimientos ?? "").trim();
+  const fecha = (crm.fecha_evento ?? "").trim();
+  const horario = (crm.horario_evento ?? "").trim();
+  const invitados = (crm.num_invitados ?? "").trim();
+  const presupuesto = (crm.presupuesto ?? "").trim();
+
+  if (tipo) {
+    // Duración / detalle operativo guardado como tipo (ej. "Un evento de 6 días")
+    if (
+      /\b\d+\s*d[ií]as?\b/i.test(tipo) ||
+      /\b\d+\s*horas?\b/i.test(tipo) ||
+      /^un evento\b/i.test(tipo)
+    ) {
+      findings.push({
+        category: "bad_field",
+        severity: "error",
+        evidence: `CRM Tipo de evento parece duración/detalle, no tipo: «${tipo.slice(0, 120)}»`,
+        proposedRepair:
+          "No mapear duración («6 días») a tipo_evento; tipo = boda/XV/corporativo/etc.",
+      });
+    }
+    // Servicio/SKU como tipo (carpas, iluminación, banquete…)
+    if (
+      /^(carpas?|iluminaci[oó]n|banquete|barra|meseros?|dj|sonido|entelado|pista)\b/i.test(
+        tipo
+      ) ||
+      (req && tipo.toLowerCase() === req.toLowerCase())
+    ) {
+      findings.push({
+        category: "bad_field",
+        severity: "error",
+        evidence: `CRM Tipo de evento parece servicio/SKU: «${tipo.slice(0, 120)}»`,
+        proposedRepair:
+          "Servicios van en Requerimientos; Tipo de evento es ocasión (boda, XV, etc.).",
+      });
+    }
+  }
+
+  if (fecha && /\b\d{1,2}\s*(am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)\b/i.test(fecha)) {
+    findings.push({
+      category: "bad_field",
+      severity: "warn",
+      evidence: `CRM Fecha parece horario: «${fecha.slice(0, 80)}»`,
+      proposedRepair: "Separar fecha_evento vs horario_evento.",
+    });
+  }
+
+  if (
+    horario &&
+    /\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+      horario
+    )
+  ) {
+    findings.push({
+      category: "bad_field",
+      severity: "warn",
+      evidence: `CRM Horario parece fecha: «${horario.slice(0, 80)}»`,
+      proposedRepair: "No guardar la fecha en horario_evento.",
+    });
+  }
+
+  if (invitados && !/^\d{1,6}$/.test(invitados.replace(/[,.\s]/g, ""))) {
+    if (!/\d/.test(invitados)) {
+      findings.push({
+        category: "bad_field",
+        severity: "warn",
+        evidence: `CRM Invitados no numérico: «${invitados.slice(0, 80)}»`,
+        proposedRepair: "num_invitados debe ser entero (pax).",
+      });
+    }
+  }
+
+  // Presupuesto $0 junto a texto "sin definir" en resumen (señal de doble campo)
+  const resumen = (crm.resumen_ia ?? "").toLowerCase();
+  if (
+    (/^\$?0\b/.test(presupuesto) || presupuesto === "0") &&
+    /sin definir|presupuesto/.test(resumen)
+  ) {
+    findings.push({
+      category: "bad_field",
+      severity: "info",
+      evidence: `CRM Presupuesto «${presupuesto}» con resumen que habla de presupuesto indefinido.`,
+      proposedRepair:
+        "No forzar $0 si el cliente dijo sin definir; dejar vacío o texto coherente.",
+    });
+  }
+
+  // Truncado típico de campos 255
+  for (const [label, val] of [
+    ["Requerimientos", req],
+    ["Dirección", crm.direccion ?? ""],
+    ["Resumen IA", crm.resumen_ia ?? ""],
+  ] as const) {
+    const v = val.trim();
+    if (v.length >= 250 || /\.\.\.$/.test(v)) {
+      findings.push({
+        category: "bad_field",
+        severity: "info",
+        evidence: `CRM ${label} parece truncado (${v.length} chars): «${v.slice(-40)}»`,
+        proposedRepair:
+          "Detalle largo → Respuesta IA Largo / nota; campos cortos solo con resumen.",
+      });
+      break;
+    }
+  }
 
   return findings;
 }
