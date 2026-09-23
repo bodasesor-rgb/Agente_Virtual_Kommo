@@ -86,6 +86,30 @@ try {
     process.env.LUCY_CHAT_HISTORY_PATH = j(dataRoot, "chat-history.json");
   }
   mkdirSync(process.env.LUCY_LOCAL_DB_PATH, { recursive: true });
+  // Evitar 503: locks de PGlite tras restart Hostinger (auditor / lucy-data).
+  try {
+    const { readdirSync, unlinkSync } = await import("node:fs");
+    const dbDir = process.env.LUCY_LOCAL_DB_PATH;
+    for (const name of ["postmaster.pid", "postmaster.opts", "PG_VERSION.lock"]) {
+      try {
+        unlinkSync(j(dbDir, name));
+      } catch {
+        /* ok */
+      }
+    }
+    for (const ent of readdirSync(dbDir)) {
+      if (ent.startsWith(".s.PGSQL") || ent.endsWith(".lock") || ent.endsWith(".lock.out")) {
+        try {
+          unlinkSync(j(dbDir, ent));
+        } catch {
+          /* ok */
+        }
+      }
+    }
+    console.log("[start] Locks PGlite limpiados en", dbDir);
+  } catch (lockErr) {
+    console.warn("[start] Limpieza locks:", lockErr?.message || lockErr);
+  }
   console.log(`[start] Datos persistentes → ${dataRoot}`);
 } catch {
   /* opcional */

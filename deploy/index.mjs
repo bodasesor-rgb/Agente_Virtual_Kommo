@@ -160983,42 +160983,67 @@ var init_schema2 = __esm({
 // ../lib/db/src/local.ts
 import fs6 from "node:fs";
 import path5 from "node:path";
-function removeStalePostmasterPid() {
-  const pidFile = path5.join(LOCAL_DB_DIR, "postmaster.pid");
-  if (!fs6.existsSync(pidFile)) return;
-  try {
-    const firstLine = fs6.readFileSync(pidFile, "utf8").split("\n")[0]?.trim();
-    const pid = Number(firstLine);
-    if (!Number.isFinite(pid) || pid <= 0) {
-      fs6.unlinkSync(pidFile);
-      return;
-    }
+function clearPgdataLocks(dir) {
+  if (!fs6.existsSync(dir)) return;
+  const victims = ["postmaster.pid", "postmaster.opts", "PG_VERSION.lock"];
+  for (const name2 of victims) {
     try {
-      process.kill(pid, 0);
-    } catch {
-      fs6.unlinkSync(pidFile);
-      console.info(`[db] postmaster.pid obsoleto eliminado (pid ${pid} no activo)`);
-    }
-  } catch {
-    try {
-      fs6.unlinkSync(pidFile);
+      fs6.unlinkSync(path5.join(dir, name2));
     } catch {
     }
   }
+  try {
+    for (const ent of fs6.readdirSync(dir)) {
+      if (ent.startsWith(".s.PGSQL") || ent.endsWith(".lock") || ent.endsWith(".lock.out")) {
+        try {
+          fs6.unlinkSync(path5.join(dir, ent));
+        } catch {
+        }
+      }
+    }
+  } catch {
+  }
+}
+async function openPgAt(dir) {
+  fs6.mkdirSync(dir, { recursive: true });
+  clearPgdataLocks(dir);
+  const pg2 = new Ue2(dir);
+  await pg2.exec(INIT_SQL);
+  try {
+    await pg2.exec(MIGRATION_SQL);
+  } catch {
+  }
+  client = pg2;
+  const db2 = drizzle2(pg2, { schema: schema_exports });
+  console.info(`[db] Modo local activo \u2192 ${dir}`);
+  return db2;
 }
 async function getLocalDb() {
   if (localDb) return localDb;
-  fs6.mkdirSync(LOCAL_DB_DIR, { recursive: true });
-  removeStalePostmasterPid();
-  client = new Ue2(LOCAL_DB_DIR);
-  await client.exec(INIT_SQL);
   try {
-    await client.exec(MIGRATION_SQL);
-  } catch {
+    localDb = await openPgAt(LOCAL_DB_DIR);
+    return localDb;
+  } catch (err2) {
+    const msg = err2 instanceof Error ? err2.message : String(err2);
+    console.error(`[db] Fall\xF3 abrir ${LOCAL_DB_DIR}: ${msg}`);
+    const broken = `${LOCAL_DB_DIR}-broken-${Date.now()}`;
+    try {
+      if (fs6.existsSync(LOCAL_DB_DIR)) {
+        fs6.renameSync(LOCAL_DB_DIR, broken);
+        console.warn(`[db] pgdata movida a ${broken}`);
+      }
+    } catch (renameErr) {
+      console.warn(
+        "[db] No se pudo renombrar pgdata:",
+        renameErr instanceof Error ? renameErr.message : renameErr
+      );
+    }
+    const fresh = path5.join(path5.dirname(LOCAL_DB_DIR), `pgdata-boot-${Date.now()}`);
+    LOCAL_DB_DIR = fresh;
+    process.env["LUCY_LOCAL_DB_PATH"] = fresh;
+    localDb = await openPgAt(fresh);
+    return localDb;
   }
-  localDb = drizzle2(client, { schema: schema_exports });
-  console.info(`[db] Modo local activo \u2192 ${LOCAL_DB_DIR}`);
-  return localDb;
 }
 function isLocalDbMode() {
   return !process.env["DATABASE_URL"]?.trim();
@@ -161030,7 +161055,7 @@ var init_local = __esm({
     init_dist2();
     init_pglite();
     init_schema2();
-    LOCAL_DB_DIR = process.env["LUCY_LOCAL_DB_PATH"] ?? path5.resolve(process.cwd(), "..", "lucy-data", "pgdata");
+    LOCAL_DB_DIR = process.env["LUCY_LOCAL_DB_PATH"]?.trim() || path5.resolve(process.cwd(), "..", "lucy-data", "pgdata");
     client = null;
     localDb = null;
     INIT_SQL = `
@@ -161219,7 +161244,21 @@ var init_src2 = __esm({
     init_schema2();
     ({ Pool: Pool3 } = esm_default);
     pool = null;
-    db = await createDb();
+    try {
+      db = await createDb();
+    } catch (err2) {
+      console.error(
+        "[db] FATAL al crear DB \u2014 Lucy arranca sin persistencia local:",
+        err2 instanceof Error ? err2.message : err2
+      );
+      process.env["LUCY_LOCAL_DB_PATH"] = `${process.env["LUCY_LOCAL_DB_PATH"] || "pgdata"}-emergency-${Date.now()}`;
+      try {
+        db = await getLocalDb();
+      } catch (err22) {
+        console.error("[db] Emergency PGlite tambi\xE9n fall\xF3:", err22);
+        throw err22;
+      }
+    }
   }
 });
 

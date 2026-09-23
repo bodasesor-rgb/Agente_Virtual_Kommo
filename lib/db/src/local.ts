@@ -5,8 +5,9 @@ import path from "node:path";
 
 import * as schema from "./schema/index.js";
 
-const LOCAL_DB_DIR =
-  process.env["LUCY_LOCAL_DB_PATH"] ??
+/** Mutable: en crash de arranque rotamos a carpeta limpia. */
+let LOCAL_DB_DIR =
+  process.env["LUCY_LOCAL_DB_PATH"]?.trim() ||
   path.resolve(process.cwd(), "..", "lucy-data", "pgdata");
 
 let client: PGlite | null = null;
@@ -177,46 +178,83 @@ ALTER TABLE conversations ADD COLUMN IF NOT EXISTS unclear_streak INTEGER NOT NU
 CREATE UNIQUE INDEX IF NOT EXISTS messages_kommo_message_id_idx ON messages (kommo_message_id) WHERE kommo_message_id IS NOT NULL;
 `;
 
-function removeStalePostmasterPid(): void {
-  const pidFile = path.join(LOCAL_DB_DIR, "postmaster.pid");
-  if (!fs.existsSync(pidFile)) return;
-  try {
-    const firstLine = fs.readFileSync(pidFile, "utf8").split("\n")[0]?.trim();
-    const pid = Number(firstLine);
-    if (!Number.isFinite(pid) || pid <= 0) {
-      fs.unlinkSync(pidFile);
-      return;
-    }
+/**
+ * Hostinger reinicia Node dejando locks/pids que tumban PGlite al boot (503).
+ * Borramos agresivo: process.kill(pid,0) puede dar falso positivo si el PID se reusa.
+ */
+export function clearPgdataLocks(dir: string): void {
+  if (!fs.existsSync(dir)) return;
+  const victims = ["postmaster.pid", "postmaster.opts", "PG_VERSION.lock"];
+  for (const name of victims) {
     try {
-      process.kill(pid, 0);
+      fs.unlinkSync(path.join(dir, name));
     } catch {
-      fs.unlinkSync(pidFile);
-      console.info(`[db] postmaster.pid obsoleto eliminado (pid ${pid} no activo)`);
-    }
-  } catch {
-    try {
-      fs.unlinkSync(pidFile);
-    } catch {
-      /* ignorar */
+      /* ok */
     }
   }
+  try {
+    for (const ent of fs.readdirSync(dir)) {
+      if (
+        ent.startsWith(".s.PGSQL") ||
+        ent.endsWith(".lock") ||
+        ent.endsWith(".lock.out")
+      ) {
+        try {
+          fs.unlinkSync(path.join(dir, ent));
+        } catch {
+          /* ok */
+        }
+      }
+    }
+  } catch {
+    /* ok */
+  }
+}
+
+async function openPgAt(dir: string): Promise<ReturnType<typeof drizzle>> {
+  fs.mkdirSync(dir, { recursive: true });
+  clearPgdataLocks(dir);
+  const pg = new PGlite(dir);
+  await pg.exec(INIT_SQL);
+  try {
+    await pg.exec(MIGRATION_SQL);
+  } catch {
+    // columnas/index pueden existir en instalaciones nuevas
+  }
+  client = pg;
+  const db = drizzle(pg, { schema });
+  console.info(`[db] Modo local activo → ${dir}`);
+  return db;
 }
 
 export async function getLocalDb() {
   if (localDb) return localDb;
 
-  fs.mkdirSync(LOCAL_DB_DIR, { recursive: true });
-  removeStalePostmasterPid();
-  client = new PGlite(LOCAL_DB_DIR);
-  await client.exec(INIT_SQL);
   try {
-    await client.exec(MIGRATION_SQL);
-  } catch {
-    // columnas/index pueden existir en instalaciones nuevas
+    localDb = await openPgAt(LOCAL_DB_DIR);
+    return localDb;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[db] Falló abrir ${LOCAL_DB_DIR}: ${msg}`);
+    // Renombrar carpeta rota (si se puede) y abrir una limpia — Lucy debe escuchar el puerto.
+    const broken = `${LOCAL_DB_DIR}-broken-${Date.now()}`;
+    try {
+      if (fs.existsSync(LOCAL_DB_DIR)) {
+        fs.renameSync(LOCAL_DB_DIR, broken);
+        console.warn(`[db] pgdata movida a ${broken}`);
+      }
+    } catch (renameErr) {
+      console.warn(
+        "[db] No se pudo renombrar pgdata:",
+        renameErr instanceof Error ? renameErr.message : renameErr
+      );
+    }
+    const fresh = path.join(path.dirname(LOCAL_DB_DIR), `pgdata-boot-${Date.now()}`);
+    LOCAL_DB_DIR = fresh;
+    process.env["LUCY_LOCAL_DB_PATH"] = fresh;
+    localDb = await openPgAt(fresh);
+    return localDb;
   }
-  localDb = drizzle(client, { schema });
-  console.info(`[db] Modo local activo → ${LOCAL_DB_DIR}`);
-  return localDb;
 }
 
 export function isLocalDbMode() {
