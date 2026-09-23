@@ -4,6 +4,7 @@
  */
 import { logger } from "../lib/logger.js";
 import { appendHistory, getHistory } from "../chat-history.js";
+import { persistLucyExchange } from "./chatIngest.js";
 import { LUCY_INTRO } from "../lucy-flow-guards.js";
 import { deliverLucyOutbound } from "./kommoMirror.js";
 import { fetchContactPhone } from "./whatsappDirectSender.js";
@@ -177,6 +178,7 @@ async function writeToLead(opts: {
   }
 
   appendHistory(histKey, opts.userText || "Hola", texto);
+  void persistLucyExchange(histKey, opts.userText || "Hola", texto).catch(() => {});
   await agregarTag(opts.subdomain, opts.accessToken, leadId, ["lucy_recovery"], lead.tags);
   logger.info({ leadId, channel }, "recoverIncoming: Lucy escribió al lead");
   return { status: "wrote" };

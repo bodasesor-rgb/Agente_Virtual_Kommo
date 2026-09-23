@@ -68,10 +68,17 @@ try {
         (meta.git_commit_short ? ` · commit ${meta.git_commit_short}` : ""),
     );
   }
-  // Persistencia fuera de deploy/ (git pull no borra historial).
-  const dataRoot = process.env.LUCY_DATA_DIR?.trim() || j(root, "lucy-data");
-  mkdirSync(dataRoot, { recursive: true });
-  if (!process.env.LUCY_DATA_DIR?.trim()) process.env.LUCY_DATA_DIR = dataRoot;
+  // Persistencia: preferir ../lucy-data; si falla, ./lucy-data dentro de root.
+  const preferred = process.env.LUCY_DATA_DIR?.trim() || j(root, "lucy-data");
+  let dataRoot = preferred;
+  try {
+    mkdirSync(preferred, { recursive: true });
+  } catch (err) {
+    dataRoot = j(root, "lucy-data-local");
+    mkdirSync(dataRoot, { recursive: true });
+    console.warn("[start] Fallback datos →", dataRoot, err?.message || err);
+  }
+  process.env.LUCY_DATA_DIR = dataRoot;
   if (!process.env.LUCY_LOCAL_DB_PATH?.trim()) {
     process.env.LUCY_LOCAL_DB_PATH = j(dataRoot, "pgdata");
   }

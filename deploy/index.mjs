@@ -188121,6 +188121,8 @@ async function writeToLead(opts) {
     return { status: "failed", reason: "envio_fallo" };
   }
   appendHistory(histKey, opts.userText || "Hola", texto);
+  void persistLucyExchange(histKey, opts.userText || "Hola", texto).catch(() => {
+  });
   await agregarTag(opts.subdomain, opts.accessToken, leadId, ["lucy_recovery"], lead.tags);
   logger.info({ leadId, channel }, "recoverIncoming: Lucy escribi\xF3 al lead");
   return { status: "wrote" };
@@ -188223,6 +188225,7 @@ var init_incomingLeadRecovery = __esm({
     "use strict";
     init_logger2();
     init_chat_history();
+    await init_chatIngest();
     init_lucy_flow_guards();
     await init_kommoMirror();
     init_whatsappDirectSender();
@@ -236429,6 +236432,17 @@ async function processKommoWebhookAfterAck(req) {
     },
     "Kommo webhook received"
   );
+  if (entityId && text2) {
+    void persistChatMessage({
+      kommoLeadId: String(entityId),
+      content: text2,
+      authorType: "client",
+      kommoMessageId: dedupKey ? `wh:${dedupKey}` : void 0,
+      source: "webhook_inbound"
+    }).catch(
+      (err2) => log.warn({ err: err2, entityId }, "No se pudo persistir inbound para auditor")
+    );
+  }
   if (messageData.mediaNote && entityId && subdomain && accessToken) {
     let noteBody = messageData.mediaNote;
     if (isImage && !replyImageToClient) {

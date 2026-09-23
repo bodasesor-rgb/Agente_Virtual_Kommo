@@ -28,10 +28,24 @@ if (!process.env.OPENAI_API_KEY && !process.env.OPEN_AI) {
   console.warn("[start] AVISO: OPEN_AI / OPENAI_API_KEY no configurada — Lucy no podrá usar GPT");
 }
 
-// Persistencia fuera de deploy/ (Hostinger no debe wipear historial al redeploy).
-const dataRoot = process.env.LUCY_DATA_DIR?.trim() || join(here, "..", "lucy-data");
-mkdirSync(dataRoot, { recursive: true });
-if (!process.env.LUCY_DATA_DIR?.trim()) process.env.LUCY_DATA_DIR = dataRoot;
+// Persistencia: preferir ../lucy-data (sobrevive redeploy). Si el padre no
+// es escribible (Hostinger a veces monta solo deploy/), caer a ./lucy-data.
+function resolveDataRoot() {
+  if (process.env.LUCY_DATA_DIR?.trim()) return process.env.LUCY_DATA_DIR.trim();
+  const preferred = join(here, "..", "lucy-data");
+  const fallback = join(here, "lucy-data");
+  try {
+    mkdirSync(preferred, { recursive: true });
+    return preferred;
+  } catch (err) {
+    console.warn("[start] No se pudo crear ../lucy-data, usando deploy/lucy-data:", err?.message || err);
+    mkdirSync(fallback, { recursive: true });
+    return fallback;
+  }
+}
+
+const dataRoot = resolveDataRoot();
+process.env.LUCY_DATA_DIR = dataRoot;
 if (!process.env.LUCY_LOCAL_DB_PATH?.trim()) {
   process.env.LUCY_LOCAL_DB_PATH = join(dataRoot, "pgdata");
 }

@@ -161,7 +161,7 @@ import {
   webhookBodyShape,
 } from "../lib/kommoWebhookParse.js";
 import { deliverLucyOutbound } from "../services/kommoMirror.js";
-import { captureInboundWhileLucyInactive, setLearningPhase, persistLucyExchange } from "../services/chatIngest.js";
+import { captureInboundWhileLucyInactive, setLearningPhase, persistLucyExchange, persistChatMessage } from "../services/chatIngest.js";
 import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
 import { getKommoAccessToken, getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
@@ -2706,6 +2706,20 @@ async function processKommoWebhookAfterAck(req: Request): Promise<void> {
     },
     "Kommo webhook received"
   );
+
+  // Auditor local: todo mensaje entrante del cliente se guarda ya (aunque Lucy
+  // no responda o falle más abajo). Así Reparaciones ve todos los chats del webhook.
+  if (entityId && text) {
+    void persistChatMessage({
+      kommoLeadId: String(entityId),
+      content: text,
+      authorType: "client",
+      kommoMessageId: dedupKey ? `wh:${dedupKey}` : undefined,
+      source: "webhook_inbound",
+    }).catch((err: unknown) =>
+      log.warn({ err, entityId }, "No se pudo persistir inbound para auditor")
+    );
+  }
 
   // Nota interna en Kommo con la transcripción/descripción — visible para el
   // equipo humano aunque no abran el audio/imagen desde WhatsApp.
