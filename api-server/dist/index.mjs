@@ -131451,6 +131451,7 @@ function clientAsksAboutTeam(message, clientName) {
 function clientAddsToQuote(message) {
   if (!message?.trim()) return false;
   if (isRichQuoteBrief(message)) return false;
+  if (clientAsksAlternativeMenus(message)) return false;
   const t4 = message.toLowerCase();
   if (/\b(incluir|agregar|sumar|tambi[eé]n|adem[aá]s)\b/i.test(t4) && /\b(cotizaci[oó]n|propuesta|cotizar)\b/i.test(t4) || /\bincluir\b.+\b(en\s+la\s+)?cotiz/i.test(t4)) {
     return true;
@@ -131459,6 +131460,68 @@ function clientAddsToQuote(message) {
     const services = parseServicesFromText(message);
     if (services.length >= 1) return true;
     if (/\b(helado|frutas?|vasitos?|postres?|dulces?)\b/i.test(t4)) return true;
+  }
+  return false;
+}
+function clientAsksAlternativeMenus(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  return /\b(alg[uú]n\s+)?otro(s)?\s+men[uú]/i.test(t4) || /\bmen[uú]s?\s+t[ií]pic/i.test(t4) || /\b(otras?\s+)?opciones?\s+de\s+(men[uú]|banquete|comida|alimentos?)\b/i.test(t4) || /\bqu[eé]\s+otros?\s+(men[uú]s?|banquetes?)\b/i.test(t4) || /\balternativa(s)?\s+(de\s+)?(men[uú]|banquete)\b/i.test(t4);
+}
+function assistantAskedDeliveryChannel(text2) {
+  if (!text2?.trim()) return false;
+  return /confirmen?\s+por\s+aqu[ií].{0,100}correo/i.test(text2) || /escriba\s+por\s+aqu[ií].{0,100}correo/i.test(text2) || /preferes\s+esperar\s+el\s+correo/i.test(text2) || /por\s+aqu[ií]\s+con\s+la\s+propuesta.{0,60}correo/i.test(text2) || /recibirla\s+por\s+correo\s+o\s+por\s+este\s+chat/i.test(text2);
+}
+function clientChoosesEmailDelivery(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
+  if (/^(por\s+)?(el\s+)?correo$/i.test(t4)) return true;
+  if (/^(email|e-?mail|mail)$/i.test(t4)) return true;
+  if (/\bpor\s+(el\s+)?correo\b/i.test(t4) && t4.split(/\s+/).length <= 8) return true;
+  if (/\bmejor\s+(el\s+)?correo\b/i.test(t4) && t4.split(/\s+/).length <= 8) return true;
+  if (/\besper(o|ar)\s+(el\s+)?correo\b/i.test(t4) && t4.split(/\s+/).length <= 10) return true;
+  return false;
+}
+function clientChoosesChatDelivery(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
+  if (/^(por\s+)?aqu[ií]$/i.test(t4)) return true;
+  if (/^(whatsapp|chat|wa|por\s+whatsapp)$/i.test(t4)) return true;
+  if (/\bpor\s+(aqu[ií]|este\s+(chat|medio)|whatsapp)\b/i.test(t4) && t4.split(/\s+/).length <= 8) {
+    return true;
+  }
+  return false;
+}
+function clientSaysNoUrgency(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  return /\btomen\s+su\s+tiempo\b/i.test(t4) || /\bno\s+hay\s+prisa\b/i.test(t4) || /\bsin\s+(ninguna\s+)?(prisa|urgencia)\b/i.test(t4) || /\bsin\s+problema\b/i.test(t4) && /\b(tiempo|prisa|cuando\s+puedan)\b/i.test(t4) || /\bcuando\s+puedan\b/i.test(t4);
+}
+function clientSignalsSomethingWrong(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
+  if (/^(no\s+est[aá]\s+bien|est[aá]\s+mal|incorrecto|eso\s+no|no\s+es\s+(correcto|as[ií]))$/i.test(t4)) {
+    return true;
+  }
+  return /\bno\s+est[aá]\s+bien\b/i.test(t4) && t4.split(/\s+/).length <= 6;
+}
+function historyHasDeliveryChannelChoice(history, currentMessage) {
+  const msgs = [...history];
+  if (currentMessage?.trim()) {
+    msgs.push({ role: "user", content: currentMessage });
+  }
+  for (let i6 = msgs.length - 1; i6 >= 0; i6--) {
+    const m6 = msgs[i6];
+    if (m6.role !== "user" || typeof m6.content !== "string") continue;
+    if (!clientChoosesEmailDelivery(m6.content) && !clientChoosesChatDelivery(m6.content)) {
+      continue;
+    }
+    for (let j5 = i6 - 1; j5 >= 0; j5--) {
+      const prev = msgs[j5];
+      if (prev.role !== "assistant" || typeof prev.content !== "string") continue;
+      if (assistantAskedDeliveryChannel(prev.content)) return true;
+      break;
+    }
   }
   return false;
 }
@@ -133467,6 +133530,7 @@ function isEventTypeOnlyMessage(text2) {
   const t4 = (text2 ?? "").trim();
   if (!t4 || t4.length > 100) return false;
   if (isUnusableTipoEventoReply(t4)) return false;
+  if (clientAsksAlternativeMenus(t4)) return false;
   if (isOccasionMealEventType(t4)) return true;
   const tipo = parseTipoEventoFromText(t4);
   if (!tipo) return false;
@@ -133685,10 +133749,40 @@ function syncLegacyFechaHorarioField(extracted) {
   );
 }
 function normalizeHorarioCapture(text2) {
-  return text2.replace(/^a\s+las\s+/i, "").replace(/^(?:a\s+)?partir\s+de\s+(?:las\s+)?/i, "a partir de las ").replace(/^desde\s+(?:las\s+)?/i, "desde las ").replace(
+  return text2.replace(/^(?:ser[ií]a|ser[aá]|ser[ií]an|es)\s+/i, "").replace(/^a\s+las\s+/i, "").replace(/^(?:a\s+)?partir\s+de\s+(?:las\s+)?/i, "a partir de las ").replace(/^desde\s+(?:las\s+)?/i, "desde las ").replace(
     new RegExp(String.raw`^de\s+(?:las?\s+)?(${CLOCK_TOKEN}\s*${CLOCK_AMPM})$`, "i"),
     "a partir de las $1"
   ).replace(/\s+/g, " ").trim().slice(0, 80);
+}
+function normalizeAbsurdEventYear(fecha) {
+  const nowY = (/* @__PURE__ */ new Date()).getFullYear();
+  const inRange = (y5) => y5 >= nowY - 1 && y5 <= nowY + 12;
+  return fecha.replace(/\b(\d{4})\b/g, (raw) => {
+    const y5 = Number(raw);
+    if (!Number.isFinite(y5)) return raw;
+    if (inRange(y5)) return raw;
+    const cands = /* @__PURE__ */ new Set([y5]);
+    const s7 = raw;
+    for (let i6 = 0; i6 < 3; i6++) {
+      const a4 = s7.split("");
+      const tmp = a4[i6];
+      a4[i6] = a4[i6 + 1];
+      a4[i6 + 1] = tmp;
+      cands.add(Number(a4.join("")));
+    }
+    if (/^22\d{2}$/.test(s7)) cands.add(Number(`20${s7.slice(2)}`));
+    let best = null;
+    let bestDist = Infinity;
+    for (const c5 of cands) {
+      if (!inRange(c5)) continue;
+      const d3 = Math.abs(c5 - Math.max(nowY, nowY + 1));
+      if (d3 < bestDist) {
+        bestDist = d3;
+        best = c5;
+      }
+    }
+    return best != null ? String(best) : raw;
+  });
 }
 function normalizeWrittenClockInText(text2) {
   let out2 = text2.replace(/\b(\d{1,2});(\d{2})\b/g, "$1:$2");
@@ -133878,9 +133972,12 @@ function parseHorarioFromText(text2) {
   );
   if (atTime?.[1]) {
     const withoutTime = clean.replace(atTime[0], "").trim();
-    if (!withoutTime || parseFechaFromText(withoutTime) || MONTH_PATTERN.test(withoutTime)) {
+    const withoutIsFiller = /^(ser[ií]a|ser[aá]|ser[ií]an|es)\.?$/i.test(withoutTime);
+    if (!withoutTime || withoutIsFiller || parseFechaFromText(withoutTime) || MONTH_PATTERN.test(withoutTime)) {
       if (/de\s+la\s+(tarde|noche|ma[nñ]ana)/i.test(clean) && !/de\s+la/i.test(atTime[1])) {
-        return normalizeHorarioCapture(clean);
+        return normalizeHorarioCapture(
+          withoutIsFiller ? atTime[0] : clean.replace(/^(?:ser[ií]a|ser[aá]|es)\s+/i, "")
+        );
       }
       return normalizeHorarioCapture(atTime[1]);
     }
@@ -134967,7 +135064,9 @@ function parseFechaFromText(text2) {
     const day = dayMonthBare[1];
     const month = dayMonthBare[2].toLowerCase();
     const year = dayMonthBare[3];
-    const base = year ? `${day} de ${month} ${year}` : `${day} de ${month}`;
+    const base = normalizeAbsurdEventYear(
+      year ? `${day} de ${month} ${year}` : `${day} de ${month}`
+    );
     const horaMatch = trimmed.match(
       /\ba\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?\b/i
     );
@@ -134981,7 +135080,7 @@ function parseFechaFromText(text2) {
     /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
   );
   if (fechaMatch) {
-    const base = fechaMatch[1];
+    const base = normalizeAbsurdEventYear(fechaMatch[1]);
     const hora = fechaMatch[2];
     return hora ? `${base} a las ${hora}${hora.includes(":") ? "" : ":00"} horas` : base;
   }
@@ -164156,6 +164255,35 @@ function buildPostCierreThanksReply(clientName) {
   const nombre = sanitizeDisplayName(clientName);
   return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. \xBFQuieres que te confirmen por aqu\xED cuando te contacten, o prefieres esperar el correo?` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. \xBFQuieres que te confirmen por aqu\xED cuando te contacten, o prefieres esperar el correo?";
 }
+function buildPostCierreSoftExitReply(clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  return nombre ? `\xA1Con gusto, ${nombre}! Aqu\xED seguimos cuando lo necesites. \xBFTe dejo el chat abierto por si surge otra duda?` : "\xA1Con gusto! Aqu\xED seguimos cuando lo necesites. \xBFTe dejo el chat abierto por si surge otra duda?";
+}
+function buildPostCierreCanalAckReply(channel, clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  const hi2 = nombre ? `, ${nombre}` : "";
+  if (channel === "email") {
+    return `Perfecto${hi2}. Nuestro equipo te enviar\xE1 la propuesta directamente a tu correo. \xBFQuieres agregar algo m\xE1s a la cotizaci\xF3n?`;
+  }
+  return `Perfecto${hi2}. El equipo te escribe por aqu\xED con la propuesta. \xBFQuieres agregar algo m\xE1s a la cotizaci\xF3n?`;
+}
+function buildPostCierreNoUrgencyReply(clientName, canalAlreadyChosen) {
+  const nombre = sanitizeDisplayName(clientName);
+  const hi2 = nombre ? `, ${nombre}` : "";
+  if (canalAlreadyChosen) {
+    return `Excelente${hi2}. Tomamos nota de que no hay prisa. El equipo revisar\xE1 los detalles y te har\xE1 llegar la propuesta. \xBFTe dejo el chat abierto por si surge otra duda?`;
+  }
+  return `Excelente${hi2}. Tomamos nota de que no hay prisa. El equipo revisar\xE1 los detalles y te har\xE1 llegar la propuesta. \xBFPrefieres recibirla por correo o por este chat?`;
+}
+function buildAlternativeMenusReply(tipoEvento, clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  const hi2 = nombre ? `, ${nombre}` : "";
+  const tipo = (tipoEvento ?? "").toLowerCase();
+  if (/boda/.test(tipo)) {
+    return `Claro${hi2}. Para boda, adem\xE1s del *Banquete Mexicano*, tambi\xE9n manejamos *Banquete Formal*, *Taquiza* y barras (pasta/pizza). \xBFCu\xE1l te late sumar, o prefieres que el equipo te arme opciones de men\xFA t\xEDpico de boda?`;
+  }
+  return `Claro${hi2}. Otros men\xFAs que manejamos: *Banquete Formal*, *Banquete Mexicano*, *Taquiza*, brunch o barras. \xBFCu\xE1l te interesa revisar?`;
+}
 function isFarewellReply(mensaje) {
   if (!mensaje?.trim()) return false;
   return /quedo a tu disposici[oó]n por si decides avanzar/i.test(mensaje) || /que tengas un excelente d[ií]a/i.test(mensaje) || // A16244 / A15547: pospone — no pegar embudo encima.
@@ -164178,12 +164306,22 @@ function buildPostCierreCallbackAck(clientName) {
   const nombre = sanitizeDisplayName(clientName);
   return nombre ? `Con gusto, ${nombre}. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo. \xBFPrefieres que te marque Ventas o Gerencia primero?` : "Con gusto. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo. \xBFPrefieres que te marque Ventas o Gerencia primero?";
 }
-function buildContinueEngagementQuestion(extracted, currentMessage) {
+function buildContinueEngagementQuestion(extracted, currentMessage, history) {
   if (clientRequestsCallback(currentMessage) || clientSignalsUrgency(currentMessage)) {
     return "\xBFTe marco el equipo hoy por tel\xE9fono, o prefieres que te escriban primero por este chat?";
   }
+  const canalDone = historyHasDeliveryChannelChoice(history ?? [], currentMessage);
+  if (clientChoosesEmailDelivery(currentMessage) || clientChoosesChatDelivery(currentMessage)) {
+    return "\xBFQuieres agregar algo m\xE1s a la cotizaci\xF3n?";
+  }
   if (clientDeclinesMoreServices(currentMessage) || clientSaysThanks(currentMessage)) {
+    if (canalDone) {
+      return "\xBFTe dejo el chat abierto por si surge otra duda?";
+    }
     return "\xBFConfirmamos que el equipo te escriba por aqu\xED con la propuesta, o prefieres esperar el correo?";
+  }
+  if (canalDone) {
+    return "\xBFHay algo m\xE1s que quieras sumar a la cotizaci\xF3n?";
   }
   const req = extracted.requerimientos_evento ?? "";
   if (/carpas?|tarima|entarim|colgantes|entelado/i.test(req)) {
@@ -164205,7 +164343,11 @@ ${nextQ}`.trim() : nextQ;
       }
     }
   }
-  const hook = buildContinueEngagementQuestion(opts.extracted, opts.currentMessage);
+  const hook = buildContinueEngagementQuestion(
+    opts.extracted,
+    opts.currentMessage,
+    opts.history
+  );
   return out2 ? `${out2}
 
 ${hook}`.trim() : hook;
@@ -164667,13 +164809,18 @@ function buildNameMismatchReplyIfNeeded(currentMessage, extracted, filledSet, wh
 }
 function applyLucyMessageGuards(input) {
   const mensaje = applyLucyMessageGuardsRaw(input);
-  const stillPending = !!getNextPendingField(input.extracted, input.filledSet);
+  const pending = getNextPendingField(input.extracted, input.filledSet);
+  const hardPending = !!pending && pending !== "tipo_evento" && pending !== "presupuesto";
+  const historyClosed = detectCierreEnviado(
+    input.presentationHistory ?? input.history
+  );
   return ensureOutboundAlwaysAsks(mensaje, {
     extracted: input.extracted,
     filledSet: input.filledSet,
     ctx: makeQuestionCtx(input),
     currentMessage: input.currentMessage,
-    cierreYaEnviado: Boolean(input.cierreYaEnviado) && !stillPending
+    cierreYaEnviado: (Boolean(input.cierreYaEnviado) || historyClosed) && !hardPending,
+    history: input.presentationHistory ?? input.history
   });
 }
 function applyLucyMessageGuardsRaw(input) {
@@ -164767,9 +164914,20 @@ function applyLucyMessageGuardsRaw(input) {
     collectUserTexts(presHistory, currentMessage),
     presHistory
   );
-  if (cierreYaEnviado && getNextPendingField(extracted, filledSet)) {
-    cierreYaEnviado = false;
-    log?.info({ entityId }, "GUARD: V9.36 \u2014 cierre prematuro, se reabre el chat");
+  if (cierreYaEnviado) {
+    const pendingSoft = getNextPendingField(extracted, filledSet);
+    if (pendingSoft && pendingSoft !== "tipo_evento" && pendingSoft !== "presupuesto") {
+      cierreYaEnviado = false;
+      log?.info(
+        { entityId, pendingSoft },
+        "GUARD: V9.36 \u2014 cierre prematuro, se reabre el chat"
+      );
+    } else if (pendingSoft) {
+      log?.info(
+        { entityId, pendingSoft },
+        "GUARD: A16309 \u2014 cierre se mantiene (pending soft tipo/presupuesto)"
+      );
+    }
   }
   const dimensionsNowList = parseAllSpaceDimensions(currentMessage ?? "");
   const reqForDims = extracted.requerimientos_evento ?? "";
@@ -165436,7 +165594,7 @@ ${catalogUrl}`
     const wantsPizza = /pizza/i.test(extracted.requerimientos_evento ?? "") || /pizza/i.test(collectUserTexts(presHistory, currentMessage).join(" "));
     const primarySvc = preferPrimaryCatalogService(parseServicesFromText(extracted.requerimientos_evento ?? "")) || null;
     const pending = getNextPendingField(extracted, filledSet);
-    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : buildContinueEngagementQuestion(extracted, currentMessage);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : buildContinueEngagementQuestion(extracted, currentMessage, presHistory);
     const display = getDisplayName(extracted, whatsappDisplayName);
     const svcNote = wantsPizza ? "Seguimos con la cotizaci\xF3n de *pizzas* para tu evento." : primarySvc ? `Seguimos con *${primarySvc}* y lo dem\xE1s que platicamos.` : null;
     const lastAsstCity = [...presHistory].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string");
@@ -166272,7 +166430,77 @@ Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
     mensaje = nextQ ? `${loc} ${nextQ}` : loc;
     appliedDirectReply = true;
     log?.info({ entityId, pending }, "GUARD: A16095 \u2014 sede/visita mid-funnel + embudo");
-  } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && isServicePreferenceRefinement(
+  } else if (
+    // A16309: "No está bien" — preguntar qué corregir, no re-pegar CTA genérico.
+    cierreYaEnviado && clientSignalsSomethingWrong(currentMessage)
+  ) {
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre ? `Disculpa, ${nombre}. \xBFQu\xE9 dato no qued\xF3 bien (fecha, horario, men\xFA u otro) para corregirlo ahora?` : "Disculpa. \xBFQu\xE9 dato no qued\xF3 bien (fecha, horario, men\xFA u otro) para corregirlo ahora?";
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16309 \u2014 cliente se\xF1al\xF3 error; pedir detalle");
+  } else if (
+    // A16309: corrección de fecha también post-cierre (CRM se quedaba en la fecha vieja).
+    cierreYaEnviado && currentMessage && (() => {
+      const fechaNow = parseFechaFromText(currentMessage);
+      if (!fechaNow || !isUsableFechaEvento(fechaNow)) return false;
+      const looksCorrection = /perd[oó]n|correcci[oó]n|corrijo|la fecha|cambio (de )?fecha|actualiz|no (era|es)|mejor (el|la)/i.test(
+        currentMessage
+      ) || /\b\d{1,2}\s+(?:de\s+)?(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+        currentMessage
+      );
+      return looksCorrection;
+    })()
+  ) {
+    const fechaNow = parseFechaFromText(currentMessage);
+    extracted.fecha_evento = fechaNow;
+    filledSet.add(CRM_FECHA_LABEL);
+    syncLegacyFechaHorarioField(extracted);
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre ? `No te preocupes, ${nombre}. Ya ajust\xE9 la fecha a *${fechaNow}*. Se la paso al equipo para la propuesta. \xBFHay algo m\xE1s que quieras sumar?` : `No te preocupes. Ya ajust\xE9 la fecha a *${fechaNow}*. Se la paso al equipo para la propuesta. \xBFHay algo m\xE1s que quieras sumar?`;
+    appliedDirectReply = true;
+    log?.info({ entityId, fecha: fechaNow }, "GUARD: A16309 \u2014 correcci\xF3n de fecha post-cierre");
+  } else if (
+    // A16309: "Algún otro menú típico para boda" → ofrecer opciones, no anotar literal.
+    cierreYaEnviado && clientAsksAlternativeMenus(currentMessage)
+  ) {
+    const tipoFromMsg = parseTipoEventoFromText(currentMessage ?? "");
+    if (tipoFromMsg) {
+      extracted.tipo_evento = tipoFromMsg;
+      filledSet.add("Tipo de evento");
+    } else if (!extracted.tipo_evento?.trim() && /\bboda\b/i.test(currentMessage ?? "")) {
+      extracted.tipo_evento = "boda";
+      filledSet.add("Tipo de evento");
+    }
+    mensaje = buildAlternativeMenusReply(
+      extracted.tipo_evento,
+      getDisplayName(extracted, whatsappDisplayName)
+    );
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16309 \u2014 men\xFAs alternativos (no anotar literal)");
+  } else if (
+    // A16309: "Por correo" / "Correo" tras pregunta de canal.
+    cierreYaEnviado && (clientChoosesEmailDelivery(currentMessage) || clientChoosesChatDelivery(currentMessage)) && (assistantAskedDeliveryChannel(
+      lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
+    ) || historyHasDeliveryChannelChoice(presHistory, currentMessage))
+  ) {
+    const channel = clientChoosesEmailDelivery(currentMessage) ? "email" : "chat";
+    mensaje = buildPostCierreCanalAckReply(
+      channel,
+      getDisplayName(extracted, whatsappDisplayName)
+    );
+    appliedDirectReply = true;
+    log?.info({ entityId, channel }, "GUARD: A16309 \u2014 preferencia de canal post-cierre");
+  } else if (
+    // A16309: "Sin problema tomen su tiempo".
+    cierreYaEnviado && clientSaysNoUrgency(currentMessage)
+  ) {
+    mensaje = buildPostCierreNoUrgencyReply(
+      getDisplayName(extracted, whatsappDisplayName),
+      historyHasDeliveryChannelChoice(presHistory, currentMessage)
+    );
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16309 \u2014 sin prisa post-cierre");
+  } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && !clientAsksAlternativeMenus(currentMessage) && isServicePreferenceRefinement(
     currentMessage,
     extracted.requerimientos_evento
   )) {
@@ -166302,7 +166530,7 @@ Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
     mensaje = buildPostCierreCallbackAck(extracted.nombre);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: A16244 \u2014 ack corto tras tel\xE9fonos (no cat\xE1logo)");
-  } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && (clientAddsToQuote(currentMessage) || parseServicesFromText(currentMessage ?? "").length >= 1 && !isRichQuoteBrief(currentMessage) && /\b(queremos|quisiera|sumamos|adem[aá]s|tambi[eé]n|helado|frutas?|crepas?)\b/i.test(
+  } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && !clientAsksAlternativeMenus(currentMessage) && (clientAddsToQuote(currentMessage) || parseServicesFromText(currentMessage ?? "").length >= 1 && !isRichQuoteBrief(currentMessage) && /\b(queremos|quisiera|sumamos|adem[aá]s|tambi[eé]n|helado|frutas?|crepas?)\b/i.test(
     currentMessage ?? ""
   ))) {
     const services = parseServicesFromText(currentMessage ?? "");
@@ -166328,7 +166556,8 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
   } else if (
     // A15165: post-cierre con PREGUNTA de info/catálogo/modelos/shows → NO ack corto.
     // Dejar caer a ramas de entretenimiento / mobiliario / recomendaciones / servicio.
-    cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && isServiceRelatedMessage(currentMessage) && currentMessage?.trim() && !clientAsksServiceInfo(currentMessage) && !clientMentionsEntertainment(currentMessage) && !clientAsksForCatalog(currentMessage) && !clientAsksForRecommendations(currentMessage) && !clientAsksInclusion(currentMessage) && !clientAsksPrice(currentMessage) && !/\b(modelos?|cat[aá]logo|sillas?|mesas?|mobiliario|mobilairio|banquetes?)\b/i.test(
+    // A16309: menús alternativos tampoco caen aquí (rama dedicada arriba).
+    cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && !clientAsksAlternativeMenus(currentMessage) && isServiceRelatedMessage(currentMessage) && currentMessage?.trim() && !clientAsksServiceInfo(currentMessage) && !clientMentionsEntertainment(currentMessage) && !clientAsksForCatalog(currentMessage) && !clientAsksForRecommendations(currentMessage) && !clientAsksInclusion(currentMessage) && !clientAsksPrice(currentMessage) && !/\b(modelos?|cat[aá]logo|sillas?|mesas?|mobiliario|mobilairio|banquetes?|men[uú]s?)\b/i.test(
       currentMessage ?? ""
     )
   ) {
@@ -166339,7 +166568,9 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 servicio adicional (ack corto, sin niveles)");
   } else if (cierreYaEnviado && (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))) {
-    mensaje = buildPostCierreThanksReply(extracted.nombre);
+    mensaje = historyHasDeliveryChannelChoice(presHistory, currentMessage) ? buildPostCierreSoftExitReply(
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    ) : buildPostCierreThanksReply(extracted.nombre);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 agradecimiento o sin m\xE1s que agregar");
   } else if (clientAsksIfCompanyEmailCorrect(currentMessage)) {
@@ -188533,6 +188764,33 @@ function runAuditorHeuristics(turns) {
       break;
     }
   }
+  const canalAsks = assistants.filter(
+    (a4) => /preferes\s+esperar\s+el\s+correo|confirmen?\s+por\s+aqu[ií].{0,80}correo|escriba\s+por\s+aqu[ií].{0,80}correo/i.test(
+      a4.content
+    )
+  ).length;
+  const algoMasAsks = assistants.filter(
+    (a4) => /hay\s+algo\s+m[aá]s\s+que\s+quieras\s+sumar|te\s+urge\s+que\s+el\s+equipo/i.test(a4.content)
+  ).length;
+  if (canalAsks >= 2 && algoMasAsks >= 2) {
+    findings.push({
+      category: "stuck_funnel",
+      severity: "error",
+      evidence: `Bucle post-cierre: canal aqu\xED/correo \xD7${canalAsks} y \u201Calgo m\xE1s/urge\u201D \xD7${algoMasAsks}.`,
+      proposedRepair: "A16309: tras elegir correo/aqu\xED no re-preguntar canal; soft-exit con chat abierto."
+    });
+  }
+  for (const a4 of assistants) {
+    if (/anoto\s+alg[uú]n\s+otro\s+men[uú]|anoto\s+.{0,40}men[uú]\s+t[ií]pic/i.test(a4.content)) {
+      findings.push({
+        category: "bad_field",
+        severity: "error",
+        evidence: `Lucy anot\xF3 men\xFA t\xEDpico como literal: \xAB${a4.content.slice(0, 140)}\xBB`,
+        proposedRepair: "clientAsksAlternativeMenus \u2192 ofrecer Banquete Formal/Taquiza, no anotar el texto."
+      });
+      break;
+    }
+  }
   void users2;
   return findings;
 }
@@ -188570,6 +188828,26 @@ function runCrmFieldHeuristics(crm) {
       severity: "warn",
       evidence: `CRM Fecha parece horario: \xAB${fecha.slice(0, 80)}\xBB`,
       proposedRepair: "Separar fecha_evento vs horario_evento."
+    });
+  }
+  if (fecha && /\b(1[6-9]\d{2}|2[1-9]\d{2}|[3-9]\d{3})\b/.test(fecha)) {
+    const y5 = Number(fecha.match(/\b(\d{4})\b/)?.[1] ?? 0);
+    const nowY = (/* @__PURE__ */ new Date()).getFullYear();
+    if (y5 && (y5 > nowY + 12 || y5 < 1990)) {
+      findings.push({
+        category: "bad_field",
+        severity: "error",
+        evidence: `CRM Fecha con a\xF1o absurdo: \xAB${fecha.slice(0, 80)}\xBB`,
+        proposedRepair: "normalizeAbsurdEventYear (2207\u21922027) al capturar fecha."
+      });
+    }
+  }
+  if (horario && /^ser[ií]a\b/i.test(horario)) {
+    findings.push({
+      category: "bad_field",
+      severity: "warn",
+      evidence: `CRM Horario conserva filler \xABSer\xEDa\u2026\xBB: \xAB${horario.slice(0, 80)}\xBB`,
+      proposedRepair: "normalizeHorarioCapture debe quitar Ser\xEDa/Ser\xE1 antes de guardar."
     });
   }
   if (horario && /\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(

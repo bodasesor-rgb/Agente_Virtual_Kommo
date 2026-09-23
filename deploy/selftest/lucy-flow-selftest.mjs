@@ -106117,7 +106117,7 @@ var init_local = __esm({
     init_dist2();
     init_pglite();
     init_schema2();
-    LOCAL_DB_DIR = process.env["LUCY_LOCAL_DB_PATH"] ?? path5.resolve(process.cwd(), "data", "lucy-pgdata");
+    LOCAL_DB_DIR = process.env["LUCY_LOCAL_DB_PATH"] ?? path5.resolve(process.cwd(), "..", "lucy-data", "pgdata");
     client = null;
     localDb = null;
     INIT_SQL = `
@@ -110801,6 +110801,64 @@ function isChatUnsortedCategory(category) {
 var init_kommoWebhookParse = __esm({
   "src/lib/kommoWebhookParse.ts"() {
     "use strict";
+  }
+});
+
+// src/chat-history.ts
+import { readFileSync as readFileSync4, writeFileSync, existsSync as existsSync5, mkdirSync as mkdirSync2 } from "fs";
+import { join as join4, dirname as dirname3 } from "path";
+import { fileURLToPath as fileURLToPath5 } from "url";
+function resolveHistoryFile() {
+  const fromEnv = process.env["LUCY_CHAT_HISTORY_PATH"]?.trim();
+  if (fromEnv) return fromEnv;
+  const sibling = join4(process.cwd(), "..", "lucy-data", "chat-history.json");
+  const legacy = join4(__dirname2, "../../data/chat-history.json");
+  return sibling || legacy;
+}
+function load() {
+  try {
+    const file = resolveHistoryFile();
+    const legacy = join4(__dirname2, "../../data/chat-history.json");
+    if (!existsSync5(file) && existsSync5(legacy) && file !== legacy) {
+      try {
+        mkdirSync2(dirname3(file), { recursive: true });
+        writeFileSync(file, readFileSync4(legacy, "utf-8"));
+      } catch {
+      }
+    }
+    if (existsSync5(file)) {
+      return JSON.parse(readFileSync4(file, "utf-8"));
+    }
+  } catch {
+  }
+  return {};
+}
+var __dirname2, store;
+var init_chat_history = __esm({
+  "src/chat-history.ts"() {
+    "use strict";
+    __dirname2 = dirname3(fileURLToPath5(import.meta.url));
+    store = load();
+  }
+});
+
+// src/services/learningSchema.ts
+var init_learningSchema = __esm({
+  async "src/services/learningSchema.ts"() {
+    "use strict";
+    await init_src2();
+    init_logger2();
+  }
+});
+
+// src/services/chatIngest.ts
+var init_chatIngest = __esm({
+  async "src/services/chatIngest.ts"() {
+    "use strict";
+    await init_src2();
+    init_kommoWebhookParse();
+    init_logger2();
+    await init_learningSchema();
   }
 });
 
@@ -125464,6 +125522,7 @@ function clientAsksAboutTeam(message, clientName) {
 function clientAddsToQuote(message) {
   if (!message?.trim()) return false;
   if (isRichQuoteBrief(message)) return false;
+  if (clientAsksAlternativeMenus(message)) return false;
   const t3 = message.toLowerCase();
   if (/\b(incluir|agregar|sumar|tambi[eé]n|adem[aá]s)\b/i.test(t3) && /\b(cotizaci[oó]n|propuesta|cotizar)\b/i.test(t3) || /\bincluir\b.+\b(en\s+la\s+)?cotiz/i.test(t3)) {
     return true;
@@ -125472,6 +125531,68 @@ function clientAddsToQuote(message) {
     const services = parseServicesFromText(message);
     if (services.length >= 1) return true;
     if (/\b(helado|frutas?|vasitos?|postres?|dulces?)\b/i.test(t3)) return true;
+  }
+  return false;
+}
+function clientAsksAlternativeMenus(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  return /\b(alg[uú]n\s+)?otro(s)?\s+men[uú]/i.test(t3) || /\bmen[uú]s?\s+t[ií]pic/i.test(t3) || /\b(otras?\s+)?opciones?\s+de\s+(men[uú]|banquete|comida|alimentos?)\b/i.test(t3) || /\bqu[eé]\s+otros?\s+(men[uú]s?|banquetes?)\b/i.test(t3) || /\balternativa(s)?\s+(de\s+)?(men[uú]|banquete)\b/i.test(t3);
+}
+function assistantAskedDeliveryChannel(text2) {
+  if (!text2?.trim()) return false;
+  return /confirmen?\s+por\s+aqu[ií].{0,100}correo/i.test(text2) || /escriba\s+por\s+aqu[ií].{0,100}correo/i.test(text2) || /preferes\s+esperar\s+el\s+correo/i.test(text2) || /por\s+aqu[ií]\s+con\s+la\s+propuesta.{0,60}correo/i.test(text2) || /recibirla\s+por\s+correo\s+o\s+por\s+este\s+chat/i.test(text2);
+}
+function clientChoosesEmailDelivery(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
+  if (/^(por\s+)?(el\s+)?correo$/i.test(t3)) return true;
+  if (/^(email|e-?mail|mail)$/i.test(t3)) return true;
+  if (/\bpor\s+(el\s+)?correo\b/i.test(t3) && t3.split(/\s+/).length <= 8) return true;
+  if (/\bmejor\s+(el\s+)?correo\b/i.test(t3) && t3.split(/\s+/).length <= 8) return true;
+  if (/\besper(o|ar)\s+(el\s+)?correo\b/i.test(t3) && t3.split(/\s+/).length <= 10) return true;
+  return false;
+}
+function clientChoosesChatDelivery(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
+  if (/^(por\s+)?aqu[ií]$/i.test(t3)) return true;
+  if (/^(whatsapp|chat|wa|por\s+whatsapp)$/i.test(t3)) return true;
+  if (/\bpor\s+(aqu[ií]|este\s+(chat|medio)|whatsapp)\b/i.test(t3) && t3.split(/\s+/).length <= 8) {
+    return true;
+  }
+  return false;
+}
+function clientSaysNoUrgency(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  return /\btomen\s+su\s+tiempo\b/i.test(t3) || /\bno\s+hay\s+prisa\b/i.test(t3) || /\bsin\s+(ninguna\s+)?(prisa|urgencia)\b/i.test(t3) || /\bsin\s+problema\b/i.test(t3) && /\b(tiempo|prisa|cuando\s+puedan)\b/i.test(t3) || /\bcuando\s+puedan\b/i.test(t3);
+}
+function clientSignalsSomethingWrong(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
+  if (/^(no\s+est[aá]\s+bien|est[aá]\s+mal|incorrecto|eso\s+no|no\s+es\s+(correcto|as[ií]))$/i.test(t3)) {
+    return true;
+  }
+  return /\bno\s+est[aá]\s+bien\b/i.test(t3) && t3.split(/\s+/).length <= 6;
+}
+function historyHasDeliveryChannelChoice(history, currentMessage) {
+  const msgs = [...history];
+  if (currentMessage?.trim()) {
+    msgs.push({ role: "user", content: currentMessage });
+  }
+  for (let i5 = msgs.length - 1; i5 >= 0; i5--) {
+    const m5 = msgs[i5];
+    if (m5.role !== "user" || typeof m5.content !== "string") continue;
+    if (!clientChoosesEmailDelivery(m5.content) && !clientChoosesChatDelivery(m5.content)) {
+      continue;
+    }
+    for (let j4 = i5 - 1; j4 >= 0; j4--) {
+      const prev = msgs[j4];
+      if (prev.role !== "assistant" || typeof prev.content !== "string") continue;
+      if (assistantAskedDeliveryChannel(prev.content)) return true;
+      break;
+    }
   }
   return false;
 }
@@ -127524,6 +127645,7 @@ function isEventTypeOnlyMessage(text2) {
   const t3 = (text2 ?? "").trim();
   if (!t3 || t3.length > 100) return false;
   if (isUnusableTipoEventoReply(t3)) return false;
+  if (clientAsksAlternativeMenus(t3)) return false;
   if (isOccasionMealEventType(t3)) return true;
   const tipo = parseTipoEventoFromText(t3);
   if (!tipo) return false;
@@ -127766,10 +127888,40 @@ function syncLegacyFechaHorarioField(extracted) {
   );
 }
 function normalizeHorarioCapture(text2) {
-  return text2.replace(/^a\s+las\s+/i, "").replace(/^(?:a\s+)?partir\s+de\s+(?:las\s+)?/i, "a partir de las ").replace(/^desde\s+(?:las\s+)?/i, "desde las ").replace(
+  return text2.replace(/^(?:ser[ií]a|ser[aá]|ser[ií]an|es)\s+/i, "").replace(/^a\s+las\s+/i, "").replace(/^(?:a\s+)?partir\s+de\s+(?:las\s+)?/i, "a partir de las ").replace(/^desde\s+(?:las\s+)?/i, "desde las ").replace(
     new RegExp(String.raw`^de\s+(?:las?\s+)?(${CLOCK_TOKEN}\s*${CLOCK_AMPM})$`, "i"),
     "a partir de las $1"
   ).replace(/\s+/g, " ").trim().slice(0, 80);
+}
+function normalizeAbsurdEventYear(fecha) {
+  const nowY = (/* @__PURE__ */ new Date()).getFullYear();
+  const inRange = (y4) => y4 >= nowY - 1 && y4 <= nowY + 12;
+  return fecha.replace(/\b(\d{4})\b/g, (raw) => {
+    const y4 = Number(raw);
+    if (!Number.isFinite(y4)) return raw;
+    if (inRange(y4)) return raw;
+    const cands = /* @__PURE__ */ new Set([y4]);
+    const s6 = raw;
+    for (let i5 = 0; i5 < 3; i5++) {
+      const a3 = s6.split("");
+      const tmp = a3[i5];
+      a3[i5] = a3[i5 + 1];
+      a3[i5 + 1] = tmp;
+      cands.add(Number(a3.join("")));
+    }
+    if (/^22\d{2}$/.test(s6)) cands.add(Number(`20${s6.slice(2)}`));
+    let best = null;
+    let bestDist = Infinity;
+    for (const c4 of cands) {
+      if (!inRange(c4)) continue;
+      const d2 = Math.abs(c4 - Math.max(nowY, nowY + 1));
+      if (d2 < bestDist) {
+        bestDist = d2;
+        best = c4;
+      }
+    }
+    return best != null ? String(best) : raw;
+  });
 }
 function normalizeWrittenClockInText(text2) {
   let out2 = text2.replace(/\b(\d{1,2});(\d{2})\b/g, "$1:$2");
@@ -127959,9 +128111,12 @@ function parseHorarioFromText(text2) {
   );
   if (atTime?.[1]) {
     const withoutTime = clean.replace(atTime[0], "").trim();
-    if (!withoutTime || parseFechaFromText(withoutTime) || MONTH_PATTERN.test(withoutTime)) {
+    const withoutIsFiller = /^(ser[ií]a|ser[aá]|ser[ií]an|es)\.?$/i.test(withoutTime);
+    if (!withoutTime || withoutIsFiller || parseFechaFromText(withoutTime) || MONTH_PATTERN.test(withoutTime)) {
       if (/de\s+la\s+(tarde|noche|ma[nñ]ana)/i.test(clean) && !/de\s+la/i.test(atTime[1])) {
-        return normalizeHorarioCapture(clean);
+        return normalizeHorarioCapture(
+          withoutIsFiller ? atTime[0] : clean.replace(/^(?:ser[ií]a|ser[aá]|es)\s+/i, "")
+        );
       }
       return normalizeHorarioCapture(atTime[1]);
     }
@@ -129086,7 +129241,9 @@ function parseFechaFromText(text2) {
     const day = dayMonthBare[1];
     const month = dayMonthBare[2].toLowerCase();
     const year = dayMonthBare[3];
-    const base = year ? `${day} de ${month} ${year}` : `${day} de ${month}`;
+    const base = normalizeAbsurdEventYear(
+      year ? `${day} de ${month} ${year}` : `${day} de ${month}`
+    );
     const horaMatch = trimmed.match(
       /\ba\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?\b/i
     );
@@ -129100,7 +129257,7 @@ function parseFechaFromText(text2) {
     /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
   );
   if (fechaMatch) {
-    const base = fechaMatch[1];
+    const base = normalizeAbsurdEventYear(fechaMatch[1]);
     const hora = fechaMatch[2];
     return hora ? `${base} a las ${hora}${hora.includes(":") ? "" : ":00"} horas` : base;
   }
@@ -138919,6 +139076,35 @@ function buildPostCierreThanksReply(clientName) {
   const nombre = sanitizeDisplayName(clientName);
   return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. \xBFQuieres que te confirmen por aqu\xED cuando te contacten, o prefieres esperar el correo?` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. \xBFQuieres que te confirmen por aqu\xED cuando te contacten, o prefieres esperar el correo?";
 }
+function buildPostCierreSoftExitReply(clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  return nombre ? `\xA1Con gusto, ${nombre}! Aqu\xED seguimos cuando lo necesites. \xBFTe dejo el chat abierto por si surge otra duda?` : "\xA1Con gusto! Aqu\xED seguimos cuando lo necesites. \xBFTe dejo el chat abierto por si surge otra duda?";
+}
+function buildPostCierreCanalAckReply(channel, clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  const hi = nombre ? `, ${nombre}` : "";
+  if (channel === "email") {
+    return `Perfecto${hi}. Nuestro equipo te enviar\xE1 la propuesta directamente a tu correo. \xBFQuieres agregar algo m\xE1s a la cotizaci\xF3n?`;
+  }
+  return `Perfecto${hi}. El equipo te escribe por aqu\xED con la propuesta. \xBFQuieres agregar algo m\xE1s a la cotizaci\xF3n?`;
+}
+function buildPostCierreNoUrgencyReply(clientName, canalAlreadyChosen) {
+  const nombre = sanitizeDisplayName(clientName);
+  const hi = nombre ? `, ${nombre}` : "";
+  if (canalAlreadyChosen) {
+    return `Excelente${hi}. Tomamos nota de que no hay prisa. El equipo revisar\xE1 los detalles y te har\xE1 llegar la propuesta. \xBFTe dejo el chat abierto por si surge otra duda?`;
+  }
+  return `Excelente${hi}. Tomamos nota de que no hay prisa. El equipo revisar\xE1 los detalles y te har\xE1 llegar la propuesta. \xBFPrefieres recibirla por correo o por este chat?`;
+}
+function buildAlternativeMenusReply(tipoEvento, clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  const hi = nombre ? `, ${nombre}` : "";
+  const tipo = (tipoEvento ?? "").toLowerCase();
+  if (/boda/.test(tipo)) {
+    return `Claro${hi}. Para boda, adem\xE1s del *Banquete Mexicano*, tambi\xE9n manejamos *Banquete Formal*, *Taquiza* y barras (pasta/pizza). \xBFCu\xE1l te late sumar, o prefieres que el equipo te arme opciones de men\xFA t\xEDpico de boda?`;
+  }
+  return `Claro${hi}. Otros men\xFAs que manejamos: *Banquete Formal*, *Banquete Mexicano*, *Taquiza*, brunch o barras. \xBFCu\xE1l te interesa revisar?`;
+}
 function isFarewellReply(mensaje) {
   if (!mensaje?.trim()) return false;
   return /quedo a tu disposici[oó]n por si decides avanzar/i.test(mensaje) || /que tengas un excelente d[ií]a/i.test(mensaje) || // A16244 / A15547: pospone — no pegar embudo encima.
@@ -138941,12 +139127,22 @@ function buildPostCierreCallbackAck(clientName) {
   const nombre = sanitizeDisplayName(clientName);
   return nombre ? `Con gusto, ${nombre}. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo. \xBFPrefieres que te marque Ventas o Gerencia primero?` : "Con gusto. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo. \xBFPrefieres que te marque Ventas o Gerencia primero?";
 }
-function buildContinueEngagementQuestion(extracted, currentMessage) {
+function buildContinueEngagementQuestion(extracted, currentMessage, history) {
   if (clientRequestsCallback(currentMessage) || clientSignalsUrgency(currentMessage)) {
     return "\xBFTe marco el equipo hoy por tel\xE9fono, o prefieres que te escriban primero por este chat?";
   }
+  const canalDone = historyHasDeliveryChannelChoice(history ?? [], currentMessage);
+  if (clientChoosesEmailDelivery(currentMessage) || clientChoosesChatDelivery(currentMessage)) {
+    return "\xBFQuieres agregar algo m\xE1s a la cotizaci\xF3n?";
+  }
   if (clientDeclinesMoreServices(currentMessage) || clientSaysThanks(currentMessage)) {
+    if (canalDone) {
+      return "\xBFTe dejo el chat abierto por si surge otra duda?";
+    }
     return "\xBFConfirmamos que el equipo te escriba por aqu\xED con la propuesta, o prefieres esperar el correo?";
+  }
+  if (canalDone) {
+    return "\xBFHay algo m\xE1s que quieras sumar a la cotizaci\xF3n?";
   }
   const req = extracted.requerimientos_evento ?? "";
   if (/carpas?|tarima|entarim|colgantes|entelado/i.test(req)) {
@@ -138968,7 +139164,11 @@ ${nextQ}`.trim() : nextQ;
       }
     }
   }
-  const hook = buildContinueEngagementQuestion(opts.extracted, opts.currentMessage);
+  const hook = buildContinueEngagementQuestion(
+    opts.extracted,
+    opts.currentMessage,
+    opts.history
+  );
   return out2 ? `${out2}
 
 ${hook}`.trim() : hook;
@@ -139431,13 +139631,18 @@ function buildNameMismatchReplyIfNeeded(currentMessage, extracted, filledSet, wh
 }
 function applyLucyMessageGuards(input) {
   const mensaje = applyLucyMessageGuardsRaw(input);
-  const stillPending = !!getNextPendingField(input.extracted, input.filledSet);
+  const pending = getNextPendingField(input.extracted, input.filledSet);
+  const hardPending = !!pending && pending !== "tipo_evento" && pending !== "presupuesto";
+  const historyClosed = detectCierreEnviado(
+    input.presentationHistory ?? input.history
+  );
   return ensureOutboundAlwaysAsks(mensaje, {
     extracted: input.extracted,
     filledSet: input.filledSet,
     ctx: makeQuestionCtx(input),
     currentMessage: input.currentMessage,
-    cierreYaEnviado: Boolean(input.cierreYaEnviado) && !stillPending
+    cierreYaEnviado: (Boolean(input.cierreYaEnviado) || historyClosed) && !hardPending,
+    history: input.presentationHistory ?? input.history
   });
 }
 function applyLucyMessageGuardsRaw(input) {
@@ -139531,9 +139736,20 @@ function applyLucyMessageGuardsRaw(input) {
     collectUserTexts(presHistory, currentMessage),
     presHistory
   );
-  if (cierreYaEnviado && getNextPendingField(extracted, filledSet)) {
-    cierreYaEnviado = false;
-    log?.info({ entityId }, "GUARD: V9.36 \u2014 cierre prematuro, se reabre el chat");
+  if (cierreYaEnviado) {
+    const pendingSoft = getNextPendingField(extracted, filledSet);
+    if (pendingSoft && pendingSoft !== "tipo_evento" && pendingSoft !== "presupuesto") {
+      cierreYaEnviado = false;
+      log?.info(
+        { entityId, pendingSoft },
+        "GUARD: V9.36 \u2014 cierre prematuro, se reabre el chat"
+      );
+    } else if (pendingSoft) {
+      log?.info(
+        { entityId, pendingSoft },
+        "GUARD: A16309 \u2014 cierre se mantiene (pending soft tipo/presupuesto)"
+      );
+    }
   }
   const dimensionsNowList = parseAllSpaceDimensions(currentMessage ?? "");
   const reqForDims = extracted.requerimientos_evento ?? "";
@@ -140200,7 +140416,7 @@ ${catalogUrl}`
     const wantsPizza = /pizza/i.test(extracted.requerimientos_evento ?? "") || /pizza/i.test(collectUserTexts(presHistory, currentMessage).join(" "));
     const primarySvc = preferPrimaryCatalogService(parseServicesFromText(extracted.requerimientos_evento ?? "")) || null;
     const pending = getNextPendingField(extracted, filledSet);
-    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : buildContinueEngagementQuestion(extracted, currentMessage);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : buildContinueEngagementQuestion(extracted, currentMessage, presHistory);
     const display = getDisplayName(extracted, whatsappDisplayName);
     const svcNote = wantsPizza ? "Seguimos con la cotizaci\xF3n de *pizzas* para tu evento." : primarySvc ? `Seguimos con *${primarySvc}* y lo dem\xE1s que platicamos.` : null;
     const lastAsstCity = [...presHistory].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
@@ -141036,7 +141252,77 @@ Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
     mensaje = nextQ ? `${loc} ${nextQ}` : loc;
     appliedDirectReply = true;
     log?.info({ entityId, pending }, "GUARD: A16095 \u2014 sede/visita mid-funnel + embudo");
-  } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && isServicePreferenceRefinement(
+  } else if (
+    // A16309: "No está bien" — preguntar qué corregir, no re-pegar CTA genérico.
+    cierreYaEnviado && clientSignalsSomethingWrong(currentMessage)
+  ) {
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre ? `Disculpa, ${nombre}. \xBFQu\xE9 dato no qued\xF3 bien (fecha, horario, men\xFA u otro) para corregirlo ahora?` : "Disculpa. \xBFQu\xE9 dato no qued\xF3 bien (fecha, horario, men\xFA u otro) para corregirlo ahora?";
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16309 \u2014 cliente se\xF1al\xF3 error; pedir detalle");
+  } else if (
+    // A16309: corrección de fecha también post-cierre (CRM se quedaba en la fecha vieja).
+    cierreYaEnviado && currentMessage && (() => {
+      const fechaNow = parseFechaFromText(currentMessage);
+      if (!fechaNow || !isUsableFechaEvento(fechaNow)) return false;
+      const looksCorrection = /perd[oó]n|correcci[oó]n|corrijo|la fecha|cambio (de )?fecha|actualiz|no (era|es)|mejor (el|la)/i.test(
+        currentMessage
+      ) || /\b\d{1,2}\s+(?:de\s+)?(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+        currentMessage
+      );
+      return looksCorrection;
+    })()
+  ) {
+    const fechaNow = parseFechaFromText(currentMessage);
+    extracted.fecha_evento = fechaNow;
+    filledSet.add(CRM_FECHA_LABEL);
+    syncLegacyFechaHorarioField(extracted);
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre ? `No te preocupes, ${nombre}. Ya ajust\xE9 la fecha a *${fechaNow}*. Se la paso al equipo para la propuesta. \xBFHay algo m\xE1s que quieras sumar?` : `No te preocupes. Ya ajust\xE9 la fecha a *${fechaNow}*. Se la paso al equipo para la propuesta. \xBFHay algo m\xE1s que quieras sumar?`;
+    appliedDirectReply = true;
+    log?.info({ entityId, fecha: fechaNow }, "GUARD: A16309 \u2014 correcci\xF3n de fecha post-cierre");
+  } else if (
+    // A16309: "Algún otro menú típico para boda" → ofrecer opciones, no anotar literal.
+    cierreYaEnviado && clientAsksAlternativeMenus(currentMessage)
+  ) {
+    const tipoFromMsg = parseTipoEventoFromText(currentMessage ?? "");
+    if (tipoFromMsg) {
+      extracted.tipo_evento = tipoFromMsg;
+      filledSet.add("Tipo de evento");
+    } else if (!extracted.tipo_evento?.trim() && /\bboda\b/i.test(currentMessage ?? "")) {
+      extracted.tipo_evento = "boda";
+      filledSet.add("Tipo de evento");
+    }
+    mensaje = buildAlternativeMenusReply(
+      extracted.tipo_evento,
+      getDisplayName(extracted, whatsappDisplayName)
+    );
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16309 \u2014 men\xFAs alternativos (no anotar literal)");
+  } else if (
+    // A16309: "Por correo" / "Correo" tras pregunta de canal.
+    cierreYaEnviado && (clientChoosesEmailDelivery(currentMessage) || clientChoosesChatDelivery(currentMessage)) && (assistantAskedDeliveryChannel(
+      lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
+    ) || historyHasDeliveryChannelChoice(presHistory, currentMessage))
+  ) {
+    const channel = clientChoosesEmailDelivery(currentMessage) ? "email" : "chat";
+    mensaje = buildPostCierreCanalAckReply(
+      channel,
+      getDisplayName(extracted, whatsappDisplayName)
+    );
+    appliedDirectReply = true;
+    log?.info({ entityId, channel }, "GUARD: A16309 \u2014 preferencia de canal post-cierre");
+  } else if (
+    // A16309: "Sin problema tomen su tiempo".
+    cierreYaEnviado && clientSaysNoUrgency(currentMessage)
+  ) {
+    mensaje = buildPostCierreNoUrgencyReply(
+      getDisplayName(extracted, whatsappDisplayName),
+      historyHasDeliveryChannelChoice(presHistory, currentMessage)
+    );
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16309 \u2014 sin prisa post-cierre");
+  } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && !clientAsksAlternativeMenus(currentMessage) && isServicePreferenceRefinement(
     currentMessage,
     extracted.requerimientos_evento
   )) {
@@ -141066,7 +141352,7 @@ Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
     mensaje = buildPostCierreCallbackAck(extracted.nombre);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: A16244 \u2014 ack corto tras tel\xE9fonos (no cat\xE1logo)");
-  } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && (clientAddsToQuote(currentMessage) || parseServicesFromText(currentMessage ?? "").length >= 1 && !isRichQuoteBrief(currentMessage) && /\b(queremos|quisiera|sumamos|adem[aá]s|tambi[eé]n|helado|frutas?|crepas?)\b/i.test(
+  } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && !clientAsksAlternativeMenus(currentMessage) && (clientAddsToQuote(currentMessage) || parseServicesFromText(currentMessage ?? "").length >= 1 && !isRichQuoteBrief(currentMessage) && /\b(queremos|quisiera|sumamos|adem[aá]s|tambi[eé]n|helado|frutas?|crepas?)\b/i.test(
     currentMessage ?? ""
   ))) {
     const services = parseServicesFromText(currentMessage ?? "");
@@ -141092,7 +141378,8 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
   } else if (
     // A15165: post-cierre con PREGUNTA de info/catálogo/modelos/shows → NO ack corto.
     // Dejar caer a ramas de entretenimiento / mobiliario / recomendaciones / servicio.
-    cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && isServiceRelatedMessage(currentMessage) && currentMessage?.trim() && !clientAsksServiceInfo(currentMessage) && !clientMentionsEntertainment(currentMessage) && !clientAsksForCatalog(currentMessage) && !clientAsksForRecommendations(currentMessage) && !clientAsksInclusion(currentMessage) && !clientAsksPrice(currentMessage) && !/\b(modelos?|cat[aá]logo|sillas?|mesas?|mobiliario|mobilairio|banquetes?)\b/i.test(
+    // A16309: menús alternativos tampoco caen aquí (rama dedicada arriba).
+    cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && !clientAsksAlternativeMenus(currentMessage) && isServiceRelatedMessage(currentMessage) && currentMessage?.trim() && !clientAsksServiceInfo(currentMessage) && !clientMentionsEntertainment(currentMessage) && !clientAsksForCatalog(currentMessage) && !clientAsksForRecommendations(currentMessage) && !clientAsksInclusion(currentMessage) && !clientAsksPrice(currentMessage) && !/\b(modelos?|cat[aá]logo|sillas?|mesas?|mobiliario|mobilairio|banquetes?|men[uú]s?)\b/i.test(
       currentMessage ?? ""
     )
   ) {
@@ -141103,7 +141390,9 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 servicio adicional (ack corto, sin niveles)");
   } else if (cierreYaEnviado && (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))) {
-    mensaje = buildPostCierreThanksReply(extracted.nombre);
+    mensaje = historyHasDeliveryChannelChoice(presHistory, currentMessage) ? buildPostCierreSoftExitReply(
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    ) : buildPostCierreThanksReply(extracted.nombre);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 agradecimiento o sin m\xE1s que agregar");
   } else if (clientAsksIfCompanyEmailCorrect(currentMessage)) {
@@ -146228,23 +146517,8 @@ init_kommoWebhookParse();
 
 // src/services/incomingLeadRecovery.ts
 init_logger2();
-
-// src/chat-history.ts
-import { readFileSync as readFileSync4, writeFileSync, existsSync as existsSync5 } from "fs";
-import { join as join4, dirname as dirname3 } from "path";
-import { fileURLToPath as fileURLToPath5 } from "url";
-var __dirname2 = dirname3(fileURLToPath5(import.meta.url));
-var DATA_FILE = join4(__dirname2, "../../data/chat-history.json");
-function load() {
-  try {
-    if (existsSync5(DATA_FILE)) {
-      return JSON.parse(readFileSync4(DATA_FILE, "utf-8"));
-    }
-  } catch {
-  }
-  return {};
-}
-var store = load();
+init_chat_history();
+await init_chatIngest();
 
 // src/services/kommoMirror.ts
 init_logger2();
@@ -157749,6 +158023,135 @@ ${golfText}`,
     assert2.match(reply, /tlaquepaque/i);
     assert2.ok(!/\*esa es la ciudad\*/i.test(reply), reply.slice(0, 400));
     assert2.match(extracted.direccion_evento ?? "", /tlaquepaque/i);
+  });
+  await test("A16309 \u2014 men\xFA t\xEDpico boda post-cierre ofrece opciones (no anota literal)", () => {
+    const extracted = emptyExtracted({
+      nombre: "Jorge Vazquez",
+      correo: "jvazquez.integra@gmail.com",
+      requerimientos_evento: "Banquete Mexicano",
+      fecha_evento: "17 de enero 2027",
+      horario_evento: "8 de la noche",
+      num_invitados: "100",
+      direccion_evento: "Ciudad de M\xE9xico"
+    });
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Correo electr\xF3nico",
+      "Requerimientos o servicios",
+      "Fecha del evento",
+      "Horario del evento",
+      "N\xFAmero de invitados",
+      "Lugar/direcci\xF3n del evento"
+    ]);
+    const reply = runGuards({
+      aiResponse: "Perfecto.",
+      extracted,
+      filledSet: filled,
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Alg\xFAn otro men\xFA t\xEDpico para boda",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto, ya tengo todo. He anotado el banquete mexicano y le pasar\xE9 esta informaci\xF3n a nuestro equipo."
+        }
+      ],
+      whatsappDisplayName: "Jorge Vazquez"
+    });
+    assert2.ok(!/anoto\s+alg[uú]n\s+otro\s+men[uú]/i.test(reply), reply.slice(0, 300));
+    assert2.match(reply, /banquete formal|taquiza/i);
+    assert2.match(extracted.tipo_evento ?? "", /boda/i);
+  });
+  await test("A16309 \u2014 correcci\xF3n fecha 2207 post-cierre actualiza CRM a 2027", () => {
+    assert2.equal(parseFechaFromText("16 de enero 2207"), "16 de enero 2027");
+    const extracted = emptyExtracted({
+      nombre: "Jorge Vazquez",
+      correo: "a@b.com",
+      requerimientos_evento: "Banquete Mexicano",
+      fecha_evento: "17 de enero 2027",
+      horario_evento: "8 de la noche",
+      num_invitados: "100"
+    });
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Correo electr\xF3nico",
+      "Requerimientos o servicios",
+      "Fecha del evento",
+      "Horario del evento",
+      "N\xFAmero de invitados"
+    ]);
+    const reply = runGuards({
+      aiResponse: "Ok.",
+      extracted,
+      filledSet: filled,
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Perd\xF3n de la fecha es 16 de enero 2207",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto, ya tengo todo. \xBFHay algo m\xE1s que quieras sumar a la cotizaci\xF3n?"
+        }
+      ]
+    });
+    assert2.match(extracted.fecha_evento ?? "", /16 de enero 2027/i);
+    assert2.match(reply, /16 de enero 2027/i);
+    assert2.ok(!/2207/.test(reply));
+  });
+  await test("A16309 \u2014 canal correo no re-pregunta aqu\xED/correo en el No siguiente", () => {
+    const extracted = emptyExtracted({
+      nombre: "Jorge",
+      correo: "a@b.com",
+      requerimientos_evento: "Banquete Mexicano",
+      fecha_evento: "16 de enero 2027",
+      num_invitados: "100"
+    });
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Correo electr\xF3nico",
+      "Requerimientos o servicios",
+      "Fecha del evento",
+      "N\xFAmero de invitados"
+    ]);
+    const canalHistory = [
+      {
+        role: "assistant",
+        content: "\xBFQuieres que te confirmen por aqu\xED cuando te contacten, o prefieres esperar el correo?"
+      },
+      { role: "user", content: "Por correo" },
+      {
+        role: "assistant",
+        content: "Perfecto, Jorge. Nuestro equipo te enviar\xE1 la propuesta directamente a tu correo. \xBFQuieres agregar algo m\xE1s a la cotizaci\xF3n?"
+      }
+    ];
+    const correoAck = runGuards({
+      aiResponse: "Ok.",
+      extracted,
+      filledSet: filled,
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Por correo",
+      history: canalHistory.slice(0, 1)
+    });
+    assert2.match(correoAck, /correo/i);
+    assert2.ok(!/confirmen por aqu[ií]/i.test(correoAck), correoAck.slice(0, 280));
+    const noAfter = runGuards({
+      aiResponse: "Ok.",
+      extracted,
+      filledSet: filled,
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "No",
+      history: canalHistory
+    });
+    assert2.ok(!/preferes esperar el correo/i.test(noAfter), noAfter.slice(0, 280));
+    assert2.match(noAfter, /chat abierto|cuando lo necesites/i);
+  });
+  await test("A16309 \u2014 horario sin filler Ser\xEDa", () => {
+    const h4 = parseHorarioFromText("Ser\xEDa a las 8 de la noche");
+    assert2.ok(h4);
+    assert2.ok(!/^ser[ií]a\b/i.test(h4), h4);
+    assert2.match(h4, /8|noche/i);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

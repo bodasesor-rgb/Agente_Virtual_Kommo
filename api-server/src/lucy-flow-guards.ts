@@ -206,6 +206,13 @@ import {
   parsePresupuestoFromText,
   isPresupuestoResuelto,
   clientAddsToQuote,
+  clientAsksAlternativeMenus,
+  assistantAskedDeliveryChannel,
+  clientChoosesEmailDelivery,
+  clientChoosesChatDelivery,
+  clientSaysNoUrgency,
+  clientSignalsSomethingWrong,
+  historyHasDeliveryChannelChoice,
   isServicePreferenceRefinement,
   clientAsksBanqueteVsTaquiza,
   parseCorreoFromText,
@@ -4921,6 +4928,62 @@ export function buildPostCierreThanksReply(clientName?: string | null): string {
     : "¡Con gusto! Nuestro equipo ya tiene tus datos para la cotización. ¿Quieres que te confirmen por aquí cuando te contacten, o prefieres esperar el correo?";
 }
 
+/** A16309: canal ya elegido — no re-preguntar aquí/correo. */
+export function buildPostCierreSoftExitReply(clientName?: string | null): string {
+  const nombre = sanitizeDisplayName(clientName);
+  return nombre
+    ? `¡Con gusto, ${nombre}! Aquí seguimos cuando lo necesites. ¿Te dejo el chat abierto por si surge otra duda?`
+    : "¡Con gusto! Aquí seguimos cuando lo necesites. ¿Te dejo el chat abierto por si surge otra duda?";
+}
+
+/** A16309: cliente confirma correo / WhatsApp tras pregunta de canal. */
+export function buildPostCierreCanalAckReply(
+  channel: "email" | "chat",
+  clientName?: string | null
+): string {
+  const nombre = sanitizeDisplayName(clientName);
+  const hi = nombre ? `, ${nombre}` : "";
+  if (channel === "email") {
+    return `Perfecto${hi}. Nuestro equipo te enviará la propuesta directamente a tu correo. ¿Quieres agregar algo más a la cotización?`;
+  }
+  return `Perfecto${hi}. El equipo te escribe por aquí con la propuesta. ¿Quieres agregar algo más a la cotización?`;
+}
+
+/** A16309: sin prisa — un solo ask de canal si aún no eligió. */
+export function buildPostCierreNoUrgencyReply(
+  clientName?: string | null,
+  canalAlreadyChosen?: boolean
+): string {
+  const nombre = sanitizeDisplayName(clientName);
+  const hi = nombre ? `, ${nombre}` : "";
+  if (canalAlreadyChosen) {
+    return `Excelente${hi}. Tomamos nota de que no hay prisa. El equipo revisará los detalles y te hará llegar la propuesta. ¿Te dejo el chat abierto por si surge otra duda?`;
+  }
+  return `Excelente${hi}. Tomamos nota de que no hay prisa. El equipo revisará los detalles y te hará llegar la propuesta. ¿Prefieres recibirla por correo o por este chat?`;
+}
+
+/**
+ * A16309: otros menús típicos (boda) — ofrecer opciones, no anotar literal.
+ */
+export function buildAlternativeMenusReply(
+  tipoEvento?: string | null,
+  clientName?: string | null
+): string {
+  const nombre = sanitizeDisplayName(clientName);
+  const hi = nombre ? `, ${nombre}` : "";
+  const tipo = (tipoEvento ?? "").toLowerCase();
+  if (/boda/.test(tipo)) {
+    return (
+      `Claro${hi}. Para boda, además del *Banquete Mexicano*, también manejamos *Banquete Formal*, *Taquiza* y barras (pasta/pizza). ` +
+      `¿Cuál te late sumar, o prefieres que el equipo te arme opciones de menú típico de boda?`
+    );
+  }
+  return (
+    `Claro${hi}. Otros menús que manejamos: *Banquete Formal*, *Banquete Mexicano*, *Taquiza*, brunch o barras. ` +
+    `¿Cuál te interesa revisar?`
+  );
+}
+
 /**
  * A15897: mensaje de despedida (el cliente se despidió o pospuso).
  * A16244: aún así debe invitar a seguir (siempre con `?`).
@@ -4966,17 +5029,29 @@ export function buildPostCierreCallbackAck(clientName?: string | null): string {
  * A16244: Lucy nunca “mata” el chat. Si no hay `?`, pregunta que invite a seguir.
  * Regla GLOBAL — se aplica en el wrapper de applyLucyMessageGuards (todas las ramas),
  * en anti-repeat y en finalizeLucyOutboundMessage.
+ * A16309: no ciclar aquí/correo ↔ “algo más” cuando el canal ya está decidido.
  */
 export function buildContinueEngagementQuestion(
   extracted: ExtractedData,
-  currentMessage?: string | null
+  currentMessage?: string | null,
+  history?: OpenAI.Chat.ChatCompletionMessageParam[]
 ): string {
   if (clientRequestsCallback(currentMessage) || clientSignalsUrgency(currentMessage)) {
     return "¿Te marco el equipo hoy por teléfono, o prefieres que te escriban primero por este chat?";
   }
-  // A16259: no re-preguntar upsell cuando el cliente ya dijo que no / solo eso.
+  const canalDone = historyHasDeliveryChannelChoice(history ?? [], currentMessage);
+  if (clientChoosesEmailDelivery(currentMessage) || clientChoosesChatDelivery(currentMessage)) {
+    return "¿Quieres agregar algo más a la cotización?";
+  }
+  // A16259 / A16309: no re-preguntar upsell; si canal ya elegido → soft exit (no re-canal).
   if (clientDeclinesMoreServices(currentMessage) || clientSaysThanks(currentMessage)) {
+    if (canalDone) {
+      return "¿Te dejo el chat abierto por si surge otra duda?";
+    }
     return "¿Confirmamos que el equipo te escriba por aquí con la propuesta, o prefieres esperar el correo?";
+  }
+  if (canalDone) {
+    return "¿Hay algo más que quieras sumar a la cotización?";
   }
   const req = extracted.requerimientos_evento ?? "";
   if (/carpas?|tarima|entarim|colgantes|entelado/i.test(req)) {
@@ -4997,6 +5072,7 @@ export function ensureOutboundAlwaysAsks(
     ctx: NaturalQuestionContext;
     currentMessage?: string | null;
     cierreYaEnviado?: boolean;
+    history?: OpenAI.Chat.ChatCompletionMessageParam[];
   }
 ): string {
   let out = (mensaje || "").trim();
@@ -5014,7 +5090,11 @@ export function ensureOutboundAlwaysAsks(
     }
   }
 
-  const hook = buildContinueEngagementQuestion(opts.extracted, opts.currentMessage);
+  const hook = buildContinueEngagementQuestion(
+    opts.extracted,
+    opts.currentMessage,
+    opts.history
+  );
   return out ? `${out}\n\n${hook}`.trim() : hook;
 }
 
@@ -5804,14 +5884,21 @@ function buildNameMismatchReplyIfNeeded(
  */
 export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const mensaje = applyLucyMessageGuardsRaw(input);
-  // Si aún hay dato pendiente, no tratar como cierre aunque el flag diga lo contrario.
-  const stillPending = !!getNextPendingField(input.extracted, input.filledSet);
+  // A16309: tipo/presupuesto pendientes NO invalidan el cierre para hooks post-cierre.
+  const pending = getNextPendingField(input.extracted, input.filledSet);
+  const hardPending =
+    !!pending && pending !== "tipo_evento" && pending !== "presupuesto";
+  const historyClosed = detectCierreEnviado(
+    input.presentationHistory ?? input.history
+  );
   return ensureOutboundAlwaysAsks(mensaje, {
     extracted: input.extracted,
     filledSet: input.filledSet,
     ctx: makeQuestionCtx(input),
     currentMessage: input.currentMessage,
-    cierreYaEnviado: Boolean(input.cierreYaEnviado) && !stillPending,
+    cierreYaEnviado:
+      (Boolean(input.cierreYaEnviado) || historyClosed) && !hardPending,
+    history: input.presentationHistory ?? input.history,
   });
 }
 
@@ -5931,9 +6018,21 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   );
 
   // V9.36: si Lucy "cerró" pero aún faltan datos reales, reabre el embudo.
-  if (cierreYaEnviado && getNextPendingField(extracted, filledSet)) {
-    cierreYaEnviado = false;
-    log?.info({ entityId }, "GUARD: V9.36 — cierre prematuro, se reabre el chat");
+  // A16309: no reabrir solo por tipo/presupuesto (post-cierre: canal, extras, correcciones).
+  if (cierreYaEnviado) {
+    const pendingSoft = getNextPendingField(extracted, filledSet);
+    if (pendingSoft && pendingSoft !== "tipo_evento" && pendingSoft !== "presupuesto") {
+      cierreYaEnviado = false;
+      log?.info(
+        { entityId, pendingSoft },
+        "GUARD: V9.36 — cierre prematuro, se reabre el chat"
+      );
+    } else if (pendingSoft) {
+      log?.info(
+        { entityId, pendingSoft },
+        "GUARD: A16309 — cierre se mantiene (pending soft tipo/presupuesto)"
+      );
+    }
   }
 
   // Captura estructural antes de cualquier rama: "3 x 4" / "6m x 8m" / "15 de ancho por 25 de largo"
@@ -6949,7 +7048,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ = pending
       ? buildNaturalQuestion(pending, ctx)
-      : buildContinueEngagementQuestion(extracted, currentMessage);
+      : buildContinueEngagementQuestion(extracted, currentMessage, presHistory);
     const display = getDisplayName(extracted, whatsappDisplayName);
     const svcNote = wantsPizza
       ? "Seguimos con la cotización de *pizzas* para tu evento."
@@ -8258,9 +8357,96 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId, pending }, "GUARD: A16095 — sede/visita mid-funnel + embudo");
   } else if (
+    // A16309: "No está bien" — preguntar qué corregir, no re-pegar CTA genérico.
+    cierreYaEnviado &&
+    clientSignalsSomethingWrong(currentMessage)
+  ) {
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre
+      ? `Disculpa, ${nombre}. ¿Qué dato no quedó bien (fecha, horario, menú u otro) para corregirlo ahora?`
+      : "Disculpa. ¿Qué dato no quedó bien (fecha, horario, menú u otro) para corregirlo ahora?";
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16309 — cliente señaló error; pedir detalle");
+  } else if (
+    // A16309: corrección de fecha también post-cierre (CRM se quedaba en la fecha vieja).
+    cierreYaEnviado &&
+    currentMessage &&
+    (() => {
+      const fechaNow = parseFechaFromText(currentMessage);
+      if (!fechaNow || !isUsableFechaEvento(fechaNow)) return false;
+      const looksCorrection =
+        /perd[oó]n|correcci[oó]n|corrijo|la fecha|cambio (de )?fecha|actualiz|no (era|es)|mejor (el|la)/i.test(
+          currentMessage
+        ) ||
+        /\b\d{1,2}\s+(?:de\s+)?(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+          currentMessage
+        );
+      return looksCorrection;
+    })()
+  ) {
+    const fechaNow = parseFechaFromText(currentMessage)!;
+    extracted.fecha_evento = fechaNow;
+    filledSet.add(CRM_FECHA_LABEL);
+    syncLegacyFechaHorarioField(extracted);
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre
+      ? `No te preocupes, ${nombre}. Ya ajusté la fecha a *${fechaNow}*. Se la paso al equipo para la propuesta. ¿Hay algo más que quieras sumar?`
+      : `No te preocupes. Ya ajusté la fecha a *${fechaNow}*. Se la paso al equipo para la propuesta. ¿Hay algo más que quieras sumar?`;
+    appliedDirectReply = true;
+    log?.info({ entityId, fecha: fechaNow }, "GUARD: A16309 — corrección de fecha post-cierre");
+  } else if (
+    // A16309: "Algún otro menú típico para boda" → ofrecer opciones, no anotar literal.
+    cierreYaEnviado &&
+    clientAsksAlternativeMenus(currentMessage)
+  ) {
+    const tipoFromMsg = parseTipoEventoFromText(currentMessage ?? "");
+    if (tipoFromMsg) {
+      extracted.tipo_evento = tipoFromMsg;
+      filledSet.add("Tipo de evento");
+    } else if (!extracted.tipo_evento?.trim() && /\bboda\b/i.test(currentMessage ?? "")) {
+      extracted.tipo_evento = "boda";
+      filledSet.add("Tipo de evento");
+    }
+    mensaje = buildAlternativeMenusReply(
+      extracted.tipo_evento,
+      getDisplayName(extracted, whatsappDisplayName)
+    );
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16309 — menús alternativos (no anotar literal)");
+  } else if (
+    // A16309: "Por correo" / "Correo" tras pregunta de canal.
+    cierreYaEnviado &&
+    (clientChoosesEmailDelivery(currentMessage) || clientChoosesChatDelivery(currentMessage)) &&
+    (assistantAskedDeliveryChannel(
+      lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+        ? (lastAssistantMsg.content as string)
+        : null
+    ) ||
+      historyHasDeliveryChannelChoice(presHistory, currentMessage))
+  ) {
+    const channel = clientChoosesEmailDelivery(currentMessage) ? "email" : "chat";
+    mensaje = buildPostCierreCanalAckReply(
+      channel,
+      getDisplayName(extracted, whatsappDisplayName)
+    );
+    appliedDirectReply = true;
+    log?.info({ entityId, channel }, "GUARD: A16309 — preferencia de canal post-cierre");
+  } else if (
+    // A16309: "Sin problema tomen su tiempo".
+    cierreYaEnviado &&
+    clientSaysNoUrgency(currentMessage)
+  ) {
+    mensaje = buildPostCierreNoUrgencyReply(
+      getDisplayName(extracted, whatsappDisplayName),
+      historyHasDeliveryChannelChoice(presHistory, currentMessage)
+    );
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16309 — sin prisa post-cierre");
+  } else if (
     cierreYaEnviado &&
     !clientDeclinesMoreServices(currentMessage) &&
     !clientSaysThanks(currentMessage) &&
+    !clientAsksAlternativeMenus(currentMessage) &&
     isServicePreferenceRefinement(
       currentMessage,
       extracted.requerimientos_evento
@@ -8308,6 +8494,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     cierreYaEnviado &&
     !clientDeclinesMoreServices(currentMessage) &&
     !clientSaysThanks(currentMessage) &&
+    !clientAsksAlternativeMenus(currentMessage) &&
     (clientAddsToQuote(currentMessage) ||
       (parseServicesFromText(currentMessage ?? "").length >= 1 &&
         !isRichQuoteBrief(currentMessage) &&
@@ -8351,9 +8538,11 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   } else if (
     // A15165: post-cierre con PREGUNTA de info/catálogo/modelos/shows → NO ack corto.
     // Dejar caer a ramas de entretenimiento / mobiliario / recomendaciones / servicio.
+    // A16309: menús alternativos tampoco caen aquí (rama dedicada arriba).
     cierreYaEnviado &&
     !clientDeclinesMoreServices(currentMessage) &&
     !clientSaysThanks(currentMessage) &&
+    !clientAsksAlternativeMenus(currentMessage) &&
     isServiceRelatedMessage(currentMessage) &&
     currentMessage?.trim() &&
     !clientAsksServiceInfo(currentMessage) &&
@@ -8362,7 +8551,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     !clientAsksForRecommendations(currentMessage) &&
     !clientAsksInclusion(currentMessage) &&
     !clientAsksPrice(currentMessage) &&
-    !/\b(modelos?|cat[aá]logo|sillas?|mesas?|mobiliario|mobilairio|banquetes?)\b/i.test(
+    !/\b(modelos?|cat[aá]logo|sillas?|mesas?|mobiliario|mobilairio|banquetes?|men[uú]s?)\b/i.test(
       currentMessage ?? ""
     )
   ) {
@@ -8382,7 +8571,12 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     cierreYaEnviado &&
     (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))
   ) {
-    mensaje = buildPostCierreThanksReply(extracted.nombre);
+    // A16309: si ya eligió correo/aquí, no volver a preguntar el canal.
+    mensaje = historyHasDeliveryChannelChoice(presHistory, currentMessage)
+      ? buildPostCierreSoftExitReply(
+          extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+        )
+      : buildPostCierreThanksReply(extracted.nombre);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre — agradecimiento o sin más que agregar");
   } else if (clientAsksIfCompanyEmailCorrect(currentMessage)) {

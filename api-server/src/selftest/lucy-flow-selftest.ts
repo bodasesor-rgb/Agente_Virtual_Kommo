@@ -13330,6 +13330,143 @@ async function runAll(): Promise<void> {
     assert.match(extracted.direccion_evento ?? "", /tlaquepaque/i);
   });
 
+  await test("A16309 — menú típico boda post-cierre ofrece opciones (no anota literal)", () => {
+    const extracted = emptyExtracted({
+      nombre: "Jorge Vazquez",
+      correo: "jvazquez.integra@gmail.com",
+      requerimientos_evento: "Banquete Mexicano",
+      fecha_evento: "17 de enero 2027",
+      horario_evento: "8 de la noche",
+      num_invitados: "100",
+      direccion_evento: "Ciudad de México",
+    });
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Requerimientos o servicios",
+      "Fecha del evento",
+      "Horario del evento",
+      "Número de invitados",
+      "Lugar/dirección del evento",
+    ]);
+    const reply = runGuards({
+      aiResponse: "Perfecto.",
+      extracted,
+      filledSet: filled,
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Algún otro menú típico para boda",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Perfecto, ya tengo todo. He anotado el banquete mexicano y le pasaré esta información a nuestro equipo.",
+        },
+      ],
+      whatsappDisplayName: "Jorge Vazquez",
+    });
+    assert.ok(!/anoto\s+alg[uú]n\s+otro\s+men[uú]/i.test(reply), reply.slice(0, 300));
+    assert.match(reply, /banquete formal|taquiza/i);
+    assert.match(extracted.tipo_evento ?? "", /boda/i);
+  });
+
+  await test("A16309 — corrección fecha 2207 post-cierre actualiza CRM a 2027", () => {
+    assert.equal(parseFechaFromText("16 de enero 2207"), "16 de enero 2027");
+    const extracted = emptyExtracted({
+      nombre: "Jorge Vazquez",
+      correo: "a@b.com",
+      requerimientos_evento: "Banquete Mexicano",
+      fecha_evento: "17 de enero 2027",
+      horario_evento: "8 de la noche",
+      num_invitados: "100",
+    });
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Requerimientos o servicios",
+      "Fecha del evento",
+      "Horario del evento",
+      "Número de invitados",
+    ]);
+    const reply = runGuards({
+      aiResponse: "Ok.",
+      extracted,
+      filledSet: filled,
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Perdón de la fecha es 16 de enero 2207",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto, ya tengo todo. ¿Hay algo más que quieras sumar a la cotización?",
+        },
+      ],
+    });
+    assert.match(extracted.fecha_evento ?? "", /16 de enero 2027/i);
+    assert.match(reply, /16 de enero 2027/i);
+    assert.ok(!/2207/.test(reply));
+  });
+
+  await test("A16309 — canal correo no re-pregunta aquí/correo en el No siguiente", () => {
+    const extracted = emptyExtracted({
+      nombre: "Jorge",
+      correo: "a@b.com",
+      requerimientos_evento: "Banquete Mexicano",
+      fecha_evento: "16 de enero 2027",
+      num_invitados: "100",
+    });
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Requerimientos o servicios",
+      "Fecha del evento",
+      "Número de invitados",
+    ]);
+    const canalHistory: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      {
+        role: "assistant",
+        content:
+          "¿Quieres que te confirmen por aquí cuando te contacten, o prefieres esperar el correo?",
+      },
+      { role: "user", content: "Por correo" },
+      {
+        role: "assistant",
+        content:
+          "Perfecto, Jorge. Nuestro equipo te enviará la propuesta directamente a tu correo. ¿Quieres agregar algo más a la cotización?",
+      },
+    ];
+    const correoAck = runGuards({
+      aiResponse: "Ok.",
+      extracted,
+      filledSet: filled,
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Por correo",
+      history: canalHistory.slice(0, 1),
+    });
+    assert.match(correoAck, /correo/i);
+    assert.ok(!/confirmen por aqu[ií]/i.test(correoAck), correoAck.slice(0, 280));
+
+    const noAfter = runGuards({
+      aiResponse: "Ok.",
+      extracted,
+      filledSet: filled,
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "No",
+      history: canalHistory,
+    });
+    assert.ok(!/preferes esperar el correo/i.test(noAfter), noAfter.slice(0, 280));
+    assert.match(noAfter, /chat abierto|cuando lo necesites/i);
+  });
+
+  await test("A16309 — horario sin filler Sería", () => {
+    const h = parseHorarioFromText("Sería a las 8 de la noche");
+    assert.ok(h);
+    assert.ok(!/^ser[ií]a\b/i.test(h!), h);
+    assert.match(h!, /8|noche/i);
+  });
+
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
 }

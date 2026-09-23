@@ -468,6 +468,8 @@ export function clientAddsToQuote(message?: string): boolean {
   if (!message?.trim()) return false;
   // RFQ completo no es un "agrega X a la cotización" corto.
   if (isRichQuoteBrief(message)) return false;
+  // A16309: "Algún otro menú típico para boda" es pregunta de alternativas, no add-on literal.
+  if (clientAsksAlternativeMenus(message)) return false;
   const t = message.toLowerCase();
   if (
     (/\b(incluir|agregar|sumar|tambi[eé]n|adem[aá]s)\b/i.test(t) &&
@@ -481,6 +483,110 @@ export function clientAddsToQuote(message?: string): boolean {
     const services = parseServicesFromText(message);
     if (services.length >= 1) return true;
     if (/\b(helado|frutas?|vasitos?|postres?|dulces?)\b/i.test(t)) return true;
+  }
+  return false;
+}
+
+/**
+ * A16309: pide otros menús / tipicos (p. ej. boda) — ofrecer opciones, no anotar el texto literal.
+ */
+export function clientAsksAlternativeMenus(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return (
+    /\b(alg[uú]n\s+)?otro(s)?\s+men[uú]/i.test(t) ||
+    /\bmen[uú]s?\s+t[ií]pic/i.test(t) ||
+    /\b(otras?\s+)?opciones?\s+de\s+(men[uú]|banquete|comida|alimentos?)\b/i.test(t) ||
+    /\bqu[eé]\s+otros?\s+(men[uú]s?|banquetes?)\b/i.test(t) ||
+    /\balternativa(s)?\s+(de\s+)?(men[uú]|banquete)\b/i.test(t)
+  );
+}
+
+/** A16309: Lucy preguntó canal de entrega (aquí vs correo). */
+export function assistantAskedDeliveryChannel(text?: string | null): boolean {
+  if (!text?.trim()) return false;
+  return (
+    /confirmen?\s+por\s+aqu[ií].{0,100}correo/i.test(text) ||
+    /escriba\s+por\s+aqu[ií].{0,100}correo/i.test(text) ||
+    /preferes\s+esperar\s+el\s+correo/i.test(text) ||
+    /por\s+aqu[ií]\s+con\s+la\s+propuesta.{0,60}correo/i.test(text) ||
+    /recibirla\s+por\s+correo\s+o\s+por\s+este\s+chat/i.test(text)
+  );
+}
+
+/** A16309: cliente elige propuesta por correo. */
+export function clientChoosesEmailDelivery(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
+  if (/^(por\s+)?(el\s+)?correo$/i.test(t)) return true;
+  if (/^(email|e-?mail|mail)$/i.test(t)) return true;
+  if (/\bpor\s+(el\s+)?correo\b/i.test(t) && t.split(/\s+/).length <= 8) return true;
+  if (/\bmejor\s+(el\s+)?correo\b/i.test(t) && t.split(/\s+/).length <= 8) return true;
+  if (/\besper(o|ar)\s+(el\s+)?correo\b/i.test(t) && t.split(/\s+/).length <= 10) return true;
+  return false;
+}
+
+/** A16309: cliente elige seguimiento por WhatsApp/chat. */
+export function clientChoosesChatDelivery(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
+  if (/^(por\s+)?aqu[ií]$/i.test(t)) return true;
+  if (/^(whatsapp|chat|wa|por\s+whatsapp)$/i.test(t)) return true;
+  if (
+    /\bpor\s+(aqu[ií]|este\s+(chat|medio)|whatsapp)\b/i.test(t) &&
+    t.split(/\s+/).length <= 8
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** A16309: sin prisa / tomen su tiempo. */
+export function clientSaysNoUrgency(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return (
+    /\btomen\s+su\s+tiempo\b/i.test(t) ||
+    /\bno\s+hay\s+prisa\b/i.test(t) ||
+    /\bsin\s+(ninguna\s+)?(prisa|urgencia)\b/i.test(t) ||
+    (/\bsin\s+problema\b/i.test(t) && /\b(tiempo|prisa|cuando\s+puedan)\b/i.test(t)) ||
+    /\bcuando\s+puedan\b/i.test(t)
+  );
+}
+
+/** A16309: "No está bien" / corrección genérica sin detalle. */
+export function clientSignalsSomethingWrong(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
+  if (/^(no\s+est[aá]\s+bien|est[aá]\s+mal|incorrecto|eso\s+no|no\s+es\s+(correcto|as[ií]))$/i.test(t)) {
+    return true;
+  }
+  return /\bno\s+est[aá]\s+bien\b/i.test(t) && t.split(/\s+/).length <= 6;
+}
+
+/**
+ * A16309: en el historial, tras preguntar canal, el cliente ya eligió correo/aquí.
+ */
+export function historyHasDeliveryChannelChoice(
+  history: { role?: string; content?: unknown }[],
+  currentMessage?: string | null
+): boolean {
+  const msgs = [...history];
+  if (currentMessage?.trim()) {
+    msgs.push({ role: "user", content: currentMessage });
+  }
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i]!;
+    if (m.role !== "user" || typeof m.content !== "string") continue;
+    if (!clientChoosesEmailDelivery(m.content) && !clientChoosesChatDelivery(m.content)) {
+      continue;
+    }
+    for (let j = i - 1; j >= 0; j--) {
+      const prev = msgs[j]!;
+      if (prev.role !== "assistant" || typeof prev.content !== "string") continue;
+      if (assistantAskedDeliveryChannel(prev.content)) return true;
+      break;
+    }
   }
   return false;
 }
@@ -4023,6 +4129,8 @@ export function isEventTypeOnlyMessage(text: string | null | undefined): boolean
   const t = (text ?? "").trim();
   if (!t || t.length > 100) return false;
   if (isUnusableTipoEventoReply(t)) return false;
+  // A16309: "Algún otro menú típico para boda" ≠ solo tipo.
+  if (clientAsksAlternativeMenus(t)) return false;
   // A16263: cena/comida conmemorativa / día del médico = TIPO, no SKU Level-2.
   if (isOccasionMealEventType(t)) return true;
   const tipo = parseTipoEventoFromText(t);
@@ -4398,9 +4506,11 @@ export function syncLegacyFechaHorarioField(
   );
 }
 
-/** Normaliza captura de horario (sin prefijo "a las"). */
+/** Normaliza captura de horario (sin prefijo "a las" / "Sería"). */
 function normalizeHorarioCapture(text: string): string {
   return text
+    // A16309: "Sería a las 8 de la noche" → no guardar el "Sería".
+    .replace(/^(?:ser[ií]a|ser[aá]|ser[ií]an|es)\s+/i, "")
     .replace(/^a\s+las\s+/i, "")
     .replace(/^(?:a\s+)?partir\s+de\s+(?:las\s+)?/i, "a partir de las ")
     .replace(/^desde\s+(?:las\s+)?/i, "desde las ")
@@ -4412,6 +4522,41 @@ function normalizeHorarioCapture(text: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 80);
+}
+
+/**
+ * A16309: tipografía absurda de año (2207 → 2027 por swap de dígitos).
+ */
+export function normalizeAbsurdEventYear(fecha: string): string {
+  const nowY = new Date().getFullYear();
+  const inRange = (y: number) => y >= nowY - 1 && y <= nowY + 12;
+  return fecha.replace(/\b(\d{4})\b/g, (raw) => {
+    const y = Number(raw);
+    if (!Number.isFinite(y)) return raw;
+    if (inRange(y)) return raw;
+    const cands = new Set<number>([y]);
+    const s = raw;
+    for (let i = 0; i < 3; i++) {
+      const a = s.split("");
+      const tmp = a[i]!;
+      a[i] = a[i + 1]!;
+      a[i + 1] = tmp;
+      cands.add(Number(a.join("")));
+    }
+    // 22xx → 20xx (último recurso)
+    if (/^22\d{2}$/.test(s)) cands.add(Number(`20${s.slice(2)}`));
+    let best: number | null = null;
+    let bestDist = Infinity;
+    for (const c of cands) {
+      if (!inRange(c)) continue;
+      const d = Math.abs(c - Math.max(nowY, nowY + 1));
+      if (d < bestDist) {
+        bestDist = d;
+        best = c;
+      }
+    }
+    return best != null ? String(best) : raw;
+  });
 }
 
 /** A15581: "a partir de las cuatro" → "a partir de las 4" antes de parsear reloj. */
@@ -4688,9 +4833,18 @@ export function parseHorarioFromText(text: string): string | null {
   );
   if (atTime?.[1]) {
     const withoutTime = clean.replace(atTime[0], "").trim();
-    if (!withoutTime || parseFechaFromText(withoutTime) || MONTH_PATTERN.test(withoutTime)) {
+    // A16309: "Sería a las 8 de la noche" → el resto es solo "Sería".
+    const withoutIsFiller = /^(ser[ií]a|ser[aá]|ser[ií]an|es)\.?$/i.test(withoutTime);
+    if (
+      !withoutTime ||
+      withoutIsFiller ||
+      parseFechaFromText(withoutTime) ||
+      MONTH_PATTERN.test(withoutTime)
+    ) {
       if (/de\s+la\s+(tarde|noche|ma[nñ]ana)/i.test(clean) && !/de\s+la/i.test(atTime[1])) {
-        return normalizeHorarioCapture(clean);
+        return normalizeHorarioCapture(
+          withoutIsFiller ? atTime[0]! : clean.replace(/^(?:ser[ií]a|ser[aá]|es)\s+/i, "")
+        );
       }
       return normalizeHorarioCapture(atTime[1]);
     }
@@ -6412,7 +6566,9 @@ export function parseFechaFromText(text: string): string | null {
     const day = dayMonthBare[1]!;
     const month = dayMonthBare[2]!.toLowerCase();
     const year = dayMonthBare[3];
-    const base = year ? `${day} de ${month} ${year}` : `${day} de ${month}`;
+    const base = normalizeAbsurdEventYear(
+      year ? `${day} de ${month} ${year}` : `${day} de ${month}`
+    );
     const horaMatch = trimmed.match(
       /\ba\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?\b/i
     );
@@ -6427,7 +6583,7 @@ export function parseFechaFromText(text: string): string | null {
     /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
   );
   if (fechaMatch) {
-    const base = fechaMatch[1]!;
+    const base = normalizeAbsurdEventYear(fechaMatch[1]!);
     const hora = fechaMatch[2];
     return hora ? `${base} a las ${hora}${hora.includes(":") ? "" : ":00"} horas` : base;
   }

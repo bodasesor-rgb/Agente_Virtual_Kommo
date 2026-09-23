@@ -152,6 +152,41 @@ export function runAuditorHeuristics(turns: TranscriptTurn[]): HeuristicFinding[
     }
   }
 
+  // A16309: bucle post-cierre aquí/correo ↔ “algo más”
+  const canalAsks = assistants.filter((a) =>
+    /preferes\s+esperar\s+el\s+correo|confirmen?\s+por\s+aqu[ií].{0,80}correo|escriba\s+por\s+aqu[ií].{0,80}correo/i.test(
+      a.content
+    )
+  ).length;
+  const algoMasAsks = assistants.filter((a) =>
+    /hay\s+algo\s+m[aá]s\s+que\s+quieras\s+sumar|te\s+urge\s+que\s+el\s+equipo/i.test(a.content)
+  ).length;
+  if (canalAsks >= 2 && algoMasAsks >= 2) {
+    findings.push({
+      category: "stuck_funnel",
+      severity: "error",
+      evidence: `Bucle post-cierre: canal aquí/correo ×${canalAsks} y “algo más/urge” ×${algoMasAsks}.`,
+      proposedRepair:
+        "A16309: tras elegir correo/aquí no re-preguntar canal; soft-exit con chat abierto.",
+    });
+  }
+
+  // A16309: anotar literal “menú típico…” en vez de ofrecer opciones
+  for (const a of assistants) {
+    if (
+      /anoto\s+alg[uú]n\s+otro\s+men[uú]|anoto\s+.{0,40}men[uú]\s+t[ií]pic/i.test(a.content)
+    ) {
+      findings.push({
+        category: "bad_field",
+        severity: "error",
+        evidence: `Lucy anotó menú típico como literal: «${a.content.slice(0, 140)}»`,
+        proposedRepair:
+          "clientAsksAlternativeMenus → ofrecer Banquete Formal/Taquiza, no anotar el texto.",
+      });
+      break;
+    }
+  }
+
   // Señal para Flash: pocos hallazgos pero conversación larga
   void users;
 
@@ -209,6 +244,29 @@ export function runCrmFieldHeuristics(crm: CrmFieldSnapshot): HeuristicFinding[]
       severity: "warn",
       evidence: `CRM Fecha parece horario: «${fecha.slice(0, 80)}»`,
       proposedRepair: "Separar fecha_evento vs horario_evento.",
+    });
+  }
+
+  // A16309: año absurdo (2207) o tipografía
+  if (fecha && /\b(1[6-9]\d{2}|2[1-9]\d{2}|[3-9]\d{3})\b/.test(fecha)) {
+    const y = Number(fecha.match(/\b(\d{4})\b/)?.[1] ?? 0);
+    const nowY = new Date().getFullYear();
+    if (y && (y > nowY + 12 || y < 1990)) {
+      findings.push({
+        category: "bad_field",
+        severity: "error",
+        evidence: `CRM Fecha con año absurdo: «${fecha.slice(0, 80)}»`,
+        proposedRepair: "normalizeAbsurdEventYear (2207→2027) al capturar fecha.",
+      });
+    }
+  }
+
+  if (horario && /^ser[ií]a\b/i.test(horario)) {
+    findings.push({
+      category: "bad_field",
+      severity: "warn",
+      evidence: `CRM Horario conserva filler «Sería…»: «${horario.slice(0, 80)}»`,
+      proposedRepair: "normalizeHorarioCapture debe quitar Sería/Será antes de guardar.",
     });
   }
 
