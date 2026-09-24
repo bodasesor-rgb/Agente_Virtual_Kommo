@@ -1585,12 +1585,45 @@ export function clientAsksNamedServiceDetail(message?: string): boolean {
   );
 }
 
+/**
+ * A16345: "¿Paletas con alcohol?" / "Tienes paletas con alcohol?"
+ * — disponibilidad / variante, no “anotar y seguir embudo”.
+ */
+export function clientAsksProductAvailability(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase().replace(/\s+/g, " ").trim();
+  if (!/\?/.test(message) && !/\b(tienen|tienes|hay|manejan|ofrecen|cuenta|cuentan)\b/i.test(t)) {
+    return false;
+  }
+  // Variante con alcohol (paletas/helados/barra/etc.).
+  if (/\balcohol\b/i.test(t) && isServiceRelatedMessage(message)) return true;
+  // "Tienes X?" / "Hay X?" con SKU.
+  if (
+    isServiceRelatedMessage(message) &&
+    /\b(tienen|tienes|hay|manejan|ofrecen|cuenta|cuentan)\b/i.test(t)
+  ) {
+    return true;
+  }
+  // Fragmento corto: "¿Paletas con alcohol?" sin verbo.
+  if (
+    t.length <= 80 &&
+    /\?/.test(message) &&
+    isServiceRelatedMessage(message) &&
+    !/\b(quiero|necesito|sum[ae]|agreg|anot)\b/i.test(t)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /** Cliente pide información, precio o detalle de un servicio concreto. */
 export function clientAsksServiceInfo(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
   // A15486: "Detalles de X" / "Más detalle" con SKU nombrado.
   if (clientAsksNamedServiceDetail(message)) return true;
+  // A16345: disponibilidad / "con alcohol?" cuenta como info de servicio.
+  if (clientAsksProductAvailability(message)) return true;
   // A15212: "qué snaks/bocadillos tienen" aunque falle el match de servicio por typo.
   const asksWhatTypes =
     /\bqu[eé]\s+(tipo\s+de\s+)?(snacks?|snaks?|bocadillos?|antojitos?|puestos?)\b/i.test(t) ||
@@ -1992,11 +2025,26 @@ export function clientRequestsCallback(message?: string): boolean {
 /** Cliente apura tiempos ("me urge", "no sea mañana") — no es pedido de teléfono. */
 export function clientSignalsUrgency(message?: string): boolean {
   if (!message?.trim()) return false;
-  const t = message.toLowerCase();
+  const t = message.toLowerCase().replace(/\s+/g, " ").trim();
   return (
     /\b(me\s+urge|es\s+urgente|de\s+urgencia|faltan\s+pocos\s+d[ií]as|pocos\s+d[ií]as)\b/i.test(t) ||
     /\bno\s+sea\s+ma[nñ]ana\b/i.test(t) ||
-    /\bnecesito\s+saber\s+si\s+(pueden|pueden\s+o\s+no|se\s+puede)\b/i.test(t)
+    /\bnecesito\s+saber\s+si\s+(pueden|pueden\s+o\s+no|se\s+puede)\b/i.test(t) ||
+    // A16345: "Hoy" / "Si hoy" / "Para hoy" tras CTA de contacto.
+    /^(s[ií]\s+)?hoy[.!]*$/i.test(t) ||
+    /^para\s+hoy[.!]*$/i.test(t) ||
+    /\b(s[ií]\s+)?(me\s+urge\s+)?(que\s+)?(me\s+)?(contacten|escriban|manden).{0,20}\bhoy\b/i.test(t)
+  );
+}
+
+/** Último mensaje de Lucy pedía contacto hoy / urgencia / chat abierto. */
+export function assistantAskedUrgencyOrSoftExit(assistantText?: string | null): boolean {
+  if (!assistantText?.trim()) return false;
+  const t = assistantText.toLowerCase();
+  return (
+    /\b(te\s+urge|contacte\s+hoy|contacten\s+hoy|hoy\s+con\s+la\s+propuesta)\b/i.test(t) ||
+    /\bte\s+dejo\s+el\s+chat\s+abierto\b/i.test(t) ||
+    /\baqu[ií]\s+seguimos\s+cuando\s+lo\s+necesites\b/i.test(t)
   );
 }
 
@@ -7088,6 +7136,16 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
     return "Sin definir (cliente pidió que propongamos)";
   }
 
+  // A16345: "Abierta" / "propuesta abierta" = sin monto, que el equipo proponga.
+  if (
+    /^(abiert[oa]s?)[\s.,!]*$/i.test(trimmed) ||
+    /\bpropuesta\s+abierta\b/i.test(trimmed) ||
+    /\bpresupuesto\s+abiert[oa]\b/i.test(trimmed) ||
+    /\bcotizaci[oó]n\s+abierta\b/i.test(trimmed)
+  ) {
+    return "Sin definir (propuesta abierta / cliente pidió opciones)";
+  }
+
   // A15383: "Opción completa por favor" = que el equipo arme la propuesta.
   if (
     /\bopci[oó]n\s+completa\b/i.test(trimmed) ||
@@ -7137,8 +7195,12 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
   }
 
   if (opts?.askedField === "presupuesto") {
-    if (/^(s[ií]|ok|vale|bueno|est[aá]\s+bien|perfecto|claro|de\s+acuerdo|opciones?|propuestas?)[\s.,!]*$/i.test(trimmed)) {
-      return trimmed.match(/^opciones?|^propuestas?/i)
+    if (
+      /^(s[ií]|ok|vale|bueno|est[aá]\s+bien|perfecto|claro|de\s+acuerdo|opciones?|propuestas?|abiert[oa]s?)[\s.,!]*$/i.test(
+        trimmed
+      )
+    ) {
+      return trimmed.match(/^opciones?|^propuestas?|^abiert/i)
         ? "Sin definir (cliente pidió que propongamos)"
         : PRESUPUESTO_AUTO_WAIVER;
     }

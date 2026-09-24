@@ -177,6 +177,8 @@ import {
   clientMentionsTarimaOnly,
   preferTarimaLabelOverPista,
   stripServiceDeclineClausesFromDireccion,
+  clientAsksProductAvailability,
+  assistantAskedUrgencyOrSoftExit,
   clientAsksDimensionRecommendation,
   recommendPistaDimensionsForGuests,
   recommendCarpaDimensionsForGuests,
@@ -4936,6 +4938,22 @@ export function buildPostCierreSoftExitReply(clientName?: string | null): string
     : "¡Con gusto! Aquí seguimos cuando lo necesites. ¿Te dejo el chat abierto por si surge otra duda?";
 }
 
+/**
+ * A16345: tras soft-exit / “Hoy” / “Sí” al chat abierto — cerrar el ciclo
+ * sin re-preguntar canal ni “algo más”.
+ */
+export function buildPostCierreTerminalAck(
+  clientName?: string | null,
+  opts?: { urgency?: boolean }
+): string {
+  const nombre = sanitizeDisplayName(clientName);
+  const hi = nombre ? `, ${nombre}` : "";
+  if (opts?.urgency) {
+    return `Perfecto${hi}. Le doy prioridad para que el equipo te contacte hoy con la propuesta. Si surge otra duda, aquí estoy ¿de acuerdo?`;
+  }
+  return `Perfecto${hi}. El equipo ya tiene tu cotización en curso y te escribe por aquí. Si surge algo, escríbeme ¿de acuerdo?`;
+}
+
 /** A16309: cliente confirma correo / WhatsApp tras pregunta de canal. */
 export function buildPostCierreCanalAckReply(
   channel: "email" | "chat",
@@ -5036,6 +5054,25 @@ export function buildContinueEngagementQuestion(
   currentMessage?: string | null,
   history?: OpenAI.Chat.ChatCompletionMessageParam[]
 ): string {
+  const lastAsst = [...(history ?? [])]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string");
+  const lastAsstText =
+    lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : "";
+  const softExitAlready = assistantAskedUrgencyOrSoftExit(lastAsstText);
+  const msg = (currentMessage ?? "").trim();
+  const shortYes = /^(s[ií]|sip|ok(ay)?|va|dale|perfecto|listo|claro)[.!]*$/i.test(msg);
+
+  // A16345: no ciclar soft-exit ↔ algo más ↔ canal.
+  if (softExitAlready) {
+    if (clientSignalsUrgency(currentMessage) || /hoy/i.test(msg)) {
+      return "¿Te contacto el equipo hoy por este chat, o prefieres esperar a que te escriban con la propuesta completa?";
+    }
+    if (clientDeclinesMoreServices(currentMessage) || clientSaysThanks(currentMessage) || shortYes) {
+      return "¿De acuerdo?";
+    }
+  }
+
   if (clientRequestsCallback(currentMessage) || clientSignalsUrgency(currentMessage)) {
     return "¿Te marco el equipo hoy por teléfono, o prefieres que te escriban primero por este chat?";
   }
@@ -5051,6 +5088,16 @@ export function buildContinueEngagementQuestion(
     return "¿Confirmamos que el equipo te escriba por aquí con la propuesta, o prefieres esperar el correo?";
   }
   if (canalDone) {
+    // A16345: si ya preguntamos “algo más” antes, no insistir — soft exit.
+    const prevAlgoMas = (history ?? []).some(
+      (m) =>
+        m.role === "assistant" &&
+        typeof m.content === "string" &&
+        /\b(algo m[aá]s|sumar a la cotizaci[oó]n|agregar algo)\b/i.test(m.content)
+    );
+    if (prevAlgoMas) {
+      return "¿Te dejo el chat abierto por si surge otra duda?";
+    }
     return "¿Hay algo más que quieras sumar a la cotización?";
   }
   const req = extracted.requerimientos_evento ?? "";
@@ -5077,6 +5124,14 @@ export function ensureOutboundAlwaysAsks(
 ): string {
   let out = (mensaje || "").trim();
   if (/\?/.test(out)) return out;
+
+  // A16345: post-cierre terminal ya tiene cierre claro — no reinyectar canal/algo-más.
+  if (
+    opts.cierreYaEnviado &&
+    /el equipo ya tiene tu cotizaci[oó]n|le doy prioridad|te contacte hoy/i.test(out)
+  ) {
+    return /\?/.test(out) ? out : `${out} ¿De acuerdo?`;
+  }
 
   if (!opts.cierreYaEnviado) {
     const pending = getNextPendingField(opts.extracted, opts.filledSet);
@@ -8414,6 +8469,36 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: A16309 — menús alternativos (no anotar literal)");
   } else if (
+    // A16345: post-cierre — ya pedimos soft-exit / urgencia; "Sí"/"No"/"Hoy" → terminal.
+    cierreYaEnviado &&
+    lastAssistantMsg &&
+    typeof lastAssistantMsg.content === "string" &&
+    assistantAskedUrgencyOrSoftExit(lastAssistantMsg.content) &&
+    (clientDeclinesMoreServices(currentMessage) ||
+      clientSaysThanks(currentMessage) ||
+      clientSignalsUrgency(currentMessage) ||
+      /^(s[ií]|sip|ok(ay)?|va|dale|perfecto|listo|claro)[.!]*$/i.test(
+        (currentMessage ?? "").trim()
+      ) ||
+      /^(s[ií]\s+)?hoy[.!]*$/i.test((currentMessage ?? "").trim()))
+  ) {
+    mensaje = buildPostCierreTerminalAck(
+      getDisplayName(extracted, whatsappDisplayName),
+      { urgency: clientSignalsUrgency(currentMessage) || /\bhoy\b/i.test(currentMessage ?? "") }
+    );
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16345 — post-cierre terminal (sin ciclo sticky)");
+  } else if (
+    // A16345: "¿Paletas con alcohol?" post-cierre — responder, no anotar como extra.
+    cierreYaEnviado &&
+    (clientAsksProductAvailability(currentMessage) || clientAsksServiceInfo(currentMessage)) &&
+    !clientAddsToQuote(currentMessage) &&
+    !clientDeclinesMoreServices(currentMessage)
+  ) {
+    mensaje = buildGuardServiceAck(currentMessage ?? "");
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16345 — post-cierre disponibilidad/producto (no add-to-quote)");
+  } else if (
     // A16309: "Por correo" / "Correo" tras pregunta de canal.
     cierreYaEnviado &&
     (clientChoosesEmailDelivery(currentMessage) || clientChoosesChatDelivery(currentMessage)) &&
@@ -8572,11 +8657,20 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))
   ) {
     // A16309: si ya eligió correo/aquí, no volver a preguntar el canal.
-    mensaje = historyHasDeliveryChannelChoice(presHistory, currentMessage)
-      ? buildPostCierreSoftExitReply(
+    // A16345: si ya dimos soft-exit, no repetirlo — terminal.
+    const lastSoft =
+      lastAssistantMsg &&
+      typeof lastAssistantMsg.content === "string" &&
+      assistantAskedUrgencyOrSoftExit(lastAssistantMsg.content);
+    mensaje = lastSoft
+      ? buildPostCierreTerminalAck(
           extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
         )
-      : buildPostCierreThanksReply(extracted.nombre);
+      : historyHasDeliveryChannelChoice(presHistory, currentMessage)
+        ? buildPostCierreSoftExitReply(
+            extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+          )
+        : buildPostCierreThanksReply(extracted.nombre);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre — agradecimiento o sin más que agregar");
   } else if (clientAsksIfCompanyEmailCorrect(currentMessage)) {
@@ -9847,6 +9941,37 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       justAnsweredReq ||
       lastAssistantAskedMoreServices(presHistory))
   ) {
+    // A16345: "Nop" tras pregunta de presupuesto ≠ decline de extras.
+    const lastAskField = inferLucyAskedField(
+      lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+        ? lastAssistantMsg.content
+        : undefined
+    );
+    if (
+      lastAskField === "presupuesto" ||
+      detectPresupuestoRefusalInContext(
+        currentMessage,
+        lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+          ? lastAssistantMsg.content
+          : null
+      )
+    ) {
+      applyPresupuestoWaiver(
+        filledSet,
+        [],
+        collectUserTexts(presHistory, currentMessage),
+        presHistory
+      );
+      const pending = getNextPendingField(extracted, filledSet);
+      mensaje = pending
+        ? buildNaturalQuestion(pending, ctx)
+        : buildClosing(
+            extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+            extracted.nombre
+          );
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: A16345 — Nop = waiver presupuesto (no decline extras)");
+    } else {
     filledSet.add("Requerimientos o servicios");
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
       mensaje = buildClosing(
@@ -9879,6 +10004,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     }
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente no quiere más servicios — avanzar o cierre");
+    }
   } else if (
     allowSalesReplyOverride &&
     (clientMentionsEntertainment(currentMessage) ||
@@ -10440,12 +10566,19 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   } else if (
     allowSalesReplyOverride &&
     clientAsksServiceInfo(currentMessage) &&
-    isServiceRelatedMessage(currentMessage) &&
+    (isServiceRelatedMessage(currentMessage) || clientAsksProductAvailability(currentMessage)) &&
     !clientAsksPrice(currentMessage) &&
     // A15165: "Tienes más servicios?" / "qué servicios manejas" → recomendaciones, no embudo.
     !clientAsksForRecommendations(currentMessage)
     // A15486: también post-cierre (antes bloqueaba con !cierreYaEnviado)
   ) {
+    // A16345: disponibilidad alcohol — responder y NO apilar embudo (fecha/etc.).
+    if (clientAsksProductAvailability(currentMessage) && /\balcohol\b/i.test(currentMessage ?? "")) {
+      mensaje = buildGuardServiceAck(currentMessage ?? "");
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: A16345 — disponibilidad producto (sin embudo encima)");
+    } else {
     // Preferir oferta con niveles + pregunta de catálogo (como food-sales),
     // no solo un ack corto que salta al embudo.
     // Precio SKU → rama clientAsksPrice (buildCatalogPriceAnswer), no detalle sin $.
@@ -10527,6 +10660,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pregunta de servicio — responder con detalle");
     }
+    } // fin else: no alcohol-availability early exit (A16345)
   } else if (
     allowSalesReplyOverride &&
     // V8.35: si pide info/detalle, reexplicar aunque el servicio ya esté capturado.

@@ -106,6 +106,19 @@ export function classifyServiceKnowledgeLevel(query: string): ServiceKnowledgeLe
 /** Servicio con página o ficha: anotar y mandar el link real. Nunca "no lo tengo listado". */
 export function buildKnownCatalogAck(serviceLabel: string, query: string): string {
   const name = serviceLabel.trim() || "ese servicio";
+  // A16345: "¿Tienen paletas con alcohol?" — responder disponibilidad, no solo “anoto”.
+  if (/\balcohol\b/i.test(query) && /\bpaletas?|\bhelados?\b/i.test(query)) {
+    return [
+      "Sí — manejamos *Paletas de Hielo y Helados*, y hay variantes con alcohol que confirma el equipo según sabor y cantidad.",
+      "¿Las sumamos a tu cotización de paletas, o prefieres solo las sin alcohol?",
+    ].join(" ");
+  }
+  if (/\balcohol\b/i.test(query) && /\bbarra\b|\bbebidas?\b/i.test(query)) {
+    return [
+      "Sí — manejamos *barra de bebidas* con y sin alcohol; el equipo arma la propuesta según estilo y cantidad.",
+      "¿La sumamos a tu cotización?",
+    ].join(" ");
+  }
   const url =
     getCatalogWebUrlForQuery(query) ||
     getCatalogWebUrlForQuery(name) ||
@@ -269,6 +282,10 @@ export function buildLevel3Ack(serviceLabel: string): string {
 }
 
 export function buildGuardServiceAck(query: string): string {
+  // A16345: disponibilidad alcohol / "tienes X?" antes de anotar genérico.
+  if (/\balcohol\b/i.test(query) && /\bpaletas?|\bhelados?\b/i.test(query)) {
+    return buildKnownCatalogAck("Paletas de Hielo y Helados", query);
+  }
   // A16046 / A16263: nunca Level-2 "no lo tengo listado" para un tipo de evento.
   if (isEventTypeOnlyMessage(query) || isOccasionMealEventType(query)) {
     if (isOccasionMealEventType(query)) {

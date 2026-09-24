@@ -403,12 +403,23 @@ export function isWeakOrJunkNombre(name: string | null | undefined): boolean {
   if (/\bcon\s+gusto\b/i.test(t)) return true;
   const parts = t.split(/\s+/).filter(Boolean);
   if (parts.length === 1) {
-    const letters = (parts[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    const rawPart = parts[0] ?? "";
+    const letters = rawPart.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     if (!letters || letters.length < 3) return true;
     if (NAME_STOPWORDS.test(letters)) return true;
     if (GREETING_NAME_PATTERN.test(letters)) return true;
     if (NAME_COURTESY_OR_ROLE_TOKEN.test(letters)) return true;
     if (/^(con|sin|por|para|de|del|la|el|los|las|un|una|y|o)$/i.test(letters)) return true;
+    // A16345: "Monicalnem" / "MonicaLnem" — nombre mash sin espacios (basura GPT/OCR).
+    if (/[a-záéíóúñ][A-ZÁÉÍÓÚÑ]/.test(rawPart) && letters.length >= 8) return true;
+    if (
+      letters.length >= 10 &&
+      !/^(guadalupe|maximiliano|alejandro|alejandra|francisco|constanza|valentina|sebastian|sebastían|margarita)$/i.test(
+        letters
+      )
+    ) {
+      return true;
+    }
   }
   return false;
 }

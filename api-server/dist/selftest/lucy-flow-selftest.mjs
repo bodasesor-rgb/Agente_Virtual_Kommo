@@ -111129,12 +111129,19 @@ function isWeakOrJunkNombre(name2) {
   if (/\bcon\s+gusto\b/i.test(t3)) return true;
   const parts2 = t3.split(/\s+/).filter(Boolean);
   if (parts2.length === 1) {
-    const letters = (parts2[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    const rawPart = parts2[0] ?? "";
+    const letters = rawPart.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     if (!letters || letters.length < 3) return true;
     if (NAME_STOPWORDS.test(letters)) return true;
     if (GREETING_NAME_PATTERN.test(letters)) return true;
     if (NAME_COURTESY_OR_ROLE_TOKEN.test(letters)) return true;
     if (/^(con|sin|por|para|de|del|la|el|los|las|un|una|y|o)$/i.test(letters)) return true;
+    if (/[a-záéíóúñ][A-ZÁÉÍÓÚÑ]/.test(rawPart) && letters.length >= 8) return true;
+    if (letters.length >= 10 && !/^(guadalupe|maximiliano|alejandro|alejandra|francisco|constanza|valentina|sebastian|sebastían|margarita)$/i.test(
+      letters
+    )) {
+      return true;
+    }
   }
   return false;
 }
@@ -126180,10 +126187,26 @@ function clientAsksNamedServiceDetail(message) {
   }
   return parseServicesFromText(t3).length > 0 || isServiceRelatedMessage(t3) || isTablewareRequestText(t3);
 }
+function clientAsksProductAvailability(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase().replace(/\s+/g, " ").trim();
+  if (!/\?/.test(message) && !/\b(tienen|tienes|hay|manejan|ofrecen|cuenta|cuentan)\b/i.test(t3)) {
+    return false;
+  }
+  if (/\balcohol\b/i.test(t3) && isServiceRelatedMessage(message)) return true;
+  if (isServiceRelatedMessage(message) && /\b(tienen|tienes|hay|manejan|ofrecen|cuenta|cuentan)\b/i.test(t3)) {
+    return true;
+  }
+  if (t3.length <= 80 && /\?/.test(message) && isServiceRelatedMessage(message) && !/\b(quiero|necesito|sum[ae]|agreg|anot)\b/i.test(t3)) {
+    return true;
+  }
+  return false;
+}
 function clientAsksServiceInfo(message) {
   if (!message?.trim()) return false;
   const t3 = message.toLowerCase();
   if (clientAsksNamedServiceDetail(message)) return true;
+  if (clientAsksProductAvailability(message)) return true;
   const asksWhatTypes = /\bqu[eé]\s+(tipo\s+de\s+)?(snacks?|snaks?|bocadillos?|antojitos?|puestos?)\b/i.test(t3) || /\b(snacks?|snaks?|bocadillos?|antojitos?).{0,40}\b(tienen|tienes|manejan|ofrecen)\b/i.test(t3) || /\b(tienen|tienes|manejan|ofrecen).{0,40}\b(snacks?|snaks?|bocadillos?|antojitos?)\b/i.test(t3);
   if (!isServiceRelatedMessage(message) && !asksWhatTypes) return false;
   return asksWhatTypes || /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?|modelos?)\b/i.test(t3) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t3) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t3) || /\bnecesito\s+saber\b/i.test(t3) || /\b(tiene|tienes|tienen)\s+(info|informaci[oó]n|cat[aá]logo|detalle|modelos?)\b/i.test(t3) || // "¿Cuentan/cuenta con carpas…?" / "¿tienen pista?" / "¿tienes modelos?"
@@ -126405,8 +126428,14 @@ function clientRequestsCallback(message) {
 }
 function clientSignalsUrgency(message) {
   if (!message?.trim()) return false;
-  const t3 = message.toLowerCase();
-  return /\b(me\s+urge|es\s+urgente|de\s+urgencia|faltan\s+pocos\s+d[ií]as|pocos\s+d[ií]as)\b/i.test(t3) || /\bno\s+sea\s+ma[nñ]ana\b/i.test(t3) || /\bnecesito\s+saber\s+si\s+(pueden|pueden\s+o\s+no|se\s+puede)\b/i.test(t3);
+  const t3 = message.toLowerCase().replace(/\s+/g, " ").trim();
+  return /\b(me\s+urge|es\s+urgente|de\s+urgencia|faltan\s+pocos\s+d[ií]as|pocos\s+d[ií]as)\b/i.test(t3) || /\bno\s+sea\s+ma[nñ]ana\b/i.test(t3) || /\bnecesito\s+saber\s+si\s+(pueden|pueden\s+o\s+no|se\s+puede)\b/i.test(t3) || // A16345: "Hoy" / "Si hoy" / "Para hoy" tras CTA de contacto.
+  /^(s[ií]\s+)?hoy[.!]*$/i.test(t3) || /^para\s+hoy[.!]*$/i.test(t3) || /\b(s[ií]\s+)?(me\s+urge\s+)?(que\s+)?(me\s+)?(contacten|escriban|manden).{0,20}\bhoy\b/i.test(t3);
+}
+function assistantAskedUrgencyOrSoftExit(assistantText) {
+  if (!assistantText?.trim()) return false;
+  const t3 = assistantText.toLowerCase();
+  return /\b(te\s+urge|contacte\s+hoy|contacten\s+hoy|hoy\s+con\s+la\s+propuesta)\b/i.test(t3) || /\bte\s+dejo\s+el\s+chat\s+abierto\b/i.test(t3) || /\baqu[ií]\s+seguimos\s+cuando\s+lo\s+necesites\b/i.test(t3);
 }
 function clientAsksPhone(message) {
   if (!message?.trim()) return false;
@@ -129571,6 +129600,9 @@ function parsePresupuestoFromText(text2, opts) {
   if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(trimmed)) {
     return "Sin definir (cliente pidi\xF3 que propongamos)";
   }
+  if (/^(abiert[oa]s?)[\s.,!]*$/i.test(trimmed) || /\bpropuesta\s+abierta\b/i.test(trimmed) || /\bpresupuesto\s+abiert[oa]\b/i.test(trimmed) || /\bcotizaci[oó]n\s+abierta\b/i.test(trimmed)) {
+    return "Sin definir (propuesta abierta / cliente pidi\xF3 opciones)";
+  }
   if (/\bopci[oó]n\s+completa\b/i.test(trimmed) || /\bpropuesta\s+completa\b/i.test(trimmed)) {
     return "Sin definir (cliente pidi\xF3 que propongamos)";
   }
@@ -129598,8 +129630,10 @@ function parsePresupuestoFromText(text2, opts) {
     return "Sin definir (cliente indic\xF3 que no tiene)";
   }
   if (opts?.askedField === "presupuesto") {
-    if (/^(s[ií]|ok|vale|bueno|est[aá]\s+bien|perfecto|claro|de\s+acuerdo|opciones?|propuestas?)[\s.,!]*$/i.test(trimmed)) {
-      return trimmed.match(/^opciones?|^propuestas?/i) ? "Sin definir (cliente pidi\xF3 que propongamos)" : PRESUPUESTO_AUTO_WAIVER;
+    if (/^(s[ií]|ok|vale|bueno|est[aá]\s+bien|perfecto|claro|de\s+acuerdo|opciones?|propuestas?|abiert[oa]s?)[\s.,!]*$/i.test(
+      trimmed
+    )) {
+      return trimmed.match(/^opciones?|^propuestas?|^abiert/i) ? "Sin definir (cliente pidi\xF3 que propongamos)" : PRESUPUESTO_AUTO_WAIVER;
     }
     if (/^(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea|\.\.+)[\s.,!]*$/i.test(trimmed)) {
       return "Sin definir (cliente indic\xF3 que no tiene)";
@@ -133860,6 +133894,18 @@ function classifyServiceKnowledgeLevel(query) {
 }
 function buildKnownCatalogAck(serviceLabel, query) {
   const name2 = serviceLabel.trim() || "ese servicio";
+  if (/\balcohol\b/i.test(query) && /\bpaletas?|\bhelados?\b/i.test(query)) {
+    return [
+      "S\xED \u2014 manejamos *Paletas de Hielo y Helados*, y hay variantes con alcohol que confirma el equipo seg\xFAn sabor y cantidad.",
+      "\xBFLas sumamos a tu cotizaci\xF3n de paletas, o prefieres solo las sin alcohol?"
+    ].join(" ");
+  }
+  if (/\balcohol\b/i.test(query) && /\bbarra\b|\bbebidas?\b/i.test(query)) {
+    return [
+      "S\xED \u2014 manejamos *barra de bebidas* con y sin alcohol; el equipo arma la propuesta seg\xFAn estilo y cantidad.",
+      "\xBFLa sumamos a tu cotizaci\xF3n?"
+    ].join(" ");
+  }
   const url = getCatalogWebUrlForQuery(query) || getCatalogWebUrlForQuery(name2) || null;
   if (!url) {
     return `\xA1Claro! Anoto *${name2}* para tu cotizaci\xF3n. Nuestro equipo arma la propuesta seg\xFAn estilo y cantidad.`;
@@ -133980,6 +134026,9 @@ function buildLevel3Ack(serviceLabel) {
   return `Tomo nota de tu solicitud especial (*${label}*). Nuestro equipo revisa disponibilidad y te confirma si podemos apoyarte.`;
 }
 function buildGuardServiceAck(query) {
+  if (/\balcohol\b/i.test(query) && /\bpaletas?|\bhelados?\b/i.test(query)) {
+    return buildKnownCatalogAck("Paletas de Hielo y Helados", query);
+  }
   if (isEventTypeOnlyMessage(query) || isOccasionMealEventType(query)) {
     if (isOccasionMealEventType(query)) {
       return "Perfecto. Anoto tu *cena conmemorativa*. \xBFCu\xE1ntos invitados tienen contemplados?";
@@ -139119,6 +139168,14 @@ function buildPostCierreSoftExitReply(clientName) {
   const nombre = sanitizeDisplayName(clientName);
   return nombre ? `\xA1Con gusto, ${nombre}! Aqu\xED seguimos cuando lo necesites. \xBFTe dejo el chat abierto por si surge otra duda?` : "\xA1Con gusto! Aqu\xED seguimos cuando lo necesites. \xBFTe dejo el chat abierto por si surge otra duda?";
 }
+function buildPostCierreTerminalAck(clientName, opts) {
+  const nombre = sanitizeDisplayName(clientName);
+  const hi = nombre ? `, ${nombre}` : "";
+  if (opts?.urgency) {
+    return `Perfecto${hi}. Le doy prioridad para que el equipo te contacte hoy con la propuesta. Si surge otra duda, aqu\xED estoy \xBFde acuerdo?`;
+  }
+  return `Perfecto${hi}. El equipo ya tiene tu cotizaci\xF3n en curso y te escribe por aqu\xED. Si surge algo, escr\xEDbeme \xBFde acuerdo?`;
+}
 function buildPostCierreCanalAckReply(channel, clientName) {
   const nombre = sanitizeDisplayName(clientName);
   const hi = nombre ? `, ${nombre}` : "";
@@ -139167,6 +139224,19 @@ function buildPostCierreCallbackAck(clientName) {
   return nombre ? `Con gusto, ${nombre}. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo. \xBFPrefieres que te marque Ventas o Gerencia primero?` : "Con gusto. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo. \xBFPrefieres que te marque Ventas o Gerencia primero?";
 }
 function buildContinueEngagementQuestion(extracted, currentMessage, history) {
+  const lastAsst = [...history ?? []].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
+  const lastAsstText = lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : "";
+  const softExitAlready = assistantAskedUrgencyOrSoftExit(lastAsstText);
+  const msg = (currentMessage ?? "").trim();
+  const shortYes = /^(s[ií]|sip|ok(ay)?|va|dale|perfecto|listo|claro)[.!]*$/i.test(msg);
+  if (softExitAlready) {
+    if (clientSignalsUrgency(currentMessage) || /hoy/i.test(msg)) {
+      return "\xBFTe contacto el equipo hoy por este chat, o prefieres esperar a que te escriban con la propuesta completa?";
+    }
+    if (clientDeclinesMoreServices(currentMessage) || clientSaysThanks(currentMessage) || shortYes) {
+      return "\xBFDe acuerdo?";
+    }
+  }
   if (clientRequestsCallback(currentMessage) || clientSignalsUrgency(currentMessage)) {
     return "\xBFTe marco el equipo hoy por tel\xE9fono, o prefieres que te escriban primero por este chat?";
   }
@@ -139181,6 +139251,12 @@ function buildContinueEngagementQuestion(extracted, currentMessage, history) {
     return "\xBFConfirmamos que el equipo te escriba por aqu\xED con la propuesta, o prefieres esperar el correo?";
   }
   if (canalDone) {
+    const prevAlgoMas = (history ?? []).some(
+      (m5) => m5.role === "assistant" && typeof m5.content === "string" && /\b(algo m[aá]s|sumar a la cotizaci[oó]n|agregar algo)\b/i.test(m5.content)
+    );
+    if (prevAlgoMas) {
+      return "\xBFTe dejo el chat abierto por si surge otra duda?";
+    }
     return "\xBFHay algo m\xE1s que quieras sumar a la cotizaci\xF3n?";
   }
   const req = extracted.requerimientos_evento ?? "";
@@ -139192,6 +139268,9 @@ function buildContinueEngagementQuestion(extracted, currentMessage, history) {
 function ensureOutboundAlwaysAsks(mensaje, opts) {
   let out2 = (mensaje || "").trim();
   if (/\?/.test(out2)) return out2;
+  if (opts.cierreYaEnviado && /el equipo ya tiene tu cotizaci[oó]n|le doy prioridad|te contacte hoy/i.test(out2)) {
+    return /\?/.test(out2) ? out2 : `${out2} \xBFDe acuerdo?`;
+  }
   if (!opts.cierreYaEnviado) {
     const pending = getNextPendingField(opts.extracted, opts.filledSet);
     if (pending) {
@@ -141339,6 +141418,25 @@ Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: A16309 \u2014 men\xFAs alternativos (no anotar literal)");
   } else if (
+    // A16345: post-cierre — ya pedimos soft-exit / urgencia; "Sí"/"No"/"Hoy" → terminal.
+    cierreYaEnviado && lastAssistantMsg && typeof lastAssistantMsg.content === "string" && assistantAskedUrgencyOrSoftExit(lastAssistantMsg.content) && (clientDeclinesMoreServices(currentMessage) || clientSaysThanks(currentMessage) || clientSignalsUrgency(currentMessage) || /^(s[ií]|sip|ok(ay)?|va|dale|perfecto|listo|claro)[.!]*$/i.test(
+      (currentMessage ?? "").trim()
+    ) || /^(s[ií]\s+)?hoy[.!]*$/i.test((currentMessage ?? "").trim()))
+  ) {
+    mensaje = buildPostCierreTerminalAck(
+      getDisplayName(extracted, whatsappDisplayName),
+      { urgency: clientSignalsUrgency(currentMessage) || /\bhoy\b/i.test(currentMessage ?? "") }
+    );
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16345 \u2014 post-cierre terminal (sin ciclo sticky)");
+  } else if (
+    // A16345: "¿Paletas con alcohol?" post-cierre — responder, no anotar como extra.
+    cierreYaEnviado && (clientAsksProductAvailability(currentMessage) || clientAsksServiceInfo(currentMessage)) && !clientAddsToQuote(currentMessage) && !clientDeclinesMoreServices(currentMessage)
+  ) {
+    mensaje = buildGuardServiceAck(currentMessage ?? "");
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A16345 \u2014 post-cierre disponibilidad/producto (no add-to-quote)");
+  } else if (
     // A16309: "Por correo" / "Correo" tras pregunta de canal.
     cierreYaEnviado && (clientChoosesEmailDelivery(currentMessage) || clientChoosesChatDelivery(currentMessage)) && (assistantAskedDeliveryChannel(
       lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
@@ -141429,7 +141527,10 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 servicio adicional (ack corto, sin niveles)");
   } else if (cierreYaEnviado && (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))) {
-    mensaje = historyHasDeliveryChannelChoice(presHistory, currentMessage) ? buildPostCierreSoftExitReply(
+    const lastSoft = lastAssistantMsg && typeof lastAssistantMsg.content === "string" && assistantAskedUrgencyOrSoftExit(lastAssistantMsg.content);
+    mensaje = lastSoft ? buildPostCierreTerminalAck(
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    ) : historyHasDeliveryChannelChoice(presHistory, currentMessage) ? buildPostCierreSoftExitReply(
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
     ) : buildPostCierreThanksReply(extracted.nombre);
     appliedDirectReply = true;
@@ -142263,37 +142364,59 @@ ${nextQ}` : `Entendido \u2014 nos quedamos solo con *${label}*. El equipo arma l
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: A15003 \u2014 decline extras, solo entretenimiento elegido");
   } else if (clientDeclinesMoreServices(currentMessage) && hasMeaningfulRequerimientos(extracted, filledSet) && (requerimientosFollowUpAlreadyAsked || justAnsweredReq || lastAssistantAskedMoreServices(presHistory))) {
-    filledSet.add("Requerimientos o servicios");
-    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
-      mensaje = buildClosing(
+    const lastAskField = inferLucyAskedField(
+      lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : void 0
+    );
+    if (lastAskField === "presupuesto" || detectPresupuestoRefusalInContext(
+      currentMessage,
+      lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
+    )) {
+      applyPresupuestoWaiver(
+        filledSet,
+        [],
+        collectUserTexts(presHistory, currentMessage),
+        presHistory
+      );
+      const pending = getNextPendingField(extracted, filledSet);
+      mensaje = pending ? buildNaturalQuestion(pending, ctx) : buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
         extracted.nombre
       );
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: A16345 \u2014 Nop = waiver presupuesto (no decline extras)");
     } else {
-      let pending = getNextPendingField(extracted, filledSet);
-      if (pending === "requerimientos") {
-        const skipReq = [
-          "correo",
-          "presupuesto",
-          "zona",
-          "fecha",
-          "horario",
-          "invitados",
-          "tipo_evento"
-        ];
-        pending = skipReq.find((f6) => !isFieldSatisfied(f6, filledSet, extracted)) ?? null;
-      }
-      if (pending) {
-        mensaje = buildNaturalQuestion(pending, ctx);
-      } else {
+      filledSet.add("Requerimientos o servicios");
+      if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
         mensaje = buildClosing(
           extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
           extracted.nombre
         );
+      } else {
+        let pending = getNextPendingField(extracted, filledSet);
+        if (pending === "requerimientos") {
+          const skipReq = [
+            "correo",
+            "presupuesto",
+            "zona",
+            "fecha",
+            "horario",
+            "invitados",
+            "tipo_evento"
+          ];
+          pending = skipReq.find((f6) => !isFieldSatisfied(f6, filledSet, extracted)) ?? null;
+        }
+        if (pending) {
+          mensaje = buildNaturalQuestion(pending, ctx);
+        } else {
+          mensaje = buildClosing(
+            extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+            extracted.nombre
+          );
+        }
       }
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: cliente no quiere m\xE1s servicios \u2014 avanzar o cierre");
     }
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: cliente no quiere m\xE1s servicios \u2014 avanzar o cierre");
   } else if (allowSalesReplyOverride && (clientMentionsEntertainment(currentMessage) || clientMentionsLedRobotsOrBatucada(currentMessage) || justAnsweredReq && (clientMentionsEntertainment(currentMessage) || clientMentionsLedRobotsOrBatucada(currentMessage)) || // Hilo ya habló de batucada/robots y el cliente insiste (A14962).
   clientMentionsLedRobotsOrBatucada(
     collectUserTexts(presHistory, currentMessage).join(" ")
@@ -142681,63 +142804,70 @@ ${link}
         }
       }
     }
-  } else if (allowSalesReplyOverride && clientAsksServiceInfo(currentMessage) && isServiceRelatedMessage(currentMessage) && !clientAsksPrice(currentMessage) && // A15165: "Tienes más servicios?" / "qué servicios manejas" → recomendaciones, no embudo.
+  } else if (allowSalesReplyOverride && clientAsksServiceInfo(currentMessage) && (isServiceRelatedMessage(currentMessage) || clientAsksProductAvailability(currentMessage)) && !clientAsksPrice(currentMessage) && // A15165: "Tienes más servicios?" / "qué servicios manejas" → recomendaciones, no embudo.
   !clientAsksForRecommendations(currentMessage)) {
-    const cateringAnswer = buildFoodSalesReply(
-      extracted,
-      history,
-      entityId,
-      currentMessage,
-      filledSet,
-      ctx
-    );
-    if (cateringAnswer && /nivel|precio|manejamos|tenemos|info m[aá]s detallada|opciones|cat[aá]logo|\$/i.test(
-      cateringAnswer
-    )) {
-      const pending = getNextPendingField(extracted, filledSet);
-      const asksMeasures = /medidas?/i.test(cateringAnswer);
-      const isProgressive = isProgressiveOptionsMenuReply(cateringAnswer) || /info m[aá]s detallada|de cu[aá]l te|qu[eé]\s+pieza/i.test(cateringAnswer);
-      if (!isProgressive && !asksMeasures && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && aiResponse.trim().length >= 50) {
-        mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
-      } else if (isProgressive || asksMeasures || !pending || pending === "requerimientos" || pending === "correo" || !ctx) {
-        mensaje = cateringAnswer;
-      } else {
-        const nextQ = buildNaturalQuestion(pending, ctx);
-        mensaje = cateringAnswer.includes(nextQ) ? cateringAnswer : `${cateringAnswer}
+    if (clientAsksProductAvailability(currentMessage) && /\balcohol\b/i.test(currentMessage ?? "")) {
+      mensaje = buildGuardServiceAck(currentMessage ?? "");
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: A16345 \u2014 disponibilidad producto (sin embudo encima)");
+    } else {
+      const cateringAnswer = buildFoodSalesReply(
+        extracted,
+        history,
+        entityId,
+        currentMessage,
+        filledSet,
+        ctx
+      );
+      if (cateringAnswer && /nivel|precio|manejamos|tenemos|info m[aá]s detallada|opciones|cat[aá]logo|\$/i.test(
+        cateringAnswer
+      )) {
+        const pending = getNextPendingField(extracted, filledSet);
+        const asksMeasures = /medidas?/i.test(cateringAnswer);
+        const isProgressive = isProgressiveOptionsMenuReply(cateringAnswer) || /info m[aá]s detallada|de cu[aá]l te|qu[eé]\s+pieza/i.test(cateringAnswer);
+        if (!isProgressive && !asksMeasures && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && aiResponse.trim().length >= 50) {
+          mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
+        } else if (isProgressive || asksMeasures || !pending || pending === "requerimientos" || pending === "correo" || !ctx) {
+          mensaje = cateringAnswer;
+        } else {
+          const nextQ = buildNaturalQuestion(pending, ctx);
+          mensaje = cateringAnswer.includes(nextQ) ? cateringAnswer : `${cateringAnswer}
 
 ${nextQ}`;
-      }
-      appliedSalesReply = true;
-      if (!isProgressiveOptionsMenuReply(mensaje)) {
-        appliedDirectReply = true;
-      }
-      log?.info({ entityId }, "GUARD: pregunta de servicio \u2014 detalle Sheet + oferta cat\xE1logo");
-    } else {
-      const ack = buildGuardServiceAck(currentMessage ?? "");
-      const sala = parseSalaProductFromText(currentMessage ?? "");
-      if (sala && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
-        extracted.requerimientos_evento = sala;
-        filledSet.add("Requerimientos o servicios");
-      }
-      const pending = getNextPendingField(extracted, filledSet);
-      const asksMeasures = /medidas?/i.test(ack);
-      if (!asksMeasures && pending && ctx) {
-        const nextQ = buildNaturalQuestion(pending, ctx);
-        const lastAsk = inferLucyAskedField(
-          [...presHistory].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string")?.content
-        );
-        if (lastAsk && pending === lastAsk && countLucyFieldAsks(presHistory, pending) >= 1) {
-          mensaje = `${pickTransition(presHistory)} ${ack}`.trim();
-        } else {
-          mensaje = `${pickTransition(presHistory)} ${ack}
+        }
+        appliedSalesReply = true;
+        if (!isProgressiveOptionsMenuReply(mensaje)) {
+          appliedDirectReply = true;
+        }
+        log?.info({ entityId }, "GUARD: pregunta de servicio \u2014 detalle Sheet + oferta cat\xE1logo");
+      } else {
+        const ack = buildGuardServiceAck(currentMessage ?? "");
+        const sala = parseSalaProductFromText(currentMessage ?? "");
+        if (sala && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
+          extracted.requerimientos_evento = sala;
+          filledSet.add("Requerimientos o servicios");
+        }
+        const pending = getNextPendingField(extracted, filledSet);
+        const asksMeasures = /medidas?/i.test(ack);
+        if (!asksMeasures && pending && ctx) {
+          const nextQ = buildNaturalQuestion(pending, ctx);
+          const lastAsk = inferLucyAskedField(
+            [...presHistory].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string")?.content
+          );
+          if (lastAsk && pending === lastAsk && countLucyFieldAsks(presHistory, pending) >= 1) {
+            mensaje = `${pickTransition(presHistory)} ${ack}`.trim();
+          } else {
+            mensaje = `${pickTransition(presHistory)} ${ack}
 
 ${nextQ}`.trim();
+          }
+        } else {
+          mensaje = `${pickTransition(presHistory)} ${ack}`.trim();
         }
-      } else {
-        mensaje = `${pickTransition(presHistory)} ${ack}`.trim();
+        appliedSalesReply = true;
+        log?.info({ entityId }, "GUARD: pregunta de servicio \u2014 responder con detalle");
       }
-      appliedSalesReply = true;
-      log?.info({ entityId }, "GUARD: pregunta de servicio \u2014 responder con detalle");
     }
   } else if (allowSalesReplyOverride && // V8.35: si pide info/detalle, reexplicar aunque el servicio ya esté capturado.
   !clientAsksForRecommendations(currentMessage) && (!serviceAlreadyCaptured || clientAsksServiceInfo(currentMessage) || clientAsksInclusion(currentMessage)) && !clientAsksPrice(currentMessage) && (clientMentionsCatering(currentMessage) || clientAsksServiceInfo(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage) || !!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage))) {
@@ -144421,9 +144551,9 @@ function stripRepeatedQuestionLines(mensaje, previous) {
 function shortPostCierreAck(clientName, thanks = false) {
   const nombre = firstName(clientName);
   if (thanks) {
-    return nombre ? `\xA1Con gusto, ${nombre}! Aqu\xED seguimos cuando lo necesites.` : "\xA1Con gusto! Aqu\xED seguimos cuando lo necesites.";
+    return nombre ? `\xA1Con gusto, ${nombre}! Aqu\xED seguimos cuando lo necesites \xBFde acuerdo?` : "\xA1Con gusto! Aqu\xED seguimos cuando lo necesites \xBFde acuerdo?";
   }
-  return nombre ? `Queda anotado, ${nombre}. Nuestro equipo sigue con tu cotizaci\xF3n.` : "Queda anotado. Nuestro equipo sigue con tu cotizaci\xF3n.";
+  return nombre ? `Queda anotado, ${nombre}. Nuestro equipo sigue con tu cotizaci\xF3n \xBFde acuerdo?` : "Queda anotado. Nuestro equipo sigue con tu cotizaci\xF3n \xBFde acuerdo?";
 }
 function cleanupBrokenOutboundFragments(text2) {
   let t3 = text2.trim();

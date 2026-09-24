@@ -297,14 +297,15 @@ function stripRepeatedQuestionLines(mensaje: string, previous: string[]): string
 
 function shortPostCierreAck(clientName?: string | null, thanks = false): string {
   const nombre = firstName(clientName);
+  // A16345: siempre con `?` terminal suave para no reactivar canal/algo-más vía always-ask.
   if (thanks) {
     return nombre
-      ? `¡Con gusto, ${nombre}! Aquí seguimos cuando lo necesites.`
-      : "¡Con gusto! Aquí seguimos cuando lo necesites.";
+      ? `¡Con gusto, ${nombre}! Aquí seguimos cuando lo necesites ¿de acuerdo?`
+      : "¡Con gusto! Aquí seguimos cuando lo necesites ¿de acuerdo?";
   }
   return nombre
-    ? `Queda anotado, ${nombre}. Nuestro equipo sigue con tu cotización.`
-    : "Queda anotado. Nuestro equipo sigue con tu cotización.";
+    ? `Queda anotado, ${nombre}. Nuestro equipo sigue con tu cotización ¿de acuerdo?`
+    : "Queda anotado. Nuestro equipo sigue con tu cotización ¿de acuerdo?";
 }
 
 /** Quita bloques rotos tipo "Hola, Nicole. con la cotización." */
