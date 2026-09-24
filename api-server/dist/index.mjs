@@ -238545,10 +238545,14 @@ router12.post("/reparaciones/send-to-cursor", async (req, res) => {
       "Content-Type": "application/json",
       Accept: "application/json"
     };
-    const secret = process.env["CURSOR_REPAIR_WEBHOOK_SECRET"]?.trim();
-    if (secret) {
-      headers["Authorization"] = `Bearer ${secret}`;
-      headers["X-Webhook-Secret"] = secret;
+    const rawSecret = process.env["CURSOR_REPAIR_WEBHOOK_SECRET"]?.trim() || "";
+    if (rawSecret) {
+      let key = rawSecret;
+      key = key.replace(/^Authorization:\s*/i, "").trim();
+      key = key.replace(/^Bearer\s+/i, "").trim();
+      if (key) {
+        headers["Authorization"] = `Bearer ${key}`;
+      }
     }
     const upstream = await fetch(webhookUrl, {
       method: "POST",
