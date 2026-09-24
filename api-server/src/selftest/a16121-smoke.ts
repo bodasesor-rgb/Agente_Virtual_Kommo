@@ -35,14 +35,34 @@ for (const msg of [
   "me gustaría ser uno de sus proveedores",
   "quiero ser proveedor",
   "somos proveedores y buscamos aliarnos",
+  // A16345b — frases reales que antes caían a embudo de venta
+  "Ofrezco servicio de DJ y sonido para eventos",
+  "ofrecemos arreglos florales para bodas",
+  "somos distribuidores oficiales de mobiliario",
+  "buscamos aliarnos con ustedes",
+  "Hola, soy partner de rentas de carpas",
+  "nos gustaría colaborar con Bodasesor",
 ]) {
-  assert.ok(looksLikeProveedorOutreach(msg) || resolveTipoContacto(null, msg) === "proveedor", msg);
+  assert.ok(
+    looksLikeProveedorOutreach(msg) || resolveTipoContacto(null, msg) === "proveedor",
+    `debe ser proveedor: ${msg}`
+  );
+  assert.equal(resolveTipoContacto("cliente", msg), "proveedor", msg);
 }
+
+// LLM dijo proveedor sin regex vieja → ahora se respeta si no hay compra
+assert.equal(
+  resolveTipoContacto("proveedor", "Hola, fabricamos centros de mesa premium"),
+  "proveedor"
+);
 
 // No confundir con cliente que busca proveedor de catering.
 assert.ok(!looksLikeProveedorOutreach("busco proveedor de catering para mi boda"));
 assert.equal(resolveTipoContacto(null, "busco proveedor de catering para mi boda"), "cliente");
-
+assert.equal(
+  resolveTipoContacto("proveedor", "quiero cotizar una taquiza para mi boda"),
+  "cliente"
+);
 const extracted = scrubClientFieldsForProveedor(
   emptyExtractedData({
     tipo_contacto: "proveedor",

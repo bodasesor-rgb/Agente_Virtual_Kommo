@@ -349,8 +349,14 @@ export async function generateLucyOutbound(
   // Foto del CRM antes del turno: si no crece, el mensaje del cliente no aportó nada.
   const filledBefore = new Set(filledLabels);
 
-  // A14936 / A16075: proveedor → embudo corto (no handoff hasta completar).
-  if (extracted.tipo_contacto === "proveedor") {
+  const buildProveedorOutbound = (): {
+    mensajeParaCliente: string;
+    aiResponse: string;
+    unclearStreak: number;
+    escalateUnclearToHuman: false;
+    proveedorReadyForHandoff: boolean;
+    proveedorRecoveredToCliente: false;
+  } => {
     applyProveedorAnswer(extracted, messageText, conversationText);
     const complete = proveedorQuestionnaireComplete(extracted);
     let reply = complete
@@ -385,6 +391,11 @@ export async function generateLucyOutbound(
       proveedorReadyForHandoff: complete,
       proveedorRecoveredToCliente: false,
     };
+  };
+
+  // A14936 / A16075: proveedor → embudo corto (no handoff hasta completar).
+  if (extracted.tipo_contacto === "proveedor") {
+    return buildProveedorOutbound();
   }
 
   await enrichExtractedDireccionWithMaps(extracted, messageText).catch(() => undefined);
@@ -486,6 +497,29 @@ export async function generateLucyOutbound(
         extracted.correo = sanitizeStoredClientEmail(
           parseCorreoFromText(extracted.correo) ?? extracted.correo
         );
+      }
+      // A16345b: tras extract unificado, re-evaluar proveedor (regex + LLM)
+      // y salir al embudo de recolección si aplica (no chat de venta).
+      {
+        const resolved = resolveTipoContacto(
+          extracted.tipo_contacto,
+          conversationText,
+          messageText
+        );
+        if (resolved === "proveedor") {
+          extracted.tipo_contacto = "proveedor";
+          Object.assign(extracted, scrubClientFieldsForProveedor(extracted));
+          if (!extracted.empresa?.trim()) {
+            extracted.empresa = extractEmpresaFromText(conversationText);
+          }
+          hydrateProveedorFieldsFromRequirements(extracted);
+          extracted.requerimientos_evento = formatProveedorRequirements(extracted);
+          log?.info?.(
+            { entityId },
+            "A16345b — unificado detectó proveedor; cambio a cuestionario"
+          );
+          return buildProveedorOutbound();
+        }
       }
       log?.info?.(
         { entityId, parsedOk: unified.parsedOk },

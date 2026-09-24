@@ -13,17 +13,18 @@ export function normalizeProveedorText(text: string): string {
  * Señales fuertes de que OFRECE algo a Bodasesor (proveedor / alianza / venue).
  * Incluye invitaciones a "red de aliados" (A14936 Lety — Hacienda).
  * A16121: "nos gustaría ser uno de sus provedores" / typo provedor.
+ * A16345b: "Ofrezco…", "ofrecemos…", "distribuidor", "aliarnos", "partner".
  */
 const PROVEEDOR_SELL =
-  /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|soy\s+proveedor|somos\s+proveedores|quiero\s+venderles|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidor\s+de|mi\s+empresa\s+ofrece|vendo\s+.+\s+a\s+eventos)\b/i;
+  /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|ofrezco|ofrecemos|soy\s+proveedor|somos\s+proveedores|quiero\s+venderles|les\s+vendemos|vendemos\s+a\s+ustedes|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidores?(\s+oficiales?)?(\s+de)?|distribuidor(a|as)?(\s+oficial)?(\s+de)?|mi\s+empresa\s+ofrece|vendo\s+.+\s+(a\s+)?eventos|vendemos\s+.+\s+(para\s+)?(eventos|bodas)|somos\s+una\s+empresa\s+de|fabricamos|somos\s+fabricantes?)\b/i;
 
 /** Invitación a alianza / red de proveedores / venue B2B (no pide cotización a Lucy). */
 const PROVEEDOR_ALLIANCE =
-  /\b(red\s+de\s+aliados|aliados?\s+comerciales?|alianza\s+comercial|aliado\s+comercial|registrarte\s+en\s+nuestra\s+base|invitarte\s+a\s+registrarte|te\s+invito\s+a\s+registrarte|ser\s+parte\s+de\s+nuestra\s+red|sumarte\s+a\s+(nuestra\s+)?red|formar\s+parte\s+de\s+nuestra\s+red|proveedores?\s+aliados?|cat[aá]logo\s+de\s+proveedores|beneficios\s+y\s+tarifas.{0,80}(?:venue|hacienda|sal[oó]n)|ejecutiv[oa]\s+de\s+ventas\s+en\s+(?:hacienda|sal[oó]n|venue|hotel)|nuestro\s+venue|red\s+de\s+proveedores|quiero\s+ser\s+proveedor|ofrecerles\s+(nuestro|mis|nuestros)|los\s+invito\s+a\s+(conocer|registr|formar)|invitarlos\s+a\s+(nuestra|formar|registr))\b/i;
+  /\b(red\s+de\s+aliados|aliados?\s+comerciales?|alianza\s+comercial|aliado\s+comercial|aliarnos|aliarme|buscamos\s+aliarnos|partner|socio\s+comercial|trabajar\s+con\s+ustedes\s+como\s+proveedor|registrarte\s+en\s+nuestra\s+base|invitarte\s+a\s+registrarte|te\s+invito\s+a\s+registrarte|ser\s+parte\s+de\s+nuestra\s+red|sumarte\s+a\s+(nuestra\s+)?red|formar\s+parte\s+de\s+nuestra\s+red|proveedores?\s+aliados?|cat[aá]logo\s+de\s+proveedores|beneficios\s+y\s+tarifas.{0,80}(?:venue|hacienda|sal[oó]n)|ejecutiv[oa]\s+de\s+ventas\s+en\s+(?:hacienda|sal[oó]n|venue|hotel)|nuestro\s+venue|red\s+de\s+proveedores|quiero\s+ser\s+proveedor|ofrecerles\s+(nuestro|mis|nuestros)|los\s+invito\s+a\s+(conocer|registr|formar)|invitarlos\s+a\s+(nuestra|formar|registr))\b/i;
 
 /** A16121: "ser (uno de) sus proveedores" / "nos gustaría ser proveedor". */
 const PROVEEDOR_BECOME =
-  /\b((nos\s+|me\s+)?(gustar[ií]a|dese[oa]mos?|queremos|quiero|quisiera)\s+ser(\s+uno\s+de)?\s+(sus\s+|los\s+|vuestros\s+)?proveedores?|ser(\s+uno\s+de)?\s+(sus\s+|los\s+)?proveedores?|como\s+(su\s+|uno\s+de\s+sus\s+)?proveedores?|unirme\s+como\s+proveedor|registrarme\s+como\s+proveedor)\b/i;
+  /\b((nos\s+|me\s+)?(gustar[ií]a|dese[oa]mos?|queremos|quiero|quisiera)\s+ser(\s+uno\s+de)?\s+(sus\s+|los\s+|vuestros\s+)?proveedores?|ser(\s+uno\s+de)?\s+(sus\s+|los\s+)?proveedores?|ser\s+su\s+proveedor|como\s+(su\s+|uno\s+de\s+sus\s+)?proveedores?|unirme\s+como\s+proveedor|registrarme\s+como\s+proveedor|(nos\s+|me\s+)?(gustar[ií]a|queremos|quiero)\s+trabajar\s+con\s+ustedes\s+(como\s+)?(proveedores?|aliados?)|(nos\s+|me\s+)?(gustar[ií]a|queremos)\s+colaborar\s+con\s+(ustedes|bodasesor))\b/i;
 
 export const PROVEEDOR_OFFER = new RegExp(
   `(?:${PROVEEDOR_SELL.source})|(?:${PROVEEDOR_ALLIANCE.source})|(?:${PROVEEDOR_BECOME.source})`,
@@ -59,7 +60,7 @@ export function looksLikeClienteCorrection(text: string | null | undefined): boo
  * Resuelve tipo de contacto.
  * - Compra/cotización explícita → cliente (Saint-Gobain café, etc.)
  * - Oferta / alianza / venue invite → proveedor
- * - LLM dijo proveedor pero sin señal → cliente (evita falsos positivos)
+ * - LLM dijo proveedor y no hay señal de compra → proveedor (A16345b)
  * - Señal fuerte de proveedor → proveedor aunque el LLM diga cliente
  * - A16075: corrección "no soy proveedor" / cotizar evento → cliente
  */
@@ -78,8 +79,11 @@ export function resolveTipoContacto(
   if (latest && PROVEEDOR_OFFER.test(latest) && !CLIENTE_BUY.test(latest)) return "proveedor";
   if (PROVEEDOR_OFFER.test(text) && !CLIENTE_BUY.test(text)) return "proveedor";
 
-  if (extracted === "proveedor" && !PROVEEDOR_OFFER.test(text) && !PROVEEDOR_OFFER.test(latest)) {
-    return "cliente";
+  // A16345b: confiar en LLM "proveedor" si no hay señal clara de compra.
+  if (extracted === "proveedor") {
+    const buyProbe = latest || text;
+    if (CLIENTE_BUY.test(buyProbe) && !PROVEEDOR_OFFER.test(buyProbe)) return "cliente";
+    return "proveedor";
   }
 
   if (extracted === "incierto" || !extracted) return "cliente";
