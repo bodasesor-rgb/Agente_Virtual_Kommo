@@ -310,14 +310,21 @@ export function runCrmFieldHeuristics(crm: CrmFieldSnapshot): HeuristicFinding[]
     });
   }
 
-  // Truncado típico de campos 255
+  // Truncado típico de campos cortos (255). Requerimientos y Dirección se
+  // escriben con cap255() en Kommo (ver buildPatchPayload), así que llegar a
+  // ~250 chars o cerrar en "…"/"..." ahí sí delata un corte real.
+  // NOTA (webhook-reparaciones c8e7e521 y 11 más, 2026-09-24): "Resumen IA"
+  // (campo 1048786 = Respuesta IA Largo) se generaba con este mismo umbral y
+  // disparaba falsos positivos en *todo* lead con resumen normal, porque ese
+  // campo es intencionalmente largo (buildResumenClienteLargo, cap real de
+  // 8000 chars) y nunca pasa por cap255(). Se excluye de este loop y se
+  // audita abajo contra su propio límite real.
   for (const [label, val] of [
     ["Requerimientos", req],
     ["Dirección", crm.direccion ?? ""],
-    ["Resumen IA", crm.resumen_ia ?? ""],
   ] as const) {
     const v = val.trim();
-    if (v.length >= 250 || /\.\.\.$/.test(v)) {
+    if (v.length >= 250 || /\.\.\.$|…$/.test(v)) {
       findings.push({
         category: "bad_field",
         severity: "info",
@@ -326,6 +333,31 @@ export function runCrmFieldHeuristics(crm: CrmFieldSnapshot): HeuristicFinding[]
           "Detalle largo → Respuesta IA Largo / nota; campos cortos solo con resumen.",
       });
       break;
+    }
+  }
+
+  // Resumen IA / "Respuesta IA Largo" (1048786): campo de texto largo sin el
+  // límite de 255. buildResumenClienteLargo siempre cierra con el marcador
+  // "— Actualizado por Lucy en cada mensaje —" y recorta a 8000 chars. Solo
+  // es un corte real si falta ese cierre estando cerca del cap de 8000, o si
+  // el texto termina en una elipsis de corte real.
+  const resumenIa = (crm.resumen_ia ?? "").trim();
+  const RESUMEN_IA_HARD_CAP = 8000;
+  const RESUMEN_IA_CLOSING_MARK = "— Actualizado por Lucy en cada mensaje —";
+  if (resumenIa) {
+    const hitHardCap =
+      resumenIa.length >= RESUMEN_IA_HARD_CAP - 20 &&
+      !resumenIa.endsWith(RESUMEN_IA_CLOSING_MARK);
+    const endsWithCutMarker =
+      /\.\.\.$|…$/.test(resumenIa) && !resumenIa.endsWith(RESUMEN_IA_CLOSING_MARK);
+    if (hitHardCap || endsWithCutMarker) {
+      findings.push({
+        category: "bad_field",
+        severity: "warn",
+        evidence: `CRM Resumen IA (Respuesta IA Largo) parece cortado (${resumenIa.length} chars): «${resumenIa.slice(-40)}»`,
+        proposedRepair:
+          "buildResumenClienteLargo debe recortar por sección antes del cap de 8000, no a media palabra.",
+      });
     }
   }
 
