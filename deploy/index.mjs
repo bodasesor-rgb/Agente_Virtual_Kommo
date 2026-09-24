@@ -238495,6 +238495,94 @@ router12.post("/reparaciones/cron", async (req, res) => {
     res.status(500).json({ error: "cron_failed" });
   }
 });
+router12.post("/reparaciones/send-to-cursor", async (req, res) => {
+  const webhookUrl = process.env["CURSOR_REPAIR_WEBHOOK_URL"]?.trim();
+  if (!webhookUrl) {
+    res.status(503).json({
+      error: "webhook_not_configured",
+      message: "Falta CURSOR_REPAIR_WEBHOOK_URL. Guarda la Automation en Cursor, copia el webhook y p\xE9galo en Hostinger."
+    });
+    return;
+  }
+  try {
+    const onlyId = typeof req.body?.repairId === "string" ? req.body.repairId.trim() : "";
+    let repairs = [
+      ...await listLucyRepairs("auto_flagged", 40),
+      ...await listLucyRepairs("open", 40)
+    ].sort((a4, b5) => b5.createdAt.localeCompare(a4.createdAt));
+    if (onlyId) {
+      repairs = repairs.filter((r5) => r5.id === onlyId);
+      if (repairs.length === 0) {
+        res.status(404).json({ error: "not_found" });
+        return;
+      }
+    } else {
+      repairs = repairs.slice(0, 12);
+    }
+    if (repairs.length === 0) {
+      res.json({ ok: true, sent: 0, message: "Sin hallazgos abiertos" });
+      return;
+    }
+    const payload = {
+      source: "lucy-reparaciones",
+      sentAt: (/* @__PURE__ */ new Date()).toISOString(),
+      publicApi: "https://midnightblue-mosquito-424375.hostingersite.com/api/reparaciones",
+      count: repairs.length,
+      repairs: repairs.map((r5) => ({
+        id: r5.id,
+        kommoLeadId: r5.kommoLeadId,
+        category: r5.category,
+        severity: r5.severity,
+        evidence: r5.evidence,
+        proposedRepair: r5.proposedRepair,
+        source: r5.source,
+        status: r5.status,
+        createdAt: r5.createdAt
+      })),
+      instruction: "Aplica proposedRepair en el c\xF3digo de Lucy (guards/understanding), PR a main. No WhatsApp."
+    };
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/json"
+    };
+    const secret = process.env["CURSOR_REPAIR_WEBHOOK_SECRET"]?.trim();
+    if (secret) {
+      headers["Authorization"] = `Bearer ${secret}`;
+      headers["X-Webhook-Secret"] = secret;
+    }
+    const upstream = await fetch(webhookUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(45e3)
+    });
+    const text2 = await upstream.text();
+    if (!upstream.ok) {
+      req.log?.error?.(
+        { status: upstream.status, body: text2.slice(0, 400) },
+        "send-to-cursor webhook failed"
+      );
+      res.status(502).json({
+        error: "webhook_failed",
+        status: upstream.status,
+        preview: text2.slice(0, 200)
+      });
+      return;
+    }
+    res.json({
+      ok: true,
+      sent: repairs.length,
+      webhookStatus: upstream.status,
+      repairIds: repairs.map((r5) => r5.id)
+    });
+  } catch (err2) {
+    req.log?.error?.({ err: err2 }, "reparaciones/send-to-cursor failed");
+    res.status(500).json({
+      error: "send_failed",
+      message: err2 instanceof Error ? err2.message : String(err2)
+    });
+  }
+});
 router12.get("/reparaciones/probe-talk", async (req, res) => {
   try {
     const leadId = String(req.query.leadId ?? "").trim();

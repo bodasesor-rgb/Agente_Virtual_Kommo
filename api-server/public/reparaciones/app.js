@@ -2,6 +2,7 @@ const listEl = document.getElementById("list");
 const emptyEl = document.getElementById("empty");
 const btnRun = document.getElementById("btn-run");
 const btnRefresh = document.getElementById("btn-refresh");
+const btnSendCursor = document.getElementById("btn-send-cursor");
 const modelEl = document.getElementById("auditor-model");
 const progressEl = document.getElementById("audit-progress");
 const phaseEl = document.getElementById("audit-phase");
@@ -11,6 +12,31 @@ const detailEl = document.getElementById("audit-detail");
 const liveFindingsEl = document.getElementById("audit-live-findings");
 
 let currentStatus = "open";
+
+async function sendToCursor(repairId) {
+  const res = await fetch("/api/reparaciones/send-to-cursor", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(repairId ? { repairId } : {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 503) {
+    alert(
+      data.message ||
+        "Falta CURSOR_REPAIR_WEBHOOK_URL en Hostinger. Guarda la Automation en Cursor y pega la URL del webhook."
+    );
+    return;
+  }
+  if (!res.ok) {
+    alert(data.message || data.error || `Error al enviar (${res.status})`);
+    return;
+  }
+  alert(
+    data.sent
+      ? `Enviado a Cursor: ${data.sent} hallazgo(s). El agente cloud debería abrir un run/PR.`
+      : data.message || "Sin hallazgos para enviar"
+  );
+}
 
 function escapeHtml(str) {
   return String(str ?? "")
@@ -70,6 +96,7 @@ function cardHtml(r) {
           ? `<div class="actions">
               <button type="button" class="btn-sm ok" data-act="resolve">Marcar hecha</button>
               <button type="button" class="btn-sm mute" data-act="dismiss">Descartar</button>
+              <button type="button" class="btn-sm" data-act="cursor">Enviar a Cursor</button>
             </div>`
           : ""
       }
@@ -237,6 +264,15 @@ listEl.addEventListener("click", async (ev) => {
   const id = card?.dataset.id;
   if (!id) return;
   const act = btn.dataset.act;
+  if (act === "cursor") {
+    btn.disabled = true;
+    try {
+      await sendToCursor(id);
+    } finally {
+      btn.disabled = false;
+    }
+    return;
+  }
   const path =
     act === "resolve"
       ? `/api/reparaciones/${id}/resolve`
@@ -269,6 +305,20 @@ document.querySelectorAll(".chip").forEach((chip) => {
 });
 
 btnRefresh.addEventListener("click", () => void refresh());
+
+if (btnSendCursor) {
+  btnSendCursor.addEventListener("click", async () => {
+    btnSendCursor.disabled = true;
+    const prev = btnSendCursor.textContent;
+    btnSendCursor.textContent = "Enviando…";
+    try {
+      await sendToCursor();
+    } finally {
+      btnSendCursor.disabled = false;
+      btnSendCursor.textContent = prev || "Enviar a Cursor";
+    }
+  });
+}
 
 btnRun.addEventListener("click", async () => {
   btnRun.disabled = true;
