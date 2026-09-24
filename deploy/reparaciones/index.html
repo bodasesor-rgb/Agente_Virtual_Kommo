@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Reparaciones Lucy — Bodasesor</title>
   <base href="/reparaciones/" />
-  <link rel="stylesheet" href="/reparaciones/styles.css?v=5" />
+  <link rel="stylesheet" href="/reparaciones/styles.css?v=6" />
 </head>
 <body>
   <div class="page">
@@ -14,10 +14,11 @@
         <p class="eyebrow">Auditor offline</p>
         <h1>Reparaciones Lucy</h1>
         <p class="subtitle">
-          Errores detectados (bucles, cierres mal, campos) y reparaciones propuestas.
+          Errores detectados y reparaciones. El historial <strong>no se borra</strong> al auditar ni al reiniciar:
+          las abiertas solo salen de la lista al pasar a <strong>Resueltas</strong> (con descripción del fix).
           El auditor <strong>nunca escribe al cliente</strong> · modelo
           <code id="auditor-model">…</code>.
-          <br />Auditoría <strong>automática 1×/día</strong> (≈22:00 Mexico) sobre los chats de ese día.
+          <br />Auditoría <strong>automática 1×/día</strong> (≈22:00 Mexico).
         </p>
       </div>
       <div class="header-actions">
@@ -68,6 +69,6 @@
     <div id="list" class="list"></div>
     <p id="empty" class="muted empty hidden">Sin hallazgos en este filtro.</p>
   </div>
-  <script src="/reparaciones/app.js?v=9" type="module"></script>
+  <script src="/reparaciones/app.js?v=10" type="module"></script>
 </body>
 </html>

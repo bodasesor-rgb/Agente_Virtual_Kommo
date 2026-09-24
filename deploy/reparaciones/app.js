@@ -202,12 +202,19 @@ function cardHtml(r) {
 }
 
 async function loadList() {
-  const data = await fetch(`/api/reparaciones?status=${encodeURIComponent(currentStatus)}`).then(
-    (r) => r.json()
-  );
+  const limit = currentStatus === "resolved" || currentStatus === "all" ? 200 : 50;
+  const data = await fetch(
+    `/api/reparaciones?status=${encodeURIComponent(currentStatus)}&limit=${limit}`
+  ).then((r) => r.json());
   const repairs = data.repairs ?? [];
   listEl.innerHTML = repairs.map(cardHtml).join("");
   emptyEl.classList.toggle("hidden", repairs.length > 0);
+  if (repairs.length === 0) {
+    emptyEl.textContent =
+      currentStatus === "resolved"
+        ? "Aún no hay reparaciones hechas. Cuando Cursor (o tú) marque un error como hecho con descripción, queda aquí para siempre."
+        : "Sin hallazgos en este filtro.";
+  }
 }
 
 function ensurePoll(hasInProgress) {

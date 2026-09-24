@@ -50,7 +50,7 @@ router.get("/reparaciones", async (req: Request, res: Response) => {
       res.json({ repairs: merged, total: merged.length });
       return;
     }
-    const repairs = await listLucyRepairs(status, Math.min(Number(req.query.limit ?? 50), 100));
+    const repairs = await listLucyRepairs(status, Math.min(Number(req.query.limit ?? 100), 300));
     res.json({ repairs, total: repairs.length });
   } catch {
     res.status(500).json({ error: "failed_to_load_reparaciones" });

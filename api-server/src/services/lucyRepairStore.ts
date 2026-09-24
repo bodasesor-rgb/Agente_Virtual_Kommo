@@ -1,6 +1,7 @@
 import { db, lucyRepairs } from "@workspace/db";
 import { desc, eq, sql } from "drizzle-orm";
 import { ensureLucyRepairSchema } from "./lucyRepairSchema.js";
+import { dumpRepairsToBackup } from "./lucyRepairPersist.js";
 import { logger } from "../lib/logger.js";
 
 export type LucyRepairStatus =
@@ -63,12 +64,25 @@ function normalizeDedupeKey(
   return `${category}:${leadId ?? "none"}:${e}`;
 }
 
+async function persistBackupSafe(): Promise<void> {
+  try {
+    await dumpRepairsToBackup();
+  } catch (err) {
+    logger.warn({ err }, "lucyRepairStore: backup JSON falló");
+  }
+}
+
 export async function listLucyRepairs(
   status: LucyRepairStatus | "all" = "open",
   limit = 50
 ): Promise<LucyRepairDto[]> {
   await ensureLucyRepairSchema();
-  const q = db.select().from(lucyRepairs).orderBy(desc(lucyRepairs.createdAt)).limit(limit);
+  // Resueltas: historial largo (no se borran al auditar).
+  const capped =
+    status === "resolved" || status === "all"
+      ? Math.min(Math.max(limit, 50), 300)
+      : Math.min(limit, 100);
+  const q = db.select().from(lucyRepairs).orderBy(desc(lucyRepairs.createdAt)).limit(capped);
   if (status === "all") {
     const rows = await q;
     return rows.map(rowToDto);
@@ -77,8 +91,8 @@ export async function listLucyRepairs(
     .select()
     .from(lucyRepairs)
     .where(eq(lucyRepairs.status, status))
-    .orderBy(desc(lucyRepairs.createdAt))
-    .limit(limit);
+    .orderBy(desc(status === "resolved" ? lucyRepairs.resolvedAt : lucyRepairs.createdAt))
+    .limit(capped);
   return rows.map(rowToDto);
 }
 
@@ -157,6 +171,7 @@ export async function recordLucyRepair(input: RecordLucyRepairInput): Promise<bo
           updatedAt: new Date(),
         })
         .where(eq(lucyRepairs.id, existing.id));
+      await persistBackupSafe();
       return true;
     }
 
@@ -172,6 +187,7 @@ export async function recordLucyRepair(input: RecordLucyRepairInput): Promise<bo
       dedupeKey,
     });
     logger.info({ category, leadId, source: input.source }, "lucy_repair registrado");
+    await persistBackupSafe();
     return true;
   } catch (err) {
     logger.warn({ err, dedupeKey }, "recordLucyRepair: falló");
@@ -208,6 +224,7 @@ export async function markLucyRepairsInProgress(
       .where(eq(lucyRepairs.id, id));
     marked += 1;
   }
+  if (marked > 0) await persistBackupSafe();
   return marked;
 }
 
@@ -230,6 +247,7 @@ export async function resolveLucyRepair(
     })
     .where(eq(lucyRepairs.id, id))
     .returning();
+  if (updated) await persistBackupSafe();
   return updated ? rowToDto(updated) : null;
 }
 
@@ -245,6 +263,7 @@ export async function dismissLucyRepair(id: string, reviewer?: string): Promise<
     })
     .where(eq(lucyRepairs.id, id))
     .returning({ id: lucyRepairs.id });
+  if (updated.length > 0) await persistBackupSafe();
   return updated.length > 0;
 }
 

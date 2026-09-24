@@ -1,6 +1,7 @@
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
+import { restoreRepairsFromBackupIfNeeded } from "./lucyRepairPersist.js";
 
 let ensured = false;
 
@@ -32,6 +33,8 @@ export async function ensureLucyRepairSchema(): Promise<void> {
         `CREATE INDEX IF NOT EXISTS lucy_repairs_status_idx ON lucy_repairs (status, created_at DESC)`
       )
     );
+    // Tras CREATE: si pgdata es nueva, recuperar historial desde JSON durable.
+    await restoreRepairsFromBackupIfNeeded();
   } catch (err) {
     logger.warn({ err }, "lucyRepairSchema: falló");
   }

@@ -29,6 +29,13 @@ export function getLucyChatHistoryPath(): string {
   return join(getLucyDataRoot(), "chat-history.json");
 }
 
+/** Backup durable de reparaciones (sobrevive rotación de pgdata). */
+export function getLucyRepairsJsonPath(): string {
+  const fromEnv = process.env["LUCY_REPAIRS_JSON_PATH"]?.trim();
+  if (fromEnv) return resolve(fromEnv);
+  return join(getLucyDataRoot(), "lucy-repairs.json");
+}
+
 /** Asegura dirs y exporta env canónicos antes de abrir PGlite / history. */
 export function bootstrapLucyDataEnv(): void {
   const root = ensureLucyDataRoot();
@@ -41,6 +48,10 @@ export function bootstrapLucyDataEnv(): void {
   if (!process.env["LUCY_CHAT_HISTORY_PATH"]?.trim()) {
     process.env["LUCY_CHAT_HISTORY_PATH"] = join(root, "chat-history.json");
   }
+  if (!process.env["LUCY_REPAIRS_JSON_PATH"]?.trim()) {
+    process.env["LUCY_REPAIRS_JSON_PATH"] = join(root, "lucy-repairs.json");
+  }
   mkdirSync(dirname(process.env["LUCY_CHAT_HISTORY_PATH"]!), { recursive: true });
+  mkdirSync(dirname(process.env["LUCY_REPAIRS_JSON_PATH"]!), { recursive: true });
   mkdirSync(process.env["LUCY_LOCAL_DB_PATH"]!, { recursive: true });
 }
