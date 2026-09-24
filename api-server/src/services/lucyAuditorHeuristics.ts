@@ -310,11 +310,10 @@ export function runCrmFieldHeuristics(crm: CrmFieldSnapshot): HeuristicFinding[]
     });
   }
 
-  // Truncado típico de campos 255
+  // Truncado típico de campos cortos cap255 (Requerimientos / Dirección).
   for (const [label, val] of [
     ["Requerimientos", req],
     ["Dirección", crm.direccion ?? ""],
-    ["Resumen IA", crm.resumen_ia ?? ""],
   ] as const) {
     const v = val.trim();
     if (v.length >= 250 || /\.\.\.$/.test(v)) {
@@ -326,6 +325,27 @@ export function runCrmFieldHeuristics(crm: CrmFieldSnapshot): HeuristicFinding[]
           "Detalle largo → Respuesta IA Largo / nota; campos cortos solo con resumen.",
       });
       break;
+    }
+  }
+
+  // Resumen IA / Respuesta IA Largo (1048786) es un campo de texto LARGO por
+  // diseño (buildResumenClienteLargo, hasta 8000 chars) — NO aplicar el mismo
+  // umbral de 250 chars que usamos para campos cortos cap255, o cualquier
+  // resumen normal (incluso uno de lead recién iniciado, ~350 chars) se
+  // marca como falso positivo "truncado". Solo se marca truncado real si el
+  // texto se corta ANTES de alcanzar la firma de cierre esperada, o si
+  // termina en "..." (indicio explícito de recorte).
+  const resumenIaVal = (crm.resumen_ia ?? "").trim();
+  const RESUMEN_IA_CIERRE = "— Actualizado por Lucy en cada mensaje —";
+  if (resumenIaVal && !resumenIaVal.endsWith(RESUMEN_IA_CIERRE)) {
+    if (resumenIaVal.length >= 250 || /\.\.\.$/.test(resumenIaVal)) {
+      findings.push({
+        category: "bad_field",
+        severity: "info",
+        evidence: `CRM Resumen IA parece truncado (${resumenIaVal.length} chars): «${resumenIaVal.slice(-40)}»`,
+        proposedRepair:
+          "Detalle largo → Respuesta IA Largo / nota; campos cortos solo con resumen.",
+      });
     }
   }
 
