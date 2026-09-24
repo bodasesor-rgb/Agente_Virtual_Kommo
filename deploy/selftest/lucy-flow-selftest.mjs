@@ -130413,7 +130413,7 @@ function buildPedidoEntregaReply(message) {
 
 // src/tipoContacto.ts
 function normalizeProveedorText(text2) {
-  return (text2 ?? "").replace(/\bprovedores?\b/gi, (m5) => m5.toLowerCase().endsWith("s") ? "proveedores" : "proveedor").replace(/\bprovvedores?\b/gi, (m5) => m5.toLowerCase().endsWith("s") ? "proveedores" : "proveedor");
+  return (text2 ?? "").replace(/\bprovedores?\b/gi, (m5) => m5.toLowerCase().endsWith("s") ? "proveedores" : "proveedor").replace(/\bprovvedores?\b/gi, (m5) => m5.toLowerCase().endsWith("s") ? "proveedores" : "proveedor").replace(/\bcoyiz(ando|ar|o|amos|amos)?\b/gi, (_m, rest) => `cotiz${rest ?? "ar"}`).replace(/\bcotis(ando|ar)?\b/gi, (_m, rest) => `cotiz${rest ?? "ar"}`);
 }
 var PROVEEDOR_SELL = /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|ofrezco|ofrecemos|soy\s+proveedor|somos\s+proveedores|quiero\s+venderles|les\s+vendemos|vendemos\s+a\s+ustedes|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidores?(\s+oficiales?)?(\s+de)?|distribuidor(a|as)?(\s+oficial)?(\s+de)?|mi\s+empresa\s+ofrece|vendo\s+.+\s+(a\s+)?eventos|vendemos\s+.+\s+(para\s+)?(eventos|bodas)|somos\s+una\s+empresa\s+de|fabricamos|somos\s+fabricantes?)\b/i;
 var PROVEEDOR_ALLIANCE = /\b(red\s+de\s+aliados|aliados?\s+comerciales?|alianza\s+comercial|aliado\s+comercial|aliarnos|aliarme|buscamos\s+aliarnos|partner|socio\s+comercial|trabajar\s+con\s+ustedes\s+como\s+proveedor|registrarte\s+en\s+nuestra\s+base|invitarte\s+a\s+registrarte|te\s+invito\s+a\s+registrarte|ser\s+parte\s+de\s+nuestra\s+red|sumarte\s+a\s+(nuestra\s+)?red|formar\s+parte\s+de\s+nuestra\s+red|proveedores?\s+aliados?|cat[aá]logo\s+de\s+proveedores|beneficios\s+y\s+tarifas.{0,80}(?:venue|hacienda|sal[oó]n)|ejecutiv[oa]\s+de\s+ventas\s+en\s+(?:hacienda|sal[oó]n|venue|hotel)|nuestro\s+venue|red\s+de\s+proveedores|quiero\s+ser\s+proveedor|ofrecerles\s+(nuestro|mis|nuestros)|los\s+invito\s+a\s+(conocer|registr|formar)|invitarlos\s+a\s+(nuestra|formar|registr))\b/i;
@@ -130422,7 +130422,7 @@ var PROVEEDOR_OFFER = new RegExp(
   `(?:${PROVEEDOR_SELL.source})|(?:${PROVEEDOR_ALLIANCE.source})|(?:${PROVEEDOR_BECOME.source})`,
   "i"
 );
-var CLIENTE_BUY = /\b(solicit[oa]\s+(una\s+)?cotizaci[oó]n|quiero\s+cotizar|necesito\s+(servicio|cotiz|un\s+|una\s+)|requiero\s+(servicio|cotiz)|me\s+das\s+precio|me\s+interesa\s+contratar|busco\s+(servicio|cotiz|proveedor\s+de\s+catering|banquete|taquiza|caf[eé])|cotizaci[oó]n\s+de|precio\s+de|para\s+mi\s+(boda|evento|xv|fiesta)|mi\s+boda|nuestro\s+evento)\b/i;
+var CLIENTE_BUY = /\b(solicit[oa]\s+(una\s+)?cotizaci[oó]n|quiero\s+cotizar|quiero\s+(una\s+)?cotizaci[oó]n|necesito\s+(servicio|cotiz|un\s+|una\s+)|requiero\s+(servicio|cotiz)|me\s+das\s+precio|me\s+interesa\s+contratar|busco\s+(servicio|cotiz|proveedor\s+de\s+catering|banquete|taquiza|caf[eé]|algo\s+similar)|cotizaci[oó]n\s+de|precio\s+de|para\s+mi\s+(boda|evento|xv|fiesta)|mi\s+boda|nuestro\s+evento|estoy\s+cotizando|estamos\s+cotizando|ando\s+cotizando|cotizando\s+(para|un|una|mi|nuestro)|quiero\s+(contratar|armar|organizar)|necesito\s+para\s+(mi|nuestro)\s+(boda|evento)|algo\s+similar\s+(a|para)|servicios?\s+similares?|cosas?\s+similares?|opciones?\s+similares?)\b/i;
 function looksLikeProveedorOutreach(text2) {
   if (!text2?.trim()) return false;
   const n4 = normalizeProveedorText(text2);
@@ -130432,7 +130432,7 @@ function looksLikeProveedorOutreach(text2) {
 function looksLikeClienteCorrection(text2) {
   const t3 = normalizeProveedorText((text2 ?? "").trim());
   if (!t3) return false;
-  if (/\b(no\s+soy\s+proveedor|no\s+somos\s+proveedores|me\s+confund[ií]|soy\s+cliente|somos\s+clientes|yo\s+no\s+vendo)\b/i.test(
+  if (/\b(no\s+soy\s+proveedor|no\s+somos\s+proveedores|me\s+confund[ií]|soy\s+cliente|somos\s+clientes|yo\s+no\s+vendo|yo\s+no\s+ofrezco|no\s+les\s+vendo)\b/i.test(
     t3
   )) {
     return true;
@@ -130444,12 +130444,15 @@ function resolveTipoContacto(extracted, conversationText, latestMessage) {
   const latest = normalizeProveedorText((latestMessage ?? "").trim());
   if (!text2 && !latest) return extracted === "incierto" ? "cliente" : extracted;
   if (latest && looksLikeClienteCorrection(latest)) return "cliente";
-  if (CLIENTE_BUY.test(text2) && !PROVEEDOR_OFFER.test(latest || text2)) return "cliente";
+  if (CLIENTE_BUY.test(latest || text2)) {
+    if (latest && PROVEEDOR_OFFER.test(latest) && !CLIENTE_BUY.test(latest)) {
+      return "proveedor";
+    }
+    return "cliente";
+  }
   if (latest && PROVEEDOR_OFFER.test(latest) && !CLIENTE_BUY.test(latest)) return "proveedor";
   if (PROVEEDOR_OFFER.test(text2) && !CLIENTE_BUY.test(text2)) return "proveedor";
   if (extracted === "proveedor") {
-    const buyProbe = latest || text2;
-    if (CLIENTE_BUY.test(buyProbe) && !PROVEEDOR_OFFER.test(buyProbe)) return "cliente";
     return "proveedor";
   }
   if (extracted === "incierto" || !extracted) return "cliente";
@@ -146439,16 +146442,19 @@ async function prepareLucyExtraction(input) {
     ...fullHistory.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content),
     messageText
   ].join(" ");
-  const priorProveedorSignal = extracted.tipo_contacto === "proveedor" || /^PROVEEDOR:/i.test(extracted.requerimientos_evento ?? "") || /\bPROVEEDOR\s*:/i.test(crmLines.join("\n"));
+  const priorProveedorSignal = extracted.tipo_contacto === "proveedor" || /^PROVEEDOR:/i.test(extracted.requerimientos_evento ?? "") || /\bPROVEEDOR\s*:/i.test(crmLines.join("\n")) || !!(extracted.proveedor_oferta || extracted.proveedor_estado || extracted.proveedor_catalogo);
   extracted.tipo_contacto = resolveTipoContacto(
     extracted.tipo_contacto,
     conversationText,
     messageText
   );
   let proveedorRecoveredToCliente = false;
-  if (extracted.tipo_contacto === "cliente" && priorProveedorSignal && looksLikeClienteCorrection(messageText)) {
-    scrubProveedorFieldsForCliente(extracted);
-    proveedorRecoveredToCliente = true;
+  if (looksLikeClienteCorrection(messageText) && (priorProveedorSignal || extracted.tipo_contacto === "cliente")) {
+    if (priorProveedorSignal) {
+      scrubProveedorFieldsForCliente(extracted);
+      proveedorRecoveredToCliente = true;
+    }
+    extracted.tipo_contacto = "cliente";
   }
   if (extracted.tipo_contacto === "proveedor") {
     Object.assign(extracted, scrubClientFieldsForProveedor(extracted));

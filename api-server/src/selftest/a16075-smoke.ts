@@ -33,6 +33,21 @@ assert.equal(
   "cliente"
 );
 assert.ok(looksLikeClienteCorrection("No soy proveedor, quiero cotizar mi boda"));
+assert.ok(looksLikeClienteCorrection("estoy cotizando cosas similares"));
+assert.ok(looksLikeClienteCorrection("Estoy coyizando un banquete para mi evento"));
+assert.ok(looksLikeClienteCorrection("busco algo similar para mi boda"));
+assert.equal(
+  resolveTipoContacto(
+    "proveedor",
+    "Soy proveedor de DJ. " + "estoy cotizando cosas similares",
+    "estoy cotizando cosas similares"
+  ),
+  "cliente"
+);
+assert.equal(
+  resolveTipoContacto("proveedor", "Hola soy partner", "quiero cotizar taquiza para 100"),
+  "cliente"
+);
 
 const base = scrubClientFieldsForProveedor(
   emptyExtractedData({

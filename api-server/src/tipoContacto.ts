@@ -1,12 +1,15 @@
 import type { ExtractedData } from "./types.js";
 
 /**
- * Normaliza typos frecuentes (provedor → proveedor) para matching.
+ * Normaliza typos frecuentes (provedor → proveedor, coyizar → cotizar) para matching.
  */
 export function normalizeProveedorText(text: string): string {
   return (text ?? "")
     .replace(/\bprovedores?\b/gi, (m) => (m.toLowerCase().endsWith("s") ? "proveedores" : "proveedor"))
-    .replace(/\bprovvedores?\b/gi, (m) => (m.toLowerCase().endsWith("s") ? "proveedores" : "proveedor"));
+    .replace(/\bprovvedores?\b/gi, (m) => (m.toLowerCase().endsWith("s") ? "proveedores" : "proveedor"))
+    // A16345c: "coyizando" / "cotizar" typos → cotizar
+    .replace(/\bcoyiz(ando|ar|o|amos|amos)?\b/gi, (_m, rest) => `cotiz${rest ?? "ar"}`)
+    .replace(/\bcotis(ando|ar)?\b/gi, (_m, rest) => `cotiz${rest ?? "ar"}`);
 }
 
 /**
@@ -33,7 +36,7 @@ export const PROVEEDOR_OFFER = new RegExp(
 
 /** Pide/compra servicio — es CLIENTE aunque mencione empresa o producto. */
 const CLIENTE_BUY =
-  /\b(solicit[oa]\s+(una\s+)?cotizaci[oó]n|quiero\s+cotizar|necesito\s+(servicio|cotiz|un\s+|una\s+)|requiero\s+(servicio|cotiz)|me\s+das\s+precio|me\s+interesa\s+contratar|busco\s+(servicio|cotiz|proveedor\s+de\s+catering|banquete|taquiza|caf[eé])|cotizaci[oó]n\s+de|precio\s+de|para\s+mi\s+(boda|evento|xv|fiesta)|mi\s+boda|nuestro\s+evento)\b/i;
+  /\b(solicit[oa]\s+(una\s+)?cotizaci[oó]n|quiero\s+cotizar|quiero\s+(una\s+)?cotizaci[oó]n|necesito\s+(servicio|cotiz|un\s+|una\s+)|requiero\s+(servicio|cotiz)|me\s+das\s+precio|me\s+interesa\s+contratar|busco\s+(servicio|cotiz|proveedor\s+de\s+catering|banquete|taquiza|caf[eé]|algo\s+similar)|cotizaci[oó]n\s+de|precio\s+de|para\s+mi\s+(boda|evento|xv|fiesta)|mi\s+boda|nuestro\s+evento|estoy\s+cotizando|estamos\s+cotizando|ando\s+cotizando|cotizando\s+(para|un|una|mi|nuestro)|quiero\s+(contratar|armar|organizar)|necesito\s+para\s+(mi|nuestro)\s+(boda|evento)|algo\s+similar\s+(a|para)|servicios?\s+similares?|cosas?\s+similares?|opciones?\s+similares?)\b/i;
 
 export function looksLikeProveedorOutreach(text: string): boolean {
   if (!text?.trim()) return false;
@@ -42,12 +45,15 @@ export function looksLikeProveedorOutreach(text: string): boolean {
   return PROVEEDOR_OFFER.test(n);
 }
 
-/** A16075: el contacto aclara que es cliente (no proveedor). */
+/**
+ * A16075 / A16345c: el contacto aclara que es cliente (no proveedor).
+ * Incluye "estoy cotizando", "cosas similares", "quiero cotizar".
+ */
 export function looksLikeClienteCorrection(text: string | null | undefined): boolean {
   const t = normalizeProveedorText((text ?? "").trim());
   if (!t) return false;
   if (
-    /\b(no\s+soy\s+proveedor|no\s+somos\s+proveedores|me\s+confund[ií]|soy\s+cliente|somos\s+clientes|yo\s+no\s+vendo)\b/i.test(
+    /\b(no\s+soy\s+proveedor|no\s+somos\s+proveedores|me\s+confund[ií]|soy\s+cliente|somos\s+clientes|yo\s+no\s+vendo|yo\s+no\s+ofrezco|no\s+les\s+vendo)\b/i.test(
       t
     )
   ) {
@@ -62,7 +68,7 @@ export function looksLikeClienteCorrection(text: string | null | undefined): boo
  * - Oferta / alianza / venue invite → proveedor
  * - LLM dijo proveedor y no hay señal de compra → proveedor (A16345b)
  * - Señal fuerte de proveedor → proveedor aunque el LLM diga cliente
- * - A16075: corrección "no soy proveedor" / cotizar evento → cliente
+ * - A16075 / A16345c: "no soy proveedor" / cotizar / estoy cotizando → cliente
  */
 export function resolveTipoContacto(
   extracted: ExtractedData["tipo_contacto"],
@@ -73,16 +79,23 @@ export function resolveTipoContacto(
   const latest = normalizeProveedorText((latestMessage ?? "").trim());
   if (!text && !latest) return extracted === "incierto" ? "cliente" : extracted;
 
-  // Último mensaje gana si aclara que es cliente.
+  // Último mensaje gana si aclara que es cliente / está cotizando.
   if (latest && looksLikeClienteCorrection(latest)) return "cliente";
-  if (CLIENTE_BUY.test(text) && !PROVEEDOR_OFFER.test(latest || text)) return "cliente";
+
+  // A16345c: compra en el hilo gana sobre oferta previa (proveedor→ventas).
+  if (CLIENTE_BUY.test(latest || text)) {
+    // Solo quedarse en proveedor si ESTE mensaje sigue siendo oferta pura.
+    if (latest && PROVEEDOR_OFFER.test(latest) && !CLIENTE_BUY.test(latest)) {
+      return "proveedor";
+    }
+    return "cliente";
+  }
+
   if (latest && PROVEEDOR_OFFER.test(latest) && !CLIENTE_BUY.test(latest)) return "proveedor";
   if (PROVEEDOR_OFFER.test(text) && !CLIENTE_BUY.test(text)) return "proveedor";
 
   // A16345b: confiar en LLM "proveedor" si no hay señal clara de compra.
   if (extracted === "proveedor") {
-    const buyProbe = latest || text;
-    if (CLIENTE_BUY.test(buyProbe) && !PROVEEDOR_OFFER.test(buyProbe)) return "cliente";
     return "proveedor";
   }
 

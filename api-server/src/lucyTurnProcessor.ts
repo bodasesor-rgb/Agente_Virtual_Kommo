@@ -139,7 +139,8 @@ export async function prepareLucyExtraction(
   const priorProveedorSignal =
     extracted.tipo_contacto === "proveedor" ||
     /^PROVEEDOR:/i.test(extracted.requerimientos_evento ?? "") ||
-    /\bPROVEEDOR\s*:/i.test(crmLines.join("\n"));
+    /\bPROVEEDOR\s*:/i.test(crmLines.join("\n")) ||
+    !!(extracted.proveedor_oferta || extracted.proveedor_estado || extracted.proveedor_catalogo);
 
   extracted.tipo_contacto = resolveTipoContacto(
     extracted.tipo_contacto,
@@ -148,13 +149,16 @@ export async function prepareLucyExtraction(
   );
 
   let proveedorRecoveredToCliente = false;
+  // A16075 / A16345c: era proveedor (CRM/LLM/cuestionario) y ahora cotiza → embudo ventas.
   if (
-    extracted.tipo_contacto === "cliente" &&
-    priorProveedorSignal &&
-    looksLikeClienteCorrection(messageText)
+    looksLikeClienteCorrection(messageText) &&
+    (priorProveedorSignal || extracted.tipo_contacto === "cliente")
   ) {
-    scrubProveedorFieldsForCliente(extracted);
-    proveedorRecoveredToCliente = true;
+    if (priorProveedorSignal) {
+      scrubProveedorFieldsForCliente(extracted);
+      proveedorRecoveredToCliente = true;
+    }
+    extracted.tipo_contacto = "cliente";
   }
 
   if (extracted.tipo_contacto === "proveedor") {
@@ -348,6 +352,7 @@ export async function generateLucyOutbound(
 
   // Foto del CRM antes del turno: si no crece, el mensaje del cliente no aportó nada.
   const filledBefore = new Set(filledLabels);
+  let recoveredProveedorToClienteThisTurn = false;
 
   const buildProveedorOutbound = (): {
     mensajeParaCliente: string;
@@ -394,8 +399,19 @@ export async function generateLucyOutbound(
   };
 
   // A14936 / A16075: proveedor → embudo corto (no handoff hasta completar).
+  // A16345c: si en este mensaje aclara que cotiza / es cliente → ventas (no cuestionario).
   if (extracted.tipo_contacto === "proveedor") {
-    return buildProveedorOutbound();
+    if (looksLikeClienteCorrection(messageText)) {
+      scrubProveedorFieldsForCliente(extracted);
+      extracted.tipo_contacto = "cliente";
+      recoveredProveedorToClienteThisTurn = true;
+      log?.info?.(
+        { entityId },
+        "A16345c — proveedor→cliente (cotiza / corrección); embudo ventas"
+      );
+    } else {
+      return buildProveedorOutbound();
+    }
   }
 
   await enrichExtractedDireccionWithMaps(extracted, messageText).catch(() => undefined);
@@ -641,6 +657,6 @@ export async function generateLucyOutbound(
     unclearStreak: nextStreak,
     escalateUnclearToHuman,
     proveedorReadyForHandoff: false,
-    proveedorRecoveredToCliente: false,
+    proveedorRecoveredToCliente: recoveredProveedorToClienteThisTurn,
   };
 }

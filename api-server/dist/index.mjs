@@ -161481,12 +161481,12 @@ var init_modoServicio = __esm({
 
 // src/tipoContacto.ts
 function normalizeProveedorText(text2) {
-  return (text2 ?? "").replace(/\bprovedores?\b/gi, (m6) => m6.toLowerCase().endsWith("s") ? "proveedores" : "proveedor").replace(/\bprovvedores?\b/gi, (m6) => m6.toLowerCase().endsWith("s") ? "proveedores" : "proveedor");
+  return (text2 ?? "").replace(/\bprovedores?\b/gi, (m6) => m6.toLowerCase().endsWith("s") ? "proveedores" : "proveedor").replace(/\bprovvedores?\b/gi, (m6) => m6.toLowerCase().endsWith("s") ? "proveedores" : "proveedor").replace(/\bcoyiz(ando|ar|o|amos|amos)?\b/gi, (_m, rest) => `cotiz${rest ?? "ar"}`).replace(/\bcotis(ando|ar)?\b/gi, (_m, rest) => `cotiz${rest ?? "ar"}`);
 }
 function looksLikeClienteCorrection(text2) {
   const t4 = normalizeProveedorText((text2 ?? "").trim());
   if (!t4) return false;
-  if (/\b(no\s+soy\s+proveedor|no\s+somos\s+proveedores|me\s+confund[ií]|soy\s+cliente|somos\s+clientes|yo\s+no\s+vendo)\b/i.test(
+  if (/\b(no\s+soy\s+proveedor|no\s+somos\s+proveedores|me\s+confund[ií]|soy\s+cliente|somos\s+clientes|yo\s+no\s+vendo|yo\s+no\s+ofrezco|no\s+les\s+vendo)\b/i.test(
     t4
   )) {
     return true;
@@ -161498,12 +161498,15 @@ function resolveTipoContacto(extracted, conversationText, latestMessage) {
   const latest = normalizeProveedorText((latestMessage ?? "").trim());
   if (!text2 && !latest) return extracted === "incierto" ? "cliente" : extracted;
   if (latest && looksLikeClienteCorrection(latest)) return "cliente";
-  if (CLIENTE_BUY.test(text2) && !PROVEEDOR_OFFER.test(latest || text2)) return "cliente";
+  if (CLIENTE_BUY.test(latest || text2)) {
+    if (latest && PROVEEDOR_OFFER.test(latest) && !CLIENTE_BUY.test(latest)) {
+      return "proveedor";
+    }
+    return "cliente";
+  }
   if (latest && PROVEEDOR_OFFER.test(latest) && !CLIENTE_BUY.test(latest)) return "proveedor";
   if (PROVEEDOR_OFFER.test(text2) && !CLIENTE_BUY.test(text2)) return "proveedor";
   if (extracted === "proveedor") {
-    const buyProbe = latest || text2;
-    if (CLIENTE_BUY.test(buyProbe) && !PROVEEDOR_OFFER.test(buyProbe)) return "cliente";
     return "proveedor";
   }
   if (extracted === "incierto" || !extracted) return "cliente";
@@ -161534,7 +161537,7 @@ var init_tipoContacto = __esm({
       `(?:${PROVEEDOR_SELL.source})|(?:${PROVEEDOR_ALLIANCE.source})|(?:${PROVEEDOR_BECOME.source})`,
       "i"
     );
-    CLIENTE_BUY = /\b(solicit[oa]\s+(una\s+)?cotizaci[oó]n|quiero\s+cotizar|necesito\s+(servicio|cotiz|un\s+|una\s+)|requiero\s+(servicio|cotiz)|me\s+das\s+precio|me\s+interesa\s+contratar|busco\s+(servicio|cotiz|proveedor\s+de\s+catering|banquete|taquiza|caf[eé])|cotizaci[oó]n\s+de|precio\s+de|para\s+mi\s+(boda|evento|xv|fiesta)|mi\s+boda|nuestro\s+evento)\b/i;
+    CLIENTE_BUY = /\b(solicit[oa]\s+(una\s+)?cotizaci[oó]n|quiero\s+cotizar|quiero\s+(una\s+)?cotizaci[oó]n|necesito\s+(servicio|cotiz|un\s+|una\s+)|requiero\s+(servicio|cotiz)|me\s+das\s+precio|me\s+interesa\s+contratar|busco\s+(servicio|cotiz|proveedor\s+de\s+catering|banquete|taquiza|caf[eé]|algo\s+similar)|cotizaci[oó]n\s+de|precio\s+de|para\s+mi\s+(boda|evento|xv|fiesta)|mi\s+boda|nuestro\s+evento|estoy\s+cotizando|estamos\s+cotizando|ando\s+cotizando|cotizando\s+(para|un|una|mi|nuestro)|quiero\s+(contratar|armar|organizar)|necesito\s+para\s+(mi|nuestro)\s+(boda|evento)|algo\s+similar\s+(a|para)|servicios?\s+similares?|cosas?\s+similares?|opciones?\s+similares?)\b/i;
   }
 });
 
@@ -234500,16 +234503,19 @@ async function prepareLucyExtraction(input) {
     ...fullHistory.filter((m6) => m6.role === "user" && typeof m6.content === "string").map((m6) => m6.content),
     messageText
   ].join(" ");
-  const priorProveedorSignal = extracted.tipo_contacto === "proveedor" || /^PROVEEDOR:/i.test(extracted.requerimientos_evento ?? "") || /\bPROVEEDOR\s*:/i.test(crmLines.join("\n"));
+  const priorProveedorSignal = extracted.tipo_contacto === "proveedor" || /^PROVEEDOR:/i.test(extracted.requerimientos_evento ?? "") || /\bPROVEEDOR\s*:/i.test(crmLines.join("\n")) || !!(extracted.proveedor_oferta || extracted.proveedor_estado || extracted.proveedor_catalogo);
   extracted.tipo_contacto = resolveTipoContacto(
     extracted.tipo_contacto,
     conversationText,
     messageText
   );
   let proveedorRecoveredToCliente = false;
-  if (extracted.tipo_contacto === "cliente" && priorProveedorSignal && looksLikeClienteCorrection(messageText)) {
-    scrubProveedorFieldsForCliente(extracted);
-    proveedorRecoveredToCliente = true;
+  if (looksLikeClienteCorrection(messageText) && (priorProveedorSignal || extracted.tipo_contacto === "cliente")) {
+    if (priorProveedorSignal) {
+      scrubProveedorFieldsForCliente(extracted);
+      proveedorRecoveredToCliente = true;
+    }
+    extracted.tipo_contacto = "cliente";
   }
   if (extracted.tipo_contacto === "proveedor") {
     Object.assign(extracted, scrubClientFieldsForProveedor(extracted));
@@ -234628,6 +234634,7 @@ async function generateLucyOutbound(input) {
     log
   } = input;
   const filledBefore = new Set(filledLabels);
+  let recoveredProveedorToClienteThisTurn = false;
   const buildProveedorOutbound = () => {
     applyProveedorAnswer(extracted, messageText, conversationText);
     const complete = proveedorQuestionnaireComplete(extracted);
@@ -234662,7 +234669,17 @@ async function generateLucyOutbound(input) {
     };
   };
   if (extracted.tipo_contacto === "proveedor") {
-    return buildProveedorOutbound();
+    if (looksLikeClienteCorrection(messageText)) {
+      scrubProveedorFieldsForCliente(extracted);
+      extracted.tipo_contacto = "cliente";
+      recoveredProveedorToClienteThisTurn = true;
+      log?.info?.(
+        { entityId },
+        "A16345c \u2014 proveedor\u2192cliente (cotiza / correcci\xF3n); embudo ventas"
+      );
+    } else {
+      return buildProveedorOutbound();
+    }
   }
   await enrichExtractedDireccionWithMaps(extracted, messageText).catch(() => void 0);
   const trainingExamples2 = await getTrainingExamples();
@@ -234880,7 +234897,7 @@ async function generateLucyOutbound(input) {
     unclearStreak: nextStreak,
     escalateUnclearToHuman,
     proveedorReadyForHandoff: false,
-    proveedorRecoveredToCliente: false
+    proveedorRecoveredToCliente: recoveredProveedorToClienteThisTurn
   };
 }
 
