@@ -3,7 +3,12 @@ import { desc, eq, sql } from "drizzle-orm";
 import { ensureLucyRepairSchema } from "./lucyRepairSchema.js";
 import { logger } from "../lib/logger.js";
 
-export type LucyRepairStatus = "open" | "auto_flagged" | "resolved" | "dismissed";
+export type LucyRepairStatus =
+  | "open"
+  | "auto_flagged"
+  | "in_progress"
+  | "resolved"
+  | "dismissed";
 export type LucyRepairCategory =
   | "loop_links"
   | "repeat_reply"
@@ -25,6 +30,7 @@ export interface LucyRepairDto {
   source: string;
   model?: string;
   createdAt: string;
+  updatedAt: string;
   resolvedAt?: string;
   resolvedBy?: string;
 }
@@ -42,6 +48,7 @@ function rowToDto(row: typeof lucyRepairs.$inferSelect): LucyRepairDto {
     source: row.source,
     model: row.model ?? undefined,
     createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
     resolvedAt: row.resolvedAt?.toISOString(),
     resolvedBy: row.resolvedBy ?? undefined,
   };
@@ -78,6 +85,7 @@ export async function listLucyRepairs(
 export async function getLucyRepairStats(): Promise<{
   open: number;
   auto_flagged: number;
+  in_progress: number;
   resolved: number;
   dismissed: number;
   auditor_calls_today: number;
@@ -96,6 +104,7 @@ export async function getLucyRepairStats(): Promise<{
   return {
     open: rows.filter((r) => r.status === "open").length,
     auto_flagged: rows.filter((r) => r.status === "auto_flagged").length,
+    in_progress: rows.filter((r) => r.status === "in_progress").length,
     resolved: rows.filter((r) => r.status === "resolved").length,
     dismissed: rows.filter((r) => r.status === "dismissed").length,
     auditor_calls_today: quota.callsToday,
@@ -138,6 +147,8 @@ export async function recordLucyRepair(input: RecordLucyRepairInput): Promise<bo
 
     if (existing) {
       if (existing.status === "dismissed" || existing.status === "resolved") return false;
+      // No pisar un arreglo que Cursor ya está trabajando.
+      if (existing.status === "in_progress") return false;
       await db
         .update(lucyRepairs)
         .set({
@@ -168,17 +179,51 @@ export async function recordLucyRepair(input: RecordLucyRepairInput): Promise<bo
   }
 }
 
+export async function markLucyRepairsInProgress(
+  ids: string[],
+  startedBy = "cursor"
+): Promise<number> {
+  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  if (unique.length === 0) return 0;
+  await ensureLucyRepairSchema();
+  let marked = 0;
+  const now = new Date();
+  for (const id of unique) {
+    const [row] = await db
+      .select()
+      .from(lucyRepairs)
+      .where(eq(lucyRepairs.id, id))
+      .limit(1);
+    if (!row) continue;
+    if (row.status !== "open" && row.status !== "auto_flagged" && row.status !== "in_progress") {
+      continue;
+    }
+    await db
+      .update(lucyRepairs)
+      .set({
+        status: "in_progress",
+        resolvedBy: startedBy,
+        updatedAt: now,
+      })
+      .where(eq(lucyRepairs.id, id));
+    marked += 1;
+  }
+  return marked;
+}
+
 export async function resolveLucyRepair(
   id: string,
   appliedRepair?: string,
   reviewer?: string
 ): Promise<LucyRepairDto | null> {
   await ensureLucyRepairSchema();
+  const note = appliedRepair?.trim();
+  if (!note) return null;
   const [updated] = await db
     .update(lucyRepairs)
     .set({
       status: "resolved",
-      appliedRepair: appliedRepair?.trim() || "Marcado resuelto desde panel",
+      appliedRepair: note,
       resolvedAt: new Date(),
       resolvedBy: reviewer ?? null,
       updatedAt: new Date(),
@@ -201,6 +246,12 @@ export async function dismissLucyRepair(id: string, reviewer?: string): Promise<
     .where(eq(lucyRepairs.id, id))
     .returning({ id: lucyRepairs.id });
   return updated.length > 0;
+}
+
+export async function getLucyRepair(id: string): Promise<LucyRepairDto | null> {
+  await ensureLucyRepairSchema();
+  const [row] = await db.select().from(lucyRepairs).where(eq(lucyRepairs.id, id)).limit(1);
+  return row ? rowToDto(row) : null;
 }
 
 export async function countOpenRepairs(): Promise<number> {

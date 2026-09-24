@@ -250,6 +250,68 @@ h1 { margin: 0.2rem 0; font-size: 1.5rem; }
 .badge.warn { background: #3d2e12; color: var(--warn); }
 .badge.error { background: #3d1524; color: var(--err); }
 .badge.ok { background: #123d28; color: var(--ok); }
+.badge.progress { background: #1a2f4a; color: #6eb6ff; }
+.badge.mute { background: #243041; color: var(--muted); }
+
+.working-banner {
+  background: #152033;
+  border: 1px solid #2a4a6e;
+  border-radius: var(--radius);
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.working-banner-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.working-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.working-list li {
+  font-size: 0.85rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  background: #121820;
+  border: 1px solid var(--border);
+}
+
+.working-list .tag {
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  margin-right: 0.35rem;
+  color: #6eb6ff;
+}
+
+.card-working {
+  border-color: #2a4a6e;
+  box-shadow: inset 3px 0 0 #6eb6ff;
+}
+
+.card-done {
+  border-color: color-mix(in srgb, var(--ok) 35%, var(--border));
+}
+
+.card .repair.working {
+  border-left-color: #6eb6ff;
+}
+
+.card .repair.applied {
+  border-left-color: var(--ok);
+  background: #0f2418;
+}
 
 .card h3 {
   margin: 0 0 0.35rem;

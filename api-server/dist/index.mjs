@@ -189129,8 +189129,10 @@ var lucyRepairStore_exports = {};
 __export(lucyRepairStore_exports, {
   countOpenRepairs: () => countOpenRepairs,
   dismissLucyRepair: () => dismissLucyRepair,
+  getLucyRepair: () => getLucyRepair,
   getLucyRepairStats: () => getLucyRepairStats,
   listLucyRepairs: () => listLucyRepairs,
+  markLucyRepairsInProgress: () => markLucyRepairsInProgress,
   recordLucyRepair: () => recordLucyRepair,
   resolveLucyRepair: () => resolveLucyRepair
 });
@@ -189147,6 +189149,7 @@ function rowToDto3(row) {
     source: row.source,
     model: row.model ?? void 0,
     createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
     resolvedAt: row.resolvedAt?.toISOString(),
     resolvedBy: row.resolvedBy ?? void 0
   };
@@ -189175,6 +189178,7 @@ async function getLucyRepairStats() {
   return {
     open: rows.filter((r5) => r5.status === "open").length,
     auto_flagged: rows.filter((r5) => r5.status === "auto_flagged").length,
+    in_progress: rows.filter((r5) => r5.status === "in_progress").length,
     resolved: rows.filter((r5) => r5.status === "resolved").length,
     dismissed: rows.filter((r5) => r5.status === "dismissed").length,
     auditor_calls_today: quota.callsToday,
@@ -189197,6 +189201,7 @@ async function recordLucyRepair(input) {
     const [existing] = await db.select().from(lucyRepairs).where(eq(lucyRepairs.dedupeKey, dedupeKey2)).limit(1);
     if (existing) {
       if (existing.status === "dismissed" || existing.status === "resolved") return false;
+      if (existing.status === "in_progress") return false;
       await db.update(lucyRepairs).set({
         evidence,
         proposedRepair: proposed,
@@ -189222,11 +189227,34 @@ async function recordLucyRepair(input) {
     return false;
   }
 }
+async function markLucyRepairsInProgress(ids, startedBy = "cursor") {
+  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  if (unique.length === 0) return 0;
+  await ensureLucyRepairSchema();
+  let marked = 0;
+  const now = /* @__PURE__ */ new Date();
+  for (const id of unique) {
+    const [row] = await db.select().from(lucyRepairs).where(eq(lucyRepairs.id, id)).limit(1);
+    if (!row) continue;
+    if (row.status !== "open" && row.status !== "auto_flagged" && row.status !== "in_progress") {
+      continue;
+    }
+    await db.update(lucyRepairs).set({
+      status: "in_progress",
+      resolvedBy: startedBy,
+      updatedAt: now
+    }).where(eq(lucyRepairs.id, id));
+    marked += 1;
+  }
+  return marked;
+}
 async function resolveLucyRepair(id, appliedRepair, reviewer) {
   await ensureLucyRepairSchema();
+  const note = appliedRepair?.trim();
+  if (!note) return null;
   const [updated] = await db.update(lucyRepairs).set({
     status: "resolved",
-    appliedRepair: appliedRepair?.trim() || "Marcado resuelto desde panel",
+    appliedRepair: note,
     resolvedAt: /* @__PURE__ */ new Date(),
     resolvedBy: reviewer ?? null,
     updatedAt: /* @__PURE__ */ new Date()
@@ -189242,6 +189270,11 @@ async function dismissLucyRepair(id, reviewer) {
     updatedAt: /* @__PURE__ */ new Date()
   }).where(eq(lucyRepairs.id, id)).returning({ id: lucyRepairs.id });
   return updated.length > 0;
+}
+async function getLucyRepair(id) {
+  await ensureLucyRepairSchema();
+  const [row] = await db.select().from(lucyRepairs).where(eq(lucyRepairs.id, id)).limit(1);
+  return row ? rowToDto3(row) : null;
 }
 async function countOpenRepairs() {
   await ensureLucyRepairSchema();
@@ -238407,10 +238440,27 @@ var import_express12 = __toESM(require_express2(), 1);
 await init_lucyRepairStore();
 await init_lucyAuditor();
 var router12 = (0, import_express12.Router)();
+var PUBLIC_API = "https://midnightblue-mosquito-424375.hostingersite.com/api/reparaciones";
+var CURSOR_REPAIR_INSTRUCTION = `Al dispararse (webhook / cron):
+
+1. Trabaja SOLO los repairs del payload (status in_progress en el panel).
+2. Por cada repair: aplica proposedRepair en c\xF3digo real (lucy-flow-guards.ts, conversation-understanding.ts, lucyAuditorHeuristics.ts). Implementa el fix; no solo documentes.
+3. No escribas a clientes WhatsApp ni cambies leads en Kommo.
+4. Cuando un repair quede arreglado, M\xC1RCALO HECHO:
+   POST ${PUBLIC_API}/{id}/resolve
+   Body JSON: { "appliedRepair": "Descripci\xF3n concreta de qu\xE9 se cambi\xF3 (archivo + comportamiento)", "resolvedBy": "cursor-agent" }
+   appliedRepair es OBLIGATORIO: el panel lo muestra como \u201CQu\xE9 se arregl\xF3\u201D.
+5. Si no pudiste arreglar uno, d\xE9jalo in_progress (no lo resuelvas a medias).
+6. Commit + rama + PR a main. No force-push.
+7. En el PR lista repair ids / evidencias cubiertas.
+
+Repo: bodasesor-rgb/Agente_Virtual_Kommo \xB7 base: main.`;
 router12.get("/reparaciones", async (req, res) => {
   try {
     const statusParam = String(req.query.status ?? "open");
-    const status = ["open", "auto_flagged", "resolved", "dismissed", "all"].includes(statusParam) ? statusParam : "open";
+    const status = ["open", "auto_flagged", "in_progress", "resolved", "dismissed", "all"].includes(
+      statusParam
+    ) ? statusParam : "open";
     if (statusParam === "open") {
       const open2 = await listLucyRepairs("open", 40);
       const flagged = await listLucyRepairs("auto_flagged", 40);
@@ -238511,11 +238561,19 @@ router12.post("/reparaciones/send-to-cursor", async (req, res) => {
       ...await listLucyRepairs("open", 40)
     ].sort((a4, b5) => b5.createdAt.localeCompare(a4.createdAt));
     if (onlyId) {
-      repairs = repairs.filter((r5) => r5.id === onlyId);
-      if (repairs.length === 0) {
+      const one = repairs.find((r5) => r5.id === onlyId) ?? await getLucyRepair(onlyId);
+      if (!one) {
         res.status(404).json({ error: "not_found" });
         return;
       }
+      if (one.status !== "open" && one.status !== "auto_flagged" && one.status !== "in_progress") {
+        res.status(409).json({
+          error: "not_sendable",
+          message: `Estado ${one.status}: solo abiertas o en curso.`
+        });
+        return;
+      }
+      repairs = [one];
     } else {
       repairs = repairs.slice(0, 12);
     }
@@ -238526,7 +238584,8 @@ router12.post("/reparaciones/send-to-cursor", async (req, res) => {
     const payload = {
       source: "lucy-reparaciones",
       sentAt: (/* @__PURE__ */ new Date()).toISOString(),
-      publicApi: "https://midnightblue-mosquito-424375.hostingersite.com/api/reparaciones",
+      publicApi: PUBLIC_API,
+      resolveUrlTemplate: `${PUBLIC_API}/{id}/resolve`,
       count: repairs.length,
       repairs: repairs.map((r5) => ({
         id: r5.id,
@@ -238537,9 +238596,10 @@ router12.post("/reparaciones/send-to-cursor", async (req, res) => {
         proposedRepair: r5.proposedRepair,
         source: r5.source,
         status: r5.status,
-        createdAt: r5.createdAt
+        createdAt: r5.createdAt,
+        resolveUrl: `${PUBLIC_API}/${r5.id}/resolve`
       })),
-      instruction: "Aplica proposedRepair en el c\xF3digo de Lucy (guards/understanding), PR a main. No WhatsApp."
+      instruction: CURSOR_REPAIR_INSTRUCTION
     };
     const headers = {
       "Content-Type": "application/json",
@@ -238573,11 +238633,22 @@ router12.post("/reparaciones/send-to-cursor", async (req, res) => {
       });
       return;
     }
+    const marked = await markLucyRepairsInProgress(
+      repairs.map((r5) => r5.id),
+      "cursor"
+    );
     res.json({
       ok: true,
       sent: repairs.length,
+      markedInProgress: marked,
       webhookStatus: upstream.status,
-      repairIds: repairs.map((r5) => r5.id)
+      repairIds: repairs.map((r5) => r5.id),
+      workingOn: repairs.map((r5) => ({
+        id: r5.id,
+        category: r5.category,
+        kommoLeadId: r5.kommoLeadId,
+        evidence: r5.evidence.slice(0, 120)
+      }))
     });
   } catch (err2) {
     req.log?.error?.({ err: err2 }, "reparaciones/send-to-cursor failed");
@@ -238650,14 +238721,24 @@ router12.get("/reparaciones/probe-talk", async (req, res) => {
 });
 router12.post("/reparaciones/:id/resolve", async (req, res) => {
   const { id } = req.params;
+  const applied = typeof req.body?.appliedRepair === "string" ? req.body.appliedRepair.trim() : "";
+  if (!applied) {
+    res.status(400).json({
+      error: "applied_repair_required",
+      message: "Env\xEDa appliedRepair con la descripci\xF3n de qu\xE9 se arregl\xF3 (la muestra el panel)."
+    });
+    return;
+  }
+  const reviewer = typeof req.body?.resolvedBy === "string" && req.body.resolvedBy.trim() ? req.body.resolvedBy.trim().slice(0, 80) : "panel";
   try {
-    const updated = await resolveLucyRepair(
-      id,
-      typeof req.body?.appliedRepair === "string" ? req.body.appliedRepair : void 0,
-      "panel"
-    );
-    if (!updated) {
+    const existing = await getLucyRepair(id);
+    if (!existing) {
       res.status(404).json({ error: "not_found" });
+      return;
+    }
+    const updated = await resolveLucyRepair(id, applied, reviewer);
+    if (!updated) {
+      res.status(400).json({ error: "resolve_failed" });
       return;
     }
     res.json(updated);

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Reparaciones Lucy — Bodasesor</title>
   <base href="/reparaciones/" />
-  <link rel="stylesheet" href="/reparaciones/styles.css?v=4" />
+  <link rel="stylesheet" href="/reparaciones/styles.css?v=5" />
 </head>
 <body>
   <div class="page">
@@ -32,12 +32,20 @@
 
     <div class="stats" id="stats">
       <div class="stat"><strong id="stat-open">—</strong><span>Abiertas</span></div>
+      <div class="stat"><strong id="stat-progress">—</strong><span>En Cursor</span></div>
       <div class="stat"><strong id="stat-flagged">—</strong><span>Auto-flag</span></div>
       <div class="stat"><strong id="stat-resolved">—</strong><span>Resueltas</span></div>
-      <div class="stat"><strong id="stat-model">—</strong><span>Modelo auditor</span></div>
       <div class="stat"><strong id="stat-quota">—</strong><span>Llamadas hoy</span></div>
       <div class="stat"><strong id="stat-spend">—</strong><span>Gasto auditor hoy</span></div>
     </div>
+
+    <section id="working-banner" class="working-banner hidden" aria-live="polite">
+      <div class="working-banner-top">
+        <strong id="working-title">Cursor está trabajando</strong>
+        <button type="button" id="btn-goto-progress" class="btn-sm">Ver en curso</button>
+      </div>
+      <ul id="working-list" class="working-list"></ul>
+    </section>
 
     <section id="audit-progress" class="audit-progress hidden" aria-live="polite">
       <div class="audit-progress-top">
@@ -51,6 +59,7 @@
 
     <div class="filters">
       <button type="button" class="chip active" data-status="open">Abiertas</button>
+      <button type="button" class="chip" data-status="in_progress">En Cursor</button>
       <button type="button" class="chip" data-status="resolved">Resueltas</button>
       <button type="button" class="chip" data-status="dismissed">Descartadas</button>
       <button type="button" class="chip" data-status="all">Todas</button>
@@ -59,6 +68,6 @@
     <div id="list" class="list"></div>
     <p id="empty" class="muted empty hidden">Sin hallazgos en este filtro.</p>
   </div>
-  <script src="/reparaciones/app.js?v=8" type="module"></script>
+  <script src="/reparaciones/app.js?v=9" type="module"></script>
 </body>
 </html>
