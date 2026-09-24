@@ -4316,8 +4316,22 @@ function textOverlapRatio(a: string, b: string): number {
   return shared / Math.max(wordsA.size, wordsB.size);
 }
 
-/** Evita enviar al cliente el mismo bloque casi idéntico que un turno anterior. */
-function avoidRepeatPreviousReply(
+/**
+ * Aísla la pregunta final («¿…?») de un mensaje de una sola línea, para poder
+ * descartar el saludo/pitch repetido y quedarnos solo con la pregunta.
+ * repeat_reply (auditor): mensajes tipo "¡Mucho gusto, X! Para poder orientarte
+ * con [servicio], ¿qué tipo de evento…?" no traían "\n", así que el recorte por
+ * línea de `avoidRepeatPreviousReply` no lograba separar el pitch de la pregunta.
+ */
+function extractTrailingQuestion(text: string): string | null {
+  const idx = text.lastIndexOf("¿");
+  if (idx === -1) return null;
+  const question = text.slice(idx).trim();
+  return question.length > 0 && question.length < text.trim().length ? question : null;
+}
+
+/** Evita enviar al cliente el mismo bloque casi idéntico que un turno anterior. Exportado para smoke. */
+export function avoidRepeatPreviousReply(
   mensaje: string,
   presHistory: OpenAI.Chat.ChatCompletionMessageParam[]
 ): string {
@@ -4337,6 +4351,14 @@ function avoidRepeatPreviousReply(
   const outOverlap = Math.max(...prev.map((p) => textOverlapRatio(out, p)));
   if (outOverlap < 0.65) return out.trim();
 
+  // Mensaje de una sola línea (sin "\n" que separe pitch de pregunta): recortar
+  // al fragmento "¿…?" si eso reduce el solape con turnos previos.
+  const bareQuestion = extractTrailingQuestion(mensaje);
+  if (bareQuestion) {
+    const bareOverlap = Math.max(...prev.map((p) => textOverlapRatio(bareQuestion, p)));
+    if (bareOverlap < maxOverlap && bareOverlap < 0.7) return bareQuestion;
+  }
+
   const questionLine =
     mensaje.split("\n").find((l) => l.includes("?")) ?? mensaje.split("\n").pop();
   const q = questionLine?.trim() || mensaje;
@@ -4348,6 +4370,10 @@ function avoidRepeatPreviousReply(
       .pop();
     if (pendingLine && textOverlapRatio(pendingLine, last) < 0.65) return pendingLine.trim();
   }
+  // Último recurso: si `q` sigue siendo casi idéntico a la última respuesta (el
+  // caso de un solo párrafo sin líneas alternativas), no reenviar el mismo
+  // cuerpo completo — al menos quedarnos con la pregunta aislada.
+  if (bareQuestion && textOverlapRatio(q, last) >= 0.68) return bareQuestion;
   return q;
 }
 
