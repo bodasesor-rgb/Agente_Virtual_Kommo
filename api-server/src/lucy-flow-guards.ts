@@ -4316,10 +4316,18 @@ function textOverlapRatio(a: string, b: string): number {
   return shared / Math.max(wordsA.size, wordsB.size);
 }
 
-/** Evita enviar al cliente el mismo bloque casi idéntico que un turno anterior. */
+/**
+ * Evita enviar al cliente el mismo bloque casi idéntico que un turno anterior.
+ * Cuando ninguna variante corta logra bajar el solape con lo ya enviado (p.ej. una
+ * pregunta redactada por el LLM que repite "¿qué tipo de evento…?" con otras palabras
+ * de contexto), en vez de reenviar el mismo cuerpo casi idéntico, avanza el embudo con
+ * la siguiente pregunta pendiente (que sí rota de frase vía `pickVariant`) o, si ya no
+ * queda ningún dato pendiente, corta a un acuse corto sin repetir la pregunta.
+ */
 function avoidRepeatPreviousReply(
   mensaje: string,
-  presHistory: OpenAI.Chat.ChatCompletionMessageParam[]
+  presHistory: OpenAI.Chat.ChatCompletionMessageParam[],
+  advanceFunnel?: () => string | null
 ): string {
   const prev = presHistory
     .filter((m) => m.role === "assistant" && typeof m.content === "string")
@@ -4347,6 +4355,12 @@ function avoidRepeatPreviousReply(
       .filter((l) => l.includes("?"))
       .pop();
     if (pendingLine && textOverlapRatio(pendingLine, last) < 0.65) return pendingLine.trim();
+    // Ninguna variante corta bajó el solape lo suficiente: no reenviar el mismo cuerpo,
+    // avanzar el embudo con la siguiente pregunta pendiente (rota de frase) si es posible.
+    const advanced = advanceFunnel?.();
+    if (advanced && Math.max(...prev.map((p) => textOverlapRatio(advanced, p))) < qOverlap) {
+      return advanced.trim();
+    }
   }
   return q;
 }
@@ -11537,7 +11551,11 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     }
   }
 
-  mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
+  mensaje = avoidRepeatPreviousReply(mensaje, presHistory, () => {
+    if (trulyReadyForClosing || cierreYaEnviado) return null;
+    const pendingNow = getNextPendingField(extracted, filledSet);
+    return pendingNow ? buildNaturalQuestion(pendingNow, ctx) : null;
+  });
 
   // A15701+/A15791+: si ya hay ciudad usable (mensaje, historial o extracted), no re-preguntar zona.
   if (
