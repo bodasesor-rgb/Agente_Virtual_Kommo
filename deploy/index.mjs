@@ -90669,6 +90669,180 @@ var init_bodasesorAdvisor = __esm({
   }
 });
 
+// src/services/trendKnowledge.ts
+function eventKey(tipo) {
+  const t4 = (tipo ?? "").toLowerCase();
+  if (/boda|wedding/.test(t4)) return "boda";
+  if (/xv|quince/.test(t4)) return "xv";
+  if (/corporativ|empresarial|gala|conferenc/.test(t4)) return "corporativo";
+  if (/cumple|birthday|aniversario/.test(t4)) return "cumple";
+  if (/bautizo|baby\s*shower/.test(t4)) return "bautizo";
+  return "default";
+}
+function clientWantsIdeasOrTrends(message) {
+  if (!message?.trim()) return false;
+  return TREND_IDEA_PATTERN.test(message) || ACCEPTS_IDEAS_PATTERN.test(message);
+}
+function extractStyleCues(...texts) {
+  const blob = texts.filter(Boolean).join(" \n ");
+  if (!blob.trim()) return [];
+  const found = [];
+  for (const { pattern, label } of STYLE_CUES) {
+    if (pattern.test(blob) && !found.includes(label)) found.push(label);
+    if (found.length >= 4) break;
+  }
+  return found;
+}
+function pickTips(tipoEvento, max = 2) {
+  const tips = TIPS_BY_EVENT[eventKey(tipoEvento)] ?? TIPS_BY_EVENT.default;
+  return tips.slice(0, max);
+}
+function messageAlreadyOffersSalesIdeas(text2) {
+  const t4 = text2 ?? "";
+  if (!t4.trim()) return false;
+  return /algunas ideas que funcionan|ideas que suelen funcionar|para un vibe/i.test(t4) || /iluminaci[oó]n c[aá]lida|lounge peque|pista iluminada|coffee break \+ pantallas|mesa de dulces/i.test(
+    t4
+  ) || /•\s*.+\n•\s*/.test(t4) && /iluminaci|mobiliario|banquete|dj|carpa|lounge/i.test(t4);
+}
+function buildSalesIdeasSnippet(opts) {
+  const cues = extractStyleCues(opts.messageText, opts.tipoEvento, opts.requerimientos);
+  const tips = pickTips(opts.tipoEvento || cues[0], opts.maxTips ?? 2);
+  if (!tips.length) return null;
+  const cue = cues[0] ? `Para un vibe *${cues[0]}*, ` : "";
+  if (tips.length === 1) {
+    return `${cue}${tips[0]}`.trim();
+  }
+  return `${cue}Algunas ideas que funcionan bien:
+\u2022 ${tips[0]}
+\u2022 ${tips[1]}`.trim();
+}
+function enrichReplyWithSalesIdeas(mensaje, opts) {
+  const out2 = (mensaje || "").trim();
+  if (!out2) return out2;
+  if (messageAlreadyOffersSalesIdeas(out2)) return out2;
+  const wants = opts.force || clientWantsIdeasOrTrends(opts.messageText) || /recomendaciones?|recomiendas?|ideas?\b|colores?|montajes?|decoraci/i.test(
+    opts.messageText ?? ""
+  );
+  const askingServices = /qu[eé]\s+(servicios|necesitas|gustar)|plat[ií]came|armar para|te gustar[ií]a ir armando/i.test(
+    out2
+  );
+  const hasTipo = !!(opts.tipoEvento && opts.tipoEvento.trim().length >= 3);
+  if (!wants && !(hasTipo && askingServices)) return out2;
+  const snippet = buildSalesIdeasSnippet({
+    tipoEvento: opts.tipoEvento,
+    messageText: opts.messageText,
+    requerimientos: opts.requerimientos,
+    maxTips: wants ? 2 : 1
+  });
+  if (!snippet) return out2;
+  const qMatch = out2.match(/((?:¿|\?)[^\n]*\?\s*)$/);
+  if (qMatch?.[1]) {
+    const before = out2.slice(0, out2.length - qMatch[1].length).trim();
+    if (before) return `${before}
+
+${snippet}
+
+${qMatch[1]}`.trim();
+    return `${snippet}
+
+${qMatch[1]}`.trim();
+  }
+  return `${out2}
+
+${snippet}`.trim();
+}
+function buildTrendContextBlock(opts) {
+  const cues = extractStyleCues(opts.messageText, opts.tipoEvento, opts.requerimientos);
+  const tips = pickTips(opts.tipoEvento, cues.length ? 1 : 2);
+  const team = advisorLabelForClient();
+  const wantsIdeas = clientWantsIdeasOrTrends(opts.messageText);
+  const lines = [
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 IDEAS / TENDENCIAS (compacto \u2014 sin precios) \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "Usa esto para asesorar y generar negocio. NO cites montos aqu\xED.",
+    `Precio solo si el cliente lo pidi\xF3 y hay ficha Sheet/PDF; si no, ${team} cotiza.`
+  ];
+  if (cues.length) {
+    lines.push(`Estilo/vibe detectado: ${cues.join(", ")}.`);
+  }
+  if (tips.length) {
+    lines.push(`Ideas \xFAtiles: ${tips.join(" ")}`);
+  }
+  if (opts.groundingSnippet?.trim()) {
+    const snip = opts.groundingSnippet.trim().length > 500 ? `${opts.groundingSnippet.trim().slice(0, 497)}\u2026` : opts.groundingSnippet.trim();
+    lines.push(`Notas al d\xEDa (grounding): ${snip}`);
+  } else if (wantsIdeas) {
+    lines.push(
+      "El cliente pidi\xF3/acept\xF3 ideas: propone 1\u20132 sugerencias concretas atadas a servicios Bodasesor y pide 1 dato del embudo."
+    );
+  } else if (opts.tipoEvento || cues.length) {
+    lines.push(
+      "INVITA ideas (proactivo, 1 frase): pregunta si quiere ideas de lo que se puede armar para su evento. No listes 8 cosas; solo invita."
+    );
+  }
+  const block = lines.join("\n");
+  return block.length > 900 ? `${block.slice(0, 897)}\u2026` : block;
+}
+function shouldInjectTrendBlock(messageText, tipoEvento) {
+  if (clientWantsIdeasOrTrends(messageText)) return true;
+  if (extractStyleCues(messageText, tipoEvento).length > 0) return true;
+  return !!(tipoEvento && tipoEvento.trim().length >= 3);
+}
+var ACCEPTS_IDEAS_PATTERN, TREND_IDEA_PATTERN, STYLE_CUES, TIPS_BY_EVENT;
+var init_trendKnowledge = __esm({
+  "src/services/trendKnowledge.ts"() {
+    "use strict";
+    init_bodasesorAdvisor();
+    ACCEPTS_IDEAS_PATTERN = /\b(?:s[ií](?:\s+por\s+favor)?|claro|dale|va|ok|okay|sale|perfecto)\b.{0,40}\b(?:ideas?|recomendaci|sugerenc)|\b(?:dame|quiero|pásame|pasame|necesito)\s+ideas?\b|\bideas?\s+por\s+favor\b/i;
+    TREND_IDEA_PATTERN = /\b(?:tendenci(?:a|as)|ideas?\s+(?:de\s+)?(?:decoraci[oó]n|evento|fiesta|boda|xv|ambient|colores?|montaje)|inspiraci[oó]n|mood\s*board|estilos?\b|tem[aá]tica|ambiente|colores?|paleta|montajes?|decoraci[oó]n|qu[eé]\s+(?:se\s+)?(?:usa|lleva|est[aá]\s+usando)|novedades?|recomendaci[oó]n(?:es)?|c[oó]mo\s+(?:armar|decorar|montar)|qu[eé]\s+(?:me\s+)?(?:recomiendas?|sugieres?)|opciones?\s+de\s+(?:decor|estilo|color)|look\b|vibe\b|aesthetic)\b/i;
+    STYLE_CUES = [
+      { pattern: /\bboho|bohemio/i, label: "boho" },
+      { pattern: /\br[uú]stic/i, label: "r\xFAstico" },
+      { pattern: /\belegante|formal|black\s*tie/i, label: "elegante" },
+      { pattern: /\bminimal(?:ista)?/i, label: "minimalista" },
+      { pattern: /\bne[oó]n|fluo/i, label: "ne\xF3n / fiesta" },
+      { pattern: /\bjard[ií]n|garden|al\s+aire\s+libre|exterior/i, label: "jard\xEDn / exterior" },
+      { pattern: /\bcoquette|rosad[oa]|pink/i, label: "coquette / rosa" },
+      { pattern: /\bvintage|retr[oó]/i, label: "vintage" },
+      { pattern: /\bindustrial|loft/i, label: "industrial" },
+      { pattern: /\btropical|player[oa]|beach/i, label: "tropical" },
+      { pattern: /\bm[eé]xico|mexicana|folkl[oó]r/i, label: "mexicana" },
+      { pattern: /\bxv|quince/i, label: "XV a\xF1os" },
+      { pattern: /\bboda|wedding/i, label: "boda" },
+      { pattern: /\bcorporativ|empresarial|gala/i, label: "corporativo" }
+    ];
+    TIPS_BY_EVENT = {
+      boda: [
+        "Iluminaci\xF3n c\xE1lida + lounge peque\xF1o suele elevar el ambiente sin saturar.",
+        "Carpa + entelado + pista iluminada arma un look completo en jard\xEDn.",
+        "Estaciones casuales + barra de bebidas liberan el sal\xF3n vs banquete fijo."
+      ],
+      xv: [
+        "Entrada con luces o LED wall + pista grande marca el momento del vals.",
+        "Mobiliario lounge en zona VIP + periqueras en c\xF3ctel funciona muy bien.",
+        "Mesa de dulces + barra de postres refuerza el tema de color."
+      ],
+      corporativo: [
+        "Coffee break + pantallas LED + audio claro = formato profesional limpio.",
+        "Periqueras + branding en backdrop para networking sin montaje pesado.",
+        "Si hay premiaci\xF3n: tarima + iluminaci\xF3n enfocada al escenario."
+      ],
+      cumple: [
+        "Tem\xE1tica clara (color/estilo) + mesa de dulces + DJ suele cerrar bien.",
+        "Para jard\xEDn: carpa + iluminaci\xF3n tipo edison + estaciones de comida."
+      ],
+      bautizo: [
+        "Brunch o banquete ligero + pastel + mesa de dulces arma un look familiar limpio.",
+        "En jard\xEDn o terraza: carpas o sombrillas + mobiliario b\xE1sico sin saturar."
+      ],
+      default: [
+        "Primero define el vibe (elegante, fiesta, jard\xEDn) y luego encaja servicios.",
+        "Combina 2\u20133 piezas ancla (espacio, comida, ambiente) antes de saturar extras.",
+        "Si el espacio es chico, prioriza iluminaci\xF3n y mobiliario lounge sobre montajes grandes."
+      ]
+    };
+  }
+});
+
 // ../node_modules/bmp-ts/dist/esm/header-types.js
 var HeaderTypes, header_types_default;
 var init_header_types = __esm({
@@ -138556,11 +138730,11 @@ function buildGuardServiceAck(query) {
   }
   if (isEventTypeOnlyMessage(query) || isOccasionMealEventType(query)) {
     if (isOccasionMealEventType(query)) {
-      return "Perfecto. Anoto tu *cena conmemorativa*. \xBFCu\xE1ntos invitados tienen contemplados?";
+      return "\xA1Va! Armamos tu *cena conmemorativa*. \xBFCu\xE1ntos invitados tienen contemplados?";
     }
     const tipoMatch = query.match(/\b(boda(\s+civil)?|bautizo|xv|cumplea[nñ]os|graduaci[oó]n|baby\s*shower)\b/i);
     const label2 = tipoMatch?.[0] ?? "ese evento";
-    return `Perfecto. Anoto tu *${label2}*.`;
+    return `\xA1Qu\xE9 padre! Una *${label2}*. \xBFQu\xE9 te gustar\xEDa ir armando?`;
   }
   const label = serviceLabelFromQuery(query);
   if (clientMentionsEntertainment(query) || /\bbailarin/i.test(label) || /\bbailarin(?:es|as?|a)?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail/i.test(query)) {
@@ -161728,15 +161902,16 @@ function syncRichBriefIntoExtracted(extracted, filledSet, message) {
 function getQuestionVariants() {
   const team = advisorLabelForClient();
   return {
+    // Primera variante = la que ya usaba el bot (no romper ritmo). Replit como 2ª/3ª.
     nombre: [
       "\xBFCu\xE1l es tu nombre?",
-      "\xBFC\xF3mo te llamas?",
-      "\xBFMe regalas tu nombre?"
+      "\xBFMe regalas tu nombre para iniciar?",
+      "\xBFCon qui\xE9n tengo el gusto?"
     ],
     correo: [
       "\xBFA qu\xE9 correo te mando la informaci\xF3n?",
-      "\xBFMe compartes un correo para enviarte los detalles?",
-      `Si gustas, \xBFa qu\xE9 correo le paso la info a ${team}?`
+      `Para mandarte la info y que ${team} te arme la propuesta, \xBFa qu\xE9 correo te lo env\xEDo?`,
+      "\xBFMe compartes un correo para enviarte los detalles de la cotizaci\xF3n?"
     ],
     tipo_evento: [
       "\xBFQu\xE9 van a celebrar?",
@@ -161754,13 +161929,13 @@ function getQuestionVariants() {
       "\xBFTienen un estimado de invitados? Si a\xFAn no, un rango sirve."
     ],
     zona: [
-      "\xBFEn qu\xE9 ciudad ser\xEDa tu evento?",
-      "\xBFMe confirmas la ciudad? Con eso cotizamos; colonia o sal\xF3n si ya lo tienen.",
-      "\xBFEn qu\xE9 ciudad lo arman?"
+      "\xBFEn qu\xE9 ciudad y colonia (o sal\xF3n) ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, mejor.",
+      "\xBFMe compartes ciudad y colonia o el nombre del sal\xF3n donde ser\xEDa?",
+      "\xBFCu\xE1l ser\xEDa la ubicaci\xF3n del evento? Necesito ciudad y colonia o sal\xF3n para cotizar bien."
     ],
     fecha: [
       "\xBFYa tienen fecha o todav\xEDa la van definiendo?",
-      "\xBFPara qu\xE9 d\xEDa ser\xEDa el evento?",
+      "\xBFPara cu\xE1ndo lo tienen pensado?",
       "\xBFQu\xE9 d\xEDa tienen en mente?"
     ],
     horario: [
@@ -163164,8 +163339,19 @@ function buildRecommendationsReply(extracted, history, entityId, currentMessage)
 ${comparison}`, "banquete");
   }
   const follow = pickVariant("requerimientos", history, entityId);
+  const tip = buildSalesIdeasSnippet({
+    tipoEvento: extracted.tipo_evento,
+    messageText: currentMessage,
+    requerimientos: extracted.requerimientos_evento,
+    maxTips: 2
+  });
+  const body2 = tip ? `${ideas}
+
+${tip}
+
+${follow}`.trim() : `${ideas} ${follow}`.trim();
   return ensureCatalogWebLink(
-    appendServiciosCatalogoHint(`${ideas} ${follow}`.trim()),
+    appendServiciosCatalogoHint(body2),
     /\bboda|xv|bautizo|banquete/i.test(`${tipo} ${texts}`) ? "banquete" : /\bcoffee|corporativ/i.test(`${tipo} ${texts}`) ? "coffee break" : null
   );
 }
@@ -163701,6 +163887,9 @@ function shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage
   }
   if (mensajeLooksOnTrack(trimmed, filledSet, extracted)) return true;
   if (currentMessage && currentMessage.trim().length > 8 && trimmed.length >= 40) {
+    if (clientAsksForRecommendations(currentMessage) || clientWantsIdeasOrTrends(currentMessage)) {
+      return true;
+    }
     if (clientAskedFreeformQuestion(currentMessage)) return true;
     if (clientMentionsCatering(currentMessage) && !mensajeAsksForField(trimmed, pending)) return true;
     if (justAnsweredReqContext(currentMessage, trimmed)) return true;
@@ -163920,23 +164109,28 @@ function ensureFunnelAfterSalesReply(mensaje, filledSet, extracted, ctx, current
   if (pending && !/\?/.test(out2) && !isFarewellReply(out2)) {
     let nextQ2 = buildNaturalQuestion(pending, { ...ctx, filledSet });
     if (nextQ2 && (!/\?/.test(nextQ2) || looksLikeDeadEndAck(nextQ2)) && pending === "requerimientos") {
-      const skipReq = [
-        "invitados",
-        "fecha",
-        "horario",
-        "zona",
-        "correo",
-        "presupuesto"
-      ];
-      const alt = skipReq.find((f7) => !isFieldSatisfied(f7, filledSet, extracted)) ?? null;
-      if (alt) {
-        nextQ2 = buildNaturalQuestion(alt, { ...ctx, filledSet });
+      const req = extracted.requerimientos_evento ?? "";
+      if (needsAlimentosTipoClarification(req) || /^banquetes?$/i.test(req.trim()) || isVagueFoodTerm(currentMessage)) {
+        nextQ2 = buildBanqueteModoClarifier("");
+      } else {
+        const skipReq = [
+          "invitados",
+          "fecha",
+          "horario",
+          "zona",
+          "correo",
+          "presupuesto"
+        ];
+        const alt = skipReq.find((f7) => !isFieldSatisfied(f7, filledSet, extracted)) ?? null;
+        if (alt) {
+          nextQ2 = buildNaturalQuestion(alt, { ...ctx, filledSet });
+        }
       }
     }
     if (nextQ2 && /\?/.test(nextQ2) && !looksLikeDeadEndAck(nextQ2)) {
-      out2 = looksLikeDeadEndAck(out2) ? `${out2.trim()}
+      out2 = `${out2.trim()}
 
-${nextQ2}` : `${out2.trim()} ${nextQ2}`.replace(/\s{2,}/g, " ").trim();
+${nextQ2}`.trim();
       return out2;
     }
   }
@@ -164193,7 +164387,7 @@ function buildRequerimientosQuestion(extracted, history, currentMessage, entityI
       if (needsAlimentosTipoClarification(service) || /^banquetes?$/i.test(String(service).trim())) {
         return buildBanqueteModoClarifier(prefix);
       }
-      return `${prefix}Queda anotado lo de ${service}.`.trim();
+      return `${prefix}Seguimos con *${service}*.`.trim();
     }
     const idx = variantIndex("requerimientos", history, entityId);
     const followUps = [
@@ -164460,11 +164654,30 @@ function buildContinueEngagementQuestion(extracted, currentMessage, history) {
   }
   return "\xBFHay algo m\xE1s que quieras sumar a la cotizaci\xF3n?";
 }
+function isSoftNivelDetailCta(mensaje) {
+  return /¿?\s*quieres que te d[eé] detalles de alguno\??\s*$/i.test((mensaje || "").trim());
+}
 function ensureOutboundAlwaysAsks(mensaje, opts) {
   let out2 = (mensaje || "").trim();
-  if (/\?/.test(out2)) return out2;
   if (opts.cierreYaEnviado && /el equipo ya tiene tu cotizaci[oó]n|le doy prioridad|te contacte hoy/i.test(out2)) {
     return /\?/.test(out2) ? out2 : `${out2} \xBFDe acuerdo?`;
+  }
+  if (isFarewellReply(out2)) {
+    return out2;
+  }
+  if (/\?/.test(out2)) {
+    if (!opts.cierreYaEnviado && isSoftNivelDetailCta(out2)) {
+      const pending = getNextPendingField(opts.extracted, opts.filledSet);
+      if (pending && !mensajeAsksForField(out2, pending) && !lastQuestionAsksForField(out2, pending)) {
+        const nextQ = buildNaturalQuestion(pending, opts.ctx);
+        if (nextQ && /\?/.test(nextQ) && !looksLikeDeadEndAck(nextQ)) {
+          return out2.replace(/\n*\s*¿?\s*Quieres que te d[eé] detalles de alguno\??\s*$/i, `
+
+${nextQ}`).trim();
+        }
+      }
+    }
+    return out2;
   }
   if (!opts.cierreYaEnviado) {
     const pending = getNextPendingField(opts.extracted, opts.filledSet);
@@ -168103,7 +168316,7 @@ ${nextQ}`.trim();
       { entityId, justAnsweredReq, food: clientMentionsCatering(currentMessage) },
       "GUARD: comida/servicio \u2014 orientaci\xF3n de venta"
     );
-  } else if (allowSalesReplyOverride && clientAsksForRecommendations(currentMessage)) {
+  } else if (allowSalesReplyOverride && (clientAsksForRecommendations(currentMessage) || clientWantsIdeasOrTrends(currentMessage))) {
     const offer = preferEventOfferReply({
       aiResponse,
       extracted,
@@ -168131,7 +168344,7 @@ ${nextQ}`.trim();
       if (nextQ) mensaje = nextQ;
     }
     appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 preferir OpenAI");
+    log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones/ideas \u2014 preferir modelo");
   } else if (clientAsksPrice(currentMessage) || clientAsksDistributorPricing(currentMessage)) {
     const ctxText2 = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
     const pending = getNextPendingField(extracted, filledSet);
@@ -169516,6 +169729,7 @@ var init_lucy_flow_guards = __esm({
     init_lucyInfoPriceCache();
     init_catalogService();
     init_catalogWebKnowledge();
+    init_trendKnowledge();
     init_serviceSynonyms();
     init_serviceKnowledge();
     init_serviceProgressiveOffer();
@@ -229918,117 +230132,7 @@ init_llmChat();
 // src/services/googleGrounding.ts
 init_node();
 init_llmEnv();
-
-// src/services/trendKnowledge.ts
-init_bodasesorAdvisor();
-var ACCEPTS_IDEAS_PATTERN = /\b(?:s[ií](?:\s+por\s+favor)?|claro|dale|va|ok|okay|sale|perfecto)\b.{0,40}\b(?:ideas?|recomendaci|sugerenc)|\b(?:dame|quiero|pásame|pasame|necesito)\s+ideas?\b|\bideas?\s+por\s+favor\b/i;
-var TREND_IDEA_PATTERN = /\b(?:tendenci(?:a|as)|ideas?\s+(?:de\s+)?(?:decoraci[oó]n|evento|fiesta|boda|xv|ambient)|inspiraci[oó]n|mood\s*board|estilos?\b|tem[aá]tica|ambiente|qu[eé]\s+(?:se\s+)?(?:usa|lleva|est[aá]\s+usando)|novedades?|recomendaci[oó]n(?:es)?|c[oó]mo\s+(?:armar|decorar|montar)|qu[eé]\s+(?:me\s+)?(?:recomiendas?|sugieres?)|opciones?\s+de\s+(?:decor|estilo)|look\b|vibe\b|aesthetic)\b/i;
-var STYLE_CUES = [
-  { pattern: /\bboho|bohemio/i, label: "boho" },
-  { pattern: /\br[uú]stic/i, label: "r\xFAstico" },
-  { pattern: /\belegante|formal|black\s*tie/i, label: "elegante" },
-  { pattern: /\bminimal(?:ista)?/i, label: "minimalista" },
-  { pattern: /\bne[oó]n|fluo/i, label: "ne\xF3n / fiesta" },
-  { pattern: /\bjard[ií]n|garden|al\s+aire\s+libre|exterior/i, label: "jard\xEDn / exterior" },
-  { pattern: /\bcoquette|rosad[oa]|pink/i, label: "coquette / rosa" },
-  { pattern: /\bvintage|retr[oó]/i, label: "vintage" },
-  { pattern: /\bindustrial|loft/i, label: "industrial" },
-  { pattern: /\btropical|player[oa]|beach/i, label: "tropical" },
-  { pattern: /\bm[eé]xico|mexicana|folkl[oó]r/i, label: "mexicana" },
-  { pattern: /\bxv|quince/i, label: "XV a\xF1os" },
-  { pattern: /\bboda|wedding/i, label: "boda" },
-  { pattern: /\bcorporativ|empresarial|gala/i, label: "corporativo" }
-];
-var TIPS_BY_EVENT = {
-  boda: [
-    "Iluminaci\xF3n c\xE1lida + lounge peque\xF1o suele elevar el ambiente sin saturar.",
-    "Carpa + entelado + pista iluminada arma un look completo en jard\xEDn.",
-    "Estaciones casuales + barra de bebidas liberan el sal\xF3n vs banquete fijo."
-  ],
-  xv: [
-    "Entrada con luces o LED wall + pista grande marca el momento del vals.",
-    "Mobiliario lounge en zona VIP + periqueras en c\xF3ctel funciona muy bien.",
-    "Mesa de dulces + barra de postres refuerza el tema de color."
-  ],
-  corporativo: [
-    "Coffee break + pantallas LED + audio claro = formato profesional limpio.",
-    "Periqueras + branding en backdrop para networking sin montaje pesado.",
-    "Si hay premiaci\xF3n: tarima + iluminaci\xF3n enfocada al escenario."
-  ],
-  cumple: [
-    "Tem\xE1tica clara (color/estilo) + mesa de dulces + DJ suele cerrar bien.",
-    "Para jard\xEDn: carpa + iluminaci\xF3n tipo edison + estaciones de comida."
-  ],
-  default: [
-    "Primero define el vibe (elegante, fiesta, jard\xEDn) y luego encaja servicios.",
-    "Combina 2\u20133 piezas ancla (espacio, comida, ambiente) antes de saturar extras.",
-    "Si el espacio es chico, prioriza iluminaci\xF3n y mobiliario lounge sobre montajes grandes."
-  ]
-};
-function eventKey(tipo) {
-  const t4 = (tipo ?? "").toLowerCase();
-  if (/boda|wedding/.test(t4)) return "boda";
-  if (/xv|quince/.test(t4)) return "xv";
-  if (/corporativ|empresarial|gala|conferenc/.test(t4)) return "corporativo";
-  if (/cumple|birthday|aniversario/.test(t4)) return "cumple";
-  return "default";
-}
-function clientWantsIdeasOrTrends(message) {
-  if (!message?.trim()) return false;
-  return TREND_IDEA_PATTERN.test(message) || ACCEPTS_IDEAS_PATTERN.test(message);
-}
-function extractStyleCues(...texts) {
-  const blob = texts.filter(Boolean).join(" \n ");
-  if (!blob.trim()) return [];
-  const found = [];
-  for (const { pattern, label } of STYLE_CUES) {
-    if (pattern.test(blob) && !found.includes(label)) found.push(label);
-    if (found.length >= 4) break;
-  }
-  return found;
-}
-function pickTips(tipoEvento, max = 2) {
-  const tips = TIPS_BY_EVENT[eventKey(tipoEvento)] ?? TIPS_BY_EVENT.default;
-  return tips.slice(0, max);
-}
-function buildTrendContextBlock(opts) {
-  const cues = extractStyleCues(opts.messageText, opts.tipoEvento, opts.requerimientos);
-  const tips = pickTips(opts.tipoEvento, cues.length ? 1 : 2);
-  const team = advisorLabelForClient();
-  const wantsIdeas = clientWantsIdeasOrTrends(opts.messageText);
-  const lines = [
-    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 IDEAS / TENDENCIAS (compacto \u2014 sin precios) \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    "Usa esto para asesorar y generar negocio. NO cites montos aqu\xED.",
-    `Precio solo si el cliente lo pidi\xF3 y hay ficha Sheet/PDF; si no, ${team} cotiza.`
-  ];
-  if (cues.length) {
-    lines.push(`Estilo/vibe detectado: ${cues.join(", ")}.`);
-  }
-  if (tips.length) {
-    lines.push(`Ideas \xFAtiles: ${tips.join(" ")}`);
-  }
-  if (opts.groundingSnippet?.trim()) {
-    const snip = opts.groundingSnippet.trim().length > 500 ? `${opts.groundingSnippet.trim().slice(0, 497)}\u2026` : opts.groundingSnippet.trim();
-    lines.push(`Notas al d\xEDa (grounding): ${snip}`);
-  } else if (wantsIdeas) {
-    lines.push(
-      "El cliente pidi\xF3/acept\xF3 ideas: propone 1\u20132 sugerencias concretas atadas a servicios Bodasesor y pide 1 dato del embudo."
-    );
-  } else if (opts.tipoEvento || cues.length) {
-    lines.push(
-      "INVITA ideas (proactivo, 1 frase): pregunta si quiere ideas de lo que se puede armar para su evento. No listes 8 cosas; solo invita."
-    );
-  }
-  const block = lines.join("\n");
-  return block.length > 900 ? `${block.slice(0, 897)}\u2026` : block;
-}
-function shouldInjectTrendBlock(messageText, tipoEvento) {
-  if (clientWantsIdeasOrTrends(messageText)) return true;
-  if (extractStyleCues(messageText, tipoEvento).length > 0) return true;
-  return !!(tipoEvento && tipoEvento.trim().length >= 3);
-}
-
-// src/services/googleGrounding.ts
+init_trendKnowledge();
 var groundingStats = {
   attempts: 0,
   hits: 0,
@@ -233425,6 +233529,7 @@ pero no se responde al cliente.
 // src/services/promptBuilder.ts
 init_catalogService();
 init_bodasesorAdvisor();
+init_trendKnowledge();
 function buildStaticSystemPrompt() {
   return `${SYSTEM_PROMPT}
 
@@ -234429,8 +234534,35 @@ function stripMidMessageFiller(mensaje) {
   );
   return out2.replace(/[ \t]{2,}/g, " ").trim();
 }
+function softenRobotAcks(mensaje) {
+  if (!mensaje?.trim()) return mensaje;
+  let out2 = mensaje;
+  out2 = out2.replace(
+    /\bPerfecto\.?\s*Anoto(?:\s+tu)?\s+(\*[^*]{1,60}\*|[^.!?\n]{2,60})[.!]?\s*/gi,
+    "\xA1Va! Armamos $1. "
+  );
+  out2 = out2.replace(/\b¡?Claro!?\.?\s*Anoto\s+/gi, "\xA1Claro! Vamos con ");
+  out2 = out2.replace(/\bPerfecto\s*[—–-]\s*anoto\s+/gi, "\xA1Va! Sumamos ");
+  out2 = out2.replace(
+    /\bAnoto\s+(\*[^*]{1,80}\*|(?:medidas?\s+)?[^.!?\n]{2,80}?)\s+para\s+tu\s+cotizaci[oó]n[.!]?\s*/gi,
+    "Seguimos con $1. "
+  );
+  out2 = out2.replace(/\bAnoto\s+(medidas?\s+[^.!?\n]{2,60})[.!]?\s*/gi, "Tomamos $1. ");
+  out2 = out2.replace(/\bAnoto\s+(\*[^*]{1,60}\*)[.!]?\s*/gi, "Seguimos con $1. ");
+  out2 = out2.replace(
+    /\bAnoto\s+la\s+ubicaci[oó]n\s+en\s+/gi,
+    "Queda en "
+  );
+  out2 = out2.replace(/\bAnoto\s+(?:el\s+)?horario\s+/gi, "Horario ");
+  out2 = out2.replace(/\bAnoto\s+(?:la\s+)?fecha\s*:?\s*/gi, "Fecha ");
+  out2 = out2.replace(/\bQueda\s+anotado\s+lo\s+de\s+/gi, "Seguimos con ");
+  out2 = out2.replace(/\bYa\s+lo\s+tengo\s+anotad[oa]?[.!]?\s*/gi, "");
+  out2 = out2.replace(/\bTomo nota de tu solicitud especial\b/gi, "Revisamos tu solicitud especial");
+  return out2.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
 
 // src/lucyOutboundPipeline.ts
+init_trendKnowledge();
 init_conversation_understanding();
 init_serviceKnowledge();
 init_concreteProductQuestion();
@@ -234553,15 +234685,30 @@ ${keepQ}` : ack;
   );
   mensaje = reorderLeadingCatalogUrls(mensaje);
   {
-    const conTono = stripMidMessageFiller(
-      applyClientNameCadence({
-        mensaje,
-        clientName: input.extracted.nombre,
-        history: input.history
-      })
+    const forceIdeas = clientWantsIdeasOrTrends(input.currentMessage) || /recomendaciones?|ideas?\b|colores?|montajes?/i.test(input.currentMessage ?? "");
+    const withIdeas = enrichReplyWithSalesIdeas(mensaje, {
+      tipoEvento: input.extracted.tipo_evento,
+      messageText: input.currentMessage,
+      requerimientos: input.extracted.requerimientos_evento,
+      force: forceIdeas
+    });
+    if (withIdeas !== mensaje && withIdeas.trim().length >= 8) {
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: tono \u2014 ideas de venta inyectadas");
+      mensaje = withIdeas;
+    }
+  }
+  {
+    const conTono = softenRobotAcks(
+      stripMidMessageFiller(
+        applyClientNameCadence({
+          mensaje,
+          clientName: input.extracted.nombre,
+          history: input.history
+        })
+      )
     );
     if (conTono !== mensaje && conTono.trim().length >= 8) {
-      input.log?.info?.({ entityId: input.entityId }, "GUARD: tono \u2014 vocativo/muletilla repetidos");
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: tono \u2014 asesora (sin Anoto/muletilla)");
       mensaje = conTono;
     }
   }

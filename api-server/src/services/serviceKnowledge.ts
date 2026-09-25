@@ -289,11 +289,11 @@ export function buildGuardServiceAck(query: string): string {
   // A16046 / A16263: nunca Level-2 "no lo tengo listado" para un tipo de evento.
   if (isEventTypeOnlyMessage(query) || isOccasionMealEventType(query)) {
     if (isOccasionMealEventType(query)) {
-      return "Perfecto. Anoto tu *cena conmemorativa*. ¿Cuántos invitados tienen contemplados?";
+      return "¡Va! Armamos tu *cena conmemorativa*. ¿Cuántos invitados tienen contemplados?";
     }
     const tipoMatch = query.match(/\b(boda(\s+civil)?|bautizo|xv|cumplea[nñ]os|graduaci[oó]n|baby\s*shower)\b/i);
     const label = tipoMatch?.[0] ?? "ese evento";
-    return `Perfecto. Anoto tu *${label}*.`;
+    return `¡Qué padre! Una *${label}*. ¿Qué te gustaría ir armando?`;
   }
   const label = serviceLabelFromQuery(query);
 

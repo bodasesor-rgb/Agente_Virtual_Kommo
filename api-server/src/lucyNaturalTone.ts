@@ -4,7 +4,8 @@
  * robot: el nombre del cliente en todos los mensajes y muletillas sueltas
  * ("Claro que sí.") justo antes de la pregunta.
  *
- * Esta es la última pasada de tono, común a las tres rutas de salida.
+ * A16345g: "Perfecto. Anoto *X*" no vende — suavizar a tono asesora/vendedora
+ * sin tocar el embudo (la pregunta pendiente se conserva).
  */
 import type { OpenAI } from "openai";
 
@@ -90,4 +91,44 @@ export function stripMidMessageFiller(mensaje: string): string {
     ""
   );
   return out.replace(/[ \t]{2,}/g, " ").trim();
+}
+
+/**
+ * A16345g: quitar el registro robótico "Anoto…" / "Queda anotado…" y dejar
+ * voz de asesora. No borra preguntas del embudo ni links de catálogo.
+ */
+export function softenRobotAcks(mensaje: string): string {
+  if (!mensaje?.trim()) return mensaje;
+  let out = mensaje;
+
+  // "Perfecto. Anoto tu *boda*." / "Perfecto. Anoto *Taquiza*."
+  out = out.replace(
+    /\bPerfecto\.?\s*Anoto(?:\s+tu)?\s+(\*[^*]{1,60}\*|[^.!?\n]{2,60})[.!]?\s*/gi,
+    "¡Va! Armamos $1. "
+  );
+  // "¡Claro! Anoto *20* centros…" / "Claro! Anoto X para tu cotización."
+  out = out.replace(/\b¡?Claro!?\.?\s*Anoto\s+/gi, "¡Claro! Vamos con ");
+  // "Perfecto — anoto *bailarinas* …"
+  out = out.replace(/\bPerfecto\s*[—–-]\s*anoto\s+/gi, "¡Va! Sumamos ");
+  // "Anoto *X* para tu cotización."
+  out = out.replace(
+    /\bAnoto\s+(\*[^*]{1,80}\*|(?:medidas?\s+)?[^.!?\n]{2,80}?)\s+para\s+tu\s+cotizaci[oó]n[.!]?\s*/gi,
+    "Seguimos con $1. "
+  );
+  out = out.replace(/\bAnoto\s+(medidas?\s+[^.!?\n]{2,60})[.!]?\s*/gi, "Tomamos $1. ");
+  out = out.replace(/\bAnoto\s+(\*[^*]{1,60}\*)[.!]?\s*/gi, "Seguimos con $1. ");
+  // "Anoto la ubicación en *Polanco*." → tono vendedora, misma info.
+  out = out.replace(
+    /\bAnoto\s+la\s+ubicaci[oó]n\s+en\s+/gi,
+    "Queda en "
+  );
+  out = out.replace(/\bAnoto\s+(?:el\s+)?horario\s+/gi, "Horario ");
+  out = out.replace(/\bAnoto\s+(?:la\s+)?fecha\s*:?\s*/gi, "Fecha ");
+  // "Queda anotado lo de Banquete."
+  out = out.replace(/\bQueda\s+anotado\s+lo\s+de\s+/gi, "Seguimos con ");
+  // "Ya lo tengo anotado."
+  out = out.replace(/\bYa\s+lo\s+tengo\s+anotad[oa]?[.!]?\s*/gi, "");
+  out = out.replace(/\bTomo nota de tu solicitud especial\b/gi, "Revisamos tu solicitud especial");
+
+  return out.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }

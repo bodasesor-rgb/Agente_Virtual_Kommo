@@ -10,7 +10,7 @@ const ACCEPTS_IDEAS_PATTERN =
   /\b(?:s[ií](?:\s+por\s+favor)?|claro|dale|va|ok|okay|sale|perfecto)\b.{0,40}\b(?:ideas?|recomendaci|sugerenc)|\b(?:dame|quiero|pásame|pasame|necesito)\s+ideas?\b|\bideas?\s+por\s+favor\b/i;
 
 const TREND_IDEA_PATTERN =
-  /\b(?:tendenci(?:a|as)|ideas?\s+(?:de\s+)?(?:decoraci[oó]n|evento|fiesta|boda|xv|ambient)|inspiraci[oó]n|mood\s*board|estilos?\b|tem[aá]tica|ambiente|qu[eé]\s+(?:se\s+)?(?:usa|lleva|est[aá]\s+usando)|novedades?|recomendaci[oó]n(?:es)?|c[oó]mo\s+(?:armar|decorar|montar)|qu[eé]\s+(?:me\s+)?(?:recomiendas?|sugieres?)|opciones?\s+de\s+(?:decor|estilo)|look\b|vibe\b|aesthetic)\b/i;
+  /\b(?:tendenci(?:a|as)|ideas?\s+(?:de\s+)?(?:decoraci[oó]n|evento|fiesta|boda|xv|ambient|colores?|montaje)|inspiraci[oó]n|mood\s*board|estilos?\b|tem[aá]tica|ambiente|colores?|paleta|montajes?|decoraci[oó]n|qu[eé]\s+(?:se\s+)?(?:usa|lleva|est[aá]\s+usando)|novedades?|recomendaci[oó]n(?:es)?|c[oó]mo\s+(?:armar|decorar|montar)|qu[eé]\s+(?:me\s+)?(?:recomiendas?|sugieres?)|opciones?\s+de\s+(?:decor|estilo|color)|look\b|vibe\b|aesthetic)\b/i;
 
 const STYLE_CUES: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\bboho|bohemio/i, label: "boho" },
@@ -50,6 +50,10 @@ const TIPS_BY_EVENT: Record<string, string[]> = {
     "Temática clara (color/estilo) + mesa de dulces + DJ suele cerrar bien.",
     "Para jardín: carpa + iluminación tipo edison + estaciones de comida.",
   ],
+  bautizo: [
+    "Brunch o banquete ligero + pastel + mesa de dulces arma un look familiar limpio.",
+    "En jardín o terraza: carpas o sombrillas + mobiliario básico sin saturar.",
+  ],
   default: [
     "Primero define el vibe (elegante, fiesta, jardín) y luego encaja servicios.",
     "Combina 2–3 piezas ancla (espacio, comida, ambiente) antes de saturar extras.",
@@ -63,6 +67,7 @@ function eventKey(tipo?: string | null): keyof typeof TIPS_BY_EVENT {
   if (/xv|quince/.test(t)) return "xv";
   if (/corporativ|empresarial|gala|conferenc/.test(t)) return "corporativo";
   if (/cumple|birthday|aniversario/.test(t)) return "cumple";
+  if (/bautizo|baby\s*shower/.test(t)) return "bautizo";
   return "default";
 }
 
@@ -87,6 +92,86 @@ export function extractStyleCues(...texts: Array<string | null | undefined>): st
 function pickTips(tipoEvento?: string | null, max = 2): string[] {
   const tips = TIPS_BY_EVENT[eventKey(tipoEvento)] ?? TIPS_BY_EVENT.default!;
   return tips.slice(0, max);
+}
+
+/** True si el mensaje ya trae ideas/tips de venta (no reinyectar). */
+export function messageAlreadyOffersSalesIdeas(text: string | null | undefined): boolean {
+  const t = text ?? "";
+  if (!t.trim()) return false;
+  return (
+    /algunas ideas que funcionan|ideas que suelen funcionar|para un vibe/i.test(t) ||
+    /iluminaci[oó]n c[aá]lida|lounge peque|pista iluminada|coffee break \+ pantallas|mesa de dulces/i.test(
+      t
+    ) ||
+    (/•\s*.+\n•\s*/.test(t) && /iluminaci|mobiliario|banquete|dj|carpa|lounge/i.test(t))
+  );
+}
+
+/**
+ * Snippet listo para WhatsApp (1–2 ideas). Sale al chat aunque un guard
+ * haya reemplazado al modelo — sin precios.
+ */
+export function buildSalesIdeasSnippet(opts: {
+  tipoEvento?: string | null;
+  messageText?: string | null;
+  requerimientos?: string | null;
+  maxTips?: number;
+}): string | null {
+  const cues = extractStyleCues(opts.messageText, opts.tipoEvento, opts.requerimientos);
+  const tips = pickTips(opts.tipoEvento || cues[0], opts.maxTips ?? 2);
+  if (!tips.length) return null;
+  const cue = cues[0] ? `Para un vibe *${cues[0]}*, ` : "";
+  if (tips.length === 1) {
+    return `${cue}${tips[0]}`.trim();
+  }
+  return `${cue}Algunas ideas que funcionan bien:\n• ${tips[0]}\n• ${tips[1]}`.trim();
+}
+
+/**
+ * Inserta ideas antes de la última pregunta del embudo (o al final).
+ */
+export function enrichReplyWithSalesIdeas(
+  mensaje: string,
+  opts: {
+    tipoEvento?: string | null;
+    messageText?: string | null;
+    requerimientos?: string | null;
+    force?: boolean;
+  }
+): string {
+  const out = (mensaje || "").trim();
+  if (!out) return out;
+  if (messageAlreadyOffersSalesIdeas(out)) return out;
+
+  const wants =
+    opts.force ||
+    clientWantsIdeasOrTrends(opts.messageText) ||
+    /recomendaciones?|recomiendas?|ideas?\b|colores?|montajes?|decoraci/i.test(
+      opts.messageText ?? ""
+    );
+  const askingServices =
+    /qu[eé]\s+(servicios|necesitas|gustar)|plat[ií]came|armar para|te gustar[ií]a ir armando/i.test(
+      out
+    );
+  const hasTipo = !!(opts.tipoEvento && opts.tipoEvento.trim().length >= 3);
+
+  if (!wants && !(hasTipo && askingServices)) return out;
+
+  const snippet = buildSalesIdeasSnippet({
+    tipoEvento: opts.tipoEvento,
+    messageText: opts.messageText,
+    requerimientos: opts.requerimientos,
+    maxTips: wants ? 2 : 1,
+  });
+  if (!snippet) return out;
+
+  const qMatch = out.match(/((?:¿|\?)[^\n]*\?\s*)$/);
+  if (qMatch?.[1]) {
+    const before = out.slice(0, out.length - qMatch[1].length).trim();
+    if (before) return `${before}\n\n${snippet}\n\n${qMatch[1]}`.trim();
+    return `${snippet}\n\n${qMatch[1]}`.trim();
+  }
+  return `${out}\n\n${snippet}`.trim();
 }
 
 /**

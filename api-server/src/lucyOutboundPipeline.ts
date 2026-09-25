@@ -20,7 +20,11 @@ import {
   ensureOutboundAlwaysAsks,
 } from "./lucy-flow-guards.js";
 import { applyLucyGlobalAntiRepetition } from "./lucyOutboundAntiRepeat.js";
-import { applyClientNameCadence, stripMidMessageFiller } from "./lucyNaturalTone.js";
+import { applyClientNameCadence, stripMidMessageFiller, softenRobotAcks } from "./lucyNaturalTone.js";
+import {
+  clientWantsIdeasOrTrends,
+  enrichReplyWithSalesIdeas,
+} from "./services/trendKnowledge.js";
 import { maybeRefinarMensajeCierre } from "./services/lucyRedaction.js";
 import {
   clientAsksServiceInfo,
@@ -220,18 +224,36 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
   );
   mensaje = reorderLeadingCatalogUrls(mensaje);
 
-  // A15897: tono — ni el nombre en cada mensaje ni muletillas sueltas antes de
-  // la pregunta ("… dime si te interesa alguno. Claro que sí. ¿Cuántos…?").
+  // A16345g: ideas reales en el chat (tips por tipo / si pidieron ideas-colores-montajes).
   {
-    const conTono = stripMidMessageFiller(
-      applyClientNameCadence({
-        mensaje,
-        clientName: input.extracted.nombre,
-        history: input.history,
-      })
+    const forceIdeas =
+      clientWantsIdeasOrTrends(input.currentMessage) ||
+      /recomendaciones?|ideas?\b|colores?|montajes?/i.test(input.currentMessage ?? "");
+    const withIdeas = enrichReplyWithSalesIdeas(mensaje, {
+      tipoEvento: input.extracted.tipo_evento,
+      messageText: input.currentMessage,
+      requerimientos: input.extracted.requerimientos_evento,
+      force: forceIdeas,
+    });
+    if (withIdeas !== mensaje && withIdeas.trim().length >= 8) {
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: tono — ideas de venta inyectadas");
+      mensaje = withIdeas;
+    }
+  }
+
+  // A15897 / A16345g: tono — sin "Anoto…", sin nombre/muletilla repetidos.
+  {
+    const conTono = softenRobotAcks(
+      stripMidMessageFiller(
+        applyClientNameCadence({
+          mensaje,
+          clientName: input.extracted.nombre,
+          history: input.history,
+        })
+      )
     );
     if (conTono !== mensaje && conTono.trim().length >= 8) {
-      input.log?.info?.({ entityId: input.entityId }, "GUARD: tono — vocativo/muletilla repetidos");
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: tono — asesora (sin Anoto/muletilla)");
       mensaje = conTono;
     }
   }

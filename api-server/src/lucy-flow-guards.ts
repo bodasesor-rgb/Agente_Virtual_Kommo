@@ -87,6 +87,10 @@ import {
   stripUnrequestedSoloCompletoPrices,
 } from "./services/catalogService.js";
 import { getCatalogWebUrlForQuery } from "./services/catalogWebKnowledge.js";
+import {
+  buildSalesIdeasSnippet,
+  clientWantsIdeasOrTrends,
+} from "./services/trendKnowledge.js";
 import { resolveServiceFocusFromText } from "./services/serviceSynonyms.js";
 import {
   buildGuardServiceAck,
@@ -604,7 +608,7 @@ export const FLOW_QUESTIONS = {
   tipoEventoTrasCorreo: "¿Qué tipo de celebración están planeando?",
   requerimientos: "Platícame, ¿qué te gustaría armar para tu evento?",
   invitados: "¿Más o menos para cuántas personas sería?",
-  zona: "¿En qué ciudad sería tu evento? Con la ciudad basta para cotizar; si tienes colonia o salón, mejor.",
+  zona: "¿En qué ciudad y colonia (o salón) sería tu evento? Si tienes la dirección exacta, mejor.",
   fecha: "¿Ya tienen fecha o todavía la van definiendo?",
   presupuesto: "¿Tienen algún rango de presupuesto en mente?",
   serviciosExtra: SERVICIOS_CATALOGO_HINT_ADICIONAL,
@@ -624,15 +628,16 @@ export type PendingField =
 function getQuestionVariants(): Record<PendingField, string[]> {
   const team = advisorLabelForClient();
   return {
+  // Primera variante = la que ya usaba el bot (no romper ritmo). Replit como 2ª/3ª.
   nombre: [
     "¿Cuál es tu nombre?",
-    "¿Cómo te llamas?",
-    "¿Me regalas tu nombre?",
+    "¿Me regalas tu nombre para iniciar?",
+    "¿Con quién tengo el gusto?",
   ],
   correo: [
     "¿A qué correo te mando la información?",
-    "¿Me compartes un correo para enviarte los detalles?",
-    `Si gustas, ¿a qué correo le paso la info a ${team}?`,
+    `Para mandarte la info y que ${team} te arme la propuesta, ¿a qué correo te lo envío?`,
+    "¿Me compartes un correo para enviarte los detalles de la cotización?",
   ],
   tipo_evento: [
     "¿Qué van a celebrar?",
@@ -650,13 +655,13 @@ function getQuestionVariants(): Record<PendingField, string[]> {
     "¿Tienen un estimado de invitados? Si aún no, un rango sirve.",
   ],
   zona: [
-    "¿En qué ciudad sería tu evento?",
-    "¿Me confirmas la ciudad? Con eso cotizamos; colonia o salón si ya lo tienen.",
-    "¿En qué ciudad lo arman?",
+    "¿En qué ciudad y colonia (o salón) sería tu evento? Si tienes la dirección exacta, mejor.",
+    "¿Me compartes ciudad y colonia o el nombre del salón donde sería?",
+    "¿Cuál sería la ubicación del evento? Necesito ciudad y colonia o salón para cotizar bien.",
   ],
   fecha: [
     "¿Ya tienen fecha o todavía la van definiendo?",
-    "¿Para qué día sería el evento?",
+    "¿Para cuándo lo tienen pensado?",
     "¿Qué día tienen en mente?",
   ],
   horario: [
@@ -2898,8 +2903,17 @@ export function buildRecommendationsReply(
   }
 
   const follow = pickVariant("requerimientos", history, entityId);
+  const tip = buildSalesIdeasSnippet({
+    tipoEvento: extracted.tipo_evento,
+    messageText: currentMessage,
+    requerimientos: extracted.requerimientos_evento,
+    maxTips: 2,
+  });
+  const body = tip
+    ? `${ideas}\n\n${tip}\n\n${follow}`.trim()
+    : `${ideas} ${follow}`.trim();
   return ensureCatalogWebLink(
-    appendServiciosCatalogoHint(`${ideas} ${follow}`.trim()),
+    appendServiciosCatalogoHint(body),
     /\bboda|xv|bautizo|banquete/i.test(`${tipo} ${texts}`)
       ? "banquete"
       : /\bcoffee|corporativ/i.test(`${tipo} ${texts}`)
@@ -3786,8 +3800,12 @@ function shouldPreferAiResponse(
 
   if (mensajeLooksOnTrack(trimmed, filledSet, extracted)) return true;
 
-  // V8.93: voz humana — priorizar GPT sobre plantilla si respondió de forma útil.
+  // V8.93: voz humana — priorizar modelo sobre plantilla si respondió de forma útil.
   if (currentMessage && currentMessage.trim().length > 8 && trimmed.length >= 40) {
+    // A16345g: ideas / tendencias / colores / montajes → dejar la asesora hablar.
+    if (clientAsksForRecommendations(currentMessage) || clientWantsIdeasOrTrends(currentMessage)) {
+      return true;
+    }
     if (clientAskedFreeformQuestion(currentMessage)) return true;
     if (clientMentionsCatering(currentMessage) && !mensajeAsksForField(trimmed, pending)) return true;
     if (justAnsweredReqContext(currentMessage, trimmed)) return true;
@@ -4185,7 +4203,8 @@ function ensureFunnelAfterSalesReply(
   const pending = getNextPendingField(extracted, filledSet);
   // A16047: si el strip o una rama dejó solo "¡Mucho gusto! De acuerdo." sin `?`,
   // reabrir embudo también cuando pending es requerimientos/nombre.
-  // A16238: si "requerimientos" solo produce otro ack muerto, saltar al siguiente dato.
+  // A16238 / A16345f: ack muerto en requerimientos → clarificar Banquete vago;
+  // solo saltar al siguiente dato si el servicio ya es concreto.
   if (pending && !/\?/.test(out) && !isFarewellReply(out)) {
     let nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });
     if (
@@ -4193,23 +4212,31 @@ function ensureFunnelAfterSalesReply(
       (!/\?/.test(nextQ) || looksLikeDeadEndAck(nextQ)) &&
       pending === "requerimientos"
     ) {
-      const skipReq: PendingField[] = [
-        "invitados",
-        "fecha",
-        "horario",
-        "zona",
-        "correo",
-        "presupuesto",
-      ];
-      const alt = skipReq.find((f) => !isFieldSatisfied(f, filledSet, extracted)) ?? null;
-      if (alt) {
-        nextQ = buildNaturalQuestion(alt, { ...ctx, filledSet });
+      const req = extracted.requerimientos_evento ?? "";
+      if (
+        needsAlimentosTipoClarification(req) ||
+        /^banquetes?$/i.test(req.trim()) ||
+        isVagueFoodTerm(currentMessage)
+      ) {
+        nextQ = buildBanqueteModoClarifier("");
+      } else {
+        const skipReq: PendingField[] = [
+          "invitados",
+          "fecha",
+          "horario",
+          "zona",
+          "correo",
+          "presupuesto",
+        ];
+        const alt = skipReq.find((f) => !isFieldSatisfied(f, filledSet, extracted)) ?? null;
+        if (alt) {
+          nextQ = buildNaturalQuestion(alt, { ...ctx, filledSet });
+        }
       }
     }
     if (nextQ && /\?/.test(nextQ) && !looksLikeDeadEndAck(nextQ)) {
-      out = looksLikeDeadEndAck(out)
-        ? `${out.trim()}\n\n${nextQ}`
-        : `${out.trim()} ${nextQ}`.replace(/\s{2,}/g, " ").trim();
+      // Siempre salto de línea: evita "Perfecto. … Claro que sí. ¿…?" en una sola línea.
+      out = `${out.trim()}\n\n${nextQ}`.trim();
       return out;
     }
   }
@@ -4644,7 +4671,7 @@ export function buildRequerimientosQuestion(
       ) {
         return buildBanqueteModoClarifier(prefix);
       }
-      return `${prefix}Queda anotado lo de ${service}.`.trim();
+      return `${prefix}Seguimos con *${service}*.`.trim();
     }
     const idx = variantIndex("requerimientos", history, entityId);
     const followUps = [
@@ -5109,8 +5136,16 @@ export function buildContinueEngagementQuestion(
 }
 
 /**
- * Red final invariable: todo WhatsApp saliente debe invitar a continuar (siempre con `?`).
- * No depende de la rama (venta, foto, cierre, catálogo, handoff).
+ * Soft CTA de menú de niveles — tiene `?` pero no pide el dato pendiente del embudo.
+ * Solo este caso (Replit): no dejar que tape nombre/fecha/zona.
+ */
+function isSoftNivelDetailCta(mensaje: string): boolean {
+  return /¿?\s*quieres que te d[eé] detalles de alguno\??\s*$/i.test((mensaje || "").trim());
+}
+
+/**
+ * Red final: si no hay pregunta, inyecta el pending del embudo (o un hook suave).
+ * Conservador: un `?` ya presente se respeta, salvo el CTA vacío de niveles.
  */
 export function ensureOutboundAlwaysAsks(
   mensaje: string,
@@ -5124,7 +5159,6 @@ export function ensureOutboundAlwaysAsks(
   }
 ): string {
   let out = (mensaje || "").trim();
-  if (/\?/.test(out)) return out;
 
   // A16345: post-cierre terminal ya tiene cierre claro — no reinyectar canal/algo-más.
   if (
@@ -5134,14 +5168,36 @@ export function ensureOutboundAlwaysAsks(
     return /\?/.test(out) ? out : `${out} ¿De acuerdo?`;
   }
 
+  if (isFarewellReply(out)) {
+    return out;
+  }
+
+  // Conservador: si ya hay `?`, no tocar — excepto CTA vacío de niveles sin dato del embudo.
+  if (/\?/.test(out)) {
+    if (!opts.cierreYaEnviado && isSoftNivelDetailCta(out)) {
+      const pending = getNextPendingField(opts.extracted, opts.filledSet);
+      if (
+        pending &&
+        !mensajeAsksForField(out, pending) &&
+        !lastQuestionAsksForField(out, pending)
+      ) {
+        const nextQ = buildNaturalQuestion(pending, opts.ctx);
+        if (nextQ && /\?/.test(nextQ) && !looksLikeDeadEndAck(nextQ)) {
+          return out
+            .replace(/\n*\s*¿?\s*Quieres que te d[eé] detalles de alguno\??\s*$/i, `\n\n${nextQ}`)
+            .trim();
+        }
+      }
+    }
+    return out;
+  }
+
   if (!opts.cierreYaEnviado) {
     const pending = getNextPendingField(opts.extracted, opts.filledSet);
     if (pending) {
       const nextQ = buildNaturalQuestion(pending, opts.ctx);
       if (nextQ && /\?/.test(nextQ) && !looksLikeDeadEndAck(nextQ)) {
-        return out
-          ? `${out}\n\n${nextQ}`.trim()
-          : nextQ;
+        return out ? `${out}\n\n${nextQ}`.trim() : nextQ;
       }
     }
   }
@@ -10720,7 +10776,10 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       { entityId, justAnsweredReq, food: clientMentionsCatering(currentMessage) },
       "GUARD: comida/servicio — orientación de venta"
     );
-  } else if (allowSalesReplyOverride && clientAsksForRecommendations(currentMessage)) {
+  } else if (
+    allowSalesReplyOverride &&
+    (clientAsksForRecommendations(currentMessage) || clientWantsIdeasOrTrends(currentMessage))
+  ) {
     const offer = preferEventOfferReply({
       aiResponse,
       extracted,
@@ -10748,7 +10807,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       if (nextQ) mensaje = nextQ;
     }
     appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: cliente pidió recomendaciones — preferir OpenAI");
+    log?.info({ entityId }, "GUARD: cliente pidió recomendaciones/ideas — preferir modelo");
   } else if (
     clientAsksPrice(currentMessage) ||
     clientAsksDistributorPricing(currentMessage)
