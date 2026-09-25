@@ -164447,7 +164447,7 @@ function buildContinueEngagementQuestion(extracted, currentMessage, history) {
   if (/carpas?|tarima|entarim|colgantes|entelado/i.test(req)) {
     return "\xBFTe sumo mobiliario, iluminaci\xF3n o audio, o seguimos solo con lo que ya anotamos?";
   }
-  return "\xBFHay algo m\xE1s que quieras sumar a la cotizaci\xF3n, o te urge que el equipo te contacte hoy?";
+  return "\xBFHay algo m\xE1s que quieras sumar a la cotizaci\xF3n?";
 }
 function ensureOutboundAlwaysAsks(mensaje, opts) {
   let out2 = (mensaje || "").trim();

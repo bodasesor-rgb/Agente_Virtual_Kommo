@@ -5104,7 +5104,8 @@ export function buildContinueEngagementQuestion(
   if (/carpas?|tarima|entarim|colgantes|entelado/i.test(req)) {
     return "¿Te sumo mobiliario, iluminación o audio, o seguimos solo con lo que ya anotamos?";
   }
-  return "¿Hay algo más que quieras sumar a la cotización, o te urge que el equipo te contacte hoy?";
+  // A16345d: no preguntar urgencia por defecto en todos los chats — solo si el cliente la señaló.
+  return "¿Hay algo más que quieras sumar a la cotización?";
 }
 
 /**
