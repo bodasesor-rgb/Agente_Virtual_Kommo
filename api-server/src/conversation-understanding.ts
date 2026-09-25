@@ -2632,7 +2632,7 @@ export function looksLikeMxMunicipalityToponym(text: string | null | undefined):
 
 /** Fragmentos (sin artículo) que NO son ubicación, aunque vengan tras "en …". */
 const NON_LOCATION_WORDS =
-  /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
+  /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurantes?|restaurants?|terraza|local|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
 
 /** Señales positivas de que el texto sí es un lugar del evento. */
 export function hasGeoLocationSignal(text: string): boolean {
@@ -2731,7 +2731,7 @@ const VENUE_DISCOURSE_JUNK =
 
 /** Venue genérico sin nombre propio (no anotar como sede). */
 const VAGUE_VENUE_LABEL =
-  /^(?:un\s+|una\s+|el\s+|la\s+)?(?:sal[oó]n(?:\s+de\s+fiestas?)?|hotel|jard[ií]n|espacio|lugar|venue|edificio|terraza)$/i;
+  /^(?:un\s+|una\s+|el\s+|la\s+|mi\s+|su\s+)?(?:sal[oó]n(?:\s+de\s+fiestas?)?|hotel|jard[ií]n|espacio|lugar|venue|edificio|terraza|casa|restaurantes?|restaurants?)$/i;
 
 function cleanVenueCandidate(raw: string): string | null {
   let venue = raw
@@ -3080,7 +3080,7 @@ export function isVenueWithoutCity(text: string | null | undefined): boolean {
 
 /** Basura típica que GPT/parser meten como "ubicación". */
 const JUNK_DIRECCION_PATTERN =
-  /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda(\s+civil)?|bautizo(\s+de\s+(ni[nñ][ao]|beb[eé]))?|graduaci[oó]n|cumplea[nñ]os|xv(\s*a[nñ]os?)?|quincea[nñ]era|baby\s*shower|primera\s+comuni[oó]n|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
+  /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda(\s+civil)?|bautizo(\s+de\s+(ni[nñ][ao]|beb[eé]))?|graduaci[oó]n|cumplea[nñ]os|xv(\s*a[nñ]os?)?|quincea[nñ]era|baby\s*shower|primera\s+comuni[oó]n|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|en\s+(mi\s+|su\s+|la\s+)?casa|en\s+(un\s+|el\s+)?restaurantes?|restaurantes?|restaurants?|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
 
 /**
  * Discurso / servicio / adjetivo sin señal geográfica — no es dirección del evento.
@@ -3135,10 +3135,14 @@ export function isNonLocationBusinessPhrase(text: string | null | undefined): bo
   if (JUNK_DIRECCION_PATTERN.test(t)) return true;
   if (looksLikeDiscourseNotPlace(t)) return true;
   const cleaned = t
-    .replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "")
+    .replace(
+      /^(el|la|los|las|un|una|mi|mis|su|sus|nuestr[oa]s?|en\s+(el|la|los|las|un|una|mi|mis|su|sus|nuestr[oa]s?)?)\s+/i,
+      ""
+    )
     .trim();
   if (!cleaned) return true;
   if (JUNK_DIRECCION_PATTERN.test(cleaned)) return true;
+  if (isVagueVenueOnly(t) || isVagueVenueOnly(cleaned)) return true;
   // A14987 / A15295: "en color blanco" / "rojo y negro" ≠ ubicación del evento.
   if (/^color(\s+\w+)?$/i.test(cleaned)) return true;
   if (/^(blanco|negro|dorado|plateado|natural|madera|rojo|azul|verde|rosa)$/i.test(cleaned)) {
@@ -3149,7 +3153,7 @@ export function isNonLocationBusinessPhrase(text: string | null | undefined): bo
   }
   // Exacto / casi exacto — no usar ^salón\b sobre "Salón Hacienda Los Olivos".
   if (
-    /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n|noche|tarde|vivo|realidad|serio|importante|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|negocio|sede|ratito|ahorita)$/i.test(
+    /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n|noche|tarde|vivo|realidad|serio|importante|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|negocio|sede|ratito|ahorita|restaurantes?|restaurants?|hotel|terraza|stand)$/i.test(
       cleaned
     )
   ) {
@@ -3183,14 +3187,17 @@ export function isNonLocationBusinessPhrase(text: string | null | undefined): bo
 }
 
 /**
- * "salón", "edificio", "empresa", "espacio" sin nombre propio / ciudad / colonia
- * NO cuentan como ubicación completa del evento.
+ * "salón", "restaurante", "mi casa", "edificio" sin nombre propio / ciudad / colonia
+ * NO cuentan como ubicación — se tratan como si no dijeran nada (A16345e).
  */
 export function isVagueVenueOnly(text: string | null | undefined): boolean {
-  const t = (text ?? "").trim();
+  const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
   if (!t) return true;
   const cleaned = t
-    .replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "")
+    .replace(
+      /^(el|la|los|las|un|una|mi|mis|su|sus|nuestr[oa]s?|en\s+(el|la|los|las|un|una|mi|mis|su|sus|nuestr[oa]s?)?)\s+/i,
+      ""
+    )
     .trim()
     // A15298: "tercer piso\nTipo de" → solo el piso (basura de parseo)
     .split(/\n/)[0]!
@@ -3198,7 +3205,7 @@ export function isVagueVenueOnly(text: string | null | undefined): boolean {
     .trim();
   if (!cleaned) return true;
   if (
-    /^(sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede|trabajo)$/i.test(
+    /^(sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede|trabajo|hotel|terraza|restaurantes?|restaurants?|local|localcito|saloncito)$/i.test(
       cleaned
     )
   ) {
@@ -3210,16 +3217,22 @@ export function isVagueVenueOnly(text: string | null | undefined): boolean {
   }
   // Compuestos genéricos sin nombre propio.
   if (
-    /^(sal[oó]n|edificio|venue|jard[ií]n)(\s+de)?(\s+(eventos?|oficinas?|corporativo|privado|la\s+empresa|la\s+compa[nñ][ií]a))?$/i.test(
+    /^(sal[oó]n|edificio|venue|jard[ií]n|restaurantes?|restaurants?|hotel|terraza|casa)(\s+de)?(\s+(eventos?|fiestas?|oficinas?|corporativo|privado|la\s+empresa|la\s+compa[nñ][ií]a))?$/i.test(
       cleaned
     )
   ) {
     return true;
   }
-  // "nuestra empresa" / "nuestro espacio" / "mis oficinas" sin ciudad ni nombre.
+  // "nuestra empresa" / "mi casa" / "en mi casa" / "su restaurante" sin ciudad ni nombre.
   if (
-    /^(nuestras?|nuestros?|mi|mis|su|sus|la|el)\s+(empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede)(\s+de\s+(eventos?|la\s+empresa))?$/i.test(
+    /^(nuestras?|nuestros?|mi|mis|su|sus|la|el|en)\s+(casa|empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede|restaurantes?|restaurants?|hotel|terraza|jard[ií]n|sal[oó]n|local)(\s+de\s+(eventos?|fiestas?|la\s+empresa))?$/i.test(
       cleaned
+    ) ||
+    /^(nuestras?|nuestros?|mi|mis|su|sus|la|el)\s+(casa|empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede|restaurantes?|restaurants?|hotel|terraza|jard[ií]n|sal[oó]n|local)(\s+de\s+(eventos?|fiestas?|la\s+empresa))?$/i.test(
+      t
+    ) ||
+    /^en\s+(mi\s+|su\s+|la\s+|el\s+|un\s+|una\s+)?(casa|restaurantes?|restaurants?|hotel|terraza|jard[ií]n|sal[oó]n|local)$/i.test(
+      t
     )
   ) {
     return true;
@@ -5619,7 +5632,7 @@ export function isUsableDireccionEvento(value: string | null | undefined): boole
     const words = t.split(/\s+/).filter(Boolean);
     if (words.length > 3 || t.length > 40) return false;
     if (
-      /\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|ratito|ahorita|sal[oó]n|hotel|hacienda|club|expo)\b/i.test(
+      /\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|ratito|ahorita|sal[oó]n|hotel|hacienda|club|expo|restaurantes?|restaurants?|casa|terraza|local|jard[ií]n|venue|edificio|stand)\b/i.test(
         t
       )
     ) {

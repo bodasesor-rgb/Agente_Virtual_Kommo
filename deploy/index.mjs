@@ -132919,9 +132919,13 @@ function isNonLocationBusinessPhrase(text2) {
   if (!t4) return true;
   if (JUNK_DIRECCION_PATTERN.test(t4)) return true;
   if (looksLikeDiscourseNotPlace(t4)) return true;
-  const cleaned = t4.replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "").trim();
+  const cleaned = t4.replace(
+    /^(el|la|los|las|un|una|mi|mis|su|sus|nuestr[oa]s?|en\s+(el|la|los|las|un|una|mi|mis|su|sus|nuestr[oa]s?)?)\s+/i,
+    ""
+  ).trim();
   if (!cleaned) return true;
   if (JUNK_DIRECCION_PATTERN.test(cleaned)) return true;
+  if (isVagueVenueOnly(t4) || isVagueVenueOnly(cleaned)) return true;
   if (/^color(\s+\w+)?$/i.test(cleaned)) return true;
   if (/^(blanco|negro|dorado|plateado|natural|madera|rojo|azul|verde|rosa)$/i.test(cleaned)) {
     return true;
@@ -132929,7 +132933,7 @@ function isNonLocationBusinessPhrase(text2) {
   if (looksLikeThemeColorNotLocation(cleaned) || looksLikeThemeColorNotLocation(t4)) {
     return true;
   }
-  if (/^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n|noche|tarde|vivo|realidad|serio|importante|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|negocio|sede|ratito|ahorita)$/i.test(
+  if (/^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n|noche|tarde|vivo|realidad|serio|importante|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|negocio|sede|ratito|ahorita|restaurantes?|restaurants?|hotel|terraza|stand)$/i.test(
     cleaned
   )) {
     return true;
@@ -132951,11 +132955,14 @@ function isNonLocationBusinessPhrase(text2) {
   return false;
 }
 function isVagueVenueOnly(text2) {
-  const t4 = (text2 ?? "").trim();
+  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
   if (!t4) return true;
-  const cleaned = t4.replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "").trim().split(/\n/)[0].replace(/\s+tipo\s+de.*$/i, "").trim();
+  const cleaned = t4.replace(
+    /^(el|la|los|las|un|una|mi|mis|su|sus|nuestr[oa]s?|en\s+(el|la|los|las|un|una|mi|mis|su|sus|nuestr[oa]s?)?)\s+/i,
+    ""
+  ).trim().split(/\n/)[0].replace(/\s+tipo\s+de.*$/i, "").trim();
   if (!cleaned) return true;
-  if (/^(sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede|trabajo)$/i.test(
+  if (/^(sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede|trabajo|hotel|terraza|restaurantes?|restaurants?|local|localcito|saloncito)$/i.test(
     cleaned
   )) {
     return true;
@@ -132963,13 +132970,17 @@ function isVagueVenueOnly(text2) {
   if (/^(primer|segundo|tercer|cuarto|quinto|\d+(er|do|to)?)\s+piso$/i.test(cleaned)) {
     return true;
   }
-  if (/^(sal[oó]n|edificio|venue|jard[ií]n)(\s+de)?(\s+(eventos?|oficinas?|corporativo|privado|la\s+empresa|la\s+compa[nñ][ií]a))?$/i.test(
+  if (/^(sal[oó]n|edificio|venue|jard[ií]n|restaurantes?|restaurants?|hotel|terraza|casa)(\s+de)?(\s+(eventos?|fiestas?|oficinas?|corporativo|privado|la\s+empresa|la\s+compa[nñ][ií]a))?$/i.test(
     cleaned
   )) {
     return true;
   }
-  if (/^(nuestras?|nuestros?|mi|mis|su|sus|la|el)\s+(empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede)(\s+de\s+(eventos?|la\s+empresa))?$/i.test(
+  if (/^(nuestras?|nuestros?|mi|mis|su|sus|la|el|en)\s+(casa|empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede|restaurantes?|restaurants?|hotel|terraza|jard[ií]n|sal[oó]n|local)(\s+de\s+(eventos?|fiestas?|la\s+empresa))?$/i.test(
     cleaned
+  ) || /^(nuestras?|nuestros?|mi|mis|su|sus|la|el)\s+(casa|empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede|restaurantes?|restaurants?|hotel|terraza|jard[ií]n|sal[oó]n|local)(\s+de\s+(eventos?|fiestas?|la\s+empresa))?$/i.test(
+    t4
+  ) || /^en\s+(mi\s+|su\s+|la\s+|el\s+|un\s+|una\s+)?(casa|restaurantes?|restaurants?|hotel|terraza|jard[ií]n|sal[oó]n|local)$/i.test(
+    t4
   )) {
     return true;
   }
@@ -134463,7 +134474,7 @@ function isUsableDireccionEvento(value) {
   if (!hasGeoLocationSignal(t4) && !KNOWN_ZONES.test(t4) && !looksLikeMxMunicipalityToponym(t4)) {
     const words = t4.split(/\s+/).filter(Boolean);
     if (words.length > 3 || t4.length > 40) return false;
-    if (/\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|ratito|ahorita|sal[oó]n|hotel|hacienda|club|expo)\b/i.test(
+    if (/\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|ratito|ahorita|sal[oó]n|hotel|hacienda|club|expo|restaurantes?|restaurants?|casa|terraza|local|jard[ií]n|venue|edificio|stand)\b/i.test(
       t4
     )) {
       return false;
@@ -136376,12 +136387,12 @@ var init_conversation_understanding = __esm({
     };
     MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
     KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|zapopan|tlaquepaque|san\s+pedro\s+tlaquepaque|tonal[aá]|tlajomulco(\s+de\s+z[uú][nñ]iga)?|el\s+salto|chapala|ajijic|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|teoloyucan|cuautitl[aá]n(\s+izcalli)?|zumpango|huehuetoca|coyotepec|tultepec|tultitl[aá]n|coacalco|tec[aá]mac|nextlalpan|tonanitla|jilotepec|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita|jalisco|huasca(\s+de\s+ocampo)?|real\s+del\s+monte|mineral\s+del\s+chico|tequisquiapan|bernal|taxco|tulancingo|actopan|ixmiquilpan|tepeji|amealco|tula(\s+de\s+allende)?)\b/i;
-    NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
+    NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurantes?|restaurants?|terraza|local|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
     VENUE_DISCOURSE_CUT = /\s+(?:y\s+)?(?:estamos|estoy|buscando|buscamos|busco|necesito|necesitamos|contamos|queremos|quiero|nos\s+encontramos|se\s+llama|realmente|ya\s+que|porque|para\s+que|que\s+nos|con\s+un\s+tipo|complemento|proveedor|sillas?|invitados?)\b.*$/i;
     VENUE_DISCOURSE_JUNK = /\b(buscando|buscamos|busco|proveedor|nos\s+apoye|estamos\s+buscando|contamos\s+con|realmente|complemento\s+de|tipo\s+de\s+silla|basket|coordino\s+eventos)\b/i;
-    VAGUE_VENUE_LABEL = /^(?:un\s+|una\s+|el\s+|la\s+)?(?:sal[oó]n(?:\s+de\s+fiestas?)?|hotel|jard[ií]n|espacio|lugar|venue|edificio|terraza)$/i;
+    VAGUE_VENUE_LABEL = /^(?:un\s+|una\s+|el\s+|la\s+|mi\s+|su\s+)?(?:sal[oó]n(?:\s+de\s+fiestas?)?|hotel|jard[ií]n|espacio|lugar|venue|edificio|terraza|casa|restaurantes?|restaurants?)$/i;
     VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue|hospital(?:\s+general)?(?:\s+regional)?|cl[ií]nica|auditorio|universidad|museo|plaza|edificio|instituto|facultad|torre|caba[nñ]as?|cabanas?)\s+[A-ZÁÉÍÓÚÑ0-9][A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{0,40})/i;
-    JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda(\s+civil)?|bautizo(\s+de\s+(ni[nñ][ao]|beb[eé]))?|graduaci[oó]n|cumplea[nñ]os|xv(\s*a[nñ]os?)?|quincea[nñ]era|baby\s*shower|primera\s+comuni[oó]n|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
+    JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda(\s+civil)?|bautizo(\s+de\s+(ni[nñ][ao]|beb[eé]))?|graduaci[oó]n|cumplea[nñ]os|xv(\s*a[nñ]os?)?|quincea[nñ]era|baby\s*shower|primera\s+comuni[oó]n|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|en\s+(mi\s+|su\s+|la\s+)?casa|en\s+(un\s+|el\s+)?restaurantes?|restaurantes?|restaurants?|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
     PLATED_MEAL_LABEL_RE = /^(banquete(\s+\w+)?|comida|men[uú].*tiempos?|tres\s+tiempos)$/i;
     STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
     CLOCK_AMPM = String.raw`(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)`;

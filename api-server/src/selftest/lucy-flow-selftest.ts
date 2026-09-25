@@ -3603,6 +3603,34 @@ async function runAll(): Promise<void> {
     assert.ok(isVenueWithoutCity("Salón Hacienda Los Olivos"));
     assert.ok(!isVenueWithoutCity("Salón Hacienda Los Olivos en Polanco"));
 
+    // A16345e: "restaurante" / "mi casa" / "terraza" ≠ dirección (como si no dijeran nada).
+    assert.ok(isVagueVenueOnly("restaurante"));
+    assert.ok(isVagueVenueOnly("en el restaurante"));
+    assert.ok(isVagueVenueOnly("mi casa"));
+    assert.ok(isVagueVenueOnly("en mi casa"));
+    assert.ok(isVagueVenueOnly("terraza"));
+    assert.ok(isVagueVenueOnly("en la terraza"));
+    assert.equal(parseZonaFromText("restaurante"), null);
+    assert.equal(parseZonaFromText("en el restaurante"), null);
+    assert.equal(parseZonaFromText("en mi casa"), null);
+    assert.equal(parseZonaFromText("mi casa"), null);
+    assert.ok(!isUsableDireccionEvento("restaurante"));
+    assert.ok(!isUsableDireccionEvento("en mi casa"));
+    assert.ok(!isUsableDireccionEvento("mi casa"));
+    assert.ok(!isUsableDireccionEvento("terraza"));
+    assert.equal(
+      sanitizeExtractedFromExternal(
+        emptyExtracted({ direccion_evento: "restaurante" })
+      ).direccion_evento,
+      null
+    );
+    assert.equal(
+      sanitizeExtractedFromExternal(
+        emptyExtracted({ direccion_evento: "en mi casa" })
+      ).direccion_evento,
+      null
+    );
+
     // V9.29: empresa / espacio / "un ratito" ≠ dirección.
     assert.equal(parseZonaFromText("en la empresa"), null);
     assert.equal(parseZonaFromText("en nuestro espacio"), null);
