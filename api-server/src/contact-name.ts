@@ -151,6 +151,17 @@ const MEASUREMENT_UNIT_NAME_TOKEN =
 const NUMBER_PLUS_UNIT_AS_NOMBRE =
   /^(?:aprox\.?|aproximadamente|unos?|unas?|de|son|mide(?:n)?|miden)?\s*\d+([.,]\d+)?\s*(?:metros?|mts?|m2|m²|m\b|cm|mms?|km|pulgadas?|pies?|ft|inch(?:es)?|yardas?)\b/i;
 
+/**
+ * Estilo / tipo de evento / etiqueta de lead ≠ nombre de persona (A16367+).
+ * "Boutique", "Fiesta Boutique", "Evento Boutique", "Corporativo".
+ */
+const OCCASION_OR_STYLE_AS_NOMBRE =
+  /^(boutique|fiesta(\s+boutique)?|evento(\s+[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ.-]*)?|corporativo|empresarial|premium(\s+events?)?|elegante|moderno|formal|casual|tem[aá]tica|xv(\s*a[nñ]os?)?|quincea[nñ]era|boda(\s+civil)?|cumplea[nñ]os|bautizo|graduaci[oó]n|baby\s*shower|aniversario|posada|wedding)$/i;
+
+/** Números en letras (español) — no son nombre ("Uno Dos"). */
+const SPANISH_NUMBER_WORD_TOKEN =
+  /^(cero|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|mil|mill[oó]n)$/i;
+
 /** Texto que es solo unidad o número+unidad — basura de medidas, no persona. */
 export function isMeasurementOrDimensionAsNombre(text: string | null | undefined): boolean {
   const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
@@ -168,6 +179,45 @@ export function isMeasurementOrDimensionAsNombre(text: string | null | undefined
     return true;
   }
   return false;
+}
+
+/** Boutique / Fiesta Boutique / Evento X / corporativo ≠ nombre. */
+export function isOccasionOrStyleAsNombre(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t) return false;
+  if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
+  if (OCCASION_OR_STYLE_AS_NOMBRE.test(t)) return true;
+  // "Evento Boutique", "Fiesta Corporativo", etc.
+  if (
+    /^(evento|fiesta|celebration|celebraci[oó]n)\s+/i.test(t) &&
+    t.split(/\s+/).length <= 4
+  ) {
+    return true;
+  }
+  const parts = t.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) {
+    const letters = (parts[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (/^(boutique|corporativo|empresarial|elegante|moderno|formal|casual|premium)$/i.test(letters)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Solo dígitos, o todos los tokens son números en letras. */
+export function isNumberWordsAsNombre(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t) return false;
+  if (/^\d+([.,]\d+)?$/.test(t)) return true;
+  if (/^\d/.test(t) && t.split(/\s+/).length <= 3 && !/[a-záéíóúñ]{3,}/i.test(t.replace(/\d/g, ""))) {
+    return true;
+  }
+  const parts = t.split(/\s+/).filter(Boolean);
+  if (parts.length === 0 || parts.length > 4) return false;
+  return parts.every((p) => {
+    const letters = p.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    return /^\d+([.,]\d+)?$/.test(p) || SPANISH_NUMBER_WORD_TOKEN.test(letters);
+  });
 }
 
 /** Intención de cotización — no es el nombre del cliente ("Quiero hacer una cotización"). */
@@ -255,6 +305,10 @@ export function isLikelyNotPersonNameMessage(text: string | null | undefined): b
   if (isRepeatComplaintAsName(t)) return true;
   // A16367: "36 metros" / "Metros" / "10 cm" ≠ nombre (antes de presentación).
   if (isMeasurementOrDimensionAsNombre(t)) return true;
+  // Boutique / Fiesta Boutique / Evento X ≠ nombre.
+  if (isOccasionOrStyleAsNombre(t)) return true;
+  // "Uno Dos" / "123" ≠ nombre.
+  if (isNumberWordsAsNombre(t)) return true;
   // Presentación explícita sí puede ser nombre ("soy Bea" / "que tal, soy Bea" / "Es Sofía").
   if (/(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
   if (/^\s*es\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]/i.test(t) && t.split(/\s+/).length <= 5) return false;
@@ -431,6 +485,8 @@ export function isWeakOrJunkNombre(name: string | null | undefined): boolean {
   const t = (name ?? "").trim();
   if (!t) return true;
   if (isMeasurementOrDimensionAsNombre(t)) return true;
+  if (isOccasionOrStyleAsNombre(t)) return true;
+  if (isNumberWordsAsNombre(t)) return true;
   if (isPlaceholderLeadName(t)) return true;
   if (isAffirmativeOnlyMessage(t)) return true;
   if (/\bcon\s+gusto\b/i.test(t)) return true;
@@ -483,6 +539,8 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
   const raw = stripMuchoGustoSalutation(name?.trim() ?? "");
   if (!raw || isPlaceholderLeadName(raw)) return null;
   if (isMeasurementOrDimensionAsNombre(raw)) return null;
+  if (isOccasionOrStyleAsNombre(raw)) return null;
+  if (isNumberWordsAsNombre(raw)) return null;
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
 
@@ -548,6 +606,9 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
   if (isAffirmativeOnlyMessage(raw)) return null;
   // A16367: "36 metros" / "Metros" nunca al CRM como Nombre.
   if (isMeasurementOrDimensionAsNombre(raw)) return null;
+  // Boutique / Fiesta Boutique / Evento X / números en letras ≠ nombre.
+  if (isOccasionOrStyleAsNombre(raw)) return null;
+  if (isNumberWordsAsNombre(raw)) return null;
   if (isWeakOrJunkNombre(raw)) return null;
   if (isRepeatComplaintAsName(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw)) return null;

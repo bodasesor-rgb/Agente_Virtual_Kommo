@@ -9,6 +9,8 @@ import {
   isLikelyUbicacionNotNombre,
   isLikelyNotPersonNameMessage,
   isMeasurementOrDimensionAsNombre,
+  isNumberWordsAsNombre,
+  isOccasionOrStyleAsNombre,
   isQuoteIntentMessage,
   isServicePreferenceAsNombre,
   sanitizeCrmNombre,
@@ -63,6 +65,8 @@ export function isInvalidCrmNombre(value: string | null | undefined): boolean {
   if (!raw) return true;
   if (isQuoteIntentMessage(raw)) return true;
   if (isMeasurementOrDimensionAsNombre(raw)) return true;
+  if (isOccasionOrStyleAsNombre(raw)) return true;
+  if (isNumberWordsAsNombre(raw)) return true;
   if (isLikelyUbicacionNotNombre(raw)) return true;
   if (isServicePreferenceAsNombre(raw)) return true;
   if (isLikelyNotPersonNameMessage(raw) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw)) {
@@ -99,9 +103,6 @@ export function applyCrmWriteInvariants(
     applied.push("nombre-invalid-cleared");
   } else if (out.nombre) {
     const cleaned = sanitizeCrmNombre(out.nombre);
-  if (out.tipo_evento && looksLikePersonNameAsEventType(out.tipo_evento)) {
-    out.tipo_evento = null;
-  }
     if (!cleaned) {
       out.nombre = null;
       applied.push("nombre-sanitize-null");
@@ -109,6 +110,11 @@ export function applyCrmWriteInvariants(
       out.nombre = cleaned;
       applied.push("nombre-sanitized");
     }
+  }
+
+  if (out.tipo_evento && looksLikePersonNameAsEventType(out.tipo_evento)) {
+    out.tipo_evento = null;
+    applied.push("tipo-name-cleared");
   }
 
   // 2) Presupuesto solo si el CLIENTE lo justificó (nunca eco de Lucy "$300 pp").

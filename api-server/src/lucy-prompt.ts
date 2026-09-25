@@ -269,13 +269,15 @@ como "comoda"):
 El campo Nombre es SOLO el nombre de una persona (ej. "María", "Juan Pérez").
 NUNCA guardes como nombre:
 - Medidas / unidades: "metros", "36 metros", "m2", "cm", "6x12", "10 por 15"
+- Estilo / etiqueta de lead: "Boutique", "Fiesta Boutique", "Evento Boutique", "Corporativo"
+- Números o cifras en letras: "123", "Uno Dos", "cinco"
 - Servicios o productos: pista, tarima, banquete, taquiza, DJ, carpa, mesas…
 - Ubicaciones: ciudad, colonia, salón, "mi casa", "restaurante", "CDMX"
 - Tipo de evento: boda, XV, cumpleaños, "Evento Boutique"
 - Cargos / áreas: Recepción, Gerencia, Eventos
 - Afirmaciones o basura: ok, claro, sí, hola, "con gusto"
-Si el cliente responde medidas cuando pediste el nombre: anota las medidas
-en el servicio (pista/tarima/carpa) y VUELVE a pedir el nombre de la persona.
+Si el cliente responde medidas/estilo/tipo cuando pediste el nombre: anota lo útil
+(medidas→pista/tarima; tipo→Tipo de evento) y VUELVE a pedir el nombre de la persona.
 Si no estás seguro de que sea un nombre de persona, NO lo escribas en CRM.
 
 ===================================================================
@@ -285,6 +287,8 @@ Si no estás seguro de que sea un nombre de persona, NO lo escribas en CRM.
 lugar de tu evento, coordinamos el servicio."
 - "salón" / "edificio" / "empresa" / "espacio" / "oficinas" sin nombre/ciudad/colonia → pide ciudad y colonia (no lo anotes como dirección).
 - Salón/hacienda/hotel con nombre pero SIN ciudad → NO cierra ubicación. Anota el salón si quieres y pide la *ciudad* (mínimo).
+- Colonia sola ("colonia Roma") = hint: puedes anotarla, pero la ubicación NO está completa hasta tener ciudad/metro.
+- Palabras sueltas tipo "Boutique" / estilo ≠ dirección.
 - "un ratito" / "ahorita te digo" NO es dirección: espera o vuelve a pedir ubicación.
 - Nombre de producto lounge ≠ ubicación.
 

@@ -11,6 +11,8 @@ import {
   isLikelyNotPersonNameMessage,
   isLikelyUbicacionNotNombre,
   isMeasurementOrDimensionAsNombre,
+  isNumberWordsAsNombre,
+  isOccasionOrStyleAsNombre,
   isQuoteIntentMessage,
   isServicePreferenceAsNombre,
   looksLikePersonFullName,
@@ -5292,6 +5294,7 @@ export function looksLikeNameAnswerMessage(text: string | null | undefined): boo
   if (!t || t.length > 90 || /\?/.test(t) || /@/.test(t) || /\d{3,}/.test(t)) return false;
   // A16367: medidas / unidades nunca son respuesta de nombre.
   if (isDimensionText(t) || isMeasurementOrDimensionAsNombre(t)) return false;
+  if (isOccasionOrStyleAsNombre(t) || isNumberWordsAsNombre(t)) return false;
   if (clientAsksCafeOrCateringChoice(t)) return false;
   // A15705: "Sería De Catering" / preferencia ≠ respuesta de nombre.
   if (isServicePreferenceAsNombre(t)) return false;
@@ -5638,20 +5641,57 @@ export function isUsableDireccionEvento(value: string | null | undefined): boole
       return true;
     }
   }
-  // Sin ciudad: solo topónimos cortos tipo ciudad (Jiutepec), nunca venues.
+  // Sin ciudad/zona/municipio: NUNCA aceptar (Boutique, "Fiesta", salón suelto…).
+  // Antes el fallback ≤3 palabras devolvía true y metía basura como dirección.
   if (!hasGeoLocationSignal(t) && !KNOWN_ZONES.test(t) && !looksLikeMxMunicipalityToponym(t)) {
-    const words = t.split(/\s+/).filter(Boolean);
-    if (words.length > 3 || t.length > 40) return false;
-    if (
-      /\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|ratito|ahorita|sal[oó]n|hotel|hacienda|club|expo|restaurantes?|restaurants?|casa|terraza|local|jard[ií]n|venue|edificio|stand)\b/i.test(
-        t
-      )
-    ) {
-      return false;
-    }
+    return false;
+  }
+  // Tiene señal geo de venue/calle/colonia pero sin ciudad → no cerrar.
+  return false;
+}
+
+/**
+ * Ubicación "llena" para el embudo: ciudad / metro / municipio.
+ * Colonia o salón solos = hint (se pueden anotar) pero NO cierran zona.
+ */
+export function isCompleteEventLocation(value: string | null | undefined): boolean {
+  const t = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
+  if (!t || !isUsableDireccionEvento(t)) return false;
+  if (isVenueWithoutCity(t)) return false;
+  if (KNOWN_ZONES.test(t) || matchesKnownZone(t) || looksLikeMxMunicipalityToponym(t)) {
     return true;
   }
-  // Tiene señal geo de venue/calle pero sin ciudad → no cerrar.
+  if (/\b(cdmx|d\.?\s*f\.?|estado\s+de|edo\.?\s*m[eé]x)\b/i.test(t)) return true;
+  if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t)) return true;
+  if (
+    /\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica|atlixco|cholula|tehuac[aá]n|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|tlaquepaque|zapopan|tonal[aá]|tlajomulco|jalisco|puebla|monterrey|guadalajara|quer[eé]taro)\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  // "colonia Roma, CDMX" ya pasó por cdmx arriba; colonia sola ≠ completa.
+  if (
+    /^(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+\S+/i.test(t) &&
+    !KNOWN_ZONES.test(t) &&
+    !looksLikeMxMunicipalityToponym(t)
+  ) {
+    return false;
+  }
+  // Tiene ciudad + detalle (salón en X) → completa si hasCityOrMetroSignal
+  // excluyendo el caso colonia-sola (ya filtrado).
+  if (hasCityOrMetroSignal(t) && !/^(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+/i.test(t)) {
+    return true;
+  }
+  // Colonia + ciudad conocida en el mismo string ("colonia Roma en CDMX").
+  if (
+    /\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+/i.test(t) &&
+    (KNOWN_ZONES.test(t) ||
+      looksLikeMxMunicipalityToponym(t) ||
+      /\b(cdmx|d\.?\s*f\.?|estado\s+de|edo\.?\s*m[eé]x|ciudad\s+)/i.test(t))
+  ) {
+    return true;
+  }
   return false;
 }
 
@@ -7568,6 +7608,11 @@ export function captureContextualAnswer(
     !isServiceRelatedMessage(msg) &&
     !isAmbiguousShortNumber(msg) &&
     !isLikelyUbicacionNotNombre(msg) &&
+    !isOccasionOrStyleAsNombre(msg) &&
+    !isNumberWordsAsNombre(msg) &&
+    !isMeasurementOrDimensionAsNombre(msg) &&
+    !isEventTypeOnlyMessage(msg) &&
+    !parseTipoEventoFromText(msg) &&
     !parseZonaFromText(msg) &&
     /[a-záéíóúüñ]/i.test(msg) &&
     !/@/.test(msg) &&
@@ -7585,9 +7630,22 @@ export function captureContextualAnswer(
       !/\?/.test(candidato) &&
       (!isLikelyNotPersonNameMessage(candidato) || handoffNoise) &&
       !isServiceRelatedMessage(candidato) &&
-      !isLikelyUbicacionNotNombre(candidato)
+      !isLikelyUbicacionNotNombre(candidato) &&
+      !isOccasionOrStyleAsNombre(candidato) &&
+      !isNumberWordsAsNombre(candidato)
     ) {
       captures.push({ label: "Nombre del cliente", value: nombre });
+    }
+  }
+
+  // Si Lucy pidió nombre y llegó tipo/estilo/medida → re-enrutar, no inventar nombre.
+  if (asked === "nombre" && !filledSet.has("Nombre del cliente")) {
+    const tipoMisroute = parseTipoEventoFromText(msg) || (isEventTypeOnlyMessage(msg) ? msg.trim() : null);
+    if (tipoMisroute && !filledSet.has("Tipo de evento")) {
+      captures.push({
+        label: "Tipo de evento",
+        value: parseTipoEventoFromText(msg) ?? tipoMisroute,
+      });
     }
   }
 

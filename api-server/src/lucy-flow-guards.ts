@@ -254,6 +254,7 @@ import {
   buildRichBriefAcknowledgment,
   formatServicesList,
   isUsableDireccionEvento,
+  isCompleteEventLocation,
   isVagueVenueOnly,
   isLocationDeferralOrVagueWorkplace,
   isVenueWithoutCity,
@@ -481,8 +482,11 @@ export function syncFilledFromExtracted(filledSet: Set<string>, extracted: Extra
     ) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/dirección del evento");
-    } else {
+    } else if (isCompleteEventLocation(extracted.direccion_evento)) {
       filledSet.add("Lugar/dirección del evento");
+    } else {
+      // Colonia/salón hint: conservar valor, no marcar zona como llena.
+      filledSet.delete("Lugar/dirección del evento");
     }
   }
   const presStr = String(extracted.presupuesto ?? "").trim();
@@ -3680,9 +3684,11 @@ export function isFieldSatisfied(
     case "invitados":
       return filledSet.has("Número de invitados") || !!extracted.num_invitados;
     case "zona":
+      // Colonia/salón = hint; zona filled solo con ciudad/metro/municipio.
       return (
-        filledSet.has("Lugar/dirección del evento") ||
-        isUsableDireccionEvento(extracted.direccion_evento)
+        (filledSet.has("Lugar/dirección del evento") &&
+          isCompleteEventLocation(extracted.direccion_evento)) ||
+        isCompleteEventLocation(extracted.direccion_evento)
       );
     case "fecha":
       return (

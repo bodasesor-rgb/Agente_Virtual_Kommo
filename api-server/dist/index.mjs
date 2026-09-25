@@ -90153,6 +90153,37 @@ function isMeasurementOrDimensionAsNombre(text2) {
   }
   return false;
 }
+function isOccasionOrStyleAsNombre(text2) {
+  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t4) return false;
+  if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t4)) return false;
+  if (OCCASION_OR_STYLE_AS_NOMBRE.test(t4)) return true;
+  if (/^(evento|fiesta|celebration|celebraci[oó]n)\s+/i.test(t4) && t4.split(/\s+/).length <= 4) {
+    return true;
+  }
+  const parts2 = t4.split(/\s+/).filter(Boolean);
+  if (parts2.length === 1) {
+    const letters = (parts2[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (/^(boutique|corporativo|empresarial|elegante|moderno|formal|casual|premium)$/i.test(letters)) {
+      return true;
+    }
+  }
+  return false;
+}
+function isNumberWordsAsNombre(text2) {
+  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t4) return false;
+  if (/^\d+([.,]\d+)?$/.test(t4)) return true;
+  if (/^\d/.test(t4) && t4.split(/\s+/).length <= 3 && !/[a-záéíóúñ]{3,}/i.test(t4.replace(/\d/g, ""))) {
+    return true;
+  }
+  const parts2 = t4.split(/\s+/).filter(Boolean);
+  if (parts2.length === 0 || parts2.length > 4) return false;
+  return parts2.every((p5) => {
+    const letters = p5.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    return /^\d+([.,]\d+)?$/.test(p5) || SPANISH_NUMBER_WORD_TOKEN.test(letters);
+  });
+}
 function isQuoteIntentMessage(text2) {
   const t4 = text2?.trim() ?? "";
   if (!t4) return false;
@@ -90203,6 +90234,8 @@ function isLikelyNotPersonNameMessage(text2) {
   if (isGreetingToLucy(t4)) return true;
   if (isRepeatComplaintAsName(t4)) return true;
   if (isMeasurementOrDimensionAsNombre(t4)) return true;
+  if (isOccasionOrStyleAsNombre(t4)) return true;
+  if (isNumberWordsAsNombre(t4)) return true;
   if (/(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t4)) return false;
   if (/^\s*es\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]/i.test(t4) && t4.split(/\s+/).length <= 5) return false;
   if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t4) && t4.split(/\s+/).length <= 5) return false;
@@ -90299,6 +90332,8 @@ function isWeakOrJunkNombre(name2) {
   const t4 = (name2 ?? "").trim();
   if (!t4) return true;
   if (isMeasurementOrDimensionAsNombre(t4)) return true;
+  if (isOccasionOrStyleAsNombre(t4)) return true;
+  if (isNumberWordsAsNombre(t4)) return true;
   if (isPlaceholderLeadName(t4)) return true;
   if (isAffirmativeOnlyMessage(t4)) return true;
   if (/\bcon\s+gusto\b/i.test(t4)) return true;
@@ -90345,6 +90380,8 @@ function sanitizeDisplayName(name2) {
   const raw = stripMuchoGustoSalutation(name2?.trim() ?? "");
   if (!raw || isPlaceholderLeadName(raw)) return null;
   if (isMeasurementOrDimensionAsNombre(raw)) return null;
+  if (isOccasionOrStyleAsNombre(raw)) return null;
+  if (isNumberWordsAsNombre(raw)) return null;
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
   const stripped = stripPresentationPrefixLocal(raw);
@@ -90391,6 +90428,8 @@ function sanitizeCrmNombre(name2) {
   if (isGreetingOnlyMessage(raw)) return null;
   if (isAffirmativeOnlyMessage(raw)) return null;
   if (isMeasurementOrDimensionAsNombre(raw)) return null;
+  if (isOccasionOrStyleAsNombre(raw)) return null;
+  if (isNumberWordsAsNombre(raw)) return null;
   if (isWeakOrJunkNombre(raw)) return null;
   if (isRepeatComplaintAsName(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw)) return null;
@@ -90580,7 +90619,7 @@ function rewriteJunkClientVocative(message, correctNombre) {
 function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
   return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
 }
-var PHONE_LIKE, PLACEHOLDER_PATTERNS, ROLE_OR_DEPT_NAME_TOKEN, GREETING_NAME_PATTERN, COMPANY_OR_CHANNEL_PATTERN, BOT_OR_META_NAME_TOKEN, COURTESY_NAME_TOKEN, MUCHO_GUSTO_SUFFIX, MUCHO_GUSTO_LEADING, CATALOG_LEVEL_OR_BRAND_NAME, SENTENCE_VERB_PATTERN, HANDOFF_OR_META_NAME_TOKEN, PRICE_OR_SERVICE_NAME_TOKEN, MEASUREMENT_UNIT_NAME_TOKEN, NUMBER_PLUS_UNIT_AS_NOMBRE, NAME_STOPWORDS, NAME_COURTESY_OR_ROLE_TOKEN;
+var PHONE_LIKE, PLACEHOLDER_PATTERNS, ROLE_OR_DEPT_NAME_TOKEN, GREETING_NAME_PATTERN, COMPANY_OR_CHANNEL_PATTERN, BOT_OR_META_NAME_TOKEN, COURTESY_NAME_TOKEN, MUCHO_GUSTO_SUFFIX, MUCHO_GUSTO_LEADING, CATALOG_LEVEL_OR_BRAND_NAME, SENTENCE_VERB_PATTERN, HANDOFF_OR_META_NAME_TOKEN, PRICE_OR_SERVICE_NAME_TOKEN, MEASUREMENT_UNIT_NAME_TOKEN, NUMBER_PLUS_UNIT_AS_NOMBRE, OCCASION_OR_STYLE_AS_NOMBRE, SPANISH_NUMBER_WORD_TOKEN, NAME_STOPWORDS, NAME_COURTESY_OR_ROLE_TOKEN;
 var init_contact_name = __esm({
   "src/contact-name.ts"() {
     "use strict";
@@ -90608,6 +90647,8 @@ var init_contact_name = __esm({
     PRICE_OR_SERVICE_NAME_TOKEN = /^(cu[aá]nto|cu[aacute]nto|cuesta|cuestan|costo|precio|renta|rentar|cobran|vale|valen|mesas?|sillas?|periqueras?|salas?|mobiliario|personas?|invitados?)$/i;
     MEASUREMENT_UNIT_NAME_TOKEN = /^(metros?|mts?|m2|m²|cm|mms?|km|pulgadas?|pies?|ft|inch(?:es)?|yardas?|litros?|kg|kilos?|toneladas?)$/i;
     NUMBER_PLUS_UNIT_AS_NOMBRE = /^(?:aprox\.?|aproximadamente|unos?|unas?|de|son|mide(?:n)?|miden)?\s*\d+([.,]\d+)?\s*(?:metros?|mts?|m2|m²|m\b|cm|mms?|km|pulgadas?|pies?|ft|inch(?:es)?|yardas?)\b/i;
+    OCCASION_OR_STYLE_AS_NOMBRE = /^(boutique|fiesta(\s+boutique)?|evento(\s+[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ.-]*)?|corporativo|empresarial|premium(\s+events?)?|elegante|moderno|formal|casual|tem[aá]tica|xv(\s*a[nñ]os?)?|quincea[nñ]era|boda(\s+civil)?|cumplea[nñ]os|bautizo|graduaci[oó]n|baby\s*shower|aniversario|posada|wedding)$/i;
+    SPANISH_NUMBER_WORD_TOKEN = /^(cero|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|mil|mill[oó]n)$/i;
     NAME_STOPWORDS = /^(en|de|del|la|el|los|las|un|una|al|para|por|con|sin|y|o)$/i;
     NAME_COURTESY_OR_ROLE_TOKEN = /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto|servidor[ao]?|servidora|a\s+sus\s+[oó]rdenes|presente|mismo|misma)$/i;
   }
@@ -134450,6 +134491,7 @@ function looksLikeNameAnswerMessage(text2) {
   const t4 = text2?.trim() ?? "";
   if (!t4 || t4.length > 90 || /\?/.test(t4) || /@/.test(t4) || /\d{3,}/.test(t4)) return false;
   if (isDimensionText(t4) || isMeasurementOrDimensionAsNombre(t4)) return false;
+  if (isOccasionOrStyleAsNombre(t4) || isNumberWordsAsNombre(t4)) return false;
   if (clientAsksCafeOrCateringChoice(t4)) return false;
   if (isServicePreferenceAsNombre(t4)) return false;
   if (isServiceRelatedMessage(t4) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\b/i.test(t4)) {
@@ -134682,13 +134724,31 @@ function isUsableDireccionEvento(value) {
     }
   }
   if (!hasGeoLocationSignal(t4) && !KNOWN_ZONES.test(t4) && !looksLikeMxMunicipalityToponym(t4)) {
-    const words = t4.split(/\s+/).filter(Boolean);
-    if (words.length > 3 || t4.length > 40) return false;
-    if (/\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|ratito|ahorita|sal[oó]n|hotel|hacienda|club|expo|restaurantes?|restaurants?|casa|terraza|local|jard[ií]n|venue|edificio|stand)\b/i.test(
-      t4
-    )) {
-      return false;
-    }
+    return false;
+  }
+  return false;
+}
+function isCompleteEventLocation(value) {
+  const t4 = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
+  if (!t4 || !isUsableDireccionEvento(t4)) return false;
+  if (isVenueWithoutCity(t4)) return false;
+  if (KNOWN_ZONES.test(t4) || matchesKnownZone(t4) || looksLikeMxMunicipalityToponym(t4)) {
+    return true;
+  }
+  if (/\b(cdmx|d\.?\s*f\.?|estado\s+de|edo\.?\s*m[eé]x)\b/i.test(t4)) return true;
+  if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t4)) return true;
+  if (/\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica|atlixco|cholula|tehuac[aá]n|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|tlaquepaque|zapopan|tonal[aá]|tlajomulco|jalisco|puebla|monterrey|guadalajara|quer[eé]taro)\b/i.test(
+    t4
+  )) {
+    return true;
+  }
+  if (/^(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+\S+/i.test(t4) && !KNOWN_ZONES.test(t4) && !looksLikeMxMunicipalityToponym(t4)) {
+    return false;
+  }
+  if (hasCityOrMetroSignal(t4) && !/^(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+/i.test(t4)) {
+    return true;
+  }
+  if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+/i.test(t4) && (KNOWN_ZONES.test(t4) || looksLikeMxMunicipalityToponym(t4) || /\b(cdmx|d\.?\s*f\.?|estado\s+de|edo\.?\s*m[eé]x|ciudad\s+)/i.test(t4))) {
     return true;
   }
   return false;
@@ -135856,12 +135916,21 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
       });
     }
   }
-  if (!msgIsLocation && !filledSet.has("Nombre del cliente") && asked !== "zona" && (asked === "nombre" || !history.some((m6) => m6.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && !isQuoteIntentMessage(msg) && !isServiceRelatedMessage(msg) && !isAmbiguousShortNumber(msg) && !isLikelyUbicacionNotNombre(msg) && !parseZonaFromText(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
+  if (!msgIsLocation && !filledSet.has("Nombre del cliente") && asked !== "zona" && (asked === "nombre" || !history.some((m6) => m6.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && !isQuoteIntentMessage(msg) && !isServiceRelatedMessage(msg) && !isAmbiguousShortNumber(msg) && !isLikelyUbicacionNotNombre(msg) && !isOccasionOrStyleAsNombre(msg) && !isNumberWordsAsNombre(msg) && !isMeasurementOrDimensionAsNombre(msg) && !isEventTypeOnlyMessage(msg) && !parseTipoEventoFromText(msg) && !parseZonaFromText(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
     const candidato = stripNombrePresentationPrefix(msg);
     const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
     const handoffNoise = clientAsksForHumanAdvisor(msg) || /\b(hablar|asesor|agente|humano)\b/i.test(candidato);
-    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && (!isLikelyNotPersonNameMessage(candidato) || handoffNoise) && !isServiceRelatedMessage(candidato) && !isLikelyUbicacionNotNombre(candidato)) {
+    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && (!isLikelyNotPersonNameMessage(candidato) || handoffNoise) && !isServiceRelatedMessage(candidato) && !isLikelyUbicacionNotNombre(candidato) && !isOccasionOrStyleAsNombre(candidato) && !isNumberWordsAsNombre(candidato)) {
       captures.push({ label: "Nombre del cliente", value: nombre });
+    }
+  }
+  if (asked === "nombre" && !filledSet.has("Nombre del cliente")) {
+    const tipoMisroute = parseTipoEventoFromText(msg) || (isEventTypeOnlyMessage(msg) ? msg.trim() : null);
+    if (tipoMisroute && !filledSet.has("Tipo de evento")) {
+      captures.push({
+        label: "Tipo de evento",
+        value: parseTipoEventoFromText(msg) ?? tipoMisroute
+      });
     }
   }
   if (!filledSet.has("Tipo de evento") && asked === "tipo_evento") {
@@ -161830,8 +161899,10 @@ function syncFilledFromExtracted(filledSet, extracted) {
     sanitizeCrmNombre(extracted.direccion_evento) && namesAreLikelySamePerson(extracted.nombre, extracted.direccion_evento)) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/direcci\xF3n del evento");
-    } else {
+    } else if (isCompleteEventLocation(extracted.direccion_evento)) {
       filledSet.add("Lugar/direcci\xF3n del evento");
+    } else {
+      filledSet.delete("Lugar/direcci\xF3n del evento");
     }
   }
   const presStr = String(extracted.presupuesto ?? "").trim();
@@ -163867,7 +163938,7 @@ function isFieldSatisfied(field, filledSet, extracted) {
     case "invitados":
       return filledSet.has("N\xFAmero de invitados") || !!extracted.num_invitados;
     case "zona":
-      return filledSet.has("Lugar/direcci\xF3n del evento") || isUsableDireccionEvento(extracted.direccion_evento);
+      return filledSet.has("Lugar/direcci\xF3n del evento") && isCompleteEventLocation(extracted.direccion_evento) || isCompleteEventLocation(extracted.direccion_evento);
     case "fecha":
       return filledSet.has(CRM_FECHA_LABEL) || isUsableFechaEvento(extracted.fecha_evento);
     case "horario":
@@ -230278,7 +230349,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.20";
+var LUCY_PROMPT_VERSION = "V10.21";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -232414,6 +232485,8 @@ function isInvalidCrmNombre(value) {
   if (!raw) return true;
   if (isQuoteIntentMessage(raw)) return true;
   if (isMeasurementOrDimensionAsNombre(raw)) return true;
+  if (isOccasionOrStyleAsNombre(raw)) return true;
+  if (isNumberWordsAsNombre(raw)) return true;
   if (isLikelyUbicacionNotNombre(raw)) return true;
   if (isServicePreferenceAsNombre(raw)) return true;
   if (isLikelyNotPersonNameMessage(raw) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw)) {
@@ -232439,9 +232512,6 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
     applied.push("nombre-invalid-cleared");
   } else if (out2.nombre) {
     const cleaned = sanitizeCrmNombre(out2.nombre);
-    if (out2.tipo_evento && looksLikePersonNameAsEventType(out2.tipo_evento)) {
-      out2.tipo_evento = null;
-    }
     if (!cleaned) {
       out2.nombre = null;
       applied.push("nombre-sanitize-null");
@@ -232449,6 +232519,10 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
       out2.nombre = cleaned;
       applied.push("nombre-sanitized");
     }
+  }
+  if (out2.tipo_evento && looksLikePersonNameAsEventType(out2.tipo_evento)) {
+    out2.tipo_evento = null;
+    applied.push("tipo-name-cleared");
   }
   if (out2.presupuesto !== null && out2.presupuesto !== void 0) {
     const presStr = String(out2.presupuesto).trim();
@@ -233504,13 +233578,15 @@ como "comoda"):
 El campo Nombre es SOLO el nombre de una persona (ej. "Mar\xEDa", "Juan P\xE9rez").
 NUNCA guardes como nombre:
 - Medidas / unidades: "metros", "36 metros", "m2", "cm", "6x12", "10 por 15"
+- Estilo / etiqueta de lead: "Boutique", "Fiesta Boutique", "Evento Boutique", "Corporativo"
+- N\xFAmeros o cifras en letras: "123", "Uno Dos", "cinco"
 - Servicios o productos: pista, tarima, banquete, taquiza, DJ, carpa, mesas\u2026
 - Ubicaciones: ciudad, colonia, sal\xF3n, "mi casa", "restaurante", "CDMX"
 - Tipo de evento: boda, XV, cumplea\xF1os, "Evento Boutique"
 - Cargos / \xE1reas: Recepci\xF3n, Gerencia, Eventos
 - Afirmaciones o basura: ok, claro, s\xED, hola, "con gusto"
-Si el cliente responde medidas cuando pediste el nombre: anota las medidas
-en el servicio (pista/tarima/carpa) y VUELVE a pedir el nombre de la persona.
+Si el cliente responde medidas/estilo/tipo cuando pediste el nombre: anota lo \xFAtil
+(medidas\u2192pista/tarima; tipo\u2192Tipo de evento) y VUELVE a pedir el nombre de la persona.
 Si no est\xE1s seguro de que sea un nombre de persona, NO lo escribas en CRM.
 
 ===================================================================
@@ -233520,6 +233596,8 @@ Si no est\xE1s seguro de que sea un nombre de persona, NO lo escribas en CRM.
 lugar de tu evento, coordinamos el servicio."
 - "sal\xF3n" / "edificio" / "empresa" / "espacio" / "oficinas" sin nombre/ciudad/colonia \u2192 pide ciudad y colonia (no lo anotes como direcci\xF3n).
 - Sal\xF3n/hacienda/hotel con nombre pero SIN ciudad \u2192 NO cierra ubicaci\xF3n. Anota el sal\xF3n si quieres y pide la *ciudad* (m\xEDnimo).
+- Colonia sola ("colonia Roma") = hint: puedes anotarla, pero la ubicaci\xF3n NO est\xE1 completa hasta tener ciudad/metro.
+- Palabras sueltas tipo "Boutique" / estilo \u2260 direcci\xF3n.
 - "un ratito" / "ahorita te digo" NO es direcci\xF3n: espera o vuelve a pedir ubicaci\xF3n.
 - Nombre de producto lounge \u2260 ubicaci\xF3n.
 
