@@ -8,6 +8,7 @@ import { looksLikePersonNameAsEventType } from "./conversation-understanding.js"
 import {
   isLikelyUbicacionNotNombre,
   isLikelyNotPersonNameMessage,
+  isMeasurementOrDimensionAsNombre,
   isQuoteIntentMessage,
   isServicePreferenceAsNombre,
   sanitizeCrmNombre,
@@ -61,6 +62,7 @@ export function isInvalidCrmNombre(value: string | null | undefined): boolean {
   const raw = value?.trim() ?? "";
   if (!raw) return true;
   if (isQuoteIntentMessage(raw)) return true;
+  if (isMeasurementOrDimensionAsNombre(raw)) return true;
   if (isLikelyUbicacionNotNombre(raw)) return true;
   if (isServicePreferenceAsNombre(raw)) return true;
   if (isLikelyNotPersonNameMessage(raw) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw)) {

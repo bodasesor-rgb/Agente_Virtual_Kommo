@@ -10,6 +10,7 @@ import {
   isGreetingOnlyMessage,
   isLikelyNotPersonNameMessage,
   isLikelyUbicacionNotNombre,
+  isMeasurementOrDimensionAsNombre,
   isQuoteIntentMessage,
   isServicePreferenceAsNombre,
   looksLikePersonFullName,
@@ -5289,6 +5290,8 @@ export function clientAsksCafeOrCateringChoice(text: string | null | undefined):
 export function looksLikeNameAnswerMessage(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t || t.length > 90 || /\?/.test(t) || /@/.test(t) || /\d{3,}/.test(t)) return false;
+  // A16367: medidas / unidades nunca son respuesta de nombre.
+  if (isDimensionText(t) || isMeasurementOrDimensionAsNombre(t)) return false;
   if (clientAsksCafeOrCateringChoice(t)) return false;
   // A15705: "Sería De Catering" / preferencia ≠ respuesta de nombre.
   if (isServicePreferenceAsNombre(t)) return false;
@@ -5549,6 +5552,14 @@ export function isDimensionText(text: string | null | undefined): boolean {
   // A15016: "De 6 x20" / "son 6x20" / "miden 6 x 20"
   // A15966: "15 metros de ancho por 25 metros de largo"
   // A15966b: "10x15" / "10 por 15" / "ancho 10 largo 15" / "altura 4"
+  // A16367: "36 metros" / "36m" / "aprox 12 mts" (medida lineal suelta)
+  if (
+    /^(?:aprox\.?|aproximadamente|unos?|unas?|de|son|mide(?:n)?|miden)?\s*\d+([.,]\d+)?\s*(?:metros?|mts?|m2|m²|m\b|cm)\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
   if (parseSpaceDimensions(t)) return true;
   const dePrefixed = t.replace(/^(de|son|miden|mide|aproximadamente|aprox\.?)\s+/i, "").trim();
   return (

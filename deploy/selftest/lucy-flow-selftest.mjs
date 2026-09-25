@@ -110978,6 +110978,24 @@ function stripPresentationPrefixLocal(raw) {
 var SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|hablar|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale|manda|m[aá]nda|mandame|m[aá]ndame|mandamelo|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|pasa|p[aá]same|conocer)\b/i;
 var HANDOFF_OR_META_NAME_TOKEN = /^(hablar|asesor|agente|humano|persona|ejecutivo|equipo|conmigo|contigo|por|favor)$/i;
 var PRICE_OR_SERVICE_NAME_TOKEN = /^(cu[aá]nto|cu[aacute]nto|cuesta|cuestan|costo|precio|renta|rentar|cobran|vale|valen|mesas?|sillas?|periqueras?|salas?|mobiliario|personas?|invitados?)$/i;
+var MEASUREMENT_UNIT_NAME_TOKEN = /^(metros?|mts?|m2|m²|cm|mms?|km|pulgadas?|pies?|ft|inch(?:es)?|yardas?|litros?|kg|kilos?|toneladas?)$/i;
+var NUMBER_PLUS_UNIT_AS_NOMBRE = /^(?:aprox\.?|aproximadamente|unos?|unas?|de|son|mide(?:n)?|miden)?\s*\d+([.,]\d+)?\s*(?:metros?|mts?|m2|m²|m\b|cm|mms?|km|pulgadas?|pies?|ft|inch(?:es)?|yardas?)\b/i;
+function isMeasurementOrDimensionAsNombre(text2) {
+  const t3 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t3) return false;
+  if (NUMBER_PLUS_UNIT_AS_NOMBRE.test(t3)) return true;
+  const parts2 = t3.split(/\s+/).filter(Boolean);
+  if (parts2.length === 1) {
+    const letters = (parts2[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ²2]/g, "");
+    if (MEASUREMENT_UNIT_NAME_TOKEN.test(letters) || MEASUREMENT_UNIT_NAME_TOKEN.test(parts2[0] ?? "")) {
+      return true;
+    }
+  }
+  if (/^(metros?|mts?)\s+(cuadrados?|lineales?|de\s+(largo|ancho|alto|frente|fondo))$/i.test(t3)) {
+    return true;
+  }
+  return false;
+}
 function isQuoteIntentMessage(text2) {
   const t3 = text2?.trim() ?? "";
   if (!t3) return false;
@@ -111028,6 +111046,7 @@ function isLikelyNotPersonNameMessage(text2) {
   if (!t3) return true;
   if (isGreetingToLucy(t3)) return true;
   if (isRepeatComplaintAsName(t3)) return true;
+  if (isMeasurementOrDimensionAsNombre(t3)) return true;
   if (/(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t3)) return false;
   if (/^\s*es\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]/i.test(t3) && t3.split(/\s+/).length <= 5) return false;
   if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t3) && t3.split(/\s+/).length <= 5) return false;
@@ -111124,6 +111143,7 @@ var NAME_COURTESY_OR_ROLE_TOKEN = /^(mucho|gusto|encantad[oa]|placer|igualmente|
 function isWeakOrJunkNombre(name2) {
   const t3 = (name2 ?? "").trim();
   if (!t3) return true;
+  if (isMeasurementOrDimensionAsNombre(t3)) return true;
   if (isPlaceholderLeadName(t3)) return true;
   if (isAffirmativeOnlyMessage(t3)) return true;
   if (/\bcon\s+gusto\b/i.test(t3)) return true;
@@ -111132,6 +111152,9 @@ function isWeakOrJunkNombre(name2) {
     const rawPart = parts2[0] ?? "";
     const letters = rawPart.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     if (!letters || letters.length < 3) return true;
+    if (MEASUREMENT_UNIT_NAME_TOKEN.test(letters) || MEASUREMENT_UNIT_NAME_TOKEN.test(rawPart)) {
+      return true;
+    }
     if (NAME_STOPWORDS.test(letters)) return true;
     if (GREETING_NAME_PATTERN.test(letters)) return true;
     if (NAME_COURTESY_OR_ROLE_TOKEN.test(letters)) return true;
@@ -111166,6 +111189,7 @@ function stripLeadingNameFillers(name2) {
 function sanitizeDisplayName(name2) {
   const raw = stripMuchoGustoSalutation(name2?.trim() ?? "");
   if (!raw || isPlaceholderLeadName(raw)) return null;
+  if (isMeasurementOrDimensionAsNombre(raw)) return null;
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
   const stripped = stripPresentationPrefixLocal(raw);
@@ -111211,6 +111235,7 @@ function sanitizeCrmNombre(name2) {
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
   if (isAffirmativeOnlyMessage(raw)) return null;
+  if (isMeasurementOrDimensionAsNombre(raw)) return null;
   if (isWeakOrJunkNombre(raw)) return null;
   if (isRepeatComplaintAsName(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw)) return null;
@@ -111228,7 +111253,7 @@ function sanitizeCrmNombre(name2) {
     }
     const maybeRepair = stripPresentationPrefixLocal(raw).replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim().split(/\s+/).filter((part) => {
       const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
-      return letters.length >= 2 && !BOT_OR_META_NAME_TOKEN.test(letters) && !COURTESY_NAME_TOKEN.test(letters) && !HANDOFF_OR_META_NAME_TOKEN.test(letters) && !CATALOG_LEVEL_OR_BRAND_NAME.test(letters) && !GREETING_NAME_PATTERN.test(letters) && !PRICE_OR_SERVICE_NAME_TOKEN.test(letters) && !SENTENCE_VERB_PATTERN.test(letters) && !/^(la|el|los|las|de|del|para|por|un|una|con|sin|tipo|bar)$/i.test(letters);
+      return letters.length >= 2 && !BOT_OR_META_NAME_TOKEN.test(letters) && !COURTESY_NAME_TOKEN.test(letters) && !HANDOFF_OR_META_NAME_TOKEN.test(letters) && !CATALOG_LEVEL_OR_BRAND_NAME.test(letters) && !GREETING_NAME_PATTERN.test(letters) && !PRICE_OR_SERVICE_NAME_TOKEN.test(letters) && !MEASUREMENT_UNIT_NAME_TOKEN.test(letters) && !SENTENCE_VERB_PATTERN.test(letters) && !/^(la|el|los|las|de|del|para|por|un|una|con|sin|tipo|bar)$/i.test(letters);
     });
     if (maybeRepair.length === 0 || maybeRepair.length === raw.split(/\s+/).length) {
       return null;
@@ -111239,6 +111264,7 @@ function sanitizeCrmNombre(name2) {
     const repaired = maybeRepair.slice(0, 4).join(" ");
     if (SENTENCE_VERB_PATTERN.test(repaired) || isLikelyNotPersonNameMessage(repaired)) return null;
     if (PRICE_OR_SERVICE_NAME_TOKEN.test(maybeRepair[0] ?? "")) return null;
+    if (MEASUREMENT_UNIT_NAME_TOKEN.test(maybeRepair[0] ?? "")) return null;
     return maybeRepair.slice(0, 4).map((part) => {
       const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
       return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
@@ -111264,6 +111290,10 @@ function sanitizeCrmNombre(name2) {
     if (NAME_STOPWORDS.test(letters)) return false;
     if (HANDOFF_OR_META_NAME_TOKEN.test(letters)) return false;
     if (CATALOG_LEVEL_OR_BRAND_NAME.test(letters)) return false;
+    if (MEASUREMENT_UNIT_NAME_TOKEN.test(letters) || MEASUREMENT_UNIT_NAME_TOKEN.test(token)) {
+      return false;
+    }
+    if (PRICE_OR_SERVICE_NAME_TOKEN.test(letters)) return false;
     if (/^(boda|xv|cumpleanos|bautizo|aniversario|graduacion|es|una|un)$/i.test(letters)) return false;
     if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(token) && letters.length >= 1) return true;
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
@@ -128423,6 +128453,7 @@ function clientAsksCafeOrCateringChoice(text2) {
 function looksLikeNameAnswerMessage(text2) {
   const t3 = text2?.trim() ?? "";
   if (!t3 || t3.length > 90 || /\?/.test(t3) || /@/.test(t3) || /\d{3,}/.test(t3)) return false;
+  if (isDimensionText(t3) || isMeasurementOrDimensionAsNombre(t3)) return false;
   if (clientAsksCafeOrCateringChoice(t3)) return false;
   if (isServicePreferenceAsNombre(t3)) return false;
   if (isServiceRelatedMessage(t3) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\b/i.test(t3)) {
@@ -128600,6 +128631,11 @@ function parseInvitadosFromText(text2, opts) {
 function isDimensionText(text2) {
   const t3 = text2?.trim() ?? "";
   if (!t3) return false;
+  if (/^(?:aprox\.?|aproximadamente|unos?|unas?|de|son|mide(?:n)?|miden)?\s*\d+([.,]\d+)?\s*(?:metros?|mts?|m2|m²|m\b|cm)\b/i.test(
+    t3
+  )) {
+    return true;
+  }
   if (parseSpaceDimensions(t3)) return true;
   const dePrefixed = t3.replace(/^(de|son|miden|mide|aproximadamente|aprox\.?)\s+/i, "").trim();
   return /\bmedida(?:s)?\s+de\s+la\s+carpa\b/i.test(t3) || /\b(?:ancho|largo|altura|alto|fondo|frente)\b.{0,12}\b\d+/i.test(t3) || /^\d+\s*(?:por|x|×)\s*\d+\s*(?:m|mts?|metros?)?(?:\s*(?:por|x|×)\s*\d+\s*(?:m|mts?|metros?)?)?$/i.test(
@@ -130233,6 +130269,7 @@ function isInvalidCrmNombre(value) {
   const raw = value?.trim() ?? "";
   if (!raw) return true;
   if (isQuoteIntentMessage(raw)) return true;
+  if (isMeasurementOrDimensionAsNombre(raw)) return true;
   if (isLikelyUbicacionNotNombre(raw)) return true;
   if (isServicePreferenceAsNombre(raw)) return true;
   if (isLikelyNotPersonNameMessage(raw) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw)) {
@@ -145405,6 +145442,21 @@ como "comoda"):
 - NUNCA mandes cat\xE1logo ni precios de eso que est\xE1 rechazando.
 - Confirma que lo QUITAS de la cotizaci\xF3n y sigue con el siguiente dato del embudo.
 - Colores de tem\xE1tica de una foto (ej. "rojo y negro") NO son la ubicaci\xF3n.
+
+===================================================================
+## 6b. QU\xC9 S\xCD / QU\xC9 NO es NOMBRE (cr\xEDtico \u2014 A16367)
+===================================================================
+El campo Nombre es SOLO el nombre de una persona (ej. "Mar\xEDa", "Juan P\xE9rez").
+NUNCA guardes como nombre:
+- Medidas / unidades: "metros", "36 metros", "m2", "cm", "6x12", "10 por 15"
+- Servicios o productos: pista, tarima, banquete, taquiza, DJ, carpa, mesas\u2026
+- Ubicaciones: ciudad, colonia, sal\xF3n, "mi casa", "restaurante", "CDMX"
+- Tipo de evento: boda, XV, cumplea\xF1os, "Evento Boutique"
+- Cargos / \xE1reas: Recepci\xF3n, Gerencia, Eventos
+- Afirmaciones o basura: ok, claro, s\xED, hola, "con gusto"
+Si el cliente responde medidas cuando pediste el nombre: anota las medidas
+en el servicio (pista/tarima/carpa) y VUELVE a pedir el nombre de la persona.
+Si no est\xE1s seguro de que sea un nombre de persona, NO lo escribas en CRM.
 
 ===================================================================
 ## 7. UBICACI\xD3N / COBERTURA

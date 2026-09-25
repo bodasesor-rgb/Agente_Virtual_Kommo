@@ -140,6 +140,36 @@ const HANDOFF_OR_META_NAME_TOKEN =
 const PRICE_OR_SERVICE_NAME_TOKEN =
   /^(cu[aá]nto|cu[aacute]nto|cuesta|cuestan|costo|precio|renta|rentar|cobran|vale|valen|mesas?|sillas?|periqueras?|salas?|mobiliario|personas?|invitados?)$/i;
 
+/**
+ * A16367: unidades / medidas nunca son nombre ("Metros", "36 metros", "m2").
+ * Si se quitan los dígitos de "36 metros", el token suelto "metros" no debe pasar.
+ */
+const MEASUREMENT_UNIT_NAME_TOKEN =
+  /^(metros?|mts?|m2|m²|cm|mms?|km|pulgadas?|pies?|ft|inch(?:es)?|yardas?|litros?|kg|kilos?|toneladas?)$/i;
+
+/** "36 metros", "36m", "10 cm", "25 m²", "aprox 12 mts" */
+const NUMBER_PLUS_UNIT_AS_NOMBRE =
+  /^(?:aprox\.?|aproximadamente|unos?|unas?|de|son|mide(?:n)?|miden)?\s*\d+([.,]\d+)?\s*(?:metros?|mts?|m2|m²|m\b|cm|mms?|km|pulgadas?|pies?|ft|inch(?:es)?|yardas?)\b/i;
+
+/** Texto que es solo unidad o número+unidad — basura de medidas, no persona. */
+export function isMeasurementOrDimensionAsNombre(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t) return false;
+  if (NUMBER_PLUS_UNIT_AS_NOMBRE.test(t)) return true;
+  const parts = t.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) {
+    const letters = (parts[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ²2]/g, "");
+    if (MEASUREMENT_UNIT_NAME_TOKEN.test(letters) || MEASUREMENT_UNIT_NAME_TOKEN.test(parts[0] ?? "")) {
+      return true;
+    }
+  }
+  // "metros cuadrados" / "metros de largo"
+  if (/^(metros?|mts?)\s+(cuadrados?|lineales?|de\s+(largo|ancho|alto|frente|fondo))$/i.test(t)) {
+    return true;
+  }
+  return false;
+}
+
 /** Intención de cotización — no es el nombre del cliente ("Quiero hacer una cotización"). */
 export function isQuoteIntentMessage(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
@@ -223,6 +253,8 @@ export function isLikelyNotPersonNameMessage(text: string | null | undefined): b
   if (!t) return true;
   if (isGreetingToLucy(t)) return true;
   if (isRepeatComplaintAsName(t)) return true;
+  // A16367: "36 metros" / "Metros" / "10 cm" ≠ nombre (antes de presentación).
+  if (isMeasurementOrDimensionAsNombre(t)) return true;
   // Presentación explícita sí puede ser nombre ("soy Bea" / "que tal, soy Bea" / "Es Sofía").
   if (/(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
   if (/^\s*es\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]/i.test(t) && t.split(/\s+/).length <= 5) return false;
@@ -398,6 +430,7 @@ const NAME_COURTESY_OR_ROLE_TOKEN =
 export function isWeakOrJunkNombre(name: string | null | undefined): boolean {
   const t = (name ?? "").trim();
   if (!t) return true;
+  if (isMeasurementOrDimensionAsNombre(t)) return true;
   if (isPlaceholderLeadName(t)) return true;
   if (isAffirmativeOnlyMessage(t)) return true;
   if (/\bcon\s+gusto\b/i.test(t)) return true;
@@ -406,6 +439,9 @@ export function isWeakOrJunkNombre(name: string | null | undefined): boolean {
     const rawPart = parts[0] ?? "";
     const letters = rawPart.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     if (!letters || letters.length < 3) return true;
+    if (MEASUREMENT_UNIT_NAME_TOKEN.test(letters) || MEASUREMENT_UNIT_NAME_TOKEN.test(rawPart)) {
+      return true;
+    }
     if (NAME_STOPWORDS.test(letters)) return true;
     if (GREETING_NAME_PATTERN.test(letters)) return true;
     if (NAME_COURTESY_OR_ROLE_TOKEN.test(letters)) return true;
@@ -446,6 +482,7 @@ function stripLeadingNameFillers(name: string): string {
 export function sanitizeDisplayName(name: string | null | undefined): string | null {
   const raw = stripMuchoGustoSalutation(name?.trim() ?? "");
   if (!raw || isPlaceholderLeadName(raw)) return null;
+  if (isMeasurementOrDimensionAsNombre(raw)) return null;
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
 
@@ -509,6 +546,8 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
   if (isAffirmativeOnlyMessage(raw)) return null;
+  // A16367: "36 metros" / "Metros" nunca al CRM como Nombre.
+  if (isMeasurementOrDimensionAsNombre(raw)) return null;
   if (isWeakOrJunkNombre(raw)) return null;
   if (isRepeatComplaintAsName(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw)) return null;
@@ -557,6 +596,7 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
           !CATALOG_LEVEL_OR_BRAND_NAME.test(letters) &&
           !GREETING_NAME_PATTERN.test(letters) &&
           !PRICE_OR_SERVICE_NAME_TOKEN.test(letters) &&
+          !MEASUREMENT_UNIT_NAME_TOKEN.test(letters) &&
           !SENTENCE_VERB_PATTERN.test(letters) &&
           !/^(la|el|los|las|de|del|para|por|un|una|con|sin|tipo|bar)$/i.test(letters)
         );
@@ -572,6 +612,7 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
     const repaired = maybeRepair.slice(0, 4).join(" ");
     if (SENTENCE_VERB_PATTERN.test(repaired) || isLikelyNotPersonNameMessage(repaired)) return null;
     if (PRICE_OR_SERVICE_NAME_TOKEN.test(maybeRepair[0] ?? "")) return null;
+    if (MEASUREMENT_UNIT_NAME_TOKEN.test(maybeRepair[0] ?? "")) return null;
     return maybeRepair
       .slice(0, 4)
       .map((part) => {
@@ -609,6 +650,10 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
     if (NAME_STOPWORDS.test(letters)) return false;
     if (HANDOFF_OR_META_NAME_TOKEN.test(letters)) return false;
     if (CATALOG_LEVEL_OR_BRAND_NAME.test(letters)) return false;
+    if (MEASUREMENT_UNIT_NAME_TOKEN.test(letters) || MEASUREMENT_UNIT_NAME_TOKEN.test(token)) {
+      return false;
+    }
+    if (PRICE_OR_SERVICE_NAME_TOKEN.test(letters)) return false;
     if (/^(boda|xv|cumpleanos|bautizo|aniversario|graduacion|es|una|un)$/i.test(letters)) return false;
     if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(token) && letters.length >= 1) return true;
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
