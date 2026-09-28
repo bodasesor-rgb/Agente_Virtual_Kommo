@@ -38,4 +38,5 @@ try {
 }
 export { db };
 export { pool };
+export { closeLocalDb } from "./local.js";
 export * from "./schema/index.js";

@@ -7,6 +7,7 @@ ensureKommoEnv();
 
 import app from "./app";
 import { logger } from "./lib/logger";
+import { closeLocalDb } from "@workspace/db";
 import { initializeTrainingStore } from "./services/trainingStore.js";
 import { ensureLearningSchema } from "./services/learningSchema.js";
 import { ensureKnowledgeGapSchema } from "./services/knowledgeGapSchema.js";
@@ -122,4 +123,14 @@ async function startServer(): Promise<void> {
 void startServer().catch((err) => {
   logger.error({ err }, "Error al iniciar servidor");
   process.exit(1);
+});
+
+// La instancia nueva (start.mjs) o Hostinger mandan SIGTERM al relevar: cerrar PGlite
+// antes de salir para que la siguiente abra lucy-data sin recuperación ni corrupción.
+process.once("SIGTERM", () => {
+  logger.info("SIGTERM: cerrando base local y saliendo");
+  setTimeout(() => process.exit(0), 5_000).unref();
+  void closeLocalDb()
+    .catch((err) => logger.warn({ err }, "closeLocalDb falló"))
+    .finally(() => process.exit(0));
 });

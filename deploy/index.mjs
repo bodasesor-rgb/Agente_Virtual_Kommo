@@ -161990,6 +161990,12 @@ async function getLocalDb() {
     return localDb;
   }
 }
+async function closeLocalDb() {
+  const pg2 = client;
+  client = null;
+  localDb = null;
+  if (pg2) await pg2.close();
+}
 function isLocalDbMode() {
   return !process.env["DATABASE_URL"]?.trim();
 }
@@ -162189,6 +162195,7 @@ var init_src2 = __esm({
     init_esm31();
     init_local();
     init_schema2();
+    init_local();
     init_schema2();
     ({ Pool: Pool3 } = esm_default);
     pool = null;
@@ -240388,6 +240395,7 @@ var app_default = app;
 
 // src/index.ts
 init_logger2();
+await init_src2();
 await init_trainingStore();
 await init_learningSchema();
 init_catalogService();
@@ -240471,6 +240479,11 @@ async function startServer() {
 void startServer().catch((err2) => {
   logger.error({ err: err2 }, "Error al iniciar servidor");
   process.exit(1);
+});
+process.once("SIGTERM", () => {
+  logger.info("SIGTERM: cerrando base local y saliendo");
+  setTimeout(() => process.exit(0), 5e3).unref();
+  void closeLocalDb().catch((err2) => logger.warn({ err: err2 }, "closeLocalDb fall\xF3")).finally(() => process.exit(0));
 });
 /*! Bundled license information:
 

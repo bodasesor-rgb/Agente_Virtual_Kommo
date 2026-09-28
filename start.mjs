@@ -3,7 +3,14 @@
  * Arranque Hostinger desde la raíz del repo (directorio raíz fijo en ./).
  * Los binarios precompilados viven en deploy/.
  */
-import { existsSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -71,8 +78,13 @@ try {
         (meta.git_commit_short ? ` · commit ${meta.git_commit_short}` : ""),
     );
   }
-  // Persistencia: preferir ../lucy-data; si falla, ./lucy-data dentro de root.
-  const preferred = process.env.LUCY_DATA_DIR?.trim() || j(root, "lucy-data");
+  // Hostinger reemplaza hbuilds/versions/<id>/nodejs en cada deploy; <dominio>/persistent sobrevive.
+  const hbuildsMatch = root.match(/^(.*)[\\/]hbuilds[\\/]versions[\\/][^\\/]+[\\/]nodejs$/);
+  const domainDir = hbuildsMatch?.[1] ?? null;
+  const dataDirFromEnv = !!process.env.LUCY_DATA_DIR?.trim();
+  const preferred =
+    process.env.LUCY_DATA_DIR?.trim() ||
+    (domainDir ? j(domainDir, "persistent", "lucy-data") : j(root, "lucy-data"));
   let dataRoot = preferred;
   try {
     mkdirSync(preferred, { recursive: true });
@@ -89,6 +101,9 @@ try {
     process.env.LUCY_CHAT_HISTORY_PATH = j(dataRoot, "chat-history.json");
   }
   mkdirSync(process.env.LUCY_LOCAL_DB_PATH, { recursive: true });
+  if (domainDir && !dataDirFromEnv) migrateJsonFromOldVersions(domainDir, dataRoot);
+  // PGlite es de un solo proceso y abajo se borran sus locks: la instancia vieja debe cerrar antes.
+  await takeOverDataDir(j(dataRoot, "lucy.pid"));
   // Evitar 503: locks de PGlite tras restart Hostinger (auditor / lucy-data).
   try {
     const { readdirSync, unlinkSync } = await import("node:fs");
@@ -120,3 +135,70 @@ try {
 
 process.chdir(deployDir);
 await import(new URL("./index.mjs", import.meta.resolve("./deploy/")).href);
+
+/** Una sola vez: trae chat-history y demás JSON de lucy-data de versiones anteriores. */
+function migrateJsonFromOldVersions(domain, dataRoot) {
+  try {
+    const versionsDir = join(domain, "hbuilds", "versions");
+    const newest = new Map();
+    for (const version of readdirSync(versionsDir)) {
+      const oldData = join(versionsDir, version, "nodejs", "lucy-data");
+      if (oldData === dataRoot || !existsSync(oldData)) continue;
+      for (const name of readdirSync(oldData)) {
+        if (!name.endsWith(".json")) continue;
+        const file = join(oldData, name);
+        const mtime = statSync(file).mtimeMs;
+        if (!newest.has(name) || newest.get(name).mtime < mtime) newest.set(name, { file, mtime });
+      }
+    }
+    for (const [name, { file }] of newest) {
+      const dest = join(dataRoot, name);
+      if (existsSync(dest)) continue;
+      copyFileSync(file, dest);
+      console.log(`[start] Migrado ${name} → ${dataRoot}`);
+    }
+  } catch (err) {
+    console.warn("[start] Migración de lucy-data:", err?.message || err);
+  }
+}
+
+function isAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isLucyProcess(pid) {
+  if (!isAlive(pid)) return false;
+  try {
+    return /lsnode:|start\.mjs/.test(readFileSync(`/proc/${pid}/cmdline`, "utf8"));
+  } catch {
+    return false;
+  }
+}
+
+async function takeOverDataDir(pidFile) {
+  try {
+    const oldPid = Number(readFileSync(pidFile, "utf8").trim());
+    if (oldPid && oldPid !== process.pid && isLucyProcess(oldPid)) {
+      console.log(`[start] Instancia anterior (pid ${oldPid}) usa lucy-data; esperando a que cierre…`);
+      process.kill(oldPid, "SIGTERM");
+      for (let i = 0; i < 30 && isAlive(oldPid); i++) await new Promise((r) => setTimeout(r, 500));
+      if (isAlive(oldPid)) {
+        console.warn(`[start] pid ${oldPid} no cerró en 15 s; forzando`);
+        process.kill(oldPid, "SIGKILL");
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+  } catch {
+    /* sin pid previo */
+  }
+  try {
+    writeFileSync(pidFile, String(process.pid));
+  } catch (err) {
+    console.warn("[start] No se pudo escribir lucy.pid:", err?.message || err);
+  }
+}

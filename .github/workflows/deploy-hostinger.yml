@@ -5,6 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Deploys encimados (varios push seguidos) dejaron a LiteSpeed sin lanzar Lucy el 28-sep.
+concurrency:
+  group: deploy-hostinger
+  cancel-in-progress: false
+
 jobs:
   redeploy:
     runs-on: ubuntu-latest
@@ -80,7 +85,14 @@ jobs:
         env:
           HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
           HOSTINGER_DOMAIN: midnightblue-mosquito-424375.hostingersite.com
+          WEBHOOK_URL: ${{ secrets.HOSTINGER_WEBHOOK_URL }}
         run: |
+          # Un solo build por push: el webhook ya construye y reinicia; un segundo build + restart
+          # en paralelo cambia el symlink current mientras LiteSpeed arranca la versión anterior.
+          if [ -n "$WEBHOOK_URL" ]; then
+            echo "Webhook Git ya disparó el deploy — sin upload/restart por API."
+            exit 0
+          fi
           if [ -z "$HOSTINGER_API_TOKEN" ]; then
             echo "HOSTINGER_API_TOKEN no configurado — saltando API deploy/restart."
             exit 0
@@ -89,7 +101,7 @@ jobs:
           node scripts/deploy-hostinger.mjs
 
       - name: Esperar arranque tras restart
-        run: sleep 20
+        run: sleep 45
 
       - name: Verificar salud (relajado — prioriza salir de 503)
         env:

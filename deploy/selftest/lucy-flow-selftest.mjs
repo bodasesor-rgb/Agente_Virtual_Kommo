@@ -106347,6 +106347,7 @@ var init_src2 = __esm({
     init_esm();
     init_local();
     init_schema2();
+    init_local();
     init_schema2();
     ({ Pool: Pool3 } = esm_default);
     pool = null;

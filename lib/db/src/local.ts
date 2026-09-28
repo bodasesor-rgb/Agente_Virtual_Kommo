@@ -280,6 +280,13 @@ export async function getLocalDb() {
   }
 }
 
+export async function closeLocalDb(): Promise<void> {
+  const pg = client;
+  client = null;
+  localDb = null;
+  if (pg) await pg.close();
+}
+
 export function isLocalDbMode() {
   return !process.env["DATABASE_URL"]?.trim();
 }
