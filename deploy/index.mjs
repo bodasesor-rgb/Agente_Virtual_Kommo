@@ -90754,6 +90754,24 @@ function clientWantsIdeasOrTrends(message) {
   if (!message?.trim()) return false;
   return TREND_IDEA_PATTERN.test(message) || ACCEPTS_IDEAS_PATTERN.test(message);
 }
+function lucyOfferedIdeas(lucyText) {
+  const t4 = lucyText ?? "";
+  if (!t4.trim()) return false;
+  return /\b(?:te\s+(?:puedo\s+)?(?:dar|compartir|pasar|mandar|sugerir)|quieres\s+(?:que\s+te\s+(?:d[eé]|comparta|pase|mande|sugiera)\s+)?|te\s+late\s+que\s+te\s+(?:d[eé]|comparta|pase))[^.?!\n]{0,40}\b(?:ideas?|sugerencias?|recomendaciones?|opciones)\b/i.test(
+    t4
+  ) || /\b(?:ideas?|sugerencias?)\b[^.?!\n]{0,60}\?/i.test(t4);
+}
+function clientAcceptsIdeasOffer(message, lastLucyText) {
+  const m6 = (message ?? "").trim();
+  if (!m6 || m6.length > 80 || !lucyOfferedIdeas(lastLucyText)) return false;
+  if (/\bno\b(?!\s+s[eé]\b)/i.test(m6) && !/\bpor\s+qu[eé]\s+no\b/i.test(m6)) return false;
+  return /^(?:s[ií]+|sip|claro|dale|va|vale|ok(?:ay)?|sale|porfa|por\s+favor|me\s+encantar[ií]a|obvio|perfecto|de\s+acuerdo|por\s+supuesto|adelante|a\s+ver|por\s+qu[eé]\s+no|me\s+late|[aá]ndale)(?=[\s,.!¡?]|$)/i.test(
+    m6
+  );
+}
+function normalizeForTipMatch(text2) {
+  return text2.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[*_]/g, "").replace(/\s+/g, " ");
+}
 function extractStyleCues(...texts) {
   const blob = texts.filter(Boolean).join(" \n ");
   if (!blob.trim()) return [];
@@ -90764,9 +90782,12 @@ function extractStyleCues(...texts) {
   }
   return found;
 }
-function pickTips(tipoEvento, max = 2) {
+function pickTips(tipoEvento, max = 2, alreadySent) {
   const tips = TIPS_BY_EVENT[eventKey(tipoEvento)] ?? TIPS_BY_EVENT.default;
-  return tips.slice(0, max);
+  const sent = alreadySent ? normalizeForTipMatch(alreadySent) : "";
+  const fresh = sent ? tips.filter((tip) => !sent.includes(normalizeForTipMatch(tip).slice(0, 40))) : tips;
+  const pool2 = fresh.length ? fresh : tips;
+  return pool2.slice(0, max);
 }
 function messageAlreadyOffersSalesIdeas(text2) {
   const t4 = text2 ?? "";
@@ -90776,21 +90797,56 @@ function messageAlreadyOffersSalesIdeas(text2) {
   ) || /•\s*.+\n•\s*/.test(t4) && /iluminaci|mobiliario|banquete|dj|carpa|lounge/i.test(t4);
 }
 function buildSalesIdeasSnippet(opts) {
-  const cues = extractStyleCues(opts.messageText, opts.tipoEvento, opts.requerimientos);
-  const tips = pickTips(opts.tipoEvento || cues[0], opts.maxTips ?? 2);
+  const cues = extractStyleCues(
+    opts.messageText,
+    opts.contextText,
+    opts.tipoEvento,
+    opts.requerimientos
+  );
+  const tips = pickTips(opts.tipoEvento || cues[0], opts.maxTips ?? 2, opts.alreadySent);
   if (!tips.length) return null;
+  if (opts.accepted) {
+    const tipo = opts.tipoEvento?.trim();
+    const inv = opts.numInvitados ? `${opts.numInvitados} personas` : null;
+    const vibe = cues.find((c5) => c5 !== "boda" && c5 !== "XV a\xF1os");
+    const detalles = [inv, vibe ? `algo ${vibe}` : null].filter(Boolean).join(", ");
+    const para = tipo ? `Para tu ${tipo.toLowerCase()}${detalles ? ` (${detalles})` : ""}` : detalles ? `Para tu evento (${detalles})` : "Para tu evento";
+    return `\xA1Claro! ${para}, algunas ideas que funcionan muy bien:
+${tips.map((t4) => `\u2022 ${t4}`).join("\n")}`.trim();
+  }
   const cue = cues[0] ? `Para un vibe *${cues[0]}*, ` : "";
   if (tips.length === 1) {
     return `${cue}${tips[0]}`.trim();
   }
   return `${cue}Algunas ideas que funcionan bien:
-\u2022 ${tips[0]}
-\u2022 ${tips[1]}`.trim();
+${tips.map((t4) => `\u2022 ${t4}`).join("\n")}`.trim();
 }
 function enrichReplyWithSalesIdeas(mensaje, opts) {
   const out2 = (mensaje || "").trim();
   if (!out2) return out2;
   if (messageAlreadyOffersSalesIdeas(out2)) return out2;
+  if (opts.accepted) {
+    const snippet2 = buildSalesIdeasSnippet({
+      tipoEvento: opts.tipoEvento,
+      messageText: opts.messageText,
+      requerimientos: opts.requerimientos,
+      maxTips: 3,
+      alreadySent: opts.alreadySent,
+      contextText: opts.contextText,
+      accepted: true,
+      numInvitados: opts.numInvitados
+    });
+    if (!snippet2) return out2;
+    const questions = (out2.match(/[^.!?\n]*\?/g) ?? []).map((q4) => q4.trim()).filter(Boolean);
+    const q3 = questions[questions.length - 1];
+    if (!q3) return `${snippet2}
+
+${out2}`.trim();
+    const cleanQ = q3.startsWith("\xBF") ? q3 : `\xBF${q3.replace(/^¿?/, "")}`;
+    return `${snippet2}
+
+${cleanQ}`.trim();
+  }
   const wants = opts.force || clientWantsIdeasOrTrends(opts.messageText) || /recomendaciones?|recomiendas?|ideas?\b|colores?|montajes?|decoraci/i.test(
     opts.messageText ?? ""
   );
@@ -90879,7 +90935,8 @@ var init_trendKnowledge = __esm({
       { pattern: /\bm[eé]xico|mexicana|folkl[oó]r/i, label: "mexicana" },
       { pattern: /\bxv|quince/i, label: "XV a\xF1os" },
       { pattern: /\bboda|wedding/i, label: "boda" },
-      { pattern: /\bcorporativ|empresarial|gala/i, label: "corporativo" }
+      { pattern: /\bcorporativ|empresarial|gala/i, label: "corporativo" },
+      { pattern: /\bfamiliar|en\s+familia|convivio|reuni[oó]n\s+peque/i, label: "familiar" }
     ];
     TIPS_BY_EVENT = {
       boda: [
@@ -90899,6 +90956,9 @@ var init_trendKnowledge = __esm({
       ],
       cumple: [
         "Tem\xE1tica clara (color/estilo) + mesa de dulces + DJ suele cerrar bien.",
+        "Para algo familiar: taquiza o parrillada + mesa de dulces + m\xFAsica de fondo, ambiente relajado sin montaje pesado.",
+        "Mesas largas tipo convivio o una sala lounge hacen que todos platiquen m\xE1s.",
+        "Un toque personal: pastel tem\xE1tico y un backdrop sencillo para fotos.",
         "Para jard\xEDn: carpa + iluminaci\xF3n tipo edison + estaciones de comida."
       ],
       bautizo: [
@@ -234815,12 +234875,20 @@ ${keepQ}` : ack;
   );
   mensaje = reorderLeadingCatalogUrls(mensaje);
   {
-    const forceIdeas = clientWantsIdeasOrTrends(input.currentMessage) || /recomendaciones?|ideas?\b|colores?|montajes?/i.test(input.currentMessage ?? "");
+    const historyText = (role) => (input.history ?? []).filter((m6) => m6.role === role && typeof m6.content === "string").map((m6) => m6.content);
+    const lucyTexts = historyText("assistant");
+    const lastLucy = lucyTexts[lucyTexts.length - 1] ?? "";
+    const acceptedIdeas = clientAcceptsIdeasOffer(input.currentMessage, lastLucy);
+    const forceIdeas = acceptedIdeas || clientWantsIdeasOrTrends(input.currentMessage) || /recomendaciones?|ideas?\b|colores?|montajes?/i.test(input.currentMessage ?? "");
     const withIdeas = enrichReplyWithSalesIdeas(mensaje, {
       tipoEvento: input.extracted.tipo_evento,
       messageText: input.currentMessage,
       requerimientos: input.extracted.requerimientos_evento,
-      force: forceIdeas
+      force: forceIdeas,
+      accepted: acceptedIdeas,
+      alreadySent: lucyTexts.slice(-4).join("\n"),
+      contextText: historyText("user").slice(-6).join("\n"),
+      numInvitados: input.extracted.num_invitados ?? null
     });
     if (withIdeas !== mensaje && withIdeas.trim().length >= 8) {
       input.log?.info?.({ entityId: input.entityId }, "GUARD: tono \u2014 ideas de venta inyectadas");
@@ -236490,10 +236558,23 @@ async function updateKommoContact(subdomain, accessToken, contactId, extracted, 
   if (!hasContact2) return;
   const contactPayload = {};
   if (extracted.nombre) {
-    const namePatch = resolveKommoLeadNamePatch(currentContactName, extracted.nombre);
+    let contactRealName = null;
+    try {
+      const getRes = await fetch(
+        `https://${subdomain}.kommo.com/api/v4/contacts/${contactId}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (getRes.ok) {
+        const data = await getRes.json();
+        if (typeof data.name === "string" && data.name.trim()) contactRealName = data.name.trim();
+      }
+    } catch {
+    }
+    const baseline = pickBetterNombre(contactRealName, currentContactName) ?? contactRealName ?? currentContactName ?? null;
+    const namePatch = resolveKommoLeadNamePatch(baseline, extracted.nombre);
     if (namePatch) {
       contactPayload["name"] = namePatch;
-    } else if (!currentContactName?.trim()) {
+    } else if (!baseline?.trim()) {
       const fresh = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
       if (fresh) contactPayload["name"] = fresh;
     }

@@ -27,6 +27,7 @@ const STYLE_CUES: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\bxv|quince/i, label: "XV años" },
   { pattern: /\bboda|wedding/i, label: "boda" },
   { pattern: /\bcorporativ|empresarial|gala/i, label: "corporativo" },
+  { pattern: /\bfamiliar|en\s+familia|convivio|reuni[oó]n\s+peque/i, label: "familiar" },
 ];
 
 /** Tips cortos por tipo de evento — sin precios, orientados a venta. */
@@ -48,6 +49,9 @@ const TIPS_BY_EVENT: Record<string, string[]> = {
   ],
   cumple: [
     "Temática clara (color/estilo) + mesa de dulces + DJ suele cerrar bien.",
+    "Para algo familiar: taquiza o parrillada + mesa de dulces + música de fondo, ambiente relajado sin montaje pesado.",
+    "Mesas largas tipo convivio o una sala lounge hacen que todos platiquen más.",
+    "Un toque personal: pastel temático y un backdrop sencillo para fotos.",
     "Para jardín: carpa + iluminación tipo edison + estaciones de comida.",
   ],
   bautizo: [
@@ -77,6 +81,44 @@ export function clientWantsIdeasOrTrends(message?: string): boolean {
   return TREND_IDEA_PATTERN.test(message) || ACCEPTS_IDEAS_PATTERN.test(message);
 }
 
+/** Lucy ofreció ideas en su mensaje ("Si quieres, te puedo dar algunas ideas…"). */
+export function lucyOfferedIdeas(lucyText?: string | null): boolean {
+  const t = lucyText ?? "";
+  if (!t.trim()) return false;
+  return (
+    /\b(?:te\s+(?:puedo\s+)?(?:dar|compartir|pasar|mandar|sugerir)|quieres\s+(?:que\s+te\s+(?:d[eé]|comparta|pase|mande|sugiera)\s+)?|te\s+late\s+que\s+te\s+(?:d[eé]|comparta|pase))[^.?!\n]{0,40}\b(?:ideas?|sugerencias?|recomendaciones?|opciones)\b/i.test(
+      t
+    ) ||
+    /\b(?:ideas?|sugerencias?)\b[^.?!\n]{0,60}\?/i.test(t)
+  );
+}
+
+/**
+ * Cliente acepta la oferta de ideas con un "sí" corto (A16427: "Si, por favor").
+ * El patrón general exige la palabra "ideas"; aquí basta el contexto de Lucy.
+ */
+export function clientAcceptsIdeasOffer(
+  message?: string | null,
+  lastLucyText?: string | null
+): boolean {
+  const m = (message ?? "").trim();
+  if (!m || m.length > 80 || !lucyOfferedIdeas(lastLucyText)) return false;
+  if (/\bno\b(?!\s+s[eé]\b)/i.test(m) && !/\bpor\s+qu[eé]\s+no\b/i.test(m)) return false;
+  return /^(?:s[ií]+|sip|claro|dale|va|vale|ok(?:ay)?|sale|porfa|por\s+favor|me\s+encantar[ií]a|obvio|perfecto|de\s+acuerdo|por\s+supuesto|adelante|a\s+ver|por\s+qu[eé]\s+no|me\s+late|[aá]ndale)(?=[\s,.!¡?]|$)/i.test(
+    m
+  );
+}
+
+/** Texto plano de mensajes previos (para no repetir tips ya enviados). */
+function normalizeForTipMatch(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[*_]/g, "")
+    .replace(/\s+/g, " ");
+}
+
 /** Estilos/vibes detectados en texto (mensaje + CRM). Máx 4. */
 export function extractStyleCues(...texts: Array<string | null | undefined>): string[] {
   const blob = texts.filter(Boolean).join(" \n ");
@@ -89,9 +131,14 @@ export function extractStyleCues(...texts: Array<string | null | undefined>): st
   return found;
 }
 
-function pickTips(tipoEvento?: string | null, max = 2): string[] {
+function pickTips(tipoEvento?: string | null, max = 2, alreadySent?: string | null): string[] {
   const tips = TIPS_BY_EVENT[eventKey(tipoEvento)] ?? TIPS_BY_EVENT.default!;
-  return tips.slice(0, max);
+  const sent = alreadySent ? normalizeForTipMatch(alreadySent) : "";
+  const fresh = sent
+    ? tips.filter((tip) => !sent.includes(normalizeForTipMatch(tip).slice(0, 40)))
+    : tips;
+  const pool = fresh.length ? fresh : tips;
+  return pool.slice(0, max);
 }
 
 /** True si el mensaje ya trae ideas/tips de venta (no reinyectar). */
@@ -116,15 +163,41 @@ export function buildSalesIdeasSnippet(opts: {
   messageText?: string | null;
   requerimientos?: string | null;
   maxTips?: number;
+  /** Mensajes previos de Lucy: no repetir tips ya enviados. */
+  alreadySent?: string | null;
+  /** Mensajes previos del cliente (estilo/vibe cuando el turno es solo "sí"). */
+  contextText?: string | null;
+  /** El cliente aceptó ideas: abrir con un lead cálido. */
+  accepted?: boolean;
+  numInvitados?: number | string | null;
 }): string | null {
-  const cues = extractStyleCues(opts.messageText, opts.tipoEvento, opts.requerimientos);
-  const tips = pickTips(opts.tipoEvento || cues[0], opts.maxTips ?? 2);
+  const cues = extractStyleCues(
+    opts.messageText,
+    opts.contextText,
+    opts.tipoEvento,
+    opts.requerimientos
+  );
+  const tips = pickTips(opts.tipoEvento || cues[0], opts.maxTips ?? 2, opts.alreadySent);
   if (!tips.length) return null;
+  if (opts.accepted) {
+    const tipo = opts.tipoEvento?.trim();
+    const inv = opts.numInvitados ? `${opts.numInvitados} personas` : null;
+    const vibe = cues.find((c) => c !== "boda" && c !== "XV años");
+    const detalles = [inv, vibe ? `algo ${vibe}` : null].filter(Boolean).join(", ");
+    const para = tipo
+      ? `Para tu ${tipo.toLowerCase()}${detalles ? ` (${detalles})` : ""}`
+      : detalles
+        ? `Para tu evento (${detalles})`
+        : "Para tu evento";
+    return `¡Claro! ${para}, algunas ideas que funcionan muy bien:\n${tips
+      .map((t) => `• ${t}`)
+      .join("\n")}`.trim();
+  }
   const cue = cues[0] ? `Para un vibe *${cues[0]}*, ` : "";
   if (tips.length === 1) {
     return `${cue}${tips[0]}`.trim();
   }
-  return `${cue}Algunas ideas que funcionan bien:\n• ${tips[0]}\n• ${tips[1]}`.trim();
+  return `${cue}Algunas ideas que funcionan bien:\n${tips.map((t) => `• ${t}`).join("\n")}`.trim();
 }
 
 /**
@@ -137,11 +210,35 @@ export function enrichReplyWithSalesIdeas(
     messageText?: string | null;
     requerimientos?: string | null;
     force?: boolean;
+    /** Cliente aceptó la oferta de ideas → 3 tips con lead, antes de la pregunta. */
+    accepted?: boolean;
+    alreadySent?: string | null;
+    contextText?: string | null;
+    numInvitados?: number | string | null;
   }
 ): string {
   const out = (mensaje || "").trim();
   if (!out) return out;
   if (messageAlreadyOffersSalesIdeas(out)) return out;
+
+  if (opts.accepted) {
+    const snippet = buildSalesIdeasSnippet({
+      tipoEvento: opts.tipoEvento,
+      messageText: opts.messageText,
+      requerimientos: opts.requerimientos,
+      maxTips: 3,
+      alreadySent: opts.alreadySent,
+      contextText: opts.contextText,
+      accepted: true,
+      numInvitados: opts.numInvitados,
+    });
+    if (!snippet) return out;
+    const questions = (out.match(/[^.!?\n]*\?/g) ?? []).map((q) => q.trim()).filter(Boolean);
+    const q = questions[questions.length - 1];
+    if (!q) return `${snippet}\n\n${out}`.trim();
+    const cleanQ = q.startsWith("¿") ? q : `¿${q.replace(/^¿?/, "")}`;
+    return `${snippet}\n\n${cleanQ}`.trim();
+  }
 
   const wants =
     opts.force ||

@@ -22,6 +22,7 @@ import {
 import { applyLucyGlobalAntiRepetition } from "./lucyOutboundAntiRepeat.js";
 import { applyClientNameCadence, stripMidMessageFiller, softenRobotAcks } from "./lucyNaturalTone.js";
 import {
+  clientAcceptsIdeasOffer,
   clientWantsIdeasOrTrends,
   enrichReplyWithSalesIdeas,
 } from "./services/trendKnowledge.js";
@@ -226,7 +227,16 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
 
   // A16345g: ideas reales en el chat (tips por tipo / si pidieron ideas-colores-montajes).
   {
+    const historyText = (role: "assistant" | "user") =>
+      (input.history ?? [])
+        .filter((m) => m.role === role && typeof m.content === "string")
+        .map((m) => m.content as string);
+    const lucyTexts = historyText("assistant");
+    const lastLucy = lucyTexts[lucyTexts.length - 1] ?? "";
+    // A16427: Lucy ofreció ideas y el cliente dijo "Si, por favor" → darlas sí o sí.
+    const acceptedIdeas = clientAcceptsIdeasOffer(input.currentMessage, lastLucy);
     const forceIdeas =
+      acceptedIdeas ||
       clientWantsIdeasOrTrends(input.currentMessage) ||
       /recomendaciones?|ideas?\b|colores?|montajes?/i.test(input.currentMessage ?? "");
     const withIdeas = enrichReplyWithSalesIdeas(mensaje, {
@@ -234,6 +244,10 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
       messageText: input.currentMessage,
       requerimientos: input.extracted.requerimientos_evento,
       force: forceIdeas,
+      accepted: acceptedIdeas,
+      alreadySent: lucyTexts.slice(-4).join("\n"),
+      contextText: historyText("user").slice(-6).join("\n"),
+      numInvitados: input.extracted.num_invitados ?? null,
     });
     if (withIdeas !== mensaje && withIdeas.trim().length >= 8) {
       input.log?.info?.({ entityId: input.entityId }, "GUARD: tono — ideas de venta inyectadas");

@@ -1207,11 +1207,31 @@ async function updateKommoContact(
   const contactPayload: Record<string, unknown> = {};
 
   if (extracted.nombre) {
+    // A16427: comparar contra el nombre REAL del contacto (WA "Giovanni Angeles"),
+    // no solo el del lead (placeholder) — si no, "Giovanni" pisaba el apellido.
+    let contactRealName: string | null = null;
+    try {
+      const getRes = await fetch(
+        `https://${subdomain}.kommo.com/api/v4/contacts/${contactId}`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (getRes.ok) {
+        const data = (await getRes.json()) as { name?: unknown };
+        if (typeof data.name === "string" && data.name.trim()) contactRealName = data.name.trim();
+      }
+    } catch {
+      /* no crítico: seguimos con el nombre del lead */
+    }
+    const baseline =
+      pickBetterNombre(contactRealName, currentContactName) ??
+      contactRealName ??
+      currentContactName ??
+      null;
     // Nunca degradar "Daniela Loustaunau" → "Daniela" al sincronizar el contacto.
-    const namePatch = resolveKommoLeadNamePatch(currentContactName, extracted.nombre);
+    const namePatch = resolveKommoLeadNamePatch(baseline, extracted.nombre);
     if (namePatch) {
       contactPayload["name"] = namePatch;
-    } else if (!currentContactName?.trim()) {
+    } else if (!baseline?.trim()) {
       const fresh = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
       if (fresh) contactPayload["name"] = fresh;
     }
