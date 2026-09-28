@@ -54534,18 +54534,18 @@ var require_bignumber = __commonJS({
             return x8;
           }
           function compare2(a4, b5, aL, bL) {
-            var i6, cmp;
+            var i6, cmp2;
             if (aL != bL) {
-              cmp = aL > bL ? 1 : -1;
+              cmp2 = aL > bL ? 1 : -1;
             } else {
-              for (i6 = cmp = 0; i6 < aL; i6++) {
+              for (i6 = cmp2 = 0; i6 < aL; i6++) {
                 if (a4[i6] != b5[i6]) {
-                  cmp = a4[i6] > b5[i6] ? 1 : -1;
+                  cmp2 = a4[i6] > b5[i6] ? 1 : -1;
                   break;
                 }
               }
             }
-            return cmp;
+            return cmp2;
           }
           function subtract(a4, b5, aL, base) {
             var i6 = 0;
@@ -54557,7 +54557,7 @@ var require_bignumber = __commonJS({
             for (; !a4[0] && a4.length > 1; a4.splice(0, 1)) ;
           }
           return function(x8, y5, dp, rm, base) {
-            var cmp, e4, i6, more, n5, prod, prodL, q3, qc, rem, remL, rem0, xi2, xL, yc0, yL, yz, s7 = x8.s == y5.s ? 1 : -1, xc = x8.c, yc = y5.c;
+            var cmp2, e4, i6, more, n5, prod, prodL, q3, qc, rem, remL, rem0, xi2, xL, yc0, yL, yz, s7 = x8.s == y5.s ? 1 : -1, xc = x8.c, yc = y5.c;
             if (!xc || !xc[0] || !yc || !yc[0]) {
               return new BigNumber2(
                 // Return NaN if either NaN, or both Infinity or 0.
@@ -54603,8 +54603,8 @@ var require_bignumber = __commonJS({
               if (yc[1] >= base / 2) yc0++;
               do {
                 n5 = 0;
-                cmp = compare2(yc, rem, yL, remL);
-                if (cmp < 0) {
+                cmp2 = compare2(yc, rem, yL, remL);
+                if (cmp2 < 0) {
                   rem0 = rem[0];
                   if (yL != remL) rem0 = rem0 * base + (rem[1] || 0);
                   n5 = mathfloor(rem0 / yc0);
@@ -54617,11 +54617,11 @@ var require_bignumber = __commonJS({
                       n5--;
                       subtract(prod, yL < prodL ? yz : yc, prodL, base);
                       prodL = prod.length;
-                      cmp = 1;
+                      cmp2 = 1;
                     }
                   } else {
                     if (n5 == 0) {
-                      cmp = n5 = 1;
+                      cmp2 = n5 = 1;
                     }
                     prod = yc.slice();
                     prodL = prod.length;
@@ -54629,14 +54629,14 @@ var require_bignumber = __commonJS({
                   if (prodL < remL) prod = [0].concat(prod);
                   subtract(rem, prod, remL, base);
                   remL = rem.length;
-                  if (cmp == -1) {
+                  if (cmp2 == -1) {
                     while (compare2(yc, rem, yL, remL) < 1) {
                       n5++;
                       subtract(rem, yL < remL ? yz : yc, remL, base);
                       remL = rem.length;
                     }
                   }
-                } else if (cmp === 0) {
+                } else if (cmp2 === 0) {
                   n5++;
                   rem = [0];
                 }
@@ -90164,7 +90164,7 @@ function isOccasionOrStyleAsNombre(text2) {
   const parts2 = t4.split(/\s+/).filter(Boolean);
   if (parts2.length === 1) {
     const letters = (parts2[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
-    if (/^(boutique|corporativo|empresarial|elegante|moderno|formal|casual|premium)$/i.test(letters)) {
+    if (/^(boutique|corporativo|empresarial|elegante|moderno|formal|casual|premium|venta|renta|compra|alquiler)$/i.test(letters)) {
       return true;
     }
   }
@@ -90183,6 +90183,51 @@ function isNumberWordsAsNombre(text2) {
     const letters = p5.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     return /^\d+([.,]\d+)?$/.test(p5) || SPANISH_NUMBER_WORD_TOKEN.test(letters);
   });
+}
+function cleanFestejadoName(raw) {
+  const parts2 = raw.trim().split(/\s+/).filter(Boolean);
+  const kept = [];
+  for (const p5 of parts2) {
+    if (FESTEJADO_NOT_NAME.test(p5)) break;
+    kept.push(p5);
+    if (kept.length >= 2) break;
+  }
+  if (!kept.length) return null;
+  const name2 = kept.map((p5) => p5.charAt(0).toUpperCase() + p5.slice(1).toLowerCase()).join(" ");
+  if (isWeakOrJunkNombre(name2) || isOccasionOrStyleAsNombre(name2)) return null;
+  return name2;
+}
+function parseFestejadoFromText(text2) {
+  const t4 = (text2 ?? "").replace(/\s+/g, " ").trim();
+  if (!t4) return null;
+  const rel = t4.match(
+    new RegExp(
+      `\\b(?:mi|nuestr[oa])\\s+(${FESTEJADO_RELACION})\\s+(${FESTEJADO_NAME_TOKEN}(?:\\s+${FESTEJADO_NAME_TOKEN})?)`,
+      "i"
+    )
+  );
+  if (rel) {
+    const nombre = cleanFestejadoName(rel[2]);
+    if (nombre) return { nombre, relacion: rel[1].toLowerCase() };
+  }
+  const isCap = (s7) => !!s7 && /^[A-ZÁÉÍÓÚÑ]/.test(s7);
+  const boda = t4.match(
+    /\bboda\s+de\s+([a-záéíóúñ]{2,21})\s+(?:y|&)\s+([a-záéíóúñ]{2,21})\b/i
+  );
+  if (boda && isCap(boda[1]) && isCap(boda[2])) {
+    const a4 = cleanFestejadoName(boda[1]);
+    const b5 = cleanFestejadoName(boda[2]);
+    if (a4 && b5) return { nombre: `${a4} y ${b5}`, relacion: "novios" };
+  }
+  const evento = t4.match(
+    /\b(?:xv(?:\s+a[nñ]os)?|quince\s+a[nñ]os|cumplea[nñ]os|cumple|bautizo|primera\s+comuni[oó]n|graduaci[oó]n|baby\s*shower)\s+de\s+([a-záéíóúñ]{2,21}(?:\s+[a-záéíóúñ]{2,21})?)\b/i
+  );
+  if (evento && isCap(evento[1])) {
+    const tokens = evento[1].split(/\s+/);
+    const nombre = cleanFestejadoName(isCap(tokens[1]) ? evento[1] : tokens[0]);
+    if (nombre) return { nombre, relacion: null };
+  }
+  return null;
 }
 function isQuoteIntentMessage(text2) {
   const t4 = text2?.trim() ?? "";
@@ -90619,7 +90664,7 @@ function rewriteJunkClientVocative(message, correctNombre) {
 function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
   return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
 }
-var PHONE_LIKE, PLACEHOLDER_PATTERNS, ROLE_OR_DEPT_NAME_TOKEN, GREETING_NAME_PATTERN, COMPANY_OR_CHANNEL_PATTERN, BOT_OR_META_NAME_TOKEN, COURTESY_NAME_TOKEN, MUCHO_GUSTO_SUFFIX, MUCHO_GUSTO_LEADING, CATALOG_LEVEL_OR_BRAND_NAME, SENTENCE_VERB_PATTERN, HANDOFF_OR_META_NAME_TOKEN, PRICE_OR_SERVICE_NAME_TOKEN, MEASUREMENT_UNIT_NAME_TOKEN, NUMBER_PLUS_UNIT_AS_NOMBRE, OCCASION_OR_STYLE_AS_NOMBRE, SPANISH_NUMBER_WORD_TOKEN, NAME_STOPWORDS, NAME_COURTESY_OR_ROLE_TOKEN;
+var PHONE_LIKE, PLACEHOLDER_PATTERNS, ROLE_OR_DEPT_NAME_TOKEN, GREETING_NAME_PATTERN, COMPANY_OR_CHANNEL_PATTERN, BOT_OR_META_NAME_TOKEN, COURTESY_NAME_TOKEN, MUCHO_GUSTO_SUFFIX, MUCHO_GUSTO_LEADING, CATALOG_LEVEL_OR_BRAND_NAME, SENTENCE_VERB_PATTERN, HANDOFF_OR_META_NAME_TOKEN, PRICE_OR_SERVICE_NAME_TOKEN, MEASUREMENT_UNIT_NAME_TOKEN, NUMBER_PLUS_UNIT_AS_NOMBRE, OCCASION_OR_STYLE_AS_NOMBRE, SPANISH_NUMBER_WORD_TOKEN, FESTEJADO_RELACION, FESTEJADO_NAME_TOKEN, FESTEJADO_NOT_NAME, NAME_STOPWORDS, NAME_COURTESY_OR_ROLE_TOKEN;
 var init_contact_name = __esm({
   "src/contact-name.ts"() {
     "use strict";
@@ -90647,8 +90692,11 @@ var init_contact_name = __esm({
     PRICE_OR_SERVICE_NAME_TOKEN = /^(cu[aá]nto|cu[aacute]nto|cuesta|cuestan|costo|precio|renta|rentar|cobran|vale|valen|mesas?|sillas?|periqueras?|salas?|mobiliario|personas?|invitados?)$/i;
     MEASUREMENT_UNIT_NAME_TOKEN = /^(metros?|mts?|m2|m²|cm|mms?|km|pulgadas?|pies?|ft|inch(?:es)?|yardas?|litros?|kg|kilos?|toneladas?)$/i;
     NUMBER_PLUS_UNIT_AS_NOMBRE = /^(?:aprox\.?|aproximadamente|unos?|unas?|de|son|mide(?:n)?|miden)?\s*\d+([.,]\d+)?\s*(?:metros?|mts?|m2|m²|m\b|cm|mms?|km|pulgadas?|pies?|ft|inch(?:es)?|yardas?)\b/i;
-    OCCASION_OR_STYLE_AS_NOMBRE = /^(boutique|fiesta(\s+boutique)?|evento(\s+[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ.-]*)?|corporativo|empresarial|premium(\s+events?)?|elegante|moderno|formal|casual|tem[aá]tica|xv(\s*a[nñ]os?)?|quincea[nñ]era|boda(\s+civil)?|cumplea[nñ]os|bautizo|graduaci[oó]n|baby\s*shower|aniversario|posada|wedding)$/i;
+    OCCASION_OR_STYLE_AS_NOMBRE = /^((?:s[ií]\s*,?\s*)?(?:para\s+|en\s+)?(?:venta|renta|compra|alquiler|comprar(?:las|los)?|rentar(?:las|los)?)|boutique|fiesta(\s+boutique)?|evento(\s+[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ.-]*)?|corporativo|empresarial|premium(\s+events?)?|elegante|moderno|formal|casual|tem[aá]tica|xv(\s*a[nñ]os?)?|quincea[nñ]era|boda(\s+civil)?|cumplea[nñ]os|bautizo|graduaci[oó]n|baby\s*shower|aniversario|posada|wedding)$/i;
     SPANISH_NUMBER_WORD_TOKEN = /^(cero|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|mil|mill[oó]n)$/i;
+    FESTEJADO_RELACION = "hij[oa]|espos[oa]|mam[a\xE1]|mami|pap[a\xE1]|papi|herman[oa]|sobrin[oa]|niet[oa]|novi[oa]|abuel[oa]|abuelit[oa]|pareja|beb[e\xE9]|t[i\xED][oa]|prim[oa]|suegr[oa]|amig[oa]|jef[ae]|ahijad[oa]|peque[n\xF1][oa]|chiquit[oa]";
+    FESTEJADO_NAME_TOKEN = "[A-Za-z\xC1\xC9\xCD\xD3\xDA\xDC\xD1\xE1\xE9\xED\xF3\xFA\xFC\xF1]{2,20}";
+    FESTEJADO_NOT_NAME = /^(que|quien|cumple|cumplir[aá]|va|van|y|de|del|la|el|los|las|mi|su|tu|en|para|con|por|se|es|son|a[nñ]os?|meses|personas?|invitad[oa]s?|fiesta|evento|boda|xv|bautizo|cumplea[nñ]os|comuni[oó]n|graduaci[oó]n)$/i;
     NAME_STOPWORDS = /^(en|de|del|la|el|los|las|un|una|al|para|por|con|sin|y|o)$/i;
     NAME_COURTESY_OR_ROLE_TOKEN = /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto|servidor[ao]?|servidora|a\s+sus\s+[oó]rdenes|presente|mismo|misma)$/i;
   }
@@ -90743,6 +90791,7 @@ var init_bodasesorAdvisor = __esm({
 // src/services/trendKnowledge.ts
 function eventKey(tipo) {
   const t4 = (tipo ?? "").toLowerCase();
+  if (/apertura|inaugura|lanzamiento|showroom|tienda|negocio|open\s*house/.test(t4)) return "apertura";
   if (/boda|wedding/.test(t4)) return "boda";
   if (/xv|quince/.test(t4)) return "xv";
   if (/corporativ|empresarial|gala|conferenc/.test(t4)) return "corporativo";
@@ -90786,8 +90835,7 @@ function pickTips(tipoEvento, max = 2, alreadySent) {
   const tips = TIPS_BY_EVENT[eventKey(tipoEvento)] ?? TIPS_BY_EVENT.default;
   const sent = alreadySent ? normalizeForTipMatch(alreadySent) : "";
   const fresh = sent ? tips.filter((tip) => !sent.includes(normalizeForTipMatch(tip).slice(0, 40))) : tips;
-  const pool2 = fresh.length ? fresh : tips;
-  return pool2.slice(0, max);
+  return fresh.slice(0, max);
 }
 function parseGroundingBullets(snippet, max = 2) {
   const raw = (snippet ?? "").trim();
@@ -90804,10 +90852,17 @@ function parseGroundingBullets(snippet, max = 2) {
   }
   return out2;
 }
+function containsStaticSalesTip(text2) {
+  const norm2 = normalizeForTipMatch(text2 ?? "");
+  if (!norm2.trim()) return false;
+  return Object.values(TIPS_BY_EVENT).some(
+    (tips) => tips.some((tip) => norm2.includes(normalizeForTipMatch(tip).slice(0, 40)))
+  );
+}
 function messageAlreadyOffersSalesIdeas(text2) {
   const t4 = text2 ?? "";
   if (!t4.trim()) return false;
-  return /algunas ideas que funcionan|ideas que suelen funcionar|para un vibe/i.test(t4) || /iluminaci[oó]n c[aá]lida|lounge peque|pista iluminada|coffee break \+ pantallas|mesa de dulces/i.test(
+  return /algunas ideas que funcionan|una idea que funciona|ideas que suelen funcionar|para un vibe/i.test(t4) || /iluminaci[oó]n c[aá]lida|lounge peque|pista iluminada|coffee break \+ pantallas|mesa de dulces/i.test(
     t4
   ) || /•\s*.+\n•\s*/.test(t4) && /iluminaci|mobiliario|banquete|dj|carpa|lounge/i.test(t4);
 }
@@ -90819,6 +90874,7 @@ function buildSalesIdeasSnippet(opts) {
     opts.requerimientos
   );
   const max = opts.maxTips ?? 2;
+  const vibeCues = cues.filter((c5) => !EVENT_TYPE_CUES.has(c5));
   const trends = parseGroundingBullets(opts.groundingSnippet, 2);
   const staticTips = pickTips(
     opts.tipoEvento || cues[0],
@@ -90830,7 +90886,7 @@ function buildSalesIdeasSnippet(opts) {
   if (opts.accepted) {
     const tipo = opts.tipoEvento?.trim();
     const inv = opts.numInvitados ? `${opts.numInvitados} personas` : null;
-    const vibe = cues.find((c5) => c5 !== "boda" && c5 !== "XV a\xF1os");
+    const vibe = vibeCues[0];
     const detalles = [inv, vibe ? `algo ${vibe}` : null].filter(Boolean).join(", ");
     const para = tipo ? `Para tu ${tipo.toLowerCase()}${detalles ? ` (${detalles})` : ""}` : detalles ? `Para tu evento (${detalles})` : "Para tu evento";
     const lead = trends.length ? `\xA1Claro! ${para}, esto es lo que se est\xE1 usando y funciona muy bien:` : `\xA1Claro! ${para}, algunas ideas que funcionan muy bien:`;
@@ -90838,13 +90894,13 @@ function buildSalesIdeasSnippet(opts) {
 ${tips.map((t4) => `\u2022 ${t4}`).join("\n")}`.trim();
   }
   if (trends.length) {
-    const cueTrend = cues[0] ? ` para un vibe *${cues[0]}*` : "";
+    const cueTrend = vibeCues[0] ? ` para un vibe *${vibeCues[0]}*` : "";
     return `Lo que se est\xE1 usando${cueTrend}:
 ${tips.map((t4) => `\u2022 ${t4}`).join("\n")}`.trim();
   }
-  const cue = cues[0] ? `Para un vibe *${cues[0]}*, ` : "";
+  const cue = vibeCues[0] ? `Para un vibe *${vibeCues[0]}*: ` : "";
   if (tips.length === 1) {
-    return `${cue}${tips[0]}`.trim();
+    return cue ? `${cue}${tips[0]}` : `Una idea que funciona muy bien: ${tips[0]}`;
   }
   return `${cue}Algunas ideas que funcionan bien:
 ${tips.map((t4) => `\u2022 ${t4}`).join("\n")}`.trim();
@@ -90946,7 +91002,7 @@ function shouldInjectTrendBlock(messageText, tipoEvento) {
   if (extractStyleCues(messageText, tipoEvento).length > 0) return true;
   return !!(tipoEvento && tipoEvento.trim().length >= 3);
 }
-var ACCEPTS_IDEAS_PATTERN, TREND_IDEA_PATTERN, STYLE_CUES, TIPS_BY_EVENT;
+var ACCEPTS_IDEAS_PATTERN, TREND_IDEA_PATTERN, STYLE_CUES, EVENT_TYPE_CUES, TIPS_BY_EVENT;
 var init_trendKnowledge = __esm({
   "src/services/trendKnowledge.ts"() {
     "use strict";
@@ -90970,6 +91026,7 @@ var init_trendKnowledge = __esm({
       { pattern: /\bcorporativ|empresarial|gala/i, label: "corporativo" },
       { pattern: /\bfamiliar|en\s+familia|convivio|reuni[oó]n\s+peque/i, label: "familiar" }
     ];
+    EVENT_TYPE_CUES = /* @__PURE__ */ new Set(["XV a\xF1os", "boda", "corporativo"]);
     TIPS_BY_EVENT = {
       boda: [
         "Iluminaci\xF3n c\xE1lida + lounge peque\xF1o suele elevar el ambiente sin saturar.",
@@ -90997,10 +91054,15 @@ var init_trendKnowledge = __esm({
         "Brunch o banquete ligero + pastel + mesa de dulces arma un look familiar limpio.",
         "En jard\xEDn o terraza: carpas o sombrillas + mobiliario b\xE1sico sin saturar."
       ],
+      apertura: [
+        "C\xF3ctel de bienvenida con canap\xE9s y barra de mixolog\xEDa: la gente recorre el espacio con copa en mano.",
+        "Iluminaci\xF3n ambiental que resalte el producto + DJ en modo lounge, sin tapar la pl\xE1tica.",
+        "Un backdrop con la marca para fotos y redes hace que la apertura se comparta sola."
+      ],
       default: [
-        "Primero define el vibe (elegante, fiesta, jard\xEDn) y luego encaja servicios.",
-        "Combina 2\u20133 piezas ancla (espacio, comida, ambiente) antes de saturar extras.",
-        "Si el espacio es chico, prioriza iluminaci\xF3n y mobiliario lounge sobre montajes grandes."
+        "Barra de bebidas + estaciones de comida hacen que la gente se mueva y conviva m\xE1s que un banquete fijo.",
+        "Iluminaci\xF3n c\xE1lida + una sala lounge elevan el ambiente sin saturar el espacio.",
+        "Un DJ que arranque tranquilo y suba al final mantiene la energ\xEDa toda la noche."
       ]
     };
   }
@@ -130945,6 +131007,54 @@ var init_lucyInfoPriceCache = __esm({
   }
 });
 
+// src/lib/locationDedupe.ts
+function foldToponym(s7) {
+  return s7.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]/gu, "");
+}
+function editDistance(a4, b5) {
+  const dp = Array.from({ length: b5.length + 1 }, (_4, j5) => j5);
+  for (let i6 = 1; i6 <= a4.length; i6++) {
+    let prevDiag = dp[0];
+    dp[0] = i6;
+    for (let j5 = 1; j5 <= b5.length; j5++) {
+      const tmp = dp[j5];
+      dp[j5] = Math.min(dp[j5] + 1, dp[j5 - 1] + 1, prevDiag + (a4[i6 - 1] === b5[j5 - 1] ? 0 : 1));
+      prevDiag = tmp;
+    }
+  }
+  return dp[b5.length];
+}
+function looseSameToponym(a4, b5) {
+  const fa2 = foldToponym(a4);
+  const fb = foldToponym(b5);
+  if (!fa2 || !fb) return false;
+  if (fa2 === fb) return true;
+  const len = Math.max(fa2.length, fb.length);
+  if (len < 6) return false;
+  return editDistance(fa2, fb) <= Math.max(1, Math.floor(len * 0.12));
+}
+function preferToponymSpelling(a4, b5) {
+  const score = (s7) => (/[áéíóúñ]/i.test(s7) ? 2 : 0) + (/[A-ZÁÉÍÓÚÑ]{4,}/.test(s7) ? -1 : 0);
+  return score(b5) > score(a4) ? b5 : a4;
+}
+function dedupeLocationParts(value) {
+  const raw = value?.trim();
+  if (!raw) return value ?? null;
+  const parts2 = raw.split(/\s*,\s*/).filter(Boolean);
+  const out2 = [];
+  for (const p5 of parts2) {
+    const idx = out2.findIndex((o6) => looseSameToponym(o6, p5));
+    if (idx >= 0) out2[idx] = preferToponymSpelling(out2[idx], p5);
+    else out2.push(p5);
+  }
+  return out2.join(", ");
+}
+var init_locationDedupe = __esm({
+  "src/lib/locationDedupe.ts"() {
+    "use strict";
+  }
+});
+
 // src/client-email.ts
 function normalizeEmail(email) {
   const trimmed = email?.trim().toLowerCase() ?? "";
@@ -130979,13 +131089,31 @@ function sanitizeStoredClientEmail(email) {
   if (!looksLikeValidClientEmail(filtered)) return null;
   return filtered;
 }
+function suggestEmailDomainFix(email) {
+  const norm2 = normalizeEmail(email);
+  const m6 = norm2?.match(/^([^\s@]+)@([a-z0-9-]+)((?:\.[a-z]{2,})*)$/i);
+  if (!m6) return null;
+  const [, user, host, rest] = m6;
+  const tld = rest || ".com";
+  const badTld = /^\.(comm?|con|cmo|co)$/i.test(tld) && tld !== ".com" && !/^\.com\.mx$/i.test(tld);
+  if (COMMON_EMAIL_HOSTS.includes(host)) {
+    return badTld ? `${user}@${host}.com` : null;
+  }
+  for (const h5 of COMMON_EMAIL_HOSTS) {
+    if (Math.abs(h5.length - host.length) <= 2 && editDistance(host, h5) <= 2) {
+      return `${user}@${h5}${badTld ? ".com" : tld}`;
+    }
+  }
+  return null;
+}
 function buildEmailConfirmationPrompt(email) {
   return `\xBFMe confirmas tu correo? Lo le\xED como ${email.trim()}, quiero anotarlo bien.`;
 }
-var OWN_EMAILS, SUSPICIOUS_TLD;
+var OWN_EMAILS, SUSPICIOUS_TLD, COMMON_EMAIL_HOSTS;
 var init_client_email = __esm({
   "src/client-email.ts"() {
     "use strict";
+    init_locationDedupe();
     OWN_EMAILS = new Set(
       [
         "capybaraeventos@gmail.com",
@@ -130996,6 +131124,7 @@ var init_client_email = __esm({
       ].map((e4) => e4.toLowerCase())
     );
     SUSPICIOUS_TLD = /\.(comm|con|cmo|gmial|gmal|gmai|hotmial|yaho|outlok)\b/i;
+    COMMON_EMAIL_HOSTS = ["gmail", "hotmail", "outlook", "yahoo", "icloud"];
   }
 });
 
@@ -131537,6 +131666,8 @@ function declinedFamilyLabel(family) {
       return "decoraci\xF3n";
     case "entretenimiento":
       return "entretenimiento";
+    case "animacion":
+      return "animaci\xF3n / hora loca";
     case "pista":
       return "pista de baile";
     case "tarima":
@@ -131586,6 +131717,8 @@ var init_serviceDecline = __esm({
       carpas: /carpas?|capras?|toldos?|lonas?/i,
       decoracion: /decoraci[oó]n|centros?\s+de\s+mesa|florister|globos?|tem[aá]tica/i,
       entretenimiento: /show|dj\b|entretenimiento|hora\s+loca|photobooth|photo\s*booth|bailarinas|batucada|robots?/i,
+      // A16438: "no quiero animación" quita la hora loca, NO los shows con nombre.
+      animacion: /animaci[oó]n|hora\s+loca|happening|animador/i,
       // A16074: declinar pista NO quita tarima.
       pista: /pista(\s+de\s+baile)?/i,
       tarima: /^Tarima\b|tarimas?|entarimad/i,
@@ -131597,7 +131730,8 @@ var init_serviceDecline = __esm({
       mobiliario: "mobiliario|mobilairio|mibiliario|mobilario|sillas?|mesas?|periqueras?|salas?",
       carpas: "carpas?|capras?|toldos?|lonas?",
       decoracion: "decoraci[o\xF3]n|centros?\\s+de\\s+mesa|flores?|globos?",
-      entretenimiento: "show|dj|entretenimiento|hora\\s+loca|photobooth|photo\\s*booth",
+      entretenimiento: "show|dj|entretenimiento|photobooth|photo\\s*booth",
+      animacion: "animaci[o\xF3]n|animador(?:es)?|hora\\s+loca|happening",
       pista: "pista(\\s+de\\s+baile)?",
       tarima: "tarimas?|entarimad[oa]s?",
       dulces: "mesa\\s+de\\s+dulces|mesa\\s+de\\s+postres?|postres?|dulces?|cupcakes?|pastel(es)?|fondant"
@@ -131667,7 +131801,7 @@ function mergeAddr(a4, b5) {
   if (!prev) return next;
   if (fold3(prev).includes(fold3(next))) return prev;
   if (fold3(next).includes(fold3(prev))) return next;
-  return `${prev}, ${next}`;
+  return dedupeLocationParts(`${prev}, ${next}`);
 }
 function direccionNeedsMapsLookup(text2) {
   const t4 = (text2 ?? "").trim();
@@ -131751,9 +131885,176 @@ var CDMX_ALCALDIAS, CDMX_CITY, mapsCache;
 var init_geoResolve = __esm({
   "src/services/geoResolve.ts"() {
     "use strict";
+    init_locationDedupe();
     CDMX_ALCALDIAS = /\b(alvaro\s+obregon|[aá]lvaro\s+obreg[oó]n|azcapotzalco|benito\s+ju[aá]rez|coyoac[aá]n|cuajimalpa|cuauht[eé]moc|gustavo\s+a\.?\s*madero|iztacalco|iztapalapa|magdalena\s+contreras|miguel\s+hidalgo|milpa\s+alta|tl[aá]huac|tlalpan|venustiano\s+carranza|xochimilco)\b/i;
     CDMX_CITY = /\b(cdmx|ciudad\s+de\s+m[eé]xico|\bdf\b|d\.?\s*f\.?)\b/i;
     mapsCache = /* @__PURE__ */ new Map();
+  }
+});
+
+// src/lib/eventDateTime.ts
+function stripAccents(s7) {
+  return s7.normalize("NFD").replace(/\p{M}/gu, "");
+}
+function mexicoNowParts(now = /* @__PURE__ */ new Date()) {
+  const parts2 = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).formatToParts(now);
+  const get = (t4) => Number(parts2.find((p5) => p5.type === t4)?.value ?? "0");
+  return { y: get("year"), m: get("month"), d: get("day"), hh: get("hour") % 24, mm: get("minute") };
+}
+function weekdayOf({ y: y5, m: m6, d: d3 }) {
+  return new Date(Date.UTC(y5, m6 - 1, d3)).getUTCDay();
+}
+function addDays({ y: y5, m: m6, d: d3 }, n5) {
+  const dt3 = new Date(Date.UTC(y5, m6 - 1, d3 + n5));
+  return { y: dt3.getUTCFullYear(), m: dt3.getUTCMonth() + 1, d: dt3.getUTCDate() };
+}
+function daysInMonth(y5, m6) {
+  return new Date(Date.UTC(y5, m6, 0)).getUTCDate();
+}
+function cmp(a4, b5) {
+  return a4.y - b5.y || a4.m - b5.m || a4.d - b5.d;
+}
+function formatYmd(date2) {
+  return `${DIAS[weekdayOf(date2)]} ${date2.d} de ${MESES[date2.m - 1]} de ${date2.y}`;
+}
+function formatMexicoNowForPrompt(now = /* @__PURE__ */ new Date()) {
+  const p5 = mexicoNowParts(now);
+  return `${formatYmd(p5)}, ${String(p5.hh).padStart(2, "0")}:${String(p5.mm).padStart(2, "0")}`;
+}
+function resolveFechaEvento(text2, now = /* @__PURE__ */ new Date()) {
+  const raw = (text2 ?? "").trim();
+  if (!raw) return null;
+  const t4 = stripAccents(raw.toLowerCase()).replace(/[.,;:!?¡¿]+/g, " ").replace(/\s+/g, " ").trim();
+  const today = mexicoNowParts(now);
+  const aprox = /\b(aprox|aproximadamente|mas o menos|tentativ)/.test(t4);
+  if (/^(?:para\s+|es\s+|seria\s+)?hoy(?:\s+mismo)?$/.test(t4)) return formatYmd(today);
+  if (/^(?:para\s+|es\s+|seria\s+)?pasado\s+manana$/.test(t4)) return formatYmd(addDays(today, 2));
+  if (/^(?:para\s+|es\s+|seria\s+)?manana$/.test(t4)) return formatYmd(addDays(today, 1));
+  const yearM = t4.match(/\b(20\d{2})\b/);
+  const explicitYear = yearM ? Number(yearM[1]) : null;
+  const monthM = t4.match(new RegExp(`\\b(${MES_RE})\\b`));
+  const month = monthM ? MESES.findIndex((m6) => stripAccents(m6) === monthM[1]) + 1 : 0;
+  const dayM = t4.match(/\b(\d{1,2})\b(?!\s*(?::|am|pm|hrs?|horas?|personas?|invitad))/);
+  const weekdayM = t4.match(new RegExp(`\\b(${DIA_RE})\\b`));
+  const weekday = weekdayM ? DIAS.findIndex((d3) => stripAccents(d3) === weekdayM[1]) : -1;
+  if (month && dayM) {
+    const d3 = Number(dayM[1]);
+    let y5 = explicitYear ?? today.y;
+    if (d3 < 1 || d3 > 31) return null;
+    if (!explicitYear && cmp({ y: y5, m: month, d: d3 }, today) < 0) y5 += 1;
+    if (d3 > daysInMonth(y5, month)) return null;
+    const date2 = { y: y5, m: month, d: d3 };
+    if (weekday >= 0 && weekdayOf(date2) !== weekday) return null;
+    const out2 = formatYmd(date2);
+    return aprox ? `${out2} (aprox.)` : out2;
+  }
+  if (month && !dayM) {
+    let y5 = explicitYear ?? today.y;
+    if (!explicitYear && month < today.m) y5 += 1;
+    const out2 = `${MESES[month - 1]} de ${y5}`;
+    return aprox ? `${out2} (aprox.)` : out2;
+  }
+  if (weekday >= 0 && !dayM) {
+    let ahead = (weekday - weekdayOf(today) + 7) % 7;
+    if (ahead === 0 && !/\b(este|esta|hoy)\b/.test(t4)) ahead = 7;
+    if (/\b(siguiente|que\s+viene)\b/.test(t4) && ahead < 7 && /\bsemana\b/.test(t4)) ahead += 7;
+    return formatYmd(addDays(today, ahead));
+  }
+  const onlyDay = t4.match(/^(?:el\s+)?(?:dia\s+)?(\d{1,2})$/);
+  if (onlyDay) {
+    const d3 = Number(onlyDay[1]);
+    if (d3 < 1 || d3 > 31) return null;
+    let y5 = today.y;
+    let m6 = today.m;
+    if (d3 < today.d) {
+      m6 += 1;
+      if (m6 > 12) {
+        m6 = 1;
+        y5 += 1;
+      }
+    }
+    if (d3 > daysInMonth(y5, m6)) return null;
+    return formatYmd({ y: y5, m: m6, d: d3 });
+  }
+  return null;
+}
+function contextPeriod(context) {
+  const c5 = context.toLowerCase();
+  const pm = /\b\d{1,2}(?::\d{2})?\s*(?:pm|p\.\s*m)/.test(c5) || /\bde\s+la\s+(tarde|noche)\b|\b(cena|noche|nocturn)/.test(c5);
+  const am = /\b\d{1,2}(?::\d{2})?\s*(?:am|a\.\s*m)/.test(c5) || /\bde\s+la\s+ma[nñ]ana\b|\b(desayuno|brunch|almuerzo|matutin)/.test(c5);
+  if (pm && !am) return "pm";
+  if (am && !pm) return "am";
+  return null;
+}
+function inferHorarioAmPm(horario, context = "") {
+  const value = (horario ?? "").trim();
+  if (!value || PERIOD_WORDS.test(value)) return { value, ambiguous: false };
+  const m6 = value.match(
+    /^(?:de\s+(?:las?\s+)?)?(\d{1,2})(?::(\d{2}))?(?:\s*(?:a|-|–|hasta)\s*(?:las?\s+)?(\d{1,2})(?::(\d{2}))?)?$/i
+  );
+  if (!m6) return { value, ambiguous: false };
+  const h1 = Number(m6[1]);
+  const m1 = m6[2];
+  const h22 = m6[3] !== void 0 ? Number(m6[3]) : null;
+  const m22 = m6[4];
+  if (h1 > 12 || h22 !== null && h22 > 12 || h1 === 0) return { value, ambiguous: false };
+  let p1 = null;
+  if (h1 >= 1 && h1 <= 6) p1 = "pm";
+  else if (h1 === 12) p1 = "pm";
+  else p1 = contextPeriod(context);
+  if (!p1) return { value, ambiguous: true };
+  const fmt = (h5, mm, p5) => `${h5}${mm ? `:${mm}` : ""} ${p5}`;
+  if (h22 === null) return { value: fmt(h1, m1, p1), ambiguous: false };
+  const start24 = h1 % 12 + (p1 === "pm" ? 12 : 0) + (m1 ? Number(m1) / 60 : 0);
+  const endPm = h22 % 12 + 12 + (m22 ? Number(m22) / 60 : 0);
+  const p22 = endPm > start24 && endPm - start24 <= 14 ? "pm" : "am";
+  return { value: `${fmt(h1, m1, p1)} a ${fmt(h22, m22, p22)}`, ambiguous: false };
+}
+function resolveHorarioWithContext(incoming, previous, context = "") {
+  const inc = (incoming ?? "").trim();
+  if (!inc) return null;
+  const prev = (previous ?? "").trim();
+  if (/\d/.test(inc)) return inferHorarioAmPm(inc, `${context} ${prev}`).value;
+  if (prev && /\d/.test(prev) && PERIOD_WORDS.test(inc)) {
+    const r5 = inferHorarioAmPm(prev, inc);
+    if (!r5.ambiguous && r5.value !== prev) return r5.value;
+  }
+  return inc;
+}
+function horarioNeedsAmPmConfirmation(horario, context = "") {
+  return inferHorarioAmPm(horario, context).ambiguous;
+}
+var TZ, MESES, DIAS, MES_RE, DIA_RE, PERIOD_WORDS;
+var init_eventDateTime = __esm({
+  "src/lib/eventDateTime.ts"() {
+    "use strict";
+    TZ = "America/Mexico_City";
+    MESES = [
+      "enero",
+      "febrero",
+      "marzo",
+      "abril",
+      "mayo",
+      "junio",
+      "julio",
+      "agosto",
+      "septiembre",
+      "octubre",
+      "noviembre",
+      "diciembre"
+    ];
+    DIAS = ["domingo", "lunes", "martes", "mi\xE9rcoles", "jueves", "viernes", "s\xE1bado"];
+    MES_RE = MESES.map((m6) => stripAccents(m6)).join("|");
+    DIA_RE = "domingo|lunes|martes|miercoles|jueves|viernes|sabado";
+    PERIOD_WORDS = /\b(am|pm|hrs?|horas?|tarde|noche|ma[nñ]ana|mediod[ií]a|medio\s*d[ií]a|madrugada)\b|\b[ap]\.\s*m\.?/i;
   }
 });
 
@@ -131831,7 +132132,7 @@ function clientChoosesChatDelivery(message) {
   const t4 = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
   if (/^(por\s+)?aqu[ií]$/i.test(t4)) return true;
   if (/^(whatsapp|chat|wa|por\s+whatsapp)$/i.test(t4)) return true;
-  if (/\bpor\s+(aqu[ií]|este\s+(chat|medio)|whatsapp)\b/i.test(t4) && t4.split(/\s+/).length <= 8) {
+  if (/\bpor\s+(aqu[ií]|este\s+(chat|medio)|whatsapp)(?!\p{L})/iu.test(t4) && t4.split(/\s+/).length <= 8) {
     return true;
   }
   return false;
@@ -132329,12 +132630,51 @@ function clientMentionsSpecialLiveAct(message) {
   if (/\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca|entretenimiento)\b/i.test(t4) || /\bgrupo\s+vers[aá]til\b/i.test(t4)) {
     return false;
   }
-  return /\bcirco\b/i.test(t4) || /\bblue\s*mans?\b|\bblueman\b/i.test(t4) || /\b(mago|magia|ilusionista)\b/i.test(t4) || /\bcrudo\s*wheel\b|\bshow\s+crudo\b/i.test(t4) || /\bacrobacia\s+a[eé]rea\b/i.test(t4) || /\b(payasos?|malabares?|acr[oó]batas?|trapecio|contorsion)\b/i.test(t4) || // "show blueman" / "show X" con nombre propio (no "show de…").
+  return parseNamedShowLabels(message).length > 0 || /\bcirco\b/i.test(t4) || /\bblue\s*mans?\b|\bblueman\b/i.test(t4) || /\b(mago|magia|ilusionista)\b/i.test(t4) || /\bcrudo\s*wheel\b|\bshow\s+crudo\b/i.test(t4) || /\bacrobacia\s+a[eé]rea\b/i.test(t4) || /\b(payasos?|malabares?|acr[oó]batas?|trapecio|contorsion)\b/i.test(t4) || // "show blueman" / "show X" con nombre propio (no "show de…").
   /\bshow\s+[a-záéíóúüñ][\wáéíóúüñ.-]{2,}(?!\s+de\b)/i.test(t4) && !/\bshow\s+(de|en|para|con|un|una|el|la|los|las)\b/i.test(t4) || /\b(quiero|busco|necesito|interes[aá]|cotiz)\b.{0,40}\bcirco\b/i.test(t4);
+}
+function parseNamedShowLabels(text2) {
+  if (!text2?.trim()) return [];
+  const out2 = [];
+  const push = (raw) => {
+    const name2 = raw.replace(/\s+/g, " ").replace(/^\s*shows?\s+/i, "").replace(/\s+shows?\s*$/i, "").trim();
+    if (name2.length < 2 || name2.length > 50) return;
+    const label = /\bblue\s*mans?\b|\bblueman\b/i.test(name2) ? "Show Blue Man" : `Show ${name2}`;
+    if (!out2.some((s7) => s7.toLowerCase() === label.toLowerCase())) out2.push(label);
+  };
+  for (const m6 of text2.matchAll(/\bshows?\s*[“"«']\s*([^"“”«»']{2,60}?)\s*[”"»']/giu)) {
+    if (m6[1]) push(m6[1]);
+  }
+  for (const part of text2.split(/[,\n]/)) {
+    const seg = part.trim();
+    if (/^Show\s+[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÜÑáéíóúüñ ]{1,48}$/u.test(seg) && !/^Show\s+(De|En|Para|Con)\b/.test(seg)) {
+      push(seg);
+    }
+  }
+  return out2;
+}
+function clientAsksVentaOrRenta(message) {
+  const t4 = message?.trim() ?? "";
+  if (!t4) return false;
+  if (/\b(les|a\s+ustedes)\s+(vendo|vendemos|ofrezco|ofrecemos)\b|\bquiero\s+venderles\b|\bventas\s+(en|de\s+la\s+empresa)\b/i.test(t4)) {
+    return false;
+  }
+  return /\b(venta|renta)\s+o\s+(renta|venta)\b/i.test(t4) || /\b(rentan|rentas)\s+o\s+(venden|vendes)\b|\b(venden|vendes)\s+o\s+(rentan|rentas)\b/i.test(t4) || /\b(venden|vendes|manejan\s+venta|hacen\s+venta|tienen\s+venta|se\s+pueden?\s+comprar|puedo\s+comprar(las|los)?|est[aá]n?\s+a\s+la\s+venta|es\s+(solo\s+)?(para\s+)?venta)\b/i.test(
+    t4
+  );
+}
+function clientChoosesVenta(message) {
+  const t4 = message?.trim() ?? "";
+  if (!t4 || t4.length > 60 || clientAsksVentaOrRenta(t4)) return false;
+  return /^(?:s[ií][\s,.!]+)?(?:(?:ser[ií]a|es|la\s+quiero|lo\s+quiero|quiero|me\s+interesa)\s+)?(?:para\s+|en\s+)?(venta|compra|comprar(las|los)?)\b/i.test(
+    t4
+  );
 }
 function parseSpecialLiveActLabel(message) {
   if (!message?.trim()) return null;
   const t4 = message.trim();
+  const namedShows = parseNamedShowLabels(t4);
+  if (namedShows.length) return namedShows[0];
   if (/\bcirco\b/i.test(t4)) return "Circo para eventos";
   if (/\bblue\s*mans?\b|\bblueman\b/i.test(t4)) return "Show Blue Man";
   if (/\b(mago|magia|ilusionista)\b/i.test(t4)) return "Show de magia";
@@ -132919,6 +133259,7 @@ function looksLikeGuestCountRange(text2) {
   const hasGuestWord = /\b(personas?|invitad[oa]s?|asistentes?|comensales?|gente)\b/i.test(
     trimmed
   );
+  if (!hasGuestWord && /\d{1,2}:\d{2}/.test(trimmed)) return false;
   const m6 = trimmed.match(/\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i);
   if (!m6) {
     const crm = trimmed.match(/^(\d{1,4})\s*[-–]\s*(\d{1,4})(?:\s*MXN)?$/i);
@@ -133003,6 +133344,7 @@ function hasCityOrMetroSignal(text2) {
   }
   if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t4)) return true;
   if (/\b(estado\s+de|edo\.?\s*m[eé]x|cdmx|d\.?\s*f\.?)\b/i.test(t4)) return true;
+  if (/\b(gdl|mty|qro|ags|qroo|cuerna|tlaque)\b/i.test(t4)) return true;
   if (/\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica|atlixco|cholula|tehuac[aá]n|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|tlaquepaque|zapopan|tonal[aá]|tlajomulco|jalisco)\b/i.test(
     t4
   )) {
@@ -133433,6 +133775,9 @@ function parseServicesFromText(text2) {
   ) && !/\bbarra\s+de\s+caf[eé]/i.test(text2)) {
     found.push("Barra de bebidas");
   }
+  for (const show of parseNamedShowLabels(text2)) {
+    if (!found.some((s7) => s7.toLowerCase() === show.toLowerCase())) found.push(show);
+  }
   const deduped = dedupeServiceHierarchy(found, text2);
   found.length = 0;
   found.push(...deduped);
@@ -133506,6 +133851,12 @@ function formatServicesList(services) {
 function dedupeServiceHierarchy(services, sourceText) {
   const found = [...services].map((s7) => s7.trim()).filter(Boolean);
   const text2 = sourceText ?? found.join(" ");
+  const animIdx = found.indexOf("Animaci\xF3n / Hora loca");
+  if (animIdx >= 0 && found.some((s7) => /^Show\s|^Circo\b/i.test(s7)) && !/\b(hora\s+loca|happening|animaci[oó]n|animador|pixel|espejos|l[aá]ser)\b/i.test(
+    sourceText ?? ""
+  )) {
+    found.splice(animIdx, 1);
+  }
   if (found.includes("Men\xFA staff")) {
     const meserosIdx = found.indexOf("Meseros");
     if (meserosIdx >= 0) found.splice(meserosIdx, 1);
@@ -133646,6 +133997,9 @@ function clientNarrowsToOnlyService(text2) {
   if (/\b(tarimas?|entarimad[oa]s?)\b/i.test(t4) && !/\bpista(\s+de\s+baile)?\b/i.test(t4.replace(/\bno\s+(quiero|necesito|requiero).{0,20}pista\b/gi, " "))) {
     return "Tarima";
   }
+  if (/\bshows?\b/i.test(t4) && parseNamedShowLabels(t4).length === 0 && !/\b(hora\s+loca|happening|animaci[oó]n|animador)\b/i.test(t4)) {
+    return null;
+  }
   const fromMsg = parseServicesFromText(t4).filter(
     (s7) => !/^(Comida|Alimentos|Evento|Servicio)$/i.test(s7)
   );
@@ -133677,6 +134031,13 @@ function resolveSnackSwapLabel(text2) {
   return "Bocadillos";
 }
 function mergeServiceRequirements(existing, text2, max = 6) {
+  const merged = mergeServiceRequirementsRaw(existing, text2, max);
+  if (merged && /\(venta\)/i.test(existing ?? "") && !/\(venta\)/i.test(merged)) {
+    return `${merged} (venta)`;
+  }
+  return merged;
+}
+function mergeServiceRequirementsRaw(existing, text2, max = 6) {
   const onlySku = clientNarrowsToOnlyService(text2);
   if (onlySku) {
     return preserveSpaceAnnotation(onlySku, `${existing ?? ""} ${text2 ?? ""}`);
@@ -134104,11 +134465,12 @@ function extractFechaCorrectionFragment(text2) {
   }
   if (looksLikeFechaDiscourseJunk(t4) || /\bsigue\s+siendo\b/i.test(t4)) {
     const month = t4.match(
-      /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+      /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b(?:\s+(?:de(?:l)?\s+)?(20\d{2}))?/i
     );
     if (month?.[1]) {
       const m6 = month[1];
-      return m6.charAt(0).toUpperCase() + m6.slice(1).toLowerCase();
+      const label = m6.charAt(0).toUpperCase() + m6.slice(1).toLowerCase();
+      return month[2] ? `${label} de ${month[2]}` : label;
     }
   }
   return null;
@@ -134226,6 +134588,63 @@ function clientDefersHorario(text2) {
   /\b(a[uú]n|todav[ií]a)\s+no\s+(?:se\s+|s[eé]\s+)?defin/i.test(t4) || /\b(a[uú]n|todav[ií]a)\s+no\s+definid/i.test(t4) || // A15918: "No se sabe" / "no se sabe el horario"
   /^\s*no\s+se\s+sabe\b/i.test(t4) || /\bno\s+se\s+sabe(\s+(el\s+)?horario)?\b/i.test(t4) || /^(no\s+s[eé]|ni\s+idea)[\s.,!]*$/i.test(t4);
 }
+function dayPeriodToAmPm(hour, period) {
+  const p5 = (period ?? "").toLowerCase().replace(/\s+/g, " ");
+  if (!p5) return null;
+  if (/^(hrs?|horas)$/.test(p5)) return "24h";
+  if (/^a\.?\s*m|^am$|ma[nñ]ana|madrugada/.test(p5)) return "am";
+  if (/noche/.test(p5) && hour === 12) return "am";
+  return "pm";
+}
+function parseClockRangeWithPeriods(text2) {
+  const t4 = (text2 ?? "").replace(/\s+/g, " ").trim();
+  if (!t4 || /\b(personas?|invitad[oa]s?|asistentes?|comensales?|pax)\b/i.test(t4)) return null;
+  const re4 = new RegExp(
+    String.raw`(?:^|[^\d:])(?:de\s+(?:las?\s+)?)?(\d{1,2})(?::(\d{2}))?\s*(${DAY_PERIOD_SRC})?(\s*(?:a|[-–]|hasta)\s*|\s+)(?:las?\s+)?(\d{1,2})(?::(\d{2}))?\s*(${DAY_PERIOD_SRC})?(?=$|[^\d:])`,
+    "i"
+  );
+  const m6 = t4.match(re4);
+  if (!m6) return null;
+  const h1 = Number(m6[1]);
+  const h22 = Number(m6[5]);
+  const hasConnector = /\S/.test(m6[4] ?? "");
+  const p1 = dayPeriodToAmPm(h1, m6[3]);
+  const p22 = dayPeriodToAmPm(h22, m6[7]);
+  if (!p1 && !p22) return null;
+  if (!hasConnector && !(p1 && p22)) return null;
+  if (h1 > 24 || h22 > 24) return null;
+  const mm1 = m6[2];
+  const mm2 = m6[6];
+  if ((p1 === "24h" || p22 === "24h") && !mm1 && !mm2 && h1 <= 12 && h22 <= 12) return null;
+  const to24 = (h5, p5) => p5 === "24h" ? h5 % 24 : h5 % 12 + (p5 === "pm" ? 12 : 0);
+  const fmt = (h24, mm) => {
+    const p5 = h24 >= 12 ? "pm" : "am";
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    return `${h12}${mm ? `:${mm}` : ""} ${p5}`;
+  };
+  const nearestAfter = (start24, h5) => {
+    const cands = [h5 % 12, h5 % 12 + 12];
+    return cands.reduce(
+      (best, c5) => ((c5 - start24 + 24) % 24 || 24) < ((best - start24 + 24) % 24 || 24) ? c5 : best
+    );
+  };
+  let s24;
+  let e24;
+  if (p1 && p22) {
+    s24 = to24(h1, p1);
+    e24 = to24(h22, p22);
+  } else if (p1) {
+    s24 = to24(h1, p1);
+    e24 = h22 > 12 ? h22 % 24 : nearestAfter(s24, h22);
+  } else {
+    e24 = to24(h22, p22);
+    const cands = h1 > 12 ? [h1 % 24] : [h1 % 12, h1 % 12 + 12];
+    s24 = cands.reduce(
+      (best, c5) => ((e24 - c5 + 24) % 24 || 24) < ((e24 - best + 24) % 24 || 24) ? c5 : best
+    );
+  }
+  return `${fmt(s24, mm1)} a ${fmt(e24, mm2)}`;
+}
 function parseHorarioFromText(text2) {
   const trimmed = text2.trim();
   if (!trimmed) return null;
@@ -134247,6 +134666,10 @@ function parseHorarioFromText(text2) {
       if (h5 === 24) h5 = 12;
       return `${String(h5).padStart(2, "0")}:${m6}`;
     }
+  }
+  {
+    const rangeWithPeriods = parseClockRangeWithPeriods(clean);
+    if (rangeWithPeriods) return rangeWithPeriods;
   }
   if (/\b(personas?|invitad[oa]s?|asistentes?|comensales?)\b/i.test(clean) && /\b\d{1,4}\s*(?:a|[-–]|hasta)\s*\d{1,4}\b/i.test(clean)) {
     return null;
@@ -134287,7 +134710,7 @@ function parseHorarioFromText(text2) {
   );
   if (rangeAmpm?.[1]) {
     const frag = rangeAmpm[1].trim();
-    if (!new RegExp(CLOCK_AMPM, "i").test(frag) && !/\b(hrs?|horas?)\b/i.test(frag) && !/\b(a\s+las?|de\s+las?)\b/i.test(clean)) {
+    if (!new RegExp(CLOCK_AMPM, "i").test(frag) && !/\b(hrs?|horas?)\b/i.test(frag) && !/\b(a\s+las?|de\s+las?)\b/i.test(clean) && !/\d:\d{2}\D+\d{1,2}:\d{2}/.test(frag)) {
     } else {
       const without = clean.replace(rangeAmpm[1], "").trim();
       if (!without || parseFechaFromText(without) || MONTH_PATTERN.test(without) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(without) || /\b(evento|ser[ií]a|ser[aá]|es|planean|planeamos|tendr[ií]a|horario)\b/i.test(without)) {
@@ -134381,6 +134804,17 @@ function parseHorarioFromText(text2) {
       if (!parseFechaFromText(clean)) return frag;
     }
   }
+  {
+    const explicitClock = clean.match(
+      /(?:^|\s)(\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.\s*m\.?|p\.\s*m\.?)|\d{1,2}:\d{2}(?:\s*hrs?)?)(?=\s|$)/i
+    );
+    if (explicitClock?.[1]) {
+      const rest = clean.replace(explicitClock[1], " ").replace(/\b(el|la|los|para|sería|seria|es|y|a|las?)\b/gi, " ").replace(/\s+/g, " ").trim();
+      if (!rest || parseFechaFromText(rest) || MONTH_PATTERN.test(rest) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|hoy|ma[nñ]ana)\b/i.test(rest)) {
+        return normalizeHorarioCapture(explicitClock[1].trim());
+      }
+    }
+  }
   if (/\b(tarde|noche|mediod[ií]a|medio\s*d[ií]a|ma[nñ]ana)\b/i.test(clean) && clean.split(/\s+/).length <= 7 && !MONTH_PATTERN.test(clean)) {
     return normalizeHorarioCapture(clean).slice(0, 40);
   }
@@ -134428,6 +134862,7 @@ function isUsableHorarioEvento(value) {
   if (looksLikeMealTimeNotLocation(t4) && t4.split(/\s+/).length <= 6) return true;
   if (/\b\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}/i.test(t4)) return true;
   if (/\b(?:a\s+las|desde\s+las)\s+\d/i.test(t4)) return true;
+  if (parseClockRangeWithPeriods(t4)) return true;
   if (/\b(tarde|noche|mediod[ií]a|ma[nñ]ana)\b/i.test(t4) && t4.split(/\s+/).length <= 5) {
     return true;
   }
@@ -134480,6 +134915,11 @@ function isUsableFechaHorario(value) {
   if (isMealTimeOnlySchedule(t4)) return false;
   if (isClockTimeOnlySchedule(t4)) return false;
   if (looksLikeFechaDiscourseJunk(t4)) return false;
+  if (/^(?:(?:ser[ií]a|es)\s+)?(?:en\s+(?:el|la)\s+|al\s+|por\s+la\s+|a\s+la\s+|de\s+)?(atardecer|anochecer|amanecer|tarde|noche|mediod[ií]a|medio\s+d[ií]a|madrugada|puesta\s+de\s+sol)\s*[\p{Extended_Pictographic}\s]*$/iu.test(
+    t4
+  )) {
+    return false;
+  }
   if (t4.split(/\s+/).length >= 10 && !/\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
     t4
   )) {
@@ -135187,7 +135627,14 @@ function isNegativeOnlyReply(text2) {
     t4
   );
 }
+function expandMxCityAbbreviations(text2) {
+  let out2 = text2;
+  for (const [re4, city] of MX_CITY_ABBREVIATIONS) out2 = out2.replace(re4, city);
+  if (/^\s*pue\.?\s*$/i.test(out2)) out2 = "Puebla";
+  return out2;
+}
 function parseZonaFromText(text2) {
+  text2 = expandMxCityAbbreviations(text2);
   const withoutEmails = text2.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, " ").replace(/\s+/g, " ").trim();
   const trimmed = withoutEmails.replace(/\(?\s*hora\s+ciudad\s+de\s+m[eé]xico\s*\)?/gi, " ").replace(/\bhorario\s+en\s+que\s+env[ií]o\s+este\s+mensaje\s*:?[^\n]*/gi, " ").replace(/\bcotizaci[oó]n(es)?\s+en\s+pdf\b/gi, " ").replace(/\b(en\s+)?pdf\b/gi, " ").replace(/^(s[ií][,.]?\s+)(?=[A-Za-zÁÉÍÓÚáéíóúñÑ])/i, "").replace(/\s+/g, " ").trim();
   if (!trimmed) return null;
@@ -135447,6 +135894,9 @@ function isRicherFechaCapture(incoming, existing) {
     prev
   ) || /\b\d{1,2}[\/\-]\d{1,2}/.test(prev);
   if (nextHasDay && (isMonthOnlyFecha(prev) || !prevHasDay)) return true;
+  if (/\b20\d{2}\b/.test(next) && !/\b20\d{2}\b/.test(prev) && isMonthOnlyFecha(prev) && next.toLowerCase().startsWith(prev.toLowerCase())) {
+    return true;
+  }
   if (nextHasDay && prevHasDay && /\b\d{4}\b/.test(next) && !/\b\d{4}\b/.test(prev)) return true;
   if (next.length > prev.length + 2 && nextHasDay) return true;
   return false;
@@ -135543,23 +135993,22 @@ function parseFechaFromText(text2) {
     }
   }
   if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
-    if (looksLikeFechaDiscourseJunk(trimmed) || trimmed.length > 40 || trimmed.split(/\s+/).length > 5) {
+    const monthWithYear = () => {
       const month = trimmed.match(
-        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b(?:\s+(?:de(?:l)?\s+)?(20\d{2}))?/i
       );
-      if (month?.[1]) {
-        const m6 = month[1];
-        return m6.charAt(0).toUpperCase() + m6.slice(1).toLowerCase();
-      }
+      if (!month?.[1]) return null;
+      const m6 = month[1];
+      const label = m6.charAt(0).toUpperCase() + m6.slice(1).toLowerCase();
+      return month[2] ? `${label} de ${month[2]}` : label;
+    };
+    if (looksLikeFechaDiscourseJunk(trimmed) || trimmed.length > 40 || trimmed.split(/\s+/).length > 5) {
+      const withYear = monthWithYear();
+      if (withYear) return withYear;
     }
     if (isMonthOnlyFecha(trimmed) || /^en\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/i.test(trimmed)) {
-      const month = trimmed.match(
-        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
-      );
-      if (month?.[1]) {
-        const m6 = month[1];
-        return m6.charAt(0).toUpperCase() + m6.slice(1).toLowerCase();
-      }
+      const withYear = monthWithYear();
+      if (withYear) return withYear;
     }
     return trimmed.slice(0, 80);
   }
@@ -135579,6 +136028,9 @@ function isGenericQuoteIntentRequerimiento(value) {
   return /^(quiero|necesito|requiero|busco|me\s+interesa)\s+(una?\s+)?cotiz/i.test(t4) || /^cotizaci[oó]n$/i.test(t4) || /^una?\s+cotizaci[oó]n$/i.test(t4) || /\bquiero\s+una?\s+cotizaci[oó]n\b/i.test(t4) || /\bsolicito\s+(una?\s+)?cotizaci[oó]n\b/i.test(t4);
 }
 function mergeZonaDetail(existing, incoming) {
+  return dedupeLocationParts(mergeZonaDetailRaw(existing, incoming));
+}
+function mergeZonaDetailRaw(existing, incoming) {
   const prevRaw = existing?.trim() ?? "";
   const nextRaw = incoming?.trim() ?? "";
   if (looksLikeThemeColorNotLocation(nextRaw)) {
@@ -135611,6 +136063,7 @@ function mergeZonaDetail(existing, incoming) {
   if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
   if (next.toLowerCase().includes(prev.toLowerCase())) return next;
   if (textOverlapLoose(prev, next) >= 0.85) return prev.length >= next.length ? prev : next;
+  if (looseSameToponym(prev, next)) return preferToponymSpelling(prev, next);
   if (/\bsan\s+miguel|hacienda|allende\b/i.test(next) && /^(ciudad\s+de\s+m[eé]xico|cdmx)$/i.test(prev)) {
     return next;
   }
@@ -136230,8 +136683,39 @@ function appendSpaceDimensionsToRequerimientos(mergedLines, filledSet, history, 
   }
 }
 function applyCapturesToCrm(mergedLines, filledSet, captures) {
-  for (const { label, value } of captures) {
+  const crmBlob = mergedLines.join("\n");
+  for (const capture of captures) {
+    const { label } = capture;
+    let { value } = capture;
     if (!value?.trim()) continue;
+    if (label === CRM_FECHA_LABEL) {
+      value = resolveFechaEvento(value) ?? value;
+      if (filledSet.has(label)) {
+        const re4 = new RegExp(`^-?\\s*${CRM_FECHA_LABEL}:\\s*`, "i");
+        const idx = mergedLines.findIndex((l6) => re4.test(l6));
+        const existing = idx >= 0 ? mergedLines[idx].replace(re4, "").trim() : "";
+        if (idx >= 0 && isUsableFechaEvento(value) && (!isUsableFechaEvento(existing) || isRicherFechaCapture(value, existing))) {
+          mergedLines[idx] = `- ${CRM_FECHA_LABEL}: ${value}`;
+        }
+        continue;
+      }
+    }
+    if (label === CRM_HORARIO_LABEL) {
+      const idx = mergedLines.findIndex(
+        (l6) => new RegExp(`^-?\\s*${CRM_HORARIO_LABEL}:`, "i").test(l6)
+      );
+      const existing = idx >= 0 ? mergedLines[idx].replace(new RegExp(`^-?\\s*${CRM_HORARIO_LABEL}:\\s*`, "i"), "").trim() : null;
+      const resolved = resolveHorarioWithContext(value, existing, crmBlob) ?? value;
+      if (idx >= 0 && filledSet.has(label) && existing && /\d/.test(existing) && !/\d/.test(value)) {
+        if (resolved !== value) mergedLines[idx] = `- ${CRM_HORARIO_LABEL}: ${resolved}`;
+        continue;
+      }
+      if (idx >= 0 && filledSet.has(label) && existing && /\d/.test(resolved) && (!/\d/.test(existing) || isRicherHorarioCapture(resolved, existing))) {
+        mergedLines[idx] = `- ${CRM_HORARIO_LABEL}: ${resolved}`;
+        continue;
+      }
+      value = resolved;
+    }
     if (label === "Lugar/direcci\xF3n del evento" && filledSet.has(label)) {
       const idx = mergedLines.findIndex((l6) => /^-?\s*Lugar\/dirección del evento:/i.test(l6));
       if (idx >= 0) {
@@ -136383,7 +136867,7 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     extracted.requerimientos_evento = null;
   }
 }
-var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_DISCOURSE_CUT, VENUE_DISCOURSE_JUNK, VAGUE_VENUE_LABEL, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
+var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_DISCOURSE_CUT, VENUE_DISCOURSE_JUNK, VAGUE_VENUE_LABEL, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, DAY_PERIOD_SRC, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, MX_CITY_ABBREVIATIONS, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
 var init_conversation_understanding = __esm({
   "src/conversation-understanding.ts"() {
     "use strict";
@@ -136392,6 +136876,8 @@ var init_conversation_understanding = __esm({
     init_bodasesorAdvisor();
     init_serviceDecline();
     init_geoResolve();
+    init_eventDateTime();
+    init_locationDedupe();
     init_chairModels();
     init_chairModels();
     CRM_FECHA_LABEL = "Fecha del evento";
@@ -136768,6 +137254,7 @@ var init_conversation_understanding = __esm({
     STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
     CLOCK_AMPM = String.raw`(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)`;
     CLOCK_TOKEN = String.raw`\d{1,2}(?::\d{2})?`;
+    DAY_PERIOD_SRC = String.raw`de\s+la\s+(?:ma[nñ]ana|tarde|noche|madrugada)|del\s+medio\s*d[ií]a|am|pm|a\.\s*m\.?|p\.\s*m\.?|hrs?|horas`;
     GUEST_COUNT_WORDS = "personas?|invitados?|invitadas?|pax|guests?|gentes?|cabezas?";
     STANDARD_PISTA_SIZES = [
       { w: 4, h: 4, area: 16 },
@@ -136793,6 +137280,17 @@ var init_conversation_understanding = __esm({
       { w: 18, h: 21, area: 378 }
     ];
     CARPA_M2_PER_GUEST = 1.5;
+    MX_CITY_ABBREVIATIONS = [
+      [/\bgdl\b\.?/gi, "Guadalajara"],
+      [/\bmty\b\.?/gi, "Monterrey"],
+      [/\bqro\b\.?/gi, "Quer\xE9taro"],
+      [/\bags\b\.?/gi, "Aguascalientes"],
+      [/\bqroo\b\.?/gi, "Quintana Roo"],
+      [/\bcuerna\b/gi, "Cuernavaca"],
+      [/\btlaque\b/gi, "Tlaquepaque"],
+      [/,\s*jal\b\.?/gi, ", Jalisco"],
+      [/,\s*n\.?\s*l\.?$/gi, ", Nuevo Le\xF3n"]
+    ];
     SERVICE_LABELS_NOT_TIPO = /^(brunch|banquete|taquiza|desayuno|catering|pista de baile|dj|mobiliario|bebidas?)$/i;
     CORREO_DICTADO_STOPWORDS = /* @__PURE__ */ new Set([
       "es",
@@ -161449,14 +161947,30 @@ async function openPgAt(dir) {
   console.info(`[db] Modo local activo \u2192 ${dir}`);
   return db2;
 }
+function withOpenTimeout(p5, dir) {
+  let timer;
+  const timeout = new Promise((_4, reject) => {
+    timer = setTimeout(
+      () => reject(new PgliteOpenTimeout(`PGlite no abri\xF3 ${dir} en ${PGLITE_OPEN_TIMEOUT_MS} ms`)),
+      PGLITE_OPEN_TIMEOUT_MS
+    );
+  });
+  return Promise.race([p5, timeout]).finally(() => clearTimeout(timer));
+}
 async function getLocalDb() {
   if (localDb) return localDb;
   try {
-    localDb = await openPgAt(LOCAL_DB_DIR);
+    localDb = await withOpenTimeout(openPgAt(LOCAL_DB_DIR), LOCAL_DB_DIR);
     return localDb;
   } catch (err2) {
     const msg = err2 instanceof Error ? err2.message : String(err2);
     console.error(`[db] Fall\xF3 abrir ${LOCAL_DB_DIR}: ${msg}`);
+    if (err2 instanceof PgliteOpenTimeout) {
+      const fresh2 = path5.join(path5.dirname(LOCAL_DB_DIR), `pgdata-boot-${Date.now()}`);
+      console.warn(`[db] Arranco con base temporal ${fresh2} para no dejar a Lucy sin puerto`);
+      localDb = await withOpenTimeout(openPgAt(fresh2), fresh2);
+      return localDb;
+    }
     const broken = `${LOCAL_DB_DIR}-broken-${Date.now()}`;
     try {
       if (fs6.existsSync(LOCAL_DB_DIR)) {
@@ -161479,7 +161993,7 @@ async function getLocalDb() {
 function isLocalDbMode() {
   return !process.env["DATABASE_URL"]?.trim();
 }
-var LOCAL_DB_DIR, client, localDb, INIT_SQL, MIGRATION_SQL;
+var LOCAL_DB_DIR, client, localDb, INIT_SQL, MIGRATION_SQL, PGLITE_OPEN_TIMEOUT_MS, PgliteOpenTimeout;
 var init_local = __esm({
   "../lib/db/src/local.ts"() {
     "use strict";
@@ -161652,6 +162166,9 @@ ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_learning_extract_at TIME
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS unclear_streak INTEGER NOT NULL DEFAULT 0;
 CREATE UNIQUE INDEX IF NOT EXISTS messages_kommo_message_id_idx ON messages (kommo_message_id) WHERE kommo_message_id IS NOT NULL;
 `;
+    PGLITE_OPEN_TIMEOUT_MS = Number(process.env["LUCY_PGLITE_OPEN_TIMEOUT_MS"] || 3e4);
+    PgliteOpenTimeout = class extends Error {
+    };
   }
 });
 
@@ -163108,7 +163625,7 @@ ${follow}`.trim();
   }
   return body2.trim();
 }
-function stripAccents(text2) {
+function stripAccents2(text2) {
   return text2.normalize("NFD").replace(/\p{M}/gu, "");
 }
 function stripLeadingTransition(text2) {
@@ -163116,9 +163633,9 @@ function stripLeadingTransition(text2) {
 }
 function requerimientosFollowUpTemplate(text2, clientName) {
   let s7 = stripLeadingTransition(text2);
-  s7 = stripAccents(s7.toLowerCase());
+  s7 = stripAccents2(s7.toLowerCase());
   if (clientName?.trim()) {
-    const name2 = stripAccents(clientName.trim().toLowerCase());
+    const name2 = stripAccents2(clientName.trim().toLowerCase());
     s7 = s7.replace(new RegExp(`\\b${name2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"), " ");
   }
   s7 = s7.replace(/\b(adem[aá]s del|con el|solo el|la renta de la?|las?)\s+[^,?]+/gi, "__svc__").replace(/\s+/g, " ").trim();
@@ -163139,7 +163656,7 @@ function bodyEqualsLastAssistant(msg, history, clientName) {
   const templateA = requerimientosFollowUpTemplate(a4, clientName);
   const templateB = requerimientosFollowUpTemplate(b5, clientName);
   if (templateA && templateB && templateA === templateB) return true;
-  const normText = (s7) => stripAccents(stripLeadingTransition(s7).toLowerCase()).replace(/\s+/g, " ").trim();
+  const normText = (s7) => stripAccents2(stripLeadingTransition(s7).toLowerCase()).replace(/\s+/g, " ").trim();
   return normText(a4) === normText(b5);
 }
 function hasMeaningfulRequerimientos(extracted, filledSet) {
@@ -163790,6 +164307,10 @@ function buildOpeningAcknowledgment(history, currentMessage) {
     return "Para alimentos manejamos banquete, taquiza, brunch o coffee break \u2014 \xBFcu\xE1l te interesa?";
   }
   if (/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t4)) {
+    const namedShows = parseNamedShowLabels(userText);
+    if (namedShows.length > 0) {
+      return `Vi que te interesa el ${formatServicesList(namedShows.map((s7) => `*${s7}*`))}; el equipo te confirma costo, duraci\xF3n y disponibilidad.`;
+    }
     const colonMatch = userText.match(
       /(?:me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento)\s*:\s*(.+)/i
     );
@@ -166038,6 +166559,43 @@ ${catalogUrl}`
       extracted.nombre ?? display
     );
   }
+  if (!cierreYaEnviado && currentMessage && clientAsksVentaOrRenta(currentMessage)) {
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const mentionsMob = /\b(mobiliario|mobilairio|sillas?|mesas?|periqueras?|salas?|lounge)\b/i.test(
+      `${currentMessage} ${extracted.requerimientos_evento ?? ""}`
+    );
+    if (mentionsMob) {
+      const merged = mergeServiceRequirements(extracted.requerimientos_evento, currentMessage, 6);
+      extracted.requerimientos_evento = merged || extracted.requerimientos_evento || "Mobiliario";
+      filledSet.add("Requerimientos o servicios");
+    }
+    const piecesKnown = /\b(sillas?|mesas?|periqueras?|salas?|lounge|tiffany|crossback|ghost)\b/i.test(
+      `${currentMessage} ${extracted.requerimientos_evento ?? ""}`
+    );
+    const answer = `${display ? `\xA1Hola, ${display}! ` : ""}Nos enfocamos m\xE1s en *renta*, pero con gusto te podemos cotizar para *venta*.`;
+    let nextQ = null;
+    if (mentionsMob && !piecesKnown) {
+      nextQ = "\xBFQu\xE9 piezas te interesan (mesas, sillas, periqueras o salas) y las buscas en renta o para compra?";
+    } else {
+      const pending = getNextPendingField(extracted, filledSet);
+      nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    }
+    log?.info({ entityId }, "GUARD: A16445 \u2014 cliente pregunta venta o renta");
+    return normalizeAdvisorReferences2(nextQ ? `${answer} ${nextQ}` : answer, extracted.nombre ?? display);
+  }
+  if (!cierreYaEnviado && currentMessage && clientChoosesVenta(currentMessage) && /cotizar\s+para\s+\*?venta/i.test(
+    [...presHistory].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string")?.content?.toString() ?? ""
+  )) {
+    const req = extracted.requerimientos_evento?.trim() || "Mobiliario";
+    if (!/\(venta\)/i.test(req)) extracted.requerimientos_evento = `${req} (venta)`;
+    filledSet.add("Requerimientos o servicios");
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    const ack = "Va, lo cotizamos para *venta*.";
+    log?.info({ entityId }, "GUARD: A16445 \u2014 cliente elige venta");
+    return normalizeAdvisorReferences2(nextQ ? `${ack} ${nextQ}` : ack, extracted.nombre ?? display);
+  }
   {
     const recentUserForDecline = collectUserTexts(presHistory, void 0).slice(-4);
     const declineFamilies = clientDeclinesServiceFamiliesWithContext(
@@ -166091,7 +166649,8 @@ ${catalogUrl}`
       }
       const kept = after ? parseServicesFromText(after) : [];
       const checklistMix = kept.length > 0 && declineFamilies.includes("entretenimiento") && /\bdj\s+no\b|\bno\s*,?\s*dj\b/i.test(currentMessage);
-      const ack = checklistMix ? `Perfecto: anoto *${formatServicesList(kept)}*; sin DJ.` : buildServiceDeclineAck(declineFamilies);
+      const keptShows = kept.filter((s7) => /^Show\s|^Circo\b/i.test(s7));
+      const ack = checklistMix ? `Perfecto: anoto *${formatServicesList(kept)}*; sin DJ.` : declineFamilies.includes("animacion") && keptShows.length > 0 ? `Listo, sin animaci\xF3n. Cotizamos solo ${formatServicesList(keptShows.map((s7) => `*${s7}*`))}.` : buildServiceDeclineAck(declineFamilies);
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : pending === "requerimientos" ? checklistMix ? "\xBFAlgo m\xE1s para la cotizaci\xF3n?" : "\xBFQu\xE9 m\xE1s te gustar\xEDa incluir en la cotizaci\xF3n (sin alimentos, si as\xED lo prefieres)?" : null;
       log?.info(
@@ -166100,6 +166659,30 @@ ${catalogUrl}`
       );
       return normalizeAdvisorReferences2(
         nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
+  if (!cierreYaEnviado && currentMessage && currentMessage.trim().length <= 60 && /^\s*(?:no[\s,.]+)?(?:solo|solamente|[uú]nicamente|nada\s+m[aá]s)\s+(?:quiero|necesito|me\s+interesa|busco|es|ser[ií]a)?\s*(?:el|los|la|las|un|una)?\s*shows?\b[\s.!]*$/iu.test(
+    currentMessage
+  )) {
+    const threadBlob = [
+      extracted.requerimientos_evento ?? "",
+      ...collectUserTexts(presHistory, void 0)
+    ].join("\n");
+    const shows = parseNamedShowLabels(threadBlob);
+    if (shows.length > 0) {
+      extracted.requerimientos_evento = shows.slice(0, 6).join(", ");
+      filledSet.add("Requerimientos o servicios");
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
+      const list = formatServicesList(shows.map((s7) => `*${s7}*`));
+      const ack = `Entendido, solo ${shows.length > 1 ? "los shows" : "el show"}: ${list}, sin animaci\xF3n. El equipo te confirma costo y duraci\xF3n.`;
+      log?.info({ entityId, shows }, "GUARD: A16438 \u2014 solo el show con nombre");
+      return normalizeAdvisorReferences2(
+        nextQ ? `${ack}
+
+${nextQ}` : ack,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
@@ -166382,6 +166965,25 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
         nextQ ? `${ack} ${nextQ}` : ack,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
+    }
+  }
+  if (!cierreYaEnviado && currentMessage) {
+    const lastLucyText = [...presHistory].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string")?.content;
+    const offeredModes = /dos\s+caminos|solo\s+alimentos[\s\S]{0,200}servicio\s+completo/i.test(lastLucyText ?? "");
+    const wantsBoth = /\b(ambos|ambas|los\s+dos|las\s+dos|las\s+2|los\s+2)\b/i.test(currentMessage) && currentMessage.length <= 80;
+    if (offeredModes && wantsBoth) {
+      const svc = (lastLucyText ?? "").match(/Para\s+\*([^*]+)\*\s+tenemos\s+dos\s+caminos/i)?.[1]?.trim() ?? null;
+      const base = (svc ? mergeServiceRequirements(extracted.requerimientos_evento, svc, 8) : null) ?? extracted.requerimientos_evento?.trim() ?? "";
+      const note = "cotizar solo alimentos y servicio completo";
+      const withNote = new RegExp(note, "i").test(base) ? base : base ? `${base} (${note})` : note.charAt(0).toUpperCase() + note.slice(1);
+      extracted.requerimientos_evento = withNote;
+      filledSet.add("Requerimientos o servicios");
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const ack = display ? `\xA1Va, ${display}! Te cotizamos las dos opciones (solo alimentos y servicio completo) para que las compares.` : "\xA1Va! Te cotizamos las dos opciones (solo alimentos y servicio completo) para que las compares.";
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+      log?.info({ entityId, pending }, "GUARD: A16437 \u2014 cotizar ambas modalidades");
+      return normalizeAdvisorReferences2(nextQ ? `${ack} ${nextQ}` : ack, extracted.nombre ?? display);
     }
   }
   if (!cierreYaEnviado && currentMessage && clientRequestsDualProposals(currentMessage)) {
@@ -230447,7 +231049,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V10.21";
+var LUCY_PROMPT_VERSION = "V10.22";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -232556,6 +233158,7 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
 }
 
 // src/lucyCrmInvariants.ts
+init_locationDedupe();
 init_conversation_understanding();
 init_contact_name();
 init_conversation_understanding();
@@ -232577,6 +233180,23 @@ function userJustifiesPresupuesto(userTexts) {
     if (parsePresupuestoFromText(t4, { askedField: "presupuesto" })) return true;
   }
   return false;
+}
+function foldName(s7) {
+  return s7.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+function nombreIsOnlyFestejado(nombre, userTexts) {
+  const n5 = foldName(nombre);
+  if (!n5) return false;
+  const festejados = userTexts.map((t4) => parseFestejadoFromText(t4)?.nombre).filter((x8) => !!x8).map(foldName);
+  const matches = festejados.some(
+    (f7) => f7 === n5 || f7.split(" y ").includes(n5) || f7.split(" ")[0] === n5
+  );
+  if (!matches) return false;
+  const first = n5.split(" ")[0];
+  const presented = userTexts.some(
+    (t4) => new RegExp(`\\b(?:soy|me\\s+llamo|mi\\s+nombre\\s+es|habla)\\s+${first}\\b`, "i").test(foldName(t4))
+  );
+  return !presented;
 }
 function isInvalidCrmNombre(value) {
   const raw = value?.trim() ?? "";
@@ -232617,6 +233237,17 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
       out2.nombre = cleaned;
       applied.push("nombre-sanitized");
     }
+  }
+  if (out2.direccion_evento) {
+    const deduped = dedupeLocationParts(out2.direccion_evento);
+    if (deduped && deduped !== out2.direccion_evento) {
+      out2.direccion_evento = deduped;
+      applied.push("direccion-dedupe");
+    }
+  }
+  if (out2.nombre && nombreIsOnlyFestejado(out2.nombre, userTexts)) {
+    out2.nombre = null;
+    applied.push("nombre-festejado-cleared");
   }
   if (out2.tipo_evento && looksLikePersonNameAsEventType(out2.tipo_evento)) {
     out2.tipo_evento = null;
@@ -233114,6 +233745,12 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   lineas.push(`\u2022 Servicios: ${serviciosLine}`);
   if (modo) lineas.push(`\u2022 Modalidad: ${modo}`);
   if (evento) lineas.push(`\u2022 Evento: ${evento}`);
+  const festejado = (conversationText ?? "").split(/\n+/).map((l6) => parseFestejadoFromText(l6)).find((f7) => f7 !== null);
+  if (festejado) {
+    lineas.push(
+      `\u2022 Festejado: ${festejado.nombre}${festejado.relacion ? ` (${festejado.relacion})` : ""}`
+    );
+  }
   if (invitados) {
     const escalaAbierta = /sin definir|afluencia|no dispone|no (?:lo )?sabe/i.test(invitados);
     lineas.push(escalaAbierta ? `\u2022 Invitados: ${invitados}` : `\u2022 Invitados del evento: ${invitados}`);
@@ -233408,6 +234045,7 @@ function scrubClientFieldsForProveedor(extracted) {
 // src/lucyTurnProcessor.ts
 init_modoServicio();
 init_conversation_understanding();
+init_eventDateTime();
 init_geoResolve();
 init_contact_name();
 
@@ -233589,6 +234227,8 @@ Lee el mensaje y responde DIRECTO lo que pregunt\xF3, en ese mismo turno.
 - Carpas, pista o tarima \u2192 pide medidas aproximadas (y tipo si a\xFAn no lo dijeron).
   Si piden recomendaci\xF3n seg\xFAn invitados, da una referencia razonable (p. ej. pista
   8m\xD78m para ~120 invitados en XV/boda) y pregunta si les late o si ya tienen el espacio medido.
+- "\xBFEs venta o renta?" / "\xBFvenden mobiliario?" \u2192 "Nos enfocamos m\xE1s en *renta*, pero con
+  gusto te podemos cotizar para *venta*." Luego pregunta qu\xE9 piezas busca.
 
 ===================================================================
 ## 6. OFRECER CON CRITERIO (no bombardear)
@@ -233757,6 +234397,7 @@ pero no se responde al cliente.
 // src/services/promptBuilder.ts
 init_catalogService();
 init_bodasesorAdvisor();
+init_eventDateTime();
 init_trendKnowledge();
 function buildStaticSystemPrompt() {
   return `${SYSTEM_PROMPT}
@@ -233786,6 +234427,15 @@ function buildDynamicTurnContext(context) {
   parts2.push("CONTEXTO DEL TURNO (din\xE1mico \u2014 no es system fijo)");
   parts2.push("\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501");
   parts2.push(`Etapa: ${context.stage} \xB7 Prioridad: ${context.priority}`);
+  parts2.push(
+    `Hoy es ${formatMexicoNowForPrompt()} (hora CDMX). Si el cliente dice "este s\xE1bado", "ma\xF1ana", "el 15" o un mes sin a\xF1o, en fecha_evento escribe la fecha concreta (ej. "s\xE1bado 3 de octubre de 2026"); si no est\xE1s segura, deja lo que dijo.`
+  );
+  parts2.push(
+    `Horario: si el cliente da horas sin am/pm ("7:30 a 12:30") y no es obvio por el contexto (cena, noche, desayuno), confirma UNA vez "\xBFde la ma\xF1ana o de la noche?". No inventes am/pm.`
+  );
+  parts2.push(
+    `Festejado \u2260 cliente: "mi hija Sof\xEDa", "los XV de Valeria" \u2192 ese nombre es del festejado, NUNCA lo pongas en "nombre" ni saludes al cliente con \xE9l.`
+  );
   if (context.isFirstInteraction) {
     parts2.push(`
 PRIMERA INTERACCI\xD3N \u2014 OBLIGATORIO
@@ -234187,6 +234837,7 @@ init_conversation_understanding();
 init_concreteProductQuestion();
 init_lucy_flow_guards();
 init_client_email();
+init_trendKnowledge();
 var FIELD_ORDER2 = [
   "nombre",
   "correo",
@@ -234201,6 +234852,9 @@ var FIELD_ORDER2 = [
 var ALGO_MAS_PATTERN = /\b(algo\s+m[aá]s|hay\s+algo\s+m[aá]s|alg[uú]n\s+otro\s+servicio|quieres\s+agregar|deseas\s+agregar)\b/i;
 var THANKS_ACK_PATTERN = /\b(con\s+gusto|nuestro\s+equipo\s+ya\s+tiene|si\s+necesitas\s+algo\s+m[aá]s|aqu[ií]\s+estamos)\b/i;
 var SERVICES_MENU_PATTERN = /\b(manejamos|tambi[eé]n\s+(ofrecemos|manejamos)|alimentos?|mobiliario|carpas?|pista|iluminaci[oó]n|pantallas?)\b/i;
+function stripSalesTipLines(text2) {
+  return text2.split(/\n+/).filter((line2) => !containsStaticSalesTip(line2) && !/para un vibe|ideas que funcionan|se est[aá] usando/i.test(line2)).join("\n");
+}
 var CATALOG_SEND_PATTERN = /bodasesor\.com\/catalogos|te dejo el cat[aá]logo general|mande el cat[aá]logo/i;
 var ENTERTAINMENT_PITCH_PATTERN = /shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento/i;
 function lucyTextOverlapRatio(a4, b5) {
@@ -234322,7 +234976,7 @@ function syncFilledFromCurrentAnswer(field, message, filled, extracted, inputExt
       filled.add("Requerimientos o servicios");
       if (services.length) {
         const label = services.join(", ");
-        extracted.requerimientos_evento = extracted.requerimientos_evento ? `${extracted.requerimientos_evento}; ${label}` : label;
+        extracted.requerimientos_evento = extracted.requerimientos_evento ? mergeServiceRequirements(extracted.requerimientos_evento, t4, 6) ?? `${extracted.requerimientos_evento}; ${label}` : label;
         if (inputExtracted) {
           inputExtracted.requerimientos_evento = extracted.requerimientos_evento;
         }
@@ -234663,7 +235317,11 @@ ${q3}` : q3;
       }
     }
   }
-  if (!cierre && !isCatalogDetailReply && !applied.includes("catalog-resend-dedupe") && SERVICES_MENU_PATTERN.test(mensaje) && /¿/.test(mensaje) && previous.some((p5) => SERVICES_MENU_PATTERN.test(p5) && /¿/.test(p5))) {
+  const isModalityMenu = /tenemos\s+dos\s+caminos|\*Solo alimentos\*|Cat[aá]logo de \*/i.test(mensaje);
+  if (!cierre && !isCatalogDetailReply && !isModalityMenu && !applied.includes("catalog-resend-dedupe") && SERVICES_MENU_PATTERN.test(mensaje) && /¿/.test(mensaje) && previous.some((p5) => {
+    const sinTips = stripSalesTipLines(p5);
+    return SERVICES_MENU_PATTERN.test(sinTips) && /¿/.test(sinTips);
+  })) {
     const qOnly = questionLines(mensaje).filter((l6) => !SERVICES_MENU_PATTERN.test(l6));
     if (qOnly.length) {
       mensaje = qOnly[qOnly.length - 1];
@@ -234767,7 +235425,7 @@ function softenRobotAcks(mensaje) {
   let out2 = mensaje;
   out2 = out2.replace(
     /\bPerfecto\.?\s*Anoto(?:\s+tu)?\s+(\*[^*]{1,60}\*|[^.!?\n]{2,60})[.!]?\s*/gi,
-    "\xA1Va! Armamos $1. "
+    "\xA1Perfecto, $1! "
   );
   out2 = out2.replace(/\b¡?Claro!?\.?\s*Anoto\s+/gi, "\xA1Claro! Vamos con ");
   out2 = out2.replace(/\bPerfecto\s*[—–-]\s*anoto\s+/gi, "\xA1Va! Sumamos ");
@@ -234783,6 +235441,11 @@ function softenRobotAcks(mensaje) {
   );
   out2 = out2.replace(/\bAnoto\s+(?:el\s+)?horario\s+/gi, "Horario ");
   out2 = out2.replace(/\bAnoto\s+(?:la\s+)?fecha\s*:?\s*/gi, "Fecha ");
+  out2 = out2.replace(
+    /\bAnoto\s+tu\s+([^.!?\n]{2,120})[.!]?\s*/gi,
+    (_m, rest) => `\xA1Qu\xE9 buen plan! Tu ${rest.trim()} suena incre\xEDble. `
+  );
+  out2 = out2.replace(/\bAnoto\s+([^.!?\n]{2,100})[.!]?\s*/gi, "Va, $1. ");
   out2 = out2.replace(/\bQueda\s+anotado\s+lo\s+de\s+/gi, "Seguimos con ");
   out2 = out2.replace(/\bYa\s+lo\s+tengo\s+anotad[oa]?[.!]?\s*/gi, "");
   out2 = out2.replace(/\bTomo nota de tu solicitud especial\b/gi, "Revisamos tu solicitud especial");
@@ -234792,6 +235455,8 @@ function softenRobotAcks(mensaje) {
 // src/lucyOutboundPipeline.ts
 init_trendKnowledge();
 init_conversation_understanding();
+init_client_email();
+init_eventDateTime();
 init_serviceKnowledge();
 init_concreteProductQuestion();
 init_lucyInfoPriceCache();
@@ -234878,7 +235543,7 @@ async function finalizeLucyOutboundMessage(input) {
   const alreadyOperational = /\b(s[ií]|manejamos|monta|incluye|prepar|cocin|precio|\$|contamos|ofrecemos|horn|ayudo|anoto|entretenimiento|shows?|hora\s+loca|animaci[oó]n|cat[aá]logo|bodasesor\.com|mesas?\s+y\s+sillas|tiffany|crossback)\b/i.test(
     mensaje
   );
-  if (!input.cierreYaEnviado && !openingNombreOnly && !hasLucyIntro && input.currentMessage && (clientAsksServiceInfo(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage)) && (isServiceRelatedMessage(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage)) && !alreadyOperational) {
+  if (!input.cierreYaEnviado && !openingNombreOnly && !hasLucyIntro && input.currentMessage && !(clientAsksVentaOrRenta(input.currentMessage) && /\b(renta|venta)\b/i.test(mensaje)) && (clientAsksServiceInfo(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage)) && (isServiceRelatedMessage(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage)) && !alreadyOperational) {
     const ack = buildConcreteProductQuestionReply(input.currentMessage) || buildGuardServiceAck(input.currentMessage);
     const keepQ = (mensaje.match(/[^.!?]*\?/g) ?? []).join(" ").trim();
     mensaje = keepQ ? `${ack}
@@ -234918,13 +235583,14 @@ ${keepQ}` : ack;
     const lastLucy = lucyTexts[lucyTexts.length - 1] ?? "";
     const acceptedIdeas = clientAcceptsIdeasOffer(input.currentMessage, lastLucy);
     const forceIdeas = acceptedIdeas || clientWantsIdeasOrTrends(input.currentMessage) || /recomendaciones?|ideas?\b|colores?|montajes?/i.test(input.currentMessage ?? "");
-    const withIdeas = enrichReplyWithSalesIdeas(mensaje, {
+    const recentTip = lucyTexts.slice(-2).some((t4) => containsStaticSalesTip(t4) || messageAlreadyOffersSalesIdeas(t4));
+    const withIdeas = !forceIdeas && recentTip ? mensaje : enrichReplyWithSalesIdeas(mensaje, {
       tipoEvento: input.extracted.tipo_evento,
       messageText: input.currentMessage,
       requerimientos: input.extracted.requerimientos_evento,
       force: forceIdeas,
       accepted: acceptedIdeas,
-      alreadySent: lucyTexts.slice(-4).join("\n"),
+      alreadySent: lucyTexts.join("\n"),
       contextText: historyText("user").slice(-6).join("\n"),
       numInvitados: input.extracted.num_invitados ?? null,
       groundingSnippet: input.trendGroundingSnippet ?? null
@@ -234948,10 +235614,70 @@ ${keepQ}` : ack;
       input.log?.info?.({ entityId: input.entityId }, "GUARD: tono \u2014 asesora (sin Anoto/muletilla)");
       mensaje = conTono;
     }
+    const yaDijoMuchoGusto = (input.history ?? []).some(
+      (m6) => m6.role === "assistant" && typeof m6.content === "string" && /mucho\s+gusto/i.test(m6.content)
+    );
+    if (yaDijoMuchoGusto) {
+      const sinSaludo = mensaje.replace(/^\s*¡?\s*mucho\s+gusto(?:,\s*[^!.,]{1,30})?\s*[!.]?\s*/i, "");
+      if (sinSaludo !== mensaje && sinSaludo.trim().length >= 8) {
+        mensaje = sinSaludo.charAt(0).toUpperCase() + sinSaludo.slice(1);
+      }
+    }
   }
   if (!mensaje.trim()) {
     mensaje = input.cierreYaEnviado && clientSaysThanks(input.currentMessage) ? buildPostCierreThanksReply(input.extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
     input.log?.warn({ entityId: input.entityId }, "GUARD: mensaje vac\xEDo \u2014 respuesta de respaldo");
+  }
+  {
+    const hist = input.history ?? [];
+    const cm = (input.currentMessage ?? "").trim();
+    const canalPrevio = historyHasDeliveryChannelChoice(hist, null);
+    const canalAhora = clientChoosesChatDelivery(cm) || clientChoosesEmailDelivery(cm);
+    const cierreSignal = clientDeclinesMoreServices(cm) || clientSaysThanks(cm) || /^(ok(ay)?|va|listo|perfecto|sale|de\s+acuerdo|gracias)[.!\s]*$/i.test(cm);
+    const reAsksChannel = /escriba\s+por\s+aqu[ií]|prefieres\s+esperar\s+el\s+correo/i.test(mensaje);
+    if (cm && (canalPrevio && (cierreSignal || reAsksChannel) || canalAhora && reAsksChannel)) {
+      const userMsgs = [...hist.filter((m6) => m6.role === "user").map((m6) => String(m6.content ?? "")), cm];
+      const lastChoice = [...userMsgs].reverse().find((t4) => clientChoosesChatDelivery(t4) || clientChoosesEmailDelivery(t4));
+      const via = lastChoice && clientChoosesEmailDelivery(lastChoice) ? "por correo" : "por aqu\xED";
+      const nombre = input.extracted.nombre?.trim().split(/\s+/)[0];
+      mensaje = nombre ? `\xA1Listo, ${nombre}! El equipo te escribe ${via} con tu propuesta. Gracias por tu confianza, que tengas un excelente d\xEDa.` : `\xA1Listo! El equipo te escribe ${via} con tu propuesta. Gracias por tu confianza, que tengas un excelente d\xEDa.`;
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: A16437 \u2014 canal ya elegido, despedida corta");
+      return formatForWhatsApp(mensaje);
+    }
+  }
+  {
+    const typed = parseCorreoFromText(input.currentMessage ?? "");
+    const suggested = suggestEmailDomainFix(typed);
+    if (typed && suggested && !/¿Tu correo es \*|me confirmas tu correo/i.test(mensaje)) {
+      const domain = typed.split("@")[1] ?? "";
+      const ask = `\xBFTu correo es *${suggested}*? Lo le\xED como @${domain} y quiero que te llegue bien.`;
+      const sinUltimaPregunta = mensaje.replace(/¿[^¿?]*\?\s*$/, "").trim();
+      mensaje = sinUltimaPregunta ? `${sinUltimaPregunta}
+
+${ask}` : ask;
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: A16437 \u2014 confirmar dominio de correo");
+    }
+  }
+  if (!input.cierreYaEnviado && input.currentMessage) {
+    const horarioMsg = parseHorarioFromText(input.currentMessage);
+    const userContext = (input.history ?? []).filter((m6) => m6.role === "user" && typeof m6.content === "string").map((m6) => m6.content).slice(-6).join("\n");
+    const context = [
+      userContext,
+      input.currentMessage,
+      input.extracted.requerimientos_evento ?? "",
+      input.extracted.horario_evento ?? ""
+    ].join("\n");
+    const askedAmPmRe = /ma[nñ]ana\s+o\s+(?:de\s+la\s+)?(?:noche|tarde)|\bam\s+o\s+pm\b/i;
+    const lucyAskedAlready = (input.history ?? []).filter((m6) => m6.role === "assistant" && typeof m6.content === "string").slice(-3).some((m6) => askedAmPmRe.test(m6.content));
+    if (horarioMsg && horarioNeedsAmPmConfirmation(horarioMsg, context) && !lucyAskedAlready && !askedAmPmRe.test(mensaje)) {
+      const start2 = horarioMsg.match(/\d{1,2}(?::\d{2})?/)?.[0] ?? "";
+      const ask = `\xBFSer\xEDa de ${start2} de la ma\xF1ana o de la noche?`;
+      const sinUltimaPregunta = mensaje.replace(/¿[^¿?]*\?\s*$/, "").trim();
+      mensaje = sinUltimaPregunta ? `${sinUltimaPregunta}
+
+${ask}` : ask;
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: horario ambiguo \u2014 confirmar am/pm");
+    }
   }
   {
     const before = mensaje;
@@ -235006,6 +235732,9 @@ function isStuckLoopTurn(input) {
   for (const label of filledAfter) {
     if (!filledBefore.has(label)) return false;
   }
+  const reqBefore = (input.requerimientosBefore ?? "").trim().toLowerCase();
+  const reqAfter = (input.requerimientosAfter ?? "").trim().toLowerCase();
+  if (reqAfter && reqAfter !== reqBefore) return false;
   const previous = lastAssistantMessage(input.history);
   if (!previous) return false;
   if (lucyTextOverlapRatio(outboundMessage, previous) >= NEAR_DUPLICATE_RATIO) {
@@ -235193,6 +235922,7 @@ async function generateLucyOutbound(input) {
     log
   } = input;
   const filledBefore = new Set(filledLabels);
+  const requerimientosBefore = extracted.requerimientos_evento ?? null;
   let recoveredProveedorToClienteThisTurn = false;
   const buildProveedorOutbound = () => {
     applyProveedorAnswer(extracted, messageText, conversationText);
@@ -235376,6 +236106,18 @@ async function generateLucyOutbound(input) {
     ];
     aiResponse = await completeLucyRedaction(openai2, lucyMessages, redactionBriefing);
   }
+  if (parseFechaFromText(messageText) && extracted.fecha_evento?.trim()) {
+    extracted.fecha_evento = resolveFechaEvento(extracted.fecha_evento) ?? extracted.fecha_evento;
+  }
+  if (parseHorarioFromText(messageText) && extracted.horario_evento?.trim()) {
+    const prevHorario = crmMergedLines.find((l6) => /^-?\s*Horario del evento:/i.test(l6))?.replace(/^-?\s*Horario del evento:\s*/i, "").trim() ?? null;
+    extracted.horario_evento = resolveHorarioWithContext(
+      extracted.horario_evento,
+      prevHorario,
+      `${crmMergedLines.join("\n")}
+${extracted.requerimientos_evento ?? ""}`
+    ) ?? extracted.horario_evento;
+  }
   aiResponse = injectCatalogInclusionIfAsked(
     messageText,
     aiResponse,
@@ -235421,6 +236163,8 @@ async function generateLucyOutbound(input) {
     history: fullHistory,
     filledBefore,
     filledAfter: filledLabels,
+    requerimientosBefore,
+    requerimientosAfter: extracted.requerimientos_evento ?? null,
     cierreYaEnviado,
     isFirstInteraction
   });
@@ -235874,6 +236618,7 @@ init_kommoEnv();
 
 // src/silentWatchCrm.ts
 init_lucy_flow_guards();
+init_eventDateTime();
 init_contact_name();
 init_conversation_understanding();
 var SILENT_WATCH_FIELD = {
@@ -235899,7 +236644,8 @@ function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLine
       values: [{ value: cap255(zonaFromMsg) }]
     });
   }
-  const fechaFromMsg = parseFechaFromText(msg);
+  const fechaRaw = parseFechaFromText(msg);
+  const fechaFromMsg = fechaRaw ? resolveFechaEvento(fechaRaw) ?? fechaRaw : null;
   if (fechaFromMsg && isUsableFechaEvento(fechaFromMsg)) {
     const crmFecha = crmStoredValue(crmLines, CRM_FECHA_LABEL);
     if (fechaFromMsg !== (crmFecha ?? "").trim()) {
@@ -235909,9 +236655,10 @@ function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLine
       });
     }
   }
-  const horarioFromMsg = parseHorarioFromText(msg);
+  const crmHorario = crmStoredValue(crmLines, CRM_HORARIO_LABEL);
+  const horarioRaw = parseHorarioFromText(msg);
+  const horarioFromMsg = horarioRaw ? resolveHorarioWithContext(horarioRaw, crmHorario, crmLines.join("\n")) : null;
   if (horarioFromMsg && isUsableHorarioEvento(horarioFromMsg)) {
-    const crmHorario = crmStoredValue(crmLines, CRM_HORARIO_LABEL);
     if (horarioFromMsg !== (crmHorario ?? "").trim()) {
       customFields.push({
         field_id: SILENT_WATCH_FIELD.horario_evento,
@@ -236313,6 +237060,13 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
         const keep = pickBetterNombre(extracted.nombre, existing) ?? existing;
         if (keep) extracted.nombre = keep;
       }
+    }
+  }
+  {
+    const lastLucy = [...historyFull].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string")?.content;
+    const suggested = lastLucy?.match(/¿Tu correo es \*([^*\s]+@[^*\s]+)\*/i)?.[1];
+    if (suggested && currentMessage && /^(s[ií]+|sip|correcto|exacto|as[ií]\s+es|ese|ese\s+mismo|as[ií]|ok|va|claro)\b/i.test(currentMessage.trim()) && !parseCorreoFromText(currentMessage)) {
+      extracted.correo = suggested;
     }
   }
   if (!filledSet.has("Correo electr\xF3nico") && !filledSet.has(EMAIL_WAIVED_LABEL)) {

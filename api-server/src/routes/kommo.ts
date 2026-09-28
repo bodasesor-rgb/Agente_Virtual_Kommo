@@ -810,6 +810,24 @@ function buildCrmContext(
     }
   }
 
+  // A16437: Lucy sugirió "¿Tu correo es *x@gmail.com*?" y el cliente dijo que sí.
+  {
+    const lastLucy = [...historyFull]
+      .reverse()
+      .find((m) => m.role === "assistant" && typeof m.content === "string")?.content as
+      | string
+      | undefined;
+    const suggested = lastLucy?.match(/¿Tu correo es \*([^*\s]+@[^*\s]+)\*/i)?.[1];
+    if (
+      suggested &&
+      currentMessage &&
+      /^(s[ií]+|sip|correcto|exacto|as[ií]\s+es|ese|ese\s+mismo|as[ií]|ok|va|claro)\b/i.test(currentMessage.trim()) &&
+      !parseCorreoFromText(currentMessage)
+    ) {
+      extracted.correo = suggested;
+    }
+  }
+
   // Correo: not a Kommo custom lead field — detect from extraction, DB, or history
   if (!filledSet.has("Correo electrónico") && !filledSet.has(EMAIL_WAIVED_LABEL)) {
     const correoFromHistory = collectUserTexts(historyFull, currentMessage)

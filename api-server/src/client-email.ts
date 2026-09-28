@@ -1,6 +1,7 @@
 /**
  * Correos propios de Bodasesor — nunca son el correo del cliente.
  */
+import { editDistance } from "./lib/locationDedupe.js";
 
 const OWN_EMAILS = new Set(
   [
@@ -57,6 +58,30 @@ export function sanitizeStoredClientEmail(email: string | null | undefined): str
   if (!filtered) return null;
   if (!looksLikeValidClientEmail(filtered)) return null;
   return filtered;
+}
+
+const COMMON_EMAIL_HOSTS = ["gmail", "hotmail", "outlook", "yahoo", "icloud"];
+
+/**
+ * A16437: "ruizmimi508@gmaio.com" → "ruizmimi508@gmail.com" (typo de dominio común).
+ * null si el dominio ya es correcto o no se parece a ninguno conocido.
+ */
+export function suggestEmailDomainFix(email: string | null | undefined): string | null {
+  const norm = normalizeEmail(email);
+  const m = norm?.match(/^([^\s@]+)@([a-z0-9-]+)((?:\.[a-z]{2,})*)$/i);
+  if (!m) return null;
+  const [, user, host, rest] = m as unknown as [string, string, string, string];
+  const tld = rest || ".com";
+  const badTld = /^\.(comm?|con|cmo|co)$/i.test(tld) && tld !== ".com" && !/^\.com\.mx$/i.test(tld);
+  if (COMMON_EMAIL_HOSTS.includes(host)) {
+    return badTld ? `${user}@${host}.com` : null;
+  }
+  for (const h of COMMON_EMAIL_HOSTS) {
+    if (Math.abs(h.length - host.length) <= 2 && editDistance(host, h) <= 2) {
+      return `${user}@${h}${badTld ? ".com" : tld}`;
+    }
+  }
+  return null;
 }
 
 export function buildEmailConfirmationPrompt(email: string): string {

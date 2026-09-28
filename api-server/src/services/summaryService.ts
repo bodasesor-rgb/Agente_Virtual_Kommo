@@ -17,7 +17,12 @@ import {
   sanitizeDireccionCapture,
   parseZonaFromText,
 } from "../conversation-understanding.js";
-import { isGreetingOnlyMessage, isQuoteIntentMessage, sanitizeCrmNombre } from "../contact-name.js";
+import {
+  isGreetingOnlyMessage,
+  isQuoteIntentMessage,
+  parseFestejadoFromText,
+  sanitizeCrmNombre,
+} from "../contact-name.js";
 
 /** No meter saludos / nombres / "quiero cotizar" como si fueran el servicio. */
 function isUsableResumenServicio(value: string | null | undefined): boolean {
@@ -607,6 +612,15 @@ export function buildResumenClienteLargo(
   lineas.push(`• Servicios: ${serviciosLine}`);
   if (modo) lineas.push(`• Modalidad: ${modo}`);
   if (evento) lineas.push(`• Evento: ${evento}`);
+  const festejado = (conversationText ?? "")
+    .split(/\n+/)
+    .map((l) => parseFestejadoFromText(l))
+    .find((f) => f !== null);
+  if (festejado) {
+    lineas.push(
+      `• Festejado: ${festejado.nombre}${festejado.relacion ? ` (${festejado.relacion})` : ""}`
+    );
+  }
   if (invitados) {
     const escalaAbierta = /sin definir|afluencia|no dispone|no (?:lo )?sabe/i.test(invitados);
     lineas.push(escalaAbierta ? `• Invitados: ${invitados}` : `• Invitados del evento: ${invitados}`);

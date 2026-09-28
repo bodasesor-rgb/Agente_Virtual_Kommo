@@ -227,15 +227,38 @@ async function openPgAt(dir: string): Promise<ReturnType<typeof drizzle>> {
   return db;
 }
 
+/** Si PGlite se cuelga (sin error) el server nunca hace listen → 504 en Hostinger. */
+const PGLITE_OPEN_TIMEOUT_MS = Number(process.env["LUCY_PGLITE_OPEN_TIMEOUT_MS"] || 30_000);
+
+class PgliteOpenTimeout extends Error {}
+
+function withOpenTimeout<T>(p: Promise<T>, dir: string): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new PgliteOpenTimeout(`PGlite no abrió ${dir} en ${PGLITE_OPEN_TIMEOUT_MS} ms`)),
+      PGLITE_OPEN_TIMEOUT_MS
+    );
+  });
+  return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
+}
+
 export async function getLocalDb() {
   if (localDb) return localDb;
 
   try {
-    localDb = await openPgAt(LOCAL_DB_DIR);
+    localDb = await withOpenTimeout(openPgAt(LOCAL_DB_DIR), LOCAL_DB_DIR);
     return localDb;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[db] Falló abrir ${LOCAL_DB_DIR}: ${msg}`);
+    if (err instanceof PgliteOpenTimeout) {
+      // Colgado ≠ corrupto: no renombrar pgdata (el próximo arranque la reintenta).
+      const fresh = path.join(path.dirname(LOCAL_DB_DIR), `pgdata-boot-${Date.now()}`);
+      console.warn(`[db] Arranco con base temporal ${fresh} para no dejar a Lucy sin puerto`);
+      localDb = await withOpenTimeout(openPgAt(fresh), fresh);
+      return localDb;
+    }
     // Renombrar carpeta rota (si se puede) y abrir una limpia — Lucy debe escuchar el puerto.
     const broken = `${LOCAL_DB_DIR}-broken-${Date.now()}`;
     try {

@@ -156,7 +156,7 @@ const NUMBER_PLUS_UNIT_AS_NOMBRE =
  * "Boutique", "Fiesta Boutique", "Evento Boutique", "Corporativo".
  */
 const OCCASION_OR_STYLE_AS_NOMBRE =
-  /^(boutique|fiesta(\s+boutique)?|evento(\s+[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ.-]*)?|corporativo|empresarial|premium(\s+events?)?|elegante|moderno|formal|casual|tem[aá]tica|xv(\s*a[nñ]os?)?|quincea[nñ]era|boda(\s+civil)?|cumplea[nñ]os|bautizo|graduaci[oó]n|baby\s*shower|aniversario|posada|wedding)$/i;
+  /^((?:s[ií]\s*,?\s*)?(?:para\s+|en\s+)?(?:venta|renta|compra|alquiler|comprar(?:las|los)?|rentar(?:las|los)?)|boutique|fiesta(\s+boutique)?|evento(\s+[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ.-]*)?|corporativo|empresarial|premium(\s+events?)?|elegante|moderno|formal|casual|tem[aá]tica|xv(\s*a[nñ]os?)?|quincea[nñ]era|boda(\s+civil)?|cumplea[nñ]os|bautizo|graduaci[oó]n|baby\s*shower|aniversario|posada|wedding)$/i;
 
 /** Números en letras (español) — no son nombre ("Uno Dos"). */
 const SPANISH_NUMBER_WORD_TOKEN =
@@ -197,7 +197,7 @@ export function isOccasionOrStyleAsNombre(text: string | null | undefined): bool
   const parts = t.split(/\s+/).filter(Boolean);
   if (parts.length === 1) {
     const letters = (parts[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
-    if (/^(boutique|corporativo|empresarial|elegante|moderno|formal|casual|premium)$/i.test(letters)) {
+    if (/^(boutique|corporativo|empresarial|elegante|moderno|formal|casual|premium|venta|renta|compra|alquiler)$/i.test(letters)) {
       return true;
     }
   }
@@ -218,6 +218,76 @@ export function isNumberWordsAsNombre(text: string | null | undefined): boolean 
     const letters = p.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     return /^\d+([.,]\d+)?$/.test(p) || SPANISH_NUMBER_WORD_TOKEN.test(letters);
   });
+}
+
+export interface FestejadoInfo {
+  nombre: string;
+  relacion: string | null;
+}
+
+const FESTEJADO_RELACION =
+  "hij[oa]|espos[oa]|mam[aá]|mami|pap[aá]|papi|herman[oa]|sobrin[oa]|niet[oa]|novi[oa]|abuel[oa]|abuelit[oa]|pareja|beb[eé]|t[ií][oa]|prim[oa]|suegr[oa]|amig[oa]|jef[ae]|ahijad[oa]|peque[nñ][oa]|chiquit[oa]";
+const FESTEJADO_NAME_TOKEN = "[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]{2,20}";
+const FESTEJADO_NOT_NAME =
+  /^(que|quien|cumple|cumplir[aá]|va|van|y|de|del|la|el|los|las|mi|su|tu|en|para|con|por|se|es|son|a[nñ]os?|meses|personas?|invitad[oa]s?|fiesta|evento|boda|xv|bautizo|cumplea[nñ]os|comuni[oó]n|graduaci[oó]n)$/i;
+
+function cleanFestejadoName(raw: string): string | null {
+  const parts = raw.trim().split(/\s+/).filter(Boolean);
+  const kept: string[] = [];
+  for (const p of parts) {
+    if (FESTEJADO_NOT_NAME.test(p)) break;
+    kept.push(p);
+    if (kept.length >= 2) break;
+  }
+  if (!kept.length) return null;
+  const name = kept
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
+    .join(" ");
+  if (isWeakOrJunkNombre(name) || isOccasionOrStyleAsNombre(name)) return null;
+  return name;
+}
+
+/**
+ * Festejado ≠ cliente: "es para mi hija Sofía", "los XV de Valeria",
+ * "la boda de Ana y Luis", "cumpleaños de mi esposo Juan".
+ */
+export function parseFestejadoFromText(text: string | null | undefined): FestejadoInfo | null {
+  const t = (text ?? "").replace(/\s+/g, " ").trim();
+  if (!t) return null;
+
+  // "mi hija Sofía" / "para mi esposo juan" (minúsculas OK: la relación da certeza).
+  const rel = t.match(
+    new RegExp(
+      `\\b(?:mi|nuestr[oa])\\s+(${FESTEJADO_RELACION})\\s+(${FESTEJADO_NAME_TOKEN}(?:\\s+${FESTEJADO_NAME_TOKEN})?)`,
+      "i"
+    )
+  );
+  if (rel) {
+    const nombre = cleanFestejadoName(rel[2]!);
+    if (nombre) return { nombre, relacion: rel[1]!.toLowerCase() };
+  }
+
+  // "la boda de Ana y Luis" → pareja (requiere mayúscula inicial).
+  const isCap = (s: string | undefined) => !!s && /^[A-ZÁÉÍÓÚÑ]/.test(s);
+  const boda = t.match(
+    /\bboda\s+de\s+([a-záéíóúñ]{2,21})\s+(?:y|&)\s+([a-záéíóúñ]{2,21})\b/i
+  );
+  if (boda && isCap(boda[1]) && isCap(boda[2])) {
+    const a = cleanFestejadoName(boda[1]!);
+    const b = cleanFestejadoName(boda[2]!);
+    if (a && b) return { nombre: `${a} y ${b}`, relacion: "novios" };
+  }
+
+  // "los XV de Valeria" / "cumpleaños de Mateo" / "bautizo de Emilia" (requiere mayúscula).
+  const evento = t.match(
+    /\b(?:xv(?:\s+a[nñ]os)?|quince\s+a[nñ]os|cumplea[nñ]os|cumple|bautizo|primera\s+comuni[oó]n|graduaci[oó]n|baby\s*shower)\s+de\s+([a-záéíóúñ]{2,21}(?:\s+[a-záéíóúñ]{2,21})?)\b/i
+  );
+  if (evento && isCap(evento[1])) {
+    const tokens = evento[1]!.split(/\s+/);
+    const nombre = cleanFestejadoName(isCap(tokens[1]) ? evento[1]! : tokens[0]!);
+    if (nombre) return { nombre, relacion: null };
+  }
+  return null;
 }
 
 /** Intención de cotización — no es el nombre del cliente ("Quiero hacer una cotización"). */
