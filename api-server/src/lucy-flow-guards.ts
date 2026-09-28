@@ -175,6 +175,7 @@ import {
   clientMentionsEntertainment,
   clientMentionsSpecialLiveAct,
   parseSpecialLiveActLabel,
+  parseNamedShowLabels,
   clientConfirmsOfferReview,
   clientMentionsLedRobotsOrBatucada,
   clientMentionsPistaTarima,
@@ -3315,6 +3316,10 @@ export function buildOpeningAcknowledgment(
     return "Para alimentos manejamos banquete, taquiza, brunch o coffee break — ¿cuál te interesa?";
   }
   if (/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t)) {
+    const namedShows = parseNamedShowLabels(userText);
+    if (namedShows.length > 0) {
+      return `Vi que te interesa el ${formatServicesList(namedShows.map((s) => `*${s}*`))}; el equipo te confirma costo, duración y disponibilidad.`;
+    }
     const colonMatch = userText.match(
       /(?:me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento)\s*:\s*(.+)/i
     );
@@ -7072,9 +7077,12 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
         kept.length > 0 &&
         declineFamilies.includes("entretenimiento") &&
         /\bdj\s+no\b|\bno\s*,?\s*dj\b/i.test(currentMessage);
+      const keptShows = kept.filter((s) => /^Show\s|^Circo\b/i.test(s));
       const ack = checklistMix
         ? `Perfecto: anoto *${formatServicesList(kept)}*; sin DJ.`
-        : buildServiceDeclineAck(declineFamilies);
+        : declineFamilies.includes("animacion") && keptShows.length > 0
+          ? `Listo, sin animación. Cotizamos solo ${formatServicesList(keptShows.map((s) => `*${s}*`))}.`
+          : buildServiceDeclineAck(declineFamilies);
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ =
         pending && pending !== "requerimientos"
@@ -7090,6 +7098,37 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       );
       return normalizeAdvisorReferences(
         nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
+
+  // A16438: "solo quiero el show" / "solo el shows" con shows con nombre en el hilo →
+  // quedarse con esos shows (sin animación) en vez de re-ofrecer entretenimiento genérico.
+  if (
+    !cierreYaEnviado &&
+    currentMessage &&
+    currentMessage.trim().length <= 60 &&
+    /^\s*(?:no[\s,.]+)?(?:solo|solamente|[uú]nicamente|nada\s+m[aá]s)\s+(?:quiero|necesito|me\s+interesa|busco|es|ser[ií]a)?\s*(?:el|los|la|las|un|una)?\s*shows?\b[\s.!]*$/iu.test(
+      currentMessage
+    )
+  ) {
+    const threadBlob = [
+      extracted.requerimientos_evento ?? "",
+      ...collectUserTexts(presHistory, undefined),
+    ].join("\n");
+    const shows = parseNamedShowLabels(threadBlob);
+    if (shows.length > 0) {
+      extracted.requerimientos_evento = shows.slice(0, 6).join(", ");
+      filledSet.add("Requerimientos o servicios");
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ =
+        pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
+      const list = formatServicesList(shows.map((s) => `*${s}*`));
+      const ack = `Entendido, solo ${shows.length > 1 ? "los shows" : "el show"}: ${list}, sin animación. El equipo te confirma costo y duración.`;
+      log?.info({ entityId, shows }, "GUARD: A16438 — solo el show con nombre");
+      return normalizeAdvisorReferences(
+        nextQ ? `${ack}\n\n${nextQ}` : ack,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }

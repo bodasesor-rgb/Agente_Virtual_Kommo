@@ -354,6 +354,7 @@ export async function generateLucyOutbound(
 
   // Foto del CRM antes del turno: si no crece, el mensaje del cliente no aportó nada.
   const filledBefore = new Set(filledLabels);
+  const requerimientosBefore = extracted.requerimientos_evento ?? null;
   let recoveredProveedorToClienteThisTurn = false;
 
   const buildProveedorOutbound = (): {
@@ -638,6 +639,8 @@ export async function generateLucyOutbound(
     history: fullHistory,
     filledBefore,
     filledAfter: filledLabels,
+    requerimientosBefore,
+    requerimientosAfter: extracted.requerimientos_evento ?? null,
     cierreYaEnviado,
     isFirstInteraction,
   });

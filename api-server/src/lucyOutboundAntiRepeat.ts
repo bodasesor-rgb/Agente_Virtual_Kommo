@@ -31,6 +31,7 @@ import {
   clientAsksForCatalog,
   clientAsksDimensionRecommendation,
   parseServicesFromText,
+  mergeServiceRequirements,
   SERVICE_HINT,
   isReferentialPriorAnswer,
   clientComplainsAboutRepeat,
@@ -270,7 +271,8 @@ function syncFilledFromCurrentAnswer(
       if (services.length) {
         const label = services.join(", ");
         extracted.requerimientos_evento = extracted.requerimientos_evento
-          ? `${extracted.requerimientos_evento}; ${label}`
+          ? mergeServiceRequirements(extracted.requerimientos_evento, t, 6) ??
+            `${extracted.requerimientos_evento}; ${label}`
           : label;
         if (inputExtracted) {
           inputExtracted.requerimientos_evento = extracted.requerimientos_evento;

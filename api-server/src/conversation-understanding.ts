@@ -1390,6 +1390,7 @@ export function clientMentionsSpecialLiveAct(message?: string | null): boolean {
     return false;
   }
   return (
+    parseNamedShowLabels(message).length > 0 ||
     /\bcirco\b/i.test(t) ||
     /\bblue\s*mans?\b|\bblueman\b/i.test(t) ||
     /\b(mago|magia|ilusionista)\b/i.test(t) ||
@@ -1403,10 +1404,41 @@ export function clientMentionsSpecialLiveAct(message?: string | null): boolean {
   );
 }
 
+/**
+ * A16438: formulario web "me interesa cotizar el show "Tambores con Agua"" → "Show Tambores con Agua".
+ * También reconoce la etiqueta ya guardada en CRM ("Show Tambores con Agua").
+ */
+export function parseNamedShowLabels(text?: string | null): string[] {
+  if (!text?.trim()) return [];
+  const out: string[] = [];
+  const push = (raw: string) => {
+    const name = raw
+      .replace(/\s+/g, " ")
+      .replace(/^\s*shows?\s+/i, "")
+      .replace(/\s+shows?\s*$/i, "")
+      .trim();
+    if (name.length < 2 || name.length > 50) return;
+    const label = /\bblue\s*mans?\b|\bblueman\b/i.test(name) ? "Show Blue Man" : `Show ${name}`;
+    if (!out.some((s) => s.toLowerCase() === label.toLowerCase())) out.push(label);
+  };
+  for (const m of text.matchAll(/\bshows?\s*[“"«']\s*([^"“”«»']{2,60}?)\s*[”"»']/giu)) {
+    if (m[1]) push(m[1]);
+  }
+  for (const part of text.split(/[,\n]/)) {
+    const seg = part.trim();
+    if (/^Show\s+[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÜÑáéíóúüñ ]{1,48}$/u.test(seg) && !/^Show\s+(De|En|Para|Con)\b/.test(seg)) {
+      push(seg);
+    }
+  }
+  return out;
+}
+
 /** Etiqueta corta para anotar el acto especial en CRM. */
 export function parseSpecialLiveActLabel(message?: string | null): string | null {
   if (!message?.trim()) return null;
   const t = message.trim();
+  const namedShows = parseNamedShowLabels(t);
+  if (namedShows.length) return namedShows[0]!;
   if (/\bcirco\b/i.test(t)) return "Circo para eventos";
   if (/\bblue\s*mans?\b|\bblueman\b/i.test(t)) return "Show Blue Man";
   if (/\b(mago|magia|ilusionista)\b/i.test(t)) return "Show de magia";
@@ -3469,6 +3501,10 @@ export function parseServicesFromText(text: string): string[] {
     found.push("Barra de bebidas");
   }
 
+  for (const show of parseNamedShowLabels(text)) {
+    if (!found.some((s) => s.toLowerCase() === show.toLowerCase())) found.push(show);
+  }
+
   const deduped = dedupeServiceHierarchy(found, text);
   found.length = 0;
   found.push(...deduped);
@@ -3582,6 +3618,18 @@ export function dedupeServiceHierarchy(
 ): string[] {
   const found = [...services].map((s) => s.trim()).filter(Boolean);
   const text = sourceText ?? found.join(" ");
+
+  // A16438: "show" genérico junto a un show con nombre ≠ animación / hora loca.
+  const animIdx = found.indexOf("Animación / Hora loca");
+  if (
+    animIdx >= 0 &&
+    found.some((s) => /^Show\s|^Circo\b/i.test(s)) &&
+    !/\b(hora\s+loca|happening|animaci[oó]n|animador|pixel|espejos|l[aá]ser)\b/i.test(
+      sourceText ?? ""
+    )
+  ) {
+    found.splice(animIdx, 1);
+  }
 
   if (found.includes("Menú staff")) {
     const meserosIdx = found.indexOf("Meseros");
@@ -3787,6 +3835,14 @@ export function clientNarrowsToOnlyService(text: string | null | undefined): str
   // A16074: solo tarima / nada más que entarimado.
   if (/\b(tarimas?|entarimad[oa]s?)\b/i.test(t) && !/\bpista(\s+de\s+baile)?\b/i.test(t.replace(/\bno\s+(quiero|necesito|requiero).{0,20}pista\b/gi, " "))) {
     return "Tarima";
+  }
+  // A16438: "solo quiero el show" apunta a los shows ya pedidos, no a Animación / Hora loca.
+  if (
+    /\bshows?\b/i.test(t) &&
+    parseNamedShowLabels(t).length === 0 &&
+    !/\b(hora\s+loca|happening|animaci[oó]n|animador)\b/i.test(t)
+  ) {
+    return null;
   }
   const fromMsg = parseServicesFromText(t).filter(
     (s) => !/^(Comida|Alimentos|Evento|Servicio)$/i.test(s)

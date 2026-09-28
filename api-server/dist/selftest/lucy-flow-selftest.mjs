@@ -124979,6 +124979,8 @@ var FAMILY_SERVICE_RE = {
   carpas: /carpas?|capras?|toldos?|lonas?/i,
   decoracion: /decoraci[oó]n|centros?\s+de\s+mesa|florister|globos?|tem[aá]tica/i,
   entretenimiento: /show|dj\b|entretenimiento|hora\s+loca|photobooth|photo\s*booth|bailarinas|batucada|robots?/i,
+  // A16438: "no quiero animación" quita la hora loca, NO los shows con nombre.
+  animacion: /animaci[oó]n|hora\s+loca|happening|animador/i,
   // A16074: declinar pista NO quita tarima.
   pista: /pista(\s+de\s+baile)?/i,
   tarima: /^Tarima\b|tarimas?|entarimad/i,
@@ -124993,7 +124995,8 @@ var FAMILY_DECLINE_WORDS = {
   mobiliario: "mobiliario|mobilairio|mibiliario|mobilario|sillas?|mesas?|periqueras?|salas?",
   carpas: "carpas?|capras?|toldos?|lonas?",
   decoracion: "decoraci[o\xF3]n|centros?\\s+de\\s+mesa|flores?|globos?",
-  entretenimiento: "show|dj|entretenimiento|hora\\s+loca|photobooth|photo\\s*booth",
+  entretenimiento: "show|dj|entretenimiento|photobooth|photo\\s*booth",
+  animacion: "animaci[o\xF3]n|animador(?:es)?|hora\\s+loca|happening",
   pista: "pista(\\s+de\\s+baile)?",
   tarima: "tarimas?|entarimad[oa]s?",
   dulces: "mesa\\s+de\\s+dulces|mesa\\s+de\\s+postres?|postres?|dulces?|cupcakes?|pastel(es)?|fondant"
@@ -125171,6 +125174,8 @@ function declinedFamilyLabel(family) {
       return "decoraci\xF3n";
     case "entretenimiento":
       return "entretenimiento";
+    case "animacion":
+      return "animaci\xF3n / hora loca";
     case "pista":
       return "pista de baile";
     case "tarima":
@@ -126443,12 +126448,34 @@ function clientMentionsSpecialLiveAct(message) {
   if (/\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca|entretenimiento)\b/i.test(t3) || /\bgrupo\s+vers[aá]til\b/i.test(t3)) {
     return false;
   }
-  return /\bcirco\b/i.test(t3) || /\bblue\s*mans?\b|\bblueman\b/i.test(t3) || /\b(mago|magia|ilusionista)\b/i.test(t3) || /\bcrudo\s*wheel\b|\bshow\s+crudo\b/i.test(t3) || /\bacrobacia\s+a[eé]rea\b/i.test(t3) || /\b(payasos?|malabares?|acr[oó]batas?|trapecio|contorsion)\b/i.test(t3) || // "show blueman" / "show X" con nombre propio (no "show de…").
+  return parseNamedShowLabels(message).length > 0 || /\bcirco\b/i.test(t3) || /\bblue\s*mans?\b|\bblueman\b/i.test(t3) || /\b(mago|magia|ilusionista)\b/i.test(t3) || /\bcrudo\s*wheel\b|\bshow\s+crudo\b/i.test(t3) || /\bacrobacia\s+a[eé]rea\b/i.test(t3) || /\b(payasos?|malabares?|acr[oó]batas?|trapecio|contorsion)\b/i.test(t3) || // "show blueman" / "show X" con nombre propio (no "show de…").
   /\bshow\s+[a-záéíóúüñ][\wáéíóúüñ.-]{2,}(?!\s+de\b)/i.test(t3) && !/\bshow\s+(de|en|para|con|un|una|el|la|los|las)\b/i.test(t3) || /\b(quiero|busco|necesito|interes[aá]|cotiz)\b.{0,40}\bcirco\b/i.test(t3);
+}
+function parseNamedShowLabels(text2) {
+  if (!text2?.trim()) return [];
+  const out2 = [];
+  const push = (raw) => {
+    const name2 = raw.replace(/\s+/g, " ").replace(/^\s*shows?\s+/i, "").replace(/\s+shows?\s*$/i, "").trim();
+    if (name2.length < 2 || name2.length > 50) return;
+    const label = /\bblue\s*mans?\b|\bblueman\b/i.test(name2) ? "Show Blue Man" : `Show ${name2}`;
+    if (!out2.some((s6) => s6.toLowerCase() === label.toLowerCase())) out2.push(label);
+  };
+  for (const m5 of text2.matchAll(/\bshows?\s*[“"«']\s*([^"“”«»']{2,60}?)\s*[”"»']/giu)) {
+    if (m5[1]) push(m5[1]);
+  }
+  for (const part of text2.split(/[,\n]/)) {
+    const seg = part.trim();
+    if (/^Show\s+[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÜÑáéíóúüñ ]{1,48}$/u.test(seg) && !/^Show\s+(De|En|Para|Con)\b/.test(seg)) {
+      push(seg);
+    }
+  }
+  return out2;
 }
 function parseSpecialLiveActLabel(message) {
   if (!message?.trim()) return null;
   const t3 = message.trim();
+  const namedShows = parseNamedShowLabels(t3);
+  if (namedShows.length) return namedShows[0];
   if (/\bcirco\b/i.test(t3)) return "Circo para eventos";
   if (/\bblue\s*mans?\b|\bblueman\b/i.test(t3)) return "Show Blue Man";
   if (/\b(mago|magia|ilusionista)\b/i.test(t3)) return "Show de magia";
@@ -127590,6 +127617,9 @@ function parseServicesFromText(text2) {
   ) && !/\bbarra\s+de\s+caf[eé]/i.test(text2)) {
     found.push("Barra de bebidas");
   }
+  for (const show of parseNamedShowLabels(text2)) {
+    if (!found.some((s6) => s6.toLowerCase() === show.toLowerCase())) found.push(show);
+  }
   const deduped = dedupeServiceHierarchy(found, text2);
   found.length = 0;
   found.push(...deduped);
@@ -127663,6 +127693,12 @@ function formatServicesList(services) {
 function dedupeServiceHierarchy(services, sourceText) {
   const found = [...services].map((s6) => s6.trim()).filter(Boolean);
   const text2 = sourceText ?? found.join(" ");
+  const animIdx = found.indexOf("Animaci\xF3n / Hora loca");
+  if (animIdx >= 0 && found.some((s6) => /^Show\s|^Circo\b/i.test(s6)) && !/\b(hora\s+loca|happening|animaci[oó]n|animador|pixel|espejos|l[aá]ser)\b/i.test(
+    sourceText ?? ""
+  )) {
+    found.splice(animIdx, 1);
+  }
   if (found.includes("Men\xFA staff")) {
     const meserosIdx = found.indexOf("Meseros");
     if (meserosIdx >= 0) found.splice(meserosIdx, 1);
@@ -127802,6 +127838,9 @@ function clientNarrowsToOnlyService(text2) {
   if (/\bbanquete\s+formal\b/i.test(t3)) return "Banquete Formal";
   if (/\b(tarimas?|entarimad[oa]s?)\b/i.test(t3) && !/\bpista(\s+de\s+baile)?\b/i.test(t3.replace(/\bno\s+(quiero|necesito|requiero).{0,20}pista\b/gi, " "))) {
     return "Tarima";
+  }
+  if (/\bshows?\b/i.test(t3) && parseNamedShowLabels(t3).length === 0 && !/\b(hora\s+loca|happening|animaci[oó]n|animador)\b/i.test(t3)) {
+    return null;
   }
   const fromMsg = parseServicesFromText(t3).filter(
     (s6) => !/^(Comida|Alimentos|Evento|Servicio)$/i.test(s6)
@@ -139039,6 +139078,10 @@ function buildOpeningAcknowledgment(history, currentMessage) {
     return "Para alimentos manejamos banquete, taquiza, brunch o coffee break \u2014 \xBFcu\xE1l te interesa?";
   }
   if (/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t3)) {
+    const namedShows = parseNamedShowLabels(userText);
+    if (namedShows.length > 0) {
+      return `Vi que te interesa el ${formatServicesList(namedShows.map((s6) => `*${s6}*`))}; el equipo te confirma costo, duraci\xF3n y disponibilidad.`;
+    }
     const colonMatch = userText.match(
       /(?:me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento)\s*:\s*(.+)/i
     );
@@ -141358,7 +141401,8 @@ ${catalogUrl}`
       }
       const kept = after ? parseServicesFromText(after) : [];
       const checklistMix = kept.length > 0 && declineFamilies.includes("entretenimiento") && /\bdj\s+no\b|\bno\s*,?\s*dj\b/i.test(currentMessage);
-      const ack = checklistMix ? `Perfecto: anoto *${formatServicesList(kept)}*; sin DJ.` : buildServiceDeclineAck(declineFamilies);
+      const keptShows = kept.filter((s6) => /^Show\s|^Circo\b/i.test(s6));
+      const ack = checklistMix ? `Perfecto: anoto *${formatServicesList(kept)}*; sin DJ.` : declineFamilies.includes("animacion") && keptShows.length > 0 ? `Listo, sin animaci\xF3n. Cotizamos solo ${formatServicesList(keptShows.map((s6) => `*${s6}*`))}.` : buildServiceDeclineAck(declineFamilies);
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : pending === "requerimientos" ? checklistMix ? "\xBFAlgo m\xE1s para la cotizaci\xF3n?" : "\xBFQu\xE9 m\xE1s te gustar\xEDa incluir en la cotizaci\xF3n (sin alimentos, si as\xED lo prefieres)?" : null;
       log?.info(
@@ -141367,6 +141411,30 @@ ${catalogUrl}`
       );
       return normalizeAdvisorReferences2(
         nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
+  if (!cierreYaEnviado && currentMessage && currentMessage.trim().length <= 60 && /^\s*(?:no[\s,.]+)?(?:solo|solamente|[uú]nicamente|nada\s+m[aá]s)\s+(?:quiero|necesito|me\s+interesa|busco|es|ser[ií]a)?\s*(?:el|los|la|las|un|una)?\s*shows?\b[\s.!]*$/iu.test(
+    currentMessage
+  )) {
+    const threadBlob = [
+      extracted.requerimientos_evento ?? "",
+      ...collectUserTexts(presHistory, void 0)
+    ].join("\n");
+    const shows = parseNamedShowLabels(threadBlob);
+    if (shows.length > 0) {
+      extracted.requerimientos_evento = shows.slice(0, 6).join(", ");
+      filledSet.add("Requerimientos o servicios");
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
+      const list = formatServicesList(shows.map((s6) => `*${s6}*`));
+      const ack = `Entendido, solo ${shows.length > 1 ? "los shows" : "el show"}: ${list}, sin animaci\xF3n. El equipo te confirma costo y duraci\xF3n.`;
+      log?.info({ entityId, shows }, "GUARD: A16438 \u2014 solo el show con nombre");
+      return normalizeAdvisorReferences2(
+        nextQ ? `${ack}
+
+${nextQ}` : ack,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
@@ -145421,7 +145489,7 @@ function syncFilledFromCurrentAnswer(field, message, filled, extracted, inputExt
       filled.add("Requerimientos o servicios");
       if (services.length) {
         const label = services.join(", ");
-        extracted.requerimientos_evento = extracted.requerimientos_evento ? `${extracted.requerimientos_evento}; ${label}` : label;
+        extracted.requerimientos_evento = extracted.requerimientos_evento ? mergeServiceRequirements(extracted.requerimientos_evento, t3, 6) ?? `${extracted.requerimientos_evento}; ${label}` : label;
         if (inputExtracted) {
           inputExtracted.requerimientos_evento = extracted.requerimientos_evento;
         }
