@@ -136472,6 +136472,21 @@ function pickTips(tipoEvento, max = 2, alreadySent) {
   const pool2 = fresh.length ? fresh : tips;
   return pool2.slice(0, max);
 }
+function parseGroundingBullets(snippet, max = 2) {
+  const raw = (snippet ?? "").trim();
+  if (!raw) return [];
+  const lines = raw.includes("\n") ? raw.split(/\n+/) : raw.split(/\s+(?=[-*•]\s)|(?<=[.!])\s+(?=[A-ZÁÉÍÓÚÑ])/);
+  const out2 = [];
+  for (const line2 of lines) {
+    const t3 = line2.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+    if (t3.length < 15 || t3.length > 220) continue;
+    if (/\$|https?:|www\.|\bmxn\b|\bpesos\b/i.test(t3)) continue;
+    if (/^(aqu[ií]|claro|estas son|te comparto|tendencias)\b.*:$/i.test(t3)) continue;
+    out2.push(/[.!]$/.test(t3) ? t3 : `${t3}.`);
+    if (out2.length >= max) break;
+  }
+  return out2;
+}
 function messageAlreadyOffersSalesIdeas(text2) {
   const t3 = text2 ?? "";
   if (!t3.trim()) return false;
@@ -136486,7 +136501,14 @@ function buildSalesIdeasSnippet(opts) {
     opts.tipoEvento,
     opts.requerimientos
   );
-  const tips = pickTips(opts.tipoEvento || cues[0], opts.maxTips ?? 2, opts.alreadySent);
+  const max = opts.maxTips ?? 2;
+  const trends = parseGroundingBullets(opts.groundingSnippet, 2);
+  const staticTips = pickTips(
+    opts.tipoEvento || cues[0],
+    Math.max(1, max - trends.length),
+    opts.alreadySent
+  );
+  const tips = [...trends, ...staticTips].slice(0, Math.max(max, trends.length + 1));
   if (!tips.length) return null;
   if (opts.accepted) {
     const tipo = opts.tipoEvento?.trim();
@@ -136494,7 +136516,13 @@ function buildSalesIdeasSnippet(opts) {
     const vibe = cues.find((c4) => c4 !== "boda" && c4 !== "XV a\xF1os");
     const detalles = [inv, vibe ? `algo ${vibe}` : null].filter(Boolean).join(", ");
     const para = tipo ? `Para tu ${tipo.toLowerCase()}${detalles ? ` (${detalles})` : ""}` : detalles ? `Para tu evento (${detalles})` : "Para tu evento";
-    return `\xA1Claro! ${para}, algunas ideas que funcionan muy bien:
+    const lead = trends.length ? `\xA1Claro! ${para}, esto es lo que se est\xE1 usando y funciona muy bien:` : `\xA1Claro! ${para}, algunas ideas que funcionan muy bien:`;
+    return `${lead}
+${tips.map((t3) => `\u2022 ${t3}`).join("\n")}`.trim();
+  }
+  if (trends.length) {
+    const cueTrend = cues[0] ? ` para un vibe *${cues[0]}*` : "";
+    return `Lo que se est\xE1 usando${cueTrend}:
 ${tips.map((t3) => `\u2022 ${t3}`).join("\n")}`.trim();
   }
   const cue = cues[0] ? `Para un vibe *${cues[0]}*, ` : "";
@@ -136517,7 +136545,8 @@ function enrichReplyWithSalesIdeas(mensaje, opts) {
       alreadySent: opts.alreadySent,
       contextText: opts.contextText,
       accepted: true,
-      numInvitados: opts.numInvitados
+      numInvitados: opts.numInvitados,
+      groundingSnippet: opts.groundingSnippet
     });
     if (!snippet2) return out2;
     const questions = (out2.match(/[^.!?\n]*\?/g) ?? []).map((q3) => q3.trim()).filter(Boolean);
@@ -136542,7 +136571,10 @@ ${cleanQ}`.trim();
     tipoEvento: opts.tipoEvento,
     messageText: opts.messageText,
     requerimientos: opts.requerimientos,
-    maxTips: wants ? 2 : 1
+    maxTips: wants ? 2 : 1,
+    alreadySent: opts.alreadySent,
+    contextText: opts.contextText,
+    groundingSnippet: wants ? opts.groundingSnippet : null
   });
   if (!snippet) return out2;
   const qMatch = out2.match(/((?:¿|\?)[^\n]*\?\s*)$/);
@@ -145905,7 +145937,8 @@ ${keepQ}` : ack;
       accepted: acceptedIdeas,
       alreadySent: lucyTexts.slice(-4).join("\n"),
       contextText: historyText("user").slice(-6).join("\n"),
-      numInvitados: input.extracted.num_invitados ?? null
+      numInvitados: input.extracted.num_invitados ?? null,
+      groundingSnippet: input.trendGroundingSnippet ?? null
     });
     if (withIdeas !== mensaje && withIdeas.trim().length >= 8) {
       input.log?.info?.({ entityId: input.entityId }, "GUARD: tono \u2014 ideas de venta inyectadas");

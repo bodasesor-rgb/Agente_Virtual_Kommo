@@ -442,6 +442,7 @@ export async function generateLucyOutbound(
   });
 
   let aiResponse: string;
+  let trendGroundingForOutbound: string | null = null;
 
   if (isLucyUnifiedLlmTurn()) {
     // V9.32: 1 llamada — system estático + contexto dinámico + JSON {extracted, reply}.
@@ -467,8 +468,11 @@ export async function generateLucyOutbound(
       fetchTrendGroundingSnippet({
         messageText,
         tipoEvento: extracted.tipo_evento,
+        history: historyTrimmed,
+        numInvitados: extracted.num_invitados ?? null,
       }).catch(() => null),
     ]);
+    trendGroundingForOutbound = trendGroundingSnippet;
     const dynamicContext = buildDynamicTurnContext({
       stage,
       priority: leadScore.priority,
@@ -604,6 +608,7 @@ export async function generateLucyOutbound(
     openai,
     entityId,
     log,
+    trendGroundingSnippet: trendGroundingForOutbound,
   });
 
   // V9.78: si volvemos a pedir lo mismo sin haber entendido nada, contamos la

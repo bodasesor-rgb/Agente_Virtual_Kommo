@@ -90789,6 +90789,21 @@ function pickTips(tipoEvento, max = 2, alreadySent) {
   const pool2 = fresh.length ? fresh : tips;
   return pool2.slice(0, max);
 }
+function parseGroundingBullets(snippet, max = 2) {
+  const raw = (snippet ?? "").trim();
+  if (!raw) return [];
+  const lines = raw.includes("\n") ? raw.split(/\n+/) : raw.split(/\s+(?=[-*•]\s)|(?<=[.!])\s+(?=[A-ZÁÉÍÓÚÑ])/);
+  const out2 = [];
+  for (const line2 of lines) {
+    const t4 = line2.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+    if (t4.length < 15 || t4.length > 220) continue;
+    if (/\$|https?:|www\.|\bmxn\b|\bpesos\b/i.test(t4)) continue;
+    if (/^(aqu[ií]|claro|estas son|te comparto|tendencias)\b.*:$/i.test(t4)) continue;
+    out2.push(/[.!]$/.test(t4) ? t4 : `${t4}.`);
+    if (out2.length >= max) break;
+  }
+  return out2;
+}
 function messageAlreadyOffersSalesIdeas(text2) {
   const t4 = text2 ?? "";
   if (!t4.trim()) return false;
@@ -90803,7 +90818,14 @@ function buildSalesIdeasSnippet(opts) {
     opts.tipoEvento,
     opts.requerimientos
   );
-  const tips = pickTips(opts.tipoEvento || cues[0], opts.maxTips ?? 2, opts.alreadySent);
+  const max = opts.maxTips ?? 2;
+  const trends = parseGroundingBullets(opts.groundingSnippet, 2);
+  const staticTips = pickTips(
+    opts.tipoEvento || cues[0],
+    Math.max(1, max - trends.length),
+    opts.alreadySent
+  );
+  const tips = [...trends, ...staticTips].slice(0, Math.max(max, trends.length + 1));
   if (!tips.length) return null;
   if (opts.accepted) {
     const tipo = opts.tipoEvento?.trim();
@@ -90811,7 +90833,13 @@ function buildSalesIdeasSnippet(opts) {
     const vibe = cues.find((c5) => c5 !== "boda" && c5 !== "XV a\xF1os");
     const detalles = [inv, vibe ? `algo ${vibe}` : null].filter(Boolean).join(", ");
     const para = tipo ? `Para tu ${tipo.toLowerCase()}${detalles ? ` (${detalles})` : ""}` : detalles ? `Para tu evento (${detalles})` : "Para tu evento";
-    return `\xA1Claro! ${para}, algunas ideas que funcionan muy bien:
+    const lead = trends.length ? `\xA1Claro! ${para}, esto es lo que se est\xE1 usando y funciona muy bien:` : `\xA1Claro! ${para}, algunas ideas que funcionan muy bien:`;
+    return `${lead}
+${tips.map((t4) => `\u2022 ${t4}`).join("\n")}`.trim();
+  }
+  if (trends.length) {
+    const cueTrend = cues[0] ? ` para un vibe *${cues[0]}*` : "";
+    return `Lo que se est\xE1 usando${cueTrend}:
 ${tips.map((t4) => `\u2022 ${t4}`).join("\n")}`.trim();
   }
   const cue = cues[0] ? `Para un vibe *${cues[0]}*, ` : "";
@@ -90834,7 +90862,8 @@ function enrichReplyWithSalesIdeas(mensaje, opts) {
       alreadySent: opts.alreadySent,
       contextText: opts.contextText,
       accepted: true,
-      numInvitados: opts.numInvitados
+      numInvitados: opts.numInvitados,
+      groundingSnippet: opts.groundingSnippet
     });
     if (!snippet2) return out2;
     const questions = (out2.match(/[^.!?\n]*\?/g) ?? []).map((q4) => q4.trim()).filter(Boolean);
@@ -90859,7 +90888,10 @@ ${cleanQ}`.trim();
     tipoEvento: opts.tipoEvento,
     messageText: opts.messageText,
     requerimientos: opts.requerimientos,
-    maxTips: wants ? 2 : 1
+    maxTips: wants ? 2 : 1,
+    alreadySent: opts.alreadySent,
+    contextText: opts.contextText,
+    groundingSnippet: wants ? opts.groundingSnippet : null
   });
   if (!snippet) return out2;
   const qMatch = out2.match(/((?:¿|\?)[^\n]*\?\s*)$/);
@@ -230320,7 +230352,11 @@ async function fetchTrendGroundingSnippet(opts) {
     groundingStats.skips += 1;
     return null;
   }
-  if (!clientWantsIdeasOrTrends(opts.messageText)) {
+  const textOf = (role) => (opts.history ?? []).filter((m6) => m6.role === role && typeof m6.content === "string").map((m6) => m6.content);
+  const lucyTexts = textOf("assistant");
+  const lastLucy = lucyTexts[lucyTexts.length - 1] ?? "";
+  const accepted = clientAcceptsIdeasOffer(opts.messageText, lastLucy);
+  if (!accepted && !clientWantsIdeasOrTrends(opts.messageText)) {
     groundingStats.skips += 1;
     return null;
   }
@@ -230333,8 +230369,10 @@ async function fetchTrendGroundingSnippet(opts) {
   groundingStats.lastAt = (/* @__PURE__ */ new Date()).toISOString();
   try {
     const ai2 = new GoogleGenAI2({ apiKey: key });
-    const eventHint = opts.tipoEvento?.trim() ? ` (evento: ${opts.tipoEvento.trim()})` : "";
-    const prompt = `Eres asesora de eventos en M\xE9xico. Resume en m\xE1ximo 3 vi\xF1etas cortas tendencias o ideas de ambientaci\xF3n relevantes a: "${opts.messageText.slice(0, 280)}"${eventHint}. Sin precios ni marcas inventadas. Solo ideas accionables. Espa\xF1ol neutro MX.`;
+    const eventHint = opts.tipoEvento?.trim() ? `Evento: ${opts.tipoEvento.trim()}. ` : "";
+    const invHint = opts.numInvitados ? `Invitados: ${opts.numInvitados}. ` : "";
+    const clientContext = (accepted ? textOf("user").slice(-5).join(" | ") : opts.messageText).slice(0, 400);
+    const prompt = `Eres asesora de eventos en M\xE9xico. ${eventHint}${invHint}Lo que dijo el cliente: "${clientContext}". Busca tendencias actuales (${(/* @__PURE__ */ new Date()).getFullYear()}) y da exactamente 2 vi\xF1etas, cada una en su propia l\xEDnea iniciando con "- ", m\xE1ximo 22 palabras cada una. Ideas de ambientaci\xF3n, comida, decoraci\xF3n o din\xE1mica que se puedan armar con banquetes, barras, mobiliario, DJ, iluminaci\xF3n, carpas o mesa de dulces. Sin precios, sin marcas, sin links, sin introducci\xF3n. Espa\xF1ol MX.`;
     const response = await ai2.models.generateContent({
       model: DEFAULT_GEMINI_MODEL,
       contents: prompt,
@@ -230344,7 +230382,7 @@ async function fetchTrendGroundingSnippet(opts) {
         tools: [{ googleSearch: {} }]
       }
     });
-    const text2 = (response.text ?? "").trim().replace(/\s+/g, " ");
+    const text2 = (response.text ?? "").trim().replace(/\[\d+(?:,\s*\d+)*\]/g, "").replace(/[ \t]+/g, " ").replace(/\n{2,}/g, "\n");
     if (!text2 || text2.length < 20) {
       groundingStats.errors += 1;
       return null;
@@ -234888,7 +234926,8 @@ ${keepQ}` : ack;
       accepted: acceptedIdeas,
       alreadySent: lucyTexts.slice(-4).join("\n"),
       contextText: historyText("user").slice(-6).join("\n"),
-      numInvitados: input.extracted.num_invitados ?? null
+      numInvitados: input.extracted.num_invitados ?? null,
+      groundingSnippet: input.trendGroundingSnippet ?? null
     });
     if (withIdeas !== mensaje && withIdeas.trim().length >= 8) {
       input.log?.info?.({ entityId: input.entityId }, "GUARD: tono \u2014 ideas de venta inyectadas");
@@ -235222,6 +235261,7 @@ async function generateLucyOutbound(input) {
     conversationAgeHours
   });
   let aiResponse;
+  let trendGroundingForOutbound = null;
   if (isLucyUnifiedLlmTurn()) {
     const intentResult = detectIntent(messageText);
     const objectionResult = detectObjection(messageText);
@@ -235243,9 +235283,12 @@ async function generateLucyOutbound(input) {
       }).catch(() => ""),
       fetchTrendGroundingSnippet({
         messageText,
-        tipoEvento: extracted.tipo_evento
+        tipoEvento: extracted.tipo_evento,
+        history: historyTrimmed,
+        numInvitados: extracted.num_invitados ?? null
       }).catch(() => null)
     ]);
+    trendGroundingForOutbound = trendGroundingSnippet;
     const dynamicContext = buildDynamicTurnContext({
       stage,
       priority: leadScore.priority,
@@ -235370,7 +235413,8 @@ async function generateLucyOutbound(input) {
     filledSet: filledLabels,
     openai: openai2,
     entityId,
-    log
+    log,
+    trendGroundingSnippet: trendGroundingForOutbound
   });
   const stuck = isStuckLoopTurn({
     outboundMessage: mensajeParaCliente,

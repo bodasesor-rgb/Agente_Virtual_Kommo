@@ -141,6 +141,31 @@ function pickTips(tipoEvento?: string | null, max = 2, alreadySent?: string | nu
   return pool.slice(0, max);
 }
 
+/**
+ * Viñetas de Google Grounding listas para WhatsApp (máx 2, sin precios/links).
+ */
+export function parseGroundingBullets(snippet?: string | null, max = 2): string[] {
+  const raw = (snippet ?? "").trim();
+  if (!raw) return [];
+  const lines = raw.includes("\n")
+    ? raw.split(/\n+/)
+    : raw.split(/\s+(?=[-*•]\s)|(?<=[.!])\s+(?=[A-ZÁÉÍÓÚÑ])/);
+  const out: string[] = [];
+  for (const line of lines) {
+    const t = line
+      .replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "")
+      .replace(/\*\*/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (t.length < 15 || t.length > 220) continue;
+    if (/\$|https?:|www\.|\bmxn\b|\bpesos\b/i.test(t)) continue;
+    if (/^(aqu[ií]|claro|estas son|te comparto|tendencias)\b.*:$/i.test(t)) continue;
+    out.push(/[.!]$/.test(t) ? t : `${t}.`);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 /** True si el mensaje ya trae ideas/tips de venta (no reinyectar). */
 export function messageAlreadyOffersSalesIdeas(text: string | null | undefined): boolean {
   const t = text ?? "";
@@ -170,6 +195,8 @@ export function buildSalesIdeasSnippet(opts: {
   /** El cliente aceptó ideas: abrir con un lead cálido. */
   accepted?: boolean;
   numInvitados?: number | string | null;
+  /** Viñetas frescas de Google (LUCY_GOOGLE_GROUNDING=1) — van primero. */
+  groundingSnippet?: string | null;
 }): string | null {
   const cues = extractStyleCues(
     opts.messageText,
@@ -177,7 +204,14 @@ export function buildSalesIdeasSnippet(opts: {
     opts.tipoEvento,
     opts.requerimientos
   );
-  const tips = pickTips(opts.tipoEvento || cues[0], opts.maxTips ?? 2, opts.alreadySent);
+  const max = opts.maxTips ?? 2;
+  const trends = parseGroundingBullets(opts.groundingSnippet, 2);
+  const staticTips = pickTips(
+    opts.tipoEvento || cues[0],
+    Math.max(1, max - trends.length),
+    opts.alreadySent
+  );
+  const tips = [...trends, ...staticTips].slice(0, Math.max(max, trends.length + 1));
   if (!tips.length) return null;
   if (opts.accepted) {
     const tipo = opts.tipoEvento?.trim();
@@ -189,9 +223,14 @@ export function buildSalesIdeasSnippet(opts: {
       : detalles
         ? `Para tu evento (${detalles})`
         : "Para tu evento";
-    return `¡Claro! ${para}, algunas ideas que funcionan muy bien:\n${tips
-      .map((t) => `• ${t}`)
-      .join("\n")}`.trim();
+    const lead = trends.length
+      ? `¡Claro! ${para}, esto es lo que se está usando y funciona muy bien:`
+      : `¡Claro! ${para}, algunas ideas que funcionan muy bien:`;
+    return `${lead}\n${tips.map((t) => `• ${t}`).join("\n")}`.trim();
+  }
+  if (trends.length) {
+    const cueTrend = cues[0] ? ` para un vibe *${cues[0]}*` : "";
+    return `Lo que se está usando${cueTrend}:\n${tips.map((t) => `• ${t}`).join("\n")}`.trim();
   }
   const cue = cues[0] ? `Para un vibe *${cues[0]}*, ` : "";
   if (tips.length === 1) {
@@ -215,6 +254,7 @@ export function enrichReplyWithSalesIdeas(
     alreadySent?: string | null;
     contextText?: string | null;
     numInvitados?: number | string | null;
+    groundingSnippet?: string | null;
   }
 ): string {
   const out = (mensaje || "").trim();
@@ -231,6 +271,7 @@ export function enrichReplyWithSalesIdeas(
       contextText: opts.contextText,
       accepted: true,
       numInvitados: opts.numInvitados,
+      groundingSnippet: opts.groundingSnippet,
     });
     if (!snippet) return out;
     const questions = (out.match(/[^.!?\n]*\?/g) ?? []).map((q) => q.trim()).filter(Boolean);
@@ -259,6 +300,9 @@ export function enrichReplyWithSalesIdeas(
     messageText: opts.messageText,
     requerimientos: opts.requerimientos,
     maxTips: wants ? 2 : 1,
+    alreadySent: opts.alreadySent,
+    contextText: opts.contextText,
+    groundingSnippet: wants ? opts.groundingSnippet : null,
   });
   if (!snippet) return out;
 

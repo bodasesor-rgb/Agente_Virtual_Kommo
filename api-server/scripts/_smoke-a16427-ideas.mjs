@@ -61,4 +61,22 @@ console.log("=== pipeline ===\n" + out + "\n===");
 ok(/•/.test(out), "pipeline entrega ideas");
 ok(/\?/.test(out), "pipeline sigue preguntando");
 
+// Con Google Grounding: viñetas frescas primero.
+const grounding =
+  "- Mesas largas estilo sobremesa con centros de flores de temporada y velas.\n- Barra de antojitos mexicanos gourmet con estaciones interactivas.\n- $500 por persona no debe salir.";
+const withTrends = enrichReplyWithSalesIdeas("¿En qué horario lo planean?", {
+  tipoEvento: "Cumpleaños",
+  messageText: "Si, por favor",
+  accepted: true,
+  alreadySent: offer,
+  contextText: "Quiero algo muy familiar",
+  numInvitados: 25,
+  groundingSnippet: grounding,
+});
+console.log("--- trends ---\n" + withTrends + "\n---");
+ok(/se está usando/i.test(withTrends), "lead de tendencias");
+ok(/sobremesa/i.test(withTrends) && /antojitos/i.test(withTrends), "incluye viñetas de Google");
+ok(!/\$/.test(withTrends), "filtra precios de Google");
+ok((withTrends.match(/•/g) ?? []).length === 3, "2 tendencias + 1 tip fijo");
+
 process.exit(fail ? 1 : 0);

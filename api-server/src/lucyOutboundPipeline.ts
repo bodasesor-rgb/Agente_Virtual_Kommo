@@ -51,6 +51,8 @@ export interface FinalizeLucyOutboundInput {
   openai?: OpenAI | null;
   entityId?: string | number;
   log?: { warn: (obj: object, msg?: string) => void; info?: (obj: object, msg?: string) => void };
+  /** Viñetas de Google Grounding del turno (si LUCY_GOOGLE_GROUNDING=1). */
+  trendGroundingSnippet?: string | null;
 }
 
 export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInput): Promise<string> {
@@ -248,6 +250,7 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
       alreadySent: lucyTexts.slice(-4).join("\n"),
       contextText: historyText("user").slice(-6).join("\n"),
       numInvitados: input.extracted.num_invitados ?? null,
+      groundingSnippet: input.trendGroundingSnippet ?? null,
     });
     if (withIdeas !== mensaje && withIdeas.trim().length >= 8) {
       input.log?.info?.({ entityId: input.entityId }, "GUARD: tono — ideas de venta inyectadas");

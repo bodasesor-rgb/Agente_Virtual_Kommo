@@ -11,7 +11,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { DEFAULT_GEMINI_MODEL, getGeminiApiKey } from "../lib/llmEnv.js";
-import { clientWantsIdeasOrTrends } from "./trendKnowledge.js";
+import { clientAcceptsIdeasOffer, clientWantsIdeasOrTrends } from "./trendKnowledge.js";
 
 const groundingStats = {
   attempts: 0,
@@ -39,12 +39,22 @@ export function isGoogleGroundingEnabled(): boolean {
 export async function fetchTrendGroundingSnippet(opts: {
   messageText: string;
   tipoEvento?: string | null;
+  history?: Array<{ role?: string; content?: unknown }>;
+  numInvitados?: number | string | null;
 }): Promise<string | null> {
   if (!isGoogleGroundingEnabled()) {
     groundingStats.skips += 1;
     return null;
   }
-  if (!clientWantsIdeasOrTrends(opts.messageText)) {
+  const textOf = (role: string) =>
+    (opts.history ?? [])
+      .filter((m) => m.role === role && typeof m.content === "string")
+      .map((m) => m.content as string);
+  const lucyTexts = textOf("assistant");
+  const lastLucy = lucyTexts[lucyTexts.length - 1] ?? "";
+  // A16427: "Si, por favor" a una oferta de ideas también cuenta como intent.
+  const accepted = clientAcceptsIdeasOffer(opts.messageText, lastLucy);
+  if (!accepted && !clientWantsIdeasOrTrends(opts.messageText)) {
     groundingStats.skips += 1;
     return null;
   }
@@ -59,11 +69,21 @@ export async function fetchTrendGroundingSnippet(opts: {
 
   try {
     const ai = new GoogleGenAI({ apiKey: key });
-    const eventHint = opts.tipoEvento?.trim() ? ` (evento: ${opts.tipoEvento.trim()})` : "";
+    const eventHint = opts.tipoEvento?.trim() ? `Evento: ${opts.tipoEvento.trim()}. ` : "";
+    const invHint = opts.numInvitados ? `Invitados: ${opts.numInvitados}. ` : "";
+    // Con "sí" a secas, el tema real está en lo que el cliente contó antes.
+    const clientContext = (accepted
+      ? textOf("user").slice(-5).join(" | ")
+      : opts.messageText
+    ).slice(0, 400);
     const prompt =
-      `Eres asesora de eventos en México. Resume en máximo 3 viñetas cortas ` +
-      `tendencias o ideas de ambientación relevantes a: "${opts.messageText.slice(0, 280)}"${eventHint}. ` +
-      `Sin precios ni marcas inventadas. Solo ideas accionables. Español neutro MX.`;
+      `Eres asesora de eventos en México. ${eventHint}${invHint}` +
+      `Lo que dijo el cliente: "${clientContext}". ` +
+      `Busca tendencias actuales (${new Date().getFullYear()}) y da exactamente 2 viñetas, ` +
+      `cada una en su propia línea iniciando con "- ", máximo 22 palabras cada una. ` +
+      `Ideas de ambientación, comida, decoración o dinámica que se puedan armar con banquetes, ` +
+      `barras, mobiliario, DJ, iluminación, carpas o mesa de dulces. ` +
+      `Sin precios, sin marcas, sin links, sin introducción. Español MX.`;
 
     const response = await ai.models.generateContent({
       model: DEFAULT_GEMINI_MODEL,
@@ -75,7 +95,12 @@ export async function fetchTrendGroundingSnippet(opts: {
       },
     });
 
-    const text = (response.text ?? "").trim().replace(/\s+/g, " ");
+    // Conservar saltos de línea: el outbound separa las viñetas.
+    const text = (response.text ?? "")
+      .trim()
+      .replace(/\[\d+(?:,\s*\d+)*\]/g, "")
+      .replace(/[ \t]+/g, " ")
+      .replace(/\n{2,}/g, "\n");
     if (!text || text.length < 20) {
       groundingStats.errors += 1;
       return null;
