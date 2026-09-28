@@ -162242,7 +162242,7 @@ var init_logger2 = __esm({
   "src/lib/logger.ts"() {
     "use strict";
     import_pino = __toESM(require_pino(), 1);
-    isProduction = process.env.NODE_ENV === "production";
+    isProduction = process.env.NODE_ENV !== "development";
     logger = (0, import_pino.default)({
       level: process.env.LOG_LEVEL ?? "info",
       redact: [

@@ -20,6 +20,9 @@ for (const file of required) {
   }
 }
 
+// Sin NODE_ENV, pino arranca un worker con la ruta absoluta de la máquina que hizo el build → crash.
+if (!process.env.NODE_ENV?.trim()) process.env.NODE_ENV = "production";
+
 if (!process.env.OPENAI_API_KEY?.trim() && process.env.OPEN_AI?.trim()) {
   process.env.OPENAI_API_KEY = process.env.OPEN_AI.trim();
 }

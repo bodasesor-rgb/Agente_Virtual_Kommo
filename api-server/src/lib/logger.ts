@@ -1,6 +1,7 @@
 import pino from "pino";
 
-const isProduction = process.env.NODE_ENV === "production";
+// pino-pretty corre en un worker cuya ruta queda fija al build; solo usarlo en dev explícito.
+const isProduction = process.env.NODE_ENV !== "development";
 
 export const logger = pino({
   level: process.env.LOG_LEVEL ?? "info",
