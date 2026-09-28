@@ -31,7 +31,9 @@ import {
   clientAsksServiceInfo,
   isServiceRelatedMessage,
   clientMentionsEntertainment,
+  parseHorarioFromText,
 } from "./conversation-understanding.js";
+import { horarioNeedsAmPmConfirmation } from "./lib/eventDateTime.js";
 import { buildGuardServiceAck } from "./services/serviceKnowledge.js";
 import {
   buildConcreteProductQuestionReply,
@@ -291,6 +293,39 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
         ? buildPostCierreThanksReply(input.extracted.nombre)
         : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
     input.log?.warn({ entityId: input.entityId }, "GUARD: mensaje vacío — respuesta de respaldo");
+  }
+
+  // Horario sin am/pm y sin pista en el contexto → confirmar UNA vez en lugar de otra pregunta.
+  if (!input.cierreYaEnviado && input.currentMessage) {
+    const horarioMsg = parseHorarioFromText(input.currentMessage);
+    const userContext = (input.history ?? [])
+      .filter((m) => m.role === "user" && typeof m.content === "string")
+      .map((m) => m.content as string)
+      .slice(-6)
+      .join("\n");
+    const context = [
+      userContext,
+      input.currentMessage,
+      input.extracted.requerimientos_evento ?? "",
+      input.extracted.horario_evento ?? "",
+    ].join("\n");
+    const askedAmPmRe = /ma[nñ]ana\s+o\s+(?:de\s+la\s+)?(?:noche|tarde)|\bam\s+o\s+pm\b/i;
+    const lucyAskedAlready = (input.history ?? [])
+      .filter((m) => m.role === "assistant" && typeof m.content === "string")
+      .slice(-3)
+      .some((m) => askedAmPmRe.test(m.content as string));
+    if (
+      horarioMsg &&
+      horarioNeedsAmPmConfirmation(horarioMsg, context) &&
+      !lucyAskedAlready &&
+      !askedAmPmRe.test(mensaje)
+    ) {
+      const start = horarioMsg.match(/\d{1,2}(?::\d{2})?/)?.[0] ?? "";
+      const ask = `¿Sería de ${start} de la mañana o de la noche?`;
+      const sinUltimaPregunta = mensaje.replace(/¿[^¿?]*\?\s*$/, "").trim();
+      mensaje = sinUltimaPregunta ? `${sinUltimaPregunta}\n\n${ask}` : ask;
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: horario ambiguo — confirmar am/pm");
+    }
   }
 
   // A16244: última red — nunca WhatsApp sin pregunta que invite a seguir.

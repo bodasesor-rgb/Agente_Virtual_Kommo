@@ -33,6 +33,7 @@ import {
   venueProvidedServiceLabels,
 } from "./services/serviceDecline.js";
 import { composeEventLocation } from "./services/geoResolve.js";
+import { resolveFechaEvento, resolveHorarioWithContext } from "./lib/eventDateTime.js";
 import {
   CHAIR_MODEL_PATTERN,
   parseChairModelFromText,
@@ -7998,8 +7999,31 @@ export function applyCapturesToCrm(
   filledSet: Set<string>,
   captures: CrmCapture[]
 ): void {
-  for (const { label, value } of captures) {
+  const crmBlob = mergedLines.join("\n");
+  for (const capture of captures) {
+    const { label } = capture;
+    let { value } = capture;
     if (!value?.trim()) continue;
+    // Fecha/horario del mensaje actual → absolutos con referencia a hoy (CDMX).
+    if (label === CRM_FECHA_LABEL) {
+      value = resolveFechaEvento(value) ?? value;
+    }
+    if (label === CRM_HORARIO_LABEL) {
+      const idx = mergedLines.findIndex((l) =>
+        new RegExp(`^-?\\s*${CRM_HORARIO_LABEL}:`, "i").test(l)
+      );
+      const existing =
+        idx >= 0
+          ? mergedLines[idx]!.replace(new RegExp(`^-?\\s*${CRM_HORARIO_LABEL}:\\s*`, "i"), "").trim()
+          : null;
+      const resolved = resolveHorarioWithContext(value, existing, crmBlob) ?? value;
+      // "de la noche" tras "7:30 a 12:30" → completar el horario ya guardado.
+      if (idx >= 0 && filledSet.has(label) && existing && /\d/.test(existing) && !/\d/.test(value)) {
+        if (resolved !== value) mergedLines[idx] = `- ${CRM_HORARIO_LABEL}: ${resolved}`;
+        continue;
+      }
+      value = resolved;
+    }
     if (label === "Lugar/dirección del evento" && filledSet.has(label)) {
       const idx = mergedLines.findIndex((l) => /^-?\s*Lugar\/dirección del evento:/i.test(l));
       if (idx >= 0) {

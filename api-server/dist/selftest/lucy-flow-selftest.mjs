@@ -21714,18 +21714,18 @@ var require_bignumber = __commonJS({
             return x7;
           }
           function compare2(a3, b4, aL, bL) {
-            var i5, cmp;
+            var i5, cmp2;
             if (aL != bL) {
-              cmp = aL > bL ? 1 : -1;
+              cmp2 = aL > bL ? 1 : -1;
             } else {
-              for (i5 = cmp = 0; i5 < aL; i5++) {
+              for (i5 = cmp2 = 0; i5 < aL; i5++) {
                 if (a3[i5] != b4[i5]) {
-                  cmp = a3[i5] > b4[i5] ? 1 : -1;
+                  cmp2 = a3[i5] > b4[i5] ? 1 : -1;
                   break;
                 }
               }
             }
-            return cmp;
+            return cmp2;
           }
           function subtract(a3, b4, aL, base) {
             var i5 = 0;
@@ -21737,7 +21737,7 @@ var require_bignumber = __commonJS({
             for (; !a3[0] && a3.length > 1; a3.splice(0, 1)) ;
           }
           return function(x7, y4, dp, rm, base) {
-            var cmp, e3, i5, more, n4, prod, prodL, q2, qc, rem, remL, rem0, xi, xL, yc0, yL, yz, s6 = x7.s == y4.s ? 1 : -1, xc = x7.c, yc = y4.c;
+            var cmp2, e3, i5, more, n4, prod, prodL, q2, qc, rem, remL, rem0, xi, xL, yc0, yL, yz, s6 = x7.s == y4.s ? 1 : -1, xc = x7.c, yc = y4.c;
             if (!xc || !xc[0] || !yc || !yc[0]) {
               return new BigNumber2(
                 // Return NaN if either NaN, or both Infinity or 0.
@@ -21783,8 +21783,8 @@ var require_bignumber = __commonJS({
               if (yc[1] >= base / 2) yc0++;
               do {
                 n4 = 0;
-                cmp = compare2(yc, rem, yL, remL);
-                if (cmp < 0) {
+                cmp2 = compare2(yc, rem, yL, remL);
+                if (cmp2 < 0) {
                   rem0 = rem[0];
                   if (yL != remL) rem0 = rem0 * base + (rem[1] || 0);
                   n4 = mathfloor(rem0 / yc0);
@@ -21797,11 +21797,11 @@ var require_bignumber = __commonJS({
                       n4--;
                       subtract(prod, yL < prodL ? yz : yc, prodL, base);
                       prodL = prod.length;
-                      cmp = 1;
+                      cmp2 = 1;
                     }
                   } else {
                     if (n4 == 0) {
-                      cmp = n4 = 1;
+                      cmp2 = n4 = 1;
                     }
                     prod = yc.slice();
                     prodL = prod.length;
@@ -21809,14 +21809,14 @@ var require_bignumber = __commonJS({
                   if (prodL < remL) prod = [0].concat(prod);
                   subtract(rem, prod, remL, base);
                   remL = rem.length;
-                  if (cmp == -1) {
+                  if (cmp2 == -1) {
                     while (compare2(yc, rem, yL, remL) < 1) {
                       n4++;
                       subtract(rem, yL < remL ? yz : yc, remL, base);
                       remL = rem.length;
                     }
                   }
-                } else if (cmp === 0) {
+                } else if (cmp2 === 0) {
                   n4++;
                   rem = [0];
                 }
@@ -111029,6 +111029,54 @@ function isNumberWordsAsNombre(text2) {
     return /^\d+([.,]\d+)?$/.test(p4) || SPANISH_NUMBER_WORD_TOKEN.test(letters);
   });
 }
+var FESTEJADO_RELACION = "hij[oa]|espos[oa]|mam[a\xE1]|mami|pap[a\xE1]|papi|herman[oa]|sobrin[oa]|niet[oa]|novi[oa]|abuel[oa]|abuelit[oa]|pareja|beb[e\xE9]|t[i\xED][oa]|prim[oa]|suegr[oa]|amig[oa]|jef[ae]|ahijad[oa]|peque[n\xF1][oa]|chiquit[oa]";
+var FESTEJADO_NAME_TOKEN = "[A-Za-z\xC1\xC9\xCD\xD3\xDA\xDC\xD1\xE1\xE9\xED\xF3\xFA\xFC\xF1]{2,20}";
+var FESTEJADO_NOT_NAME = /^(que|quien|cumple|cumplir[aá]|va|van|y|de|del|la|el|los|las|mi|su|tu|en|para|con|por|se|es|son|a[nñ]os?|meses|personas?|invitad[oa]s?|fiesta|evento|boda|xv|bautizo|cumplea[nñ]os|comuni[oó]n|graduaci[oó]n)$/i;
+function cleanFestejadoName(raw) {
+  const parts2 = raw.trim().split(/\s+/).filter(Boolean);
+  const kept = [];
+  for (const p4 of parts2) {
+    if (FESTEJADO_NOT_NAME.test(p4)) break;
+    kept.push(p4);
+    if (kept.length >= 2) break;
+  }
+  if (!kept.length) return null;
+  const name2 = kept.map((p4) => p4.charAt(0).toUpperCase() + p4.slice(1).toLowerCase()).join(" ");
+  if (isWeakOrJunkNombre(name2) || isOccasionOrStyleAsNombre(name2)) return null;
+  return name2;
+}
+function parseFestejadoFromText(text2) {
+  const t3 = (text2 ?? "").replace(/\s+/g, " ").trim();
+  if (!t3) return null;
+  const rel = t3.match(
+    new RegExp(
+      `\\b(?:mi|nuestr[oa])\\s+(${FESTEJADO_RELACION})\\s+(${FESTEJADO_NAME_TOKEN}(?:\\s+${FESTEJADO_NAME_TOKEN})?)`,
+      "i"
+    )
+  );
+  if (rel) {
+    const nombre = cleanFestejadoName(rel[2]);
+    if (nombre) return { nombre, relacion: rel[1].toLowerCase() };
+  }
+  const isCap = (s6) => !!s6 && /^[A-ZÁÉÍÓÚÑ]/.test(s6);
+  const boda = t3.match(
+    /\bboda\s+de\s+([a-záéíóúñ]{2,21})\s+(?:y|&)\s+([a-záéíóúñ]{2,21})\b/i
+  );
+  if (boda && isCap(boda[1]) && isCap(boda[2])) {
+    const a3 = cleanFestejadoName(boda[1]);
+    const b4 = cleanFestejadoName(boda[2]);
+    if (a3 && b4) return { nombre: `${a3} y ${b4}`, relacion: "novios" };
+  }
+  const evento = t3.match(
+    /\b(?:xv(?:\s+a[nñ]os)?|quince\s+a[nñ]os|cumplea[nñ]os|cumple|bautizo|primera\s+comuni[oó]n|graduaci[oó]n|baby\s*shower)\s+de\s+([a-záéíóúñ]{2,21}(?:\s+[a-záéíóúñ]{2,21})?)\b/i
+  );
+  if (evento && isCap(evento[1])) {
+    const tokens = evento[1].split(/\s+/);
+    const nombre = cleanFestejadoName(isCap(tokens[1]) ? evento[1] : tokens[0]);
+    if (nombre) return { nombre, relacion: null };
+  }
+  return null;
+}
 function isQuoteIntentMessage(text2) {
   const t3 = text2?.trim() ?? "";
   if (!t3) return false;
@@ -125150,6 +125198,166 @@ function composeEventLocation(text2) {
   return joined;
 }
 
+// src/lib/eventDateTime.ts
+var TZ = "America/Mexico_City";
+var MESES = [
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "octubre",
+  "noviembre",
+  "diciembre"
+];
+var DIAS = ["domingo", "lunes", "martes", "mi\xE9rcoles", "jueves", "viernes", "s\xE1bado"];
+function stripAccents(s6) {
+  return s6.normalize("NFD").replace(/\p{M}/gu, "");
+}
+function mexicoNowParts(now = /* @__PURE__ */ new Date()) {
+  const parts2 = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).formatToParts(now);
+  const get = (t3) => Number(parts2.find((p4) => p4.type === t3)?.value ?? "0");
+  return { y: get("year"), m: get("month"), d: get("day"), hh: get("hour") % 24, mm: get("minute") };
+}
+function weekdayOf({ y: y4, m: m5, d: d2 }) {
+  return new Date(Date.UTC(y4, m5 - 1, d2)).getUTCDay();
+}
+function addDays({ y: y4, m: m5, d: d2 }, n4) {
+  const dt2 = new Date(Date.UTC(y4, m5 - 1, d2 + n4));
+  return { y: dt2.getUTCFullYear(), m: dt2.getUTCMonth() + 1, d: dt2.getUTCDate() };
+}
+function daysInMonth(y4, m5) {
+  return new Date(Date.UTC(y4, m5, 0)).getUTCDate();
+}
+function cmp(a3, b4) {
+  return a3.y - b4.y || a3.m - b4.m || a3.d - b4.d;
+}
+function formatYmd(date2) {
+  return `${DIAS[weekdayOf(date2)]} ${date2.d} de ${MESES[date2.m - 1]} de ${date2.y}`;
+}
+function formatMexicoNowForPrompt(now = /* @__PURE__ */ new Date()) {
+  const p4 = mexicoNowParts(now);
+  return `${formatYmd(p4)}, ${String(p4.hh).padStart(2, "0")}:${String(p4.mm).padStart(2, "0")}`;
+}
+var MES_RE = MESES.map((m5) => stripAccents(m5)).join("|");
+var DIA_RE = "domingo|lunes|martes|miercoles|jueves|viernes|sabado";
+function resolveFechaEvento(text2, now = /* @__PURE__ */ new Date()) {
+  const raw = (text2 ?? "").trim();
+  if (!raw) return null;
+  const t3 = stripAccents(raw.toLowerCase()).replace(/[.,;:!?¡¿]+/g, " ").replace(/\s+/g, " ").trim();
+  const today = mexicoNowParts(now);
+  const aprox = /\b(aprox|aproximadamente|mas o menos|tentativ)/.test(t3);
+  if (/^(?:para\s+|es\s+|seria\s+)?hoy(?:\s+mismo)?$/.test(t3)) return formatYmd(today);
+  if (/^(?:para\s+|es\s+|seria\s+)?pasado\s+manana$/.test(t3)) return formatYmd(addDays(today, 2));
+  if (/^(?:para\s+|es\s+|seria\s+)?manana$/.test(t3)) return formatYmd(addDays(today, 1));
+  const yearM = t3.match(/\b(20\d{2})\b/);
+  const explicitYear = yearM ? Number(yearM[1]) : null;
+  const monthM = t3.match(new RegExp(`\\b(${MES_RE})\\b`));
+  const month = monthM ? MESES.findIndex((m5) => stripAccents(m5) === monthM[1]) + 1 : 0;
+  const dayM = t3.match(/\b(\d{1,2})\b(?!\s*(?::|am|pm|hrs?|horas?|personas?|invitad))/);
+  const weekdayM = t3.match(new RegExp(`\\b(${DIA_RE})\\b`));
+  const weekday = weekdayM ? DIAS.findIndex((d2) => stripAccents(d2) === weekdayM[1]) : -1;
+  if (month && dayM) {
+    const d2 = Number(dayM[1]);
+    let y4 = explicitYear ?? today.y;
+    if (d2 < 1 || d2 > 31) return null;
+    if (!explicitYear && cmp({ y: y4, m: month, d: d2 }, today) < 0) y4 += 1;
+    if (d2 > daysInMonth(y4, month)) return null;
+    const date2 = { y: y4, m: month, d: d2 };
+    if (weekday >= 0 && weekdayOf(date2) !== weekday) return null;
+    const out2 = formatYmd(date2);
+    return aprox ? `${out2} (aprox.)` : out2;
+  }
+  if (month && !dayM) {
+    let y4 = explicitYear ?? today.y;
+    if (!explicitYear && month < today.m) y4 += 1;
+    const out2 = `${MESES[month - 1]} de ${y4}`;
+    return aprox ? `${out2} (aprox.)` : out2;
+  }
+  if (weekday >= 0 && !dayM) {
+    let ahead = (weekday - weekdayOf(today) + 7) % 7;
+    if (ahead === 0 && !/\b(este|esta|hoy)\b/.test(t3)) ahead = 7;
+    if (/\b(siguiente|que\s+viene)\b/.test(t3) && ahead < 7 && /\bsemana\b/.test(t3)) ahead += 7;
+    return formatYmd(addDays(today, ahead));
+  }
+  const onlyDay = t3.match(/^(?:el\s+)?(?:dia\s+)?(\d{1,2})$/);
+  if (onlyDay) {
+    const d2 = Number(onlyDay[1]);
+    if (d2 < 1 || d2 > 31) return null;
+    let y4 = today.y;
+    let m5 = today.m;
+    if (d2 < today.d) {
+      m5 += 1;
+      if (m5 > 12) {
+        m5 = 1;
+        y4 += 1;
+      }
+    }
+    if (d2 > daysInMonth(y4, m5)) return null;
+    return formatYmd({ y: y4, m: m5, d: d2 });
+  }
+  return null;
+}
+var PERIOD_WORDS = /\b(am|pm|hrs?|horas?|tarde|noche|ma[nñ]ana|mediod[ií]a|medio\s*d[ií]a|madrugada)\b|\b[ap]\.\s*m\.?/i;
+function contextPeriod(context) {
+  const c4 = context.toLowerCase();
+  const pm = /\b\d{1,2}(?::\d{2})?\s*(?:pm|p\.\s*m)/.test(c4) || /\bde\s+la\s+(tarde|noche)\b|\b(cena|noche|nocturn)/.test(c4);
+  const am = /\b\d{1,2}(?::\d{2})?\s*(?:am|a\.\s*m)/.test(c4) || /\bde\s+la\s+ma[nñ]ana\b|\b(desayuno|brunch|almuerzo|matutin)/.test(c4);
+  if (pm && !am) return "pm";
+  if (am && !pm) return "am";
+  return null;
+}
+function inferHorarioAmPm(horario, context = "") {
+  const value = (horario ?? "").trim();
+  if (!value || PERIOD_WORDS.test(value)) return { value, ambiguous: false };
+  const m5 = value.match(
+    /^(?:de\s+(?:las?\s+)?)?(\d{1,2})(?::(\d{2}))?(?:\s*(?:a|-|–|hasta)\s*(?:las?\s+)?(\d{1,2})(?::(\d{2}))?)?$/i
+  );
+  if (!m5) return { value, ambiguous: false };
+  const h1 = Number(m5[1]);
+  const m1 = m5[2];
+  const h22 = m5[3] !== void 0 ? Number(m5[3]) : null;
+  const m22 = m5[4];
+  if (h1 > 12 || h22 !== null && h22 > 12 || h1 === 0) return { value, ambiguous: false };
+  let p1 = null;
+  if (h1 >= 1 && h1 <= 6) p1 = "pm";
+  else if (h1 === 12) p1 = "pm";
+  else p1 = contextPeriod(context);
+  if (!p1) return { value, ambiguous: true };
+  const fmt = (h4, mm, p4) => `${h4}${mm ? `:${mm}` : ""} ${p4}`;
+  if (h22 === null) return { value: fmt(h1, m1, p1), ambiguous: false };
+  const start24 = h1 % 12 + (p1 === "pm" ? 12 : 0) + (m1 ? Number(m1) / 60 : 0);
+  const endPm = h22 % 12 + 12 + (m22 ? Number(m22) / 60 : 0);
+  const p22 = endPm > start24 && endPm - start24 <= 14 ? "pm" : "am";
+  return { value: `${fmt(h1, m1, p1)} a ${fmt(h22, m22, p22)}`, ambiguous: false };
+}
+function resolveHorarioWithContext(incoming, previous, context = "") {
+  const inc = (incoming ?? "").trim();
+  if (!inc) return null;
+  const prev = (previous ?? "").trim();
+  if (/\d/.test(inc)) return inferHorarioAmPm(inc, `${context} ${prev}`).value;
+  if (prev && /\d/.test(prev) && PERIOD_WORDS.test(inc)) {
+    const r4 = inferHorarioAmPm(prev, inc);
+    if (!r4.ambiguous && r4.value !== prev) return r4.value;
+  }
+  return inc;
+}
+function horarioNeedsAmPmConfirmation(horario, context = "") {
+  return inferHorarioAmPm(horario, context).ambiguous;
+}
+
 // src/lib/chairModels.ts
 var CHAIR_MODEL_ALIASES = [
   { pattern: /\btiffany\s+infantil\b/i, canonical: "Tiffany Infantil" },
@@ -130191,8 +130399,26 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
   return captures;
 }
 function applyCapturesToCrm(mergedLines, filledSet, captures) {
-  for (const { label, value } of captures) {
+  const crmBlob = mergedLines.join("\n");
+  for (const capture of captures) {
+    const { label } = capture;
+    let { value } = capture;
     if (!value?.trim()) continue;
+    if (label === CRM_FECHA_LABEL) {
+      value = resolveFechaEvento(value) ?? value;
+    }
+    if (label === CRM_HORARIO_LABEL) {
+      const idx = mergedLines.findIndex(
+        (l5) => new RegExp(`^-?\\s*${CRM_HORARIO_LABEL}:`, "i").test(l5)
+      );
+      const existing = idx >= 0 ? mergedLines[idx].replace(new RegExp(`^-?\\s*${CRM_HORARIO_LABEL}:\\s*`, "i"), "").trim() : null;
+      const resolved = resolveHorarioWithContext(value, existing, crmBlob) ?? value;
+      if (idx >= 0 && filledSet.has(label) && existing && /\d/.test(existing) && !/\d/.test(value)) {
+        if (resolved !== value) mergedLines[idx] = `- ${CRM_HORARIO_LABEL}: ${resolved}`;
+        continue;
+      }
+      value = resolved;
+    }
     if (label === "Lugar/direcci\xF3n del evento" && filledSet.has(label)) {
       const idx = mergedLines.findIndex((l5) => /^-?\s*Lugar\/dirección del evento:/i.test(l5));
       if (idx >= 0) {
@@ -130365,6 +130591,23 @@ function userJustifiesPresupuesto(userTexts) {
   }
   return false;
 }
+function foldName(s6) {
+  return s6.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+function nombreIsOnlyFestejado(nombre, userTexts) {
+  const n4 = foldName(nombre);
+  if (!n4) return false;
+  const festejados = userTexts.map((t3) => parseFestejadoFromText(t3)?.nombre).filter((x7) => !!x7).map(foldName);
+  const matches = festejados.some(
+    (f6) => f6 === n4 || f6.split(" y ").includes(n4) || f6.split(" ")[0] === n4
+  );
+  if (!matches) return false;
+  const first = n4.split(" ")[0];
+  const presented = userTexts.some(
+    (t3) => new RegExp(`\\b(?:soy|me\\s+llamo|mi\\s+nombre\\s+es|habla)\\s+${first}\\b`, "i").test(foldName(t3))
+  );
+  return !presented;
+}
 function isInvalidCrmNombre(value) {
   const raw = value?.trim() ?? "";
   if (!raw) return true;
@@ -130404,6 +130647,10 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
       out2.nombre = cleaned;
       applied.push("nombre-sanitized");
     }
+  }
+  if (out2.nombre && nombreIsOnlyFestejado(out2.nombre, userTexts)) {
+    out2.nombre = null;
+    applied.push("nombre-festejado-cleared");
   }
   if (out2.tipo_evento && looksLikePersonNameAsEventType(out2.tipo_evento)) {
     out2.tipo_evento = null;
@@ -137943,7 +138190,7 @@ ${follow}`.trim();
   }
   return body2.trim();
 }
-function stripAccents(text2) {
+function stripAccents2(text2) {
   return text2.normalize("NFD").replace(/\p{M}/gu, "");
 }
 function stripLeadingTransition(text2) {
@@ -137951,9 +138198,9 @@ function stripLeadingTransition(text2) {
 }
 function requerimientosFollowUpTemplate(text2, clientName) {
   let s6 = stripLeadingTransition(text2);
-  s6 = stripAccents(s6.toLowerCase());
+  s6 = stripAccents2(s6.toLowerCase());
   if (clientName?.trim()) {
-    const name2 = stripAccents(clientName.trim().toLowerCase());
+    const name2 = stripAccents2(clientName.trim().toLowerCase());
     s6 = s6.replace(new RegExp(`\\b${name2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"), " ");
   }
   s6 = s6.replace(/\b(adem[aá]s del|con el|solo el|la renta de la?|las?)\s+[^,?]+/gi, "__svc__").replace(/\s+/g, " ").trim();
@@ -137974,7 +138221,7 @@ function bodyEqualsLastAssistant(msg, history, clientName) {
   const templateA = requerimientosFollowUpTemplate(a3, clientName);
   const templateB = requerimientosFollowUpTemplate(b4, clientName);
   if (templateA && templateB && templateA === templateB) return true;
-  const normText = (s6) => stripAccents(stripLeadingTransition(s6).toLowerCase()).replace(/\s+/g, " ").trim();
+  const normText = (s6) => stripAccents2(stripLeadingTransition(s6).toLowerCase()).replace(/\s+/g, " ").trim();
   return normText(a3) === normText(b4);
 }
 function hasMeaningfulRequerimientos(extracted, filledSet) {
@@ -144790,7 +145037,8 @@ function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLine
       values: [{ value: cap255(zonaFromMsg) }]
     });
   }
-  const fechaFromMsg = parseFechaFromText(msg);
+  const fechaRaw = parseFechaFromText(msg);
+  const fechaFromMsg = fechaRaw ? resolveFechaEvento(fechaRaw) ?? fechaRaw : null;
   if (fechaFromMsg && isUsableFechaEvento(fechaFromMsg)) {
     const crmFecha = crmStoredValue(crmLines, CRM_FECHA_LABEL);
     if (fechaFromMsg !== (crmFecha ?? "").trim()) {
@@ -144800,9 +145048,10 @@ function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLine
       });
     }
   }
-  const horarioFromMsg = parseHorarioFromText(msg);
+  const crmHorario = crmStoredValue(crmLines, CRM_HORARIO_LABEL);
+  const horarioRaw = parseHorarioFromText(msg);
+  const horarioFromMsg = horarioRaw ? resolveHorarioWithContext(horarioRaw, crmHorario, crmLines.join("\n")) : null;
   if (horarioFromMsg && isUsableHorarioEvento(horarioFromMsg)) {
-    const crmHorario = crmStoredValue(crmLines, CRM_HORARIO_LABEL);
     if (horarioFromMsg !== (crmHorario ?? "").trim()) {
       customFields.push({
         field_id: SILENT_WATCH_FIELD.horario_evento,
@@ -146009,6 +146258,27 @@ ${keepQ}` : ack;
     mensaje = input.cierreYaEnviado && clientSaysThanks(input.currentMessage) ? buildPostCierreThanksReply(input.extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
     input.log?.warn({ entityId: input.entityId }, "GUARD: mensaje vac\xEDo \u2014 respuesta de respaldo");
   }
+  if (!input.cierreYaEnviado && input.currentMessage) {
+    const horarioMsg = parseHorarioFromText(input.currentMessage);
+    const userContext = (input.history ?? []).filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content).slice(-6).join("\n");
+    const context = [
+      userContext,
+      input.currentMessage,
+      input.extracted.requerimientos_evento ?? "",
+      input.extracted.horario_evento ?? ""
+    ].join("\n");
+    const askedAmPmRe = /ma[nñ]ana\s+o\s+(?:de\s+la\s+)?(?:noche|tarde)|\bam\s+o\s+pm\b/i;
+    const lucyAskedAlready = (input.history ?? []).filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(-3).some((m5) => askedAmPmRe.test(m5.content));
+    if (horarioMsg && horarioNeedsAmPmConfirmation(horarioMsg, context) && !lucyAskedAlready && !askedAmPmRe.test(mensaje)) {
+      const start2 = horarioMsg.match(/\d{1,2}(?::\d{2})?/)?.[0] ?? "";
+      const ask = `\xBFSer\xEDa de ${start2} de la ma\xF1ana o de la noche?`;
+      const sinUltimaPregunta = mensaje.replace(/¿[^¿?]*\?\s*$/, "").trim();
+      mensaje = sinUltimaPregunta ? `${sinUltimaPregunta}
+
+${ask}` : ask;
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: horario ambiguo \u2014 confirmar am/pm");
+    }
+  }
   {
     const before = mensaje;
     mensaje = ensureOutboundAlwaysAsks(mensaje, {
@@ -146060,6 +146330,15 @@ function buildDynamicTurnContext(context) {
   parts2.push("CONTEXTO DEL TURNO (din\xE1mico \u2014 no es system fijo)");
   parts2.push("\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501");
   parts2.push(`Etapa: ${context.stage} \xB7 Prioridad: ${context.priority}`);
+  parts2.push(
+    `Hoy es ${formatMexicoNowForPrompt()} (hora CDMX). Si el cliente dice "este s\xE1bado", "ma\xF1ana", "el 15" o un mes sin a\xF1o, en fecha_evento escribe la fecha concreta (ej. "s\xE1bado 3 de octubre de 2026"); si no est\xE1s segura, deja lo que dijo.`
+  );
+  parts2.push(
+    `Horario: si el cliente da horas sin am/pm ("7:30 a 12:30") y no es obvio por el contexto (cena, noche, desayuno), confirma UNA vez "\xBFde la ma\xF1ana o de la noche?". No inventes am/pm.`
+  );
+  parts2.push(
+    `Festejado \u2260 cliente: "mi hija Sof\xEDa", "los XV de Valeria" \u2192 ese nombre es del festejado, NUNCA lo pongas en "nombre" ni saludes al cliente con \xE9l.`
+  );
   if (context.isFirstInteraction) {
     parts2.push(`
 PRIMERA INTERACCI\xD3N \u2014 OBLIGATORIO
@@ -146761,6 +147040,12 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   lineas.push(`\u2022 Servicios: ${serviciosLine}`);
   if (modo) lineas.push(`\u2022 Modalidad: ${modo}`);
   if (evento) lineas.push(`\u2022 Evento: ${evento}`);
+  const festejado = (conversationText ?? "").split(/\n+/).map((l5) => parseFestejadoFromText(l5)).find((f6) => f6 !== null);
+  if (festejado) {
+    lineas.push(
+      `\u2022 Festejado: ${festejado.nombre}${festejado.relacion ? ` (${festejado.relacion})` : ""}`
+    );
+  }
   if (invitados) {
     const escalaAbierta = /sin definir|afluencia|no dispone|no (?:lo )?sabe/i.test(invitados);
     lineas.push(escalaAbierta ? `\u2022 Invitados: ${invitados}` : `\u2022 Invitados del evento: ${invitados}`);
@@ -147180,7 +147465,7 @@ function clientReplyForPaymentSlot(slot) {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V10.21";
+var LUCY_PROMPT_VERSION = "V10.22";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();

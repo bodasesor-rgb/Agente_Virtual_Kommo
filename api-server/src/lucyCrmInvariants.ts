@@ -13,6 +13,7 @@ import {
   isOccasionOrStyleAsNombre,
   isQuoteIntentMessage,
   isServicePreferenceAsNombre,
+  parseFestejadoFromText,
   sanitizeCrmNombre,
 } from "./contact-name.js";
 import {
@@ -57,6 +58,34 @@ export function userJustifiesPresupuesto(userTexts: string[]): boolean {
     if (parsePresupuestoFromText(t, { askedField: "presupuesto" })) return true;
   }
   return false;
+}
+
+function foldName(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** El nombre solo aparece como festejado y el cliente nunca se presentó con él. */
+export function nombreIsOnlyFestejado(nombre: string, userTexts: string[]): boolean {
+  const n = foldName(nombre);
+  if (!n) return false;
+  const festejados = userTexts
+    .map((t) => parseFestejadoFromText(t)?.nombre)
+    .filter((x): x is string => !!x)
+    .map(foldName);
+  const matches = festejados.some(
+    (f) => f === n || f.split(" y ").includes(n) || f.split(" ")[0] === n
+  );
+  if (!matches) return false;
+  const first = n.split(" ")[0]!;
+  const presented = userTexts.some((t) =>
+    new RegExp(`\\b(?:soy|me\\s+llamo|mi\\s+nombre\\s+es|habla)\\s+${first}\\b`, "i").test(foldName(t))
+  );
+  return !presented;
 }
 
 /** Nombre candidato inválido para CRM (ubicación, servicio, saludo…). */
@@ -110,6 +139,12 @@ export function applyCrmWriteInvariants(
       out.nombre = cleaned;
       applied.push("nombre-sanitized");
     }
+  }
+
+  // 1b) Nombre ≠ festejado ("es para mi hija Sofía" → Sofía no es la clienta).
+  if (out.nombre && nombreIsOnlyFestejado(out.nombre, userTexts)) {
+    out.nombre = null;
+    applied.push("nombre-festejado-cleared");
   }
 
   if (out.tipo_evento && looksLikePersonNameAsEventType(out.tipo_evento)) {

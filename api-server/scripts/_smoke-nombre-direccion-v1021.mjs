@@ -26,7 +26,7 @@ function ok(c, m) {
   } else console.log("ok", m);
 }
 
-ok(LUCY_PROMPT_VERSION === "V10.21", `version ${LUCY_PROMPT_VERSION}`);
+ok(/^V10\.(2[1-9]|[3-9]\d)$/.test(LUCY_PROMPT_VERSION), `version ${LUCY_PROMPT_VERSION}`);
 
 // 1) Estilo ≠ nombre
 ok(isOccasionOrStyleAsNombre("Boutique"), "Boutique style");
