@@ -2688,6 +2688,7 @@ export function hasCityOrMetroSignal(text: string | null | undefined): boolean {
   // "ciudad de México" / "ciudad X" — no la palabra suelta "ciudad" (A15775).
   if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t)) return true;
   if (/\b(estado\s+de|edo\.?\s*m[eé]x|cdmx|d\.?\s*f\.?)\b/i.test(t)) return true;
+  if (/\b(gdl|mty|qro|ags|qroo|cuerna|tlaque)\b/i.test(t)) return true;
   // Ciudades / estados frecuentes fuera de KNOWN_ZONES (respuesta corta = ciudad).
   if (
     /\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica|atlixco|cholula|tehuac[aá]n|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|tlaquepaque|zapopan|tonal[aá]|tlajomulco|jalisco)\b/i.test(
@@ -6248,7 +6249,31 @@ export function isNegativeOnlyReply(text: string | null | undefined): boolean {
   );
 }
 
+const MX_CITY_ABBREVIATIONS: Array<[RegExp, string]> = [
+  [/\bgdl\b\.?/gi, "Guadalajara"],
+  [/\bmty\b\.?/gi, "Monterrey"],
+  [/\bqro\b\.?/gi, "Querétaro"],
+  [/\bags\b\.?/gi, "Aguascalientes"],
+  [/\bqroo\b\.?/gi, "Quintana Roo"],
+  [/\bcuerna\b/gi, "Cuernavaca"],
+  [/\btlaque\b/gi, "Tlaquepaque"],
+  [/,\s*jal\b\.?/gi, ", Jalisco"],
+  [/,\s*n\.?\s*l\.?$/gi, ", Nuevo León"],
+];
+
+/**
+ * A16417: "Gdl" / "Mty" / "Qro" → nombre completo de la ciudad.
+ * "Pue" solo si es todo el mensaje (en otro contexto es "pues").
+ */
+export function expandMxCityAbbreviations(text: string): string {
+  let out = text;
+  for (const [re, city] of MX_CITY_ABBREVIATIONS) out = out.replace(re, city);
+  if (/^\s*pue\.?\s*$/i.test(out)) out = "Puebla";
+  return out;
+}
+
 export function parseZonaFromText(text: string): string | null {
+  text = expandMxCityAbbreviations(text);
   // Quitar correos antes de parsear: un RFQ con email no es "solo un correo".
   const withoutEmails = text
     .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, " ")

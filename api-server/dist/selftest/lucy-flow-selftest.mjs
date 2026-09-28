@@ -126884,6 +126884,7 @@ function hasCityOrMetroSignal(text2) {
   }
   if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t3)) return true;
   if (/\b(estado\s+de|edo\.?\s*m[eé]x|cdmx|d\.?\s*f\.?)\b/i.test(t3)) return true;
+  if (/\b(gdl|mty|qro|ags|qroo|cuerna|tlaque)\b/i.test(t3)) return true;
   if (/\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica|atlixco|cholula|tehuac[aá]n|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|tlaquepaque|zapopan|tonal[aá]|tlajomulco|jalisco)\b/i.test(
     t3
   )) {
@@ -129124,7 +129125,25 @@ function isNegativeOnlyReply(text2) {
     t3
   );
 }
+var MX_CITY_ABBREVIATIONS = [
+  [/\bgdl\b\.?/gi, "Guadalajara"],
+  [/\bmty\b\.?/gi, "Monterrey"],
+  [/\bqro\b\.?/gi, "Quer\xE9taro"],
+  [/\bags\b\.?/gi, "Aguascalientes"],
+  [/\bqroo\b\.?/gi, "Quintana Roo"],
+  [/\bcuerna\b/gi, "Cuernavaca"],
+  [/\btlaque\b/gi, "Tlaquepaque"],
+  [/,\s*jal\b\.?/gi, ", Jalisco"],
+  [/,\s*n\.?\s*l\.?$/gi, ", Nuevo Le\xF3n"]
+];
+function expandMxCityAbbreviations(text2) {
+  let out2 = text2;
+  for (const [re3, city] of MX_CITY_ABBREVIATIONS) out2 = out2.replace(re3, city);
+  if (/^\s*pue\.?\s*$/i.test(out2)) out2 = "Puebla";
+  return out2;
+}
 function parseZonaFromText(text2) {
+  text2 = expandMxCityAbbreviations(text2);
   const withoutEmails = text2.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, " ").replace(/\s+/g, " ").trim();
   const trimmed = withoutEmails.replace(/\(?\s*hora\s+ciudad\s+de\s+m[eé]xico\s*\)?/gi, " ").replace(/\bhorario\s+en\s+que\s+env[ií]o\s+este\s+mensaje\s*:?[^\n]*/gi, " ").replace(/\bcotizaci[oó]n(es)?\s+en\s+pdf\b/gi, " ").replace(/\b(en\s+)?pdf\b/gi, " ").replace(/^(s[ií][,.]?\s+)(?=[A-Za-zÁÉÍÓÚáéíóúñÑ])/i, "").replace(/\s+/g, " ").trim();
   if (!trimmed) return null;
