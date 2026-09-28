@@ -161947,14 +161947,30 @@ async function openPgAt(dir) {
   console.info(`[db] Modo local activo \u2192 ${dir}`);
   return db2;
 }
+function withOpenTimeout(p5, dir) {
+  let timer;
+  const timeout = new Promise((_4, reject) => {
+    timer = setTimeout(
+      () => reject(new PgliteOpenTimeout(`PGlite no abri\xF3 ${dir} en ${PGLITE_OPEN_TIMEOUT_MS} ms`)),
+      PGLITE_OPEN_TIMEOUT_MS
+    );
+  });
+  return Promise.race([p5, timeout]).finally(() => clearTimeout(timer));
+}
 async function getLocalDb() {
   if (localDb) return localDb;
   try {
-    localDb = await openPgAt(LOCAL_DB_DIR);
+    localDb = await withOpenTimeout(openPgAt(LOCAL_DB_DIR), LOCAL_DB_DIR);
     return localDb;
   } catch (err2) {
     const msg = err2 instanceof Error ? err2.message : String(err2);
     console.error(`[db] Fall\xF3 abrir ${LOCAL_DB_DIR}: ${msg}`);
+    if (err2 instanceof PgliteOpenTimeout) {
+      const fresh2 = path5.join(path5.dirname(LOCAL_DB_DIR), `pgdata-boot-${Date.now()}`);
+      console.warn(`[db] Arranco con base temporal ${fresh2} para no dejar a Lucy sin puerto`);
+      localDb = await withOpenTimeout(openPgAt(fresh2), fresh2);
+      return localDb;
+    }
     const broken = `${LOCAL_DB_DIR}-broken-${Date.now()}`;
     try {
       if (fs6.existsSync(LOCAL_DB_DIR)) {
@@ -161977,7 +161993,7 @@ async function getLocalDb() {
 function isLocalDbMode() {
   return !process.env["DATABASE_URL"]?.trim();
 }
-var LOCAL_DB_DIR, client, localDb, INIT_SQL, MIGRATION_SQL;
+var LOCAL_DB_DIR, client, localDb, INIT_SQL, MIGRATION_SQL, PGLITE_OPEN_TIMEOUT_MS, PgliteOpenTimeout;
 var init_local = __esm({
   "../lib/db/src/local.ts"() {
     "use strict";
@@ -162150,6 +162166,9 @@ ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_learning_extract_at TIME
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS unclear_streak INTEGER NOT NULL DEFAULT 0;
 CREATE UNIQUE INDEX IF NOT EXISTS messages_kommo_message_id_idx ON messages (kommo_message_id) WHERE kommo_message_id IS NOT NULL;
 `;
+    PGLITE_OPEN_TIMEOUT_MS = Number(process.env["LUCY_PGLITE_OPEN_TIMEOUT_MS"] || 3e4);
+    PgliteOpenTimeout = class extends Error {
+    };
   }
 });
 
