@@ -2522,6 +2522,8 @@ export function looksLikeGuestCountRange(text: string | null | undefined): boole
   const hasGuestWord = /\b(personas?|invitad[oa]s?|asistentes?|comensales?|gente)\b/i.test(
     trimmed
   );
+  // A16433: "7:30 a 12:30" es horario ("30 a 12" no es aforo).
+  if (!hasGuestWord && /\d{1,2}:\d{2}/.test(trimmed)) return false;
   const m = trimmed.match(/\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i);
   if (!m) {
     // Ya normalizado en CRM: "80 - 100 MXN" sin que el cliente haya dicho MXN.
@@ -4814,10 +4816,12 @@ export function parseHorarioFromText(text: string): string | null {
   if (rangeAmpm?.[1]) {
     const frag = rangeAmpm[1].trim();
     // A15903: "10-12" sin am/pm/hrs no es horario (suele ser aforo).
+    // A16433: "7:30 a 12:30" (con minutos en ambos lados) sí es horario.
     if (
       !new RegExp(CLOCK_AMPM, "i").test(frag) &&
       !/\b(hrs?|horas?)\b/i.test(frag) &&
-      !/\b(a\s+las?|de\s+las?)\b/i.test(clean)
+      !/\b(a\s+las?|de\s+las?)\b/i.test(clean) &&
+      !/\d:\d{2}\D+\d{1,2}:\d{2}/.test(frag)
     ) {
       /* no-op: seguir buscando */
     } else {
@@ -4948,6 +4952,28 @@ export function parseHorarioFromText(text: string): string | null {
       return frag;
     }
     if (!parseFechaFromText(clean)) return frag;
+    }
+  }
+
+  // A16433: "El sábado 03 de octubre 7:40pm" — hora explícita (am/pm o H:MM) junto a la fecha.
+  {
+    const explicitClock = clean.match(
+      /(?:^|\s)(\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.\s*m\.?|p\.\s*m\.?)|\d{1,2}:\d{2}(?:\s*hrs?)?)(?=\s|$)/i
+    );
+    if (explicitClock?.[1]) {
+      const rest = clean
+        .replace(explicitClock[1], " ")
+        .replace(/\b(el|la|los|para|sería|seria|es|y|a|las?)\b/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (
+        !rest ||
+        parseFechaFromText(rest) ||
+        MONTH_PATTERN.test(rest) ||
+        /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|hoy|ma[nñ]ana)\b/i.test(rest)
+      ) {
+        return normalizeHorarioCapture(explicitClock[1].trim());
+      }
     }
   }
 

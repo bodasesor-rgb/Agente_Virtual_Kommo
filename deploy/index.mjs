@@ -132919,6 +132919,7 @@ function looksLikeGuestCountRange(text2) {
   const hasGuestWord = /\b(personas?|invitad[oa]s?|asistentes?|comensales?|gente)\b/i.test(
     trimmed
   );
+  if (!hasGuestWord && /\d{1,2}:\d{2}/.test(trimmed)) return false;
   const m6 = trimmed.match(/\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i);
   if (!m6) {
     const crm = trimmed.match(/^(\d{1,4})\s*[-–]\s*(\d{1,4})(?:\s*MXN)?$/i);
@@ -134288,7 +134289,7 @@ function parseHorarioFromText(text2) {
   );
   if (rangeAmpm?.[1]) {
     const frag = rangeAmpm[1].trim();
-    if (!new RegExp(CLOCK_AMPM, "i").test(frag) && !/\b(hrs?|horas?)\b/i.test(frag) && !/\b(a\s+las?|de\s+las?)\b/i.test(clean)) {
+    if (!new RegExp(CLOCK_AMPM, "i").test(frag) && !/\b(hrs?|horas?)\b/i.test(frag) && !/\b(a\s+las?|de\s+las?)\b/i.test(clean) && !/\d:\d{2}\D+\d{1,2}:\d{2}/.test(frag)) {
     } else {
       const without = clean.replace(rangeAmpm[1], "").trim();
       if (!without || parseFechaFromText(without) || MONTH_PATTERN.test(without) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(without) || /\b(evento|ser[ií]a|ser[aá]|es|planean|planeamos|tendr[ií]a|horario)\b/i.test(without)) {
@@ -134380,6 +134381,17 @@ function parseHorarioFromText(text2) {
         return frag;
       }
       if (!parseFechaFromText(clean)) return frag;
+    }
+  }
+  {
+    const explicitClock = clean.match(
+      /(?:^|\s)(\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.\s*m\.?|p\.\s*m\.?)|\d{1,2}:\d{2}(?:\s*hrs?)?)(?=\s|$)/i
+    );
+    if (explicitClock?.[1]) {
+      const rest = clean.replace(explicitClock[1], " ").replace(/\b(el|la|los|para|sería|seria|es|y|a|las?)\b/gi, " ").replace(/\s+/g, " ").trim();
+      if (!rest || parseFechaFromText(rest) || MONTH_PATTERN.test(rest) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|hoy|ma[nñ]ana)\b/i.test(rest)) {
+        return normalizeHorarioCapture(explicitClock[1].trim());
+      }
     }
   }
   if (/\b(tarde|noche|mediod[ií]a|medio\s*d[ií]a|ma[nñ]ana)\b/i.test(clean) && clean.split(/\s+/).length <= 7 && !MONTH_PATTERN.test(clean)) {
@@ -234802,6 +234814,11 @@ function softenRobotAcks(mensaje) {
   );
   out2 = out2.replace(/\bAnoto\s+(?:el\s+)?horario\s+/gi, "Horario ");
   out2 = out2.replace(/\bAnoto\s+(?:la\s+)?fecha\s*:?\s*/gi, "Fecha ");
+  out2 = out2.replace(
+    /\bAnoto\s+tu\s+([^.!?\n]{2,120})[.!]?\s*/gi,
+    (_m, rest) => `\xA1Qu\xE9 buen plan! Tu ${rest.trim()} suena incre\xEDble. `
+  );
+  out2 = out2.replace(/\bAnoto\s+([^.!?\n]{2,100})[.!]?\s*/gi, "Va, $1. ");
   out2 = out2.replace(/\bQueda\s+anotado\s+lo\s+de\s+/gi, "Seguimos con ");
   out2 = out2.replace(/\bYa\s+lo\s+tengo\s+anotad[oa]?[.!]?\s*/gi, "");
   out2 = out2.replace(/\bTomo nota de tu solicitud especial\b/gi, "Revisamos tu solicitud especial");
@@ -234966,6 +234983,15 @@ ${keepQ}` : ack;
     if (conTono !== mensaje && conTono.trim().length >= 8) {
       input.log?.info?.({ entityId: input.entityId }, "GUARD: tono \u2014 asesora (sin Anoto/muletilla)");
       mensaje = conTono;
+    }
+    const yaDijoMuchoGusto = (input.history ?? []).some(
+      (m6) => m6.role === "assistant" && typeof m6.content === "string" && /mucho\s+gusto/i.test(m6.content)
+    );
+    if (yaDijoMuchoGusto) {
+      const sinSaludo = mensaje.replace(/^\s*¡?\s*mucho\s+gusto(?:,\s*[^!.,]{1,30})?\s*[!.]?\s*/i, "");
+      if (sinSaludo !== mensaje && sinSaludo.trim().length >= 8) {
+        mensaje = sinSaludo.charAt(0).toUpperCase() + sinSaludo.slice(1);
+      }
     }
   }
   if (!mensaje.trim()) {

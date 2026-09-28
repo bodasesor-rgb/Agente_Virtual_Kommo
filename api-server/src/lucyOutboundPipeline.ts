@@ -273,6 +273,16 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
       input.log?.info?.({ entityId: input.entityId }, "GUARD: tono — asesora (sin Anoto/muletilla)");
       mensaje = conTono;
     }
+    // A16433: "¡Mucho gusto!" solo una vez por conversación.
+    const yaDijoMuchoGusto = (input.history ?? []).some(
+      (m) => m.role === "assistant" && typeof m.content === "string" && /mucho\s+gusto/i.test(m.content)
+    );
+    if (yaDijoMuchoGusto) {
+      const sinSaludo = mensaje.replace(/^\s*¡?\s*mucho\s+gusto(?:,\s*[^!.,]{1,30})?\s*[!.]?\s*/i, "");
+      if (sinSaludo !== mensaje && sinSaludo.trim().length >= 8) {
+        mensaje = sinSaludo.charAt(0).toUpperCase() + sinSaludo.slice(1);
+      }
+    }
   }
 
   if (!mensaje.trim()) {

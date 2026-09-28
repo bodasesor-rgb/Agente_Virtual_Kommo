@@ -124,6 +124,12 @@ export function softenRobotAcks(mensaje: string): string {
   );
   out = out.replace(/\bAnoto\s+(?:el\s+)?horario\s+/gi, "Horario ");
   out = out.replace(/\bAnoto\s+(?:la\s+)?fecha\s*:?\s*/gi, "Fecha ");
+  // A16433: "¡Mucho gusto! Anoto tu cumpleaños para 25 personas con la barra de mocteles."
+  out = out.replace(
+    /\bAnoto\s+tu\s+([^.!?\n]{2,120})[.!]?\s*/gi,
+    (_m, rest: string) => `¡Qué buen plan! Tu ${rest.trim()} suena increíble. `
+  );
+  out = out.replace(/\bAnoto\s+([^.!?\n]{2,100})[.!]?\s*/gi, "Va, $1. ");
   // "Queda anotado lo de Banquete."
   out = out.replace(/\bQueda\s+anotado\s+lo\s+de\s+/gi, "Seguimos con ");
   // "Ya lo tengo anotado."
