@@ -1433,6 +1433,34 @@ export function parseNamedShowLabels(text?: string | null): string[] {
   return out;
 }
 
+/**
+ * A16445: "¿Es para venta o renta de mobiliario?" / "¿venden sillas?" — el cliente
+ * pregunta si Bodasesor vende o renta (no es proveedor ofreciendo).
+ */
+export function clientAsksVentaOrRenta(message?: string | null): boolean {
+  const t = message?.trim() ?? "";
+  if (!t) return false;
+  if (/\b(les|a\s+ustedes)\s+(vendo|vendemos|ofrezco|ofrecemos)\b|\bquiero\s+venderles\b|\bventas\s+(en|de\s+la\s+empresa)\b/i.test(t)) {
+    return false;
+  }
+  return (
+    /\b(venta|renta)\s+o\s+(renta|venta)\b/i.test(t) ||
+    /\b(rentan|rentas)\s+o\s+(venden|vendes)\b|\b(venden|vendes)\s+o\s+(rentan|rentas)\b/i.test(t) ||
+    /\b(venden|vendes|manejan\s+venta|hacen\s+venta|tienen\s+venta|se\s+pueden?\s+comprar|puedo\s+comprar(las|los)?|est[aá]n?\s+a\s+la\s+venta|es\s+(solo\s+)?(para\s+)?venta)\b/i.test(
+      t
+    )
+  );
+}
+
+/** Respuesta corta del cliente eligiendo compra tras la aclaración venta/renta. */
+export function clientChoosesVenta(message?: string | null): boolean {
+  const t = message?.trim() ?? "";
+  if (!t || t.length > 60 || clientAsksVentaOrRenta(t)) return false;
+  return /^(?:s[ií][\s,.!]+)?(?:(?:ser[ií]a|es|la\s+quiero|lo\s+quiero|quiero|me\s+interesa)\s+)?(?:para\s+|en\s+)?(venta|compra|comprar(las|los)?)\b/i.test(
+    t
+  );
+}
+
 /** Etiqueta corta para anotar el acto especial en CRM. */
 export function parseSpecialLiveActLabel(message?: string | null): string | null {
   if (!message?.trim()) return null;
@@ -3888,6 +3916,19 @@ export function resolveSnackSwapLabel(text: string | null | undefined): string {
 }
 
 export function mergeServiceRequirements(
+  existing: string | null | undefined,
+  text: string | null | undefined,
+  max = 6
+): string | null {
+  const merged = mergeServiceRequirementsRaw(existing, text, max);
+  // A16445: la modalidad de compra se conserva al sumar servicios.
+  if (merged && /\(venta\)/i.test(existing ?? "") && !/\(venta\)/i.test(merged)) {
+    return `${merged} (venta)`;
+  }
+  return merged;
+}
+
+function mergeServiceRequirementsRaw(
   existing: string | null | undefined,
   text: string | null | undefined,
   max = 6

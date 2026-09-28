@@ -90164,7 +90164,7 @@ function isOccasionOrStyleAsNombre(text2) {
   const parts2 = t4.split(/\s+/).filter(Boolean);
   if (parts2.length === 1) {
     const letters = (parts2[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
-    if (/^(boutique|corporativo|empresarial|elegante|moderno|formal|casual|premium)$/i.test(letters)) {
+    if (/^(boutique|corporativo|empresarial|elegante|moderno|formal|casual|premium|venta|renta|compra|alquiler)$/i.test(letters)) {
       return true;
     }
   }
@@ -90692,7 +90692,7 @@ var init_contact_name = __esm({
     PRICE_OR_SERVICE_NAME_TOKEN = /^(cu[aá]nto|cu[aacute]nto|cuesta|cuestan|costo|precio|renta|rentar|cobran|vale|valen|mesas?|sillas?|periqueras?|salas?|mobiliario|personas?|invitados?)$/i;
     MEASUREMENT_UNIT_NAME_TOKEN = /^(metros?|mts?|m2|m²|cm|mms?|km|pulgadas?|pies?|ft|inch(?:es)?|yardas?|litros?|kg|kilos?|toneladas?)$/i;
     NUMBER_PLUS_UNIT_AS_NOMBRE = /^(?:aprox\.?|aproximadamente|unos?|unas?|de|son|mide(?:n)?|miden)?\s*\d+([.,]\d+)?\s*(?:metros?|mts?|m2|m²|m\b|cm|mms?|km|pulgadas?|pies?|ft|inch(?:es)?|yardas?)\b/i;
-    OCCASION_OR_STYLE_AS_NOMBRE = /^(boutique|fiesta(\s+boutique)?|evento(\s+[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ.-]*)?|corporativo|empresarial|premium(\s+events?)?|elegante|moderno|formal|casual|tem[aá]tica|xv(\s*a[nñ]os?)?|quincea[nñ]era|boda(\s+civil)?|cumplea[nñ]os|bautizo|graduaci[oó]n|baby\s*shower|aniversario|posada|wedding)$/i;
+    OCCASION_OR_STYLE_AS_NOMBRE = /^((?:s[ií]\s*,?\s*)?(?:para\s+|en\s+)?(?:venta|renta|compra|alquiler|comprar(?:las|los)?|rentar(?:las|los)?)|boutique|fiesta(\s+boutique)?|evento(\s+[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ.-]*)?|corporativo|empresarial|premium(\s+events?)?|elegante|moderno|formal|casual|tem[aá]tica|xv(\s*a[nñ]os?)?|quincea[nñ]era|boda(\s+civil)?|cumplea[nñ]os|bautizo|graduaci[oó]n|baby\s*shower|aniversario|posada|wedding)$/i;
     SPANISH_NUMBER_WORD_TOKEN = /^(cero|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|mil|mill[oó]n)$/i;
     FESTEJADO_RELACION = "hij[oa]|espos[oa]|mam[a\xE1]|mami|pap[a\xE1]|papi|herman[oa]|sobrin[oa]|niet[oa]|novi[oa]|abuel[oa]|abuelit[oa]|pareja|beb[e\xE9]|t[i\xED][oa]|prim[oa]|suegr[oa]|amig[oa]|jef[ae]|ahijad[oa]|peque[n\xF1][oa]|chiquit[oa]";
     FESTEJADO_NAME_TOKEN = "[A-Za-z\xC1\xC9\xCD\xD3\xDA\xDC\xD1\xE1\xE9\xED\xF3\xFA\xFC\xF1]{2,20}";
@@ -132653,6 +132653,23 @@ function parseNamedShowLabels(text2) {
   }
   return out2;
 }
+function clientAsksVentaOrRenta(message) {
+  const t4 = message?.trim() ?? "";
+  if (!t4) return false;
+  if (/\b(les|a\s+ustedes)\s+(vendo|vendemos|ofrezco|ofrecemos)\b|\bquiero\s+venderles\b|\bventas\s+(en|de\s+la\s+empresa)\b/i.test(t4)) {
+    return false;
+  }
+  return /\b(venta|renta)\s+o\s+(renta|venta)\b/i.test(t4) || /\b(rentan|rentas)\s+o\s+(venden|vendes)\b|\b(venden|vendes)\s+o\s+(rentan|rentas)\b/i.test(t4) || /\b(venden|vendes|manejan\s+venta|hacen\s+venta|tienen\s+venta|se\s+pueden?\s+comprar|puedo\s+comprar(las|los)?|est[aá]n?\s+a\s+la\s+venta|es\s+(solo\s+)?(para\s+)?venta)\b/i.test(
+    t4
+  );
+}
+function clientChoosesVenta(message) {
+  const t4 = message?.trim() ?? "";
+  if (!t4 || t4.length > 60 || clientAsksVentaOrRenta(t4)) return false;
+  return /^(?:s[ií][\s,.!]+)?(?:(?:ser[ií]a|es|la\s+quiero|lo\s+quiero|quiero|me\s+interesa)\s+)?(?:para\s+|en\s+)?(venta|compra|comprar(las|los)?)\b/i.test(
+    t4
+  );
+}
 function parseSpecialLiveActLabel(message) {
   if (!message?.trim()) return null;
   const t4 = message.trim();
@@ -134014,6 +134031,13 @@ function resolveSnackSwapLabel(text2) {
   return "Bocadillos";
 }
 function mergeServiceRequirements(existing, text2, max = 6) {
+  const merged = mergeServiceRequirementsRaw(existing, text2, max);
+  if (merged && /\(venta\)/i.test(existing ?? "") && !/\(venta\)/i.test(merged)) {
+    return `${merged} (venta)`;
+  }
+  return merged;
+}
+function mergeServiceRequirementsRaw(existing, text2, max = 6) {
   const onlySku = clientNarrowsToOnlyService(text2);
   if (onlySku) {
     return preserveSpaceAnnotation(onlySku, `${existing ?? ""} ${text2 ?? ""}`);
@@ -166515,6 +166539,43 @@ ${catalogUrl}`
       nextQ ? `${ack} ${nextQ}` : ack,
       extracted.nombre ?? display
     );
+  }
+  if (!cierreYaEnviado && currentMessage && clientAsksVentaOrRenta(currentMessage)) {
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const mentionsMob = /\b(mobiliario|mobilairio|sillas?|mesas?|periqueras?|salas?|lounge)\b/i.test(
+      `${currentMessage} ${extracted.requerimientos_evento ?? ""}`
+    );
+    if (mentionsMob) {
+      const merged = mergeServiceRequirements(extracted.requerimientos_evento, currentMessage, 6);
+      extracted.requerimientos_evento = merged || extracted.requerimientos_evento || "Mobiliario";
+      filledSet.add("Requerimientos o servicios");
+    }
+    const piecesKnown = /\b(sillas?|mesas?|periqueras?|salas?|lounge|tiffany|crossback|ghost)\b/i.test(
+      `${currentMessage} ${extracted.requerimientos_evento ?? ""}`
+    );
+    const answer = `${display ? `\xA1Hola, ${display}! ` : ""}Nos enfocamos m\xE1s en *renta*, pero con gusto te podemos cotizar para *venta*.`;
+    let nextQ = null;
+    if (mentionsMob && !piecesKnown) {
+      nextQ = "\xBFQu\xE9 piezas te interesan (mesas, sillas, periqueras o salas) y las buscas en renta o para compra?";
+    } else {
+      const pending = getNextPendingField(extracted, filledSet);
+      nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    }
+    log?.info({ entityId }, "GUARD: A16445 \u2014 cliente pregunta venta o renta");
+    return normalizeAdvisorReferences2(nextQ ? `${answer} ${nextQ}` : answer, extracted.nombre ?? display);
+  }
+  if (!cierreYaEnviado && currentMessage && clientChoosesVenta(currentMessage) && /cotizar\s+para\s+\*?venta/i.test(
+    [...presHistory].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string")?.content?.toString() ?? ""
+  )) {
+    const req = extracted.requerimientos_evento?.trim() || "Mobiliario";
+    if (!/\(venta\)/i.test(req)) extracted.requerimientos_evento = `${req} (venta)`;
+    filledSet.add("Requerimientos o servicios");
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    const ack = "Va, lo cotizamos para *venta*.";
+    log?.info({ entityId }, "GUARD: A16445 \u2014 cliente elige venta");
+    return normalizeAdvisorReferences2(nextQ ? `${ack} ${nextQ}` : ack, extracted.nombre ?? display);
   }
   {
     const recentUserForDecline = collectUserTexts(presHistory, void 0).slice(-4);
@@ -234147,6 +234208,8 @@ Lee el mensaje y responde DIRECTO lo que pregunt\xF3, en ese mismo turno.
 - Carpas, pista o tarima \u2192 pide medidas aproximadas (y tipo si a\xFAn no lo dijeron).
   Si piden recomendaci\xF3n seg\xFAn invitados, da una referencia razonable (p. ej. pista
   8m\xD78m para ~120 invitados en XV/boda) y pregunta si les late o si ya tienen el espacio medido.
+- "\xBFEs venta o renta?" / "\xBFvenden mobiliario?" \u2192 "Nos enfocamos m\xE1s en *renta*, pero con
+  gusto te podemos cotizar para *venta*." Luego pregunta qu\xE9 piezas busca.
 
 ===================================================================
 ## 6. OFRECER CON CRITERIO (no bombardear)
@@ -235461,7 +235524,7 @@ async function finalizeLucyOutboundMessage(input) {
   const alreadyOperational = /\b(s[ií]|manejamos|monta|incluye|prepar|cocin|precio|\$|contamos|ofrecemos|horn|ayudo|anoto|entretenimiento|shows?|hora\s+loca|animaci[oó]n|cat[aá]logo|bodasesor\.com|mesas?\s+y\s+sillas|tiffany|crossback)\b/i.test(
     mensaje
   );
-  if (!input.cierreYaEnviado && !openingNombreOnly && !hasLucyIntro && input.currentMessage && (clientAsksServiceInfo(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage)) && (isServiceRelatedMessage(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage)) && !alreadyOperational) {
+  if (!input.cierreYaEnviado && !openingNombreOnly && !hasLucyIntro && input.currentMessage && !(clientAsksVentaOrRenta(input.currentMessage) && /\b(renta|venta)\b/i.test(mensaje)) && (clientAsksServiceInfo(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage)) && (isServiceRelatedMessage(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage)) && !alreadyOperational) {
     const ack = buildConcreteProductQuestionReply(input.currentMessage) || buildGuardServiceAck(input.currentMessage);
     const keepQ = (mensaje.match(/[^.!?]*\?/g) ?? []).join(" ").trim();
     mensaje = keepQ ? `${ack}

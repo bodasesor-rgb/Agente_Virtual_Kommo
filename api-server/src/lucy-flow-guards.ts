@@ -176,6 +176,8 @@ import {
   clientMentionsSpecialLiveAct,
   parseSpecialLiveActLabel,
   parseNamedShowLabels,
+  clientAsksVentaOrRenta,
+  clientChoosesVenta,
   clientConfirmsOfferReview,
   clientMentionsLedRobotsOrBatucada,
   clientMentionsPistaTarima,
@@ -7002,6 +7004,53 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       nextQ ? `${ack} ${nextQ}` : ack,
       extracted.nombre ?? display
     );
+  }
+
+  // A16445: "¿es venta o renta?" → política Bodasesor (más renta, también cotizamos venta).
+  if (!cierreYaEnviado && currentMessage && clientAsksVentaOrRenta(currentMessage)) {
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const mentionsMob = /\b(mobiliario|mobilairio|sillas?|mesas?|periqueras?|salas?|lounge)\b/i.test(
+      `${currentMessage} ${extracted.requerimientos_evento ?? ""}`
+    );
+    if (mentionsMob) {
+      const merged = mergeServiceRequirements(extracted.requerimientos_evento, currentMessage, 6);
+      extracted.requerimientos_evento = merged || extracted.requerimientos_evento || "Mobiliario";
+      filledSet.add("Requerimientos o servicios");
+    }
+    const piecesKnown = /\b(sillas?|mesas?|periqueras?|salas?|lounge|tiffany|crossback|ghost)\b/i.test(
+      `${currentMessage} ${extracted.requerimientos_evento ?? ""}`
+    );
+    const answer = `${display ? `¡Hola, ${display}! ` : ""}Nos enfocamos más en *renta*, pero con gusto te podemos cotizar para *venta*.`;
+    let nextQ: string | null = null;
+    if (mentionsMob && !piecesKnown) {
+      nextQ = "¿Qué piezas te interesan (mesas, sillas, periqueras o salas) y las buscas en renta o para compra?";
+    } else {
+      const pending = getNextPendingField(extracted, filledSet);
+      nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    }
+    log?.info({ entityId }, "GUARD: A16445 — cliente pregunta venta o renta");
+    return normalizeAdvisorReferences(nextQ ? `${answer} ${nextQ}` : answer, extracted.nombre ?? display);
+  }
+  if (
+    !cierreYaEnviado &&
+    currentMessage &&
+    clientChoosesVenta(currentMessage) &&
+    /cotizar\s+para\s+\*?venta/i.test(
+      [...presHistory]
+        .reverse()
+        .find((m) => m.role === "assistant" && typeof m.content === "string")
+        ?.content?.toString() ?? ""
+    )
+  ) {
+    const req = extracted.requerimientos_evento?.trim() || "Mobiliario";
+    if (!/\(venta\)/i.test(req)) extracted.requerimientos_evento = `${req} (venta)`;
+    filledSet.add("Requerimientos o servicios");
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    const ack = "Va, lo cotizamos para *venta*.";
+    log?.info({ entityId }, "GUARD: A16445 — cliente elige venta");
+    return normalizeAdvisorReferences(nextQ ? `${ack} ${nextQ}` : ack, extracted.nombre ?? display);
   }
 
   // A15295 / A16074: declines ANTES de zona-ack ("No quiero pista" ≠ ubicación).

@@ -38,6 +38,7 @@ import {
   clientChoosesChatDelivery,
   clientChoosesEmailDelivery,
   clientDeclinesMoreServices,
+  clientAsksVentaOrRenta,
   parseCorreoFromText,
 } from "./conversation-understanding.js";
 import { suggestEmailDomainFix } from "./client-email.js";
@@ -184,6 +185,7 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
     !openingNombreOnly &&
     !hasLucyIntro &&
     input.currentMessage &&
+    !(clientAsksVentaOrRenta(input.currentMessage) && /\b(renta|venta)\b/i.test(mensaje)) &&
     (clientAsksServiceInfo(input.currentMessage) ||
       clientAsksConcreteProductQuestion(input.currentMessage)) &&
     (isServiceRelatedMessage(input.currentMessage) ||

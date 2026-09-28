@@ -156,7 +156,7 @@ const NUMBER_PLUS_UNIT_AS_NOMBRE =
  * "Boutique", "Fiesta Boutique", "Evento Boutique", "Corporativo".
  */
 const OCCASION_OR_STYLE_AS_NOMBRE =
-  /^(boutique|fiesta(\s+boutique)?|evento(\s+[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ.-]*)?|corporativo|empresarial|premium(\s+events?)?|elegante|moderno|formal|casual|tem[aá]tica|xv(\s*a[nñ]os?)?|quincea[nñ]era|boda(\s+civil)?|cumplea[nñ]os|bautizo|graduaci[oó]n|baby\s*shower|aniversario|posada|wedding)$/i;
+  /^((?:s[ií]\s*,?\s*)?(?:para\s+|en\s+)?(?:venta|renta|compra|alquiler|comprar(?:las|los)?|rentar(?:las|los)?)|boutique|fiesta(\s+boutique)?|evento(\s+[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ.-]*)?|corporativo|empresarial|premium(\s+events?)?|elegante|moderno|formal|casual|tem[aá]tica|xv(\s*a[nñ]os?)?|quincea[nñ]era|boda(\s+civil)?|cumplea[nñ]os|bautizo|graduaci[oó]n|baby\s*shower|aniversario|posada|wedding)$/i;
 
 /** Números en letras (español) — no son nombre ("Uno Dos"). */
 const SPANISH_NUMBER_WORD_TOKEN =
@@ -197,7 +197,7 @@ export function isOccasionOrStyleAsNombre(text: string | null | undefined): bool
   const parts = t.split(/\s+/).filter(Boolean);
   if (parts.length === 1) {
     const letters = (parts[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
-    if (/^(boutique|corporativo|empresarial|elegante|moderno|formal|casual|premium)$/i.test(letters)) {
+    if (/^(boutique|corporativo|empresarial|elegante|moderno|formal|casual|premium|venta|renta|compra|alquiler)$/i.test(letters)) {
       return true;
     }
   }
