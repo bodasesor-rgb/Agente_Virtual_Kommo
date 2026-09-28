@@ -90791,6 +90791,7 @@ var init_bodasesorAdvisor = __esm({
 // src/services/trendKnowledge.ts
 function eventKey(tipo) {
   const t4 = (tipo ?? "").toLowerCase();
+  if (/apertura|inaugura|lanzamiento|showroom|tienda|negocio|open\s*house/.test(t4)) return "apertura";
   if (/boda|wedding/.test(t4)) return "boda";
   if (/xv|quince/.test(t4)) return "xv";
   if (/corporativ|empresarial|gala|conferenc/.test(t4)) return "corporativo";
@@ -90834,8 +90835,7 @@ function pickTips(tipoEvento, max = 2, alreadySent) {
   const tips = TIPS_BY_EVENT[eventKey(tipoEvento)] ?? TIPS_BY_EVENT.default;
   const sent = alreadySent ? normalizeForTipMatch(alreadySent) : "";
   const fresh = sent ? tips.filter((tip) => !sent.includes(normalizeForTipMatch(tip).slice(0, 40))) : tips;
-  const pool2 = fresh.length ? fresh : tips;
-  return pool2.slice(0, max);
+  return fresh.slice(0, max);
 }
 function parseGroundingBullets(snippet, max = 2) {
   const raw = (snippet ?? "").trim();
@@ -90851,6 +90851,13 @@ function parseGroundingBullets(snippet, max = 2) {
     if (out2.length >= max) break;
   }
   return out2;
+}
+function containsStaticSalesTip(text2) {
+  const norm2 = normalizeForTipMatch(text2 ?? "");
+  if (!norm2.trim()) return false;
+  return Object.values(TIPS_BY_EVENT).some(
+    (tips) => tips.some((tip) => norm2.includes(normalizeForTipMatch(tip).slice(0, 40)))
+  );
 }
 function messageAlreadyOffersSalesIdeas(text2) {
   const t4 = text2 ?? "";
@@ -91045,10 +91052,15 @@ var init_trendKnowledge = __esm({
         "Brunch o banquete ligero + pastel + mesa de dulces arma un look familiar limpio.",
         "En jard\xEDn o terraza: carpas o sombrillas + mobiliario b\xE1sico sin saturar."
       ],
+      apertura: [
+        "C\xF3ctel de bienvenida con canap\xE9s y barra de mixolog\xEDa: la gente recorre el espacio con copa en mano.",
+        "Iluminaci\xF3n ambiental que resalte el producto + DJ en modo lounge, sin tapar la pl\xE1tica.",
+        "Un backdrop con la marca para fotos y redes hace que la apertura se comparta sola."
+      ],
       default: [
-        "Primero define el vibe (elegante, fiesta, jard\xEDn) y luego encaja servicios.",
-        "Combina 2\u20133 piezas ancla (espacio, comida, ambiente) antes de saturar extras.",
-        "Si el espacio es chico, prioriza iluminaci\xF3n y mobiliario lounge sobre montajes grandes."
+        "Barra de bebidas + estaciones de comida hacen que la gente se mueva y conviva m\xE1s que un banquete fijo.",
+        "Iluminaci\xF3n c\xE1lida + una sala lounge elevan el ambiente sin saturar el espacio.",
+        "Un DJ que arranque tranquilo y suba al final mantiene la energ\xEDa toda la noche."
       ]
     };
   }
@@ -134442,6 +134454,63 @@ function clientDefersHorario(text2) {
   /\b(a[uú]n|todav[ií]a)\s+no\s+(?:se\s+|s[eé]\s+)?defin/i.test(t4) || /\b(a[uú]n|todav[ií]a)\s+no\s+definid/i.test(t4) || // A15918: "No se sabe" / "no se sabe el horario"
   /^\s*no\s+se\s+sabe\b/i.test(t4) || /\bno\s+se\s+sabe(\s+(el\s+)?horario)?\b/i.test(t4) || /^(no\s+s[eé]|ni\s+idea)[\s.,!]*$/i.test(t4);
 }
+function dayPeriodToAmPm(hour, period) {
+  const p5 = (period ?? "").toLowerCase().replace(/\s+/g, " ");
+  if (!p5) return null;
+  if (/^(hrs?|horas)$/.test(p5)) return "24h";
+  if (/^a\.?\s*m|^am$|ma[nñ]ana|madrugada/.test(p5)) return "am";
+  if (/noche/.test(p5) && hour === 12) return "am";
+  return "pm";
+}
+function parseClockRangeWithPeriods(text2) {
+  const t4 = (text2 ?? "").replace(/\s+/g, " ").trim();
+  if (!t4 || /\b(personas?|invitad[oa]s?|asistentes?|comensales?|pax)\b/i.test(t4)) return null;
+  const re4 = new RegExp(
+    String.raw`(?:^|[^\d:])(?:de\s+(?:las?\s+)?)?(\d{1,2})(?::(\d{2}))?\s*(${DAY_PERIOD_SRC})?(\s*(?:a|[-–]|hasta)\s*|\s+)(?:las?\s+)?(\d{1,2})(?::(\d{2}))?\s*(${DAY_PERIOD_SRC})?(?=$|[^\d:])`,
+    "i"
+  );
+  const m6 = t4.match(re4);
+  if (!m6) return null;
+  const h1 = Number(m6[1]);
+  const h22 = Number(m6[5]);
+  const hasConnector = /\S/.test(m6[4] ?? "");
+  const p1 = dayPeriodToAmPm(h1, m6[3]);
+  const p22 = dayPeriodToAmPm(h22, m6[7]);
+  if (!p1 && !p22) return null;
+  if (!hasConnector && !(p1 && p22)) return null;
+  if (h1 > 24 || h22 > 24) return null;
+  const mm1 = m6[2];
+  const mm2 = m6[6];
+  if ((p1 === "24h" || p22 === "24h") && !mm1 && !mm2 && h1 <= 12 && h22 <= 12) return null;
+  const to24 = (h5, p5) => p5 === "24h" ? h5 % 24 : h5 % 12 + (p5 === "pm" ? 12 : 0);
+  const fmt = (h24, mm) => {
+    const p5 = h24 >= 12 ? "pm" : "am";
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    return `${h12}${mm ? `:${mm}` : ""} ${p5}`;
+  };
+  const nearestAfter = (start24, h5) => {
+    const cands = [h5 % 12, h5 % 12 + 12];
+    return cands.reduce(
+      (best, c5) => ((c5 - start24 + 24) % 24 || 24) < ((best - start24 + 24) % 24 || 24) ? c5 : best
+    );
+  };
+  let s24;
+  let e24;
+  if (p1 && p22) {
+    s24 = to24(h1, p1);
+    e24 = to24(h22, p22);
+  } else if (p1) {
+    s24 = to24(h1, p1);
+    e24 = h22 > 12 ? h22 % 24 : nearestAfter(s24, h22);
+  } else {
+    e24 = to24(h22, p22);
+    const cands = h1 > 12 ? [h1 % 24] : [h1 % 12, h1 % 12 + 12];
+    s24 = cands.reduce(
+      (best, c5) => ((e24 - c5 + 24) % 24 || 24) < ((e24 - best + 24) % 24 || 24) ? c5 : best
+    );
+  }
+  return `${fmt(s24, mm1)} a ${fmt(e24, mm2)}`;
+}
 function parseHorarioFromText(text2) {
   const trimmed = text2.trim();
   if (!trimmed) return null;
@@ -134463,6 +134532,10 @@ function parseHorarioFromText(text2) {
       if (h5 === 24) h5 = 12;
       return `${String(h5).padStart(2, "0")}:${m6}`;
     }
+  }
+  {
+    const rangeWithPeriods = parseClockRangeWithPeriods(clean);
+    if (rangeWithPeriods) return rangeWithPeriods;
   }
   if (/\b(personas?|invitad[oa]s?|asistentes?|comensales?)\b/i.test(clean) && /\b\d{1,4}\s*(?:a|[-–]|hasta)\s*\d{1,4}\b/i.test(clean)) {
     return null;
@@ -134655,6 +134728,7 @@ function isUsableHorarioEvento(value) {
   if (looksLikeMealTimeNotLocation(t4) && t4.split(/\s+/).length <= 6) return true;
   if (/\b\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}/i.test(t4)) return true;
   if (/\b(?:a\s+las|desde\s+las)\s+\d/i.test(t4)) return true;
+  if (parseClockRangeWithPeriods(t4)) return true;
   if (/\b(tarde|noche|mediod[ií]a|ma[nñ]ana)\b/i.test(t4) && t4.split(/\s+/).length <= 5) {
     return true;
   }
@@ -134707,6 +134781,11 @@ function isUsableFechaHorario(value) {
   if (isMealTimeOnlySchedule(t4)) return false;
   if (isClockTimeOnlySchedule(t4)) return false;
   if (looksLikeFechaDiscourseJunk(t4)) return false;
+  if (/^(?:(?:ser[ií]a|es)\s+)?(?:en\s+(?:el|la)\s+|al\s+|por\s+la\s+|a\s+la\s+|de\s+)?(atardecer|anochecer|amanecer|tarde|noche|mediod[ií]a|medio\s+d[ií]a|madrugada|puesta\s+de\s+sol)\s*[\p{Extended_Pictographic}\s]*$/iu.test(
+    t4
+  )) {
+    return false;
+  }
   if (t4.split(/\s+/).length >= 10 && !/\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
     t4
   )) {
@@ -136471,6 +136550,15 @@ function applyCapturesToCrm(mergedLines, filledSet, captures) {
     if (!value?.trim()) continue;
     if (label === CRM_FECHA_LABEL) {
       value = resolveFechaEvento(value) ?? value;
+      if (filledSet.has(label)) {
+        const re4 = new RegExp(`^-?\\s*${CRM_FECHA_LABEL}:\\s*`, "i");
+        const idx = mergedLines.findIndex((l6) => re4.test(l6));
+        const existing = idx >= 0 ? mergedLines[idx].replace(re4, "").trim() : "";
+        if (idx >= 0 && isUsableFechaEvento(value) && (!isUsableFechaEvento(existing) || isRicherFechaCapture(value, existing))) {
+          mergedLines[idx] = `- ${CRM_FECHA_LABEL}: ${value}`;
+        }
+        continue;
+      }
     }
     if (label === CRM_HORARIO_LABEL) {
       const idx = mergedLines.findIndex(
@@ -136480,6 +136568,10 @@ function applyCapturesToCrm(mergedLines, filledSet, captures) {
       const resolved = resolveHorarioWithContext(value, existing, crmBlob) ?? value;
       if (idx >= 0 && filledSet.has(label) && existing && /\d/.test(existing) && !/\d/.test(value)) {
         if (resolved !== value) mergedLines[idx] = `- ${CRM_HORARIO_LABEL}: ${resolved}`;
+        continue;
+      }
+      if (idx >= 0 && filledSet.has(label) && existing && /\d/.test(resolved) && (!/\d/.test(existing) || isRicherHorarioCapture(resolved, existing))) {
+        mergedLines[idx] = `- ${CRM_HORARIO_LABEL}: ${resolved}`;
         continue;
       }
       value = resolved;
@@ -136635,7 +136727,7 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     extracted.requerimientos_evento = null;
   }
 }
-var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_DISCOURSE_CUT, VENUE_DISCOURSE_JUNK, VAGUE_VENUE_LABEL, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, MX_CITY_ABBREVIATIONS, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
+var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_DISCOURSE_CUT, VENUE_DISCOURSE_JUNK, VAGUE_VENUE_LABEL, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, DAY_PERIOD_SRC, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, MX_CITY_ABBREVIATIONS, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
 var init_conversation_understanding = __esm({
   "src/conversation-understanding.ts"() {
     "use strict";
@@ -137021,6 +137113,7 @@ var init_conversation_understanding = __esm({
     STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
     CLOCK_AMPM = String.raw`(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)`;
     CLOCK_TOKEN = String.raw`\d{1,2}(?::\d{2})?`;
+    DAY_PERIOD_SRC = String.raw`de\s+la\s+(?:ma[nñ]ana|tarde|noche|madrugada)|del\s+medio\s*d[ií]a|am|pm|a\.\s*m\.?|p\.\s*m\.?|hrs?|horas`;
     GUEST_COUNT_WORDS = "personas?|invitados?|invitadas?|pax|guests?|gentes?|cabezas?";
     STANDARD_PISTA_SIZES = [
       { w: 4, h: 4, area: 16 },
@@ -235069,7 +235162,7 @@ function softenRobotAcks(mensaje) {
   let out2 = mensaje;
   out2 = out2.replace(
     /\bPerfecto\.?\s*Anoto(?:\s+tu)?\s+(\*[^*]{1,60}\*|[^.!?\n]{2,60})[.!]?\s*/gi,
-    "\xA1Va! Armamos $1. "
+    "\xA1Perfecto, $1! "
   );
   out2 = out2.replace(/\b¡?Claro!?\.?\s*Anoto\s+/gi, "\xA1Claro! Vamos con ");
   out2 = out2.replace(/\bPerfecto\s*[—–-]\s*anoto\s+/gi, "\xA1Va! Sumamos ");
@@ -235226,13 +235319,14 @@ ${keepQ}` : ack;
     const lastLucy = lucyTexts[lucyTexts.length - 1] ?? "";
     const acceptedIdeas = clientAcceptsIdeasOffer(input.currentMessage, lastLucy);
     const forceIdeas = acceptedIdeas || clientWantsIdeasOrTrends(input.currentMessage) || /recomendaciones?|ideas?\b|colores?|montajes?/i.test(input.currentMessage ?? "");
-    const withIdeas = enrichReplyWithSalesIdeas(mensaje, {
+    const recentTip = lucyTexts.slice(-2).some((t4) => containsStaticSalesTip(t4) || messageAlreadyOffersSalesIdeas(t4));
+    const withIdeas = !forceIdeas && recentTip ? mensaje : enrichReplyWithSalesIdeas(mensaje, {
       tipoEvento: input.extracted.tipo_evento,
       messageText: input.currentMessage,
       requerimientos: input.extracted.requerimientos_evento,
       force: forceIdeas,
       accepted: acceptedIdeas,
-      alreadySent: lucyTexts.slice(-4).join("\n"),
+      alreadySent: lucyTexts.join("\n"),
       contextText: historyText("user").slice(-6).join("\n"),
       numInvitados: input.extracted.num_invitados ?? null,
       groundingSnippet: input.trendGroundingSnippet ?? null

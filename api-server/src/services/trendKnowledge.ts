@@ -58,15 +58,21 @@ const TIPS_BY_EVENT: Record<string, string[]> = {
     "Brunch o banquete ligero + pastel + mesa de dulces arma un look familiar limpio.",
     "En jardín o terraza: carpas o sombrillas + mobiliario básico sin saturar.",
   ],
+  apertura: [
+    "Cóctel de bienvenida con canapés y barra de mixología: la gente recorre el espacio con copa en mano.",
+    "Iluminación ambiental que resalte el producto + DJ en modo lounge, sin tapar la plática.",
+    "Un backdrop con la marca para fotos y redes hace que la apertura se comparta sola.",
+  ],
   default: [
-    "Primero define el vibe (elegante, fiesta, jardín) y luego encaja servicios.",
-    "Combina 2–3 piezas ancla (espacio, comida, ambiente) antes de saturar extras.",
-    "Si el espacio es chico, prioriza iluminación y mobiliario lounge sobre montajes grandes.",
+    "Barra de bebidas + estaciones de comida hacen que la gente se mueva y conviva más que un banquete fijo.",
+    "Iluminación cálida + una sala lounge elevan el ambiente sin saturar el espacio.",
+    "Un DJ que arranque tranquilo y suba al final mantiene la energía toda la noche.",
   ],
 };
 
 function eventKey(tipo?: string | null): keyof typeof TIPS_BY_EVENT {
   const t = (tipo ?? "").toLowerCase();
+  if (/apertura|inaugura|lanzamiento|showroom|tienda|negocio|open\s*house/.test(t)) return "apertura";
   if (/boda|wedding/.test(t)) return "boda";
   if (/xv|quince/.test(t)) return "xv";
   if (/corporativ|empresarial|gala|conferenc/.test(t)) return "corporativo";
@@ -137,8 +143,7 @@ function pickTips(tipoEvento?: string | null, max = 2, alreadySent?: string | nu
   const fresh = sent
     ? tips.filter((tip) => !sent.includes(normalizeForTipMatch(tip).slice(0, 40)))
     : tips;
-  const pool = fresh.length ? fresh : tips;
-  return pool.slice(0, max);
+  return fresh.slice(0, max);
 }
 
 /**
@@ -164,6 +169,15 @@ export function parseGroundingBullets(snippet?: string | null, max = 2): string[
     if (out.length >= max) break;
   }
   return out;
+}
+
+/** ¿El texto trae algún tip estático de TIPS_BY_EVENT? */
+export function containsStaticSalesTip(text: string | null | undefined): boolean {
+  const norm = normalizeForTipMatch(text ?? "");
+  if (!norm.trim()) return false;
+  return Object.values(TIPS_BY_EVENT).some((tips) =>
+    tips.some((tip) => norm.includes(normalizeForTipMatch(tip).slice(0, 40)))
+  );
 }
 
 /** True si el mensaje ya trae ideas/tips de venta (no reinyectar). */

@@ -4740,6 +4740,75 @@ export function clientDefersHorario(text: string | null | undefined): boolean {
   );
 }
 
+const DAY_PERIOD_SRC = String.raw`de\s+la\s+(?:ma[nñ]ana|tarde|noche|madrugada)|del\s+medio\s*d[ií]a|am|pm|a\.\s*m\.?|p\.\s*m\.?|hrs?|horas`;
+
+function dayPeriodToAmPm(hour: number, period: string | undefined): "am" | "pm" | "24h" | null {
+  const p = (period ?? "").toLowerCase().replace(/\s+/g, " ");
+  if (!p) return null;
+  if (/^(hrs?|horas)$/.test(p)) return "24h";
+  if (/^a\.?\s*m|^am$|ma[nñ]ana|madrugada/.test(p)) return "am";
+  if (/noche/.test(p) && hour === 12) return "am";
+  return "pm";
+}
+
+/**
+ * A16434: rango con periodo del día en al menos un lado.
+ * "De 5:00 de la tarde a 10:00\nDe la noche" → "5:00 pm a 10:00 pm"; "5:00PM 10PM" → "5:00 pm a 10 pm".
+ */
+export function parseClockRangeWithPeriods(text: string): string | null {
+  const t = (text ?? "").replace(/\s+/g, " ").trim();
+  if (!t || /\b(personas?|invitad[oa]s?|asistentes?|comensales?|pax)\b/i.test(t)) return null;
+  const re = new RegExp(
+    String.raw`(?:^|[^\d:])(?:de\s+(?:las?\s+)?)?(\d{1,2})(?::(\d{2}))?\s*(${DAY_PERIOD_SRC})?(\s*(?:a|[-–]|hasta)\s*|\s+)(?:las?\s+)?(\d{1,2})(?::(\d{2}))?\s*(${DAY_PERIOD_SRC})?(?=$|[^\d:])`,
+    "i"
+  );
+  const m = t.match(re);
+  if (!m) return null;
+  const h1 = Number(m[1]);
+  const h2 = Number(m[5]);
+  const hasConnector = /\S/.test(m[4] ?? "");
+  const p1 = dayPeriodToAmPm(h1, m[3]);
+  const p2 = dayPeriodToAmPm(h2, m[7]);
+  if (!p1 && !p2) return null;
+  if (!hasConnector && !(p1 && p2)) return null;
+  if (h1 > 24 || h2 > 24) return null;
+  const mm1 = m[2];
+  const mm2 = m[6];
+  // "de 4 a 5 horas" = duración, no horario.
+  if ((p1 === "24h" || p2 === "24h") && !mm1 && !mm2 && h1 <= 12 && h2 <= 12) return null;
+
+  const to24 = (h: number, p: "am" | "pm" | "24h") =>
+    p === "24h" ? h % 24 : (h % 12) + (p === "pm" ? 12 : 0);
+  const fmt = (h24: number, mm?: string) => {
+    const p = h24 >= 12 ? "pm" : "am";
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    return `${h12}${mm ? `:${mm}` : ""} ${p}`;
+  };
+  // Lado sin periodo: el candidato (am/pm) más cercano después del inicio / antes del fin.
+  const nearestAfter = (start24: number, h: number) => {
+    const cands = [h % 12, (h % 12) + 12];
+    return cands.reduce((best, c) =>
+      ((c - start24 + 24) % 24 || 24) < ((best - start24 + 24) % 24 || 24) ? c : best
+    );
+  };
+  let s24: number;
+  let e24: number;
+  if (p1 && p2) {
+    s24 = to24(h1, p1);
+    e24 = to24(h2, p2);
+  } else if (p1) {
+    s24 = to24(h1, p1);
+    e24 = h2 > 12 ? h2 % 24 : nearestAfter(s24, h2);
+  } else {
+    e24 = to24(h2, p2!);
+    const cands = h1 > 12 ? [h1 % 24] : [h1 % 12, (h1 % 12) + 12];
+    s24 = cands.reduce((best, c) =>
+      ((e24 - c + 24) % 24 || 24) < ((e24 - best + 24) % 24 || 24) ? c : best
+    );
+  }
+  return `${fmt(s24, mm1)} a ${fmt(e24, mm2)}`;
+}
+
 /** Extrae horario de un mensaje (sin día). A15566: rangos con am/pm y "a partir de". */
 export function parseHorarioFromText(text: string): string | null {
   const trimmed = text.trim();
@@ -4764,6 +4833,11 @@ export function parseHorarioFromText(text: string): string | null {
       if (h === 24) h = 12;
       return `${String(h).padStart(2, "0")}:${m}`;
     }
+  }
+
+  {
+    const rangeWithPeriods = parseClockRangeWithPeriods(clean);
+    if (rangeWithPeriods) return rangeWithPeriods;
   }
 
   // A15903: "10 - 12 personas" / "aproximadamente 10-12" ≠ horario.
@@ -5047,6 +5121,8 @@ export function isUsableHorarioEvento(value: string | null | undefined): boolean
   if (looksLikeMealTimeNotLocation(t) && t.split(/\s+/).length <= 6) return true;
   if (/\b\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}/i.test(t)) return true;
   if (/\b(?:a\s+las|desde\s+las)\s+\d/i.test(t)) return true;
+  // A16434: "5:00 de la tarde a 10:00 de la noche" / "5:00PM 10PM".
+  if (parseClockRangeWithPeriods(t)) return true;
   if (/\b(tarde|noche|mediod[ií]a|ma[nñ]ana)\b/i.test(t) && t.split(/\s+/).length <= 5) {
     return true;
   }
@@ -5112,6 +5188,14 @@ export function isUsableFechaHorario(value: string | null | undefined): boolean 
   if (isMealTimeOnlySchedule(t)) return false;
   if (isClockTimeOnlySchedule(t)) return false;
   if (looksLikeFechaDiscourseJunk(t)) return false;
+  // A16434: "atardecer" / "en la noche" es momento del día, no fecha.
+  if (
+    /^(?:(?:ser[ií]a|es)\s+)?(?:en\s+(?:el|la)\s+|al\s+|por\s+la\s+|a\s+la\s+|de\s+)?(atardecer|anochecer|amanecer|tarde|noche|mediod[ií]a|medio\s+d[ií]a|madrugada|puesta\s+de\s+sol)\s*[\p{Extended_Pictographic}\s]*$/iu.test(
+      t
+    )
+  ) {
+    return false;
+  }
   // Frase conversacional sin ancla de fecha corta.
   if (
     t.split(/\s+/).length >= 10 &&
@@ -8007,6 +8091,20 @@ export function applyCapturesToCrm(
     // Fecha/horario del mensaje actual → absolutos con referencia a hoy (CDMX).
     if (label === CRM_FECHA_LABEL) {
       value = resolveFechaEvento(value) ?? value;
+      if (filledSet.has(label)) {
+        const re = new RegExp(`^-?\\s*${CRM_FECHA_LABEL}:\\s*`, "i");
+        const idx = mergedLines.findIndex((l) => re.test(l));
+        const existing = idx >= 0 ? mergedLines[idx]!.replace(re, "").trim() : "";
+        // A16434: "atardecer" guardado como fecha → lo reemplaza "8 de octubre".
+        if (
+          idx >= 0 &&
+          isUsableFechaEvento(value) &&
+          (!isUsableFechaEvento(existing) || isRicherFechaCapture(value, existing))
+        ) {
+          mergedLines[idx] = `- ${CRM_FECHA_LABEL}: ${value}`;
+        }
+        continue;
+      }
     }
     if (label === CRM_HORARIO_LABEL) {
       const idx = mergedLines.findIndex((l) =>
@@ -8020,6 +8118,17 @@ export function applyCapturesToCrm(
       // "de la noche" tras "7:30 a 12:30" → completar el horario ya guardado.
       if (idx >= 0 && filledSet.has(label) && existing && /\d/.test(existing) && !/\d/.test(value)) {
         if (resolved !== value) mergedLines[idx] = `- ${CRM_HORARIO_LABEL}: ${resolved}`;
+        continue;
+      }
+      // "tarde" / "atardecer" guardado → lo reemplaza "5:00 pm a 10:00 pm".
+      if (
+        idx >= 0 &&
+        filledSet.has(label) &&
+        existing &&
+        /\d/.test(resolved) &&
+        (!/\d/.test(existing) || isRicherHorarioCapture(resolved, existing))
+      ) {
+        mergedLines[idx] = `- ${CRM_HORARIO_LABEL}: ${resolved}`;
         continue;
       }
       value = resolved;

@@ -24,7 +24,9 @@ import { applyClientNameCadence, stripMidMessageFiller, softenRobotAcks } from "
 import {
   clientAcceptsIdeasOffer,
   clientWantsIdeasOrTrends,
+  containsStaticSalesTip,
   enrichReplyWithSalesIdeas,
+  messageAlreadyOffersSalesIdeas,
 } from "./services/trendKnowledge.js";
 import { maybeRefinarMensajeCierre } from "./services/lucyRedaction.js";
 import {
@@ -243,13 +245,17 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
       acceptedIdeas ||
       clientWantsIdeasOrTrends(input.currentMessage) ||
       /recomendaciones?|ideas?\b|colores?|montajes?/i.test(input.currentMessage ?? "");
-    const withIdeas = enrichReplyWithSalesIdeas(mensaje, {
+    // A16434: tip proactivo máx. cada 3 mensajes (no en turnos seguidos).
+    const recentTip = lucyTexts
+      .slice(-2)
+      .some((t) => containsStaticSalesTip(t) || messageAlreadyOffersSalesIdeas(t));
+    const withIdeas = !forceIdeas && recentTip ? mensaje : enrichReplyWithSalesIdeas(mensaje, {
       tipoEvento: input.extracted.tipo_evento,
       messageText: input.currentMessage,
       requerimientos: input.extracted.requerimientos_evento,
       force: forceIdeas,
       accepted: acceptedIdeas,
-      alreadySent: lucyTexts.slice(-4).join("\n"),
+      alreadySent: lucyTexts.join("\n"),
       contextText: historyText("user").slice(-6).join("\n"),
       numInvitados: input.extracted.num_invitados ?? null,
       groundingSnippet: input.trendGroundingSnippet ?? null,
