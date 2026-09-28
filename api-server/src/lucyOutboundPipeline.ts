@@ -34,7 +34,13 @@ import {
   isServiceRelatedMessage,
   clientMentionsEntertainment,
   parseHorarioFromText,
+  historyHasDeliveryChannelChoice,
+  clientChoosesChatDelivery,
+  clientChoosesEmailDelivery,
+  clientDeclinesMoreServices,
+  parseCorreoFromText,
 } from "./conversation-understanding.js";
+import { suggestEmailDomainFix } from "./client-email.js";
 import { horarioNeedsAmPmConfirmation } from "./lib/eventDateTime.js";
 import { buildGuardServiceAck } from "./services/serviceKnowledge.js";
 import {
@@ -299,6 +305,46 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
         ? buildPostCierreThanksReply(input.extracted.nombre)
         : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
     input.log?.warn({ entityId: input.entityId }, "GUARD: mensaje vacío — respuesta de respaldo");
+  }
+
+  // A16437: canal ya elegido ("Por aquí está bien") + "Es todo" → despedida corta,
+  // nunca reenviar el cierre completo ni volver a preguntar el canal.
+  {
+    const hist = input.history ?? [];
+    const cm = (input.currentMessage ?? "").trim();
+    const canalPrevio = historyHasDeliveryChannelChoice(hist, null);
+    const canalAhora = clientChoosesChatDelivery(cm) || clientChoosesEmailDelivery(cm);
+    const cierreSignal =
+      clientDeclinesMoreServices(cm) ||
+      clientSaysThanks(cm) ||
+      /^(ok(ay)?|va|listo|perfecto|sale|de\s+acuerdo|gracias)[.!\s]*$/i.test(cm);
+    const reAsksChannel = /escriba\s+por\s+aqu[ií]|prefieres\s+esperar\s+el\s+correo/i.test(mensaje);
+    if (cm && ((canalPrevio && (cierreSignal || reAsksChannel)) || (canalAhora && reAsksChannel))) {
+      const userMsgs = [...hist.filter((m) => m.role === "user").map((m) => String(m.content ?? "")), cm];
+      const lastChoice = [...userMsgs]
+        .reverse()
+        .find((t) => clientChoosesChatDelivery(t) || clientChoosesEmailDelivery(t));
+      const via = lastChoice && clientChoosesEmailDelivery(lastChoice) ? "por correo" : "por aquí";
+      const nombre = input.extracted.nombre?.trim().split(/\s+/)[0];
+      mensaje = nombre
+        ? `¡Listo, ${nombre}! El equipo te escribe ${via} con tu propuesta. Gracias por tu confianza, que tengas un excelente día.`
+        : `¡Listo! El equipo te escribe ${via} con tu propuesta. Gracias por tu confianza, que tengas un excelente día.`;
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: A16437 — canal ya elegido, despedida corta");
+      return formatForWhatsApp(mensaje);
+    }
+  }
+
+  // A16437: correo con dominio mal escrito (@gmaio.com) → confirmar UNA vez con la sugerencia.
+  {
+    const typed = parseCorreoFromText(input.currentMessage ?? "");
+    const suggested = suggestEmailDomainFix(typed);
+    if (typed && suggested && !/¿Tu correo es \*|me confirmas tu correo/i.test(mensaje)) {
+      const domain = typed.split("@")[1] ?? "";
+      const ask = `¿Tu correo es *${suggested}*? Lo leí como @${domain} y quiero que te llegue bien.`;
+      const sinUltimaPregunta = mensaje.replace(/¿[^¿?]*\?\s*$/, "").trim();
+      mensaje = sinUltimaPregunta ? `${sinUltimaPregunta}\n\n${ask}` : ask;
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: A16437 — confirmar dominio de correo");
+    }
   }
 
   // Horario sin am/pm y sin pista en el contexto → confirmar UNA vez en lugar de otra pregunta.

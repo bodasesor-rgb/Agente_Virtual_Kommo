@@ -53,6 +53,7 @@ import {
   type PendingField,
 } from "./lucy-flow-guards.js";
 import { filterClientEmail, looksLikeValidClientEmail } from "./client-email.js";
+import { containsStaticSalesTip } from "./services/trendKnowledge.js";
 
 const FIELD_ORDER: PendingField[] = [
   "nombre",
@@ -74,6 +75,14 @@ const THANKS_ACK_PATTERN =
 
 const SERVICES_MENU_PATTERN =
   /\b(manejamos|tambi[eé]n\s+(ofrecemos|manejamos)|alimentos?|mobiliario|carpas?|pista|iluminaci[oó]n|pantallas?)\b/i;
+
+/** Quita párrafos/viñetas de ideas de venta antes de buscar "menú de servicios". */
+function stripSalesTipLines(text: string): string {
+  return text
+    .split(/\n+/)
+    .filter((line) => !containsStaticSalesTip(line) && !/para un vibe|ideas que funcionan|se est[aá] usando/i.test(line))
+    .join("\n");
+}
 
 const CATALOG_SEND_PATTERN =
   /bodasesor\.com\/catalogos|te dejo el cat[aá]logo general|mande el cat[aá]logo/i;
@@ -788,13 +797,20 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   }
 
   // 7) Segundo menú genérico de servicios en historial reciente.
+  // A16437: el tip de ideas ("pista grande… vals") no cuenta como menú previo, y el
+  // menú solo alimentos / servicio completo con catálogo no es menú genérico.
+  const isModalityMenu = /tenemos\s+dos\s+caminos|\*Solo alimentos\*|Cat[aá]logo de \*/i.test(mensaje);
   if (
     !cierre &&
     !isCatalogDetailReply &&
+    !isModalityMenu &&
     !applied.includes("catalog-resend-dedupe") &&
     SERVICES_MENU_PATTERN.test(mensaje) &&
     /¿/.test(mensaje) &&
-    previous.some((p) => SERVICES_MENU_PATTERN.test(p) && /¿/.test(p))
+    previous.some((p) => {
+      const sinTips = stripSalesTipLines(p);
+      return SERVICES_MENU_PATTERN.test(sinTips) && /¿/.test(sinTips);
+    })
   ) {
     const qOnly = questionLines(mensaje).filter((l) => !SERVICES_MENU_PATTERN.test(l));
     if (qOnly.length) {

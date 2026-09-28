@@ -111515,6 +111515,49 @@ function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
   return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
 }
 
+// src/lib/locationDedupe.ts
+function foldToponym(s6) {
+  return s6.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]/gu, "");
+}
+function editDistance(a3, b4) {
+  const dp = Array.from({ length: b4.length + 1 }, (_3, j4) => j4);
+  for (let i5 = 1; i5 <= a3.length; i5++) {
+    let prevDiag = dp[0];
+    dp[0] = i5;
+    for (let j4 = 1; j4 <= b4.length; j4++) {
+      const tmp = dp[j4];
+      dp[j4] = Math.min(dp[j4] + 1, dp[j4 - 1] + 1, prevDiag + (a3[i5 - 1] === b4[j4 - 1] ? 0 : 1));
+      prevDiag = tmp;
+    }
+  }
+  return dp[b4.length];
+}
+function looseSameToponym(a3, b4) {
+  const fa = foldToponym(a3);
+  const fb = foldToponym(b4);
+  if (!fa || !fb) return false;
+  if (fa === fb) return true;
+  const len = Math.max(fa.length, fb.length);
+  if (len < 6) return false;
+  return editDistance(fa, fb) <= Math.max(1, Math.floor(len * 0.12));
+}
+function preferToponymSpelling(a3, b4) {
+  const score = (s6) => (/[áéíóúñ]/i.test(s6) ? 2 : 0) + (/[A-ZÁÉÍÓÚÑ]{4,}/.test(s6) ? -1 : 0);
+  return score(b4) > score(a3) ? b4 : a3;
+}
+function dedupeLocationParts(value) {
+  const raw = value?.trim();
+  if (!raw) return value ?? null;
+  const parts2 = raw.split(/\s*,\s*/).filter(Boolean);
+  const out2 = [];
+  for (const p4 of parts2) {
+    const idx = out2.findIndex((o5) => looseSameToponym(o5, p4));
+    if (idx >= 0) out2[idx] = preferToponymSpelling(out2[idx], p4);
+    else out2.push(p4);
+  }
+  return out2.join(", ");
+}
+
 // src/client-email.ts
 var OWN_EMAILS = new Set(
   [
@@ -111558,6 +111601,24 @@ function sanitizeStoredClientEmail(email) {
   if (!filtered) return null;
   if (!looksLikeValidClientEmail(filtered)) return null;
   return filtered;
+}
+var COMMON_EMAIL_HOSTS = ["gmail", "hotmail", "outlook", "yahoo", "icloud"];
+function suggestEmailDomainFix(email) {
+  const norm2 = normalizeEmail(email);
+  const m5 = norm2?.match(/^([^\s@]+)@([a-z0-9-]+)((?:\.[a-z]{2,})*)$/i);
+  if (!m5) return null;
+  const [, user, host, rest] = m5;
+  const tld = rest || ".com";
+  const badTld = /^\.(comm?|con|cmo|co)$/i.test(tld) && tld !== ".com" && !/^\.com\.mx$/i.test(tld);
+  if (COMMON_EMAIL_HOSTS.includes(host)) {
+    return badTld ? `${user}@${host}.com` : null;
+  }
+  for (const h4 of COMMON_EMAIL_HOSTS) {
+    if (Math.abs(h4.length - host.length) <= 2 && editDistance(host, h4) <= 2) {
+      return `${user}@${h4}${badTld ? ".com" : tld}`;
+    }
+  }
+  return null;
 }
 function buildEmailConfirmationPrompt(email) {
   return `\xBFMe confirmas tu correo? Lo le\xED como ${email.trim()}, quiero anotarlo bien.`;
@@ -125883,7 +125944,7 @@ function clientChoosesChatDelivery(message) {
   const t3 = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
   if (/^(por\s+)?aqu[ií]$/i.test(t3)) return true;
   if (/^(whatsapp|chat|wa|por\s+whatsapp)$/i.test(t3)) return true;
-  if (/\bpor\s+(aqu[ií]|este\s+(chat|medio)|whatsapp)\b/i.test(t3) && t3.split(/\s+/).length <= 8) {
+  if (/\bpor\s+(aqu[ií]|este\s+(chat|medio)|whatsapp)(?!\p{L})/iu.test(t3) && t3.split(/\s+/).length <= 8) {
     return true;
   }
   return false;
@@ -128204,11 +128265,12 @@ function extractFechaCorrectionFragment(text2) {
   }
   if (looksLikeFechaDiscourseJunk(t3) || /\bsigue\s+siendo\b/i.test(t3)) {
     const month = t3.match(
-      /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+      /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b(?:\s+(?:de(?:l)?\s+)?(20\d{2}))?/i
     );
     if (month?.[1]) {
       const m5 = month[1];
-      return m5.charAt(0).toUpperCase() + m5.slice(1).toLowerCase();
+      const label = m5.charAt(0).toUpperCase() + m5.slice(1).toLowerCase();
+      return month[2] ? `${label} de ${month[2]}` : label;
     }
   }
   return null;
@@ -129704,6 +129766,9 @@ function isRicherFechaCapture(incoming, existing) {
     prev
   ) || /\b\d{1,2}[\/\-]\d{1,2}/.test(prev);
   if (nextHasDay && (isMonthOnlyFecha(prev) || !prevHasDay)) return true;
+  if (/\b20\d{2}\b/.test(next) && !/\b20\d{2}\b/.test(prev) && isMonthOnlyFecha(prev) && next.toLowerCase().startsWith(prev.toLowerCase())) {
+    return true;
+  }
   if (nextHasDay && prevHasDay && /\b\d{4}\b/.test(next) && !/\b\d{4}\b/.test(prev)) return true;
   if (next.length > prev.length + 2 && nextHasDay) return true;
   return false;
@@ -129800,23 +129865,22 @@ function parseFechaFromText(text2) {
     }
   }
   if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
-    if (looksLikeFechaDiscourseJunk(trimmed) || trimmed.length > 40 || trimmed.split(/\s+/).length > 5) {
+    const monthWithYear = () => {
       const month = trimmed.match(
-        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b(?:\s+(?:de(?:l)?\s+)?(20\d{2}))?/i
       );
-      if (month?.[1]) {
-        const m5 = month[1];
-        return m5.charAt(0).toUpperCase() + m5.slice(1).toLowerCase();
-      }
+      if (!month?.[1]) return null;
+      const m5 = month[1];
+      const label = m5.charAt(0).toUpperCase() + m5.slice(1).toLowerCase();
+      return month[2] ? `${label} de ${month[2]}` : label;
+    };
+    if (looksLikeFechaDiscourseJunk(trimmed) || trimmed.length > 40 || trimmed.split(/\s+/).length > 5) {
+      const withYear = monthWithYear();
+      if (withYear) return withYear;
     }
     if (isMonthOnlyFecha(trimmed) || /^en\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/i.test(trimmed)) {
-      const month = trimmed.match(
-        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
-      );
-      if (month?.[1]) {
-        const m5 = month[1];
-        return m5.charAt(0).toUpperCase() + m5.slice(1).toLowerCase();
-      }
+      const withYear = monthWithYear();
+      if (withYear) return withYear;
     }
     return trimmed.slice(0, 80);
   }
@@ -129836,6 +129900,9 @@ function isGenericQuoteIntentRequerimiento(value) {
   return /^(quiero|necesito|requiero|busco|me\s+interesa)\s+(una?\s+)?cotiz/i.test(t3) || /^cotizaci[oó]n$/i.test(t3) || /^una?\s+cotizaci[oó]n$/i.test(t3) || /\bquiero\s+una?\s+cotizaci[oó]n\b/i.test(t3) || /\bsolicito\s+(una?\s+)?cotizaci[oó]n\b/i.test(t3);
 }
 function mergeZonaDetail(existing, incoming) {
+  return dedupeLocationParts(mergeZonaDetailRaw(existing, incoming));
+}
+function mergeZonaDetailRaw(existing, incoming) {
   const prevRaw = existing?.trim() ?? "";
   const nextRaw = incoming?.trim() ?? "";
   if (looksLikeThemeColorNotLocation(nextRaw)) {
@@ -129868,6 +129935,7 @@ function mergeZonaDetail(existing, incoming) {
   if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
   if (next.toLowerCase().includes(prev.toLowerCase())) return next;
   if (textOverlapLoose(prev, next) >= 0.85) return prev.length >= next.length ? prev : next;
+  if (looseSameToponym(prev, next)) return preferToponymSpelling(prev, next);
   if (/\bsan\s+miguel|hacienda|allende\b/i.test(next) && /^(ciudad\s+de\s+m[eé]xico|cdmx)$/i.test(prev)) {
     return next;
   }
@@ -130727,6 +130795,13 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
     } else if (cleaned !== out2.nombre) {
       out2.nombre = cleaned;
       applied.push("nombre-sanitized");
+    }
+  }
+  if (out2.direccion_evento) {
+    const deduped = dedupeLocationParts(out2.direccion_evento);
+    if (deduped && deduped !== out2.direccion_evento) {
+      out2.direccion_evento = deduped;
+      applied.push("direccion-dedupe");
     }
   }
   if (out2.nombre && nombreIsOnlyFestejado(out2.nombre, userTexts)) {
@@ -136750,6 +136825,7 @@ var STYLE_CUES = [
   { pattern: /\bcorporativ|empresarial|gala/i, label: "corporativo" },
   { pattern: /\bfamiliar|en\s+familia|convivio|reuni[oó]n\s+peque/i, label: "familiar" }
 ];
+var EVENT_TYPE_CUES = /* @__PURE__ */ new Set(["XV a\xF1os", "boda", "corporativo"]);
 var TIPS_BY_EVENT = {
   boda: [
     "Iluminaci\xF3n c\xE1lida + lounge peque\xF1o suele elevar el ambiente sin saturar.",
@@ -136861,7 +136937,7 @@ function containsStaticSalesTip(text2) {
 function messageAlreadyOffersSalesIdeas(text2) {
   const t3 = text2 ?? "";
   if (!t3.trim()) return false;
-  return /algunas ideas que funcionan|ideas que suelen funcionar|para un vibe/i.test(t3) || /iluminaci[oó]n c[aá]lida|lounge peque|pista iluminada|coffee break \+ pantallas|mesa de dulces/i.test(
+  return /algunas ideas que funcionan|una idea que funciona|ideas que suelen funcionar|para un vibe/i.test(t3) || /iluminaci[oó]n c[aá]lida|lounge peque|pista iluminada|coffee break \+ pantallas|mesa de dulces/i.test(
     t3
   ) || /•\s*.+\n•\s*/.test(t3) && /iluminaci|mobiliario|banquete|dj|carpa|lounge/i.test(t3);
 }
@@ -136873,6 +136949,7 @@ function buildSalesIdeasSnippet(opts) {
     opts.requerimientos
   );
   const max = opts.maxTips ?? 2;
+  const vibeCues = cues.filter((c4) => !EVENT_TYPE_CUES.has(c4));
   const trends = parseGroundingBullets(opts.groundingSnippet, 2);
   const staticTips = pickTips(
     opts.tipoEvento || cues[0],
@@ -136884,7 +136961,7 @@ function buildSalesIdeasSnippet(opts) {
   if (opts.accepted) {
     const tipo = opts.tipoEvento?.trim();
     const inv = opts.numInvitados ? `${opts.numInvitados} personas` : null;
-    const vibe = cues.find((c4) => c4 !== "boda" && c4 !== "XV a\xF1os");
+    const vibe = vibeCues[0];
     const detalles = [inv, vibe ? `algo ${vibe}` : null].filter(Boolean).join(", ");
     const para = tipo ? `Para tu ${tipo.toLowerCase()}${detalles ? ` (${detalles})` : ""}` : detalles ? `Para tu evento (${detalles})` : "Para tu evento";
     const lead = trends.length ? `\xA1Claro! ${para}, esto es lo que se est\xE1 usando y funciona muy bien:` : `\xA1Claro! ${para}, algunas ideas que funcionan muy bien:`;
@@ -136892,13 +136969,13 @@ function buildSalesIdeasSnippet(opts) {
 ${tips.map((t3) => `\u2022 ${t3}`).join("\n")}`.trim();
   }
   if (trends.length) {
-    const cueTrend = cues[0] ? ` para un vibe *${cues[0]}*` : "";
+    const cueTrend = vibeCues[0] ? ` para un vibe *${vibeCues[0]}*` : "";
     return `Lo que se est\xE1 usando${cueTrend}:
 ${tips.map((t3) => `\u2022 ${t3}`).join("\n")}`.trim();
   }
-  const cue = cues[0] ? `Para un vibe *${cues[0]}*, ` : "";
+  const cue = vibeCues[0] ? `Para un vibe *${vibeCues[0]}*: ` : "";
   if (tips.length === 1) {
-    return `${cue}${tips[0]}`.trim();
+    return cue ? `${cue}${tips[0]}` : `Una idea que funciona muy bien: ${tips[0]}`;
   }
   return `${cue}Algunas ideas que funcionan bien:
 ${tips.map((t3) => `\u2022 ${t3}`).join("\n")}`.trim();
@@ -141574,6 +141651,25 @@ ${nextQ}`.trim() : `${intro}${ack}${catalogBlock}`.trim();
       );
     }
   }
+  if (!cierreYaEnviado && currentMessage) {
+    const lastLucyText = [...presHistory].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string")?.content;
+    const offeredModes = /dos\s+caminos|solo\s+alimentos[\s\S]{0,200}servicio\s+completo/i.test(lastLucyText ?? "");
+    const wantsBoth = /\b(ambos|ambas|los\s+dos|las\s+dos|las\s+2|los\s+2)\b/i.test(currentMessage) && currentMessage.length <= 80;
+    if (offeredModes && wantsBoth) {
+      const svc = (lastLucyText ?? "").match(/Para\s+\*([^*]+)\*\s+tenemos\s+dos\s+caminos/i)?.[1]?.trim() ?? null;
+      const base = (svc ? mergeServiceRequirements(extracted.requerimientos_evento, svc, 8) : null) ?? extracted.requerimientos_evento?.trim() ?? "";
+      const note = "cotizar solo alimentos y servicio completo";
+      const withNote = new RegExp(note, "i").test(base) ? base : base ? `${base} (${note})` : note.charAt(0).toUpperCase() + note.slice(1);
+      extracted.requerimientos_evento = withNote;
+      filledSet.add("Requerimientos o servicios");
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const ack = display ? `\xA1Va, ${display}! Te cotizamos las dos opciones (solo alimentos y servicio completo) para que las compares.` : "\xA1Va! Te cotizamos las dos opciones (solo alimentos y servicio completo) para que las compares.";
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+      log?.info({ entityId, pending }, "GUARD: A16437 \u2014 cotizar ambas modalidades");
+      return normalizeAdvisorReferences2(nextQ ? `${ack} ${nextQ}` : ack, extracted.nombre ?? display);
+    }
+  }
   if (!cierreYaEnviado && currentMessage && clientRequestsDualProposals(currentMessage)) {
     const merged = mergeServiceRequirements(
       extracted.requerimientos_evento,
@@ -145201,6 +145297,9 @@ var FIELD_ORDER2 = [
 var ALGO_MAS_PATTERN = /\b(algo\s+m[aá]s|hay\s+algo\s+m[aá]s|alg[uú]n\s+otro\s+servicio|quieres\s+agregar|deseas\s+agregar)\b/i;
 var THANKS_ACK_PATTERN = /\b(con\s+gusto|nuestro\s+equipo\s+ya\s+tiene|si\s+necesitas\s+algo\s+m[aá]s|aqu[ií]\s+estamos)\b/i;
 var SERVICES_MENU_PATTERN = /\b(manejamos|tambi[eé]n\s+(ofrecemos|manejamos)|alimentos?|mobiliario|carpas?|pista|iluminaci[oó]n|pantallas?)\b/i;
+function stripSalesTipLines(text2) {
+  return text2.split(/\n+/).filter((line2) => !containsStaticSalesTip(line2) && !/para un vibe|ideas que funcionan|se est[aá] usando/i.test(line2)).join("\n");
+}
 var CATALOG_SEND_PATTERN = /bodasesor\.com\/catalogos|te dejo el cat[aá]logo general|mande el cat[aá]logo/i;
 var ENTERTAINMENT_PITCH_PATTERN = /shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento/i;
 function lucyTextOverlapRatio(a3, b4) {
@@ -145663,7 +145762,11 @@ ${q2}` : q2;
       }
     }
   }
-  if (!cierre && !isCatalogDetailReply && !applied.includes("catalog-resend-dedupe") && SERVICES_MENU_PATTERN.test(mensaje) && /¿/.test(mensaje) && previous.some((p4) => SERVICES_MENU_PATTERN.test(p4) && /¿/.test(p4))) {
+  const isModalityMenu = /tenemos\s+dos\s+caminos|\*Solo alimentos\*|Cat[aá]logo de \*/i.test(mensaje);
+  if (!cierre && !isCatalogDetailReply && !isModalityMenu && !applied.includes("catalog-resend-dedupe") && SERVICES_MENU_PATTERN.test(mensaje) && /¿/.test(mensaje) && previous.some((p4) => {
+    const sinTips = stripSalesTipLines(p4);
+    return SERVICES_MENU_PATTERN.test(sinTips) && /¿/.test(sinTips);
+  })) {
     const qOnly = questionLines(mensaje).filter((l5) => !SERVICES_MENU_PATTERN.test(l5));
     if (qOnly.length) {
       mensaje = qOnly[qOnly.length - 1];
@@ -146351,6 +146454,36 @@ ${keepQ}` : ack;
   if (!mensaje.trim()) {
     mensaje = input.cierreYaEnviado && clientSaysThanks(input.currentMessage) ? buildPostCierreThanksReply(input.extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
     input.log?.warn({ entityId: input.entityId }, "GUARD: mensaje vac\xEDo \u2014 respuesta de respaldo");
+  }
+  {
+    const hist = input.history ?? [];
+    const cm = (input.currentMessage ?? "").trim();
+    const canalPrevio = historyHasDeliveryChannelChoice(hist, null);
+    const canalAhora = clientChoosesChatDelivery(cm) || clientChoosesEmailDelivery(cm);
+    const cierreSignal = clientDeclinesMoreServices(cm) || clientSaysThanks(cm) || /^(ok(ay)?|va|listo|perfecto|sale|de\s+acuerdo|gracias)[.!\s]*$/i.test(cm);
+    const reAsksChannel = /escriba\s+por\s+aqu[ií]|prefieres\s+esperar\s+el\s+correo/i.test(mensaje);
+    if (cm && (canalPrevio && (cierreSignal || reAsksChannel) || canalAhora && reAsksChannel)) {
+      const userMsgs = [...hist.filter((m5) => m5.role === "user").map((m5) => String(m5.content ?? "")), cm];
+      const lastChoice = [...userMsgs].reverse().find((t3) => clientChoosesChatDelivery(t3) || clientChoosesEmailDelivery(t3));
+      const via = lastChoice && clientChoosesEmailDelivery(lastChoice) ? "por correo" : "por aqu\xED";
+      const nombre = input.extracted.nombre?.trim().split(/\s+/)[0];
+      mensaje = nombre ? `\xA1Listo, ${nombre}! El equipo te escribe ${via} con tu propuesta. Gracias por tu confianza, que tengas un excelente d\xEDa.` : `\xA1Listo! El equipo te escribe ${via} con tu propuesta. Gracias por tu confianza, que tengas un excelente d\xEDa.`;
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: A16437 \u2014 canal ya elegido, despedida corta");
+      return formatForWhatsApp(mensaje);
+    }
+  }
+  {
+    const typed = parseCorreoFromText(input.currentMessage ?? "");
+    const suggested = suggestEmailDomainFix(typed);
+    if (typed && suggested && !/¿Tu correo es \*|me confirmas tu correo/i.test(mensaje)) {
+      const domain = typed.split("@")[1] ?? "";
+      const ask = `\xBFTu correo es *${suggested}*? Lo le\xED como @${domain} y quiero que te llegue bien.`;
+      const sinUltimaPregunta = mensaje.replace(/¿[^¿?]*\?\s*$/, "").trim();
+      mensaje = sinUltimaPregunta ? `${sinUltimaPregunta}
+
+${ask}` : ask;
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: A16437 \u2014 confirmar dominio de correo");
+    }
   }
   if (!input.cierreYaEnviado && input.currentMessage) {
     const horarioMsg = parseHorarioFromText(input.currentMessage);

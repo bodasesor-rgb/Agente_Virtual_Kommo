@@ -35,6 +35,11 @@ import {
 import { composeEventLocation } from "./services/geoResolve.js";
 import { resolveFechaEvento, resolveHorarioWithContext } from "./lib/eventDateTime.js";
 import {
+  dedupeLocationParts,
+  looseSameToponym,
+  preferToponymSpelling,
+} from "./lib/locationDedupe.js";
+import {
   CHAIR_MODEL_PATTERN,
   parseChairModelFromText,
   formatChairSku,
@@ -537,7 +542,7 @@ export function clientChoosesChatDelivery(message?: string | null): boolean {
   if (/^(por\s+)?aqu[ií]$/i.test(t)) return true;
   if (/^(whatsapp|chat|wa|por\s+whatsapp)$/i.test(t)) return true;
   if (
-    /\bpor\s+(aqu[ií]|este\s+(chat|medio)|whatsapp)\b/i.test(t) &&
+    /\bpor\s+(aqu[ií]|este\s+(chat|medio)|whatsapp)(?!\p{L})/iu.test(t) &&
     t.split(/\s+/).length <= 8
   ) {
     return true;
@@ -4509,11 +4514,12 @@ export function extractFechaCorrectionFragment(text: string | null | undefined):
   }
   if (looksLikeFechaDiscourseJunk(t) || /\bsigue\s+siendo\b/i.test(t)) {
     const month = t.match(
-      /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+      /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b(?:\s+(?:de(?:l)?\s+)?(20\d{2}))?/i
     );
     if (month?.[1]) {
       const m = month[1]!;
-      return m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
+      const label = m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
+      return month[2] ? `${label} de ${month[2]}` : label;
     }
   }
   return null;
@@ -6788,6 +6794,15 @@ export function isRicherFechaCapture(
       prev
     ) || /\b\d{1,2}[\/\-]\d{1,2}/.test(prev);
   if (nextHasDay && (isMonthOnlyFecha(prev) || !prevHasDay)) return true;
+  // "Abril" → "Abril de 2027".
+  if (
+    /\b20\d{2}\b/.test(next) &&
+    !/\b20\d{2}\b/.test(prev) &&
+    isMonthOnlyFecha(prev) &&
+    next.toLowerCase().startsWith(prev.toLowerCase())
+  ) {
+    return true;
+  }
   if (nextHasDay && prevHasDay && /\b\d{4}\b/.test(next) && !/\b\d{4}\b/.test(prev)) return true;
   if (next.length > prev.length + 2 && nextHasDay) return true;
   return false;
@@ -6914,24 +6929,24 @@ export function parseFechaFromText(text: string): string | null {
   if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
     // Nunca guardar el mensaje completo: solo el mes (o "en septiembre").
     // Si hay día+mes ya lo capturamos arriba; aquí solo mes suelto.
-    if (looksLikeFechaDiscourseJunk(trimmed) || trimmed.length > 40 || trimmed.split(/\s+/).length > 5) {
+    // A16437: "para el abril de 2027" → conservar el año.
+    const monthWithYear = (): string | null => {
       const month = trimmed.match(
-        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b(?:\s+(?:de(?:l)?\s+)?(20\d{2}))?/i
       );
-      if (month?.[1]) {
-        const m = month[1]!;
-        return m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
-      }
+      if (!month?.[1]) return null;
+      const m = month[1]!;
+      const label = m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
+      return month[2] ? `${label} de ${month[2]}` : label;
+    };
+    if (looksLikeFechaDiscourseJunk(trimmed) || trimmed.length > 40 || trimmed.split(/\s+/).length > 5) {
+      const withYear = monthWithYear();
+      if (withYear) return withYear;
     }
     // "10 octubre" ya salió arriba; "octubre" / "en octubre" sueltos.
     if (isMonthOnlyFecha(trimmed) || /^en\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/i.test(trimmed)) {
-      const month = trimmed.match(
-        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
-      );
-      if (month?.[1]) {
-        const m = month[1]!;
-        return m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
-      }
+      const withYear = monthWithYear();
+      if (withYear) return withYear;
     }
     return trimmed.slice(0, 80);
   }
@@ -6976,6 +6991,13 @@ export function isGenericQuoteIntentRequerimiento(value: string | null | undefin
  * Ej: "Querétaro" + "El Marqués" → "Querétaro, El Marqués".
  */
 export function mergeZonaDetail(
+  existing: string | null | undefined,
+  incoming: string | null | undefined
+): string | null {
+  return dedupeLocationParts(mergeZonaDetailRaw(existing, incoming));
+}
+
+function mergeZonaDetailRaw(
   existing: string | null | undefined,
   incoming: string | null | undefined
 ): string | null {
@@ -7025,6 +7047,8 @@ export function mergeZonaDetail(
   if (next.toLowerCase().includes(prev.toLowerCase())) return next;
   // Evita duplicar si son casi iguales.
   if (textOverlapLoose(prev, next) >= 0.85) return prev.length >= next.length ? prev : next;
+  // A16437: "Ciénaga de Flores" vs "CIENEGA de flores" (typo/mayúsculas) = mismo lugar.
+  if (looseSameToponym(prev, next)) return preferToponymSpelling(prev, next);
   // A15486: San Miguel / venue real reemplaza CDMX de plantilla promo.
   if (
     /\bsan\s+miguel|hacienda|allende\b/i.test(next) &&

@@ -4,6 +4,7 @@
  * aunque el regex del ticket concreto no exista aún.
  */
 import type { ExtractedData } from "./types.js";
+import { dedupeLocationParts } from "./lib/locationDedupe.js";
 import { looksLikePersonNameAsEventType } from "./conversation-understanding.js";
 import {
   isLikelyUbicacionNotNombre,
@@ -138,6 +139,14 @@ export function applyCrmWriteInvariants(
     } else if (cleaned !== out.nombre) {
       out.nombre = cleaned;
       applied.push("nombre-sanitized");
+    }
+  }
+
+  if (out.direccion_evento) {
+    const deduped = dedupeLocationParts(out.direccion_evento);
+    if (deduped && deduped !== out.direccion_evento) {
+      out.direccion_evento = deduped;
+      applied.push("direccion-dedupe");
     }
   }
 

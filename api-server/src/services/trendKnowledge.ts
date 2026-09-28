@@ -30,6 +30,9 @@ const STYLE_CUES: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\bfamiliar|en\s+familia|convivio|reuni[oó]n\s+peque/i, label: "familiar" },
 ];
 
+/** Cues que son tipo de evento, no estilo ("Para un vibe *XV años*" suena mal). */
+const EVENT_TYPE_CUES = new Set(["XV años", "boda", "corporativo"]);
+
 /** Tips cortos por tipo de evento — sin precios, orientados a venta. */
 const TIPS_BY_EVENT: Record<string, string[]> = {
   boda: [
@@ -185,7 +188,7 @@ export function messageAlreadyOffersSalesIdeas(text: string | null | undefined):
   const t = text ?? "";
   if (!t.trim()) return false;
   return (
-    /algunas ideas que funcionan|ideas que suelen funcionar|para un vibe/i.test(t) ||
+    /algunas ideas que funcionan|una idea que funciona|ideas que suelen funcionar|para un vibe/i.test(t) ||
     /iluminaci[oó]n c[aá]lida|lounge peque|pista iluminada|coffee break \+ pantallas|mesa de dulces/i.test(
       t
     ) ||
@@ -219,6 +222,7 @@ export function buildSalesIdeasSnippet(opts: {
     opts.requerimientos
   );
   const max = opts.maxTips ?? 2;
+  const vibeCues = cues.filter((c) => !EVENT_TYPE_CUES.has(c));
   const trends = parseGroundingBullets(opts.groundingSnippet, 2);
   const staticTips = pickTips(
     opts.tipoEvento || cues[0],
@@ -230,7 +234,7 @@ export function buildSalesIdeasSnippet(opts: {
   if (opts.accepted) {
     const tipo = opts.tipoEvento?.trim();
     const inv = opts.numInvitados ? `${opts.numInvitados} personas` : null;
-    const vibe = cues.find((c) => c !== "boda" && c !== "XV años");
+    const vibe = vibeCues[0];
     const detalles = [inv, vibe ? `algo ${vibe}` : null].filter(Boolean).join(", ");
     const para = tipo
       ? `Para tu ${tipo.toLowerCase()}${detalles ? ` (${detalles})` : ""}`
@@ -243,12 +247,12 @@ export function buildSalesIdeasSnippet(opts: {
     return `${lead}\n${tips.map((t) => `• ${t}`).join("\n")}`.trim();
   }
   if (trends.length) {
-    const cueTrend = cues[0] ? ` para un vibe *${cues[0]}*` : "";
+    const cueTrend = vibeCues[0] ? ` para un vibe *${vibeCues[0]}*` : "";
     return `Lo que se está usando${cueTrend}:\n${tips.map((t) => `• ${t}`).join("\n")}`.trim();
   }
-  const cue = cues[0] ? `Para un vibe *${cues[0]}*, ` : "";
+  const cue = vibeCues[0] ? `Para un vibe *${vibeCues[0]}*: ` : "";
   if (tips.length === 1) {
-    return `${cue}${tips[0]}`.trim();
+    return cue ? `${cue}${tips[0]}` : `Una idea que funciona muy bien: ${tips[0]}`;
   }
   return `${cue}Algunas ideas que funcionan bien:\n${tips.map((t) => `• ${t}`).join("\n")}`.trim();
 }

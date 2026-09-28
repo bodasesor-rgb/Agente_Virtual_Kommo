@@ -7596,6 +7596,45 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     }
   }
 
+  // A16437: "Me puedes cotizar ambos" tras "solo alimentos vs servicio completo".
+  if (!cierreYaEnviado && currentMessage) {
+    const lastLucyText = [...presHistory]
+      .reverse()
+      .find((m) => m.role === "assistant" && typeof m.content === "string")?.content as
+      | string
+      | undefined;
+    const offeredModes =
+      /dos\s+caminos|solo\s+alimentos[\s\S]{0,200}servicio\s+completo/i.test(lastLucyText ?? "");
+    const wantsBoth =
+      /\b(ambos|ambas|los\s+dos|las\s+dos|las\s+2|los\s+2)\b/i.test(currentMessage) &&
+      currentMessage.length <= 80;
+    if (offeredModes && wantsBoth) {
+      const svc =
+        (lastLucyText ?? "").match(/Para\s+\*([^*]+)\*\s+tenemos\s+dos\s+caminos/i)?.[1]?.trim() ??
+        null;
+      const base =
+        (svc ? mergeServiceRequirements(extracted.requerimientos_evento, svc, 8) : null) ??
+        extracted.requerimientos_evento?.trim() ??
+        "";
+      const note = "cotizar solo alimentos y servicio completo";
+      const withNote = new RegExp(note, "i").test(base)
+        ? base
+        : base
+          ? `${base} (${note})`
+          : note.charAt(0).toUpperCase() + note.slice(1);
+      extracted.requerimientos_evento = withNote;
+      filledSet.add("Requerimientos o servicios");
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const ack = display
+        ? `¡Va, ${display}! Te cotizamos las dos opciones (solo alimentos y servicio completo) para que las compares.`
+        : "¡Va! Te cotizamos las dos opciones (solo alimentos y servicio completo) para que las compares.";
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+      log?.info({ entityId, pending }, "GUARD: A16437 — cotizar ambas modalidades");
+      return normalizeAdvisorReferences(nextQ ? `${ack} ${nextQ}` : ack, extracted.nombre ?? display);
+    }
+  }
+
   // A15581: dos propuestas formal + casual — anotar y avanzar embudo.
   if (!cierreYaEnviado && currentMessage && clientRequestsDualProposals(currentMessage)) {
     const merged = mergeServiceRequirements(
