@@ -3,8 +3,6 @@
  * Gemini Flash-Lite NO tiene Google Maps; esto es lookup local + geocoder.
  */
 
-import { dedupeLocationParts } from "../lib/locationDedupe.js";
-
 const CDMX_ALCALDIAS =
   /\b(alvaro\s+obregon|[aá]lvaro\s+obreg[oó]n|azcapotzalco|benito\s+ju[aá]rez|coyoac[aá]n|cuajimalpa|cuauht[eé]moc|gustavo\s+a\.?\s*madero|iztacalco|iztapalapa|magdalena\s+contreras|miguel\s+hidalgo|milpa\s+alta|tl[aá]huac|tlalpan|venustiano\s+carranza|xochimilco)\b/i;
 
@@ -92,7 +90,7 @@ function mergeAddr(a: string | null | undefined, b: string | null | undefined): 
   if (!prev) return next;
   if (fold(prev).includes(fold(next))) return prev;
   if (fold(next).includes(fold(prev))) return next;
-  return dedupeLocationParts(`${prev}, ${next}`);
+  return `${prev}, ${next}`;
 }
 
 /** Falta ciudad/alcaldía y sí hay colonia, calle o salón → conviene Maps. */

@@ -33,12 +33,6 @@ import {
   venueProvidedServiceLabels,
 } from "./services/serviceDecline.js";
 import { composeEventLocation } from "./services/geoResolve.js";
-import { resolveFechaEvento, resolveHorarioWithContext } from "./lib/eventDateTime.js";
-import {
-  dedupeLocationParts,
-  looseSameToponym,
-  preferToponymSpelling,
-} from "./lib/locationDedupe.js";
 import {
   CHAIR_MODEL_PATTERN,
   parseChairModelFromText,
@@ -542,7 +536,7 @@ export function clientChoosesChatDelivery(message?: string | null): boolean {
   if (/^(por\s+)?aqu[ií]$/i.test(t)) return true;
   if (/^(whatsapp|chat|wa|por\s+whatsapp)$/i.test(t)) return true;
   if (
-    /\bpor\s+(aqu[ií]|este\s+(chat|medio)|whatsapp)(?!\p{L})/iu.test(t) &&
+    /\bpor\s+(aqu[ií]|este\s+(chat|medio)|whatsapp)\b/i.test(t) &&
     t.split(/\s+/).length <= 8
   ) {
     return true;
@@ -1390,7 +1384,6 @@ export function clientMentionsSpecialLiveAct(message?: string | null): boolean {
     return false;
   }
   return (
-    parseNamedShowLabels(message).length > 0 ||
     /\bcirco\b/i.test(t) ||
     /\bblue\s*mans?\b|\bblueman\b/i.test(t) ||
     /\b(mago|magia|ilusionista)\b/i.test(t) ||
@@ -1404,69 +1397,10 @@ export function clientMentionsSpecialLiveAct(message?: string | null): boolean {
   );
 }
 
-/**
- * A16438: formulario web "me interesa cotizar el show "Tambores con Agua"" → "Show Tambores con Agua".
- * También reconoce la etiqueta ya guardada en CRM ("Show Tambores con Agua").
- */
-export function parseNamedShowLabels(text?: string | null): string[] {
-  if (!text?.trim()) return [];
-  const out: string[] = [];
-  const push = (raw: string) => {
-    const name = raw
-      .replace(/\s+/g, " ")
-      .replace(/^\s*shows?\s+/i, "")
-      .replace(/\s+shows?\s*$/i, "")
-      .trim();
-    if (name.length < 2 || name.length > 50) return;
-    const label = /\bblue\s*mans?\b|\bblueman\b/i.test(name) ? "Show Blue Man" : `Show ${name}`;
-    if (!out.some((s) => s.toLowerCase() === label.toLowerCase())) out.push(label);
-  };
-  for (const m of text.matchAll(/\bshows?\s*[“"«']\s*([^"“”«»']{2,60}?)\s*[”"»']/giu)) {
-    if (m[1]) push(m[1]);
-  }
-  for (const part of text.split(/[,\n]/)) {
-    const seg = part.trim();
-    if (/^Show\s+[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÜÑáéíóúüñ ]{1,48}$/u.test(seg) && !/^Show\s+(De|En|Para|Con)\b/.test(seg)) {
-      push(seg);
-    }
-  }
-  return out;
-}
-
-/**
- * A16445: "¿Es para venta o renta de mobiliario?" / "¿venden sillas?" — el cliente
- * pregunta si Bodasesor vende o renta (no es proveedor ofreciendo).
- */
-export function clientAsksVentaOrRenta(message?: string | null): boolean {
-  const t = message?.trim() ?? "";
-  if (!t) return false;
-  if (/\b(les|a\s+ustedes)\s+(vendo|vendemos|ofrezco|ofrecemos)\b|\bquiero\s+venderles\b|\bventas\s+(en|de\s+la\s+empresa)\b/i.test(t)) {
-    return false;
-  }
-  return (
-    /\b(venta|renta)\s+o\s+(renta|venta)\b/i.test(t) ||
-    /\b(rentan|rentas)\s+o\s+(venden|vendes)\b|\b(venden|vendes)\s+o\s+(rentan|rentas)\b/i.test(t) ||
-    /\b(venden|vendes|manejan\s+venta|hacen\s+venta|tienen\s+venta|se\s+pueden?\s+comprar|puedo\s+comprar(las|los)?|est[aá]n?\s+a\s+la\s+venta|es\s+(solo\s+)?(para\s+)?venta)\b/i.test(
-      t
-    )
-  );
-}
-
-/** Respuesta corta del cliente eligiendo compra tras la aclaración venta/renta. */
-export function clientChoosesVenta(message?: string | null): boolean {
-  const t = message?.trim() ?? "";
-  if (!t || t.length > 60 || clientAsksVentaOrRenta(t)) return false;
-  return /^(?:s[ií][\s,.!]+)?(?:(?:ser[ií]a|es|la\s+quiero|lo\s+quiero|quiero|me\s+interesa)\s+)?(?:para\s+|en\s+)?(venta|compra|comprar(las|los)?)\b/i.test(
-    t
-  );
-}
-
 /** Etiqueta corta para anotar el acto especial en CRM. */
 export function parseSpecialLiveActLabel(message?: string | null): string | null {
   if (!message?.trim()) return null;
   const t = message.trim();
-  const namedShows = parseNamedShowLabels(t);
-  if (namedShows.length) return namedShows[0]!;
   if (/\bcirco\b/i.test(t)) return "Circo para eventos";
   if (/\bblue\s*mans?\b|\bblueman\b/i.test(t)) return "Show Blue Man";
   if (/\b(mago|magia|ilusionista)\b/i.test(t)) return "Show de magia";
@@ -2588,8 +2522,6 @@ export function looksLikeGuestCountRange(text: string | null | undefined): boole
   const hasGuestWord = /\b(personas?|invitad[oa]s?|asistentes?|comensales?|gente)\b/i.test(
     trimmed
   );
-  // A16433: "7:30 a 12:30" es horario ("30 a 12" no es aforo).
-  if (!hasGuestWord && /\d{1,2}:\d{2}/.test(trimmed)) return false;
   const m = trimmed.match(/\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i);
   if (!m) {
     // Ya normalizado en CRM: "80 - 100 MXN" sin que el cliente haya dicho MXN.
@@ -2756,7 +2688,6 @@ export function hasCityOrMetroSignal(text: string | null | undefined): boolean {
   // "ciudad de México" / "ciudad X" — no la palabra suelta "ciudad" (A15775).
   if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t)) return true;
   if (/\b(estado\s+de|edo\.?\s*m[eé]x|cdmx|d\.?\s*f\.?)\b/i.test(t)) return true;
-  if (/\b(gdl|mty|qro|ags|qroo|cuerna|tlaque)\b/i.test(t)) return true;
   // Ciudades / estados frecuentes fuera de KNOWN_ZONES (respuesta corta = ciudad).
   if (
     /\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica|atlixco|cholula|tehuac[aá]n|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|tlaquepaque|zapopan|tonal[aá]|tlajomulco|jalisco)\b/i.test(
@@ -3529,10 +3460,6 @@ export function parseServicesFromText(text: string): string[] {
     found.push("Barra de bebidas");
   }
 
-  for (const show of parseNamedShowLabels(text)) {
-    if (!found.some((s) => s.toLowerCase() === show.toLowerCase())) found.push(show);
-  }
-
   const deduped = dedupeServiceHierarchy(found, text);
   found.length = 0;
   found.push(...deduped);
@@ -3646,18 +3573,6 @@ export function dedupeServiceHierarchy(
 ): string[] {
   const found = [...services].map((s) => s.trim()).filter(Boolean);
   const text = sourceText ?? found.join(" ");
-
-  // A16438: "show" genérico junto a un show con nombre ≠ animación / hora loca.
-  const animIdx = found.indexOf("Animación / Hora loca");
-  if (
-    animIdx >= 0 &&
-    found.some((s) => /^Show\s|^Circo\b/i.test(s)) &&
-    !/\b(hora\s+loca|happening|animaci[oó]n|animador|pixel|espejos|l[aá]ser)\b/i.test(
-      sourceText ?? ""
-    )
-  ) {
-    found.splice(animIdx, 1);
-  }
 
   if (found.includes("Menú staff")) {
     const meserosIdx = found.indexOf("Meseros");
@@ -3864,14 +3779,6 @@ export function clientNarrowsToOnlyService(text: string | null | undefined): str
   if (/\b(tarimas?|entarimad[oa]s?)\b/i.test(t) && !/\bpista(\s+de\s+baile)?\b/i.test(t.replace(/\bno\s+(quiero|necesito|requiero).{0,20}pista\b/gi, " "))) {
     return "Tarima";
   }
-  // A16438: "solo quiero el show" apunta a los shows ya pedidos, no a Animación / Hora loca.
-  if (
-    /\bshows?\b/i.test(t) &&
-    parseNamedShowLabels(t).length === 0 &&
-    !/\b(hora\s+loca|happening|animaci[oó]n|animador)\b/i.test(t)
-  ) {
-    return null;
-  }
   const fromMsg = parseServicesFromText(t).filter(
     (s) => !/^(Comida|Alimentos|Evento|Servicio)$/i.test(s)
   );
@@ -3916,19 +3823,6 @@ export function resolveSnackSwapLabel(text: string | null | undefined): string {
 }
 
 export function mergeServiceRequirements(
-  existing: string | null | undefined,
-  text: string | null | undefined,
-  max = 6
-): string | null {
-  const merged = mergeServiceRequirementsRaw(existing, text, max);
-  // A16445: la modalidad de compra se conserva al sumar servicios.
-  if (merged && /\(venta\)/i.test(existing ?? "") && !/\(venta\)/i.test(merged)) {
-    return `${merged} (venta)`;
-  }
-  return merged;
-}
-
-function mergeServiceRequirementsRaw(
   existing: string | null | undefined,
   text: string | null | undefined,
   max = 6
@@ -4611,12 +4505,11 @@ export function extractFechaCorrectionFragment(text: string | null | undefined):
   }
   if (looksLikeFechaDiscourseJunk(t) || /\bsigue\s+siendo\b/i.test(t)) {
     const month = t.match(
-      /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b(?:\s+(?:de(?:l)?\s+)?(20\d{2}))?/i
+      /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
     );
     if (month?.[1]) {
       const m = month[1]!;
-      const label = m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
-      return month[2] ? `${label} de ${month[2]}` : label;
+      return m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
     }
   }
   return null;
@@ -4843,75 +4736,6 @@ export function clientDefersHorario(text: string | null | undefined): boolean {
   );
 }
 
-const DAY_PERIOD_SRC = String.raw`de\s+la\s+(?:ma[nñ]ana|tarde|noche|madrugada)|del\s+medio\s*d[ií]a|am|pm|a\.\s*m\.?|p\.\s*m\.?|hrs?|horas`;
-
-function dayPeriodToAmPm(hour: number, period: string | undefined): "am" | "pm" | "24h" | null {
-  const p = (period ?? "").toLowerCase().replace(/\s+/g, " ");
-  if (!p) return null;
-  if (/^(hrs?|horas)$/.test(p)) return "24h";
-  if (/^a\.?\s*m|^am$|ma[nñ]ana|madrugada/.test(p)) return "am";
-  if (/noche/.test(p) && hour === 12) return "am";
-  return "pm";
-}
-
-/**
- * A16434: rango con periodo del día en al menos un lado.
- * "De 5:00 de la tarde a 10:00\nDe la noche" → "5:00 pm a 10:00 pm"; "5:00PM 10PM" → "5:00 pm a 10 pm".
- */
-export function parseClockRangeWithPeriods(text: string): string | null {
-  const t = (text ?? "").replace(/\s+/g, " ").trim();
-  if (!t || /\b(personas?|invitad[oa]s?|asistentes?|comensales?|pax)\b/i.test(t)) return null;
-  const re = new RegExp(
-    String.raw`(?:^|[^\d:])(?:de\s+(?:las?\s+)?)?(\d{1,2})(?::(\d{2}))?\s*(${DAY_PERIOD_SRC})?(\s*(?:a|[-–]|hasta)\s*|\s+)(?:las?\s+)?(\d{1,2})(?::(\d{2}))?\s*(${DAY_PERIOD_SRC})?(?=$|[^\d:])`,
-    "i"
-  );
-  const m = t.match(re);
-  if (!m) return null;
-  const h1 = Number(m[1]);
-  const h2 = Number(m[5]);
-  const hasConnector = /\S/.test(m[4] ?? "");
-  const p1 = dayPeriodToAmPm(h1, m[3]);
-  const p2 = dayPeriodToAmPm(h2, m[7]);
-  if (!p1 && !p2) return null;
-  if (!hasConnector && !(p1 && p2)) return null;
-  if (h1 > 24 || h2 > 24) return null;
-  const mm1 = m[2];
-  const mm2 = m[6];
-  // "de 4 a 5 horas" = duración, no horario.
-  if ((p1 === "24h" || p2 === "24h") && !mm1 && !mm2 && h1 <= 12 && h2 <= 12) return null;
-
-  const to24 = (h: number, p: "am" | "pm" | "24h") =>
-    p === "24h" ? h % 24 : (h % 12) + (p === "pm" ? 12 : 0);
-  const fmt = (h24: number, mm?: string) => {
-    const p = h24 >= 12 ? "pm" : "am";
-    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-    return `${h12}${mm ? `:${mm}` : ""} ${p}`;
-  };
-  // Lado sin periodo: el candidato (am/pm) más cercano después del inicio / antes del fin.
-  const nearestAfter = (start24: number, h: number) => {
-    const cands = [h % 12, (h % 12) + 12];
-    return cands.reduce((best, c) =>
-      ((c - start24 + 24) % 24 || 24) < ((best - start24 + 24) % 24 || 24) ? c : best
-    );
-  };
-  let s24: number;
-  let e24: number;
-  if (p1 && p2) {
-    s24 = to24(h1, p1);
-    e24 = to24(h2, p2);
-  } else if (p1) {
-    s24 = to24(h1, p1);
-    e24 = h2 > 12 ? h2 % 24 : nearestAfter(s24, h2);
-  } else {
-    e24 = to24(h2, p2!);
-    const cands = h1 > 12 ? [h1 % 24] : [h1 % 12, (h1 % 12) + 12];
-    s24 = cands.reduce((best, c) =>
-      ((e24 - c + 24) % 24 || 24) < ((e24 - best + 24) % 24 || 24) ? c : best
-    );
-  }
-  return `${fmt(s24, mm1)} a ${fmt(e24, mm2)}`;
-}
-
 /** Extrae horario de un mensaje (sin día). A15566: rangos con am/pm y "a partir de". */
 export function parseHorarioFromText(text: string): string | null {
   const trimmed = text.trim();
@@ -4936,11 +4760,6 @@ export function parseHorarioFromText(text: string): string | null {
       if (h === 24) h = 12;
       return `${String(h).padStart(2, "0")}:${m}`;
     }
-  }
-
-  {
-    const rangeWithPeriods = parseClockRangeWithPeriods(clean);
-    if (rangeWithPeriods) return rangeWithPeriods;
   }
 
   // A15903: "10 - 12 personas" / "aproximadamente 10-12" ≠ horario.
@@ -4994,12 +4813,10 @@ export function parseHorarioFromText(text: string): string | null {
   if (rangeAmpm?.[1]) {
     const frag = rangeAmpm[1].trim();
     // A15903: "10-12" sin am/pm/hrs no es horario (suele ser aforo).
-    // A16433: "7:30 a 12:30" (con minutos en ambos lados) sí es horario.
     if (
       !new RegExp(CLOCK_AMPM, "i").test(frag) &&
       !/\b(hrs?|horas?)\b/i.test(frag) &&
-      !/\b(a\s+las?|de\s+las?)\b/i.test(clean) &&
-      !/\d:\d{2}\D+\d{1,2}:\d{2}/.test(frag)
+      !/\b(a\s+las?|de\s+las?)\b/i.test(clean)
     ) {
       /* no-op: seguir buscando */
     } else {
@@ -5133,28 +4950,6 @@ export function parseHorarioFromText(text: string): string | null {
     }
   }
 
-  // A16433: "El sábado 03 de octubre 7:40pm" — hora explícita (am/pm o H:MM) junto a la fecha.
-  {
-    const explicitClock = clean.match(
-      /(?:^|\s)(\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.\s*m\.?|p\.\s*m\.?)|\d{1,2}:\d{2}(?:\s*hrs?)?)(?=\s|$)/i
-    );
-    if (explicitClock?.[1]) {
-      const rest = clean
-        .replace(explicitClock[1], " ")
-        .replace(/\b(el|la|los|para|sería|seria|es|y|a|las?)\b/gi, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-      if (
-        !rest ||
-        parseFechaFromText(rest) ||
-        MONTH_PATTERN.test(rest) ||
-        /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|hoy|ma[nñ]ana)\b/i.test(rest)
-      ) {
-        return normalizeHorarioCapture(explicitClock[1].trim());
-      }
-    }
-  }
-
   if (
     /\b(tarde|noche|mediod[ií]a|medio\s*d[ií]a|ma[nñ]ana)\b/i.test(clean) &&
     clean.split(/\s+/).length <= 7 &&
@@ -5224,8 +5019,6 @@ export function isUsableHorarioEvento(value: string | null | undefined): boolean
   if (looksLikeMealTimeNotLocation(t) && t.split(/\s+/).length <= 6) return true;
   if (/\b\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}/i.test(t)) return true;
   if (/\b(?:a\s+las|desde\s+las)\s+\d/i.test(t)) return true;
-  // A16434: "5:00 de la tarde a 10:00 de la noche" / "5:00PM 10PM".
-  if (parseClockRangeWithPeriods(t)) return true;
   if (/\b(tarde|noche|mediod[ií]a|ma[nñ]ana)\b/i.test(t) && t.split(/\s+/).length <= 5) {
     return true;
   }
@@ -5291,14 +5084,6 @@ export function isUsableFechaHorario(value: string | null | undefined): boolean 
   if (isMealTimeOnlySchedule(t)) return false;
   if (isClockTimeOnlySchedule(t)) return false;
   if (looksLikeFechaDiscourseJunk(t)) return false;
-  // A16434: "atardecer" / "en la noche" es momento del día, no fecha.
-  if (
-    /^(?:(?:ser[ií]a|es)\s+)?(?:en\s+(?:el|la)\s+|al\s+|por\s+la\s+|a\s+la\s+|de\s+)?(atardecer|anochecer|amanecer|tarde|noche|mediod[ií]a|medio\s+d[ií]a|madrugada|puesta\s+de\s+sol)\s*[\p{Extended_Pictographic}\s]*$/iu.test(
-      t
-    )
-  ) {
-    return false;
-  }
   // Frase conversacional sin ancla de fecha corta.
   if (
     t.split(/\s+/).length >= 10 &&
@@ -6463,31 +6248,7 @@ export function isNegativeOnlyReply(text: string | null | undefined): boolean {
   );
 }
 
-const MX_CITY_ABBREVIATIONS: Array<[RegExp, string]> = [
-  [/\bgdl\b\.?/gi, "Guadalajara"],
-  [/\bmty\b\.?/gi, "Monterrey"],
-  [/\bqro\b\.?/gi, "Querétaro"],
-  [/\bags\b\.?/gi, "Aguascalientes"],
-  [/\bqroo\b\.?/gi, "Quintana Roo"],
-  [/\bcuerna\b/gi, "Cuernavaca"],
-  [/\btlaque\b/gi, "Tlaquepaque"],
-  [/,\s*jal\b\.?/gi, ", Jalisco"],
-  [/,\s*n\.?\s*l\.?$/gi, ", Nuevo León"],
-];
-
-/**
- * A16417: "Gdl" / "Mty" / "Qro" → nombre completo de la ciudad.
- * "Pue" solo si es todo el mensaje (en otro contexto es "pues").
- */
-export function expandMxCityAbbreviations(text: string): string {
-  let out = text;
-  for (const [re, city] of MX_CITY_ABBREVIATIONS) out = out.replace(re, city);
-  if (/^\s*pue\.?\s*$/i.test(out)) out = "Puebla";
-  return out;
-}
-
 export function parseZonaFromText(text: string): string | null {
-  text = expandMxCityAbbreviations(text);
   // Quitar correos antes de parsear: un RFQ con email no es "solo un correo".
   const withoutEmails = text
     .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, " ")
@@ -6891,15 +6652,6 @@ export function isRicherFechaCapture(
       prev
     ) || /\b\d{1,2}[\/\-]\d{1,2}/.test(prev);
   if (nextHasDay && (isMonthOnlyFecha(prev) || !prevHasDay)) return true;
-  // "Abril" → "Abril de 2027".
-  if (
-    /\b20\d{2}\b/.test(next) &&
-    !/\b20\d{2}\b/.test(prev) &&
-    isMonthOnlyFecha(prev) &&
-    next.toLowerCase().startsWith(prev.toLowerCase())
-  ) {
-    return true;
-  }
   if (nextHasDay && prevHasDay && /\b\d{4}\b/.test(next) && !/\b\d{4}\b/.test(prev)) return true;
   if (next.length > prev.length + 2 && nextHasDay) return true;
   return false;
@@ -7026,24 +6778,24 @@ export function parseFechaFromText(text: string): string | null {
   if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
     // Nunca guardar el mensaje completo: solo el mes (o "en septiembre").
     // Si hay día+mes ya lo capturamos arriba; aquí solo mes suelto.
-    // A16437: "para el abril de 2027" → conservar el año.
-    const monthWithYear = (): string | null => {
-      const month = trimmed.match(
-        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b(?:\s+(?:de(?:l)?\s+)?(20\d{2}))?/i
-      );
-      if (!month?.[1]) return null;
-      const m = month[1]!;
-      const label = m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
-      return month[2] ? `${label} de ${month[2]}` : label;
-    };
     if (looksLikeFechaDiscourseJunk(trimmed) || trimmed.length > 40 || trimmed.split(/\s+/).length > 5) {
-      const withYear = monthWithYear();
-      if (withYear) return withYear;
+      const month = trimmed.match(
+        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+      );
+      if (month?.[1]) {
+        const m = month[1]!;
+        return m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
+      }
     }
     // "10 octubre" ya salió arriba; "octubre" / "en octubre" sueltos.
     if (isMonthOnlyFecha(trimmed) || /^en\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/i.test(trimmed)) {
-      const withYear = monthWithYear();
-      if (withYear) return withYear;
+      const month = trimmed.match(
+        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+      );
+      if (month?.[1]) {
+        const m = month[1]!;
+        return m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
+      }
     }
     return trimmed.slice(0, 80);
   }
@@ -7088,13 +6840,6 @@ export function isGenericQuoteIntentRequerimiento(value: string | null | undefin
  * Ej: "Querétaro" + "El Marqués" → "Querétaro, El Marqués".
  */
 export function mergeZonaDetail(
-  existing: string | null | undefined,
-  incoming: string | null | undefined
-): string | null {
-  return dedupeLocationParts(mergeZonaDetailRaw(existing, incoming));
-}
-
-function mergeZonaDetailRaw(
   existing: string | null | undefined,
   incoming: string | null | undefined
 ): string | null {
@@ -7144,8 +6889,6 @@ function mergeZonaDetailRaw(
   if (next.toLowerCase().includes(prev.toLowerCase())) return next;
   // Evita duplicar si son casi iguales.
   if (textOverlapLoose(prev, next) >= 0.85) return prev.length >= next.length ? prev : next;
-  // A16437: "Ciénaga de Flores" vs "CIENEGA de flores" (typo/mayúsculas) = mismo lugar.
-  if (looseSameToponym(prev, next)) return preferToponymSpelling(prev, next);
   // A15486: San Miguel / venue real reemplaza CDMX de plantilla promo.
   if (
     /\bsan\s+miguel|hacienda|allende\b/i.test(next) &&
@@ -8204,56 +7947,8 @@ export function applyCapturesToCrm(
   filledSet: Set<string>,
   captures: CrmCapture[]
 ): void {
-  const crmBlob = mergedLines.join("\n");
-  for (const capture of captures) {
-    const { label } = capture;
-    let { value } = capture;
+  for (const { label, value } of captures) {
     if (!value?.trim()) continue;
-    // Fecha/horario del mensaje actual → absolutos con referencia a hoy (CDMX).
-    if (label === CRM_FECHA_LABEL) {
-      value = resolveFechaEvento(value) ?? value;
-      if (filledSet.has(label)) {
-        const re = new RegExp(`^-?\\s*${CRM_FECHA_LABEL}:\\s*`, "i");
-        const idx = mergedLines.findIndex((l) => re.test(l));
-        const existing = idx >= 0 ? mergedLines[idx]!.replace(re, "").trim() : "";
-        // A16434: "atardecer" guardado como fecha → lo reemplaza "8 de octubre".
-        if (
-          idx >= 0 &&
-          isUsableFechaEvento(value) &&
-          (!isUsableFechaEvento(existing) || isRicherFechaCapture(value, existing))
-        ) {
-          mergedLines[idx] = `- ${CRM_FECHA_LABEL}: ${value}`;
-        }
-        continue;
-      }
-    }
-    if (label === CRM_HORARIO_LABEL) {
-      const idx = mergedLines.findIndex((l) =>
-        new RegExp(`^-?\\s*${CRM_HORARIO_LABEL}:`, "i").test(l)
-      );
-      const existing =
-        idx >= 0
-          ? mergedLines[idx]!.replace(new RegExp(`^-?\\s*${CRM_HORARIO_LABEL}:\\s*`, "i"), "").trim()
-          : null;
-      const resolved = resolveHorarioWithContext(value, existing, crmBlob) ?? value;
-      // "de la noche" tras "7:30 a 12:30" → completar el horario ya guardado.
-      if (idx >= 0 && filledSet.has(label) && existing && /\d/.test(existing) && !/\d/.test(value)) {
-        if (resolved !== value) mergedLines[idx] = `- ${CRM_HORARIO_LABEL}: ${resolved}`;
-        continue;
-      }
-      // "tarde" / "atardecer" guardado → lo reemplaza "5:00 pm a 10:00 pm".
-      if (
-        idx >= 0 &&
-        filledSet.has(label) &&
-        existing &&
-        /\d/.test(resolved) &&
-        (!/\d/.test(existing) || isRicherHorarioCapture(resolved, existing))
-      ) {
-        mergedLines[idx] = `- ${CRM_HORARIO_LABEL}: ${resolved}`;
-        continue;
-      }
-      value = resolved;
-    }
     if (label === "Lugar/dirección del evento" && filledSet.has(label)) {
       const idx = mergedLines.findIndex((l) => /^-?\s*Lugar\/dirección del evento:/i.test(l));
       if (idx >= 0) {

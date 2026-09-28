@@ -29,12 +29,10 @@ import {
   isUnusableTipoEventoReply,
   looksLikeNameAnswerMessage,
   parseFechaFromText,
-  parseHorarioFromText,
   isRicherFechaCapture,
   parseZonaFromText,
   isRicherDireccionCapture,
 } from "./conversation-understanding.js";
-import { resolveFechaEvento, resolveHorarioWithContext } from "./lib/eventDateTime.js";
 import { enrichExtractedFromText } from "./services/summaryService.js";
 import { enrichExtractedDireccionWithMaps } from "./services/geoResolve.js";
 import { sanitizeCrmNombre, preferRicherClientNombre } from "./contact-name.js";
@@ -354,7 +352,6 @@ export async function generateLucyOutbound(
 
   // Foto del CRM antes del turno: si no crece, el mensaje del cliente no aportó nada.
   const filledBefore = new Set(filledLabels);
-  const requerimientosBefore = extracted.requerimientos_evento ?? null;
   let recoveredProveedorToClienteThisTurn = false;
 
   const buildProveedorOutbound = (): {
@@ -569,24 +566,6 @@ export async function generateLucyOutbound(
     aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);
   }
 
-  // Solo lo que llegó en ESTE mensaje: "este sábado" guardado hace días no se re-resuelve.
-  if (parseFechaFromText(messageText) && extracted.fecha_evento?.trim()) {
-    extracted.fecha_evento = resolveFechaEvento(extracted.fecha_evento) ?? extracted.fecha_evento;
-  }
-  if (parseHorarioFromText(messageText) && extracted.horario_evento?.trim()) {
-    const prevHorario =
-      crmMergedLines
-        .find((l) => /^-?\s*Horario del evento:/i.test(l))
-        ?.replace(/^-?\s*Horario del evento:\s*/i, "")
-        .trim() ?? null;
-    extracted.horario_evento =
-      resolveHorarioWithContext(
-        extracted.horario_evento,
-        prevHorario,
-        `${crmMergedLines.join("\n")}\n${extracted.requerimientos_evento ?? ""}`
-      ) ?? extracted.horario_evento;
-  }
-
   aiResponse = injectCatalogInclusionIfAsked(
     messageText,
     aiResponse,
@@ -639,8 +618,6 @@ export async function generateLucyOutbound(
     history: fullHistory,
     filledBefore,
     filledAfter: filledLabels,
-    requerimientosBefore,
-    requerimientosAfter: extracted.requerimientos_evento ?? null,
     cierreYaEnviado,
     isFirstInteraction,
   });

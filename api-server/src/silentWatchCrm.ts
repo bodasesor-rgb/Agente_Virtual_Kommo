@@ -7,7 +7,6 @@ import {
   applyCrmWriteInvariants,
 } from "./lucyCrmInvariants.js";
 import { crmStoredValue } from "./lucy-flow-guards.js";
-import { resolveFechaEvento, resolveHorarioWithContext } from "./lib/eventDateTime.js";
 import {
   sanitizeDisplayName,
   sanitizeCrmNombre,
@@ -81,8 +80,7 @@ export function buildSilentWatchPatchPayload(
     });
   }
 
-  const fechaRaw = parseFechaFromText(msg);
-  const fechaFromMsg = fechaRaw ? (resolveFechaEvento(fechaRaw) ?? fechaRaw) : null;
+  const fechaFromMsg = parseFechaFromText(msg);
   if (fechaFromMsg && isUsableFechaEvento(fechaFromMsg)) {
     const crmFecha = crmStoredValue(crmLines, CRM_FECHA_LABEL);
     if (fechaFromMsg !== (crmFecha ?? "").trim()) {
@@ -93,12 +91,9 @@ export function buildSilentWatchPatchPayload(
     }
   }
 
-  const crmHorario = crmStoredValue(crmLines, CRM_HORARIO_LABEL);
-  const horarioRaw = parseHorarioFromText(msg);
-  const horarioFromMsg = horarioRaw
-    ? resolveHorarioWithContext(horarioRaw, crmHorario, crmLines.join("\n"))
-    : null;
+  const horarioFromMsg = parseHorarioFromText(msg);
   if (horarioFromMsg && isUsableHorarioEvento(horarioFromMsg)) {
+    const crmHorario = crmStoredValue(crmLines, CRM_HORARIO_LABEL);
     if (horarioFromMsg !== (crmHorario ?? "").trim()) {
       customFields.push({
         field_id: SILENT_WATCH_FIELD.horario_evento,

@@ -38,9 +38,6 @@ export interface UnclearTurnInput {
   filledBefore: Set<string>;
   /** Campos del CRM después del turno: si creció, el cliente sí se explicó. */
   filledAfter: Set<string>;
-  /** Requerimientos antes/después: si el cliente editó servicios, sí hubo avance. */
-  requerimientosBefore?: string | null;
-  requerimientosAfter?: string | null;
   /** Ya se mandó el cierre: los "gracias" de después no son un bucle. */
   cierreYaEnviado?: boolean;
   /** Primer turno: no hay pregunta previa que repetir. */
@@ -74,9 +71,6 @@ export function isStuckLoopTurn(input: UnclearTurnInput): boolean {
   for (const label of filledAfter) {
     if (!filledBefore.has(label)) return false;
   }
-  const reqBefore = (input.requerimientosBefore ?? "").trim().toLowerCase();
-  const reqAfter = (input.requerimientosAfter ?? "").trim().toLowerCase();
-  if (reqAfter && reqAfter !== reqBefore) return false;
 
   const previous = lastAssistantMessage(input.history);
   if (!previous) return false;

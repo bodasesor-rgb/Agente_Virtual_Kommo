@@ -24,25 +24,14 @@ import { applyClientNameCadence, stripMidMessageFiller, softenRobotAcks } from "
 import {
   clientAcceptsIdeasOffer,
   clientWantsIdeasOrTrends,
-  containsStaticSalesTip,
   enrichReplyWithSalesIdeas,
-  messageAlreadyOffersSalesIdeas,
 } from "./services/trendKnowledge.js";
 import { maybeRefinarMensajeCierre } from "./services/lucyRedaction.js";
 import {
   clientAsksServiceInfo,
   isServiceRelatedMessage,
   clientMentionsEntertainment,
-  parseHorarioFromText,
-  historyHasDeliveryChannelChoice,
-  clientChoosesChatDelivery,
-  clientChoosesEmailDelivery,
-  clientDeclinesMoreServices,
-  clientAsksVentaOrRenta,
-  parseCorreoFromText,
 } from "./conversation-understanding.js";
-import { suggestEmailDomainFix } from "./client-email.js";
-import { horarioNeedsAmPmConfirmation } from "./lib/eventDateTime.js";
 import { buildGuardServiceAck } from "./services/serviceKnowledge.js";
 import {
   buildConcreteProductQuestionReply,
@@ -185,7 +174,6 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
     !openingNombreOnly &&
     !hasLucyIntro &&
     input.currentMessage &&
-    !(clientAsksVentaOrRenta(input.currentMessage) && /\b(renta|venta)\b/i.test(mensaje)) &&
     (clientAsksServiceInfo(input.currentMessage) ||
       clientAsksConcreteProductQuestion(input.currentMessage)) &&
     (isServiceRelatedMessage(input.currentMessage) ||
@@ -253,17 +241,13 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
       acceptedIdeas ||
       clientWantsIdeasOrTrends(input.currentMessage) ||
       /recomendaciones?|ideas?\b|colores?|montajes?/i.test(input.currentMessage ?? "");
-    // A16434: tip proactivo máx. cada 3 mensajes (no en turnos seguidos).
-    const recentTip = lucyTexts
-      .slice(-2)
-      .some((t) => containsStaticSalesTip(t) || messageAlreadyOffersSalesIdeas(t));
-    const withIdeas = !forceIdeas && recentTip ? mensaje : enrichReplyWithSalesIdeas(mensaje, {
+    const withIdeas = enrichReplyWithSalesIdeas(mensaje, {
       tipoEvento: input.extracted.tipo_evento,
       messageText: input.currentMessage,
       requerimientos: input.extracted.requerimientos_evento,
       force: forceIdeas,
       accepted: acceptedIdeas,
-      alreadySent: lucyTexts.join("\n"),
+      alreadySent: lucyTexts.slice(-4).join("\n"),
       contextText: historyText("user").slice(-6).join("\n"),
       numInvitados: input.extracted.num_invitados ?? null,
       groundingSnippet: input.trendGroundingSnippet ?? null,
@@ -289,16 +273,6 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
       input.log?.info?.({ entityId: input.entityId }, "GUARD: tono — asesora (sin Anoto/muletilla)");
       mensaje = conTono;
     }
-    // A16433: "¡Mucho gusto!" solo una vez por conversación.
-    const yaDijoMuchoGusto = (input.history ?? []).some(
-      (m) => m.role === "assistant" && typeof m.content === "string" && /mucho\s+gusto/i.test(m.content)
-    );
-    if (yaDijoMuchoGusto) {
-      const sinSaludo = mensaje.replace(/^\s*¡?\s*mucho\s+gusto(?:,\s*[^!.,]{1,30})?\s*[!.]?\s*/i, "");
-      if (sinSaludo !== mensaje && sinSaludo.trim().length >= 8) {
-        mensaje = sinSaludo.charAt(0).toUpperCase() + sinSaludo.slice(1);
-      }
-    }
   }
 
   if (!mensaje.trim()) {
@@ -307,79 +281,6 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
         ? buildPostCierreThanksReply(input.extracted.nombre)
         : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
     input.log?.warn({ entityId: input.entityId }, "GUARD: mensaje vacío — respuesta de respaldo");
-  }
-
-  // A16437: canal ya elegido ("Por aquí está bien") + "Es todo" → despedida corta,
-  // nunca reenviar el cierre completo ni volver a preguntar el canal.
-  {
-    const hist = input.history ?? [];
-    const cm = (input.currentMessage ?? "").trim();
-    const canalPrevio = historyHasDeliveryChannelChoice(hist, null);
-    const canalAhora = clientChoosesChatDelivery(cm) || clientChoosesEmailDelivery(cm);
-    const cierreSignal =
-      clientDeclinesMoreServices(cm) ||
-      clientSaysThanks(cm) ||
-      /^(ok(ay)?|va|listo|perfecto|sale|de\s+acuerdo|gracias)[.!\s]*$/i.test(cm);
-    const reAsksChannel = /escriba\s+por\s+aqu[ií]|prefieres\s+esperar\s+el\s+correo/i.test(mensaje);
-    if (cm && ((canalPrevio && (cierreSignal || reAsksChannel)) || (canalAhora && reAsksChannel))) {
-      const userMsgs = [...hist.filter((m) => m.role === "user").map((m) => String(m.content ?? "")), cm];
-      const lastChoice = [...userMsgs]
-        .reverse()
-        .find((t) => clientChoosesChatDelivery(t) || clientChoosesEmailDelivery(t));
-      const via = lastChoice && clientChoosesEmailDelivery(lastChoice) ? "por correo" : "por aquí";
-      const nombre = input.extracted.nombre?.trim().split(/\s+/)[0];
-      mensaje = nombre
-        ? `¡Listo, ${nombre}! El equipo te escribe ${via} con tu propuesta. Gracias por tu confianza, que tengas un excelente día.`
-        : `¡Listo! El equipo te escribe ${via} con tu propuesta. Gracias por tu confianza, que tengas un excelente día.`;
-      input.log?.info?.({ entityId: input.entityId }, "GUARD: A16437 — canal ya elegido, despedida corta");
-      return formatForWhatsApp(mensaje);
-    }
-  }
-
-  // A16437: correo con dominio mal escrito (@gmaio.com) → confirmar UNA vez con la sugerencia.
-  {
-    const typed = parseCorreoFromText(input.currentMessage ?? "");
-    const suggested = suggestEmailDomainFix(typed);
-    if (typed && suggested && !/¿Tu correo es \*|me confirmas tu correo/i.test(mensaje)) {
-      const domain = typed.split("@")[1] ?? "";
-      const ask = `¿Tu correo es *${suggested}*? Lo leí como @${domain} y quiero que te llegue bien.`;
-      const sinUltimaPregunta = mensaje.replace(/¿[^¿?]*\?\s*$/, "").trim();
-      mensaje = sinUltimaPregunta ? `${sinUltimaPregunta}\n\n${ask}` : ask;
-      input.log?.info?.({ entityId: input.entityId }, "GUARD: A16437 — confirmar dominio de correo");
-    }
-  }
-
-  // Horario sin am/pm y sin pista en el contexto → confirmar UNA vez en lugar de otra pregunta.
-  if (!input.cierreYaEnviado && input.currentMessage) {
-    const horarioMsg = parseHorarioFromText(input.currentMessage);
-    const userContext = (input.history ?? [])
-      .filter((m) => m.role === "user" && typeof m.content === "string")
-      .map((m) => m.content as string)
-      .slice(-6)
-      .join("\n");
-    const context = [
-      userContext,
-      input.currentMessage,
-      input.extracted.requerimientos_evento ?? "",
-      input.extracted.horario_evento ?? "",
-    ].join("\n");
-    const askedAmPmRe = /ma[nñ]ana\s+o\s+(?:de\s+la\s+)?(?:noche|tarde)|\bam\s+o\s+pm\b/i;
-    const lucyAskedAlready = (input.history ?? [])
-      .filter((m) => m.role === "assistant" && typeof m.content === "string")
-      .slice(-3)
-      .some((m) => askedAmPmRe.test(m.content as string));
-    if (
-      horarioMsg &&
-      horarioNeedsAmPmConfirmation(horarioMsg, context) &&
-      !lucyAskedAlready &&
-      !askedAmPmRe.test(mensaje)
-    ) {
-      const start = horarioMsg.match(/\d{1,2}(?::\d{2})?/)?.[0] ?? "";
-      const ask = `¿Sería de ${start} de la mañana o de la noche?`;
-      const sinUltimaPregunta = mensaje.replace(/¿[^¿?]*\?\s*$/, "").trim();
-      mensaje = sinUltimaPregunta ? `${sinUltimaPregunta}\n\n${ask}` : ask;
-      input.log?.info?.({ entityId: input.entityId }, "GUARD: horario ambiguo — confirmar am/pm");
-    }
   }
 
   // A16244: última red — nunca WhatsApp sin pregunta que invite a seguir.

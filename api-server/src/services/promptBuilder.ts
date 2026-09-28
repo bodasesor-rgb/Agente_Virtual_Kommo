@@ -5,7 +5,6 @@ import {
   formatServiceDataForPrompt,
 } from "./catalogService.js";
 import { advisorLabelForClient } from "../lib/bodasesorAdvisor.js";
-import { formatMexicoNowForPrompt } from "../lib/eventDateTime.js";
 import type { ObjectionDetection } from "./intentDetection.js";
 import type { ExtractedData } from "../types.js";
 import {
@@ -66,18 +65,6 @@ export function buildDynamicTurnContext(context: {
   parts.push("CONTEXTO DEL TURNO (dinámico — no es system fijo)");
   parts.push("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   parts.push(`Etapa: ${context.stage} · Prioridad: ${context.priority}`);
-  parts.push(
-    `Hoy es ${formatMexicoNowForPrompt()} (hora CDMX). Si el cliente dice "este sábado", "mañana", "el 15" o un mes sin año, ` +
-      `en fecha_evento escribe la fecha concreta (ej. "sábado 3 de octubre de 2026"); si no estás segura, deja lo que dijo.`
-  );
-  parts.push(
-    `Horario: si el cliente da horas sin am/pm ("7:30 a 12:30") y no es obvio por el contexto (cena, noche, desayuno), ` +
-      `confirma UNA vez "¿de la mañana o de la noche?". No inventes am/pm.`
-  );
-  parts.push(
-    `Festejado ≠ cliente: "mi hija Sofía", "los XV de Valeria" → ese nombre es del festejado, NUNCA lo pongas en "nombre" ` +
-      `ni saludes al cliente con él.`
-  );
 
   if (context.isFirstInteraction) {
     parts.push(`

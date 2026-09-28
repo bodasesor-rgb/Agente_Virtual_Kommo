@@ -175,9 +175,6 @@ import {
   clientMentionsEntertainment,
   clientMentionsSpecialLiveAct,
   parseSpecialLiveActLabel,
-  parseNamedShowLabels,
-  clientAsksVentaOrRenta,
-  clientChoosesVenta,
   clientConfirmsOfferReview,
   clientMentionsLedRobotsOrBatucada,
   clientMentionsPistaTarima,
@@ -3318,10 +3315,6 @@ export function buildOpeningAcknowledgment(
     return "Para alimentos manejamos banquete, taquiza, brunch o coffee break — ¿cuál te interesa?";
   }
   if (/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t)) {
-    const namedShows = parseNamedShowLabels(userText);
-    if (namedShows.length > 0) {
-      return `Vi que te interesa el ${formatServicesList(namedShows.map((s) => `*${s}*`))}; el equipo te confirma costo, duración y disponibilidad.`;
-    }
     const colonMatch = userText.match(
       /(?:me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento)\s*:\s*(.+)/i
     );
@@ -7006,53 +6999,6 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     );
   }
 
-  // A16445: "¿es venta o renta?" → política Bodasesor (más renta, también cotizamos venta).
-  if (!cierreYaEnviado && currentMessage && clientAsksVentaOrRenta(currentMessage)) {
-    const display = getDisplayName(extracted, whatsappDisplayName);
-    const mentionsMob = /\b(mobiliario|mobilairio|sillas?|mesas?|periqueras?|salas?|lounge)\b/i.test(
-      `${currentMessage} ${extracted.requerimientos_evento ?? ""}`
-    );
-    if (mentionsMob) {
-      const merged = mergeServiceRequirements(extracted.requerimientos_evento, currentMessage, 6);
-      extracted.requerimientos_evento = merged || extracted.requerimientos_evento || "Mobiliario";
-      filledSet.add("Requerimientos o servicios");
-    }
-    const piecesKnown = /\b(sillas?|mesas?|periqueras?|salas?|lounge|tiffany|crossback|ghost)\b/i.test(
-      `${currentMessage} ${extracted.requerimientos_evento ?? ""}`
-    );
-    const answer = `${display ? `¡Hola, ${display}! ` : ""}Nos enfocamos más en *renta*, pero con gusto te podemos cotizar para *venta*.`;
-    let nextQ: string | null = null;
-    if (mentionsMob && !piecesKnown) {
-      nextQ = "¿Qué piezas te interesan (mesas, sillas, periqueras o salas) y las buscas en renta o para compra?";
-    } else {
-      const pending = getNextPendingField(extracted, filledSet);
-      nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-    }
-    log?.info({ entityId }, "GUARD: A16445 — cliente pregunta venta o renta");
-    return normalizeAdvisorReferences(nextQ ? `${answer} ${nextQ}` : answer, extracted.nombre ?? display);
-  }
-  if (
-    !cierreYaEnviado &&
-    currentMessage &&
-    clientChoosesVenta(currentMessage) &&
-    /cotizar\s+para\s+\*?venta/i.test(
-      [...presHistory]
-        .reverse()
-        .find((m) => m.role === "assistant" && typeof m.content === "string")
-        ?.content?.toString() ?? ""
-    )
-  ) {
-    const req = extracted.requerimientos_evento?.trim() || "Mobiliario";
-    if (!/\(venta\)/i.test(req)) extracted.requerimientos_evento = `${req} (venta)`;
-    filledSet.add("Requerimientos o servicios");
-    const display = getDisplayName(extracted, whatsappDisplayName);
-    const pending = getNextPendingField(extracted, filledSet);
-    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-    const ack = "Va, lo cotizamos para *venta*.";
-    log?.info({ entityId }, "GUARD: A16445 — cliente elige venta");
-    return normalizeAdvisorReferences(nextQ ? `${ack} ${nextQ}` : ack, extracted.nombre ?? display);
-  }
-
   // A15295 / A16074: declines ANTES de zona-ack ("No quiero pista" ≠ ubicación).
   {
     const recentUserForDecline = collectUserTexts(presHistory, undefined).slice(-4);
@@ -7126,12 +7072,9 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
         kept.length > 0 &&
         declineFamilies.includes("entretenimiento") &&
         /\bdj\s+no\b|\bno\s*,?\s*dj\b/i.test(currentMessage);
-      const keptShows = kept.filter((s) => /^Show\s|^Circo\b/i.test(s));
       const ack = checklistMix
         ? `Perfecto: anoto *${formatServicesList(kept)}*; sin DJ.`
-        : declineFamilies.includes("animacion") && keptShows.length > 0
-          ? `Listo, sin animación. Cotizamos solo ${formatServicesList(keptShows.map((s) => `*${s}*`))}.`
-          : buildServiceDeclineAck(declineFamilies);
+        : buildServiceDeclineAck(declineFamilies);
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ =
         pending && pending !== "requerimientos"
@@ -7147,37 +7090,6 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       );
       return normalizeAdvisorReferences(
         nextQ ? `${ack} ${nextQ}` : ack,
-        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
-      );
-    }
-  }
-
-  // A16438: "solo quiero el show" / "solo el shows" con shows con nombre en el hilo →
-  // quedarse con esos shows (sin animación) en vez de re-ofrecer entretenimiento genérico.
-  if (
-    !cierreYaEnviado &&
-    currentMessage &&
-    currentMessage.trim().length <= 60 &&
-    /^\s*(?:no[\s,.]+)?(?:solo|solamente|[uú]nicamente|nada\s+m[aá]s)\s+(?:quiero|necesito|me\s+interesa|busco|es|ser[ií]a)?\s*(?:el|los|la|las|un|una)?\s*shows?\b[\s.!]*$/iu.test(
-      currentMessage
-    )
-  ) {
-    const threadBlob = [
-      extracted.requerimientos_evento ?? "",
-      ...collectUserTexts(presHistory, undefined),
-    ].join("\n");
-    const shows = parseNamedShowLabels(threadBlob);
-    if (shows.length > 0) {
-      extracted.requerimientos_evento = shows.slice(0, 6).join(", ");
-      filledSet.add("Requerimientos o servicios");
-      const pending = getNextPendingField(extracted, filledSet);
-      const nextQ =
-        pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
-      const list = formatServicesList(shows.map((s) => `*${s}*`));
-      const ack = `Entendido, solo ${shows.length > 1 ? "los shows" : "el show"}: ${list}, sin animación. El equipo te confirma costo y duración.`;
-      log?.info({ entityId, shows }, "GUARD: A16438 — solo el show con nombre");
-      return normalizeAdvisorReferences(
-        nextQ ? `${ack}\n\n${nextQ}` : ack,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
@@ -7681,45 +7593,6 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
         nextQ ? `${ack} ${nextQ}` : ack,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
-    }
-  }
-
-  // A16437: "Me puedes cotizar ambos" tras "solo alimentos vs servicio completo".
-  if (!cierreYaEnviado && currentMessage) {
-    const lastLucyText = [...presHistory]
-      .reverse()
-      .find((m) => m.role === "assistant" && typeof m.content === "string")?.content as
-      | string
-      | undefined;
-    const offeredModes =
-      /dos\s+caminos|solo\s+alimentos[\s\S]{0,200}servicio\s+completo/i.test(lastLucyText ?? "");
-    const wantsBoth =
-      /\b(ambos|ambas|los\s+dos|las\s+dos|las\s+2|los\s+2)\b/i.test(currentMessage) &&
-      currentMessage.length <= 80;
-    if (offeredModes && wantsBoth) {
-      const svc =
-        (lastLucyText ?? "").match(/Para\s+\*([^*]+)\*\s+tenemos\s+dos\s+caminos/i)?.[1]?.trim() ??
-        null;
-      const base =
-        (svc ? mergeServiceRequirements(extracted.requerimientos_evento, svc, 8) : null) ??
-        extracted.requerimientos_evento?.trim() ??
-        "";
-      const note = "cotizar solo alimentos y servicio completo";
-      const withNote = new RegExp(note, "i").test(base)
-        ? base
-        : base
-          ? `${base} (${note})`
-          : note.charAt(0).toUpperCase() + note.slice(1);
-      extracted.requerimientos_evento = withNote;
-      filledSet.add("Requerimientos o servicios");
-      const display = getDisplayName(extracted, whatsappDisplayName);
-      const ack = display
-        ? `¡Va, ${display}! Te cotizamos las dos opciones (solo alimentos y servicio completo) para que las compares.`
-        : "¡Va! Te cotizamos las dos opciones (solo alimentos y servicio completo) para que las compares.";
-      const pending = getNextPendingField(extracted, filledSet);
-      const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-      log?.info({ entityId, pending }, "GUARD: A16437 — cotizar ambas modalidades");
-      return normalizeAdvisorReferences(nextQ ? `${ack} ${nextQ}` : ack, extracted.nombre ?? display);
     }
   }
 

@@ -15,7 +15,6 @@ export type DeclinedServiceFamily =
   | "carpas"
   | "decoracion"
   | "entretenimiento"
-  | "animacion"
   | "pista"
   | "tarima"
   | "dulces";
@@ -30,8 +29,6 @@ const FAMILY_SERVICE_RE: Record<DeclinedServiceFamily, RegExp> = {
   carpas: /carpas?|capras?|toldos?|lonas?/i,
   decoracion: /decoraci[oó]n|centros?\s+de\s+mesa|florister|globos?|tem[aá]tica/i,
   entretenimiento: /show|dj\b|entretenimiento|hora\s+loca|photobooth|photo\s*booth|bailarinas|batucada|robots?/i,
-  // A16438: "no quiero animación" quita la hora loca, NO los shows con nombre.
-  animacion: /animaci[oó]n|hora\s+loca|happening|animador/i,
   // A16074: declinar pista NO quita tarima.
   pista: /pista(\s+de\s+baile)?/i,
   tarima: /^Tarima\b|tarimas?|entarimad/i,
@@ -56,8 +53,7 @@ const FAMILY_DECLINE_WORDS: Record<DeclinedServiceFamily, string> = {
   mobiliario: "mobiliario|mobilairio|mibiliario|mobilario|sillas?|mesas?|periqueras?|salas?",
   carpas: "carpas?|capras?|toldos?|lonas?",
   decoracion: "decoraci[oó]n|centros?\\s+de\\s+mesa|flores?|globos?",
-  entretenimiento: "show|dj|entretenimiento|photobooth|photo\\s*booth",
-  animacion: "animaci[oó]n|animador(?:es)?|hora\\s+loca|happening",
+  entretenimiento: "show|dj|entretenimiento|hora\\s+loca|photobooth|photo\\s*booth",
   pista: "pista(\\s+de\\s+baile)?",
   tarima: "tarimas?|entarimad[oa]s?",
   dulces: "mesa\\s+de\\s+dulces|mesa\\s+de\\s+postres?|postres?|dulces?|cupcakes?|pastel(es)?|fondant",
@@ -352,8 +348,6 @@ export function declinedFamilyLabel(family: DeclinedServiceFamily): string {
       return "decoración";
     case "entretenimiento":
       return "entretenimiento";
-    case "animacion":
-      return "animación / hora loca";
     case "pista":
       return "pista de baile";
     case "tarima":
