@@ -2684,7 +2684,13 @@ async function recordMeetingInKommo(opts: {
   const quien = clientName?.trim() || "cliente";
   const citado = `"${clientMessage.trim().slice(0, 200)}"`;
   const setCampo = (valor: string) =>
-    actualizarCampoTexto(subdomain, accessToken, entityId, FIELD_CITA_VIDEOLLAMADA, valor);
+    actualizarCampoTexto(
+      subdomain,
+      accessToken,
+      entityId,
+      FIELD_CITA_VIDEOLLAMADA,
+      `${valor} · ${getBookingUrl()}`
+    );
 
   if (meeting.kind === "offer_link") {
     await agregarNota(
