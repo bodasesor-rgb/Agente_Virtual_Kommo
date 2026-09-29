@@ -102,12 +102,14 @@ export function softenRobotAcks(mensaje: string): string {
   let out = mensaje;
 
   // "Perfecto. Anoto tu *boda*." / "Perfecto. Anoto *Taquiza*."
+  // A16484: antes salía "¡Perfecto, *boda*!" / "¡Perfecto, que es *comida*!".
   out = out.replace(
-    /\bPerfecto\.?\s*Anoto(?:\s+tu)?\s+(\*[^*]{1,60}\*|[^.!?\n]{2,60})[.!]?\s*/gi,
-    "¡Perfecto, $1! "
+    /\bPerfecto\.?\s*Anoto(\s+tu|\s+que\s+es)?\s+(\*[^*]{1,60}\*|[^.!?\n]{2,60})[.!]?\s*/gi,
+    (_m, tu: string | undefined, what: string) =>
+      tu ? `¡Perfecto! Vamos con tu ${what}. ` : `¡Perfecto! Vamos con ${what}. `
   );
   // "¡Claro! Anoto *20* centros…" / "Claro! Anoto X para tu cotización."
-  out = out.replace(/\b¡?Claro!?\.?\s*Anoto\s+/gi, "¡Claro! Vamos con ");
+  out = out.replace(/(?:¡|\b)Claro!?\.?\s*Anoto\s+/gi, "¡Claro! Vamos con ");
   // "Perfecto — anoto *bailarinas* …"
   out = out.replace(/\bPerfecto\s*[—–-]\s*anoto\s+/gi, "¡Va! Sumamos ");
   // "Anoto *X* para tu cotización."

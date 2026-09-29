@@ -656,7 +656,7 @@ function getQuestionVariants(): Record<PendingField, string[]> {
   ],
   requerimientos: [
     "¿Qué servicios te gustaría ir armando?",
-    "Platícame qué te gustaría armar para el evento.",
+    "Platícame, ¿qué te gustaría armar para el evento?",
     "¿Qué necesitas cotizar?",
   ],
   invitados: [
@@ -6758,7 +6758,10 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
         /medida(?:s)?\s+(?:de\s+)?(?:la\s+)?(?:carpa|sal[oó]n)|medidas?\s+del\s+sal[oó]n/i.test(
           msgEnt
         ));
-    const firstAskEntelado = isEnteladoRequestText(msgEnt);
+    // A16484: "No quiero el entelado, ya lo tengo" / "complementar con entelado" ≠ pedirlo.
+    const firstAskEntelado =
+      isEnteladoRequestText(msgEnt) &&
+      parseServicesFromText(msgEnt).includes("Entelados para Techo");
     const enteladoInPlay =
       !asksFurnitureInstead &&
       msgEnt &&

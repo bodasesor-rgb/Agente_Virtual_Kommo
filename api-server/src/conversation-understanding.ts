@@ -3537,7 +3537,57 @@ export function isEnteladoRequestText(text: string | null | undefined): boolean 
   );
 }
 
+const EXCLUDED_SERVICE_LEADS: RegExp[] = [
+  /\b(?:ya\s+)?no\s+(?:quiero|queremos|necesito|necesitamos|requiero|requerimos|ocupo|ocupamos)\s+([^.;!?\n]{2,70})/gi,
+  /\bya\s+(?:tengo|tenemos|contamos\s+con|conseguimos|consegu[ií]|compr[eé]|compramos)\s+([^.;!?\n]{2,70})/gi,
+  /\b(?:para\s+)?(?:complementar|combinar|acompa[nñ]ar)(?:l[oa]s?)?\s+con\s+([^.;!?\n]{2,70})/gi,
+  /\b(?:qu[ií]tale|quita(?:r|mos)?|sin\s+(?:el|la|los|las))\s+([^.;!?\n]{2,70})/gi,
+];
+const EXCLUDED_TRAILING_RE =
+  /\b(?:el|la|los|las)\s+([a-záéíóúñ]+(?:\s+[a-záéíóúñ]+){0,3}?)\s*,?\s*(?:es[eao]s?\s+)?ya\s+l[oa]s?\s+(?:tengo|tenemos)\b/gi;
+
+/** A16484: "No quiero el entelado, ese ya lo tengo" / "para complementar con entelado" → fragmentos que NO son pedido. */
+function excludedServiceFragments(text: string): string[] {
+  const out: string[] = [];
+  for (const re of EXCLUDED_SERVICE_LEADS) {
+    for (const m of text.matchAll(re)) {
+      const frag = (m[1] ?? "")
+        .split(/\s*,\s*|\s+(?:pero|sino|y\s+(?:quiero|queremos|necesito|me\s+gustar[ií]a|cotizar|deja|dejas|agrega|agregas|pon|pones|mant[eé]n))\s+/i)[0]!
+        .trim();
+      const first = frag.split(/\s+/)[0]?.toLowerCase() ?? "";
+      if (!frag || /^(que|nada|mucho|tanto|algo)$/.test(first) || /(ar|er|ir)$/.test(first)) continue;
+      out.push(frag);
+    }
+  }
+  for (const m of text.matchAll(EXCLUDED_TRAILING_RE)) {
+    if (m[1]) out.push(m[1]);
+  }
+  return out;
+}
+
+/** El mensaje sin lo que el cliente rechaza o ya tiene ("no quiero el entelado"). */
+export function stripExcludedServiceMentions(text: string): string {
+  const fragments = excludedServiceFragments(text);
+  if (!fragments.length) return text;
+  let rest = text;
+  for (const f of fragments) rest = rest.split(f).join(" ");
+  return rest.replace(/\s{2,}/g, " ").trim();
+}
+
 export function parseServicesFromText(text: string): string[] {
+  const found = parseServicesFromTextRaw(text);
+  if (!found.length) return found;
+  const fragments = excludedServiceFragments(text);
+  if (!fragments.length) return found;
+  const excluded = new Set(fragments.flatMap((f) => parseServicesFromTextRaw(f)));
+  if (!excluded.size) return found;
+  let rest = text;
+  for (const f of fragments) rest = rest.split(f).join(" ");
+  const stillAsked = new Set(parseServicesFromTextRaw(rest));
+  return found.filter((s) => !excluded.has(s) || stillAsked.has(s));
+}
+
+function parseServicesFromTextRaw(text: string): string[] {
   const t = text.trim();
   if (
     /\b(únicamente|unicamente|solo|solamente)\s+(vajillas?|loza|cubiertos?)\b/i.test(t) ||

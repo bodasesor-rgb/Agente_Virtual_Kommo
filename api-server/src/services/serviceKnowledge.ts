@@ -19,6 +19,7 @@ import {
   parseSalaProductFromText,
   parseSpaceDimensions,
   clientAsksForCatalog,
+  stripExcludedServiceMentions,
 } from "../conversation-understanding.js";
 import {
   buildCatalogInclusionAnswer,
@@ -281,7 +282,9 @@ export function buildLevel3Ack(serviceLabel: string): string {
   return `Tomo nota de tu solicitud especial (*${label}*). Nuestro equipo revisa disponibilidad y te confirma si podemos apoyarte.`;
 }
 
-export function buildGuardServiceAck(query: string): string {
+export function buildGuardServiceAck(rawQuery: string): string {
+  // A16484: "No quiero el entelado, ya lo tengo. Quiero un colgante…" → acusar solo el colgante.
+  const query = stripExcludedServiceMentions(rawQuery) || rawQuery;
   // A16345: disponibilidad alcohol / "tienes X?" antes de anotar genérico.
   if (/\balcohol\b/i.test(query) && /\bpaletas?|\bhelados?\b/i.test(query)) {
     return buildKnownCatalogAck("Paletas de Hielo y Helados", query);

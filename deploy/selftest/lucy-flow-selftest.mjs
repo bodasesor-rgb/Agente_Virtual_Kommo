@@ -127697,7 +127697,48 @@ function isEnteladoRequestText(text2) {
   if (!t3) return false;
   return /\bentelados?\b/i.test(t3) || /\btela\s+(en\s+|de\s+|para\s+)?techo\b/i.test(t3) || /\bentelados?\s+para\s+techo\b/i.test(t3) || /\btecho\s+entelado\b/i.test(t3);
 }
+var EXCLUDED_SERVICE_LEADS = [
+  /\b(?:ya\s+)?no\s+(?:quiero|queremos|necesito|necesitamos|requiero|requerimos|ocupo|ocupamos)\s+([^.;!?\n]{2,70})/gi,
+  /\bya\s+(?:tengo|tenemos|contamos\s+con|conseguimos|consegu[ií]|compr[eé]|compramos)\s+([^.;!?\n]{2,70})/gi,
+  /\b(?:para\s+)?(?:complementar|combinar|acompa[nñ]ar)(?:l[oa]s?)?\s+con\s+([^.;!?\n]{2,70})/gi,
+  /\b(?:qu[ií]tale|quita(?:r|mos)?|sin\s+(?:el|la|los|las))\s+([^.;!?\n]{2,70})/gi
+];
+var EXCLUDED_TRAILING_RE = /\b(?:el|la|los|las)\s+([a-záéíóúñ]+(?:\s+[a-záéíóúñ]+){0,3}?)\s*,?\s*(?:es[eao]s?\s+)?ya\s+l[oa]s?\s+(?:tengo|tenemos)\b/gi;
+function excludedServiceFragments(text2) {
+  const out2 = [];
+  for (const re3 of EXCLUDED_SERVICE_LEADS) {
+    for (const m5 of text2.matchAll(re3)) {
+      const frag = (m5[1] ?? "").split(/\s*,\s*|\s+(?:pero|sino|y\s+(?:quiero|queremos|necesito|me\s+gustar[ií]a|cotizar|deja|dejas|agrega|agregas|pon|pones|mant[eé]n))\s+/i)[0].trim();
+      const first = frag.split(/\s+/)[0]?.toLowerCase() ?? "";
+      if (!frag || /^(que|nada|mucho|tanto|algo)$/.test(first) || /(ar|er|ir)$/.test(first)) continue;
+      out2.push(frag);
+    }
+  }
+  for (const m5 of text2.matchAll(EXCLUDED_TRAILING_RE)) {
+    if (m5[1]) out2.push(m5[1]);
+  }
+  return out2;
+}
+function stripExcludedServiceMentions(text2) {
+  const fragments = excludedServiceFragments(text2);
+  if (!fragments.length) return text2;
+  let rest = text2;
+  for (const f6 of fragments) rest = rest.split(f6).join(" ");
+  return rest.replace(/\s{2,}/g, " ").trim();
+}
 function parseServicesFromText(text2) {
+  const found = parseServicesFromTextRaw(text2);
+  if (!found.length) return found;
+  const fragments = excludedServiceFragments(text2);
+  if (!fragments.length) return found;
+  const excluded = new Set(fragments.flatMap((f6) => parseServicesFromTextRaw(f6)));
+  if (!excluded.size) return found;
+  let rest = text2;
+  for (const f6 of fragments) rest = rest.split(f6).join(" ");
+  const stillAsked = new Set(parseServicesFromTextRaw(rest));
+  return found.filter((s6) => !excluded.has(s6) || stillAsked.has(s6));
+}
+function parseServicesFromTextRaw(text2) {
   const t3 = text2.trim();
   if (/\b(únicamente|unicamente|solo|solamente)\s+(vajillas?|loza|cubiertos?)\b/i.test(t3) || /\b(únicamente|unicamente)\s+vajilla\b/i.test(t3)) {
     return dedupeServiceHierarchy(["Vajillas"], t3);
@@ -134744,7 +134785,8 @@ function buildLevel3Ack(serviceLabel) {
   const label = serviceLabel.trim() || "tu solicitud";
   return `Tomo nota de tu solicitud especial (*${label}*). Nuestro equipo revisa disponibilidad y te confirma si podemos apoyarte.`;
 }
-function buildGuardServiceAck(query) {
+function buildGuardServiceAck(rawQuery) {
+  const query = stripExcludedServiceMentions(rawQuery) || rawQuery;
   if (/\balcohol\b/i.test(query) && /\bpaletas?|\bhelados?\b/i.test(query)) {
     return buildKnownCatalogAck("Paletas de Hielo y Helados", query);
   }
@@ -137451,7 +137493,7 @@ function getQuestionVariants() {
     ],
     requerimientos: [
       "\xBFQu\xE9 servicios te gustar\xEDa ir armando?",
-      "Plat\xEDcame qu\xE9 te gustar\xEDa armar para el evento.",
+      "Plat\xEDcame, \xBFqu\xE9 te gustar\xEDa armar para el evento?",
       "\xBFQu\xE9 necesitas cotizar?"
     ],
     invitados: [
@@ -141294,7 +141336,7 @@ ${nextQ}` : ack;
     const givingDimsForEntelado = !!dimsNow && (isEnteladoRequestText(extracted.requerimientos_evento) || isEnteladoRequestText(userBlobEnt) || /medida(?:s)?\s+(?:de\s+)?(?:la\s+)?(?:carpa|sal[oó]n)|medidas?\s+del\s+sal[oó]n/i.test(
       msgEnt
     ));
-    const firstAskEntelado = isEnteladoRequestText(msgEnt);
+    const firstAskEntelado = isEnteladoRequestText(msgEnt) && parseServicesFromText(msgEnt).includes("Entelados para Techo");
     const enteladoInPlay = !asksFurnitureInstead && msgEnt && (firstAskEntelado || givingDimsForEntelado);
     if (enteladoInPlay) {
       const merged = mergeServiceRequirements(
@@ -146519,10 +146561,10 @@ function softenRobotAcks(mensaje) {
   if (!mensaje?.trim()) return mensaje;
   let out2 = mensaje;
   out2 = out2.replace(
-    /\bPerfecto\.?\s*Anoto(?:\s+tu)?\s+(\*[^*]{1,60}\*|[^.!?\n]{2,60})[.!]?\s*/gi,
-    "\xA1Perfecto, $1! "
+    /\bPerfecto\.?\s*Anoto(\s+tu|\s+que\s+es)?\s+(\*[^*]{1,60}\*|[^.!?\n]{2,60})[.!]?\s*/gi,
+    (_m, tu, what) => tu ? `\xA1Perfecto! Vamos con tu ${what}. ` : `\xA1Perfecto! Vamos con ${what}. `
   );
-  out2 = out2.replace(/\b¡?Claro!?\.?\s*Anoto\s+/gi, "\xA1Claro! Vamos con ");
+  out2 = out2.replace(/(?:¡|\b)Claro!?\.?\s*Anoto\s+/gi, "\xA1Claro! Vamos con ");
   out2 = out2.replace(/\bPerfecto\s*[—–-]\s*anoto\s+/gi, "\xA1Va! Sumamos ");
   out2 = out2.replace(
     /\bAnoto\s+(\*[^*]{1,80}\*|(?:medidas?\s+)?[^.!?\n]{2,80}?)\s+para\s+tu\s+cotizaci[oó]n[.!]?\s*/gi,
@@ -146712,8 +146754,7 @@ ${keepQ}` : ack;
     const lastLucy = lucyTexts[lucyTexts.length - 1] ?? "";
     const acceptedIdeas = clientAcceptsIdeasOffer(input.currentMessage, lastLucy);
     const forceIdeas = acceptedIdeas || clientWantsIdeasOrTrends(input.currentMessage) || /recomendaciones?|ideas?\b|colores?|montajes?/i.test(input.currentMessage ?? "");
-    const recentTip = lucyTexts.slice(-2).some((t3) => containsStaticSalesTip(t3) || messageAlreadyOffersSalesIdeas(t3));
-    const withIdeas = !forceIdeas && recentTip ? mensaje : enrichReplyWithSalesIdeas(mensaje, {
+    const withIdeas = !forceIdeas ? mensaje : enrichReplyWithSalesIdeas(mensaje, {
       tipoEvento: input.extracted.tipo_evento,
       messageText: input.currentMessage,
       requerimientos: input.extracted.requerimientos_evento,

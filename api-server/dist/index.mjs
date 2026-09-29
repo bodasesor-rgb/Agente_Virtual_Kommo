@@ -133851,7 +133851,41 @@ function isEnteladoRequestText(text2) {
   if (!t4) return false;
   return /\bentelados?\b/i.test(t4) || /\btela\s+(en\s+|de\s+|para\s+)?techo\b/i.test(t4) || /\bentelados?\s+para\s+techo\b/i.test(t4) || /\btecho\s+entelado\b/i.test(t4);
 }
+function excludedServiceFragments(text2) {
+  const out2 = [];
+  for (const re4 of EXCLUDED_SERVICE_LEADS) {
+    for (const m6 of text2.matchAll(re4)) {
+      const frag = (m6[1] ?? "").split(/\s*,\s*|\s+(?:pero|sino|y\s+(?:quiero|queremos|necesito|me\s+gustar[ií]a|cotizar|deja|dejas|agrega|agregas|pon|pones|mant[eé]n))\s+/i)[0].trim();
+      const first = frag.split(/\s+/)[0]?.toLowerCase() ?? "";
+      if (!frag || /^(que|nada|mucho|tanto|algo)$/.test(first) || /(ar|er|ir)$/.test(first)) continue;
+      out2.push(frag);
+    }
+  }
+  for (const m6 of text2.matchAll(EXCLUDED_TRAILING_RE)) {
+    if (m6[1]) out2.push(m6[1]);
+  }
+  return out2;
+}
+function stripExcludedServiceMentions(text2) {
+  const fragments = excludedServiceFragments(text2);
+  if (!fragments.length) return text2;
+  let rest = text2;
+  for (const f7 of fragments) rest = rest.split(f7).join(" ");
+  return rest.replace(/\s{2,}/g, " ").trim();
+}
 function parseServicesFromText(text2) {
+  const found = parseServicesFromTextRaw(text2);
+  if (!found.length) return found;
+  const fragments = excludedServiceFragments(text2);
+  if (!fragments.length) return found;
+  const excluded = new Set(fragments.flatMap((f7) => parseServicesFromTextRaw(f7)));
+  if (!excluded.size) return found;
+  let rest = text2;
+  for (const f7 of fragments) rest = rest.split(f7).join(" ");
+  const stillAsked = new Set(parseServicesFromTextRaw(rest));
+  return found.filter((s7) => !excluded.has(s7) || stillAsked.has(s7));
+}
+function parseServicesFromTextRaw(text2) {
   const t4 = text2.trim();
   if (/\b(únicamente|unicamente|solo|solamente)\s+(vajillas?|loza|cubiertos?)\b/i.test(t4) || /\b(únicamente|unicamente)\s+vajilla\b/i.test(t4)) {
     return dedupeServiceHierarchy(["Vajillas"], t4);
@@ -136977,7 +137011,7 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     extracted.requerimientos_evento = null;
   }
 }
-var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, ORDINAL_INDEX, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_DISCOURSE_CUT, VENUE_DISCOURSE_JUNK, VAGUE_VENUE_LABEL, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, DAY_PERIOD_SRC, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, MX_CITY_ABBREVIATIONS, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
+var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, ORDINAL_INDEX, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_DISCOURSE_CUT, VENUE_DISCOURSE_JUNK, VAGUE_VENUE_LABEL, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, EXCLUDED_SERVICE_LEADS, EXCLUDED_TRAILING_RE, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, DAY_PERIOD_SRC, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, MX_CITY_ABBREVIATIONS, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
 var init_conversation_understanding = __esm({
   "src/conversation-understanding.ts"() {
     "use strict";
@@ -137376,6 +137410,13 @@ var init_conversation_understanding = __esm({
     VAGUE_VENUE_LABEL = /^(?:un\s+|una\s+|el\s+|la\s+|mi\s+|su\s+)?(?:sal[oó]n(?:\s+de\s+fiestas?)?|hotel|jard[ií]n|espacio|lugar|venue|edificio|terraza|casa|restaurantes?|restaurants?)$/i;
     VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue|hospital(?:\s+general)?(?:\s+regional)?|cl[ií]nica|auditorio|universidad|museo|plaza|edificio|instituto|facultad|torre|caba[nñ]as?|cabanas?)\s+[A-ZÁÉÍÓÚÑ0-9][A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{0,40})/i;
     JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda(\s+civil)?|bautizo(\s+de\s+(ni[nñ][ao]|beb[eé]))?|graduaci[oó]n|cumplea[nñ]os|xv(\s*a[nñ]os?)?|quincea[nñ]era|baby\s*shower|primera\s+comuni[oó]n|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|en\s+(mi\s+|su\s+|la\s+)?casa|en\s+(un\s+|el\s+)?restaurantes?|restaurantes?|restaurants?|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
+    EXCLUDED_SERVICE_LEADS = [
+      /\b(?:ya\s+)?no\s+(?:quiero|queremos|necesito|necesitamos|requiero|requerimos|ocupo|ocupamos)\s+([^.;!?\n]{2,70})/gi,
+      /\bya\s+(?:tengo|tenemos|contamos\s+con|conseguimos|consegu[ií]|compr[eé]|compramos)\s+([^.;!?\n]{2,70})/gi,
+      /\b(?:para\s+)?(?:complementar|combinar|acompa[nñ]ar)(?:l[oa]s?)?\s+con\s+([^.;!?\n]{2,70})/gi,
+      /\b(?:qu[ií]tale|quita(?:r|mos)?|sin\s+(?:el|la|los|las))\s+([^.;!?\n]{2,70})/gi
+    ];
+    EXCLUDED_TRAILING_RE = /\b(?:el|la|los|las)\s+([a-záéíóúñ]+(?:\s+[a-záéíóúñ]+){0,3}?)\s*,?\s*(?:es[eao]s?\s+)?ya\s+l[oa]s?\s+(?:tengo|tenemos)\b/gi;
     PLATED_MEAL_LABEL_RE = /^(banquete(\s+\w+)?|comida|men[uú].*tiempos?|tres\s+tiempos)$/i;
     STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
     CLOCK_AMPM = String.raw`(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)`;
@@ -139545,7 +139586,8 @@ function buildLevel3Ack(serviceLabel) {
   const label = serviceLabel.trim() || "tu solicitud";
   return `Tomo nota de tu solicitud especial (*${label}*). Nuestro equipo revisa disponibilidad y te confirma si podemos apoyarte.`;
 }
-function buildGuardServiceAck(query) {
+function buildGuardServiceAck(rawQuery) {
+  const query = stripExcludedServiceMentions(rawQuery) || rawQuery;
   if (/\balcohol\b/i.test(query) && /\bpaletas?|\bhelados?\b/i.test(query)) {
     return buildKnownCatalogAck("Paletas de Hielo y Helados", query);
   }
@@ -162769,7 +162811,7 @@ function getQuestionVariants() {
     ],
     requerimientos: [
       "\xBFQu\xE9 servicios te gustar\xEDa ir armando?",
-      "Plat\xEDcame qu\xE9 te gustar\xEDa armar para el evento.",
+      "Plat\xEDcame, \xBFqu\xE9 te gustar\xEDa armar para el evento?",
       "\xBFQu\xE9 necesitas cotizar?"
     ],
     invitados: [
@@ -166516,7 +166558,7 @@ ${nextQ}` : ack;
     const givingDimsForEntelado = !!dimsNow && (isEnteladoRequestText(extracted.requerimientos_evento) || isEnteladoRequestText(userBlobEnt) || /medida(?:s)?\s+(?:de\s+)?(?:la\s+)?(?:carpa|sal[oó]n)|medidas?\s+del\s+sal[oó]n/i.test(
       msgEnt
     ));
-    const firstAskEntelado = isEnteladoRequestText(msgEnt);
+    const firstAskEntelado = isEnteladoRequestText(msgEnt) && parseServicesFromText(msgEnt).includes("Entelados para Techo");
     const enteladoInPlay = !asksFurnitureInstead && msgEnt && (firstAskEntelado || givingDimsForEntelado);
     if (enteladoInPlay) {
       const merged = mergeServiceRequirements(
@@ -235682,10 +235724,10 @@ function softenRobotAcks(mensaje) {
   if (!mensaje?.trim()) return mensaje;
   let out2 = mensaje;
   out2 = out2.replace(
-    /\bPerfecto\.?\s*Anoto(?:\s+tu)?\s+(\*[^*]{1,60}\*|[^.!?\n]{2,60})[.!]?\s*/gi,
-    "\xA1Perfecto, $1! "
+    /\bPerfecto\.?\s*Anoto(\s+tu|\s+que\s+es)?\s+(\*[^*]{1,60}\*|[^.!?\n]{2,60})[.!]?\s*/gi,
+    (_m, tu, what) => tu ? `\xA1Perfecto! Vamos con tu ${what}. ` : `\xA1Perfecto! Vamos con ${what}. `
   );
-  out2 = out2.replace(/\b¡?Claro!?\.?\s*Anoto\s+/gi, "\xA1Claro! Vamos con ");
+  out2 = out2.replace(/(?:¡|\b)Claro!?\.?\s*Anoto\s+/gi, "\xA1Claro! Vamos con ");
   out2 = out2.replace(/\bPerfecto\s*[—–-]\s*anoto\s+/gi, "\xA1Va! Sumamos ");
   out2 = out2.replace(
     /\bAnoto\s+(\*[^*]{1,80}\*|(?:medidas?\s+)?[^.!?\n]{2,80}?)\s+para\s+tu\s+cotizaci[oó]n[.!]?\s*/gi,
@@ -235841,8 +235883,7 @@ ${keepQ}` : ack;
     const lastLucy = lucyTexts[lucyTexts.length - 1] ?? "";
     const acceptedIdeas = clientAcceptsIdeasOffer(input.currentMessage, lastLucy);
     const forceIdeas = acceptedIdeas || clientWantsIdeasOrTrends(input.currentMessage) || /recomendaciones?|ideas?\b|colores?|montajes?/i.test(input.currentMessage ?? "");
-    const recentTip = lucyTexts.slice(-2).some((t4) => containsStaticSalesTip(t4) || messageAlreadyOffersSalesIdeas(t4));
-    const withIdeas = !forceIdeas && recentTip ? mensaje : enrichReplyWithSalesIdeas(mensaje, {
+    const withIdeas = !forceIdeas ? mensaje : enrichReplyWithSalesIdeas(mensaje, {
       tipoEvento: input.extracted.tipo_evento,
       messageText: input.currentMessage,
       requerimientos: input.extracted.requerimientos_evento,
