@@ -6,6 +6,7 @@
 import {
   copyFileSync,
   existsSync,
+  mkdirSync,
   readdirSync,
   readFileSync,
   statSync,
@@ -102,6 +103,7 @@ try {
   }
   mkdirSync(process.env.LUCY_LOCAL_DB_PATH, { recursive: true });
   if (domainDir && !dataDirFromEnv) migrateJsonFromOldVersions(domainDir, dataRoot);
+  if (domainDir) restoreRelayEndpoint(domainDir);
   // PGlite es de un solo proceso y abajo se borran sus locks: la instancia vieja debe cerrar antes.
   await takeOverDataDir(j(dataRoot, "lucy.pid"));
   // Evitar 503: locks de PGlite tras restart Hostinger (auditor / lucy-data).
@@ -159,6 +161,32 @@ function migrateJsonFromOldVersions(domain, dataRoot) {
     }
   } catch (err) {
     console.warn("[start] Migración de lucy-data:", err?.message || err);
+  }
+}
+
+/**
+ * Buzón PHP de respaldo (hostinger-relay/kommo-relay.php) en public_html/<nombre secreto>/.
+ * La copia maestra vive en persistent/relay-endpoint/ (name.txt, index.php, .htaccess);
+ * si un deploy limpia public_html se vuelve a poner.
+ */
+function restoreRelayEndpoint(domain) {
+  try {
+    const src = join(domain, "persistent", "relay-endpoint");
+    const nameFile = join(src, "name.txt");
+    if (!existsSync(nameFile)) return;
+    const name = readFileSync(nameFile, "utf8").trim();
+    if (!/^kr-[0-9a-f]{32}$/.test(name)) return;
+    const dest = join(domain, "public_html", name);
+    let restored = false;
+    for (const file of ["index.php", ".htaccess"]) {
+      if (existsSync(join(dest, file))) continue;
+      mkdirSync(dest, { recursive: true });
+      copyFileSync(join(src, file), join(dest, file));
+      restored = true;
+    }
+    console.log(restored ? "[start] Buzón de respaldo restaurado en public_html" : "[start] Buzón de respaldo OK");
+  } catch (err) {
+    console.warn("[start] Buzón de respaldo:", err?.message || err);
   }
 }
 
