@@ -14,7 +14,7 @@ import {
 } from "../lib/llmEnv.js";
 import { completeChat, fromOpenAiMessages } from "../lib/llmChat.js";
 import OpenAI from "openai";
-import { getHistory, appendHistory, clearHistory } from "../chat-history.js";
+import { getHistory, appendHistory, appendAssistantMessage, clearHistory } from "../chat-history.js";
 import {
   applyEmailWaiver,
   applyInvitadosWaiver,
@@ -62,6 +62,7 @@ import {
   verificarVentanas24h,
   reactivarLucy,
   agregarTag,
+  removerTag,
   agregarNota,
   limpiarCampoRespuesta,
   acceptUnsortedLead,
@@ -161,6 +162,18 @@ import {
   webhookBodyShape,
 } from "../lib/kommoWebhookParse.js";
 import { deliverLucyOutbound } from "../services/kommoMirror.js";
+import {
+  STAGE_ACTIVATION_TAG,
+  composeStageActivationMessage,
+  crmLinesToState,
+  decideWhatsAppWindow,
+  describeAge,
+  extractLeadStageEvents,
+  fetchLastInboundAt,
+  fetchLatestStatusChange,
+  fetchLeadTalk,
+  isManualMoveToDatosEIntereses,
+} from "../services/stageActivation.js";
 import { captureInboundWhileLucyInactive, setLearningPhase, persistLucyExchange, persistChatMessage } from "../services/chatIngest.js";
 import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
@@ -2638,6 +2651,105 @@ router.post("/kommo/webhook", (req: Request, res: Response) => {
   });
 });
 
+// ─── Movimiento manual a Datos e Intereses → Lucy escribe primero ─────────────
+const stageActivationSeen = new Map<string, number>();
+const STAGE_ACTIVATION_THROTTLE_MS = 10 * 60 * 1000;
+
+async function handleManualMoveToDatos(opts: {
+  subdomain: string;
+  accessToken: string;
+  leadId: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  log: any;
+}): Promise<void> {
+  const { subdomain, accessToken, leadId, log } = opts;
+  const now = Date.now();
+  const seenAt = stageActivationSeen.get(leadId);
+  if (seenAt && now - seenAt < STAGE_ACTIVATION_THROTTLE_MS) return;
+  stageActivationSeen.set(leadId, now);
+  for (const [k, t] of stageActivationSeen) {
+    if (now - t > STAGE_ACTIVATION_THROTTLE_MS) stageActivationSeen.delete(k);
+  }
+
+  const change = await fetchLatestStatusChange(subdomain, accessToken, leadId);
+  if (!isManualMoveToDatosEIntereses(change)) {
+    // Updates de Lucy sobre leads ya en Datos: re-chequear en 1 min, no en 10.
+    stageActivationSeen.set(leadId, now - STAGE_ACTIVATION_THROTTLE_MS + 60_000);
+    log.info({ leadId, change }, "Inicio auto: no es movimiento manual reciente a Datos e Intereses");
+    return;
+  }
+
+  const lead = await fetchLead(subdomain, accessToken, leadId);
+  if (!lead || lead.status_id !== ETAPA.DATOS_E_INTERESES) return;
+  if (lead.tags.includes(STAGE_ACTIVATION_TAG)) {
+    log.info({ leadId }, "Inicio auto: ya se envió antes a este lead");
+    return;
+  }
+  const tagsSinDesactivar = lead.tags.filter((t) => t !== "lucy_desactivada");
+  if (tagsSinDesactivar.length !== lead.tags.length) {
+    await removerTag(subdomain, accessToken, leadId, "lucy_desactivada", lead.tags);
+  }
+
+  const talk = await fetchLeadTalk(subdomain, accessToken, leadId);
+  const lastInboundMs = talk.contactId
+    ? await fetchLastInboundAt(subdomain, accessToken, talk.contactId)
+    : null;
+  const decision = decideWhatsAppWindow(lastInboundMs);
+  if (decision === "client_just_wrote") {
+    log.info({ leadId }, "Inicio auto: el cliente acaba de escribir — Lucy responde por el flujo normal");
+    return;
+  }
+  if (decision === "outside_window") {
+    await agregarNota(
+      subdomain,
+      accessToken,
+      leadId,
+      `⏸️ Lucy: el lead se movió a Datos e Intereses pero NO se envió mensaje automático.\n` +
+        `Último mensaje del cliente: ${describeAge(lastInboundMs)}. WhatsApp solo permite escribir ` +
+        `libremente dentro de las 24 h posteriores al último mensaje del cliente.\n` +
+        `Lucy queda activa: responderá en cuanto el cliente escriba.`
+    );
+    log.info({ leadId, lastInboundMs }, "Inicio auto: fuera de ventana 24 h — nota en Kommo");
+    return;
+  }
+
+  const [{ crmLines }, contactName, phone] = await Promise.all([
+    fetchLeadCurrentFields(subdomain, accessToken, leadId, log),
+    fetchContactDisplayName(subdomain, accessToken, leadId),
+    phoneCache.get(leadId) ? Promise.resolve(phoneCache.get(leadId)!) : fetchContactPhone(subdomain, accessToken, leadId),
+  ]);
+  if (phone) phoneCache.set(leadId, phone);
+  const histKey = leadId;
+  const texto = composeStageActivationMessage({
+    contactName,
+    crm: crmLinesToState(crmLines),
+    history: getHistory(histKey),
+    leadId,
+  });
+
+  const channel = await deliverLucyOutbound({
+    subdomain,
+    accessToken,
+    talkId: talk.talkId,
+    chatId: talk.chatId ?? lead.chatId,
+    whatsappPhone: phone,
+    texto,
+    entityId: leadId,
+    channelOrigin: talk.origin ?? "waba",
+  });
+  if (channel === "failed") {
+    log.error({ leadId, talkId: talk.talkId }, "Inicio auto: mensaje no enviado ❌");
+    stageActivationSeen.delete(leadId);
+    return;
+  }
+
+  appendAssistantMessage(histKey, texto);
+  void persistLucyExchange(histKey, "", texto).catch(() => {});
+  lastResponseCache.set(leadId, texto);
+  await agregarTag(subdomain, accessToken, leadId, [STAGE_ACTIVATION_TAG], tagsSinDesactivar);
+  log.info({ leadId, channel, texto }, "Inicio auto: Lucy escribió al mover a Datos e Intereses ✅");
+}
+
 async function processKommoWebhookAfterAck(req: Request): Promise<void> {
   const log = req.log;
   const body = req.body as KommoWebhookBody;
@@ -2860,6 +2972,20 @@ async function processKommoWebhookAfterAck(req: Request): Promise<void> {
           log,
         });
       })().catch((err: unknown) => log.warn({ err }, "talk_add falló"));
+    }
+    return;
+  }
+
+  const stageEvents = extractLeadStageEvents(rawBody);
+  if (stageEvents.length) {
+    log.info({ stageEvents }, "Webhook leads (cambio/actualización de lead)");
+    if (subdomain && accessToken) {
+      for (const ev of stageEvents) {
+        if (ev.statusId !== ETAPA.DATOS_E_INTERESES) continue;
+        void handleManualMoveToDatos({ subdomain, accessToken, leadId: ev.leadId, log }).catch(
+          (err: unknown) => log.warn({ err, leadId: ev.leadId }, "Inicio auto: error")
+        );
+      }
     }
     return;
   }

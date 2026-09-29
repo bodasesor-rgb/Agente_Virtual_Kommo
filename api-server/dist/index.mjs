@@ -162270,6 +162270,7 @@ var init_logger2 = __esm({
 // src/chat-history.ts
 var chat_history_exports = {};
 __export(chat_history_exports, {
+  appendAssistantMessage: () => appendAssistantMessage,
   appendHistory: () => appendHistory,
   clearHistory: () => clearHistory,
   getHistory: () => getHistory,
@@ -162324,6 +162325,15 @@ function clearHistory(chatId) {
 function appendHistory(chatId, userText, assistantText) {
   const history = store[chatId] ?? [];
   history.push({ role: "user", content: userText });
+  history.push({ role: "assistant", content: assistantText });
+  if (history.length > MAX_MESSAGES) {
+    history.splice(0, history.length - MAX_MESSAGES);
+  }
+  store[chatId] = history;
+  save(store);
+}
+function appendAssistantMessage(chatId, assistantText) {
+  const history = store[chatId] ?? [];
   history.push({ role: "assistant", content: assistantText });
   if (history.length > MAX_MESSAGES) {
     history.splice(0, history.length - MAX_MESSAGES);
@@ -236410,6 +236420,189 @@ init_conversation_understanding();
 init_whatsappDirectSender();
 init_kommoWebhookParse();
 await init_kommoMirror();
+
+// src/services/stageActivation.ts
+init_contact_name();
+init_conversation_understanding();
+init_lucy_flow_guards();
+
+// src/types.ts
+function emptyExtractedData(partial = {}) {
+  return {
+    nombre: null,
+    telefono: null,
+    correo: null,
+    presupuesto: null,
+    direccion_evento: null,
+    requerimientos_evento: null,
+    fecha_evento: null,
+    horario_evento: null,
+    fecha_horario: null,
+    num_invitados: null,
+    tipo_evento: null,
+    modo_servicio: null,
+    tipo_contacto: null,
+    empresa: null,
+    proveedor_oferta: null,
+    proveedor_estado: null,
+    proveedor_catalogo: null,
+    ...partial
+  };
+}
+
+// src/services/stageActivation.ts
+await init_embudo();
+var STAGE_ACTIVATION_TAG = "lucy_inicio_auto";
+var WHATSAPP_WINDOW_MS = 23.5 * 60 * 60 * 1e3;
+var CLIENT_JUST_WROTE_MS = 2 * 60 * 1e3;
+var MANUAL_MOVE_MAX_AGE_MS = 5 * 60 * 1e3;
+function asArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === "object") {
+    return Object.values(value).filter(
+      (v4) => !!v4 && typeof v4 === "object"
+    );
+  }
+  return [];
+}
+function extractLeadStageEvents(rawBody) {
+  const leads = rawBody?.["leads"];
+  if (!leads || typeof leads !== "object") return [];
+  const out2 = [];
+  for (const kind of ["status", "update", "add"]) {
+    for (const entry of asArray(leads[kind])) {
+      const leadId = String(entry["id"] ?? "").trim();
+      const statusId = Number(entry["status_id"] ?? 0);
+      if (!/^\d+$/.test(leadId) || !statusId) continue;
+      if (out2.some((e4) => e4.leadId === leadId)) continue;
+      out2.push({ leadId, statusId, kind });
+    }
+  }
+  return out2;
+}
+function isManualMoveToDatosEIntereses(change, now = Date.now()) {
+  if (!change) return false;
+  if (change.statusId !== ETAPA.DATOS_E_INTERESES) return false;
+  if (!change.createdBy) return false;
+  return now - change.createdAtMs <= MANUAL_MOVE_MAX_AGE_MS;
+}
+function decideWhatsAppWindow(lastInboundMs, now = Date.now()) {
+  if (!lastInboundMs) return "outside_window";
+  const age = now - lastInboundMs;
+  if (age < CLIENT_JUST_WROTE_MS) return "client_just_wrote";
+  if (age > WHATSAPP_WINDOW_MS) return "outside_window";
+  return "send";
+}
+function describeAge(lastInboundMs, now = Date.now()) {
+  if (!lastInboundMs) return "sin mensajes del cliente registrados";
+  const hours = Math.floor((now - lastInboundMs) / (60 * 60 * 1e3));
+  if (hours < 48) return `hace ${hours} h`;
+  return `hace ${Math.floor(hours / 24)} d\xEDas`;
+}
+function crmLinesToState(crmLines) {
+  const filledLabels = /* @__PURE__ */ new Set();
+  const extracted = {};
+  for (const line2 of crmLines) {
+    const m6 = /^-\s*([^:]+):\s*(.+)$/.exec(line2.trim());
+    if (!m6) continue;
+    const label = m6[1].trim();
+    const value = m6[2].trim();
+    if (!value) continue;
+    filledLabels.add(label);
+    if (label === "Nombre del cliente") extracted.nombre = value;
+    else if (label === "Tipo de evento") extracted.tipo_evento = value;
+    else if (label === "Requerimientos o servicios") extracted.requerimientos_evento = value;
+    else if (label === "Lugar/direcci\xF3n del evento") extracted.direccion_evento = value;
+    else if (label === CRM_FECHA_LABEL) extracted.fecha_evento = value;
+    else if (label === CRM_HORARIO_LABEL) extracted.horario_evento = value;
+    else if (label === "N\xFAmero de invitados") {
+      const n5 = parseInt(value.replace(/[^\d]/g, ""), 10);
+      if (Number.isFinite(n5)) extracted.num_invitados = n5;
+    } else if (label === "Presupuesto (MXN)") {
+      const n5 = parseFloat(value.replace(/[^\d.]/g, ""));
+      if (Number.isFinite(n5)) extracted.presupuesto = n5;
+    }
+  }
+  return { filledLabels, extracted };
+}
+function composeStageActivationMessage(opts) {
+  const crmNombre = sanitizeCrmNombre(opts.crm.extracted.nombre ?? null);
+  const nombre = sanitizeDisplayName(crmNombre) || sanitizeDisplayName(opts.contactName);
+  const tipoEvento = opts.crm.extracted.tipo_evento ?? null;
+  const extracted = emptyExtractedData({ ...opts.crm.extracted, nombre: crmNombre || nombre });
+  const filled = new Set(opts.crm.filledLabels);
+  if (nombre) filled.add("Nombre del cliente");
+  const question = nextFieldQuestion(
+    extracted,
+    filled,
+    nombre,
+    opts.history ?? [],
+    "",
+    opts.leadId
+  );
+  const yaSePresento = (opts.history ?? []).some((m6) => m6.role === "assistant");
+  const tipo = tipoEvento?.trim().replace(/[.!?]+$/, "");
+  const tipoTexto = tipo && (/[A-ZÁÉÍÓÚÑ]{2,}/.test(tipo) ? tipo : tipo.toLowerCase());
+  const saludo = yaSePresento ? nombre ? `\xA1Hola de nuevo, ${nombre}! Soy Lucy de Bodasesor.` : "\xA1Hola de nuevo! Soy Lucy de Bodasesor." : nombre ? `\xA1Hola, ${nombre}! Soy Lucy, agente virtual de Bodasesor.` : "\xA1Hola! Soy Lucy, agente virtual de Bodasesor.";
+  const contexto = yaSePresento ? `Sigamos con la cotizaci\xF3n de tu ${tipoTexto || "evento"}.` : `Te escribo para ayudarte con la cotizaci\xF3n de tu ${tipoTexto || "evento"}.`;
+  const cierre = question?.trim() || "Ya tengo los datos principales de tu evento; \xBFhay algo m\xE1s que quieras agregar a tu cotizaci\xF3n?";
+  return `${saludo} ${contexto} ${cierre}`.replace(/\s+/g, " ").trim();
+}
+async function kommoGet(subdomain, accessToken, path7) {
+  const res = await fetch(`https://${subdomain}.kommo.com${path7}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(1e4)
+  });
+  if (res.status === 204 || !res.ok) return null;
+  return await res.json();
+}
+async function fetchLatestStatusChange(subdomain, accessToken, leadId) {
+  const q3 = `filter[entity][]=lead&filter[entity_id][]=${encodeURIComponent(leadId)}&filter[type][]=lead_status_changed&limit=1`;
+  const data = await kommoGet(subdomain, accessToken, `/api/v4/events?${q3}`);
+  const ev = data?._embedded?.events?.[0];
+  if (!ev) return null;
+  return {
+    eventId: String(ev.id ?? ""),
+    createdBy: Number(ev.created_by ?? 0),
+    createdAtMs: Number(ev.created_at ?? 0) * 1e3,
+    statusId: Number(ev.value_after?.[0]?.lead_status?.id ?? 0)
+  };
+}
+async function fetchLastInboundAt(subdomain, accessToken, contactId) {
+  const q3 = `filter[entity][]=contact&filter[entity_id][]=${contactId}&filter[type][]=incoming_chat_message&limit=1`;
+  const data = await kommoGet(subdomain, accessToken, `/api/v4/events?${q3}`);
+  const at3 = Number(data?._embedded?.events?.[0]?.created_at ?? 0);
+  return at3 ? at3 * 1e3 : null;
+}
+async function fetchLeadTalk(subdomain, accessToken, leadId) {
+  const data = await kommoGet(
+    subdomain,
+    accessToken,
+    `/api/v4/talks?filter[entity_id]=${encodeURIComponent(leadId)}&filter[entity_type]=lead`
+  );
+  const talks = [...data?._embedded?.talks ?? []].sort(
+    (a4, b5) => Number(b5.updated_at ?? 0) - Number(a4.updated_at ?? 0)
+  );
+  const t4 = talks[0];
+  if (t4?.contact_id) {
+    return {
+      talkId: t4.talk_id != null ? String(t4.talk_id) : t4.id != null ? String(t4.id) : null,
+      chatId: t4.chat_id ?? null,
+      contactId: t4.contact_id,
+      origin: t4.origin ?? null
+    };
+  }
+  const lead = await kommoGet(
+    subdomain,
+    accessToken,
+    `/api/v4/leads/${encodeURIComponent(leadId)}?with=contacts`
+  );
+  const contacts = lead?._embedded?.contacts ?? [];
+  const main = contacts.find((c5) => c5.is_main) ?? contacts[0];
+  return { talkId: null, chatId: null, contactId: main?.id ?? null, origin: null };
+}
+
+// src/routes/kommo.ts
 await init_chatIngest();
 await init_learningSync();
 
@@ -238340,6 +238533,87 @@ router3.post("/kommo/webhook", (req, res) => {
     req.log.error({ err: err2 }, "Kommo webhook: error tras ACK");
   });
 });
+var stageActivationSeen = /* @__PURE__ */ new Map();
+var STAGE_ACTIVATION_THROTTLE_MS = 10 * 60 * 1e3;
+async function handleManualMoveToDatos(opts) {
+  const { subdomain, accessToken, leadId, log } = opts;
+  const now = Date.now();
+  const seenAt = stageActivationSeen.get(leadId);
+  if (seenAt && now - seenAt < STAGE_ACTIVATION_THROTTLE_MS) return;
+  stageActivationSeen.set(leadId, now);
+  for (const [k5, t4] of stageActivationSeen) {
+    if (now - t4 > STAGE_ACTIVATION_THROTTLE_MS) stageActivationSeen.delete(k5);
+  }
+  const change = await fetchLatestStatusChange(subdomain, accessToken, leadId);
+  if (!isManualMoveToDatosEIntereses(change)) {
+    stageActivationSeen.set(leadId, now - STAGE_ACTIVATION_THROTTLE_MS + 6e4);
+    log.info({ leadId, change }, "Inicio auto: no es movimiento manual reciente a Datos e Intereses");
+    return;
+  }
+  const lead = await fetchLead(subdomain, accessToken, leadId);
+  if (!lead || lead.status_id !== ETAPA.DATOS_E_INTERESES) return;
+  if (lead.tags.includes(STAGE_ACTIVATION_TAG)) {
+    log.info({ leadId }, "Inicio auto: ya se envi\xF3 antes a este lead");
+    return;
+  }
+  const tagsSinDesactivar = lead.tags.filter((t4) => t4 !== "lucy_desactivada");
+  if (tagsSinDesactivar.length !== lead.tags.length) {
+    await removerTag(subdomain, accessToken, leadId, "lucy_desactivada", lead.tags);
+  }
+  const talk = await fetchLeadTalk(subdomain, accessToken, leadId);
+  const lastInboundMs = talk.contactId ? await fetchLastInboundAt(subdomain, accessToken, talk.contactId) : null;
+  const decision = decideWhatsAppWindow(lastInboundMs);
+  if (decision === "client_just_wrote") {
+    log.info({ leadId }, "Inicio auto: el cliente acaba de escribir \u2014 Lucy responde por el flujo normal");
+    return;
+  }
+  if (decision === "outside_window") {
+    await agregarNota(
+      subdomain,
+      accessToken,
+      leadId,
+      `\u23F8\uFE0F Lucy: el lead se movi\xF3 a Datos e Intereses pero NO se envi\xF3 mensaje autom\xE1tico.
+\xDAltimo mensaje del cliente: ${describeAge(lastInboundMs)}. WhatsApp solo permite escribir libremente dentro de las 24 h posteriores al \xFAltimo mensaje del cliente.
+Lucy queda activa: responder\xE1 en cuanto el cliente escriba.`
+    );
+    log.info({ leadId, lastInboundMs }, "Inicio auto: fuera de ventana 24 h \u2014 nota en Kommo");
+    return;
+  }
+  const [{ crmLines }, contactName, phone] = await Promise.all([
+    fetchLeadCurrentFields(subdomain, accessToken, leadId, log),
+    fetchContactDisplayName(subdomain, accessToken, leadId),
+    phoneCache.get(leadId) ? Promise.resolve(phoneCache.get(leadId)) : fetchContactPhone(subdomain, accessToken, leadId)
+  ]);
+  if (phone) phoneCache.set(leadId, phone);
+  const histKey = leadId;
+  const texto = composeStageActivationMessage({
+    contactName,
+    crm: crmLinesToState(crmLines),
+    history: getHistory(histKey),
+    leadId
+  });
+  const channel = await deliverLucyOutbound({
+    subdomain,
+    accessToken,
+    talkId: talk.talkId,
+    chatId: talk.chatId ?? lead.chatId,
+    whatsappPhone: phone,
+    texto,
+    entityId: leadId,
+    channelOrigin: talk.origin ?? "waba"
+  });
+  if (channel === "failed") {
+    log.error({ leadId, talkId: talk.talkId }, "Inicio auto: mensaje no enviado \u274C");
+    stageActivationSeen.delete(leadId);
+    return;
+  }
+  appendAssistantMessage(histKey, texto);
+  void persistLucyExchange(histKey, "", texto).catch(() => {
+  });
+  lastResponseCache.set(leadId, texto);
+  await agregarTag(subdomain, accessToken, leadId, [STAGE_ACTIVATION_TAG], tagsSinDesactivar);
+  log.info({ leadId, channel, texto }, "Inicio auto: Lucy escribi\xF3 al mover a Datos e Intereses \u2705");
+}
 async function processKommoWebhookAfterAck(req) {
   const log = req.log;
   const body2 = req.body;
@@ -238524,6 +238798,19 @@ ${noteBody}`).catch(
           log
         });
       })().catch((err2) => log.warn({ err: err2 }, "talk_add fall\xF3"));
+    }
+    return;
+  }
+  const stageEvents = extractLeadStageEvents(rawBody);
+  if (stageEvents.length) {
+    log.info({ stageEvents }, "Webhook leads (cambio/actualizaci\xF3n de lead)");
+    if (subdomain && accessToken) {
+      for (const ev of stageEvents) {
+        if (ev.statusId !== ETAPA.DATOS_E_INTERESES) continue;
+        void handleManualMoveToDatos({ subdomain, accessToken, leadId: ev.leadId, log }).catch(
+          (err2) => log.warn({ err: err2, leadId: ev.leadId }, "Inicio auto: error")
+        );
+      }
     }
     return;
   }
