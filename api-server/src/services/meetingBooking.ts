@@ -246,6 +246,58 @@ export function buildGoogleCalendarAddUrl(opts: {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
+const EVENT_SCHEDULE_WORDS =
+  /\b(evento|fiesta|boda|xv|quince|cumple\w*|celebracion|misa|ceremonia|recepcion|banquete|empieza|empezaria|inicia|iniciaria|termina|terminaria|invitados|montaje|servicio)\b/;
+
+/** "10:30?", "mañana a las 5", "sí, a las 10 está bien" — solo día/hora, sin hablar del evento. */
+function isBareMeetingTimeReply(t: string): boolean {
+  if (EVENT_SCHEDULE_WORDS.test(t)) return false;
+  const rest = t
+    .replace(/\b\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?\s?m\.?|p\.?\s?m\.?|hrs?|horas?)?(?=\s|$|[,!?¿¡.])/g, " ")
+    .replace(
+      new RegExp(
+        `\\b(?:${WEEKDAYS.join("|")}|hoy|pasado|manana|tarde|noche|medio\\s*dia|mediodia|de|la|el|las|a|alas|en|por|este|esta|proximo|si|ok|okay|va|vale|sale|dale|claro|perfecto|esta|bien|me|queda|quedaria|acomoda|funciona|puedo|puede|ser|mejor|entonces|que|tal|como|tipo|favor|porfa|gracias|y|o)\\b`,
+        "g"
+      ),
+      " "
+    )
+    .replace(/[\s¿?¡!.,:;👍🙏😊]+/gu, "");
+  return rest.length === 0;
+}
+
+/**
+ * Lead con el equipo (Lucy en silencio): el cliente propone / confirma día y hora de la
+ * llamada o videollamada que le ofreció un asesor. Kommo no nos pasa el texto del asesor,
+ * así que solo se usa lo que escribe el cliente.
+ */
+export function detectSilentMeetingProposal(
+  message: string,
+  nowMs: number = Date.now()
+): { meetingKind: MeetingKind | null; startMs: number; label: string } | null {
+  if (!message?.trim()) return null;
+  const t = normalize(message);
+  const asks = clientAsksForMeeting(message);
+  if (!asks && !isBareMeetingTimeReply(t)) return null;
+  const slot = parseMeetingSlot(message, nowMs);
+  if (!slot.time) return null;
+  let date = slot.date;
+  if (!date) {
+    const today = mxToday(nowMs);
+    date = addDays(today, 0);
+    if (slotStartMs(date, slot.time) < nowMs + 15 * 60_000) date = addDays(today, 1);
+  }
+  const startMs = slotStartMs(date, slot.time);
+  if (startMs < nowMs) return null;
+  const meetingKind = /\bvideo|zoom|meet\b|teams|llamada|llamar|marcar|marquen|llamen|cita\b/.test(t)
+    ? detectMeetingKind(message)
+    : null;
+  return {
+    meetingKind,
+    startMs,
+    label: `${formatSlotDate(date)} a las ${formatSlotTime(slot.time)}`,
+  };
+}
+
 function clientSaysAlreadyBooked(t: string): boolean {
   return /\b(ya\s+(agende|la\s+agende|lo\s+agende|aparte|la\s+aparte|reserve|la\s+reserve|quedo|quedo\s+agendad[ao]|esta\s+agendad[ao]|lo\s+hice|la\s+hice|escogi|elegi|seleccione))\b/.test(
     t

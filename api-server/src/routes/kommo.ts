@@ -107,8 +107,10 @@ import {
 } from "../services/serviceDecline.js";
 import {
   buildGoogleCalendarAddUrl,
+  detectSilentMeetingProposal,
   getBookingUrl,
   type MeetingDecision,
+  type MeetingKind,
 } from "../services/meetingBooking.js";
 import { looksLikeClienteCorrection } from "../tipoContacto.js";
 import { proveedorQuestionnaireComplete } from "../lib/proveedorQuestionnaire.js";
@@ -1479,6 +1481,18 @@ async function handleLucyInactiveInbound(opts: {
     accessToken,
   }).catch((err: unknown) => log.warn({ err, entityId }, "Captura en fase humana falló"));
 
+  const meetingProposal = detectSilentMeetingProposal(watchText);
+  if (meetingProposal) {
+    void recordSilentMeetingProposal({
+      subdomain,
+      accessToken,
+      entityId,
+      proposal: meetingProposal,
+      clientMessage: watchText,
+      log,
+    }).catch((err: unknown) => log.warn({ err, entityId }, "Cita en silencio: no se pudo anotar"));
+  }
+
   // Actualizar CRM en silencio si el cliente cambió un dato.
   try {
     const { crmLines, leadName: silentLeadName } = await fetchLeadCurrentFields(
@@ -1499,7 +1513,8 @@ async function handleLucyInactiveInbound(opts: {
       watchText,
       extracted,
       silentLeadName,
-      crmLines
+      crmLines,
+      { skipSchedule: !!meetingProposal }
     );
     if (silentPayload) {
       const patchController = new AbortController();
@@ -2812,6 +2827,59 @@ async function recordMeetingInKommo(opts: {
     tipo === "llamada" ? 1 : 2
   );
   log.info({ entityId, label: meeting.label, tareaOk }, "Cita: anotada en Kommo (nota + tarea)");
+}
+
+/** Lead con el equipo: el cliente escribió día/hora para la llamada o videollamada del asesor. */
+async function recordSilentMeetingProposal(opts: {
+  subdomain: string;
+  accessToken: string;
+  entityId: string | number;
+  proposal: { meetingKind: MeetingKind | null; startMs: number; label: string };
+  clientMessage: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  log: any;
+}): Promise<void> {
+  const { subdomain, accessToken, entityId, proposal, clientMessage, log } = opts;
+  const lead = await fetchLead(subdomain, accessToken, entityId);
+  if (lead?.cita_videollamada?.includes(proposal.label)) {
+    log.info({ entityId, label: proposal.label }, "Cita en silencio: ya estaba anotada");
+    return;
+  }
+  const kind = proposal.meetingKind;
+  const tipoLabel =
+    kind === "cita" ? "Cita" : kind === "llamada" ? "Llamada" : kind === "videollamada" ? "Videollamada" : "Llamada/videollamada";
+  const quien = lead?.nombre?.trim() || lead?.name?.trim() || "cliente";
+  const citado = `"${clientMessage.trim().slice(0, 200)}"`;
+  await actualizarCampoTexto(
+    subdomain,
+    accessToken,
+    entityId,
+    FIELD_CITA_VIDEOLLAMADA,
+    `${tipoLabel} — ${proposal.label} (el cliente la propuso por WhatsApp; confirmar) · ${getBookingUrl()}`
+  );
+  const titulo = `${tipoLabel} Bodasesor — ${quien}`;
+  const kommoUrl = `https://${subdomain}.kommo.com/leads/detail/${entityId}`;
+  const calendarUrl = buildGoogleCalendarAddUrl({
+    title: titulo,
+    startMs: proposal.startMs,
+    details: `Horario que escribió el cliente por WhatsApp.\nLead en Kommo: ${kommoUrl}\nMensaje: ${citado}`,
+  });
+  await agregarNota(
+    subdomain,
+    accessToken,
+    entityId,
+    `📅 El cliente escribió un horario para la ${tipoLabel.toLowerCase()}: ${proposal.label} (hora centro de México).\n` +
+      `Mensaje: ${citado}\n\nSi ya la confirmaron, agrégala a Google Calendar con un clic:\n${calendarUrl}`
+  );
+  const tareaOk = await crearTarea(
+    subdomain,
+    accessToken,
+    entityId,
+    `📅 ${titulo} — ${proposal.label} (la propuso el cliente). Confirmar y agregar a Google Calendar (link en notas).`,
+    proposal.startMs,
+    kind === "llamada" ? 1 : 2
+  );
+  log.info({ entityId, label: proposal.label, tareaOk }, "Cita en silencio: anotada (campo + nota + tarea)");
 }
 
 async function handleManualMoveToDatos(opts: {

@@ -56,10 +56,13 @@ export function buildSilentWatchPatchPayload(
   text: string,
   extracted: ExtractedData,
   currentLeadName?: string | null,
-  crmLines: string[] = []
+  crmLines: string[] = [],
+  opts: { skipSchedule?: boolean } = {}
 ): Record<string, unknown> | null {
   const customFields: Array<{ field_id: number; values: Array<{ value: unknown }> }> = [];
   const msg = text.trim();
+  // A16259: "10:30?" contestando al asesor es la hora de la videollamada, no del evento.
+  const skipSchedule = !!opts.skipSchedule;
 
   // Ubicación: parseZona del mensaje, o corrección explícita (A15210 patio/piso/otra ubicación).
   const crmDireccion = crmStoredValue(crmLines, "Lugar/dirección del evento");
@@ -81,7 +84,7 @@ export function buildSilentWatchPatchPayload(
     });
   }
 
-  const fechaRaw = parseFechaFromText(msg);
+  const fechaRaw = skipSchedule ? null : parseFechaFromText(msg);
   const fechaFromMsg = fechaRaw ? (resolveFechaEvento(fechaRaw) ?? fechaRaw) : null;
   if (fechaFromMsg && isUsableFechaEvento(fechaFromMsg)) {
     const crmFecha = crmStoredValue(crmLines, CRM_FECHA_LABEL);
@@ -94,7 +97,7 @@ export function buildSilentWatchPatchPayload(
   }
 
   const crmHorario = crmStoredValue(crmLines, CRM_HORARIO_LABEL);
-  const horarioRaw = parseHorarioFromText(msg);
+  const horarioRaw = skipSchedule ? null : parseHorarioFromText(msg);
   const horarioFromMsg = horarioRaw
     ? resolveHorarioWithContext(horarioRaw, crmHorario, crmLines.join("\n"))
     : null;

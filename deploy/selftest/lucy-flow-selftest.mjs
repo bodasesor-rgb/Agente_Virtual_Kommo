@@ -145513,9 +145513,10 @@ var SILENT_WATCH_FIELD = {
 function cap255(s6) {
   return s6.length <= 255 ? s6 : s6.slice(0, 255);
 }
-function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLines = []) {
+function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLines = [], opts = {}) {
   const customFields = [];
   const msg = text2.trim();
+  const skipSchedule = !!opts.skipSchedule;
   const crmDireccion = crmStoredValue(crmLines, "Lugar/direcci\xF3n del evento");
   const correctedZona = clientCorrectsLocation(msg) || isVenueSpaceDetail(msg) ? applyLocationCorrectionToAddress(crmDireccion, msg) : null;
   const zonaFromMsg = correctedZona ?? parseZonaFromText(msg);
@@ -145525,7 +145526,7 @@ function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLine
       values: [{ value: cap255(zonaFromMsg) }]
     });
   }
-  const fechaRaw = parseFechaFromText(msg);
+  const fechaRaw = skipSchedule ? null : parseFechaFromText(msg);
   const fechaFromMsg = fechaRaw ? resolveFechaEvento(fechaRaw) ?? fechaRaw : null;
   if (fechaFromMsg && isUsableFechaEvento(fechaFromMsg)) {
     const crmFecha = crmStoredValue(crmLines, CRM_FECHA_LABEL);
@@ -145537,7 +145538,7 @@ function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLine
     }
   }
   const crmHorario = crmStoredValue(crmLines, CRM_HORARIO_LABEL);
-  const horarioRaw = parseHorarioFromText(msg);
+  const horarioRaw = skipSchedule ? null : parseHorarioFromText(msg);
   const horarioFromMsg = horarioRaw ? resolveHorarioWithContext(horarioRaw, crmHorario, crmLines.join("\n")) : null;
   if (horarioFromMsg && isUsableHorarioEvento(horarioFromMsg)) {
     if (horarioFromMsg !== (crmHorario ?? "").trim()) {

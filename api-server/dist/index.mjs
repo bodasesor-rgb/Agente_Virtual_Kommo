@@ -236195,6 +236195,40 @@ function buildGoogleCalendarAddUrl(opts) {
   if (opts.details) params.set("details", opts.details);
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
+var EVENT_SCHEDULE_WORDS = /\b(evento|fiesta|boda|xv|quince|cumple\w*|celebracion|misa|ceremonia|recepcion|banquete|empieza|empezaria|inicia|iniciaria|termina|terminaria|invitados|montaje|servicio)\b/;
+function isBareMeetingTimeReply(t4) {
+  if (EVENT_SCHEDULE_WORDS.test(t4)) return false;
+  const rest = t4.replace(/\b\d{1,2}(?:[:.]\d{2})?\s*(?:a\.?\s?m\.?|p\.?\s?m\.?|hrs?|horas?)?(?=\s|$|[,!?¿¡.])/g, " ").replace(
+    new RegExp(
+      `\\b(?:${WEEKDAYS.join("|")}|hoy|pasado|manana|tarde|noche|medio\\s*dia|mediodia|de|la|el|las|a|alas|en|por|este|esta|proximo|si|ok|okay|va|vale|sale|dale|claro|perfecto|esta|bien|me|queda|quedaria|acomoda|funciona|puedo|puede|ser|mejor|entonces|que|tal|como|tipo|favor|porfa|gracias|y|o)\\b`,
+      "g"
+    ),
+    " "
+  ).replace(/[\s¿?¡!.,:;👍🙏😊]+/gu, "");
+  return rest.length === 0;
+}
+function detectSilentMeetingProposal(message, nowMs = Date.now()) {
+  if (!message?.trim()) return null;
+  const t4 = normalize(message);
+  const asks = clientAsksForMeeting(message);
+  if (!asks && !isBareMeetingTimeReply(t4)) return null;
+  const slot = parseMeetingSlot(message, nowMs);
+  if (!slot.time) return null;
+  let date2 = slot.date;
+  if (!date2) {
+    const today = mxToday(nowMs);
+    date2 = addDays2(today, 0);
+    if (slotStartMs(date2, slot.time) < nowMs + 15 * 6e4) date2 = addDays2(today, 1);
+  }
+  const startMs = slotStartMs(date2, slot.time);
+  if (startMs < nowMs) return null;
+  const meetingKind = /\bvideo|zoom|meet\b|teams|llamada|llamar|marcar|marquen|llamen|cita\b/.test(t4) ? detectMeetingKind(message) : null;
+  return {
+    meetingKind,
+    startMs,
+    label: `${formatSlotDate(date2)} a las ${formatSlotTime(slot.time)}`
+  };
+}
 function clientSaysAlreadyBooked(t4) {
   return /\b(ya\s+(agende|la\s+agende|lo\s+agende|aparte|la\s+aparte|reserve|la\s+reserve|quedo|quedo\s+agendad[ao]|esta\s+agendad[ao]|lo\s+hice|la\s+hice|escogi|elegi|seleccione))\b/.test(
     t4
@@ -237371,9 +237405,10 @@ var SILENT_WATCH_FIELD = {
 function cap255(s7) {
   return s7.length <= 255 ? s7 : s7.slice(0, 255);
 }
-function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLines = []) {
+function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLines = [], opts = {}) {
   const customFields = [];
   const msg = text2.trim();
+  const skipSchedule = !!opts.skipSchedule;
   const crmDireccion = crmStoredValue(crmLines, "Lugar/direcci\xF3n del evento");
   const correctedZona = clientCorrectsLocation(msg) || isVenueSpaceDetail(msg) ? applyLocationCorrectionToAddress(crmDireccion, msg) : null;
   const zonaFromMsg = correctedZona ?? parseZonaFromText(msg);
@@ -237383,7 +237418,7 @@ function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLine
       values: [{ value: cap255(zonaFromMsg) }]
     });
   }
-  const fechaRaw = parseFechaFromText(msg);
+  const fechaRaw = skipSchedule ? null : parseFechaFromText(msg);
   const fechaFromMsg = fechaRaw ? resolveFechaEvento(fechaRaw) ?? fechaRaw : null;
   if (fechaFromMsg && isUsableFechaEvento(fechaFromMsg)) {
     const crmFecha = crmStoredValue(crmLines, CRM_FECHA_LABEL);
@@ -237395,7 +237430,7 @@ function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLine
     }
   }
   const crmHorario = crmStoredValue(crmLines, CRM_HORARIO_LABEL);
-  const horarioRaw = parseHorarioFromText(msg);
+  const horarioRaw = skipSchedule ? null : parseHorarioFromText(msg);
   const horarioFromMsg = horarioRaw ? resolveHorarioWithContext(horarioRaw, crmHorario, crmLines.join("\n")) : null;
   if (horarioFromMsg && isUsableHorarioEvento(horarioFromMsg)) {
     if (horarioFromMsg !== (crmHorario ?? "").trim()) {
@@ -238246,6 +238281,17 @@ async function handleLucyInactiveInbound(opts) {
     subdomain,
     accessToken
   }).catch((err2) => log.warn({ err: err2, entityId }, "Captura en fase humana fall\xF3"));
+  const meetingProposal = detectSilentMeetingProposal(watchText);
+  if (meetingProposal) {
+    void recordSilentMeetingProposal({
+      subdomain,
+      accessToken,
+      entityId,
+      proposal: meetingProposal,
+      clientMessage: watchText,
+      log
+    }).catch((err2) => log.warn({ err: err2, entityId }, "Cita en silencio: no se pudo anotar"));
+  }
   try {
     const { crmLines, leadName: silentLeadName } = await fetchLeadCurrentFields(
       subdomain,
@@ -238265,7 +238311,8 @@ async function handleLucyInactiveInbound(opts) {
       watchText,
       extracted,
       silentLeadName,
-      crmLines
+      crmLines,
+      { skipSchedule: !!meetingProposal }
     );
     if (silentPayload) {
       const patchController = new AbortController();
@@ -239203,6 +239250,53 @@ Conf\xEDrmale al cliente por WhatsApp.`
     tipo === "llamada" ? 1 : 2
   );
   log.info({ entityId, label: meeting.label, tareaOk }, "Cita: anotada en Kommo (nota + tarea)");
+}
+async function recordSilentMeetingProposal(opts) {
+  const { subdomain, accessToken, entityId, proposal, clientMessage, log } = opts;
+  const lead = await fetchLead(subdomain, accessToken, entityId);
+  if (lead?.cita_videollamada?.includes(proposal.label)) {
+    log.info({ entityId, label: proposal.label }, "Cita en silencio: ya estaba anotada");
+    return;
+  }
+  const kind = proposal.meetingKind;
+  const tipoLabel = kind === "cita" ? "Cita" : kind === "llamada" ? "Llamada" : kind === "videollamada" ? "Videollamada" : "Llamada/videollamada";
+  const quien = lead?.nombre?.trim() || lead?.name?.trim() || "cliente";
+  const citado = `"${clientMessage.trim().slice(0, 200)}"`;
+  await actualizarCampoTexto(
+    subdomain,
+    accessToken,
+    entityId,
+    FIELD_CITA_VIDEOLLAMADA,
+    `${tipoLabel} \u2014 ${proposal.label} (el cliente la propuso por WhatsApp; confirmar) \xB7 ${getBookingUrl()}`
+  );
+  const titulo = `${tipoLabel} Bodasesor \u2014 ${quien}`;
+  const kommoUrl = `https://${subdomain}.kommo.com/leads/detail/${entityId}`;
+  const calendarUrl = buildGoogleCalendarAddUrl({
+    title: titulo,
+    startMs: proposal.startMs,
+    details: `Horario que escribi\xF3 el cliente por WhatsApp.
+Lead en Kommo: ${kommoUrl}
+Mensaje: ${citado}`
+  });
+  await agregarNota(
+    subdomain,
+    accessToken,
+    entityId,
+    `\u{1F4C5} El cliente escribi\xF3 un horario para la ${tipoLabel.toLowerCase()}: ${proposal.label} (hora centro de M\xE9xico).
+Mensaje: ${citado}
+
+Si ya la confirmaron, agr\xE9gala a Google Calendar con un clic:
+${calendarUrl}`
+  );
+  const tareaOk = await crearTarea(
+    subdomain,
+    accessToken,
+    entityId,
+    `\u{1F4C5} ${titulo} \u2014 ${proposal.label} (la propuso el cliente). Confirmar y agregar a Google Calendar (link en notas).`,
+    proposal.startMs,
+    kind === "llamada" ? 1 : 2
+  );
+  log.info({ entityId, label: proposal.label, tareaOk }, "Cita en silencio: anotada (campo + nota + tarea)");
 }
 async function handleManualMoveToDatos(opts) {
   const { subdomain, accessToken, leadId, log } = opts;
