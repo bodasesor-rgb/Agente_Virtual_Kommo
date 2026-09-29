@@ -137,9 +137,12 @@ import {
   clientDeclinesAnyService,
   clientDeclinesServiceFamilies,
   clientDeclinesServiceFamiliesWithContext,
+  declinedServiceObjectLabels,
+  extractDeclinedServiceObjects,
   isVenueProvidesContext,
   looksLikeThemeColorNotLocation,
   removeDeclinedFamiliesFromRequirements,
+  removeSpecificDeclinedServices,
   removeVenueProvidedFromRequirements,
   stripThemeColorsFromZona,
   venueProvidedServiceLabels,
@@ -800,9 +803,56 @@ export function detectEmailRefusal(texts: string[]): boolean {
   return texts.some((t) => EMAIL_REFUSAL_PATTERN.test(t));
 }
 
-export function applyEmailWaiver(filledSet: Set<string>, mergedLines: string[], texts: string[]): void {
+const SHORT_NO_REPLY_RE =
+  /^(?:no+|nop|nel|no\s*,?\s*gracias|mejor\s+no|ahorita\s+no|por\s+ahora\s+no|no\s+por\s+ahora|de\s+momento\s+no|no\s+tengo)[\s.!¡]*$/i;
+
+/** A16477: "No" justo después de "¿me compartes tu correo?" = no quiere dar correo. */
+export function isShortNoToEmailAsk(
+  message: string | null | undefined,
+  lastAssistantText: string | null | undefined
+): boolean {
+  if (!message?.trim() || inferLucyAskedField(lastAssistantText) !== "correo") return false;
+  return message.split(/\n+/).some((line) => SHORT_NO_REPLY_RE.test(line.trim()));
+}
+
+export function detectEmailRefusalInContext(
+  message: string | null | undefined,
+  history: OpenAI.Chat.ChatCompletionMessageParam[] = []
+): boolean {
+  if (!message?.trim()) return false;
+  if (detectEmailRefusal([message])) return true;
+  const lastAssistant = [...history]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string")?.content as
+    | string
+    | undefined;
+  return isShortNoToEmailAsk(message, lastAssistant);
+}
+
+function historyHasShortNoToEmailAsk(history: OpenAI.Chat.ChatCompletionMessageParam[]): boolean {
+  let lastAssistant: string | undefined;
+  for (const m of history) {
+    if (typeof m.content !== "string") continue;
+    if (m.role === "assistant") lastAssistant = m.content;
+    else if (m.role === "user" && isShortNoToEmailAsk(m.content, lastAssistant)) return true;
+  }
+  return false;
+}
+
+export function applyEmailWaiver(
+  filledSet: Set<string>,
+  mergedLines: string[],
+  texts: string[],
+  history?: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
+): void {
   if (filledSet.has("Correo electrónico") || filledSet.has(EMAIL_WAIVED_LABEL)) return;
-  if (!detectEmailRefusal(texts)) return;
+  const refused =
+    detectEmailRefusal(texts) ||
+    (!!history &&
+      (historyHasShortNoToEmailAsk(history) ||
+        detectEmailRefusalInContext(currentMessage, history)));
+  if (!refused) return;
   mergedLines.push(`- ${EMAIL_WAIVED_LABEL}: continuar por WhatsApp/chat`);
   filledSet.add(EMAIL_WAIVED_LABEL);
 }
@@ -5089,6 +5139,22 @@ export function buildPostCierreCallbackAck(clientName?: string | null): string {
  * en anti-repeat y en finalizeLucyOutboundMessage.
  * A16309: no ciclar aquí/correo ↔ “algo más” cuando el canal ya está decidido.
  */
+function historyClientDeclinedMore(history: OpenAI.Chat.ChatCompletionMessageParam[]): boolean {
+  let lastAssistant = "";
+  for (const m of history) {
+    if (typeof m.content !== "string") continue;
+    if (m.role === "assistant") lastAssistant = m.content;
+    else if (
+      m.role === "user" &&
+      /\b(algo m[aá]s|sumar a la cotizaci[oó]n|agregar algo)\b/i.test(lastAssistant) &&
+      (clientDeclinesMoreServices(m.content) || clientSaysThanks(m.content))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function buildContinueEngagementQuestion(
   extracted: ExtractedData,
   currentMessage?: string | null,
@@ -5117,32 +5183,39 @@ export function buildContinueEngagementQuestion(
     return "¿Te marco el equipo hoy por teléfono, o prefieres que te escriban primero por este chat?";
   }
   const canalDone = historyHasDeliveryChannelChoice(history ?? [], currentMessage);
+  // A16345 / A16477: si ya preguntamos “algo más” antes, no insistir — soft exit.
+  const prevAlgoMas = (history ?? []).some(
+    (m) =>
+      m.role === "assistant" &&
+      typeof m.content === "string" &&
+      /\b(algo m[aá]s|sumar a la cotizaci[oó]n|agregar algo)\b/i.test(m.content)
+  );
+  const softExit = "¿Te dejo el chat abierto por si surge otra duda?";
   if (clientChoosesEmailDelivery(currentMessage) || clientChoosesChatDelivery(currentMessage)) {
-    return "¿Quieres agregar algo más a la cotización?";
+    return prevAlgoMas ? softExit : "¿Quieres agregar algo más a la cotización?";
   }
   // A16259 / A16309: no re-preguntar upsell; si canal ya elegido → soft exit (no re-canal).
   if (clientDeclinesMoreServices(currentMessage) || clientSaysThanks(currentMessage)) {
-    if (canalDone) {
-      return "¿Te dejo el chat abierto por si surge otra duda?";
+    const canalAskedBefore = (history ?? []).some(
+      (m) =>
+        m.role === "assistant" &&
+        typeof m.content === "string" &&
+        assistantAskedDeliveryChannel(m.content)
+    );
+    if (canalDone || canalAskedBefore) {
+      return softExit;
     }
     return "¿Confirmamos que el equipo te escriba por aquí con la propuesta, o prefieres esperar el correo?";
   }
   if (canalDone) {
-    // A16345: si ya preguntamos “algo más” antes, no insistir — soft exit.
-    const prevAlgoMas = (history ?? []).some(
-      (m) =>
-        m.role === "assistant" &&
-        typeof m.content === "string" &&
-        /\b(algo m[aá]s|sumar a la cotizaci[oó]n|agregar algo)\b/i.test(m.content)
-    );
-    if (prevAlgoMas) {
-      return "¿Te dejo el chat abierto por si surge otra duda?";
-    }
-    return "¿Hay algo más que quieras sumar a la cotización?";
+    return prevAlgoMas ? softExit : "¿Hay algo más que quieras sumar a la cotización?";
   }
   const req = extracted.requerimientos_evento ?? "";
   if (/carpas?|tarima|entarim|colgantes|entelado/i.test(req)) {
     return "¿Te sumo mobiliario, iluminación o audio, o seguimos solo con lo que ya anotamos?";
+  }
+  if (prevAlgoMas && historyClientDeclinedMore(history ?? [])) {
+    return softExit;
   }
   // A16345d: no preguntar urgencia por defecto en todos los chats — solo si el cliente la señaló.
   return "¿Hay algo más que quieras sumar a la cotización?";
@@ -6008,7 +6081,11 @@ function buildNameMismatchReplyIfNeeded(
  * Ningún WhatsApp de Lucy puede salir sin una pregunta que invite a seguir.
  */
 export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
-  const mensaje = applyLucyMessageGuardsRaw(input);
+  // A16477: "¡Perfecto, que es *comida*!" — acuse roto sin sujeto.
+  const mensaje = applyLucyMessageGuardsRaw(input).replace(
+    /^(¡?)Perfecto,\s+que\s+es\s+\*[^*\n]+\*\s*([!.])?\s*/i,
+    (_m, open: string) => (open ? "¡Perfecto! " : "Perfecto. ")
+  );
   // A16309: tipo/presupuesto pendientes NO invalidan el cierre para hooks post-cierre.
   const pending = getNextPendingField(input.extracted, input.filledSet);
   const hardPending =
@@ -6981,7 +7058,16 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   }
 
   // A15642+ / A16074: "Comida"/"Cena" = tipo de evento — ANTES de zona/menú catering.
-  if (!cierreYaEnviado && currentMessage && isEventTypeMealPhrase(currentMessage)) {
+  // A16477: si ya dijo "boda" antes, "Comida" suelto es el servicio (alimentos), no el tipo.
+  const tipoPrevioNoComida = collectUserTexts(presHistory)
+    .map((t) => parseTipoEventoFromText(t))
+    .find((t) => !!t && !isEventTypeMealPhrase(t));
+  if (
+    !cierreYaEnviado &&
+    currentMessage &&
+    !tipoPrevioNoComida &&
+    isEventTypeMealPhrase(currentMessage)
+  ) {
     const tipo = parseTipoEventoFromText(currentMessage) || "comida";
     extracted.tipo_evento = tipo;
     filledSet.add("Tipo de evento");
@@ -7051,6 +7137,48 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     const ack = "Va, lo cotizamos para *venta*.";
     log?.info({ entityId }, "GUARD: A16445 — cliente elige venta");
     return normalizeAdvisorReferences(nextQ ? `${ack} ${nextQ}` : ack, extracted.nombre ?? display);
+  }
+
+  // A16477: "No quiero pozole" (SKU con nombre) — quitar ese servicio, no sumarlo.
+  if (currentMessage?.trim()) {
+    const historyBlob = presHistory
+      .map((m) => (typeof m.content === "string" ? m.content : ""))
+      .join(" ");
+    const declinedObjects = extractDeclinedServiceObjects(
+      currentMessage,
+      `${extracted.requerimientos_evento ?? ""} ${historyBlob}`
+    );
+    if (declinedObjects.length > 0) {
+      extracted.requerimientos_evento = removeSpecificDeclinedServices(
+        extracted.requerimientos_evento,
+        currentMessage
+      );
+      if (extracted.requerimientos_evento) filledSet.add("Requerimientos o servicios");
+      else filledSet.delete("Requerimientos o servicios");
+      const labels = declinedServiceObjectLabels(declinedObjects).map((l) => `*${l}*`);
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const ack = `Listo${display ? `, ${display}` : ""} — quito ${formatServicesList(labels)} de tu cotización.`;
+      let nextQ: string | null;
+      if (cierreYaEnviado) {
+        nextQ = "¿Quieres otra opción en su lugar o lo dejamos así?";
+      } else {
+        const pending = getNextPendingField(extracted, filledSet);
+        nextQ =
+          pending === "requerimientos"
+            ? "¿Qué te gustaría en su lugar?"
+            : pending
+              ? buildNaturalQuestion(pending, ctx)
+              : null;
+      }
+      log?.info(
+        { entityId, declined: labels, requerimientos: extracted.requerimientos_evento },
+        "GUARD: A16477 — cliente quita un servicio por nombre"
+      );
+      return normalizeAdvisorReferences(
+        nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? display
+      );
+    }
   }
 
   // A15295 / A16074: declines ANTES de zona-ack ("No quiero pista" ≠ ubicación).
@@ -11372,7 +11500,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     !cierreYaEnviado &&
     !appliedDirectReply &&
     !isEmailSatisfied(filledSet, extracted) &&
-    !detectEmailRefusal([currentMessage ?? ""]) &&
+    !detectEmailRefusalInContext(currentMessage, presHistory) &&
     !parseCorreoFromText(currentMessage ?? "")
   ) {
     const correoAsks = countLucyFieldAsks(presHistory, "correo");

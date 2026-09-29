@@ -131636,6 +131636,51 @@ function clientDeclinesServiceFamiliesWithContext(message, recentUserTexts = [])
   }
   return [...out2];
 }
+function significantWords(text2) {
+  return text2.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-zñ]+/).filter((w5) => w5.length >= 4 && !SIGNIFICANT_STOPWORDS.has(w5));
+}
+function extractDeclinedServiceObjects(message, existing) {
+  const t4 = captionOf(message);
+  if (!t4) return [];
+  if (clientDeclinesServiceFamilies(t4).length > 0) return [];
+  const existingWords = new Set(significantWords(existing ?? ""));
+  const out2 = [];
+  for (const m6 of t4.matchAll(SPECIFIC_DECLINE_RE)) {
+    const obj = m6[1].trim();
+    if (!obj || NOT_A_SERVICE_WORD.test(obj)) continue;
+    const words = significantWords(obj);
+    if (!words.length) continue;
+    const inCatalog = parseServicesFromText(obj).length > 0;
+    const inExisting = words.some((w5) => existingWords.has(w5));
+    if (inCatalog || inExisting) out2.push(obj);
+  }
+  return [...new Set(out2)];
+}
+function removeSpecificDeclinedServices(existing, message) {
+  if (!existing?.trim()) return existing?.trim() || null;
+  const objects = extractDeclinedServiceObjects(message, existing);
+  if (!objects.length) return existing.trim();
+  const declinedWords = new Set(objects.flatMap(significantWords));
+  const catalogLabels = new Set(
+    objects.flatMap((o6) => parseServicesFromText(o6)).map((s7) => s7.toLowerCase())
+  );
+  const parts2 = existing.split(",").map((s7) => s7.trim()).filter(Boolean).filter((part) => {
+    const base = part.replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase();
+    if (catalogLabels.has(base)) return false;
+    return !significantWords(base).some((w5) => declinedWords.has(w5));
+  });
+  return parts2.length ? parts2.join(", ") : null;
+}
+function declinedServiceObjectLabels(objects) {
+  return [
+    ...new Set(
+      objects.map((o6) => {
+        const sku = parseServicesFromText(o6)[0];
+        return sku ?? o6.trim();
+      })
+    )
+  ];
+}
 function clientDeclinesAnyService(message) {
   return clientDeclinesServiceFamilies(message).length > 0;
 }
@@ -131704,7 +131749,7 @@ function stripThemeColorsFromZona(value) {
   v4 = v4.replace(/\s*[-–]\s*(rojo|negro|azul|blanco|dorado).*$/i, "");
   return v4.trim() || null;
 }
-var FAMILY_SERVICE_RE, FAMILY_DECLINE_WORDS;
+var FAMILY_SERVICE_RE, FAMILY_DECLINE_WORDS, SPECIFIC_DECLINE_RE, NOT_A_SERVICE_WORD, SIGNIFICANT_STOPWORDS;
 var init_serviceDecline = __esm({
   "src/services/serviceDecline.ts"() {
     "use strict";
@@ -131736,6 +131781,23 @@ var init_serviceDecline = __esm({
       tarima: "tarimas?|entarimad[oa]s?",
       dulces: "mesa\\s+de\\s+dulces|mesa\\s+de\\s+postres?|postres?|dulces?|cupcakes?|pastel(es)?|fondant"
     };
+    SPECIFIC_DECLINE_RE = /\b(?:(?:ya\s+)?no\s+(?:quiero|queremos|necesito|necesitamos|me\s+gusta|me\s+late)|qu[ií]ta(?:le|me|lo)?|quita(?:r|mos)?)\s+(?:el\s+|la\s+|los\s+|las\s+|lo\s+del?\s+|servicio\s+de\s+)?([a-záéíóúñü]+(?:\s+(?:y\s+|de\s+)?[a-záéíóúñü]+){0,2})/gi;
+    NOT_A_SERVICE_WORD = /^(nada|eso|esto|esa|ese|m[aá]s|otro|otra|dar|dar\s+mi|mi|mis|ya|que|prisa|problema|correo|tel[eé]fono|datos|gastar|esperar|pagar|presupuesto|cotizaci[oó]n|urgencia|compromiso|embargo|duda)\b/i;
+    SIGNIFICANT_STOPWORDS = /* @__PURE__ */ new Set([
+      "para",
+      "como",
+      "algo",
+      "tipo",
+      "barra",
+      "servicio",
+      "mesa",
+      "favor",
+      "gracias",
+      "mejor",
+      "ahora",
+      "todo",
+      "toda"
+    ]);
   }
 });
 
@@ -131929,6 +131991,17 @@ function formatMexicoNowForPrompt(now = /* @__PURE__ */ new Date()) {
   const p5 = mexicoNowParts(now);
   return `${formatYmd(p5)}, ${String(p5.hh).padStart(2, "0")}:${String(p5.mm).padStart(2, "0")}`;
 }
+function relativeEventYear(normalized, currentYear) {
+  if (NEXT_YEAR_RE.test(normalized)) return currentYear + 1;
+  if (/\beste\s+ano\b/.test(normalized)) return currentYear;
+  return null;
+}
+function relativeYearPhrase(text2) {
+  const t4 = stripAccents((text2 ?? "").toLowerCase());
+  if (NEXT_YEAR_RE.test(t4)) return "siguiente ano";
+  if (/\beste\s+ano\b/.test(t4)) return "este ano";
+  return null;
+}
 function resolveFechaEvento(text2, now = /* @__PURE__ */ new Date()) {
   const raw = (text2 ?? "").trim();
   if (!raw) return null;
@@ -131939,7 +132012,7 @@ function resolveFechaEvento(text2, now = /* @__PURE__ */ new Date()) {
   if (/^(?:para\s+|es\s+|seria\s+)?pasado\s+manana$/.test(t4)) return formatYmd(addDays(today, 2));
   if (/^(?:para\s+|es\s+|seria\s+)?manana$/.test(t4)) return formatYmd(addDays(today, 1));
   const yearM = t4.match(/\b(20\d{2})\b/);
-  const explicitYear = yearM ? Number(yearM[1]) : null;
+  const explicitYear = yearM ? Number(yearM[1]) : relativeEventYear(t4, today.y);
   const monthM = t4.match(new RegExp(`\\b(${MES_RE})\\b`));
   const month = monthM ? MESES.findIndex((m6) => stripAccents(m6) === monthM[1]) + 1 : 0;
   const dayM = t4.match(/\b(\d{1,2})\b(?!\s*(?::|am|pm|hrs?|horas?|personas?|invitad))/);
@@ -132032,7 +132105,7 @@ function resolveHorarioWithContext(incoming, previous, context = "") {
 function horarioNeedsAmPmConfirmation(horario, context = "") {
   return inferHorarioAmPm(horario, context).ambiguous;
 }
-var TZ, MESES, DIAS, MES_RE, DIA_RE, PERIOD_WORDS;
+var TZ, MESES, DIAS, MES_RE, DIA_RE, NEXT_YEAR_RE, PERIOD_WORDS;
 var init_eventDateTime = __esm({
   "src/lib/eventDateTime.ts"() {
     "use strict";
@@ -132054,6 +132127,7 @@ var init_eventDateTime = __esm({
     DIAS = ["domingo", "lunes", "martes", "mi\xE9rcoles", "jueves", "viernes", "s\xE1bado"];
     MES_RE = MESES.map((m6) => stripAccents(m6)).join("|");
     DIA_RE = "domingo|lunes|martes|miercoles|jueves|viernes|sabado";
+    NEXT_YEAR_RE = /\b(?:(?:el\s+)?(?:siguiente|proximo|otro)\s+ano|ano\s+(?:que\s+(?:viene|entra)|siguiente|proximo))\b/;
     PERIOD_WORDS = /\b(am|pm|hrs?|horas?|tarde|noche|ma[nñ]ana|mediod[ií]a|medio\s*d[ií]a|madrugada)\b|\b[ap]\.\s*m\.?/i;
   }
 });
@@ -132117,9 +132191,13 @@ function assistantAskedDeliveryChannel(text2) {
   if (!text2?.trim()) return false;
   return /confirmen?\s+por\s+aqu[ií].{0,100}correo/i.test(text2) || /escriba\s+por\s+aqu[ií].{0,100}correo/i.test(text2) || /preferes\s+esperar\s+el\s+correo/i.test(text2) || /por\s+aqu[ií]\s+con\s+la\s+propuesta.{0,60}correo/i.test(text2) || /recibirla\s+por\s+correo\s+o\s+por\s+este\s+chat/i.test(text2);
 }
+function normalizeDeliveryReply(message) {
+  return message.toLowerCase().replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, " ").replace(/\b(?:por\s+favor|porfa(?:vor)?|porfis|please|pls|gracias)\b/gi, " ").replace(/[¡!¿?.,;:]+/g, " ").replace(/\s+/g, " ").trim();
+}
 function clientChoosesEmailDelivery(message) {
   if (!message?.trim()) return false;
-  const t4 = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
+  const t4 = normalizeDeliveryReply(message);
+  if (!t4) return false;
   if (/^(por\s+)?(el\s+)?correo$/i.test(t4)) return true;
   if (/^(email|e-?mail|mail)$/i.test(t4)) return true;
   if (/\bpor\s+(el\s+)?correo\b/i.test(t4) && t4.split(/\s+/).length <= 8) return true;
@@ -132129,13 +132207,41 @@ function clientChoosesEmailDelivery(message) {
 }
 function clientChoosesChatDelivery(message) {
   if (!message?.trim()) return false;
-  const t4 = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
+  const t4 = normalizeDeliveryReply(message);
+  if (!t4) return false;
   if (/^(por\s+)?aqu[ií]$/i.test(t4)) return true;
   if (/^(whatsapp|chat|wa|por\s+whatsapp)$/i.test(t4)) return true;
   if (/\bpor\s+(aqu[ií]|este\s+(chat|medio)|whatsapp)(?!\p{L})/iu.test(t4) && t4.split(/\s+/).length <= 8) {
     return true;
   }
   return false;
+}
+function listItemsFromAssistant(text2) {
+  return text2.split(/\n+/).map((line2) => line2.match(/^\s*(?:[•●▪◦·\-–*]|\d{1,2}[.)])\s+(.+)$/)?.[1] ?? null).filter((item) => !!item).map(
+    (item) => item.replace(/[*_]/g, "").split(/\s+[—–-]\s+|:\s|\s\(/)[0].replace(/\.{2,}|…/g, "").trim()
+  ).filter((item) => item.length >= 3);
+}
+function expandOrdinalListChoice(message, lastAssistantText) {
+  if (!message?.trim() || !lastAssistantText?.trim()) return message;
+  const items = listItemsFromAssistant(lastAssistantText);
+  if (items.length < 2) return message;
+  let changed = false;
+  const lines = message.split(/\n/).map((line2) => {
+    const t4 = line2.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[¡!¿?.,;:]+/g, " ").replace(/\s+/g, " ").trim();
+    let idx = null;
+    const word = t4.match(
+      /^(?:(?:me\s+(?:gusta|late)|quiero|prefiero|mejor)\s+)?(?:la\s+|el\s+)?(primer[ao]?|segund[ao]|tercer[ao]?|cuart[ao]|quint[ao]|ultim[ao])(?:\s+opcion)?(?:\s+por\s+favor)?$/
+    );
+    if (word) idx = ORDINAL_INDEX[word[1]] ?? null;
+    const num = t4.match(/^(?:la\s+)?opcion\s*(?:numero\s*)?#?([1-9])$/) ?? t4.match(/^(?:la\s+)?([1-9])\s*(?:ra|da|ta|a)?\s+opcion$/);
+    if (!idx && num) idx = Number(num[1]);
+    if (!idx) return line2;
+    const item = idx === -1 ? items[items.length - 1] : items[idx - 1];
+    if (!item) return line2;
+    changed = true;
+    return `${line2.trim()} (${item})`;
+  });
+  return changed ? lines.join("\n") : message;
 }
 function clientSaysNoUrgency(message) {
   if (!message?.trim()) return false;
@@ -134050,17 +134156,18 @@ function mergeServiceRequirementsRaw(existing, text2, max = 6) {
     return preserveSpaceAnnotation(swapped, `${existing ?? ""} ${text2 ?? ""}`);
   }
   const declined = clientDeclinesServiceFamilies(text2);
-  const existingClean = declined.length ? removeDeclinedFamiliesFromRequirements(existing, declined) : existing;
+  const declinedObjects = declined.length ? [] : extractDeclinedServiceObjects(text2, existing);
+  const existingClean = declined.length ? removeDeclinedFamiliesFromRequirements(existing, declined) : declinedObjects.length ? removeSpecificDeclinedServices(existing, text2) : existing;
   const fromExisting = existingClean?.trim() ? parseServicesFromText(existingClean).filter((s7) => !serviceIsDeclined(s7, declined)) : [];
   const textTrim = text2?.trim() ?? "";
   const textIsLocation = !!textTrim && (isLikelyUbicacionNotNombre(textTrim) || !!parseZonaFromText(textTrim) && textTrim.split(/\s+/).length <= 8);
-  const fromText = textTrim && !textIsLocation ? parseServicesFromText(textTrim).filter((s7) => !serviceIsDeclined(s7, declined)) : [];
+  const fromText = textTrim && !textIsLocation && !declinedObjects.length ? parseServicesFromText(textTrim).filter((s7) => !serviceIsDeclined(s7, declined)) : [];
   const merged = dedupeServiceHierarchy(
     [...fromExisting, ...fromText],
     `${existingClean ?? ""} ${text2 ?? ""}`
   ).slice(0, max);
   if (merged.length === 0) {
-    if (declined.length > 0) {
+    if (declined.length > 0 || declinedObjects.length > 0) {
       return existingClean?.trim() || null;
     }
     const fallback = existingClean?.trim() || text2?.trim() || "";
@@ -134165,6 +134272,9 @@ function buildRichBriefAcknowledgment(text2) {
 function appendPostCierreRequirements(existing, message) {
   const t4 = message.trim();
   if (!t4) return existing?.trim() || null;
+  if (clientDeclinesServiceFamilies(t4).length > 0 || extractDeclinedServiceObjects(t4, existing).length > 0) {
+    return mergeServiceRequirements(existing, t4, 8);
+  }
   const services = parseServicesFromText(t4);
   const hasServiceIntent = services.length > 0 || clientAddsToQuote(t4) || isServiceRelatedMessage(t4) || isServicePreferenceRefinement(t4, existing) || /\b(pantalla|audio|microfon|led|dj|entradas?|postres?|canap)\b/i.test(t4);
   if (!hasServiceIntent) return existing?.trim() || null;
@@ -136867,7 +136977,7 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     extracted.requerimientos_evento = null;
   }
 }
-var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_DISCOURSE_CUT, VENUE_DISCOURSE_JUNK, VAGUE_VENUE_LABEL, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, DAY_PERIOD_SRC, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, MX_CITY_ABBREVIATIONS, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
+var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, ORDINAL_INDEX, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_DISCOURSE_CUT, VENUE_DISCOURSE_JUNK, VAGUE_VENUE_LABEL, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, DAY_PERIOD_SRC, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, MX_CITY_ABBREVIATIONS, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
 var init_conversation_understanding = __esm({
   "src/conversation-understanding.ts"() {
     "use strict";
@@ -137208,6 +137318,22 @@ var init_conversation_understanding = __esm({
         "presentaci\xF3n editorial"
       ]
     ];
+    ORDINAL_INDEX = {
+      primer: 1,
+      primera: 1,
+      primero: 1,
+      segunda: 2,
+      segundo: 2,
+      tercer: 3,
+      tercera: 3,
+      tercero: 3,
+      cuarta: 4,
+      cuarto: 4,
+      quinta: 5,
+      quinto: 5,
+      ultima: -1,
+      ultimo: -1
+    };
     EVENT_MEAL_TYPE = /comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail/i;
     NON_GUEST_UNIT_PATTERN = /\b\d+\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?|pantallas?|paquetes?|juegos?|m[oó]dulos?|piezas?)\b/i;
     CARPA_OPTIONS_TEXT = "blancas, negras, transparentes y tipo domo";
@@ -162718,9 +162844,29 @@ function collectUserTexts(history, currentMessage) {
 function detectEmailRefusal(texts) {
   return texts.some((t4) => EMAIL_REFUSAL_PATTERN.test(t4));
 }
-function applyEmailWaiver(filledSet, mergedLines, texts) {
+function isShortNoToEmailAsk(message, lastAssistantText) {
+  if (!message?.trim() || inferLucyAskedField(lastAssistantText) !== "correo") return false;
+  return message.split(/\n+/).some((line2) => SHORT_NO_REPLY_RE.test(line2.trim()));
+}
+function detectEmailRefusalInContext(message, history = []) {
+  if (!message?.trim()) return false;
+  if (detectEmailRefusal([message])) return true;
+  const lastAssistant = [...history].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string")?.content;
+  return isShortNoToEmailAsk(message, lastAssistant);
+}
+function historyHasShortNoToEmailAsk(history) {
+  let lastAssistant;
+  for (const m6 of history) {
+    if (typeof m6.content !== "string") continue;
+    if (m6.role === "assistant") lastAssistant = m6.content;
+    else if (m6.role === "user" && isShortNoToEmailAsk(m6.content, lastAssistant)) return true;
+  }
+  return false;
+}
+function applyEmailWaiver(filledSet, mergedLines, texts, history, currentMessage) {
   if (filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL)) return;
-  if (!detectEmailRefusal(texts)) return;
+  const refused = detectEmailRefusal(texts) || !!history && (historyHasShortNoToEmailAsk(history) || detectEmailRefusalInContext(currentMessage, history));
+  if (!refused) return;
   mergedLines.push(`- ${EMAIL_WAIVED_LABEL}: continuar por WhatsApp/chat`);
   filledSet.add(EMAIL_WAIVED_LABEL);
 }
@@ -165339,6 +165485,17 @@ function buildPostCierreCallbackAck(clientName) {
   const nombre = sanitizeDisplayName(clientName);
   return nombre ? `Con gusto, ${nombre}. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo. \xBFPrefieres que te marque Ventas o Gerencia primero?` : "Con gusto. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo. \xBFPrefieres que te marque Ventas o Gerencia primero?";
 }
+function historyClientDeclinedMore(history) {
+  let lastAssistant = "";
+  for (const m6 of history) {
+    if (typeof m6.content !== "string") continue;
+    if (m6.role === "assistant") lastAssistant = m6.content;
+    else if (m6.role === "user" && /\b(algo m[aá]s|sumar a la cotizaci[oó]n|agregar algo)\b/i.test(lastAssistant) && (clientDeclinesMoreServices(m6.content) || clientSaysThanks(m6.content))) {
+      return true;
+    }
+  }
+  return false;
+}
 function buildContinueEngagementQuestion(extracted, currentMessage, history) {
   const lastAsst = [...history ?? []].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string");
   const lastAsstText = lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : "";
@@ -165357,27 +165514,31 @@ function buildContinueEngagementQuestion(extracted, currentMessage, history) {
     return "\xBFTe marco el equipo hoy por tel\xE9fono, o prefieres que te escriban primero por este chat?";
   }
   const canalDone = historyHasDeliveryChannelChoice(history ?? [], currentMessage);
+  const prevAlgoMas = (history ?? []).some(
+    (m6) => m6.role === "assistant" && typeof m6.content === "string" && /\b(algo m[aá]s|sumar a la cotizaci[oó]n|agregar algo)\b/i.test(m6.content)
+  );
+  const softExit = "\xBFTe dejo el chat abierto por si surge otra duda?";
   if (clientChoosesEmailDelivery(currentMessage) || clientChoosesChatDelivery(currentMessage)) {
-    return "\xBFQuieres agregar algo m\xE1s a la cotizaci\xF3n?";
+    return prevAlgoMas ? softExit : "\xBFQuieres agregar algo m\xE1s a la cotizaci\xF3n?";
   }
   if (clientDeclinesMoreServices(currentMessage) || clientSaysThanks(currentMessage)) {
-    if (canalDone) {
-      return "\xBFTe dejo el chat abierto por si surge otra duda?";
+    const canalAskedBefore = (history ?? []).some(
+      (m6) => m6.role === "assistant" && typeof m6.content === "string" && assistantAskedDeliveryChannel(m6.content)
+    );
+    if (canalDone || canalAskedBefore) {
+      return softExit;
     }
     return "\xBFConfirmamos que el equipo te escriba por aqu\xED con la propuesta, o prefieres esperar el correo?";
   }
   if (canalDone) {
-    const prevAlgoMas = (history ?? []).some(
-      (m6) => m6.role === "assistant" && typeof m6.content === "string" && /\b(algo m[aá]s|sumar a la cotizaci[oó]n|agregar algo)\b/i.test(m6.content)
-    );
-    if (prevAlgoMas) {
-      return "\xBFTe dejo el chat abierto por si surge otra duda?";
-    }
-    return "\xBFHay algo m\xE1s que quieras sumar a la cotizaci\xF3n?";
+    return prevAlgoMas ? softExit : "\xBFHay algo m\xE1s que quieras sumar a la cotizaci\xF3n?";
   }
   const req = extracted.requerimientos_evento ?? "";
   if (/carpas?|tarima|entarim|colgantes|entelado/i.test(req)) {
     return "\xBFTe sumo mobiliario, iluminaci\xF3n o audio, o seguimos solo con lo que ya anotamos?";
+  }
+  if (prevAlgoMas && historyClientDeclinedMore(history ?? [])) {
+    return softExit;
   }
   return "\xBFHay algo m\xE1s que quieras sumar a la cotizaci\xF3n?";
 }
@@ -165882,7 +166043,10 @@ function buildNameMismatchReplyIfNeeded(currentMessage, extracted, filledSet, wh
   return null;
 }
 function applyLucyMessageGuards(input) {
-  const mensaje = applyLucyMessageGuardsRaw(input);
+  const mensaje = applyLucyMessageGuardsRaw(input).replace(
+    /^(¡?)Perfecto,\s+que\s+es\s+\*[^*\n]+\*\s*([!.])?\s*/i,
+    (_m, open2) => open2 ? "\xA1Perfecto! " : "Perfecto. "
+  );
   const pending = getNextPendingField(input.extracted, input.filledSet);
   const hardPending = !!pending && pending !== "tipo_evento" && pending !== "presupuesto";
   const historyClosed = detectCierreEnviado(
@@ -166544,7 +166708,8 @@ ${catalogUrl}`
       return normalizeAdvisorReferences2(body2, display);
     }
   }
-  if (!cierreYaEnviado && currentMessage && isEventTypeMealPhrase(currentMessage)) {
+  const tipoPrevioNoComida = collectUserTexts(presHistory).map((t4) => parseTipoEventoFromText(t4)).find((t4) => !!t4 && !isEventTypeMealPhrase(t4));
+  if (!cierreYaEnviado && currentMessage && !tipoPrevioNoComida && isEventTypeMealPhrase(currentMessage)) {
     const tipo = parseTipoEventoFromText(currentMessage) || "comida";
     extracted.tipo_evento = tipo;
     filledSet.add("Tipo de evento");
@@ -166602,6 +166767,39 @@ ${catalogUrl}`
     const ack = "Va, lo cotizamos para *venta*.";
     log?.info({ entityId }, "GUARD: A16445 \u2014 cliente elige venta");
     return normalizeAdvisorReferences2(nextQ ? `${ack} ${nextQ}` : ack, extracted.nombre ?? display);
+  }
+  if (currentMessage?.trim()) {
+    const historyBlob = presHistory.map((m6) => typeof m6.content === "string" ? m6.content : "").join(" ");
+    const declinedObjects = extractDeclinedServiceObjects(
+      currentMessage,
+      `${extracted.requerimientos_evento ?? ""} ${historyBlob}`
+    );
+    if (declinedObjects.length > 0) {
+      extracted.requerimientos_evento = removeSpecificDeclinedServices(
+        extracted.requerimientos_evento,
+        currentMessage
+      );
+      if (extracted.requerimientos_evento) filledSet.add("Requerimientos o servicios");
+      else filledSet.delete("Requerimientos o servicios");
+      const labels = declinedServiceObjectLabels(declinedObjects).map((l6) => `*${l6}*`);
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const ack = `Listo${display ? `, ${display}` : ""} \u2014 quito ${formatServicesList(labels)} de tu cotizaci\xF3n.`;
+      let nextQ;
+      if (cierreYaEnviado) {
+        nextQ = "\xBFQuieres otra opci\xF3n en su lugar o lo dejamos as\xED?";
+      } else {
+        const pending = getNextPendingField(extracted, filledSet);
+        nextQ = pending === "requerimientos" ? "\xBFQu\xE9 te gustar\xEDa en su lugar?" : pending ? buildNaturalQuestion(pending, ctx) : null;
+      }
+      log?.info(
+        { entityId, declined: labels, requerimientos: extracted.requerimientos_evento },
+        "GUARD: A16477 \u2014 cliente quita un servicio por nombre"
+      );
+      return normalizeAdvisorReferences2(
+        nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? display
+      );
+    }
   }
   {
     const recentUserForDecline = collectUserTexts(presHistory, void 0).slice(-4);
@@ -169480,7 +169678,7 @@ ${nextQ}`;
     log?.warn({ entityId }, "GUARD: correo forzado tras rechazo \u2014 reemplazando respuesta");
     mensaje = nextQ;
   }
-  if (!cierreYaEnviado && !appliedDirectReply && !isEmailSatisfied(filledSet, extracted) && !detectEmailRefusal([currentMessage ?? ""]) && !parseCorreoFromText(currentMessage ?? "")) {
+  if (!cierreYaEnviado && !appliedDirectReply && !isEmailSatisfied(filledSet, extracted) && !detectEmailRefusalInContext(currentMessage, presHistory) && !parseCorreoFromText(currentMessage ?? "")) {
     const correoAsks = countLucyFieldAsks(presHistory, "correo");
     const lastAskedCorreo = inferLucyAskedField(
       [...presHistory].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string")?.content
@@ -170524,7 +170722,7 @@ function stripImageAnnotation(text2) {
   }
   return text2.replace(/\[imagen\s+adjunta:[^\]]*\]/gi, "").replace(/\[imagen\s+respuesta\s+cliente\]:\s*[^\n]*/gi, "").replace(/\[imagen\s+nota\s+interna\]:\s*[^\n]*/gi, "").replace(/\[imagen\s+intent\]:\s*[^\n]*/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
-var EMAIL_WAIVED_LABEL, WHATSAPP_NOMBRE_NOTE, EMAIL_REFUSAL_PATTERN, CLOSING_CORE_FIELDS, LUCY_INTRO, SERVICIOS_CATALOGO_HINT_ADICIONAL, OTRO_SERVICIO_ASK_PATTERN, CORREO_MAX_ASKS, FIELD_ASK_PATTERNS, CLOSING_SIGNATURE, INVITADOS_UNAVAILABLE_VALUE, _outboundFinalizeCtx, PISTA_TARIMA_VARIANTS, LUCY_TRANSITIONS, TRANSITION_START_PATTERN, FIELD_ORDER, SALES_CTA_NOT_FUNNEL, MINIMAL_SERVICE_PATTERN;
+var EMAIL_WAIVED_LABEL, WHATSAPP_NOMBRE_NOTE, EMAIL_REFUSAL_PATTERN, CLOSING_CORE_FIELDS, LUCY_INTRO, SERVICIOS_CATALOGO_HINT_ADICIONAL, OTRO_SERVICIO_ASK_PATTERN, CORREO_MAX_ASKS, FIELD_ASK_PATTERNS, CLOSING_SIGNATURE, SHORT_NO_REPLY_RE, INVITADOS_UNAVAILABLE_VALUE, _outboundFinalizeCtx, PISTA_TARIMA_VARIANTS, LUCY_TRANSITIONS, TRANSITION_START_PATTERN, FIELD_ORDER, SALES_CTA_NOT_FUNNEL, MINIMAL_SERVICE_PATTERN;
 var init_lucy_flow_guards = __esm({
   "src/lucy-flow-guards.ts"() {
     "use strict";
@@ -170578,6 +170776,7 @@ var init_lucy_flow_guards = __esm({
       presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i
     };
     CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
+    SHORT_NO_REPLY_RE = /^(?:no+|nop|nel|no\s*,?\s*gracias|mejor\s+no|ahorita\s+no|por\s+ahora\s+no|no\s+por\s+ahora|de\s+momento\s+no|no\s+tengo)[\s.!¡]*$/i;
     INVITADOS_UNAVAILABLE_VALUE = "Sin definir (afluencia abierta / cliente no dispone del dato)";
     _outboundFinalizeCtx = null;
     PISTA_TARIMA_VARIANTS = [
@@ -232261,6 +232460,7 @@ function resolveLucyPublicBase(req) {
 }
 
 // src/routes/kommo.ts
+init_eventDateTime();
 init_openaiEnv();
 init_llmEnv();
 init_llmChat();
@@ -236413,7 +236613,9 @@ async function generateLucyOutbound(input) {
     aiResponse = await completeLucyRedaction(openai2, lucyMessages, redactionBriefing);
   }
   if (parseFechaFromText(messageText) && extracted.fecha_evento?.trim()) {
-    extracted.fecha_evento = resolveFechaEvento(extracted.fecha_evento) ?? extracted.fecha_evento;
+    const relYear = relativeYearPhrase(messageText);
+    const fechaBase = relYear && !/\b20\d{2}\b/.test(extracted.fecha_evento) ? `${extracted.fecha_evento} ${relYear}` : extracted.fecha_evento;
+    extracted.fecha_evento = resolveFechaEvento(fechaBase) ?? extracted.fecha_evento;
   }
   if (parseHorarioFromText(messageText) && extracted.horario_evento?.trim()) {
     const prevHorario = crmMergedLines.find((l6) => /^-?\s*Horario del evento:/i.test(l6))?.replace(/^-?\s*Horario del evento:\s*/i, "").trim() ?? null;
@@ -236434,7 +236636,7 @@ ${extracted.requerimientos_evento ?? ""}`
   if (prependToAiResponse?.trim()) {
     aiResponse = prependToAiResponse + aiResponse;
   }
-  const emailRefusedThisTurn = detectEmailRefusal([messageText]);
+  const emailRefusedThisTurn = detectEmailRefusalInContext(messageText, fullHistory);
   let mensajeParaCliente = applyLucyMessageGuards({
     aiResponse,
     extracted,
@@ -236559,6 +236761,7 @@ function restoreEventDateTimeFromCrm(extracted, filledLabels, crmMergedLines, cr
 }
 
 // src/routes/kommo.ts
+init_serviceDecline();
 init_tipoContacto();
 
 // src/services/proveedorSheets.ts
@@ -237257,6 +237460,8 @@ var phoneCache = /* @__PURE__ */ new Map();
 var displayNameCache = /* @__PURE__ */ new Map();
 var DEBOUNCE_MS = 5e3;
 var pendingBatches = /* @__PURE__ */ new Map();
+var inFlightChats = /* @__PURE__ */ new Map();
+var IN_FLIGHT_MAX_MS = 9e4;
 function extractChannelOriginFromMessage(msg) {
   if (!msg) return null;
   if (typeof msg.origin === "string" && msg.origin.trim()) return msg.origin.trim();
@@ -237634,6 +237839,10 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
   }
   const lastAssistantForInv = [...historyFull].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string");
   const lastAskedInv = lastAssistantForInv ? inferLucyAskedField(lastAssistantForInv.content) : null;
+  const relYear = currentMessage ? relativeYearPhrase(currentMessage) : null;
+  if (relYear && extracted.fecha_evento?.trim() && !/\b20\d{2}\b/.test(extracted.fecha_evento)) {
+    extracted.fecha_evento = resolveFechaEvento(`${extracted.fecha_evento} ${relYear}`) ?? extracted.fecha_evento;
+  }
   const extractionMap = [
     { label: "Lugar/direcci\xF3n del evento", value: extracted.direccion_evento },
     { label: "Requerimientos o servicios", value: extracted.requerimientos_evento },
@@ -237697,7 +237906,16 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
       const mergedReq = mergeServiceRequirements(existingReq, currentMessage, 6);
       const prevCount = parseServicesFromText(existingReq).length;
       const nextCount = mergedReq ? parseServicesFromText(mergedReq).length : 0;
-      if (mergedReq && (nextCount > prevCount || serviceRequirementsGainedDimensions(existingReq, mergedReq))) {
+      const declinedNow = clientDeclinesServiceFamilies(currentMessage).length > 0 || extractDeclinedServiceObjects(currentMessage, existingReq).length > 0;
+      if (declinedNow && mergedReq !== existingReq) {
+        if (mergedReq) {
+          mergedLines[reqIdx2] = `- Requerimientos o servicios: ${mergedReq}`;
+        } else {
+          mergedLines.splice(reqIdx2, 1);
+          filledSet.delete("Requerimientos o servicios");
+        }
+        extracted.requerimientos_evento = mergedReq;
+      } else if (mergedReq && (nextCount > prevCount || serviceRequirementsGainedDimensions(existingReq, mergedReq))) {
         mergedLines[reqIdx2] = `- Requerimientos o servicios: ${mergedReq}`;
         extracted.requerimientos_evento = mergedReq;
       }
@@ -237771,7 +237989,9 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
   applyEmailWaiver(
     filledSet,
     mergedLines,
-    collectUserTexts(historyFull, currentMessage)
+    collectUserTexts(historyFull, currentMessage),
+    historyFull,
+    currentMessage
   );
   applyInvitadosWaiver(
     filledSet,
@@ -238132,7 +238352,7 @@ function safeParseDate(raw) {
 }
 async function processBatch(batch, accessToken, log) {
   const { texts, entityId, chatId, talkId, subdomain, channelOrigin } = batch;
-  const combinedUserText = texts.join("\n");
+  let combinedUserText = texts.join("\n");
   log.info({ messageCount: texts.length, combinedUserText, chatId }, "Processing debounced batch");
   try {
     let leadKommo = await fetchLead(subdomain, accessToken, entityId);
@@ -238268,6 +238488,14 @@ async function processBatch(batch, accessToken, log) {
       historySource = historySource === "file" ? recoverySource : `${historySource}+${recoverySource}`;
     }
     log.info({ historyLength: history.length, historySource, crmLinesCount: crmLines.length }, "Context loaded");
+    {
+      const lastAssistantText = [...history].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string")?.content;
+      const expanded = expandOrdinalListChoice(combinedUserText, lastAssistantText);
+      if (expanded !== combinedUserText) {
+        log.info({ entityId, expanded }, "A16477: elecci\xF3n por posici\xF3n \u2192 opci\xF3n de la lista");
+        combinedUserText = expanded;
+      }
+    }
     const {
       extracted,
       conversationText,
@@ -238371,6 +238599,19 @@ async function processBatch(batch, accessToken, log) {
       log
     });
     log.info({ aiResponse, extracted }, "OpenAI response received");
+    {
+      const newer = pendingBatches.get(chatId);
+      if (newer) {
+        newer.texts.unshift(...texts);
+        newer.isVoice = newer.isVoice || batch.isVoice;
+        newer.isImage = newer.isImage || batch.isImage;
+        log.info(
+          { entityId, chatId, descartada: mensajeParaCliente.slice(0, 120) },
+          "Cliente sigui\xF3 escribiendo \u2014 se descarta esta respuesta y se contesta todo junto"
+        );
+        return;
+      }
+    }
     if (meeting) {
       void recordMeetingInKommo({
         subdomain,
@@ -238834,12 +239075,7 @@ function queueIncomingBatch(opts) {
     existing.isVoice = existing.isVoice || isVoice;
     existing.isImage = existing.isImage || isImage;
     log.info({ chatId, buffered: existing.texts.length }, "Message added to pending batch");
-    existing.timer = setTimeout(() => {
-      pendingBatches.delete(chatId);
-      processBatch(existing, accessToken, log).catch((err2) => {
-        log.error({ err: err2 }, "Error in processBatch");
-      });
-    }, DEBOUNCE_MS);
+    existing.timer = setTimeout(() => flushBatch(chatId, accessToken, log), DEBOUNCE_MS);
     return;
   }
   const batch = {
@@ -238851,18 +239087,30 @@ function queueIncomingBatch(opts) {
     isVoice,
     isImage,
     channelOrigin,
-    timer: setTimeout(() => {
-      pendingBatches.delete(chatId);
-      processBatch(batch, accessToken, log).catch((err2) => {
-        log.error({ err: err2 }, "Error in processBatch");
-      });
-    }, DEBOUNCE_MS)
+    timer: setTimeout(() => flushBatch(chatId, accessToken, log), DEBOUNCE_MS)
   };
   pendingBatches.set(chatId, batch);
   log.info(
     { chatId, debounceMs: DEBOUNCE_MS, isVoice, isImage, channelOrigin },
     "New batch started, waiting for more messages"
   );
+}
+function flushBatch(chatId, accessToken, log) {
+  const batch = pendingBatches.get(chatId);
+  if (!batch) return;
+  const startedAt = inFlightChats.get(chatId);
+  if (startedAt && Date.now() - startedAt < IN_FLIGHT_MAX_MS) {
+    batch.timer = setTimeout(() => flushBatch(chatId, accessToken, log), 1500);
+    return;
+  }
+  pendingBatches.delete(chatId);
+  const myStart = Date.now();
+  inFlightChats.set(chatId, myStart);
+  processBatch(batch, accessToken, log).catch((err2) => {
+    log.error({ err: err2 }, "Error in processBatch");
+  }).finally(() => {
+    if (inFlightChats.get(chatId) === myStart) inFlightChats.delete(chatId);
+  });
 }
 async function lastUserTextFromTalk(subdomain, accessToken, talkId) {
   const hist = await fetchKommoHistory(subdomain, accessToken, talkId);

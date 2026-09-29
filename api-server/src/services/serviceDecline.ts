@@ -5,7 +5,7 @@
  * debe QUITAR la familia del CRM, no re-anotar ni tirar catálogo.
  */
 import { clientCaptionForServiceParse } from "./imageProcessor.js";
-import { isTablewareRequestText } from "../conversation-understanding.js";
+import { isTablewareRequestText, parseServicesFromText } from "../conversation-understanding.js";
 
 /** Familias de servicio que el cliente puede rechazar explícitamente. */
 export type DeclinedServiceFamily =
@@ -298,6 +298,100 @@ export function clientDeclinesServiceFamiliesWithContext(
     }
   }
   return [...out];
+}
+
+const SPECIFIC_DECLINE_RE =
+  /\b(?:(?:ya\s+)?no\s+(?:quiero|queremos|necesito|necesitamos|me\s+gusta|me\s+late)|qu[ií]ta(?:le|me|lo)?|quita(?:r|mos)?)\s+(?:el\s+|la\s+|los\s+|las\s+|lo\s+del?\s+|servicio\s+de\s+)?([a-záéíóúñü]+(?:\s+(?:y\s+|de\s+)?[a-záéíóúñü]+){0,2})/gi;
+
+/** Palabras que no nombran un servicio concreto ("no quiero dar mi correo", "sin prisa"). */
+const NOT_A_SERVICE_WORD =
+  /^(nada|eso|esto|esa|ese|m[aá]s|otro|otra|dar|dar\s+mi|mi|mis|ya|que|prisa|problema|correo|tel[eé]fono|datos|gastar|esperar|pagar|presupuesto|cotizaci[oó]n|urgencia|compromiso|embargo|duda)\b/i;
+
+const SIGNIFICANT_STOPWORDS = new Set([
+  "para",
+  "como",
+  "algo",
+  "tipo",
+  "barra",
+  "servicio",
+  "mesa",
+  "favor",
+  "gracias",
+  "mejor",
+  "ahora",
+  "todo",
+  "toda",
+]);
+
+function significantWords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .split(/[^a-zñ]+/)
+    .filter((w) => w.length >= 4 && !SIGNIFICANT_STOPWORDS.has(w));
+}
+
+/**
+ * A16477: "No quiero pozole" → ["pozole"]. Solo objetos que son un servicio
+ * (catálogo o ya en requerimientos); las familias genéricas van por
+ * `clientDeclinesServiceFamilies`.
+ */
+export function extractDeclinedServiceObjects(
+  message?: string | null,
+  existing?: string | null
+): string[] {
+  const t = captionOf(message);
+  if (!t) return [];
+  if (clientDeclinesServiceFamilies(t).length > 0) return [];
+  const existingWords = new Set(significantWords(existing ?? ""));
+  const out: string[] = [];
+  for (const m of t.matchAll(SPECIFIC_DECLINE_RE)) {
+    const obj = m[1]!.trim();
+    if (!obj || NOT_A_SERVICE_WORD.test(obj)) continue;
+    const words = significantWords(obj);
+    if (!words.length) continue;
+    const inCatalog = parseServicesFromText(obj).length > 0;
+    const inExisting = words.some((w) => existingWords.has(w));
+    if (inCatalog || inExisting) out.push(obj);
+  }
+  return [...new Set(out)];
+}
+
+/** Quita de requerimientos los SKUs que el cliente rechazó por nombre. */
+export function removeSpecificDeclinedServices(
+  existing: string | null | undefined,
+  message?: string | null
+): string | null {
+  if (!existing?.trim()) return existing?.trim() || null;
+  const objects = extractDeclinedServiceObjects(message, existing);
+  if (!objects.length) return existing.trim();
+  const declinedWords = new Set(objects.flatMap(significantWords));
+  const catalogLabels = new Set(
+    objects.flatMap((o) => parseServicesFromText(o)).map((s) => s.toLowerCase())
+  );
+  const parts = existing
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter((part) => {
+      const base = part.replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase();
+      if (catalogLabels.has(base)) return false;
+      return !significantWords(base).some((w) => declinedWords.has(w));
+    });
+  return parts.length ? parts.join(", ") : null;
+}
+
+/** Etiqueta para el ack: SKU de catálogo si lo hay ("Pozole y Tostadas"), si no el texto. */
+export function declinedServiceObjectLabels(objects: string[]): string[] {
+  return [
+    ...new Set(
+      objects.map((o) => {
+        const sku = parseServicesFromText(o)[0];
+        return sku ?? o.trim();
+      })
+    ),
+  ];
 }
 
 export function clientDeclinesAnyService(message?: string | null): boolean {

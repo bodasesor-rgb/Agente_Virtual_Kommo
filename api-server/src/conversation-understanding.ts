@@ -24,9 +24,11 @@ import { filterClientEmail, looksLikeValidClientEmail } from "./client-email.js"
 import { getAdvisorName, LEGACY_ADVISOR_NAMES } from "./lib/bodasesorAdvisor.js";
 import {
   clientDeclinesServiceFamilies,
+  extractDeclinedServiceObjects,
   isVenueProvidesContext,
   looksLikeThemeColorNotLocation,
   removeDeclinedFamiliesFromRequirements,
+  removeSpecificDeclinedServices,
   removeVenueProvidedFromRequirements,
   serviceIsDeclined,
   stripThemeColorsFromZona,
@@ -523,10 +525,22 @@ export function assistantAskedDeliveryChannel(text?: string | null): boolean {
   );
 }
 
+/** A16477: "El correo 📧 por favor" → "el correo". */
+function normalizeDeliveryReply(message: string): string {
+  return message
+    .toLowerCase()
+    .replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, " ")
+    .replace(/\b(?:por\s+favor|porfa(?:vor)?|porfis|please|pls|gracias)\b/gi, " ")
+    .replace(/[¡!¿?.,;:]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** A16309: cliente elige propuesta por correo. */
 export function clientChoosesEmailDelivery(message?: string | null): boolean {
   if (!message?.trim()) return false;
-  const t = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
+  const t = normalizeDeliveryReply(message);
+  if (!t) return false;
   if (/^(por\s+)?(el\s+)?correo$/i.test(t)) return true;
   if (/^(email|e-?mail|mail)$/i.test(t)) return true;
   if (/\bpor\s+(el\s+)?correo\b/i.test(t) && t.split(/\s+/).length <= 8) return true;
@@ -538,7 +552,8 @@ export function clientChoosesEmailDelivery(message?: string | null): boolean {
 /** A16309: cliente elige seguimiento por WhatsApp/chat. */
 export function clientChoosesChatDelivery(message?: string | null): boolean {
   if (!message?.trim()) return false;
-  const t = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
+  const t = normalizeDeliveryReply(message);
+  if (!t) return false;
   if (/^(por\s+)?aqu[ií]$/i.test(t)) return true;
   if (/^(whatsapp|chat|wa|por\s+whatsapp)$/i.test(t)) return true;
   if (
@@ -548,6 +563,69 @@ export function clientChoosesChatDelivery(message?: string | null): boolean {
     return true;
   }
   return false;
+}
+
+const ORDINAL_INDEX: Record<string, number> = {
+  primer: 1, primera: 1, primero: 1,
+  segunda: 2, segundo: 2,
+  tercer: 3, tercera: 3, tercero: 3,
+  cuarta: 4, cuarto: 4,
+  quinta: 5, quinto: 5,
+  ultima: -1, ultimo: -1,
+};
+
+function listItemsFromAssistant(text: string): string[] {
+  return text
+    .split(/\n+/)
+    .map((line) => line.match(/^\s*(?:[•●▪◦·\-–*]|\d{1,2}[.)])\s+(.+)$/)?.[1] ?? null)
+    .filter((item): item is string => !!item)
+    .map((item) =>
+      item
+        .replace(/[*_]/g, "")
+        .split(/\s+[—–-]\s+|:\s|\s\(/)[0]!
+        .replace(/\.{2,}|…/g, "")
+        .trim()
+    )
+    .filter((item) => item.length >= 3);
+}
+
+/**
+ * A16477: "Segunda opción" tras una lista de Lucy → "Segunda opción (Pozole y tostadas)".
+ * Si no hay lista o no es una elección por posición, regresa el mensaje igual.
+ */
+export function expandOrdinalListChoice(
+  message: string,
+  lastAssistantText: string | null | undefined
+): string {
+  if (!message?.trim() || !lastAssistantText?.trim()) return message;
+  const items = listItemsFromAssistant(lastAssistantText);
+  if (items.length < 2) return message;
+  let changed = false;
+  const lines = message.split(/\n/).map((line) => {
+    const t = line
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[¡!¿?.,;:]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    let idx: number | null = null;
+    const word = t.match(
+      /^(?:(?:me\s+(?:gusta|late)|quiero|prefiero|mejor)\s+)?(?:la\s+|el\s+)?(primer[ao]?|segund[ao]|tercer[ao]?|cuart[ao]|quint[ao]|ultim[ao])(?:\s+opcion)?(?:\s+por\s+favor)?$/
+    );
+    if (word) idx = ORDINAL_INDEX[word[1]!] ?? null;
+    const num =
+      t.match(/^(?:la\s+)?opcion\s*(?:numero\s*)?#?([1-9])$/) ??
+      t.match(/^(?:la\s+)?([1-9])\s*(?:ra|da|ta|a)?\s+opcion$/);
+    if (!idx && num) idx = Number(num[1]);
+    if (!idx) return line;
+    const item = idx === -1 ? items[items.length - 1] : items[idx - 1];
+    if (!item) return line;
+    changed = true;
+    return `${line.trim()} (${item})`;
+  });
+  return changed ? lines.join("\n") : message;
 }
 
 /** A16309: sin prisa / tomen su tiempo. */
@@ -3952,9 +4030,13 @@ function mergeServiceRequirementsRaw(
   }
   // A15295: declinar familia → quitar del CRM y no re-agregar desde el mismo texto.
   const declined = clientDeclinesServiceFamilies(text);
+  // A16477: "No quiero pozole" quita solo ese SKU (no toda la comida).
+  const declinedObjects = declined.length ? [] : extractDeclinedServiceObjects(text, existing);
   const existingClean = declined.length
     ? removeDeclinedFamiliesFromRequirements(existing, declined)
-    : existing;
+    : declinedObjects.length
+      ? removeSpecificDeclinedServices(existing, text)
+      : existing;
   const fromExisting = existingClean?.trim()
     ? parseServicesFromText(existingClean).filter((s) => !serviceIsDeclined(s, declined))
     : [];
@@ -3964,7 +4046,7 @@ function mergeServiceRequirementsRaw(
     (isLikelyUbicacionNotNombre(textTrim) ||
       (!!parseZonaFromText(textTrim) && textTrim.split(/\s+/).length <= 8));
   const fromText =
-    textTrim && !textIsLocation
+    textTrim && !textIsLocation && !declinedObjects.length
       ? parseServicesFromText(textTrim).filter((s) => !serviceIsDeclined(s, declined))
       : [];
   const merged = dedupeServiceHierarchy(
@@ -3973,7 +4055,7 @@ function mergeServiceRequirementsRaw(
   ).slice(0, max);
   if (merged.length === 0) {
     // Si solo declinó y no queda nada, devolver null (o lo limpio).
-    if (declined.length > 0) {
+    if (declined.length > 0 || declinedObjects.length > 0) {
       return existingClean?.trim() || null;
     }
     const fallback = existingClean?.trim() || text?.trim() || "";
@@ -4139,6 +4221,14 @@ export function appendPostCierreRequirements(
 ): string | null {
   const t = message.trim();
   if (!t) return existing?.trim() || null;
+
+  // A16477: "No quiero pozole" post-cierre quita, no anexa.
+  if (
+    clientDeclinesServiceFamilies(t).length > 0 ||
+    extractDeclinedServiceObjects(t, existing).length > 0
+  ) {
+    return mergeServiceRequirements(existing, t, 8);
+  }
 
   const services = parseServicesFromText(t);
   const hasServiceIntent =

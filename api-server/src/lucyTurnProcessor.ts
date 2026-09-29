@@ -36,7 +36,11 @@ import {
   CRM_FECHA_LABEL,
   CRM_HORARIO_LABEL,
 } from "./conversation-understanding.js";
-import { resolveFechaEvento, resolveHorarioWithContext } from "./lib/eventDateTime.js";
+import {
+  relativeYearPhrase,
+  resolveFechaEvento,
+  resolveHorarioWithContext,
+} from "./lib/eventDateTime.js";
 import { enrichExtractedFromText } from "./services/summaryService.js";
 import { enrichExtractedDireccionWithMaps } from "./services/geoResolve.js";
 import { sanitizeCrmNombre, preferRicherClientNombre, sanitizeDisplayName } from "./contact-name.js";
@@ -60,7 +64,7 @@ import { formatServiceKnowledgeForPrompt } from "./services/serviceKnowledge.js"
 import { getTrainingExamples } from "./lib/training.js";
 import {
   applyLucyMessageGuards,
-  detectEmailRefusal,
+  detectEmailRefusalInContext,
   ensureOutboundAlwaysAsks,
   getNextPendingField,
 } from "./lucy-flow-guards.js";
@@ -579,7 +583,12 @@ export async function generateLucyOutbound(
 
   // Solo lo que llegó en ESTE mensaje: "este sábado" guardado hace días no se re-resuelve.
   if (parseFechaFromText(messageText) && extracted.fecha_evento?.trim()) {
-    extracted.fecha_evento = resolveFechaEvento(extracted.fecha_evento) ?? extracted.fecha_evento;
+    const relYear = relativeYearPhrase(messageText);
+    const fechaBase =
+      relYear && !/\b20\d{2}\b/.test(extracted.fecha_evento)
+        ? `${extracted.fecha_evento} ${relYear}`
+        : extracted.fecha_evento;
+    extracted.fecha_evento = resolveFechaEvento(fechaBase) ?? extracted.fecha_evento;
   }
   if (parseHorarioFromText(messageText) && extracted.horario_evento?.trim()) {
     const prevHorario =
@@ -607,7 +616,7 @@ export async function generateLucyOutbound(
     aiResponse = prependToAiResponse + aiResponse;
   }
 
-  const emailRefusedThisTurn = detectEmailRefusal([messageText]);
+  const emailRefusedThisTurn = detectEmailRefusalInContext(messageText, fullHistory);
 
   let mensajeParaCliente = applyLucyMessageGuards({
     aiResponse,

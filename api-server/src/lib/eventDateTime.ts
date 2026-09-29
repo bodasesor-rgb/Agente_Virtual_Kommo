@@ -70,6 +70,24 @@ const DIA_RE = "domingo|lunes|martes|miercoles|jueves|viernes|sabado";
  * Convierte la fecha capturada a fecha absoluta legible.
  * Devuelve null si no hay nada que resolver con seguridad (se deja el texto tal cual).
  */
+const NEXT_YEAR_RE =
+  /\b(?:(?:el\s+)?(?:siguiente|proximo|otro)\s+ano|ano\s+(?:que\s+(?:viene|entra)|siguiente|proximo))\b/;
+
+/** A16477: "noviembre siguiente año" / "el año que viene" → año actual + 1. */
+function relativeEventYear(normalized: string, currentYear: number): number | null {
+  if (NEXT_YEAR_RE.test(normalized)) return currentYear + 1;
+  if (/\beste\s+ano\b/.test(normalized)) return currentYear;
+  return null;
+}
+
+/** Texto con año relativo ("siguiente año") para reinyectarlo al resolver una fecha extraída. */
+export function relativeYearPhrase(text: string | null | undefined): string | null {
+  const t = stripAccents((text ?? "").toLowerCase());
+  if (NEXT_YEAR_RE.test(t)) return "siguiente ano";
+  if (/\beste\s+ano\b/.test(t)) return "este ano";
+  return null;
+}
+
 export function resolveFechaEvento(
   text: string | null | undefined,
   now: Date = new Date()
@@ -85,7 +103,7 @@ export function resolveFechaEvento(
   if (/^(?:para\s+|es\s+|seria\s+)?manana$/.test(t)) return formatYmd(addDays(today, 1));
 
   const yearM = t.match(/\b(20\d{2})\b/);
-  const explicitYear = yearM ? Number(yearM[1]) : null;
+  const explicitYear = yearM ? Number(yearM[1]) : relativeEventYear(t, today.y);
   const monthM = t.match(new RegExp(`\\b(${MES_RE})\\b`));
   const month = monthM ? MESES.findIndex((m) => stripAccents(m) === monthM[1]) + 1 : 0;
   const dayM = t.match(/\b(\d{1,2})\b(?!\s*(?::|am|pm|hrs?|horas?|personas?|invitad))/);

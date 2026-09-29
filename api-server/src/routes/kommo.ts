@@ -6,6 +6,7 @@ import {
   runAutoClient,
 } from "../../scripts/simulator-auto-client-lib.mjs";
 import { resolveLucyPublicBase } from "../lib/publicUrl.js";
+import { relativeYearPhrase, resolveFechaEvento } from "../lib/eventDateTime.js";
 import { getOpenAiApiKeyForClient } from "../lib/openaiEnv.js";
 import {
   isLlmConfigured,
@@ -101,6 +102,10 @@ import {
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, sanitizeStoredClientEmail } from "../client-email.js";
 import { prepareLucyExtraction, generateLucyOutbound } from "../lucyTurnProcessor.js";
 import {
+  clientDeclinesServiceFamilies,
+  extractDeclinedServiceObjects,
+} from "../services/serviceDecline.js";
+import {
   buildGoogleCalendarAddUrl,
   getBookingUrl,
   type MeetingDecision,
@@ -152,6 +157,7 @@ import {
   combinedScheduleDisplay,
   isUsableFechaEvento,
   isUsableHorarioEvento,
+  expandOrdinalListChoice,
 } from "../conversation-understanding.js";
 import type { ExtractedData } from "../types.js";
 import {
@@ -237,6 +243,9 @@ interface PendingBatch {
 }
 
 const pendingBatches = new Map<string, PendingBatch>();
+/** Chats con respuesta en curso (chatId → inicio). Un chat no procesa dos lotes a la vez. */
+const inFlightChats = new Map<string, number>();
+const IN_FLIGHT_MAX_MS = 90_000;
 
 
 // ─── Kommo types ──────────────────────────────────────────────────────────────
@@ -895,6 +904,12 @@ function buildCrmContext(
     ? inferLucyAskedField(lastAssistantForInv.content as string)
     : null;
 
+  const relYear = currentMessage ? relativeYearPhrase(currentMessage) : null;
+  if (relYear && extracted.fecha_evento?.trim() && !/\b20\d{2}\b/.test(extracted.fecha_evento)) {
+    extracted.fecha_evento =
+      resolveFechaEvento(`${extracted.fecha_evento} ${relYear}`) ?? extracted.fecha_evento;
+  }
+
   const extractionMap: Array<{ label: string; value: string | number | null | undefined }> = [
     { label: "Lugar/dirección del evento", value: extracted.direccion_evento },
     { label: "Requerimientos o servicios", value: extracted.requerimientos_evento },
@@ -970,7 +985,19 @@ function buildCrmContext(
       const mergedReq = mergeServiceRequirements(existingReq, currentMessage, 6);
       const prevCount = parseServicesFromText(existingReq).length;
       const nextCount = mergedReq ? parseServicesFromText(mergedReq).length : 0;
-      if (
+      // A16477: "No quiero pozole" también tiene que llegar al campo CRM (antes solo crecía).
+      const declinedNow =
+        clientDeclinesServiceFamilies(currentMessage).length > 0 ||
+        extractDeclinedServiceObjects(currentMessage, existingReq).length > 0;
+      if (declinedNow && mergedReq !== existingReq) {
+        if (mergedReq) {
+          mergedLines[reqIdx] = `- Requerimientos o servicios: ${mergedReq}`;
+        } else {
+          mergedLines.splice(reqIdx, 1);
+          filledSet.delete("Requerimientos o servicios");
+        }
+        extracted.requerimientos_evento = mergedReq;
+      } else if (
         mergedReq &&
         (nextCount > prevCount ||
           serviceRequirementsGainedDimensions(existingReq, mergedReq))
@@ -1070,7 +1097,9 @@ function buildCrmContext(
   applyEmailWaiver(
     filledSet,
     mergedLines,
-    collectUserTexts(historyFull, currentMessage)
+    collectUserTexts(historyFull, currentMessage),
+    historyFull,
+    currentMessage
   );
 
   applyInvitadosWaiver(
@@ -1682,7 +1711,7 @@ function safeParseDate(raw: string | null): Date | null {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function processBatch(batch: PendingBatch, accessToken: string, log: any): Promise<void> {
   const { texts, entityId, chatId, talkId, subdomain, channelOrigin } = batch;
-  const combinedUserText = texts.join("\n");
+  let combinedUserText = texts.join("\n");
 
   log.info({ messageCount: texts.length, combinedUserText, chatId }, "Processing debounced batch");
 
@@ -1875,6 +1904,19 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
 
     log.info({ historyLength: history.length, historySource, crmLinesCount: crmLines.length }, "Context loaded");
 
+    {
+      const lastAssistantText = [...history]
+        .reverse()
+        .find((m) => m.role === "assistant" && typeof m.content === "string")?.content as
+        | string
+        | undefined;
+      const expanded = expandOrdinalListChoice(combinedUserText, lastAssistantText);
+      if (expanded !== combinedUserText) {
+        log.info({ entityId, expanded }, "A16477: elección por posición → opción de la lista");
+        combinedUserText = expanded;
+      }
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     // PASO 5: Extracción de datos (pipeline unificado)
     // ══════════════════════════════════════════════════════════════════════
@@ -2007,6 +2049,22 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     });
 
     log.info({ aiResponse, extracted }, "OpenAI response received");
+
+    // A16477: el cliente siguió escribiendo mientras Lucy pensaba ("Ocean events" + "Cancún").
+    // No mandar esta respuesta vieja: el siguiente lote contesta todo junto.
+    {
+      const newer = pendingBatches.get(chatId);
+      if (newer) {
+        newer.texts.unshift(...texts);
+        newer.isVoice = newer.isVoice || batch.isVoice;
+        newer.isImage = newer.isImage || batch.isImage;
+        log.info(
+          { entityId, chatId, descartada: mensajeParaCliente.slice(0, 120) },
+          "Cliente siguió escribiendo — se descarta esta respuesta y se contesta todo junto"
+        );
+        return;
+      }
+    }
 
     if (meeting) {
       void recordMeetingInKommo({
@@ -2602,12 +2660,7 @@ function queueIncomingBatch(
     existing.isVoice = existing.isVoice || isVoice;
     existing.isImage = existing.isImage || isImage;
     log.info({ chatId, buffered: existing.texts.length }, "Message added to pending batch");
-    existing.timer = setTimeout(() => {
-      pendingBatches.delete(chatId);
-      processBatch(existing, accessToken, log).catch((err: unknown) => {
-        log.error({ err }, "Error in processBatch");
-      });
-    }, DEBOUNCE_MS);
+    existing.timer = setTimeout(() => flushBatch(chatId, accessToken, log), DEBOUNCE_MS);
     return;
   }
 
@@ -2620,18 +2673,34 @@ function queueIncomingBatch(
     isVoice,
     isImage,
     channelOrigin,
-    timer: setTimeout(() => {
-      pendingBatches.delete(chatId);
-      processBatch(batch, accessToken, log).catch((err: unknown) => {
-        log.error({ err }, "Error in processBatch");
-      });
-    }, DEBOUNCE_MS),
+    timer: setTimeout(() => flushBatch(chatId, accessToken, log), DEBOUNCE_MS),
   };
   pendingBatches.set(chatId, batch);
   log.info(
     { chatId, debounceMs: DEBOUNCE_MS, isVoice, isImage, channelOrigin },
     "New batch started, waiting for more messages"
   );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function flushBatch(chatId: string, accessToken: string, log: any): void {
+  const batch = pendingBatches.get(chatId);
+  if (!batch) return;
+  const startedAt = inFlightChats.get(chatId);
+  if (startedAt && Date.now() - startedAt < IN_FLIGHT_MAX_MS) {
+    batch.timer = setTimeout(() => flushBatch(chatId, accessToken, log), 1500);
+    return;
+  }
+  pendingBatches.delete(chatId);
+  const myStart = Date.now();
+  inFlightChats.set(chatId, myStart);
+  processBatch(batch, accessToken, log)
+    .catch((err: unknown) => {
+      log.error({ err }, "Error in processBatch");
+    })
+    .finally(() => {
+      if (inFlightChats.get(chatId) === myStart) inFlightChats.delete(chatId);
+    });
 }
 
 async function lastUserTextFromTalk(
