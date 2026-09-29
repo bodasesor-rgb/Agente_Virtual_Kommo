@@ -174,6 +174,7 @@ import {
   fetchTalkMessagesSince,
   isManualMoveToDatosEIntereses,
   pendingClientMessages,
+  readRelayMessages,
 } from "../services/stageActivation.js";
 import { captureInboundWhileLucyInactive, setLearningPhase, persistLucyExchange, persistChatMessage } from "../services/chatIngest.js";
 import { syncHumanPhaseLead } from "../services/learningSync.js";
@@ -2708,22 +2709,24 @@ async function handleManualMoveToDatos(opts: {
     return;
   }
 
-  const fetched = await fetchTalkMessagesSince(subdomain, accessToken, talk.talkId, now - WHATSAPP_WINDOW_MS);
-  if (!fetched.ok) {
+  const sinceMs = now - WHATSAPP_WINDOW_MS;
+  const fetched = await fetchTalkMessagesSince(subdomain, accessToken, talk.talkId, sinceMs);
+  const messages = fetched.ok ? fetched.messages : readRelayMessages(leadId, sinceMs);
+  const source = fetched.ok ? "kommo" : "buzon";
+  if (!messages.length) {
     await agregarNota(
       subdomain,
       accessToken,
       leadId,
-      fetched.scopeDenied
-        ? `⚠️ Lucy no pudo leer los mensajes del cliente para contestarlos: al token de Kommo le falta ` +
-            `el permiso "Historial de chats externos". Contéstale manualmente o actualiza el token.`
-        : `⚠️ Lucy no pudo leer los mensajes del cliente (Kommo respondió ${fetched.status}). Contéstale manualmente.`
+      `⚠️ Lucy no encontró el texto de los mensajes del cliente para contestarlos ` +
+        `(Kommo no permite leer el chat por API y el buzón de respaldo no tiene mensajes de este lead). ` +
+        `Contéstale manualmente.`
     );
-    log.warn({ leadId, status: fetched.status, scopeDenied: fetched.scopeDenied }, "Recuperación: no se pudo leer el chat");
+    log.warn({ leadId, status: fetched.ok ? 200 : fetched.status }, "Recuperación: sin texto de mensajes");
     return;
   }
 
-  const pending = pendingClientMessages(fetched.messages, lastLucyReplyMs);
+  const pending = pendingClientMessages(messages, lastLucyReplyMs);
   if (!pending.texts.length) {
     if (pending.mediaCount) {
       await agregarNota(
@@ -2745,7 +2748,10 @@ async function handleManualMoveToDatos(opts: {
     authorType: "client",
     source: "stage_recovery",
   }).catch((err: unknown) => log.warn({ err, leadId }, "No se pudo persistir inbound para auditor"));
-  log.info({ leadId, mensajes: pending.texts.length, text: text.slice(0, 200) }, "Recuperación: Lucy contesta lo que el cliente escribió ✅");
+  log.info(
+    { leadId, source, mensajes: pending.texts.length, text: text.slice(0, 200) },
+    "Recuperación: Lucy contesta lo que el cliente escribió ✅"
+  );
   queueIncomingBatch({
     text,
     entityId: leadId,

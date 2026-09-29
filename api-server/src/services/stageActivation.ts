@@ -6,8 +6,12 @@
  * - Manual vs Lucy: evento Kommo lead_status_changed → created_by 0 = API/robot (Lucy).
  * - WhatsApp solo permite texto libre ≤24 h desde el último mensaje del cliente;
  *   fuera de esa ventana no se envía y se deja nota en el lead.
- * - Leer el texto requiere el scope "External chat history" en el token de Kommo.
+ * - Leer el texto por API requiere el scope "External chat history" (la cuenta no lo
+ *   ofrece); por eso la fuente principal es el buzón PHP de respaldo.
  */
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { getKommoRelayDir } from "../lib/lucyDataPaths.js";
 import { ETAPA } from "./embudo.js";
 
 /** Margen bajo 24 h: el mensaje debe llegar antes de que Meta cierre la ventana. */
@@ -131,6 +135,57 @@ export function pendingClientMessages(
     else mediaCount += 1;
   }
   return { texts, mediaCount };
+}
+
+// ─── Buzón de respaldo (hostinger-relay/kommo-relay.php) ─────────────────────
+
+interface RelayLine {
+  id?: string;
+  lead_id?: string;
+  type?: string;
+  text?: string;
+  created_at?: number;
+}
+
+/** Mensajes del lead guardados por el buzón PHP (sigue recibiendo aunque Lucy esté caída). */
+export function readRelayMessages(leadId: string, sinceMs: number, dir = getKommoRelayDir()): TalkMessage[] {
+  let files: string[];
+  try {
+    files = readdirSync(dir).filter((f) => f.endsWith(".jsonl"));
+  } catch {
+    return [];
+  }
+  const sinceDay = new Date(sinceMs).toISOString().slice(0, 10);
+  const byId = new Map<string, TalkMessage>();
+  for (const f of files) {
+    if (f.slice(0, 10) < sinceDay) continue;
+    let raw: string;
+    try {
+      raw = readFileSync(join(dir, f), "utf8");
+    } catch {
+      continue;
+    }
+    for (const line of raw.split("\n")) {
+      if (!line.trim()) continue;
+      let r: RelayLine;
+      try {
+        r = JSON.parse(line) as RelayLine;
+      } catch {
+        continue;
+      }
+      if (String(r.lead_id ?? "") !== leadId) continue;
+      const createdAt = Number(r.created_at ?? 0);
+      if (createdAt * 1000 < sinceMs) continue;
+      const incoming = String(r.type ?? "").toLowerCase() !== "outgoing";
+      byId.set(r.id || `${createdAt}|${r.text ?? ""}`, {
+        type: incoming ? "incoming" : "outgoing",
+        author: { type: incoming ? "external" : "internal" },
+        text: r.text ?? "",
+        created_at: createdAt,
+      });
+    }
+  }
+  return [...byId.values()];
 }
 
 // ─── Kommo API ────────────────────────────────────────────────────────────────

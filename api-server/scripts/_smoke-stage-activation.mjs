@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   decideWhatsAppWindow,
   extractLeadStageEvents,
   isManualMoveToDatosEIntereses,
   pendingClientMessages,
+  readRelayMessages,
 } from "../src/services/stageActivation.ts";
 
 const DATOS = 80344783;
@@ -63,5 +67,25 @@ assert.deepEqual(pendingClientMessages([cli(0, "hola"), cli(40, "¿sigues ahí?"
 
 // Solo audio/foto → sin texto, se cuenta como media.
 assert.deepEqual(pendingClientMessages([cli(0, "", { message_type: "voice" })]), { texts: [], mediaCount: 1 });
+
+// Buzón de respaldo: formato que escribe hostinger-relay/kommo-relay.php.
+const dir = mkdtempSync(join(tmpdir(), "relay-"));
+const day = new Date().toISOString().slice(0, 10);
+const old = new Date(now - 5 * 24 * H).toISOString().slice(0, 10);
+const line = (o) => JSON.stringify({ received_at: t0, ...o }) + "\n";
+writeFileSync(
+  join(dir, `${day}.jsonl`),
+  line({ id: "m1", lead_id: "27486676", type: "incoming", text: "Busco rentar pista de baile", created_at: t0 }) +
+    line({ id: "m1", lead_id: "27486676", type: "incoming", text: "Busco rentar pista de baile", created_at: t0 }) +
+    line({ id: "m2", lead_id: "999", type: "incoming", text: "otro lead", created_at: t0 }) +
+    line({ id: "m3", lead_id: "27486676", type: "outgoing", text: "Te atiendo", created_at: t0 - 600 }) +
+    "no-json\n"
+);
+writeFileSync(join(dir, `${old}.jsonl`), line({ id: "v", lead_id: "27486676", type: "incoming", text: "viejo", created_at: t0 - 5 * 86400 }));
+const relay = readRelayMessages("27486676", now - 23.5 * H, dir);
+assert.equal(relay.length, 2);
+assert.deepEqual(pendingClientMessages(relay).texts, ["Busco rentar pista de baile"]);
+assert.deepEqual(readRelayMessages("1", now, join(dir, "no-existe")), []);
+rmSync(dir, { recursive: true, force: true });
 
 console.log("OK _smoke-stage-activation");

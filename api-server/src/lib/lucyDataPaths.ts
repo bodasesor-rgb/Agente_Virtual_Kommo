@@ -36,6 +36,13 @@ export function getLucyRepairsJsonPath(): string {
   return join(getLucyDataRoot(), "lucy-repairs.json");
 }
 
+/** Buzón de respaldo que escribe hostinger-relay/kommo-relay.php (un .jsonl por día). */
+export function getKommoRelayDir(): string {
+  const fromEnv = process.env["LUCY_RELAY_DIR"]?.trim();
+  if (fromEnv) return resolve(fromEnv);
+  return join(getLucyDataRoot(), "kommo-relay");
+}
+
 /** Asegura dirs y exporta env canónicos antes de abrir PGlite / history. */
 export function bootstrapLucyDataEnv(): void {
   const root = ensureLucyDataRoot();

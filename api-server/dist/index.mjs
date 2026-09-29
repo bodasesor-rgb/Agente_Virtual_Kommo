@@ -19372,7 +19372,7 @@ var require_view = __commonJS({
     var dirname6 = path7.dirname;
     var basename3 = path7.basename;
     var extname = path7.extname;
-    var join8 = path7.join;
+    var join9 = path7.join;
     var resolve3 = path7.resolve;
     module2.exports = View2;
     function View2(name2, options) {
@@ -19434,12 +19434,12 @@ var require_view = __commonJS({
     };
     View2.prototype.resolve = function resolve4(dir, file) {
       var ext = this.ext;
-      var path8 = join8(dir, file);
+      var path8 = join9(dir, file);
       var stat3 = tryStat(path8);
       if (stat3 && stat3.isFile()) {
         return path8;
       }
-      path8 = join8(dir, basename3(file, ext), "index" + ext);
+      path8 = join9(dir, basename3(file, ext), "index" + ext);
       stat3 = tryStat(path8);
       if (stat3 && stat3.isFile()) {
         return path8;
@@ -23323,7 +23323,7 @@ var require_send = __commonJS({
     var Stream6 = __require("stream");
     var util5 = __require("util");
     var extname = path7.extname;
-    var join8 = path7.join;
+    var join9 = path7.join;
     var normalize = path7.normalize;
     var resolve3 = path7.resolve;
     var sep = path7.sep;
@@ -23495,7 +23495,7 @@ var require_send = __commonJS({
           return res;
         }
         parts2 = path8.split(sep);
-        path8 = normalize(join8(root, path8));
+        path8 = normalize(join9(root, path8));
       } else {
         if (UP_PATH_REGEXP.test(path8)) {
           debug2('malicious path "%s"', path8);
@@ -23628,7 +23628,7 @@ var require_send = __commonJS({
           if (err2) return self2.onStatError(err2);
           return self2.error(404);
         }
-        var p5 = join8(path8, self2._index[i6]);
+        var p5 = join9(path8, self2._index[i6]);
         debug2('stat "%s"', p5);
         fs8.stat(p5, function(err3, stat3) {
           if (err3) return next(err3);
@@ -26752,7 +26752,7 @@ var require_thread_stream = __commonJS({
     var { version: version2 } = require_package();
     var { EventEmitter: EventEmitter2 } = __require("events");
     var { Worker: Worker2 } = __require("worker_threads");
-    var { join: join8 } = __require("path");
+    var { join: join9 } = __require("path");
     var { pathToFileURL } = __require("url");
     var { wait } = require_wait();
     var {
@@ -26788,7 +26788,7 @@ var require_thread_stream = __commonJS({
     function createWorker(stream4, opts) {
       const { filename, workerData } = opts;
       const bundlerOverrides = "__bundlerPathsOverrides" in globalThis ? globalThis.__bundlerPathsOverrides : {};
-      const toExecute = bundlerOverrides["thread-stream-worker"] || join8(__dirname, "lib", "worker.js");
+      const toExecute = bundlerOverrides["thread-stream-worker"] || join9(__dirname, "lib", "worker.js");
       const worker = new Worker2(toExecute, {
         ...opts.workerOpts,
         trackUnmanagedFds: false,
@@ -27174,7 +27174,7 @@ var require_transport = __commonJS({
     "use strict";
     var { createRequire } = __require("module");
     var getCallers = require_caller();
-    var { join: join8, isAbsolute, sep } = __require("node:path");
+    var { join: join9, isAbsolute, sep } = __require("node:path");
     var sleep6 = require_atomic_sleep();
     var onExit = require_on_exit_leak_free();
     var ThreadStream = require_thread_stream();
@@ -27237,7 +27237,7 @@ var require_transport = __commonJS({
         throw new Error("only one of target or targets can be specified");
       }
       if (targets) {
-        target = bundlerOverrides["pino-worker"] || join8(__dirname, "worker.js");
+        target = bundlerOverrides["pino-worker"] || join9(__dirname, "worker.js");
         options.targets = targets.filter((dest) => dest.target).map((dest) => {
           return {
             ...dest,
@@ -27255,7 +27255,7 @@ var require_transport = __commonJS({
           });
         });
       } else if (pipeline3) {
-        target = bundlerOverrides["pino-worker"] || join8(__dirname, "worker.js");
+        target = bundlerOverrides["pino-worker"] || join9(__dirname, "worker.js");
         options.pipelines = [pipeline3.map((dest) => {
           return {
             ...dest,
@@ -27277,7 +27277,7 @@ var require_transport = __commonJS({
           return origin2;
         }
         if (origin2 === "pino/file") {
-          return join8(__dirname, "..", "file.js");
+          return join9(__dirname, "..", "file.js");
         }
         let fixTarget2;
         for (const filePath of callers) {
@@ -28266,7 +28266,7 @@ var require_safe_stable_stringify = __commonJS({
               return circularValue;
             }
             let res = "";
-            let join8 = ",";
+            let join9 = ",";
             const originalIndentation = indentation;
             if (Array.isArray(value)) {
               if (value.length === 0) {
@@ -28280,7 +28280,7 @@ var require_safe_stable_stringify = __commonJS({
                 indentation += spacer;
                 res += `
 ${indentation}`;
-                join8 = `,
+                join9 = `,
 ${indentation}`;
               }
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
@@ -28288,13 +28288,13 @@ ${indentation}`;
               for (; i6 < maximumValuesToStringify - 1; i6++) {
                 const tmp2 = stringifyFnReplacer(String(i6), value, stack, replacer, spacer, indentation);
                 res += tmp2 !== void 0 ? tmp2 : "null";
-                res += join8;
+                res += join9;
               }
               const tmp = stringifyFnReplacer(String(i6), value, stack, replacer, spacer, indentation);
               res += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res += `${join8}"... ${getItemCount(removedKeys)} not stringified"`;
+                res += `${join9}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               if (spacer !== "") {
                 res += `
@@ -28315,7 +28315,7 @@ ${originalIndentation}`;
             let separator = "";
             if (spacer !== "") {
               indentation += spacer;
-              join8 = `,
+              join9 = `,
 ${indentation}`;
               whitespace = " ";
             }
@@ -28329,13 +28329,13 @@ ${indentation}`;
               const tmp = stringifyFnReplacer(key2, value, stack, replacer, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}:${whitespace}${tmp}`;
-                separator = join8;
+                separator = join9;
               }
             }
             if (keyLength > maximumBreadth) {
               const removedKeys = keyLength - maximumBreadth;
               res += `${separator}"...":${whitespace}"${getItemCount(removedKeys)} not stringified"`;
-              separator = join8;
+              separator = join9;
             }
             if (spacer !== "" && separator.length > 1) {
               res = `
@@ -28376,7 +28376,7 @@ ${originalIndentation}`;
             }
             const originalIndentation = indentation;
             let res = "";
-            let join8 = ",";
+            let join9 = ",";
             if (Array.isArray(value)) {
               if (value.length === 0) {
                 return "[]";
@@ -28389,7 +28389,7 @@ ${originalIndentation}`;
                 indentation += spacer;
                 res += `
 ${indentation}`;
-                join8 = `,
+                join9 = `,
 ${indentation}`;
               }
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
@@ -28397,13 +28397,13 @@ ${indentation}`;
               for (; i6 < maximumValuesToStringify - 1; i6++) {
                 const tmp2 = stringifyArrayReplacer(String(i6), value[i6], stack, replacer, spacer, indentation);
                 res += tmp2 !== void 0 ? tmp2 : "null";
-                res += join8;
+                res += join9;
               }
               const tmp = stringifyArrayReplacer(String(i6), value[i6], stack, replacer, spacer, indentation);
               res += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res += `${join8}"... ${getItemCount(removedKeys)} not stringified"`;
+                res += `${join9}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               if (spacer !== "") {
                 res += `
@@ -28416,7 +28416,7 @@ ${originalIndentation}`;
             let whitespace = "";
             if (spacer !== "") {
               indentation += spacer;
-              join8 = `,
+              join9 = `,
 ${indentation}`;
               whitespace = " ";
             }
@@ -28425,7 +28425,7 @@ ${indentation}`;
               const tmp = stringifyArrayReplacer(key2, value[key2], stack, replacer, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}:${whitespace}${tmp}`;
-                separator = join8;
+                separator = join9;
               }
             }
             if (spacer !== "" && separator.length > 1) {
@@ -28483,20 +28483,20 @@ ${originalIndentation}`;
               indentation += spacer;
               let res2 = `
 ${indentation}`;
-              const join9 = `,
+              const join10 = `,
 ${indentation}`;
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
               let i6 = 0;
               for (; i6 < maximumValuesToStringify - 1; i6++) {
                 const tmp2 = stringifyIndent(String(i6), value[i6], stack, spacer, indentation);
                 res2 += tmp2 !== void 0 ? tmp2 : "null";
-                res2 += join9;
+                res2 += join10;
               }
               const tmp = stringifyIndent(String(i6), value[i6], stack, spacer, indentation);
               res2 += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res2 += `${join9}"... ${getItemCount(removedKeys)} not stringified"`;
+                res2 += `${join10}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               res2 += `
 ${originalIndentation}`;
@@ -28512,16 +28512,16 @@ ${originalIndentation}`;
               return '"[Object]"';
             }
             indentation += spacer;
-            const join8 = `,
+            const join9 = `,
 ${indentation}`;
             let res = "";
             let separator = "";
             let maximumPropertiesToStringify = Math.min(keyLength, maximumBreadth);
             if (isTypedArrayWithEntries(value)) {
-              res += stringifyTypedArray(value, join8, maximumBreadth);
+              res += stringifyTypedArray(value, join9, maximumBreadth);
               keys = keys.slice(value.length);
               maximumPropertiesToStringify -= value.length;
-              separator = join8;
+              separator = join9;
             }
             if (deterministic) {
               keys = sort(keys, comparator);
@@ -28532,13 +28532,13 @@ ${indentation}`;
               const tmp = stringifyIndent(key2, value[key2], stack, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}: ${tmp}`;
-                separator = join8;
+                separator = join9;
               }
             }
             if (keyLength > maximumBreadth) {
               const removedKeys = keyLength - maximumBreadth;
               res += `${separator}"...": "${getItemCount(removedKeys)} not stringified"`;
-              separator = join8;
+              separator = join9;
             }
             if (separator !== "") {
               res = `
@@ -148328,7 +148328,7 @@ var init_sql = __esm({
         return new SQL([new StringChunk(str2)]);
       }
       sql22.raw = raw;
-      function join8(chunks, separator) {
+      function join9(chunks, separator) {
         const result = [];
         for (const [i6, chunk] of chunks.entries()) {
           if (i6 > 0 && separator !== void 0) {
@@ -148338,7 +148338,7 @@ var init_sql = __esm({
         }
         return new SQL(result);
       }
-      sql22.join = join8;
+      sql22.join = join9;
       function identifier(value) {
         return new Name(value);
       }
@@ -152573,7 +152573,7 @@ var init_select2 = __esm({
           const baseTableName = this.tableName;
           const tableName = getTableLikeName(table);
           for (const item of extractUsedTable(table)) this.usedTables.add(item);
-          if (typeof tableName === "string" && this.config.joins?.some((join8) => join8.alias === tableName)) {
+          if (typeof tableName === "string" && this.config.joins?.some((join9) => join9.alias === tableName)) {
             throw new Error(`Alias "${tableName}" is already used in this query`);
           }
           if (!this.isPartialSelect) {
@@ -154100,7 +154100,7 @@ var init_update = __esm({
       createJoin(joinType) {
         return (table, on3) => {
           const tableName = getTableLikeName(table);
-          if (typeof tableName === "string" && this.config.joins.some((join8) => join8.alias === tableName)) {
+          if (typeof tableName === "string" && this.config.joins.some((join9) => join9.alias === tableName)) {
             throw new Error(`Alias "${tableName}" is already used in this query`);
           }
           if (typeof on3 === "function") {
@@ -154196,10 +154196,10 @@ var init_update = __esm({
               const fromFields = this.getTableLikeFields(this.config.from);
               fields[tableName] = fromFields;
             }
-            for (const join8 of this.config.joins) {
-              const tableName2 = getTableLikeName(join8.table);
-              if (typeof tableName2 === "string" && !is(join8.table, SQL)) {
-                const fromFields = this.getTableLikeFields(join8.table);
+            for (const join9 of this.config.joins) {
+              const tableName2 = getTableLikeName(join9.table);
+              if (typeof tableName2 === "string" && !is(join9.table, SQL)) {
+                const fromFields = this.getTableLikeFields(join9.table);
                 fields[tableName2] = fromFields;
               }
             }
@@ -189453,6 +189453,35 @@ var init_kommoMirror = __esm({
   }
 });
 
+// src/lib/lucyDataPaths.ts
+import { mkdirSync as mkdirSync3 } from "node:fs";
+import { dirname as dirname4, join as join7, resolve as resolve2 } from "node:path";
+function getLucyDataRoot() {
+  const fromEnv = process.env["LUCY_DATA_DIR"]?.trim();
+  if (fromEnv) return resolve2(fromEnv);
+  return resolve2(process.cwd(), "..", "lucy-data");
+}
+function ensureLucyDataRoot() {
+  const root = getLucyDataRoot();
+  mkdirSync3(root, { recursive: true });
+  return root;
+}
+function getLucyRepairsJsonPath() {
+  const fromEnv = process.env["LUCY_REPAIRS_JSON_PATH"]?.trim();
+  if (fromEnv) return resolve2(fromEnv);
+  return join7(getLucyDataRoot(), "lucy-repairs.json");
+}
+function getKommoRelayDir() {
+  const fromEnv = process.env["LUCY_RELAY_DIR"]?.trim();
+  if (fromEnv) return resolve2(fromEnv);
+  return join7(getLucyDataRoot(), "kommo-relay");
+}
+var init_lucyDataPaths = __esm({
+  "src/lib/lucyDataPaths.ts"() {
+    "use strict";
+  }
+});
+
 // src/services/incomingLeadRecovery.ts
 var incomingLeadRecovery_exports = {};
 __export(incomingLeadRecovery_exports, {
@@ -190248,32 +190277,8 @@ var init_lucyAuditorLlm = __esm({
   }
 });
 
-// src/lib/lucyDataPaths.ts
-import { mkdirSync as mkdirSync3 } from "node:fs";
-import { dirname as dirname4, join as join7, resolve as resolve2 } from "node:path";
-function getLucyDataRoot() {
-  const fromEnv = process.env["LUCY_DATA_DIR"]?.trim();
-  if (fromEnv) return resolve2(fromEnv);
-  return resolve2(process.cwd(), "..", "lucy-data");
-}
-function ensureLucyDataRoot() {
-  const root = getLucyDataRoot();
-  mkdirSync3(root, { recursive: true });
-  return root;
-}
-function getLucyRepairsJsonPath() {
-  const fromEnv = process.env["LUCY_REPAIRS_JSON_PATH"]?.trim();
-  if (fromEnv) return resolve2(fromEnv);
-  return join7(getLucyDataRoot(), "lucy-repairs.json");
-}
-var init_lucyDataPaths = __esm({
-  "src/lib/lucyDataPaths.ts"() {
-    "use strict";
-  }
-});
-
 // src/services/lucyRepairPersist.ts
-import { existsSync as existsSync9, mkdirSync as mkdirSync4, readFileSync as readFileSync8, writeFileSync as writeFileSync2 } from "node:fs";
+import { existsSync as existsSync9, mkdirSync as mkdirSync4, readFileSync as readFileSync9, writeFileSync as writeFileSync2 } from "node:fs";
 import { dirname as dirname5 } from "node:path";
 function repairsPath() {
   ensureLucyDataRoot();
@@ -190283,7 +190288,7 @@ function readRepairsBackup() {
   const path7 = repairsPath();
   if (!existsSync9(path7)) return [];
   try {
-    const raw = readFileSync8(path7, "utf8");
+    const raw = readFileSync9(path7, "utf8");
     const parsed = JSON.parse(raw);
     const list = Array.isArray(parsed) ? parsed : parsed.repairs ?? [];
     return list.filter((r5) => r5 && typeof r5.id === "string" && r5.evidence && r5.proposedRepair);
@@ -236412,7 +236417,10 @@ init_kommoWebhookParse();
 await init_kommoMirror();
 
 // src/services/stageActivation.ts
+init_lucyDataPaths();
 await init_embudo();
+import { readdirSync, readFileSync as readFileSync8 } from "node:fs";
+import { join as join8 } from "node:path";
 var WHATSAPP_WINDOW_MS = 23.5 * 60 * 60 * 1e3;
 var CLIENT_JUST_WROTE_MS = 2 * 60 * 1e3;
 var MANUAL_MOVE_MAX_AGE_MS = 5 * 60 * 1e3;
@@ -236481,6 +236489,45 @@ function pendingClientMessages(messages2, lastLucyReplyMs = null) {
     else mediaCount += 1;
   }
   return { texts, mediaCount };
+}
+function readRelayMessages(leadId, sinceMs, dir = getKommoRelayDir()) {
+  let files;
+  try {
+    files = readdirSync(dir).filter((f7) => f7.endsWith(".jsonl"));
+  } catch {
+    return [];
+  }
+  const sinceDay = new Date(sinceMs).toISOString().slice(0, 10);
+  const byId = /* @__PURE__ */ new Map();
+  for (const f7 of files) {
+    if (f7.slice(0, 10) < sinceDay) continue;
+    let raw;
+    try {
+      raw = readFileSync8(join8(dir, f7), "utf8");
+    } catch {
+      continue;
+    }
+    for (const line2 of raw.split("\n")) {
+      if (!line2.trim()) continue;
+      let r5;
+      try {
+        r5 = JSON.parse(line2);
+      } catch {
+        continue;
+      }
+      if (String(r5.lead_id ?? "") !== leadId) continue;
+      const createdAt = Number(r5.created_at ?? 0);
+      if (createdAt * 1e3 < sinceMs) continue;
+      const incoming = String(r5.type ?? "").toLowerCase() !== "outgoing";
+      byId.set(r5.id || `${createdAt}|${r5.text ?? ""}`, {
+        type: incoming ? "incoming" : "outgoing",
+        author: { type: incoming ? "external" : "internal" },
+        text: r5.text ?? "",
+        created_at: createdAt
+      });
+    }
+  }
+  return [...byId.values()];
 }
 async function kommoGet(subdomain, accessToken, path7) {
   const res = await fetch(`https://${subdomain}.kommo.com${path7}`, {
@@ -238537,18 +238584,21 @@ Lucy queda activa: responder\xE1 en cuanto el cliente escriba.`
     log.info({ leadId, lastInboundMs }, "Recuperaci\xF3n: fuera de ventana 24 h \u2014 nota en Kommo");
     return;
   }
-  const fetched = await fetchTalkMessagesSince(subdomain, accessToken, talk.talkId, now - WHATSAPP_WINDOW_MS);
-  if (!fetched.ok) {
+  const sinceMs = now - WHATSAPP_WINDOW_MS;
+  const fetched = await fetchTalkMessagesSince(subdomain, accessToken, talk.talkId, sinceMs);
+  const messages2 = fetched.ok ? fetched.messages : readRelayMessages(leadId, sinceMs);
+  const source = fetched.ok ? "kommo" : "buzon";
+  if (!messages2.length) {
     await agregarNota(
       subdomain,
       accessToken,
       leadId,
-      fetched.scopeDenied ? `\u26A0\uFE0F Lucy no pudo leer los mensajes del cliente para contestarlos: al token de Kommo le falta el permiso "Historial de chats externos". Cont\xE9stale manualmente o actualiza el token.` : `\u26A0\uFE0F Lucy no pudo leer los mensajes del cliente (Kommo respondi\xF3 ${fetched.status}). Cont\xE9stale manualmente.`
+      `\u26A0\uFE0F Lucy no encontr\xF3 el texto de los mensajes del cliente para contestarlos (Kommo no permite leer el chat por API y el buz\xF3n de respaldo no tiene mensajes de este lead). Cont\xE9stale manualmente.`
     );
-    log.warn({ leadId, status: fetched.status, scopeDenied: fetched.scopeDenied }, "Recuperaci\xF3n: no se pudo leer el chat");
+    log.warn({ leadId, status: fetched.ok ? 200 : fetched.status }, "Recuperaci\xF3n: sin texto de mensajes");
     return;
   }
-  const pending = pendingClientMessages(fetched.messages, lastLucyReplyMs);
+  const pending = pendingClientMessages(messages2, lastLucyReplyMs);
   if (!pending.texts.length) {
     if (pending.mediaCount) {
       await agregarNota(
@@ -238568,7 +238618,10 @@ Lucy queda activa: responder\xE1 en cuanto el cliente escriba.`
     authorType: "client",
     source: "stage_recovery"
   }).catch((err2) => log.warn({ err: err2, leadId }, "No se pudo persistir inbound para auditor"));
-  log.info({ leadId, mensajes: pending.texts.length, text: text2.slice(0, 200) }, "Recuperaci\xF3n: Lucy contesta lo que el cliente escribi\xF3 \u2705");
+  log.info(
+    { leadId, source, mensajes: pending.texts.length, text: text2.slice(0, 200) },
+    "Recuperaci\xF3n: Lucy contesta lo que el cliente escribi\xF3 \u2705"
+  );
   queueIncomingBatch({
     text: text2,
     entityId: leadId,
