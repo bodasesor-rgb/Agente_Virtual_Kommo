@@ -353,6 +353,39 @@ export async function agregarNota(
   }
 }
 
+/** Tarea en el lead (1 = seguimiento/llamada, 2 = reunión). `completeTillMs` = cuándo vence. */
+export async function crearTarea(
+  subdomain: string,
+  accessToken: string,
+  leadId: string | number,
+  texto: string,
+  completeTillMs: number,
+  taskTypeId: 1 | 2 = 2
+): Promise<boolean> {
+  try {
+    const res = await fetch(`https://${subdomain}.kommo.com/api/v4/tasks`, {
+      method: "POST",
+      headers: kommoHeaders(accessToken),
+      body: JSON.stringify([{
+        text: texto,
+        complete_till: Math.floor(completeTillMs / 1000),
+        entity_id: Number(leadId),
+        entity_type: "leads",
+        task_type_id: taskTypeId,
+      }]),
+    });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "(no body)");
+      logger.warn({ leadId, status: res.status, errBody }, "crearTarea: Kommo rechazó la tarea");
+      return false;
+    }
+    return true;
+  } catch (err) {
+    logger.warn({ leadId, err }, "crearTarea: excepción (timeout o red)");
+    return false;
+  }
+}
+
 export async function agregarTag(
   subdomain: string,
   accessToken: string,

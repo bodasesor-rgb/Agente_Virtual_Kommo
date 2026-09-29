@@ -15799,7 +15799,7 @@ var require_type_is = __commonJS({
     module2.exports = typeofrequest;
     module2.exports.is = typeis;
     module2.exports.hasBody = hasbody;
-    module2.exports.normalize = normalize;
+    module2.exports.normalize = normalize2;
     module2.exports.match = mimeMatch;
     function typeis(value, types_) {
       if (value && typeof value === "object") {
@@ -15822,7 +15822,7 @@ var require_type_is = __commonJS({
       }
       var type;
       for (i6 = 0; i6 < types5.length; i6++) {
-        if (mimeMatch(normalize(type = types5[i6]), val)) {
+        if (mimeMatch(normalize2(type = types5[i6]), val)) {
           return type[0] === "+" || type.indexOf("*") !== -1 ? val : type;
         }
       }
@@ -15837,7 +15837,7 @@ var require_type_is = __commonJS({
       var value = req.headers["content-type"];
       return typeis(value, types5);
     }
-    function normalize(type) {
+    function normalize2(type) {
       if (typeof type !== "string") {
         return false;
       }
@@ -23324,7 +23324,7 @@ var require_send = __commonJS({
     var util5 = __require("util");
     var extname = path7.extname;
     var join9 = path7.join;
-    var normalize = path7.normalize;
+    var normalize2 = path7.normalize;
     var resolve3 = path7.resolve;
     var sep = path7.sep;
     var BYTES_RANGE_REGEXP = /^ *bytes=/;
@@ -23487,7 +23487,7 @@ var require_send = __commonJS({
       var parts2;
       if (root !== null) {
         if (path8) {
-          path8 = normalize("." + sep + path8);
+          path8 = normalize2("." + sep + path8);
         }
         if (UP_PATH_REGEXP.test(path8)) {
           debug2('malicious path "%s"', path8);
@@ -23495,14 +23495,14 @@ var require_send = __commonJS({
           return res;
         }
         parts2 = path8.split(sep);
-        path8 = normalize(join9(root, path8));
+        path8 = normalize2(join9(root, path8));
       } else {
         if (UP_PATH_REGEXP.test(path8)) {
           debug2('malicious path "%s"', path8);
           this.error(403);
           return res;
         }
-        parts2 = normalize(path8).split(sep);
+        parts2 = normalize2(path8).split(sep);
         path8 = resolve3(path8);
       }
       if (containsDotFile(parts2)) {
@@ -28949,11 +28949,11 @@ var require_pino = __commonJS({
       depthLimit: 5,
       edgeLimit: 100
     };
-    var normalize = createArgsNormalizer(defaultOptions);
+    var normalize2 = createArgsNormalizer(defaultOptions);
     var serializers = Object.assign(/* @__PURE__ */ Object.create(null), stdSerializers);
     function pino2(...args2) {
       const instance2 = {};
-      const { opts, stream: stream4 } = normalize(instance2, caller(), ...args2);
+      const { opts, stream: stream4 } = normalize2(instance2, caller(), ...args2);
       if (opts.level && typeof opts.level === "string" && DEFAULT_LEVELS[opts.level.toLowerCase()] !== void 0) opts.level = opts.level.toLowerCase();
       const {
         redact,
@@ -135905,10 +135905,10 @@ function parseFechaFromText(text2) {
   const trimmed = text2.trim();
   if (isMealTimeOnlySchedule(trimmed)) return null;
   if (isClockTimeOnlySchedule(trimmed)) return null;
-  const MONTHS = "enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre";
+  const MONTHS2 = "enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre";
   const dayMonthBare = trimmed.match(
     new RegExp(
-      `\\b(?:el\\s+)?(\\d{1,2})\\s+(?:de\\s+)?(${MONTHS})(?:\\s+(?:de\\s+)?(\\d{4}))?\\b`,
+      `\\b(?:el\\s+)?(\\d{1,2})\\s+(?:de\\s+)?(${MONTHS2})(?:\\s+(?:de\\s+)?(\\d{4}))?\\b`,
       "i"
     )
   );
@@ -172080,6 +172080,30 @@ async function agregarNota(subdomain, accessToken, leadId, texto) {
     return true;
   } catch (err2) {
     logger.warn({ leadId, err: err2 }, "agregarNota: excepci\xF3n (timeout o red)");
+    return false;
+  }
+}
+async function crearTarea(subdomain, accessToken, leadId, texto, completeTillMs, taskTypeId = 2) {
+  try {
+    const res = await fetch(`https://${subdomain}.kommo.com/api/v4/tasks`, {
+      method: "POST",
+      headers: kommoHeaders(accessToken),
+      body: JSON.stringify([{
+        text: texto,
+        complete_till: Math.floor(completeTillMs / 1e3),
+        entity_id: Number(leadId),
+        entity_type: "leads",
+        task_type_id: taskTypeId
+      }])
+    });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "(no body)");
+      logger.warn({ leadId, status: res.status, errBody }, "crearTarea: Kommo rechaz\xF3 la tarea");
+      return false;
+    }
+    return true;
+  } catch (err2) {
+    logger.warn({ leadId, err: err2 }, "crearTarea: excepci\xF3n (timeout o red)");
     return false;
   }
 }
@@ -235779,6 +235803,253 @@ function buildUnclearHandoffMessage(clientName) {
   ].join("\n");
 }
 
+// src/services/meetingBooking.ts
+var DEFAULT_BOOKING_URL = "https://calendar.app.google/LMFvik7YS4xuUu9L6";
+var MEETING_TIMEZONE = "America/Mexico_City";
+var MX_OFFSET_HOURS = -6;
+var MEETING_DURATION_MIN = 90;
+function getBookingUrl() {
+  return process.env["LUCY_BOOKING_URL"]?.trim() || DEFAULT_BOOKING_URL;
+}
+var WEEKDAYS = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
+var WEEKDAYS_DISPLAY = ["domingo", "lunes", "martes", "mi\xE9rcoles", "jueves", "viernes", "s\xE1bado"];
+var MONTHS = [
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "octubre",
+  "noviembre",
+  "diciembre"
+];
+function normalize(text2) {
+  return text2.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+}
+function mxToday(nowMs) {
+  const local = new Date(nowMs + MX_OFFSET_HOURS * 36e5);
+  return {
+    y: local.getUTCFullYear(),
+    m: local.getUTCMonth(),
+    d: local.getUTCDate(),
+    wd: local.getUTCDay()
+  };
+}
+function addDays2(base, days) {
+  const dt3 = new Date(Date.UTC(base.y, base.m, base.d + days));
+  return { y: dt3.getUTCFullYear(), m: dt3.getUTCMonth(), d: dt3.getUTCDate() };
+}
+function slotStartMs(date2, time2) {
+  return Date.UTC(date2.y, date2.m, date2.d, time2.h - MX_OFFSET_HOURS, time2.min);
+}
+function clientAsksForMeeting(message) {
+  if (!message?.trim()) return false;
+  const t4 = normalize(message);
+  const tNoEventReunion = t4.replace(
+    /\breunion(es)?\s+(familiar(es)?|de\s+(\d+|ex|egresados|trabajo|fin|amigos|generacion)|anual|empresarial|corporativa)\b/g,
+    " "
+  );
+  const tNoEventCita = t4.replace(
+    /\bcitas?\s+(en|con|para)\s+(la|el)?\s*(iglesia|civil|registro|juez|misa|parroquia|notari[ao])\b/g,
+    " "
+  );
+  return /\bvideo\s*-?\s*llamadas?\b/.test(t4) || /\bvideo\s*conferencias?\b/.test(t4) || /\b(por|en|un|una|link\s+de)\s+(zoom|meet|google\s+meet|teams)\b/.test(t4) || /\b(hablar|platicar|vernos|conectarnos)\s+por\s+video\b/.test(t4) || /\bcitas?\b/.test(tNoEventCita) || /\b(agendar|agendamos|agendemos|agendo|programar|hacer|tener|podemos\s+tener)\s+(una\s+)?llamada\b/.test(t4) || /\b(agendar|agendamos|agendemos|agendo|programar)\s+(una\s+)?reunion\b/.test(tNoEventReunion) || /\b(una|la)\s+llamada\s+(para|con)\s+(platicar|ver|revisar|ustedes|un\s+asesor|alguien|el\s+equipo)\b/.test(t4) || /\breunion\s+(virtual|en\s+linea|online|por\s+(zoom|meet|video|llamada)|con\s+(ustedes|un\s+asesor|alguien|el\s+equipo)|para\s+(platicar|ver|revisar))\b/.test(
+    tNoEventReunion
+  ) || /\b(me\s+)?(pueden|puedes)\s+agendar\b/.test(t4) || /\bagendar(nos|me)?\b.{0,25}\b(llamada|reunion|cita|videollamada|asesor)\b/.test(t4);
+}
+function clientAsksToBeCalled(t4) {
+  return /\b(marquenme|llamenme|llamarme|me\s+marcan|me\s+llaman|me\s+(pueden|podrian)\s+(marcar|llamar)|que\s+me\s+(marquen|llamen))\b/.test(
+    t4
+  );
+}
+function detectMeetingKind(...texts) {
+  const t4 = normalize(texts.filter(Boolean).join(" "));
+  if (/\bvideo\s*-?\s*llamada|video\s*conferencia|\bzoom\b|\bmeet\b|\bteams\b|por\s+video\b/.test(t4)) {
+    return "videollamada";
+  }
+  if (/\bllamada\b|\bllamar|\bmarcar|\bmarquen|\bllamen/.test(t4)) return "llamada";
+  return "cita";
+}
+function parseMeetingSlot(message, nowMs = Date.now()) {
+  let t4 = normalize(message);
+  const today = mxToday(nowMs);
+  let dayPart = null;
+  if (/\b(de|en|por)\s+la\s+(tarde|noche)\b/.test(t4)) dayPart = "pm";
+  else if (/\b(de|en|por)\s+la\s+manana\b/.test(t4)) dayPart = "am";
+  t4 = t4.replace(/\b(de|en|por)\s+la\s+(manana|tarde|noche)\b/g, " ");
+  let date2 = null;
+  const monthRe = new RegExp(`\\b(\\d{1,2})\\s+de\\s+(${MONTHS.join("|")})\\b`);
+  const monthMatch = t4.match(monthRe);
+  if (monthMatch) {
+    const d3 = Number(monthMatch[1]);
+    const m6 = MONTHS.indexOf(monthMatch[2]);
+    if (d3 >= 1 && d3 <= 31) {
+      let y5 = today.y;
+      if (Date.UTC(y5, m6, d3) < Date.UTC(today.y, today.m, today.d)) y5 += 1;
+      date2 = { y: y5, m: m6, d: d3 };
+    }
+    t4 = t4.replace(monthMatch[0], " ");
+  }
+  if (!date2) {
+    const slash = t4.match(/\b(\d{1,2})\/(\d{1,2})(?:\/\d{2,4})?\b/);
+    if (slash) {
+      const d3 = Number(slash[1]);
+      const m6 = Number(slash[2]) - 1;
+      if (d3 >= 1 && d3 <= 31 && m6 >= 0 && m6 <= 11) {
+        let y5 = today.y;
+        if (Date.UTC(y5, m6, d3) < Date.UTC(today.y, today.m, today.d)) y5 += 1;
+        date2 = { y: y5, m: m6, d: d3 };
+      }
+      t4 = t4.replace(slash[0], " ");
+    }
+  }
+  if (!date2) {
+    if (/\bpasado\s+manana\b/.test(t4)) date2 = addDays2(today, 2);
+    else if (/\bmanana\b/.test(t4)) date2 = addDays2(today, 1);
+    else if (/\bhoy\b/.test(t4)) date2 = addDays2(today, 0);
+    else {
+      const wdMatch = t4.match(new RegExp(`\\b(este|esta|el|proximo|pr[o\xF3]ximo)?\\s*(${WEEKDAYS.join("|")})\\b`));
+      if (wdMatch) {
+        const target = WEEKDAYS.indexOf(wdMatch[2]);
+        let diff2 = (target - today.wd + 7) % 7;
+        if (diff2 === 0 && !/^est[ea]$/.test(wdMatch[1] ?? "")) diff2 = 7;
+        date2 = addDays2(today, diff2);
+      }
+    }
+  }
+  let time2 = null;
+  let h5 = null;
+  let min = 0;
+  let marker = null;
+  const withMarker = t4.match(/\b(\d{1,2})(?:[:.](\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)(?=\s|$|[,!?])/);
+  const withPrefix = t4.match(/\b(?:a\s+las?|alas|tipo|como\s+a\s+las?|las)\s+(\d{1,2})(?:[:.](\d{2}))?\b/);
+  const bare = t4.match(/\b(\d{1,2}):(\d{2})\b/);
+  const tm = withMarker ?? withPrefix ?? bare;
+  if (tm) {
+    h5 = Number(tm[1]);
+    min = tm[2] ? Number(tm[2]) : 0;
+    const mk = withMarker && tm === withMarker ? tm[3] ?? "" : "";
+    if (/^a/.test(mk)) marker = "am";
+    else if (/^p/.test(mk)) marker = "pm";
+  } else if (/\bmedio\s*dia\b/.test(t4)) {
+    h5 = 12;
+  }
+  if (h5 !== null && h5 >= 0 && h5 <= 23 && min >= 0 && min <= 59) {
+    const part = marker ?? dayPart;
+    if (part === "pm" && h5 < 12) h5 += 12;
+    else if (part === "am" && h5 === 12) h5 = 0;
+    else if (!part && h5 >= 1 && h5 <= 7) h5 += 12;
+    time2 = { h: h5, min };
+  }
+  return { date: date2, time: time2 };
+}
+function formatSlotDate(date2) {
+  const wd = new Date(Date.UTC(date2.y, date2.m, date2.d)).getUTCDay();
+  return `${WEEKDAYS_DISPLAY[wd]} ${date2.d} de ${MONTHS[date2.m]}`;
+}
+function formatSlotTime(time2) {
+  const suffix = time2.h >= 12 ? "pm" : "am";
+  const h12 = time2.h % 12 === 0 ? 12 : time2.h % 12;
+  return `${h12}:${String(time2.min).padStart(2, "0")} ${suffix}`;
+}
+function toCalendarStamp(utcMs) {
+  const dt3 = new Date(utcMs + MX_OFFSET_HOURS * 36e5);
+  const p5 = (n5) => String(n5).padStart(2, "0");
+  return `${dt3.getUTCFullYear()}${p5(dt3.getUTCMonth() + 1)}${p5(dt3.getUTCDate())}T${p5(dt3.getUTCHours())}${p5(dt3.getUTCMinutes())}00`;
+}
+function buildGoogleCalendarAddUrl(opts) {
+  const start2 = toCalendarStamp(opts.startMs);
+  const end = toCalendarStamp(opts.startMs + (opts.durationMin ?? MEETING_DURATION_MIN) * 6e4);
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: opts.title,
+    dates: `${start2}/${end}`,
+    ctz: MEETING_TIMEZONE
+  });
+  if (opts.details) params.set("details", opts.details);
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+function clientSaysAlreadyBooked(t4) {
+  return /\b(ya\s+(agende|la\s+agende|lo\s+agende|aparte|la\s+aparte|reserve|la\s+reserve|quedo|quedo\s+agendad[ao]|esta\s+agendad[ao]|lo\s+hice|la\s+hice|escogi|elegi|seleccione))\b/.test(
+    t4
+  );
+}
+function decideMeetingTurn(opts) {
+  const { messageText } = opts;
+  if (!messageText?.trim()) return null;
+  const nowMs = opts.nowMs ?? Date.now();
+  const url2 = getBookingUrl();
+  const t4 = normalize(messageText);
+  const lastAssistant = opts.lastAssistantText ?? "";
+  const lucyOfferedLink = lastAssistant.includes(url2);
+  const asks = clientAsksForMeeting(messageText);
+  const slot = parseMeetingSlot(messageText, nowMs);
+  const fullSlot = !!(slot.date && slot.time);
+  const askedToBeCalled = clientAsksToBeCalled(t4) && fullSlot;
+  if (!asks && !lucyOfferedLink && !askedToBeCalled) return null;
+  const meetingKind = detectMeetingKind(messageText, lucyOfferedLink ? lastAssistant : null);
+  const first = opts.clientName?.trim().split(/\s+/)[0] ?? "";
+  const hi2 = first ? `, ${first}` : "";
+  const tipo = meetingKind === "cita" ? "cita" : meetingKind;
+  if (lucyOfferedLink && !asks && clientSaysAlreadyBooked(t4)) {
+    return {
+      kind: "booked",
+      meetingKind,
+      reply: `\xA1Perfecto${hi2}! Con eso ya queda en la agenda del equipo y te llega la confirmaci\xF3n por correo. \xBFHay algo m\xE1s en lo que te pueda ayudar mientras tanto?`
+    };
+  }
+  if (fullSlot) {
+    const startMs = slotStartMs(slot.date, slot.time);
+    const label = `${formatSlotDate(slot.date)} a las ${formatSlotTime(slot.time)}`;
+    if (startMs < nowMs + 30 * 6e4) {
+      return {
+        kind: "needs_detail",
+        meetingKind,
+        reply: `Ese horario ya no nos alcanza${hi2}. \xBFQu\xE9 otro d\xEDa y hora te acomodan? Tambi\xE9n puedes escoger directo aqu\xED:
+${url2}`
+      };
+    }
+    return {
+      kind: "slot",
+      meetingKind,
+      startMs,
+      label,
+      reply: `Perfecto${hi2}, anoto tu ${tipo} para el *${label}* (hora del centro de M\xE9xico). El equipo la confirma en la agenda y te avisa por aqu\xED.`
+    };
+  }
+  if (slot.date && (asks || lucyOfferedLink)) {
+    return {
+      kind: "needs_detail",
+      meetingKind,
+      reply: `Va${hi2}, el *${formatSlotDate(slot.date)}*. \xBFA qu\xE9 hora te acomoda? Tambi\xE9n puedes escoger el horario directo aqu\xED:
+${url2}`
+    };
+  }
+  if (slot.time && (asks || lucyOfferedLink)) {
+    return {
+      kind: "needs_detail",
+      meetingKind,
+      reply: `Va${hi2}, a las *${formatSlotTime(slot.time)}*. \xBFQu\xE9 d\xEDa te acomoda? Tambi\xE9n puedes escoger el horario directo aqu\xED:
+${url2}`
+    };
+  }
+  if (asks) {
+    return {
+      kind: "offer_link",
+      meetingKind,
+      reply: `Claro${hi2}. Para tu ${tipo} con el equipo, escoge aqu\xED el d\xEDa y la hora que mejor te acomoden y queda agendada en autom\xE1tico:
+${url2}
+
+\xBFO prefieres decirme por aqu\xED qu\xE9 d\xEDa y a qu\xE9 hora te acomoda y yo lo anoto?`
+    };
+  }
+  return null;
+}
+
 // src/lucyTurnProcessor.ts
 async function prepareLucyExtraction(input) {
   const { fullHistory, messageText, crmLines, extractFn } = input;
@@ -235931,6 +236202,7 @@ async function generateLucyOutbound(input) {
     conversationAgeHours,
     prependToAiResponse,
     unclearStreak = 0,
+    crmLinesBeforeTurn,
     log
   } = input;
   const filledBefore = new Set(filledLabels);
@@ -236195,6 +236467,29 @@ ${extracted.requerimientos_evento ?? ""}`
   } else if (stuck) {
     log?.info?.({ entityId, streak: nextStreak }, "GUARD: V9.78 \u2014 turno atorado (misma pregunta)");
   }
+  const lastAssistantText = [...fullHistory].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string")?.content;
+  const meeting = decideMeetingTurn({
+    messageText,
+    lastAssistantText,
+    clientName: sanitizeDisplayName(extracted.nombre) ?? whatsappDisplayName
+  });
+  if (meeting) {
+    mensajeParaCliente = meeting.reply;
+    nextStreak = 0;
+    escalateUnclearToHuman = false;
+    if ((meeting.kind === "slot" || meeting.kind === "needs_detail") && crmLinesBeforeTurn) {
+      restoreEventDateTimeFromCrm(extracted, filledLabels, crmMergedLines, crmLinesBeforeTurn);
+    }
+    log?.info?.(
+      {
+        entityId,
+        kind: meeting.kind,
+        meetingKind: meeting.meetingKind,
+        ...meeting.kind === "slot" ? { label: meeting.label } : {}
+      },
+      "Cita: Lucy atiende cita/videollamada (link de reservas o d\xEDa y hora)"
+    );
+  }
   {
     const stillPending = !!getNextPendingField(extracted, filledLabels);
     mensajeParaCliente = ensureOutboundAlwaysAsks(mensajeParaCliente, {
@@ -236217,8 +236512,28 @@ ${extracted.requerimientos_evento ?? ""}`
     unclearStreak: nextStreak,
     escalateUnclearToHuman,
     proveedorReadyForHandoff: false,
-    proveedorRecoveredToCliente: recoveredProveedorToClienteThisTurn
+    proveedorRecoveredToCliente: recoveredProveedorToClienteThisTurn,
+    meeting
   };
+}
+function restoreEventDateTimeFromCrm(extracted, filledLabels, crmMergedLines, crmLinesBeforeTurn) {
+  const pairs = [
+    [CRM_FECHA_LABEL, "fecha_evento"],
+    [CRM_HORARIO_LABEL, "horario_evento"]
+  ];
+  for (const [label, key] of pairs) {
+    const re4 = new RegExp(`^-?\\s*${label}:\\s*`, "i");
+    const before = crmLinesBeforeTurn.find((l6) => re4.test(l6))?.replace(re4, "").trim() || null;
+    extracted[key] = before;
+    const idx = crmMergedLines.findIndex((l6) => re4.test(l6));
+    if (before) {
+      if (idx >= 0) crmMergedLines[idx] = `- ${label}: ${before}`;
+    } else {
+      if (idx >= 0) crmMergedLines.splice(idx, 1);
+      filledLabels.delete(label);
+    }
+  }
+  if (!extracted.fecha_evento) extracted.fecha_horario = null;
 }
 
 // src/routes/kommo.ts
@@ -238008,7 +238323,8 @@ async function processBatch(batch, accessToken, log) {
       unclearStreak,
       escalateUnclearToHuman,
       proveedorReadyForHandoff,
-      proveedorRecoveredToCliente
+      proveedorRecoveredToCliente,
+      meeting
     } = await generateLucyOutbound({
       messageText: combinedUserText,
       history,
@@ -238029,10 +238345,22 @@ async function processBatch(batch, accessToken, log) {
       conversationAgeHours,
       prependToAiResponse,
       unclearStreak: conversation.unclearStreak ?? 0,
+      crmLinesBeforeTurn: crmLines,
       log
     });
     log.info({ aiResponse, extracted }, "OpenAI response received");
-    if (cierreYaEnviado && combinedUserText.trim()) {
+    if (meeting) {
+      void recordMeetingInKommo({
+        subdomain,
+        accessToken,
+        entityId,
+        meeting,
+        clientName: sanitizeDisplayName(extracted.nombre) ?? whatsappDisplayName,
+        clientMessage: combinedUserText,
+        log
+      }).catch((err2) => log.warn({ err: err2, entityId }, "Cita: no se pudo anotar en Kommo"));
+    }
+    if (cierreYaEnviado && combinedUserText.trim() && !meeting) {
       const updatedReq = appendPostCierreRequirements(
         extracted.requerimientos_evento,
         combinedUserText
@@ -238313,7 +238641,7 @@ Cat\xE1logo: ${extracted.proveedor_catalogo ?? "-"}
         "Embudo: proveedor en cuestionario \u2014 Lucy sigue activa"
       );
     } else {
-      const pidioAsesor = clientAsksForHumanAdvisor(combinedUserText);
+      const pidioAsesor = !meeting && clientAsksForHumanAdvisor(combinedUserText);
       if (pidioAsesor || escalateUnclearToHuman) {
         try {
           await moverAHumanoTrabaja(
@@ -238533,6 +238861,65 @@ router3.post("/kommo/webhook", (req, res) => {
 });
 var stageActivationSeen = /* @__PURE__ */ new Map();
 var STAGE_ACTIVATION_THROTTLE_MS = 10 * 60 * 1e3;
+async function recordMeetingInKommo(opts) {
+  const { subdomain, accessToken, entityId, meeting, clientName, clientMessage, log } = opts;
+  const tipo = meeting.meetingKind;
+  const quien = clientName?.trim() || "cliente";
+  const citado = `"${clientMessage.trim().slice(0, 200)}"`;
+  if (meeting.kind === "offer_link") {
+    await agregarNota(
+      subdomain,
+      accessToken,
+      entityId,
+      `\u{1F4C5} El cliente pidi\xF3 ${tipo}. Lucy le mand\xF3 el link de reservas:
+${getBookingUrl()}
+Mensaje: ${citado}`
+    );
+    return;
+  }
+  if (meeting.kind === "booked") {
+    await agregarNota(
+      subdomain,
+      accessToken,
+      entityId,
+      `\u{1F4C5} El cliente dice que ya agend\xF3 su ${tipo} en el link de reservas. Revisar Google Calendar.
+Mensaje: ${citado}`
+    );
+    return;
+  }
+  if (meeting.kind !== "slot") return;
+  const titulo = `${tipo === "cita" ? "Cita" : tipo === "llamada" ? "Llamada" : "Videollamada"} Bodasesor \u2014 ${quien}`;
+  const kommoUrl = `https://${subdomain}.kommo.com/leads/detail/${entityId}`;
+  const calendarUrl = buildGoogleCalendarAddUrl({
+    title: titulo,
+    startMs: meeting.startMs,
+    details: `Pedida por WhatsApp a Lucy.
+Lead en Kommo: ${kommoUrl}
+Mensaje del cliente: ${citado}`
+  });
+  await agregarNota(
+    subdomain,
+    accessToken,
+    entityId,
+    `\u{1F4C5} ${titulo}
+Cu\xE1ndo: ${meeting.label} (hora centro de M\xE9xico)
+Mensaje: ${citado}
+
+Agr\xE9gala a Google Calendar con un clic:
+${calendarUrl}
+
+Conf\xEDrmale al cliente por WhatsApp.`
+  );
+  const tareaOk = await crearTarea(
+    subdomain,
+    accessToken,
+    entityId,
+    `\u{1F4C5} ${titulo} \u2014 ${meeting.label}. Confirmar con el cliente y agregar a Google Calendar (link en notas).`,
+    meeting.startMs,
+    tipo === "llamada" ? 1 : 2
+  );
+  log.info({ entityId, label: meeting.label, tareaOk }, "Cita: anotada en Kommo (nota + tarea)");
+}
 async function handleManualMoveToDatos(opts) {
   const { subdomain, accessToken, leadId, log } = opts;
   const now = Date.now();

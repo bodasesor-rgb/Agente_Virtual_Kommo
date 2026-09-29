@@ -33,11 +33,13 @@ import {
   isRicherFechaCapture,
   parseZonaFromText,
   isRicherDireccionCapture,
+  CRM_FECHA_LABEL,
+  CRM_HORARIO_LABEL,
 } from "./conversation-understanding.js";
 import { resolveFechaEvento, resolveHorarioWithContext } from "./lib/eventDateTime.js";
 import { enrichExtractedFromText } from "./services/summaryService.js";
 import { enrichExtractedDireccionWithMaps } from "./services/geoResolve.js";
-import { sanitizeCrmNombre, preferRicherClientNombre } from "./contact-name.js";
+import { sanitizeCrmNombre, preferRicherClientNombre, sanitizeDisplayName } from "./contact-name.js";
 import { buildDynamicPrompt, buildStaticSystemPrompt, buildDynamicTurnContext } from "./services/promptBuilder.js";
 import { fetchTrendGroundingSnippet } from "./services/googleGrounding.js";
 import {
@@ -77,6 +79,7 @@ import {
 } from "./lib/lucyCostControls.js";
 import { detectIntent, analyzeSentiment, detectObjection } from "./services/intentDetection.js";
 import { calculateLeadScore, detectStage } from "./services/leadScoring.js";
+import { decideMeetingTurn, type MeetingDecision } from "./services/meetingBooking.js";
 
 export interface PrepareLucyExtractionInput {
   fullHistory: OpenAI.Chat.ChatCompletionMessageParam[];
@@ -308,6 +311,8 @@ export interface GenerateLucyOutboundInput {
   prependToAiResponse?: string;
   /** Turnos atorados acumulados de este lead (columna conversations.unclear_streak). */
   unclearStreak?: number;
+  /** Líneas CRM antes del turno: si el día/hora era de una cita, se restaura la fecha del evento. */
+  crmLinesBeforeTurn?: string[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   log?: { info: (obj: unknown, msg?: string) => void; warn: (obj: unknown, msg?: string) => void };
 }
@@ -323,6 +328,8 @@ export interface GenerateLucyOutboundResult {
   proveedorReadyForHandoff?: boolean;
   /** A16075: mal clasificado; reactivar embudo cliente en Kommo. */
   proveedorRecoveredToCliente?: boolean;
+  /** Cita / videollamada: link de reservas o día y hora que dio el cliente. */
+  meeting?: MeetingDecision | null;
 }
 
 /** Prompt → OpenAI → catálogo → guards → formatForWhatsApp (las 3 rutas). */
@@ -349,6 +356,7 @@ export async function generateLucyOutbound(
     conversationAgeHours,
     prependToAiResponse,
     unclearStreak = 0,
+    crmLinesBeforeTurn,
     log,
   } = input;
 
@@ -661,6 +669,34 @@ export async function generateLucyOutbound(
     log?.info?.({ entityId, streak: nextStreak }, "GUARD: V9.78 — turno atorado (misma pregunta)");
   }
 
+  const lastAssistantText = [...fullHistory]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string")?.content as
+    | string
+    | undefined;
+  const meeting = decideMeetingTurn({
+    messageText,
+    lastAssistantText,
+    clientName: sanitizeDisplayName(extracted.nombre) ?? whatsappDisplayName,
+  });
+  if (meeting) {
+    mensajeParaCliente = meeting.reply;
+    nextStreak = 0;
+    escalateUnclearToHuman = false;
+    if ((meeting.kind === "slot" || meeting.kind === "needs_detail") && crmLinesBeforeTurn) {
+      restoreEventDateTimeFromCrm(extracted, filledLabels, crmMergedLines, crmLinesBeforeTurn);
+    }
+    log?.info?.(
+      {
+        entityId,
+        kind: meeting.kind,
+        meetingKind: meeting.meetingKind,
+        ...(meeting.kind === "slot" ? { label: meeting.label } : {}),
+      },
+      "Cita: Lucy atiende cita/videollamada (link de reservas o día y hora)"
+    );
+  }
+
   // A16244b: invariante GLOBAL al final de TODAS las ramas (guards, anti-repeat, handoff).
   {
     const stillPending = !!getNextPendingField(extracted, filledLabels);
@@ -686,5 +722,33 @@ export async function generateLucyOutbound(
     escalateUnclearToHuman,
     proveedorReadyForHandoff: false,
     proveedorRecoveredToCliente: recoveredProveedorToClienteThisTurn,
+    meeting,
   };
+}
+
+/** El día/hora del mensaje era de la cita, no del evento: dejar fecha/horario como estaban. */
+function restoreEventDateTimeFromCrm(
+  extracted: ExtractedData,
+  filledLabels: Set<string>,
+  crmMergedLines: string[],
+  crmLinesBeforeTurn: string[]
+): void {
+  const pairs = [
+    [CRM_FECHA_LABEL, "fecha_evento"],
+    [CRM_HORARIO_LABEL, "horario_evento"],
+  ] as const;
+  for (const [label, key] of pairs) {
+    const re = new RegExp(`^-?\\s*${label}:\\s*`, "i");
+    const before =
+      crmLinesBeforeTurn.find((l) => re.test(l))?.replace(re, "").trim() || null;
+    extracted[key] = before;
+    const idx = crmMergedLines.findIndex((l) => re.test(l));
+    if (before) {
+      if (idx >= 0) crmMergedLines[idx] = `- ${label}: ${before}`;
+    } else {
+      if (idx >= 0) crmMergedLines.splice(idx, 1);
+      filledLabels.delete(label);
+    }
+  }
+  if (!extracted.fecha_evento) extracted.fecha_horario = null;
 }

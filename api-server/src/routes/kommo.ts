@@ -64,6 +64,7 @@ import {
   agregarTag,
   removerTag,
   agregarNota,
+  crearTarea,
   limpiarCampoRespuesta,
   acceptUnsortedLead,
   acceptUnsortedForLeadId,
@@ -97,6 +98,11 @@ import {
 } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, sanitizeStoredClientEmail } from "../client-email.js";
 import { prepareLucyExtraction, generateLucyOutbound } from "../lucyTurnProcessor.js";
+import {
+  buildGoogleCalendarAddUrl,
+  getBookingUrl,
+  type MeetingDecision,
+} from "../services/meetingBooking.js";
 import { looksLikeClienteCorrection } from "../tipoContacto.js";
 import { proveedorQuestionnaireComplete } from "../lib/proveedorQuestionnaire.js";
 import { appendProveedorRow } from "../services/proveedorSheets.js";
@@ -1973,6 +1979,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       escalateUnclearToHuman,
       proveedorReadyForHandoff,
       proveedorRecoveredToCliente,
+      meeting,
     } = await generateLucyOutbound({
       messageText: combinedUserText,
       history,
@@ -1993,12 +2000,25 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       conversationAgeHours,
       prependToAiResponse,
       unclearStreak: conversation.unclearStreak ?? 0,
+      crmLinesBeforeTurn: crmLines,
       log,
     });
 
     log.info({ aiResponse, extracted }, "OpenAI response received");
 
-    if (cierreYaEnviado && combinedUserText.trim()) {
+    if (meeting) {
+      void recordMeetingInKommo({
+        subdomain,
+        accessToken,
+        entityId,
+        meeting,
+        clientName: sanitizeDisplayName(extracted.nombre) ?? whatsappDisplayName,
+        clientMessage: combinedUserText,
+        log,
+      }).catch((err) => log.warn({ err, entityId }, "Cita: no se pudo anotar en Kommo"));
+    }
+
+    if (cierreYaEnviado && combinedUserText.trim() && !meeting) {
       const updatedReq = appendPostCierreRequirements(
         extracted.requerimientos_evento,
         combinedUserText
@@ -2355,7 +2375,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       // CLIENTE: movimiento a "Humano Trabaja" es SOLO manual (por Alejandro),
       // EXCEPTO si el cliente pide explícitamente un asesor (A15000) o si Lucy
       // se quedó atorada repitiendo la misma pregunta sin entender (V9.78).
-      const pidioAsesor = clientAsksForHumanAdvisor(combinedUserText);
+      const pidioAsesor = !meeting && clientAsksForHumanAdvisor(combinedUserText);
       if (pidioAsesor || escalateUnclearToHuman) {
         try {
           await moverAHumanoTrabaja(
@@ -2644,6 +2664,68 @@ router.post("/kommo/webhook", (req: Request, res: Response) => {
 // ─── Movimiento manual a Datos e Intereses → Lucy contesta lo pendiente ───────
 const stageActivationSeen = new Map<string, number>();
 const STAGE_ACTIVATION_THROTTLE_MS = 10 * 60 * 1000;
+
+/** Cita / videollamada: nota (con botón a Google Calendar) y tarea para el equipo. */
+async function recordMeetingInKommo(opts: {
+  subdomain: string;
+  accessToken: string;
+  entityId: string | number;
+  meeting: MeetingDecision;
+  clientName: string | null;
+  clientMessage: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  log: any;
+}): Promise<void> {
+  const { subdomain, accessToken, entityId, meeting, clientName, clientMessage, log } = opts;
+  const tipo = meeting.meetingKind;
+  const quien = clientName?.trim() || "cliente";
+  const citado = `"${clientMessage.trim().slice(0, 200)}"`;
+
+  if (meeting.kind === "offer_link") {
+    await agregarNota(
+      subdomain,
+      accessToken,
+      entityId,
+      `📅 El cliente pidió ${tipo}. Lucy le mandó el link de reservas:\n${getBookingUrl()}\nMensaje: ${citado}`
+    );
+    return;
+  }
+  if (meeting.kind === "booked") {
+    await agregarNota(
+      subdomain,
+      accessToken,
+      entityId,
+      `📅 El cliente dice que ya agendó su ${tipo} en el link de reservas. Revisar Google Calendar.\nMensaje: ${citado}`
+    );
+    return;
+  }
+  if (meeting.kind !== "slot") return;
+
+  const titulo = `${tipo === "cita" ? "Cita" : tipo === "llamada" ? "Llamada" : "Videollamada"} Bodasesor — ${quien}`;
+  const kommoUrl = `https://${subdomain}.kommo.com/leads/detail/${entityId}`;
+  const calendarUrl = buildGoogleCalendarAddUrl({
+    title: titulo,
+    startMs: meeting.startMs,
+    details: `Pedida por WhatsApp a Lucy.\nLead en Kommo: ${kommoUrl}\nMensaje del cliente: ${citado}`,
+  });
+  await agregarNota(
+    subdomain,
+    accessToken,
+    entityId,
+    `📅 ${titulo}\nCuándo: ${meeting.label} (hora centro de México)\nMensaje: ${citado}\n\n` +
+      `Agrégala a Google Calendar con un clic:\n${calendarUrl}\n\n` +
+      "Confírmale al cliente por WhatsApp."
+  );
+  const tareaOk = await crearTarea(
+    subdomain,
+    accessToken,
+    entityId,
+    `📅 ${titulo} — ${meeting.label}. Confirmar con el cliente y agregar a Google Calendar (link en notas).`,
+    meeting.startMs,
+    tipo === "llamada" ? 1 : 2
+  );
+  log.info({ entityId, label: meeting.label, tareaOk }, "Cita: anotada en Kommo (nota + tarea)");
+}
 
 async function handleManualMoveToDatos(opts: {
   subdomain: string;
