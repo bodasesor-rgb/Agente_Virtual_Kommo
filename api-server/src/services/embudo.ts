@@ -61,8 +61,12 @@ export interface LeadKommo {
   num_invitados: string | null;
   tipo_evento: string | null;
   presupuesto: string | null;
+  cita_videollamada: string | null;
   tags: string[];
 }
+
+/** Campo texto "Cita o videollamada" del lead. */
+export const FIELD_CITA_VIDEOLLAMADA = 1049462;
 
 // ─── Helpers Kommo API ────────────────────────────────────────────────────────
 function kommoHeaders(accessToken: string) {
@@ -105,6 +109,7 @@ export async function fetchLead(
       num_invitados: getField(1048780),
       tipo_evento: getField(1048782),
       presupuesto: getField(1048784),
+      cita_videollamada: getField(FIELD_CITA_VIDEOLLAMADA),
       tags: (data._embedded?.tags ?? []).map((t: { name: string }) => t.name),
     };
   } catch {
@@ -349,6 +354,33 @@ export async function agregarNota(
     return true;
   } catch (err) {
     logger.warn({ leadId, err }, "agregarNota: excepción (timeout o red)");
+    return false;
+  }
+}
+
+export async function actualizarCampoTexto(
+  subdomain: string,
+  accessToken: string,
+  leadId: string | number,
+  fieldId: number,
+  valor: string
+): Promise<boolean> {
+  try {
+    const res = await fetch(`https://${subdomain}.kommo.com/api/v4/leads/${leadId}`, {
+      method: "PATCH",
+      headers: kommoHeaders(accessToken),
+      body: JSON.stringify({
+        custom_fields_values: [{ field_id: fieldId, values: [{ value: valor.slice(0, 255) }] }],
+      }),
+    });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "(no body)");
+      logger.warn({ leadId, fieldId, status: res.status, errBody }, "actualizarCampoTexto: Kommo rechazó el cambio");
+      return false;
+    }
+    return true;
+  } catch (err) {
+    logger.warn({ leadId, fieldId, err }, "actualizarCampoTexto: excepción (timeout o red)");
     return false;
   }
 }

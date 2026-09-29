@@ -64,7 +64,9 @@ import {
   agregarTag,
   removerTag,
   agregarNota,
+  actualizarCampoTexto,
   crearTarea,
+  FIELD_CITA_VIDEOLLAMADA,
   limpiarCampoRespuesta,
   acceptUnsortedLead,
   acceptUnsortedForLeadId,
@@ -2678,8 +2680,11 @@ async function recordMeetingInKommo(opts: {
 }): Promise<void> {
   const { subdomain, accessToken, entityId, meeting, clientName, clientMessage, log } = opts;
   const tipo = meeting.meetingKind;
+  const tipoLabel = tipo === "cita" ? "Cita" : tipo === "llamada" ? "Llamada" : "Videollamada";
   const quien = clientName?.trim() || "cliente";
   const citado = `"${clientMessage.trim().slice(0, 200)}"`;
+  const setCampo = (valor: string) =>
+    actualizarCampoTexto(subdomain, accessToken, entityId, FIELD_CITA_VIDEOLLAMADA, valor);
 
   if (meeting.kind === "offer_link") {
     await agregarNota(
@@ -2688,6 +2693,11 @@ async function recordMeetingInKommo(opts: {
       entityId,
       `📅 El cliente pidió ${tipo}. Lucy le mandó el link de reservas:\n${getBookingUrl()}\nMensaje: ${citado}`
     );
+    // No pisar una cita que ya tenga día y hora.
+    const lead = await fetchLead(subdomain, accessToken, entityId);
+    if (lead && !lead.cita_videollamada) {
+      await setCampo(`${tipoLabel} — link de reservas enviado; falta que elija horario`);
+    }
     return;
   }
   if (meeting.kind === "booked") {
@@ -2697,11 +2707,13 @@ async function recordMeetingInKommo(opts: {
       entityId,
       `📅 El cliente dice que ya agendó su ${tipo} en el link de reservas. Revisar Google Calendar.\nMensaje: ${citado}`
     );
+    await setCampo(`${tipoLabel} — agendada por el cliente en el link de reservas (ver Google Calendar)`);
     return;
   }
   if (meeting.kind !== "slot") return;
 
-  const titulo = `${tipo === "cita" ? "Cita" : tipo === "llamada" ? "Llamada" : "Videollamada"} Bodasesor — ${quien}`;
+  await setCampo(`${tipoLabel} — ${meeting.label} (por confirmar)`);
+  const titulo = `${tipoLabel} Bodasesor — ${quien}`;
   const kommoUrl = `https://${subdomain}.kommo.com/leads/detail/${entityId}`;
   const calendarUrl = buildGoogleCalendarAddUrl({
     title: titulo,

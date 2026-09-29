@@ -171917,6 +171917,7 @@ async function fetchLead(subdomain, accessToken, leadId) {
       num_invitados: getField(1048780),
       tipo_evento: getField(1048782),
       presupuesto: getField(1048784),
+      cita_videollamada: getField(FIELD_CITA_VIDEOLLAMADA),
       tags: (data._embedded?.tags ?? []).map((t4) => t4.name)
     };
   } catch {
@@ -172080,6 +172081,26 @@ async function agregarNota(subdomain, accessToken, leadId, texto) {
     return true;
   } catch (err2) {
     logger.warn({ leadId, err: err2 }, "agregarNota: excepci\xF3n (timeout o red)");
+    return false;
+  }
+}
+async function actualizarCampoTexto(subdomain, accessToken, leadId, fieldId, valor) {
+  try {
+    const res = await fetch(`https://${subdomain}.kommo.com/api/v4/leads/${leadId}`, {
+      method: "PATCH",
+      headers: kommoHeaders(accessToken),
+      body: JSON.stringify({
+        custom_fields_values: [{ field_id: fieldId, values: [{ value: valor.slice(0, 255) }] }]
+      })
+    });
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "(no body)");
+      logger.warn({ leadId, fieldId, status: res.status, errBody }, "actualizarCampoTexto: Kommo rechaz\xF3 el cambio");
+      return false;
+    }
+    return true;
+  } catch (err2) {
+    logger.warn({ leadId, fieldId, err: err2 }, "actualizarCampoTexto: excepci\xF3n (timeout o red)");
     return false;
   }
 }
@@ -172462,7 +172483,7 @@ async function verificarLeadsInactivos(subdomain, accessToken) {
     }
   }
 }
-var ETAPA, PIPELINE_ID, ETAPAS_LUCY_ACTIVA, MS_INACTIVIDAD, MS_SEGUIMIENTO, MS_VENTANA_MIN, MS_VENTANA_MAX, ETAPAS_LUCY_SILENCIO;
+var ETAPA, PIPELINE_ID, ETAPAS_LUCY_ACTIVA, MS_INACTIVIDAD, MS_SEGUIMIENTO, MS_VENTANA_MIN, MS_VENTANA_MAX, FIELD_CITA_VIDEOLLAMADA, ETAPAS_LUCY_SILENCIO;
 var init_embudo = __esm({
   async "src/services/embudo.ts"() {
     "use strict";
@@ -172487,6 +172508,7 @@ var init_embudo = __esm({
     MS_SEGUIMIENTO = 22 * 60 * 60 * 1e3;
     MS_VENTANA_MIN = 22 * 60 * 60 * 1e3;
     MS_VENTANA_MAX = 23 * 60 * 60 * 1e3;
+    FIELD_CITA_VIDEOLLAMADA = 1049462;
     ETAPAS_LUCY_SILENCIO = /* @__PURE__ */ new Set([
       ETAPA.HUMANO_TRABAJA,
       ETAPA.COTIZACION_REALIZADA,
@@ -238864,8 +238886,10 @@ var STAGE_ACTIVATION_THROTTLE_MS = 10 * 60 * 1e3;
 async function recordMeetingInKommo(opts) {
   const { subdomain, accessToken, entityId, meeting, clientName, clientMessage, log } = opts;
   const tipo = meeting.meetingKind;
+  const tipoLabel = tipo === "cita" ? "Cita" : tipo === "llamada" ? "Llamada" : "Videollamada";
   const quien = clientName?.trim() || "cliente";
   const citado = `"${clientMessage.trim().slice(0, 200)}"`;
+  const setCampo = (valor) => actualizarCampoTexto(subdomain, accessToken, entityId, FIELD_CITA_VIDEOLLAMADA, valor);
   if (meeting.kind === "offer_link") {
     await agregarNota(
       subdomain,
@@ -238875,6 +238899,10 @@ async function recordMeetingInKommo(opts) {
 ${getBookingUrl()}
 Mensaje: ${citado}`
     );
+    const lead = await fetchLead(subdomain, accessToken, entityId);
+    if (lead && !lead.cita_videollamada) {
+      await setCampo(`${tipoLabel} \u2014 link de reservas enviado; falta que elija horario`);
+    }
     return;
   }
   if (meeting.kind === "booked") {
@@ -238885,10 +238913,12 @@ Mensaje: ${citado}`
       `\u{1F4C5} El cliente dice que ya agend\xF3 su ${tipo} en el link de reservas. Revisar Google Calendar.
 Mensaje: ${citado}`
     );
+    await setCampo(`${tipoLabel} \u2014 agendada por el cliente en el link de reservas (ver Google Calendar)`);
     return;
   }
   if (meeting.kind !== "slot") return;
-  const titulo = `${tipo === "cita" ? "Cita" : tipo === "llamada" ? "Llamada" : "Videollamada"} Bodasesor \u2014 ${quien}`;
+  await setCampo(`${tipoLabel} \u2014 ${meeting.label} (por confirmar)`);
+  const titulo = `${tipoLabel} Bodasesor \u2014 ${quien}`;
   const kommoUrl = `https://${subdomain}.kommo.com/leads/detail/${entityId}`;
   const calendarUrl = buildGoogleCalendarAddUrl({
     title: titulo,
