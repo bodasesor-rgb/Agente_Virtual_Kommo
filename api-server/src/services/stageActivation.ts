@@ -1,19 +1,14 @@
 /**
- * Mensaje automático de Lucy cuando el equipo mueve MANUALMENTE un lead a
- * "Datos e Intereses" (sin esperar a que el cliente escriba).
+ * Recuperación al mover MANUALMENTE un lead a "Datos e Intereses" (p. ej. tras una
+ * caída de Lucy): se leen los mensajes del cliente que nadie contestó y entran al
+ * flujo normal de Lucy como si acabaran de llegar. Sin mensajes pendientes no se envía nada.
  *
  * - Manual vs Lucy: evento Kommo lead_status_changed → created_by 0 = API/robot (Lucy).
  * - WhatsApp solo permite texto libre ≤24 h desde el último mensaje del cliente;
  *   fuera de esa ventana no se envía y se deja nota en el lead.
+ * - Leer el texto requiere el scope "External chat history" en el token de Kommo.
  */
-import type OpenAI from "openai";
-import { sanitizeCrmNombre, sanitizeDisplayName } from "../contact-name.js";
-import { CRM_FECHA_LABEL, CRM_HORARIO_LABEL } from "../conversation-understanding.js";
-import { nextFieldQuestion } from "../lucy-flow-guards.js";
-import { emptyExtractedData, type ExtractedData } from "../types.js";
 import { ETAPA } from "./embudo.js";
-
-export const STAGE_ACTIVATION_TAG = "lucy_inicio_auto";
 
 /** Margen bajo 24 h: el mensaje debe llegar antes de que Meta cierre la ventana. */
 export const WHATSAPP_WINDOW_MS = 23.5 * 60 * 60 * 1000;
@@ -89,82 +84,53 @@ export function describeAge(lastInboundMs: number | null, now = Date.now()): str
   return `hace ${Math.floor(hours / 24)} días`;
 }
 
-export interface CrmState {
-  filledLabels: Set<string>;
-  extracted: Partial<ExtractedData>;
+export interface TalkMessage {
+  type?: string;
+  message_type?: string;
+  author?: { type?: string; name?: string };
+  text?: string;
+  created_at?: number;
+  sec_created_at?: number;
 }
 
-/** Líneas "- Etiqueta: valor" de fetchLeadCurrentFields → etiquetas llenas + datos. */
-export function crmLinesToState(crmLines: string[]): CrmState {
-  const filledLabels = new Set<string>();
-  const extracted: Partial<ExtractedData> = {};
-  for (const line of crmLines) {
-    const m = /^-\s*([^:]+):\s*(.+)$/.exec(line.trim());
-    if (!m) continue;
-    const label = m[1]!.trim();
-    const value = m[2]!.trim();
-    if (!value) continue;
-    filledLabels.add(label);
-    if (label === "Nombre del cliente") extracted.nombre = value;
-    else if (label === "Tipo de evento") extracted.tipo_evento = value;
-    else if (label === "Requerimientos o servicios") extracted.requerimientos_evento = value;
-    else if (label === "Lugar/dirección del evento") extracted.direccion_evento = value;
-    else if (label === CRM_FECHA_LABEL) extracted.fecha_evento = value;
-    else if (label === CRM_HORARIO_LABEL) extracted.horario_evento = value;
-    else if (label === "Número de invitados") {
-      const n = parseInt(value.replace(/[^\d]/g, ""), 10);
-      if (Number.isFinite(n)) extracted.num_invitados = n;
-    } else if (label === "Presupuesto (MXN)") {
-      const n = parseFloat(value.replace(/[^\d.]/g, ""));
-      if (Number.isFinite(n)) extracted.presupuesto = n;
-    }
-  }
-  return { filledLabels, extracted };
+function isClientMessage(m: TalkMessage): boolean {
+  if (m.author?.type) return m.author.type === "external";
+  return m.type === "incoming";
+}
+
+function messageTimeMs(m: TalkMessage): number {
+  return Number(m.sec_created_at ?? 0) || Number(m.created_at ?? 0) * 1000;
+}
+
+export interface PendingClientMessages {
+  texts: string[];
+  /** Mensajes sin texto (audio, foto…) que Lucy no puede recuperar por aquí. */
+  mediaCount: number;
 }
 
 /**
- * Mensaje de arranque: saludo (con nombre si es confiable), contexto del evento
- * si ya está en CRM y solo el siguiente dato pendiente (nunca re-pregunta lo que ya hay).
+ * Mensajes del cliente posteriores a la última respuesta. Las respuestas de Lucy salen
+ * por Meta y pueden no aparecer en el chat de Kommo, por eso también cuenta
+ * `lastLucyReplyMs` (nota "Lucy → cliente").
  */
-export function composeStageActivationMessage(opts: {
-  contactName: string | null;
-  crm: CrmState;
-  history?: OpenAI.Chat.ChatCompletionMessageParam[];
-  leadId?: string | number;
-}): string {
-  const crmNombre = sanitizeCrmNombre(opts.crm.extracted.nombre ?? null);
-  const nombre = sanitizeDisplayName(crmNombre) || sanitizeDisplayName(opts.contactName);
-  const tipoEvento = opts.crm.extracted.tipo_evento ?? null;
-  const extracted = emptyExtractedData({ ...opts.crm.extracted, nombre: crmNombre || nombre });
-  const filled = new Set(opts.crm.filledLabels);
-  // Saludar por nombre y luego preguntar "¿con quién tengo el gusto?" se contradice.
-  if (nombre) filled.add("Nombre del cliente");
-  const question = nextFieldQuestion(
-    extracted,
-    filled,
-    nombre,
-    opts.history ?? [],
-    "",
-    opts.leadId
-  );
-
-  const yaSePresento = (opts.history ?? []).some((m) => m.role === "assistant");
-  const tipo = tipoEvento?.trim().replace(/[.!?]+$/, "");
-  const tipoTexto = tipo && (/[A-ZÁÉÍÓÚÑ]{2,}/.test(tipo) ? tipo : tipo.toLowerCase());
-  const saludo = yaSePresento
-    ? nombre
-      ? `¡Hola de nuevo, ${nombre}! Soy Lucy de Bodasesor.`
-      : "¡Hola de nuevo! Soy Lucy de Bodasesor."
-    : nombre
-      ? `¡Hola, ${nombre}! Soy Lucy, agente virtual de Bodasesor.`
-      : "¡Hola! Soy Lucy, agente virtual de Bodasesor.";
-  const contexto = yaSePresento
-    ? `Sigamos con la cotización de tu ${tipoTexto || "evento"}.`
-    : `Te escribo para ayudarte con la cotización de tu ${tipoTexto || "evento"}.`;
-  const cierre =
-    question?.trim() ||
-    "Ya tengo los datos principales de tu evento; ¿hay algo más que quieras agregar a tu cotización?";
-  return `${saludo} ${contexto} ${cierre}`.replace(/\s+/g, " ").trim();
+export function pendingClientMessages(
+  messages: TalkMessage[],
+  lastLucyReplyMs: number | null = null
+): PendingClientMessages {
+  const sorted = [...messages].sort((a, b) => messageTimeMs(a) - messageTimeMs(b));
+  let boundaryMs = lastLucyReplyMs ?? 0;
+  for (const m of sorted) {
+    if (!isClientMessage(m)) boundaryMs = Math.max(boundaryMs, messageTimeMs(m));
+  }
+  const texts: string[] = [];
+  let mediaCount = 0;
+  for (const m of sorted) {
+    if (!isClientMessage(m) || messageTimeMs(m) <= boundaryMs) continue;
+    const text = m.text?.trim();
+    if (text) texts.push(text);
+    else mediaCount += 1;
+  }
+  return { texts, mediaCount };
 }
 
 // ─── Kommo API ────────────────────────────────────────────────────────────────
@@ -176,6 +142,60 @@ async function kommoGet<T>(subdomain: string, accessToken: string, path: string)
   });
   if (res.status === 204 || !res.ok) return null;
   return (await res.json()) as T;
+}
+
+export type TalkMessagesResult =
+  | { ok: true; messages: TalkMessage[] }
+  | { ok: false; scopeDenied: boolean; status: number };
+
+/** GET /api/v4/talks/{id}/messages (scope "External chat history"). */
+export async function fetchTalkMessagesSince(
+  subdomain: string,
+  accessToken: string,
+  talkId: string,
+  fromMs: number
+): Promise<TalkMessagesResult> {
+  const from = Math.floor(fromMs / 1000);
+  const res = await fetch(
+    `https://${subdomain}.kommo.com/api/v4/talks/${encodeURIComponent(talkId)}` +
+      `/messages?limit=250&filter[created_at][from]=${from}`,
+    { headers: { Authorization: `Bearer ${accessToken}` }, signal: AbortSignal.timeout(10_000) }
+  );
+  if (res.status === 204) return { ok: true, messages: [] };
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    return { ok: false, scopeDenied: res.status === 403 && /scope/i.test(body), status: res.status };
+  }
+  const data = (await res.json()) as { _embedded?: { messages?: TalkMessage[] } };
+  return { ok: true, messages: data._embedded?.messages ?? [] };
+}
+
+interface KommoNotesResponse {
+  _embedded?: {
+    notes?: Array<{ created_at?: number; params?: { text?: string } }>;
+  };
+}
+
+/** Hora de la última respuesta de Lucy registrada como nota "Lucy → cliente". */
+export async function fetchLastLucyReplyAt(
+  subdomain: string,
+  accessToken: string,
+  leadId: string,
+  fromMs: number
+): Promise<number | null> {
+  const q =
+    `filter[note_type]=common&filter[updated_at][from]=${Math.floor(fromMs / 1000)}&limit=250`;
+  const data = await kommoGet<KommoNotesResponse>(
+    subdomain,
+    accessToken,
+    `/api/v4/leads/${encodeURIComponent(leadId)}/notes?${q}`
+  );
+  let last = 0;
+  for (const n of data?._embedded?.notes ?? []) {
+    if (!/Lucy → cliente/.test(n.params?.text ?? "")) continue;
+    last = Math.max(last, Number(n.created_at ?? 0) * 1000);
+  }
+  return last || null;
 }
 
 interface KommoEventsResponse {
@@ -243,11 +263,7 @@ interface KommoTalksResponse {
   };
 }
 
-interface KommoLeadContactsResponse {
-  _embedded?: { contacts?: Array<{ id: number; is_main?: boolean }> };
-}
-
-/** Conversación de WhatsApp más reciente del lead; si no hay talk, al menos el contacto principal. */
+/** Conversación de WhatsApp más reciente del lead. */
 export async function fetchLeadTalk(
   subdomain: string,
   accessToken: string,
@@ -262,20 +278,10 @@ export async function fetchLeadTalk(
     (a, b) => Number(b.updated_at ?? 0) - Number(a.updated_at ?? 0)
   );
   const t = talks[0];
-  if (t?.contact_id) {
-    return {
-      talkId: t.talk_id != null ? String(t.talk_id) : t.id != null ? String(t.id) : null,
-      chatId: t.chat_id ?? null,
-      contactId: t.contact_id,
-      origin: t.origin ?? null,
-    };
-  }
-  const lead = await kommoGet<KommoLeadContactsResponse>(
-    subdomain,
-    accessToken,
-    `/api/v4/leads/${encodeURIComponent(leadId)}?with=contacts`
-  );
-  const contacts = lead?._embedded?.contacts ?? [];
-  const main = contacts.find((c) => c.is_main) ?? contacts[0];
-  return { talkId: null, chatId: null, contactId: main?.id ?? null, origin: null };
+  return {
+    talkId: t?.talk_id != null ? String(t.talk_id) : t?.id != null ? String(t.id) : null,
+    chatId: t?.chat_id ?? null,
+    contactId: t?.contact_id ?? null,
+    origin: t?.origin ?? null,
+  };
 }

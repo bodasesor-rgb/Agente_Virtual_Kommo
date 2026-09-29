@@ -14,7 +14,7 @@ import {
 } from "../lib/llmEnv.js";
 import { completeChat, fromOpenAiMessages } from "../lib/llmChat.js";
 import OpenAI from "openai";
-import { getHistory, appendHistory, appendAssistantMessage, clearHistory } from "../chat-history.js";
+import { getHistory, appendHistory, clearHistory } from "../chat-history.js";
 import {
   applyEmailWaiver,
   applyInvitadosWaiver,
@@ -163,16 +163,17 @@ import {
 } from "../lib/kommoWebhookParse.js";
 import { deliverLucyOutbound } from "../services/kommoMirror.js";
 import {
-  STAGE_ACTIVATION_TAG,
-  composeStageActivationMessage,
-  crmLinesToState,
+  WHATSAPP_WINDOW_MS,
   decideWhatsAppWindow,
   describeAge,
   extractLeadStageEvents,
   fetchLastInboundAt,
+  fetchLastLucyReplyAt,
   fetchLatestStatusChange,
   fetchLeadTalk,
+  fetchTalkMessagesSince,
   isManualMoveToDatosEIntereses,
+  pendingClientMessages,
 } from "../services/stageActivation.js";
 import { captureInboundWhileLucyInactive, setLearningPhase, persistLucyExchange, persistChatMessage } from "../services/chatIngest.js";
 import { syncHumanPhaseLead } from "../services/learningSync.js";
@@ -265,15 +266,6 @@ interface KommoWebhookBody {
   talk?: { add?: Array<Record<string, unknown>> };
 }
 
-interface KommoChatMessage {
-  text?: string;
-  author?: { type?: string };
-}
-
-interface KommoChatMessagesResponse {
-  _embedded?: { messages?: KommoChatMessage[] };
-}
-
 // ExtractedData is imported from ../types.js
 
 // ─── Fetch conversation history from Kommo Talks API ─────────────────────────
@@ -283,29 +275,26 @@ async function fetchKommoHistory(
   talkId: string
 ): Promise<OpenAI.Chat.ChatCompletionMessageParam[] | null> {
   try {
-    // Try unread filter first; fall back to last 15 messages
-    for (const url of [
-      `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?filter[is_read]=0&limit=20&order=asc`,
-      `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=15&order=desc`,
-    ]) {
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
-      if (!res.ok) continue;
-
-      const data = (await res.json()) as KommoChatMessagesResponse;
-      let msgs = data?._embedded?.messages ?? [];
-      if (msgs.length === 0) continue;
-
-      // Normalize to oldest-first
-      if (url.includes("order=desc")) msgs = [...msgs].reverse();
-
-      return msgs
-        .filter((m) => m.text)
-        .map((m) => ({
-          role: m.author?.type === "external" ? "user" : "assistant",
-          content: m.text!,
-        }));
-    }
-    return null;
+    const fetched = await fetchTalkMessagesSince(
+      subdomain,
+      accessToken,
+      talkId,
+      Date.now() - 30 * 24 * 60 * 60 * 1000
+    );
+    if (!fetched.ok || fetched.messages.length === 0) return null;
+    const msgs = [...fetched.messages]
+      .filter((m) => m.text?.trim())
+      .sort(
+        (a, b) =>
+          (Number(a.sec_created_at) || Number(a.created_at ?? 0) * 1000) -
+          (Number(b.sec_created_at) || Number(b.created_at ?? 0) * 1000)
+      )
+      .slice(-15);
+    if (msgs.length === 0) return null;
+    return msgs.map((m) => ({
+      role: m.author?.type === "external" ? "user" : "assistant",
+      content: m.text!.trim(),
+    }));
   } catch {
     return null;
   }
@@ -2651,7 +2640,7 @@ router.post("/kommo/webhook", (req: Request, res: Response) => {
   });
 });
 
-// ─── Movimiento manual a Datos e Intereses → Lucy escribe primero ─────────────
+// ─── Movimiento manual a Datos e Intereses → Lucy contesta lo pendiente ───────
 const stageActivationSeen = new Map<string, number>();
 const STAGE_ACTIVATION_THROTTLE_MS = 10 * 60 * 1000;
 
@@ -2681,22 +2670,28 @@ async function handleManualMoveToDatos(opts: {
 
   const lead = await fetchLead(subdomain, accessToken, leadId);
   if (!lead || lead.status_id !== ETAPA.DATOS_E_INTERESES) return;
-  if (lead.tags.includes(STAGE_ACTIVATION_TAG)) {
-    log.info({ leadId }, "Inicio auto: ya se envió antes a este lead");
-    return;
-  }
-  const tagsSinDesactivar = lead.tags.filter((t) => t !== "lucy_desactivada");
-  if (tagsSinDesactivar.length !== lead.tags.length) {
+  if (lead.tags.includes("lucy_desactivada")) {
     await removerTag(subdomain, accessToken, leadId, "lucy_desactivada", lead.tags);
   }
 
   const talk = await fetchLeadTalk(subdomain, accessToken, leadId);
-  const lastInboundMs = talk.contactId
-    ? await fetchLastInboundAt(subdomain, accessToken, talk.contactId)
-    : null;
+  const chatId = talk.chatId ?? lead.chatId;
+  if (!talk.talkId || !chatId || !talk.contactId) {
+    log.info({ leadId, talk }, "Recuperación: el lead no tiene conversación de WhatsApp");
+    return;
+  }
+  const [lastInboundMs, lastLucyReplyMs] = await Promise.all([
+    fetchLastInboundAt(subdomain, accessToken, talk.contactId),
+    fetchLastLucyReplyAt(subdomain, accessToken, leadId, now - 7 * 24 * 60 * 60 * 1000),
+  ]);
+  if (!lastInboundMs || (lastLucyReplyMs && lastLucyReplyMs >= lastInboundMs)) {
+    log.info({ leadId, lastInboundMs, lastLucyReplyMs }, "Recuperación: el cliente no tiene mensajes sin respuesta");
+    return;
+  }
+
   const decision = decideWhatsAppWindow(lastInboundMs);
   if (decision === "client_just_wrote") {
-    log.info({ leadId }, "Inicio auto: el cliente acaba de escribir — Lucy responde por el flujo normal");
+    log.info({ leadId }, "Recuperación: el cliente acaba de escribir — Lucy responde por el flujo normal");
     return;
   }
   if (decision === "outside_window") {
@@ -2704,50 +2699,65 @@ async function handleManualMoveToDatos(opts: {
       subdomain,
       accessToken,
       leadId,
-      `⏸️ Lucy: el lead se movió a Datos e Intereses pero NO se envió mensaje automático.\n` +
+      `⏸️ Lucy: el lead se movió a Datos e Intereses pero NO se contestó automáticamente.\n` +
         `Último mensaje del cliente: ${describeAge(lastInboundMs)}. WhatsApp solo permite escribir ` +
         `libremente dentro de las 24 h posteriores al último mensaje del cliente.\n` +
         `Lucy queda activa: responderá en cuanto el cliente escriba.`
     );
-    log.info({ leadId, lastInboundMs }, "Inicio auto: fuera de ventana 24 h — nota en Kommo");
+    log.info({ leadId, lastInboundMs }, "Recuperación: fuera de ventana 24 h — nota en Kommo");
     return;
   }
 
-  const [{ crmLines }, contactName, phone] = await Promise.all([
-    fetchLeadCurrentFields(subdomain, accessToken, leadId, log),
-    fetchContactDisplayName(subdomain, accessToken, leadId),
-    phoneCache.get(leadId) ? Promise.resolve(phoneCache.get(leadId)!) : fetchContactPhone(subdomain, accessToken, leadId),
-  ]);
-  if (phone) phoneCache.set(leadId, phone);
-  const histKey = leadId;
-  const texto = composeStageActivationMessage({
-    contactName,
-    crm: crmLinesToState(crmLines),
-    history: getHistory(histKey),
-    leadId,
-  });
+  const fetched = await fetchTalkMessagesSince(subdomain, accessToken, talk.talkId, now - WHATSAPP_WINDOW_MS);
+  if (!fetched.ok) {
+    await agregarNota(
+      subdomain,
+      accessToken,
+      leadId,
+      fetched.scopeDenied
+        ? `⚠️ Lucy no pudo leer los mensajes del cliente para contestarlos: al token de Kommo le falta ` +
+            `el permiso "Historial de chats externos". Contéstale manualmente o actualiza el token.`
+        : `⚠️ Lucy no pudo leer los mensajes del cliente (Kommo respondió ${fetched.status}). Contéstale manualmente.`
+    );
+    log.warn({ leadId, status: fetched.status, scopeDenied: fetched.scopeDenied }, "Recuperación: no se pudo leer el chat");
+    return;
+  }
 
-  const channel = await deliverLucyOutbound({
+  const pending = pendingClientMessages(fetched.messages, lastLucyReplyMs);
+  if (!pending.texts.length) {
+    if (pending.mediaCount) {
+      await agregarNota(
+        subdomain,
+        accessToken,
+        leadId,
+        `⚠️ Lucy: el cliente mandó ${pending.mediaCount} audio(s)/foto(s) sin texto que no se pueden ` +
+          `recuperar automáticamente. Contéstale manualmente.`
+      );
+    }
+    log.info({ leadId, mediaCount: pending.mediaCount }, "Recuperación: sin texto pendiente del cliente");
+    return;
+  }
+
+  const text = pending.texts.join("\n");
+  void persistChatMessage({
+    kommoLeadId: leadId,
+    content: text,
+    authorType: "client",
+    source: "stage_recovery",
+  }).catch((err: unknown) => log.warn({ err, leadId }, "No se pudo persistir inbound para auditor"));
+  log.info({ leadId, mensajes: pending.texts.length, text: text.slice(0, 200) }, "Recuperación: Lucy contesta lo que el cliente escribió ✅");
+  queueIncomingBatch({
+    text,
+    entityId: leadId,
+    chatId,
+    talkId: talk.talkId,
     subdomain,
     accessToken,
-    talkId: talk.talkId,
-    chatId: talk.chatId ?? lead.chatId,
-    whatsappPhone: phone,
-    texto,
-    entityId: leadId,
-    channelOrigin: talk.origin ?? "waba",
+    isVoice: false,
+    isImage: false,
+    channelOrigin: talk.origin,
+    log,
   });
-  if (channel === "failed") {
-    log.error({ leadId, talkId: talk.talkId }, "Inicio auto: mensaje no enviado ❌");
-    stageActivationSeen.delete(leadId);
-    return;
-  }
-
-  appendAssistantMessage(histKey, texto);
-  void persistLucyExchange(histKey, "", texto).catch(() => {});
-  lastResponseCache.set(leadId, texto);
-  await agregarTag(subdomain, accessToken, leadId, [STAGE_ACTIVATION_TAG], tagsSinDesactivar);
-  log.info({ leadId, channel, texto }, "Inicio auto: Lucy escribió al mover a Datos e Intereses ✅");
 }
 
 async function processKommoWebhookAfterAck(req: Request): Promise<void> {

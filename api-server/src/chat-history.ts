@@ -81,14 +81,3 @@ export function appendHistory(
   store[chatId] = history;
   save(store);
 }
-
-/** Mensaje proactivo de Lucy (sin mensaje previo del cliente en este turno). */
-export function appendAssistantMessage(chatId: string, assistantText: string): void {
-  const history = store[chatId] ?? [];
-  history.push({ role: "assistant", content: assistantText });
-  if (history.length > MAX_MESSAGES) {
-    history.splice(0, history.length - MAX_MESSAGES);
-  }
-  store[chatId] = history;
-  save(store);
-}
