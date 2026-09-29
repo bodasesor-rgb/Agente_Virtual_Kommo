@@ -112,6 +112,12 @@ import {
   type MeetingDecision,
   type MeetingKind,
 } from "../services/meetingBooking.js";
+import {
+  extractManualMeetingSignals,
+  parseConfirmedMeeting,
+  type ConfirmedMeeting,
+  type ManualMeetingSignal,
+} from "../services/manualMeetingSignals.js";
 import { looksLikeClienteCorrection } from "../tipoContacto.js";
 import { proveedorQuestionnaireComplete } from "../lib/proveedorQuestionnaire.js";
 import { appendProveedorRow } from "../services/proveedorSheets.js";
@@ -2882,6 +2888,79 @@ async function recordSilentMeetingProposal(opts: {
   log.info({ entityId, label: proposal.label, tareaOk }, "Cita en silencio: anotada (campo + nota + tarea)");
 }
 
+const confirmedMeetingSeen = new Map<string, number>();
+const CONFIRMED_MEETING_DEDUP_MS = 30 * 60 * 1000;
+
+/** El equipo confirmó la cita (nota o campo escrito a mano): campo normalizado + nota + tarea. */
+async function recordConfirmedMeeting(opts: {
+  subdomain: string;
+  accessToken: string;
+  signal: ManualMeetingSignal;
+  meeting: ConfirmedMeeting;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  log: any;
+}): Promise<void> {
+  const { subdomain, accessToken, signal, meeting, log } = opts;
+  const leadId = signal.leadId;
+  const now = Date.now();
+  for (const [k, t] of confirmedMeetingSeen) {
+    if (now - t > CONFIRMED_MEETING_DEDUP_MS) confirmedMeetingSeen.delete(k);
+  }
+  const key = `${leadId}:${meeting.startMs}`;
+  if (confirmedMeetingSeen.has(key)) return;
+  confirmedMeetingSeen.set(key, now);
+
+  const lead = await fetchLead(subdomain, accessToken, leadId);
+  if (lead?.cita_videollamada?.includes(meeting.label) && /confirmada/i.test(lead.cita_videollamada)) {
+    log.info({ leadId, label: meeting.label }, "Cita del equipo: ya estaba confirmada");
+    return;
+  }
+  const kind = meeting.meetingKind;
+  const tipoLabel =
+    kind === "cita" ? "Cita" : kind === "llamada" ? "Llamada" : kind === "videollamada" ? "Videollamada" : "Llamada/videollamada";
+  const quien = lead?.nombre?.trim() || lead?.name?.trim() || "cliente";
+  const origen = signal.source === "nota" ? "nota del equipo" : "campo llenado por el equipo";
+  const citado = `"${signal.text.trim().slice(0, 200)}"`;
+
+  await actualizarCampoTexto(
+    subdomain,
+    accessToken,
+    leadId,
+    FIELD_CITA_VIDEOLLAMADA,
+    `${tipoLabel} — ${meeting.label} (confirmada por el equipo) · ${getBookingUrl()}`
+  );
+  const titulo = `${tipoLabel} Bodasesor — ${quien}`;
+  const kommoUrl = `https://${subdomain}.kommo.com/leads/detail/${leadId}`;
+  const calendarUrl = buildGoogleCalendarAddUrl({
+    title: titulo,
+    startMs: meeting.startMs,
+    details: `Confirmada por el equipo (${origen}).\nLead en Kommo: ${kommoUrl}\nTexto: ${citado}`,
+  });
+  await agregarNota(
+    subdomain,
+    accessToken,
+    leadId,
+    `📅 ${titulo} — confirmada: ${meeting.label} (hora centro de México).\nOrigen: ${origen} ${citado}\n\n` +
+      `Agrégala a Google Calendar con un clic:\n${calendarUrl}`
+  );
+  // Si el cliente ya había propuesto esa misma hora, la tarea ya existe.
+  const tareaPrevia = !!lead?.cita_videollamada?.includes(meeting.label);
+  const tareaOk = tareaPrevia
+    ? true
+    : await crearTarea(
+        subdomain,
+        accessToken,
+        leadId,
+        `📅 ${titulo} — ${meeting.label} (confirmada).`,
+        meeting.startMs,
+        kind === "llamada" ? 1 : 2
+      );
+  log.info(
+    { leadId, label: meeting.label, source: signal.source, tareaOk },
+    "Cita del equipo: anotada (campo + nota + tarea)"
+  );
+}
+
 async function handleManualMoveToDatos(opts: {
   subdomain: string;
   accessToken: string;
@@ -3227,6 +3306,19 @@ async function processKommoWebhookAfterAck(req: Request): Promise<void> {
       })().catch((err: unknown) => log.warn({ err }, "talk_add falló"));
     }
     return;
+  }
+
+  const meetingSignals = extractManualMeetingSignals(rawBody, FIELD_CITA_VIDEOLLAMADA, [
+    getBookingUrl(),
+  ]);
+  if (meetingSignals.length && subdomain && accessToken) {
+    for (const signal of meetingSignals) {
+      const meeting = parseConfirmedMeeting(signal);
+      if (!meeting) continue;
+      void recordConfirmedMeeting({ subdomain, accessToken, signal, meeting, log }).catch(
+        (err: unknown) => log.warn({ err, leadId: signal.leadId }, "Cita del equipo: no se pudo anotar")
+      );
+    }
   }
 
   const stageEvents = extractLeadStageEvents(rawBody);
