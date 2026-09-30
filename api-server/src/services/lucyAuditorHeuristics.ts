@@ -106,12 +106,18 @@ export function runAuditorHeuristics(turns: TranscriptTurn[]): HeuristicFinding[
   for (let i = 0; i < turns.length; i++) {
     const t = turns[i]!;
     if (t.role !== "assistant" || !CLOSE_RE.test(t.content)) continue;
-    const prevUser = [...turns.slice(0, i)].reverse().find((x) => x.role === "user");
-    if (prevUser && (PRICE_RE.test(prevUser.content) || DETAIL_RE.test(prevUser.content))) {
+    const priorUsers = turns
+      .slice(0, i)
+      .filter((x) => isClient(x))
+      .slice(-3);
+    const priceOrDetailUser = [...priorUsers]
+      .reverse()
+      .find((u) => PRICE_RE.test(u.content) || DETAIL_RE.test(u.content));
+    if (priceOrDetailUser) {
       findings.push({
         category: "premature_close",
         severity: "error",
-        evidence: `Cierre «ya tengo todo» tras cliente pedir precio/detalle: «${prevUser.content.slice(0, 100)}»`,
+        evidence: `Cierre «ya tengo todo» tras cliente pedir precio/detalle: «${priceOrDetailUser.content.slice(0, 100)}»`,
         proposedRepair:
           "No cerrar si clientAsksPrice / clientAsksNamedServiceDetail; responder Sheet o solo vs completo.",
       });
@@ -310,11 +316,13 @@ export function runCrmFieldHeuristics(crm: CrmFieldSnapshot): HeuristicFinding[]
     });
   }
 
-  // Truncado típico de campos 255
+  const RESUMEN_IA_SIGNATURE = "— Actualizado por Lucy en cada mensaje —";
+  const RESUMEN_IA_MAX = 8000;
+
+  // Truncado típico de campos 255 (Requerimientos / Dirección — cap255 en Kommo).
   for (const [label, val] of [
     ["Requerimientos", req],
     ["Dirección", crm.direccion ?? ""],
-    ["Resumen IA", crm.resumen_ia ?? ""],
   ] as const) {
     const v = val.trim();
     if (v.length >= 250 || /\.\.\.$/.test(v)) {
@@ -326,6 +334,24 @@ export function runCrmFieldHeuristics(crm: CrmFieldSnapshot): HeuristicFinding[]
           "Detalle largo → Respuesta IA Largo / nota; campos cortos solo con resumen.",
       });
       break;
+    }
+  }
+
+  const resumenRaw = (crm.resumen_ia ?? "").trim();
+  if (resumenRaw) {
+    const nearCap = resumenRaw.length >= RESUMEN_IA_MAX - 80;
+    const hasClosingSignature = resumenRaw.includes(RESUMEN_IA_SIGNATURE);
+    const looksCutMidContent =
+      (nearCap && !hasClosingSignature) ||
+      (/\.\.\.$/.test(resumenRaw) && !hasClosingSignature);
+    if (looksCutMidContent) {
+      findings.push({
+        category: "bad_field",
+        severity: "warn",
+        evidence: `CRM Resumen IA parece truncado (${resumenRaw.length} chars): «${resumenRaw.slice(-40)}»`,
+        proposedRepair:
+          "Detalle largo → Respuesta IA Largo / nota; campos cortos solo con resumen.",
+      });
     }
   }
 
