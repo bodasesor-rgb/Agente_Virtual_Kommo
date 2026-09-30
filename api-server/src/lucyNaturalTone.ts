@@ -12,7 +12,7 @@ import type { OpenAI } from "openai";
 /** Mensajes de Lucy hacia atrás que se revisan antes de repetir el nombre. */
 const RECENT_ASSISTANT_TURNS = 2;
 
-const FILLER = String.raw`(?:Claro que s[ií]|Claro|Con gusto|Perfecto|Genial|Excelente|De acuerdo|Muy bien|Listo)`;
+const FILLER = String.raw`(?:Claro que s[ií]|Claro|Con gusto|Perfecto|Genial|Excelente|De acuerdo|Muy bien|Listo|Entendido)`;
 
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -110,30 +110,39 @@ export function softenRobotAcks(mensaje: string): string {
     ""
   );
 
+  // A16511: "Lo anoto y nuestro equipo…" salía "Lo Va, y nuestro equipo…".
+  out = out.replace(/\b(lo|la|los|las)\s+anoto\b/gi, (_m, pron: string) => `${pron} sumo`);
+
   // "Perfecto. Anoto tu *boda*." / "Perfecto. Anoto *Taquiza*."
   // A16484: antes salía "¡Perfecto, *boda*!" / "¡Perfecto, que es *comida*!".
+  // A16511: "*solo alimentos* para Banquete Kosher" completo (antes "*…*. para Banquete").
   out = out.replace(
-    /\bPerfecto\.?\s*Anoto(\s+tu|\s+que\s+es)?\s+(\*[^*]{1,60}\*|[^.!?\n]{2,60})[.!]?\s*/gi,
+    /\bPerfecto\.?\s*Anoto(\s+tu|\s+que\s+es)?\s+(\*[^*]{1,60}\*[^.!?\n*]{0,60}|[^.!?\n]{2,60})[.!]?\s*/gi,
     (_m, tu: string | undefined, what: string) =>
       tu ? `¡Perfecto! Vamos con tu ${what}. ` : `¡Perfecto! Vamos con ${what}. `
   );
   // "¡Claro! Anoto *20* centros…" / "Claro! Anoto X para tu cotización."
   out = out.replace(/(?:¡|\b)Claro!?\.?\s*Anoto\s+/gi, "¡Claro! Vamos con ");
-  // "Perfecto — anoto *bailarinas* …"
-  out = out.replace(/\bPerfecto\s*[—–-]\s*anoto\s+/gi, "¡Va! Sumamos ");
+  // "Perfecto — anoto *bailarinas* …" / A16511: "Perfecto, anoto *X*" (antes "Perfecto, Seguimos con").
+  out = out.replace(/\bPerfecto\s*[—–,-]\s*anoto\s+/gi, "¡Va! Sumamos ");
   // "Anoto *X* para tu cotización."
   out = out.replace(
     /\bAnoto\s+(\*[^*]{1,80}\*|(?:medidas?\s+)?[^.!?\n]{2,80}?)\s+para\s+tu\s+cotizaci[oó]n[.!]?\s*/gi,
     "Seguimos con $1. "
   );
   out = out.replace(/\bAnoto\s+(medidas?\s+[^.!?\n]{2,60})[.!]?\s*/gi, "Tomamos $1. ");
-  out = out.replace(/\bAnoto\s+(\*[^*]{1,60}\*)[.!]?\s*/gi, "Seguimos con $1. ");
+  out = out.replace(/\bAnoto\s+(\*[^*]{1,60}\*[^.!?\n*]{0,60})[.!]?\s*/gi, "Seguimos con $1. ");
   // "Anoto la ubicación en *Polanco*." → tono vendedora, misma info.
   out = out.replace(
     /\bAnoto\s+la\s+ubicaci[oó]n\s+en\s+/gi,
     "Queda en "
   );
-  out = out.replace(/\bAnoto\s+(?:el\s+)?horario\s+/gi, "Horario ");
+  // A16511: "Horario *8pm*. Entendido." → "Queda a las *8pm*."
+  out = out.replace(
+    /\bAnoto\s+(?:el\s+)?horario\s+(?:a\s+las\s+)?(\*?\d)/gi,
+    "Queda a las $1"
+  );
+  out = out.replace(/\bAnoto\s+(?:el\s+)?horario\s+/gi, "Queda el horario ");
   out = out.replace(/\bAnoto\s+(?:la\s+)?fecha\s*:?\s*/gi, "Fecha ");
   // A16433: "¡Mucho gusto! Anoto tu cumpleaños para 25 personas con la barra de mocteles."
   out = out.replace(
@@ -146,6 +155,7 @@ export function softenRobotAcks(mensaje: string): string {
   // "Ya lo tengo anotado."
   out = out.replace(/\bYa\s+lo\s+tengo\s+anotad[oa]?[.!]?\s*/gi, "");
   out = out.replace(/\bTomo nota de tu solicitud especial\b/gi, "Revisamos tu solicitud especial");
+  out = stripMidMessageFiller(out);
 
   return out.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }

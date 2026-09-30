@@ -60,10 +60,20 @@ const EVENT_CONTEXT_PATTERN =
   /\b(evento|fiesta|boda|xv|quince|cumple|corporativ|celebraci[oó]n|banquete|taquiza|barra|renta|valet|pirotecnia|mesa\s+imperial|flor|decoraci|animaci|dj|mobiliario|carpa|iluminaci|pantalla|mesero|catering|invitados)\b/i;
 
 export function serviceLabelFromQuery(query: string): string {
-  const trimmed = query.trim();
-  if (!trimmed) return "ese servicio";
-  const parsed = parsePrimaryService(trimmed);
+  const raw = query.trim();
+  if (!raw) return "ese servicio";
+  const parsed = parsePrimaryService(raw);
   if (parsed) return parsed;
+  const sala = parseSalaProductFromText(raw);
+  if (sala) return sala;
+  // A16511: nunca citar el mensaje del formulario ("Hola, me interesa cotizar la: X").
+  const trimmed =
+    raw
+      .replace(/^\s*(?:hola|buen[oa]s?\s+(?:d[ií]as|tardes|noches))[\s,.!]*/i, "")
+      .replace(/^(?:me\s+interesa\s+cotizar|quiero\s+cotizar|cotizar)(?:\s+(?:la|el|los|las|un|una))?\s*:?\s*/i, "")
+      .replace(/\s+para\s+(?:mi|el|un)\s+evento[.!]?\s*$/i, "")
+      .replace(/^["'“”]+|["'“”.]+$/g, "")
+      .trim() || raw;
   // A15383: nunca citar la pregunta del cliente como SKU (*¿qué opciones manejan?*).
   if (/[¿?]/.test(trimmed) || trimmed.length > 60) return "ese servicio";
   // A16254: no usar mensajes multi-línea / con fecha como nombre de servicio
@@ -424,9 +434,11 @@ export function buildGuardServiceAck(rawQuery: string): string {
   if (sala) {
     const fromPdf = buildLucyInfoLearnedPriceReply(query);
     if (fromPdf) return fromPdf;
+    const salasUrl = getCatalogWebUrlForQuery("salas lounge");
     return (
-      `Con gusto. Anoto *${sala}* para tu cotización (salas lounge / mobiliario). ` +
-      `¿Quieres que lo dejemos en la propuesta?`
+      `Con gusto. Anoto *${sala}* para tu cotización (salas lounge / mobiliario).` +
+      (salasUrl ? `\nCatálogo de *salas y periqueras*:\n${salasUrl}\n` : " ") +
+      `¿Qué número de salas te gustaría para el evento?`
     );
   }
 
@@ -556,6 +568,21 @@ export function getServiceKnowledge(query: string): ServiceKnowledgeResult | nul
         SERVICE_KNOWLEDGE_GOLDEN_RULE,
       ].join("\n"),
       guardAck: buildLevel3Ack(label),
+    };
+  }
+
+  // A16511: sala nombrada (Luxor Rosa…) sí está en catálogo de salas → nunca "no lo tengo listado".
+  if (parseSalaProductFromText(trimmed)) {
+    return {
+      level: 2,
+      label,
+      hasSheetPrice: false,
+      promptBlock: [
+        "CONOCIMIENTO DE SERVICIO (mobiliario — sala lounge del catálogo):",
+        `Servicio: ${label}`,
+        "Acción: anótala, manda el catálogo de salas y pregunta cuántas necesita. NO inventes precio.",
+      ].join("\n"),
+      guardAck: buildGuardServiceAck(trimmed),
     };
   }
 

@@ -552,10 +552,14 @@ export function clientChoosesEmailDelivery(message?: string | null): boolean {
 /** A16309: cliente elige seguimiento por WhatsApp/chat. */
 export function clientChoosesChatDelivery(message?: string | null): boolean {
   if (!message?.trim()) return false;
+  // A16511: "En la Ciudad de México\nEn chat" — cada línea es una respuesta aparte.
+  const lines = message.split(/\n+/).filter((l) => l.trim());
+  if (lines.length > 1 && lines.some((l) => clientChoosesChatDelivery(l))) return true;
   const t = normalizeDeliveryReply(message);
   if (!t) return false;
   if (/^(por\s+)?aqu[ií]$/i.test(t)) return true;
   if (/^(whatsapp|chat|wa|por\s+whatsapp)$/i.test(t)) return true;
+  if (/^(?:mejor\s+)?(?:en|por)\s+(?:el\s+|este\s+)?(?:chat|whats?app|wh?ats?ap+|wpp)$/i.test(t)) return true;
   if (
     /\bpor\s+(aqu[ií]|este\s+(chat|medio)|whatsapp)(?!\p{L})/iu.test(t) &&
     t.split(/\s+/).length <= 8
@@ -1949,6 +1953,14 @@ export function parseSalaProductFromText(text: string): string | null {
   }
   const qtyOnly = text.match(/\b(\d+)\s+salas?\b/i);
   if (qtyOnly) return `${qtyOnly[1]} salas lounge`;
+  // A16511: formulario "me interesa cotizar la: Luxor Rosa" (sin la palabra "sala").
+  const luxor = text.match(
+    /\bluxor(?:\s+(rosa|negr[oa]|blanc[oa]|dorad[oa]|gris|azul|verde|beige|nude|plata|platead[oa]|gold))?\b/i
+  );
+  if (luxor) {
+    const color = luxor[1] ? ` ${luxor[1][0].toUpperCase()}${luxor[1].slice(1).toLowerCase()}` : "";
+    return `Sala Luxor${color}`;
+  }
   if (/\bsalas?\s+lounge\b/i.test(text)) return "Salas lounge";
   // A15297: "Sala Ariel Color Nude" (sin ":")
   const namedLoose = text.match(
@@ -6821,6 +6833,20 @@ export function parseZonaFromText(text: string): string | null {
   );
   if (coloniaMatch?.[1] && isUsableDireccionEvento(coloniaMatch[1].trim())) {
     return coloniaMatch[1].trim();
+  }
+
+  // A16511: "Es en una casa en bosques de las lomas" (antes "una casa en bosques de las").
+  const venueEn = trimmed.match(
+    /\ben\s+(?:una|la|mi|nuestra|un|el)\s+(casa|quinta|residencia|jard[ií]n|terraza|finca|rancho|hacienda|departamento|depa)\s+(?:particular\s+)?en\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,48})/i
+  );
+  if (venueEn?.[2]) {
+    const place = venueEn[2]
+      .split(/\n/)[0]!
+      .split(/\s+(?:para|con|por|pero|y|el\s+d[ií]a|a\s+las)\s+/i)[0]!
+      .replace(/[.,;:\s]+$/g, "")
+      .trim();
+    const lugar = `${venueEn[1]!.toLowerCase()} en ${place}`;
+    if (place.length >= 3 && isUsableDireccionEvento(lugar)) return lugar;
   }
 
   const enMatch = trimmed.match(

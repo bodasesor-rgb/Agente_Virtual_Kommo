@@ -346,7 +346,7 @@ export const BODASESOR_EMAIL = "hola@bodasesor.com";
 export const WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp — el cliente no lo escribió)";
 
 const EMAIL_REFUSAL_PATTERN =
-  /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo|(?:por|x|xq|porque)\s+(?:el\s+)?(?:wh?ats?\s*ap+|wh?at?s?ap+|was+ap+|guas+ap+|wpp|whats)\b|mi\s+correo\s+no\s+(?:me\s+)?(?:permite|deja|abre|sirve|funciona|jala|carga)|no\s+(?:puedo|me\s+deja|me\s+permite)\s+(?:abrir|entrar|revisar|ver)\s+(?:a\s+)?(?:mi\s+|el\s+)?correo|no\s+reviso\s+(?:mi\s+|el\s+)?correo)/i;
+  /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo|(?:por|x|xq|porque)\s+(?:el\s+)?(?:wh?ats?\s*ap+|wh?at?s?ap+|was+ap+|guas+ap+|wpp|whats)\b|mi\s+correo\s+no\s+(?:me\s+)?(?:permite|deja|abre|sirve|funciona|jala|carga)|no\s+(?:puedo|me\s+deja|me\s+permite)\s+(?:abrir|entrar|revisar|ver)\s+(?:a\s+)?(?:mi\s+|el\s+)?correo|no\s+reviso\s+(?:mi\s+|el\s+)?correo|(?:^|\n)\s*(?:mejor\s+)?(?:en|por)\s+(?:el\s+|este\s+)?chat\s*[.!]*\s*(?:$|\n))/i;
 
 /** A16503: tras pedir correo — "no me permite abrirlo", "no me deja entrar", "cel sin memoria". */
 const CANT_USE_EMAIL_AFTER_ASK_RE =
@@ -1444,7 +1444,13 @@ function normalizeAdvisorReferences(mensaje: string, name?: string | null): stri
     out = stripUnsolicitedPriceClaims(out, ctx.currentMessage);
   }
 
-  return out.replace(/\s{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  // A16511: \s{2,} → " " aplanaba párrafos y listas ("niveles: 1. … 2. … ¿…? Catálogo…").
+  return out
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function presentationHistoryFrom(ctx: NaturalQuestionContext): OpenAI.Chat.ChatCompletionMessageParam[] {
@@ -2213,6 +2219,50 @@ function buildEntertainmentSalesReply(
     filledSet.add("Requerimientos o servicios");
     const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
     if (merged) extracted.requerimientos_evento = merged;
+  }
+
+  // A16511: "Qué opciones tienes de show" / "Dónde puedo ver los shows" → opciones reales.
+  // No hay catálogo web de shows: el hub genérico ("montajes, menús") no le sirve al cliente.
+  const asksShowOptions =
+    /\b(opciones|qu[eé]\s+(?:tienes|tienen|manejan|hay|ofrecen)|d[oó]nde\s+(?:puedo\s+|los\s+puedo\s+)?ver|ver\s+(?:los\s+)?shows?|cat[aá]logo|cu[aá]les\s+(?:tienes|tienen|hay|manejan))\b/i.test(
+      msg
+    );
+  const isGenericEntertainment =
+    !wantsPhotoBooth &&
+    !wantsSpecialAct &&
+    !wantsMariachi &&
+    !wantsRegionalDance &&
+    !wantsBailarinas &&
+    !wantsRobots &&
+    !wantsBatucada &&
+    !wantsMc;
+  if (asksShowOptions && isGenericEntertainment) {
+    const menuAlreadySent = history.some(
+      (m) =>
+        m.role === "assistant" &&
+        typeof m.content === "string" &&
+        /opciones de entretenimiento/i.test(m.content)
+    );
+    if (menuAlreadySent) {
+      return (
+        "Los shows no los tenemos en el catálogo web, por eso te los paso por aquí. " +
+        "¿Cuál te late más: *hora loca*, *bailarines*, *robots LED*, *mariachi*, *photo booth* o *maestro de ceremonias*?"
+      );
+    }
+    return [
+      `Claro. Para ${eventLabel} manejamos estas opciones de entretenimiento:`,
+      "",
+      "• *Hora loca* y animación",
+      "• *Show de bailarines*",
+      "• *Robots LED* y batucada",
+      "• *Mariachi* o grupo versátil",
+      "• *Photo booth*",
+      "• *Maestro de ceremonias*",
+      "",
+      "Los shows no están en el catálogo web; el equipo te arma la propuesta con opciones y precios para tu evento.",
+      "",
+      "¿Cuál te llama más?",
+    ].join("\n");
   }
 
   let intro: string;
@@ -3056,7 +3106,17 @@ export function stripPrematureCelebrationFluff(
     /^(?:¡?\s*)?(?:qu[eé]\s+emoción|felicidades)\b[^.?!¡¿\n]{0,40}[.!…]?\s*/gi,
     ""
   );
-  return out.replace(/\s{2,}/g, " ").replace(/\s+\n/g, "\n").trim();
+  return squashInlineSpaces(out);
+}
+
+/** A16511: junta espacios sin aplanar párrafos ni listas (\s{2,} → " " borraba los \n\n). */
+function squashInlineSpaces(text: string): string {
+  return text
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export function dedupeTransitionsInMessage(mensaje: string): string {
@@ -3070,10 +3130,8 @@ export function dedupeTransitionsInMessage(mensaje: string): string {
       if (seen === key) return "";
       if (!seen) seen = key;
       return match;
-    })
-    .replace(/\s{2,}/g, " ")
-    .replace(/\s+\n/g, "\n")
-    .trim();
+    });
+  out = squashInlineSpaces(out);
   // A15016 / V9.12: "Perfecto, X. Mucho gusto, X." / doble Mucho gusto.
   out = out.replace(
     /\b(¡?Mucho gusto,\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})[.!])(?:\s+\1)+/gi,
@@ -3101,7 +3159,7 @@ export function dedupeTransitionsInMessage(mensaje: string): string {
     /\b(Perfecto|Excelente|Genial|Listo),\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+\2[,.]/gi,
     "$1, $2."
   );
-  return out.replace(/\s{2,}/g, " ").trim();
+  return squashInlineSpaces(out);
 }
 
 /** Quita "Ya tengo tu correo/zona..." antes de la siguiente pregunta (anti-robot Replit). */
@@ -3113,7 +3171,7 @@ export function stripRobotAcknowledgments(mensaje: string): string {
   );
   out = out.replace(/\bYa\s+tengo\s+(?:tu|su|el|la)\s+[^.?!]+\.\s*/gi, "");
   out = out.replace(/\bPerfecto,\s+\w+\.\s+Ya\s+tengo\b[^.?!]+\.\s*/gi, "");
-  return out.replace(/\s{2,}/g, " ").trim();
+  return squashInlineSpaces(out);
 }
 
 function contextualPrefix(
@@ -3379,9 +3437,20 @@ export function buildOpeningAcknowledgment(
     if (namedShows.length > 0) {
       return `Vi que te interesa el ${formatServicesList(namedShows.map((s) => `*${s}*`))}; el equipo te confirma costo, duración y disponibilidad.`;
     }
+    // A16511: "me interesa cotizar la: Luxor Rosa" (artículo antes de los dos puntos).
     const colonMatch = userText.match(
-      /(?:me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento)\s*:\s*(.+)/i
+      /(?:me\s+interesa\s+cotizar(?:\s+(?:la|el|los|las|un|una))?|cotizar\s+para\s+mi\s+evento)\s*:\s*(.+)/i
     );
+    // A16511: "me interesa cotizar un show de entretenimiento para mi evento".
+    const paraEventoMatch = userText.match(
+      /me\s+interesa\s+cotizar\s+(?:un|una|el|la|los|las|unos|unas)?\s*(.+?)\s+para\s+(?:mi|nuestro|el|un)\s+evento/i
+    );
+    if (
+      paraEventoMatch?.[1] &&
+      /\bshows?\b|\bentretenimiento\b|\banimaci[oó]n\b|\bhora\s+loca\b/i.test(paraEventoMatch[1])
+    ) {
+      return "Vi que te interesa un *show de entretenimiento* para tu evento; con gusto te ayudo.";
+    }
     // A14934: cotizar "Barra Yucateca" en CDMX (sin dos puntos).
     const quotedMatch = userText.match(
       /(?:me\s+interesa\s+)?cotizar\s*[“"']([^”"']+)[”"']/i
@@ -3393,6 +3462,7 @@ export function buildOpeningAcknowledgment(
       colonMatch?.[1] ??
       quotedMatch?.[1] ??
       enZonaMatch?.[1] ??
+      paraEventoMatch?.[1] ??
       ""
     )
       .trim()
@@ -4321,6 +4391,10 @@ function ensureFunnelAfterSalesReply(
   }
 
   if (lastQuestionAsksForField(out, pending)) return out;
+  // A16511: menú que cierra con "¿Cuál te llama/late más…?" — una sola pregunta por mensaje.
+  if (/¿\s*cu[aá]l\s+te\s+(?:llama|late|interesa|gusta)\s+m[aá]s[^?]*\?\s*$/i.test(out.trim())) {
+    return out;
+  }
 
   const nextQ = buildNaturalQuestion(pending, ctx);
   if (!nextQ || out.includes(nextQ)) return out;
@@ -7728,13 +7802,21 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       const nextQ = pending
         ? buildNaturalQuestion(pending, ctx)
         : null;
-      const ack = `Perfecto, anoto *${sku}* para tu cotización.`;
+      const skuUrl = getCatalogWebUrlForQuery(sku);
+      const ack = skuUrl
+        ? `¡Claro! Sumamos *${sku}* a tu cotización.\nAquí puedes ver el catálogo:\n${skuUrl}`
+        : `¡Claro! Sumamos *${sku}* a tu cotización.`;
       log?.info(
         { entityId, sku, pending },
         "GUARD: A15297 — SKU mobiliario anotado + embudo"
       );
+      // A16511: "Sala Luxor Rosa" sin cantidad → cuántas salas (antes presupuesto pegado al link).
+      const askQty = /^sala\s/i.test(sku) && !/\b\d+\s+salas?\b/i.test(currentMessage)
+        ? "¿Qué número de salas te gustaría para el evento?"
+        : null;
+      const follow = askQty ?? nextQ;
       return normalizeAdvisorReferences(
-        nextQ ? `${ack} ${nextQ}` : ack,
+        follow ? `${ack}\n\n${follow}` : ack,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }

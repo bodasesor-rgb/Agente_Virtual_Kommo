@@ -176,9 +176,11 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
     ) &&
       !/\b(precio|incluye|nivel|cat[aá]logo)\b/i.test(mensaje));
   const alreadyOperational =
-    /\b(s[ií]|manejamos|monta|incluye|prepar|cocin|precio|\$|contamos|ofrecemos|horn|ayudo|anoto|entretenimiento|shows?|hora\s+loca|animaci[oó]n|cat[aá]logo|bodasesor\.com|mesas?\s+y\s+sillas|tiffany|crossback)\b/i.test(
+    /\b(s[ií]|manejamos|monta|incluye|prepar|cocin|precio|\$|contamos|ofrecemos|tenemos|caminos|niveles|horn|ayudo|anoto|entretenimiento|shows?|hora\s+loca|animaci[oó]n|cat[aá]logo|bodasesor\.com|mesas?\s+y\s+sillas|tiffany|crossback)\b/i.test(
       mensaje
-    );
+    ) ||
+    // A16511: menú numerado ("1. *Solo alimentos* … 2. *Servicio completo*") ya responde.
+    /(?:^|\n)\s*1\.\s+\S[\s\S]*\n\s*2\.\s+\S/.test(mensaje);
   if (
     !input.cierreYaEnviado &&
     !openingNombreOnly &&
@@ -194,7 +196,8 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
     const ack =
       buildConcreteProductQuestionReply(input.currentMessage) ||
       buildGuardServiceAck(input.currentMessage);
-    const keepQ = (mensaje.match(/[^.!?]*\?/g) ?? []).join(" ").trim();
+    // Solo preguntas completas "¿…?" — [^.!?]*\? arrastraba líneas de listas sin punto.
+    const keepQ = (mensaje.match(/¿[^¿?\n]*\?/g) ?? []).slice(-1).join(" ").trim();
     mensaje = keepQ ? `${ack}\n\n${keepQ}` : ack;
     input.log?.info?.(
       { entityId: input.entityId },
@@ -304,6 +307,16 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
     if (conTono !== mensaje && conTono.trim().length >= 8) {
       input.log?.info?.({ entityId: input.entityId }, "GUARD: tono — asesora (sin Anoto/muletilla)");
       mensaje = conTono;
+    }
+    // A16511: "15 años" → "Claro que sí. ¿Cuántos invitados…?" — nadie pidió nada.
+    const cmTone = (input.currentMessage ?? "").trim();
+    const clientRequested =
+      /[?¿]/.test(cmTone) ||
+      /\b(puedes|pueden|podr[ií]as?|me\s+(?:das|mandas|pasas|env[ií]as|ayudas)|quiero|necesito|tienes|tienen|hay|manejan|cotiza|informaci[oó]n|info)\b/i.test(
+        cmTone
+      );
+    if (cmTone && !clientRequested && /^\s*¡?Claro\s+que\s+s[ií][.!]\s+(?=¿)/i.test(mensaje)) {
+      mensaje = mensaje.replace(/^\s*¡?Claro\s+que\s+s[ií][.!]\s+/i, "Perfecto. ");
     }
     // A16433: "¡Mucho gusto!" solo una vez por conversación.
     const yaDijoMuchoGusto = (input.history ?? []).some(
