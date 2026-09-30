@@ -110963,11 +110963,15 @@ function isMuchoGustoNameReply(text2) {
     t3
   );
 }
+var HONORIFIC_PREFIX = /^(?:sr|sra|srta|se[nñ]or|se[nñ]ora|se[nñ]orita|lic|licenciad[oa]|ing|ingenier[oa]|dr|dra|doctor|doctora|don|do[nñ]a|mtro|mtra|maestr[oa]|prof|profe|profesor|profesora|arq|c\.?p)\.?(?:\s+|$)/i;
+function stripNameHonorific(raw) {
+  return raw.trim().replace(HONORIFIC_PREFIX, "").trim();
+}
 function stripMuchoGustoSalutation(raw) {
   let out2 = raw.trim();
   out2 = out2.replace(MUCHO_GUSTO_LEADING, "").trim();
   out2 = out2.replace(MUCHO_GUSTO_SUFFIX, "").trim();
-  return out2;
+  return stripNameHonorific(out2);
 }
 function isRepeatComplaintAsName(text2) {
   return /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé])\b/i.test(text2) || /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(text2) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(text2) || /\bya\s+respond[ií]\b/i.test(text2);
@@ -125010,7 +125014,9 @@ function isMesaDulcesDeclinePhrase(t3) {
   return /\bno\s+(?:quiero|necesito|pedimos|pido)\s+mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t3) || /\bno\s+(?:quiero|necesito)\s+(postres?|dulces?)\b/i.test(t3) || /\bsin\s+mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t3) || /\bqu[ií]ta(le|me)?\s+(?:la\s+)?mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t3);
 }
 var FAMILY_DECLINE_WORDS = {
-  alimentos: "comida|comidas|alimentos?|pizzas?|banquete|taquiza|catering|barra\\s+de\\s+pizzas?|brunch|parrillada|sushi|canap[e\xE9]s?|bocadillos?|coffee\\s*break",
+  // A16503: SKUs con nombre ("no quiero taquiza") van por extractDeclinedServiceObjects,
+  // si no se borraba también el banquete que sí quiere.
+  alimentos: "comida|comidas|alimentos?|catering",
   bebidas: "bebidas?|barra\\s+de\\s+bebidas|cocteler[i\xED]a|m[o\xF3]cteles?|mixolog[i\xED]a",
   mobiliario: "mobiliario|mobilairio|mibiliario|mobilario|sillas?|mesas?|periqueras?|salas?",
   carpas: "carpas?|capras?|toldos?|lonas?",
@@ -125140,7 +125146,11 @@ function clientDeclinesServiceFamilies(message) {
       `\\bque\\s+no\\s+(quiero|necesito)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
       "i"
     );
-    if (reNoQuiero.test(t3) || reYoNoQuiero.test(t3) || reQuitale.test(t3) || reSin.test(t3) || reQueNo.test(t3)) {
+    const reDespues = new RegExp(
+      `(?:^|[.,;!?\\n]\\s*|\\b(?:y|pero)\\s+)(?:la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\s+(?:ya\\s+)?no\\s+(?:l[oa]s?\\s+)?(quiero|queremos|necesito|necesitamos|requiero)\\b`,
+      "i"
+    );
+    if (reNoQuiero.test(t3) || reYoNoQuiero.test(t3) || reQuitale.test(t3) || reSin.test(t3) || reQueNo.test(t3) || reDespues.test(t3)) {
       out2.add(family);
     }
   }
@@ -125165,6 +125175,7 @@ function clientDeclinesServiceFamiliesWithContext(message, recentUserTexts = [])
   return [...out2];
 }
 var SPECIFIC_DECLINE_RE = /\b(?:(?:ya\s+)?no\s+(?:quiero|queremos|necesito|necesitamos|me\s+gusta|me\s+late)|qu[ií]ta(?:le|me|lo)?|quita(?:r|mos)?)\s+(?:el\s+|la\s+|los\s+|las\s+|lo\s+del?\s+|servicio\s+de\s+)?([a-záéíóúñü]+(?:\s+(?:y\s+|de\s+)?[a-záéíóúñü]+){0,2})/gi;
+var SPECIFIC_DECLINE_AFTER_RE = /(?:^|[.,;!?\n]\s*|\b(?:y|pero)\s+)(?:el\s+|la\s+|los\s+|las\s+)?([a-záéíóúñü]+(?:\s+(?:de\s+)?[a-záéíóúñü]+){0,2})\s+(?:ya\s+)?no\s+(?:l[oa]s?\s+)?(?:quiero|queremos|necesito|necesitamos|me\s+gusta|me\s+late|me\s+interesa)\b/gi;
 var NOT_A_SERVICE_WORD = /^(nada|eso|esto|esa|ese|m[aá]s|otro|otra|dar|dar\s+mi|mi|mis|ya|que|prisa|problema|correo|tel[eé]fono|datos|gastar|esperar|pagar|presupuesto|cotizaci[oó]n|urgencia|compromiso|embargo|duda)\b/i;
 var SIGNIFICANT_STOPWORDS = /* @__PURE__ */ new Set([
   "para",
@@ -125190,7 +125201,7 @@ function extractDeclinedServiceObjects(message, existing) {
   if (clientDeclinesServiceFamilies(t3).length > 0) return [];
   const existingWords = new Set(significantWords(existing ?? ""));
   const out2 = [];
-  for (const m5 of t3.matchAll(SPECIFIC_DECLINE_RE)) {
+  for (const m5 of [...t3.matchAll(SPECIFIC_DECLINE_RE), ...t3.matchAll(SPECIFIC_DECLINE_AFTER_RE)]) {
     const obj = m5[1].trim();
     if (!obj || NOT_A_SERVICE_WORD.test(obj)) continue;
     const words = significantWords(obj);
@@ -127704,6 +127715,7 @@ var EXCLUDED_SERVICE_LEADS = [
   /\b(?:qu[ií]tale|quita(?:r|mos)?|sin\s+(?:el|la|los|las))\s+([^.;!?\n]{2,70})/gi
 ];
 var EXCLUDED_TRAILING_RE = /\b(?:el|la|los|las)\s+([a-záéíóúñ]+(?:\s+[a-záéíóúñ]+){0,3}?)\s*,?\s*(?:es[eao]s?\s+)?ya\s+l[oa]s?\s+(?:tengo|tenemos)\b/gi;
+var EXCLUDED_BEFORE_NO_RE = /(?:^|[.,;!?\n]\s*|\b(?:y|pero)\s+)(?:el\s+|la\s+|los\s+|las\s+)?([a-záéíóúñ]+(?:\s+(?:de\s+)?[a-záéíóúñ]+){0,2})\s+(?:ya\s+)?no\s+(?:l[oa]s?\s+)?(?:quiero|queremos|necesito|necesitamos|me\s+interesa)\b/gi;
 function excludedServiceFragments(text2) {
   const out2 = [];
   for (const re3 of EXCLUDED_SERVICE_LEADS) {
@@ -127715,6 +127727,9 @@ function excludedServiceFragments(text2) {
     }
   }
   for (const m5 of text2.matchAll(EXCLUDED_TRAILING_RE)) {
+    if (m5[1]) out2.push(m5[1]);
+  }
+  for (const m5 of text2.matchAll(EXCLUDED_BEFORE_NO_RE)) {
     if (m5[1]) out2.push(m5[1]);
   }
   return out2;
@@ -137283,7 +137298,8 @@ function shouldInjectTrendBlock(messageText, tipoEvento) {
 // src/lucy-flow-guards.ts
 var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
 var WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp \u2014 el cliente no lo escribi\xF3)";
-var EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
+var EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo|(?:por|x|xq|porque)\s+(?:el\s+)?(?:wh?ats?\s*ap+|wh?at?s?ap+|was+ap+|guas+ap+|wpp|whats)\b|mi\s+correo\s+no\s+(?:me\s+)?(?:permite|deja|abre|sirve|funciona|jala|carga)|no\s+(?:puedo|me\s+deja|me\s+permite)\s+(?:abrir|entrar|revisar|ver)\s+(?:a\s+)?(?:mi\s+|el\s+)?correo|no\s+reviso\s+(?:mi\s+|el\s+)?correo)/i;
+var CANT_USE_EMAIL_AFTER_ASK_RE = /\bno\s+(?:me\s+)?(?:permite|deja|puedo)\s+(?:abrir|entrar|ver|revisar)|\bmemoria\b.{0,30}\bllen[ao]\b|\bllen[ao]\b.{0,30}\bmemoria\b|\bno\s+(?:me\s+)?abre\b/i;
 var CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
   "Tipo de evento",
@@ -137587,6 +137603,7 @@ function detectEmailRefusal(texts) {
 var SHORT_NO_REPLY_RE = /^(?:no+|nop|nel|no\s*,?\s*gracias|mejor\s+no|ahorita\s+no|por\s+ahora\s+no|no\s+por\s+ahora|de\s+momento\s+no|no\s+tengo)[\s.!¡]*$/i;
 function isShortNoToEmailAsk(message, lastAssistantText) {
   if (!message?.trim() || inferLucyAskedField(lastAssistantText) !== "correo") return false;
+  if (CANT_USE_EMAIL_AFTER_ASK_RE.test(message)) return true;
   return message.split(/\n+/).some((line2) => SHORT_NO_REPLY_RE.test(line2.trim()));
 }
 function detectEmailRefusalInContext(message, history = []) {
@@ -139259,7 +139276,7 @@ function buildOpeningAcknowledgment(history, currentMessage) {
   if (/baby\s*shower/.test(t3)) return "Claro que te ayudamos con tu baby shower.";
   if (/\bbautizo\b/.test(t3)) return "Con gusto te ayudo con la cotizaci\xF3n para tu bautizo.";
   if (isVagueFoodTerm(userText)) {
-    return "Para alimentos manejamos banquete, taquiza, brunch o coffee break \u2014 \xBFcu\xE1l te interesa?";
+    return "Con gusto te ayudo con la comida de tu evento.";
   }
   if (/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t3)) {
     const namedShows = parseNamedShowLabels(userText);
@@ -140213,6 +140230,9 @@ function emailRefusalAckMessage(extracted, history, currentMessage, entityId, fi
   if (pending && pending !== "correo") {
     return `${warm} ${buildNaturalQuestion(pending, ctx)}`;
   }
+  if (extracted.tipo_evento?.trim() || filledSet?.has("Tipo de evento")) {
+    return `${warm} ${buildContinueEngagementQuestion(extracted, currentMessage, history)}`;
+  }
   const tipoQ = buildNaturalQuestion("tipo_evento", ctx);
   return `${warm} ${tipoQ}`;
 }
@@ -140862,11 +140882,44 @@ function buildNameMismatchReplyIfNeeded(currentMessage, extracted, filledSet, wh
   }
   return null;
 }
+var FOOD_MODE_ASK_RE = /\*formal\*[^?\n]{0,40}\*casual\*|\bformal\b[^?\n]{0,40}\bcasual\b|para \*?comida\*? del evento/i;
+function foodModeChosenInHistory(history, currentMessage) {
+  const turns = [
+    ...history.filter((m5) => typeof m5.content === "string"),
+    ...currentMessage?.trim() ? [{ role: "user", content: currentMessage }] : []
+  ];
+  let lastAssistant = "";
+  let mode = null;
+  for (const m5 of turns) {
+    const text2 = m5.content;
+    if (m5.role === "assistant") {
+      lastAssistant = text2;
+      continue;
+    }
+    if (m5.role !== "user" || !FOOD_MODE_ASK_RE.test(lastAssistant)) continue;
+    if (clientChoseBanqueteFormal(text2)) mode = "formal";
+    else if (clientChoseCateringCasual(text2)) mode = "casual";
+  }
+  return mode;
+}
+function upgradeVagueFoodRequirement(value, label) {
+  const parts2 = (value ?? "").split(",").map((s6) => s6.trim()).filter(Boolean);
+  const vague = (p4) => /^(alimentos?|comidas?|catering|banquetes?|algo\s+de\s+comer)$/i.test(p4);
+  const kept = parts2.filter((p4) => !vague(p4));
+  return [label, ...kept.filter((p4) => p4.toLowerCase() !== label.toLowerCase())].join(", ");
+}
 function applyLucyMessageGuards(input) {
   const mensaje = applyLucyMessageGuardsRaw(input).replace(
     /^(¡?)Perfecto,\s+que\s+es\s+\*[^*\n]+\*\s*([!.])?\s*/i,
     (_m, open2) => open2 ? "\xA1Perfecto! " : "Perfecto. "
   );
+  {
+    const parts2 = (input.extracted.requerimientos_evento ?? "").split(",").map((s6) => s6.trim()).filter(Boolean);
+    const vague = (p4) => /^(alimentos?|comidas?|catering|banquetes?)$/i.test(p4);
+    if (parts2.some(vague) && parts2.some((p4) => !vague(p4) && hasSpecificFoodService(p4))) {
+      input.extracted.requerimientos_evento = parts2.filter((p4) => !vague(p4)).join(", ");
+    }
+  }
   const pending = getNextPendingField(input.extracted, input.filledSet);
   const hardPending = !!pending && pending !== "tipo_evento" && pending !== "presupuesto";
   const historyClosed = detectCierreEnviado(
@@ -140899,6 +140952,11 @@ function applyLucyMessageGuardsRaw(input) {
   let aiResponse = input.aiResponse;
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
+  if (emailRefusedThisTurn && !extracted.correo?.trim()) filledSet.add(EMAIL_WAIVED_LABEL);
+  if (extracted.nombre?.trim()) {
+    const sinTratamiento = stripNameHonorific(extracted.nombre);
+    if (sinTratamiento !== extracted.nombre.trim()) extracted.nombre = sinTratamiento || null;
+  }
   syncFilledFromExtracted(filledSet, extracted);
   syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage);
   syncHorarioFromHistory(filledSet, extracted, presHistory, currentMessage);
@@ -140929,6 +140987,14 @@ function applyLucyMessageGuardsRaw(input) {
     filledSet.delete(CRM_HORARIO_LABEL);
   }
   syncLegacyFechaHorarioField(extracted);
+  if (foodModeChosenInHistory(presHistory, currentMessage) === "formal" && (!extracted.requerimientos_evento?.trim() || needsAlimentosTipoClarification(extracted.requerimientos_evento))) {
+    extracted.requerimientos_evento = upgradeVagueFoodRequirement(
+      extracted.requerimientos_evento,
+      "Banquete Formal"
+    );
+    filledSet.add("Requerimientos o servicios");
+    log?.info({ entityId }, "GUARD: A16503 \u2014 eligi\xF3 formal \u2192 Banquete Formal");
+  }
   {
     const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
     if (clientSaidReunionNotXv(userBlob) || clientSaidReunionNotXv(currentMessage)) {
@@ -141595,6 +141661,7 @@ ${catalogUrl}`
       `${extracted.requerimientos_evento ?? ""} ${historyBlob}`
     );
     if (declinedObjects.length > 0) {
+      const reqAntes = extracted.requerimientos_evento ?? "";
       extracted.requerimientos_evento = removeSpecificDeclinedServices(
         extracted.requerimientos_evento,
         currentMessage
@@ -141603,7 +141670,8 @@ ${catalogUrl}`
       else filledSet.delete("Requerimientos o servicios");
       const labels = declinedServiceObjectLabels(declinedObjects).map((l5) => `*${l5}*`);
       const display = getDisplayName(extracted, whatsappDisplayName);
-      const ack = `Listo${display ? `, ${display}` : ""} \u2014 quito ${formatServicesList(labels)} de tu cotizaci\xF3n.`;
+      const estabaEnCotizacion = (extracted.requerimientos_evento ?? "") !== reqAntes;
+      const ack = estabaEnCotizacion ? `Listo${display ? `, ${display}` : ""} \u2014 quito ${formatServicesList(labels)} de tu cotizaci\xF3n.` : `Entendido${display ? `, ${display}` : ""}, sin ${formatServicesList(labels)}.`;
       let nextQ;
       if (cierreYaEnviado) {
         nextQ = "\xBFQuieres otra opci\xF3n en su lugar o lo dejamos as\xED?";
@@ -142390,10 +142458,11 @@ ${buildNaturalQuestion(pending, ctx)}` : consultative;
       }
     }
   }
-  const userBlobForServices = collectUserTexts(presHistory, currentMessage).map((t3) => clientCaptionForServiceParse(t3)).join(" ");
+  const userBlobForServices = collectUserTexts(presHistory, currentMessage).map((t3) => clientCaptionForServiceParse(t3)).join("\n");
   const servicesFromCurrentMessage = parseServicesFromText(captionForServices);
   const servicesFromTurnRaw = parseServicesFromText(
-    `${captionForServices} ${userBlobForServices}`
+    `${captionForServices}
+${userBlobForServices}`
   );
   const demoteVagueFood = (list) => {
     const withoutVague = list.filter(
@@ -146533,7 +146602,10 @@ function stripClientNameVocative(mensaje, clientName) {
   const first = clientName.trim().split(/\s+/)[0];
   if (!first || first.length < 2) return mensaje;
   const n4 = escapeRegExp(first);
-  return mensaje.replace(new RegExp(String.raw`,\s*${n4}\b(?=\s*[.,;:!?]|\s*$)`, "gi"), "").replace(new RegExp(String.raw`(^|\n)\s*${n4}\s*,\s*`, "gi"), "$1").replace(/[ \t]{2,}/g, " ").replace(/\s+([.,;:!?])/g, "$1").trim();
+  return mensaje.replace(
+    new RegExp(String.raw`,\s*(?:(?:sra|sr|srta|se[nñ]ora|se[nñ]or|do[nñ]a|don|lic|dra|dr)\.?\s+)?${n4}\b(?=\s*[.,;:!?]|\s*$)`, "gi"),
+    ""
+  ).replace(new RegExp(String.raw`(^|\n)\s*${n4}\s*,\s*`, "gi"), "$1").replace(/[ \t]{2,}/g, " ").replace(/\s+([.,;:!?])/g, "$1").trim();
 }
 function applyClientNameCadence(input) {
   const mensaje = input.mensaje ?? "";
@@ -146560,6 +146632,10 @@ function stripMidMessageFiller(mensaje) {
 function softenRobotAcks(mensaje) {
   if (!mensaje?.trim()) return mensaje;
   let out2 = mensaje;
+  out2 = out2.replace(
+    /^\s*¡?(?:Perfecto|Entendido|De\s+acuerdo|Listo|Claro)(?:,\s*[^.!?\n]{1,25})?[.!]\s+(?=¡?(?:Claro|Perfecto|Entendido|De\s+acuerdo|Listo|Va|Sale|No\s+te\s+preocupes|No\s+se\s+preocupe|Sin\s+problema|Con\s+gusto)\b)/i,
+    ""
+  );
   out2 = out2.replace(
     /\bPerfecto\.?\s*Anoto(\s+tu|\s+que\s+es)?\s+(\*[^*]{1,60}\*|[^.!?\n]{2,60})[.!]?\s*/gi,
     (_m, tu, what) => tu ? `\xA1Perfecto! Vamos con tu ${what}. ` : `\xA1Perfecto! Vamos con ${what}. `
@@ -146629,6 +146705,78 @@ function mergeExtractedPatch(target, patch) {
     }
     target[key] = value;
   }
+}
+
+// src/services/catalogLinkRepair.ts
+var CATALOG_URL_RE = /https?:\/\/\S*(?:bodasesor|hostingersite)\.com\/catalogos\S*/i;
+var ORPHAN_LINK_RE = /(\b(?:aqu[ií]|ac[aá]|en\s+(?:este|el\s+siguiente|el)\s+(?:enlace|link|v[ií]nculo)|(?:este|el\s+siguiente)\s+(?:enlace|link)|en\s+(?:nuestro|el)\s+cat[aá]logo))[ \t]*:[ \t]*(?=[.,;]|¿|\n\s*¿|\s*$)[.,;]?[ \t]*/gi;
+var W_END = "(?![a-z\xE1\xE9\xED\xF3\xFA\xF1])";
+function clientAsksToSeeDishes(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  const food = new RegExp(`\\b(platillos?|platos?|men[u\xFA]s?|paquetes?|comida|banquete|tiempos)${W_END}`);
+  if (/\b(fotos?|fotograf[ií]as?|im[aá]genes?)\b/.test(t3) && food.test(t3)) return true;
+  return new RegExp(
+    `\\b(mu[e\xE9]str\\w*|mostrar\\w*|ense[n\xF1]\\w*|ver|conocer|manda\\w*|m[a\xE1]nd\\w*|env[i\xED]\\w*|pas\\w*me|traer\\w*|dame)${W_END}.{0,40}\\b(platillos?|platos?|paquetes?|men[u\xFA]s?)${W_END}`
+  ).test(t3) || new RegExp(`\\bpaquetes?\\s+de\\s+(platillos?|comida|men[u\xFA])${W_END}`).test(t3);
+}
+var GENERIC_SLUG_WORDS = /* @__PURE__ */ new Set(["comida", "barra", "mesa", "servicio", "puestos"]);
+function normalizeText(s6) {
+  return s6.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+}
+function resolveDishCatalog(contextTexts) {
+  for (const raw of contextTexts) {
+    const t3 = raw?.trim();
+    if (!t3 || t3.length > 400) continue;
+    const slug = resolveCatalogWebSlug(t3);
+    if (!slug) continue;
+    const norm2 = normalizeText(t3);
+    const distinctive = slug.split("-").filter((w4) => w4.length > 3 && !GENERIC_SLUG_WORDS.has(w4));
+    if (!distinctive.some((w4) => norm2.includes(w4.slice(0, 5)))) continue;
+    return { url: `${CATALOG_WEB_HUB}/${slug}`, title: getCatalogEmbed(slug)?.title ?? null };
+  }
+  return { url: CATALOG_WEB_HUB, title: null };
+}
+function repairOrphanCatalogLinks(text2, contextTexts) {
+  if (!text2?.trim()) return text2;
+  ORPHAN_LINK_RE.lastIndex = 0;
+  if (!ORPHAN_LINK_RE.test(text2)) return text2;
+  ORPHAN_LINK_RE.lastIndex = 0;
+  if (CATALOG_URL_RE.test(text2)) {
+    return text2.replace(ORPHAN_LINK_RE, (_m, intro) => `${intro}. `).replace(/\.\s*\./g, ".");
+  }
+  const { url } = resolveDishCatalog(contextTexts);
+  let used = false;
+  return text2.replace(ORPHAN_LINK_RE, (_m, intro) => {
+    if (used) return `${intro}. `;
+    used = true;
+    return `${intro}:
+${url}
+
+`;
+  }).replace(/\n{3,}/g, "\n\n").trim();
+}
+function ensureDishCatalogLink(text2, opts) {
+  if (!text2?.trim() || !clientAsksToSeeDishes(opts.currentMessage) || CATALOG_URL_RE.test(text2)) return text2;
+  const { url, title } = resolveDishCatalog(opts.contextTexts);
+  const block = title ? `Aqu\xED puedes ver los platillos y paquetes de *${title}*, con fotos:
+${url}` : `Aqu\xED puedes ver nuestros men\xFAs y paquetes, con fotos:
+${url}`;
+  const q2 = text2.match(/¿[^¿?]*\?\s*$/);
+  if (!q2) return `${text2.trim()}
+
+${block}`;
+  const before = text2.slice(0, q2.index);
+  const sentenceStart = Math.max(before.lastIndexOf(". "), before.lastIndexOf("! "), before.lastIndexOf("\n")) + 1;
+  const head = text2.slice(0, sentenceStart).trim();
+  const question = text2.slice(sentenceStart).trim();
+  return head ? `${head}
+
+${block}
+
+${question}` : `${block}
+
+${question}`;
 }
 
 // src/lucyOutboundPipeline.ts
@@ -146748,6 +146896,22 @@ ${keepQ}` : ack;
     `${input.currentMessage ?? ""} ${input.extracted.requerimientos_evento ?? ""}`
   );
   mensaje = reorderLeadingCatalogUrls(mensaje);
+  {
+    const userTexts = (input.history ?? []).filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content);
+    const contextTexts = [
+      input.extracted.requerimientos_evento ?? "",
+      input.currentMessage ?? "",
+      ...userTexts.slice(-8).reverse()
+    ];
+    const repaired = ensureDishCatalogLink(repairOrphanCatalogLinks(mensaje, contextTexts), {
+      currentMessage: input.currentMessage,
+      contextTexts
+    });
+    if (repaired !== mensaje) {
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: A16503 \u2014 link de cat\xE1logo reparado/agregado");
+      mensaje = repaired;
+    }
+  }
   {
     const historyText = (role) => (input.history ?? []).filter((m5) => m5.role === role && typeof m5.content === "string").map((m5) => m5.content);
     const lucyTexts = historyText("assistant");

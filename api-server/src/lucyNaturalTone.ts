@@ -40,7 +40,10 @@ export function stripClientNameVocative(mensaje: string, clientName: string): st
 
   return mensaje
     // "Perfecto, Lizbeth." / "Entendido, Lizbeth!" → "Perfecto."
-    .replace(new RegExp(String.raw`,\s*${n}\b(?=\s*[.,;:!?]|\s*$)`, "gi"), "")
+    .replace(
+      new RegExp(String.raw`,\s*(?:(?:sra|sr|srta|se[nñ]ora|se[nñ]or|do[nñ]a|don|lic|dra|dr)\.?\s+)?${n}\b(?=\s*[.,;:!?]|\s*$)`, "gi"),
+      ""
+    )
     // "Lizbeth, ¿qué día tienen en mente?" al inicio de línea.
     .replace(new RegExp(String.raw`(^|\n)\s*${n}\s*,\s*`, "gi"), "$1")
     .replace(/[ \t]{2,}/g, " ")
@@ -100,6 +103,12 @@ export function stripMidMessageFiller(mensaje: string): string {
 export function softenRobotAcks(mensaje: string): string {
   if (!mensaje?.trim()) return mensaje;
   let out = mensaje;
+
+  // A16503: "Perfecto, Sra. ¡Claro, Sra. Olga, no se preocupe!" → un solo acuse.
+  out = out.replace(
+    /^\s*¡?(?:Perfecto|Entendido|De\s+acuerdo|Listo|Claro)(?:,\s*[^.!?\n]{1,25})?[.!]\s+(?=¡?(?:Claro|Perfecto|Entendido|De\s+acuerdo|Listo|Va|Sale|No\s+te\s+preocupes|No\s+se\s+preocupe|Sin\s+problema|Con\s+gusto)\b)/i,
+    ""
+  );
 
   // "Perfecto. Anoto tu *boda*." / "Perfecto. Anoto *Taquiza*."
   // A16484: antes salía "¡Perfecto, *boda*!" / "¡Perfecto, que es *comida*!".

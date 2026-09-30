@@ -48,6 +48,7 @@ import {
 } from "./services/concreteProductQuestion.js";
 import { collapseDuplicatedInclusionReply } from "./services/lucyInfoPriceCache.js";
 import { clientAsksInclusion } from "./services/catalogService.js";
+import { ensureDishCatalogLink, repairOrphanCatalogLinks } from "./services/catalogLinkRepair.js";
 
 export interface FinalizeLucyOutboundInput {
   mensaje: string;
@@ -236,6 +237,26 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
     `${input.currentMessage ?? ""} ${input.extracted.requerimientos_evento ?? ""}`
   );
   mensaje = reorderLeadingCatalogUrls(mensaje);
+
+  // A16503: "catálogo aquí: ." sin link / pidió ver platillos y no se mandó catálogo.
+  {
+    const userTexts = (input.history ?? [])
+      .filter((m) => m.role === "user" && typeof m.content === "string")
+      .map((m) => m.content as string);
+    const contextTexts = [
+      input.extracted.requerimientos_evento ?? "",
+      input.currentMessage ?? "",
+      ...userTexts.slice(-8).reverse(),
+    ];
+    const repaired = ensureDishCatalogLink(repairOrphanCatalogLinks(mensaje, contextTexts), {
+      currentMessage: input.currentMessage,
+      contextTexts,
+    });
+    if (repaired !== mensaje) {
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: A16503 — link de catálogo reparado/agregado");
+      mensaje = repaired;
+    }
+  }
 
   // A16345g: ideas reales en el chat (tips por tipo / si pidieron ideas-colores-montajes).
   {

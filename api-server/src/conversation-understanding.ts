@@ -3545,6 +3545,9 @@ const EXCLUDED_SERVICE_LEADS: RegExp[] = [
 ];
 const EXCLUDED_TRAILING_RE =
   /\b(?:el|la|los|las)\s+([a-záéíóúñ]+(?:\s+[a-záéíóúñ]+){0,3}?)\s*,?\s*(?:es[eao]s?\s+)?ya\s+l[oa]s?\s+(?:tengo|tenemos)\b/gi;
+/** A16503: "Taquiza no quiero" / "la barra de pizzas no la queremos". */
+const EXCLUDED_BEFORE_NO_RE =
+  /(?:^|[.,;!?\n]\s*|\b(?:y|pero)\s+)(?:el\s+|la\s+|los\s+|las\s+)?([a-záéíóúñ]+(?:\s+(?:de\s+)?[a-záéíóúñ]+){0,2})\s+(?:ya\s+)?no\s+(?:l[oa]s?\s+)?(?:quiero|queremos|necesito|necesitamos|me\s+interesa)\b/gi;
 
 /** A16484: "No quiero el entelado, ese ya lo tengo" / "para complementar con entelado" → fragmentos que NO son pedido. */
 function excludedServiceFragments(text: string): string[] {
@@ -3560,6 +3563,9 @@ function excludedServiceFragments(text: string): string[] {
     }
   }
   for (const m of text.matchAll(EXCLUDED_TRAILING_RE)) {
+    if (m[1]) out.push(m[1]);
+  }
+  for (const m of text.matchAll(EXCLUDED_BEFORE_NO_RE)) {
     if (m[1]) out.push(m[1]);
   }
   return out;

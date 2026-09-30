@@ -74,11 +74,19 @@ export function isMuchoGustoNameReply(text: string | null | undefined): boolean 
   );
 }
 
+/** A16503: "Sra olga" → "olga" (si no, Lucy le decía "¡Mucho gusto, Sra!"). */
+const HONORIFIC_PREFIX =
+  /^(?:sr|sra|srta|se[nñ]or|se[nñ]ora|se[nñ]orita|lic|licenciad[oa]|ing|ingenier[oa]|dr|dra|doctor|doctora|don|do[nñ]a|mtro|mtra|maestr[oa]|prof|profe|profesor|profesora|arq|c\.?p)\.?(?:\s+|$)/i;
+
+export function stripNameHonorific(raw: string): string {
+  return raw.trim().replace(HONORIFIC_PREFIX, "").trim();
+}
+
 function stripMuchoGustoSalutation(raw: string): string {
   let out = raw.trim();
   out = out.replace(MUCHO_GUSTO_LEADING, "").trim();
   out = out.replace(MUCHO_GUSTO_SUFFIX, "").trim();
-  return out;
+  return stripNameHonorific(out);
 }
 
 /** Quejas de repetición — nunca son nombre (A15164: "Ya te lo dije 3 veces"). */

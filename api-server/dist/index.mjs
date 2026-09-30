@@ -90106,11 +90106,14 @@ function isMuchoGustoNameReply(text2) {
     t4
   );
 }
+function stripNameHonorific(raw) {
+  return raw.trim().replace(HONORIFIC_PREFIX, "").trim();
+}
 function stripMuchoGustoSalutation(raw) {
   let out2 = raw.trim();
   out2 = out2.replace(MUCHO_GUSTO_LEADING, "").trim();
   out2 = out2.replace(MUCHO_GUSTO_SUFFIX, "").trim();
-  return out2;
+  return stripNameHonorific(out2);
 }
 function isRepeatComplaintAsName(text2) {
   return /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé])\b/i.test(text2) || /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(text2) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(text2) || /\bya\s+respond[ií]\b/i.test(text2);
@@ -90664,7 +90667,7 @@ function rewriteJunkClientVocative(message, correctNombre) {
 function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
   return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
 }
-var PHONE_LIKE, PLACEHOLDER_PATTERNS, ROLE_OR_DEPT_NAME_TOKEN, GREETING_NAME_PATTERN, COMPANY_OR_CHANNEL_PATTERN, BOT_OR_META_NAME_TOKEN, COURTESY_NAME_TOKEN, MUCHO_GUSTO_SUFFIX, MUCHO_GUSTO_LEADING, CATALOG_LEVEL_OR_BRAND_NAME, SENTENCE_VERB_PATTERN, HANDOFF_OR_META_NAME_TOKEN, PRICE_OR_SERVICE_NAME_TOKEN, MEASUREMENT_UNIT_NAME_TOKEN, NUMBER_PLUS_UNIT_AS_NOMBRE, OCCASION_OR_STYLE_AS_NOMBRE, SPANISH_NUMBER_WORD_TOKEN, FESTEJADO_RELACION, FESTEJADO_NAME_TOKEN, FESTEJADO_NOT_NAME, NAME_STOPWORDS, NAME_COURTESY_OR_ROLE_TOKEN;
+var PHONE_LIKE, PLACEHOLDER_PATTERNS, ROLE_OR_DEPT_NAME_TOKEN, GREETING_NAME_PATTERN, COMPANY_OR_CHANNEL_PATTERN, BOT_OR_META_NAME_TOKEN, COURTESY_NAME_TOKEN, MUCHO_GUSTO_SUFFIX, MUCHO_GUSTO_LEADING, HONORIFIC_PREFIX, CATALOG_LEVEL_OR_BRAND_NAME, SENTENCE_VERB_PATTERN, HANDOFF_OR_META_NAME_TOKEN, PRICE_OR_SERVICE_NAME_TOKEN, MEASUREMENT_UNIT_NAME_TOKEN, NUMBER_PLUS_UNIT_AS_NOMBRE, OCCASION_OR_STYLE_AS_NOMBRE, SPANISH_NUMBER_WORD_TOKEN, FESTEJADO_RELACION, FESTEJADO_NAME_TOKEN, FESTEJADO_NOT_NAME, NAME_STOPWORDS, NAME_COURTESY_OR_ROLE_TOKEN;
 var init_contact_name = __esm({
   "src/contact-name.ts"() {
     "use strict";
@@ -90686,6 +90689,7 @@ var init_contact_name = __esm({
     COURTESY_NAME_TOKEN = /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto|servidor[ao]?|servidora)$/i;
     MUCHO_GUSTO_SUFFIX = /\s+mucho\s+gusto\b/gi;
     MUCHO_GUSTO_LEADING = /^mucho\s+gusto,?\s+/i;
+    HONORIFIC_PREFIX = /^(?:sr|sra|srta|se[nñ]or|se[nñ]ora|se[nñ]orita|lic|licenciad[oa]|ing|ingenier[oa]|dr|dra|doctor|doctora|don|do[nñ]a|mtro|mtra|maestr[oa]|prof|profe|profesor|profesora|arq|c\.?p)\.?(?:\s+|$)/i;
     CATALOG_LEVEL_OR_BRAND_NAME = /^(premium|b[aá]sic[ao]|tradicional|solo\s*alimentos?|deluxe|vip|gold|silver|platinum|business|premium\s*events?)$/i;
     SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|hablar|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale|manda|m[aá]nda|mandame|m[aá]ndame|mandamelo|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|pasa|p[aá]same|conocer)\b/i;
     HANDOFF_OR_META_NAME_TOKEN = /^(hablar|asesor|agente|humano|persona|ejecutivo|equipo|conmigo|contigo|por|favor)$/i;
@@ -131612,7 +131616,11 @@ function clientDeclinesServiceFamilies(message) {
       `\\bque\\s+no\\s+(quiero|necesito)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
       "i"
     );
-    if (reNoQuiero.test(t4) || reYoNoQuiero.test(t4) || reQuitale.test(t4) || reSin.test(t4) || reQueNo.test(t4)) {
+    const reDespues = new RegExp(
+      `(?:^|[.,;!?\\n]\\s*|\\b(?:y|pero)\\s+)(?:la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\s+(?:ya\\s+)?no\\s+(?:l[oa]s?\\s+)?(quiero|queremos|necesito|necesitamos|requiero)\\b`,
+      "i"
+    );
+    if (reNoQuiero.test(t4) || reYoNoQuiero.test(t4) || reQuitale.test(t4) || reSin.test(t4) || reQueNo.test(t4) || reDespues.test(t4)) {
       out2.add(family);
     }
   }
@@ -131645,7 +131653,7 @@ function extractDeclinedServiceObjects(message, existing) {
   if (clientDeclinesServiceFamilies(t4).length > 0) return [];
   const existingWords = new Set(significantWords(existing ?? ""));
   const out2 = [];
-  for (const m6 of t4.matchAll(SPECIFIC_DECLINE_RE)) {
+  for (const m6 of [...t4.matchAll(SPECIFIC_DECLINE_RE), ...t4.matchAll(SPECIFIC_DECLINE_AFTER_RE)]) {
     const obj = m6[1].trim();
     if (!obj || NOT_A_SERVICE_WORD.test(obj)) continue;
     const words = significantWords(obj);
@@ -131749,7 +131757,7 @@ function stripThemeColorsFromZona(value) {
   v4 = v4.replace(/\s*[-–]\s*(rojo|negro|azul|blanco|dorado).*$/i, "");
   return v4.trim() || null;
 }
-var FAMILY_SERVICE_RE, FAMILY_DECLINE_WORDS, SPECIFIC_DECLINE_RE, NOT_A_SERVICE_WORD, SIGNIFICANT_STOPWORDS;
+var FAMILY_SERVICE_RE, FAMILY_DECLINE_WORDS, SPECIFIC_DECLINE_RE, SPECIFIC_DECLINE_AFTER_RE, NOT_A_SERVICE_WORD, SIGNIFICANT_STOPWORDS;
 var init_serviceDecline = __esm({
   "src/services/serviceDecline.ts"() {
     "use strict";
@@ -131770,7 +131778,9 @@ var init_serviceDecline = __esm({
       dulces: /mesa\s+de\s+dulces|postres?|cupcakes?|bet[uú]n|pastel(es)?|fondant|candy/i
     };
     FAMILY_DECLINE_WORDS = {
-      alimentos: "comida|comidas|alimentos?|pizzas?|banquete|taquiza|catering|barra\\s+de\\s+pizzas?|brunch|parrillada|sushi|canap[e\xE9]s?|bocadillos?|coffee\\s*break",
+      // A16503: SKUs con nombre ("no quiero taquiza") van por extractDeclinedServiceObjects,
+      // si no se borraba también el banquete que sí quiere.
+      alimentos: "comida|comidas|alimentos?|catering",
       bebidas: "bebidas?|barra\\s+de\\s+bebidas|cocteler[i\xED]a|m[o\xF3]cteles?|mixolog[i\xED]a",
       mobiliario: "mobiliario|mobilairio|mibiliario|mobilario|sillas?|mesas?|periqueras?|salas?",
       carpas: "carpas?|capras?|toldos?|lonas?",
@@ -131782,6 +131792,7 @@ var init_serviceDecline = __esm({
       dulces: "mesa\\s+de\\s+dulces|mesa\\s+de\\s+postres?|postres?|dulces?|cupcakes?|pastel(es)?|fondant"
     };
     SPECIFIC_DECLINE_RE = /\b(?:(?:ya\s+)?no\s+(?:quiero|queremos|necesito|necesitamos|me\s+gusta|me\s+late)|qu[ií]ta(?:le|me|lo)?|quita(?:r|mos)?)\s+(?:el\s+|la\s+|los\s+|las\s+|lo\s+del?\s+|servicio\s+de\s+)?([a-záéíóúñü]+(?:\s+(?:y\s+|de\s+)?[a-záéíóúñü]+){0,2})/gi;
+    SPECIFIC_DECLINE_AFTER_RE = /(?:^|[.,;!?\n]\s*|\b(?:y|pero)\s+)(?:el\s+|la\s+|los\s+|las\s+)?([a-záéíóúñü]+(?:\s+(?:de\s+)?[a-záéíóúñü]+){0,2})\s+(?:ya\s+)?no\s+(?:l[oa]s?\s+)?(?:quiero|queremos|necesito|necesitamos|me\s+gusta|me\s+late|me\s+interesa)\b/gi;
     NOT_A_SERVICE_WORD = /^(nada|eso|esto|esa|ese|m[aá]s|otro|otra|dar|dar\s+mi|mi|mis|ya|que|prisa|problema|correo|tel[eé]fono|datos|gastar|esperar|pagar|presupuesto|cotizaci[oó]n|urgencia|compromiso|embargo|duda)\b/i;
     SIGNIFICANT_STOPWORDS = /* @__PURE__ */ new Set([
       "para",
@@ -133862,6 +133873,9 @@ function excludedServiceFragments(text2) {
     }
   }
   for (const m6 of text2.matchAll(EXCLUDED_TRAILING_RE)) {
+    if (m6[1]) out2.push(m6[1]);
+  }
+  for (const m6 of text2.matchAll(EXCLUDED_BEFORE_NO_RE)) {
     if (m6[1]) out2.push(m6[1]);
   }
   return out2;
@@ -137011,7 +137025,7 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     extracted.requerimientos_evento = null;
   }
 }
-var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, ORDINAL_INDEX, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_DISCOURSE_CUT, VENUE_DISCOURSE_JUNK, VAGUE_VENUE_LABEL, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, EXCLUDED_SERVICE_LEADS, EXCLUDED_TRAILING_RE, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, DAY_PERIOD_SRC, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, MX_CITY_ABBREVIATIONS, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
+var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, ORDINAL_INDEX, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_DISCOURSE_CUT, VENUE_DISCOURSE_JUNK, VAGUE_VENUE_LABEL, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, EXCLUDED_SERVICE_LEADS, EXCLUDED_TRAILING_RE, EXCLUDED_BEFORE_NO_RE, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, DAY_PERIOD_SRC, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, MX_CITY_ABBREVIATIONS, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
 var init_conversation_understanding = __esm({
   "src/conversation-understanding.ts"() {
     "use strict";
@@ -137417,6 +137431,7 @@ var init_conversation_understanding = __esm({
       /\b(?:qu[ií]tale|quita(?:r|mos)?|sin\s+(?:el|la|los|las))\s+([^.;!?\n]{2,70})/gi
     ];
     EXCLUDED_TRAILING_RE = /\b(?:el|la|los|las)\s+([a-záéíóúñ]+(?:\s+[a-záéíóúñ]+){0,3}?)\s*,?\s*(?:es[eao]s?\s+)?ya\s+l[oa]s?\s+(?:tengo|tenemos)\b/gi;
+    EXCLUDED_BEFORE_NO_RE = /(?:^|[.,;!?\n]\s*|\b(?:y|pero)\s+)(?:el\s+|la\s+|los\s+|las\s+)?([a-záéíóúñ]+(?:\s+(?:de\s+)?[a-záéíóúñ]+){0,2})\s+(?:ya\s+)?no\s+(?:l[oa]s?\s+)?(?:quiero|queremos|necesito|necesitamos|me\s+interesa)\b/gi;
     PLATED_MEAL_LABEL_RE = /^(banquete(\s+\w+)?|comida|men[uú].*tiempos?|tres\s+tiempos)$/i;
     STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
     CLOCK_AMPM = String.raw`(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)`;
@@ -162888,6 +162903,7 @@ function detectEmailRefusal(texts) {
 }
 function isShortNoToEmailAsk(message, lastAssistantText) {
   if (!message?.trim() || inferLucyAskedField(lastAssistantText) !== "correo") return false;
+  if (CANT_USE_EMAIL_AFTER_ASK_RE.test(message)) return true;
   return message.split(/\n+/).some((line2) => SHORT_NO_REPLY_RE.test(line2.trim()));
 }
 function detectEmailRefusalInContext(message, history = []) {
@@ -164499,7 +164515,7 @@ function buildOpeningAcknowledgment(history, currentMessage) {
   if (/baby\s*shower/.test(t4)) return "Claro que te ayudamos con tu baby shower.";
   if (/\bbautizo\b/.test(t4)) return "Con gusto te ayudo con la cotizaci\xF3n para tu bautizo.";
   if (isVagueFoodTerm(userText)) {
-    return "Para alimentos manejamos banquete, taquiza, brunch o coffee break \u2014 \xBFcu\xE1l te interesa?";
+    return "Con gusto te ayudo con la comida de tu evento.";
   }
   if (/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t4)) {
     const namedShows = parseNamedShowLabels(userText);
@@ -165436,6 +165452,9 @@ function emailRefusalAckMessage(extracted, history, currentMessage, entityId, fi
   if (pending && pending !== "correo") {
     return `${warm} ${buildNaturalQuestion(pending, ctx)}`;
   }
+  if (extracted.tipo_evento?.trim() || filledSet?.has("Tipo de evento")) {
+    return `${warm} ${buildContinueEngagementQuestion(extracted, currentMessage, history)}`;
+  }
   const tipoQ = buildNaturalQuestion("tipo_evento", ctx);
   return `${warm} ${tipoQ}`;
 }
@@ -166084,11 +166103,43 @@ function buildNameMismatchReplyIfNeeded(currentMessage, extracted, filledSet, wh
   }
   return null;
 }
+function foodModeChosenInHistory(history, currentMessage) {
+  const turns = [
+    ...history.filter((m6) => typeof m6.content === "string"),
+    ...currentMessage?.trim() ? [{ role: "user", content: currentMessage }] : []
+  ];
+  let lastAssistant = "";
+  let mode = null;
+  for (const m6 of turns) {
+    const text2 = m6.content;
+    if (m6.role === "assistant") {
+      lastAssistant = text2;
+      continue;
+    }
+    if (m6.role !== "user" || !FOOD_MODE_ASK_RE.test(lastAssistant)) continue;
+    if (clientChoseBanqueteFormal(text2)) mode = "formal";
+    else if (clientChoseCateringCasual(text2)) mode = "casual";
+  }
+  return mode;
+}
+function upgradeVagueFoodRequirement(value, label) {
+  const parts2 = (value ?? "").split(",").map((s7) => s7.trim()).filter(Boolean);
+  const vague = (p5) => /^(alimentos?|comidas?|catering|banquetes?|algo\s+de\s+comer)$/i.test(p5);
+  const kept = parts2.filter((p5) => !vague(p5));
+  return [label, ...kept.filter((p5) => p5.toLowerCase() !== label.toLowerCase())].join(", ");
+}
 function applyLucyMessageGuards(input) {
   const mensaje = applyLucyMessageGuardsRaw(input).replace(
     /^(¡?)Perfecto,\s+que\s+es\s+\*[^*\n]+\*\s*([!.])?\s*/i,
     (_m, open2) => open2 ? "\xA1Perfecto! " : "Perfecto. "
   );
+  {
+    const parts2 = (input.extracted.requerimientos_evento ?? "").split(",").map((s7) => s7.trim()).filter(Boolean);
+    const vague = (p5) => /^(alimentos?|comidas?|catering|banquetes?)$/i.test(p5);
+    if (parts2.some(vague) && parts2.some((p5) => !vague(p5) && hasSpecificFoodService(p5))) {
+      input.extracted.requerimientos_evento = parts2.filter((p5) => !vague(p5)).join(", ");
+    }
+  }
   const pending = getNextPendingField(input.extracted, input.filledSet);
   const hardPending = !!pending && pending !== "tipo_evento" && pending !== "presupuesto";
   const historyClosed = detectCierreEnviado(
@@ -166121,6 +166172,11 @@ function applyLucyMessageGuardsRaw(input) {
   let aiResponse = input.aiResponse;
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
+  if (emailRefusedThisTurn && !extracted.correo?.trim()) filledSet.add(EMAIL_WAIVED_LABEL);
+  if (extracted.nombre?.trim()) {
+    const sinTratamiento = stripNameHonorific(extracted.nombre);
+    if (sinTratamiento !== extracted.nombre.trim()) extracted.nombre = sinTratamiento || null;
+  }
   syncFilledFromExtracted(filledSet, extracted);
   syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage);
   syncHorarioFromHistory(filledSet, extracted, presHistory, currentMessage);
@@ -166151,6 +166207,14 @@ function applyLucyMessageGuardsRaw(input) {
     filledSet.delete(CRM_HORARIO_LABEL);
   }
   syncLegacyFechaHorarioField(extracted);
+  if (foodModeChosenInHistory(presHistory, currentMessage) === "formal" && (!extracted.requerimientos_evento?.trim() || needsAlimentosTipoClarification(extracted.requerimientos_evento))) {
+    extracted.requerimientos_evento = upgradeVagueFoodRequirement(
+      extracted.requerimientos_evento,
+      "Banquete Formal"
+    );
+    filledSet.add("Requerimientos o servicios");
+    log?.info({ entityId }, "GUARD: A16503 \u2014 eligi\xF3 formal \u2192 Banquete Formal");
+  }
   {
     const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
     if (clientSaidReunionNotXv(userBlob) || clientSaidReunionNotXv(currentMessage)) {
@@ -166817,6 +166881,7 @@ ${catalogUrl}`
       `${extracted.requerimientos_evento ?? ""} ${historyBlob}`
     );
     if (declinedObjects.length > 0) {
+      const reqAntes = extracted.requerimientos_evento ?? "";
       extracted.requerimientos_evento = removeSpecificDeclinedServices(
         extracted.requerimientos_evento,
         currentMessage
@@ -166825,7 +166890,8 @@ ${catalogUrl}`
       else filledSet.delete("Requerimientos o servicios");
       const labels = declinedServiceObjectLabels(declinedObjects).map((l6) => `*${l6}*`);
       const display = getDisplayName(extracted, whatsappDisplayName);
-      const ack = `Listo${display ? `, ${display}` : ""} \u2014 quito ${formatServicesList(labels)} de tu cotizaci\xF3n.`;
+      const estabaEnCotizacion = (extracted.requerimientos_evento ?? "") !== reqAntes;
+      const ack = estabaEnCotizacion ? `Listo${display ? `, ${display}` : ""} \u2014 quito ${formatServicesList(labels)} de tu cotizaci\xF3n.` : `Entendido${display ? `, ${display}` : ""}, sin ${formatServicesList(labels)}.`;
       let nextQ;
       if (cierreYaEnviado) {
         nextQ = "\xBFQuieres otra opci\xF3n en su lugar o lo dejamos as\xED?";
@@ -167612,10 +167678,11 @@ ${buildNaturalQuestion(pending, ctx)}` : consultative;
       }
     }
   }
-  const userBlobForServices = collectUserTexts(presHistory, currentMessage).map((t4) => clientCaptionForServiceParse(t4)).join(" ");
+  const userBlobForServices = collectUserTexts(presHistory, currentMessage).map((t4) => clientCaptionForServiceParse(t4)).join("\n");
   const servicesFromCurrentMessage = parseServicesFromText(captionForServices);
   const servicesFromTurnRaw = parseServicesFromText(
-    `${captionForServices} ${userBlobForServices}`
+    `${captionForServices}
+${userBlobForServices}`
   );
   const demoteVagueFood = (list) => {
     const withoutVague = list.filter(
@@ -170764,7 +170831,7 @@ function stripImageAnnotation(text2) {
   }
   return text2.replace(/\[imagen\s+adjunta:[^\]]*\]/gi, "").replace(/\[imagen\s+respuesta\s+cliente\]:\s*[^\n]*/gi, "").replace(/\[imagen\s+nota\s+interna\]:\s*[^\n]*/gi, "").replace(/\[imagen\s+intent\]:\s*[^\n]*/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
-var EMAIL_WAIVED_LABEL, WHATSAPP_NOMBRE_NOTE, EMAIL_REFUSAL_PATTERN, CLOSING_CORE_FIELDS, LUCY_INTRO, SERVICIOS_CATALOGO_HINT_ADICIONAL, OTRO_SERVICIO_ASK_PATTERN, CORREO_MAX_ASKS, FIELD_ASK_PATTERNS, CLOSING_SIGNATURE, SHORT_NO_REPLY_RE, INVITADOS_UNAVAILABLE_VALUE, _outboundFinalizeCtx, PISTA_TARIMA_VARIANTS, LUCY_TRANSITIONS, TRANSITION_START_PATTERN, FIELD_ORDER, SALES_CTA_NOT_FUNNEL, MINIMAL_SERVICE_PATTERN;
+var EMAIL_WAIVED_LABEL, WHATSAPP_NOMBRE_NOTE, EMAIL_REFUSAL_PATTERN, CANT_USE_EMAIL_AFTER_ASK_RE, CLOSING_CORE_FIELDS, LUCY_INTRO, SERVICIOS_CATALOGO_HINT_ADICIONAL, OTRO_SERVICIO_ASK_PATTERN, CORREO_MAX_ASKS, FIELD_ASK_PATTERNS, CLOSING_SIGNATURE, SHORT_NO_REPLY_RE, INVITADOS_UNAVAILABLE_VALUE, _outboundFinalizeCtx, PISTA_TARIMA_VARIANTS, LUCY_TRANSITIONS, TRANSITION_START_PATTERN, FIELD_ORDER, SALES_CTA_NOT_FUNNEL, MINIMAL_SERVICE_PATTERN, FOOD_MODE_ASK_RE;
 var init_lucy_flow_guards = __esm({
   "src/lucy-flow-guards.ts"() {
     "use strict";
@@ -170787,7 +170854,8 @@ var init_lucy_flow_guards = __esm({
     init_conversation_understanding();
     EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
     WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp \u2014 el cliente no lo escribi\xF3)";
-    EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
+    EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo|(?:por|x|xq|porque)\s+(?:el\s+)?(?:wh?ats?\s*ap+|wh?at?s?ap+|was+ap+|guas+ap+|wpp|whats)\b|mi\s+correo\s+no\s+(?:me\s+)?(?:permite|deja|abre|sirve|funciona|jala|carga)|no\s+(?:puedo|me\s+deja|me\s+permite)\s+(?:abrir|entrar|revisar|ver)\s+(?:a\s+)?(?:mi\s+|el\s+)?correo|no\s+reviso\s+(?:mi\s+|el\s+)?correo)/i;
+    CANT_USE_EMAIL_AFTER_ASK_RE = /\bno\s+(?:me\s+)?(?:permite|deja|puedo)\s+(?:abrir|entrar|ver|revisar)|\bmemoria\b.{0,30}\bllen[ao]\b|\bllen[ao]\b.{0,30}\bmemoria\b|\bno\s+(?:me\s+)?abre\b/i;
     CLOSING_CORE_FIELDS = [
       "Nombre del cliente",
       "Tipo de evento",
@@ -170905,6 +170973,7 @@ var init_lucy_flow_guards = __esm({
     ];
     SALES_CTA_NOT_FUNNEL = /detalles de alguno|cu[aá]l te late|cu[aá]l te interesa|cu[aá]l variante|revisar primero|te detallo ambas/i;
     MINIMAL_SERVICE_PATTERN = /\b((?:solo|so)\s+)?(mesas?\s+y\s+sillas?|sillas?\s+y\s+mesas?|renta\s+de\s+(mesas?|sillas?)|(?:solo|so)\s+(mesas?|sillas?|mobiliario))\b/i;
+    FOOD_MODE_ASK_RE = /\*formal\*[^?\n]{0,40}\*casual\*|\bformal\b[^?\n]{0,40}\bcasual\b|para \*?comida\*? del evento/i;
   }
 });
 
@@ -190203,15 +190272,15 @@ function isClient(t4) {
   const r5 = String(t4.role ?? "").toLowerCase();
   return r5 === "user" || r5 === "client" || r5 === "customer";
 }
-function normalizeText(t4) {
+function normalizeText2(t4) {
   return t4.toLowerCase().replace(/https?:\/\/\S+/g, "URL").replace(/\s+/g, " ").trim().slice(0, 280);
 }
 function extractUrls(t4) {
   return [...t4.match(URL_RE) ?? []].map((u5) => u5.replace(/[.,;!?)]+$/, ""));
 }
 function similar(a4, b5) {
-  const na2 = normalizeText(a4);
-  const nb = normalizeText(b5);
+  const na2 = normalizeText2(a4);
+  const nb = normalizeText2(b5);
   if (!na2 || !nb) return false;
   if (na2 === nb) return true;
   if (na2.length > 40 && nb.includes(na2.slice(0, 60))) return true;
@@ -190242,7 +190311,7 @@ function runAuditorHeuristics(turns) {
       findings.push({
         category: "repeat_reply",
         severity: "warn",
-        evidence: `Respuesta casi id\xE9ntica repetida: \xAB${normalizeText(assistants[i6].content).slice(0, 120)}\u2026\xBB`,
+        evidence: `Respuesta casi id\xE9ntica repetida: \xAB${normalizeText2(assistants[i6].content).slice(0, 120)}\u2026\xBB`,
         proposedRepair: "Anti-repeat: no volver a emitir el mismo cuerpo; avanzar embudo o dar detalle nuevo."
       });
       break;
@@ -235696,7 +235765,10 @@ function stripClientNameVocative(mensaje, clientName) {
   const first = clientName.trim().split(/\s+/)[0];
   if (!first || first.length < 2) return mensaje;
   const n5 = escapeRegExp(first);
-  return mensaje.replace(new RegExp(String.raw`,\s*${n5}\b(?=\s*[.,;:!?]|\s*$)`, "gi"), "").replace(new RegExp(String.raw`(^|\n)\s*${n5}\s*,\s*`, "gi"), "$1").replace(/[ \t]{2,}/g, " ").replace(/\s+([.,;:!?])/g, "$1").trim();
+  return mensaje.replace(
+    new RegExp(String.raw`,\s*(?:(?:sra|sr|srta|se[nñ]ora|se[nñ]or|do[nñ]a|don|lic|dra|dr)\.?\s+)?${n5}\b(?=\s*[.,;:!?]|\s*$)`, "gi"),
+    ""
+  ).replace(new RegExp(String.raw`(^|\n)\s*${n5}\s*,\s*`, "gi"), "$1").replace(/[ \t]{2,}/g, " ").replace(/\s+([.,;:!?])/g, "$1").trim();
 }
 function applyClientNameCadence(input) {
   const mensaje = input.mensaje ?? "";
@@ -235723,6 +235795,10 @@ function stripMidMessageFiller(mensaje) {
 function softenRobotAcks(mensaje) {
   if (!mensaje?.trim()) return mensaje;
   let out2 = mensaje;
+  out2 = out2.replace(
+    /^\s*¡?(?:Perfecto|Entendido|De\s+acuerdo|Listo|Claro)(?:,\s*[^.!?\n]{1,25})?[.!]\s+(?=¡?(?:Claro|Perfecto|Entendido|De\s+acuerdo|Listo|Va|Sale|No\s+te\s+preocupes|No\s+se\s+preocupe|Sin\s+problema|Con\s+gusto)\b)/i,
+    ""
+  );
   out2 = out2.replace(
     /\bPerfecto\.?\s*Anoto(\s+tu|\s+que\s+es)?\s+(\*[^*]{1,60}\*|[^.!?\n]{2,60})[.!]?\s*/gi,
     (_m, tu, what) => tu ? `\xA1Perfecto! Vamos con tu ${what}. ` : `\xA1Perfecto! Vamos con ${what}. `
@@ -235761,6 +235837,81 @@ init_serviceKnowledge();
 init_concreteProductQuestion();
 init_lucyInfoPriceCache();
 init_catalogService();
+
+// src/services/catalogLinkRepair.ts
+init_catalogWebKnowledge();
+var CATALOG_URL_RE = /https?:\/\/\S*(?:bodasesor|hostingersite)\.com\/catalogos\S*/i;
+var ORPHAN_LINK_RE = /(\b(?:aqu[ií]|ac[aá]|en\s+(?:este|el\s+siguiente|el)\s+(?:enlace|link|v[ií]nculo)|(?:este|el\s+siguiente)\s+(?:enlace|link)|en\s+(?:nuestro|el)\s+cat[aá]logo))[ \t]*:[ \t]*(?=[.,;]|¿|\n\s*¿|\s*$)[.,;]?[ \t]*/gi;
+var W_END = "(?![a-z\xE1\xE9\xED\xF3\xFA\xF1])";
+function clientAsksToSeeDishes(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  const food = new RegExp(`\\b(platillos?|platos?|men[u\xFA]s?|paquetes?|comida|banquete|tiempos)${W_END}`);
+  if (/\b(fotos?|fotograf[ií]as?|im[aá]genes?)\b/.test(t4) && food.test(t4)) return true;
+  return new RegExp(
+    `\\b(mu[e\xE9]str\\w*|mostrar\\w*|ense[n\xF1]\\w*|ver|conocer|manda\\w*|m[a\xE1]nd\\w*|env[i\xED]\\w*|pas\\w*me|traer\\w*|dame)${W_END}.{0,40}\\b(platillos?|platos?|paquetes?|men[u\xFA]s?)${W_END}`
+  ).test(t4) || new RegExp(`\\bpaquetes?\\s+de\\s+(platillos?|comida|men[u\xFA])${W_END}`).test(t4);
+}
+var GENERIC_SLUG_WORDS = /* @__PURE__ */ new Set(["comida", "barra", "mesa", "servicio", "puestos"]);
+function normalizeText(s7) {
+  return s7.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+}
+function resolveDishCatalog(contextTexts) {
+  for (const raw of contextTexts) {
+    const t4 = raw?.trim();
+    if (!t4 || t4.length > 400) continue;
+    const slug = resolveCatalogWebSlug(t4);
+    if (!slug) continue;
+    const norm2 = normalizeText(t4);
+    const distinctive = slug.split("-").filter((w5) => w5.length > 3 && !GENERIC_SLUG_WORDS.has(w5));
+    if (!distinctive.some((w5) => norm2.includes(w5.slice(0, 5)))) continue;
+    return { url: `${CATALOG_WEB_HUB}/${slug}`, title: getCatalogEmbed(slug)?.title ?? null };
+  }
+  return { url: CATALOG_WEB_HUB, title: null };
+}
+function repairOrphanCatalogLinks(text2, contextTexts) {
+  if (!text2?.trim()) return text2;
+  ORPHAN_LINK_RE.lastIndex = 0;
+  if (!ORPHAN_LINK_RE.test(text2)) return text2;
+  ORPHAN_LINK_RE.lastIndex = 0;
+  if (CATALOG_URL_RE.test(text2)) {
+    return text2.replace(ORPHAN_LINK_RE, (_m, intro) => `${intro}. `).replace(/\.\s*\./g, ".");
+  }
+  const { url: url2 } = resolveDishCatalog(contextTexts);
+  let used = false;
+  return text2.replace(ORPHAN_LINK_RE, (_m, intro) => {
+    if (used) return `${intro}. `;
+    used = true;
+    return `${intro}:
+${url2}
+
+`;
+  }).replace(/\n{3,}/g, "\n\n").trim();
+}
+function ensureDishCatalogLink(text2, opts) {
+  if (!text2?.trim() || !clientAsksToSeeDishes(opts.currentMessage) || CATALOG_URL_RE.test(text2)) return text2;
+  const { url: url2, title } = resolveDishCatalog(opts.contextTexts);
+  const block = title ? `Aqu\xED puedes ver los platillos y paquetes de *${title}*, con fotos:
+${url2}` : `Aqu\xED puedes ver nuestros men\xFAs y paquetes, con fotos:
+${url2}`;
+  const q3 = text2.match(/¿[^¿?]*\?\s*$/);
+  if (!q3) return `${text2.trim()}
+
+${block}`;
+  const before = text2.slice(0, q3.index);
+  const sentenceStart = Math.max(before.lastIndexOf(". "), before.lastIndexOf("! "), before.lastIndexOf("\n")) + 1;
+  const head = text2.slice(0, sentenceStart).trim();
+  const question = text2.slice(sentenceStart).trim();
+  return head ? `${head}
+
+${block}
+
+${question}` : `${block}
+
+${question}`;
+}
+
+// src/lucyOutboundPipeline.ts
 async function finalizeLucyOutboundMessage(input) {
   let mensaje = input.mensaje;
   mensaje = await maybeRefinarMensajeCierre(input.openai, mensaje, {
@@ -235877,6 +236028,22 @@ ${keepQ}` : ack;
     `${input.currentMessage ?? ""} ${input.extracted.requerimientos_evento ?? ""}`
   );
   mensaje = reorderLeadingCatalogUrls(mensaje);
+  {
+    const userTexts = (input.history ?? []).filter((m6) => m6.role === "user" && typeof m6.content === "string").map((m6) => m6.content);
+    const contextTexts = [
+      input.extracted.requerimientos_evento ?? "",
+      input.currentMessage ?? "",
+      ...userTexts.slice(-8).reverse()
+    ];
+    const repaired = ensureDishCatalogLink(repairOrphanCatalogLinks(mensaje, contextTexts), {
+      currentMessage: input.currentMessage,
+      contextTexts
+    });
+    if (repaired !== mensaje) {
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: A16503 \u2014 link de cat\xE1logo reparado/agregado");
+      mensaje = repaired;
+    }
+  }
   {
     const historyText = (role) => (input.history ?? []).filter((m6) => m6.role === role && typeof m6.content === "string").map((m6) => m6.content);
     const lucyTexts = historyText("assistant");
@@ -237996,6 +238163,16 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
       const idx = mergedLines.findIndex((l6) => /^-?\s*Tipo de evento:/i.test(l6));
       if (idx >= 0) mergedLines[idx] = `- Tipo de evento: ${restored}`;
       else mergedLines.push(`- Tipo de evento: ${restored}`);
+      filledSet.add("Tipo de evento");
+    }
+  }
+  if (/^evento\s+con\s+(catering|banquete)$/i.test(extracted.tipo_evento?.trim() ?? "")) {
+    const tipoReal = parseTipoEventoFromText(collectUserTexts(historyFull, currentMessage).join(" \n "));
+    if (tipoReal && !/^evento\s+con\b/i.test(tipoReal)) {
+      extracted.tipo_evento = tipoReal;
+      const idx = mergedLines.findIndex((l6) => /^-?\s*Tipo de evento:/i.test(l6));
+      if (idx >= 0) mergedLines[idx] = `- Tipo de evento: ${tipoReal}`;
+      else mergedLines.push(`- Tipo de evento: ${tipoReal}`);
       filledSet.add("Tipo de evento");
     }
   }

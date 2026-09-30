@@ -50,8 +50,9 @@ function isMesaDulcesDeclinePhrase(t: string): boolean {
 
 /** Palabras que el cliente usa al rechazar cada familia. */
 const FAMILY_DECLINE_WORDS: Record<DeclinedServiceFamily, string> = {
-  alimentos:
-    "comida|comidas|alimentos?|pizzas?|banquete|taquiza|catering|barra\\s+de\\s+pizzas?|brunch|parrillada|sushi|canap[eé]s?|bocadillos?|coffee\\s*break",
+  // A16503: SKUs con nombre ("no quiero taquiza") van por extractDeclinedServiceObjects,
+  // si no se borraba también el banquete que sí quiere.
+  alimentos: "comida|comidas|alimentos?|catering",
   bebidas: "bebidas?|barra\\s+de\\s+bebidas|cocteler[ií]a|m[oó]cteles?|mixolog[ií]a",
   mobiliario: "mobiliario|mobilairio|mibiliario|mobilario|sillas?|mesas?|periqueras?|salas?",
   carpas: "carpas?|capras?|toldos?|lonas?",
@@ -244,12 +245,18 @@ export function clientDeclinesServiceFamilies(
       `\\bque\\s+no\\s+(quiero|necesito)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
       "i"
     );
+    // A16503: "comida no quiero" / "la carpa no la necesito".
+    const reDespues = new RegExp(
+      `(?:^|[.,;!?\\n]\\s*|\\b(?:y|pero)\\s+)(?:la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\s+(?:ya\\s+)?no\\s+(?:l[oa]s?\\s+)?(quiero|queremos|necesito|necesitamos|requiero)\\b`,
+      "i"
+    );
     if (
       reNoQuiero.test(t) ||
       reYoNoQuiero.test(t) ||
       reQuitale.test(t) ||
       reSin.test(t) ||
-      reQueNo.test(t)
+      reQueNo.test(t) ||
+      reDespues.test(t)
     ) {
       out.add(family);
     }
@@ -302,6 +309,9 @@ export function clientDeclinesServiceFamiliesWithContext(
 
 const SPECIFIC_DECLINE_RE =
   /\b(?:(?:ya\s+)?no\s+(?:quiero|queremos|necesito|necesitamos|me\s+gusta|me\s+late)|qu[ií]ta(?:le|me|lo)?|quita(?:r|mos)?)\s+(?:el\s+|la\s+|los\s+|las\s+|lo\s+del?\s+|servicio\s+de\s+)?([a-záéíóúñü]+(?:\s+(?:y\s+|de\s+)?[a-záéíóúñü]+){0,2})/gi;
+/** A16503: "Taquiza no quiero" / "la barra de pizzas no la queremos". */
+const SPECIFIC_DECLINE_AFTER_RE =
+  /(?:^|[.,;!?\n]\s*|\b(?:y|pero)\s+)(?:el\s+|la\s+|los\s+|las\s+)?([a-záéíóúñü]+(?:\s+(?:de\s+)?[a-záéíóúñü]+){0,2})\s+(?:ya\s+)?no\s+(?:l[oa]s?\s+)?(?:quiero|queremos|necesito|necesitamos|me\s+gusta|me\s+late|me\s+interesa)\b/gi;
 
 /** Palabras que no nombran un servicio concreto ("no quiero dar mi correo", "sin prisa"). */
 const NOT_A_SERVICE_WORD =
@@ -346,7 +356,7 @@ export function extractDeclinedServiceObjects(
   if (clientDeclinesServiceFamilies(t).length > 0) return [];
   const existingWords = new Set(significantWords(existing ?? ""));
   const out: string[] = [];
-  for (const m of t.matchAll(SPECIFIC_DECLINE_RE)) {
+  for (const m of [...t.matchAll(SPECIFIC_DECLINE_RE), ...t.matchAll(SPECIFIC_DECLINE_AFTER_RE)]) {
     const obj = m[1]!.trim();
     if (!obj || NOT_A_SERVICE_WORD.test(obj)) continue;
     const words = significantWords(obj);

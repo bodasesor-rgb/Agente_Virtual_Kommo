@@ -18,6 +18,7 @@ import {
   buildCompanyIdentityReply,
   clientAsksLucyIdentity,
   buildLucyIdentityReply,
+  stripNameHonorific,
 } from "./contact-name.js";
 import {
   buildEmailConfirmationPrompt,
@@ -345,7 +346,11 @@ export const BODASESOR_EMAIL = "hola@bodasesor.com";
 export const WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp — el cliente no lo escribió)";
 
 const EMAIL_REFUSAL_PATTERN =
-  /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
+  /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo|(?:por|x|xq|porque)\s+(?:el\s+)?(?:wh?ats?\s*ap+|wh?at?s?ap+|was+ap+|guas+ap+|wpp|whats)\b|mi\s+correo\s+no\s+(?:me\s+)?(?:permite|deja|abre|sirve|funciona|jala|carga)|no\s+(?:puedo|me\s+deja|me\s+permite)\s+(?:abrir|entrar|revisar|ver)\s+(?:a\s+)?(?:mi\s+|el\s+)?correo|no\s+reviso\s+(?:mi\s+|el\s+)?correo)/i;
+
+/** A16503: tras pedir correo — "no me permite abrirlo", "no me deja entrar", "cel sin memoria". */
+const CANT_USE_EMAIL_AFTER_ASK_RE =
+  /\bno\s+(?:me\s+)?(?:permite|deja|puedo)\s+(?:abrir|entrar|ver|revisar)|\bmemoria\b.{0,30}\bllen[ao]\b|\bllen[ao]\b.{0,30}\bmemoria\b|\bno\s+(?:me\s+)?abre\b/i;
 
 /** Campos clave de cierre (correo es importante pero opcional si prefiere WhatsApp). */
 export const CLOSING_CORE_FIELDS = [
@@ -812,6 +817,7 @@ export function isShortNoToEmailAsk(
   lastAssistantText: string | null | undefined
 ): boolean {
   if (!message?.trim() || inferLucyAskedField(lastAssistantText) !== "correo") return false;
+  if (CANT_USE_EMAIL_AFTER_ASK_RE.test(message)) return true;
   return message.split(/\n+/).some((line) => SHORT_NO_REPLY_RE.test(line.trim()));
 }
 
@@ -3365,7 +3371,8 @@ export function buildOpeningAcknowledgment(
   if (/\bbautizo\b/.test(t)) return "Con gusto te ayudo con la cotización para tu bautizo.";
   // A14929: antes de "me interesa cotizar…", detectar banquetes/catering vago.
   if (isVagueFoodTerm(userText)) {
-    return "Para alimentos manejamos banquete, taquiza, brunch o coffee break — ¿cuál te interesa?";
+    // A16503: sin pregunta propia — el menú formal/casual que sigue ya pregunta.
+    return "Con gusto te ayudo con la comida de tu evento.";
   }
   if (/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t)) {
     const namedShows = parseNamedShowLabels(userText);
@@ -4960,6 +4967,10 @@ export function emailRefusalAckMessage(
   if (pending && pending !== "correo") {
     return `${warm} ${buildNaturalQuestion(pending, ctx)}`;
   }
+  // A16503: ya tenemos el tipo — no volver a preguntar "¿Qué van a celebrar?".
+  if (extracted.tipo_evento?.trim() || filledSet?.has("Tipo de evento")) {
+    return `${warm} ${buildContinueEngagementQuestion(extracted, currentMessage, history)}`;
+  }
   const tipoQ = buildNaturalQuestion("tipo_evento", ctx);
   return `${warm} ${tipoQ}`;
 }
@@ -6080,12 +6091,58 @@ function buildNameMismatchReplyIfNeeded(
  * A16244 / A16244b: invariante GLOBAL en TODAS las ramas.
  * Ningún WhatsApp de Lucy puede salir sin una pregunta que invite a seguir.
  */
+const FOOD_MODE_ASK_RE =
+  /\*formal\*[^?\n]{0,40}\*casual\*|\bformal\b[^?\n]{0,40}\bcasual\b|para \*?comida\*? del evento/i;
+
+/** Respuesta del cliente a "¿formal o casual?" (o al menú de comida) en el historial o este turno. */
+export function foodModeChosenInHistory(
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string | null
+): "formal" | "casual" | null {
+  const turns = [
+    ...history.filter((m) => typeof m.content === "string"),
+    ...(currentMessage?.trim() ? [{ role: "user" as const, content: currentMessage }] : []),
+  ];
+  let lastAssistant = "";
+  let mode: "formal" | "casual" | null = null;
+  for (const m of turns) {
+    const text = m.content as string;
+    if (m.role === "assistant") {
+      lastAssistant = text;
+      continue;
+    }
+    if (m.role !== "user" || !FOOD_MODE_ASK_RE.test(lastAssistant)) continue;
+    if (clientChoseBanqueteFormal(text)) mode = "formal";
+    else if (clientChoseCateringCasual(text)) mode = "casual";
+  }
+  return mode;
+}
+
+/** "Comida, Mobiliario" → "Banquete Formal, Mobiliario". */
+function upgradeVagueFoodRequirement(value: string | null | undefined, label: string): string {
+  const parts = (value ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const vague = (p: string) => /^(alimentos?|comidas?|catering|banquetes?|algo\s+de\s+comer)$/i.test(p);
+  const kept = parts.filter((p) => !vague(p));
+  return [label, ...kept.filter((p) => p.toLowerCase() !== label.toLowerCase())].join(", ");
+}
+
 export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   // A16477: "¡Perfecto, que es *comida*!" — acuse roto sin sujeto.
   const mensaje = applyLucyMessageGuardsRaw(input).replace(
     /^(¡?)Perfecto,\s+que\s+es\s+\*[^*\n]+\*\s*([!.])?\s*/i,
     (_m, open: string) => (open ? "¡Perfecto! " : "Perfecto. ")
   );
+  // A16503: "Banquete Formal, Alimentos" → sin la comida genérica si ya hay SKU concreto.
+  {
+    const parts = (input.extracted.requerimientos_evento ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+    const vague = (p: string) => /^(alimentos?|comidas?|catering|banquetes?)$/i.test(p);
+    if (parts.some(vague) && parts.some((p) => !vague(p) && hasSpecificFoodService(p))) {
+      input.extracted.requerimientos_evento = parts.filter((p) => !vague(p)).join(", ");
+    }
+  }
   // A16309: tipo/presupuesto pendientes NO invalidan el cierre para hooks post-cierre.
   const pending = getNextPendingField(input.extracted, input.filledSet);
   const hardPending =
@@ -6124,6 +6181,12 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
 
+  // A16503: rechazó el correo en este turno → ninguna red posterior lo vuelve a pedir.
+  if (emailRefusedThisTurn && !extracted.correo?.trim()) filledSet.add(EMAIL_WAIVED_LABEL);
+  if (extracted.nombre?.trim()) {
+    const sinTratamiento = stripNameHonorific(extracted.nombre);
+    if (sinTratamiento !== extracted.nombre.trim()) extracted.nombre = sinTratamiento || null;
+  }
   syncFilledFromExtracted(filledSet, extracted);
   syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage);
   syncHorarioFromHistory(filledSet, extracted, presHistory, currentMessage);
@@ -6160,6 +6223,19 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     filledSet.delete(CRM_HORARIO_LABEL);
   }
   syncLegacyFechaHorarioField(extracted);
+  // A16503: "Formal" tras "¿formal o casual?" → Banquete Formal (si no, se re-preguntaba en loop).
+  if (
+    foodModeChosenInHistory(presHistory, currentMessage) === "formal" &&
+    (!extracted.requerimientos_evento?.trim() ||
+      needsAlimentosTipoClarification(extracted.requerimientos_evento))
+  ) {
+    extracted.requerimientos_evento = upgradeVagueFoodRequirement(
+      extracted.requerimientos_evento,
+      "Banquete Formal"
+    );
+    filledSet.add("Requerimientos o servicios");
+    log?.info({ entityId }, "GUARD: A16503 — eligió formal → Banquete Formal");
+  }
   // A15443: "reunión de 15 años" ≠ XV — corregir CRM y el texto saliente (también early-return).
   {
     const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
@@ -7152,6 +7228,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       `${extracted.requerimientos_evento ?? ""} ${historyBlob}`
     );
     if (declinedObjects.length > 0) {
+      const reqAntes = extracted.requerimientos_evento ?? "";
       extracted.requerimientos_evento = removeSpecificDeclinedServices(
         extracted.requerimientos_evento,
         currentMessage
@@ -7160,7 +7237,10 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       else filledSet.delete("Requerimientos o servicios");
       const labels = declinedServiceObjectLabels(declinedObjects).map((l) => `*${l}*`);
       const display = getDisplayName(extracted, whatsappDisplayName);
-      const ack = `Listo${display ? `, ${display}` : ""} — quito ${formatServicesList(labels)} de tu cotización.`;
+      const estabaEnCotizacion = (extracted.requerimientos_evento ?? "") !== reqAntes;
+      const ack = estabaEnCotizacion
+        ? `Listo${display ? `, ${display}` : ""} — quito ${formatServicesList(labels)} de tu cotización.`
+        : `Entendido${display ? `, ${display}` : ""}, sin ${formatServicesList(labels)}.`;
       let nextQ: string | null;
       if (cierreYaEnviado) {
         nextQ = "¿Quieres otra opción en su lugar o lo dejamos así?";
@@ -8375,12 +8455,13 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       }
     }
   }
+  // A16503: un mensaje por línea — si no, "Taquiza no quiero" se pega al anterior y no se ve la negación.
   const userBlobForServices = collectUserTexts(presHistory, currentMessage)
     .map((t) => clientCaptionForServiceParse(t))
-    .join(" ");
+    .join("\n");
   const servicesFromCurrentMessage = parseServicesFromText(captionForServices);
   const servicesFromTurnRaw = parseServicesFromText(
-    `${captionForServices} ${userBlobForServices}`
+    `${captionForServices}\n${userBlobForServices}`
   );
   // A15727+: "solo alimentos" + paninis/pizza/… → quedarse con el SKU concreto.
   // A15893: conservar Mobiliario/periqueras junto al banquete (no tirar no-comida).

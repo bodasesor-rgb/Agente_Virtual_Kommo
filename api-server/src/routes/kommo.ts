@@ -776,6 +776,18 @@ function buildCrmContext(
     }
   }
 
+  // A16503: "evento con catering" es provisional — "Para una boda" lo reemplaza.
+  if (/^evento\s+con\s+(catering|banquete)$/i.test(extracted.tipo_evento?.trim() ?? "")) {
+    const tipoReal = parseTipoEventoFromText(collectUserTexts(historyFull, currentMessage).join(" \n "));
+    if (tipoReal && !/^evento\s+con\b/i.test(tipoReal)) {
+      extracted.tipo_evento = tipoReal;
+      const idx = mergedLines.findIndex((l) => /^-?\s*Tipo de evento:/i.test(l));
+      if (idx >= 0) mergedLines[idx] = `- Tipo de evento: ${tipoReal}`;
+      else mergedLines.push(`- Tipo de evento: ${tipoReal}`);
+      filledSet.add("Tipo de evento");
+    }
+  }
+
   purgeInvalidNombre(mergedLines, filledSet, extracted);
 
   function purgeOwnCompanyEmailFromCrm(): void {
