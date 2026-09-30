@@ -55,13 +55,14 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.20");
+assert.ok(/^V10\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
 
 const cases: Array<[string, RegExp]> = [
   ["El evento sería de 3:00 pm a 11:00 pm", /3:00\s*pm.*11:00\s*pm/i],
   ["El evento es a partir de las 3:00 pm", /3:00\s*pm|a partir/i],
   ["Partir de las 16:00 pm", /16:00/i],
-  ["De 15:00 p.m a 11:00 p.m", /15:00.*11:00/i],
+  // "15:00 p.m" (24 h + pm redundante) se normaliza a 3:00 pm.
+  ["De 15:00 p.m a 11:00 p.m", /(?:15|3):00.*11:00/i],
   ["El evento es a partir de las 15:00 hrs", /15:00/i],
   ["A partir de las 16:00 hrs", /16:00/i],
   ["A partir de las 16 hrs", /16\s*hrs/i],

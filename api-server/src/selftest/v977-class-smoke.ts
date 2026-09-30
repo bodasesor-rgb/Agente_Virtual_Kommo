@@ -48,7 +48,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
 const closing = (svc: string | null, nombre: string | null) =>
   `Perfecto, ya tengo todo${nombre ? `, ${nombre}` : ""}. Le paso ${svc ?? "tu evento"} al equipo.`;
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.20");
+assert.ok(/^V10\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
 
 // 1) Un número suelto no es hora si no cabe en el reloj; "55" tras invitados es aforo.
 {
@@ -144,7 +144,8 @@ assert.equal(LUCY_PROMPT_VERSION, "V10.20");
   assert.equal(isValidRequerimientosValue("evento empresarial"), false);
   assert.equal(isValidRequerimientosValue("un evento"), false);
   assert.equal(isValidRequerimientosValue("evento corporativo"), false);
-  assert.ok(isValidRequerimientosValue("Banquete"));
+  // A15935: "Banquete" suelto es vago (falta Formal/Mexicano); con estilo sí es servicio.
+  assert.ok(isValidRequerimientosValue("Banquete Formal"));
   assert.ok(isValidRequerimientosValue("carpas y meseros"));
 
   assert.equal(

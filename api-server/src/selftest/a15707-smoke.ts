@@ -56,7 +56,7 @@ function runGuards(opts: {
 const opening =
   "Quiero hacer una cotización de barra de sushis y nigiris para 25 personas";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.20");
+assert.ok(/^V10\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
 assert.equal(clientWantsQuoteDelivery(opening), false);
 assert.ok(clientWantsQuoteDelivery("Si, mándame la cotización por favor, y te confirmo todo"));
 

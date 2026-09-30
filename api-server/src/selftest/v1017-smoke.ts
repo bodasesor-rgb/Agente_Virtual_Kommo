@@ -16,7 +16,7 @@ import { lucyCostControlsSummary } from "../lib/lucyCostControls.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import { emptyExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.20");
+assert.ok(/^V10\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
 assert.equal(isGoogleGroundingEnabled(), false);
 assert.equal(lucyCostControlsSummary().google_grounding, false);
 

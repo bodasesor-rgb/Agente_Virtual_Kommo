@@ -1622,6 +1622,13 @@ export function buildInclusionTeamConfirmationAnswer(query: string): string | nu
  * `serviceHint` = requerimiento ya capturado (ej. "barra de bebidas") cuando el cliente
  * pregunta solo "qué incluye cada nivel" sin repetir el servicio.
  */
+/** "qué incluye cada nivel" / "Básica, Tradicional y Premium" — pide todos los niveles, no uno. */
+export function clientWantsAllInclusionLevels(query: string | null | undefined): boolean {
+  return /\bcada\s+(nivel|cosa|paquete|uno|una)|todos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada|qu[eé]\s+incluye\s+cada/i.test(
+    query ?? ""
+  );
+}
+
 export function resolveCatalogInclusionReply(
   query: string,
   serviceHint?: string | null
@@ -1643,19 +1650,19 @@ export function resolveCatalogInclusionReply(
   const specificItem = buildSpecificInclusionItemReply(query, serviceHint);
   if (specificItem) return specificItem;
 
-  const wantsAllLevels =
-    /\bcada\s+(nivel|cosa|paquete|uno|una)|todos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada|qu[eé]\s+incluye\s+cada/i.test(
-      query
-    );
+  const wantsAllLevels = clientWantsAllInclusionLevels(query);
 
   // PDF del panel primero (nivel concreto o servicio con detalle en Aprendizaje).
   const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
   const specificNivelAsk =
     /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(query);
+  // "cada nivel … Premium" con hint: buscar PDF por el servicio, no por "Premium" (Colgantes Premium).
   const fromPdfEarly =
-    buildPdfInclusionReply(query) ||
-    (!specificNivelAsk ? buildPdfInclusionReply(pdfQ) : null) ||
-    (!specificNivelAsk && serviceHint ? buildPdfInclusionReply(serviceHint) : null);
+    wantsAllLevels && serviceHint?.trim()
+      ? buildPdfInclusionReply(serviceHint)
+      : buildPdfInclusionReply(query) ||
+        (!specificNivelAsk ? buildPdfInclusionReply(pdfQ) : null) ||
+        (!specificNivelAsk && serviceHint ? buildPdfInclusionReply(serviceHint) : null);
   if (fromPdfEarly && !wantsAllLevels) {
     return fromPdfEarly;
   }
@@ -1663,11 +1670,12 @@ export function resolveCatalogInclusionReply(
     // Combinar overview de precios Sheet + un bloque PDF representativo.
     const priced = buildCatalogPriceAnswer(serviceHint) || buildCatalogServiceDetailAnswer(serviceHint);
     if (priced && /\$\s*\d/.test(priced)) {
+      if (/qu[eé]\s+incluye\s+cada\s+nivel/i.test(priced)) return priced;
       return collapseDuplicatedInclusionReply(
         `${priced}\n\nDetalle de un nivel (catálogo PDF):\n${fromPdfEarly}`
       );
     }
-    return fromPdfEarly;
+    return ensureCatalogWebLink(fromPdfEarly, serviceHint);
   }
 
   // "qué incluye cada nivel Básica/Tradicional/Premium" → detalle multi-nivel del servicio,

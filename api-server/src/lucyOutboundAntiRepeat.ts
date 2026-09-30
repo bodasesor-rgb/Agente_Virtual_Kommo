@@ -802,10 +802,15 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   // A16437: el tip de ideas ("pista grande… vals") no cuenta como menú previo, y el
   // menú solo alimentos / servicio completo con catálogo no es menú genérico.
   const isModalityMenu = /tenemos\s+dos\s+caminos|\*Solo alimentos\*|Cat[aá]logo de \*/i.test(mensaje);
+  // A16116: menú formal/casual de comida responde a "catering"; no es el menú genérico de servicios.
+  const FOOD_STYLE_MENU = /Para \*comida\* del evento|\*banquete\* m[aá]s formal/i;
+  const isFirstFoodStyleMenu =
+    FOOD_STYLE_MENU.test(mensaje) && !previous.some((p) => FOOD_STYLE_MENU.test(p));
   if (
     !cierre &&
     !isCatalogDetailReply &&
     !isModalityMenu &&
+    !isFirstFoodStyleMenu &&
     !applied.includes("catalog-resend-dedupe") &&
     SERVICES_MENU_PATTERN.test(mensaje) &&
     /¿/.test(mensaje) &&
@@ -815,7 +820,11 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     })
   ) {
     const qOnly = questionLines(mensaje).filter((l) => !SERVICES_MENU_PATTERN.test(l));
-    if (qOnly.length) {
+    if (FOOD_STYLE_MENU.test(mensaje)) {
+      // Menú de comida ya enviado: versión corta, sin perder de qué hablaba el cliente.
+      mensaje = "¿Te late más un *banquete* formal o algo *casual* tipo catering (barras, taquiza, pizzas…)?";
+      applied.push("services-menu-dedupe");
+    } else if (qOnly.length) {
       mensaje = qOnly[qOnly.length - 1]!;
       applied.push("services-menu-dedupe");
     }
@@ -851,7 +860,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
       const ack = mensaje.trim();
       mensaje =
         ack && /anotad|anoto|platicamos|principal/i.test(ack)
-          ? `${ack}\n\n${q}`
+          ? `${ack}\n\n${q.replace(/^(?:De acuerdo|Perfecto|Listo|Claro|Va)[.!,]\s+/i, "")}`
           : display && !q.includes(display)
             ? `Perfecto, ${display}. ${q}`
             : q;

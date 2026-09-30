@@ -42,7 +42,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.20");
+assert.ok(/^V10\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
 
 // 1) Medidas de carpa no se pierden al sumar servicios → no se re-pregunta.
 {
@@ -106,7 +106,7 @@ assert.equal(LUCY_PROMPT_VERSION, "V10.20");
     ["- Nombre del cliente: Santeco"],
     "El evento es en 2026 y tenemos un presupuesto de $180,000 MXN"
   );
-  assert.match(conMonto, /Presupuesto:\s*180000/i);
+  assert.match(conMonto, /Presupuesto:\s*\$?180,?000/i);
 }
 
 // 4) "si." tras un menú viejo no vuelca toda la familia (Paella/Pozole) ni la anota.

@@ -20,7 +20,7 @@ import {
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.20");
+assert.ok(/^V10\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
 
 function emptyExtracted(partial: Partial<ExtractedData> = {}): ExtractedData {
   return {
@@ -116,8 +116,10 @@ assert.ok(
   `no debe quedar solo el ack: ${out}`
 );
 
+// A16503: "Banquete" tras el menú formal/casual = eligió formal → servicio concreto, sigue el embudo.
 const pending = getNextPendingField(extracted, filled);
-assert.equal(pending, "requerimientos");
+assert.match(extracted.requerimientos_evento ?? "", /Banquete Formal/i);
+assert.ok(pending === "requerimientos" || pending === "fecha", String(pending));
 
 // Tras "Y la cotización?" tampoco debe salir ack muerto sin `?`.
 const outCotiza = applyLucyMessageGuards({

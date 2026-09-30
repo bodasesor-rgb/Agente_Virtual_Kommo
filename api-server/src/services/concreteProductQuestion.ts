@@ -28,7 +28,7 @@ export function buildInstagramPhotosLine(): string {
 
 /** Tipografía / typos de "catálogo" (CTALOGO, catalgo, catologo…). */
 export const CATALOG_WORD_RE =
-  /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b/i;
+  /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b|\bcata?lgos?\b|\bcatl[oó]gos?\b|\bcatalog[oa]s?\b/i;
 
 /** A15296: "centros de mesa" es floral — no renta de mesas/sillas. */
 function isCentrosDeMesaFloral(text: string): boolean {

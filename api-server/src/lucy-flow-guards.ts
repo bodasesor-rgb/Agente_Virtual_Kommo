@@ -57,6 +57,7 @@ import {
 import {
   buildCatalogPriceAnswer,
   resolveCatalogInclusionReply,
+  clientWantsAllInclusionLevels,
   buildCatalogComparisonAnswer,
   buildCatalogServiceDetailAnswer,
   catalogAnswerMatchesRequestedService,
@@ -95,6 +96,8 @@ import {
 import { resolveServiceFocusFromText } from "./services/serviceSynonyms.js";
 import {
   buildGuardServiceAck,
+  buildShowOptionsMenu,
+  SHOW_OPTIONS_ASK_PATTERN,
   buildMobiliarioRentDetailReply,
   parseMobiliarioRentItems,
 } from "./services/serviceKnowledge.js";
@@ -317,6 +320,7 @@ import {
   buildScopedServiceProposalAck,
   clientAsksHorarioExactitud,
   clientAsksDjClarification,
+  clientAsksDjInclusion,
   CRM_FECHA_LABEL,
   CRM_HORARIO_LABEL,
   LEGACY_CRM_FECHA_HORARIO_LABEL,
@@ -1068,8 +1072,9 @@ export function applyPresupuestoWaiver(
   );
   if (softDeferral || texts.some((t) => detectPresupuestoRefusal(t))) {
     const last = texts[texts.length - 1] ?? "";
-    const label =
-      /propuesta|opciones?/i.test(last) && !/\bno\s+(tengo|tenemos|cuento)\b/i.test(last)
+    const label = /\b(no\s+hay|sin)\s+l[ií]mite\b/i.test(last)
+      ? "Sin límite (cliente indicó flexibilidad)"
+      : /propuesta|opciones?/i.test(last) && !/\bno\s+(tengo|tenemos|cuento)\b/i.test(last)
         ? "Sin definir (cliente pidió que propongamos)"
         : "Sin definir (cliente indicó que no tiene)";
     mergedLines.push(`- Presupuesto (MXN): ${label}`);
@@ -1376,6 +1381,23 @@ function conversationAlreadyStarted(
 }
 
 /**
+ * V9.80: historial vacío pero el CRM ya trae invitados + fecha de turnos previos
+ * (no los dio este mensaje) → no es primer contacto; no re-presentarse.
+ */
+function crmAdvancedBeforeThisTurn(
+  filledSet: Set<string>,
+  extracted: ExtractedData,
+  currentMessage?: string
+): boolean {
+  return (
+    isFieldSatisfied("invitados", filledSet, extracted) &&
+    isFieldSatisfied("fecha", filledSet, extracted) &&
+    !parseFechaFromText(currentMessage ?? "") &&
+    !parseInvitadosFromText(currentMessage ?? "")
+  );
+}
+
+/**
  * Embudo con sustancia real (no solo saludo/nombre WA).
  * Clase A15707+: no decir "ya platicamos" ni cerrar cotización sin datos.
  */
@@ -1472,7 +1494,8 @@ function stripRepeatLucyIntro(
     .replace(/\bSoy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "")
     .replace(/¡?Hola!?\.?\s*Soy\s+Lucy[^.!?\n]{0,90}\.?/gi, "")
     .replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "")
-    .replace(/Con gusto te ayudo\.?\s*/gi, "")
+    // Solo la muletilla suelta; "Con gusto te ayudo a armar…" dejaba "a armar la cotización".
+    .replace(/Con gusto te ayudo(?:\.\s*|\s*$)/gi, "")
     .replace(/^\s+/, "")
     .trim();
 }
@@ -1797,11 +1820,9 @@ function buildPistaTarimaSalesReply(
       : `Perfecto — anoto medidas *${dimsLabel}* para la ${noun}.`;
     if (pending && pending !== "requerimientos" && ctx) {
       const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
-      return collapseDuplicateMedidasAsk(
-        `${pickTransition(history)} ${ack}\n\n${nextQ}`.trim()
-      );
+      return collapseDuplicateMedidasAsk(`${ack}\n\n${nextQ}`.trim());
     }
-    return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${ack}`.trim());
+    return collapseDuplicateMedidasAsk(ack.trim());
   }
 
   const reqLabel = variant
@@ -2223,10 +2244,7 @@ function buildEntertainmentSalesReply(
 
   // A16511: "Qué opciones tienes de show" / "Dónde puedo ver los shows" → opciones reales.
   // No hay catálogo web de shows: el hub genérico ("montajes, menús") no le sirve al cliente.
-  const asksShowOptions =
-    /\b(opciones|qu[eé]\s+(?:tienes|tienen|manejan|hay|ofrecen)|d[oó]nde\s+(?:puedo\s+|los\s+puedo\s+)?ver|ver\s+(?:los\s+)?shows?|cat[aá]logo|cu[aá]les\s+(?:tienes|tienen|hay|manejan))\b/i.test(
-      msg
-    );
+  const asksShowOptions = SHOW_OPTIONS_ASK_PATTERN.test(msg);
   const isGenericEntertainment =
     !wantsPhotoBooth &&
     !wantsSpecialAct &&
@@ -2249,20 +2267,7 @@ function buildEntertainmentSalesReply(
         "¿Cuál te late más: *hora loca*, *bailarines*, *robots LED*, *mariachi*, *photo booth* o *maestro de ceremonias*?"
       );
     }
-    return [
-      `Claro. Para ${eventLabel} manejamos estas opciones de entretenimiento:`,
-      "",
-      "• *Hora loca* y animación",
-      "• *Show de bailarines*",
-      "• *Robots LED* y batucada",
-      "• *Mariachi* o grupo versátil",
-      "• *Photo booth*",
-      "• *Maestro de ceremonias*",
-      "",
-      "Los shows no están en el catálogo web; el equipo te arma la propuesta con opciones y precios para tu evento.",
-      "",
-      "¿Cuál te llama más?",
-    ].join("\n");
+    return buildShowOptionsMenu(eventLabel);
   }
 
   let intro: string;
@@ -2500,10 +2505,12 @@ export function buildVagueFoodOptionsReply(
   const msg = currentMessage ?? "";
 
   // A15302: cumpleaños pequeño + "tu menú" → formal vs casual (sesgo casual), sin dump banquete.
+  // Getting ready: desayuno/brunch ligero (abajo), no banquete formal vs casual.
   if (
-    clientAsksForFoodMenu(msg) ||
-    isVagueFoodTerm(msg) ||
-    /\b(comidas?|alimentos?|catering|banquetes?)\b/i.test(msg)
+    !gettingReady &&
+    (clientAsksForFoodMenu(msg) ||
+      isVagueFoodTerm(msg) ||
+      /\b(comidas?|alimentos?|catering|banquetes?)\b/i.test(msg))
   ) {
     if (historyOfferedAlimentosModoMenu(history)) {
       if (clientChoseBanqueteFormal(msg)) {
@@ -2610,12 +2617,21 @@ function buildProgressiveDetailAfterMenu(opts: {
       );
       const queries = matchedQueries.length ? matchedQueries : familyQueries;
       const chunks: string[] = [];
+      // Varias variantes caen en el mismo PDF (Formal 3/4 tiempos) — un bloque por fuente, máx. 4.
+      const seenSources = new Set<string>();
       for (const q of queries) {
         const d =
           buildCatalogServiceDetailAnswer(q) ||
           buildCatalogPriceAnswer(q) ||
           attachAvailableSheetDetail(q, q);
-        if (d) chunks.push(d);
+        if (!d) continue;
+        const source = (
+          d.match(/Según el catálogo que ya tenemos de \*([^*]+)\*/i)?.[1] ?? d
+        ).toLowerCase();
+        if (seenSources.has(source)) continue;
+        seenSources.add(source);
+        chunks.push(d);
+        if (chunks.length >= 4) break;
       }
       const linkQ = queries[0] || family;
       const link = buildServicePlusGeneralCatalogReply({
@@ -2633,12 +2649,11 @@ function buildProgressiveDetailAfterMenu(opts: {
         if (merged) extracted.requerimientos_evento = merged;
       }
       if (chunks.length) {
-        const body = withServiceAndGeneralCatalogLinks(
-          chunks.join("\n\n"),
-          linkQ,
-          hint || linkQ
-        );
-        return `${pickTransition(history)} Claro, te paso el detalle de las opciones:\n\n${body}`.trim();
+        const joined = chunks
+          .map((c) => c.replace(/\n*¿Te late este nivel o quieres que te detalle otro\?\s*$/i, "").trim())
+          .join("\n\n");
+        const body = withServiceAndGeneralCatalogLinks(joined, linkQ, hint || linkQ);
+        return `${pickTransition(history)} Te paso el detalle de las opciones:\n\n${body}`.trim();
       }
       return `${pickTransition(history)} ${link}`.trim();
     }
@@ -3131,6 +3146,11 @@ export function dedupeTransitionsInMessage(mensaje: string): string {
       if (!seen) seen = key;
       return match;
     });
+  // "De acuerdo. Claro. En *banquete*…" / "Claro que sí. Claro." — dos acuses seguidos distintos.
+  out = out.replace(
+    /\b(Genial|Perfecto|Excelente|Listo|Claro que sí|Claro|De acuerdo|Con gusto)\.[ \t]+(?:Claro que sí|Claro|De acuerdo|Perfecto|Con gusto|Listo)\.[ \t]*/gi,
+    "$1. "
+  );
   out = squashInlineSpaces(out);
   // A15016 / V9.12: "Perfecto, X. Mucho gusto, X." / doble Mucho gusto.
   out = out.replace(
@@ -3509,6 +3529,10 @@ export function buildOpeningAcknowledgment(
   }
   if (isGettingReadyContext(userText)) return "Te ayudo con el catering para el getting ready.";
   // (isVagueFoodTerm se evalúa más arriba, antes de "me interesa cotizar")
+  // A15190: centros de mesa = decoración floral, no renta de mesas.
+  if (/\b(centros?|arreglos?)\s+(de\s+)?mesas?\b|\bcentros?\s+florales\b/i.test(t)) {
+    return "Con gusto te ayudo con los *centros de mesa* (decoración floral) para tu evento.";
+  }
   if (/\b(mesas?|sillas?|periqueras?|mobiliario|salas?\s*(lounge)?)\b/i.test(t)) {
     // A15910: mesa de dulces ≠ mobiliario.
     if (/\bmesas?\s+de\s+(dulces?|postres?|quesos?)\b/i.test(t)) {
@@ -3561,8 +3585,13 @@ export function buildFirstInteractionMessage(
   const userText = collectUserTexts(history, ctx.currentMessage).join(" ");
   const richBrief = isRichQuoteBrief(ctx.currentMessage) || isRichQuoteBrief(userText);
   const multiServices = parseServicesFromText(userText);
+  // A14967: "pista de baile o tarima" es una sola familia → menú de estilos, no dos SKUs.
+  const pistaTarimaOnly =
+    !richBrief &&
+    multiServices.length >= 1 &&
+    multiServices.every((s) => /^(pista de baile|tarima)s?$/i.test(s.trim()));
   const includeCatalog =
-    richBrief || multiServices.length >= 2;
+    !pistaTarimaOnly && (richBrief || multiServices.length >= 2);
 
   if (clientAsksLocation(ctx.currentMessage)) {
     const nameQ = pickVariant("nombre", history, ctx.entityId);
@@ -3612,7 +3641,9 @@ export function buildFirstInteractionMessage(
     !includeCatalog && !progressiveFirst && !vagueFoodFirst && requestedCatalogDetail && svcHint
       ? attachAvailableSheetDetail(svcHint, svcHint)
       : null;
-  const catalogBlock = includeCatalog
+  const catalogBlock = pistaTarimaOnly
+    ? `\n\n${buildPistaTarimaOptionsMenu(ctx.currentMessage, parseSpaceDimensions(ctx.currentMessage ?? ""))}`
+    : includeCatalog
     ? `\n\n${buildPackageCatalogOfferBlock(multiServices, userText)}`
     : vagueFoodFirst
       ? `\n\n${buildAlimentosModoMenu()}`
@@ -4219,6 +4250,7 @@ function rewriteRepeatedProductMenu(
   ctx: NaturalQuestionContext
 ): string {
   if (!currentMessage?.trim() || !looksLikeNivelOptionsDump(mensaje)) return mensaje;
+  if (parseServicesFromText(currentMessage).length >= 2) return mensaje;
   const lastAsst = [...history]
     .reverse()
     .find((m) => m.role === "assistant" && typeof m.content === "string");
@@ -4723,6 +4755,9 @@ export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionCo
   }
 
   if (field === "requerimientos") {
+    if (isBareBanqueteRequirement(ctx.extracted.requerimientos_evento) && !historyOfferedServiceOptionsMenu(history)) {
+      return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
+    }
     if (
       needsAlimentosTipoClarification(ctx.extracted.requerimientos_evento) ||
       isVagueFoodTerm(ctx.currentMessage)
@@ -4751,6 +4786,11 @@ export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionCo
   return prefix ? `${prefix}${variant}` : variant;
 }
 
+/** A15935: el cliente ya eligió banquete (sin variante) → toca Formal/Mexicano, no formal vs casual. */
+function isBareBanqueteRequirement(value: string | null | undefined): boolean {
+  return /^banquetes?$/i.test((value ?? "").trim());
+}
+
 /** A16238: Banquete/catering vago — re-preguntar formal vs casual (nunca ack sin `?`). */
 function buildBanqueteModoClarifier(prefix: string): string {
   return `${prefix}Para afinar el banquete/catering, ¿lo prefieres más *formal* (tiempos) o *casual* (taquiza / barras)?`.trim();
@@ -4765,6 +4805,10 @@ export function buildRequerimientosQuestion(
   const foodStillVague =
     needsAlimentosTipoClarification(extracted.requerimientos_evento) ||
     isVagueFoodTerm(currentMessage);
+
+  if (isBareBanqueteRequirement(extracted.requerimientos_evento) && !historyOfferedServiceOptionsMenu(history)) {
+    return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
+  }
 
   if (foodStillVague) {
     if (historyOfferedAlimentosModoMenu(history)) {
@@ -4901,10 +4945,14 @@ export function buildDimensionRecommendationReply(
     if (!parseSpaceDimensions(req)) {
       extracted.requerimientos_evento = `${req || "Pista de baile"} (ref. ${rec.dims})`;
     }
+    const itemLabel =
+      /\btarimas?\b/i.test(`${req} ${histHint}`) && !/\bpista\b/i.test(`${req} ${histHint}`)
+        ? "tarima"
+        : "pista";
     return (
-      `${greet}para ${guestLabel}, como referencia suele ir bien una pista de *${rec.dims}* ` +
+      `${greet}para ${guestLabel}, como referencia suele ir bien una ${itemLabel} de *${rec.dims}* ` +
       `(${rec.rationale}). Si el salón es más compacto podemos bajar un tamaño; ` +
-      `si quieren pista amplia, subimos un escalón. ¿Te late esa medida o ya tienes el espacio medido?`
+      `si la quieren más amplia, subimos un escalón. ¿Te late esa medida o ya tienes el espacio medido?`
     );
   }
 
@@ -5343,6 +5391,11 @@ export function ensureOutboundAlwaysAsks(
     return out;
   }
 
+  // A15391: handoff a asesor humano — no pegar invitados/ciudad encima de los teléfonos.
+  if (/canalizo con un asesor|Ya dejé tu caso listo para el equipo/i.test(out)) {
+    return out;
+  }
+
   // Conservador: si ya hay `?`, no tocar — excepto CTA vacío de niveles sin dato del embudo.
   if (/\?/.test(out)) {
     if (!opts.cierreYaEnviado && isSoftNivelDetailCta(out)) {
@@ -5703,6 +5756,14 @@ export function buildStandardClosingMessage(
   return parts.join("\n");
 }
 
+/** Lista de equipo con algo más que mesas/sillas/periqueras/bancos (bocinas, carpas…). */
+function isNonMobiliarioEquipmentListRfq(text: string | null | undefined): boolean {
+  if (!isEquipmentListRfq(text)) return false;
+  return parseEquipmentRfqLineItems(text ?? "").some(
+    (item) => !/\b(mesas?|sillas?|periqueras?|bancos?)\b/i.test(item)
+  );
+}
+
 /**
  * A14982: 2 servicios de comida con Sheet → dump de niveles/precios (no solo hub genérico).
  * RFQs largos / 3+ / sin precio en Sheet → null (cae a catálogo general).
@@ -5738,6 +5799,7 @@ export function buildMultiServiceSheetLevelsReply(
   if (list.length < 2) return null;
 
   const blocks: string[] = [];
+  const twoPathOptions: string[] = [];
   for (const svc of list) {
     const detail =
       buildCatalogServiceDetailAnswer(svc) || buildCatalogPriceAnswer(svc);
@@ -5747,16 +5809,48 @@ export function buildMultiServiceSheetLevelsReply(
     const cleanedDetail = detail
       .replace(/¿Quieres que te d[eé] detalles de alguno\??/gi, "")
       .replace(/¿Cu[aá]l nivel prefieres[^\n]*/gi, "")
+      .replace(/¿Cu[aá]l te late m[aá]s\??/gi, "")
       .replace(/\n{3,}/g, "\n\n")
       .trim();
+    if (/tenemos\s+dos\s+caminos/i.test(cleanedDetail)) {
+      twoPathOptions.push(
+        cleanedDetail
+          .split("\n")
+          .filter((l) => /^\s*\d+\.\s/.test(l))
+          .join("\n")
+      );
+    }
     blocks.push(`*${svc}*\n${cleanedDetail}`);
   }
 
   const ack = buildMultiServiceAck(list);
-  const body = [ack, "", blocks.join("\n\n———\n\n"), "", SERVICE_NIVEL_DETAIL_CTA].join(
-    "\n"
-  );
-  return withServiceAndGeneralCatalogLinks(body, list[0]!, list.join(" "));
+  // A14982: mismo menú solo/completo para ambos → un solo bloque, no repetido.
+  const sharedTwoPaths =
+    twoPathOptions.length === list.length &&
+    twoPathOptions[0] &&
+    twoPathOptions.every((o) => o === twoPathOptions[0]);
+  const body = sharedTwoPaths
+    ? [
+        ack,
+        "",
+        `Para ${list.map((s) => `*${s}*`).join(" y ")} tenemos dos caminos:`,
+        "",
+        twoPathOptions[0],
+        "",
+        "¿Cuál te late más para cada uno?",
+      ].join("\n")
+    : [ack, "", blocks.join("\n\n———\n\n"), "", SERVICE_NIVEL_DETAIL_CTA].join("\n");
+  const withLinks = withServiceAndGeneralCatalogLinks(body, list[0]!, list.join(" "));
+  const extraLinks = list
+    .slice(1)
+    .map((svc) => ({ svc, url: getCatalogWebUrlForQuery(svc) }))
+    .filter((x): x is { svc: string; url: string } => !!x.url && !withLinks.includes(x.url))
+    .map((x) => `Catálogo de *${x.svc}*:\n${x.url}`);
+  if (!extraLinks.length) return withLinks;
+  const generalIdx = withLinks.search(/\n\nIgual te env[ií]o el cat[aá]logo general/i);
+  return generalIdx >= 0
+    ? `${withLinks.slice(0, generalIdx)}\n\n${extraLinks.join("\n\n")}${withLinks.slice(generalIdx)}`
+    : `${withLinks}\n\n${extraLinks.join("\n\n")}`;
 }
 
 /** Ack de paquete + niveles Sheet (2 food SKUs) o catálogos mapeados (RFQ). */
@@ -6055,7 +6149,24 @@ function buildImageActionReply(
   if (pending && !isFieldSatisfied(pending, filledSet, extracted)) {
     const nextQ = buildNaturalQuestion(pending, ctx);
     if (nextQ && !mensajeAsksForField(action, pending)) {
-      return `${action} ${nextQ}`;
+      // Una sola pregunta por mensaje: la del embudo reemplaza la pregunta final de Vision.
+      const actionNoQ = action
+        .replace(/[,;]?\s*¿[^?]*\?\s*$/, ".")
+        .replace(/\.{2,}$/, ".")
+        .trim();
+      const captionServices = centros
+        ? [centros]
+        : caption
+          ? parseServicesFromText(caption).slice(0, 3)
+          : [];
+      const unmentioned = captionServices.filter(
+        (s) => !action.toLowerCase().includes(s.toLowerCase().split(/\s+\(/)[0]!)
+      );
+      const centrosNote = unmentioned.length
+        ? ` Anoto *${unmentioned.join(", ")}* para tu cotización.`
+        : "";
+      const q = nextQ.replace(/^(?:Con gusto|De acuerdo|Perfecto|Listo|Claro)[.!,]\s+/i, "");
+      return `${actionNoQ}${centrosNote} ${q}`.trim();
     }
   }
   return action;
@@ -6757,6 +6868,8 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   // — SIEMPRE ficha del SKU (también post-cierre). Nunca "Aquí seguimos" ni re-cierre.
   if (
     currentMessage &&
+    // A15296: foto + caption → rama de imagen (ack Vision + embudo).
+    !(!cierreYaEnviado && extractImageClientReply(currentMessage)) &&
     clientAsksNamedServiceDetail(currentMessage) &&
     !clientAsksPaymentOrQuoteDelivery(currentMessage)
   ) {
@@ -7135,6 +7248,10 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     !cierreYaEnviado &&
     currentMessage &&
     !looksLikeSupplierSearchNotVenue(currentMessage) &&
+    // A14985: brief RFQ con "Lugar: Club de Golf…" + servicios → rama multi-servicio.
+    parseServicesFromText(currentMessage).length < 2 &&
+    // A15550: "ya hay mesas, sillas… en el salón" = el salón suministra, no es la sede.
+    !(isVenueProvidesContext(currentMessage) && venueProvidedServiceLabels(currentMessage).length > 0) &&
     isVenueWithoutCity(currentMessage) &&
     !isUsableDireccionEvento(currentMessage)
   ) {
@@ -7215,10 +7332,18 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   const tipoPrevioNoComida = collectUserTexts(presHistory)
     .map((t) => parseTipoEventoFromText(t))
     .find((t) => !!t && !isEventTypeMealPhrase(t));
+  const tipoCrmNoComida =
+    !!extracted.tipo_evento?.trim() && !isEventTypeMealPhrase(extracted.tipo_evento);
   if (
     !cierreYaEnviado &&
     currentMessage &&
     !tipoPrevioNoComida &&
+    !tipoCrmNoComida &&
+    // A15295: "no quiero comoda" → "Comida" aclara el decline, no es tipo de evento.
+    !clientDeclinesServiceFamiliesWithContext(
+      currentMessage,
+      collectUserTexts(presHistory, undefined).slice(-4)
+    ).includes("alimentos") &&
     isEventTypeMealPhrase(currentMessage)
   ) {
     const tipo = parseTipoEventoFromText(currentMessage) || "comida";
@@ -7345,7 +7470,13 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       currentMessage,
       recentUserForDecline
     );
-    if (!cierreYaEnviado && currentMessage?.trim() && declineFamilies.length > 0) {
+    if (
+      !cierreYaEnviado &&
+      currentMessage?.trim() &&
+      declineFamilies.length > 0 &&
+      // A15550: "ya hay mesas… en el salón" → rama "el salón ya incluye" (más clara).
+      !(isVenueProvidesContext(currentMessage) && venueProvidedServiceLabels(currentMessage).length > 0)
+    ) {
       extracted.requerimientos_evento = removeDeclinedFamiliesFromRequirements(
         extracted.requerimientos_evento,
         declineFamilies
@@ -7420,7 +7551,10 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ =
         pending && pending !== "requerimientos"
-          ? buildNaturalQuestion(pending, ctx)
+          ? buildNaturalQuestion(pending, ctx).replace(
+              /^(?:De acuerdo|Perfecto|Listo|Claro|Con gusto|Va)[.!,]\s+/i,
+              ""
+            )
           : pending === "requerimientos"
             ? checklistMix
               ? "¿Algo más para la cotización?"
@@ -7503,6 +7637,13 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     !cierreYaEnviado &&
     currentMessage &&
     (() => {
+      // A14987: brief con piezas de mobiliario + dirección → rama RFQ, no solo ubicación.
+      if (isRichQuoteBrief(currentMessage)) return false;
+      // A15286: "CTALOGO DE SILLAS" es pedido de catálogo, no topónimo.
+      if (clientAsksForCatalog(currentMessage)) return false;
+      if (isMobiliarioRentalPedido(currentMessage) && parseMobiliarioRentItems(currentMessage).length >= 1) {
+        return false;
+      }
       const z = parseZonaFromText(currentMessage);
       if (!z || !isUsableDireccionEvento(z)) return false;
       const words = currentMessage.trim().split(/\s+/).length;
@@ -7588,7 +7729,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       isMobiliarioRentalPedido(currentMessage) &&
       parseMobiliarioRentItems(currentMessage).length >= 1 &&
       parseServicesFromText(currentMessage).filter((s) => !/mobiliario/i.test(s)).length === 0 &&
-      !isEquipmentListRfq(currentMessage)
+      !isNonMobiliarioEquipmentListRfq(currentMessage)
     )
   ) {
     // Primer contacto: intro SIEMPRE (A16228 — aunque el brief ya traiga nombre/correo).
@@ -7609,7 +7750,15 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       /\b(opci[oó]n\s*[123]|tres\s+propuestas|propuestas?\s+de\s+men[uú]|paquetes?|niveles?)\b/i.test(
         currentMessage
       ) ||
-      (isOpening && services.length >= 2);
+      (isOpening && services.length >= 2) ||
+      // A14985: RFQ con 2+ servicios a media charla → catálogos concretos si aún no se enviaron.
+      (services.length >= 2 &&
+        !presHistory.some(
+          (m) =>
+            m.role === "assistant" &&
+            typeof m.content === "string" &&
+            /bodasesor\.com\/catalogos/i.test(m.content)
+        ));
     const catalogBlock = wantsCatalog
       ? `\n\n${buildPackageCatalogOfferBlock(services, currentMessage)}`
       : "";
@@ -7633,30 +7782,34 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
         extracted.nombre
       );
       // A16228: si es primer outbound, presentar a Lucy antes del cierre.
-      const withIntro =
-        isOpening && !/soy\s+lucy/i.test(closeBody)
-          ? `${LUCY_INTRO} ${closeBody}`.trim()
-          : closeBody;
-      return normalizeAdvisorReferences(
-        withIntro,
+      const closeIntro = isOpening && !/soy\s+lucy/i.test(closeBody) ? `${LUCY_INTRO} ` : "";
+      return `${closeIntro}${normalizeAdvisorReferences(
+        closeBody,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
-      );
+      )}`.trim();
     }
     const nextQ = pendingAfter
-      ? buildNaturalQuestion(pendingAfter, ctx)
+      ? buildNaturalQuestion(pendingAfter, ctx).replace(
+          /^(?:De acuerdo|Perfecto|Listo|Claro|Va)[.!,]\s+/i,
+          ""
+        )
       : null;
     const intro = isOpening && !/hola,?\s*soy\s+lucy/i.test(ack) ? `${LUCY_INTRO} ` : "";
+    const catalogForBody = nextQ
+      ? catalogBlock.replace(/\n*¿Quieres que te d[eé] detalles de alguno\?\s*$/i, "")
+      : catalogBlock;
     const body = nextQ
-      ? `${intro}${ack}${catalogBlock}\n\n${nextQ}`.trim()
-      : `${intro}${ack}${catalogBlock}`.trim();
+      ? `${ack}${catalogForBody}\n\n${nextQ}`.trim()
+      : `${ack}${catalogForBody}`.trim();
     log?.info(
       { entityId, pending: pendingAfter, catalog: !!catalogBlock, opening: isOpening },
       "GUARD: A16228/V9.23 — RFQ rico: intro Lucy + ack + embudo"
     );
-    return normalizeAdvisorReferences(
+    // El sync del brief llena filledSet y la capa de salida quitaría la intro del 1er outbound.
+    return `${intro}${normalizeAdvisorReferences(
       body,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
-    );
+    )}`.trim();
   }
 
   // A15478: "¿me recomiendas el tamaño según invitados?" — referencia real, no ack vacío.
@@ -7664,7 +7817,9 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     !cierreYaEnviado &&
     currentMessage?.trim() &&
     clientAsksDimensionRecommendation(currentMessage) &&
-    requiredServiceDimensionsMissing(extracted)
+    (requiredServiceDimensionsMissing(extracted) ||
+      // "(ref. 8m x 8m)" es nuestra referencia, no medida del cliente: si vuelve a pedirla, responder.
+      /\(ref\.\s/i.test(extracted.requerimientos_evento ?? ""))
   ) {
     const dimReply = buildDimensionRecommendationReply(extracted, currentMessage);
     if (dimReply) {
@@ -7685,6 +7840,9 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     currentMessage?.trim() &&
     !isRichQuoteBrief(currentMessage) &&
     !extractImageClientReply(currentMessage) &&
+    // A15169: "¿Cuentan con catálogo de menú?" = hub general, no el SKU alucinado del CRM.
+    !clientAsksGenericMenuCatalog(currentMessage) &&
+    !clientWantsFullCatalog(currentMessage) &&
     clientAsksConcreteProductQuestion(currentMessage)
   ) {
     const serviceHintConcrete =
@@ -7744,9 +7902,16 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       lastAsstForContinue && typeof lastAsstForContinue.content === "string"
         ? (lastAsstForContinue.content as string)
         : null;
-    const shortYes = /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor)([.!?]|\s|$)/i.test(
-      (currentMessage ?? "").trim()
-    );
+    // A14987: "Sí por favor, me gustaría cotizar 50 mesas…" trae pedido, no es "sí" suelto.
+    const continueMsgCarriesRequest =
+      (currentMessage ?? "").trim().split(/\s+/).length > 5 &&
+      (parseServicesFromText(currentMessage ?? "").length > 0 ||
+        parseMobiliarioRentItems(currentMessage ?? "").length > 0);
+    const shortYes =
+      !continueMsgCarriesRequest &&
+      /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor)([.!?]|\s|$)/i.test(
+        (currentMessage ?? "").trim()
+      );
     const detalleCtaWithoutCatalog =
       !!lastContinueText &&
       /quieres que te d[eé] detalles de alguno/i.test(lastContinueText) &&
@@ -7754,6 +7919,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     if (
       !cierreYaEnviado &&
       currentMessage?.trim() &&
+      !continueMsgCarriesRequest &&
       (clientAffirmsEmbudoContinue(currentMessage, lastContinueText) ||
         (shortYes && detalleCtaWithoutCatalog))
     ) {
@@ -7908,6 +8074,8 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       !cierreYaEnviado &&
       currentMessage &&
       !bareNumberIsInvitados &&
+      // A14987: brief de renta ("recogerlo después de las 5 pm") ≠ horario del evento.
+      !isRichQuoteBrief(currentMessage) &&
       (lucyAskedHorario ||
         horarioPending ||
         takeHorarioDeferralReply ||
@@ -7934,18 +8102,36 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       } else {
       extracted.horario_evento = parsedHorario;
       filledSet.add(CRM_HORARIO_LABEL);
+      // "El 10 de octubre a partir de 4:00 pm": la fecha viene en el mismo mensaje.
+      const fechaJunto =
+        !defersHorario &&
+        fechaNow &&
+        isUsableFechaEvento(fechaNow) &&
+        (!filledSet.has(CRM_FECHA_LABEL) || isRicherFechaCapture(fechaNow, extracted.fecha_evento))
+          ? fechaNow
+          : null;
+      if (fechaJunto) {
+        extracted.fecha_evento = fechaJunto;
+        filledSet.add(CRM_FECHA_LABEL);
+      }
       syncLegacyFechaHorarioField(extracted);
       const display = getDisplayName(extracted, whatsappDisplayName);
+      const anotado = fechaJunto
+        ? `Anoto la fecha *${extracted.fecha_evento}* y el horario *${extracted.horario_evento}*.`
+        : `Anoto el horario *${extracted.horario_evento}*.`;
       const ack = defersHorario
         ? display
           ? `Entendido, ${display}. Dejamos el horario pendiente por ahora.`
           : "Entendido. Dejamos el horario pendiente por ahora."
         : display
-          ? `Perfecto, ${display}. Anoto el horario *${extracted.horario_evento}*.`
-          : `Perfecto. Anoto el horario *${extracted.horario_evento}*.`;
+          ? `Perfecto, ${display}. ${anotado}`
+          : `Perfecto. ${anotado}`;
       const pendingAfterHorario = getNextPendingField(extracted, filledSet);
       const nextQ = pendingAfterHorario
-        ? buildNaturalQuestion(pendingAfterHorario, ctx)
+        ? buildNaturalQuestion(pendingAfterHorario, ctx).replace(
+            /^(?:De acuerdo|Perfecto|Listo|Claro(?: que s[ií])?|Va)[.!,]\s+/i,
+            ""
+          )
         : null;
       log?.info({ entityId, pending: pendingAfterHorario, defersHorario }, "GUARD: A15419/A15566 — horario capturado + embudo");
       return normalizeAdvisorReferences(
@@ -8042,9 +8228,19 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   if (!cierreYaEnviado && currentMessage) {
     const scope = clientScopesServiceToProposalOption(currentMessage);
     if (scope) {
+      // "solo lo agregas en la casual": "lo" = servicio del turno anterior.
+      const recentForScope = presHistory
+        .slice(-3)
+        .map((m) => (typeof m.content === "string" ? m.content : ""))
+        .reverse();
       const service =
         parsePrimaryService(currentMessage) ||
-        (/\bdj\b/i.test(currentMessage) ? "DJ" : null);
+        (/\bdj\b/i.test(currentMessage) ? "DJ" : null) ||
+        (/\b(lo|la|los|las)\s+agreg/i.test(currentMessage)
+          ? recentForScope
+              .map((t) => (/\bdj\b/i.test(t) ? "DJ" : parsePrimaryService(t)))
+              .find(Boolean) ?? null
+          : null);
       if (service) {
         const scopedNote = `${service} (solo propuesta ${scope})`;
         const merged = mergeServiceRequirements(
@@ -8083,12 +8279,27 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     );
   }
 
+  // A15581: "opción de DJ ¿qué incluiría?" — responder el DJ, no el PDF del servicio del CRM.
+  if (!cierreYaEnviado && currentMessage && clientAsksDjInclusion(currentMessage)) {
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const ack =
+      `${display ? `Claro, ${display}. ` : "Claro. "}` +
+      "Nuestro servicio de *DJ* incluye equipo de audio completo, micrófono para brindis e iluminación básica; puedes mandar tu playlist. " +
+      "¿Quieres que lo sume a tu cotización?";
+    log?.info({ entityId }, "GUARD: A15581 — qué incluye el DJ");
+    return normalizeAdvisorReferences(ack, extracted.nombre ?? display);
+  }
+
   // A15627: "mándame la cotización" → cierre/equipo, NUNCA link genérico de catálogo.
   if (
     !cierreYaEnviado &&
     currentMessage &&
     clientWantsQuoteDelivery(currentMessage) &&
-    conversationAlreadyStarted(filledSet, presHistory)
+    conversationAlreadyStarted(filledSet, presHistory) &&
+    // "Quisiera una cotización para una pista…" pide cotizar un servicio nuevo, no el envío.
+    !parseServicesFromText(currentMessage).some(
+      (s) => !(extracted.requerimientos_evento ?? "").toLowerCase().includes(s.toLowerCase())
+    )
   ) {
     syncHorarioFromHistory(filledSet, extracted, presHistory, currentMessage);
     if (!filledSet.has("Presupuesto (MXN)")) {
@@ -8372,8 +8583,9 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(
         currentMessage ?? ""
       );
-    const pdfOnly =
-      (serviceHintEarly
+    const pdfOnly = clientWantsAllInclusionLevels(currentMessage)
+      ? null
+      : (serviceHintEarly
         ? buildPdfInclusionReply(`${serviceHintEarly} ${currentMessage ?? ""}`) ||
           buildPdfInclusionReply(serviceHintEarly)
         : null) ||
@@ -8803,6 +9015,8 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     !cierreYaEnviado &&
     currentMessage &&
     clientChoseSoloFoodStation(currentMessage) &&
+    // "Solo barra de pastas y pizzas" = solo esas estaciones, no modalidad solo alimentos.
+    parseServicesFromText(currentMessage).length < 2 &&
     (historyOfferedSoloVsCompletoMenu(presHistory) ||
       resolveSoloVsCompletoStationLabel(currentMessage) ||
       resolveSoloVsCompletoStationLabel(extracted.requerimientos_evento))
@@ -8913,13 +9127,20 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     (() => {
       const fechaNow = parseFechaFromText(currentMessage);
       if (!fechaNow || !isUsableFechaEvento(fechaNow)) return false;
-      const looksCorrection =
+      const fechaPrev = extracted.fecha_evento || extracted.fecha_horario || "";
+      const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      // Misma fecha ya capturada (p. ej. segundo RFQ que la repite) ≠ corrección.
+      if (fechaPrev && norm(fechaPrev).includes(norm(fechaNow))) return false;
+      const explicitCorrection =
         /perd[oó]n|correcci[oó]n|corrijo|la fecha|cambio (de )?fecha|actualiz|no (era|es)|mejor (el|la)/i.test(
           currentMessage
-        ) ||
-        /\b\d{1,2}\s+(?:de\s+)?(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
-          currentMessage
         );
+      const looksCorrection =
+        explicitCorrection ||
+        (currentMessage.length < 200 &&
+          /\b\d{1,2}\s+(?:de\s+)?(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+            currentMessage
+          ));
       return looksCorrection;
     })()
   ) {
@@ -8977,7 +9198,9 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     cierreYaEnviado &&
     (clientAsksProductAvailability(currentMessage) || clientAsksServiceInfo(currentMessage)) &&
     !clientAddsToQuote(currentMessage) &&
-    !clientDeclinesMoreServices(currentMessage)
+    !clientDeclinesMoreServices(currentMessage) &&
+    // Segundo RFQ completo (parrillada, meseros, mobiliario…) va al paquete, no a un solo SKU.
+    parseServicesFromText(currentMessage ?? "").length < 3
   ) {
     mensaje = buildGuardServiceAck(currentMessage ?? "");
     appliedDirectReply = true;
@@ -9194,7 +9417,13 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: A15815 — ack tras catálogo ya enviado (sin reenviar link)");
   } else if (
-    clientAsksForCatalog(currentMessage) ||
+    // "Sí" tras menú de opciones = quiere el detalle (rama de detalle), no solo links.
+    !(
+      isBareProgressiveAffirmation(currentMessage) &&
+      typeof lastAssistantMsg?.content === "string" &&
+      isProgressiveOptionsMenuReply(lastAssistantMsg.content)
+    ) &&
+    (clientAsksForCatalog(currentMessage) ||
     clientAffirmsCatalogOffer(
       currentMessage,
       lastAssistantMsg && typeof lastAssistantMsg.content === "string"
@@ -9225,7 +9454,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
           .map((m) => m.content as string)
           .find((t) => assistantOfferedCatalogDetail(t)) ?? null;
       return clientAffirmsCatalogOffer(currentMessage, recentOffer);
-    })()
+    })())
   ) {
     const wantFull =
       clientWantsFullCatalog(currentMessage) ||
@@ -9528,9 +9757,22 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     }
     const pending = getNextPendingField(extracted, filledSet);
     const ack = `Perfecto. Anoto tu *${tipo}*.`;
-    mensaje = pending
-      ? stripRepeatLucyIntro(`${ack} ${buildNaturalQuestion(pending, { ...ctx, filledSet })}`.trim(), presHistory, true)
-      : stripRepeatLucyIntro(ack, presHistory, true);
+    const eventOffer =
+      pending === "requerimientos"
+        ? preferEventOfferReply({
+            aiResponse,
+            extracted,
+            filledSet,
+            history: presHistory,
+            currentMessage,
+            entityId,
+          })
+        : null;
+    mensaje = eventOffer
+      ? stripRepeatLucyIntro(eventOffer, presHistory, true)
+      : pending
+        ? stripRepeatLucyIntro(`${ack} ${buildNaturalQuestion(pending, { ...ctx, filledSet })}`.trim(), presHistory, true)
+        : stripRepeatLucyIntro(ack, presHistory, true);
     appliedDirectReply = true;
     log?.info({ entityId, tipo }, "GUARD: A16046 — tipo de evento ≠ servicio catálogo");
   } else if (deferredKnownServiceOffer) {
@@ -9633,7 +9875,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       !clientMentionsCarpas(currentMessage) &&
       parseMobiliarioRentItems(currentMessage ?? "").length >= 1 &&
       servicesFromCurrentMessageConcrete.filter((s) => !/mobiliario/i.test(s)).length === 0 &&
-      !isEquipmentListRfq(currentMessage)
+      !isNonMobiliarioEquipmentListRfq(currentMessage)
     ) {
       if (
         extracted.direccion_evento &&
@@ -9734,17 +9976,20 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
           aiResponse.toLowerCase().includes(s.toLowerCase().split(/\s+/)[0]!)
         ).length >= Math.min(2, packageServices.length);
       const aiHasCatalog = /bodasesor\.com\/catalogos|cat[aá]logo/i.test(aiResponse);
+      // "Perfecto, actualizo estos servicios. ¿Algo más?" no aporta — no apilar otra pregunta.
+      const aiAddsInfo = aiResponse.replace(/¿[^?]*\?/g, "").trim().length > 60;
       mensaje = aiAlreadyLists && aiHasCatalog
         ? mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx)
         : mergeWithPendingQuestion(
-            `${packageReply}\n\n${aiAlreadyLists ? "" : aiResponse}`.trim(),
+            `${packageReply}\n\n${aiAlreadyLists || !aiAddsInfo ? "" : aiResponse}`.trim(),
             filledSet,
             extracted,
             ctx
           );
     } else {
+      const opensWithAck = /^(?:Perfecto|Claro|Listo|De acuerdo|Va|Genial)\b/i.test(packageReply.trim());
       mensaje = mergeWithPendingQuestion(
-        `${pickTransition(presHistory)} ${packageReply}`,
+        opensWithAck ? packageReply : `${pickTransition(presHistory)} ${packageReply}`,
         filledSet,
         extracted,
         ctx
@@ -9833,6 +10078,10 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
           ? concreteFromTurn || concreteFromHistory
           : null);
       if (!concreteFood || !foodFilter(concreteFood)) return false;
+      // "50 rollos que me los dejen en mi casa" es pedido a domicilio, no una barra montada.
+      if (!cierreYaEnviado && detectModoServicio(currentMessage) === "pedido_entrega") return false;
+      // Brief multi-servicio (coffee, desayuno, cena, staff…) no se reduce a un solo SKU.
+      if (parseServicesFromText(currentMessage).length >= 3) return false;
 
       // A15893: "periqueras y banquete" no es solo comida — deja el multi-path.
       if (
@@ -9862,9 +10111,14 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       }
       const display = getDisplayName(extracted, whatsappDisplayName);
       const soloCompleto = buildSoloVsCompletoOfferIfApplicable(label);
-      const catalogDetail = buildCatalogServiceDetailAnswer(label);
+      // V8.68 / V10.17: sin pedir precio → menú de opciones primero, detalle con $ tras elegir.
+      const optionsMenu = clientAsksPrice(currentMessage)
+        ? null
+        : shouldOfferOptionsBeforeDetail({ currentMessage, history: presHistory, serviceHint: label })
+            ?.menu.replace(/^(?:Claro|Perfecto|Listo)[.!,]\s+/i, "") ?? null;
+      const catalogDetail = optionsMenu ? null : buildCatalogServiceDetailAnswer(label);
       // A15893: no duplicar "Anoto X" + "¡Claro! X la anoto…".
-      const detail = soloCompleto || catalogDetail || null;
+      const detail = soloCompleto || optionsMenu || catalogDetail || null;
       const ack = display
         ? `Perfecto, ${display}. Anoto *${label}*.`
         : `Perfecto. Anoto *${label}*.`;
@@ -10125,9 +10379,19 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   } else if (
     (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
     !lucyHasPresented(presHistory) &&
-    !history.some((m) => m.role === "assistant")
+    !history.some((m) => m.role === "assistant") &&
+    (forceFirstPresentation || !conversationAlreadyStarted(filledSet, presHistory)) &&
+    !(!forceFirstPresentation && crmAdvancedBeforeThisTurn(filledSet, extracted, currentMessage))
   ) {
     mensaje = buildFirstInteractionMessage(ctx, true);
+    if (clientAsksPhone(currentMessage)) {
+      // "¿Tienen teléfono? Nadie contesta" en el primer mensaje: contestar antes de seguir el embudo.
+      const qIdx = mensaje.lastIndexOf("¿");
+      mensaje =
+        qIdx > 0
+          ? `${mensaje.slice(0, qIdx).trim()}\n\n${buildPhoneAnswer()}\n\n${mensaje.slice(qIdx).trim()}`
+          : `${mensaje.trim()}\n\n${buildPhoneAnswer()}`;
+    }
     appliedDirectReply = true;
     if (messageHasSheetServiceDetail(mensaje)) appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: A16228 — primer mensaje presentación Lucy (con o sin nombre)");
@@ -10653,7 +10917,12 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     if (
       shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) &&
       aiLooksLikeCarpasReply(aiResponse) &&
-      !/\b(Cathedral|Catedral|Pir[aá]mide|Planas?)\b/i.test(aiResponse)
+      !/\b(Cathedral|Catedral|Pir[aá]mide|Planas?)\b/i.test(aiResponse) &&
+      // A15907: "6x8" ya dio las medidas → no reenviar el ask de medidas del modelo.
+      !(
+        parseSpaceDimensions(currentMessage ?? "") &&
+        /necesito las medidas|cu[aá]nto mide|qu[eé] medidas/i.test(aiResponse)
+      )
     ) {
       mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
       appliedDirectReply = true;
@@ -10708,6 +10977,8 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     allowSalesReplyOverride &&
     !clientDeclinesServiceFamilies(currentMessage).includes("mobiliario") &&
     !/\bmesas?\s+de\s+(dulces?|postres?|quesos?)\b/i.test(currentMessage ?? "") &&
+    // A15190: centros/arreglos de mesa = decoración floral, no mobiliario.
+    !/\b(centros?|arreglos?)\s+(de\s+)?mesas?\b/i.test(currentMessage ?? "") &&
     !shouldSkipSalesMenuForConcreteQuestion(currentMessage) &&
     !clientAsksForCatalog(currentMessage) &&
     !isEventTypeMealPhrase(currentMessage) &&
@@ -11333,7 +11604,11 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
     } else if (aiResponse.trim() && mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
       const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-      mensaje = nextQ ?? aiResponse;
+      mensaje =
+        nextQ ??
+        (isReadyForClosing(filledSet)
+          ? buildClosing(extracted.requerimientos_evento ?? extracted.tipo_evento ?? null, extracted.nombre)
+          : "Entendido, sin problema. Nuestro equipo te propone opciones según lo que platicamos.");
       log?.info({ entityId }, "GUARD: GPT repitió dato ya capturado — siguiente paso");
     } else {
       const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
@@ -12002,7 +12277,8 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   const isOpeningTurn =
     (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) &&
     !lucyHasPresented(presHistoryForIntro) &&
-    !history.some((m) => m.role === "assistant");
+    !history.some((m) => m.role === "assistant") &&
+    !(!forceFirstPresentation && crmAdvancedBeforeThisTurn(filledSet, extracted, currentMessage));
   if (
     isOpeningTurn &&
     !/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)

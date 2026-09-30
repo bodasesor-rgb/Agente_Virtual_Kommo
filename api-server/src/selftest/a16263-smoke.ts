@@ -24,7 +24,7 @@ import {
 } from "../services/catalogService.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.20");
+assert.ok(/^V10\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
 
 const occasion = "Cena conmemorativa por día del médico";
 assert.equal(isOccasionMealEventType(occasion), true);

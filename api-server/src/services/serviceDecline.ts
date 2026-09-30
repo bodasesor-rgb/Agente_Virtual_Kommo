@@ -73,6 +73,14 @@ function captionOf(message?: string | null): string {
 export function isVenueProvidesContext(message?: string | null): boolean {
   const t = captionOf(message).toLowerCase();
   if (!t) return false;
+  // A15251: "¿La taquiza incluye meseros?" pregunta por el paquete, no dice que el salón lo trae.
+  if (
+    /[?¿]/.test(t) &&
+    !/\b(sal[oó]n|venue|lugar|local|sitio|jard[ií]n|hacienda|hotel|terraza)\b/i.test(t) &&
+    !/\bya\s+hay\b/i.test(t)
+  ) {
+    return false;
+  }
   return (
     /\b(sal[oó]n|venue|lugar|local|sitio)\b.{0,48}\b(suministra|provee|incluye|trae|cuenta\s+con|ya\s+tiene)\b/i.test(
       t
@@ -201,8 +209,9 @@ export function clientDeclinesServiceFamilies(
     out.add("entretenimiento");
   }
   // A16074: "pista no" / "no pista" / "no quiero pista de baile".
+  // A16046: "Es Pista\nNo carpa" = corrige carpa→pista (el "no" es de la carpa, otra línea).
   if (
-    /\bpista(\s+de\s+baile)?\s+no\b|\bno\s*,?\s*pista(\s+de\s+baile)?\b|\bno\s+quiero\s+pista\b/i.test(
+    /\bpista(?:[ \t]+de[ \t]+baile)?[ \t]+no\b(?![ \t]+(?:es[ \t]+)?(?:carpas?|lonas?|toldos?)\b)|\bno[ \t]*,?[ \t]*pista(?:[ \t]+de[ \t]+baile)?\b|\bno[ \t]+quiero[ \t]+pista\b/i.test(
       t
     )
   ) {

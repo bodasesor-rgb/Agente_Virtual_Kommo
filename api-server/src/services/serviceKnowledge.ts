@@ -292,6 +292,35 @@ export function buildLevel3Ack(serviceLabel: string): string {
   return `Tomo nota de tu solicitud especial (*${label}*). Nuestro equipo revisa disponibilidad y te confirma si podemos apoyarte.`;
 }
 
+/** A16511 / A15165: "qué shows tienen" / "info de los shows" → pide opciones, no un show concreto. */
+export const SHOW_OPTIONS_ASK_PATTERN =
+  /\b(opciones|info(?:rmaci[oó]n)?|qu[eé]\s+(?:tienes|tienen|manejan|hay|ofrecen)|d[oó]nde\s+(?:puedo\s+|los\s+puedo\s+)?ver|ver\s+(?:los\s+)?shows?|cat[aá]logo|cu[aá]les\s+(?:tienes|tienen|hay|manejan))\b/i;
+
+/** No hay catálogo web de shows: se listan por chat. */
+export function buildShowOptionsMenu(eventLabel = "tu evento"): string {
+  return [
+    `Claro. Para ${eventLabel} manejamos estas opciones de entretenimiento:`,
+    "",
+    "• *Hora loca* y animación",
+    "• *Show de bailarines*",
+    "• *Robots LED* y batucada",
+    "• *Mariachi* o grupo versátil",
+    "• *Photo booth*",
+    "• *Maestro de ceremonias*",
+    "",
+    "Los shows no están en el catálogo web; el equipo te arma la propuesta con opciones y precios para tu evento.",
+    "",
+    "¿Cuál te llama más?",
+  ].join("\n");
+}
+
+function isGenericShowOptionsAsk(query: string): boolean {
+  if (!SHOW_OPTIONS_ASK_PATTERN.test(query)) return false;
+  return !/\b(photo\s*booth|cabina|mariachi|folkl[oó]rico|baile\s+regional|batucada|robots?|bailarin\w*|dancers?|vedettes?|maestro\s+de\s+ceremonias?|\bmc\b|circo|mago|magia|payaso)\b/i.test(
+    query
+  );
+}
+
 export function buildGuardServiceAck(rawQuery: string): string {
   // A16484: "No quiero el entelado, ya lo tengo. Quiero un colgante…" → acusar solo el colgante.
   const query = stripExcludedServiceMentions(rawQuery) || rawQuery;
@@ -316,6 +345,7 @@ export function buildGuardServiceAck(rawQuery: string): string {
     /\bbailarin/i.test(label) ||
     /\bbailarin(?:es|as?|a)?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail/i.test(query)
   ) {
+    if (isGenericShowOptionsAsk(query)) return buildShowOptionsMenu();
     const male =
       /\bbailarines?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i.test(query) &&
       !/\bbailarinas?\b|\bvedettes?\b/i.test(query);
@@ -375,6 +405,20 @@ export function buildGuardServiceAck(rawQuery: string): string {
 
   const knownCatalogUrl =
     getCatalogWebUrlForQuery(query) || getCatalogWebUrlForQuery(label);
+  // A14938: "¿Hacen las pizzas en el evento?" — sí, barra/estación montada.
+  if (
+    /\bpizzas?\b/i.test(query) &&
+    /\b(hacen|preparan|cocinan|montan|sirven|elaboran|en\s+el\s+evento|en\s+vivo)\b/i.test(query)
+  ) {
+    const pizzaUrl = knownCatalogUrl || getCatalogWebUrlForQuery("barra de pizzas");
+    return (
+      "Sí: la *barra de pizzas* se monta en tu evento y se preparan al momento " +
+      "(estación con hornos/equipo según el paquete). " +
+      "También podemos sumar pastas u otras estaciones italianas si te interesa." +
+      (pizzaUrl ? `\nCatálogo de *Barra de pizzas*:\n${pizzaUrl}` : "")
+    );
+  }
+
   if (level === 1 || knownCatalogUrl) {
     // A15627 / A15547: cotizar o nombrar el servicio ≠ volcar Sheet/PDF con $.
     // Si el catálogo existe, NUNCA decir "no lo tengo listado" (A15961, todas las ramas).
@@ -392,18 +436,6 @@ export function buildGuardServiceAck(rawQuery: string): string {
     return buildKnownCatalogAck(label, query);
   }
   if (level === 3) return buildLevel3Ack(label);
-
-  // A14938: "¿Hacen las pizzas en el evento?" — sí, barra/estación montada.
-  if (
-    /\bpizzas?\b/i.test(query) &&
-    /\b(hacen|preparan|cocinan|montan|sirven|elaboran|en\s+el\s+evento|en\s+vivo)\b/i.test(query)
-  ) {
-    return (
-      "Sí: la *barra de pizzas* se monta en tu evento y se preparan al momento " +
-      "(estación con hornos/equipo según el paquete). " +
-      "También podemos sumar pastas u otras estaciones italianas si te interesa."
-    );
-  }
 
   // A15286: fotos / luz / capacidad de carpa → respuesta concreta (no solo medidas).
   {

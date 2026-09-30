@@ -2475,7 +2475,7 @@ export function clientNeedsEmergencyContact(message?: string): boolean {
  */
 /** "catálogo" + typos frecuentes (CTALOGO, catalgo, catologo…). */
 const CATALOG_TYPO_RE =
-  /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b/i;
+  /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b|\bcata?lgos?\b|\bcatl[oó]gos?\b|\bcatalog[oa]s?\b/i;
 
 export function clientAsksForCatalog(message?: string): boolean {
   if (!message?.trim()) return false;
@@ -2651,6 +2651,14 @@ export function clientAffirmsCatalogOffer(
   const alreadySentLink =
     /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(lastAssistantText ?? "");
   if (alreadySentLink && isThanksOnlyAck(t)) return false;
+  // A14982: "Si me puede cotizar la taquiza…" = condicional, no "sí".
+  if (
+    /^si\s+(?:me\s+|nos\s+|les?\s+|lo\s+|la\s+)?(?:pued|podr|quier|necesit|v[ií]\b|tien|cotiz|interes|gust|hac|agreg|sum)/i.test(
+      t
+    )
+  ) {
+    return false;
+  }
   // "Sí", "Si por favor", "claro que sí", "mande por favor", "sí mándamelo", etc.
   if (
     /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|p[aá]samelo)([.!?]|\s|$)/i.test(
@@ -2743,7 +2751,7 @@ const MONTH_PATTERN =
 
 /** Lexicón único de ciudad/metro MX — parsers, zona y anti-nombre (clase A15701+/A15775+). */
 const KNOWN_ZONES =
-  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|zapopan|tlaquepaque|san\s+pedro\s+tlaquepaque|tonal[aá]|tlajomulco(\s+de\s+z[uú][nñ]iga)?|el\s+salto|chapala|ajijic|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|teoloyucan|cuautitl[aá]n(\s+izcalli)?|zumpango|huehuetoca|coyotepec|tultepec|tultitl[aá]n|coacalco|tec[aá]mac|nextlalpan|tonanitla|jilotepec|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita|jalisco|huasca(\s+de\s+ocampo)?|real\s+del\s+monte|mineral\s+del\s+chico|tequisquiapan|bernal|taxco|tulancingo|actopan|ixmiquilpan|tepeji|amealco|tula(\s+de\s+allende)?)\b/i;
+  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|(?:jardines\s+del\s+)?pedregal(?:\s+de\s+san\s+[aá]ngel)?|(?:av(?:enida|\.)?\s+)?insurgentes\s+(?:sur|norte|centro)|iztapalapa|tlalpan|azcapotzalco|iztacalco|cuajimalpa|milpa\s+alta|tl[aá]huac|valle\s+de\s+chalco|chalco|ixtapaluca|texcoco|chimalhuac[aá]n|chicoloapan|metepec|zinacantepec|huixquilucan|tepotzotl[aá]n|teotihuac[aá]n|acolman|amecameca|tlalmanalco|ocoyoacac|san\s+mateo\s+atenco|tenancingo|malinalco|tepoztl[aá]n|oaxtepec|cocoyoc|xalapa|tampico|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|zapopan|tlaquepaque|san\s+pedro\s+tlaquepaque|tonal[aá]|tlajomulco(\s+de\s+z[uú][nñ]iga)?|el\s+salto|chapala|ajijic|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|pinotepa(?:\s+nacional)?|huatulco|juchit[aá]n|salina\s+cruz|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|teoloyucan|cuautitl[aá]n(\s+izcalli)?|zumpango|huehuetoca|coyotepec|tultepec|tultitl[aá]n|coacalco|tec[aá]mac|nextlalpan|tonanitla|jilotepec|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita|jalisco|huasca(\s+de\s+ocampo)?|real\s+del\s+monte|mineral\s+del\s+chico|tequisquiapan|bernal|taxco|tulancingo|actopan|ixmiquilpan|tepeji|amealco|tula(\s+de\s+allende)?)\b/i;
 
 /** `\b` de JS no trata á/é como letra — probar también sin diacríticos (Tonalá, León…). */
 function matchesKnownZone(text: string): boolean {
@@ -2767,8 +2775,9 @@ export function looksLikeMxMunicipalityToponym(text: string | null | undefined):
   if (!t || t.length > 56) return false;
   const words = t.split(/\s+/).filter(Boolean);
   if (words.length < 2 || words.length > 5) return false;
+  if (CATALOG_TYPO_RE.test(t)) return false;
   if (
-    /\b(barra|pizza|pasta|crepa|sushi|banquete|taquiza|catering|carpa|dj|mobiliario|mesa|silla|sal[oó]n|hotel|hacienda|club|expo|cabana|caba[nñ]a|venue|servicio|evento|correo|presupuesto|cotizaci[oó]n|cumplea[nñ]os?|cumple|boda|bautizo|xv|quincea[nñ]era|graduaci[oó]n|baby\s*shower|aniversario|posada|suegra|esposo|esposa|novio|novia|padrinos?|podr[ií]as?|darme|dame|dar(me)?|informaci[oó]n|ambos|ambas|opciones?|propuestas?|compartir|regalas?)\b/i.test(
+    /\b(barras?|pizzas?|pastas?|crepas?|sushi|banquetes?|taquizas?|catering|carpas?|dj|mobiliario|mesas?|sillas?|periqueras?|salas?|sal[oó]n|hotel|hacienda|club|expo|cabana|caba[nñ]a|venue|servicio|evento|correo|presupuesto|cotizaci[oó]n|cumplea[nñ]os?|cumple|boda|bautizo|xv|quincea[nñ]era|graduaci[oó]n|baby\s*shower|aniversario|posada|suegra|esposo|esposa|novio|novia|padrinos?|podr[ií]as?|darme|dame|dar(me)?|informaci[oó]n|ambos|ambas|opciones?|propuestas?|compartir|regalas?)\b/i.test(
       t
     )
   ) {
@@ -4299,6 +4308,16 @@ export function appendPostCierreRequirements(
   }
 
   const services = parseServicesFromText(t);
+  // A14938: "Entradas y postre" post-cierre — el postre suelto no lo mapea el parser.
+  const addPostre =
+    /\bpostres?\b/i.test(t) &&
+    !isTablewareRequestText(t) &&
+    !services.some((s) => /postre/i.test(s));
+  const withPostre = (value: string | null): string | null => {
+    if (!addPostre) return value;
+    if (!value) return "Postre";
+    return /\bpostres?\b/i.test(value) ? value : `${value}, Postre`;
+  };
   const hasServiceIntent =
     services.length > 0 ||
     clientAddsToQuote(t) ||
@@ -4316,8 +4335,9 @@ export function appendPostCierreRequirements(
   }
   if (services.length > 0) {
     const merged = mergeServiceRequirements(base || null, services.join(", "), 8);
-    return merged || base || null;
+    return withPostre(merged || base || null);
   }
+  if (addPostre) return withPostre(base || null);
 
   const snippet = t.replace(/\s+/g, " ").slice(0, 250);
   if (base && base.toLowerCase().includes(snippet.toLowerCase().slice(0, 40))) return base;
@@ -4972,6 +4992,20 @@ export function clientAsksDjClarification(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.trim();
   return /^\s*[¿?]*\s*de\s+alg[uú]n\s+dj\s*[¿?]*\s*$/i.test(t);
+}
+
+/** A15581: "opción de DJ ¿qué es lo que incluiría?" — pregunta qué trae el DJ (no otro servicio). */
+export function clientAsksDjInclusion(message?: string): boolean {
+  const t = message?.trim() ?? "";
+  if (!/\bdj\b|disc\s*jockey/i.test(t)) return false;
+  if (
+    !/qu[eé]\s+(?:es\s+lo\s+que\s+)?(?:incluir[ií]a|incluye|trae|traer[ií]a|lleva)|en\s+qu[eé]\s+consiste/i.test(
+      t
+    )
+  ) {
+    return false;
+  }
+  return parseServicesFromText(t).every((s) => /\bdj\b|audio|sonido/i.test(s));
 }
 
 /** A15566 / A15893 / A15918: cliente pospone horario ("aún no definidos", "No se sabe"). */
@@ -5951,6 +5985,14 @@ export function isDimensionText(text: string | null | undefined): boolean {
 export function isUsableDireccionEvento(value: string | null | undefined): boolean {
   const t = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
   if (!t) return false;
+  // Alcaldías/municipios con forma de nombre propio: válidos solo como valor de ubicación.
+  if (
+    /^(?:alcald[ií]a\s+|municipio\s+de\s+)?(?:benito\s+ju[aá]rez|cuauht[eé]moc|[aá]lvaro\s+obreg[oó]n|gustavo\s+a\.?\s+madero|venustiano\s+carranza|magdalena\s+contreras|miguel\s+hidalgo|nicol[aá]s\s+romero|lerma)(?:\s*,.*)?$/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
   // A16244: "techo" / pieza arquitectónica ≠ sede del evento.
   if (/^(el\s+)?techos?$/i.test(t)) return false;
   if (
@@ -6084,7 +6126,10 @@ export function clientCorrectsLocation(text: string | null | undefined): boolean
     /\bes\s+un\s+patio\b/i.test(t) ||
     /\bpatio\s+techado\b/i.test(t) ||
     // A15419: "el evento es en CDMX" / "no Puebla… es en CDMX"
-    /\bel\s+evento\s+(es|ser[ií]a|queda)\s+en\b/i.test(t) ||
+    // V9.75: "el evento es en 2026 / en octubre" = cuándo, no dónde.
+    /\bel\s+evento\s+(es|ser[ií]a|queda)\s+en\b(?!\s+(?:(?:19|20)\d{2}\b|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))/i.test(
+      t
+    ) ||
     /\bno\s+(es\s+)?(en\s+)?(puebla|monterrey|guadalajara|quer[eé]taro)\b.{0,80}\b(cdmx|ciudad\s+de\s+m[eé]xico)\b/i.test(
       t
     ) ||
@@ -6688,8 +6733,17 @@ export function parseZonaFromText(text: string): string | null {
     if (realVenue?.[1] && isUsableDireccionEvento(realVenue[1])) return realVenue[1].trim();
     return null;
   }
+  // A15509: "PINOTEPA:" encabezando una lista de mesas/sillas — el filtro de productos la descartaría.
+  const knownPlaceHeader = trimmed.match(/^([A-Za-zÁÉÍÓÚ][A-Za-záéíóúñÁÉÍÓÚ\s.-]{2,35})\s*:\s*/)?.[1]?.trim();
+  if (knownPlaceHeader && new RegExp(`^(?:${KNOWN_ZONES.source})$`, "i").test(knownPlaceHeader)) {
+    return knownPlaceHeader;
+  }
   // A15443: "en hora de comida/fomida" ≠ zona del evento.
   if (looksLikeMealTimeNotLocation(trimmed)) return null;
+  // A14947: "De tres tiempos" es el menú del banquete, no una ubicación.
+  if (/\b(?:\d|uno|un|dos|tres|cuatro|cinco)\s+tiempos?\b/i.test(trimmed) && !KNOWN_ZONES.test(trimmed)) {
+    return null;
+  }
   // "sala: Luxor Rosa" / producto de mobiliario ≠ zona del evento.
   if (isLikelyProductNameNotLocation(trimmed)) return null;
   if (/\bsala\s*:/i.test(trimmed)) return null;
@@ -6737,6 +6791,10 @@ export function parseZonaFromText(text: string): string | null {
     if (
       place.length >= 3 &&
       !/^(tipo|fecha|horario|lugar|servicios|requerimientos|ubicaci[oó]n)$/i.test(place) &&
+      // A15298: "Número estimado de asistentes: 60" es un campo del brief, no un lugar.
+      !/\b(n[uú]mero|estimad[oa]s?|asistentes|invitados|personas|evento|presupuesto|nombre|correo|tel[eé]fono|contacto|hora|d[ií]a|servicios?|requerimientos?|cantidad|total|notas?)\b/i.test(
+        place
+      ) &&
       isUsableDireccionEvento(place)
     ) {
       return place;
@@ -7166,7 +7224,16 @@ export function parseFechaFromText(text: string): string | null {
 
   // A15941: "10/10" / "10-10-2026"
   const numeric = trimmed.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
-  if (numeric) {
+  // A15391: "horario 9-12" / "de 9-12" / "9-12 pm" es rango de horas, no 9 de diciembre.
+  const numericIsTimeRange =
+    !!numeric &&
+    !numeric[3] &&
+    numeric[0].includes("-") &&
+    (/\b(horario|hora|horas|de|desde|las)\s*$/i.test(trimmed.slice(0, numeric.index)) ||
+      /^\s*(?:am|pm|a\.?\s?m\.?|p\.?\s?m\.?|hrs?|horas?)\b/i.test(
+        trimmed.slice((numeric.index ?? 0) + numeric[0].length)
+      ));
+  if (numeric && !numericIsTimeRange) {
     const d = Number(numeric[1]);
     const m = Number(numeric[2]);
     if (d >= 1 && d <= 31 && m >= 1 && m <= 12) {
@@ -7220,12 +7287,12 @@ export function parseFechaFromText(text: string): string | null {
     return trimmed.slice(0, 80);
   }
 
-  // A15391: "día no, horario 9-12 y después 3-4pm"
+  // A15391: "día no, horario 9-12 y después 3-4pm" → el horario va a su campo; el día sigue pendiente.
   if (
     /\b(d[ií]a\s+no|sin\s+d[ií]a|a[uú]n\s+no\s+(hay|tenemos)\s+d[ií]a)\b/i.test(trimmed) &&
     /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–a]|hasta)\s*\d{1,2}/i.test(trimmed)
   ) {
-    return trimmed.replace(/\s+/g, " ").trim().slice(0, 80);
+    return "Sin definir (pendiente)";
   }
   // Horario suelto con la palabra "horario" pero sin día → no es fecha completa.
   if (
@@ -7655,6 +7722,15 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
     return "Sin definir (cliente pidió que propongamos)";
   }
 
+  // A15486: "No, no hay límite de presupuesto" = flexible (va antes del rechazo por el "No").
+  if (
+    /\bno\s+hay\s+l[ií]mite(\s+de\s+presupuesto)?\b/i.test(trimmed) ||
+    /\bsin\s+l[ií]mite(\s+de\s+presupuesto)?\b/i.test(trimmed) ||
+    /\bpresupuesto\s+sin\s+l[ií]mite\b/i.test(trimmed)
+  ) {
+    return "Sin límite (cliente indicó flexibilidad)";
+  }
+
   if (detectPresupuestoRefusal(trimmed)) {
     return "Sin definir (cliente indicó que no tiene)";
   }
@@ -7672,15 +7748,6 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
 
   if (/\b(poquito|lo\s+que\s+sea\s+necesario|flexible|lo\s+que\s+se\s+necesite)\b/i.test(trimmed)) {
     return "Flexible (sin monto fijo)";
-  }
-
-  // A15486: "no hay límite de presupuesto" ≠ año 2027.
-  if (
-    /\bno\s+hay\s+l[ií]mite(\s+de\s+presupuesto)?\b/i.test(trimmed) ||
-    /\bsin\s+l[ií]mite(\s+de\s+presupuesto)?\b/i.test(trimmed) ||
-    /\bpresupuesto\s+sin\s+l[ií]mite\b/i.test(trimmed)
-  ) {
-    return "Sin límite (cliente indicó flexibilidad)";
   }
 
   if (opts?.askedField === "presupuesto" && /^(no|nop)[\s.,!]*$/i.test(trimmed)) {
@@ -7876,6 +7943,12 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
       if (!isNaN(num) && looksLikeCalendarYearAmount(num, trimmed) && !/\$/.test(trimmed)) {
         return null;
       }
+      // "El evento es en 2026 y tenemos un presupuesto de $180,000": el año no es el monto.
+      const dollarAmount = trimmed.match(/\$\s*([\d][\d,.]{3,})/);
+      if (dollarAmount && /\b(19|20)\d{2}\b/.test(trimmed.replace(dollarAmount[0], " "))) {
+        const n = parseInt(dollarAmount[1]!.replace(/[,.]/g, ""), 10);
+        if (!isNaN(n) && n >= 1000) return `$${n.toLocaleString("es-MX")} MXN`;
+      }
       return trimmed.slice(0, 80);
     }
   }
@@ -7988,9 +8061,11 @@ export function captureContextualAnswer(
       /^en\s+/i.test(msg.trim()) ||
       (msg.trim().split(/\s+/).length <= 8 &&
         (hasCityOrMetroSignal(msg) || KNOWN_ZONES.test(msg))));
+  // Tras pedir nombre solo cuenta con señal fuerte ("en Tlalnepantla"); "Guadalupe" puede ser nombre.
+  const strongPlaceSignal = /^en\s+/i.test(msg.trim()) || isLikelyUbicacionNotNombre(msg);
   const msgIsLocation =
     !carpaVariant &&
-    asked !== "nombre" &&
+    (asked !== "nombre" || strongPlaceSignal) &&
     msgLooksLikePlace &&
     !looksLikePersonFullName(msg);
 
@@ -8188,9 +8263,9 @@ export function captureContextualAnswer(
     }
   }
 
-  if (!filledSet.has("Fecha y horario") && asked === "fecha") {
+  if (!filledSet.has(CRM_FECHA_LABEL) && asked === "fecha") {
     const fecha = parseFechaFromText(msg);
-    if (fecha) captures.push({ label: "Fecha y horario", value: fecha });
+    if (fecha) captures.push({ label: CRM_FECHA_LABEL, value: fecha });
   }
 
   // A15210: si corrige ubicación, anotar lugar (aunque el campo ya esté lleno) y no presupuesto.
@@ -8287,11 +8362,11 @@ export function scanConversationForCaptures(
       }
     }
 
-    if (!pending.has("Fecha y horario")) {
+    if (!pending.has(CRM_FECHA_LABEL)) {
       const fecha = parseFechaFromText(msg);
       if (fecha) {
-        captures.push({ label: "Fecha y horario", value: fecha });
-        pending.add("Fecha y horario");
+        captures.push({ label: CRM_FECHA_LABEL, value: fecha });
+        pending.add(CRM_FECHA_LABEL);
       }
     }
 

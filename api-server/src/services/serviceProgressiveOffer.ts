@@ -523,7 +523,8 @@ function fold(s: string): string {
 /** Primer paso cuando el cliente dice comida/banquetes/catering sin estilo. */
 export function buildAlimentosModoMenu(): string {
   return [
-    "Claro. Para *comida* del evento, ¿qué te gustaría?",
+    // Sin "Claro." inicial: quien llama ya antepone su acuse ("Perfecto.", "De acuerdo.").
+    "Para *comida* del evento, ¿qué te gustaría?",
     "• Un *banquete* más formal (servicio a la mesa, varios tiempos)",
     "• Algo más *casual* tipo catering — por ejemplo: barra de pastas y ensaladas, barra de pizzas, taquiza, sushi…",
     "",
@@ -780,6 +781,13 @@ export function isProgressiveOptionsMenuReply(text: string | null | undefined): 
   const t = text;
   // V8.92: formal vs casual / pieza de mobiliario / modelos de sillas.
   if (isAlimentosModoMenuReply(t) || isMobiliarioPieceMenuReply(t) || isSillasModelMenuReply(t)) {
+    return true;
+  }
+  // Menú de familia con viñetas: el embudo puede cambiar el cierre y el dedupe quitar "Claro.".
+  if (
+    /\ben\s+\*[^*\n]+\*\s+manejamos\s+varias\s+opciones\s*:/i.test(t) &&
+    (t.match(/^\s*•\s+\S/gm) ?? []).length >= 2
+  ) {
     return true;
   }
   // Menú corto de familia: "Claro. En *banquete/taquiza/…*"
@@ -1267,6 +1275,10 @@ export function resolveProgressiveDetailQuery(opts: {
       )
     ) {
       return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
+    }
+    // A15168: "quiero ver las opciones" tras el menú → detalle de la familia (no quedarse vacío).
+    if (/\bver\s+(?:las\s+|los\s+)?(?:opciones|paquetes|niveles)\b/i.test(msg)) {
+      return resolveDetailQueryForFamily(family, hint || userBlob) || hint || null;
     }
   }
   return null;

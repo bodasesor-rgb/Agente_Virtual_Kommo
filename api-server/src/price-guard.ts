@@ -130,21 +130,32 @@ export function getPriceServiceLabel(text: string): string {
 
 /** Quita oraciones con montos inventados. */
 export function stripPriceSentences(mensaje: string): string {
-  const sentences = mensaje.split(/(?<=[.!?])\s+|\n+/);
-  const kept = sentences.filter((s) => !PRICE_CLAIM_PATTERN.test(s));
-  return kept.join(" ").replace(/\s{2,}/g, " ").trim();
+  return filterSentencesKeepingLines(mensaje, (s) => !PRICE_CLAIM_PATTERN.test(s));
+}
+
+/** Filtra oraciones sin aplanar saltos de línea (menús con viñetas). */
+function filterSentencesKeepingLines(mensaje: string, keep: (sentence: string) => boolean): string {
+  return mensaje
+    .split("\n")
+    .map((line) => {
+      if (!line.trim()) return line;
+      const kept = line.split(/(?<=[.!?])[ \t]+/).filter(keep);
+      return kept.length ? kept.join(" ").replace(/[ \t]{2,}/g, " ").trimEnd() : null;
+    })
+    .filter((line): line is string => line !== null)
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export function stripStalePriceTalk(mensaje: string, currentMessage?: string): string {
   if (!currentMessage?.trim() || clientAsksPrice(currentMessage)) return mensaje;
   if (/\bdj\b|precio|cu[aá]nto\s+cuesta/i.test(currentMessage)) return mensaje;
-  return mensaje
-    .split(/(?<=[.!?])\s+|\n+/)
-    .filter((s) => !/\bdj\b/i.test(s) || clientAsksPrice(currentMessage))
-    .filter((s) => !/alejandro te (incluye|da) el precio/i.test(s))
-    .join(" ")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+  if (!/\bdj\b|alejandro te (incluye|da) el precio/i.test(mensaje)) return mensaje;
+  return filterSentencesKeepingLines(
+    mensaje,
+    (s) => !/\bdj\b/i.test(s) && !/alejandro te (incluye|da) el precio/i.test(s)
+  );
 }
 
 /**
@@ -169,7 +180,9 @@ import { parseChairModelFromText, CHAIR_MODEL_PATTERN } from "./lib/chairModels.
 export function buildConsultativeNoPriceReply(message?: string): string | null {
   if (!message?.trim()) return null;
   const t = message.toLowerCase();
-  const team = advisorLabelForClient();
+  // En estas respuestas `team` siempre abre oración ("… playlist. Nuestro equipo …").
+  const teamLabel = advisorLabelForClient();
+  const team = teamLabel.charAt(0).toUpperCase() + teamLabel.slice(1);
 
   // Si el panel ya cargó el PDF de ese servicio, citar precios aprendidos (no “sin tarifa”).
   if (

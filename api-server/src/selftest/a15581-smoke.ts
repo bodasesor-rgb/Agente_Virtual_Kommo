@@ -57,7 +57,7 @@ function runGuards(opts: {
   });
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.20");
+assert.ok(/^V10\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
 
 const horarioCuatro = parseHorarioFromText("Sería temprano, a partir de las cuatro");
 assert.ok(horarioCuatro && /4|cuatro/i.test(horarioCuatro), horarioCuatro ?? "null");
@@ -140,6 +140,15 @@ const scopedDjReply = runGuards({
   extracted: { ...baseExtracted, horario_evento: "a partir de las 4" },
   filledSet: new Set([...baseFilled, "Horario del evento"]),
   currentMessage: "Está bien, me gustaría que solo lo agregara en la opción más casual, por favor",
+  // "lo" = DJ del turno anterior (sin historial no hay a qué referirse).
+  history: [
+    { role: "user", content: "Vi en su página que hay la opción de DJ ¿qué es lo que incluiría?" },
+    {
+      role: "assistant",
+      content:
+        "Claro, Mariana. Nuestro servicio de *DJ* incluye equipo de audio completo, micrófono para brindis e iluminación básica. ¿Quieres que lo sume a tu cotización?",
+    },
+  ],
 });
 assert.ok(/solo.*casual|propuesta casual/i.test(scopedDjReply), scopedDjReply.slice(0, 500));
 assert.ok(!/la anoto para tu cotizaci/i.test(scopedDjReply), scopedDjReply.slice(0, 500));

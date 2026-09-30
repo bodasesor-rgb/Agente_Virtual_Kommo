@@ -122,6 +122,7 @@ export function clientAsksIfCompanyEmailCorrect(text: string | null | undefined)
 export function buildCompanyEmailConfirmReply(): string {
   return (
     "Sí, capybaraeventos@gmail.com es el correo de Bodasesor — tu solicitud ya nos llegó bien. " +
-    "Para enviarte la cotización personalizada, ¿me compartes tu correo de trabajo?"
+    // Sin "cotización personalizada": el guard V9.40 lo leería como cierre prematuro.
+    "Para enviarte la cotización a tu medida, ¿me compartes tu correo de trabajo?"
   );
 }

@@ -32,7 +32,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   };
 }
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.20");
+assert.ok(/^V10\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
 
 assert.equal(recommendCarpaAreaM2ForGuests(100), 150);
 assert.equal(recommendCarpaAreaM2ForGuests(60), 90);

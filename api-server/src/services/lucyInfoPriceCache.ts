@@ -151,11 +151,10 @@ function strictPdfServiceFamily(text: string): string | null {
 
 function pdfDocMatchesStrictQuery(query: string, docTitle: string): boolean {
   const strictFamily = strictPdfServiceFamily(query);
-  if (strictFamily) {
-    const docFamily = strictPdfServiceFamily(docTitle);
-    // Título sin familia estricta (p.ej. Mesas) no puede suplantar un SKU estricto.
-    if (docFamily !== strictFamily) return false;
-  }
+  const docFamily = strictPdfServiceFamily(docTitle);
+  // Título sin familia estricta (p.ej. Mesas) no puede suplantar un SKU estricto, y un PDF
+  // de SKU estricto (Barra Americana) no responde un query que no lo nombra ("barra básica").
+  if ((strictFamily || docFamily) && docFamily !== strictFamily) return false;
   if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(docTitle)) return false;
   return true;
 }
@@ -333,15 +332,34 @@ function findInclusionSection(content: string, query: string, maxChars = 1100): 
     /Coffee Break \d|Men[uú] \d tiempos|B[aá]sico \$\s*\d|Tradicional \$\s*\d|Premium \$\s*\d|Ideal para:|Condiciones del Servicio/i,
   );
   // Don't cut too early — only if we find another package heading after enough content
+  let endsAtPackage = false;
   if (nextPkg > 200) {
     end = Math.max(start, bestIdx) + 40 + nextPkg;
+    endsAtPackage = true;
   }
 
+  // Nunca empezar a media palabra ("riencia culinaria…").
+  if (start > 0 && /[\p{L}\p{N}]/u.test(c[start - 1] ?? "")) {
+    const nextSpace = c.slice(start).search(/\s/);
+    if (nextSpace >= 0) start += nextSpace;
+  }
   let slice = c.slice(start, end).replace(/\s+/g, " ").trim();
   // Quitar basura previa al título del paquete si quedó cortado.
   slice = slice.replace(/^[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9🥐☕🍽*•]+/, "");
   if (slice.length < 80) return null;
-  return slice.slice(0, maxChars);
+  return trimToWordBoundary(slice, maxChars, !endsAtPackage && end < c.length);
+}
+
+/** Corta en fin de oración (o de palabra + "…"); nunca "tequ" / "adicio". */
+function trimToWordBoundary(text: string, maxChars: number, truncated: boolean): string {
+  let out = text.slice(0, maxChars);
+  if (!truncated && out.length === text.length) return out;
+  if (/[.!?)]$/.test(out) && out.length === text.length) return out;
+  const sentenceEnd = Math.max(out.lastIndexOf(". "), out.lastIndexOf("! "), out.lastIndexOf("? "));
+  if (sentenceEnd >= out.length * 0.6) return out.slice(0, sentenceEnd + 1);
+  const lastSpace = out.lastIndexOf(" ");
+  if (lastSpace > 0) out = out.slice(0, lastSpace);
+  return `${out.replace(/[\s,;:·|-]+$/, "")}…`;
 }
 
 /**

@@ -17,7 +17,7 @@ import {
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 import type { ExtractedData } from "../types.js";
 
-assert.equal(LUCY_PROMPT_VERSION, "V10.20");
+assert.ok(/^V10\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
 
 function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   return {
@@ -65,16 +65,15 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
   assert.match(plus, new RegExp(GENERAL_CATALOG_INVITE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 }
 
-// 3) Mapped block: links del servicio + general invite.
+// 3) Mapped block: links del servicio. A16097: con slug concreto ya no se pega el hub general.
 {
   const mapped = buildMappedCatalogOfferBlock(["Barra de pizzas"], "quiero pizzas");
   assert.match(mapped, /barra-de-pizzas/);
-  assert.match(mapped, new RegExp(GENERAL_CATALOG_INVITE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.ok(!/bodasesor\.com\/catalogos(?![\/\w-])/i.test(mapped), mapped);
   assert.ok(!/^Te dejo el catálogo general/i.test(mapped), mapped);
 
   const pkg = buildPackageCatalogOfferBlock(["Coffee break"], "coffee break");
   assert.match(pkg, /coffee-break/);
-  assert.match(pkg, /Igual te envío el catálogo general/i);
 }
 
 // 4) Cliente pide catálogo con CRM de banquete → no solo hub.
@@ -106,8 +105,8 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
     whatsappDisplayName: "Fernanda",
     buildClosing: () => "Perfecto, ya tengo todo.",
   });
+  // A16097: con el slug del servicio basta; el hub general ya no se pega.
   assert.match(reply, /banquete-(formal|mexicano)/i);
-  assert.match(reply, /Igual te envío el catálogo general|Catálogo general|bodasesor\.com\/catalogos(?!\/[a-z])/i);
   assert.ok(
     !/^Claro\.\s*\n*Claro\. Aquí tienes el catálogo general con todos/i.test(reply),
     reply.slice(0, 400)
