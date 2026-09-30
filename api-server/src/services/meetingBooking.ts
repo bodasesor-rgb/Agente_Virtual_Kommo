@@ -233,6 +233,7 @@ export function buildGoogleCalendarAddUrl(opts: {
   startMs: number;
   details?: string;
   durationMin?: number;
+  guests?: string[];
 }): string {
   const start = toCalendarStamp(opts.startMs);
   const end = toCalendarStamp(opts.startMs + (opts.durationMin ?? MEETING_DURATION_MIN) * 60_000);
@@ -243,6 +244,7 @@ export function buildGoogleCalendarAddUrl(opts: {
     ctz: MEETING_TIMEZONE,
   });
   if (opts.details) params.set("details", opts.details);
+  if (opts.guests?.length) params.set("add", opts.guests.join(","));
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 

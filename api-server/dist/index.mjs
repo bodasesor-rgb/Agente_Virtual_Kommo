@@ -236234,6 +236234,7 @@ function buildGoogleCalendarAddUrl(opts) {
     ctz: MEETING_TIMEZONE
   });
   if (opts.details) params.set("details", opts.details);
+  if (opts.guests?.length) params.set("add", opts.guests.join(","));
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 var EVENT_SCHEDULE_WORDS = /\b(evento|fiesta|boda|xv|quince|cumple\w*|celebracion|misa|ceremonia|recepcion|banquete|empieza|empezaria|inicia|iniciaria|termina|terminaria|invitados|montaje|servicio)\b/;
@@ -236903,6 +236904,97 @@ function parseConfirmedMeeting(signal, nowMs = Date.now()) {
     startMs,
     label: `${formatSlotDate(date2)} a las ${formatSlotTime(slot.time)}`
   };
+}
+
+// src/services/meetingContactInfo.ts
+init_logger2();
+var LEAD_FIELDS = {
+  direccion: 1048774,
+  requerimientos: 1048776,
+  fechaEvento: 1048778,
+  horarioEvento: 1049358,
+  invitados: 1048780,
+  tipoEvento: 1048782,
+  presupuesto: 1048784
+};
+function firstValue(cfv, match2) {
+  const v4 = cfv?.find(match2)?.values?.[0]?.value;
+  if (typeof v4 === "number") return String(v4);
+  return typeof v4 === "string" && v4.trim() && v4.trim() !== "-" ? v4.trim() : null;
+}
+function usableName(name2) {
+  if (typeof name2 !== "string") return null;
+  const n5 = name2.trim();
+  if (!n5 || /^(lead|contacto|contact|nuevo|new)\b|#\d+/i.test(n5) || /^\+?\d[\d\s-]+$/.test(n5)) return null;
+  return n5;
+}
+async function fetchMeetingContactInfo(subdomain, accessToken, leadId) {
+  const headers = { Authorization: `Bearer ${accessToken}` };
+  try {
+    const leadRes = await fetch(`https://${subdomain}.kommo.com/api/v4/leads/${leadId}?with=contacts`, { headers });
+    if (!leadRes.ok) return null;
+    const lead = await leadRes.json();
+    const lcfv = lead.custom_fields_values;
+    const byId = (id) => firstValue(lcfv, (f7) => f7.field_id === id);
+    const info3 = {
+      nombre: usableName(lead.name),
+      telefono: null,
+      correo: null,
+      tipoEvento: byId(LEAD_FIELDS.tipoEvento),
+      fechaEvento: byId(LEAD_FIELDS.fechaEvento),
+      horarioEvento: byId(LEAD_FIELDS.horarioEvento),
+      invitados: byId(LEAD_FIELDS.invitados),
+      direccion: byId(LEAD_FIELDS.direccion),
+      requerimientos: byId(LEAD_FIELDS.requerimientos),
+      presupuesto: byId(LEAD_FIELDS.presupuesto)
+    };
+    const contacts = lead._embedded?.contacts ?? [];
+    const contactId = (contacts.find((c5) => c5.is_main) ?? contacts[0])?.id;
+    if (contactId) {
+      const cRes = await fetch(`https://${subdomain}.kommo.com/api/v4/contacts/${contactId}`, { headers });
+      if (cRes.ok) {
+        const c5 = await cRes.json();
+        const ccfv = c5.custom_fields_values;
+        info3.nombre = usableName(c5.name) ?? info3.nombre;
+        info3.telefono = firstValue(ccfv, (f7) => f7.field_code === "PHONE");
+        info3.correo = firstValue(ccfv, (f7) => f7.field_code === "EMAIL");
+      }
+    }
+    return info3;
+  } catch (err2) {
+    logger.warn({ err: err2, leadId }, "fetchMeetingContactInfo: no se pudieron leer los datos del cliente");
+    return null;
+  }
+}
+function clip(s7, max) {
+  return s7.length > max ? `${s7.slice(0, max - 1).trimEnd()}\u2026` : s7;
+}
+function isValidEmail(s7) {
+  return !!s7 && /^[^\s@,;]+@[^\s@,;]+\.[a-z]{2,}$/i.test(s7.trim());
+}
+function buildMeetingDetails(info3, opts) {
+  const lines = [];
+  if (info3) {
+    if (info3.nombre) lines.push(`Cliente: ${info3.nombre}`);
+    if (info3.telefono) {
+      const digits = info3.telefono.replace(/\D/g, "");
+      lines.push(`WhatsApp: ${info3.telefono}${digits.length >= 10 ? ` (https://wa.me/${digits})` : ""}`);
+    }
+    if (info3.correo) lines.push(`Correo: ${info3.correo}`);
+    const evento = [
+      info3.tipoEvento,
+      [info3.fechaEvento, info3.horarioEvento].filter(Boolean).join(", "),
+      info3.invitados ? `${info3.invitados.replace(/\s*(personas?|invitados?)\s*$/i, "")} invitados` : null
+    ].filter((x8) => !!x8 && !!x8.trim());
+    if (evento.length) lines.push(`Evento: ${evento.join(" \xB7 ")}`);
+    if (info3.direccion) lines.push(`Lugar: ${clip(info3.direccion, 150)}`);
+    if (info3.requerimientos) lines.push(`Requerimientos: ${clip(info3.requerimientos, 400)}`);
+    if (info3.presupuesto) lines.push(`Presupuesto: ${info3.presupuesto}`);
+  }
+  if (lines.length) lines.push("");
+  lines.push(`Lead en Kommo: ${opts.kommoUrl}`);
+  lines.push(...opts.footer);
+  return lines.join("\n");
 }
 
 // src/routes/kommo.ts
@@ -239288,6 +239380,20 @@ router3.post("/kommo/webhook", (req, res) => {
 });
 var stageActivationSeen = /* @__PURE__ */ new Map();
 var STAGE_ACTIVATION_THROTTLE_MS = 10 * 60 * 1e3;
+async function buildMeetingCalendarLink(opts) {
+  const info3 = await fetchMeetingContactInfo(opts.subdomain, opts.accessToken, opts.leadId);
+  const quien = info3?.nombre || opts.fallbackName?.trim() || "cliente";
+  const titulo = `${opts.tipoLabel} Bodasesor \u2014 ${quien}`;
+  const kommoUrl = `https://${opts.subdomain}.kommo.com/leads/detail/${opts.leadId}`;
+  const calendarUrl = buildGoogleCalendarAddUrl({
+    title: titulo,
+    startMs: opts.startMs,
+    details: buildMeetingDetails(info3, { kommoUrl, footer: opts.footer }),
+    guests: isValidEmail(info3?.correo) ? [info3.correo.trim()] : void 0
+  });
+  const contacto = [info3?.telefono ? `WhatsApp ${info3.telefono}` : null, info3?.correo ? `correo ${info3.correo}` : null].filter(Boolean).join(" \xB7 ");
+  return { titulo, calendarUrl, contacto };
+}
 async function recordMeetingInKommo(opts) {
   const { subdomain, accessToken, entityId, meeting, clientName, clientMessage, log } = opts;
   const tipo = meeting.meetingKind;
@@ -239329,14 +239435,14 @@ Mensaje: ${citado}`
   }
   if (meeting.kind !== "slot") return;
   await setCampo(`${tipoLabel} \u2014 ${meeting.label} (por confirmar)`);
-  const titulo = `${tipoLabel} Bodasesor \u2014 ${quien}`;
-  const kommoUrl = `https://${subdomain}.kommo.com/leads/detail/${entityId}`;
-  const calendarUrl = buildGoogleCalendarAddUrl({
-    title: titulo,
+  const { titulo, calendarUrl, contacto } = await buildMeetingCalendarLink({
+    subdomain,
+    accessToken,
+    leadId: entityId,
+    tipoLabel,
     startMs: meeting.startMs,
-    details: `Pedida por WhatsApp a Lucy.
-Lead en Kommo: ${kommoUrl}
-Mensaje del cliente: ${citado}`
+    fallbackName: quien,
+    footer: ["Pedida por WhatsApp a Lucy.", `Mensaje del cliente: ${citado}`]
   });
   await agregarNota(
     subdomain,
@@ -239344,7 +239450,8 @@ Mensaje del cliente: ${citado}`
     entityId,
     `\u{1F4C5} ${titulo}
 Cu\xE1ndo: ${meeting.label} (hora centro de M\xE9xico)
-Mensaje: ${citado}
+` + (contacto ? `Contacto: ${contacto}
+` : "") + `Mensaje: ${citado}
 
 Agr\xE9gala a Google Calendar con un clic:
 ${calendarUrl}
@@ -239355,7 +239462,7 @@ Conf\xEDrmale al cliente por WhatsApp.`
     subdomain,
     accessToken,
     entityId,
-    `\u{1F4C5} ${titulo} \u2014 ${meeting.label}. Confirmar con el cliente y agregar a Google Calendar (link en notas).`,
+    `\u{1F4C5} ${titulo} \u2014 ${meeting.label}${contacto ? ` \xB7 ${contacto}` : ""}. Confirmar con el cliente y agregar a Google Calendar (link en notas).`,
     meeting.startMs,
     tipo === "llamada" ? 1 : 2
   );
@@ -239370,7 +239477,7 @@ async function recordSilentMeetingProposal(opts) {
   }
   const kind = proposal.meetingKind;
   const tipoLabel = kind === "cita" ? "Cita" : kind === "llamada" ? "Llamada" : kind === "videollamada" ? "Videollamada" : "Llamada/videollamada";
-  const quien = lead?.nombre?.trim() || lead?.name?.trim() || "cliente";
+  const quien = lead?.name?.trim() || "cliente";
   const citado = `"${clientMessage.trim().slice(0, 200)}"`;
   await actualizarCampoTexto(
     subdomain,
@@ -239379,21 +239486,22 @@ async function recordSilentMeetingProposal(opts) {
     FIELD_CITA_VIDEOLLAMADA,
     `${tipoLabel} \u2014 ${proposal.label} (el cliente la propuso por WhatsApp; confirmar) \xB7 ${getBookingUrl()}`
   );
-  const titulo = `${tipoLabel} Bodasesor \u2014 ${quien}`;
-  const kommoUrl = `https://${subdomain}.kommo.com/leads/detail/${entityId}`;
-  const calendarUrl = buildGoogleCalendarAddUrl({
-    title: titulo,
+  const { titulo, calendarUrl, contacto } = await buildMeetingCalendarLink({
+    subdomain,
+    accessToken,
+    leadId: entityId,
+    tipoLabel,
     startMs: proposal.startMs,
-    details: `Horario que escribi\xF3 el cliente por WhatsApp.
-Lead en Kommo: ${kommoUrl}
-Mensaje: ${citado}`
+    fallbackName: quien,
+    footer: ["Horario que escribi\xF3 el cliente por WhatsApp.", `Mensaje: ${citado}`]
   });
   await agregarNota(
     subdomain,
     accessToken,
     entityId,
     `\u{1F4C5} El cliente escribi\xF3 un horario para la ${tipoLabel.toLowerCase()}: ${proposal.label} (hora centro de M\xE9xico).
-Mensaje: ${citado}
+` + (contacto ? `Contacto: ${contacto}
+` : "") + `Mensaje: ${citado}
 
 Si ya la confirmaron, agr\xE9gala a Google Calendar con un clic:
 ${calendarUrl}`
@@ -239402,7 +239510,7 @@ ${calendarUrl}`
     subdomain,
     accessToken,
     entityId,
-    `\u{1F4C5} ${titulo} \u2014 ${proposal.label} (la propuso el cliente). Confirmar y agregar a Google Calendar (link en notas).`,
+    `\u{1F4C5} ${titulo} \u2014 ${proposal.label} (la propuso el cliente)${contacto ? ` \xB7 ${contacto}` : ""}. Confirmar y agregar a Google Calendar (link en notas).`,
     proposal.startMs,
     kind === "llamada" ? 1 : 2
   );
@@ -239427,7 +239535,7 @@ async function recordConfirmedMeeting(opts) {
   }
   const kind = meeting.meetingKind;
   const tipoLabel = kind === "cita" ? "Cita" : kind === "llamada" ? "Llamada" : kind === "videollamada" ? "Videollamada" : "Llamada/videollamada";
-  const quien = lead?.nombre?.trim() || lead?.name?.trim() || "cliente";
+  const quien = lead?.name?.trim() || "cliente";
   const origen = signal.source === "nota" ? "nota del equipo" : "campo llenado por el equipo";
   const citado = `"${signal.text.trim().slice(0, 200)}"`;
   await actualizarCampoTexto(
@@ -239437,21 +239545,22 @@ async function recordConfirmedMeeting(opts) {
     FIELD_CITA_VIDEOLLAMADA,
     `${tipoLabel} \u2014 ${meeting.label} (confirmada por el equipo) \xB7 ${getBookingUrl()}`
   );
-  const titulo = `${tipoLabel} Bodasesor \u2014 ${quien}`;
-  const kommoUrl = `https://${subdomain}.kommo.com/leads/detail/${leadId}`;
-  const calendarUrl = buildGoogleCalendarAddUrl({
-    title: titulo,
+  const { titulo, calendarUrl, contacto } = await buildMeetingCalendarLink({
+    subdomain,
+    accessToken,
+    leadId,
+    tipoLabel,
     startMs: meeting.startMs,
-    details: `Confirmada por el equipo (${origen}).
-Lead en Kommo: ${kommoUrl}
-Texto: ${citado}`
+    fallbackName: quien,
+    footer: [`Confirmada por el equipo (${origen}).`, `Texto: ${citado}`]
   });
   await agregarNota(
     subdomain,
     accessToken,
     leadId,
     `\u{1F4C5} ${titulo} \u2014 confirmada: ${meeting.label} (hora centro de M\xE9xico).
-Origen: ${origen} ${citado}
+` + (contacto ? `Contacto: ${contacto}
+` : "") + `Origen: ${origen} ${citado}
 
 Agr\xE9gala a Google Calendar con un clic:
 ${calendarUrl}`
@@ -239461,7 +239570,7 @@ ${calendarUrl}`
     subdomain,
     accessToken,
     leadId,
-    `\u{1F4C5} ${titulo} \u2014 ${meeting.label} (confirmada).`,
+    `\u{1F4C5} ${titulo} \u2014 ${meeting.label} (confirmada)${contacto ? ` \xB7 ${contacto}` : ""}.`,
     meeting.startMs,
     kind === "llamada" ? 1 : 2
   );

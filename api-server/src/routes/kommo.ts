@@ -118,6 +118,7 @@ import {
   type ConfirmedMeeting,
   type ManualMeetingSignal,
 } from "../services/manualMeetingSignals.js";
+import { buildMeetingDetails, fetchMeetingContactInfo, isValidEmail } from "../services/meetingContactInfo.js";
 import { looksLikeClienteCorrection } from "../tipoContacto.js";
 import { proveedorQuestionnaireComplete } from "../lib/proveedorQuestionnaire.js";
 import { appendProveedorRow } from "../services/proveedorSheets.js";
@@ -2757,6 +2758,32 @@ router.post("/kommo/webhook", (req: Request, res: Response) => {
 const stageActivationSeen = new Map<string, number>();
 const STAGE_ACTIVATION_THROTTLE_MS = 10 * 60 * 1000;
 
+/** Título + link de Google Calendar con nombre, WhatsApp, correo (como invitado) y datos del evento. */
+async function buildMeetingCalendarLink(opts: {
+  subdomain: string;
+  accessToken: string;
+  leadId: string | number;
+  tipoLabel: string;
+  startMs: number;
+  fallbackName: string | null | undefined;
+  footer: string[];
+}): Promise<{ titulo: string; calendarUrl: string; contacto: string }> {
+  const info = await fetchMeetingContactInfo(opts.subdomain, opts.accessToken, opts.leadId);
+  const quien = info?.nombre || opts.fallbackName?.trim() || "cliente";
+  const titulo = `${opts.tipoLabel} Bodasesor — ${quien}`;
+  const kommoUrl = `https://${opts.subdomain}.kommo.com/leads/detail/${opts.leadId}`;
+  const calendarUrl = buildGoogleCalendarAddUrl({
+    title: titulo,
+    startMs: opts.startMs,
+    details: buildMeetingDetails(info, { kommoUrl, footer: opts.footer }),
+    guests: isValidEmail(info?.correo) ? [info.correo.trim()] : undefined,
+  });
+  const contacto = [info?.telefono ? `WhatsApp ${info.telefono}` : null, info?.correo ? `correo ${info.correo}` : null]
+    .filter(Boolean)
+    .join(" · ");
+  return { titulo, calendarUrl, contacto };
+}
+
 /** Cita / videollamada: nota (con botón a Google Calendar) y tarea para el equipo. */
 async function recordMeetingInKommo(opts: {
   subdomain: string;
@@ -2809,18 +2836,22 @@ async function recordMeetingInKommo(opts: {
   if (meeting.kind !== "slot") return;
 
   await setCampo(`${tipoLabel} — ${meeting.label} (por confirmar)`);
-  const titulo = `${tipoLabel} Bodasesor — ${quien}`;
-  const kommoUrl = `https://${subdomain}.kommo.com/leads/detail/${entityId}`;
-  const calendarUrl = buildGoogleCalendarAddUrl({
-    title: titulo,
+  const { titulo, calendarUrl, contacto } = await buildMeetingCalendarLink({
+    subdomain,
+    accessToken,
+    leadId: entityId,
+    tipoLabel,
     startMs: meeting.startMs,
-    details: `Pedida por WhatsApp a Lucy.\nLead en Kommo: ${kommoUrl}\nMensaje del cliente: ${citado}`,
+    fallbackName: quien,
+    footer: ["Pedida por WhatsApp a Lucy.", `Mensaje del cliente: ${citado}`],
   });
   await agregarNota(
     subdomain,
     accessToken,
     entityId,
-    `📅 ${titulo}\nCuándo: ${meeting.label} (hora centro de México)\nMensaje: ${citado}\n\n` +
+    `📅 ${titulo}\nCuándo: ${meeting.label} (hora centro de México)\n` +
+      (contacto ? `Contacto: ${contacto}\n` : "") +
+      `Mensaje: ${citado}\n\n` +
       `Agrégala a Google Calendar con un clic:\n${calendarUrl}\n\n` +
       "Confírmale al cliente por WhatsApp."
   );
@@ -2828,7 +2859,7 @@ async function recordMeetingInKommo(opts: {
     subdomain,
     accessToken,
     entityId,
-    `📅 ${titulo} — ${meeting.label}. Confirmar con el cliente y agregar a Google Calendar (link en notas).`,
+    `📅 ${titulo} — ${meeting.label}${contacto ? ` · ${contacto}` : ""}. Confirmar con el cliente y agregar a Google Calendar (link en notas).`,
     meeting.startMs,
     tipo === "llamada" ? 1 : 2
   );
@@ -2854,7 +2885,7 @@ async function recordSilentMeetingProposal(opts: {
   const kind = proposal.meetingKind;
   const tipoLabel =
     kind === "cita" ? "Cita" : kind === "llamada" ? "Llamada" : kind === "videollamada" ? "Videollamada" : "Llamada/videollamada";
-  const quien = lead?.nombre?.trim() || lead?.name?.trim() || "cliente";
+  const quien = lead?.name?.trim() || "cliente";
   const citado = `"${clientMessage.trim().slice(0, 200)}"`;
   await actualizarCampoTexto(
     subdomain,
@@ -2863,25 +2894,28 @@ async function recordSilentMeetingProposal(opts: {
     FIELD_CITA_VIDEOLLAMADA,
     `${tipoLabel} — ${proposal.label} (el cliente la propuso por WhatsApp; confirmar) · ${getBookingUrl()}`
   );
-  const titulo = `${tipoLabel} Bodasesor — ${quien}`;
-  const kommoUrl = `https://${subdomain}.kommo.com/leads/detail/${entityId}`;
-  const calendarUrl = buildGoogleCalendarAddUrl({
-    title: titulo,
+  const { titulo, calendarUrl, contacto } = await buildMeetingCalendarLink({
+    subdomain,
+    accessToken,
+    leadId: entityId,
+    tipoLabel,
     startMs: proposal.startMs,
-    details: `Horario que escribió el cliente por WhatsApp.\nLead en Kommo: ${kommoUrl}\nMensaje: ${citado}`,
+    fallbackName: quien,
+    footer: ["Horario que escribió el cliente por WhatsApp.", `Mensaje: ${citado}`],
   });
   await agregarNota(
     subdomain,
     accessToken,
     entityId,
     `📅 El cliente escribió un horario para la ${tipoLabel.toLowerCase()}: ${proposal.label} (hora centro de México).\n` +
+      (contacto ? `Contacto: ${contacto}\n` : "") +
       `Mensaje: ${citado}\n\nSi ya la confirmaron, agrégala a Google Calendar con un clic:\n${calendarUrl}`
   );
   const tareaOk = await crearTarea(
     subdomain,
     accessToken,
     entityId,
-    `📅 ${titulo} — ${proposal.label} (la propuso el cliente). Confirmar y agregar a Google Calendar (link en notas).`,
+    `📅 ${titulo} — ${proposal.label} (la propuso el cliente)${contacto ? ` · ${contacto}` : ""}. Confirmar y agregar a Google Calendar (link en notas).`,
     proposal.startMs,
     kind === "llamada" ? 1 : 2
   );
@@ -2918,7 +2952,7 @@ async function recordConfirmedMeeting(opts: {
   const kind = meeting.meetingKind;
   const tipoLabel =
     kind === "cita" ? "Cita" : kind === "llamada" ? "Llamada" : kind === "videollamada" ? "Videollamada" : "Llamada/videollamada";
-  const quien = lead?.nombre?.trim() || lead?.name?.trim() || "cliente";
+  const quien = lead?.name?.trim() || "cliente";
   const origen = signal.source === "nota" ? "nota del equipo" : "campo llenado por el equipo";
   const citado = `"${signal.text.trim().slice(0, 200)}"`;
 
@@ -2929,18 +2963,22 @@ async function recordConfirmedMeeting(opts: {
     FIELD_CITA_VIDEOLLAMADA,
     `${tipoLabel} — ${meeting.label} (confirmada por el equipo) · ${getBookingUrl()}`
   );
-  const titulo = `${tipoLabel} Bodasesor — ${quien}`;
-  const kommoUrl = `https://${subdomain}.kommo.com/leads/detail/${leadId}`;
-  const calendarUrl = buildGoogleCalendarAddUrl({
-    title: titulo,
+  const { titulo, calendarUrl, contacto } = await buildMeetingCalendarLink({
+    subdomain,
+    accessToken,
+    leadId,
+    tipoLabel,
     startMs: meeting.startMs,
-    details: `Confirmada por el equipo (${origen}).\nLead en Kommo: ${kommoUrl}\nTexto: ${citado}`,
+    fallbackName: quien,
+    footer: [`Confirmada por el equipo (${origen}).`, `Texto: ${citado}`],
   });
   await agregarNota(
     subdomain,
     accessToken,
     leadId,
-    `📅 ${titulo} — confirmada: ${meeting.label} (hora centro de México).\nOrigen: ${origen} ${citado}\n\n` +
+    `📅 ${titulo} — confirmada: ${meeting.label} (hora centro de México).\n` +
+      (contacto ? `Contacto: ${contacto}\n` : "") +
+      `Origen: ${origen} ${citado}\n\n` +
       `Agrégala a Google Calendar con un clic:\n${calendarUrl}`
   );
   // Si el cliente ya había propuesto esa misma hora, la tarea ya existe.
@@ -2951,7 +2989,7 @@ async function recordConfirmedMeeting(opts: {
         subdomain,
         accessToken,
         leadId,
-        `📅 ${titulo} — ${meeting.label} (confirmada).`,
+        `📅 ${titulo} — ${meeting.label} (confirmada)${contacto ? ` · ${contacto}` : ""}.`,
         meeting.startMs,
         kind === "llamada" ? 1 : 2
       );
