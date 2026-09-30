@@ -345,7 +345,7 @@ export const BODASESOR_EMAIL = "hola@bodasesor.com";
 export const WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp — el cliente no lo escribió)";
 
 const EMAIL_REFUSAL_PATTERN =
-  /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
+  /(?:no\s+tengo(\s+un?)?\s+correo(?:\s+(?:ahorita|por\s+ahora|en\s+este\s+momento|todav[ií]a))?|(?:ahorita|por\s+ahora|en\s+este\s+momento)\s+no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|(?:compu|computadora|laptop).{0,40}arreglar|por\s+este\s+medio|por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
 
 /** Campos clave de cierre (correo es importante pero opcional si prefiere WhatsApp). */
 export const CLOSING_CORE_FIELDS = [
@@ -5821,6 +5821,29 @@ function clientAskedFreeformQuestion(message?: string): boolean {
   );
 }
 
+/** Precio/detalle/inclusiones en el turno actual o en los últimos mensajes del cliente. */
+export function clientRecentlyAskedPriceOrDetail(
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string,
+  lookbackUserTurns = 3
+): boolean {
+  const userTexts = collectUserTexts(history, currentMessage);
+  const recent = userTexts.slice(-lookbackUserTurns);
+  return recent.some(
+    (t) =>
+      clientAsksPrice(t) ||
+      clientAsksNamedServiceDetail(t) ||
+      clientAsksInclusion(t) ||
+      clientAsksServiceInfo(t)
+  );
+}
+
+function waiveCorreoAfterRepeatedAsks(filledSet: Set<string>): void {
+  if (!isEmailSatisfied(filledSet)) {
+    filledSet.add(EMAIL_WAIVED_LABEL);
+  }
+}
+
 function responseLooksLikePrematureClose(mensaje: string): boolean {
   return (
     mensaje.includes(CLOSING_SIGNATURE) ||
@@ -11211,19 +11234,55 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
         );
     log?.info({ entityId }, "GUARD: follow-up de servicios ya hecho — avanzar");
   } else if (trulyReadyForClosing && !cierreYaEnviado) {
-    mensaje = buildClosing(
-      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-      extracted.nombre
-    );
-    log?.info({ entityId }, "Datos completos — mensaje de cierre desde plantilla");
-  } else {
-    mensaje = aiResponse;
-    if (aiResponse.includes("DATOS DEL CLIENTE:") || aiResponse.includes("Información completa obtenida")) {
+    if (
+      clientAsksPrice(currentMessage) ||
+      clientAsksNamedServiceDetail(currentMessage) ||
+      clientAsksInclusion(currentMessage) ||
+      clientAsksServiceInfo(currentMessage) ||
+      clientRecentlyAskedPriceOrDetail(presHistory, currentMessage)
+    ) {
+      const ctxText = collectUserTexts(presHistory, currentMessage).join(" ");
+      const fromCatalog = buildCatalogPriceAnswer(currentMessage ?? ctxText);
+      const priceOrDetail =
+        fromCatalog ||
+        buildGenericPriceClarifyReply(extracted, presHistory, currentMessage ?? ctxText);
+      mensaje =
+        responseLooksLikePrematureClose(aiResponse) || aiResponse.includes(CLOSING_SIGNATURE)
+          ? priceOrDetail
+          : aiResponse;
+      log?.info({ entityId }, "GUARD: bloqueando cierre — cliente pidió precio/detalle reciente");
+    } else {
       mensaje = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
         extracted.nombre
       );
-      log?.warn({ entityId }, "GPT generó nota interna — usando cierre desde plantilla");
+      log?.info({ entityId }, "Datos completos — mensaje de cierre desde plantilla");
+    }
+  } else {
+    mensaje = aiResponse;
+    if (aiResponse.includes("DATOS DEL CLIENTE:") || aiResponse.includes("Información completa obtenida")) {
+      if (
+        clientAsksPrice(currentMessage) ||
+        clientAsksNamedServiceDetail(currentMessage) ||
+        clientRecentlyAskedPriceOrDetail(presHistory, currentMessage)
+      ) {
+        log?.warn({ entityId }, "GPT generó nota interna con cierre — bloqueado por precio/detalle");
+      } else {
+        mensaje = buildClosing(
+          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+          extracted.nombre
+        );
+        log?.warn({ entityId }, "GPT generó nota interna — usando cierre desde plantilla");
+      }
+    } else if (
+      (responseLooksLikePrematureClose(aiResponse) || aiResponse.includes(CLOSING_SIGNATURE)) &&
+      clientRecentlyAskedPriceOrDetail(presHistory, currentMessage)
+    ) {
+      const ctxText = collectUserTexts(presHistory, currentMessage).join(" ");
+      mensaje =
+        buildCatalogPriceAnswer(currentMessage ?? ctxText) ||
+        buildGenericPriceClarifyReply(extracted, presHistory, currentMessage ?? ctxText);
+      log?.info({ entityId }, "GUARD: reemplazando cierre GPT — precio/detalle reciente");
     }
   }
 
@@ -11534,17 +11593,14 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       const ack = ackBits.join(" ") || "Perfecto, lo anoto.";
 
       if (correoAsks >= CORREO_MAX_ASKS) {
-        // Ya preguntamos correo bastante: sigue el embudo (tipo/servicios/zona…).
-        const skipEmail = new Set(filledSet);
-        // Marca temporal solo para elegir siguiente pregunta; NO waiver permanente.
-        skipEmail.add("Correo electrónico");
-        const pending = getNextPendingField(extracted, skipEmail);
+        waiveCorreoAfterRepeatedAsks(filledSet);
+        const pending = getNextPendingField(extracted, filledSet);
         const nextQ =
           pending && pending !== "correo"
-            ? buildNaturalQuestion(pending, { ...ctx, filledSet: skipEmail })
+            ? buildNaturalQuestion(pending, ctx)
             : null;
         mensaje = nextQ ? `${ack} ${nextQ}`.trim() : ack;
-        log?.info({ entityId, correoAsks }, "GUARD: correo — tope de asks, avanza embudo");
+        log?.info({ entityId, correoAsks }, "GUARD: correo — tope de asks, waiver + embudo");
       } else if (correoAsks >= 1 || lastAskedCorreo) {
         const emailQ = pickVariant("correo", presHistory, entityId);
         mensaje = `${ack} ${emailQ}`.trim();
@@ -11552,14 +11608,16 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       }
     } else if (
       correoAsks >= CORREO_MAX_ASKS &&
-      mensajeAsksForField(mensaje, "correo")
+      (mensajeAsksForField(mensaje, "correo") || softAsksFilledField(mensaje, "correo"))
     ) {
-      const skipEmail = new Set(filledSet);
-      skipEmail.add("Correo electrónico");
-      const pending = getNextPendingField(extracted, skipEmail);
+      waiveCorreoAfterRepeatedAsks(filledSet);
+      const pending = getNextPendingField(extracted, filledSet);
       if (pending && pending !== "correo") {
-        mensaje = buildNaturalQuestion(pending, { ...ctx, filledSet: skipEmail });
-        log?.info({ entityId, correoAsks }, "GUARD: correo — evita 3ª repetición");
+        mensaje = buildNaturalQuestion(pending, ctx);
+        log?.info({ entityId, correoAsks }, "GUARD: correo — waiver tras repetición, siguiente dato");
+      } else if (filledSet.has(EMAIL_WAIVED_LABEL)) {
+        mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
+        log?.info({ entityId, correoAsks }, "GUARD: correo — waiver, continuar por chat");
       }
     }
   }
