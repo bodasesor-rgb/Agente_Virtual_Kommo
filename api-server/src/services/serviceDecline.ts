@@ -38,6 +38,25 @@ const FAMILY_SERVICE_RE: Record<DeclinedServiceFamily, RegExp> = {
   dulces: /mesa\s+de\s+dulces|postres?|cupcakes?|bet[uú]n|pastel(es)?|fondant|candy/i,
 };
 
+/** A16523: familias rechazadas en cualquier mensaje del cliente ("DJ no" → entretenimiento). */
+export function declinedFamiliesInTexts(texts: Array<string | null | undefined>): DeclinedServiceFamily[] {
+  const out = new Set<DeclinedServiceFamily>();
+  for (const t of texts) {
+    for (const f of clientDeclinesServiceFamilies(t)) out.add(f);
+  }
+  return [...out];
+}
+
+/** True si el texto (tip/idea) menciona alguna familia ya rechazada. */
+export function textMentionsDeclinedFamily(
+  text: string | null | undefined,
+  families: DeclinedServiceFamily[]
+): boolean {
+  const t = text ?? "";
+  if (!t.trim() || !families.length) return false;
+  return families.some((f) => FAMILY_SERVICE_RE[f].test(t));
+}
+
 /** "mesa de postre" al declinar ≠ mobiliario (mesas/sillas). */
 function isMesaDulcesDeclinePhrase(t: string): boolean {
   return (

@@ -2733,9 +2733,11 @@ async function runAll(): Promise<void> {
   await test("49. Karime — 'no tengo' en presupuesto = sin definir, no repetir", () => {
     assert.ok(detectPresupuestoRefusal("no tengo"));
     assert.equal(
-      parsePresupuestoFromText("no tengo"),
+      parsePresupuestoFromText("no tengo", { askedField: "presupuesto" }),
       "Sin definir (cliente indicó que no tiene)"
     );
+    // A16523: "no" suelto sin pregunta de presupuesto ≠ waiver.
+    assert.equal(parsePresupuestoFromText("no"), null);
     const filled = new Set([
       "Nombre del cliente",
       "Correo electrónico",

@@ -121,7 +121,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Barra de pastas", /\bbarra\s+de\s+pastas?\b|\bpastas?\b(?!\s+y\s+pizzas?)/i],
   ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra|pizzas?)\b/i],
   // A14985: cerveza/whisky/licores → Barra de bebidas (no solo "barra de bebidas" literal).
-  ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?|cervezas?|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|open\s*bar|barra\s+libre)\b/i],
+  ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?|cervezas?|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|open\s*bar|barra\s+libre|barra\s+(?:de\s+)?(?:licores?\s+)?(?:nacional|internacional|premium)(?:es)?)\b/i],
   ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
   ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
   // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
@@ -1640,6 +1640,24 @@ export function clientDeclinesMoreServices(message?: string | null): boolean {
   );
 }
 
+/** A16523: "las otras están padres pero se me puede elevar el costo" — cuida el costo, no pide precio. */
+export function clientWorriesAboutCost(message?: string | null): boolean {
+  const t = (message ?? "").trim();
+  if (!t || /[?¿]/.test(t)) return false;
+  return /\b(?:elev(?:ar|a|e)|sub(?:ir|e|a)|dispar(?:ar|a|e)|increment(?:ar|a|e))\s+(?:mucho\s+)?(?:al?|el|los?|mi)?\s*(?:costos?|precios?|presupuesto)\b/i.test(
+    t
+  );
+}
+
+/** A16523: "espera, déjame veo en tu sitio las sillas" — el cliente pide un momento. */
+export function clientAsksToWaitWhileBrowsing(message?: string | null): boolean {
+  const t = (message ?? "").trim();
+  if (!t || /[?¿]/.test(t) || t.split(/\s+/).length > 14) return false;
+  return /^(?:esp[eé]ra(?:me)?|dame\s+(?:chance|un\s+(?:momento|segundo|minuto|ratito))|d[eé]ja(?:me)?\s+(?:veo|ver|checo|checar|reviso|revisar))\b/i.test(
+    t
+  );
+}
+
 /**
  * A16254: "Voy a ver otra opción" tras Level-2 / catálogo — no re-volcar menú genérico.
  */
@@ -1951,8 +1969,12 @@ export function parseSalaProductFromText(text: string): string | null {
     const name = named[1].trim().replace(/[.,;]+$/, "");
     return qty ? `${qty[1]} salas ${name}` : `Sala ${name}`;
   }
+  const labeled = text.match(/\bsala\s+lounge\s*\((\d+)\)/i);
+  if (labeled) return `Sala lounge (${labeled[1]})`;
   const qtyOnly = text.match(/\b(\d+)\s+salas?\b/i);
-  if (qtyOnly) return `${qtyOnly[1]} salas lounge`;
+  if (qtyOnly) return qtyOnly[1] === "1" ? "Sala lounge (1)" : `${qtyOnly[1]} salas lounge`;
+  // A16523: "una sala lounge" — la cliente corrigió el plural.
+  if (/\b(?:una|1)\s+sala\s+lounge\b/i.test(text)) return "Sala lounge (1)";
   // A16511: formulario "me interesa cotizar la: Luxor Rosa" (sin la palabra "sala").
   const luxor = text.match(
     /\bluxor(?:\s+(rosa|negr[oa]|blanc[oa]|dorad[oa]|gris|azul|verde|beige|nude|plata|platead[oa]|gold))?\b/i
@@ -3520,12 +3542,14 @@ export function parseCentrosDeMesaRequirement(text: string | null | undefined): 
   ) {
     return null;
   }
+  // A16523: "10 centros de mesa" primero; luego el número MÁS cercano después ("serían 20"),
+  // nunca "7 personas por mesa" ni "1 sala lounge".
   const qty =
     t.match(
-      /\bcentros?\s+de\s+mesas?\b[\s\S]{0,48}\b(?:ser[ií]an?|seran|son|como|unos?|unas?)?\s*(\d{1,3})\b/i
+      /\b(\d{1,3})\s*(?:centros?\s+de\s+mesas?|centros?\s+florales?|arreglos?\s+(?:de\s+)?mesas?)\b/i
     )?.[1] ||
     t.match(
-      /\b(\d{1,3})\s*(?:centros?\s+de\s+mesas?|centros?\s+florales?|arreglos?\s+(?:de\s+)?mesas?)\b/i
+      /\bcentros?\s+de\s+mesas?\b[^\n]{0,48}?\b(?:ser[ií]an?|seran|son|como|unos?|unas?)?\s*(\d{1,3})\b(?!\s*(?:personas?|invitad[oa]s?|pax|sillas?|salas?|mesas?|horas?|tiempos?|de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))\b)(?!\s*(?:[/:.-]|\d))/i
     )?.[1] ||
     (/\bcentros?\s+de\s+mesas?\b/i.test(t)
       ? t.match(/\bser[ií]an?\s+(\d{1,3})\b/i)?.[1]
@@ -3812,6 +3836,18 @@ export function dedupeServiceHierarchy(
     )
   ) {
     found.splice(animIdx, 1);
+  }
+
+  // A16523: "Salas lounge" genérico + "Sala lounge (1)" / "4 salas lounge" → solo el concreto (el último gana).
+  {
+    const salaIdxs = found
+      .map((s, i) => (/^(?:Sala lounge \(\d+\)|\d+\s+salas?\s+lounge|Salas lounge)$/i.test(s) ? i : -1))
+      .filter((i) => i >= 0);
+    if (salaIdxs.length > 1) {
+      const specific = salaIdxs.filter((i) => !/^Salas lounge$/i.test(found[i]!));
+      const keep = specific.length ? specific[specific.length - 1]! : salaIdxs[0]!;
+      for (const i of [...salaIdxs].reverse()) if (i !== keep) found.splice(i, 1);
+    }
   }
 
   if (found.includes("Menú staff")) {
@@ -5808,6 +5844,17 @@ export function parseInvitadosFromText(text: string, opts?: InvitadosParseOption
     return null;
   }
 
+  // A16523: "7 personas en cada mesa" / "mesas de 7 personas" = capacidad por mesa, no afluencia.
+  const perTable = new RegExp(
+    `\\b\\d+\\s*(?:${GUEST_COUNT_WORDS})\\s+(?:en\\s+cada|por|x)\\s+mesas?\\b|\\bmesas?\\b[^\\n\\d]{0,24}\\bde\\s+\\d+\\s*(?:${GUEST_COUNT_WORDS})\\b`,
+    "gi"
+  );
+  const withoutPerTable = trimmed.replace(perTable, " ");
+  if (withoutPerTable !== trimmed) {
+    const rest = withoutPerTable.match(new RegExp(`\\b(\\d+)\\s*(${GUEST_COUNT_WORDS})\\b`, "i"));
+    return rest ? rest[1]! : null;
+  }
+
   // "N personas/invitados/invitadas" — prioridad sobre "N sillas" en el mismo mensaje (A15508).
   const numMatchEarly = trimmed.match(
     new RegExp(`\\b(\\d+)\\s*(${GUEST_COUNT_WORDS})\\b`, "i")
@@ -7731,6 +7778,15 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
     return "Sin límite (cliente indicó flexibilidad)";
   }
 
+  // A16523: un "no" suelto solo es "sin presupuesto" si Lucy preguntó presupuesto
+  // (tras "¿cuántos invitados?" el "no" es otra respuesta).
+  if (
+    /^(?:no+|nop|nel|no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(trimmed) &&
+    opts?.askedField !== "presupuesto"
+  ) {
+    return null;
+  }
+
   if (detectPresupuestoRefusal(trimmed)) {
     return "Sin definir (cliente indicó que no tiene)";
   }
@@ -7905,7 +7961,16 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
   const kMatch = trimmed.match(/\$?\s*([\d,.]+)\s*k\b/i);
   if (kMatch) {
     const num = parseInt(kMatch[1]!.replace(/[,.]/g, ""), 10);
-    if (!isNaN(num) && num > 0) return `$${num}k`;
+    if (!isNaN(num) && num > 0) {
+      // A16523: "referencia del año pasado de 70k … más I.V.A." → monto legible + IVA + referencia.
+      const iva = /\bm[aá]s\s+i\.?\s*v\.?\s*a\.?|\+\s*i\.?\s*v\.?\s*a\.?|\bi\.?v\.?a\.?\s+aparte/i.test(trimmed)
+        ? " + IVA"
+        : "";
+      const ref = /\breferencia\b|\ba[nñ]o\s+pasado\b/i.test(trimmed) ? " (referencia)" : "";
+      return num < 1000
+        ? `$${(num * 1000).toLocaleString("es-MX")} MXN${iva}${ref}`
+        : `$${num}k${iva}${ref}`;
+    }
   }
 
   const milMatch = trimmed.match(/([\d,.]+)\s*mil\b/i);

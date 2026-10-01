@@ -125010,6 +125010,18 @@ var FAMILY_SERVICE_RE = {
   tarima: /^Tarima\b|tarimas?|entarimad/i,
   dulces: /mesa\s+de\s+dulces|postres?|cupcakes?|bet[uú]n|pastel(es)?|fondant|candy/i
 };
+function declinedFamiliesInTexts(texts) {
+  const out2 = /* @__PURE__ */ new Set();
+  for (const t3 of texts) {
+    for (const f6 of clientDeclinesServiceFamilies(t3)) out2.add(f6);
+  }
+  return [...out2];
+}
+function textMentionsDeclinedFamily(text2, families) {
+  const t3 = text2 ?? "";
+  if (!t3.trim() || !families.length) return false;
+  return families.some((f6) => FAMILY_SERVICE_RE[f6].test(t3));
+}
 function isMesaDulcesDeclinePhrase(t3) {
   return /\bno\s+(?:quiero|necesito|pedimos|pido)\s+mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t3) || /\bno\s+(?:quiero|necesito)\s+(postres?|dulces?)\b/i.test(t3) || /\bsin\s+mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t3) || /\bqu[ií]ta(le|me)?\s+(?:la\s+)?mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t3);
 }
@@ -125698,7 +125710,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Barra de pastas", /\bbarra\s+de\s+pastas?\b|\bpastas?\b(?!\s+y\s+pizzas?)/i],
   ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra|pizzas?)\b/i],
   // A14985: cerveza/whisky/licores → Barra de bebidas (no solo "barra de bebidas" literal).
-  ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?|cervezas?|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|open\s*bar|barra\s+libre)\b/i],
+  ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?|cervezas?|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|open\s*bar|barra\s+libre|barra\s+(?:de\s+)?(?:licores?\s+)?(?:nacional|internacional|premium)(?:es)?)\b/i],
   ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
   ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
   // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
@@ -126643,6 +126655,20 @@ function clientDeclinesMoreServices(message) {
   return /^(no|nop)[\s.,!]*$/i.test(t3) || /\bsolo\s+(con\s+)?eso\b/i.test(t3) || /\bsolo\s+ese\b/i.test(t3) || /\bsolamente\s+eso\b/i.test(t3) || /\bnada\s+m[aá]s\b/i.test(t3) || /\bno\s+quiero\s+nada\s+m[aá]s\b/i.test(t3) || /\bno\s+quiero\s+(nada\s+)?m[aá]s\b/i.test(t3) || /\bning[uú]n[a]?\b/i.test(t3) || /\bning[uú]n\s+otro\b/i.test(t3) || /\bninguno\s+de\s+(esos|ellos|estos)\b/i.test(t3) || /\bno[.\s,¡!]+gracias\b/i.test(t3) || /\bno\s+gracias\b/i.test(t3) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t3) || /\beso\s+es\s+todo\b/i.test(t3) || /\bes\s+todo\b/i.test(t3) || /\bya\s+no\b/i.test(t3) || /\bno\s+m[aá]s\b/i.test(t3) || /\blisto\s+as[ií]\b/i.test(t3) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t3) || /\bya\s+con\s+eso\b/i.test(t3) || /\bser[ií]a\s+todo\b/i.test(t3) || /\bsolo\s+eso\b/i.test(t3) || /\bya\s+(est[aá]|queda)\s+(bien|listo)\b/i.test(t3) || /\bno\s+me\s+interesa\b/i.test(t3) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t3) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t3) || /\bpor\s+ahora\s+no\b/i.test(t3) || // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
   /\bsolo\s+quiero\b/i.test(t3) && !/\bcomida\b|\bcotiz/i.test(t3) || /\bquiero\s+solo\b/i.test(t3) && !/\bcomida\b|\bcotiz/i.test(t3);
 }
+function clientWorriesAboutCost(message) {
+  const t3 = (message ?? "").trim();
+  if (!t3 || /[?¿]/.test(t3)) return false;
+  return /\b(?:elev(?:ar|a|e)|sub(?:ir|e|a)|dispar(?:ar|a|e)|increment(?:ar|a|e))\s+(?:mucho\s+)?(?:al?|el|los?|mi)?\s*(?:costos?|precios?|presupuesto)\b/i.test(
+    t3
+  );
+}
+function clientAsksToWaitWhileBrowsing(message) {
+  const t3 = (message ?? "").trim();
+  if (!t3 || /[?¿]/.test(t3) || t3.split(/\s+/).length > 14) return false;
+  return /^(?:esp[eé]ra(?:me)?|dame\s+(?:chance|un\s+(?:momento|segundo|minuto|ratito))|d[eé]ja(?:me)?\s+(?:veo|ver|checo|checar|reviso|revisar))\b/i.test(
+    t3
+  );
+}
 function clientChoosesOtherCatalogOption(message) {
   if (!message?.trim()) return false;
   const t3 = message.trim().toLowerCase();
@@ -126795,8 +126821,11 @@ function parseSalaProductFromText(text2) {
     const name2 = named[1].trim().replace(/[.,;]+$/, "");
     return qty ? `${qty[1]} salas ${name2}` : `Sala ${name2}`;
   }
+  const labeled = text2.match(/\bsala\s+lounge\s*\((\d+)\)/i);
+  if (labeled) return `Sala lounge (${labeled[1]})`;
   const qtyOnly = text2.match(/\b(\d+)\s+salas?\b/i);
-  if (qtyOnly) return `${qtyOnly[1]} salas lounge`;
+  if (qtyOnly) return qtyOnly[1] === "1" ? "Sala lounge (1)" : `${qtyOnly[1]} salas lounge`;
+  if (/\b(?:una|1)\s+sala\s+lounge\b/i.test(text2)) return "Sala lounge (1)";
   const luxor = text2.match(
     /\bluxor(?:\s+(rosa|negr[oa]|blanc[oa]|dorad[oa]|gris|azul|verde|beige|nude|plata|platead[oa]|gold))?\b/i
   );
@@ -127706,9 +127735,9 @@ function parseCentrosDeMesaRequirement(text2) {
     return null;
   }
   const qty = t3.match(
-    /\bcentros?\s+de\s+mesas?\b[\s\S]{0,48}\b(?:ser[ií]an?|seran|son|como|unos?|unas?)?\s*(\d{1,3})\b/i
-  )?.[1] || t3.match(
     /\b(\d{1,3})\s*(?:centros?\s+de\s+mesas?|centros?\s+florales?|arreglos?\s+(?:de\s+)?mesas?)\b/i
+  )?.[1] || t3.match(
+    /\bcentros?\s+de\s+mesas?\b[^\n]{0,48}?\b(?:ser[ií]an?|seran|son|como|unos?|unas?)?\s*(\d{1,3})\b(?!\s*(?:personas?|invitad[oa]s?|pax|sillas?|salas?|mesas?|horas?|tiempos?|de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))\b)(?!\s*(?:[/:.-]|\d))/i
   )?.[1] || (/\bcentros?\s+de\s+mesas?\b/i.test(t3) ? t3.match(/\bser[ií]an?\s+(\d{1,3})\b/i)?.[1] : null);
   if (qty && Number(qty) >= 1 && Number(qty) <= 500) {
     return `Centros de mesa (${qty})`;
@@ -127883,6 +127912,14 @@ function dedupeServiceHierarchy(services, sourceText) {
     sourceText ?? ""
   )) {
     found.splice(animIdx, 1);
+  }
+  {
+    const salaIdxs = found.map((s6, i5) => /^(?:Sala lounge \(\d+\)|\d+\s+salas?\s+lounge|Salas lounge)$/i.test(s6) ? i5 : -1).filter((i5) => i5 >= 0);
+    if (salaIdxs.length > 1) {
+      const specific = salaIdxs.filter((i5) => !/^Salas lounge$/i.test(found[i5]));
+      const keep = specific.length ? specific[specific.length - 1] : salaIdxs[0];
+      for (const i5 of [...salaIdxs].reverse()) if (i5 !== keep) found.splice(i5, 1);
+    }
   }
   if (found.includes("Men\xFA staff")) {
     const meserosIdx = found.indexOf("Meseros");
@@ -129163,6 +129200,15 @@ function parseInvitadosFromText(text2, opts) {
   if (/\bhorno\s*\d+\b/i.test(trimmed) && !/\b(personas?|invitados?|invitadas?|pax)\b/i.test(trimmed)) {
     return null;
   }
+  const perTable = new RegExp(
+    `\\b\\d+\\s*(?:${GUEST_COUNT_WORDS})\\s+(?:en\\s+cada|por|x)\\s+mesas?\\b|\\bmesas?\\b[^\\n\\d]{0,24}\\bde\\s+\\d+\\s*(?:${GUEST_COUNT_WORDS})\\b`,
+    "gi"
+  );
+  const withoutPerTable = trimmed.replace(perTable, " ");
+  if (withoutPerTable !== trimmed) {
+    const rest = withoutPerTable.match(new RegExp(`\\b(\\d+)\\s*(${GUEST_COUNT_WORDS})\\b`, "i"));
+    return rest ? rest[1] : null;
+  }
   const numMatchEarly = trimmed.match(
     new RegExp(`\\b(\\d+)\\s*(${GUEST_COUNT_WORDS})\\b`, "i")
   );
@@ -130377,6 +130423,9 @@ function parsePresupuestoFromText(text2, opts) {
   if (/\bno\s+hay\s+l[ií]mite(\s+de\s+presupuesto)?\b/i.test(trimmed) || /\bsin\s+l[ií]mite(\s+de\s+presupuesto)?\b/i.test(trimmed) || /\bpresupuesto\s+sin\s+l[ií]mite\b/i.test(trimmed)) {
     return "Sin l\xEDmite (cliente indic\xF3 flexibilidad)";
   }
+  if (/^(?:no+|nop|nel|no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(trimmed) && opts?.askedField !== "presupuesto") {
+    return null;
+  }
   if (detectPresupuestoRefusal(trimmed)) {
     return "Sin definir (cliente indic\xF3 que no tiene)";
   }
@@ -130500,7 +130549,11 @@ function parsePresupuestoFromText(text2, opts) {
   const kMatch = trimmed.match(/\$?\s*([\d,.]+)\s*k\b/i);
   if (kMatch) {
     const num = parseInt(kMatch[1].replace(/[,.]/g, ""), 10);
-    if (!isNaN(num) && num > 0) return `$${num}k`;
+    if (!isNaN(num) && num > 0) {
+      const iva = /\bm[aá]s\s+i\.?\s*v\.?\s*a\.?|\+\s*i\.?\s*v\.?\s*a\.?|\bi\.?v\.?a\.?\s+aparte/i.test(trimmed) ? " + IVA" : "";
+      const ref = /\breferencia\b|\ba[nñ]o\s+pasado\b/i.test(trimmed) ? " (referencia)" : "";
+      return num < 1e3 ? `$${(num * 1e3).toLocaleString("es-MX")} MXN${iva}${ref}` : `$${num}k${iva}${ref}`;
+    }
   }
   const milMatch = trimmed.match(/([\d,.]+)\s*mil\b/i);
   if (milMatch) {
@@ -132825,6 +132878,7 @@ function clientAsksPrice(message) {
     return false;
   }
   if (/\bprecio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
+  if (clientWorriesAboutCost(message)) return false;
   if (/\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
   if (/\brangos?\s+de\s+precio\b/i.test(message) && /\b(propuestas?|opci[oó]n|men[uú])\b/i.test(message)) {
     return false;
@@ -134786,7 +134840,15 @@ function buildKnownCatalogAck(serviceLabel, query) {
       "\xBFLa sumamos a tu cotizaci\xF3n?"
     ].join(" ");
   }
-  const url = getCatalogWebUrlForQuery(query) || getCatalogWebUrlForQuery(name2) || null;
+  const url = getCatalogWebUrlForQuery(name2) || getCatalogWebUrlForQuery(query) || null;
+  if (/\bbarra\s+(?:libre\s+)?(?:de\s+)?(?:licores?\s+)?(?:nacional|internacional|premium)/i.test(query)) {
+    return [
+      "\xA1S\xED! Manejamos *barra de bebidas* con licores nacionales (y tambi\xE9n internacional o premium); el equipo arma la propuesta seg\xFAn horas e invitados.",
+      ...url ? [`Cat\xE1logo de *Barra de bebidas*:
+${url}`] : [],
+      "\xBFLa sumo a tu cotizaci\xF3n?"
+    ].join("\n");
+  }
   if (!url) {
     return `\xA1Claro! Anoto *${name2}* para tu cotizaci\xF3n. Nuestro equipo arma la propuesta seg\xFAn estilo y cantidad.`;
   }
@@ -137239,7 +137301,7 @@ function eventKey(tipo) {
   if (/apertura|inaugura|lanzamiento|showroom|tienda|negocio|open\s*house/.test(t3)) return "apertura";
   if (/boda|wedding/.test(t3)) return "boda";
   if (/xv|quince/.test(t3)) return "xv";
-  if (/corporativ|empresarial|gala|conferenc/.test(t3)) return "corporativo";
+  if (/corporativ|empresarial|gala|conferenc|premiaci|congreso|convenci/.test(t3)) return "corporativo";
   if (/cumple|birthday|aniversario/.test(t3)) return "cumple";
   if (/bautizo|baby\s*shower/.test(t3)) return "bautizo";
   return "default";
@@ -137264,7 +137326,7 @@ function clientAcceptsIdeasOffer(message, lastLucyText) {
   );
 }
 function normalizeForTipMatch(text2) {
-  return text2.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[*_]/g, "").replace(/\s+/g, " ");
+  return text2.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[\u200B-\u200D\u2060\uFEFF]/g, "").replace(/[*_]/g, "").replace(/\s+/g, " ");
 }
 function extractStyleCues(...texts) {
   const blob = texts.filter(Boolean).join(" \n ");
@@ -137276,11 +137338,31 @@ function extractStyleCues(...texts) {
   }
   return found;
 }
-function pickTips(tipoEvento, max = 2, alreadySent) {
+function pickTips(tipoEvento, max = 2, alreadySent, declined = []) {
   const tips = TIPS_BY_EVENT[eventKey(tipoEvento)] ?? TIPS_BY_EVENT.default;
   const sent = alreadySent ? normalizeForTipMatch(alreadySent) : "";
-  const fresh = sent ? tips.filter((tip) => !sent.includes(normalizeForTipMatch(tip).slice(0, 40))) : tips;
+  const fresh = (sent ? tips.filter((tip) => !sent.includes(normalizeForTipMatch(tip).slice(0, 40))) : tips).filter((tip) => !textMentionsDeclinedFamily(tip, declined));
   return fresh.slice(0, max);
+}
+function stripEchoedLucyText(message, lucyTexts) {
+  const raw = message ?? "";
+  if (!raw.trim()) return raw;
+  const lucyNorm = normalizeForTipMatch(lucyTexts.filter(Boolean).join("\n"));
+  if (!lucyNorm.trim()) return raw;
+  const pieces = raw.split(/\n+|(?<=[.!?])\s+/);
+  const kept = pieces.filter((piece) => {
+    const p4 = normalizeForTipMatch(piece.replace(/^[\s•⁠\-*]+/, "")).trim();
+    if (/^lo que se esta usando\b.*:$/.test(p4)) return false;
+    return !(p4.length >= 25 && lucyNorm.includes(p4.slice(0, 60)));
+  });
+  return kept.join("\n").trim();
+}
+function clientClosedServiceList(message) {
+  const t3 = (message ?? "").trim();
+  if (!t3) return false;
+  return /\b(?:eso\s+)?es\s+todo\b|\bser[ií]a\s+todo\b|\bnada\s+m[aá]s\b|\b(?:el\s+)?resto\b[^.\n]{0,30}\bya\s+(?:lo\s+)?tengo\b|\bya\s+tengo\s+(?:lo\s+dem[aá]s|el\s+resto)\b/i.test(
+    t3
+  );
 }
 function parseGroundingBullets(snippet, max = 2) {
   const raw = (snippet ?? "").trim();
@@ -137319,12 +137401,15 @@ function buildSalesIdeasSnippet(opts) {
     opts.requerimientos
   );
   const max = opts.maxTips ?? 2;
+  const declined = opts.declinedFamilies ?? [];
   const vibeCues = cues.filter((c4) => !EVENT_TYPE_CUES.has(c4));
-  const trends = parseGroundingBullets(opts.groundingSnippet, 2);
+  const sentNorm = opts.alreadySent ? normalizeForTipMatch(opts.alreadySent) : "";
+  const trends = parseGroundingBullets(opts.groundingSnippet, 4).filter((t3) => !textMentionsDeclinedFamily(t3, declined)).filter((t3) => !sentNorm || !sentNorm.includes(normalizeForTipMatch(t3).slice(0, 40))).slice(0, 2);
   const staticTips = pickTips(
     opts.tipoEvento || cues[0],
     Math.max(1, max - trends.length),
-    opts.alreadySent
+    opts.alreadySent,
+    declined
   );
   const tips = [...trends, ...staticTips].slice(0, Math.max(max, trends.length + 1));
   if (!tips.length) return null;
@@ -137354,6 +137439,7 @@ function enrichReplyWithSalesIdeas(mensaje, opts) {
   const out2 = (mensaje || "").trim();
   if (!out2) return out2;
   if (messageAlreadyOffersSalesIdeas(out2)) return out2;
+  if (clientClosedServiceList(opts.messageText) && !opts.accepted) return out2;
   if (opts.accepted) {
     const snippet2 = buildSalesIdeasSnippet({
       tipoEvento: opts.tipoEvento,
@@ -137364,7 +137450,8 @@ function enrichReplyWithSalesIdeas(mensaje, opts) {
       contextText: opts.contextText,
       accepted: true,
       numInvitados: opts.numInvitados,
-      groundingSnippet: opts.groundingSnippet
+      groundingSnippet: opts.groundingSnippet,
+      declinedFamilies: opts.declinedFamilies
     });
     if (!snippet2) return out2;
     const questions = (out2.match(/[^.!?\n]*\?/g) ?? []).map((q3) => q3.trim()).filter(Boolean);
@@ -137392,7 +137479,8 @@ ${cleanQ}`.trim();
     maxTips: wants ? 2 : 1,
     alreadySent: opts.alreadySent,
     contextText: opts.contextText,
-    groundingSnippet: wants ? opts.groundingSnippet : null
+    groundingSnippet: wants ? opts.groundingSnippet : null,
+    declinedFamilies: opts.declinedFamilies
   });
   if (!snippet) return out2;
   const qMatch = out2.match(/((?:¿|\?)[^\n]*\?\s*)$/);
@@ -141149,10 +141237,19 @@ function upgradeVagueFoodRequirement(value, label) {
   return [label, ...kept.filter((p4) => p4.toLowerCase() !== label.toLowerCase())].join(", ");
 }
 function applyLucyMessageGuards(input) {
-  const mensaje = applyLucyMessageGuardsRaw(input).replace(
+  let mensaje = applyLucyMessageGuardsRaw(input).replace(
     /^(¡?)Perfecto,\s+que\s+es\s+\*[^*\n]+\*\s*([!.])?\s*/i,
     (_m, open2) => open2 ? "\xA1Perfecto! " : "Perfecto. "
   );
+  {
+    const cm = input.currentMessage ?? "";
+    const sala = /\bplural\b|\bsigues?\s+(?:diciendo|poniendo)\b|\bes\s+una\s+sola\b/i.test(cm) ? parseSalaProductFromText(cm) : null;
+    if (sala === "Sala lounge (1)" && !/\buna\s+sala\s+lounge\b/i.test(mensaje)) {
+      mensaje = `Tienes raz\xF3n, es *una sala lounge*; ya lo correg\xED.
+
+${mensaje.replace(/^¡Con gusto(?:,\s*[^!]+)?!\s*/i, "")}`.trim();
+    }
+  }
   {
     const parts2 = (input.extracted.requerimientos_evento ?? "").split(",").map((s6) => s6.trim()).filter(Boolean);
     const vague = (p4) => /^(alimentos?|comidas?|catering|banquetes?)$/i.test(p4);
@@ -141165,7 +141262,7 @@ function applyLucyMessageGuards(input) {
   const historyClosed = detectCierreEnviado(
     input.presentationHistory ?? input.history
   );
-  return ensureOutboundAlwaysAsks(mensaje, {
+  const asked = ensureOutboundAlwaysAsks(mensaje, {
     extracted: input.extracted,
     filledSet: input.filledSet,
     ctx: makeQuestionCtx(input),
@@ -141173,6 +141270,11 @@ function applyLucyMessageGuards(input) {
     cierreYaEnviado: (Boolean(input.cierreYaEnviado) || historyClosed) && !hardPending,
     history: input.presentationHistory ?? input.history
   });
+  const trailingQ = asked.match(/¿[^?\n]+\?\s*$/)?.[0] ?? "";
+  if (/¿Quieres que te d[eé] detalles de alguno\?\s*\n+¿[^?\n]+\?\s*$/i.test(asked) && /presupuesto|estimado|rango|les\s+proponga\s+opciones/i.test(trailingQ)) {
+    return asked.slice(0, asked.length - trailingQ.length).trim();
+  }
+  return asked;
 }
 function applyLucyMessageGuardsRaw(input) {
   const {
@@ -142281,9 +142383,15 @@ ${follow}` : ack,
         filledSet.add(CRM_HORARIO_LABEL);
       }
       syncLegacyFechaHorarioField(extracted);
+      const zonaJunto = parseZonaFromText(currentMessage ?? "");
+      const zonaAck = zonaJunto && isCompleteEventLocation(zonaJunto) ? zonaJunto : null;
+      if (zonaAck && !isCompleteEventLocation(extracted.direccion_evento)) {
+        extracted.direccion_evento = zonaAck;
+        filledSet.add("Lugar/direcci\xF3n del evento");
+      }
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-      const ack = `Perfecto, anoto la fecha: *${extracted.fecha_evento}*.`;
+      const ack = zonaAck ? `Perfecto, queda el *${extracted.fecha_evento}* en *${zonaAck}*.` : `Perfecto, anoto la fecha: *${extracted.fecha_evento}*.`;
       log?.info(
         { entityId, fecha: extracted.fecha_evento, pending },
         "GUARD: A15297 \u2014 fecha capturada + embudo real"
@@ -142426,6 +142534,17 @@ ${follow}` : ack,
     const ack = `${display ? `Claro, ${display}. ` : "Claro. "}Nuestro servicio de *DJ* incluye equipo de audio completo, micr\xF3fono para brindis e iluminaci\xF3n b\xE1sica; puedes mandar tu playlist. \xBFQuieres que lo sume a tu cotizaci\xF3n?`;
     log?.info({ entityId }, "GUARD: A15581 \u2014 qu\xE9 incluye el DJ");
     return normalizeAdvisorReferences2(ack, extracted.nombre ?? display);
+  }
+  if (currentMessage && clientAsksToWaitWhileBrowsing(currentMessage)) {
+    log?.info({ entityId }, "GUARD: A16523 \u2014 cliente pide un momento");
+    return "\xA1Claro, con calma! Aqu\xED te espero. \xBFMe dices cu\xE1l te gust\xF3 cuando lo veas?";
+  }
+  if (currentMessage && clientWorriesAboutCost(currentMessage)) {
+    const tiffany = /tiffany/i.test(`${extracted.requerimientos_evento ?? ""} ${collectUserTexts(presHistory).slice(-3).join(" ")}`);
+    const ack = tiffany ? "Entiendo, cuidamos el costo: las *Tiffany* son de las m\xE1s accesibles y se ven muy bien, as\xED las dejo en tu cotizaci\xF3n." : "Entiendo, cuidamos el costo: dejo la opci\xF3n m\xE1s accesible en tu cotizaci\xF3n.";
+    const presPending = !isFieldSatisfied("presupuesto", filledSet, extracted);
+    log?.info({ entityId }, "GUARD: A16523 \u2014 cliente cuida el costo");
+    return presPending ? `${ack} \xBFManejan alg\xFAn presupuesto estimado? As\xED el equipo ajusta la propuesta.` : `${ack} \xBFAlgo m\xE1s que quieras ajustar?`;
   }
   if (!cierreYaEnviado && currentMessage && clientWantsQuoteDelivery(currentMessage) && conversationAlreadyStarted(filledSet, presHistory) && // "Quisiera una cotización para una pista…" pide cotizar un servicio nuevo, no el envío.
   !parseServicesFromText(currentMessage).some(
@@ -142694,7 +142813,7 @@ ${buildNaturalQuestion(pending, ctx)}` : consultative;
           "i"
         ).test(blob);
         const asFurnitureOnly = new RegExp(
-          `\\b${n4}\\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?)\\b`,
+          `\\b${n4}\\s*(salas?|mesas?|carpas?|pistas?|tarimas?)\\b`,
           "i"
         ).test(blob);
         if (asFurnitureOnly && !asGuests) {
@@ -143097,7 +143216,7 @@ Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
     const services = parseServicesFromText(currentMessage ?? "");
     const list = services.length > 0 ? formatServicesList(services) : (currentMessage ?? "").trim().replace(/\s+/g, " ").slice(0, 100);
     const nombre = getDisplayName(extracted, whatsappDisplayName);
-    mensaje = nombre ? `Perfecto, ${nombre}. Anoto ${list} para que el equipo lo sume a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?` : `Perfecto. Anoto ${list} para que el equipo lo sume a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?`;
+    mensaje = nombre ? `Perfecto, ${nombre}. Sumo ${list} a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?` : `Perfecto. Sumo ${list} a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 servicios adicionales (ack corto)");
   } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && (isRichQuoteBrief(currentMessage) || parseServicesFromText(currentMessage ?? "").length >= 2)) {
@@ -143125,7 +143244,7 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     const services = parseServicesFromText(currentMessage);
     const list = services.length > 0 ? formatServicesList(services) : currentMessage.trim().replace(/\s+/g, " ").slice(0, 80);
     const nombre = getDisplayName(extracted, whatsappDisplayName);
-    mensaje = nombre ? `Perfecto, ${nombre}. Anoto ${list} para que el equipo lo sume a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?` : `Perfecto. Anoto ${list} para que el equipo lo sume a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?`;
+    mensaje = nombre ? `Perfecto, ${nombre}. Sumo ${list} a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?` : `Perfecto. Sumo ${list} a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 servicio adicional (ack corto, sin niveles)");
   } else if (cierreYaEnviado && (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))) {
@@ -146983,6 +147102,10 @@ function softenRobotAcks(mensaje) {
   out2 = out2.replace(/(?:¡|\b)Claro!?\.?\s*Anoto\s+/gi, "\xA1Claro! Vamos con ");
   out2 = out2.replace(/\bPerfecto\s*[—–,-]\s*anoto\s+/gi, "\xA1Va! Sumamos ");
   out2 = out2.replace(
+    /\bAnoto\s+([^.!?\n]{2,80}?)\s+para\s+que\s+(?:el|nuestro)\s+equipo\s+lo\s+sume\s+a\s+tu\s+cotizaci[oó]n[.!]?\s*/gi,
+    "Sumo $1 a tu cotizaci\xF3n. "
+  );
+  out2 = out2.replace(
     /\bAnoto\s+(\*[^*]{1,80}\*|(?:medidas?\s+)?[^.!?\n]{2,80}?)\s+para\s+tu\s+cotizaci[oó]n[.!]?\s*/gi,
     "Seguimos con $1. "
   );
@@ -147263,17 +147386,22 @@ ${keepQ}` : ack;
     const lucyTexts = historyText("assistant");
     const lastLucy = lucyTexts[lucyTexts.length - 1] ?? "";
     const acceptedIdeas = clientAcceptsIdeasOffer(input.currentMessage, lastLucy);
-    const forceIdeas = acceptedIdeas || clientWantsIdeasOrTrends(input.currentMessage) || /recomendaciones?|ideas?\b|colores?|montajes?/i.test(input.currentMessage ?? "");
+    const ownWords = stripEchoedLucyText(input.currentMessage, lucyTexts);
+    const forceIdeas = acceptedIdeas || !clientClosedServiceList(ownWords) && (clientWantsIdeasOrTrends(ownWords) || /recomendaciones?|ideas?\b|colores?|montajes?/i.test(ownWords));
     const withIdeas = !forceIdeas ? mensaje : enrichReplyWithSalesIdeas(mensaje, {
       tipoEvento: input.extracted.tipo_evento,
-      messageText: input.currentMessage,
+      messageText: ownWords,
       requerimientos: input.extracted.requerimientos_evento,
       force: forceIdeas,
       accepted: acceptedIdeas,
       alreadySent: lucyTexts.join("\n"),
       contextText: historyText("user").slice(-6).join("\n"),
       numInvitados: input.extracted.num_invitados ?? null,
-      groundingSnippet: input.trendGroundingSnippet ?? null
+      groundingSnippet: input.trendGroundingSnippet ?? null,
+      declinedFamilies: declinedFamiliesInTexts([
+        ...historyText("user"),
+        input.currentMessage
+      ])
     });
     if (withIdeas !== mensaje && withIdeas.trim().length >= 8) {
       input.log?.info?.({ entityId: input.entityId }, "GUARD: tono \u2014 ideas de venta inyectadas");
@@ -147826,15 +147954,18 @@ function pendingFields(mergedLines, extracted) {
   }
   return pending;
 }
-function extractRentalPieceCount(text2) {
+function extractRentalPieceList(text2) {
   const t3 = text2 ?? "";
-  const m5 = t3.match(
-    /\b(?:alrededor\s+de|aprox(?:imadamente)?|ocupamos|necesitamos?|buscamos?|renta(?:r|mos)?|son|de)?\s*(\d{1,3})\s*(sillas?|mesas?|periqueras?|carpas?|lounges?|piezas?|manteles?)\b/i
-  );
-  if (!m5) return null;
-  const count = parseInt(m5[1], 10);
-  if (!Number.isFinite(count) || count < 1 || count > 500) return null;
-  return { count, unit: m5[2].toLowerCase() };
+  const byUnit = /* @__PURE__ */ new Map();
+  const re3 = /\b(\d{1,3})\s*(sillas?|mesas?|periqueras?|carpas?|lounges?|manteles?)\b(?!\s+de\s+\d)/gi;
+  for (const m5 of t3.matchAll(re3)) {
+    const count = parseInt(m5[1], 10);
+    if (!Number.isFinite(count) || count < 1 || count > 500) continue;
+    const unit = m5[2].toLowerCase().replace(/^(silla|mesa|periquera|carpa|lounge|mantel)$/, "$1s").replace(/^mantels$/, "manteles");
+    if (!byUnit.has(unit)) byUnit.set(unit, count);
+  }
+  if (!byUnit.size) return null;
+  return [...byUnit.entries()].map(([unit, count]) => `${count} ${unit}`).join(", ");
 }
 function pushUnique(out2, value, max = 10) {
   const v3 = (value ?? "").replace(/\s+/g, " ").trim();
@@ -148077,7 +148208,7 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   const evento = pickFromMergedLines(mergedLines, /Tipo de evento/i) || extracted.tipo_evento?.trim() || null;
   const fecha = pickFromMergedLines(mergedLines, /Fecha del evento/i) || extracted.fecha_evento?.trim() || pickFromMergedLines(mergedLines, /Fecha y horario/i) || extracted.fecha_horario?.trim() || null;
   const horario = pickFromMergedLines(mergedLines, /Horario del evento/i) || extracted.horario_evento?.trim() || null;
-  const fechaResumen = horario && fecha ? `${fecha}, ${horario}` : fecha;
+  const fechaResumen = horario && fecha ? fecha.toLowerCase().includes(horario.toLowerCase()) ? fecha : `${fecha}, ${horario}` : fecha;
   const invitados = pickFromMergedLines(mergedLines, /Número de invitados/i) || (extracted.num_invitados !== null && extracted.num_invitados > 0 ? String(extracted.num_invitados) : null);
   const ubicacionRaw = pickFromMergedLines(mergedLines, /Lugar\/dirección/i) || extracted.direccion_evento?.trim() || null;
   const ubicacion = formatUbicacionResumen(ubicacionRaw, conversationText);
@@ -148099,12 +148230,12 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
     reqs = reqFromLines || (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) || reqFromConversation;
   }
   const blob = [conversationText, reqs, reqFromLinesRaw].filter(Boolean).join("\n");
-  const pieces = extractRentalPieceCount(blob);
+  const pieces = extractRentalPieceList(blob);
   const specs = extractQuoteKeyPoints(blob);
   const ppto = resolveResumenPresupuesto(extracted, mergedLines, conversationText);
   let serviciosLine = reqs || "(a\xFAn por definir con m\xE1s detalle)";
   if (pieces && reqs && /mobiliario|silla|mesa|carpa|lounge|periquera|mantel/i.test(`${reqs} ${blob}`)) {
-    serviciosLine = `${reqs} \u2014 ${pieces.count} ${pieces.unit}`;
+    serviciosLine = `${reqs} \u2014 ${pieces}`;
   }
   if (specs.length) {
     const foodTip = specs.find(
@@ -148138,7 +148269,7 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
     lineas.push(escalaAbierta ? `\u2022 Invitados: ${invitados}` : `\u2022 Invitados del evento: ${invitados}`);
   }
   if (pieces) {
-    lineas.push(`\u2022 Piezas a cotizar: ${pieces.count} ${pieces.unit}`);
+    lineas.push(`\u2022 Piezas a cotizar: ${pieces}`);
   }
   lineas.push("");
   if (specs.length) {
@@ -150550,9 +150681,10 @@ async function runAll() {
   await test("49. Karime \u2014 'no tengo' en presupuesto = sin definir, no repetir", () => {
     assert2.ok(detectPresupuestoRefusal("no tengo"));
     assert2.equal(
-      parsePresupuestoFromText("no tengo"),
+      parsePresupuestoFromText("no tengo", { askedField: "presupuesto" }),
       "Sin definir (cliente indic\xF3 que no tiene)"
     );
+    assert2.equal(parsePresupuestoFromText("no"), null);
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Correo electr\xF3nico",

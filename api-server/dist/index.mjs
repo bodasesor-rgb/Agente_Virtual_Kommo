@@ -90792,286 +90792,6 @@ var init_bodasesorAdvisor = __esm({
   }
 });
 
-// src/services/trendKnowledge.ts
-function eventKey(tipo) {
-  const t4 = (tipo ?? "").toLowerCase();
-  if (/apertura|inaugura|lanzamiento|showroom|tienda|negocio|open\s*house/.test(t4)) return "apertura";
-  if (/boda|wedding/.test(t4)) return "boda";
-  if (/xv|quince/.test(t4)) return "xv";
-  if (/corporativ|empresarial|gala|conferenc/.test(t4)) return "corporativo";
-  if (/cumple|birthday|aniversario/.test(t4)) return "cumple";
-  if (/bautizo|baby\s*shower/.test(t4)) return "bautizo";
-  return "default";
-}
-function clientWantsIdeasOrTrends(message) {
-  if (!message?.trim()) return false;
-  return TREND_IDEA_PATTERN.test(message) || ACCEPTS_IDEAS_PATTERN.test(message);
-}
-function lucyOfferedIdeas(lucyText) {
-  const t4 = lucyText ?? "";
-  if (!t4.trim()) return false;
-  return /\b(?:te\s+(?:puedo\s+)?(?:dar|compartir|pasar|mandar|sugerir)|quieres\s+(?:que\s+te\s+(?:d[eé]|comparta|pase|mande|sugiera)\s+)?|te\s+late\s+que\s+te\s+(?:d[eé]|comparta|pase))[^.?!\n]{0,40}\b(?:ideas?|sugerencias?|recomendaciones?|opciones)\b/i.test(
-    t4
-  ) || /\b(?:ideas?|sugerencias?)\b[^.?!\n]{0,60}\?/i.test(t4);
-}
-function clientAcceptsIdeasOffer(message, lastLucyText) {
-  const m6 = (message ?? "").trim();
-  if (!m6 || m6.length > 80 || !lucyOfferedIdeas(lastLucyText)) return false;
-  if (/\bno\b(?!\s+s[eé]\b)/i.test(m6) && !/\bpor\s+qu[eé]\s+no\b/i.test(m6)) return false;
-  return /^(?:s[ií]+|sip|claro|dale|va|vale|ok(?:ay)?|sale|porfa|por\s+favor|me\s+encantar[ií]a|obvio|perfecto|de\s+acuerdo|por\s+supuesto|adelante|a\s+ver|por\s+qu[eé]\s+no|me\s+late|[aá]ndale)(?=[\s,.!¡?]|$)/i.test(
-    m6
-  );
-}
-function normalizeForTipMatch(text2) {
-  return text2.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[*_]/g, "").replace(/\s+/g, " ");
-}
-function extractStyleCues(...texts) {
-  const blob = texts.filter(Boolean).join(" \n ");
-  if (!blob.trim()) return [];
-  const found = [];
-  for (const { pattern, label } of STYLE_CUES) {
-    if (pattern.test(blob) && !found.includes(label)) found.push(label);
-    if (found.length >= 4) break;
-  }
-  return found;
-}
-function pickTips(tipoEvento, max = 2, alreadySent) {
-  const tips = TIPS_BY_EVENT[eventKey(tipoEvento)] ?? TIPS_BY_EVENT.default;
-  const sent = alreadySent ? normalizeForTipMatch(alreadySent) : "";
-  const fresh = sent ? tips.filter((tip) => !sent.includes(normalizeForTipMatch(tip).slice(0, 40))) : tips;
-  return fresh.slice(0, max);
-}
-function parseGroundingBullets(snippet, max = 2) {
-  const raw = (snippet ?? "").trim();
-  if (!raw) return [];
-  const lines = raw.includes("\n") ? raw.split(/\n+/) : raw.split(/\s+(?=[-*•]\s)|(?<=[.!])\s+(?=[A-ZÁÉÍÓÚÑ])/);
-  const out2 = [];
-  for (const line2 of lines) {
-    const t4 = line2.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
-    if (t4.length < 15 || t4.length > 220) continue;
-    if (/\$|https?:|www\.|\bmxn\b|\bpesos\b/i.test(t4)) continue;
-    if (/^(aqu[ií]|claro|estas son|te comparto|tendencias)\b.*:$/i.test(t4)) continue;
-    out2.push(/[.!]$/.test(t4) ? t4 : `${t4}.`);
-    if (out2.length >= max) break;
-  }
-  return out2;
-}
-function containsStaticSalesTip(text2) {
-  const norm2 = normalizeForTipMatch(text2 ?? "");
-  if (!norm2.trim()) return false;
-  return Object.values(TIPS_BY_EVENT).some(
-    (tips) => tips.some((tip) => norm2.includes(normalizeForTipMatch(tip).slice(0, 40)))
-  );
-}
-function messageAlreadyOffersSalesIdeas(text2) {
-  const t4 = text2 ?? "";
-  if (!t4.trim()) return false;
-  return /algunas ideas que funcionan|una idea que funciona|ideas que suelen funcionar|para un vibe/i.test(t4) || /iluminaci[oó]n c[aá]lida|lounge peque|pista iluminada|coffee break \+ pantallas|mesa de dulces/i.test(
-    t4
-  ) || /•\s*.+\n•\s*/.test(t4) && /iluminaci|mobiliario|banquete|dj|carpa|lounge/i.test(t4);
-}
-function buildSalesIdeasSnippet(opts) {
-  const cues = extractStyleCues(
-    opts.messageText,
-    opts.contextText,
-    opts.tipoEvento,
-    opts.requerimientos
-  );
-  const max = opts.maxTips ?? 2;
-  const vibeCues = cues.filter((c5) => !EVENT_TYPE_CUES.has(c5));
-  const trends = parseGroundingBullets(opts.groundingSnippet, 2);
-  const staticTips = pickTips(
-    opts.tipoEvento || cues[0],
-    Math.max(1, max - trends.length),
-    opts.alreadySent
-  );
-  const tips = [...trends, ...staticTips].slice(0, Math.max(max, trends.length + 1));
-  if (!tips.length) return null;
-  if (opts.accepted) {
-    const tipo = opts.tipoEvento?.trim();
-    const inv = opts.numInvitados ? `${opts.numInvitados} personas` : null;
-    const vibe = vibeCues[0];
-    const detalles = [inv, vibe ? `algo ${vibe}` : null].filter(Boolean).join(", ");
-    const para = tipo ? `Para tu ${tipo.toLowerCase()}${detalles ? ` (${detalles})` : ""}` : detalles ? `Para tu evento (${detalles})` : "Para tu evento";
-    const lead = trends.length ? `\xA1Claro! ${para}, esto es lo que se est\xE1 usando y funciona muy bien:` : `\xA1Claro! ${para}, algunas ideas que funcionan muy bien:`;
-    return `${lead}
-${tips.map((t4) => `\u2022 ${t4}`).join("\n")}`.trim();
-  }
-  if (trends.length) {
-    const cueTrend = vibeCues[0] ? ` para un vibe *${vibeCues[0]}*` : "";
-    return `Lo que se est\xE1 usando${cueTrend}:
-${tips.map((t4) => `\u2022 ${t4}`).join("\n")}`.trim();
-  }
-  const cue = vibeCues[0] ? `Para un vibe *${vibeCues[0]}*: ` : "";
-  if (tips.length === 1) {
-    return cue ? `${cue}${tips[0]}` : `Una idea que funciona muy bien: ${tips[0]}`;
-  }
-  return `${cue}Algunas ideas que funcionan bien:
-${tips.map((t4) => `\u2022 ${t4}`).join("\n")}`.trim();
-}
-function enrichReplyWithSalesIdeas(mensaje, opts) {
-  const out2 = (mensaje || "").trim();
-  if (!out2) return out2;
-  if (messageAlreadyOffersSalesIdeas(out2)) return out2;
-  if (opts.accepted) {
-    const snippet2 = buildSalesIdeasSnippet({
-      tipoEvento: opts.tipoEvento,
-      messageText: opts.messageText,
-      requerimientos: opts.requerimientos,
-      maxTips: 3,
-      alreadySent: opts.alreadySent,
-      contextText: opts.contextText,
-      accepted: true,
-      numInvitados: opts.numInvitados,
-      groundingSnippet: opts.groundingSnippet
-    });
-    if (!snippet2) return out2;
-    const questions = (out2.match(/[^.!?\n]*\?/g) ?? []).map((q4) => q4.trim()).filter(Boolean);
-    const q3 = questions[questions.length - 1];
-    if (!q3) return `${snippet2}
-
-${out2}`.trim();
-    const cleanQ = q3.startsWith("\xBF") ? q3 : `\xBF${q3.replace(/^¿?/, "")}`;
-    return `${snippet2}
-
-${cleanQ}`.trim();
-  }
-  const wants = opts.force || clientWantsIdeasOrTrends(opts.messageText) || /recomendaciones?|recomiendas?|ideas?\b|colores?|montajes?|decoraci/i.test(
-    opts.messageText ?? ""
-  );
-  const askingServices = /qu[eé]\s+(servicios|necesitas|gustar)|plat[ií]came|armar para|te gustar[ií]a ir armando/i.test(
-    out2
-  );
-  const hasTipo = !!(opts.tipoEvento && opts.tipoEvento.trim().length >= 3);
-  if (!wants && !(hasTipo && askingServices)) return out2;
-  const snippet = buildSalesIdeasSnippet({
-    tipoEvento: opts.tipoEvento,
-    messageText: opts.messageText,
-    requerimientos: opts.requerimientos,
-    maxTips: wants ? 2 : 1,
-    alreadySent: opts.alreadySent,
-    contextText: opts.contextText,
-    groundingSnippet: wants ? opts.groundingSnippet : null
-  });
-  if (!snippet) return out2;
-  const qMatch = out2.match(/((?:¿|\?)[^\n]*\?\s*)$/);
-  if (qMatch?.[1]) {
-    const before = out2.slice(0, out2.length - qMatch[1].length).trim();
-    if (before) return `${before}
-
-${snippet}
-
-${qMatch[1]}`.trim();
-    return `${snippet}
-
-${qMatch[1]}`.trim();
-  }
-  return `${out2}
-
-${snippet}`.trim();
-}
-function buildTrendContextBlock(opts) {
-  const cues = extractStyleCues(opts.messageText, opts.tipoEvento, opts.requerimientos);
-  const tips = pickTips(opts.tipoEvento, cues.length ? 1 : 2);
-  const team = advisorLabelForClient();
-  const wantsIdeas = clientWantsIdeasOrTrends(opts.messageText);
-  const lines = [
-    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 IDEAS / TENDENCIAS (compacto \u2014 sin precios) \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    "Usa esto para asesorar y generar negocio. NO cites montos aqu\xED.",
-    `Precio solo si el cliente lo pidi\xF3 y hay ficha Sheet/PDF; si no, ${team} cotiza.`
-  ];
-  if (cues.length) {
-    lines.push(`Estilo/vibe detectado: ${cues.join(", ")}.`);
-  }
-  if (tips.length) {
-    lines.push(`Ideas \xFAtiles: ${tips.join(" ")}`);
-  }
-  if (opts.groundingSnippet?.trim()) {
-    const snip = opts.groundingSnippet.trim().length > 500 ? `${opts.groundingSnippet.trim().slice(0, 497)}\u2026` : opts.groundingSnippet.trim();
-    lines.push(`Notas al d\xEDa (grounding): ${snip}`);
-  } else if (wantsIdeas) {
-    lines.push(
-      "El cliente pidi\xF3/acept\xF3 ideas: propone 1\u20132 sugerencias concretas atadas a servicios Bodasesor y pide 1 dato del embudo."
-    );
-  } else if (opts.tipoEvento || cues.length) {
-    lines.push(
-      "INVITA ideas (proactivo, 1 frase): pregunta si quiere ideas de lo que se puede armar para su evento. No listes 8 cosas; solo invita."
-    );
-  }
-  const block = lines.join("\n");
-  return block.length > 900 ? `${block.slice(0, 897)}\u2026` : block;
-}
-function shouldInjectTrendBlock(messageText, tipoEvento) {
-  if (clientWantsIdeasOrTrends(messageText)) return true;
-  if (extractStyleCues(messageText, tipoEvento).length > 0) return true;
-  return !!(tipoEvento && tipoEvento.trim().length >= 3);
-}
-var ACCEPTS_IDEAS_PATTERN, TREND_IDEA_PATTERN, STYLE_CUES, EVENT_TYPE_CUES, TIPS_BY_EVENT;
-var init_trendKnowledge = __esm({
-  "src/services/trendKnowledge.ts"() {
-    "use strict";
-    init_bodasesorAdvisor();
-    ACCEPTS_IDEAS_PATTERN = /\b(?:s[ií](?:\s+por\s+favor)?|claro|dale|va|ok|okay|sale|perfecto)\b.{0,40}\b(?:ideas?|recomendaci|sugerenc)|\b(?:dame|quiero|pásame|pasame|necesito)\s+ideas?\b|\bideas?\s+por\s+favor\b/i;
-    TREND_IDEA_PATTERN = /\b(?:tendenci(?:a|as)|ideas?\s+(?:de\s+)?(?:decoraci[oó]n|evento|fiesta|boda|xv|ambient|colores?|montaje)|inspiraci[oó]n|mood\s*board|estilos?\b|tem[aá]tica|ambiente|colores?|paleta|montajes?|decoraci[oó]n|qu[eé]\s+(?:se\s+)?(?:usa|lleva|est[aá]\s+usando)|novedades?|recomendaci[oó]n(?:es)?|c[oó]mo\s+(?:armar|decorar|montar)|qu[eé]\s+(?:me\s+)?(?:recomiendas?|sugieres?)|opciones?\s+de\s+(?:decor|estilo|color)|look\b|vibe\b|aesthetic)\b/i;
-    STYLE_CUES = [
-      { pattern: /\bboho|bohemio/i, label: "boho" },
-      { pattern: /\br[uú]stic/i, label: "r\xFAstico" },
-      { pattern: /\belegante|formal|black\s*tie/i, label: "elegante" },
-      { pattern: /\bminimal(?:ista)?/i, label: "minimalista" },
-      { pattern: /\bne[oó]n|fluo/i, label: "ne\xF3n / fiesta" },
-      { pattern: /\bjard[ií]n|garden|al\s+aire\s+libre|exterior/i, label: "jard\xEDn / exterior" },
-      { pattern: /\bcoquette|rosad[oa]|pink/i, label: "coquette / rosa" },
-      { pattern: /\bvintage|retr[oó]/i, label: "vintage" },
-      { pattern: /\bindustrial|loft/i, label: "industrial" },
-      { pattern: /\btropical|player[oa]|beach/i, label: "tropical" },
-      { pattern: /\bm[eé]xico|mexicana|folkl[oó]r/i, label: "mexicana" },
-      { pattern: /\bxv|quince/i, label: "XV a\xF1os" },
-      { pattern: /\bboda|wedding/i, label: "boda" },
-      { pattern: /\bcorporativ|empresarial|gala/i, label: "corporativo" },
-      { pattern: /\bfamiliar|en\s+familia|convivio|reuni[oó]n\s+peque/i, label: "familiar" }
-    ];
-    EVENT_TYPE_CUES = /* @__PURE__ */ new Set(["XV a\xF1os", "boda", "corporativo"]);
-    TIPS_BY_EVENT = {
-      boda: [
-        "Iluminaci\xF3n c\xE1lida + lounge peque\xF1o suele elevar el ambiente sin saturar.",
-        "Carpa + entelado + pista iluminada arma un look completo en jard\xEDn.",
-        "Estaciones casuales + barra de bebidas liberan el sal\xF3n vs banquete fijo."
-      ],
-      xv: [
-        "Entrada con luces o LED wall + pista grande marca el momento del vals.",
-        "Mobiliario lounge en zona VIP + periqueras en c\xF3ctel funciona muy bien.",
-        "Mesa de dulces + barra de postres refuerza el tema de color."
-      ],
-      corporativo: [
-        "Coffee break + pantallas LED + audio claro = formato profesional limpio.",
-        "Periqueras + branding en backdrop para networking sin montaje pesado.",
-        "Si hay premiaci\xF3n: tarima + iluminaci\xF3n enfocada al escenario."
-      ],
-      cumple: [
-        "Tem\xE1tica clara (color/estilo) + mesa de dulces + DJ suele cerrar bien.",
-        "Para algo familiar: taquiza o parrillada + mesa de dulces + m\xFAsica de fondo, ambiente relajado sin montaje pesado.",
-        "Mesas largas tipo convivio o una sala lounge hacen que todos platiquen m\xE1s.",
-        "Un toque personal: pastel tem\xE1tico y un backdrop sencillo para fotos.",
-        "Para jard\xEDn: carpa + iluminaci\xF3n tipo edison + estaciones de comida."
-      ],
-      bautizo: [
-        "Brunch o banquete ligero + pastel + mesa de dulces arma un look familiar limpio.",
-        "En jard\xEDn o terraza: carpas o sombrillas + mobiliario b\xE1sico sin saturar."
-      ],
-      apertura: [
-        "C\xF3ctel de bienvenida con canap\xE9s y barra de mixolog\xEDa: la gente recorre el espacio con copa en mano.",
-        "Iluminaci\xF3n ambiental que resalte el producto + DJ en modo lounge, sin tapar la pl\xE1tica.",
-        "Un backdrop con la marca para fotos y redes hace que la apertura se comparta sola."
-      ],
-      default: [
-        "Barra de bebidas + estaciones de comida hacen que la gente se mueva y conviva m\xE1s que un banquete fijo.",
-        "Iluminaci\xF3n c\xE1lida + una sala lounge elevan el ambiente sin saturar el espacio.",
-        "Un DJ que arranque tranquilo y suba al final mantiene la energ\xEDa toda la noche."
-      ]
-    };
-  }
-});
-
 // ../node_modules/bmp-ts/dist/esm/header-types.js
 var HeaderTypes, header_types_default;
 var init_header_types = __esm({
@@ -129006,6 +128726,7048 @@ var init_imageCompress = __esm({
   }
 });
 
+// src/services/imageProcessor.ts
+function pruneImageCache() {
+  const now = Date.now();
+  for (const [url2, entry] of imageAnalysisCache) {
+    if (now - entry.at > IMAGE_CACHE_TTL_MS) imageAnalysisCache.delete(url2);
+  }
+  if (imageAnalysisCache.size <= IMAGE_CACHE_MAX) return;
+  const sorted = [...imageAnalysisCache.entries()].sort((a4, b5) => a4[1].at - b5[1].at);
+  for (let i6 = 0; i6 < sorted.length - IMAGE_CACHE_MAX; i6++) {
+    imageAnalysisCache.delete(sorted[i6][0]);
+  }
+}
+function getCachedImageAnalysis(imageUrl) {
+  const entry = imageAnalysisCache.get(imageUrl);
+  if (!entry) return null;
+  if (Date.now() - entry.at > IMAGE_CACHE_TTL_MS) {
+    imageAnalysisCache.delete(imageUrl);
+    return null;
+  }
+  return entry.analysis;
+}
+function cacheImageAnalysis(imageUrl, analysis) {
+  imageAnalysisCache.set(imageUrl, { analysis, at: Date.now() });
+  if (imageAnalysisCache.size > IMAGE_CACHE_MAX * 0.9) pruneImageCache();
+}
+function isImageMessage(message) {
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const a4 = att;
+    if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) return true;
+    if (typeof a4["mime_type"] === "string" && a4["mime_type"].startsWith("image/")) return true;
+  }
+  const atts = message["attachments"];
+  if (Array.isArray(atts)) {
+    for (const item of atts) {
+      if (typeof item === "object" && item !== null) {
+        const a4 = item;
+        if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) return true;
+        if (typeof a4["mime_type"] === "string" && a4["mime_type"].startsWith("image/")) return true;
+      }
+    }
+  }
+  const mediaType = String(message["media_type"] ?? "");
+  if (IMAGE_TYPES.has(mediaType)) return true;
+  const mimeType = String(message["mime_type"] ?? "");
+  if (mimeType.startsWith("image/")) return true;
+  return false;
+}
+function getImageUrl(message) {
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const a4 = att;
+    for (const key of ["link", "url", "media_url"]) {
+      if (typeof a4[key] === "string" && a4[key].length > 0) return a4[key];
+    }
+  }
+  const atts = message["attachments"];
+  if (Array.isArray(atts)) {
+    for (const item of atts) {
+      if (typeof item === "object" && item !== null) {
+        const a4 = item;
+        if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) {
+          for (const key of ["link", "url", "media_url"]) {
+            if (typeof a4[key] === "string" && a4[key].length > 0) return a4[key];
+          }
+        }
+      }
+    }
+  }
+  for (const key of ["media_url", "file_url", "url"]) {
+    if (typeof message[key] === "string" && message[key].length > 0) {
+      return message[key];
+    }
+  }
+  const media = message["media"];
+  if (typeof media === "object" && media !== null) {
+    const m6 = media;
+    if (typeof m6["url"] === "string" && m6["url"].length > 0) return m6["url"];
+  }
+  return null;
+}
+function getImageCaption(message) {
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const a4 = att;
+    const caption = (typeof a4["text"] === "string" ? a4["text"] : "") || (typeof a4["caption"] === "string" ? a4["caption"] : "") || (typeof a4["title"] === "string" ? a4["title"] : "");
+    if (caption.trim()) return caption.trim();
+  }
+  const rawText = message["text"];
+  if (typeof rawText === "string" && rawText.trim()) return rawText.trim();
+  return null;
+}
+function parseAmountMxn(raw) {
+  if (typeof raw === "number" && Number.isFinite(raw) && raw >= 1 && raw <= 2e7) {
+    return Math.round(raw);
+  }
+  const s7 = String(raw ?? "").trim();
+  if (!s7) return null;
+  const m6 = s7.replace(/\s/g, "").match(/(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/);
+  if (!m6?.[1]) return null;
+  const n5 = Number(m6[1].replace(/,/g, ""));
+  if (!Number.isFinite(n5) || n5 < 1 || n5 > 2e7) return null;
+  return Math.round(n5);
+}
+function parseAmountFromDescription(desc2) {
+  const m6 = desc2.match(/(?:\$|mxn|monto|importe)\s*:?\s*([\d.,]+)/i);
+  return m6?.[1] ? parseAmountMxn(m6[1]) : null;
+}
+function normalizePaymentMethod(raw) {
+  const s7 = String(raw ?? "").trim().toLowerCase();
+  if (/transfer|spei|dep[oó]sit|banc/.test(s7)) return "transferencia";
+  if (/efectivo|cash|caja/.test(s7)) return "efectivo";
+  if (/\bticket\b/.test(s7) && !/spei|transfer/.test(s7)) return "efectivo";
+  return "otro";
+}
+function normalizeIntent(raw) {
+  const s7 = String(raw ?? "").trim().toLowerCase().replace(/\s+/g, "_");
+  if (VALID_INTENTS.has(s7)) return s7;
+  if (/montaje|referencia|estilo|mobiliario|mesa|silla|decor/i.test(s7)) return "montaje_referencia";
+  if (/comprobante|pago|transfer|spei|ticket/i.test(s7)) return "comprobante_pago";
+  if (/comida|producto|menu|taquiza|banquete|pastel/i.test(s7)) return "comida_producto";
+  if (/lugar|salon|salón|venue|jard[ií]n/i.test(s7)) return "lugar_evento";
+  if (/documento|ine|identific/i.test(s7)) return "documento";
+  return "no_claro";
+}
+function looksLikeOwnerDescription(text2) {
+  return /^(el|la|los|las)\s+(espacio|área|area|imagen|foto|sal[oó]n|jard[ií]n|mesa)/i.test(text2.trim()) || /\b(se observa|se aprecia|la imagen muestra|en la fotograf[ií]a|resumen\s+de\s+la\s+(imagen|foto)|descripci[oó]n\s+de\s+la\s+(imagen|foto))\b/i.test(
+    text2
+  ) || /\ban[aá]lisis\s+(interno|de\s+la\s+imagen|visual)\b/i.test(text2);
+}
+function looksLikeImageInternalSummary(text2) {
+  if (!text2?.trim()) return false;
+  return looksLikeOwnerDescription(text2) || /\[Imagen nota interna\]/i.test(text2);
+}
+function buildAnalysisFromParts(intentRaw, internalRaw, clientRaw, amountRaw, methodRaw) {
+  const intent = normalizeIntent(intentRaw);
+  const internalDescription = String(internalRaw ?? "").trim().slice(0, 500) || "Imagen recibida sin detalle.";
+  let clientReply = String(clientRaw ?? "").trim().slice(0, 400);
+  if (!clientReply || looksLikeOwnerDescription(clientReply)) {
+    clientReply = FALLBACK_REPLIES[intent];
+  }
+  const amountMxn = intent === "comprobante_pago" ? parseAmountMxn(amountRaw) ?? parseAmountFromDescription(internalDescription) : null;
+  let paymentMethod = null;
+  if (intent === "comprobante_pago") {
+    const fromJson = normalizePaymentMethod(methodRaw);
+    paymentMethod = fromJson !== "otro" ? fromJson : normalizePaymentMethod(internalDescription);
+  }
+  return { intent, internalDescription, clientReply, amountMxn, paymentMethod };
+}
+function parseVisionImageJson(raw) {
+  const trimmed = raw.trim();
+  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return null;
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    return buildAnalysisFromParts(
+      parsed.intent ?? parsed.Intent,
+      parsed.internal_description ?? parsed.internalDescription ?? parsed.description,
+      parsed.client_reply ?? parsed.clientReply ?? parsed.reply,
+      parsed.amount_mxn ?? parsed.amountMxn ?? parsed.monto ?? parsed.monto_mxn,
+      parsed.payment_method ?? parsed.paymentMethod ?? parsed.metodo
+    );
+  } catch {
+    return null;
+  }
+}
+async function analyzeImageFull(imageUrl, accessToken, log) {
+  const cached2 = getCachedImageAnalysis(imageUrl);
+  if (cached2) {
+    log.info({ imageUrl: imageUrl.slice(0, 80), intent: cached2.intent }, "Imagen en cach\xE9 (Vision)");
+    return cached2;
+  }
+  try {
+    const imgResponse = await fetch(imageUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!imgResponse.ok) {
+      log.warn({ status: imgResponse.status, imageUrl }, "Error descargando imagen del cliente");
+      return null;
+    }
+    const contentType = imgResponse.headers.get("content-type") || "image/jpeg";
+    const buffer = await imgResponse.arrayBuffer();
+    const compressed = await tryCompressImageForVision(buffer);
+    const mimeType = compressed?.mimeType ?? (contentType.split(";")[0]?.trim() || "image/jpeg");
+    const base64 = compressed?.base64 ?? Buffer.from(buffer).toString("base64");
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+    if (compressed) {
+      log.info(
+        {
+          bytesIn: compressed.bytesIn,
+          bytesOut: compressed.bytesOut,
+          width: compressed.width,
+          height: compressed.height,
+          resized: compressed.resized
+        },
+        "Imagen comprimida para Vision"
+      );
+    }
+    const completion = await completeChat({
+      model: getChatModel(),
+      purpose: "vision",
+      maxTokens: 320,
+      temperature: 0.3,
+      json: true,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: VISION_PROMPT },
+            {
+              type: "image_url",
+              image_url: { url: dataUrl },
+              mimeType,
+              base64
+            }
+          ]
+        }
+      ]
+    });
+    const raw = completion.text.trim();
+    const parsed = raw ? parseVisionImageJson(raw) : null;
+    const analysis = parsed ?? buildAnalysisFromParts(
+      "no_claro",
+      raw || "No se pudo parsear la visi\xF3n",
+      FALLBACK_REPLIES.no_claro
+    );
+    cacheImageAnalysis(imageUrl, analysis);
+    log.info(
+      { intent: analysis.intent, chars: analysis.clientReply.length },
+      "Imagen analizada (Vision accionable)"
+    );
+    return analysis;
+  } catch (err2) {
+    log.error({ err: err2 }, "Error analizando imagen con Vision");
+    return null;
+  }
+}
+function formatImageTurnText(analysis, caption) {
+  const parts2 = [
+    `${IMAGE_INTENT_MARKER} ${analysis.intent}`,
+    `${IMAGE_ACTION_MARKER} ${analysis.clientReply}`
+  ];
+  if (caption?.trim()) {
+    return `${caption.trim()}
+
+${parts2.join("\n")}`;
+  }
+  return parts2.join("\n");
+}
+function formatImageTeamNote(analysis, caption, opts) {
+  const notified = opts?.notifiedClient !== false;
+  const parts2 = [
+    `Intent: ${analysis.intent}`,
+    notified ? `Respuesta enviada al cliente: ${analysis.clientReply}` : `Respuesta al cliente: NO enviada (Lucy en silencio / post\u2013Humano Trabaja). Vision: ${analysis.clientReply}`,
+    `Ref. equipo (no enviar): ${analysis.internalDescription}`
+  ];
+  if (analysis.intent === "comprobante_pago") {
+    const amount = analysis.amountMxn != null ? `$${analysis.amountMxn.toLocaleString("es-MX")}` : "sin monto";
+    parts2.push(`Pago: ${amount} \xB7 ${analysis.paymentMethod ?? "otro"}`);
+  }
+  if (caption?.trim()) parts2.push(`Caption: ${caption.trim().slice(0, 180)}`);
+  return parts2.join("\n");
+}
+function stripImageClientReplyForSilence(text2) {
+  if (!text2?.trim()) return "";
+  return text2.replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/gi, "").replace(/\n{3,}/g, "\n\n").trim();
+}
+function rewriteImageTurnClientReply(turnText, clientReply) {
+  if (!turnText.trim()) return `${IMAGE_ACTION_MARKER} ${clientReply}`;
+  if (/\[Imagen respuesta cliente\]:/i.test(turnText)) {
+    return turnText.replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/i, `${IMAGE_ACTION_MARKER} ${clientReply}`);
+  }
+  return `${turnText}
+${IMAGE_ACTION_MARKER} ${clientReply}`;
+}
+function extractImageClientReply(text2) {
+  if (!text2) return null;
+  const m6 = text2.match(/\[Imagen respuesta cliente\]:\s*([^\n\[]+)/i);
+  return m6?.[1]?.trim() || null;
+}
+function stripImageMarkersFromText(text2) {
+  if (!text2?.trim()) return "";
+  return text2.replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/gi, "").replace(/\[Imagen nota interna\]:\s*[^\n]*/gi, "").replace(/\[Imagen intent\]:\s*[^\n]*/gi, "").replace(/\[Imagen adjunta:[^\]]*\]/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
+function clientCaptionForServiceParse(text2) {
+  return stripImageMarkersFromText(text2);
+}
+function extractImageIntent(text2) {
+  if (!text2) return null;
+  const m6 = text2.match(/\[Imagen intent\]:\s*([a-z_]+)/i);
+  if (!m6?.[1]) return null;
+  return normalizeIntent(m6[1]);
+}
+var IMAGE_TYPES, IMAGE_CACHE_TTL_MS, IMAGE_CACHE_MAX, imageAnalysisCache, VALID_INTENTS, VISION_PROMPT, FALLBACK_REPLIES, IMAGE_ACTION_MARKER, IMAGE_INTENT_MARKER;
+var init_imageProcessor = __esm({
+  "src/services/imageProcessor.ts"() {
+    "use strict";
+    init_llmChat();
+    init_llmEnv();
+    init_imageCompress();
+    IMAGE_TYPES = /* @__PURE__ */ new Set(["picture", "image", "photo"]);
+    IMAGE_CACHE_TTL_MS = 2 * 60 * 60 * 1e3;
+    IMAGE_CACHE_MAX = 500;
+    imageAnalysisCache = /* @__PURE__ */ new Map();
+    VALID_INTENTS = /* @__PURE__ */ new Set([
+      "montaje_referencia",
+      "comprobante_pago",
+      "comida_producto",
+      "lugar_evento",
+      "documento",
+      "otro",
+      "no_claro"
+    ]);
+    VISION_PROMPT = `Eres Lucy de Bodasesor (bodas y eventos en M\xE9xico). Un cliente envi\xF3 una imagen por WhatsApp.
+Tu trabajo: ENTENDER la foto y CONTESTARLE AL CLIENTE sobre lo que envi\xF3.
+NO hagas un resumen t\xE9cnico/interno. NO digas 'la imagen muestra\u2026', 'se observa\u2026', 'el espacio es\u2026'.
+Habla como en un chat: menciona 1-2 detalles concretos de LA FOTO y dile c\xF3mo lo ayudas (cotizaci\xF3n, estilo, servicio).
+
+Clasifica intent como UNO de:
+- montaje_referencia: foto de montaje, mesas/sillas, decoraci\xF3n o estilo de referencia
+- comprobante_pago: captura de transferencia, SPEI, ticket de caja o foto de pago en efectivo
+- comida_producto: comida, men\xFA, taquiza, pastel, bebida u otro producto de catering
+- lugar_evento: foto del sal\xF3n, jard\xEDn o venue del evento
+- documento: INE, contrato u otro documento
+- otro: relacionado con el evento pero no encaja arriba
+- no_claro: no se entiende qu\xE9 quiere el cliente con la foto
+
+Responde SOLO JSON v\xE1lido (sin markdown) con estas claves:
+{"intent":"...","internal_description":"muy breve para el equipo (max 12 palabras)","client_reply":"2-3 oraciones AL CLIENTE sobre su foto","amount_mxn":null,"payment_method":"otro"}
+
+Si intent es comprobante_pago:
+- amount_mxn = monto en pesos (n\xFAmero, sin comas). null si no se lee.
+- payment_method = transferencia (SPEI, dep\xF3sito, app bancaria) o efectivo (ticket de caja, pago en efectivo) u otro.
+- NUNCA copies CLABE, cuentas, NIP ni n\xFAmeros de tarjeta en ning\xFAn campo.
+Si NO es comprobante: amount_mxn null y payment_method otro.
+
+Reglas para client_reply (ES LO IMPORTANTE):
+- Es la respuesta que el cliente leer\xE1 en WhatsApp.
+- Debe sonar a conversaci\xF3n: 'Vi que\u2026 / Me encanta el estilo\u2026 / Anoto\u2026 / \xBFQuieres\u2026?'
+- Nombra algo concreto que salga en la foto (color, tipo de mesa, plato, jard\xEDn, etc.).
+- montaje_referencia: confirma que pueden armar ese estilo/mobiliario y an\xF3talo.
+- comprobante_pago: agradece el pago y di que el equipo da seguimiento (sin leer datos sensibles ni el monto).
+- comida_producto: nombra el platillo/estilo de la foto. Si el caption ya dice un servicio (ej. barra de pastas), confirma ESE servicio. NO inventes alternativas (taquiza, banquete) si la foto o el caption ya son claros.
+- lugar_evento: reconoce el espacio y confirma si ah\xED ser\xEDa el evento.
+- documento: confirma recepci\xF3n sin leer datos sensibles.
+- no_claro / otro: pregunta qu\xE9 le gustar\xEDa de esa foto para su evento.
+- Espa\xF1ol mexicano, de t\xFA, c\xE1lida. NUNCA digas 'resumen', 'descripci\xF3n' ni 'an\xE1lisis'.`;
+    FALLBACK_REPLIES = {
+      montaje_referencia: "\xA1S\xED! Manejamos mesas, sillas y montajes de ese estilo. Lo anoto para tu cotizaci\xF3n.",
+      comprobante_pago: "\xA1Gracias por tu pago! Lo registro y el equipo da seguimiento.",
+      comida_producto: "\xA1Qu\xE9 rico! Lo tomo como referencia de lo que buscas y lo anoto para tu cotizaci\xF3n.",
+      lugar_evento: "Recib\xED la foto del lugar. \xBFConfirmas que ah\xED ser\xEDa tu evento?",
+      documento: "Listo, recib\xED el documento. El equipo lo revisa y te confirma.",
+      otro: "Recib\xED tu imagen. \xBFMe confirmas qu\xE9 te gustar\xEDa de esta foto para tu evento?",
+      no_claro: "Recib\xED tu imagen. \xBFMe confirmas qu\xE9 te gustar\xEDa de esta foto?"
+    };
+    IMAGE_ACTION_MARKER = "[Imagen respuesta cliente]:";
+    IMAGE_INTENT_MARKER = "[Imagen intent]:";
+  }
+});
+
+// src/lib/locationDedupe.ts
+function foldToponym(s7) {
+  return s7.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]/gu, "");
+}
+function editDistance(a4, b5) {
+  const dp = Array.from({ length: b5.length + 1 }, (_4, j5) => j5);
+  for (let i6 = 1; i6 <= a4.length; i6++) {
+    let prevDiag = dp[0];
+    dp[0] = i6;
+    for (let j5 = 1; j5 <= b5.length; j5++) {
+      const tmp = dp[j5];
+      dp[j5] = Math.min(dp[j5] + 1, dp[j5 - 1] + 1, prevDiag + (a4[i6 - 1] === b5[j5 - 1] ? 0 : 1));
+      prevDiag = tmp;
+    }
+  }
+  return dp[b5.length];
+}
+function looseSameToponym(a4, b5) {
+  const fa2 = foldToponym(a4);
+  const fb = foldToponym(b5);
+  if (!fa2 || !fb) return false;
+  if (fa2 === fb) return true;
+  const len = Math.max(fa2.length, fb.length);
+  if (len < 6) return false;
+  return editDistance(fa2, fb) <= Math.max(1, Math.floor(len * 0.12));
+}
+function preferToponymSpelling(a4, b5) {
+  const score = (s7) => (/[áéíóúñ]/i.test(s7) ? 2 : 0) + (/[A-ZÁÉÍÓÚÑ]{4,}/.test(s7) ? -1 : 0);
+  return score(b5) > score(a4) ? b5 : a4;
+}
+function dedupeLocationParts(value) {
+  const raw = value?.trim();
+  if (!raw) return value ?? null;
+  const parts2 = raw.split(/\s*,\s*/).filter(Boolean);
+  const out2 = [];
+  for (const p5 of parts2) {
+    const idx = out2.findIndex((o6) => looseSameToponym(o6, p5));
+    if (idx >= 0) out2[idx] = preferToponymSpelling(out2[idx], p5);
+    else out2.push(p5);
+  }
+  return out2.join(", ");
+}
+var init_locationDedupe = __esm({
+  "src/lib/locationDedupe.ts"() {
+    "use strict";
+  }
+});
+
+// src/client-email.ts
+function normalizeEmail(email) {
+  const trimmed = email?.trim().toLowerCase() ?? "";
+  return trimmed || null;
+}
+function isOwnCompanyEmail(email) {
+  const norm2 = normalizeEmail(email);
+  if (!norm2) return false;
+  if (OWN_EMAILS.has(norm2)) return true;
+  return /@bodasesor\.com$/i.test(norm2) || /@capybaraeventos\./i.test(norm2);
+}
+function filterClientEmail(email) {
+  const norm2 = normalizeEmail(email);
+  if (!norm2 || isOwnCompanyEmail(norm2)) return null;
+  return email.trim();
+}
+function looksLikeValidClientEmail(email) {
+  const norm2 = normalizeEmail(email);
+  if (!norm2) return false;
+  if (/\s/.test(email ?? "")) return false;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(norm2)) return false;
+  const domain = norm2.split("@")[1] ?? "";
+  if (!domain || /\.\./.test(domain) || domain.startsWith(".") || domain.endsWith(".")) return false;
+  if (SUSPICIOUS_TLD.test(domain)) return false;
+  if (/^(gmial|gmal|gmai|hotmial|yaho|outlok)(\.|$)/i.test(domain)) return false;
+  const tld = domain.split(".").pop() ?? "";
+  return tld.length >= 2 && /^[a-z]{2,}$/i.test(tld);
+}
+function sanitizeStoredClientEmail(email) {
+  const filtered = filterClientEmail(email);
+  if (!filtered) return null;
+  if (!looksLikeValidClientEmail(filtered)) return null;
+  return filtered;
+}
+function suggestEmailDomainFix(email) {
+  const norm2 = normalizeEmail(email);
+  const m6 = norm2?.match(/^([^\s@]+)@([a-z0-9-]+)((?:\.[a-z]{2,})*)$/i);
+  if (!m6) return null;
+  const [, user, host, rest] = m6;
+  const tld = rest || ".com";
+  const badTld = /^\.(comm?|con|cmo|co)$/i.test(tld) && tld !== ".com" && !/^\.com\.mx$/i.test(tld);
+  if (COMMON_EMAIL_HOSTS.includes(host)) {
+    return badTld ? `${user}@${host}.com` : null;
+  }
+  for (const h5 of COMMON_EMAIL_HOSTS) {
+    if (Math.abs(h5.length - host.length) <= 2 && editDistance(host, h5) <= 2) {
+      return `${user}@${h5}${badTld ? ".com" : tld}`;
+    }
+  }
+  return null;
+}
+function buildEmailConfirmationPrompt(email) {
+  return `\xBFMe confirmas tu correo? Lo le\xED como ${email.trim()}, quiero anotarlo bien.`;
+}
+var OWN_EMAILS, SUSPICIOUS_TLD, COMMON_EMAIL_HOSTS;
+var init_client_email = __esm({
+  "src/client-email.ts"() {
+    "use strict";
+    init_locationDedupe();
+    OWN_EMAILS = new Set(
+      [
+        "capybaraeventos@gmail.com",
+        "bodasesor@gmail.com",
+        "hola@bodasesor.com",
+        "ventas@bodasesor.com",
+        "info@bodasesor.com"
+      ].map((e4) => e4.toLowerCase())
+    );
+    SUSPICIOUS_TLD = /\.(comm|con|cmo|gmial|gmal|gmai|hotmial|yaho|outlok)\b/i;
+    COMMON_EMAIL_HOSTS = ["gmail", "hotmail", "outlook", "yahoo", "icloud"];
+  }
+});
+
+// src/services/geoResolve.ts
+function fold(s7) {
+  return s7.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+function addPart(parts2, raw) {
+  const t4 = raw?.trim().replace(/[.,;:]+$/g, "").replace(/\s+/g, " ");
+  if (!t4 || t4.length < 2) return;
+  const key = fold(t4);
+  if (/^(es|la|el|de|del|en)$/i.test(t4)) return;
+  for (let i6 = 0; i6 < parts2.length; i6++) {
+    const pk = fold(parts2[i6]);
+    if (pk === key || pk.includes(key)) return;
+    if (key.includes(pk) && t4.length > parts2[i6].length) {
+      parts2[i6] = t4;
+      return;
+    }
+  }
+  parts2.push(t4);
+}
+function appendCdmxIfNeeded(joined) {
+  if (!joined) return joined;
+  if (CDMX_CITY.test(joined)) return joined;
+  if (CDMX_ALCALDIAS.test(joined)) {
+    return `${joined}, CDMX`;
+  }
+  return joined;
+}
+function composeEventLocation(text2) {
+  const trimmed = (text2 ?? "").replace(/\s+/g, " ").trim();
+  if (!trimmed) return null;
+  const parts2 = [];
+  const colonia = trimmed.match(
+    /\bcolonia\s+(?:es\s+)?([A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ.-]{1,28})/i
+  );
+  if (colonia?.[1] && !/^(es|la|el|de|del)$/i.test(colonia[1].trim())) {
+    addPart(parts2, `colonia ${colonia[1].trim()}`);
+  }
+  const alcaldia = trimmed.match(CDMX_ALCALDIAS);
+  if (alcaldia?.[0]) addPart(parts2, alcaldia[0]);
+  const city = trimmed.match(CDMX_CITY);
+  if (city?.[0]) addPart(parts2, /cdmx|d\.?\s*f/i.test(city[0]) ? "CDMX" : city[0]);
+  if (parts2.length === 0) return null;
+  const joined = parts2.join(", ");
+  if (CDMX_ALCALDIAS.test(joined)) {
+    return appendCdmxIfNeeded(joined);
+  }
+  return joined;
+}
+function enrichDireccionLocal(value) {
+  const t4 = value?.trim();
+  if (!t4) return null;
+  const composed = composeEventLocation(t4);
+  if (composed && composed.length >= t4.length) return composed;
+  return appendCdmxIfNeeded(t4);
+}
+function mergeAddr(a4, b5) {
+  const prev = a4?.trim() ?? "";
+  const next = b5?.trim() ?? "";
+  if (!next) return prev || null;
+  if (!prev) return next;
+  if (fold(prev).includes(fold(next))) return prev;
+  if (fold(next).includes(fold(prev))) return next;
+  return dedupeLocationParts(`${prev}, ${next}`);
+}
+function direccionNeedsMapsLookup(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return false;
+  if (CDMX_CITY.test(t4) || CDMX_ALCALDIAS.test(t4)) return false;
+  if (/\b(monterrey|guadalajara|puebla|quer[eé]taro|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|jiutepec|morelos)\b/i.test(
+    t4
+  )) {
+    return false;
+  }
+  return /\bcolonia\b/i.test(t4) || /\b(calle|av\.?|avenida|blvd)\b/i.test(t4) || /\b(sal[oó]n|hacienda|hotel|club(\s+de\s+golf)?)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]/i.test(t4);
+}
+function mapsKey() {
+  return process.env.GOOGLE_MAPS_API_KEY?.trim() || process.env.MAPS_API_KEY?.trim() || null;
+}
+async function geocodeGoogle(query) {
+  const key = mapsKey();
+  if (!key) return null;
+  const url2 = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&region=mx&language=es&key=${encodeURIComponent(key)}`;
+  const res = await fetch(url2, { signal: AbortSignal.timeout(2500) });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const hit = data.results?.[0];
+  if (!hit?.formatted_address) return null;
+  const city = hit.address_components?.find(
+    (c5) => c5.types?.some((t4) => t4 === "locality" || t4 === "administrative_area_level_1")
+  )?.long_name;
+  return { formatted: hit.formatted_address, city };
+}
+async function geocodeNominatim(query) {
+  const url2 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&countrycodes=mx&limit=1`;
+  const res = await fetch(url2, {
+    signal: AbortSignal.timeout(2500),
+    headers: {
+      "User-Agent": "Lucy-Bodasesor/1.0 (eventos; geocode de sedes)",
+      Accept: "application/json"
+    }
+  });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const hit = data[0];
+  if (!hit?.display_name) return null;
+  const city = hit.address?.city || hit.address?.town || hit.address?.state;
+  return { formatted: hit.display_name, city };
+}
+async function lookupDireccionInMaps(query) {
+  const q3 = query.trim();
+  if (q3.length < 4 || q3.length > 120) return null;
+  const cacheKey = fold(q3);
+  if (mapsCache.has(cacheKey)) return mapsCache.get(cacheKey) ?? null;
+  let hit = null;
+  try {
+    hit = await geocodeGoogle(`${q3}, M\xE9xico`) ?? await geocodeNominatim(`${q3}, M\xE9xico`);
+  } catch {
+    hit = null;
+  }
+  mapsCache.set(cacheKey, hit);
+  return hit;
+}
+async function enrichExtractedDireccionWithMaps(extracted, messageText) {
+  const msg = messageText?.trim() ?? "";
+  const localFromMsg = composeEventLocation(msg);
+  if (localFromMsg) {
+    extracted.direccion_evento = mergeAddr(extracted.direccion_evento, localFromMsg);
+  } else if (extracted.direccion_evento) {
+    extracted.direccion_evento = enrichDireccionLocal(extracted.direccion_evento);
+  }
+  const current = extracted.direccion_evento?.trim() ?? "";
+  const lookupQ = current || msg;
+  if (!direccionNeedsMapsLookup(lookupQ)) return;
+  const hit = await lookupDireccionInMaps(lookupQ);
+  if (!hit) return;
+  const cityBit = hit.city?.trim();
+  if (cityBit && current && !fold(current).includes(fold(cityBit))) {
+    extracted.direccion_evento = mergeAddr(current, cityBit);
+  } else if (!current && hit.formatted) {
+    extracted.direccion_evento = hit.formatted.split(",").slice(0, 3).join(",").trim();
+  }
+}
+var CDMX_ALCALDIAS, CDMX_CITY, mapsCache;
+var init_geoResolve = __esm({
+  "src/services/geoResolve.ts"() {
+    "use strict";
+    init_locationDedupe();
+    CDMX_ALCALDIAS = /\b(alvaro\s+obregon|[aá]lvaro\s+obreg[oó]n|azcapotzalco|benito\s+ju[aá]rez|coyoac[aá]n|cuajimalpa|cuauht[eé]moc|gustavo\s+a\.?\s*madero|iztacalco|iztapalapa|magdalena\s+contreras|miguel\s+hidalgo|milpa\s+alta|tl[aá]huac|tlalpan|venustiano\s+carranza|xochimilco)\b/i;
+    CDMX_CITY = /\b(cdmx|ciudad\s+de\s+m[eé]xico|\bdf\b|d\.?\s*f\.?)\b/i;
+    mapsCache = /* @__PURE__ */ new Map();
+  }
+});
+
+// src/lib/eventDateTime.ts
+function stripAccents(s7) {
+  return s7.normalize("NFD").replace(/\p{M}/gu, "");
+}
+function mexicoNowParts(now = /* @__PURE__ */ new Date()) {
+  const parts2 = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  }).formatToParts(now);
+  const get = (t4) => Number(parts2.find((p5) => p5.type === t4)?.value ?? "0");
+  return { y: get("year"), m: get("month"), d: get("day"), hh: get("hour") % 24, mm: get("minute") };
+}
+function weekdayOf({ y: y5, m: m6, d: d3 }) {
+  return new Date(Date.UTC(y5, m6 - 1, d3)).getUTCDay();
+}
+function addDays({ y: y5, m: m6, d: d3 }, n5) {
+  const dt3 = new Date(Date.UTC(y5, m6 - 1, d3 + n5));
+  return { y: dt3.getUTCFullYear(), m: dt3.getUTCMonth() + 1, d: dt3.getUTCDate() };
+}
+function daysInMonth(y5, m6) {
+  return new Date(Date.UTC(y5, m6, 0)).getUTCDate();
+}
+function cmp(a4, b5) {
+  return a4.y - b5.y || a4.m - b5.m || a4.d - b5.d;
+}
+function formatYmd(date2) {
+  return `${DIAS[weekdayOf(date2)]} ${date2.d} de ${MESES[date2.m - 1]} de ${date2.y}`;
+}
+function formatMexicoNowForPrompt(now = /* @__PURE__ */ new Date()) {
+  const p5 = mexicoNowParts(now);
+  return `${formatYmd(p5)}, ${String(p5.hh).padStart(2, "0")}:${String(p5.mm).padStart(2, "0")}`;
+}
+function relativeEventYear(normalized, currentYear) {
+  if (NEXT_YEAR_RE.test(normalized)) return currentYear + 1;
+  if (/\beste\s+ano\b/.test(normalized)) return currentYear;
+  return null;
+}
+function relativeYearPhrase(text2) {
+  const t4 = stripAccents((text2 ?? "").toLowerCase());
+  if (NEXT_YEAR_RE.test(t4)) return "siguiente ano";
+  if (/\beste\s+ano\b/.test(t4)) return "este ano";
+  return null;
+}
+function resolveFechaEvento(text2, now = /* @__PURE__ */ new Date()) {
+  const raw = (text2 ?? "").trim();
+  if (!raw) return null;
+  const t4 = stripAccents(raw.toLowerCase()).replace(/[.,;:!?¡¿]+/g, " ").replace(/\s+/g, " ").trim();
+  const today = mexicoNowParts(now);
+  const aprox = /\b(aprox|aproximadamente|mas o menos|tentativ)/.test(t4);
+  if (/^(?:para\s+|es\s+|seria\s+)?hoy(?:\s+mismo)?$/.test(t4)) return formatYmd(today);
+  if (/^(?:para\s+|es\s+|seria\s+)?pasado\s+manana$/.test(t4)) return formatYmd(addDays(today, 2));
+  if (/^(?:para\s+|es\s+|seria\s+)?manana$/.test(t4)) return formatYmd(addDays(today, 1));
+  const yearM = t4.match(/\b(20\d{2})\b/);
+  const explicitYear = yearM ? Number(yearM[1]) : relativeEventYear(t4, today.y);
+  const monthM = t4.match(new RegExp(`\\b(${MES_RE})\\b`));
+  const month = monthM ? MESES.findIndex((m6) => stripAccents(m6) === monthM[1]) + 1 : 0;
+  const dayM = t4.match(/\b(\d{1,2})\b(?!\s*(?::|am|pm|hrs?|horas?|personas?|invitad))/);
+  const weekdayM = t4.match(new RegExp(`\\b(${DIA_RE})\\b`));
+  const weekday = weekdayM ? DIAS.findIndex((d3) => stripAccents(d3) === weekdayM[1]) : -1;
+  if (month && dayM) {
+    const d3 = Number(dayM[1]);
+    let y5 = explicitYear ?? today.y;
+    if (d3 < 1 || d3 > 31) return null;
+    if (!explicitYear && cmp({ y: y5, m: month, d: d3 }, today) < 0) y5 += 1;
+    if (d3 > daysInMonth(y5, month)) return null;
+    const date2 = { y: y5, m: month, d: d3 };
+    if (weekday >= 0 && weekdayOf(date2) !== weekday) return null;
+    const out2 = formatYmd(date2);
+    return aprox ? `${out2} (aprox.)` : out2;
+  }
+  if (month && !dayM) {
+    let y5 = explicitYear ?? today.y;
+    if (!explicitYear && month < today.m) y5 += 1;
+    const out2 = `${MESES[month - 1]} de ${y5}`;
+    return aprox ? `${out2} (aprox.)` : out2;
+  }
+  if (weekday >= 0 && !dayM) {
+    let ahead = (weekday - weekdayOf(today) + 7) % 7;
+    if (ahead === 0 && !/\b(este|esta|hoy)\b/.test(t4)) ahead = 7;
+    if (/\b(siguiente|que\s+viene)\b/.test(t4) && ahead < 7 && /\bsemana\b/.test(t4)) ahead += 7;
+    return formatYmd(addDays(today, ahead));
+  }
+  const onlyDay = t4.match(/^(?:el\s+)?(?:dia\s+)?(\d{1,2})$/);
+  if (onlyDay) {
+    const d3 = Number(onlyDay[1]);
+    if (d3 < 1 || d3 > 31) return null;
+    let y5 = today.y;
+    let m6 = today.m;
+    if (d3 < today.d) {
+      m6 += 1;
+      if (m6 > 12) {
+        m6 = 1;
+        y5 += 1;
+      }
+    }
+    if (d3 > daysInMonth(y5, m6)) return null;
+    return formatYmd({ y: y5, m: m6, d: d3 });
+  }
+  return null;
+}
+function contextPeriod(context) {
+  const c5 = context.toLowerCase();
+  const pm = /\b\d{1,2}(?::\d{2})?\s*(?:pm|p\.\s*m)/.test(c5) || /\bde\s+la\s+(tarde|noche)\b|\b(cena|noche|nocturn)/.test(c5);
+  const am = /\b\d{1,2}(?::\d{2})?\s*(?:am|a\.\s*m)/.test(c5) || /\bde\s+la\s+ma[nñ]ana\b|\b(desayuno|brunch|almuerzo|matutin)/.test(c5);
+  if (pm && !am) return "pm";
+  if (am && !pm) return "am";
+  return null;
+}
+function inferHorarioAmPm(horario, context = "") {
+  const value = (horario ?? "").trim();
+  if (!value || PERIOD_WORDS.test(value)) return { value, ambiguous: false };
+  const m6 = value.match(
+    /^(?:de\s+(?:las?\s+)?)?(\d{1,2})(?::(\d{2}))?(?:\s*(?:a|-|–|hasta)\s*(?:las?\s+)?(\d{1,2})(?::(\d{2}))?)?$/i
+  );
+  if (!m6) return { value, ambiguous: false };
+  const h1 = Number(m6[1]);
+  const m1 = m6[2];
+  const h22 = m6[3] !== void 0 ? Number(m6[3]) : null;
+  const m22 = m6[4];
+  if (h1 > 12 || h22 !== null && h22 > 12 || h1 === 0) return { value, ambiguous: false };
+  let p1 = null;
+  if (h1 >= 1 && h1 <= 6) p1 = "pm";
+  else if (h1 === 12) p1 = "pm";
+  else p1 = contextPeriod(context);
+  if (!p1) return { value, ambiguous: true };
+  const fmt = (h5, mm, p5) => `${h5}${mm ? `:${mm}` : ""} ${p5}`;
+  if (h22 === null) return { value: fmt(h1, m1, p1), ambiguous: false };
+  const start24 = h1 % 12 + (p1 === "pm" ? 12 : 0) + (m1 ? Number(m1) / 60 : 0);
+  const endPm = h22 % 12 + 12 + (m22 ? Number(m22) / 60 : 0);
+  const p22 = endPm > start24 && endPm - start24 <= 14 ? "pm" : "am";
+  return { value: `${fmt(h1, m1, p1)} a ${fmt(h22, m22, p22)}`, ambiguous: false };
+}
+function resolveHorarioWithContext(incoming, previous, context = "") {
+  const inc = (incoming ?? "").trim();
+  if (!inc) return null;
+  const prev = (previous ?? "").trim();
+  if (/\d/.test(inc)) return inferHorarioAmPm(inc, `${context} ${prev}`).value;
+  if (prev && /\d/.test(prev) && PERIOD_WORDS.test(inc)) {
+    const r5 = inferHorarioAmPm(prev, inc);
+    if (!r5.ambiguous && r5.value !== prev) return r5.value;
+  }
+  return inc;
+}
+function horarioNeedsAmPmConfirmation(horario, context = "") {
+  return inferHorarioAmPm(horario, context).ambiguous;
+}
+var TZ, MESES, DIAS, MES_RE, DIA_RE, NEXT_YEAR_RE, PERIOD_WORDS;
+var init_eventDateTime = __esm({
+  "src/lib/eventDateTime.ts"() {
+    "use strict";
+    TZ = "America/Mexico_City";
+    MESES = [
+      "enero",
+      "febrero",
+      "marzo",
+      "abril",
+      "mayo",
+      "junio",
+      "julio",
+      "agosto",
+      "septiembre",
+      "octubre",
+      "noviembre",
+      "diciembre"
+    ];
+    DIAS = ["domingo", "lunes", "martes", "mi\xE9rcoles", "jueves", "viernes", "s\xE1bado"];
+    MES_RE = MESES.map((m6) => stripAccents(m6)).join("|");
+    DIA_RE = "domingo|lunes|martes|miercoles|jueves|viernes|sabado";
+    NEXT_YEAR_RE = /\b(?:(?:el\s+)?(?:siguiente|proximo|otro)\s+ano|ano\s+(?:que\s+(?:viene|entra)|siguiente|proximo))\b/;
+    PERIOD_WORDS = /\b(am|pm|hrs?|horas?|tarde|noche|ma[nñ]ana|mediod[ií]a|medio\s*d[ií]a|madrugada)\b|\b[ap]\.\s*m\.?/i;
+  }
+});
+
+// src/lib/chairModels.ts
+function chairModelAlternation() {
+  return [
+    "tiffany\\s+infantil",
+    "louis\\s*xv",
+    "luis\\s*xv",
+    "avant\\s*garde",
+    "mariantonieta",
+    "wishbone",
+    "tiffany",
+    "crossback",
+    "ghost",
+    "tolix",
+    "camila",
+    "antonella",
+    "basket",
+    "cabos",
+    "caroline",
+    "smith",
+    "mar[i\xED]a"
+  ].join("|");
+}
+function fold2(s7) {
+  return s7.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+}
+function textMentionsChairModel(text2) {
+  return parseChairModelFromText(text2) != null;
+}
+function parseChairModelFromText(text2) {
+  const t4 = String(text2 || "").trim();
+  if (!t4) return null;
+  const hasSillas = /\bsillas?\b/i.test(t4);
+  const hasMesa = /\bmesas?\b/i.test(t4);
+  const priceOrCotizar = /\b(precio|cotiz|cu[aá]nto\s+cuesta|requiero|necesito|quiero|anoto|renta)\b/i.test(t4) || /\bmobiliario\b/i.test(t4);
+  if (hasMesa && !hasSillas && !priceOrCotizar) return null;
+  if (hasMesa && !hasSillas && /\bmesa\s+(rectangular|redonda|cuadrada|picnic|centro)\b/i.test(t4)) {
+    return null;
+  }
+  const ambiguousNames = /* @__PURE__ */ new Set([
+    "Mar\xEDa",
+    "Smith",
+    "Caroline",
+    "Camila",
+    "Antonella",
+    "Cabos",
+    "Basket"
+  ]);
+  for (const { pattern, canonical } of CHAIR_MODEL_ALIASES) {
+    if (!pattern.test(t4)) continue;
+    if (ambiguousNames.has(canonical) && !hasSillas && !priceOrCotizar) continue;
+    return canonical;
+  }
+  return null;
+}
+function chairModelTokensFromQuery(query) {
+  const f7 = fold2(query);
+  const hits = [];
+  for (const tok of CHAIR_MODEL_FOLD_TOKENS) {
+    if (f7.includes(tok) && !hits.includes(tok)) hits.push(tok);
+  }
+  const model = parseChairModelFromText(query);
+  if (model) {
+    const mf = fold2(model);
+    if (!hits.includes(mf)) hits.unshift(mf);
+  }
+  return hits;
+}
+function parseChairQtyFromText(text2) {
+  const t4 = String(text2 || "");
+  const model = parseChairModelFromText(t4);
+  if (model) {
+    const esc = model.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+    const withModel = t4.match(new RegExp(`(\\d+)\\s*sillas?(?:\\s+\\w+){0,4}\\s*${esc}`, "i")) || t4.match(new RegExp(`(\\d+)\\s*(?:sillas?\\s+)?${esc}`, "i"));
+    if (withModel?.[1]) return parseInt(withModel[1], 10);
+  }
+  const plain = t4.match(/(\d+)\s*sillas?\b/i);
+  return plain?.[1] ? parseInt(plain[1], 10) : null;
+}
+function formatChairSku(text2) {
+  const model = parseChairModelFromText(text2);
+  if (!model) return null;
+  const qty = parseChairQtyFromText(text2);
+  return qty && qty > 0 ? `${qty} Sillas ${model}` : `Sillas ${model}`;
+}
+var CHAIR_MODEL_ALIASES, CHAIR_MODEL_PATTERN, CHAIR_MODEL_FOLD_TOKENS;
+var init_chairModels = __esm({
+  "src/lib/chairModels.ts"() {
+    "use strict";
+    CHAIR_MODEL_ALIASES = [
+      { pattern: /\btiffany\s+infantil\b/i, canonical: "Tiffany Infantil" },
+      { pattern: /\blouis\s*xv\b|\bluis\s*xv\b/i, canonical: "Louis XV" },
+      { pattern: /\bavant\s*garde\b/i, canonical: "Avant Garde" },
+      { pattern: /\bmariantonieta\b/i, canonical: "Mariantonieta" },
+      { pattern: /\bmar[ií]a\b/i, canonical: "Mar\xEDa" },
+      { pattern: /\bwishbone\b/i, canonical: "Wishbone" },
+      { pattern: /\btiffany\b/i, canonical: "Tiffany" },
+      { pattern: /\bcrossback\b/i, canonical: "Crossback" },
+      { pattern: /\bghost\b/i, canonical: "Ghost" },
+      { pattern: /\btolix\b/i, canonical: "Tolix" },
+      { pattern: /\bcamila\b/i, canonical: "Camila" },
+      { pattern: /\bantonella\b/i, canonical: "Antonella" },
+      { pattern: /\bbasket\b/i, canonical: "Basket" },
+      { pattern: /\bcabos\b/i, canonical: "Cabos" },
+      { pattern: /\bcaroline\b/i, canonical: "Caroline" },
+      { pattern: /\bsmith\b/i, canonical: "Smith" }
+    ];
+    CHAIR_MODEL_PATTERN = new RegExp(`\\b(?:${chairModelAlternation()})\\b`, "i");
+    CHAIR_MODEL_FOLD_TOKENS = [
+      "tiffany infantil",
+      "louis xv",
+      "luis xv",
+      "avant garde",
+      "mariantonieta",
+      "wishbone",
+      "tiffany",
+      "crossback",
+      "ghost",
+      "tolix",
+      "camila",
+      "antonella",
+      "basket",
+      "cabos",
+      "caroline",
+      "smith",
+      "maria"
+    ];
+  }
+});
+
+// src/conversation-understanding.ts
+function parseTipoEventoLabeled(text2) {
+  const m6 = text2.match(/\bTipo\s+de\s+evento\s*:\s*([^\n.]{3,60})/i);
+  if (!m6?.[1]) return null;
+  const raw = m6[1].trim().replace(/\s+/g, " ");
+  if (/^(cotizaci|servicio|catering|banquete)$/i.test(raw)) return null;
+  return raw.slice(0, 80);
+}
+function normalizePresentationText(text2) {
+  return text2.toLowerCase().replace(/[¿?.,!]/g, "").trim();
+}
+function clientAsksAboutTeam(message, clientName) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  const normalized = normalizePresentationText(t4);
+  const name2 = clientName?.trim().toLowerCase() ?? "";
+  const advisor = getAdvisorName().toLowerCase();
+  const advisorEsc = advisor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (name2) {
+    if (normalized === name2 || normalized === `soy ${name2}` || normalized === `me llamo ${name2}`) {
+      return false;
+    }
+  }
+  if (/^(soy\s+)?[a-záéíóúñ]{2,30}$/i.test(normalized)) return false;
+  if (/^hola,?\s+[a-záéíóúñ]{2,30}$/i.test(normalized)) return false;
+  if (name2 && name2 === advisor && new RegExp(`^${advisorEsc}$`, "i").test(normalized)) {
+    return false;
+  }
+  if (/^[a-záéíóúñ]{2,30}!?$/i.test(normalized)) return false;
+  const legacyTeamAsk = LEGACY_ADVISOR_NAMES.some((legacy) => {
+    const esc = legacy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`^${esc}$`, "i").test(normalized) || new RegExp(`\\bqui[e\xE9]n\\s+es\\s+${esc}\\b`, "i").test(t4) || new RegExp(`\\best[a\xE1]\\s+${esc}\\b`, "i").test(t4);
+  });
+  return legacyTeamAsk || new RegExp(`^${advisorEsc}$`, "i").test(normalized) && !(name2 && name2 === advisor) || new RegExp(`\\bqui[e\xE9]n\\s+es\\s+${advisorEsc}\\b`, "i").test(t4) || /\bqui[eé]n\s+es\s+alejandro\b/i.test(t4) || new RegExp(`\\best[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t4) || new RegExp(`\\bhablo\\s+con\\s+${advisorEsc}\\b`, "i").test(t4) || new RegExp(`\\bpuedo\\s+hablar\\s+con\\s+${advisorEsc}\\b`, "i").test(t4) || new RegExp(`\\bd[o\xF3]nde\\s+est[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t4) || /\bel\s+asesor\b/i.test(t4);
+}
+function clientAddsToQuote(message) {
+  if (!message?.trim()) return false;
+  if (isRichQuoteBrief(message)) return false;
+  if (clientAsksAlternativeMenus(message)) return false;
+  const t4 = message.toLowerCase();
+  if (/\b(incluir|agregar|sumar|tambi[eé]n|adem[aá]s)\b/i.test(t4) && /\b(cotizaci[oó]n|propuesta|cotizar)\b/i.test(t4) || /\bincluir\b.+\b(en\s+la\s+)?cotiz/i.test(t4)) {
+    return true;
+  }
+  if (/\b(queremos|quisiera|me\s+gustar[ií]a|sumamos|ponemos|buscamos)\b/i.test(t4)) {
+    const services = parseServicesFromText(message);
+    if (services.length >= 1) return true;
+    if (/\b(helado|frutas?|vasitos?|postres?|dulces?)\b/i.test(t4)) return true;
+  }
+  return false;
+}
+function clientAsksAlternativeMenus(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  return /\b(alg[uú]n\s+)?otro(s)?\s+men[uú]/i.test(t4) || /\bmen[uú]s?\s+t[ií]pic/i.test(t4) || /\b(otras?\s+)?opciones?\s+de\s+(men[uú]|banquete|comida|alimentos?)\b/i.test(t4) || /\bqu[eé]\s+otros?\s+(men[uú]s?|banquetes?)\b/i.test(t4) || /\balternativa(s)?\s+(de\s+)?(men[uú]|banquete)\b/i.test(t4);
+}
+function assistantAskedDeliveryChannel(text2) {
+  if (!text2?.trim()) return false;
+  return /confirmen?\s+por\s+aqu[ií].{0,100}correo/i.test(text2) || /escriba\s+por\s+aqu[ií].{0,100}correo/i.test(text2) || /preferes\s+esperar\s+el\s+correo/i.test(text2) || /por\s+aqu[ií]\s+con\s+la\s+propuesta.{0,60}correo/i.test(text2) || /recibirla\s+por\s+correo\s+o\s+por\s+este\s+chat/i.test(text2);
+}
+function normalizeDeliveryReply(message) {
+  return message.toLowerCase().replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, " ").replace(/\b(?:por\s+favor|porfa(?:vor)?|porfis|please|pls|gracias)\b/gi, " ").replace(/[¡!¿?.,;:]+/g, " ").replace(/\s+/g, " ").trim();
+}
+function clientChoosesEmailDelivery(message) {
+  if (!message?.trim()) return false;
+  const t4 = normalizeDeliveryReply(message);
+  if (!t4) return false;
+  if (/^(por\s+)?(el\s+)?correo$/i.test(t4)) return true;
+  if (/^(email|e-?mail|mail)$/i.test(t4)) return true;
+  if (/\bpor\s+(el\s+)?correo\b/i.test(t4) && t4.split(/\s+/).length <= 8) return true;
+  if (/\bmejor\s+(el\s+)?correo\b/i.test(t4) && t4.split(/\s+/).length <= 8) return true;
+  if (/\besper(o|ar)\s+(el\s+)?correo\b/i.test(t4) && t4.split(/\s+/).length <= 10) return true;
+  return false;
+}
+function clientChoosesChatDelivery(message) {
+  if (!message?.trim()) return false;
+  const lines = message.split(/\n+/).filter((l6) => l6.trim());
+  if (lines.length > 1 && lines.some((l6) => clientChoosesChatDelivery(l6))) return true;
+  const t4 = normalizeDeliveryReply(message);
+  if (!t4) return false;
+  if (/^(por\s+)?aqu[ií]$/i.test(t4)) return true;
+  if (/^(whatsapp|chat|wa|por\s+whatsapp)$/i.test(t4)) return true;
+  if (/^(?:mejor\s+)?(?:en|por)\s+(?:el\s+|este\s+)?(?:chat|whats?app|wh?ats?ap+|wpp)$/i.test(t4)) return true;
+  if (/\bpor\s+(aqu[ií]|este\s+(chat|medio)|whatsapp)(?!\p{L})/iu.test(t4) && t4.split(/\s+/).length <= 8) {
+    return true;
+  }
+  return false;
+}
+function listItemsFromAssistant(text2) {
+  return text2.split(/\n+/).map((line2) => line2.match(/^\s*(?:[•●▪◦·\-–*]|\d{1,2}[.)])\s+(.+)$/)?.[1] ?? null).filter((item) => !!item).map(
+    (item) => item.replace(/[*_]/g, "").split(/\s+[—–-]\s+|:\s|\s\(/)[0].replace(/\.{2,}|…/g, "").trim()
+  ).filter((item) => item.length >= 3);
+}
+function expandOrdinalListChoice(message, lastAssistantText) {
+  if (!message?.trim() || !lastAssistantText?.trim()) return message;
+  const items = listItemsFromAssistant(lastAssistantText);
+  if (items.length < 2) return message;
+  let changed = false;
+  const lines = message.split(/\n/).map((line2) => {
+    const t4 = line2.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[¡!¿?.,;:]+/g, " ").replace(/\s+/g, " ").trim();
+    let idx = null;
+    const word = t4.match(
+      /^(?:(?:me\s+(?:gusta|late)|quiero|prefiero|mejor)\s+)?(?:la\s+|el\s+)?(primer[ao]?|segund[ao]|tercer[ao]?|cuart[ao]|quint[ao]|ultim[ao])(?:\s+opcion)?(?:\s+por\s+favor)?$/
+    );
+    if (word) idx = ORDINAL_INDEX[word[1]] ?? null;
+    const num = t4.match(/^(?:la\s+)?opcion\s*(?:numero\s*)?#?([1-9])$/) ?? t4.match(/^(?:la\s+)?([1-9])\s*(?:ra|da|ta|a)?\s+opcion$/);
+    if (!idx && num) idx = Number(num[1]);
+    if (!idx) return line2;
+    const item = idx === -1 ? items[items.length - 1] : items[idx - 1];
+    if (!item) return line2;
+    changed = true;
+    return `${line2.trim()} (${item})`;
+  });
+  return changed ? lines.join("\n") : message;
+}
+function clientSaysNoUrgency(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  return /\btomen\s+su\s+tiempo\b/i.test(t4) || /\bno\s+hay\s+prisa\b/i.test(t4) || /\bsin\s+(ninguna\s+)?(prisa|urgencia)\b/i.test(t4) || /\bsin\s+problema\b/i.test(t4) && /\b(tiempo|prisa|cuando\s+puedan)\b/i.test(t4) || /\bcuando\s+puedan\b/i.test(t4);
+}
+function clientSignalsSomethingWrong(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
+  if (/^(no\s+est[aá]\s+bien|est[aá]\s+mal|incorrecto|eso\s+no|no\s+es\s+(correcto|as[ií]))$/i.test(t4)) {
+    return true;
+  }
+  return /\bno\s+est[aá]\s+bien\b/i.test(t4) && t4.split(/\s+/).length <= 6;
+}
+function historyHasDeliveryChannelChoice(history, currentMessage) {
+  const msgs = [...history];
+  if (currentMessage?.trim()) {
+    msgs.push({ role: "user", content: currentMessage });
+  }
+  for (let i6 = msgs.length - 1; i6 >= 0; i6--) {
+    const m6 = msgs[i6];
+    if (m6.role !== "user" || typeof m6.content !== "string") continue;
+    if (!clientChoosesEmailDelivery(m6.content) && !clientChoosesChatDelivery(m6.content)) {
+      continue;
+    }
+    for (let j5 = i6 - 1; j5 >= 0; j5--) {
+      const prev = msgs[j5];
+      if (prev.role !== "assistant" || typeof prev.content !== "string") continue;
+      if (assistantAskedDeliveryChannel(prev.content)) return true;
+      break;
+    }
+  }
+  return false;
+}
+function clientAsksForRecommendations(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  return /recomendaciones?|recomiendas?/i.test(t4) || /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t4) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t4) || /qu[eé]\s+opciones/i.test(t4) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t4) || // A15165: "Qué otros servicios manejas" / "Tienes más servicios?"
+  /qu[eé]\s+(otros\s+)?servicios(\s+\w+){0,3}\s+(maneja(?:s|n)|ofreces?|tienen?|hay)/i.test(t4) || /tienes?\s+m[aá]s\s+servicios?\b/i.test(t4) || /m[aá]s\s+servicios?\s*\??\s*$/i.test(t4) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen|qu[eé]\s+manejas/i.test(t4) || /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t4) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t4) || /algo\s+m[aá]s\s*\?/i.test(t4);
+}
+function lastAssistantOfferedNumberedPackages(lastAssistantText) {
+  const last = lastAssistantText ?? "";
+  return /coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]/i.test(last) || /\d\.\s*\*?coffee\s*break/i.test(last) || // A15168: menú corto "paquetes (1 a 5)" / listado CB 1–5.
+  /coffee\s*break|coffe\s*break/i.test(last) && (/paquetes?\s*\(?\s*1\s*a\s*5\s*\)?/i.test(last) || /coffee\s*break\s*1/i.test(last) && /coffee\s*break\s*5/i.test(last)) || /cu[aá]l\s+nivel\s+prefieres/i.test(last) && /coffee\s*break|coffe{1,2}\s*break/i.test(last) && /\$\s*\d/.test(last);
+}
+function foldNivelLabel(s7) {
+  return s7.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+}
+function parseNumberedNivelesFromAssistant(lastAssistantText) {
+  const last = lastAssistantText ?? "";
+  if (!last.trim()) return [];
+  const out2 = [];
+  const re4 = /^\s*(\d+)\.\s*\*?([^*\n]+?)\*?(?:\s*[—\-–:].*)?$/gim;
+  let m6;
+  while ((m6 = re4.exec(last)) !== null) {
+    const index = parseInt(m6[1], 10);
+    let label = (m6[2] ?? "").replace(/\*+/g, "").trim();
+    label = label.replace(/\s+[—\-–].*$/, "").trim();
+    if (index >= 1 && index <= 9 && label.length >= 2 && label.length <= 80) {
+      out2.push({ index, label });
+    }
+  }
+  return out2;
+}
+function extractNumberedNivelFromLastAssistant(text2, lastAssistantText) {
+  const niveles = parseNumberedNivelesFromAssistant(lastAssistantText);
+  if (!niveles.length) return null;
+  const raw = text2?.trim() ?? "";
+  if (!raw) return null;
+  const bare = raw.match(/^(?:el\s+|la\s+|opci[oó]n(?:es)?\s+|paquete\s+|nivel\s+)?(\d+)\s*[.)]?$/i) || raw.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*(\d+)\b/i);
+  if (bare) {
+    const hit = niveles.find((x8) => x8.index === parseInt(bare[1], 10));
+    if (hit) return hit.label;
+  }
+  const numbered = raw.match(/^\s*(\d+)\s*[.)]?\s+(.+)$/i);
+  if (numbered) {
+    const hit = niveles.find((x8) => x8.index === parseInt(numbered[1], 10));
+    if (hit) return hit.label;
+  }
+  const tf = foldNivelLabel(raw);
+  for (const n5 of niveles) {
+    const lf = foldNivelLabel(n5.label);
+    if (!lf) continue;
+    if (tf === lf || tf.includes(lf) || lf.includes(tf)) return n5.label;
+  }
+  return null;
+}
+function extractCatalogNivelFromText(text2, lastAssistantText) {
+  const t4 = text2?.trim().toLowerCase() ?? "";
+  if (!t4) return null;
+  const fromMenu = extractNumberedNivelFromLastAssistant(text2, lastAssistantText);
+  if (fromMenu) return fromMenu;
+  const coffeeNamed = t4.match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
+  if (coffeeNamed) return `Coffee Break ${coffeeNamed[1]}`;
+  if (lastAssistantOfferedNumberedPackages(lastAssistantText)) {
+    const bare = t4.match(/^(?:el\s+|la\s+)?([1-9])$/i) || t4.match(/\bel\s+([1-9])\b/i);
+    if (bare) return `Coffee Break ${bare[1]}`;
+    const opcionN = t4.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*([1-9])\b/i);
+    if (opcionN) return `Coffee Break ${opcionN[1]}`;
+  }
+  const m6 = t4.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|servicio\s*completo)\b/i) || t4.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|servicio\s*completo)\b/i) || t4.match(/^(1|2|3|4)$/);
+  if (!m6 && /\bcompleto\b/i.test(t4) && /solo\s+alimentos|servicio\s+completo|cu[aá]l te late|dos caminos/i.test(lastAssistantText ?? "")) {
+    return "Servicio completo";
+  }
+  if (!m6) return null;
+  const raw = (m6[1] ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  if (/^(1|2|3|4)$/.test(raw)) {
+    const last = lastAssistantText ?? "";
+    const numbered = parseNumberedNivelesFromAssistant(last);
+    const classicInMenu = /b[aá]sic|tradicional|premium|solo\s*alimentos/i.test(last);
+    if (numbered.length && !classicInMenu) return null;
+  }
+  if (raw === "1" || raw.startsWith("basic")) return "basica";
+  if (raw === "2" || raw.startsWith("tradicional")) return "tradicional";
+  if (raw === "3" || raw.startsWith("premium")) return "premium";
+  if (raw === "4" || /solo\s*alimento/.test(raw)) return "solo alimentos";
+  if (/completo/.test(raw)) return "Servicio completo";
+  return null;
+}
+function isCatalogLevelSelection(text2, lastAssistantText) {
+  const t4 = text2?.trim().toLowerCase() ?? "";
+  if (!t4) return false;
+  const last = lastAssistantText?.toLowerCase() ?? "";
+  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|varios paquetes|paquetes?\s*\(?\s*1\s*a\s*5|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles|manejamos estos paquetes|cu[aá]l te late m[aá]s|dos caminos|solo\s+alimentos[\s\S]{0,80}servicio\s+completo/i.test(
+    last
+  );
+  if (!askedNivel) {
+    return /\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(t4);
+  }
+  if (extractNumberedNivelFromLastAssistant(text2, lastAssistantText)) return true;
+  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|servicio\s*completo|completo|[1-9])$/i.test(t4)) return true;
+  if (/^(?:el\s+|la\s+)?[1-9]$/i.test(t4) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
+    return true;
+  }
+  if (/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*[1-9]\b/i.test(t4) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
+    return true;
+  }
+  return !!extractCatalogNivelFromText(t4, lastAssistantText);
+}
+function isAmbiguousShortNumber(text2, ctx) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  if (ctx?.lastAskedField === "invitados") return false;
+  const guestCount = t4.match(/^(?:son\s+)?(\d+)\s*(?:personas?|invitados?|pax|gente)?$/i);
+  if (guestCount) {
+    const n5 = parseInt(guestCount[1], 10);
+    if (n5 >= 10) return false;
+  }
+  const elMatch = t4.match(/^el\s+(\d{1,2})$/i);
+  if (elMatch) {
+    const n5 = parseInt(elMatch[1], 10);
+    return n5 >= 1 && n5 <= 9;
+  }
+  const bareMatch = t4.match(/^(\d+)$/);
+  if (bareMatch) {
+    const n5 = parseInt(bareMatch[1], 10);
+    if (n5 >= 10) return false;
+    return n5 >= 1 && n5 <= 9;
+  }
+  return false;
+}
+function parseWebLeadBrief(text2) {
+  const t4 = text2.trim();
+  if (!/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t4)) return null;
+  const result = {};
+  const eventoMatch = t4.match(
+    /(?:evento|celebraci[oó]n)\s*:\s*([^.\n]+?)(?:\.|,|\s+ser[ií]a|\s+para\s+\d|\s+en\s+)/i
+  );
+  if (eventoMatch) {
+    const chunk = eventoMatch[1].trim();
+    const tipo = parseTipoEventoFromText(chunk);
+    if (tipo) result.tipo_evento = tipo;
+    const services = parseServicesFromText(chunk);
+    if (services.length) result.requerimientos_evento = services.slice(0, 6).join(", ");
+    else if (!tipo) result.requerimientos_evento = chunk;
+  }
+  if (!result.requerimientos_evento) {
+    const colonSvc = t4.match(/me\s+interesa\s+cotizar\s*:\s*([^.\n]+)/i);
+    const quotedSvc = t4.match(
+      /(?:me\s+interesa\s+)?cotizar\s*[“"']([^”"']+)[”"']/i
+    );
+    const enSvc = t4.match(
+      /(?:me\s+interesa\s+)?cotizar\s+(.+?)\s+en\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]/i
+    );
+    const raw = (colonSvc?.[1] ?? quotedSvc?.[1] ?? enSvc?.[1] ?? "").trim();
+    if (raw) {
+      const chunk = raw.replace(/\s+para\s+eventos?(?:\s+\w+)*\s*$/i, "").replace(/^["'“”]+|["'“”]+$/g, "").trim();
+      const services = parseServicesFromText(chunk || raw);
+      if (services.length) result.requerimientos_evento = services.slice(0, 6).join(", ");
+      else if (chunk) result.requerimientos_evento = chunk;
+      const tipo = parseTipoEventoFromText(raw);
+      if (tipo && !result.tipo_evento) result.tipo_evento = tipo;
+    }
+  }
+  if (!result.direccion_evento) {
+    const enZona = t4.match(/\ben\s+((?:Ciudad\s+de\s+)?M[eé]xico|CDMX|[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ\s.-]{2,40})(?:\s+para\s+mi\s+evento)?/i);
+    if (enZona?.[1]) {
+      const z4 = parseZonaFromText(enZona[1]) ?? enZona[1].trim();
+      if (z4 && isUsableDireccionEvento(z4)) result.direccion_evento = z4;
+    }
+  }
+  const seriaMatch = t4.match(/ser[ií]a\s+(?:el\s+)?([^,.\n]+?)\s+en\s+([^,.\n]+?)(?:\.|,|\s+para\s+)/i);
+  if (seriaMatch) {
+    const fechaPart = seriaMatch[1].trim();
+    const lugarPart = seriaMatch[2].trim();
+    result.fecha_evento = parseFechaFromText(fechaPart) ?? fechaPart;
+    const horarioPart = parseHorarioFromText(fechaPart);
+    if (horarioPart) result.horario_evento = horarioPart;
+    result.direccion_evento = parseZonaFromText(lugarPart) ?? lugarPart;
+  }
+  const invMatch = t4.match(/para\s+(\d{1,4})\s*(?:personas?|invitados?|pax|gente)/i);
+  if (invMatch) result.num_invitados = parseInt(invMatch[1], 10);
+  const servicesFromFull = parseServicesFromText(t4);
+  if (servicesFromFull.length) {
+    if (!result.requerimientos_evento) {
+      result.requerimientos_evento = servicesFromFull.slice(0, 6).join(", ");
+    } else {
+      const merged = mergeServiceRequirements(
+        result.requerimientos_evento,
+        servicesFromFull.join(", "),
+        6
+      );
+      if (merged) result.requerimientos_evento = merged;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+function applyWebLeadBrief(extracted, text2) {
+  const brief = parseWebLeadBrief(text2);
+  if (!brief) return false;
+  if (!extracted.tipo_evento?.trim() && brief.tipo_evento) extracted.tipo_evento = brief.tipo_evento;
+  if (brief.requerimientos_evento) {
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      brief.requerimientos_evento,
+      6
+    );
+    if (merged) extracted.requerimientos_evento = merged;
+  }
+  if (!extracted.fecha_evento?.trim() && brief.fecha_horario) {
+    const { fecha, horario } = splitCombinedFechaHorario(brief.fecha_horario);
+    if (fecha) extracted.fecha_evento = fecha;
+    if (horario) extracted.horario_evento = horario;
+    syncLegacyFechaHorarioField(extracted);
+  }
+  if (!isUsableDireccionEvento(extracted.direccion_evento) && brief.direccion_evento && isUsableDireccionEvento(brief.direccion_evento)) {
+    extracted.direccion_evento = brief.direccion_evento;
+  }
+  if (!extracted.num_invitados && brief.num_invitados) extracted.num_invitados = brief.num_invitados;
+  return true;
+}
+function isGettingReadyContext(text2) {
+  if (!text2?.trim()) return false;
+  return /\b(getting\s*ready|nos\s+arreglamos|arreglo\s+de\s+novia|donde\s+nos\s+arreglamos|d[ií]a\s+de\s+la\s+boda\s+en\s+casa)\b/i.test(
+    text2
+  );
+}
+function needsAlimentosTipoClarification(value) {
+  const t4 = value?.trim() ?? "";
+  if (!t4) return false;
+  if (hasSpecificFoodService(t4)) return false;
+  if (/\b(brunch|desayunos?|comida\s+corrida|puestos?\s+de\s+comida)\b/i.test(t4)) return false;
+  return /\b(alimentos?|comidas?|catering|banquetes?|algo\s+de\s+comer)\b/i.test(t4) && !/\bcomida\s+corrida\b/i.test(t4);
+}
+function hasSpecificFoodService(text2) {
+  if (/\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b|\bbanquetes?\s+o\s+catering\b/i.test(
+    text2
+  )) {
+    return false;
+  }
+  if (/\bbanquetes?\b/i.test(text2) && !/\b(banquete\s+)?(formal|mexicano|kosher|navide[nñ]o)\b/i.test(text2) && !/\b\d\s*tiempos?\b|\bbufet\b|\bbuffet\b/i.test(text2) && !/\b(taquiza|coffee\s*break|barra\s+de|sushi|pizza|pasta|canap|bocadillo|parrillada|puestos?)\b/i.test(
+    text2
+  )) {
+    return false;
+  }
+  return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé](?!\p{L})|pizzas?|pastas?|crepas?|mariscos?|paninis?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?(?!\p{L})|bocadillos?|parrillada|brunch\s+buf[eé](?!\p{L})|desayuno\s+(?:buffet|ejecutivo|continental)|puestos?\s+de\s+comida|antojitos?|quesadillas?|paninis?|pizzas?|pastas?|crepas?|mariscos?|san+dw?ich|s[aá]ndwich|sanwich)\b/iu.test(
+    text2
+  );
+}
+function isEventTypeMealPhrase(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return false;
+  if (/\b(cotizar|quiero|necesito|busco|me\s+interesa)\b.{0,30}\b(comida|cena|almuerzo|brunch|desayuno|alimentos?|catering|banquete)\b/i.test(
+    t4
+  ) || /\b(catering|banquete|taquiza|barra\s+de|alimentos?)\b/i.test(t4)) {
+    return false;
+  }
+  if (/^(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)s?[.!?]*$/i.test(t4)) {
+    return true;
+  }
+  if (new RegExp(`\\bes\\s+un[a]?\\s+(${EVENT_MEAL_TYPE.source})\\b`, "i").test(t4)) return true;
+  if (new RegExp(
+    `\\b(ser[a\xE1]|ser[i\xED]a|es)\\s+(una\\s+)?(${EVENT_MEAL_TYPE.source})\\s+(para|el|del)\\b`,
+    "i"
+  ).test(t4)) {
+    return true;
+  }
+  return new RegExp(
+    `\\b(${EVENT_MEAL_TYPE.source})\\s+para\\s+(el\\s+)?(lunes|martes|mi[e\xE9]rcoles|jueves|viernes|s[a\xE1]bado|domingo|\\d{1,2}\\s+de\\s+\\w+)`,
+    "i"
+  ).test(t4);
+}
+function isVagueFoodTerm(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  if (isEventTypeMealPhrase(t4)) return false;
+  if (isScheduleLabeledClock(t4)) return false;
+  if (clientDeclinesServiceFamilies(t4).includes("alimentos")) return false;
+  if (clientAsksForFoodMenu(t4)) return true;
+  if (clientAsksCafeOrCateringChoice(t4)) return true;
+  if (/\b(desayuno|snack|cena|coffee\s*break)\b/i.test(t4) && /\b(desayuno|comida|cena|snack|coffee)\b/i.test(t4) && (t4.match(/\b(desayuno|comida|cena|snack|coffee\s*break)\b/gi) ?? []).length >= 2) {
+    return false;
+  }
+  if (hasSpecificFoodService(t4)) return false;
+  {
+    const concrete = parseServicesFromText(t4).filter(
+      (s7) => !/^(Comida|Alimentos|Banquete|banquete\s*\/\s*taquiza)$/i.test(s7) && /barra|banquete|taquiza|sushi|pizza|pasta|panini|crepa|marisco|pozole|paella|canap|bocadillo|coffee|desayuno|brunch|puestos/i.test(
+        s7
+      )
+    );
+    if (concrete.length > 0) return false;
+  }
+  if (/\b(comidas?|alimentos?|algo\s+de\s+comer|catering|banquetes?)\b/i.test(t4) && !/\b(banquete\s+(formal|mexicano|premium|b[aá]sic|tradicional)|\d\s*tiempos?|taquiza|coffee\s*break|barra\s+de|sushi|parrillada|canap|pizza|pasta|pozole|paella)\b/i.test(
+    t4
+  )) {
+    return true;
+  }
+  if (/\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b/i.test(
+    t4
+  ) || /^(me\s+interesa\s+(cotizar\s+)?)?(un\s+)?(servicio\s+de\s+)?(banquetes?|catering)(\s+para\s+mi\s+evento)?[.!?¿?]*$/i.test(
+    t4
+  )) {
+    if (!/\b(banquete\s+(formal|mexicano|premium|b[aá]sic|tradicional|\d\s+tiempos)|\d\s+tiempos|taquiza|coffee\s*break|barra\s+de|sushi|parrillada)\b/i.test(t4)) {
+      return true;
+    }
+  }
+  const services = parseServicesFromText(t4);
+  if (services.length >= 2) return false;
+  if (services.length > 0 && !/^(comida|alimentos?|men[uú]|desayuno|brunch|catering|banquetes?)$/i.test(t4) && !/^(quiero|necesito|busco)\s+(comida|alimentos?|men[uú]|desayuno|brunch|catering|banquetes?)$/i.test(t4)) {
+    if (services.length === 1 && /^(Desayuno|Snack|Cena|Coffee break|Brunch)$/i.test(services[0])) {
+      return false;
+    }
+    if (services.length === 1 && !/^(Comida|Alimentos|banquete \/ taquiza)$/i.test(services[0])) {
+      return false;
+    }
+  }
+  const cleaned = t4.replace(
+    /^(quer[ií]a|quiero|necesito|busco|solo|solamente|[uú]nicamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i,
+    ""
+  ).replace(/^(una?|el|la|los|las|un\s+servicio\s+de|servicio\s+de)\s+/i, "").replace(/\s+para\s+(un\s+)?evento\b.*$/i, "").trim();
+  if (/^(comidas?|alimentos?|men[uú]s?|catering|banquetes?|algo\s+de\s+comer|servicio\s+de\s+(banquetes?|catering)(\s+o\s+catering)?|banquetes?\s+o\s+catering)$/i.test(
+    cleaned
+  )) {
+    return true;
+  }
+  if (/\b([uú]nicamente|solo|solamente|nada\s+m[aá]s)\b.{0,40}\b(catering|comida|alimentos?|banquetes?)\b/i.test(
+    t4
+  )) {
+    return true;
+  }
+  return /\b(quer[ií]a|quiero|necesito|busco|me\s+interesa|cotizar?)\b.{0,24}\b(comidas?|alimentos?|algo\s+de\s+comer|banquetes?|catering)\b/i.test(
+    t4
+  );
+}
+function sanitizeExtractedAmbiguousNumbers(extracted, messageText, ctx) {
+  if (isAmbiguousShortNumber(messageText, ctx)) {
+    extracted.num_invitados = null;
+  }
+  const m6 = (messageText ?? "").match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
+  if (m6 && extracted.num_invitados === parseInt(m6[1], 10)) {
+    extracted.num_invitados = null;
+  }
+}
+function stripNombrePresentationPrefix(raw) {
+  const t4 = raw.trim();
+  const esName = t4.match(
+    /^\s*es\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{1,30}(?:\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{1,30}){0,3})\s*$/i
+  );
+  if (esName?.[1]) {
+    return esName[1].replace(
+      /[,.]?\s*no\s+(?:la\s+|el\s+)?(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n)\b.*$/i,
+      ""
+    ).replace(/[.!🙂😊😉]*$/u, "").trim();
+  }
+  const mid = t4.match(
+    /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+(.+)$/i
+  );
+  let rest = mid?.[1] ?? null;
+  if (!rest) {
+    const m6 = t4.match(/^\s*(?:c[oó]mo)\s+(.+)$/i);
+    rest = m6?.[1] ?? t4;
+  }
+  return rest.replace(
+    /[,.]?\s*no\s+(?:la\s+|el\s+)?(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n)\b.*$/i,
+    ""
+  ).replace(/[.!🙂😊😉]*$/u, "").trim();
+}
+function recoverClienteNombreFromHistory(history, currentMessage) {
+  let lastAssistant = "";
+  for (const msg of history) {
+    if (msg.role === "assistant" && typeof msg.content === "string") {
+      lastAssistant = msg.content;
+      continue;
+    }
+    if (msg.role !== "user" || typeof msg.content !== "string") continue;
+    const asked = inferLucyAskedField(lastAssistant);
+    if (asked !== "nombre" && !LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) continue;
+    const raw = msg.content.trim();
+    if (!raw || isAffirmativeOnlyMessage(raw) || isAmbiguousShortNumber(raw)) continue;
+    const nombreSalvage = sanitizeCrmNombre(raw);
+    if (isLikelyNotPersonNameMessage(raw) || isServiceRelatedMessage(raw) || isQuoteIntentMessage(raw)) {
+      if (nombreSalvage && (clientAsksForHumanAdvisor(raw) || /\b(hablar|asesor|agente|humano)\b/i.test(raw))) {
+        return nombreSalvage;
+      }
+      continue;
+    }
+    const candidato = stripNombrePresentationPrefix(raw);
+    const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato) && !isLikelyNotPersonNameMessage(candidato)) {
+      return nombre;
+    }
+  }
+  if (currentMessage?.trim()) {
+    const asked = inferLucyAskedField(lastAssistant);
+    if (asked === "nombre" || LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) {
+      const raw = currentMessage.trim();
+      if (!isAffirmativeOnlyMessage(raw) && !isAmbiguousShortNumber(raw) && !isLikelyNotPersonNameMessage(raw) && !isServiceRelatedMessage(raw) && !isQuoteIntentMessage(raw)) {
+        const candidato = stripNombrePresentationPrefix(raw);
+        const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+        if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato)) {
+          return nombre;
+        }
+      }
+    }
+  }
+  return null;
+}
+function clientAsksLocation(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  return /d[oó]nde\s+(se\s+)?ubican/i.test(t4) || /d[oó]nde\s+est[aá]n(\s+ubicados?)?/i.test(t4) || /en\s+d[oó]nde\s+est[aá]n/i.test(t4) || /cu[aá]l\s+es\s+su\s+ubicaci[oó]n/i.test(t4) || /zona\s+de\s+cobertura/i.test(t4) || /en\s+qu[eé]\s+ciudad\s+est[aá]n/i.test(t4) || /\b(est[aá]n|quedan)\s+ubicados?\b/i.test(t4) || /\bd[oó]nde\s+tienen\s+(oficina|sucursal|local)\b/i.test(t4) || // A16095: "tendrá un lugar para poder visitarlos" / showroom.
+  /\b(lugar|oficina|sucursal|local|showroom|espacio)\s+(para\s+)?(poder\s+)?visitar/i.test(t4) || /\b(puedo|podemos|podr[ií]amos|gustar[ií]a)\s+visitar(los|las|te|los)?\b/i.test(t4) || /\bvisitar(los|las)?\b.{0,40}\b(oficina|sucursal|lugar|local|showroom)\b/i.test(t4) || /\b(tienen|tendr[aá]|hay)\s+(un\s+)?lugar\s+(para\s+)?(visitar|conocer)/i.test(t4);
+}
+function looksLikeCompanyLocationQuestionFragment(text2) {
+  const t4 = (text2 ?? "").trim().toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
+  if (!t4) return false;
+  if (clientAsksLocation(t4)) return true;
+  return /^(d[oó]nde\s+est[aá]n|en\s+d[oó]nde(\s+est[aá]n)?|donde\s+estan|ubicados?|su\s+ubicaci[oó]n|ubicaci[oó]n)$/i.test(
+    t4
+  ) || /^d[oó]nde\s+est[aá]n(\s+ubicados?)?$/i.test(t4) || /^en\s+d[oó]nde(\s+est[aá]n)?(\s+ubicados?)?$/i.test(t4);
+}
+function clientMentionsItalianTheme(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  if (/\bbarra\s+de\s+pastas?\b/i.test(t4) && !/\b(italian[ao]?|italia|toscana|mafia\s+italiana)\b/i.test(t4)) {
+    return false;
+  }
+  if (/\bbarra\s+italian|\bestaci[oó]n\s+italian|\bcomida\s+italian/i.test(t4)) {
+    return true;
+  }
+  return /\b(italian[ao]?|italia|toscana|toscano|mafia\s+italiana|pastas?|pizzas?|antipasti|selecci[oó]n\s+de\s+italia|partido.*italia)\b/i.test(
+    t4
+  );
+}
+function clientAsksForFoodMenu(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  if (hasSpecificFoodService(t4) && !/\bmen[uú]\b/i.test(t4)) return false;
+  if (/\bmen[uú]\s+(casual|formal|premium|b[aá]sic|tradicional|kosher|mexicano|navide)/i.test(t4) || /\b(banquete|taquiza|coffee\s*break|barra\s+de)\b.{0,20}\bmen[uú]\b/i.test(t4)) {
+    return false;
+  }
+  return /\b(me\s+)?(regalas?|pasas?|mandas?|env[ií]as?|das?|compartes?)\b.{0,24}\b(tu\s+|el\s+|su\s+)?men[uú]/i.test(
+    t4
+  ) || /\b(tu|el|su)\s+men[uú]\b.{0,16}\b(por\s*fa|porfavor|please)\b/i.test(t4) || /\b(quiero|necesito|puedes?\s+pasar)\b.{0,20}\b(el\s+|tu\s+)?men[uú]\b/i.test(t4) || /^\s*men[uú]s?\s*[?¿.!]*\s*$/i.test(t4) && t4.length <= 12;
+}
+function clientMentionsEntertainment(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  return /\bshows?\b/i.test(t4) || /\bgrupo\s+vers[aá]til\b/i.test(t4) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t4) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento|espect[aá]culos?)\b/i.test(t4) || /\bmariachis?\b|\bbaile\s+regional\b|\bfolkl[oó]rico\b/i.test(t4) || /\bpercusi[oó]n.{0,24}leds?\b|\bleds?.{0,24}percusi[oó]n\b/i.test(t4) || /\bgrupo\s+(vers[aá]til|b[aá]sico|m[aá]s\s+b[aá]sico)\b/i.test(t4) || /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t4) || /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(shows?|maestro|animaci)/i.test(t4) || // A14962 Vane: batucada / robots LED / ambientación de show
+  /\bbatucada\b/i.test(t4) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t4) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|shows?|robots?|leds?)\b/i.test(t4) || // A14988 Ernesto / A16254 Marlen: bailarinas, bailarines, hombres que bailen
+  /\bbailarin(?:es|as?|a)?\b|\bdancers?\b|\bvedettes?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i.test(
+    t4
+  ) || // A15003 Juan: photo booth / cabina
+  /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
+    t4
+  ) || // A15009 Erick: circo / Blue Man / actos en vivo especiales
+  clientMentionsSpecialLiveAct(message);
+}
+function clientMentionsSpecialLiveAct(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  if (/\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca|entretenimiento)\b/i.test(t4) || /\bgrupo\s+vers[aá]til\b/i.test(t4)) {
+    return false;
+  }
+  return parseNamedShowLabels(message).length > 0 || /\bcirco\b/i.test(t4) || /\bblue\s*mans?\b|\bblueman\b/i.test(t4) || /\b(mago|magia|ilusionista)\b/i.test(t4) || /\bcrudo\s*wheel\b|\bshow\s+crudo\b/i.test(t4) || /\bacrobacia\s+a[eé]rea\b/i.test(t4) || /\b(payasos?|malabares?|acr[oó]batas?|trapecio|contorsion)\b/i.test(t4) || // "show blueman" / "show X" con nombre propio (no "show de…").
+  /\bshow\s+[a-záéíóúüñ][\wáéíóúüñ.-]{2,}(?!\s+de\b)/i.test(t4) && !/\bshow\s+(de|en|para|con|un|una|el|la|los|las)\b/i.test(t4) || /\b(quiero|busco|necesito|interes[aá]|cotiz)\b.{0,40}\bcirco\b/i.test(t4);
+}
+function parseNamedShowLabels(text2) {
+  if (!text2?.trim()) return [];
+  const out2 = [];
+  const push = (raw) => {
+    const name2 = raw.replace(/\s+/g, " ").replace(/^\s*shows?\s+/i, "").replace(/\s+shows?\s*$/i, "").trim();
+    if (name2.length < 2 || name2.length > 50) return;
+    const label = /\bblue\s*mans?\b|\bblueman\b/i.test(name2) ? "Show Blue Man" : `Show ${name2}`;
+    if (!out2.some((s7) => s7.toLowerCase() === label.toLowerCase())) out2.push(label);
+  };
+  for (const m6 of text2.matchAll(/\bshows?\s*[“"«']\s*([^"“”«»']{2,60}?)\s*[”"»']/giu)) {
+    if (m6[1]) push(m6[1]);
+  }
+  for (const part of text2.split(/[,\n]/)) {
+    const seg = part.trim();
+    if (/^Show\s+[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÜÑáéíóúüñ ]{1,48}$/u.test(seg) && !/^Show\s+(De|En|Para|Con)\b/.test(seg)) {
+      push(seg);
+    }
+  }
+  return out2;
+}
+function clientAsksVentaOrRenta(message) {
+  const t4 = message?.trim() ?? "";
+  if (!t4) return false;
+  if (/\b(les|a\s+ustedes)\s+(vendo|vendemos|ofrezco|ofrecemos)\b|\bquiero\s+venderles\b|\bventas\s+(en|de\s+la\s+empresa)\b/i.test(t4)) {
+    return false;
+  }
+  return /\b(venta|renta)\s+o\s+(renta|venta)\b/i.test(t4) || /\b(rentan|rentas)\s+o\s+(venden|vendes)\b|\b(venden|vendes)\s+o\s+(rentan|rentas)\b/i.test(t4) || /\b(venden|vendes|manejan\s+venta|hacen\s+venta|tienen\s+venta|se\s+pueden?\s+comprar|puedo\s+comprar(las|los)?|est[aá]n?\s+a\s+la\s+venta|es\s+(solo\s+)?(para\s+)?venta)\b/i.test(
+    t4
+  );
+}
+function clientChoosesVenta(message) {
+  const t4 = message?.trim() ?? "";
+  if (!t4 || t4.length > 60 || clientAsksVentaOrRenta(t4)) return false;
+  return /^(?:s[ií][\s,.!]+)?(?:(?:ser[ií]a|es|la\s+quiero|lo\s+quiero|quiero|me\s+interesa)\s+)?(?:para\s+|en\s+)?(venta|compra|comprar(las|los)?)\b/i.test(
+    t4
+  );
+}
+function parseSpecialLiveActLabel(message) {
+  if (!message?.trim()) return null;
+  const t4 = message.trim();
+  const namedShows = parseNamedShowLabels(t4);
+  if (namedShows.length) return namedShows[0];
+  if (/\bcirco\b/i.test(t4)) return "Circo para eventos";
+  if (/\bblue\s*mans?\b|\bblueman\b/i.test(t4)) return "Show Blue Man";
+  if (/\b(mago|magia|ilusionista)\b/i.test(t4)) return "Show de magia";
+  if (/\bcrudo\s*wheel\b|\bshow\s+crudo\b/i.test(t4)) return "Show crudo wheel";
+  if (/\bacrobacia\s+a[eé]rea\b|\bshow\s+acrobacia\b/i.test(t4)) return "Show acrobacia a\xE9rea";
+  if (/\b(payasos?|malabares?|acr[oó]batas?)\b/i.test(t4)) return "Actos de circo / animaci\xF3n";
+  if (/\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca)\b/i.test(t4) || /\bgrupo\s+vers[aá]til\b/i.test(t4)) {
+    return null;
+  }
+  const named = t4.match(/\bshow\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.-]{1,40})/i);
+  if (named?.[1] && !/^(de|en|para|con|un|una|el|la)$/i.test(named[1])) {
+    return `Show ${named[1].trim()}`;
+  }
+  if (clientMentionsSpecialLiveAct(t4)) {
+    return t4.replace(/\s+/g, " ").slice(0, 60);
+  }
+  return null;
+}
+function clientConfirmsOfferReview(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  return /^(revisar|revisemos|revisarlo|revisarla|revisar\s+primero|el\s+detalle|detallame|det[aá]llame)[\s.!]*$/i.test(
+    t4
+  );
+}
+function clientMentionsLedRobotsOrBatucada(message) {
+  if (!message?.trim()) return false;
+  return /\bbatucada\b/i.test(message) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(message) || /\bpercusi[oó]n.{0,24}leds?\b|\bleds?.{0,24}percusi[oó]n\b/i.test(message) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\bbatucada\b/i.test(message);
+}
+function clientDeclinesMoreServices(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim().toLowerCase();
+  if (clientWantsFoodOnlyQuote(message)) return false;
+  if (/\bsolo\s+(el\s+)?(servicio|photo|photobooth|cabina|banquete|barra|dj|mobiliario)/i.test(t4) && !/\bno\s+quiero\b/i.test(t4)) {
+    return false;
+  }
+  if (isPointingReferentialEmoji(message)) return true;
+  return /^(no|nop)[\s.,!]*$/i.test(t4) || /\bsolo\s+(con\s+)?eso\b/i.test(t4) || /\bsolo\s+ese\b/i.test(t4) || /\bsolamente\s+eso\b/i.test(t4) || /\bnada\s+m[aá]s\b/i.test(t4) || /\bno\s+quiero\s+nada\s+m[aá]s\b/i.test(t4) || /\bno\s+quiero\s+(nada\s+)?m[aá]s\b/i.test(t4) || /\bning[uú]n[a]?\b/i.test(t4) || /\bning[uú]n\s+otro\b/i.test(t4) || /\bninguno\s+de\s+(esos|ellos|estos)\b/i.test(t4) || /\bno[.\s,¡!]+gracias\b/i.test(t4) || /\bno\s+gracias\b/i.test(t4) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t4) || /\beso\s+es\s+todo\b/i.test(t4) || /\bes\s+todo\b/i.test(t4) || /\bya\s+no\b/i.test(t4) || /\bno\s+m[aá]s\b/i.test(t4) || /\blisto\s+as[ií]\b/i.test(t4) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t4) || /\bya\s+con\s+eso\b/i.test(t4) || /\bser[ií]a\s+todo\b/i.test(t4) || /\bsolo\s+eso\b/i.test(t4) || /\bya\s+(est[aá]|queda)\s+(bien|listo)\b/i.test(t4) || /\bno\s+me\s+interesa\b/i.test(t4) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t4) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t4) || /\bpor\s+ahora\s+no\b/i.test(t4) || // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
+  /\bsolo\s+quiero\b/i.test(t4) && !/\bcomida\b|\bcotiz/i.test(t4) || /\bquiero\s+solo\b/i.test(t4) && !/\bcomida\b|\bcotiz/i.test(t4);
+}
+function clientWorriesAboutCost(message) {
+  const t4 = (message ?? "").trim();
+  if (!t4 || /[?¿]/.test(t4)) return false;
+  return /\b(?:elev(?:ar|a|e)|sub(?:ir|e|a)|dispar(?:ar|a|e)|increment(?:ar|a|e))\s+(?:mucho\s+)?(?:al?|el|los?|mi)?\s*(?:costos?|precios?|presupuesto)\b/i.test(
+    t4
+  );
+}
+function clientAsksToWaitWhileBrowsing(message) {
+  const t4 = (message ?? "").trim();
+  if (!t4 || /[?¿]/.test(t4) || t4.split(/\s+/).length > 14) return false;
+  return /^(?:esp[eé]ra(?:me)?|dame\s+(?:chance|un\s+(?:momento|segundo|minuto|ratito))|d[eé]ja(?:me)?\s+(?:veo|ver|checo|checar|reviso|revisar))\b/i.test(
+    t4
+  );
+}
+function clientChoosesOtherCatalogOption(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim().toLowerCase();
+  return /\b(voy\s+a\s+ver|prefiero\s+ver|mejor\s+veo|reviso|quiero\s+ver)\s+(otra|otras)\s+opci/i.test(
+    t4
+  ) || /\bprefiero\s+revisar\s+otra\b/i.test(t4) || /^otra\s+opci[oó]n[.!]*$/i.test(t4);
+}
+function clientSoftDeclinesLead(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim().toLowerCase();
+  if (/\bme\s+pongo\s+en\s+contacto\b/i.test(t4)) return true;
+  if (/\blo\s+evalu(o|amos|ar[eé])\b/i.test(t4)) return true;
+  if (/\bpor\s+ahora\b/i.test(t4) && /\bgracias\b/i.test(t4)) return true;
+  const condicional = /\b(?:si|cuando)\s+(?:nos|me)\s+interes(?:a|e)\b/i.test(t4);
+  const contactoFuturo = /\b(?:avis|contact|escrib|marc|busc|hablam|llam|coment)(?:o|amos|ar[eé]|aremos)\b/i.test(t4);
+  return condicional && contactoFuturo;
+}
+function clientMentionsCatering(message) {
+  if (!message?.trim()) return false;
+  if (isEventTypeMealPhrase(message)) return false;
+  const t4 = message.toLowerCase();
+  return /\bcatering\b/i.test(t4) || /\bbanquetes?\b/i.test(t4) || /\btaquiza\b|\btacos?\b/i.test(t4) || /\b(brunch|desayuno)\b/i.test(t4) || /\bbrunch\s*\/\s*desayuno/i.test(t4) || /\bcoffee\s*break\b|\bcoffe\s*break\b|\bcoffeebreak\b/i.test(t4) || /\bbarra\s+de\s+caf[eé](?!\p{L})/iu.test(t4) || // Barras de comida / sushi (form leads y WhatsApp) — misma pista que coffee break.
+  /\bbarra\s+de\s+(sushi|pizzas?|alimentos|bebidas?|crepas?|pastas?|mariscos?)\b/i.test(t4) || /\b(sushi|poke(\s*bowl)?)\b/i.test(t4) || /\b(busco|necesito|quiero|cotizar|interesa)\s+(cotizar\s+)?(comida|alimentos?|men[uú])\b/i.test(t4) || /\bcomida\s+para\b/i.test(t4) && !isEventTypeMealPhrase(message) || /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t4) || /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t4) && !isEventTypeMealPhrase(message);
+}
+function clientAsksNamedServiceDetail(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  if (/\b(opci[oó]n|opciones)\s+de\s+alimentos?\b/i.test(t4) || /\bqu[eé]\s+opci[oó]n\b/i.test(t4) || /\b(regala|pasa|manda|dame|quiero)\s+detalles?\b/i.test(t4) || /\bdetalles?\s+de\s+los\s+solicitados\b/i.test(t4)) {
+    if (/\bdetalles?\s+de\s+los\s+solicitados\b/i.test(t4) || /\b(regala|pasa|manda|dame)\s+detalles?\b/i.test(t4)) {
+      return true;
+    }
+    return parseServicesFromText(t4).length > 0 || isServiceRelatedMessage(t4) || /\b(yucateca|crepas?|taquiza|pastas?|pizzas?|sushi|parrillada|banquete|barra)\b/i.test(t4);
+  }
+  if (!/\b(m[aá]s\s+)?detalles?\s+(de|del|sobre|para)\b/i.test(t4) && !/\b(m[aá]s\s+)?detalle\b/i.test(t4)) {
+    return false;
+  }
+  return parseServicesFromText(t4).length > 0 || isServiceRelatedMessage(t4) || isTablewareRequestText(t4);
+}
+function clientAsksProductAvailability(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase().replace(/\s+/g, " ").trim();
+  if (!/\?/.test(message) && !/\b(tienen|tienes|hay|manejan|ofrecen|cuenta|cuentan)\b/i.test(t4)) {
+    return false;
+  }
+  if (/\balcohol\b/i.test(t4) && isServiceRelatedMessage(message)) return true;
+  if (isServiceRelatedMessage(message) && /\b(tienen|tienes|hay|manejan|ofrecen|cuenta|cuentan)\b/i.test(t4)) {
+    return true;
+  }
+  if (t4.length <= 80 && /\?/.test(message) && isServiceRelatedMessage(message) && !/\b(quiero|necesito|sum[ae]|agreg|anot)\b/i.test(t4)) {
+    return true;
+  }
+  return false;
+}
+function clientAsksServiceInfo(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  if (clientAsksNamedServiceDetail(message)) return true;
+  if (clientAsksProductAvailability(message)) return true;
+  const asksWhatTypes = /\bqu[eé]\s+(tipo\s+de\s+)?(snacks?|snaks?|bocadillos?|antojitos?|puestos?)\b/i.test(t4) || /\b(snacks?|snaks?|bocadillos?|antojitos?).{0,40}\b(tienen|tienes|manejan|ofrecen)\b/i.test(t4) || /\b(tienen|tienes|manejan|ofrecen).{0,40}\b(snacks?|snaks?|bocadillos?|antojitos?)\b/i.test(t4);
+  if (!isServiceRelatedMessage(message) && !asksWhatTypes) return false;
+  return asksWhatTypes || /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?|modelos?)\b/i.test(t4) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t4) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t4) || /\bnecesito\s+saber\b/i.test(t4) || /\b(tiene|tienes|tienen)\s+(info|informaci[oó]n|cat[aá]logo|detalle|modelos?)\b/i.test(t4) || // "¿Cuentan/cuenta con carpas…?" / "¿tienen pista?" / "¿tienes modelos?"
+  /\b(cuenta|cuentan|tienen|tienes|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t4) || /\b(cuenta|cuentan|tienen|tienes|manejan|ofrecen)\s+con\b/i.test(t4) || // A14938: "¿Hacen las pizzas en el evento?" / preparan / cocinan / montan.
+  /\b(hacen|preparan|cocinan|sirven|montan|elaboran)\b.{0,60}\?/i.test(t4);
+}
+function isPromoTemplateMessage(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4 || t4.length < 40) return false;
+  const promoSignal = /\b(promo|c[oó]digo|cierre\s+r[aá]pido|cierrerapido)\b/i.test(t4) || /\bc[oó]digo\s*:\s*\w+/i.test(t4);
+  const metaSignal = /\bpedido\s+m[ií]nimo\b/i.test(t4) || /\bhorario\s+en\s+que\s+env[ií]o\b/i.test(t4) || /\bhora\s+ciudad\s+de\s+m[eé]xico\b/i.test(t4);
+  if (!(promoSignal && metaSignal)) return false;
+  if (/\b(ex\s+hacienda|hacienda|sal[oó]n|san\s+miguel|boda\s+en|xv\s+en)\b/i.test(t4) && /\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+    t4
+  )) {
+    return false;
+  }
+  return true;
+}
+function isPromoMinimumGuestLine(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  if (/\bpedido\s+m[ií]nimo\b/i.test(t4)) return true;
+  if (/\b(desde|a\s+partir\s+de)\s+\d+\s*personas?\b/i.test(t4) && !/\b(ser[ií]an?|somos|invitados?)\b/i.test(t4)) {
+    return true;
+  }
+  return /\bm[ií]nimo\s*:?\s*\d+\s*personas?\b/i.test(t4) && !/\b(ser[ií]an?|somos|invitados?|asistentes?|para\s+\d+\s+personas)\b/i.test(t4);
+}
+function clientQuestionsServiceMinimum(message) {
+  const t4 = message?.trim() ?? "";
+  if (!t4) return false;
+  return /\b(veo\s+que|not[eé]|dice|indican?|aparecen?|tienen)\b[\s\S]{0,40}\bm[ií]n(\.|imo)?\b/i.test(
+    t4
+  ) || /\bm[ií]n(\.|imo)?\s*(?:de\s+)?(?:\d{2,3}|treinta\s+y\s+cinco)\s*personas?\b/i.test(t4) || /\bpara\s+(?:m[ií]n(\.|imo)?|min)\s*\d{2,3}\s*personas?\b/i.test(t4) || /\bpedido\s+m[ií]nimo\b/i.test(t4);
+}
+function buildBelowMinimumGuestReply(guestCount) {
+  const n5 = guestCount && guestCount > 0 ? guestCount : null;
+  const size = n5 ? `Para *${n5} personas*` : "Para grupos m\xE1s peque\xF1os";
+  return `${size} el banquete formal suele no ser lo m\xE1s pr\xE1ctico (el cat\xE1logo arranca cerca de 35). Igual te podemos armar una propuesta a la medida \u2014 coffee break, barra de alimentos o un men\xFA m\xE1s liviano. \xBFTe late alguna de esas opciones o prefieres que el equipo te sugiera seg\xFAn la junta?`;
+}
+function stripPromoTemplateMetadata(text2) {
+  return text2.replace(/\bpedido\s+m[ií]nimo\s*:?\s*\d+\s*personas?\b/gi, " ").replace(/\bm[ií]nimo\s*:?\s*\d+\s*personas?\b/gi, " ").replace(/\b(desde|a\s+partir\s+de)\s+\d+\s*personas?\b/gi, " ").replace(/\bhorario\s+en\s+que\s+env[ií]o\s+este\s+mensaje\s*:?[^\n]*/gi, " ").replace(/\(?\s*hora\s+ciudad\s+de\s+m[eé]xico\s*\)?/gi, " ").replace(/\s+/g, " ").trim();
+}
+function isLikelyProductNameNotLocation(value) {
+  const t4 = (value ?? "").trim();
+  if (!t4) return false;
+  if (/^sala\s*:/i.test(t4)) return true;
+  if (/\bsala\s*:/i.test(t4)) return true;
+  if (/^luxor(\s+rosa)?$/i.test(t4)) return true;
+  if (parseCarpaVariantFromText(t4)) return true;
+  if (/^(cathedral|catedral|pir[aá]mide|planas?)(\s+(carpa|tent))?$/i.test(t4)) return true;
+  if (/^(salas?(\s+lounge)?|periqueras?|lounge|mobiliario|carpas?|pistas?|tarimas?|tiffany|vajilla|manteler[ií]a)$/i.test(
+    t4
+  )) {
+    return true;
+  }
+  if (/\b(luxor|tiffany|vers[aá]til)\b/i.test(t4) && !/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida|quer[eé]taro|polanco|santa\s+fe)\b/i.test(
+    t4
+  )) {
+    return true;
+  }
+  return false;
+}
+function parseCarpaVariantFromText(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return null;
+  if (/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida)\b/i.test(t4)) {
+    return null;
+  }
+  const shortOrCarpaBrief = t4.length <= 60 || /\bcarpas?\b/i.test(t4);
+  if (!shortOrCarpaBrief) return null;
+  if (/^blancas?(\s+(carpa|tent))?$/i.test(t4) || /\bcarpa\s+blanca\b/i.test(t4)) {
+    return "Carpa blanca";
+  }
+  if (/^negras?(\s+(carpa|tent))?$/i.test(t4) || /\bcarpa\s+negra\b/i.test(t4)) {
+    return "Carpa negra";
+  }
+  if (/^transparentes?(\s+(carpa|tent))?$/i.test(t4) || /\bcarpa\s+transparente\b/i.test(t4) || /\btransparentes?\b/i.test(t4) && /\bcarpas?\b/i.test(t4)) {
+    return "Carpa transparente";
+  }
+  if (/^domos?(\s+(carpa|tent))?$/i.test(t4) || /\bcarpa\s+(?:tipo\s+)?domo\b/i.test(t4)) {
+    return "Carpa tipo domo";
+  }
+  return null;
+}
+function parseSalaProductFromText(text2) {
+  const named = text2.match(/\bsala\s*:\s*([A-Za-zÁÉÍÓÚáéíóúñ0-9][\w\s.-]{1,40})/i);
+  if (named?.[1]) {
+    const qty = text2.match(/\b(\d+)\s+salas?\b/i);
+    const name2 = named[1].trim().replace(/[.,;]+$/, "");
+    return qty ? `${qty[1]} salas ${name2}` : `Sala ${name2}`;
+  }
+  const labeled = text2.match(/\bsala\s+lounge\s*\((\d+)\)/i);
+  if (labeled) return `Sala lounge (${labeled[1]})`;
+  const qtyOnly = text2.match(/\b(\d+)\s+salas?\b/i);
+  if (qtyOnly) return qtyOnly[1] === "1" ? "Sala lounge (1)" : `${qtyOnly[1]} salas lounge`;
+  if (/\b(?:una|1)\s+sala\s+lounge\b/i.test(text2)) return "Sala lounge (1)";
+  const luxor = text2.match(
+    /\bluxor(?:\s+(rosa|negr[oa]|blanc[oa]|dorad[oa]|gris|azul|verde|beige|nude|plata|platead[oa]|gold))?\b/i
+  );
+  if (luxor) {
+    const color = luxor[1] ? ` ${luxor[1][0].toUpperCase()}${luxor[1].slice(1).toLowerCase()}` : "";
+    return `Sala Luxor${color}`;
+  }
+  if (/\bsalas?\s+lounge\b/i.test(text2)) return "Salas lounge";
+  const namedLoose = text2.match(
+    /\bsala\s+((?!lounge\b)[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ.-]*(?:\s+(?:Color\s+)?[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ.-]*){1,5})\b/i
+  );
+  if (namedLoose?.[1]) {
+    const name2 = namedLoose[1].trim().replace(/[.,;]+$/, "");
+    if (name2.length >= 4 && !/^(lounge|mesas?|sillas?)$/i.test(name2)) {
+      return `Sala ${name2}`;
+    }
+  }
+  return null;
+}
+function parseFurnitureCatalogSkuFromText(text2) {
+  const t4 = String(text2 || "").trim();
+  if (!t4) return null;
+  const mesaCentro = t4.match(
+    /\bmesa\s+centro\s+(?:rectangular\s+)?m[aá]rmol(?:\s+redonda)?|\bmesa\s+centro\s+m[aá]rmol\s+redonda|\bmesa\s+centro\s+rectangular(?:\s+m[aá]rmol)?\b/i
+  );
+  if (mesaCentro) {
+    return mesaCentro[0].replace(/\s+/g, " ").trim().replace(/\b\w/g, (c5) => c5.toUpperCase()).replace(/\bMÁRMOL\b/gi, "M\xE1rmol").replace(/\bMarmol\b/g, "M\xE1rmol");
+  }
+  const sala = parseSalaProductFromText(t4);
+  if (sala && !/^Salas lounge$/i.test(sala) && !/^\d+\s+salas?\s+lounge$/i.test(sala)) {
+    return sala;
+  }
+  return formatChairSku(t4);
+}
+function assistantAskedVagueEmbudoContinue(text2) {
+  if (!text2?.trim()) return false;
+  return /\bseguimos con el siguiente dato\b/i.test(text2) || /\bsiguiente dato del evento\b/i.test(text2) || /\bseguimos con lo que ya platicamos\b/i.test(text2) || /\bsiguiente dato\b/i.test(text2);
+}
+function clientAffirmsEmbudoContinue(message, lastAssistantText) {
+  if (!assistantAskedVagueEmbudoContinue(lastAssistantText)) return false;
+  const t4 = String(message || "").trim().toLowerCase();
+  if (!t4) return false;
+  if (clientAsksForCatalog(message)) return false;
+  return /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|adelante|sigamos|contin[uú]a)([.!?]|\s|$)/i.test(
+    t4
+  );
+}
+function clientMentionsCarpas(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  if (/\b(no|sin)\s+(una?\s+)?carpas?\b/i.test(t4) || /\bno\s+es\s+(una?\s+)?carpas?\b/i.test(t4) || /\bes\s+pista(\s+de\s+baile)?\b/i.test(t4) && /\bcarpas?\b/i.test(t4)) {
+    if (!/\b(quiero|necesito|cotizar|me\s+interesa|busco)\b.{0,30}\bcarpas?\b/i.test(t4)) {
+      return false;
+    }
+  }
+  return /\bcarpas?\b|\bcapras?\b|\btoldos?\b|\blonas?\b/i.test(t4) || !!parseCarpaVariantFromText(t4);
+}
+function clientCorrectsCarpaToPista(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  return /\bes\s+pista(\s+de\s+baile)?\b/i.test(t4) && /\b(no|sin)\s+(una?\s+)?carpas?\b/i.test(t4) || /\bno\s+(es\s+)?(una?\s+)?carpas?\b/i.test(t4) && /\bpista\b/i.test(t4) || /^no\s+carpa\.?$/i.test(t4) || /^es\s+pista(\s+de\s+baile)?\.?$/i.test(t4);
+}
+function resolveSpaceMeasureServiceBase(opts) {
+  const req = opts.requerimientos ?? "";
+  const last = opts.lastLucy ?? "";
+  const msg = opts.currentMessage ?? "";
+  const hist = opts.historyBlob ?? "";
+  if (clientCorrectsCarpaToPista(msg) || /\bes\s+pista\b/i.test(msg) && !clientMentionsCarpas(msg)) {
+    return "pista";
+  }
+  if (preferTarimaLabelOverPista(msg, req) || clientMentionsTarimaOnly(msg)) {
+    return "tarima";
+  }
+  if (/\btarimas?\b|\bentarimad/i.test(req) && !/\bpista(\s+de\s+baile)?\b/i.test(req)) {
+    return "tarima";
+  }
+  if (isEnteladoRequestText(msg) || isEnteladoRequestText(req) && !clientMentionsPistaTarima(req) && !clientMentionsCarpas(req)) {
+    return "entelado";
+  }
+  const lucyAskedTarima = /\btarima|entarimad/i.test(last) && !/\bpista(\s+de\s+baile)?\b/i.test(last);
+  const lucyAskedPista = /\bpista(\s+de\s+baile)?\b/i.test(last) && !/\bcarpas?\b/i.test(last);
+  const lucyAskedCarpa = /\bcarpas?\b/i.test(last) && !/pista|tarima/i.test(last);
+  if (/\bTarima\b|\btarimas?\b|\bentarimad/i.test(req) && !/\bpista(\s+de\s+baile)?\b/i.test(req)) {
+    return "tarima";
+  }
+  if (/\bpista(\s+de\s+baile)?\b/i.test(req) && !clientMentionsCarpas(req)) return "pista";
+  if (clientMentionsCarpas(req) && !clientMentionsPistaTarima(req)) return "carpa";
+  if (clientMentionsPistaTarima(req) && clientMentionsCarpas(req)) {
+    if (lucyAskedTarima) return "tarima";
+    if (lucyAskedPista) return "pista";
+    if (lucyAskedCarpa) return "carpa";
+    return preferTarimaLabelOverPista(msg, req) ? "tarima" : "pista";
+  }
+  if (lucyAskedTarima) return "tarima";
+  if (lucyAskedPista) return "pista";
+  if (lucyAskedCarpa) return "carpa";
+  if (clientMentionsTarimaOnly(msg) || clientMentionsTarimaOnly(hist)) return "tarima";
+  if (clientMentionsPistaTarima(msg) || clientMentionsPistaTarima(hist)) return "pista";
+  if (clientMentionsCarpas(msg) || clientMentionsCarpas(hist)) return "carpa";
+  if (isEnteladoRequestText(last) || isEnteladoRequestText(hist)) return "entelado";
+  return "carpa";
+}
+function spaceMeasureServiceLabel(kind) {
+  if (kind === "pista") return "Pista de baile";
+  if (kind === "tarima") return "Tarima";
+  if (kind === "entelado") return "Entelados para Techo";
+  return "Carpas";
+}
+function stripAccidentalCarpasFromPistaRequirements(req) {
+  const raw = (req ?? "").trim();
+  if (!raw) return raw || null;
+  if (!clientMentionsPistaTarima(raw) && !/\bpista\b/i.test(raw)) return raw;
+  if (!/\bcarpas?\b/i.test(raw)) return raw;
+  const dims = parseAllSpaceDimensions(raw);
+  let cleaned = raw.replace(/\bCarpas?\b/gi, " ").replace(/\(espacio[^)]*\)/gi, " ").replace(/\s*[;,/]+\s*/g, "; ").replace(/\s{2,}/g, " ").replace(/^[;\s]+|[;\s]+$/g, "").trim();
+  if (!cleaned || !/pista|tarima/i.test(cleaned)) cleaned = "Pista de baile";
+  if (dims.length > 0) {
+    cleaned = attachEspacioToRequirements(cleaned, dims);
+  }
+  return cleaned;
+}
+function clientRequestsCallback(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  return /\b(m[aá]rquenme|marquenme|ll[aá]menme|llamarme|me\s+marcan|me\s+llaman)\b/i.test(t4) || /\bme\s+pueden\s+(marcar|llamar)\b/i.test(t4) || /\b(pueden|pueden\s+ustedes)\s+(marcar|llamar)\b/i.test(t4) || /\batenci[oó]n\s+personalizada\b/i.test(t4) || /\bque\s+me\s+(marquen|llamen)\b/i.test(t4) || /\bnecesito\s+que\s+me\s+(marquen|llamen)\b/i.test(t4) || // A16244: "Necesito que me llamen lo más pronto posible"
+  /\b(llamen|marquen|llamar|marcar).{0,30}(lo\s+m[aá]s\s+pronto|cuanto\s+antes|urgente)\b/i.test(
+    t4
+  ) || // A15539 Jorge: "que me llamen si están interesados"
+  /\b(llamen|marquen)\s+si\s+(est[aá]n|estan)\s+interesados?\b/i.test(t4) || /\bme\s+(pueden\s+)?llamar\s+si\b/i.test(t4) || /\beste\s+es\s+mi\s+tel(e[eé]?fono)?\b/i.test(t4);
+}
+function clientSignalsUrgency(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase().replace(/\s+/g, " ").trim();
+  return /\b(me\s+urge|es\s+urgente|de\s+urgencia|faltan\s+pocos\s+d[ií]as|pocos\s+d[ií]as)\b/i.test(t4) || /\bno\s+sea\s+ma[nñ]ana\b/i.test(t4) || /\bnecesito\s+saber\s+si\s+(pueden|pueden\s+o\s+no|se\s+puede)\b/i.test(t4) || // A16345: "Hoy" / "Si hoy" / "Para hoy" tras CTA de contacto.
+  /^(s[ií]\s+)?hoy[.!]*$/i.test(t4) || /^para\s+hoy[.!]*$/i.test(t4) || /\b(s[ií]\s+)?(me\s+urge\s+)?(que\s+)?(me\s+)?(contacten|escriban|manden).{0,20}\bhoy\b/i.test(t4);
+}
+function assistantAskedUrgencyOrSoftExit(assistantText) {
+  if (!assistantText?.trim()) return false;
+  const t4 = assistantText.toLowerCase();
+  return /\b(te\s+urge|contacte\s+hoy|contacten\s+hoy|hoy\s+con\s+la\s+propuesta)\b/i.test(t4) || /\bte\s+dejo\s+el\s+chat\s+abierto\b/i.test(t4) || /\baqu[ií]\s+seguimos\s+cuando\s+lo\s+necesites\b/i.test(t4);
+}
+function clientAsksPhone(message) {
+  if (!message?.trim()) return false;
+  if (clientRequestsCallback(message)) return true;
+  const t4 = message.toLowerCase();
+  if (clientSignalsUrgency(message) && !/\btel[eé]fono|\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas)|\bllamar|\bmarcar\b/i.test(t4)) {
+    return false;
+  }
+  return /\btel[eé]fono/i.test(t4) || /\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas|gerencia)/i.test(t4) || /\b(llamar|marcar|contestar|contestan|nadie\s+contesta)\b/i.test(t4) || /\bwhatsapp\s+(de\s+)?(ventas|gerencia|corporativo|bodasesor)/i.test(t4) || /\btienen\s+whatsapp/i.test(t4);
+}
+function parseEquipmentRfqLineItems(text2) {
+  const items = [];
+  for (const m6 of text2.matchAll(
+    /\b(\d+)\s*(mesas?(?:\s*\([^)]+\))?|sillas?(?:\s+tipo\s+\w+)?|bocinas?|micr[oó]fonos?|podium|podios?|tarimas?|carpas?|periqueras?|bancos?)\b/gi
+  )) {
+    items.push(`${m6[1]} ${m6[2].trim().toLowerCase()}`);
+  }
+  return [...new Set(items)];
+}
+function isEquipmentListRfq(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (t4.length < 60) return false;
+  const items = parseEquipmentRfqLineItems(t4);
+  if (items.length >= 3) return true;
+  if (items.length >= 2) {
+    return /\b(el\s+)?evento\s+es\s+el\b/i.test(t4) || /\b\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)/i.test(
+      t4
+    );
+  }
+  return false;
+}
+function mergeEquipmentRfqIntoRequirements(existing, text2, max = 8) {
+  const services = mergeServiceRequirements(existing, text2, max);
+  const lineItems = text2?.trim() ? parseEquipmentRfqLineItems(text2) : [];
+  if (!lineItems.length) return services;
+  const parts2 = [...services ? services.split(/,\s*/) : [], ...lineItems];
+  return [...new Set(parts2.map((p5) => p5.trim()).filter(Boolean))].slice(0, max).join(", ");
+}
+function isRichQuoteBrief(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (isEquipmentListRfq(t4)) return true;
+  if (isPromoTemplateMessage(t4)) return false;
+  if (t4.length < 100) return false;
+  const labeledCount = (/\bfecha\s*:/i.test(t4) ? 1 : 0) + (/\b(lugar|ubicaci[oó]n|sede)\s*:/i.test(t4) ? 1 : 0) + (/\btipo\s+de\s+evento\s*:/i.test(t4) ? 1 : 0) + (/\b(n[uú]mero\s+estimado\s+de\s+)?(asistentes?|invitados?)\s*:/i.test(t4) ? 1 : 0) + (/\bhorario\s*:/i.test(t4) ? 1 : 0);
+  const minLen = labeledCount >= 3 ? 100 : labeledCount >= 2 ? 120 : 140;
+  if (t4.length < minLen) return false;
+  let score = 0;
+  if (labeledCount >= 2) score += 2;
+  if (/\bcotiz/i.test(t4)) score += 1;
+  if (/\b(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|fecha\s*:)/i.test(
+    t4
+  )) {
+    score += 1;
+  }
+  if (/\b(ubicaci[oó]n|lugar\s*:|santa\s+fe|ciudad\s+de\s+m[eé]xico|cdmx|polanco|narvarte|coyoac[aá]n|pedregal|centro\s+cultural)\b/i.test(
+    t4
+  ) || /\ben\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s*,\s*|\s+)(?:ciudad\s+de\s+m[eé]xico|cdmx|m[eé]xico)/i.test(t4)) {
+    score += 1;
+  }
+  if (/\b\d{2,4}\s*(?:personas?|invitados?|asistentes?)\b/i.test(t4)) score += 1;
+  if (parseServicesFromText(t4).length >= 2) score += 1;
+  if (/\b(opci[oó]n\s*[123]|tres\s+propuestas|propuestas?\s+de\s+men[uú]|diferentes\s+rangos?\s+de\s+precio)\b/i.test(
+    t4
+  )) {
+    score += 1;
+  }
+  if (/\b(distribuidor|precio\s+para\s+distribuidor|margen\s+comercial)\b/i.test(t4)) score += 1;
+  if (/\b(meseros?|mobiliario|manteler|cristal|sillas?\s+con\s+fundas?)\b/i.test(t4)) score += 1;
+  if (/\b(fotograf[ií]as?|fotos?)\b.{0,40}\b(mobiliario|mesas?|sillas?)/i.test(t4)) score += 1;
+  if (/\b(mesas?\s+tipo\s+picnic|picnic|periqueras?|bancos?)\b/i.test(t4) && /\b(entrega|recoger|sin\s+montaje|periqueras?|bancos?)\b/i.test(t4)) {
+    score += 2;
+  }
+  if (/\b(avenida|calle|planta|cuautlancingo|puebla|cp\s*\d{4,5}|\d{5}\s+\w+)/i.test(t4)) {
+    score += 1;
+  }
+  if (/@[a-z0-9.-]+\.[a-z]{2,}/i.test(t4)) score += 1;
+  if (/\b(propuestas?\s+de\s+men[uú]|cantidades?\s+sugeridas|costos?|disponibilidad)\b/i.test(t4)) {
+    score += 1;
+  }
+  return score >= 3;
+}
+function clientAsksToRereadBrief(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  return /\bleer.{0,40}especificaciones\b/i.test(t4) || /\bespecificaciones\b/i.test(t4) || /\blee\s+(muy\s+)?bien\b/i.test(t4) || /\bno\s+le[ií]ste\b/i.test(t4) || /\bfavor\s+de\s+leer\b/i.test(t4);
+}
+function clientAsksDistributorPricing(message) {
+  if (!message?.trim()) return false;
+  return /\bprecio\s+(para\s+)?distribuidor\b/i.test(message) || /\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message) || /\b(somos|como)\s+distribuidores?\b/i.test(message) || /\bmargen\s+comercial\b/i.test(message) || /\bprecio\s+de\s+mayoreo\b/i.test(message);
+}
+function clientAsksForHumanAdvisor(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  if (/\bqui[eé]n\s+es\b/i.test(t4) && !/\b(prefiero|quiero|necesito|puedo|pueden|hablar)\b/i.test(t4)) {
+    return false;
+  }
+  const tNoPp = t4.replace(/\bpor\s+personas?\b/gi, " ").replace(/\b\d+\s*pp\b/gi, " ").replace(/\bpp\b/gi, " ").replace(/\s+/g, " ").trim();
+  if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(tNoPp)) {
+    return true;
+  }
+  if (/^hablar\s+con\s+(un\s+)?humano\b/i.test(tNoPp) || /^humano(\s+por\s+favor)?[\s!.]*$/i.test(tNoPp)) {
+    return true;
+  }
+  if (/^(asesor|agente|humano)(\s+por\s+favor)?[\s!.]*$/i.test(tNoPp) || /^(quiero|necesito|prefiero)\s+(un\s+|una\s+)?(asesor|agente|humano)\b/i.test(tNoPp)) {
+    return true;
+  }
+  if (/\b(prefiero|quiero|necesito|mejor)\b.{0,40}\b(hablar|comunicar|platicar|atenci[oó]n|contacto)\b.{0,40}\b(asesor|agente|humano|persona|equipo)\b/i.test(
+    tNoPp
+  )) {
+    return true;
+  }
+  if (/\b(prefiero|quiero|necesito)\b.{0,30}\b(un\s+|una\s+)?(asesor|agente|humano|persona)\b/i.test(
+    tNoPp
+  )) {
+    return true;
+  }
+  if (/\b(asesor|agente|humano|alguien\s+del\s+equipo)\b.{0,30}\b(se\s+)?(comunique|contacte|llame|hable)\b/i.test(
+    tNoPp
+  )) {
+    return true;
+  }
+  if (/\bpuede(n)?\s+(un\s+)?(asesor|agente)\s+(contactarme|comunicarse|llamarme)\b/i.test(tNoPp)) {
+    return true;
+  }
+  if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano)\b/im.test(tNoPp)) return true;
+  if (/\b(?:comun[ií]ca(?:me|nos)?|p[aá]sa(?:me)?|conecta(?:me)?|canal[ií]za(?:me)?)\s+con\s+(un\s+|una\s+|alg[uú]n\s+|alguna\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(
+    tNoPp
+  )) {
+    return true;
+  }
+  return false;
+}
+function clientNeedsEmergencyContact(message) {
+  if (!message?.trim()) return false;
+  if (clientAsksPhone(message)) return true;
+  if (clientAsksForHumanAdvisor(message)) return true;
+  const t4 = message.trim();
+  if (/\b(ayuda|ayudar|ayudame|ayúdame)\b/i.test(t4) && isServiceRelatedMessage(t4) && !/\b(emergencia|urgente|me\s+urge|auxilio|nadie\s+(me\s+)?(contesta|atiende))\b/i.test(t4)) {
+    return false;
+  }
+  return /\b(emergencia|urgente|me\s+urge|es\s+urgente|auxilio)\b/i.test(t4) || /\b(contacto\s+(de\s+)?emergencia|n[uú]mero\s+de\s+emergencia)\b/i.test(t4) || /\b(necesito|quiero|puedo)\s+(hablar|contactar|llamar).{0,40}(alguien|humano|asesor|persona|equipo|ustedes)\b/i.test(
+    t4
+  ) || /\b(nadie\s+(me\s+)?(contesta|atiende)|no\s+me\s+(contesta|atiende|responde))\b/i.test(t4) || /\b(ayuda|auxilio).{0,25}(urgente|emergencia|humano|asesor|persona)\b/i.test(t4) || /\b(pasame|pásame|dame|necesito)\s+(un\s+)?(contacto|tel[eé]fono|n[uú]mero)\b/i.test(t4) || /\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(t4);
+}
+function clientAsksForCatalog(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  if (/\b(m[aá]nda|env[ií]a|pasa|dame|quiero|necesito).{0,40}\b(cotizaci[oó]n|propuesta)\b/i.test(t4) && !CATALOG_TYPO_RE.test(t4)) {
+    return false;
+  }
+  if (CATALOG_TYPO_RE.test(t4) && /\b(de|web|completo|general|sillas?|mesas?|men[uú]|carpas?)\b/i.test(t4)) {
+    return true;
+  }
+  if (CATALOG_TYPO_RE.test(t4) && t4.trim().split(/\s+/).length <= 4) return true;
+  if (/\b(manda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|comparte|quiero|necesito|dame|puedes\s+(manda|envia|pasar)|me\s+puedes\s+(manda|envia|pasar))\b.{0,50}\b(cat[aá]logo|c+t?a+l+[oó]+g+[oa])/i.test(
+    t4
+  )) {
+    return true;
+  }
+  if (/\bel\s+cat[aá]logo\s+(de|con|completo|general|web)/i.test(t4)) return true;
+  if (/\bcat[aá]logo\s+(de|web|completo|general)\b/i.test(t4)) return true;
+  if (/\b(cuentan|tienen|hay|manejan)\s+.{0,20}\bcat[aá]logo/i.test(t4)) return true;
+  if (/\bcat[aá]logo\s+de\s+men[uú]/i.test(t4)) return true;
+  if (/\blink\s+(del\s+)?cat[aá]logo/i.test(t4)) return true;
+  if (/bodasesor\.com\/catalogos/i.test(t4)) return true;
+  if (/\b(m[aá]nda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|dame)\s+el\s+(de|del)\b/i.test(t4) || /\b(m[aá]nda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same)\s+el\s+link\b/i.test(t4)) {
+    return true;
+  }
+  if (/^(s[ií][,.]?\s*)?(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)([.!?]|\s|$)/i.test(
+    t4.trim()
+  )) {
+    return true;
+  }
+  return false;
+}
+function clientWantsQuoteDelivery(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  if (CATALOG_TYPO_RE.test(t4)) return false;
+  const hasDeliveryVerb = /\b(m[aá]nda|env[ií]a|pasa|dame)\b/i.test(t4) || /\b(cotizaci[oó]n|propuesta)\s+(por\s+favor|ya|ahora)\b/i.test(t4) || /\bs[ií],?\s*(m[aá]ndame|env[ií]ame)/i.test(t4);
+  if (!hasDeliveryVerb && (/\b(quiero|necesito|busco|me\s+interesa)\s+(hacer|una|un|cotizar)\b/i.test(t4) || isQuoteIntentMessage(t4) && (/\b(hacer\s+una?\s+)?cotiz/i.test(t4) || /\bpara\s+\d+\s+personas?\b/i.test(t4) || parseServicesFromText(t4).length > 0))) {
+    return false;
+  }
+  return /\b(m[aá]nda|env[ií]a|pasa|dame).{0,40}\b(cotizaci[oó]n|propuesta)\b/i.test(t4) || /\b(cotizaci[oó]n|propuesta)\s+(por\s+favor|ya|ahora)\b/i.test(t4) || /\bs[ií],?\s*(m[aá]ndame|env[ií]ame).{0,20}\b(cotizaci[oó]n|propuesta)\b/i.test(t4);
+}
+function clientAsksGenericMenuCatalog(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  if (parseServicesFromText(message).length > 0) return false;
+  if (/\bcat[aá]logo\s+de\s+men[uú]\b/i.test(t4) || /\b(cuentan|tienen|hay|manejan)\s+.{0,24}\bcat[aá]logo/i.test(t4) || /\bcat[aá]logo\s+(general|completo|de\s+servicios?|de\s+opciones)\b/i.test(t4) || /\b(conocer|ver|explorar)\s+m[aá]s\s+de\s+(sus\s+)?servicios\b/i.test(t4) && /\bcat[aá]logo|men[uú]/i.test(t4) || /\b(conocer|ver)\s+(sus\s+)?servicios\b/i.test(t4) && /\bcat[aá]logo|men[uú]/i.test(t4)) {
+    return true;
+  }
+  if (clientAsksForCatalog(message) && !/\b(barra|banquete|taquiza|coffee|pizza|sushi|dj|carpa|pista|mobiliario|sillas?|mesas?)\b/i.test(
+    t4
+  )) {
+    return true;
+  }
+  return false;
+}
+function clientWantsFullCatalog(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  if (clientAsksGenericMenuCatalog(message)) return true;
+  if (/\b(m[aá]ndame|env[ií]ame|pasa(me)?|pásame)\s+todo\b/i.test(t4)) return true;
+  if (/\bcat[aá]logo\s+(completo|general|todo|todos)\b/i.test(t4)) return true;
+  if (/\b(todo|todos)\s+(el\s+)?cat[aá]logo/i.test(t4)) return true;
+  if (/\bno\s+s[eé]\s+cu[aá]l\b/i.test(t4) && /\bcat[aá]logo/i.test(t4)) return true;
+  if (/\bindeciso|todas\s+las\s+opciones/i.test(t4) && /\bcat[aá]logo/i.test(t4)) return true;
+  return false;
+}
+function assistantOfferedCatalogDetail(lastAssistantText) {
+  if (!lastAssistantText?.trim()) return false;
+  if (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(lastAssistantText)) {
+    return true;
+  }
+  return /cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo|mande\s+el\s+cat[aá]logo\s+con\s+m[aá]s\s+detalle|aqu[ií]\s+tienes\s+el\s+cat[aá]logo|te\s+dejo\s+el\s+cat[aá]logo|cat[aá]logo\s+general/i.test(
+    lastAssistantText
+  );
+}
+function isThanksOnlyAck(message) {
+  const t4 = message?.trim().toLowerCase() ?? "";
+  if (!t4) return false;
+  if (!/\bgracias\b/i.test(t4)) return false;
+  if (/\b(s[ií]|sip|claro|dale|por\s+favor|m[aá]nda|env[ií]a|pasa|link|enlace|cat[aá]logo)\b/i.test(t4)) {
+    return false;
+  }
+  return /^(ok|okay|va|perfecto|listo|muy\s+bien)?[\s,]*(muchas\s+|mil\s+)?gracias[\s.!]*$/i.test(t4);
+}
+function clientAffirmsCatalogOffer(message, lastAssistantText) {
+  if (!message?.trim() || !assistantOfferedCatalogDetail(lastAssistantText)) return false;
+  if (assistantAskedVagueEmbudoContinue(lastAssistantText)) return false;
+  if (/quieres que te d[eé] detalles de alguno/i.test(lastAssistantText ?? "") && !/cat[aá]logo|bodasesor\.com\/catalogos/i.test(lastAssistantText ?? "")) {
+    return false;
+  }
+  const t4 = message.trim().toLowerCase();
+  if (clientAsksForCatalog(message)) return true;
+  if (/^m[aá]s\s+detalles?[\s.!]*$/i.test(t4) || /^con\s+m[aá]s\s+detalle[\s.!]*$/i.test(t4)) {
+    return true;
+  }
+  const alreadySentLink = /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(lastAssistantText ?? "");
+  if (alreadySentLink && isThanksOnlyAck(t4)) return false;
+  if (/^si\s+(?:me\s+|nos\s+|les?\s+|lo\s+|la\s+)?(?:pued|podr|quier|necesit|v[ií]\b|tien|cotiz|interes|gust|hac|agreg|sum)/i.test(
+    t4
+  )) {
+    return false;
+  }
+  if (/^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|p[aá]samelo)([.!?]|\s|$)/i.test(
+    t4
+  )) {
+    return true;
+  }
+  return /^(s[ií]|claro|ok|okay|dale|va)([\s,]+(por\s+favor|pls|please|mande|m[aá]nda(me)?lo|env[ií]a(me)?lo|env[ií]a|env[ií]ame))?[\s.!]*$/i.test(
+    t4
+  );
+}
+function looksLikeGuestCountRange(text2) {
+  const trimmed = text2?.trim() ?? "";
+  if (!trimmed) return false;
+  if (/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed)) {
+    return false;
+  }
+  const hasGuestWord = /\b(personas?|invitad[oa]s?|asistentes?|comensales?|gente)\b/i.test(
+    trimmed
+  );
+  if (!hasGuestWord && /\d{1,2}:\d{2}/.test(trimmed)) return false;
+  const m6 = trimmed.match(/\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i);
+  if (!m6) {
+    const crm = trimmed.match(/^(\d{1,4})\s*[-–]\s*(\d{1,4})(?:\s*MXN)?$/i);
+    if (!crm) return false;
+    const a5 = parseInt(crm[1], 10);
+    const b6 = parseInt(crm[2], 10);
+    const lo3 = Math.min(a5, b6);
+    const hi3 = Math.max(a5, b6);
+    if (lo3 <= 12 && hi3 <= 24 && hi3 - lo3 <= 16 && !hasGuestWord) return false;
+    return a5 >= 10 && b6 >= 10 && a5 <= 2e3 && b6 <= 2e3 && Math.abs(a5 - b6) <= 500;
+  }
+  const a4 = parseInt(m6[1], 10);
+  const b5 = parseInt(m6[2], 10);
+  const lo2 = Math.min(a4, b5);
+  const hi2 = Math.max(a4, b5);
+  if (lo2 <= 12 && hi2 <= 24 && hi2 - lo2 <= 16 && !hasGuestWord) return false;
+  return a4 >= 10 && b5 >= 10 && a4 <= 2e3 && b5 <= 2e3 && Math.abs(a4 - b5) <= 500;
+}
+function clientAsksBanqueteVsTaquiza(message) {
+  if (!message?.trim()) return false;
+  return /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(message.toLowerCase());
+}
+function matchesKnownZone(text2) {
+  const t4 = text2.trim();
+  if (!t4) return false;
+  if (KNOWN_ZONES.test(t4)) return true;
+  const bare = t4.normalize("NFD").replace(/\p{M}/gu, "");
+  return bare !== t4 && KNOWN_ZONES.test(bare);
+}
+function looksLikeMxMunicipalityToponym(text2) {
+  const raw = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!raw) return false;
+  const t4 = raw.replace(/^(s[ií][,.]?\s+|es\s+en\s+|en\s+|ser[ií]a\s+en\s+|ser[aá]\s+en\s+)/i, "").trim();
+  if (!t4 || t4.length > 56) return false;
+  const words = t4.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 5) return false;
+  if (CATALOG_TYPO_RE.test(t4)) return false;
+  if (/\b(barras?|pizzas?|pastas?|crepas?|sushi|banquetes?|taquizas?|catering|carpas?|dj|mobiliario|mesas?|sillas?|periqueras?|salas?|sal[oó]n|hotel|hacienda|club|expo|cabana|caba[nñ]a|venue|servicio|evento|correo|presupuesto|cotizaci[oó]n|cumplea[nñ]os?|cumple|boda|bautizo|xv|quincea[nñ]era|graduaci[oó]n|baby\s*shower|aniversario|posada|suegra|esposo|esposa|novio|novia|padrinos?|podr[ií]as?|darme|dame|dar(me)?|informaci[oó]n|ambos|ambas|opciones?|propuestas?|compartir|regalas?)\b/i.test(
+    t4
+  )) {
+    return false;
+  }
+  const bare = t4.normalize("NFD").replace(/\p{M}/gu, "");
+  if (!/\b(de|del|de\s+los|de\s+las|de\s+la)\b/i.test(bare) && !/\b(huasca|tequisquiapan|bernal|taxco|tulancingo|zacatl[aá]n|amealco|tepeji|actopan|ixmiquilpan|tula|pachuca|teoloyucan|cuautitl[aá]n|zumpango|huehuetoca|coyotepec|tultepec|tultitl[aá]n|coacalco|tec[aá]mac)\b/i.test(
+    bare
+  )) {
+    return false;
+  }
+  const okPart = /^(de|del|la|las|los|san|santa|santo|el)$/i;
+  return words.every((w5) => okPart.test(w5) || /^[A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,}(?:'[A-Za-zÁÉÍÓÚáéíóúüñÑ]+)?$/.test(w5));
+}
+function hasGeoLocationSignal(text2) {
+  const t4 = text2.trim();
+  if (!t4) return false;
+  if (isLocationMetaReferential(t4)) return false;
+  if (matchesKnownZone(t4)) return true;
+  if (looksLikeMxMunicipalityToponym(t4)) return true;
+  if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio|calle|av\.?|avenida|blvd|boulevard|cp\.?|c\.p\.?|cdmx|estado\s+de|edo\.?\s*m[eé]x|quer[eé]taro|puebla|monterrey|guadalajara|tlaquepaque|zapopan|hospital|entre\s+\w+\s+y)\b/i.test(
+    t4
+  )) {
+    return true;
+  }
+  if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t4)) return true;
+  if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(\s+de\s+golf)?|expo|centro\s+de\s+convenciones|hospital(?:\s+general)?|cl[ií]nica|auditorio)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ0-9]/i.test(
+    t4
+  )) {
+    return true;
+  }
+  if (/\b(calle|av\.?|avenida|blvd)\b.+\d/i.test(t4)) return true;
+  if (/\b\d{4,5}\b/.test(t4) && /\b(colonia|delegaci|cdmx|estado|municipio)\b/i.test(t4)) return true;
+  return false;
+}
+function hasCityOrMetroSignal(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return false;
+  if (isLocationMetaReferential(t4)) return false;
+  if (matchesKnownZone(t4)) return true;
+  if (looksLikeMxMunicipalityToponym(t4)) return true;
+  if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio)\s+[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(
+    t4
+  )) {
+    return true;
+  }
+  if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t4)) return true;
+  if (/\b(estado\s+de|edo\.?\s*m[eé]x|cdmx|d\.?\s*f\.?)\b/i.test(t4)) return true;
+  if (/\b(gdl|mty|qro|ags|qroo|cuerna|tlaque)\b/i.test(t4)) return true;
+  if (/\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica|atlixco|cholula|tehuac[aá]n|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|tlaquepaque|zapopan|tonal[aá]|tlajomulco|jalisco)\b/i.test(
+    t4
+  )) {
+    return true;
+  }
+  return false;
+}
+function isLocationMetaReferential(message) {
+  if (!message?.trim()) return false;
+  const n5 = message.trim().normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
+  if (!n5 || n5.length > 80) return false;
+  return /^(esa|eso|este|esta)\s+es\s+(la\s+|el\s+)?(ciudad|ubicacion|zona|direccion|lugar|sede)(\s+(del\s+evento|que\s+(te\s+)?(dije|di|mande|envie)))?$/.test(
+    n5
+  ) || /^(esa|eso)\s+(misma\s+)?(ciudad|ubicacion|zona|direccion)$/.test(n5) || /^ya\s+(te\s+)?(di|dije|mande|envie)\s+(la\s+|el\s+)?(ciudad|ubicacion|zona|direccion)\b/.test(
+    n5
+  ) || /^(la\s+)?(ciudad|ubicacion|zona)\s+(es\s+)?(esa|esa\s+que\s+te\s+dije|la\s+de\s+arriba)$/.test(n5);
+}
+function cleanVenueCandidate(raw) {
+  let venue = raw.trim().replace(/[.,;:]+$/g, "").replace(VENUE_DISCOURSE_CUT, "").replace(/\s+/g, " ").trim();
+  venue = venue.replace(/\s+(?:y\s+)?(?:nos\s+encontramos\s+en|se\s+llama|estamos\s+en)\s*$/i, "").replace(/^(?:el\s+|la\s+|un\s+|una\s+)/i, "").trim();
+  if (!venue || venue.length < 3) return null;
+  if (VAGUE_VENUE_LABEL.test(venue)) return null;
+  if (VENUE_DISCOURSE_JUNK.test(venue) && !/\b(sal[oó]n|hotel|hacienda|plaza|hospital)\s+[A-ZÁÉÍÓÚÑ]/i.test(venue)) {
+    return null;
+  }
+  if (/\b(buscando|proveedor|sillas?|invitados?|coordino)\b/i.test(venue)) return null;
+  const words = venue.split(/\s+/);
+  if (words.length > 8) venue = words.slice(0, 8).join(" ");
+  return venue.length >= 3 ? venue : null;
+}
+function extractVenueNameHint(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return null;
+  const seLlama = t4.match(
+    /\b(?:el\s+|la\s+)?(?:sal[oó]n|hotel|hacienda|jard[ií]n|plaza|venue)?\s*se\s+llama\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{2,48}?)(?=\s+y\s+(?:nos|estamos|contamos|buscamos)|\s*[,.]|\s+(?:contamos|realmente|buscamos|buscando)\b|$)/i
+  );
+  if (seLlama?.[1]) {
+    const named = cleanVenueCandidate(seLlama[1]);
+    if (named) return named;
+  }
+  const encontramos = t4.match(
+    /\b(?:nos\s+encontramos|estamos|ubicad[oa]s?)\s+en\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{2,48}?)(?=\s+y\s+(?:nos|estamos|contamos|buscamos)|\s*[,.]|\s+(?:contamos|realmente|buscamos|buscando)\b|$)/i
+  );
+  if (encontramos?.[1] && !KNOWN_ZONES.test(encontramos[1]) && !/^(el|la|un|una)\s+estado\b/i.test(encontramos[1])) {
+    const place = cleanVenueCandidate(encontramos[1]);
+    if (place && !matchesKnownZone(place) && place.split(/\s+/).length >= 2) {
+    }
+  }
+  const horno = t4.match(/\bhorno\s*(\d+)\b/i);
+  if (horno) return `Horno ${horno[1]}`;
+  const hospital = t4.match(
+    /\b(?:adentro|dentro|en\s+el\s+interior)\s+del?\s+(hospital(?:\s+general)?(?:\s+regional)?\s+[A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.-]{1,40})/i
+  );
+  if (hospital?.[1]) {
+    const h5 = cleanVenueCandidate(hospital[1]);
+    if (h5) return h5;
+  }
+  const m6 = t4.match(VENUE_NAME_PATTERN);
+  if (m6?.[1]) {
+    const venue = cleanVenueCandidate(m6[1]);
+    if (venue) return venue;
+  }
+  const nameBeforeType = t4.match(
+    /\b([A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚáéíóúñ0-9]+(?:\s+[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚáéíóúñ0-9]+){0,3}\s+sal[oó]n(?:\s+terraza)?)\b/i
+  );
+  if (nameBeforeType?.[1]) {
+    const venue = cleanVenueCandidate(nameBeforeType[1]);
+    if (venue) return venue;
+  }
+  if (encontramos?.[1]) {
+    const place = cleanVenueCandidate(encontramos[1]);
+    if (place && !matchesKnownZone(place) && place.split(/\s+/).length >= 2) return place;
+  }
+  return null;
+}
+function extractStreetDetailHint(text2) {
+  const t4 = (text2 ?? "").replace(/\s+/g, " ").trim();
+  if (!t4) return null;
+  const entre = t4.match(
+    /\bentre\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{1,40}?)\s+y\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{1,40})/i
+  );
+  if (entre?.[1] && entre[2]) {
+    const a4 = entre[1].trim().replace(/[.,;:]+$/g, "");
+    const b5 = entre[2].trim().replace(/[.,;:]+$/g, "");
+    if (/^\d+$/.test(a4) && /^\d+$/.test(b5)) return null;
+    if (a4.length >= 2 && b5.length >= 2 && !/^(buscando|proveedor|sillas?)$/i.test(a4)) {
+      return `entre ${a4} y ${b5}`;
+    }
+  }
+  const calle = t4.match(
+    /\b((?:calle|av\.?|avenida|blvd\.?|boulevard|calzada|esq\.?|esquina(?:\s+con)?)\s+[A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'#-]{2,48})/i
+  );
+  if (calle?.[1]) {
+    const s7 = cleanVenueCandidate(calle[1]);
+    if (s7 && s7.length >= 6) return s7;
+  }
+  return null;
+}
+function looksLikeSupplierSearchNotVenue(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return false;
+  if (/\bse\s+llama\b/i.test(t4)) return false;
+  return /\b(buscando|buscamos|proveedor|nos\s+apoye|coordino\s+eventos|complemento\s+de\s+sillas|tipo\s+de\s+silla|basket\s+tony)\b/i.test(
+    t4
+  ) && !extractVenueNameHint(t4);
+}
+function isCityOnlyDireccion(value) {
+  const t4 = (value ?? "").trim();
+  if (!t4) return false;
+  if (extractVenueNameHint(t4) || extractStreetDetailHint(t4)) return false;
+  if (/\b(entre|calle|av\.?|avenida|blvd|hospital|sal[oó]n|hotel|hacienda|colonia\s+\w)/i.test(t4) && t4.split(/\s+/).length > 4) {
+    return false;
+  }
+  const stripped = t4.replace(/^(en\s+)/i, "").replace(/[.,;:]+$/g, "").trim();
+  if (!stripped || stripped.split(/\s+/).length > 5) return false;
+  return matchesKnownZone(stripped) || looksLikeMxMunicipalityToponym(stripped) || hasCityOrMetroSignal(stripped);
+}
+function isRicherDireccionCapture(incoming, existing) {
+  const nextRaw = (incoming ?? "").trim();
+  const prevRaw = (existing ?? "").trim();
+  const next = sanitizeDireccionCapture(nextRaw) ?? nextRaw;
+  const prev = sanitizeDireccionCapture(prevRaw) ?? prevRaw;
+  if (!next || !isUsableDireccionEvento(next)) return false;
+  if (/\b(buscando|proveedor|se\s+llama|nos\s+encontramos\s+en|contamos\s+con\s+\d+\s+invitados)\b/i.test(nextRaw) && !/\b(buscando|proveedor|se\s+llama|nos\s+encontramos\s+en)\b/i.test(next)) {
+  } else if (/\b(buscando a un proveedor|estamos buscando|coordino eventos)\b/i.test(nextRaw)) {
+    return false;
+  }
+  if (!prev || !isUsableDireccionEvento(prev)) return true;
+  if (next.toLowerCase() === prev.toLowerCase()) return false;
+  if (isCityOnlyDireccion(prev) && !isCityOnlyDireccion(next)) {
+    const prevCore = prev.replace(/^(en\s+)/i, "").trim().toLowerCase();
+    if (next.toLowerCase().includes(prevCore) || prevCore.includes(next.toLowerCase().slice(0, 12))) {
+      return true;
+    }
+    if (shouldReplaceCrmDireccion(prev, next) && next.length > prev.length + 4) return true;
+  }
+  if (shouldReplaceCrmDireccion(prev, next) && next.length > prev.length + 6 && (extractVenueNameHint(next) || extractStreetDetailHint(next) || extractLocatedPlaceHint(nextRaw) || next.includes(","))) {
+    return true;
+  }
+  return false;
+}
+function extractLocatedPlaceHint(text2) {
+  const t4 = (text2 ?? "").replace(/\s+/g, " ").trim();
+  if (!t4) return null;
+  const m6 = t4.match(
+    /\b(?:nos\s+encontramos|estamos|ubicad[oa]s?)\s+en\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{2,48}?)(?=\s+y\s+(?:nos|estamos|contamos|buscamos)|\s*[,.]|\s+(?:contamos|realmente|buscamos|buscando)\b|$)/i
+  );
+  if (!m6?.[1]) return null;
+  const place = cleanVenueCandidate(m6[1]);
+  if (!place) return null;
+  if (matchesKnownZone(place) || looksLikeMxMunicipalityToponym(place)) return null;
+  if (/^(el|la)\s+estado\b/i.test(place)) return null;
+  return place;
+}
+function composeDetailedEventLocation(text2) {
+  const trimmed = (text2 ?? "").replace(/\s+/g, " ").trim();
+  if (!trimmed) return null;
+  const cityHit = trimmed.match(KNOWN_ZONES)?.[0]?.trim() ?? null;
+  const venue = extractVenueNameHint(trimmed);
+  const located = extractLocatedPlaceHint(trimmed);
+  const street = extractStreetDetailHint(trimmed);
+  if (!cityHit && !venue && !located && !street) return null;
+  let out2 = cityHit;
+  if (venue) out2 = mergeZonaDetail(out2, venue);
+  if (located && (!venue || foldLoc(located) !== foldLoc(venue))) {
+    out2 = mergeZonaDetail(out2, located);
+  }
+  if (street) out2 = mergeZonaDetail(out2, street);
+  out2 = sanitizeDireccionCapture(out2);
+  if (out2 && isUsableDireccionEvento(out2)) return out2;
+  return null;
+}
+function foldLoc(s7) {
+  return s7.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\s+/g, " ").trim();
+}
+function sanitizeDireccionCapture(value) {
+  let t4 = (value ?? "").replace(/\s+/g, " ").trim();
+  if (!t4) return null;
+  t4 = stripServiceDeclineClausesFromDireccion(t4);
+  if ((isEventTypeOnlyMessage(t4) || parseTipoEventoFromText(t4)) && !hasCityOrMetroSignal(t4) && !KNOWN_ZONES.test(t4)) {
+    return null;
+  }
+  if (/\b(cumplea[nñ]os?|boda|bautizo|xv|quincea[nñ]era|graduaci[oó]n|baby\s*shower|aniversario|posada)\b/i.test(
+    t4
+  ) && !hasCityOrMetroSignal(t4) && !KNOWN_ZONES.test(t4)) {
+    return null;
+  }
+  t4 = t4.replace(/\b(?:el\s+)?sal[oó]n\s+se\s+llama\s+/gi, "").replace(/\b(?:y\s+)?nos\s+encontramos\s+en\s*$/gi, "").replace(/\b(?:y\s+)?nos\s+encontramos\s+en\b/gi, ", ").replace(/\bcontamos\s+con\s+\d+\s+invitados?\b.*$/gi, "").replace(/\brealmente\s+buscamos\b.*$/gi, "").replace(/\by\s+estamos\s+buscando\b.*$/gi, "").replace(/\bsal[oó]n\s+de\s+fiestas?\s+y\s+estamos\b.*$/gi, "").replace(/[,.]?\s*\b(espera|ahorita|al\s+rato|en\s+un\s+momento)\s*$/gi, "").replace(/[,;]?\s*(?:para\s+)?(?:la\s+)?entrada\s+del\s+sal[oó]n\b[^,]*/gi, "").replace(/[,;]?\s*piso\s+y\s+algo\b[^,]*/gi, "").replace(/[,;]?\s*(?:show\s+)?en\s+piso\b[^,]*/gi, "").replace(/[,;]?\s*con\s+q(?:ue)?\s+comenzar\s+el\s+baile\b[^,]*/gi, "").replace(/[,;]?\s*decoraci[oó]n(?:\s+para\s+la\s+entrada[^,]*)?/gi, "").replace(/,\s*,+/g, ",").replace(/^,\s*|,\s*$/g, "").replace(/\s+/g, " ").trim();
+  if (/\b(buscando|proveedor|coordino\s+eventos|complemento\s+de\s+sillas)\b/i.test(t4)) {
+    const city = t4.match(KNOWN_ZONES)?.[0]?.trim();
+    const venue = extractVenueNameHint(t4);
+    const located = extractLocatedPlaceHint(value ?? t4);
+    if (city || venue || located) {
+      let out2 = city ?? null;
+      if (venue) out2 = mergeZonaDetail(out2, venue);
+      if (located) out2 = mergeZonaDetail(out2, located);
+      return out2;
+    }
+    return city ?? null;
+  }
+  return t4 || null;
+}
+function stripServiceDeclineClausesFromDireccion(value) {
+  return value.replace(
+    /[,;]?\s*\bno\s+(quiero|necesito|requiero|requerimos)\s+(la\s+|el\s+|los\s+|las\s+|el\s+servicio\s+de\s+)?[^.!,;]{0,60}/gi,
+    ""
+  ).replace(/[,;]?\s*\bsolo\s+(la\s+|el\s+)?(tarima|pista|entarimad)[^.!,;]{0,40}/gi, "").replace(/[,;]?\s*\bnada\s+m[aá]s\s+que\s+[^.!,;]{0,40}/gi, "").replace(/,\s*,+/g, ",").replace(/^,\s*|,\s*$/g, "").replace(/\s+/g, " ").trim();
+}
+function isVenueWithoutCity(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return false;
+  if (looksLikeSupplierSearchNotVenue(t4)) return false;
+  if (hasCityOrMetroSignal(t4) || KNOWN_ZONES.test(t4) || looksLikeMxMunicipalityToponym(t4)) {
+    return false;
+  }
+  const venue = extractVenueNameHint(t4);
+  if (venue) return true;
+  if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club|expo|centro\s+(de\s+)?(convenciones|cultural)|venue|caba[nñ]as?|cabanas?|villas?|finca|lodge|hospital|cl[ií]nica|auditorio|universidad|museo)\b/i.test(
+    t4
+  ) && t4.split(/\s+/).length <= 10 && !/\b(buscando|proveedor|sillas?|coordino)\b/i.test(t4)) {
+    return true;
+  }
+  if (/\bhorno\s*\d+\b/i.test(t4)) return true;
+  return false;
+}
+function looksLikeDiscourseNotPlace(text2) {
+  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t4) return true;
+  if (isLocationMetaReferential(t4)) return true;
+  if (JUNK_DIRECCION_PATTERN.test(t4)) return true;
+  if (looksLikeMealTimeNotLocation(t4)) return true;
+  if (/\binformaci[oó]n\s+de\s+(ambos|los\s+dos|todo)\b/i.test(t4) || /\bpodr[ií]as?\s+(darme|dar(me)?|compartir)\s+informaci/i.test(t4) || /\bdarme\s+informaci[oó]n\b/i.test(t4)) {
+    return true;
+  }
+  if (hasGeoLocationSignal(t4) || KNOWN_ZONES.test(t4)) return false;
+  const lower2 = t4.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+  if (/\b(es|son|esta|estan|esta|estan|quiero|necesito|busco|tengo|hay|muy|mas|mas|importante|necesario|urgente|parece|creo|pienso)\b/.test(
+    lower2
+  )) {
+    return true;
+  }
+  if (/^(en\s+)?(la\s+)?(noche|tarde|manana|mañana|vivo|directo|realidad|verdad|serio|cambio|caso|color(\s+\w+)?)$/i.test(
+    t4
+  )) {
+    return true;
+  }
+  return false;
+}
+function isNonLocationBusinessPhrase(text2) {
+  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t4) return true;
+  if (JUNK_DIRECCION_PATTERN.test(t4)) return true;
+  if (looksLikeDiscourseNotPlace(t4)) return true;
+  const cleaned = t4.replace(
+    /^(el|la|los|las|un|una|mi|mis|su|sus|nuestr[oa]s?|en\s+(el|la|los|las|un|una|mi|mis|su|sus|nuestr[oa]s?)?)\s+/i,
+    ""
+  ).trim();
+  if (!cleaned) return true;
+  if (JUNK_DIRECCION_PATTERN.test(cleaned)) return true;
+  if (isVagueVenueOnly(t4) || isVagueVenueOnly(cleaned)) return true;
+  if (/^color(\s+\w+)?$/i.test(cleaned)) return true;
+  if (/^(blanco|negro|dorado|plateado|natural|madera|rojo|azul|verde|rosa)$/i.test(cleaned)) {
+    return true;
+  }
+  if (looksLikeThemeColorNotLocation(cleaned) || looksLikeThemeColorNotLocation(t4)) {
+    return true;
+  }
+  if (/^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n|noche|tarde|vivo|realidad|serio|importante|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|negocio|sede|ratito|ahorita|restaurantes?|restaurants?|hotel|terraza|stand)$/i.test(
+    cleaned
+  )) {
+    return true;
+  }
+  if (looksLikeCompanyLocationQuestionFragment(cleaned) || looksLikeCompanyLocationQuestionFragment(t4)) {
+    return true;
+  }
+  if (/^cotizaci[oó]n\b/i.test(cleaned) && cleaned.split(/\s+/).length <= 2) return true;
+  if (cleaned.split(/\s+/).length <= 4) {
+    if (/^(quiero|necesito|requiero|busco|me\s+interesa)\b/i.test(cleaned) || /^(una?\s+)?cotizaci[oó]n$/i.test(cleaned) || /^(la\s+)?(propuesta|montaje|presentaci[oó]n|informaci[oó]n)$/i.test(cleaned)) {
+      return true;
+    }
+    if (/\b(cotizaci[oó]n|propuesta|montaje|presentaci[oó]n)\b/i.test(cleaned) && !KNOWN_ZONES.test(cleaned) && !/\b(colonia|delegaci[oó]n|alcald[ií]a|calle|av\.|avenida|cdmx|ciudad|sal[oó]n\s+\w)/i.test(
+      cleaned
+    )) {
+      return true;
+    }
+  }
+  return false;
+}
+function isVagueVenueOnly(text2) {
+  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t4) return true;
+  const cleaned = t4.replace(
+    /^(el|la|los|las|un|una|mi|mis|su|sus|nuestr[oa]s?|en\s+(el|la|los|las|un|una|mi|mis|su|sus|nuestr[oa]s?)?)\s+/i,
+    ""
+  ).trim().split(/\n/)[0].replace(/\s+tipo\s+de.*$/i, "").trim();
+  if (!cleaned) return true;
+  if (/^(sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede|trabajo|hotel|terraza|restaurantes?|restaurants?|local|localcito|saloncito)$/i.test(
+    cleaned
+  )) {
+    return true;
+  }
+  if (/^(primer|segundo|tercer|cuarto|quinto|\d+(er|do|to)?)\s+piso$/i.test(cleaned)) {
+    return true;
+  }
+  if (/^(sal[oó]n|edificio|venue|jard[ií]n|restaurantes?|restaurants?|hotel|terraza|casa)(\s+de)?(\s+(eventos?|fiestas?|oficinas?|corporativo|privado|la\s+empresa|la\s+compa[nñ][ií]a))?$/i.test(
+    cleaned
+  )) {
+    return true;
+  }
+  if (/^(nuestras?|nuestros?|mi|mis|su|sus|la|el|en)\s+(casa|empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede|restaurantes?|restaurants?|hotel|terraza|jard[ií]n|sal[oó]n|local)(\s+de\s+(eventos?|fiestas?|la\s+empresa))?$/i.test(
+    cleaned
+  ) || /^(nuestras?|nuestros?|mi|mis|su|sus|la|el)\s+(casa|empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede|restaurantes?|restaurants?|hotel|terraza|jard[ií]n|sal[oó]n|local)(\s+de\s+(eventos?|fiestas?|la\s+empresa))?$/i.test(
+    t4
+  ) || /^en\s+(mi\s+|su\s+|la\s+|el\s+|un\s+|una\s+)?(casa|restaurantes?|restaurants?|hotel|terraza|jard[ií]n|sal[oó]n|local)$/i.test(
+    t4
+  )) {
+    return true;
+  }
+  return false;
+}
+function isLocationDeferralOrVagueWorkplace(text2) {
+  const raw = (text2 ?? "").trim();
+  if (!raw) return true;
+  const t4 = raw.replace(/[¡!¿?]+/g, "").replace(/\s+/g, " ").trim();
+  if (!t4) return true;
+  if (hasGeoLocationSignal(t4) || KNOWN_ZONES.test(t4)) {
+    if (!/\b(empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|negocio|sede)\b/i.test(t4) || hasGeoLocationSignal(t4) || KNOWN_ZONES.test(t4)) {
+      if (hasGeoLocationSignal(t4) || KNOWN_ZONES.test(t4)) return false;
+    }
+  }
+  if (/^(un\s+)?(ratito|rato|momento|minuto)[\s.,!]*$/i.test(t4) || /^(ahorita|luego|despu[eé]s)(\s+te\s+(digo|paso|mando|aviso|confirmo))?[\s.,!]*$/i.test(
+    t4
+  ) || /^en\s+un\s+(rato|momento|minuto)[\s.,!]*$/i.test(t4) || /^(te\s+aviso|te\s+digo|todav[ií]a\s+no(\s+s[eé]|\s+lo\s+tengo)?)[\s.,!]*$/i.test(t4)) {
+    return true;
+  }
+  if (/\b(un\s+ratito|un\s+rato|ahorita(\s+te\s+\w+)?|luego\s+te\s+(digo|aviso|paso)|en\s+un\s+(rato|momento)|todav[ií]a\s+no\s+(s[eé]|lo\s+tengo)|te\s+aviso\s+despu[eé]s)\b/i.test(
+    t4
+  ) && !hasGeoLocationSignal(t4) && !KNOWN_ZONES.test(t4)) {
+    return true;
+  }
+  const withoutDeferral = t4.replace(
+    /[,;]?\s*(un\s+)?(ratito|rato|momento|minuto|ahorita|luego|despu[eé]s)(\s+te\s+\w+)?.*$/i,
+    ""
+  ).trim().replace(/[.,;:]+$/g, "").trim();
+  const core = withoutDeferral || t4;
+  if (isVagueVenueOnly(core)) return true;
+  if (/\b(empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|negocio|sede)\b/i.test(core) && !hasGeoLocationSignal(core) && !KNOWN_ZONES.test(core) && !/\b(sal[oó]n|hotel|hacienda|expo|club|centro\s+cultural)\s+\S+/i.test(core) && core.split(/\s+/).length <= 6) {
+    return true;
+  }
+  return false;
+}
+function inferLucyAskedField(lastLucyMessage) {
+  const msg = lastLucyMessage?.trim() ?? "";
+  if (!msg) return null;
+  const priority = [
+    "nombre",
+    "correo",
+    "tipo_evento",
+    "requerimientos",
+    "invitados",
+    "zona",
+    "fecha",
+    "horario",
+    "presupuesto"
+  ];
+  for (const field of priority) {
+    if (LUCY_FIELD_ASK_PATTERNS[field].test(msg)) return field;
+  }
+  return null;
+}
+function parseCentrosDeMesaRequirement(text2) {
+  if (!text2?.trim()) return null;
+  const t4 = text2.trim();
+  if (!/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:florales?\s+)?(?:de\s+)?mesas?\b/i.test(
+    t4
+  )) {
+    return null;
+  }
+  const qty = t4.match(
+    /\b(\d{1,3})\s*(?:centros?\s+de\s+mesas?|centros?\s+florales?|arreglos?\s+(?:de\s+)?mesas?)\b/i
+  )?.[1] || t4.match(
+    /\bcentros?\s+de\s+mesas?\b[^\n]{0,48}?\b(?:ser[ií]an?|seran|son|como|unos?|unas?)?\s*(\d{1,3})\b(?!\s*(?:personas?|invitad[oa]s?|pax|sillas?|salas?|mesas?|horas?|tiempos?|de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))\b)(?!\s*(?:[/:.-]|\d))/i
+  )?.[1] || (/\bcentros?\s+de\s+mesas?\b/i.test(t4) ? t4.match(/\bser[ií]an?\s+(\d{1,3})\b/i)?.[1] : null);
+  if (qty && Number(qty) >= 1 && Number(qty) <= 500) {
+    return `Centros de mesa (${qty})`;
+  }
+  return "Centros de mesa";
+}
+function isTablewareRequestText(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  return /\b(loza|vajillas?|cubiertos?|cuberter[ií]a|cristaler[ií]a|plato\s+trinche|platos?\s+trinche|plato\s+postre|platos?\s+postre|cucharas?|tenedores?|cuchillos?)\b/i.test(
+    t4
+  );
+}
+function isEnteladoRequestText(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  return /\bentelados?\b/i.test(t4) || /\btela\s+(en\s+|de\s+|para\s+)?techo\b/i.test(t4) || /\bentelados?\s+para\s+techo\b/i.test(t4) || /\btecho\s+entelado\b/i.test(t4);
+}
+function excludedServiceFragments(text2) {
+  const out2 = [];
+  for (const re4 of EXCLUDED_SERVICE_LEADS) {
+    for (const m6 of text2.matchAll(re4)) {
+      const frag = (m6[1] ?? "").split(/\s*,\s*|\s+(?:pero|sino|y\s+(?:quiero|queremos|necesito|me\s+gustar[ií]a|cotizar|deja|dejas|agrega|agregas|pon|pones|mant[eé]n))\s+/i)[0].trim();
+      const first = frag.split(/\s+/)[0]?.toLowerCase() ?? "";
+      if (!frag || /^(que|nada|mucho|tanto|algo)$/.test(first) || /(ar|er|ir)$/.test(first)) continue;
+      out2.push(frag);
+    }
+  }
+  for (const m6 of text2.matchAll(EXCLUDED_TRAILING_RE)) {
+    if (m6[1]) out2.push(m6[1]);
+  }
+  for (const m6 of text2.matchAll(EXCLUDED_BEFORE_NO_RE)) {
+    if (m6[1]) out2.push(m6[1]);
+  }
+  return out2;
+}
+function stripExcludedServiceMentions(text2) {
+  const fragments = excludedServiceFragments(text2);
+  if (!fragments.length) return text2;
+  let rest = text2;
+  for (const f7 of fragments) rest = rest.split(f7).join(" ");
+  return rest.replace(/\s{2,}/g, " ").trim();
+}
+function parseServicesFromText(text2) {
+  const found = parseServicesFromTextRaw(text2);
+  if (!found.length) return found;
+  const fragments = excludedServiceFragments(text2);
+  if (!fragments.length) return found;
+  const excluded = new Set(fragments.flatMap((f7) => parseServicesFromTextRaw(f7)));
+  if (!excluded.size) return found;
+  let rest = text2;
+  for (const f7 of fragments) rest = rest.split(f7).join(" ");
+  const stillAsked = new Set(parseServicesFromTextRaw(rest));
+  return found.filter((s7) => !excluded.has(s7) || stillAsked.has(s7));
+}
+function parseServicesFromTextRaw(text2) {
+  const t4 = text2.trim();
+  if (/\b(únicamente|unicamente|solo|solamente)\s+(vajillas?|loza|cubiertos?)\b/i.test(t4) || /\b(únicamente|unicamente)\s+vajilla\b/i.test(t4)) {
+    return dedupeServiceHierarchy(["Vajillas"], t4);
+  }
+  if (clientSwapsPlatedMealForSnacks(t4)) {
+    return [resolveSnackSwapLabel(t4)];
+  }
+  const found = [];
+  const lower2 = text2.toLowerCase();
+  const declined = clientDeclinesServiceFamilies(text2);
+  const hasMealListContext = /\b(desayuno|snack|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text2) || (text2.match(/,/g) ?? []).length >= 1 || /\b(desayuno|snack|comida|cena)\b.+\b(desayuno|snack|comida|cena)\b/i.test(text2);
+  const snackIsAntojito = /\bsnacks?\b/i.test(text2) && /\b(banderillas?|antojitos?|esquites?|elotes?|garnachas?|quesadillas?)\b/i.test(text2);
+  const hasCorporateMealList = /\b(desayuno|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text2) || /\bsnack\b/i.test(text2) && /\b(desayuno|comida|cena|coffee)\b/i.test(text2) && !snackIsAntojito;
+  const occasionMeal = isOccasionMealEventType(text2);
+  for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
+    if (label === "Comida" && !hasMealListContext) continue;
+    if (label === "Snack" && (snackIsAntojito || !hasCorporateMealList)) continue;
+    if (label === "Mesa de postres" && isTablewareRequestText(text2)) continue;
+    if (occasionMeal && /^(Cena|Comida)$/i.test(label)) continue;
+    if (pattern.test(text2) || pattern.test(lower2)) found.push(label);
+  }
+  if (!found.includes("Banquete Mexicano") && /\bmexicano\b/i.test(text2) && !/\b(desayuno|brunch|tem[aá]tico)\b/i.test(text2) && (/^mexicano[\s.,!]*$/i.test(text2.trim()) || /\b(banquete|formal|tiempos|comida\s+mexicana|men[uú]\s+mexicano)\b/i.test(text2))) {
+    found.push("Banquete Mexicano");
+  }
+  if (!found.some((s7) => /barra\s+de\s+bebidas/i.test(s7)) && /\bbebidas?\b/i.test(text2) && /\b(cerveza|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|alcohol|open\s*bar)\b/i.test(
+    text2
+  ) && !/\bbarra\s+de\s+caf[eé]/i.test(text2)) {
+    found.push("Barra de bebidas");
+  }
+  for (const show of parseNamedShowLabels(text2)) {
+    if (!found.some((s7) => s7.toLowerCase() === show.toLowerCase())) found.push(show);
+  }
+  const deduped = dedupeServiceHierarchy(found, text2);
+  found.length = 0;
+  found.push(...deduped);
+  if (/\b(pastas?\s+y\s+pizzas?|pizzas?\s+y\s+pastas?)\b/i.test(text2) || /\bbarra\s+de\s+pastas?\s+y\s+pizzas?\b/i.test(text2)) {
+    if (!found.some((s7) => /pasta/i.test(s7))) found.push("Barra de pastas");
+    if (!found.some((s7) => /pizza/i.test(s7))) found.push("Barra de pizzas");
+  }
+  const salaProduct = parseSalaProductFromText(text2);
+  if (salaProduct) {
+    const idx = found.findIndex((s7) => /salas?\s*lounge/i.test(s7));
+    if (idx >= 0) found[idx] = salaProduct;
+    else if (!found.some((s7) => /sala|luxor/i.test(s7))) found.push(salaProduct);
+  }
+  const chairSku = formatChairSku(text2);
+  if (chairSku) {
+    const idxMob = found.findIndex((s7) => /^Mobiliario$/i.test(s7) || /^mesas?\s+y\s+sillas?$/i.test(s7));
+    if (idxMob >= 0) found[idxMob] = chairSku;
+    else if (!found.some((s7) => /^(\d+\s+)?Sillas\s+/i.test(s7))) {
+      found.unshift(chairSku);
+    }
+  }
+  const normalized = normalizeShortServicePhrase(text2);
+  if (normalized) {
+    const normLower = normalized.toLowerCase();
+    const already = found.some(
+      (s7) => s7.toLowerCase().includes(normLower) || normLower.includes(s7.toLowerCase())
+    );
+    const isVagueFoodAlias = /banquete\s*\/\s*taquiza/i.test(normalized);
+    if (isVagueFoodAlias && clientAsksCafeOrCateringChoice(text2)) {
+    } else if (
+      // A15000: "alimentos + meseros + mobiliario" — conservar Alimentos aunque haya otros.
+      isVagueFoodAlias && found.length > 0 && /\b(alimentos?|comida|banquete|catering|taquiza)\b/i.test(text2)
+    ) {
+      if (!found.some((s7) => /alimento|banquete|taquiza|catering|comida/i.test(s7))) {
+        found.push("Alimentos");
+      }
+    } else if (!already && !(isVagueFoodAlias && found.length > 0)) {
+      found.push(normalized);
+    }
+  }
+  if (/\b(alimentos?|comidas?)\b/i.test(text2) && !clientAsksCafeOrCateringChoice(text2) && !declined.includes("alimentos") && !found.some((s7) => /alimento|banquete|taquiza|catering|comida|barra\s+de\s+alimentos/i.test(s7))) {
+    found.push("Alimentos");
+  }
+  let filtered = declined.length > 0 ? found.filter((s7) => !serviceIsDeclined(s7, declined)) : found;
+  if (isVenueProvidesContext(text2)) {
+    const venueExclude = venueProvidedServiceLabels(text2);
+    if (venueExclude.length) {
+      filtered = filtered.filter(
+        (s7) => !venueExclude.some((ex) => new RegExp(`^${ex}$`, "i").test(s7.trim()))
+      );
+    }
+  }
+  if (isTablewareRequestText(text2) && !isVenueProvidesContext(text2)) {
+    const withoutDulces = filtered.filter(
+      (s7) => !/mesa\s+de\s+(postres?|dulces?|quesos?)/i.test(s7)
+    );
+    if (!withoutDulces.some((s7) => /vajilla/i.test(s7))) {
+      withoutDulces.push("Vajillas");
+    }
+    return dedupeServiceHierarchy([...new Set(withoutDulces)], text2);
+  }
+  return dedupeServiceHierarchy([...new Set(filtered)], text2);
+}
+function formatServicesList(services) {
+  const clean = services.map((s7) => s7.trim()).filter(Boolean);
+  if (clean.length === 0) return "";
+  if (clean.length === 1) return clean[0];
+  if (clean.length === 2) return `${clean[0]} y ${clean[1]}`;
+  return `${clean.slice(0, -1).join(", ")} y ${clean[clean.length - 1]}`;
+}
+function dedupeServiceHierarchy(services, sourceText) {
+  const found = [...services].map((s7) => s7.trim()).filter(Boolean);
+  const text2 = sourceText ?? found.join(" ");
+  const animIdx = found.indexOf("Animaci\xF3n / Hora loca");
+  if (animIdx >= 0 && found.some((s7) => /^Show\s|^Circo\b/i.test(s7)) && !/\b(hora\s+loca|happening|animaci[oó]n|animador|pixel|espejos|l[aá]ser)\b/i.test(
+    sourceText ?? ""
+  )) {
+    found.splice(animIdx, 1);
+  }
+  {
+    const salaIdxs = found.map((s7, i6) => /^(?:Sala lounge \(\d+\)|\d+\s+salas?\s+lounge|Salas lounge)$/i.test(s7) ? i6 : -1).filter((i6) => i6 >= 0);
+    if (salaIdxs.length > 1) {
+      const specific = salaIdxs.filter((i6) => !/^Salas lounge$/i.test(found[i6]));
+      const keep = specific.length ? specific[specific.length - 1] : salaIdxs[0];
+      for (const i6 of [...salaIdxs].reverse()) if (i6 !== keep) found.splice(i6, 1);
+    }
+  }
+  if (found.includes("Men\xFA staff")) {
+    const meserosIdx = found.indexOf("Meseros");
+    if (meserosIdx >= 0) found.splice(meserosIdx, 1);
+  }
+  if (found.includes("Barra de pastas")) {
+    const pastasIdx = found.indexOf("Pastas");
+    if (pastasIdx >= 0) found.splice(pastasIdx, 1);
+  }
+  if (found.includes("Barra de pastas y ensaladas")) {
+    const shortIdx = found.indexOf("Barra de pastas");
+    if (shortIdx >= 0) found.splice(shortIdx, 1);
+    const pastasIdx = found.indexOf("Pastas");
+    if (pastasIdx >= 0) found.splice(pastasIdx, 1);
+  }
+  if (found.includes("Barra de pizzas")) {
+    const pizzasIdx = found.indexOf("Pizzas");
+    if (pizzasIdx >= 0) found.splice(pizzasIdx, 1);
+  }
+  if (found.includes("Barra de Crepas")) {
+    const crepasIdx = found.indexOf("Crepas");
+    if (crepasIdx >= 0) found.splice(crepasIdx, 1);
+  }
+  const specificBanqueteVariant = found.find(
+    (s7) => /Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s7)
+  );
+  if (specificBanqueteVariant) {
+    for (let i6 = found.length - 1; i6 >= 0; i6--) {
+      if (/^Banquete$/i.test(found[i6])) found.splice(i6, 1);
+    }
+  }
+  const nonFormalBanquete = found.find(
+    (s7) => /Banquete\s+(Mexicano|Kosher|Navide)/i.test(s7)
+  );
+  if (nonFormalBanquete) {
+    const formalIdx = found.indexOf("Banquete Formal");
+    if (formalIdx >= 0) found.splice(formalIdx, 1);
+  }
+  if (found.some((s7) => /^Desayuno$/i.test(s7) || /^Brunch$/i.test(s7)) && found.some((s7) => /Banquete\s+Mexicano/i.test(s7)) && /\b(desayuno|brunch|tem[aá]tico)\b/i.test(text2) && !/\bbanquete\b/i.test(text2)) {
+    for (let i6 = found.length - 1; i6 >= 0; i6--) {
+      if (/Banquete\s+Mexicano/i.test(found[i6])) found.splice(i6, 1);
+    }
+  }
+  if (found.some((s7) => /puestos?\s+de\s+comida/i.test(s7))) {
+    for (let i6 = found.length - 1; i6 >= 0; i6--) {
+      if (/^Snack$/i.test(found[i6])) found.splice(i6, 1);
+    }
+  }
+  if (found.some((s7) => /centros?\s+de\s+mesa/i.test(s7))) {
+    for (let i6 = found.length - 1; i6 >= 0; i6--) {
+      if (/^Mobiliario$/i.test(found[i6])) found.splice(i6, 1);
+    }
+    if (/\b(centros?\s+de\s+mesas?|centros?\s+florales?|arreglos?\s+(?:de\s+)?mesas?|decoraci[oó]n\s+de\s+mesas?|flores?\s+(?:para|en|de)\s+mesas?)\b/i.test(
+      text2
+    )) {
+      for (let i6 = found.length - 1; i6 >= 0; i6--) {
+        if (/^(Decoraci[oó]n|Florister[ií]a)$/i.test(found[i6])) found.splice(i6, 1);
+      }
+    }
+    const centrosLabel = parseCentrosDeMesaRequirement(text2);
+    if (centrosLabel) {
+      for (let i6 = 0; i6 < found.length; i6++) {
+        if (/^Centros de mesa/i.test(found[i6])) found[i6] = centrosLabel;
+      }
+    }
+  }
+  if (found.includes("Parrillada Argentina") || found.includes("Parrillada Tacos")) {
+    const genIdx = found.indexOf("Parrillada");
+    if (genIdx >= 0) found.splice(genIdx, 1);
+  }
+  if (found.includes("Parrillada Tacos")) {
+    const taqIdx = found.indexOf("Taquiza");
+    if (taqIdx >= 0) found.splice(taqIdx, 1);
+  }
+  const hasPastaBar = found.some((s7) => /barra\s+de\s+pastas/i.test(s7));
+  if (hasPastaBar) {
+    for (let i6 = found.length - 1; i6 >= 0; i6--) {
+      if (/^(Taquiza|Pastas|Comida)$/i.test(found[i6])) found.splice(i6, 1);
+    }
+  }
+  const hasMealTimes = found.some((s7) => /^(Desayuno|Snack|Cena|Coffee break)$/i.test(s7)) || /\b(desayuno|snack|cena|coffee\s*break)\b/i.test(text2);
+  if (!hasMealTimes && found.some(
+    (s7) => /barra\s+de|banquete|taquiza|parrillada|paella|cupcake|mesa\s+de/i.test(s7)
+  )) {
+    for (let i6 = found.length - 1; i6 >= 0; i6--) {
+      if (/^Comida$/i.test(found[i6])) found.splice(i6, 1);
+    }
+  }
+  if (found.includes("Colgantes Premium") || found.includes("Entelados para Techo")) {
+    const decoIdx = found.indexOf("Decoraci\xF3n");
+    if (decoIdx >= 0 && /decoraci[oó]n\s+a[eé]rea|colgante|entelado|wisteria/i.test(text2)) {
+      found.splice(decoIdx, 1);
+    }
+  }
+  if (found.includes("Video")) {
+    const pantIdx = found.indexOf("Pantallas");
+    if (pantIdx >= 0 && /\bled\s*wall\b/i.test(text2)) found.splice(pantIdx, 1);
+  }
+  return [...new Set(found)];
+}
+function looksLikeConflictingFoodAlternatives(services) {
+  const foods = services.filter((s7) => !/^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i.test(s7.trim()));
+  if (foods.length < 2) return false;
+  const hasPasta = foods.some((s7) => /pasta/i.test(s7));
+  const hasTaquiza = foods.some((s7) => /^taquiza$/i.test(s7));
+  const hasBanquete = foods.some((s7) => /banquete/i.test(s7));
+  if (hasPasta && hasTaquiza) return true;
+  if (hasBanquete && hasTaquiza && foods.length <= 3) return true;
+  return false;
+}
+function clientWantsFoodOnlyQuote(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  return /\bsolo\s+(quiero\s+)?(que\s+me\s+)?cotice?n?\s+la\s+comida\b/i.test(t4) || /\bsolo\s+(la\s+)?comida\b/i.test(t4) || /\bnada\s+m[aá]s\s+(que\s+)?(la\s+)?comida\b/i.test(t4) || /\bsolo\s+(quiero|necesito)\s+(la\s+)?comida\b/i.test(t4) || /\bcoticen?\s+solo\s+(la\s+)?comida\b/i.test(t4) || // A15212: "Solo dame cotización de los antojitos".
+  /\bsolo\s+(dame\s+)?(la\s+|una\s+)?cotizaci[oó]n\s+(de\s+)?(los\s+)?(antojitos?|puestos?)\b/i.test(
+    t4
+  ) || /\bsolo\s+(los\s+)?(antojitos?|puestos?(\s+de\s+comida)?)\b/i.test(t4);
+}
+function clientNarrowsToOnlyService(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return null;
+  const hasSolo = /\b(solo|solamente|[uú]nicamente)\b/i.test(t4) || /\bnada\s+m[aá]s\s+que\b/i.test(t4) || /\bno\s+(requiero|quiero|necesito)\s+nada\s+m[aá]s\s+(que\s+)?/i.test(t4);
+  const replaceIntent = /\b(estoy\s+buscando|busco|quiero|necesito|me\s+interesa)\s+(?:un\s+|una\s+|el\s+|la\s+)?/i.test(
+    t4
+  ) && /\b(banquete|taquiza|coffee\s*break|barra\s+de|mesa\s+de\s+dulces|carpa|pista|tarima|entarimad|dj)\b/i.test(t4) && !/\by\s+(tambi[eé]n|adem[aá]s)\b/i.test(t4);
+  if (!hasSolo && !replaceIntent) return null;
+  if (clientWantsFoodOnlyQuote(t4) && !/\bmesa\s+de\s+dulces\b/i.test(t4) && hasSolo) return null;
+  const narrowIntent = hasSolo && (/\b(cotizar|cotizaci[oó]n|quiero|necesito|requiero|requerimos|ser[ií]a|dejamos?|quedamos?|anota)\b/i.test(t4) || /\bsolo\s+(la\s+|el\s+|una\s+|un\s+)?(mesa\s+de\s+dulces|banquete|taquiza|carpa|pista|tarima|entarimad|barra|pastel|cupcakes?|bet[uú]n)/i.test(
+    t4
+  ) || /\bnada\s+m[aá]s\s+que\s+(la\s+|el\s+|un\s+)?(tarima|entarimad|pista|banquete|carpa|pastel)/i.test(t4));
+  if (!narrowIntent && !replaceIntent) return null;
+  if (/\bmesa\s+de\s+dulces\b/i.test(t4)) return "Mesa de dulces";
+  if (/\bmesa\s+de\s+postres?\b|\bmesa\s+de\s+pasteles?\b/i.test(t4)) return "Mesa de postres";
+  if (/(?<!mesa\s+de\s+)\bpastel(es)?\b(?!\s*er[ií]a)|\bfondant\b|\bcakes?\b/iu.test(t4)) {
+    return "Cupcakes y Bet\xFAn";
+  }
+  if (/\bbanquete\s+mexicano\b/i.test(t4)) return "Banquete Mexicano";
+  if (/\bbanquete\s+formal\b/i.test(t4)) return "Banquete Formal";
+  if (/\b(tarimas?|entarimad[oa]s?)\b/i.test(t4) && !/\bpista(\s+de\s+baile)?\b/i.test(t4.replace(/\bno\s+(quiero|necesito|requiero).{0,20}pista\b/gi, " "))) {
+    return "Tarima";
+  }
+  if (/\bshows?\b/i.test(t4) && parseNamedShowLabels(t4).length === 0 && !/\b(hora\s+loca|happening|animaci[oó]n|animador)\b/i.test(t4)) {
+    return null;
+  }
+  const fromMsg = parseServicesFromText(t4).filter(
+    (s7) => !/^(Comida|Alimentos|Evento|Servicio)$/i.test(s7)
+  );
+  if (fromMsg.length === 1) return fromMsg[0];
+  if (fromMsg.length > 1) {
+    const afterSolo = t4.match(
+      /\b(?:solo|solamente|[uú]nicamente|buscando|busco|quiero|necesito)\s+(?:cotizar\s+)?(?:la\s+|el\s+|una\s+|un\s+)?(.+?)(?:\s+para\s+\d|\s*$)/i
+    )?.[1];
+    if (afterSolo) {
+      const hit = parseServicesFromText(afterSolo);
+      if (hit.length === 1) return hit[0];
+    }
+  }
+  return null;
+}
+function clientSwapsPlatedMealForSnacks(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  const declinesPlated = /\bno\s+(requiero|requerimos|quiero|queremos|necesito|necesitamos|busco|buscamos|ocupo|ocupamos|va(mos)?\s+a\s+querer)\b[^.!?]{0,40}\b(comida|men[uú]|banquete|alimentos?)\b/i.test(
+    t4
+  ) || /\bsin\s+(comida|men[uú]|banquete)\s+(de\s+)?tiempos?\b/i.test(t4);
+  if (!declinesPlated) return false;
+  return /\b(snacks?|snaks?|bocadillos?|canap[eé]s?|finger\s*food|botanas?)\b/i.test(t4);
+}
+function resolveSnackSwapLabel(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (/\bcanap[eé]s?\b/i.test(t4)) return "Canap\xE9s";
+  if (/\b(gourmet|premium|finos?)\b/i.test(t4)) return "Canap\xE9s";
+  return "Bocadillos";
+}
+function mergeServiceRequirements(existing, text2, max = 6) {
+  const merged = mergeServiceRequirementsRaw(existing, text2, max);
+  if (merged && /\(venta\)/i.test(existing ?? "") && !/\(venta\)/i.test(merged)) {
+    return `${merged} (venta)`;
+  }
+  return merged;
+}
+function mergeServiceRequirementsRaw(existing, text2, max = 6) {
+  const onlySku = clientNarrowsToOnlyService(text2);
+  if (onlySku) {
+    return preserveSpaceAnnotation(onlySku, `${existing ?? ""} ${text2 ?? ""}`);
+  }
+  if (clientSwapsPlatedMealForSnacks(text2)) {
+    const snackLabel = resolveSnackSwapLabel(text2);
+    const kept = (existing ?? "").split(",").map((s7) => s7.trim()).filter(Boolean).filter((s7) => !PLATED_MEAL_LABEL_RE.test(s7.replace(/\s*\(espacio [^)]+\)/i, "").trim()));
+    const rest = kept.filter((s7) => !new RegExp(`^${snackLabel}$`, "i").test(s7));
+    const swapped = [snackLabel, ...rest].slice(0, max).join(", ");
+    return preserveSpaceAnnotation(swapped, `${existing ?? ""} ${text2 ?? ""}`);
+  }
+  const declined = clientDeclinesServiceFamilies(text2);
+  const declinedObjects = declined.length ? [] : extractDeclinedServiceObjects(text2, existing);
+  const existingClean = declined.length ? removeDeclinedFamiliesFromRequirements(existing, declined) : declinedObjects.length ? removeSpecificDeclinedServices(existing, text2) : existing;
+  const fromExisting = existingClean?.trim() ? parseServicesFromText(existingClean).filter((s7) => !serviceIsDeclined(s7, declined)) : [];
+  const textTrim = text2?.trim() ?? "";
+  const textIsLocation = !!textTrim && (isLikelyUbicacionNotNombre(textTrim) || !!parseZonaFromText(textTrim) && textTrim.split(/\s+/).length <= 8);
+  const fromText = textTrim && !textIsLocation && !declinedObjects.length ? parseServicesFromText(textTrim).filter((s7) => !serviceIsDeclined(s7, declined)) : [];
+  const merged = dedupeServiceHierarchy(
+    [...fromExisting, ...fromText],
+    `${existingClean ?? ""} ${text2 ?? ""}`
+  ).slice(0, max);
+  if (merged.length === 0) {
+    if (declined.length > 0 || declinedObjects.length > 0) {
+      return existingClean?.trim() || null;
+    }
+    const fallback = existingClean?.trim() || text2?.trim() || "";
+    if (!fallback) return null;
+    if (isGenericQuoteIntentRequerimiento(fallback) || isQuoteIntentMessage(fallback) || isGreetingOnlyMessage(fallback)) {
+      return null;
+    }
+    if (existingClean?.trim() && !isGenericQuoteIntentRequerimiento(existingClean)) {
+      return existingClean.trim().slice(0, 250);
+    }
+    return null;
+  }
+  const joined = merged.join(", ");
+  const blob = `${existingClean ?? ""} ${text2 ?? ""}`.trim();
+  const withVenue = removeVenueProvidedFromRequirements(joined, blob) ?? joined;
+  const dimsFromText = parseAllSpaceDimensions(textTrim);
+  if (dimsFromText.length > 0 && (clientMentionsCarpas(withVenue) || clientMentionsPistaTarima(withVenue) || clientMentionsCarpas(blob) || clientMentionsPistaTarima(blob))) {
+    return attachEspacioToRequirements(withVenue, dimsFromText);
+  }
+  return preserveSpaceAnnotation(withVenue, `${existingClean ?? ""} ${text2 ?? ""}`);
+}
+function preserveSpaceAnnotation(services, blob) {
+  if (!services.trim()) return services;
+  if (!clientMentionsCarpas(services) && !clientMentionsPistaTarima(services)) {
+    return services;
+  }
+  if (/\(espacio\s+[^)]+\)/i.test(services)) return services;
+  const bareOnServices = services.match(
+    /\((\d+\s*m?\s*[x×]\s*\d+\s*m?(?:\s+y\s+\d+\s*m?\s*[x×]\s*\d+\s*m?)*)\)/i
+  );
+  if (bareOnServices?.[1]) {
+    const dims = parseAllSpaceDimensions(bareOnServices[1]);
+    if (dims.length) return attachEspacioToRequirements(services, dims);
+  }
+  const prev = blob.match(/\(espacio\s+([^)]+)\)/i)?.[1]?.trim();
+  if (prev) {
+    const parsed = parseAllSpaceDimensions(prev);
+    return attachEspacioToRequirements(services, parsed.length ? parsed : [prev]);
+  }
+  const fromBlob3 = parseAllSpaceDimensions(blob);
+  if (fromBlob3.length) return attachEspacioToRequirements(services, fromBlob3);
+  return services;
+}
+function serviceRequirementsGainedDimensions(existing, next) {
+  const nextDims = parseAllSpaceDimensions(next ?? "");
+  if (nextDims.length === 0) return false;
+  const prevDims = parseAllSpaceDimensions(existing ?? "");
+  if (prevDims.length === 0) return true;
+  return nextDims.join("|") !== prevDims.join("|");
+}
+function buildMultiServiceAck(services) {
+  const list = formatServicesList(services);
+  if (!list) return "Perfecto, anoto lo que necesitas para tu evento.";
+  if (services.length === 1) {
+    return `Perfecto, veo que necesitas ${list}.`;
+  }
+  return `Perfecto, veo que necesitas ${list}. Te cotizamos todo eso.`;
+}
+function buildRichBriefAcknowledgment(text2) {
+  if (isPromoTemplateMessage(text2)) {
+    return "Claro, te ayudo con la cotizaci\xF3n de tu evento.";
+  }
+  const services = parseServicesFromText(text2);
+  const tipo = parseTipoEventoFromText(text2);
+  const invParsed = parseInvitadosFromText(text2);
+  const inv = invParsed && /^\d+$/.test(invParsed) ? invParsed : null;
+  const fecha = text2.match(
+    /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+\d{4})?)/i
+  );
+  const zona = parseZonaFromText(text2) || text2.match(/\ben\s+(Santa\s+Fe(?:,?\s*Ciudad\s+de\s+M[eé]xico)?)/i)?.[1] || text2.match(/\bUbicaci[oó]n:\s*([^\n.*]{4,60})/i)?.[1]?.trim() || text2.match(/\bLugar\s*:\s*([^\n,]{4,60})/i)?.[1]?.trim() || text2.match(/\ben\s+([A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+){0,3}),?\s*(?:Ciudad\s+de\s+M[eé]xico|CDMX)/i)?.[0]?.replace(/^en\s+/i, "");
+  const hasThreeMenus = /\b(opci[oó]n\s*[123]|tres\s+propuestas|propuestas?\s+de\s+men[uú])\b/i.test(text2);
+  const distributor = clientAsksDistributorPricing(text2);
+  const bits = [];
+  if (tipo) bits.push(tipo);
+  if (fecha) bits.push(fecha[1]);
+  if (zona) bits.push(zona.trim());
+  if (inv) bits.push(`${inv} personas`);
+  let ack = bits.length > 0 ? `De acuerdo, revis\xE9 tu solicitud para ${bits.join(", ")}.` : "De acuerdo, revis\xE9 con detalle tu solicitud de cotizaci\xF3n.";
+  const equipSummary = parseEquipmentRfqLineItems(text2).length >= 2 ? parseEquipmentRfqLineItems(text2).join(", ") : null;
+  const mobItems = text2.match(
+    /(\d+\s+mesas?\s+tipo\s+picnic|\d+\s+picnic|\d+\s+periqueras?|\d+\s+bancos?)/gi
+  );
+  const mobSummary = equipSummary ? equipSummary : mobItems?.length ? [...new Set(mobItems.map((m6) => m6.trim().toLowerCase()))].join(", ") : null;
+  if (hasThreeMenus && services.length >= 1) {
+    ack += ` Anoto las tres propuestas de men\xFA y ${formatServicesList(services)}.`;
+  } else if (hasThreeMenus) {
+    ack += " Anoto las tres propuestas de men\xFA que pediste, con servicio y montaje.";
+  } else if (mobSummary) {
+    ack += ` Anoto ${mobSummary}.`;
+  } else if (services.length >= 2) {
+    ack += ` Anoto ${formatServicesList(services)}.`;
+  } else if (services.length === 1) {
+    ack += ` Anoto ${services[0]}.`;
+  }
+  if (distributor) {
+    ack += " Como cotizan como distribuidores, el equipo les arma precio de mayoreo (no lista al p\xFAblico).";
+  } else {
+    ack += " Nuestro equipo arma la cotizaci\xF3n a la medida con lo que pediste.";
+  }
+  return ack;
+}
+function appendPostCierreRequirements(existing, message) {
+  const t4 = message.trim();
+  if (!t4) return existing?.trim() || null;
+  if (clientDeclinesServiceFamilies(t4).length > 0 || extractDeclinedServiceObjects(t4, existing).length > 0) {
+    return mergeServiceRequirements(existing, t4, 8);
+  }
+  const services = parseServicesFromText(t4);
+  const addPostre = /\bpostres?\b/i.test(t4) && !isTablewareRequestText(t4) && !services.some((s7) => /postre/i.test(s7));
+  const withPostre = (value) => {
+    if (!addPostre) return value;
+    if (!value) return "Postre";
+    return /\bpostres?\b/i.test(value) ? value : `${value}, Postre`;
+  };
+  const hasServiceIntent = services.length > 0 || clientAddsToQuote(t4) || isServiceRelatedMessage(t4) || isServicePreferenceRefinement(t4, existing) || /\b(pantalla|audio|microfon|led|dj|entradas?|postres?|canap)\b/i.test(t4);
+  if (!hasServiceIntent) return existing?.trim() || null;
+  const base = existing?.trim() || "";
+  if (isServicePreferenceRefinement(t4, base)) {
+    const snippet2 = t4.replace(/\s+/g, " ").slice(0, 250);
+    if (base && base.toLowerCase().includes(snippet2.toLowerCase().slice(0, 40))) return base;
+    return base ? `${base}; preferencia: ${snippet2}` : snippet2;
+  }
+  if (services.length > 0) {
+    const merged = mergeServiceRequirements(base || null, services.join(", "), 8);
+    return withPostre(merged || base || null);
+  }
+  if (addPostre) return withPostre(base || null);
+  const snippet = t4.replace(/\s+/g, " ").slice(0, 250);
+  if (base && base.toLowerCase().includes(snippet.toLowerCase().slice(0, 40))) return base;
+  return base ? `${base}; ${snippet}` : snippet;
+}
+function preferPrimaryCatalogService(services) {
+  if (!services.length) return null;
+  const cleaned = dedupeServiceHierarchy(services);
+  const pool2 = cleaned.filter((s7) => !STAFF_OR_ADDON_SERVICE.test(s7.trim()));
+  const candidates = pool2.length ? pool2 : cleaned;
+  const scored = [...candidates].sort((a4, b5) => {
+    const score = (s7) => {
+      let n5 = s7.length;
+      if (/^Barra de /i.test(s7)) n5 += 40;
+      if (/Puestos\s+de\s+Comida/i.test(s7)) n5 += 45;
+      if (/Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s7)) n5 += 30;
+      if (/Parrillada|Paella|Coffee|Cupcakes|Mesa de/i.test(s7)) n5 += 20;
+      if (/^(Pastas|Pizzas|Crepas|Comida|Taquiza|Parrillada|Bocadillos?|Snack)$/i.test(s7)) n5 -= 25;
+      return n5;
+    };
+    return score(b5) - score(a4);
+  });
+  return (scored[0] || candidates[0]).trim();
+}
+function isServicePreferenceRefinement(message, serviceHint) {
+  const t4 = message?.trim() ?? "";
+  if (!t4 || t4.length > 320) return false;
+  if (/\b(cotizar|cu[aá]nto\s+cuesta|precio\s+de|otra\s+barra|nuevo\s+servicio)\b/i.test(t4)) {
+    return false;
+  }
+  const cafeCtx = /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcafeter[ií]a\b|\bbarista\b/iu.test(t4) || /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcaf[eé](?!\p{L})|barista|coffee\s*break/iu.test(
+    serviceHint ?? ""
+  );
+  const beveragePick = /\b(americano|capuchin?o|cappuccino|espresso|latte|moc?cha|t[eé]s?\b|chocolates?|bebidas?\s+artesanal)/i.test(
+    t4
+  );
+  const refineCue = /\b(solo\s+requieren|solo\s+quieren|solo\s+necesitan|respecto\s+a|nada\s+m[aá]s|nomas|nom[aá]s|unicamente|únicamente)\b/i.test(
+    t4
+  );
+  return cafeCtx && (beveragePick || refineCue);
+}
+function parsePrimaryService(text2) {
+  const services = parseServicesFromText(text2);
+  if (services.length > 0) return preferPrimaryCatalogService(services);
+  const normalized = normalizeShortServicePhrase(text2);
+  return normalized;
+}
+function normalizeShortServicePhrase(text2) {
+  const trimmed = text2.trim();
+  if (!trimmed) return null;
+  let cleaned = trimmed.replace(/^(quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i, "").replace(/^(una?|el|la|los|las)\s+/i, "").trim();
+  const lower2 = cleaned.toLowerCase();
+  if (SHORT_SERVICE_ALIASES[lower2]) return SHORT_SERVICE_ALIASES[lower2];
+  if (/^pista$/i.test(cleaned)) return "pista de baile";
+  if (/^dj$/i.test(cleaned)) return "DJ";
+  return null;
+}
+function isServiceRelatedMessage(text2) {
+  const trimmed = text2?.trim() ?? "";
+  if (!trimmed || /^info pendiente$/i.test(trimmed)) return false;
+  if (/\bservicio\s+completo\b/i.test(trimmed)) return true;
+  if (SERVICE_HINT.test(trimmed)) return true;
+  if (parsePrimaryService(trimmed)) return true;
+  if (/^(una?\s+)?(pista|tarima|dj|mesas?|sillas?|carpa|banquete|taquiza)\b/i.test(trimmed)) return true;
+  return false;
+}
+function parseTipoEventoFromText(text2) {
+  for (const [pattern, label] of TIPO_EVENTO_PATTERNS) {
+    if (!pattern.test(text2)) continue;
+    if (label === "__meal_event__") {
+      const m6 = text2.match(
+        /\b(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)\b/i
+      );
+      return (m6?.[1] ?? "comida").toLowerCase().replace(/ó/, "o");
+    }
+    return label;
+  }
+  return parseTipoEventoLabeled(text2);
+}
+function isOccasionMealEventType(text2) {
+  const raw = (text2 ?? "").trim();
+  if (!raw) return false;
+  if (/\b(cotizar|precio|barra\s+de|taquiza|banquete\s+formal|yucateca|crepas?)\b/i.test(raw) && !/\bconmemorativ|d[ií]a\s+del\s+m[eé]dico|gala\b/i.test(raw)) {
+    return false;
+  }
+  return /\b(cena|comida|almuerzo|brunch)\s+conmemorativ/i.test(raw) || /\bd[ií]a\s+del\s+m[eé]dico\b/i.test(raw) || /\b(cena|comida)\s+(de\s+)?gala\b/i.test(raw) || /\b(cena|comida)\s+empresarial\b/i.test(raw) || /\bconmemorativ\w*\s+por\b/i.test(raw);
+}
+function isEventTypeOnlyMessage(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4 || t4.length > 100) return false;
+  if (isUnusableTipoEventoReply(t4)) return false;
+  if (clientAsksAlternativeMenus(t4)) return false;
+  if (isOccasionMealEventType(t4)) return true;
+  const tipo = parseTipoEventoFromText(t4);
+  if (!tipo) return false;
+  if (/\b(cotizar|precio|quiero|necesito|busco|me\s+interesa)\b.{0,50}\b(banquete|taquiza|carpas?|pista|tarima|mobiliario|dj|mesas?|sillas?|entelado|barra|sushi|catering)\b/i.test(
+    t4
+  )) {
+    return false;
+  }
+  if (isServiceRelatedMessage(t4)) {
+    const primary = parsePrimaryService(t4);
+    if (primary && !new RegExp(tipo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(primary)) {
+      return false;
+    }
+    if (/\b(banquete|taquiza|carpas?|pista|tarima|mobiliario|dj|mesas?\s+y\s+sillas?|entelado|barra\s+de|sushi|catering|mesa\s+de\s+dulces)\b/i.test(
+      t4
+    )) {
+      return false;
+    }
+  }
+  if (t4.split(/\s+/).filter(Boolean).length > 10) return false;
+  return true;
+}
+function clientSaidAperturaNegocio(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return false;
+  if (/\b(boda|matrimonio|casamiento|nupcial|quincea[nñ]era|xv\s*a[nñ]os?)\b/i.test(t4)) {
+    return false;
+  }
+  return /\b(apertura|inauguraci[oó]n)\s+(de\s+)?(un\s+)?(negocio|local|tienda|sucursal|empresa|plaza)\b/i.test(
+    t4
+  ) || /\bapertura\s+de\s+un\s+negocio\b/i.test(t4);
+}
+function clientSaidReunionNotXv(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return false;
+  if (/\b(quincea[nñ]era|xv\s*a[nñ]os?|\bmis\s+xv\b|\bmis\s+15\b)/i.test(t4)) {
+    return false;
+  }
+  return /\breun[ií][oó]n(es)?\s+de\s+(\d{1,2}|quince|veinte|veinti\w+|treinta|cuarenta|cincuenta)\s*a[nñ]os?\b/i.test(
+    t4
+  ) || /\b(aniversario|reencuentro)\s+(de\s+)?(\d{1,2}\s*a[nñ]os?|laboral|escolar|generacional)\b/i.test(t4);
+}
+function parseReunionAniosLabel(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4 || !clientSaidReunionNotXv(t4)) return null;
+  const m6 = t4.match(
+    /\breun[ií][oó]n(es)?\s+de\s+(\d{1,2}|quince|veinte|veinti\w+|treinta|cuarenta|cincuenta)\s*a[nñ]os?\b/i
+  );
+  if (m6?.[0]) return m6[0].replace(/\s+/g, " ").trim();
+  const a4 = t4.match(/\b(aniversario|reencuentro)\s+(de\s+)?(\d{1,2}\s*a[nñ]os?)\b/i);
+  if (a4?.[0]) return a4[0].replace(/\s+/g, " ").trim();
+  return "reuni\xF3n";
+}
+function isScheduleLabeledClock(text2) {
+  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t4 || t4.length > 120) return false;
+  if (/^(a\s+)?medio\s*d[ií]a$/i.test(t4) || /^a\s+mediod[ií]a$/i.test(t4) || /^(por\s+la\s+)?(ma[nñ]ana|tarde|noche)$/i.test(t4)) {
+    return true;
+  }
+  if (/\b(cocktail|c[oó]ctel|comida|cena|desayuno|brunch|almuerzo|recepci[oó]n|pizzas?|pastas?|barra|taquiza|sushi)\s+(a\s+las\s+)?\d{1,2}(?::\d{2})?\b/i.test(
+    t4
+  )) {
+    return true;
+  }
+  if (/\b(pizzas?|pastas?|comida|cena|barra|servicio)\b/i.test(t4) && /\ba\s+las?\s+\d{1,2}(?::\d{2})?\s*(am|pm|a\.?m\.?|p\.?m\.?)?\b/i.test(t4) && t4.split(/\s+/).length <= 14) {
+    return true;
+  }
+  const labeledClocks = (t4.match(
+    /\b(cocktail|c[oó]ctel|comida|cena|desayuno|brunch|pizzas?)\s+(a\s+las\s+)?\d{1,2}(?::\d{2})?/gi
+  ) ?? []).length;
+  return labeledClocks >= 1 && t4.split(/\s+/).length <= 20;
+}
+function looksLikeMealTimeNotLocation(text2) {
+  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t4) return false;
+  if (isScheduleLabeledClock(t4) && /\d/.test(t4)) return false;
+  const n5 = t4.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ");
+  const meal = /\bhora\s+de\s+(comida|cena|desayuno|almuerzo|lunch|brunch|fomida|comidita)\b/.test(n5) || /^(en\s+)?(hora\s+de\s+)?(comida|cena|desayuno|almuerzo|lunch|brunch|fomida)$/.test(n5) || /\ben\s+hora\s+de\s+\w{3,20}$/.test(n5);
+  return meal;
+}
+function isMealTimeOnlySchedule(text2) {
+  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t4) return false;
+  if (isScheduleLabeledClock(t4)) return true;
+  if (looksLikeMealTimeNotLocation(t4) && t4.split(/\s+/).length <= 6) {
+    if (/\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
+      t4
+    )) {
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+function isSimpleClockTime(text2) {
+  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t4 || t4.length > 70) return false;
+  if (MONTH_PATTERN.test(t4)) return false;
+  if (/\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
+    t4
+  )) {
+    return false;
+  }
+  if (/^(a\s+)?medio\s*d[ií]a$/i.test(t4) || /^a\s+mediod[ií]a$/i.test(t4)) return true;
+  if (/^(?:alrededor\s+de\s+)?(?:a\s+)?la\s+\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)?$/i.test(
+    t4
+  )) {
+    return true;
+  }
+  const bareClock = t4.match(
+    new RegExp(String.raw`^(?:a\s+las?\s+)?(\d{1,2})(?::(\d{2}))?\s*(?:${CLOCK_AMPM})?$`, "i")
+  );
+  if (bareClock) {
+    const hour = Number(bareClock[1]);
+    const minutes = bareClock[2] ? Number(bareClock[2]) : 0;
+    return hour <= 24 && minutes <= 59;
+  }
+  if (/^(?:a\s+las?\s+)?\d{1,2}(?::\d{2})?\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana)(?:\s*(?:hrs?|horas?))?$/i.test(
+    t4
+  )) {
+    return true;
+  }
+  if (new RegExp(
+    String.raw`^(?:a\s+)?(?:partir|desde)\s+de\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t4) || new RegExp(
+    String.raw`^desde\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t4)) {
+    return true;
+  }
+  if (new RegExp(
+    String.raw`^despu[eé]s\s+de\s+(?:las\s+)?${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t4)) {
+    return true;
+  }
+  if (new RegExp(
+    String.raw`^de\s+(?:las?\s+)?${CLOCK_TOKEN}\s*${CLOCK_AMPM}$`,
+    "i"
+  ).test(t4)) {
+    return true;
+  }
+  return false;
+}
+function isClockTimeOnlySchedule(text2) {
+  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t4 || t4.length > 80) return false;
+  if (isSimpleClockTime(t4)) return true;
+  if (MONTH_PATTERN.test(t4)) return false;
+  if (/\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
+    t4
+  )) {
+    return false;
+  }
+  const clock = new RegExp(
+    String.raw`^(?:de\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t4) || new RegExp(
+    String.raw`^(?:horario\s*:?\s*)?${CLOCK_TOKEN}\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
+    "i"
+  ).test(t4);
+  return clock;
+}
+function looksLikeFechaDiscourseJunk(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return false;
+  if (t4.length > 55 && MONTH_PATTERN.test(t4)) {
+    if (/\b(únicamente|unicamente|por\s+favor|observaciones?|cotizaci|sigue\s+siendo|corrige|cambia|quitar|vi[aá]ticos)\b/i.test(
+      t4
+    )) {
+      return true;
+    }
+    if (t4.split(/\s+/).length >= 8) return true;
+  }
+  return false;
+}
+function extractFechaCorrectionFragment(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return null;
+  const dayMonth = t4.match(
+    /\b(\d{1,2}\s+(?:de\s+)?(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)\b/i
+  );
+  if (dayMonth?.[1]) {
+    const normalized = parseFechaFromText(dayMonth[1]) || dayMonth[1].replace(/\s+/g, " ").trim();
+    return normalized;
+  }
+  const sigue = t4.match(
+    /\b(?:sigue\s+siendo|sigue\s+en|es\s+en|ser[ií]a\s+en|queda\s+en|corrige\s+a|cambia\s+a|en\s+vez\s+de\s+\w+\s+(?:pon|usa|deja))\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
+  );
+  if (sigue?.[1]) {
+    const m6 = sigue[1];
+    return m6.charAt(0).toUpperCase() + m6.slice(1).toLowerCase();
+  }
+  if (looksLikeFechaDiscourseJunk(t4) || /\bsigue\s+siendo\b/i.test(t4)) {
+    const month = t4.match(
+      /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b(?:\s+(?:de(?:l)?\s+)?(20\d{2}))?/i
+    );
+    if (month?.[1]) {
+      const m6 = month[1];
+      const label = m6.charAt(0).toUpperCase() + m6.slice(1).toLowerCase();
+      return month[2] ? `${label} de ${month[2]}` : label;
+    }
+  }
+  return null;
+}
+function combinedScheduleDisplay(fecha, horario) {
+  const f7 = (fecha ?? "").trim();
+  const h5 = (horario ?? "").trim();
+  if (f7 && h5) return `${f7}, ${h5}`;
+  return f7 || h5 || null;
+}
+function syncLegacyFechaHorarioField(extracted) {
+  extracted.fecha_horario = combinedScheduleDisplay(
+    extracted.fecha_evento,
+    extracted.horario_evento
+  );
+}
+function normalizeHorarioCapture(text2) {
+  return text2.replace(/^(?:ser[ií]a|ser[aá]|ser[ií]an|es)\s+/i, "").replace(/^a\s+las\s+/i, "").replace(/^(?:a\s+)?partir\s+de\s+(?:las\s+)?/i, "a partir de las ").replace(/^desde\s+(?:las\s+)?/i, "desde las ").replace(
+    new RegExp(String.raw`^de\s+(?:las?\s+)?(${CLOCK_TOKEN}\s*${CLOCK_AMPM})$`, "i"),
+    "a partir de las $1"
+  ).replace(/\s+/g, " ").trim().slice(0, 80);
+}
+function normalizeAbsurdEventYear(fecha) {
+  const nowY = (/* @__PURE__ */ new Date()).getFullYear();
+  const inRange = (y5) => y5 >= nowY - 1 && y5 <= nowY + 12;
+  return fecha.replace(/\b(\d{4})\b/g, (raw) => {
+    const y5 = Number(raw);
+    if (!Number.isFinite(y5)) return raw;
+    if (inRange(y5)) return raw;
+    const cands = /* @__PURE__ */ new Set([y5]);
+    const s7 = raw;
+    for (let i6 = 0; i6 < 3; i6++) {
+      const a4 = s7.split("");
+      const tmp = a4[i6];
+      a4[i6] = a4[i6 + 1];
+      a4[i6 + 1] = tmp;
+      cands.add(Number(a4.join("")));
+    }
+    if (/^22\d{2}$/.test(s7)) cands.add(Number(`20${s7.slice(2)}`));
+    let best = null;
+    let bestDist = Infinity;
+    for (const c5 of cands) {
+      if (!inRange(c5)) continue;
+      const d3 = Math.abs(c5 - Math.max(nowY, nowY + 1));
+      if (d3 < bestDist) {
+        bestDist = d3;
+        best = c5;
+      }
+    }
+    return best != null ? String(best) : raw;
+  });
+}
+function normalizeWrittenClockInText(text2) {
+  let out2 = text2.replace(/\b(\d{1,2});(\d{2})\b/g, "$1:$2");
+  for (const [word, digit] of Object.entries(WRITTEN_NUMBERS)) {
+    const n5 = parseInt(digit, 10);
+    if (n5 < 1 || n5 > 12) continue;
+    out2 = out2.replace(
+      new RegExp(
+        String.raw`\b((?:a\s+)?(?:partir\s+de\s+|desde\s+)?(?:las\s+|a\s+las\s+)?)${word}\b`,
+        "gi"
+      ),
+      `$1${digit}`
+    );
+  }
+  return out2;
+}
+function clientRequestsDualProposals(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  if (/\b(dos|2)\s+propuestas?\b/i.test(t4)) return true;
+  if (/\b(?:informaci[oó]n|info)\s+de\s+(ambos|los\s+dos|las\s+dos)\b/i.test(t4) || /\b(ambos|ambas)\s+(opciones?|propuestas?|estilos?|men[uú]s?)\b/i.test(t4) || /\b(los|las)\s+dos\b/i.test(t4) || /\bambas?\s+opciones?\b/i.test(t4)) {
+    return true;
+  }
+  return /\bpropuesta\b/i.test(t4) && /\b(banquete|formal)\b/i.test(t4) && /\b(casual|relajad)\b/i.test(t4);
+}
+function buildDualProposalAck(displayName) {
+  const who = displayName?.trim();
+  const prefix = who ? `Perfecto, ${who}.` : "Perfecto.";
+  return `${prefix} Anoto *dos propuestas*: banquete *formal* y otra *casual*, para que tu equipo compare.`;
+}
+function clientScopesServiceToProposalOption(message) {
+  if (!message?.trim()) return null;
+  const t4 = message.toLowerCase();
+  if (!/\b(solo|solamente|nada\s+m[aá]s|unicamente|únicamente)\b/i.test(t4)) return null;
+  if (!/\b(agreg\w*|sum\w*|inclu\w*|pon\w*|anot\w*|dej\w*)\b/i.test(t4)) return null;
+  if (/\b(casual|relajad)\b/i.test(t4)) return "casual";
+  if (/\b(formal|banquete)\b/i.test(t4)) return "formal";
+  return null;
+}
+function buildScopedServiceProposalAck(serviceLabel, scope, displayName) {
+  const who = displayName?.trim();
+  const prefix = who ? `Perfecto, ${who}.` : "Perfecto.";
+  const other = scope === "casual" ? "formal" : "casual";
+  return `${prefix} Anoto *${serviceLabel}* solo en la propuesta ${scope}; la ${other} va sin ${serviceLabel}.`;
+}
+function clientAsksHorarioExactitud(message) {
+  if (!message?.trim()) return false;
+  return /\b(requiere|necesita|hace\s+falta|piden)\b.{0,40}\b(hora\s+exacta|horario\s+exacto|hora\s+precisa)\b/i.test(
+    message
+  ) || /\b(hora\s+exacta|horario\s+exacto)\b/i.test(message);
+}
+function clientAsksDjClarification(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  return /^\s*[¿?]*\s*de\s+alg[uú]n\s+dj\s*[¿?]*\s*$/i.test(t4);
+}
+function clientAsksDjInclusion(message) {
+  const t4 = message?.trim() ?? "";
+  if (!/\bdj\b|disc\s*jockey/i.test(t4)) return false;
+  if (!/qu[eé]\s+(?:es\s+lo\s+que\s+)?(?:incluir[ií]a|incluye|trae|traer[ií]a|lleva)|en\s+qu[eé]\s+consiste/i.test(
+    t4
+  )) {
+    return false;
+  }
+  return parseServicesFromText(t4).every((s7) => /\bdj\b|audio|sonido/i.test(s7));
+}
+function clientDefersHorario(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return false;
+  return /\bno\s+(cuento|tengo|tenemos|contamos)\s+con\s+(el\s+)?horario\b/i.test(t4) || /\b(a[uú]n|todav[ií]a)\s+no\s+(tengo|tenemos|cuento|contamos|hay|s[eé])\s+(el\s+)?horario\b/i.test(
+    t4
+  ) || /\bhorario\s+(a[uú]n|todav[ií]a)\s+no\b/i.test(t4) || /\b(sin|no\s+tengo)\s+horario\s+(a[uú]n|definido|por\s+ahora|todav[ií]a)\b/i.test(t4) || /\bno\s+cuento\s+con\s+el\s+horario\b/i.test(t4) || /\bel\s+horario\s+(a[uú]n\s+)?(no\s+lo\s+tengo|est[aá]\s+por\s+definir|pendiente)\b/i.test(t4) || // A15893 Suria: "2 horarios (aún no definidos)" / "horarios aún no definidos"
+  /\bhorarios?\b[\s\S]{0,40}\b(a[uú]n|todav[ií]a)\s+no\s+defin/i.test(t4) || /\b\d+\s+horarios?\b[\s\S]{0,40}\b(a[uú]n\s+no|por\s+definir|pendiente)/i.test(t4) || /\bhorarios?\s*\([^)]*(a[uú]n\s+no|por\s+definir|pendiente)/i.test(t4) || // "Aún no se definen" / typo "Aún no sé definen"
+  /\b(a[uú]n|todav[ií]a)\s+no\s+(?:se\s+|s[eé]\s+)?defin/i.test(t4) || /\b(a[uú]n|todav[ií]a)\s+no\s+definid/i.test(t4) || // A15918: "No se sabe" / "no se sabe el horario"
+  /^\s*no\s+se\s+sabe\b/i.test(t4) || /\bno\s+se\s+sabe(\s+(el\s+)?horario)?\b/i.test(t4) || /^(no\s+s[eé]|ni\s+idea)[\s.,!]*$/i.test(t4);
+}
+function dayPeriodToAmPm(hour, period) {
+  const p5 = (period ?? "").toLowerCase().replace(/\s+/g, " ");
+  if (!p5) return null;
+  if (/^(hrs?|horas)$/.test(p5)) return "24h";
+  if (/^a\.?\s*m|^am$|ma[nñ]ana|madrugada/.test(p5)) return "am";
+  if (/noche/.test(p5) && hour === 12) return "am";
+  return "pm";
+}
+function parseClockRangeWithPeriods(text2) {
+  const t4 = (text2 ?? "").replace(/\s+/g, " ").trim();
+  if (!t4 || /\b(personas?|invitad[oa]s?|asistentes?|comensales?|pax)\b/i.test(t4)) return null;
+  const re4 = new RegExp(
+    String.raw`(?:^|[^\d:])(?:de\s+(?:las?\s+)?)?(\d{1,2})(?::(\d{2}))?\s*(${DAY_PERIOD_SRC})?(\s*(?:a|[-–]|hasta)\s*|\s+)(?:las?\s+)?(\d{1,2})(?::(\d{2}))?\s*(${DAY_PERIOD_SRC})?(?=$|[^\d:])`,
+    "i"
+  );
+  const m6 = t4.match(re4);
+  if (!m6) return null;
+  const h1 = Number(m6[1]);
+  const h22 = Number(m6[5]);
+  const hasConnector = /\S/.test(m6[4] ?? "");
+  const p1 = dayPeriodToAmPm(h1, m6[3]);
+  const p22 = dayPeriodToAmPm(h22, m6[7]);
+  if (!p1 && !p22) return null;
+  if (!hasConnector && !(p1 && p22)) return null;
+  if (h1 > 24 || h22 > 24) return null;
+  const mm1 = m6[2];
+  const mm2 = m6[6];
+  if ((p1 === "24h" || p22 === "24h") && !mm1 && !mm2 && h1 <= 12 && h22 <= 12) return null;
+  const to24 = (h5, p5) => p5 === "24h" ? h5 % 24 : h5 % 12 + (p5 === "pm" ? 12 : 0);
+  const fmt = (h24, mm) => {
+    const p5 = h24 >= 12 ? "pm" : "am";
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    return `${h12}${mm ? `:${mm}` : ""} ${p5}`;
+  };
+  const nearestAfter = (start24, h5) => {
+    const cands = [h5 % 12, h5 % 12 + 12];
+    return cands.reduce(
+      (best, c5) => ((c5 - start24 + 24) % 24 || 24) < ((best - start24 + 24) % 24 || 24) ? c5 : best
+    );
+  };
+  let s24;
+  let e24;
+  if (p1 && p22) {
+    s24 = to24(h1, p1);
+    e24 = to24(h22, p22);
+  } else if (p1) {
+    s24 = to24(h1, p1);
+    e24 = h22 > 12 ? h22 % 24 : nearestAfter(s24, h22);
+  } else {
+    e24 = to24(h22, p22);
+    const cands = h1 > 12 ? [h1 % 24] : [h1 % 12, h1 % 12 + 12];
+    s24 = cands.reduce(
+      (best, c5) => ((e24 - c5 + 24) % 24 || 24) < ((e24 - best + 24) % 24 || 24) ? c5 : best
+    );
+  }
+  return `${fmt(s24, mm1)} a ${fmt(e24, mm2)}`;
+}
+function parseHorarioFromText(text2) {
+  const trimmed = text2.trim();
+  if (!trimmed) return null;
+  if (isPromoTemplateMessage(trimmed)) return null;
+  const stripped = stripPromoTemplateMetadata(trimmed);
+  if (!stripped) return null;
+  const clean = normalizeWrittenClockInText(stripped.replace(/[.,;:¡!¿?]+$/g, "").trim());
+  if (!clean) return null;
+  if (/\bhorario\s+en\s+que\s+env[ií]o\b/i.test(trimmed)) return null;
+  if (clientDefersHorario(clean)) {
+    return "Sin definir (pendiente)";
+  }
+  {
+    const noc = clean.match(/\bnocturn[oa]\b[\s,.]*(?:aprox(?:imadamente)?\s*)?(\d{1,2})(?::(\d{2}))?\b/i);
+    if (noc) {
+      let h5 = Number(noc[1]);
+      const m6 = noc[2] ?? "00";
+      if (h5 > 0 && h5 <= 12) h5 += 12;
+      if (h5 === 24) h5 = 12;
+      return `${String(h5).padStart(2, "0")}:${m6}`;
+    }
+  }
+  {
+    const rangeWithPeriods = parseClockRangeWithPeriods(clean);
+    if (rangeWithPeriods) return rangeWithPeriods;
+  }
+  if (/\b(personas?|invitad[oa]s?|asistentes?|comensales?)\b/i.test(clean) && /\b\d{1,4}\s*(?:a|[-–]|hasta)\s*\d{1,4}\b/i.test(clean)) {
+    return null;
+  }
+  if (looksLikeGuestCountRange(clean)) {
+    return null;
+  }
+  if (isClockTimeOnlySchedule(clean)) return normalizeHorarioCapture(clean);
+  if (isMealTimeOnlySchedule(clean)) return clean;
+  if (isScheduleLabeledClock(clean)) {
+    const parts2 = [
+      ...clean.matchAll(
+        /\b((?:cocktail|c[oó]ctel|comida|cena|desayuno|brunch|pizzas?|pastas?|barra)\s+(?:a\s+las\s+)?\d{1,2}(?::\d{2})?(?:\s*(?:am|pm|a\.?m\.?|p\.?m\.?))?)/gi
+      )
+    ].map((m6) => m6[1].trim());
+    if (parts2.length >= 1) return parts2.join("; ").slice(0, 100);
+    const bareALas = clean.match(
+      new RegExp(
+        String.raw`\b(a\s+las?\s+${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+        "i"
+      )
+    );
+    if (bareALas?.[1]) return normalizeHorarioCapture(bareALas[1]);
+    if (/medio\s*d[ií]a/i.test(clean)) return "a medio d\xEDa";
+    return clean.slice(0, 80);
+  }
+  const horarioLabel = clean.match(/\bhorario\s*:?\s*(.+)$/i);
+  if (horarioLabel?.[1] && /\d/.test(horarioLabel[1])) {
+    const labeled = horarioLabel[1].trim();
+    if (clientDefersHorario(labeled)) return "Sin definir (pendiente)";
+    return labeled.slice(0, 80);
+  }
+  const rangeAmpm = clean.match(
+    new RegExp(
+      String.raw`\b((?:de\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (rangeAmpm?.[1]) {
+    const frag = rangeAmpm[1].trim();
+    if (!new RegExp(CLOCK_AMPM, "i").test(frag) && !/\b(hrs?|horas?)\b/i.test(frag) && !/\b(a\s+las?|de\s+las?)\b/i.test(clean) && !/\d:\d{2}\D+\d{1,2}:\d{2}/.test(frag)) {
+    } else {
+      const without = clean.replace(rangeAmpm[1], "").trim();
+      if (!without || parseFechaFromText(without) || MONTH_PATTERN.test(without) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(without) || /\b(evento|ser[ií]a|ser[aá]|es|planean|planeamos|tendr[ií]a|horario)\b/i.test(without)) {
+        return frag.replace(/^de\s+/i, "de ").slice(0, 80);
+      }
+    }
+  }
+  const aPartir = clean.match(
+    new RegExp(
+      String.raw`\b((?:a\s+)?partir\s+de\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (aPartir?.[1]) {
+    return normalizeHorarioCapture(aPartir[1]);
+  }
+  const desdeLas = clean.match(
+    new RegExp(
+      String.raw`\b(desde\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (desdeLas?.[1]) {
+    return normalizeHorarioCapture(desdeLas[1]);
+  }
+  const despuesDe = clean.match(
+    new RegExp(
+      String.raw`\b(despu[eé]s\s+de\s+(?:las\s+)?${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (despuesDe?.[1]) {
+    return normalizeHorarioCapture(despuesDe[1]);
+  }
+  const aLasPhrase = clean.match(
+    new RegExp(
+      String.raw`^a\s+las?\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?)\s*(?:${CLOCK_AMPM})?$`,
+      "i"
+    )
+  );
+  if (aLasPhrase?.[1]) return normalizeHorarioCapture(aLasPhrase[0]);
+  const alrededorLa = clean.match(
+    new RegExp(
+      String.raw`\b((?:alrededor\s+de\s+)?(?:a\s+)?la\s+${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (alrededorLa?.[1]) {
+    const without = clean.replace(alrededorLa[1], "").trim();
+    if (!without || without.length < 8 || /\b(pero|apenas|confirme|detalles?|por\s+favor|horario|evento)\b/i.test(without)) {
+      return normalizeHorarioCapture(alrededorLa[1]);
+    }
+  }
+  const atTime = clean.match(
+    new RegExp(
+      String.raw`\b(?:a\s+las?|a\s+partir\s+de(?:\s+las)?)\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?(?:\s*(?:${CLOCK_AMPM}))?)`,
+      "i"
+    )
+  );
+  if (atTime?.[1]) {
+    const withoutTime = clean.replace(atTime[0], "").trim();
+    const withoutIsFiller = /^(ser[ií]a|ser[aá]|ser[ií]an|es)\.?$/i.test(withoutTime);
+    if (!withoutTime || withoutIsFiller || parseFechaFromText(withoutTime) || MONTH_PATTERN.test(withoutTime)) {
+      if (/de\s+la\s+(tarde|noche|ma[nñ]ana)/i.test(clean) && !/de\s+la/i.test(atTime[1])) {
+        return normalizeHorarioCapture(
+          withoutIsFiller ? atTime[0] : clean.replace(/^(?:ser[ií]a|ser[aá]|es)\s+/i, "")
+        );
+      }
+      return normalizeHorarioCapture(atTime[1]);
+    }
+    if (/\b(pizzas?|pastas?|comida|cena|barra|servicio|alimentos?|taquiza|sushi|necesito|necesitar)/i.test(
+      withoutTime
+    ) && withoutTime.split(/\s+/).length <= 12) {
+      return normalizeHorarioCapture(`a las ${atTime[1]}`);
+    }
+  }
+  const range = clean.match(
+    new RegExp(
+      String.raw`\b(${CLOCK_TOKEN}\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
+      "i"
+    )
+  );
+  if (range?.[1]) {
+    const frag = range[1].trim();
+    if (!new RegExp(CLOCK_AMPM, "i").test(frag) && !/\b(hrs?|horas?)\b/i.test(frag)) {
+    } else {
+      const withoutRange = clean.replace(range[1], "").trim();
+      if (parseFechaFromText(withoutRange) || MONTH_PATTERN.test(withoutRange) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(withoutRange)) {
+        return frag;
+      }
+      if (!parseFechaFromText(clean)) return frag;
+    }
+  }
+  {
+    const explicitClock = clean.match(
+      /(?:^|\s)(\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.\s*m\.?|p\.\s*m\.?)|\d{1,2}:\d{2}(?:\s*hrs?)?)(?=\s|$)/i
+    );
+    if (explicitClock?.[1]) {
+      const rest = clean.replace(explicitClock[1], " ").replace(/\b(el|la|los|para|sería|seria|es|y|a|las?)\b/gi, " ").replace(/\s+/g, " ").trim();
+      if (!rest || parseFechaFromText(rest) || MONTH_PATTERN.test(rest) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|hoy|ma[nñ]ana)\b/i.test(rest)) {
+        return normalizeHorarioCapture(explicitClock[1].trim());
+      }
+    }
+  }
+  if (/\b(tarde|noche|mediod[ií]a|medio\s*d[ií]a|ma[nñ]ana)\b/i.test(clean) && clean.split(/\s+/).length <= 7 && !MONTH_PATTERN.test(clean)) {
+    return normalizeHorarioCapture(clean).slice(0, 40);
+  }
+  if (/\b(sin\s+horario|por\s+definir|a[uú]n\s+no\s+(sabemos|tenemos)\s+horario|todav[ií]a\s+no\s+(sabemos|tenemos))\b/i.test(
+    clean
+  )) {
+    return "Sin definir (pendiente)";
+  }
+  return null;
+}
+function splitCombinedFechaHorario(combined) {
+  const t4 = combined.trim();
+  if (!t4) return { fecha: null, horario: null };
+  if (/^sin\s+definir/i.test(t4)) return { fecha: t4, horario: null };
+  if (isClockTimeOnlySchedule(t4) || isMealTimeOnlySchedule(t4)) {
+    return { fecha: null, horario: t4 };
+  }
+  const fecha = parseFechaFromText(t4);
+  const horario = parseHorarioFromText(t4);
+  if (fecha && horario) {
+    const f7 = fecha.replace(/\s+a\s+las\s+\d.+$/i, "").trim();
+    return { fecha: f7 || fecha, horario };
+  }
+  if (fecha && isUsableFechaHorario(fecha)) return { fecha, horario: null };
+  if (horario) return { fecha: null, horario };
+  if (isUsableFechaHorario(t4)) return { fecha: t4, horario: null };
+  if (isUsableHorarioEvento(t4)) return { fecha: null, horario: t4 };
+  return { fecha: t4, horario: null };
+}
+function isUsableFechaEvento(value) {
+  return isUsableFechaHorario(value);
+}
+function isUsableHorarioEvento(value) {
+  const t4 = (value ?? "").trim();
+  if (!t4) return false;
+  if (/^sin\s+definir/i.test(t4)) return true;
+  if (/pendiente/i.test(t4) && /sin\s+definir|por\s+definir/i.test(t4)) return true;
+  if (/\ba\s+partir\s+de\s+(?:las\s+)?\d/i.test(t4)) return true;
+  if (/\bdespu[eé]s\s+de\s+(?:las\s+)?\d/i.test(t4)) return true;
+  if (/\b(?:alrededor\s+de\s+)?(?:a\s+)?la\s+\d{1,2}\b/i.test(t4)) return true;
+  if (isClockTimeOnlySchedule(t4)) return true;
+  if (isMealTimeOnlySchedule(t4)) return true;
+  if (isSimpleClockTime(t4)) return true;
+  if (isScheduleLabeledClock(t4)) return true;
+  if (looksLikeMealTimeNotLocation(t4) && t4.split(/\s+/).length <= 6) return true;
+  if (/\b\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}/i.test(t4)) return true;
+  if (/\b(?:a\s+las|desde\s+las)\s+\d/i.test(t4)) return true;
+  if (parseClockRangeWithPeriods(t4)) return true;
+  if (/\b(tarde|noche|mediod[ií]a|ma[nñ]ana)\b/i.test(t4) && t4.split(/\s+/).length <= 5) {
+    return true;
+  }
+  return false;
+}
+function isRicherHorarioCapture(incoming, existing) {
+  const next = (incoming ?? "").trim();
+  const prev = (existing ?? "").trim();
+  if (!next || !isUsableHorarioEvento(next)) return false;
+  if (!prev) return true;
+  if (next.toLowerCase() === prev.toLowerCase()) return false;
+  const startMeridiem = /(?:^|\bde\s+)\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.m\.?|p\.m\.?)\b/i;
+  const nextStart = startMeridiem.test(next) || /^\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/i.test(next);
+  const prevStart = startMeridiem.test(prev) || /^\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/i.test(prev);
+  if (nextStart && !prevStart) return true;
+  if (next.length > prev.length + 2 && /\d/.test(next) && nextStart) return true;
+  return false;
+}
+function hydrateScheduleFields(extracted) {
+  if (extracted.fecha_evento?.trim() || extracted.horario_evento?.trim()) {
+    syncLegacyFechaHorarioField(extracted);
+    return;
+  }
+  const legacy = extracted.fecha_horario?.trim();
+  if (!legacy) return;
+  const { fecha, horario } = splitCombinedFechaHorario(legacy);
+  if (fecha) extracted.fecha_evento = fecha;
+  if (horario) extracted.horario_evento = horario;
+  syncLegacyFechaHorarioField(extracted);
+}
+function migrateLegacyCrmFechaHorarioLines(lines) {
+  const out2 = [];
+  for (const line2 of lines) {
+    const m6 = line2.match(/^(-?\s*)Fecha y horario:\s*(.+)$/i);
+    if (!m6) {
+      out2.push(line2);
+      continue;
+    }
+    const prefix = m6[1] ?? "- ";
+    const { fecha, horario } = splitCombinedFechaHorario(m6[2].trim());
+    if (fecha) out2.push(`${prefix}${CRM_FECHA_LABEL}: ${fecha}`);
+    if (horario) out2.push(`${prefix}${CRM_HORARIO_LABEL}: ${horario}`);
+    if (!fecha && !horario) out2.push(line2);
+  }
+  return out2;
+}
+function isUsableFechaHorario(value) {
+  const t4 = (value ?? "").trim();
+  if (!t4) return false;
+  if (isMealTimeOnlySchedule(t4)) return false;
+  if (isClockTimeOnlySchedule(t4)) return false;
+  if (looksLikeFechaDiscourseJunk(t4)) return false;
+  if (/^(?:(?:ser[ií]a|es)\s+)?(?:en\s+(?:el|la)\s+|al\s+|por\s+la\s+|a\s+la\s+|de\s+)?(atardecer|anochecer|amanecer|tarde|noche|mediod[ií]a|medio\s+d[ií]a|madrugada|puesta\s+de\s+sol)\s*[\p{Extended_Pictographic}\s]*$/iu.test(
+    t4
+  )) {
+    return false;
+  }
+  if (t4.split(/\s+/).length >= 10 && !/\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+    t4
+  )) {
+    return false;
+  }
+  return true;
+}
+function isPointingReferentialEmoji(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  const withoutPoint = t4.replace(/[\u{1F446}\u{1F445}\u{1F447}\u{1F448}\u{1F449}\u{261D}\u{2B06}\u{2191}\u{2197}\u{2934}]/gu, "").replace(
+    /[\s.!,;:¿?¡]+/g,
+    ""
+  );
+  if (withoutPoint.length > 0) return false;
+  return /[\u{1F446}\u{261D}\u{2B06}\u{2191}]/u.test(t4);
+}
+function isReferentialPriorAnswer(message) {
+  if (!message?.trim()) return false;
+  if (isPointingReferentialEmoji(message)) return true;
+  if (isLocationMetaReferential(message)) return true;
+  const n5 = message.trim().normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
+  if (!n5 || n5.length > 160) return false;
+  return /^(a\s+)?(este|ese|esta|esa)(\s+(mismo|misma|correo|mail|email|dato))?$/.test(n5) || /^(el|la)\s+(mismo|misma)(\s+(correo|mail|email|dato))?$/.test(n5) || /^(el|la)\s+de\s+(antes|arriba|hace\s+rato|hace\s+un\s+rato)$/.test(n5) || /^(ese|este)\s+(que\s+)?(ya\s+)?(te\s+)?(di|mande|envie|pase)$/.test(n5) || /^(el\s+)?(mismo\s+)?(correo|mail|email)(\s+(de\s+antes|anterior))?$/.test(n5) || /^ya\s+(te\s+)?(lo\s+)?(di|mande|envie|pase|he\s+enviado|he\s+mandado)(\s+(ese|el|antes))?$/.test(
+    n5
+  ) || /^(ese|este)\s+mismo$/.test(n5) || // A15212: "Al mismo que ya te he enviado" / "el mismo que ya te mandé".
+  /^al\s+(mismo|que\s+ya\s+(te\s+)?(he\s+)?(di|mande|envie|enviado|mandado))$/.test(n5) || /^al\s+mismo\s+que\s+ya\s+(te\s+)?(he\s+)?(enviado|mandado|dado|di|mande|envie)\b/.test(n5) || /^(el\s+)?mismo\s+que\s+ya\s+(te\s+)?(he\s+)?(enviado|mandado|dado|di|mande|envie)\b/.test(n5) || /\bya\s+te\s+(lo\s+)?he\s+(enviado|mandado|dado)\b/.test(n5) || // A15727+: "lo que mencioné", "esa sería la comida", "eso mismo que dije".
+  /\blo\s+que\s+(te\s+)?(mencione|dije|comente|explique|indique)\b/.test(n5) || /\b(esa|eso|este|esto)\s+ser[ií]a\s+(la\s+)?(comida|opcion|servicio|que\s+quiero)\b/.test(n5) || /^(esa|eso)\s+(misma\s+)?(comida|opcion|servicio)?$/.test(n5) || /\bcomo\s+(te\s+)?(dije|mencione|comente)\b/.test(n5);
+}
+function clientComplainsAboutRepeat(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  return /\bya\s+me\s+(hab[ií]as|habias|hab[ií]a|habia|hab[eé]is)?\s*preguntad/i.test(t4) || /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t4) || /\bperd[oó]n\b[\s\S]{0,40}\bya\s+(me\s+)?preguntaste\b/i.test(t4) || /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé]|pase|compart[ií]|he\s+enviado|he\s+mandado|he\s+dado)\b/i.test(
+    t4
+  ) || /\bya\s+(te\s+)?(lo\s+)?(dije|mencion[eé]|coment[eé])\b/i.test(t4) || /\beso\s+ya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t4) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(t4) || /\b(otra\s+vez|de\s+nuevo)\s+(me\s+)?preguntas?\b/i.test(t4) || /\bya\s+respond[ií]\b/i.test(t4);
+}
+function recoverZonaFromUserTexts(texts, currentMessage) {
+  const blob = [...texts, currentMessage ?? ""].filter(Boolean).filter((msg) => !isLocationMetaReferential(msg) && !isReferentialPriorAnswer(msg));
+  let best = null;
+  for (const msg of blob) {
+    const z4 = parseZonaFromText(msg);
+    if (!z4 || !isUsableDireccionEvento(z4)) continue;
+    if (!hasCityOrMetroSignal(z4) && !KNOWN_ZONES.test(z4) && !looksLikeMxMunicipalityToponym(z4)) {
+      continue;
+    }
+    best = mergeZonaDetail(best, z4);
+  }
+  return best && isUsableDireccionEvento(best) ? best : null;
+}
+function recoverCorreoFromUserTexts(texts, currentMessage) {
+  const blob = [...texts, currentMessage ?? ""].filter(Boolean).join("\n");
+  return parseCorreoFromText(blob);
+}
+function isUnusableTipoEventoReply(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return true;
+  const n5 = t4.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
+  if (/^(lo\s+)?(acabo|acabe)\s+de\s+(mencionar|decir|comentar|explicar)(lo)?$/.test(n5) || /^(ya\s+)?(lo\s+)?(dije|mencione|comente|te\s+dije|te\s+lo\s+dije)$/.test(n5) || /^(como\s+)?(te\s+)?(dije|mencione|arriba|antes|hace\s+rato)$/.test(n5) || /^(igual|lo\s+mismo|idem|ya\s+te\s+dije|eso|eso\s+mismo|lo\s+de\s+arriba)$/.test(n5) || /^ya\s+(te\s+)?(lo\s+)?(dije|mencione|comente)$/.test(n5)) {
+    return true;
+  }
+  if (isGreetingOnlyMessage(t4) || /^(hola|hello|hi|hey)[,!]?\s+lucy\b/i.test(t4) || /^(hola|hello|hi|hey|buenas?|buen\s+d[ií]a)(\s+lucy)?[\s.!]*$/i.test(n5)) {
+    return true;
+  }
+  if (/\?/.test(t4) && t4.length <= 80 && !parseTipoEventoFromText(t4)) return true;
+  if (clientComplainsAboutRepeat(t4) || isReferentialPriorAnswer(t4)) return true;
+  if (parseCorreoFromText(t4)) return true;
+  if (looksLikePersonNameAsEventType(t4)) return true;
+  return false;
+}
+function looksLikePersonNameAsEventType(text2) {
+  const raw = (text2 ?? "").trim();
+  if (!raw || raw.length > 90) return false;
+  if (parseTipoEventoFromText(raw)) return false;
+  if (isServiceRelatedMessage(raw)) return false;
+  if (/\d/.test(raw) || /@/.test(raw) || /\?/.test(raw)) return false;
+  const words = raw.split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 6) return false;
+  if (/\b(fiesta|boda|evento|cumple|xv|corporativ|empresa|fin\s+de\s+a[nñ]o|posada|bautizo|graduaci)/i.test(raw)) {
+    return false;
+  }
+  return words.every(
+    (w5) => /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ'’.-]{1,30}$/u.test(w5) || /^(de|del|la|los|las|y|e|da|do|di|van|von)$/i.test(w5)
+  );
+}
+function clientAsksCafeOrCateringChoice(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  if (/\b(caf[eé](?!\p{L})|barista|barra\s+de\s+caf[eé](?!\p{L})).{0,50}\b(o|u)\b.{0,50}\b(catering|comida|banquete|alimentos?)\b/iu.test(
+    t4
+  )) {
+    return true;
+  }
+  if (/\b(catering|comida|banquete|alimentos?).{0,50}\b(o|u)\b.{0,50}\b(caf[eé](?!\p{L})|barista)\b/iu.test(
+    t4
+  )) {
+    return true;
+  }
+  return /\bes\s+solo\s+caf[eé](?!\p{L})/iu.test(t4) || /\btienes\s+(tambi[eé]n\s+)?catering(\s+de\s+comida)?\b/i.test(t4) || /\bsolo\s+caf[eé](?!\p{L})\s+o\b/iu.test(t4);
+}
+function looksLikeNameAnswerMessage(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4 || t4.length > 90 || /\?/.test(t4) || /@/.test(t4) || /\d{3,}/.test(t4)) return false;
+  if (isDimensionText(t4) || isMeasurementOrDimensionAsNombre(t4)) return false;
+  if (isOccasionOrStyleAsNombre(t4) || isNumberWordsAsNombre(t4)) return false;
+  if (clientAsksCafeOrCateringChoice(t4)) return false;
+  if (isServicePreferenceAsNombre(t4)) return false;
+  if (isServiceRelatedMessage(t4) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\b/i.test(t4)) {
+    if (/\b(quiero|necesito|busco|cotiz|banquete|taquiza|barra|dj|pista|catering)\b/i.test(t4)) {
+      return false;
+    }
+  }
+  const strippedCompany = t4.replace(
+    /\s+de\s+(?!catering\b|banquete\b|taquiza\b|coffee\b|brunch\b|comida\b|alimentos?\b)([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúñ.\s-]{2,50})$/iu,
+    ""
+  );
+  const candidato = stripNombrePresentationPrefix(strippedCompany).trim();
+  if (isServicePreferenceAsNombre(candidato)) return false;
+  const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+  if (!nombre) return false;
+  if (isLikelyNotPersonNameMessage(candidato) && !/^(soy|me\s+llamo)/i.test(t4)) {
+    const full = sanitizeCrmNombre(stripNombrePresentationPrefix(t4).split(/\s+de\s+/i)[0] ?? "");
+    return !!full && !isServicePreferenceAsNombre(full);
+  }
+  return true;
+}
+function recoverInvitadosFromUserTexts(texts, currentMessage, opts) {
+  const merged = [...texts, currentMessage?.trim() ?? ""].filter(Boolean);
+  for (let i6 = merged.length - 1; i6 >= 0; i6--) {
+    if (isPromoTemplateMessage(merged[i6])) continue;
+    const inv = parseInvitadosFromText(merged[i6], {
+      askedInvitados: true,
+      mobiliarioRenta: opts?.mobiliarioRenta,
+      ...opts
+    });
+    if (inv && /^\d+$/.test(inv)) {
+      const n5 = parseInt(inv, 10);
+      if (n5 >= 1 && n5 <= 5e3) return n5;
+    }
+  }
+  return null;
+}
+function messageIsAboutScheduleOrPlaceNotGuests(text2) {
+  return /\b(horario|hora|fecha|d[ií]a|mes|ciudad|colonia|alcald[ií]a|delegaci[oó]n|correo|e-?mail|ubicaci[oó]n|direcci[oó]n|sal[oó]n|lugar)\b/i.test(
+    text2
+  ) || MONTH_PATTERN.test(text2);
+}
+function parseInvitadosFromText(text2, opts) {
+  const raw = text2.trim();
+  if (!raw) return null;
+  const trimmed = stripPromoTemplateMetadata(raw);
+  if (!trimmed) return null;
+  if (isPromoTemplateMessage(raw) || isPromoTemplateMessage(trimmed)) return null;
+  if (isPromoMinimumGuestLine(raw) || isPromoMinimumGuestLine(trimmed)) {
+    if (trimmed.length >= 8 && /\b(ser[ií]an?|somos|invitados?|asistentes?|para\s+\d+\s+personas)\b/i.test(trimmed)) {
+    } else {
+      return null;
+    }
+  }
+  if (opts?.askedInvitados && (/^a[uú]n\s+no[,.]?\s*$/i.test(trimmed) || /\ba[uú]n\s+no\b/i.test(trimmed) && trimmed.split(/\s+/).length <= 4)) {
+    return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
+  }
+  if (/\b(\d|dos|tres|cuatro)\s*tiempos?\b/i.test(trimmed) && !/\b(personas?|invitados?|invitadas?|pax|guests?)\b/i.test(trimmed)) {
+    return null;
+  }
+  if (/\bhorno\s*\d+\b/i.test(trimmed) && !/\b(personas?|invitados?|invitadas?|pax)\b/i.test(trimmed)) {
+    return null;
+  }
+  const perTable = new RegExp(
+    `\\b\\d+\\s*(?:${GUEST_COUNT_WORDS})\\s+(?:en\\s+cada|por|x)\\s+mesas?\\b|\\bmesas?\\b[^\\n\\d]{0,24}\\bde\\s+\\d+\\s*(?:${GUEST_COUNT_WORDS})\\b`,
+    "gi"
+  );
+  const withoutPerTable = trimmed.replace(perTable, " ");
+  if (withoutPerTable !== trimmed) {
+    const rest = withoutPerTable.match(new RegExp(`\\b(\\d+)\\s*(${GUEST_COUNT_WORDS})\\b`, "i"));
+    return rest ? rest[1] : null;
+  }
+  const numMatchEarly = trimmed.match(
+    new RegExp(`\\b(\\d+)\\s*(${GUEST_COUNT_WORDS})\\b`, "i")
+  );
+  if (numMatchEarly) return numMatchEarly[1];
+  if (/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(trimmed) && trimmed.split(/\s+/).length <= 14) {
+    return null;
+  }
+  if (isCatalogLevelSelection(trimmed) && trimmed.split(/\s+/).length <= 10 && !/\b(personas?|invitados?|invitadas?|pax|guests?)\b/i.test(trimmed)) {
+    return null;
+  }
+  const kidsAdults = trimmed.match(
+    /\b(\d+)\s*(niñ[oa]s?|chiquit[oa]s?|peques?|infantes?)\s*y\s*(\d+)\s*(adultos?|mayores?)\b/i
+  );
+  if (kidsAdults) {
+    return String(parseInt(kidsAdults[1], 10) + parseInt(kidsAdults[3], 10));
+  }
+  const adultsKids = trimmed.match(
+    /\b(\d+)\s*(adultos?|mayores?)\s*y\s*(\d+)\s*(niñ[oa]s?|chiquit[oa]s?|peques?|infantes?)\b/i
+  );
+  if (adultsKids) {
+    return String(parseInt(adultsKids[1], 10) + parseInt(adultsKids[3], 10));
+  }
+  if (/\bniñ[oa]s?\b/i.test(trimmed) && /\badultos?\b/i.test(trimmed)) {
+    const nums = [...trimmed.matchAll(/\b(\d{1,4})\b/g)].map((m6) => parseInt(m6[1], 10));
+    if (nums.length >= 2 && nums.every((n5) => n5 >= 1 && n5 <= 500)) {
+      return String(nums[0] + nums[1]);
+    }
+  }
+  if (NON_GUEST_UNIT_PATTERN.test(trimmed)) {
+    if (opts?.askedInvitados || opts?.mobiliarioRenta) {
+      const chairQty = trimmed.match(/\b(\d{1,4})\s*sillas?\b/i);
+      if (chairQty && !new RegExp(`\\b\\d+\\s*(${GUEST_COUNT_WORDS})\\b`, "i").test(trimmed)) {
+        return chairQty[1];
+      }
+    }
+    return null;
+  }
+  const approxSuffix = trimmed.match(
+    /^(\d{1,4})\s*(?:aprox(?:imadamente)?|aproximados?|personas?\s+aprox)\.?$/i
+  );
+  if (approxSuffix) return approxSuffix[1];
+  if (isServiceRelatedMessage(trimmed)) return null;
+  if (/\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+(?:lo\s+)?sabemos|no\s+(?:te\s+)?(?:lo\s+)?(?:puedo|podr[ií]a)\s+(?:decir|confirmar)|van\s+viendo)\b/i.test(
+    trimmed
+  )) {
+    const guestWords = /\b(invitados?|invitadas?|personas?|gente|afluencia|asistentes?|pax|cu[aá]nt[oa]s)\b/i.test(
+      trimmed
+    );
+    const otherField = messageIsAboutScheduleOrPlaceNotGuests(trimmed);
+    if (guestWords && !otherField) {
+      return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
+    }
+    if (otherField && !guestWords) {
+      return null;
+    }
+    if (opts?.askedInvitados && !otherField) {
+      return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
+    }
+    if (!otherField && trimmed.split(/\s+/).length <= 14) {
+      return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
+    }
+  }
+  const rangoMatch = trimmed.match(/\bentre\s+(\d+)\s+y\s+(\d+)\b/i);
+  if (rangoMatch) {
+    const a4 = parseInt(rangoMatch[1], 10);
+    const b5 = parseInt(rangoMatch[2], 10);
+    return String(Math.max(a4, b5));
+  }
+  {
+    if (looksLikeGuestCountRange(trimmed) && !parseFechaFromText(trimmed)) {
+      const guestRange = trimmed.match(
+        /\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i
+      );
+      if (guestRange) {
+        const a4 = parseInt(guestRange[1], 10);
+        const b5 = parseInt(guestRange[2], 10);
+        return String(Math.round((a4 + b5) / 2));
+      }
+    }
+  }
+  const numMatch = trimmed.match(
+    new RegExp(`\\b(\\d+)\\s*(${GUEST_COUNT_WORDS})\\b`, "i")
+  );
+  if (numMatch) return numMatch[1];
+  const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como|unos?|unas?)\s+(\d+)\b/i);
+  if (paraMatch) {
+    const after = trimmed.slice(paraMatch.index + paraMatch[0].length);
+    if (/^\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?)\b/i.test(after)) {
+      return null;
+    }
+    return paraMatch[1];
+  }
+  const aproxMatch = trimmed.match(
+    /\b(?:m[aá]s\s+o\s+menos|aproximadamente|al\s+rededor\s+de|alrededor\s+de|cerca\s+de)\s+(\d+)\b/i
+  );
+  if (aproxMatch) return aproxMatch[1];
+  const writtenMatch = trimmed.match(
+    /\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|doscientos|trescientos|cuatrocientos|quinientos)\s+(personas?|invitados?|invitadas?)\b/i
+  );
+  if (writtenMatch) {
+    return WRITTEN_NUMBERS[writtenMatch[1].toLowerCase()] ?? null;
+  }
+  if (/^el\s+\d{1,2}$/i.test(trimmed)) return null;
+  if (/^\d{1,4}$/.test(trimmed)) {
+    const n5 = parseInt(trimmed, 10);
+    if (n5 < 10) return null;
+    return trimmed;
+  }
+  return null;
+}
+function isDimensionText(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  if (/^(?:aprox\.?|aproximadamente|unos?|unas?|de|son|mide(?:n)?|miden)?\s*\d+([.,]\d+)?\s*(?:metros?|mts?|m2|m²|m\b|cm)\b/i.test(
+    t4
+  )) {
+    return true;
+  }
+  if (parseSpaceDimensions(t4)) return true;
+  const dePrefixed = t4.replace(/^(de|son|miden|mide|aproximadamente|aprox\.?)\s+/i, "").trim();
+  return /\bmedida(?:s)?\s+de\s+la\s+carpa\b/i.test(t4) || /\b(?:ancho|largo|altura|alto|fondo|frente)\b.{0,12}\b\d+/i.test(t4) || /^\d+\s*(?:por|x|×)\s*\d+\s*(?:m|mts?|metros?)?(?:\s*(?:por|x|×)\s*\d+\s*(?:m|mts?|metros?)?)?$/i.test(
+    dePrefixed
+  );
+}
+function isUsableDireccionEvento(value) {
+  const t4 = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
+  if (!t4) return false;
+  if (/^(?:alcald[ií]a\s+|municipio\s+de\s+)?(?:benito\s+ju[aá]rez|cuauht[eé]moc|[aá]lvaro\s+obreg[oó]n|gustavo\s+a\.?\s+madero|venustiano\s+carranza|magdalena\s+contreras|miguel\s+hidalgo|nicol[aá]s\s+romero|lerma)(?:\s*,.*)?$/i.test(
+    t4
+  )) {
+    return true;
+  }
+  if (/^(el\s+)?techos?$/i.test(t4)) return false;
+  if (/\btechos?\b/i.test(t4) && !hasCityOrMetroSignal(t4) && !KNOWN_ZONES.test(t4) && t4.split(/\s+/).length <= 4) {
+    return false;
+  }
+  if (isLocationMetaReferential(t4)) return false;
+  if (/^(pdf|excel|word|archivo|documento)s?$/i.test(t4)) return false;
+  if (/,?\s*pdf\s*$/i.test(t4) && !KNOWN_ZONES.test(t4.replace(/,?\s*pdf\s*$/i, ""))) return false;
+  if (isDimensionText(t4)) return false;
+  if (looksLikeMealTimeNotLocation(t4)) return false;
+  if (isVagueVenueOnly(t4)) return false;
+  if (isLocationDeferralOrVagueWorkplace(t4)) return false;
+  if (isVenueWithoutCity(t4)) return false;
+  if (isLikelyProductNameNotLocation(t4)) return false;
+  if (JUNK_DIRECCION_PATTERN.test(t4)) return false;
+  if (isNonLocationBusinessPhrase(t4)) return false;
+  if (/\b(cumplea[nñ]os?|boda|bautizo|xv|quincea[nñ]era|graduaci[oó]n|baby\s*shower|aniversario|posada)\b/i.test(
+    t4
+  ) && !hasCityOrMetroSignal(t4) && !KNOWN_ZONES.test(t4)) {
+    return false;
+  }
+  if ((isEventTypeOnlyMessage(t4) || parseTipoEventoFromText(t4)) && !hasCityOrMetroSignal(t4) && !KNOWN_ZONES.test(t4)) {
+    return false;
+  }
+  if (looksLikePersonFullName(t4) && !hasCityOrMetroSignal(t4) && !KNOWN_ZONES.test(t4)) {
+    return false;
+  }
+  if (looksLikeThemeColorNotLocation(t4)) return false;
+  if (looksLikeDiscourseNotPlace(t4)) return false;
+  if (looksLikeCompanyLocationQuestionFragment(t4)) return false;
+  if (/\bd[oó]nde\b|\bubicad/i.test(t4) && !KNOWN_ZONES.test(t4) && t4.split(/\s+/).length <= 5) {
+    return false;
+  }
+  if (hasCityOrMetroSignal(t4) || KNOWN_ZONES.test(t4) || looksLikeMxMunicipalityToponym(t4)) {
+    return true;
+  }
+  if (/[,|]/.test(t4) || /\s+en\s+/i.test(t4)) {
+    const parts2 = t4.split(/[,|]|(\s+en\s+)/i).map((p5) => p5?.trim()).filter(Boolean);
+    if (parts2.some((p5) => hasCityOrMetroSignal(p5) || looksLikeMxMunicipalityToponym(p5) || matchesKnownZone(p5))) {
+      return true;
+    }
+  }
+  if (!hasGeoLocationSignal(t4) && !KNOWN_ZONES.test(t4) && !looksLikeMxMunicipalityToponym(t4)) {
+    return false;
+  }
+  return false;
+}
+function isCompleteEventLocation(value) {
+  const t4 = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
+  if (!t4 || !isUsableDireccionEvento(t4)) return false;
+  if (isVenueWithoutCity(t4)) return false;
+  if (KNOWN_ZONES.test(t4) || matchesKnownZone(t4) || looksLikeMxMunicipalityToponym(t4)) {
+    return true;
+  }
+  if (/\b(cdmx|d\.?\s*f\.?|estado\s+de|edo\.?\s*m[eé]x)\b/i.test(t4)) return true;
+  if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t4)) return true;
+  if (/\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica|atlixco|cholula|tehuac[aá]n|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|tlaquepaque|zapopan|tonal[aá]|tlajomulco|jalisco|puebla|monterrey|guadalajara|quer[eé]taro)\b/i.test(
+    t4
+  )) {
+    return true;
+  }
+  if (/^(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+\S+/i.test(t4) && !KNOWN_ZONES.test(t4) && !looksLikeMxMunicipalityToponym(t4)) {
+    return false;
+  }
+  if (hasCityOrMetroSignal(t4) && !/^(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+/i.test(t4)) {
+    return true;
+  }
+  if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+/i.test(t4) && (KNOWN_ZONES.test(t4) || looksLikeMxMunicipalityToponym(t4) || /\b(cdmx|d\.?\s*f\.?|estado\s+de|edo\.?\s*m[eé]x|ciudad\s+)/i.test(t4))) {
+    return true;
+  }
+  return false;
+}
+function clientCorrectsLocation(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return false;
+  return /\bme\s+equivoqu[eé]/i.test(t4) || /\bno\s+es\s+en\s+(el\s+)?piso\b/i.test(t4) || /\bno\s+es\s+(en\s+)?(la\s+)?(torre|piso|edificio)\b/i.test(t4) || /\b(es\s+en\s+)?otra\s+ubicaci[oó]n\b/i.test(t4) || /\bcambi[oó]\s+(de\s+)?(ubicaci[oó]n|lugar|direcci[oó]n)\b/i.test(t4) || /\bes\s+un\s+patio\b/i.test(t4) || /\bpatio\s+techado\b/i.test(t4) || // A15419: "el evento es en CDMX" / "no Puebla… es en CDMX"
+  // V9.75: "el evento es en 2026 / en octubre" = cuándo, no dónde.
+  /\bel\s+evento\s+(es|ser[ií]a|queda)\s+en\b(?!\s+(?:(?:19|20)\d{2}\b|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))/i.test(
+    t4
+  ) || /\bno\s+(es\s+)?(en\s+)?(puebla|monterrey|guadalajara|quer[eé]taro)\b.{0,80}\b(cdmx|ciudad\s+de\s+m[eé]xico)\b/i.test(
+    t4
+  ) || /\b(cdmx|ciudad\s+de\s+m[eé]xico)\b.{0,40}\bno\s+(en\s+)?(puebla|otro\s+estado)\b/i.test(t4);
+}
+function isVenueSpaceDetail(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4) return false;
+  if (/\b(ser[aá]|ser[ií]a|es|queda|va\s+a\s+ser)\s+(en\s+)?(un\s+|una\s+)?(patio(\s+techado)?|techado|jard[ií]n|azotea|rooftop|terraza)\b/i.test(
+    t4
+  ) && t4.split(/\s+/).length <= 10 && !parseZonaFromText(t4)) {
+    return true;
+  }
+  return /^(el\s+|un\s+|una\s+|en\s+(un\s+|una\s+)?)?(patio(\s+techado)?|techado|jard[ií]n|azotea|rooftop|terraza)[\s.,!]*$/i.test(
+    t4
+  );
+}
+function applyLocationCorrectionToAddress(existing, message) {
+  const msg = (message ?? "").trim();
+  const prev = (existing ?? "").trim();
+  if (!msg) return null;
+  const corrects = clientCorrectsLocation(msg);
+  const spaceDetail = isVenueSpaceDetail(msg);
+  if (!corrects && !spaceDetail) return null;
+  if (!corrects && spaceDetail && !prev) {
+    if (/\bjard[ií]n\b/i.test(msg)) return "jard\xEDn";
+    if (/\bpatio(\s+techado)?\b/i.test(msg)) {
+      return /\btechado\b/i.test(msg) ? "patio techado" : "patio";
+    }
+    if (/\b(azotea|rooftop|terraza)\b/i.test(msg)) {
+      return msg.match(/\b(azotea|rooftop|terraza)\b/i)?.[1] ?? "terraza";
+    }
+    return null;
+  }
+  let zoneFromMsg = parseZonaFromText(msg);
+  if (!zoneFromMsg) {
+    const m6 = msg.match(KNOWN_ZONES);
+    if (m6?.[0]) zoneFromMsg = m6[0].trim();
+  }
+  let zoneFromPrev = null;
+  if (prev) {
+    const m6 = prev.match(KNOWN_ZONES);
+    if (m6?.[0]) zoneFromPrev = m6[0].trim();
+  }
+  const zone = zoneFromMsg || zoneFromPrev;
+  let result = prev;
+  if (/\bno\s+es\s+en\s+(el\s+)?piso\b|\botra\s+ubicaci[oó]n\b|\bme\s+equivoqu|\bno\s+es\s+(en\s+)?(la\s+)?torre\b/i.test(
+    msg
+  )) {
+    result = result.replace(/,?\s*piso\s*\d+/gi, "").replace(/\btorre\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ-]*/gi, "").replace(/\s*,\s*,+/g, ",").replace(/^\s*,\s*|\s*,\s*$/g, "").replace(/\s{2,}/g, " ").trim();
+    if (/\botra\s+ubicaci[oó]n\b/i.test(msg) && zone) {
+      result = zone;
+    }
+  }
+  if (/\bpatio\b/i.test(msg)) {
+    result = result.replace(/,?\s*piso\s*\d+/gi, "").trim();
+    if (!/\bpatio\b/i.test(result)) {
+      result = result ? `${result}, patio` : zone ? `${zone}, patio` : "patio";
+    }
+  }
+  if (/\btechado\b/i.test(msg)) {
+    if (/\bpatio\b/i.test(result) && !/\btechado\b/i.test(result)) {
+      result = result.replace(/\bpatio\b/i, "patio techado");
+    } else if (!/\btechado\b/i.test(result)) {
+      result = result ? `${result}, techado` : zone ? `${zone}, techado` : "";
+    }
+  }
+  if (/\bjard[ií]n\b/i.test(msg) && !/\bjard[ií]n\b/i.test(result)) {
+    result = result ? `${result}, jard\xEDn` : zone ? `${zone}, jard\xEDn` : "jard\xEDn";
+  }
+  if (/\b(azotea|rooftop|terraza)\b/i.test(msg)) {
+    const detail = msg.match(/\b(azotea|rooftop|terraza)\b/i)?.[1] ?? "terraza";
+    if (!new RegExp(`\\b${detail}\\b`, "i").test(result)) {
+      result = result ? `${result}, ${detail}` : zone ? `${zone}, ${detail}` : detail;
+    }
+  }
+  if (zone && result && !new RegExp(zone.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(result)) {
+    result = `${result}, ${zone}`;
+  }
+  if ((!result || !result.trim()) && zone) result = zone;
+  result = (result ?? "").replace(/\s*,\s*,+/g, ",").replace(/^\s*,\s*|\s*,\s*$/g, "").trim();
+  if (!result) return null;
+  if (!isUsableDireccionEvento(result)) {
+    if (zone && isUsableDireccionEvento(zone)) return zone;
+    return null;
+  }
+  return result;
+}
+function shouldReplaceCrmDireccion(existing, incoming) {
+  const next = incoming?.trim() ?? "";
+  if (!next || !isUsableDireccionEvento(next)) return false;
+  const prev = existing?.trim() ?? "";
+  if (!prev || !isUsableDireccionEvento(prev)) return true;
+  if (prev.toLowerCase() === next.toLowerCase()) return false;
+  if (clientCorrectsLocation(next) || isVenueSpaceDetail(next)) return true;
+  if (/\bpiso\s*\d+/i.test(prev) && !/\bpiso\s*\d+/i.test(next) && KNOWN_ZONES.test(prev) && KNOWN_ZONES.test(next)) {
+    return true;
+  }
+  if (prev.toLowerCase().includes(next.toLowerCase()) && next.length < prev.length) return false;
+  if (next.toLowerCase().includes(prev.toLowerCase()) && next.length > prev.length + 2) return true;
+  if (hasGeoLocationSignal(next) && !hasGeoLocationSignal(prev) && next.length >= prev.length) {
+    return true;
+  }
+  return false;
+}
+function applyLocationCorrectionToCrm(mergedLines, filledSet, extracted, currentMessage) {
+  const msg = currentMessage?.trim() ?? "";
+  if (!msg) return false;
+  const idx = mergedLines.findIndex((l6) => /^-?\s*Lugar\/dirección del evento:/i.test(l6));
+  const existing = (idx >= 0 ? mergedLines[idx].replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "").trim() : null) || extracted.direccion_evento?.trim() || null;
+  if (!clientCorrectsLocation(msg) && !(isVenueSpaceDetail(msg) && existing)) return false;
+  const next = applyLocationCorrectionToAddress(existing, msg);
+  if (!next || next === existing) return false;
+  if (idx >= 0) {
+    mergedLines[idx] = `- Lugar/direcci\xF3n del evento: ${next}`;
+  } else {
+    mergedLines.push(`- Lugar/direcci\xF3n del evento: ${next}`);
+  }
+  filledSet.add("Lugar/direcci\xF3n del evento");
+  extracted.direccion_evento = next;
+  return true;
+}
+function parseAllSpaceDimensions(text2) {
+  if (!text2?.trim()) return [];
+  const out2 = [];
+  const seen = /* @__PURE__ */ new Set();
+  const push = (a4, b5, height) => {
+    let d3 = `${a4}m x ${b5}m`;
+    if (height) d3 = `${d3} x ${height}m alt`;
+    if (seen.has(d3)) return;
+    seen.add(d3);
+    out2.push(d3);
+  };
+  const AXIS = "ancho|largo|fondo|frente|altura|alto|profundidad";
+  const UNIT = "metros?|mts?|m";
+  const heightMatch = text2.match(
+    new RegExp(`\\b(?:altura|alto)\\s*(?:de\\s*)?(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\b`, "i")
+  );
+  const heightOnly = heightMatch?.[1]?.replace(",", ".") ?? null;
+  {
+    const ancho = text2.match(
+      new RegExp(`\\bancho\\s*[:=]?\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\b`, "i")
+    )?.[1];
+    const largo = text2.match(
+      new RegExp(`\\blargo\\s*[:=]?\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\b`, "i")
+    )?.[1];
+    const fondo = text2.match(
+      new RegExp(`\\b(?:fondo|frente|profundidad)\\s*[:=]?\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\b`, "i")
+    )?.[1];
+    if (ancho && largo) push(ancho.replace(",", "."), largo.replace(",", "."), heightOnly);
+    else if (ancho && fondo) push(ancho.replace(",", "."), fondo.replace(",", "."), heightOnly);
+    else if (largo && fondo) push(largo.replace(",", "."), fondo.replace(",", "."), heightOnly);
+  }
+  for (const m6 of text2.matchAll(
+    new RegExp(
+      `\\b(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\s*(?:de\\s+)?(${AXIS})\\s*(?:por|x|\xD7)\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\s*(?:de\\s+)?(${AXIS})?(?:\\s*(?:por|x|\xD7)\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\s*(?:de\\s+)?(?:altura|alto))?\\b`,
+      "gi"
+    )
+  )) {
+    const n1 = m6[1].replace(",", ".");
+    const n22 = m6[3].replace(",", ".");
+    const axis1 = (m6[2] ?? "").toLowerCase();
+    const axis2 = (m6[4] ?? "").toLowerCase();
+    const h5 = m6[5]?.replace(",", ".") || heightOnly;
+    const isH1 = /altura|alto/.test(axis1);
+    const isH2 = /altura|alto/.test(axis2);
+    if (isH1 || isH2) continue;
+    if (/ancho/.test(axis1) && /largo|fondo|frente|profundidad/.test(axis2)) push(n1, n22, h5);
+    else if (/largo|fondo|frente|profundidad/.test(axis1) && /ancho/.test(axis2)) push(n22, n1, h5);
+    else push(n1, n22, h5);
+  }
+  for (const m6 of text2.matchAll(
+    new RegExp(
+      `\\b(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})\\s*(?:de\\s+(?:${AXIS})\\s*)?(?:por|x|\xD7)\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?(?:\\s*de\\s+(?:${AXIS}))?\\b`,
+      "gi"
+    )
+  )) {
+    push(m6[1].replace(",", "."), m6[2].replace(",", "."), heightOnly);
+  }
+  for (const m6 of text2.matchAll(
+    new RegExp(
+      `\\bespacio\\s+(?:es\\s+de|de|mide)\\s+(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\s*(?:por|x|\xD7)\\s*(\\d+(?:[.,]\\d+)?)`,
+      "gi"
+    )
+  )) {
+    push(m6[1].replace(",", "."), m6[2].replace(",", "."), heightOnly);
+  }
+  for (const m6 of text2.matchAll(
+    /\b(\d+(?:[.,]\d+)?)\s*(?:m|mts?|metros?)?\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(?:m|mts?|metros?)?(?:\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(?:m|mts?|metros?)?)?\b/gi
+  )) {
+    push(m6[1].replace(",", "."), m6[2].replace(",", "."), m6[3]?.replace(",", ".") || heightOnly);
+  }
+  {
+    const dimContext = /\b(medida|medidas|carpa|carpas|sal[oó]n|pista|tarima|entelado|espacio|jard[ií]n|metros?|mts?|\bm\b|ancho|largo|altura|alto|cubre|cubrir)\b/i.test(
+      text2
+    ) || text2.trim().length <= 40;
+    if (dimContext && !/\bpor\s+(persona|personas|invitado|invitados|pax|paquete|d[ií]a)\b/i.test(text2)) {
+      for (const m6 of text2.matchAll(
+        /\b(\d+(?:[.,]\d+)?)\s+por\s+(\d+(?:[.,]\d+)?)(?:\s*(?:m|mts?|metros?))?\b/gi
+      )) {
+        const a4 = Number(m6[1].replace(",", "."));
+        const b5 = Number(m6[2].replace(",", "."));
+        if (a4 >= 2 && a4 <= 120 && b5 >= 2 && b5 <= 120) {
+          push(m6[1].replace(",", "."), m6[2].replace(",", "."), heightOnly);
+        }
+      }
+    }
+  }
+  if (out2.length === 0) {
+    for (const m6 of text2.matchAll(
+      /\b(\d+(?:[.,]\d+)?)\s*(?:m\s*[²2]|metros?\s*cuadrados?)\b/gi
+    )) {
+      const area = Number(m6[1].replace(",", "."));
+      if (area >= 4 && area <= 5e3) {
+        const side = Math.max(2, Math.round(Math.sqrt(area) * 10) / 10);
+        push(String(side), String(side), heightOnly);
+      }
+    }
+  }
+  return out2;
+}
+function formatEspacioAnnotation(dims) {
+  if (dims.length === 0) return "";
+  if (dims.length === 1) return `(espacio ${dims[0]})`;
+  return `(espacio ${dims.join(" y ")})`;
+}
+function attachEspacioToRequirements(req, dims) {
+  const list = (Array.isArray(dims) ? dims : [dims]).filter(Boolean);
+  const base = req.replace(/\s*\((?:espacio\s+)?[^)]*\d+\s*m?\s*[x×]\s*\d+[^)]*\)/gi, "").replace(/\s*—\s*espacio\s+\d+(?:\.\d+)?m\s*x\s*\d+(?:\.\d+)?m(?:\s*x\s*\d+(?:\.\d+)?m\s*alt)?/gi, "").trim() || "Servicio";
+  if (list.length === 0) return base;
+  return `${base} ${formatEspacioAnnotation(list)}`.trim();
+}
+function parseSpaceDimensions(text2) {
+  return parseAllSpaceDimensions(text2)[0] ?? null;
+}
+function buildCarpaRequirementsFromText(text2) {
+  if (!text2?.trim()) return null;
+  if (!clientMentionsCarpas(text2) && !parseCarpaVariantFromText(text2)) return null;
+  const parts2 = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const m6 of text2.matchAll(
+    /\b(tela|lona|blanca|negra|transparentes?|domo)?\s*(?:de\s+)?(\d+)\s*m?\s*[x×]\s*(\d+)\s*m?\b/gi
+  )) {
+    const rawVar = (m6[1] ?? "").toLowerCase();
+    const dim = `${m6[2]}m x ${m6[3]}m`;
+    let label = dim;
+    if (/transparent/.test(rawVar)) label = `transparente ${dim}`;
+    else if (/tela|lona/.test(rawVar)) label = `tela ${dim}`;
+    else if (/blanca/.test(rawVar)) label = `blanca ${dim}`;
+    else if (/negra/.test(rawVar)) label = `negra ${dim}`;
+    else if (/domo/.test(rawVar)) label = `domo ${dim}`;
+    if (seen.has(label)) continue;
+    seen.add(label);
+    parts2.push(label);
+  }
+  const variant = parseCarpaVariantFromText(text2);
+  if (parts2.length >= 2) {
+    return `Carpas (${parts2.join(", ")})`;
+  }
+  if (parts2.length === 1) {
+    const base = variant && /transparent/i.test(variant) ? "Carpas transparentes" : "Carpas";
+    return `${base} (espacio ${parts2[0].replace(/^(tela|transparente|blanca|negra|domo)\s+/, "")})`;
+  }
+  const all3 = parseAllSpaceDimensions(text2);
+  if (all3.length > 1) return `Carpas ${formatEspacioAnnotation(all3)}`;
+  if (all3.length === 1) {
+    const base = variant ?? "Carpas";
+    return `${base} ${formatEspacioAnnotation(all3)}`;
+  }
+  return variant ?? "Carpas";
+}
+function clientAsksDimensionRecommendation(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  return /recomend\w*\s+(?:el\s+)?(?:tama[nñ]o|medida)/i.test(t4) || /qu[eé]\s+(?:tama[nñ]o|medida)\s+me\s+recomiend/i.test(t4) || /(?:tama[nñ]o|medida).{0,50}(?:invitad|personas?|gente)/i.test(t4) || /(?:invitad|personas?|gente).{0,50}(?:tama[nñ]o|medida)/i.test(t4) || /me\s+propon\w*\s+(?:un\s+)?(?:tama[nñ]o|medida)/i.test(t4) || /seg[uú]n\s+(?:la\s+)?(?:cantidad\s+de\s+)?(?:invitad|personas?)/i.test(t4) || /pensando\s+en\s+(?:la\s+)?(?:cantidad\s+de\s+)?(?:invitad|personas?)/i.test(t4) || /(?:cu[aá]nto|qu[eé]\s+medidas?).{0,40}deber[ií]a\s+(?:medir|ser)/i.test(t4) || /prefiero\s+que\s+me\s+propong/i.test(t4);
+}
+function pickStandardPistaSize(targetAreaM2) {
+  const pick = STANDARD_PISTA_SIZES.find((s7) => s7.area >= targetAreaM2) ?? STANDARD_PISTA_SIZES[STANDARD_PISTA_SIZES.length - 1];
+  return { w: pick.w, h: pick.h };
+}
+function recommendPistaDimensionsForGuests(guests, tipoEvento) {
+  const tipo = (tipoEvento ?? "").toLowerCase();
+  const danceRatio = /xv|quince|boda|fiesta|graduaci|cumplea/i.test(tipo) ? 0.55 : 0.45;
+  const areaM2 = Math.max(16, Math.ceil(guests * danceRatio * 0.9));
+  const { w: w5, h: h5 } = pickStandardPistaSize(areaM2);
+  const guestLabel = guests > 0 ? `~${guests} invitados` : "tu evento";
+  return {
+    dims: `${w5}m x ${h5}m`,
+    rationale: `referencia para ${guestLabel} (no todos bailan al mismo tiempo)`
+  };
+}
+function pickStandardCarpaSize(targetAreaM2) {
+  const pick = STANDARD_CARPA_SIZES.find((s7) => s7.area >= targetAreaM2) ?? STANDARD_CARPA_SIZES[STANDARD_CARPA_SIZES.length - 1];
+  return { w: pick.w, h: pick.h };
+}
+function recommendCarpaAreaM2ForGuests(guests) {
+  if (!Number.isFinite(guests) || guests <= 0) return 0;
+  return Math.ceil(guests * CARPA_M2_PER_GUEST);
+}
+function recommendCarpaDimensionsForGuests(guests) {
+  if (guests <= 0) return "seg\xFAn invitados (1.5 m\xB2 por persona)";
+  const m22 = recommendCarpaAreaM2ForGuests(guests);
+  const { w: w5, h: h5 } = pickStandardCarpaSize(m22);
+  return `${m22} m\xB2 (aprox. ${w5}m x ${h5}m)`;
+}
+function buildCarpaGuestRecommendationLine(guests) {
+  if (!Number.isFinite(guests) || guests <= 0) return null;
+  const m22 = recommendCarpaAreaM2ForGuests(guests);
+  const dims = recommendCarpaDimensionsForGuests(guests);
+  return `Para que est\xE9n c\xF3modos con *${guests} invitados*, te recomiendo *${m22} m\xB2* de carpa (${CARPA_M2_PER_GUEST} m\xB2 por invitado; ${dims.replace(`${m22} m\xB2 `, "")}).`;
+}
+function clientMentionsPistaTarima(message) {
+  if (!message?.trim()) return false;
+  return /\bpista(\s+de\s+baile)?\b|\btarimas?\b|\bentarimad[oa]s?\b/i.test(message);
+}
+function clientMentionsTarimaOnly(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  if (!/\btarimas?\b|\bentarimad[oa]s?\b/i.test(t4)) return false;
+  if (/\bpista(\s+de\s+baile)?\b/i.test(t4) && !/\bno\s+(quiero|necesito|requiero).{0,20}pista\b/i.test(t4)) {
+    return false;
+  }
+  return true;
+}
+function preferTarimaLabelOverPista(message, existingReq) {
+  const blob = `${message ?? ""} ${existingReq ?? ""}`;
+  if (clientMentionsTarimaOnly(message ?? "") || /\btarimas?\b|\bentarimad/i.test(blob)) {
+    if (/\bno\s+(quiero|necesito|requiero).{0,30}pista\b/i.test(blob)) return true;
+    if (!/\bpista(\s+de\s+baile)?\b/i.test(message ?? "")) return true;
+  }
+  return false;
+}
+function isNegativeOnlyReply(text2) {
+  const t4 = (text2 ?? "").trim().toLowerCase().replace(/[.!¡,;\s]+$/g, "");
+  if (!t4 || t4.length > 40) return false;
+  return /^(no|nop|nel|no\s+gracias|no\s+s[eé]|(?:a[uú]n|todav[ií]a|de\s+momento|por\s+(?:ahora|el\s+momento|lo\s+pronto))\s+no|no\s+(?:a[uú]n|todav[ií]a|de\s+momento|por\s+(?:ahora|el\s+momento)))$/i.test(
+    t4
+  );
+}
+function expandMxCityAbbreviations(text2) {
+  let out2 = text2;
+  for (const [re4, city] of MX_CITY_ABBREVIATIONS) out2 = out2.replace(re4, city);
+  if (/^\s*pue\.?\s*$/i.test(out2)) out2 = "Puebla";
+  return out2;
+}
+function parseZonaFromText(text2) {
+  text2 = expandMxCityAbbreviations(text2);
+  const withoutEmails = text2.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, " ").replace(/\s+/g, " ").trim();
+  const trimmed = withoutEmails.replace(/\(?\s*hora\s+ciudad\s+de\s+m[eé]xico\s*\)?/gi, " ").replace(/\bhorario\s+en\s+que\s+env[ií]o\s+este\s+mensaje\s*:?[^\n]*/gi, " ").replace(/\bcotizaci[oó]n(es)?\s+en\s+pdf\b/gi, " ").replace(/\b(en\s+)?pdf\b/gi, " ").replace(/^(s[ií][,.]?\s+)(?=[A-Za-zÁÉÍÓÚáéíóúñÑ])/i, "").replace(/\s+/g, " ").trim();
+  if (!trimmed) return null;
+  if (isLocationMetaReferential(trimmed) || isReferentialPriorAnswer(trimmed)) {
+    return null;
+  }
+  if (/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(text2.trim())) {
+    return null;
+  }
+  if (isGreetingOnlyMessage(trimmed)) return null;
+  if (isAffirmativeOnlyMessage(trimmed)) return null;
+  if (isNegativeOnlyReply(trimmed)) return null;
+  if (clientDeclinesServiceFamilies(trimmed).length > 0) return null;
+  if (isEventTypeMealPhrase(trimmed)) return null;
+  if (isDimensionText(trimmed)) return null;
+  if (isPromoTemplateMessage(text2)) {
+    const realVenue = trimmed.match(
+      /\ben\s+(San\s+Miguel\s+de\s+Allende|Ex\s+Hacienda\s+[^\n.]{3,40}|[A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+){0,3})\b/i
+    );
+    if (realVenue?.[1] && isUsableDireccionEvento(realVenue[1])) return realVenue[1].trim();
+    return null;
+  }
+  const knownPlaceHeader = trimmed.match(/^([A-Za-zÁÉÍÓÚ][A-Za-záéíóúñÁÉÍÓÚ\s.-]{2,35})\s*:\s*/)?.[1]?.trim();
+  if (knownPlaceHeader && new RegExp(`^(?:${KNOWN_ZONES.source})$`, "i").test(knownPlaceHeader)) {
+    return knownPlaceHeader;
+  }
+  if (looksLikeMealTimeNotLocation(trimmed)) return null;
+  if (/\b(?:\d|uno|un|dos|tres|cuatro|cinco)\s+tiempos?\b/i.test(trimmed) && !KNOWN_ZONES.test(trimmed)) {
+    return null;
+  }
+  if (isLikelyProductNameNotLocation(trimmed)) return null;
+  if (/\bsala\s*:/i.test(trimmed)) return null;
+  if (clientAsksLocation(trimmed) || looksLikeCompanyLocationQuestionFragment(trimmed)) {
+    return null;
+  }
+  const eventoEsEn = trimmed.match(
+    /\bel\s+evento\s+(?:es|ser[ií]a|queda|ser[aá])\s+en\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{1,40})/i
+  );
+  if (eventoEsEn?.[1]) {
+    let lugar = eventoEsEn[1].trim().replace(/[.,;:]+$/g, "").split(/\s+(?:y|,|entonces|pero|no|porque)\b/i)[0].trim().replace(/^(el|la|los|las)\s+/i, "").trim();
+    if (/^cdmx$/i.test(lugar) || /^df$/i.test(lugar)) lugar = "Ciudad de M\xE9xico";
+    if (lugar && (KNOWN_ZONES.test(lugar) || isUsableDireccionEvento(lugar))) {
+      return lugar;
+    }
+  }
+  const composed = composeEventLocation(trimmed);
+  if (composed && /\bcolonia\b/i.test(composed) && /cdmx/i.test(composed) && isUsableDireccionEvento(composed)) {
+    return composed;
+  }
+  if (/\bvalle\s+de\s+bravo\b/i.test(trimmed) && /\bmesa\s+rica\b/i.test(trimmed)) {
+    return "valle de bravo";
+  }
+  const placeHeader = trimmed.match(/^([A-Za-zÁÉÍÓÚ][A-Za-záéíóúñÁÉÍÓÚ\s.-]{2,35})\s*:\s*/);
+  if (placeHeader?.[1]) {
+    const place = placeHeader[1].trim();
+    if (place.length >= 3 && !/^(tipo|fecha|horario|lugar|servicios|requerimientos|ubicaci[oó]n)$/i.test(place) && // A15298: "Número estimado de asistentes: 60" es un campo del brief, no un lugar.
+    !/\b(n[uú]mero|estimad[oa]s?|asistentes|invitados|personas|evento|presupuesto|nombre|correo|tel[eé]fono|contacto|hora|d[ií]a|servicios?|requerimientos?|cantidad|total|notas?)\b/i.test(
+      place
+    ) && isUsableDireccionEvento(place)) {
+      return place;
+    }
+  }
+  const lugarLabel = trimmed.match(/\bLugar\s*:\s*([^\n,]{4,80})(?:,|\n|$)/i);
+  if (lugarLabel?.[1]) {
+    const venue = lugarLabel[1].trim().replace(/\s+/g, " ");
+    if (isUsableDireccionEvento(venue) && !isVagueVenueOnly(venue)) {
+      return venue;
+    }
+  }
+  const centroCultural = trimmed.match(
+    /\b(Centro\s+Cultural\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.-]{2,40})/i
+  );
+  if (centroCultural?.[1] && isUsableDireccionEvento(centroCultural[1].trim())) {
+    return centroCultural[1].trim().replace(/\s+/g, " ");
+  }
+  const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
+  if (expoMatch?.[0] && isUsableDireccionEvento(expoMatch[0].trim())) {
+    return expoMatch[0].trim();
+  }
+  if (KNOWN_ZONES.test(trimmed)) {
+    const zoneHits = [
+      ...trimmed.matchAll(new RegExp(KNOWN_ZONES.source, "gi"))
+    ].map((m7) => m7[0].trim()).filter(Boolean);
+    const uniqueZones = [];
+    for (const z4 of zoneHits) {
+      if (!uniqueZones.some((u5) => u5.toLowerCase() === z4.toLowerCase())) {
+        uniqueZones.push(z4);
+      }
+    }
+    if (uniqueZones.length >= 2) {
+      let composedMulti = uniqueZones[0];
+      for (let i6 = 1; i6 < uniqueZones.length; i6++) {
+        composedMulti = mergeZonaDetail(composedMulti, uniqueZones[i6]);
+      }
+      if (composedMulti && isUsableDireccionEvento(composedMulti)) {
+        return composedMulti;
+      }
+    }
+    const m6 = trimmed.match(KNOWN_ZONES);
+    if (m6 && isUsableDireccionEvento(m6[0].trim())) {
+      const city = m6[0].trim();
+      if (/estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x/i.test(city) && m6.index != null && m6.index > 0) {
+        const before = trimmed.slice(0, m6.index).trim();
+        const muni = before.match(
+          /(?:^|[\s,])([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ]{3,})\s*$/i
+        )?.[1];
+        if (muni && !NON_LOCATION_WORDS.test(muni) && !/^(y|el|la|en|de|del|para|con|ser[ií]a|aun|a[uú]n|no|se|sabe)\b/i.test(muni)) {
+          const composedMuni = mergeZonaDetail(muni, city);
+          if (composedMuni && isUsableDireccionEvento(composedMuni)) return composedMuni;
+        }
+      }
+      const detailed = composeDetailedEventLocation(trimmed);
+      if (detailed && isRicherDireccionCapture(detailed, city)) {
+        return sanitizeDireccionCapture(detailed) ?? detailed;
+      }
+      const venue = extractVenueNameHint(trimmed);
+      const located = extractLocatedPlaceHint(trimmed);
+      const street = extractStreetDetailHint(trimmed);
+      let composed2 = city;
+      if (venue && !KNOWN_ZONES.test(venue)) {
+        composed2 = mergeZonaDetail(composed2, venue);
+      }
+      if (located) {
+        composed2 = mergeZonaDetail(composed2, located);
+      }
+      if (street) {
+        composed2 = mergeZonaDetail(composed2, street);
+      }
+      composed2 = sanitizeDireccionCapture(composed2);
+      if (composed2 && isUsableDireccionEvento(composed2)) return composed2;
+      return city;
+    }
+  }
+  const coloniaMatch = trimmed.match(
+    /\b((?:colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+[A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{1,28})/i
+  );
+  if (coloniaMatch?.[1] && isUsableDireccionEvento(coloniaMatch[1].trim())) {
+    return coloniaMatch[1].trim();
+  }
+  const venueEn = trimmed.match(
+    /\ben\s+(?:una|la|mi|nuestra|un|el)\s+(casa|quinta|residencia|jard[ií]n|terraza|finca|rancho|hacienda|departamento|depa)\s+(?:particular\s+)?en\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,48})/i
+  );
+  if (venueEn?.[2]) {
+    const place = venueEn[2].split(/\n/)[0].split(/\s+(?:para|con|por|pero|y|el\s+d[ií]a|a\s+las)\s+/i)[0].replace(/[.,;:\s]+$/g, "").trim();
+    const lugar = `${venueEn[1].toLowerCase()} en ${place}`;
+    if (place.length >= 3 && isUsableDireccionEvento(lugar)) return lugar;
+  }
+  const enMatch = trimmed.match(
+    /\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,28})(?:\s|,|\.|$)/i
+  );
+  if (enMatch) {
+    let lugar = enMatch[1].trim().replace(/[.,;:]+$/g, "").trim();
+    lugar = lugar.split(/\n/)[0].trim();
+    lugar = lugar.split(/\s+(?:para|con|por|donde|cuando|porque|que|y\s+también|tipo\s+de)\b/i)[0].trim().replace(/[.,;:]+$/g, "").trim();
+    const sinArticulo = lugar.replace(/^(el|la|los|las)\s+/i, "").trim();
+    const candidato = sinArticulo || lugar;
+    if (candidato && !MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !isVagueVenueOnly(candidato) && !isNonLocationBusinessPhrase(candidato) && !looksLikeDiscourseNotPlace(candidato) && !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje|color|noche|tarde|vivo|realidad|serio|importante|hora)\b/i.test(
+      candidato
+    ) && !looksLikeMealTimeNotLocation(candidato) && !/^color\b/i.test(candidato) && isUsableDireccionEvento(candidato)) {
+      return candidato;
+    }
+  }
+  const venueMatch = trimmed.match(
+    /\b((?:la\s+)?casa\s+del\s+corregidor|cd\.?\s*nezahualc[oó]yotl)\b/i
+  );
+  if (venueMatch?.[1] && isUsableDireccionEvento(venueMatch[1].trim())) {
+    return venueMatch[1].trim();
+  }
+  const clubMatch = trimmed.match(/\b(club\s+de\s+golf\s+[A-Za-zÁÉÍÓÚáéíóúñ\s]{2,30})/i);
+  if (clubMatch?.[1] && isUsableDireccionEvento(clubMatch[1].trim())) {
+    return clubMatch[1].trim();
+  }
+  if (/\b(se\s+llevar[aá]|llevaremos|ser[aá])\s+(a\s+cabo\s+)?en\s+(el\s+)?/i.test(trimmed)) {
+    const enVenue = trimmed.match(/\ben\s+(el\s+)?([A-ZÁÉÍÓÚ][A-Za-zÁÉÍÓÚáéíóúñ\s]{4,40})/);
+    if (enVenue?.[2] && !MONTH_PATTERN.test(enVenue[2]) && isUsableDireccionEvento(enVenue[2].trim())) {
+      return enVenue[2].trim();
+    }
+  }
+  const perteneceMatch = trimmed.match(
+    /\bpertenece\s+a\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,40})/i
+  );
+  if (perteneceMatch?.[1]) {
+    const lugar = perteneceMatch[1].trim().replace(/[.,;:]+$/g, "").split(/\s+(?:a\s+media|a\s+\d|por\s+la|por\s+que)\b/i)[0].trim();
+    if (lugar && isUsableDireccionEvento(lugar)) return lugar;
+  }
+  const shortPlace = trimmed.replace(/^(es\s+en\s+|en\s+|ser[ií]a\s+en\s+|s[ií][,.]?\s+)/i, "").trim().replace(/[.,;:]+$/g, "").trim();
+  if (shortPlace && shortPlace.split(/\s+/).length <= 5 && shortPlace.length <= 56 && (hasCityOrMetroSignal(shortPlace) || KNOWN_ZONES.test(shortPlace) || looksLikeMxMunicipalityToponym(shortPlace)) && isUsableDireccionEvento(shortPlace)) {
+    return shortPlace;
+  }
+  return null;
+}
+function normalizeDictatedCorreo(text2) {
+  const lower2 = text2.toLowerCase().replace(/[¿?¡!,.;:]+$/g, "");
+  if (!/\barroba\b/.test(lower2)) return null;
+  const tokens = lower2.split(/\s+/);
+  const arrobaIdx = tokens.indexOf("arroba");
+  if (arrobaIdx === -1) return null;
+  const localParts = [];
+  for (let i6 = arrobaIdx - 1; i6 >= 0; ) {
+    const tok = tokens[i6];
+    if (tok === "bajo" && i6 - 1 >= 0 && (tokens[i6 - 1] === "guion" || tokens[i6 - 1] === "gui\xF3n")) {
+      localParts.unshift("_");
+      i6 -= 2;
+      continue;
+    }
+    if (tok === "guion" || tok === "gui\xF3n") {
+      localParts.unshift("-");
+      i6 -= 1;
+      continue;
+    }
+    if (CORREO_DICTADO_STOPWORDS.has(tok)) break;
+    if (!/^[a-z0-9]+$/.test(tok)) break;
+    localParts.unshift(tok);
+    i6 -= 1;
+  }
+  if (localParts.length === 0) return null;
+  const domainParts = [];
+  for (let i6 = arrobaIdx + 1; i6 < tokens.length; ) {
+    const tok = tokens[i6];
+    if (tok === "punto") {
+      domainParts.push(".");
+      i6 += 1;
+      continue;
+    }
+    if (tok === "guion" || tok === "gui\xF3n") {
+      if (tokens[i6 + 1] === "bajo") {
+        domainParts.push("_");
+        i6 += 2;
+        continue;
+      }
+      domainParts.push("-");
+      i6 += 1;
+      continue;
+    }
+    if (!/^[a-z0-9]+$/.test(tok)) break;
+    domainParts.push(tok);
+    i6 += 1;
+  }
+  if (domainParts.length === 0) return null;
+  const candidate = `${localParts.join("")}@${domainParts.join("")}`;
+  return /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(candidate) ? candidate : null;
+}
+function parseCorreoFromText(text2) {
+  if (!text2) return null;
+  const m6 = text2.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
+  const raw = m6 ? m6[1] : normalizeDictatedCorreo(text2);
+  if (!raw) return null;
+  return filterClientEmail(raw);
+}
+function isServiceLabelNotTipoEvento(label) {
+  if (!label?.trim()) return false;
+  const t4 = label.trim();
+  if (/^evento\s+con\s+/i.test(t4) || /^celebraci[oó]n\b/i.test(t4)) return false;
+  if (SERVICE_LABELS_NOT_TIPO.test(t4)) return true;
+  if (parseTipoEventoFromText(t4)) return false;
+  return !!parsePrimaryService(t4);
+}
+function isMonthOnlyFecha(value) {
+  const t4 = (value ?? "").trim();
+  if (!t4) return false;
+  return /^(?:en\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/i.test(
+    t4
+  );
+}
+function isRicherFechaCapture(incoming, existing) {
+  const next = (incoming ?? "").trim();
+  const prev = (existing ?? "").trim();
+  if (!next || !isUsableFechaEvento(next)) return false;
+  if (!prev) return true;
+  if (next.toLowerCase() === prev.toLowerCase()) return false;
+  const nextHasDay = /\b\d{1,2}\s+(?:de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+    next
+  ) || /\b\d{1,2}[\/\-]\d{1,2}/.test(next);
+  const prevHasDay = /\b\d{1,2}\s+(?:de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+    prev
+  ) || /\b\d{1,2}[\/\-]\d{1,2}/.test(prev);
+  if (nextHasDay && (isMonthOnlyFecha(prev) || !prevHasDay)) return true;
+  if (/\b20\d{2}\b/.test(next) && !/\b20\d{2}\b/.test(prev) && isMonthOnlyFecha(prev) && next.toLowerCase().startsWith(prev.toLowerCase())) {
+    return true;
+  }
+  if (nextHasDay && prevHasDay && /\b\d{4}\b/.test(next) && !/\b\d{4}\b/.test(prev)) return true;
+  if (next.length > prev.length + 2 && nextHasDay) return true;
+  return false;
+}
+function parseFechaFromText(text2) {
+  const trimmed = text2.trim();
+  if (isMealTimeOnlySchedule(trimmed)) return null;
+  if (isClockTimeOnlySchedule(trimmed)) return null;
+  const MONTHS2 = "enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre";
+  const dayMonthBare = trimmed.match(
+    new RegExp(
+      `\\b(?:el\\s+)?(\\d{1,2})\\s+(?:de\\s+)?(${MONTHS2})(?:\\s+(?:de\\s+)?(\\d{4}))?\\b`,
+      "i"
+    )
+  );
+  if (dayMonthBare) {
+    const day = dayMonthBare[1];
+    const month = dayMonthBare[2].toLowerCase();
+    const year = dayMonthBare[3];
+    const base = normalizeAbsurdEventYear(
+      year ? `${day} de ${month} ${year}` : `${day} de ${month}`
+    );
+    const horaMatch = trimmed.match(
+      /\ba\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?\b/i
+    );
+    if (horaMatch?.[1]) {
+      const h5 = horaMatch[1];
+      return `${base} a las ${h5}${h5.includes(":") ? "" : ":00"} horas`;
+    }
+    return base;
+  }
+  const fechaMatch = trimmed.match(
+    /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
+  );
+  if (fechaMatch) {
+    const base = normalizeAbsurdEventYear(fechaMatch[1]);
+    const hora = fechaMatch[2];
+    return hora ? `${base} a las ${hora}${hora.includes(":") ? "" : ":00"} horas` : base;
+  }
+  const correction = extractFechaCorrectionFragment(trimmed);
+  if (correction) return correction;
+  if (/\b(todav[ií]a\s+la\s+vamos\s+a\s+definir|todav[ií]a\s+(no\s+)?la\s+van?\s+a\s+definir|vamos\s+a\s+definir|siguen\s+viendo\s+opciones?|a[uú]n\s+sin\s+fecha|la\s+fecha\s+(a[uú]n\s+)?no\s+est[aá]|a[uú]n\s+no\s+(la\s+)?defin|no\s+tenemos\s+(fecha|d[ií]a)|sin\s+definir\s+(a[uú]n|todav[ií]a)|todav[ií]a\s+no\s+sabemos)\b/i.test(
+    trimmed
+  )) {
+    return "Sin definir (pendiente)";
+  }
+  if (/\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|a[uú]n\s+no\s+tenemos\s+fecha|todav[ií]a\s+no|por\s+definir)\b/i.test(
+    trimmed
+  )) {
+    if (trimmed.length > 50 || looksLikeFechaDiscourseJunk(trimmed)) {
+      const short = trimmed.match(
+        /\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|por\s+definir)\b/i
+      );
+      return short?.[1] ?? "Sin definir (pendiente)";
+    }
+    return trimmed.slice(0, 80);
+  }
+  const weekdayDate = trimmed.match(
+    /\b((?:este|el|pr[oó]ximo)\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+(\d{1,2})(?:\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))?\b/i
+  );
+  if (weekdayDate) {
+    return weekdayDate[0].replace(/^(s[ií]|ok|vale)[,.]?\s+/i, "").trim().slice(0, 80);
+  }
+  const relativeDay = trimmed.match(
+    /\b((?:este|el|pr[oó]ximo)\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+de\s+(\d{1,2})\s*(?:a|[-–]|hasta)\s*(\d{1,2}))?\b/i
+  );
+  if (relativeDay) {
+    const day = relativeDay[0].replace(/^(s[ií]|ok|vale)[,.]?\s+/i, "").trim();
+    return day.slice(0, 80);
+  }
+  const numeric2 = trimmed.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
+  const numericIsTimeRange = !!numeric2 && !numeric2[3] && numeric2[0].includes("-") && (/\b(horario|hora|horas|de|desde|las)\s*$/i.test(trimmed.slice(0, numeric2.index)) || /^\s*(?:am|pm|a\.?\s?m\.?|p\.?\s?m\.?|hrs?|horas?)\b/i.test(
+    trimmed.slice((numeric2.index ?? 0) + numeric2[0].length)
+  ));
+  if (numeric2 && !numericIsTimeRange) {
+    const d3 = Number(numeric2[1]);
+    const m6 = Number(numeric2[2]);
+    if (d3 >= 1 && d3 <= 31 && m6 >= 1 && m6 <= 12) {
+      const monthNames = [
+        "enero",
+        "febrero",
+        "marzo",
+        "abril",
+        "mayo",
+        "junio",
+        "julio",
+        "agosto",
+        "septiembre",
+        "octubre",
+        "noviembre",
+        "diciembre"
+      ];
+      const month = monthNames[m6 - 1];
+      const yRaw = numeric2[3];
+      const year = yRaw ? yRaw.length === 2 ? `20${yRaw}` : yRaw : null;
+      return year ? `${d3} de ${month} ${year}` : `${d3} de ${month}`;
+    }
+  }
+  if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
+    const monthWithYear = () => {
+      const month = trimmed.match(
+        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b(?:\s+(?:de(?:l)?\s+)?(20\d{2}))?/i
+      );
+      if (!month?.[1]) return null;
+      const m6 = month[1];
+      const label = m6.charAt(0).toUpperCase() + m6.slice(1).toLowerCase();
+      return month[2] ? `${label} de ${month[2]}` : label;
+    };
+    if (looksLikeFechaDiscourseJunk(trimmed) || trimmed.length > 40 || trimmed.split(/\s+/).length > 5) {
+      const withYear = monthWithYear();
+      if (withYear) return withYear;
+    }
+    if (isMonthOnlyFecha(trimmed) || /^en\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/i.test(trimmed)) {
+      const withYear = monthWithYear();
+      if (withYear) return withYear;
+    }
+    return trimmed.slice(0, 80);
+  }
+  if (/\b(d[ií]a\s+no|sin\s+d[ií]a|a[uú]n\s+no\s+(hay|tenemos)\s+d[ií]a)\b/i.test(trimmed) && /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–a]|hasta)\s*\d{1,2}/i.test(trimmed)) {
+    return "Sin definir (pendiente)";
+  }
+  if (/\bhorario\b/i.test(trimmed) && /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–a]|hasta)\s*\d{1,2}/i.test(trimmed) && !MONTH_PATTERN.test(trimmed) && !/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(trimmed)) {
+    return null;
+  }
+  return null;
+}
+function isGenericQuoteIntentRequerimiento(value) {
+  const t4 = value?.trim() ?? "";
+  if (!t4) return false;
+  if (isServiceRelatedMessage(t4) && parseServicesFromText(t4).length > 0) return false;
+  if (isQuoteIntentMessage(t4)) return true;
+  return /^(quiero|necesito|requiero|busco|me\s+interesa)\s+(una?\s+)?cotiz/i.test(t4) || /^cotizaci[oó]n$/i.test(t4) || /^una?\s+cotizaci[oó]n$/i.test(t4) || /\bquiero\s+una?\s+cotizaci[oó]n\b/i.test(t4) || /\bsolicito\s+(una?\s+)?cotizaci[oó]n\b/i.test(t4);
+}
+function mergeZonaDetail(existing, incoming) {
+  return dedupeLocationParts(mergeZonaDetailRaw(existing, incoming));
+}
+function mergeZonaDetailRaw(existing, incoming) {
+  const prevRaw = existing?.trim() ?? "";
+  const nextRaw = incoming?.trim() ?? "";
+  if (looksLikeThemeColorNotLocation(nextRaw)) {
+    return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
+  }
+  if (/\bno\s+(quiero|necesito|requiero)\b/i.test(nextRaw) || /\bsolo\s+(la\s+)?(tarima|pista|entarimad)/i.test(nextRaw) || /\bsin\s+(catering|comida|pista|tarima)\b/i.test(nextRaw)) {
+    return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
+  }
+  if (/^(pdf|excel|word|archivo|documento)s?$/i.test(nextRaw)) {
+    return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
+  }
+  const prev = (stripThemeColorsFromZona(prevRaw) || prevRaw).replace(/,?\s*pdf\s*$/i, "").trim();
+  const next = (stripThemeColorsFromZona(nextRaw) || nextRaw).replace(/,?\s*pdf\s*$/i, "").trim();
+  if (!next) return prev || null;
+  if (!prev) return next;
+  if (isLocationMetaReferential(prev)) return next;
+  if (isLocationMetaReferential(next)) return prev || null;
+  const prevIsCity = hasCityOrMetroSignal(prev) || looksLikeMxMunicipalityToponym(prev) || matchesKnownZone(prev);
+  const nextIsVenue = isVenueWithoutCity(next) || extractVenueNameHint(next);
+  const nextIsCity = hasCityOrMetroSignal(next) || looksLikeMxMunicipalityToponym(next) || matchesKnownZone(next);
+  const prevIsVenue = isVenueWithoutCity(prev) || extractVenueNameHint(prev);
+  if (prevIsCity && nextIsVenue && !nextIsCity) {
+    if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
+    return `${prev}, ${next}`;
+  }
+  if (nextIsCity && prevIsVenue && !prevIsCity) {
+    if (next.toLowerCase().includes(prev.toLowerCase())) return next;
+    return `${next}, ${prev}`;
+  }
+  if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
+  if (next.toLowerCase().includes(prev.toLowerCase())) return next;
+  if (textOverlapLoose(prev, next) >= 0.85) return prev.length >= next.length ? prev : next;
+  if (looseSameToponym(prev, next)) return preferToponymSpelling(prev, next);
+  if (/\bsan\s+miguel|hacienda|allende\b/i.test(next) && /^(ciudad\s+de\s+m[eé]xico|cdmx)$/i.test(prev)) {
+    return next;
+  }
+  return `${prev}, ${next}`;
+}
+function textOverlapLoose(a4, b5) {
+  const norm2 = (s7) => s7.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(Boolean);
+  const wa2 = new Set(norm2(a4));
+  const wb = new Set(norm2(b5));
+  if (!wa2.size || !wb.size) return 0;
+  let shared = 0;
+  for (const w5 of wa2) if (wb.has(w5)) shared++;
+  return shared / Math.max(wa2.size, wb.size);
+}
+function bareNumberLooksLikeInvitados(num, trimmed) {
+  if (/\$|k\b|mil\b|pesos|mxn|mnx/i.test(trimmed)) return false;
+  return num >= 5 && num <= 999;
+}
+function countLucyFieldAsks(history, field) {
+  const pattern = LUCY_FIELD_ASK_PATTERNS[field];
+  return history.filter(
+    (m6) => m6.role === "assistant" && typeof m6.content === "string" && pattern.test(m6.content)
+  ).length;
+}
+function clientAsksTeamOptionsInsteadOfBudget(text2) {
+  const t4 = (text2 ?? "").trim();
+  if (!t4 || t4.length > 80) return false;
+  if (/\$\s*\d|\b\d{3,}\s*(mil|pesos|mxn)\b/i.test(t4)) return false;
+  return /^(?:una[s]?\s+)?opciones?(?:\s+por\s+favor)?[\s.,!]*$/i.test(t4) || /^(?:la\s+)?opci[oó]n\s+base[\s.,!]*$/i.test(t4) || /\bopciones?\s+por\s+favor\b/i.test(t4) || /\bprefiero\s+(?:que\s+)?(?:me\s+)?(?:manden|propongan|den|pasen)\s+opciones\b/i.test(t4) || /\bque\s+(?:el\s+)?equipo\s+(?:me\s+)?(?:proponga|presente)\b/i.test(t4);
+}
+function detectPresupuestoRefusal(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  if (isRichQuoteBrief(t4)) return false;
+  if (!/\bpresupuesto\b/i.test(t4) && (/\b(por\s+este\s+medio|por\s+whatsapp|aqu[ií]\s+por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|no\s+tengo(\s+un?)?\s+correo)\b/i.test(
+    t4
+  ) || /\bno\s+s[eé]\s+puede\b/i.test(t4))) {
+    return false;
+  }
+  if (/^(no|nop)[\s.,!]*$/i.test(t4)) return true;
+  if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t4)) return true;
+  if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t4)) return true;
+  if (/\bopci[oó]n\s+completa\b/i.test(t4) || /\bpropuesta\s+completa\b/i.test(t4)) return true;
+  if (t4.length <= 100 && /\b(una\s+)?propuesta\b/i.test(t4) && !/\bpresupuesto\s+(de|estimado|aprox)/i.test(t4) && !/\$\s*\d|\b\d{3,}\s*(mil|pesos|mxn)\b/i.test(t4)) {
+    return true;
+  }
+  if (/^\.{2,}$/.test(t4)) return true;
+  if (/\bpara\s+eso\s+(te\s+)?(contacto|contact[eé]|escribo|hablo|llamo)\b/i.test(t4) || /\b(por|para)\s+eso\s+(te\s+)?(estoy\s+)?(contactando|escribiendo|llamando)\b/i.test(t4)) {
+    return true;
+  }
+  const explicitNoBudget = /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t4) || /\bno\s+me\s+brindaron\b/i.test(t4) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t4) || /\bsin\s+presupuesto\b/i.test(t4) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t4) || // A15815: "No hemos cotizado nada aún Uds son los primeros"
+  /\bno\s+hemos\s+cotizado\b/i.test(t4) || /\b(ustedes|uds\.?|ustedes)\s+son\s+los\s+primeros\b/i.test(t4) || /\bson\s+los\s+primeros\b/i.test(t4);
+  if (explicitNoBudget) return true;
+  const budgetCareLanguage = /\b(dentro\s+del\s+presupuesto|sin\s+perder.{0,40}presupuesto|al\s+presupuesto|bajo\s+presupuesto|mantener.{0,25}presupuesto|seg[uú]n\s+(el\s+)?presupuesto|cuidando.{0,25}presupuesto)\b/i.test(
+    t4
+  );
+  if (!budgetCareLanguage && t4.length <= 160 && /\bno\b/i.test(t4) && /\bpresupuesto\b/i.test(t4)) {
+    return true;
+  }
+  if (t4.length > 140) return false;
+  const norm2 = t4.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  if (/\bno\s+se\b/.test(norm2) && /\b(cual|nivel|opcion|variante|paquete|incluir|incluye|podria\s+ser)\b/.test(norm2)) {
+    return false;
+  }
+  return /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t4) || /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t4) || /\bt[uú]\s+m[aá]ndame\b/i.test(t4) || /\bsi\s+quieres\s+vemos\b/i.test(t4) || /\b(no\s+s[eé](?!\s+puede)|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s*$|[.,!?]|\s+(cu[aá]nto|a[uú]n|si)\b)/i.test(t4) || // A15893: "Aún no sé definen" es horario, no presupuesto. "aún no sé" solo al final o con cuánto.
+  /\ba[uú]n\s+no\s+(?:lo\s+s[eé]|s[eé]\s+cu[aá]nto)(?!\s+defin)/i.test(t4) || /\ba[uú]n\s+no\s+s[eé](?!\s+defin)(?:\s*$|[.,!?])/i.test(t4) || /\btodav[ií]a\s+no\b/i.test(t4) || /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t4) || /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t4) || /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t4) || /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t4) || /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t4) || /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t4) || /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t4) || /\b(el\s+)?equipo\s+(me\s+)?propong/i.test(t4);
+}
+function isSoftDeferralNo(text2) {
+  const t4 = (text2 ?? "").trim().replace(/[\s.,!¡]+$/g, "");
+  if (!t4 || t4.length > 40) return false;
+  return /^(de\s+momento|por\s+(ahora|el\s+momento|lo\s+pronto)|a[uú]n|todav[ií]a|hasta\s+ahora)\s+no$/i.test(
+    t4
+  ) || /^no\s+(por\s+(ahora|el\s+momento)|de\s+momento|a[uú]n|todav[ií]a)$/i.test(t4);
+}
+function detectPresupuestoRefusalInContext(text2, lastAssistantText) {
+  if (clientDefersHorario(text2)) return false;
+  const asked = lastAssistantText ?? "";
+  if (asked.trim() && LUCY_FIELD_ASK_PATTERNS.horario.test(asked) && !LUCY_FIELD_ASK_PATTERNS.presupuesto.test(asked)) {
+    return false;
+  }
+  if (detectPresupuestoRefusal(text2)) return true;
+  if (clientAsksTeamOptionsInsteadOfBudget(text2) && LUCY_FIELD_ASK_PATTERNS.presupuesto.test(asked)) {
+    return true;
+  }
+  if (!isSoftDeferralNo(text2)) return false;
+  if (!asked.trim()) return false;
+  return LUCY_FIELD_ASK_PATTERNS.presupuesto.test(asked);
+}
+function isPresupuestoResuelto(filledSet, texts = [], history) {
+  if (filledSet.has("Presupuesto (MXN)")) return true;
+  if (findPresupuestoInTexts(texts, history)) return true;
+  if (texts.some((t4) => detectPresupuestoRefusal(t4))) return true;
+  return false;
+}
+function findPresupuestoInTexts(texts, history) {
+  if (history?.length) {
+    let lastAssistant = "";
+    for (const msg of history) {
+      if (msg.role === "assistant" && typeof msg.content === "string") {
+        lastAssistant = msg.content;
+      }
+      if (msg.role === "user" && typeof msg.content === "string") {
+        const asked = inferLucyAskedField(lastAssistant);
+        const pres = parsePresupuestoFromText(msg.content, {
+          askedField: asked === "presupuesto" ? "presupuesto" : null
+        });
+        if (pres) return pres;
+      }
+    }
+  }
+  for (const t4 of texts) {
+    const pres = parsePresupuestoFromText(t4);
+    if (pres) return pres;
+  }
+  return null;
+}
+function looksLikeCalendarYearAmount(num, text2) {
+  if (num < 1990 || num > 2100) return false;
+  if (/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget|tope)\b/i.test(text2)) {
+    return false;
+  }
+  const t4 = text2.trim();
+  if (/^(19|20)\d{2}$/.test(t4)) return true;
+  if (/\b(19|20)\d{2}\b/.test(t4) && /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|fecha|a[nñ]o)\b/i.test(
+    t4
+  )) {
+    return true;
+  }
+  return false;
+}
+function parsePresupuestoFromText(text2, opts) {
+  const withoutEmails = text2.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ").replace(/\s+/g, " ").trim();
+  const trimmed = withoutEmails || text2.trim();
+  if (!trimmed) return null;
+  if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(text2.trim())) return null;
+  if (clientCorrectsLocation(trimmed) || isVenueSpaceDetail(trimmed)) return null;
+  if (/\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?(presupuesto|cotiz)/i.test(trimmed) || /\bt[uú]\s+m[aá]ndame\b/i.test(trimmed)) {
+    return "Sin definir (cliente pidi\xF3 que propongamos)";
+  }
+  if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(trimmed)) {
+    return "Sin definir (cliente pidi\xF3 que propongamos)";
+  }
+  if (/^(abiert[oa]s?)[\s.,!]*$/i.test(trimmed) || /\bpropuesta\s+abierta\b/i.test(trimmed) || /\bpresupuesto\s+abiert[oa]\b/i.test(trimmed) || /\bcotizaci[oó]n\s+abierta\b/i.test(trimmed)) {
+    return "Sin definir (propuesta abierta / cliente pidi\xF3 opciones)";
+  }
+  if (/\bopci[oó]n\s+completa\b/i.test(trimmed) || /\bpropuesta\s+completa\b/i.test(trimmed)) {
+    return "Sin definir (cliente pidi\xF3 que propongamos)";
+  }
+  if (/\b(que\s+(me\s+)?propongan|el\s+equipo\s+(me\s+)?propong|ustedes\s+(me\s+)?propong)/i.test(
+    trimmed
+  )) {
+    return "Sin definir (cliente pidi\xF3 que propongamos)";
+  }
+  if (/\bno\s+hay\s+l[ií]mite(\s+de\s+presupuesto)?\b/i.test(trimmed) || /\bsin\s+l[ií]mite(\s+de\s+presupuesto)?\b/i.test(trimmed) || /\bpresupuesto\s+sin\s+l[ií]mite\b/i.test(trimmed)) {
+    return "Sin l\xEDmite (cliente indic\xF3 flexibilidad)";
+  }
+  if (/^(?:no+|nop|nel|no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(trimmed) && opts?.askedField !== "presupuesto") {
+    return null;
+  }
+  if (detectPresupuestoRefusal(trimmed)) {
+    return "Sin definir (cliente indic\xF3 que no tiene)";
+  }
+  if (/\b(lo\s+m[aá]s\s+)?econ[oó]mic[oa]s?\b/i.test(trimmed) || /\b(barato|accesible|ajustad[oa]|menor\s+costo|lo\s+m[aá]s\s+barato)\b/i.test(trimmed)) {
+    return "Opciones econ\xF3micas (sin monto fijo)";
+  }
+  if (/\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(trimmed)) {
+    return "Sin definir (cliente indic\xF3 que no tiene)";
+  }
+  if (/\b(poquito|lo\s+que\s+sea\s+necesario|flexible|lo\s+que\s+se\s+necesite)\b/i.test(trimmed)) {
+    return "Flexible (sin monto fijo)";
+  }
+  if (opts?.askedField === "presupuesto" && /^(no|nop)[\s.,!]*$/i.test(trimmed)) {
+    return "Sin definir (cliente indic\xF3 que no tiene)";
+  }
+  if (opts?.askedField === "presupuesto") {
+    if (/^(s[ií]|ok|vale|bueno|est[aá]\s+bien|perfecto|claro|de\s+acuerdo|opciones?|propuestas?|abiert[oa]s?)[\s.,!]*$/i.test(
+      trimmed
+    )) {
+      return trimmed.match(/^opciones?|^propuestas?|^abiert/i) ? "Sin definir (cliente pidi\xF3 que propongamos)" : PRESUPUESTO_AUTO_WAIVER;
+    }
+    if (/^(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea|\.\.+)[\s.,!]*$/i.test(trimmed)) {
+      return "Sin definir (cliente indic\xF3 que no tiene)";
+    }
+  }
+  if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones|todav[ií]a\s+no|despu[eé]s\s+vemos)\b/i.test(
+    trimmed
+  )) {
+    if (opts?.askedField !== "presupuesto" && !/\b(presupuesto|inversi[oó]n|cu[aá]nto\s+(?:puedo|pueden|tenemos)\s+gastar)\b/i.test(
+      trimmed
+    ) && /\b(sal[oó]n|venue|lugar|sede|ubicaci[oó]n|direcci[oó]n|colonia|jard[ií]n|casa|hotel|hacienda)\b/i.test(
+      trimmed
+    )) {
+      return null;
+    }
+    return "Sin definir (cliente indic\xF3 que no tiene)";
+  }
+  if (parseFechaFromText(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b)/i.test(trimmed)) {
+    return null;
+  }
+  if (/\b\d+\s*(personas?|invitados?|pax)\b/i.test(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b)/i.test(trimmed)) {
+    return null;
+  }
+  if (/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|hoy|ma[nñ]ana|esta?\s+semana|este\s+s[aá]bado|pr[oó]ximo)\b/i.test(
+    trimmed
+  ) && /\b\d{1,2}\s*(?:[:.]\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}\b/i.test(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)) {
+    return null;
+  }
+  {
+    const hourRange = trimmed.match(/\b(\d{1,2})\s*(?:[:.]\d{2})?\s*(?:a|[-–]|hasta)\s*(\d{1,2})\b/i);
+    if (hourRange && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)) {
+      const a4 = parseInt(hourRange[1], 10);
+      const b5 = parseInt(hourRange[2], 10);
+      if (a4 >= 0 && a4 <= 24 && b5 >= 0 && b5 <= 24 && a4 < 1e3 && b5 < 1e3) {
+        if (a4 < 100 && b5 < 100) return null;
+      }
+    }
+  }
+  const rangeMatch = trimmed.match(/\b(\d[\d,.]*)\s*[-–a]\s*(\d[\d,.]*)\s*(mxn|mnx|pesos)?\b/i);
+  if (rangeMatch) {
+    const aRaw = rangeMatch[1].replace(/,/g, "");
+    const bRaw = rangeMatch[2].replace(/,/g, "");
+    const a4 = parseInt(aRaw, 10);
+    const b5 = parseInt(bRaw, 10);
+    const hasMoneyToken = !!(rangeMatch[3] || /\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed));
+    if (!hasMoneyToken && looksLikeGuestCountRange(trimmed)) return null;
+    if (!hasMoneyToken && Number.isFinite(a4) && Number.isFinite(b5) && a4 < 1e3 && b5 < 1e3) {
+      if (opts?.askedField !== "presupuesto") return null;
+      if (a4 < 500 && b5 < 500) return null;
+    }
+    const unit = trimmed.match(
+      /\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona|pax|cabeza)\b|\/\s*(silla|pieza|mesa|pp)\b/i
+    );
+    const unitLabel = unit ? /persona|pax|cabeza|pp/i.test(unit[1] || unit[2] || "") ? "por persona" : `por ${(unit[1] || unit[2] || "pieza").toLowerCase()}` : null;
+    const ship = trimmed.match(
+      /\b(?:acarreo|desplazamiento|env[ií]o|flete)\s*(?:de\s*)?\$?\s*([\d][\d,.]*)/i
+    );
+    let out2 = unitLabel ? `$${aRaw}\u2013$${bRaw} MXN ${unitLabel}` : `$${aRaw}\u2013$${bRaw} MXN`;
+    if (ship?.[1]) {
+      out2 += ` + $${ship[1].replace(/,/g, "")} ${/acarreo/i.test(trimmed) ? "acarreo" : "desplazamiento"}`;
+    }
+    return out2;
+  }
+  const perUnitMatch = trimmed.match(
+    /\$?\s*([\d][\d,.]*)\s*(?:mxn|mnx|pesos)?\s*(?:por\s+(?:cada\s+)?(persona|cabeza|silla|pieza|mesa)|x\s+persona|pp\b|c\/u\b|\/\s*(silla|pieza|pp))/i
+  );
+  if (perUnitMatch) {
+    const hasBudgetIntent = opts?.askedField === "presupuesto" || /\b(presupuesto|rango|inversi[oó]n|budget|tope|menos\s+de|hasta|m[aá]ximo|acarreo|desplazamiento)\b/i.test(
+      trimmed
+    );
+    const looksLikeCatalogPitch = /\b(manejamos|desde|ofrecemos|tenemos|niveles?|incluye)\b/i.test(trimmed) || trimmed.length > 120;
+    if (hasBudgetIntent || !looksLikeCatalogPitch) {
+      const num = parseInt(perUnitMatch[1].replace(/,/g, ""), 10);
+      const unitRaw = (perUnitMatch[2] || perUnitMatch[3] || "persona").toLowerCase();
+      const unitLabel = /persona|cabeza|pp/.test(unitRaw) ? "por persona" : `por ${unitRaw}`;
+      if (!isNaN(num) && num > 0) {
+        let out2 = `$${num.toLocaleString("es-MX")} MXN ${unitLabel}`;
+        const ship = trimmed.match(
+          /\b(?:acarreo|desplazamiento|env[ií]o|flete)\s*(?:de\s*)?\$?\s*([\d][\d,.]*)/i
+        );
+        if (ship?.[1]) {
+          out2 += ` + $${ship[1].replace(/,/g, "")} desplazamiento`;
+        }
+        return out2;
+      }
+    }
+  }
+  const menosDeMatch = trimmed.match(
+    /\b(?:menos\s+de|hasta|m[aá]ximo|max\.?)\s+\$?\s*([\d][\d,.]*)\s*(mxn|mnx|pesos)?\b/i
+  );
+  if (menosDeMatch) {
+    return `Hasta $${menosDeMatch[1].replace(/,/g, "")} MXN`;
+  }
+  const topeMatch = trimmed.match(
+    /\btope\s+(?:es\s+)?(?:de\s+)?\$?\s*([\d][\d,.]*)\s*(mxn|mnx|pesos|k)?\b/i
+  );
+  if (topeMatch) {
+    const suffix = topeMatch[2]?.toLowerCase() === "k" ? "k" : "";
+    return `Hasta $${topeMatch[1].replace(/,/g, "")}${suffix} MXN`;
+  }
+  const kMatch = trimmed.match(/\$?\s*([\d,.]+)\s*k\b/i);
+  if (kMatch) {
+    const num = parseInt(kMatch[1].replace(/[,.]/g, ""), 10);
+    if (!isNaN(num) && num > 0) {
+      const iva = /\bm[aá]s\s+i\.?\s*v\.?\s*a\.?|\+\s*i\.?\s*v\.?\s*a\.?|\bi\.?v\.?a\.?\s+aparte/i.test(trimmed) ? " + IVA" : "";
+      const ref = /\breferencia\b|\ba[nñ]o\s+pasado\b/i.test(trimmed) ? " (referencia)" : "";
+      return num < 1e3 ? `$${(num * 1e3).toLocaleString("es-MX")} MXN${iva}${ref}` : `$${num}k${iva}${ref}`;
+    }
+  }
+  const milMatch = trimmed.match(/([\d,.]+)\s*mil\b/i);
+  if (milMatch) {
+    const num = parseInt(milMatch[1].replace(/[,.]/g, ""), 10);
+    if (!isNaN(num) && num > 0) return `$${num * 1e3}`;
+  }
+  {
+    const yearOnly = trimmed.match(/^(19|20)\d{2}$/);
+    if (yearOnly) return null;
+    const yearNum = parseInt(trimmed.replace(/[^\d]/g, ""), 10);
+    if (looksLikeCalendarYearAmount(yearNum, trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)) {
+      if (/^(19|20)\d{2}$/.test(trimmed) || trimmed.length <= 6) return null;
+    }
+  }
+  const hasMoneyWord = /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn|mnx|tope)\b/i.test(trimmed) || opts?.askedField === "presupuesto";
+  const hasAproxBudget = hasMoneyWord && /\b(como|aprox|alrededor|cerca\s+de|menos\s+de|hasta)\b/i.test(trimmed);
+  if (hasMoneyWord || hasAproxBudget || /\$/.test(trimmed) && hasMoneyWord) {
+    const amountMatch = trimmed.match(/(?<![A-Za-z0-9])\$?\s*([\d][\d,.]*)/);
+    if (amountMatch) {
+      const num = parseInt(amountMatch[1].replace(/,/g, ""), 10);
+      if (!isNaN(num) && looksLikeCalendarYearAmount(num, trimmed) && !/\$/.test(trimmed)) {
+        return null;
+      }
+      const dollarAmount = trimmed.match(/\$\s*([\d][\d,.]{3,})/);
+      if (dollarAmount && /\b(19|20)\d{2}\b/.test(trimmed.replace(dollarAmount[0], " "))) {
+        const n5 = parseInt(dollarAmount[1].replace(/[,.]/g, ""), 10);
+        if (!isNaN(n5) && n5 >= 1e3) return `$${n5.toLocaleString("es-MX")} MXN`;
+      }
+      return trimmed.slice(0, 80);
+    }
+  }
+  if (/\$\s*[\d][\d,.]{3,}/.test(trimmed) && !/\bdesde\s+\$/i.test(trimmed)) {
+    const amountMatch = trimmed.match(/\$\s*([\d][\d,.]*)/);
+    if (amountMatch) {
+      const num = parseInt(amountMatch[1].replace(/,/g, ""), 10);
+      if (!isNaN(num) && num >= 1e3) return trimmed.slice(0, 80);
+    }
+  }
+  const bareMatch = trimmed.match(/^\$?\s*([\d][\d,.]*)\s*(k|mxn|mnx|pesos)?$/i);
+  if (bareMatch) {
+    const num = parseInt(bareMatch[1].replace(/,/g, ""), 10);
+    if (isNaN(num) || num <= 0) return null;
+    if (looksLikeCalendarYearAmount(num, trimmed) && !bareMatch[2]) return null;
+    if (opts?.askedField === "presupuesto") return trimmed.slice(0, 80);
+    if (bareNumberLooksLikeInvitados(num, trimmed)) return null;
+    if (num >= 1e3) return `$${num.toLocaleString("es-MX")} MXN`;
+    return null;
+  }
+  return null;
+}
+function presupuestoToSafeNumber(value) {
+  if (value === null || value === void 0) return null;
+  if (typeof value === "number") {
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }
+  const t4 = value.trim();
+  if (!t4 || /sin definir|flexible|econ[oó]mic|propong|l[ií]mite/i.test(t4)) return null;
+  const range = t4.match(/\$?\s*([\d][\d,.]*)\s*[–\-a]\s*\$?\s*([\d][\d,.]*)/i);
+  if (range) {
+    const a4 = parseInt(range[1].replace(/,/g, ""), 10);
+    const b5 = parseInt(range[2].replace(/,/g, ""), 10);
+    if (!isNaN(a4) && !isNaN(b5)) {
+      const hi2 = Math.max(a4, b5);
+      if (/\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona)\b/i.test(t4) && hi2 < 1e3) {
+        return null;
+      }
+      if (hi2 >= 1e3) return hi2;
+      return null;
+    }
+  }
+  const primary = t4.split(/\s*\+\s*/)[0] ?? t4;
+  const m6 = primary.match(/\$?\s*([\d][\d,.]*)/);
+  if (!m6) return null;
+  const n5 = parseInt(m6[1].replace(/,/g, ""), 10);
+  if (isNaN(n5) || n5 <= 0) return null;
+  if (/\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona)\b/i.test(t4) && n5 < 1e3) return null;
+  return n5;
+}
+function getLastLucyMessage(history) {
+  return history.filter((m6) => m6.role === "assistant" && typeof m6.content === "string").slice(-1)[0]?.content ?? "";
+}
+function collectUserMessages(history, currentMessage) {
+  const fromHistory = history.filter((m6) => m6.role === "user" && typeof m6.content === "string").map((m6) => m6.content);
+  return currentMessage?.trim() ? [...fromHistory, currentMessage.trim()] : fromHistory;
+}
+function captureContextualAnswer(history, currentMessage, filledSet) {
+  const msg = currentMessage.trim();
+  if (!msg) return [];
+  const lastLucy = getLastLucyMessage(history);
+  const asked = inferLucyAskedField(lastLucy);
+  const captures = [];
+  const carpaVariant = parseCarpaVariantFromText(msg);
+  if (carpaVariant && !filledSet.has("Requerimientos o servicios")) {
+    captures.push({ label: "Requerimientos o servicios", value: carpaVariant });
+  } else if (carpaVariant) {
+    captures.push({ label: "Requerimientos o servicios", value: carpaVariant });
+  }
+  const zonaFromMsg = parseZonaFromText(msg);
+  const msgLooksLikePlace = !!zonaFromMsg && isUsableDireccionEvento(zonaFromMsg) && (isLikelyUbicacionNotNombre(msg) || asked === "zona" || /^en\s+/i.test(msg.trim()) || msg.trim().split(/\s+/).length <= 8 && (hasCityOrMetroSignal(msg) || KNOWN_ZONES.test(msg)));
+  const strongPlaceSignal = /^en\s+/i.test(msg.trim()) || isLikelyUbicacionNotNombre(msg);
+  const msgIsLocation = !carpaVariant && (asked !== "nombre" || strongPlaceSignal) && msgLooksLikePlace && !looksLikePersonFullName(msg);
+  if (msgIsLocation && zonaFromMsg && !filledSet.has("Lugar/direcci\xF3n del evento")) {
+    captures.push({ label: "Lugar/direcci\xF3n del evento", value: zonaFromMsg });
+  }
+  const dimsNowList = parseAllSpaceDimensions(msg);
+  if (dimsNowList.length > 0 && (isDimensionText(msg) || /medidas?/i.test(lastLucy) || /carpa|pista|tarima|entelado/i.test(lastLucy))) {
+    const existingReq = captures.find((c5) => c5.label === "Requerimientos o servicios");
+    if (existingReq) {
+      const cleaned = stripAccidentalCarpasFromPistaRequirements(existingReq.value) ?? existingReq.value;
+      existingReq.value = attachEspacioToRequirements(cleaned, dimsNowList);
+    } else {
+      const kind = resolveSpaceMeasureServiceBase({
+        requerimientos: null,
+        lastLucy,
+        currentMessage: msg,
+        historyBlob: history.filter((m6) => m6.role === "user" && typeof m6.content === "string").map((m6) => m6.content).join(" ")
+      });
+      captures.push({
+        label: "Requerimientos o servicios",
+        value: attachEspacioToRequirements(spaceMeasureServiceLabel(kind), dimsNowList)
+      });
+    }
+  }
+  if (!msgIsLocation && !filledSet.has("Nombre del cliente") && asked !== "zona" && (asked === "nombre" || !history.some((m6) => m6.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && !isQuoteIntentMessage(msg) && !isServiceRelatedMessage(msg) && !isAmbiguousShortNumber(msg) && !isLikelyUbicacionNotNombre(msg) && !isOccasionOrStyleAsNombre(msg) && !isNumberWordsAsNombre(msg) && !isMeasurementOrDimensionAsNombre(msg) && !isEventTypeOnlyMessage(msg) && !parseTipoEventoFromText(msg) && !parseZonaFromText(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
+    const candidato = stripNombrePresentationPrefix(msg);
+    const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+    const handoffNoise = clientAsksForHumanAdvisor(msg) || /\b(hablar|asesor|agente|humano)\b/i.test(candidato);
+    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && (!isLikelyNotPersonNameMessage(candidato) || handoffNoise) && !isServiceRelatedMessage(candidato) && !isLikelyUbicacionNotNombre(candidato) && !isOccasionOrStyleAsNombre(candidato) && !isNumberWordsAsNombre(candidato)) {
+      captures.push({ label: "Nombre del cliente", value: nombre });
+    }
+  }
+  if (asked === "nombre" && !filledSet.has("Nombre del cliente")) {
+    const tipoMisroute = parseTipoEventoFromText(msg) || (isEventTypeOnlyMessage(msg) ? msg.trim() : null);
+    if (tipoMisroute && !filledSet.has("Tipo de evento")) {
+      captures.push({
+        label: "Tipo de evento",
+        value: parseTipoEventoFromText(msg) ?? tipoMisroute
+      });
+    }
+  }
+  if (!filledSet.has("Tipo de evento") && asked === "tipo_evento") {
+    if (isUnusableTipoEventoReply(msg)) {
+      const histBlob = history.filter((m6) => m6.role === "user" && typeof m6.content === "string").map((m6) => m6.content).join(" ");
+      const tipoHist = parseTipoEventoFromText(histBlob) || (/\bbanquete\b/i.test(histBlob) ? "evento con banquete" : /\bcatering\b/i.test(histBlob) ? "evento con catering" : null);
+      if (tipoHist) {
+        captures.push({ label: "Tipo de evento", value: tipoHist });
+      }
+    } else {
+      const tipo = parseTipoEventoFromText(msg);
+      if (tipo) {
+        captures.push({ label: "Tipo de evento", value: tipo });
+      } else if (isServiceRelatedMessage(msg) || /\b(banquete|catering)\b/i.test(msg)) {
+        const services = parseServicesFromText(msg);
+        const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
+        const inv = parseInvitadosFromText(msg);
+        if (service) {
+          captures.push({ label: "Requerimientos o servicios", value: service });
+        }
+        if (inv) {
+          captures.push({ label: "N\xFAmero de invitados", value: inv });
+        }
+        if (/\bbanquete\b/i.test(msg)) {
+          captures.push({ label: "Tipo de evento", value: "evento con banquete" });
+        } else if (/\bcatering\b/i.test(msg)) {
+          captures.push({ label: "Tipo de evento", value: "evento con catering" });
+        } else {
+          const tipoHist = parseTipoEventoFromText(
+            history.filter((m6) => m6.role === "user" && typeof m6.content === "string").map((m6) => m6.content).join(" ")
+          );
+          if (tipoHist) {
+            captures.push({ label: "Tipo de evento", value: tipoHist });
+          }
+        }
+      } else if (tipo == null && msg.length >= 2 && msg.length <= 60 && !/@/.test(msg) && !isUnusableTipoEventoReply(msg) && !looksLikePersonNameAsEventType(msg) && !looksLikeNameAnswerMessage(msg)) {
+        captures.push({ label: "Tipo de evento", value: msg.slice(0, 80) });
+      }
+    }
+  }
+  if (!filledSet.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && !clientAsksCafeOrCateringChoice(msg) && (asked === "requerimientos" || isServiceRelatedMessage(msg))) {
+    const services = parseServicesFromText(msg);
+    const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
+    const carpaBrief = clientMentionsCarpas(msg) ? buildCarpaRequirementsFromText(msg) : null;
+    const dims = parseAllSpaceDimensions(msg);
+    if (service || isServiceRelatedMessage(msg) || carpaBrief) {
+      let value = carpaBrief ?? service ?? msg.slice(0, 120);
+      if (!carpaBrief && dims.length && service) {
+        value = attachEspacioToRequirements(service, dims);
+      } else if (!carpaBrief && dims.length && !service) {
+        value = `Tarima/pista \u2014 espacio ${dims.join(" y ")}`;
+      }
+      captures.push({
+        label: "Requerimientos o servicios",
+        value
+      });
+    }
+  }
+  if (!filledSet.has("N\xFAmero de invitados") && asked === "invitados") {
+    const inv = parseInvitadosFromText(msg, { askedInvitados: true });
+    if (inv) captures.push({ label: "N\xFAmero de invitados", value: inv });
+  }
+  if (!filledSet.has("N\xFAmero de invitados") && asked !== "invitados" && lastLucy && /invitados|cu[aá]ntos\s+invit|asistir[aá]n/i.test(lastLucy) && /^\d{2,4}$/.test(msg)) {
+    const inv = parseInvitadosFromText(msg);
+    if (inv) captures.push({ label: "N\xFAmero de invitados", value: inv });
+  }
+  if (asked === "zona") {
+    const zona = parseZonaFromText(msg);
+    if (zona && isUsableDireccionEvento(zona)) {
+      captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
+    }
+  }
+  if (!filledSet.has(CRM_FECHA_LABEL) && asked === "fecha") {
+    const fecha = parseFechaFromText(msg);
+    if (fecha) captures.push({ label: CRM_FECHA_LABEL, value: fecha });
+  }
+  if (clientCorrectsLocation(msg) || isVenueSpaceDetail(msg) && filledSet.has("Lugar/direcci\xF3n del evento")) {
+    const zonaHint = parseZonaFromText(msg);
+    if (zonaHint && isUsableDireccionEvento(zonaHint)) {
+      captures.push({ label: "Lugar/direcci\xF3n del evento", value: zonaHint });
+    }
+  } else if (!filledSet.has("Presupuesto (MXN)") && (asked === "presupuesto" || detectPresupuestoRefusal(msg))) {
+    const pres = parsePresupuestoFromText(msg, { askedField: asked === "presupuesto" ? "presupuesto" : null });
+    if (pres) {
+      captures.push({ label: "Presupuesto (MXN)", value: pres });
+    } else if (/\b(s[ií]|ok|dale|claro)\b/i.test(msg) && /\b(alejandro|opciones|propong)\b/i.test(msg)) {
+      captures.push({
+        label: "Presupuesto (MXN)",
+        value: "Sin definir (cliente pidi\xF3 opciones)"
+      });
+    }
+  }
+  return captures;
+}
+function scanConversationForCaptures(history, currentMessage, filledSet) {
+  const captures = [];
+  const pending = new Set(filledSet);
+  const userTexts = collectUserMessages(history, currentMessage).slice(-12);
+  if (!pending.has("Nombre del cliente")) {
+    const nombre = recoverClienteNombreFromHistory(history, currentMessage);
+    if (nombre) {
+      captures.push({ label: "Nombre del cliente", value: nombre });
+      pending.add("Nombre del cliente");
+    }
+  }
+  for (const msg of userTexts) {
+    if (!pending.has("Tipo de evento")) {
+      const tipo = parseTipoEventoFromText(msg);
+      if (tipo) {
+        captures.push({ label: "Tipo de evento", value: tipo });
+        pending.add("Tipo de evento");
+      }
+    }
+    if (!pending.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && !clientAsksCafeOrCateringChoice(msg) && isServiceRelatedMessage(msg)) {
+      const services = parseServicesFromText(msg);
+      const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
+      const carpaBrief = clientMentionsCarpas(msg) ? buildCarpaRequirementsFromText(msg) : null;
+      const dims = parseAllSpaceDimensions(msg);
+      let value = carpaBrief ?? service ?? msg.trim().slice(0, 120);
+      if (!carpaBrief && dims.length && service) {
+        value = attachEspacioToRequirements(service, dims);
+      } else if (!carpaBrief && dims.length && /pista|tarima/i.test(msg)) {
+        value = `Pista de baile ${formatEspacioAnnotation(dims)}`;
+      }
+      captures.push({
+        label: "Requerimientos o servicios",
+        value
+      });
+      pending.add("Requerimientos o servicios");
+    }
+    if (!pending.has("N\xFAmero de invitados") && !isAmbiguousShortNumber(msg)) {
+      const inv = parseInvitadosFromText(msg);
+      if (inv) {
+        captures.push({ label: "N\xFAmero de invitados", value: inv });
+        pending.add("N\xFAmero de invitados");
+      }
+    }
+    {
+      const zona = parseZonaFromText(msg);
+      if (zona && isUsableDireccionEvento(zona)) {
+        captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
+        pending.add("Lugar/direcci\xF3n del evento");
+      }
+    }
+    if (!pending.has(CRM_FECHA_LABEL)) {
+      const fecha = parseFechaFromText(msg);
+      if (fecha) {
+        captures.push({ label: CRM_FECHA_LABEL, value: fecha });
+        pending.add(CRM_FECHA_LABEL);
+      }
+    }
+    if (!pending.has("Presupuesto (MXN)")) {
+      const invMatch = parseInvitadosFromText(msg);
+      const looksLikeInvitadosOnly = !!invMatch && !/\$|presupuesto|mil\b|pesos|mxn|mnx/i.test(msg);
+      if (!looksLikeInvitadosOnly) {
+        const pres = parsePresupuestoFromText(msg);
+        if (pres) {
+          captures.push({ label: "Presupuesto (MXN)", value: pres });
+          pending.add("Presupuesto (MXN)");
+        }
+      }
+    }
+    const dimsList = parseAllSpaceDimensions(msg);
+    if (dimsList.length && /pista|tarima|carpa/i.test(userTexts.join(" "))) {
+      const reqIdx = captures.findIndex((c5) => c5.label === "Requerimientos o servicios");
+      if (reqIdx >= 0) {
+        captures[reqIdx].value = attachEspacioToRequirements(
+          captures[reqIdx].value,
+          dimsList
+        );
+      } else if (!pending.has("Requerimientos o servicios")) {
+        const service = parsePrimaryService(userTexts.join(" ")) ?? (/\bcarpa/i.test(msg) ? "Carpas" : "Pista de baile");
+        captures.push({
+          label: "Requerimientos o servicios",
+          value: attachEspacioToRequirements(service, dimsList)
+        });
+        pending.add("Requerimientos o servicios");
+      }
+    }
+  }
+  return captures;
+}
+function appendSpaceDimensionsToRequerimientos(mergedLines, filledSet, history, currentMessage) {
+  const userTexts = collectUserMessages(history, currentMessage);
+  const contextText = userTexts.join(" ");
+  if (!/pista|tarima|carpa/i.test(contextText)) return;
+  const dimsNow = parseAllSpaceDimensions(currentMessage ?? "");
+  const dims = dimsNow.length > 0 ? dimsNow : parseAllSpaceDimensions(contextText);
+  if (dims.length === 0) return;
+  const idx = mergedLines.findIndex((l6) => /^-?\s*Requerimientos o servicios:/i.test(l6));
+  if (idx >= 0) {
+    const existing = mergedLines[idx].replace(/^-?\s*Requerimientos o servicios:\s*/i, "").trim();
+    const next = attachEspacioToRequirements(existing, dims);
+    if (next !== existing) {
+      mergedLines[idx] = `- Requerimientos o servicios: ${next}`;
+    }
+    return;
+  }
+  if (!filledSet.has("Requerimientos o servicios")) {
+    const service = parsePrimaryService(contextText) ?? (/\bcarpa/i.test(contextText) ? "Carpas" : "Pista de baile");
+    mergedLines.push(
+      `- Requerimientos o servicios: ${attachEspacioToRequirements(service, dims)}`
+    );
+    filledSet.add("Requerimientos o servicios");
+  }
+}
+function applyCapturesToCrm(mergedLines, filledSet, captures) {
+  const crmBlob = mergedLines.join("\n");
+  for (const capture of captures) {
+    const { label } = capture;
+    let { value } = capture;
+    if (!value?.trim()) continue;
+    if (label === CRM_FECHA_LABEL) {
+      value = resolveFechaEvento(value) ?? value;
+      if (filledSet.has(label)) {
+        const re4 = new RegExp(`^-?\\s*${CRM_FECHA_LABEL}:\\s*`, "i");
+        const idx = mergedLines.findIndex((l6) => re4.test(l6));
+        const existing = idx >= 0 ? mergedLines[idx].replace(re4, "").trim() : "";
+        if (idx >= 0 && isUsableFechaEvento(value) && (!isUsableFechaEvento(existing) || isRicherFechaCapture(value, existing))) {
+          mergedLines[idx] = `- ${CRM_FECHA_LABEL}: ${value}`;
+        }
+        continue;
+      }
+    }
+    if (label === CRM_HORARIO_LABEL) {
+      const idx = mergedLines.findIndex(
+        (l6) => new RegExp(`^-?\\s*${CRM_HORARIO_LABEL}:`, "i").test(l6)
+      );
+      const existing = idx >= 0 ? mergedLines[idx].replace(new RegExp(`^-?\\s*${CRM_HORARIO_LABEL}:\\s*`, "i"), "").trim() : null;
+      const resolved = resolveHorarioWithContext(value, existing, crmBlob) ?? value;
+      if (idx >= 0 && filledSet.has(label) && existing && /\d/.test(existing) && !/\d/.test(value)) {
+        if (resolved !== value) mergedLines[idx] = `- ${CRM_HORARIO_LABEL}: ${resolved}`;
+        continue;
+      }
+      if (idx >= 0 && filledSet.has(label) && existing && /\d/.test(resolved) && (!/\d/.test(existing) || isRicherHorarioCapture(resolved, existing))) {
+        mergedLines[idx] = `- ${CRM_HORARIO_LABEL}: ${resolved}`;
+        continue;
+      }
+      value = resolved;
+    }
+    if (label === "Lugar/direcci\xF3n del evento" && filledSet.has(label)) {
+      const idx = mergedLines.findIndex((l6) => /^-?\s*Lugar\/dirección del evento:/i.test(l6));
+      if (idx >= 0) {
+        const existing = mergedLines[idx].replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "").trim();
+        if (shouldReplaceCrmDireccion(existing, value)) {
+          mergedLines[idx] = `- Lugar/direcci\xF3n del evento: ${value}`;
+        } else {
+          const merged = mergeZonaDetail(existing, value);
+          if (merged && merged !== existing) {
+            mergedLines[idx] = `- Lugar/direcci\xF3n del evento: ${merged}`;
+          }
+        }
+      }
+      continue;
+    }
+    if (label === "Requerimientos o servicios" && filledSet.has(label)) {
+      const idx = mergedLines.findIndex((l6) => /^-?\s*Requerimientos o servicios:/i.test(l6));
+      if (idx >= 0) {
+        const existing = mergedLines[idx].replace(/^-?\s*Requerimientos o servicios:\s*/i, "").trim();
+        const merged = mergeServiceRequirements(existing, value, 6);
+        const prev = parseServicesFromText(existing).length;
+        const next = merged ? parseServicesFromText(merged).length : 0;
+        if (merged && (next > prev || serviceRequirementsGainedDimensions(existing, merged))) {
+          mergedLines[idx] = `- Requerimientos o servicios: ${merged}`;
+        }
+      }
+      continue;
+    }
+    if (label === "Presupuesto (MXN)" && filledSet.has(label)) {
+      const idx = mergedLines.findIndex((l6) => /^-?\s*Presupuesto \(MXN\):/i.test(l6));
+      if (idx >= 0) {
+        const existing = mergedLines[idx].replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "").trim();
+        const oldNum = parseInt(existing.replace(/[^\d]/g, ""), 10);
+        const newNum = parseInt(value.replace(/[^\d]/g, ""), 10);
+        if (!isNaN(newNum) && newNum >= 1e3 && (isNaN(oldNum) || newNum > oldNum)) {
+          mergedLines[idx] = `- Presupuesto (MXN): ${value}`;
+        }
+      }
+      continue;
+    }
+    if (filledSet.has(label)) continue;
+    mergedLines.push(`- ${label}: ${value}`);
+    filledSet.add(label);
+  }
+}
+function enrichExtractedFromConversation(extracted, conversationText) {
+  const promo = isPromoTemplateMessage(conversationText);
+  const parseText = promo ? stripPromoTemplateMetadata(conversationText) : conversationText;
+  if (!extracted.tipo_evento?.trim()) {
+    const tipo = parseTipoEventoFromText(parseText);
+    if (tipo) extracted.tipo_evento = tipo;
+  }
+  if (!extracted.fecha_evento?.trim() && !promo) {
+    const fecha = parseFechaFromText(parseText);
+    if (fecha) extracted.fecha_evento = fecha;
+  } else if (!promo && extracted.fecha_evento?.trim()) {
+    const richer = parseFechaFromText(parseText);
+    if (richer && isRicherFechaCapture(richer, extracted.fecha_evento)) {
+      extracted.fecha_evento = richer;
+    }
+  }
+  if (!extracted.horario_evento?.trim() && !promo) {
+    const horario = parseHorarioFromText(conversationText);
+    if (horario) extracted.horario_evento = horario;
+  }
+  syncLegacyFechaHorarioField(extracted);
+  if (!extracted.num_invitados && !promo) {
+    const inv = parseInvitadosFromText(conversationText);
+    if (inv) extracted.num_invitados = parseInt(inv, 10);
+  }
+  if (!isUsableDireccionEvento(extracted.direccion_evento)) {
+    extracted.direccion_evento = null;
+    const zona = parseZonaFromText(conversationText);
+    if (zona && isUsableDireccionEvento(zona)) extracted.direccion_evento = zona;
+  } else {
+    const richer = parseZonaFromText(conversationText);
+    if (richer && isRicherDireccionCapture(richer, extracted.direccion_evento)) {
+      extracted.direccion_evento = richer;
+    } else {
+      const zones = [...conversationText.matchAll(new RegExp(KNOWN_ZONES.source, "gi"))].map((m6) => m6[0].trim()).filter(Boolean);
+      let merged = extracted.direccion_evento;
+      for (const z4 of zones) {
+        if (isUsableDireccionEvento(z4)) merged = mergeZonaDetail(merged, z4);
+      }
+      const venue = extractVenueNameHint(conversationText);
+      const street = extractStreetDetailHint(conversationText);
+      if (venue) merged = mergeZonaDetail(merged, venue);
+      if (street) merged = mergeZonaDetail(merged, street);
+      if (merged) extracted.direccion_evento = merged;
+    }
+  }
+  if (extracted.requerimientos_evento?.trim() && isGenericQuoteIntentRequerimiento(extracted.requerimientos_evento)) {
+    extracted.requerimientos_evento = null;
+  }
+  {
+    const serviceSource = conversationText.split(/\n+/).map((l6) => l6.trim()).filter(
+      (l6) => l6 && !isGenericQuoteIntentRequerimiento(l6) && !isQuoteIntentMessage(l6) && !isGreetingOnlyMessage(l6)
+    ).join(" ");
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      serviceSource,
+      6
+    );
+    if (merged) extracted.requerimientos_evento = merged;
+  }
+  if (extracted.presupuesto === null || extracted.presupuesto === void 0) {
+    const scrubbedConv = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
+    const presChunks = scrubbedConv.split(/\n|\.|;/).map((s7) => s7.trim()).filter(
+      (s7) => /\b(presupuesto|mil\b|pesos|\$|k\b|inversi[oó]n|rango|por\s+(?:cada\s+)?silla|acarreo|desplazamiento)\b/i.test(
+        s7
+      )
+    );
+    for (const chunk of presChunks) {
+      const pres = parsePresupuestoFromText(chunk, { askedField: "presupuesto" });
+      if (!pres) continue;
+      const num = presupuestoToSafeNumber(pres);
+      if (num != null && num >= 1e3) {
+        extracted.presupuesto = num;
+        break;
+      }
+    }
+  } else {
+    const scrubbed = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
+    const amounts = [...scrubbed.matchAll(/(?<![A-Za-z0-9])\$?\s*([\d][\d,]{2,})\b/g)].map((m6) => {
+      const n5 = parseInt(m6[1].replace(/,/g, ""), 10);
+      const around = scrubbed.slice(Math.max(0, (m6.index ?? 0) - 20), (m6.index ?? 0) + 40);
+      if (/\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona)\b/i.test(around) && n5 < 1e3) {
+        return NaN;
+      }
+      if (/\b\d+\s*[-–a]\s*\d+/i.test(around) && n5 < 1e3) return NaN;
+      return n5;
+    }).filter((n5) => !isNaN(n5) && n5 >= 1e3 && n5 <= 5e7);
+    const maxAmt = amounts.length ? Math.max(...amounts) : 0;
+    if (typeof extracted.presupuesto === "number" && maxAmt > extracted.presupuesto) {
+      extracted.presupuesto = maxAmt;
+    }
+  }
+  if (extracted.presupuesto !== null && extracted.num_invitados !== null && extracted.presupuesto === extracted.num_invitados && extracted.presupuesto < 1e3) {
+    extracted.presupuesto = null;
+  }
+  if (!extracted.correo?.trim()) {
+    const fromConv = parseCorreoFromText(conversationText);
+    if (fromConv && looksLikeValidClientEmail(fromConv)) extracted.correo = fromConv;
+  } else {
+    const cleaned = filterClientEmail(parseCorreoFromText(extracted.correo) ?? null);
+    extracted.correo = cleaned && looksLikeValidClientEmail(cleaned) ? cleaned : null;
+  }
+  if (extracted.requerimientos_evento?.trim() && extracted.tipo_evento?.trim() && extracted.requerimientos_evento.trim().toLowerCase() === extracted.tipo_evento.trim().toLowerCase()) {
+    extracted.requerimientos_evento = null;
+  }
+}
+var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, ORDINAL_INDEX, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_DISCOURSE_CUT, VENUE_DISCOURSE_JUNK, VAGUE_VENUE_LABEL, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, EXCLUDED_SERVICE_LEADS, EXCLUDED_TRAILING_RE, EXCLUDED_BEFORE_NO_RE, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, DAY_PERIOD_SRC, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, MX_CITY_ABBREVIATIONS, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
+var init_conversation_understanding = __esm({
+  "src/conversation-understanding.ts"() {
+    "use strict";
+    init_contact_name();
+    init_client_email();
+    init_bodasesorAdvisor();
+    init_serviceDecline();
+    init_geoResolve();
+    init_eventDateTime();
+    init_locationDedupe();
+    init_chairModels();
+    init_chairModels();
+    CRM_FECHA_LABEL = "Fecha del evento";
+    CRM_HORARIO_LABEL = "Horario del evento";
+    LEGACY_CRM_FECHA_HORARIO_LABEL = "Fecha y horario";
+    LUCY_FIELD_ASK_PATTERNS = {
+      nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
+      correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
+      tipo_evento: (
+        // A16095: "¿Qué van a celebrar?" (van a entre qué y celebr*)
+        /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+(van\s+a\s+)?celebr|van\s+a\s+celebrar|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i
+      ),
+      requerimientos: (
+        // No usar "cotización" suelta: "la anoto para tu cotización" NO es pregunta de servicios.
+        /pensado|servicios?|banquete|taquiza|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|plat[ií]came|otro\s+servicio|te\s+gustar[ií]a\s+cotizar|qu[eé].{0,40}cotizar|animaci[oó]n|hora\s+loca|happening|show|incluir\s+en\s+la\s+cotiz|\bmen[uú]\b(?!\s+staff)/i
+      ),
+      invitados: /invitados|personas|gente|pax|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an|asistir[aá]n/i,
+      zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n|es)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n|venue|sede|colonia|municipio/i,
+      fecha: /(?:^|[\s,.])fecha(?:[\s,.]|$)|cu[aá]ndo\s+(ser[ií]a|es|tienen|tengan)|d[ií]a\s+(del\s+evento|tienen|tengan|definido)|agenda|definiendo|opciones\s+de\s+fecha|para\s+qu[eé]\s+d[ií]a|qu[eé]\s+d[ií]a|siguen\s+sin\s+fecha|ya\s+tienen\s+fecha/i,
+      horario: /horario|a\s+qu[eé]\s+hora|qu[eé]\s+hora|desde\s+qu[eé]\s+hora|(?:^|[\s,.])hora(?:[\s,.]|$)|\bhrs?\b|\d{1,2}:\d{2}/i,
+      presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto|cu[aá]nto\s+cuesta|precio\s+total|para\s+la\s+comida|menos\s+de|hasta\s+\$?|opciones\s+de\s+precio/i
+    };
+    BODASESOR_SERVICE_PATTERNS = [
+      ["Parrillada Argentina", /parrillada\s+argentina/i],
+      // Antes de Taquiza: "parrillada tacos" ≠ taquiza.
+      ["Parrillada Tacos", /\bparrillada\s+(de\s+)?tacos?\b/i],
+      ["Banquete Kosher Buffet", /\bkosher\s+buffet\b|\bbuffet\s+kosher\b/i],
+      ["Banquete Kosher", /\bkosher\b/i],
+      ["Banquete Navide\xF1o", /\bnavide[nñ]o\b/i],
+      // A15210: bare "mexicano" en "desayuno temático mexicano" ≠ Banquete Mexicano.
+      // Banquete: "banquete mexicano", "mexicano N tiempos", o "mexicano" suelto (elección de menú).
+      ["Banquete Mexicano", /\bbanquete\s+mexicano\b|\bmexicano\s+\d\s*tiempos?\b|\b\d\s*tiempos?\s+mexicanos?\b/i],
+      // A15935: "banquete" / "solo el banquete" ≠ Banquete Formal — primero Formal vs Mexicano.
+      ["Banquete Formal", /\bbanquete\s+formal\b|\bformal\s+\d\s*tiempos?\b|\b\d\s*tiempos?\s+formales?\b|\bbufet\b|\bbuffet\b/i],
+      ["Banquete", /\bbanquetes?\b/i],
+      // Barras específicas ANTES de genéricas (A14934 Barra Yucateca).
+      ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
+      // "americano" (bebida) ≠ Barra Americana (A14970).
+      ["Barra Americana", /\bbarra\s+americana\b/i],
+      ["Barra de mariscos", /\bbarra\s+de\s+mariscos?\b|\bmariscos?\b/i],
+      // Bare paninis / sandwiches (y typos sanwich*) = Barra de paninis (clase A15727+).
+      [
+        "Barra de paninis",
+        /\bbarra\s+de\s+paninis?\b|\bpaninis?\b|\bsan+dw?ich(es|itos|ito)?\b|\bs[aá]ndwich(es|itos|ito)?\b|\bsanwich(es|itos|ito)?\b/i
+      ],
+      ["Barra de Crepas", /\bbarra\s+de\s+crepas?\b|\bcrepas?\b/i],
+      ["Barra de pastas y ensaladas", /\bbarra\s+de\s+pastas?\s+y\s+ensaladas?\b/i],
+      ["Barra de pastas", /\bbarra\s+de\s+pastas?\b|\bpastas?\b(?!\s+y\s+pizzas?)/i],
+      ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra|pizzas?)\b/i],
+      // A14985: cerveza/whisky/licores → Barra de bebidas (no solo "barra de bebidas" literal).
+      ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?|cervezas?|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|open\s*bar|barra\s+libre|barra\s+(?:de\s+)?(?:licores?\s+)?(?:nacional|internacional|premium)(?:es)?)\b/i],
+      ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
+      ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
+      // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
+      ["Barra de Caf\xE9", /\bbarra\s+de\s+caf[eé](?!\p{L})|\bservicio\s+de\s+caf[eé](?!\p{L})/iu],
+      ["Coffee break", /\b(coffee\s*break|coffeebreak|coffe\s*break)\b/i],
+      ["Comida Corrida", /\bcomida\s+corrida\b/i],
+      ["Paella", /\bpaellas?\b|\bpaellada\b/i],
+      ["Pozole y Tostadas", /\bpozole(\s+y\s+tostadas?)?\b|\bpozolada\b/i],
+      // A14985: banderillas / antojitos de stand → Puestos de Comida (no "Snack" corporativo).
+      ["Puestos de Comida", /\bpuestos?\s+de\s+comida\b|\bantojitos?\b|\bbanderillas?\b|\besquites?\b|\belotes?\b|\bgarnachas?\b|\bquesadillas?\b/i],
+      // A16096: pastel/cake/fondant → familia Cupcakes y Betún (no Level-2).
+      // "mesa de pasteles" va a Mesa de postres (abajo), no aquí.
+      [
+        "Cupcakes y Bet\xFAn",
+        /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})|(?<!mesa\s+de\s+)\bpastel(es)?\b(?!\s*er[ií]a)|\bfondant\b|\bcakes?\b(?!\s*topper)/iu
+      ],
+      ["Carrito de Snacks", /\bcarrito\s+de\s+snacks?\b|\bcarrito\s+de\s+snaks?\b/i],
+      ["Paletas de Hielo y Helados", /\bpaletas?(\s+de\s+hielo)?\b|\bhelados?\b/i],
+      ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
+      // A15503: "plato postre" = vajilla, no servicio de postres.
+      // A16096: "mesa de pasteles" = mesa, no pastel suelto.
+      [
+        "Mesa de postres",
+        /\bmesa\s+de\s+postres?\b|\bmesa\s+de\s+pasteles?\b|\bpostres?\s+(?:y|con|para|de\s+mesa)\b/i
+      ],
+      ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
+      ["Canap\xE9s", /\bcanap[eé]s?(?!\p{L})/iu],
+      ["Bocadillos", /\bbocadillos?\b/i],
+      // A16259: entrada del salón ≠ Entradas (bocadillos).
+      ["Entradas", /\bentradas?\b(?!\s+del\s+sal[oó]n)(?!\s+(?:principal|del\s+evento|del\s+lugar))/i],
+      // Tiempos de comida corporativos (briefs con varios servicios).
+      ["Desayuno", /\bdesayunos?\b/i],
+      ["Brunch", /\bbrunch\b/i],
+      // A15212: typo frecuente "snaks".
+      ["Snack", /\bsnacks?\b|\bsnaks?\b/i],
+      ["Comida", /\bcomidas?\b/i],
+      // A16263: "cena conmemorativa / día del médico" = tipo, no SKU Cena.
+      ["Cena", /\bcenas?\b(?!\s+conmemorativ)(?!\s+empresarial)(?!\s+(?:de\s+)?gala)(?!\s+navide)/i],
+      ["Men\xFA staff", /\bmen[uú]\s+(para\s+)?staff\b/iu],
+      ["Men\xFA Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/iu],
+      ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
+      ["Pista de baile", /\bpista(\s+de\s+baile)?\b/i],
+      // A16074: tarima/entarimado ≠ pista de baile (cotización por m² aparte).
+      ["Tarima", /\btarimas?\b|\bentarimad[oa]s?\b|\bentarimado\b/i],
+      ["Mariachi", /\bmariachis?\b/i],
+      ["Baile regional", /\bbaile\s+regional\b|\bfolkl[oó]rico\b/i],
+      ["Animaci\xF3n / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|shows?|pixel|espejos|l[aá]ser|laser)\b/i],
+      // A15003 Juan: photo booth / cabina de fotos (entretenimiento).
+      ["Photo Booth", /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i],
+      // A15009 Erick: circo / Blue Man.
+      ["Circo para eventos", /\bcirco(\s+para\s+eventos?)?\b/i],
+      ["Show Blue Man", /\bblue\s*mans?\b|\bblueman\b/i],
+      // A14988 Ernesto / A16254 Marlen: bailarinas/bailarines / dancers = entretenimiento.
+      [
+        "Bailarinas",
+        /\bbailarin(?:es|as?|a)?\b|\bdancers?\b|\bvedettes?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i
+      ],
+      // A14962: robots LED / batucada = entretenimiento, NUNCA banquete.
+      ["Robots LED", /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b|\bpercusi[oó]n.{0,24}leds?\b|\bleds?.{0,24}percusi[oó]n\b/i],
+      ["Batucada", /\bbatucada\b|\bambienta(?:r|ci[oó]n)\b.{0,40}\bbatucada\b|\bbatucada\b.{0,40}\bambient/i],
+      ["Maestro de ceremonias", /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador(\s+de\s+eventos?)?)\b/i],
+      ["Iluminaci\xF3n", /\biluminaci[oó]n\b/i],
+      // Antes de Decoración / Pantallas: "decoración aérea" y LED wall no deben robarse.
+      ["Colgantes Premium", /\bcolgantes?(?:\s+premium)?\b|\bwisteria\b|\bdecoraci[oó]n\s+a[eé]rea\b/i],
+      ["Entelados para Techo", /\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b/i],
+      [
+        "Vajillas",
+        /\bvajillas?\b|\bloza\b|\bcubiertos?\b|\bcuberter[ií]a\b|\bcristaler[ií]a\b|\bplato\s+trinche\b|\bplatos?\s+trinche\b|\bplato\s+postre\b|\bplatos?\s+postre\b|\b(cuchara|tenedor|cuchillo)s?\s+(?:postre|trinche)?\b/i
+      ],
+      ["Video", /\bvideo\b|\bled\s*wall\b/i],
+      // A15190: centros de mesa = floral/decorativo, NUNCA mobiliario (antes de Decoración/Mobiliario).
+      [
+        "Centros de mesa",
+        /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:florales?\s+)?(?:de\s+)?mesas?\b|\bdecoraci[oó]n\s+de\s+mesas?\b|\bflores?\s+(?:para|en|de)\s+mesas?\b/i
+      ],
+      ["Decoraci\xF3n", /\bdecoraci[oó]n\b/i],
+      ["Florister\xEDa", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
+      // Salas lounge / "sala: Luxor Rosa" / "4 salas" — producto, NO invitados ni ubicación.
+      ["Salas lounge", /\b(salas?\s+lounge|sala\s*:|ser[ií]an?\s+\d+\s+salas?|\d+\s+salas?)\b/i],
+      // "mesas?" no debe capturar "centros/arreglos/decoración de mesa" ni "mesa de dulces/…".
+      [
+        "Mobiliario",
+        /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|periqueras?)\b|(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+(?:de\s|rica\b|imperial\b))/i
+      ],
+      ["Carpas", /\b(carpa|carpas|capra|capras|toldo)\b/i],
+      ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
+      [
+        "Audio y sonido",
+        /\b(audio|microfon[ií]a|micr[oó]fonos?|sonido|bocinas?|podium|podios?|amplificaci[oó]n)\b/i
+      ],
+      ["Estructuras", /\bestructuras?\b/i],
+      ["Inflables", /\binflable/i],
+      ["Softplay", /\bsoft\s*play\b/i],
+      ["Meseros", /\b(meseros?|staff|personal\s+de\s+servicio)\b/i],
+      ["DJ", /\bdj\b/i],
+      ["Mixolog\xEDa", /\bmixolog[ií]a\b/i],
+      ["Cocteler\xEDa", /\b(cocteler[ií]a|bartender|bar\s*tender|barmen|barman)\b/i],
+      ["M\xF3cteles", /\bm[oó]cteles?\b/i],
+      ["Pastas", /\bpastas?\b/i],
+      ["Pizzas", /\bpizza/i],
+      ["Taquiza", /\btaquiza\b|\btacos?\b/i],
+      ["Parrillada", /\bparrillada\b/i],
+      ["Crepas", /\bcrep[aá]s?\b/i],
+      ["Frutas en vasito", /\bfrutas?\s+en\s+vasitos?\b|\bvasitos?\s+de\s+fruta/i],
+      ["Poptails", /\bpoptails?\b/i],
+      ["Renta de letras", /\b(renta\s+de\s+letras?|letras?\s+(xv|gigantes?)|letra\s+xv)\b/i],
+      ["Valet parking", /\b(valet|estacionamiento\s+valet)\b/i],
+      ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
+      ["Mesa imperial", /\bmesa\s+imperial\b/i]
+    ];
+    SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|catering|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|pastel|fondant|\bcake\b|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|entarimad|baile|bailarin\w*|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+    SHORT_SERVICE_ALIASES = {
+      pista: "pista de baile",
+      tarima: "Tarima",
+      tarimas: "Tarima",
+      entarimado: "Tarima",
+      entarimada: "Tarima",
+      entarimados: "Tarima",
+      dj: "DJ",
+      mesa: "mobiliario",
+      mesas: "mobiliario",
+      "centro de mesa": "Centros de mesa",
+      "centros de mesa": "Centros de mesa",
+      "centros florales": "Centros de mesa",
+      "centro floral": "Centros de mesa",
+      "arreglo de mesa": "Centros de mesa",
+      "arreglos de mesa": "Centros de mesa",
+      "decoracion de mesas": "Centros de mesa",
+      "decoraci\xF3n de mesas": "Centros de mesa",
+      silla: "mobiliario",
+      sillas: "mobiliario",
+      sala: "salas lounge",
+      salas: "salas lounge",
+      lounge: "salas lounge",
+      periquera: "mobiliario",
+      periqueras: "mobiliario",
+      carpa: "carpas",
+      carpas: "carpas",
+      bebidas: "barra de bebidas",
+      bebida: "barra de bebidas",
+      banquete: "banquete",
+      taquiza: "taquiza",
+      tacos: "taquiza",
+      pizza: "pizzas",
+      pizzas: "pizzas",
+      pasta: "pastas",
+      pastas: "pastas",
+      cafe: "Barra de Caf\xE9",
+      caf\u00E9: "Barra de Caf\xE9",
+      sushi: "Barra de sushi",
+      kosher: "banquete kosher",
+      paella: "Paella",
+      pozole: "Pozole y Tostadas",
+      pozolada: "Pozole y Tostadas",
+      cupcakes: "Cupcakes y Bet\xFAn",
+      cupcake: "Cupcakes y Bet\xFAn",
+      betun: "Cupcakes y Bet\xFAn",
+      bet\u00FAn: "Cupcakes y Bet\xFAn",
+      // A16096
+      pastel: "Cupcakes y Bet\xFAn",
+      pasteles: "Cupcakes y Bet\xFAn",
+      cake: "Cupcakes y Bet\xFAn",
+      fondant: "Cupcakes y Bet\xFAn",
+      entelado: "Entelados para Techo",
+      entelados: "Entelados para Techo",
+      colgantes: "Colgantes Premium",
+      colgante: "Colgantes Premium",
+      vajilla: "Vajillas",
+      vajillas: "Vajillas",
+      loza: "Vajillas",
+      cubiertos: "Vajillas",
+      cubierto: "Vajillas",
+      mocteles: "M\xF3cteles",
+      m\u00F3cteles: "M\xF3cteles",
+      video: "Video",
+      meseros: "meseros",
+      mesero: "meseros",
+      decoracion: "decoraci\xF3n",
+      iluminacion: "iluminaci\xF3n",
+      pantalla: "pantallas",
+      inflable: "inflables",
+      mobiliario: "mobiliario",
+      helado: "Paletas de Hielo y Helados",
+      helados: "Paletas de Hielo y Helados",
+      paletas: "Paletas de Hielo y Helados",
+      brunch: "Brunch",
+      softplay: "Softplay",
+      "soft play": "Softplay",
+      "comida corrida": "Comida Corrida",
+      antojitos: "Puestos de Comida",
+      "fiesta infantil": "Fiesta Infantil",
+      "carrito de snacks": "Carrito de Snacks",
+      "carrito de snaks": "Carrito de Snacks",
+      "parrillada tacos": "Parrillada Tacos",
+      "tarima y pista": "Pista de baile",
+      "tarimas y pistas": "Pista de baile",
+      bailarina: "Bailarinas",
+      bailarinas: "Bailarinas",
+      bailarin: "Bailarinas",
+      bailarines: "Bailarinas",
+      dancers: "Bailarinas",
+      dancer: "Bailarinas",
+      vedette: "Bailarinas",
+      vedettes: "Bailarinas",
+      "audio e iluminacion": "Audio y sonido",
+      "audio e iluminaci\xF3n": "Audio y sonido",
+      "desayuno o brunch": "Desayuno",
+      // A15205: comida/alimentos vagos NO se aliasan a banquete — van a formal vs casual.
+      letras: "renta de letras",
+      "renta de letras": "renta de letras",
+      "letra xv": "renta de letras"
+    };
+    TIPO_EVENTO_PATTERNS = [
+      // A15509 Gaby: apertura/inauguración de negocio — antes de boda (GPT no debe inferir boda).
+      [
+        /\b(apertura|inauguraci[oó]n)\s+(de\s+)?(un\s+)?(negocio|local|tienda|sucursal|empresa|plaza|centro\s+comercial)\b/i,
+        "apertura de negocio"
+      ],
+      [
+        /\b(apertura|inauguraci[oó]n)\s+(de\s+)?(un\s+)?evento\b/i,
+        "evento corporativo"
+      ],
+      [/\b(apertura|inauguraci[oó]n)\b/i, "apertura de negocio"],
+      [/\b(expo(sición)?|feria|stand\s+de|congreso)\b/i, "evento corporativo"],
+      // A14985 Lilian: torneo de golf / stand en campo.
+      [/\b(torneo(\s+de\s+golf)?|torneo\s+de\s+golf|golf|stand\s+en\s+campo)\b/i, "evento corporativo"],
+      [/\b(boda|bodas|matrimonio|casamiento|nupcial)\b/i, "boda"],
+      [/\b(baby\s*shower)\b/i, "baby shower"],
+      // A15443 Rosario: "reunión de 15 años" ≠ XV / quinceañera.
+      [
+        /\breun[ií][oó]n(es)?\s+de\s+(\d{1,2}|quince|veinte|veinti\w+|treinta|cuarenta|cincuenta)\s*a[nñ]os?\b/i,
+        "reuni\xF3n"
+      ],
+      [/\b(aniversario(\s+de\s+\d{1,2}\s*a[nñ]os?)?|reencuentro)\b/i, "aniversario"],
+      [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV a\xF1os"],
+      [/\bfiesta\s+de\s+fin\s+de\s+a[nñ]o\b/i, "fiesta de fin de a\xF1o"],
+      [/\b(fin\s+de\s+a[nñ]o|fiesta\s+de\s+empresa|eventos?\s+de\s+empresa|de\s+empresa)\b/i, "evento corporativo"],
+      [/\b(eventos?\s+corporativos?|convenci[oó]n(es)?|conferencias?|corporativos?)\b/i, "evento corporativo"],
+      [/\b(cumplea[nñ]os?|cumple)\b/i, "cumplea\xF1os"],
+      [/\b(bautizos?)\b/i, "bautizo"],
+      [/\bprimera\s+comuni[oó]n\b/i, "primera comuni\xF3n"],
+      [/\b(comuni[oó]n)\b/i, "primera comuni\xF3n"],
+      [/\b(graduaci[oó]n(es)?)\b/i, "graduaci\xF3n"],
+      // Fiesta / celebración / reunión familiar (A15000 Itzel: "Reunión familiar").
+      [/\b(fiesta|celebraci[oó]n(es)?(\s+familiares?)?|reun[ií][oó]n(es)?\s+(social|familiar(es)?))\b/i, "fiesta"],
+      [/\b(reun[ií][oó]n\s+familiar|celebraci[oó]n\s+familiar)\b/i, "fiesta"],
+      [/\bpozolada\b/i, "pozolada"],
+      [/\bpaellada\b/i, "paellada"],
+      [/\btaquiza\b/i, "taquiza"],
+      [/\bparrillada\b/i, "parrillada"],
+      [/\bcarne\s+asada\b/i, "carne asada"],
+      [/\bposada\b/i, "posada"],
+      [/\bcena\s+conmemorativa\b|\bcomida\s+conmemorativa\b|\bd[ií]a\s+del\s+m[eé]dico\b|\bcena\s+(?:de\s+)?gala\b|\bcena\s+empresarial\b/i, "cena conmemorativa"],
+      [/\bcena\s+navide[nñ]a\b/i, "cena navide\xF1a"],
+      // A15642+: meal-as-event-type (comida/cena/brunch/…) — no catering.
+      [
+        /\bes\s+un[a]?\s+(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)\b/i,
+        "__meal_event__"
+      ],
+      [
+        /\b(ser[aá]|ser[ií]a)\s+(una?\s+)?(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)\s+(para|el|del)\b/i,
+        "__meal_event__"
+      ],
+      [
+        /\b(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)\s+para\s+(el\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+)/i,
+        "__meal_event__"
+      ],
+      // A16074: "Comida" / "Cena" sueltos como respuesta a tipo de evento.
+      [/^(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)s?[.!?]*$/i, "__meal_event__"],
+      // A14988 Ernesto: concierto es tipo de evento (no servicio).
+      [/\bconciertos?\b/i, "concierto"],
+      // A15205 Mariel: campamento / concentración deportiva.
+      [/\bcampamentos?\b|\bconcentraci[oó]n\b|\batletas?\b/i, "campamento"],
+      // A15298: presentación editorial / lanzamiento de libro.
+      [
+        /\bpresentaci[oó]n\s+editorial\b|\blanzamiento\s+de\s+(libro|libro|revista)\b|\bpresentaci[oó]n\s+de\s+libro\b/i,
+        "presentaci\xF3n editorial"
+      ]
+    ];
+    ORDINAL_INDEX = {
+      primer: 1,
+      primera: 1,
+      primero: 1,
+      segunda: 2,
+      segundo: 2,
+      tercer: 3,
+      tercera: 3,
+      tercero: 3,
+      cuarta: 4,
+      cuarto: 4,
+      quinta: 5,
+      quinto: 5,
+      ultima: -1,
+      ultimo: -1
+    };
+    EVENT_MEAL_TYPE = /comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail/i;
+    NON_GUEST_UNIT_PATTERN = /\b\d+\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?|pantallas?|paquetes?|juegos?|m[oó]dulos?|piezas?)\b/i;
+    CARPA_OPTIONS_TEXT = "blancas, negras, transparentes y tipo domo";
+    CATALOG_TYPO_RE = /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b|\bcata?lgos?\b|\bcatl[oó]gos?\b|\bcatalog[oa]s?\b/i;
+    WRITTEN_NUMBERS = {
+      uno: "1",
+      una: "1",
+      dos: "2",
+      tres: "3",
+      cuatro: "4",
+      cinco: "5",
+      seis: "6",
+      siete: "7",
+      ocho: "8",
+      nueve: "9",
+      diez: "10",
+      once: "11",
+      doce: "12",
+      quince: "15",
+      veinte: "20",
+      treinta: "30",
+      cuarenta: "40",
+      cincuenta: "50",
+      sesenta: "60",
+      setenta: "70",
+      ochenta: "80",
+      noventa: "90",
+      cien: "100",
+      ciento: "100",
+      doscientos: "200",
+      trescientos: "300",
+      cuatrocientos: "400",
+      quinientos: "500"
+    };
+    MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
+    KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|(?:jardines\s+del\s+)?pedregal(?:\s+de\s+san\s+[aá]ngel)?|(?:av(?:enida|\.)?\s+)?insurgentes\s+(?:sur|norte|centro)|iztapalapa|tlalpan|azcapotzalco|iztacalco|cuajimalpa|milpa\s+alta|tl[aá]huac|valle\s+de\s+chalco|chalco|ixtapaluca|texcoco|chimalhuac[aá]n|chicoloapan|metepec|zinacantepec|huixquilucan|tepotzotl[aá]n|teotihuac[aá]n|acolman|amecameca|tlalmanalco|ocoyoacac|san\s+mateo\s+atenco|tenancingo|malinalco|tepoztl[aá]n|oaxtepec|cocoyoc|xalapa|tampico|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|zapopan|tlaquepaque|san\s+pedro\s+tlaquepaque|tonal[aá]|tlajomulco(\s+de\s+z[uú][nñ]iga)?|el\s+salto|chapala|ajijic|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|pinotepa(?:\s+nacional)?|huatulco|juchit[aá]n|salina\s+cruz|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|teoloyucan|cuautitl[aá]n(\s+izcalli)?|zumpango|huehuetoca|coyotepec|tultepec|tultitl[aá]n|coacalco|tec[aá]mac|nextlalpan|tonanitla|jilotepec|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita|jalisco|huasca(\s+de\s+ocampo)?|real\s+del\s+monte|mineral\s+del\s+chico|tequisquiapan|bernal|taxco|tulancingo|actopan|ixmiquilpan|tepeji|amealco|tula(\s+de\s+allende)?)\b/i;
+    NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurantes?|restaurants?|terraza|local|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
+    VENUE_DISCOURSE_CUT = /\s+(?:y\s+)?(?:estamos|estoy|buscando|buscamos|busco|necesito|necesitamos|contamos|queremos|quiero|nos\s+encontramos|se\s+llama|realmente|ya\s+que|porque|para\s+que|que\s+nos|con\s+un\s+tipo|complemento|proveedor|sillas?|invitados?)\b.*$/i;
+    VENUE_DISCOURSE_JUNK = /\b(buscando|buscamos|busco|proveedor|nos\s+apoye|estamos\s+buscando|contamos\s+con|realmente|complemento\s+de|tipo\s+de\s+silla|basket|coordino\s+eventos)\b/i;
+    VAGUE_VENUE_LABEL = /^(?:un\s+|una\s+|el\s+|la\s+|mi\s+|su\s+)?(?:sal[oó]n(?:\s+de\s+fiestas?)?|hotel|jard[ií]n|espacio|lugar|venue|edificio|terraza|casa|restaurantes?|restaurants?)$/i;
+    VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue|hospital(?:\s+general)?(?:\s+regional)?|cl[ií]nica|auditorio|universidad|museo|plaza|edificio|instituto|facultad|torre|caba[nñ]as?|cabanas?)\s+[A-ZÁÉÍÓÚÑ0-9][A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{0,40})/i;
+    JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda(\s+civil)?|bautizo(\s+de\s+(ni[nñ][ao]|beb[eé]))?|graduaci[oó]n|cumplea[nñ]os|xv(\s*a[nñ]os?)?|quincea[nñ]era|baby\s*shower|primera\s+comuni[oó]n|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|en\s+(mi\s+|su\s+|la\s+)?casa|en\s+(un\s+|el\s+)?restaurantes?|restaurantes?|restaurants?|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
+    EXCLUDED_SERVICE_LEADS = [
+      /\b(?:ya\s+)?no\s+(?:quiero|queremos|necesito|necesitamos|requiero|requerimos|ocupo|ocupamos)\s+([^.;!?\n]{2,70})/gi,
+      /\bya\s+(?:tengo|tenemos|contamos\s+con|conseguimos|consegu[ií]|compr[eé]|compramos)\s+([^.;!?\n]{2,70})/gi,
+      /\b(?:para\s+)?(?:complementar|combinar|acompa[nñ]ar)(?:l[oa]s?)?\s+con\s+([^.;!?\n]{2,70})/gi,
+      /\b(?:qu[ií]tale|quita(?:r|mos)?|sin\s+(?:el|la|los|las))\s+([^.;!?\n]{2,70})/gi
+    ];
+    EXCLUDED_TRAILING_RE = /\b(?:el|la|los|las)\s+([a-záéíóúñ]+(?:\s+[a-záéíóúñ]+){0,3}?)\s*,?\s*(?:es[eao]s?\s+)?ya\s+l[oa]s?\s+(?:tengo|tenemos)\b/gi;
+    EXCLUDED_BEFORE_NO_RE = /(?:^|[.,;!?\n]\s*|\b(?:y|pero)\s+)(?:el\s+|la\s+|los\s+|las\s+)?([a-záéíóúñ]+(?:\s+(?:de\s+)?[a-záéíóúñ]+){0,2})\s+(?:ya\s+)?no\s+(?:l[oa]s?\s+)?(?:quiero|queremos|necesito|necesitamos|me\s+interesa)\b/gi;
+    PLATED_MEAL_LABEL_RE = /^(banquete(\s+\w+)?|comida|men[uú].*tiempos?|tres\s+tiempos)$/i;
+    STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
+    CLOCK_AMPM = String.raw`(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)`;
+    CLOCK_TOKEN = String.raw`\d{1,2}(?::\d{2})?`;
+    DAY_PERIOD_SRC = String.raw`de\s+la\s+(?:ma[nñ]ana|tarde|noche|madrugada)|del\s+medio\s*d[ií]a|am|pm|a\.\s*m\.?|p\.\s*m\.?|hrs?|horas`;
+    GUEST_COUNT_WORDS = "personas?|invitados?|invitadas?|pax|guests?|gentes?|cabezas?";
+    STANDARD_PISTA_SIZES = [
+      { w: 4, h: 4, area: 16 },
+      { w: 5, h: 5, area: 25 },
+      { w: 6, h: 6, area: 36 },
+      { w: 6, h: 8, area: 48 },
+      { w: 8, h: 8, area: 64 },
+      { w: 6, h: 10, area: 60 },
+      { w: 8, h: 10, area: 80 },
+      { w: 10, h: 10, area: 100 }
+    ];
+    STANDARD_CARPA_SIZES = [
+      { w: 6, h: 6, area: 36 },
+      { w: 6, h: 9, area: 54 },
+      { w: 9, h: 9, area: 81 },
+      { w: 9, h: 12, area: 108 },
+      { w: 10, h: 12, area: 120 },
+      { w: 10, h: 15, area: 150 },
+      { w: 12, h: 15, area: 180 },
+      { w: 15, h: 15, area: 225 },
+      { w: 15, h: 18, area: 270 },
+      { w: 15, h: 21, area: 315 },
+      { w: 18, h: 21, area: 378 }
+    ];
+    CARPA_M2_PER_GUEST = 1.5;
+    MX_CITY_ABBREVIATIONS = [
+      [/\bgdl\b\.?/gi, "Guadalajara"],
+      [/\bmty\b\.?/gi, "Monterrey"],
+      [/\bqro\b\.?/gi, "Quer\xE9taro"],
+      [/\bags\b\.?/gi, "Aguascalientes"],
+      [/\bqroo\b\.?/gi, "Quintana Roo"],
+      [/\bcuerna\b/gi, "Cuernavaca"],
+      [/\btlaque\b/gi, "Tlaquepaque"],
+      [/,\s*jal\b\.?/gi, ", Jalisco"],
+      [/,\s*n\.?\s*l\.?$/gi, ", Nuevo Le\xF3n"]
+    ];
+    SERVICE_LABELS_NOT_TIPO = /^(brunch|banquete|taquiza|desayuno|catering|pista de baile|dj|mobiliario|bebidas?)$/i;
+    CORREO_DICTADO_STOPWORDS = /* @__PURE__ */ new Set([
+      "es",
+      "mi",
+      "correo",
+      "el",
+      "mail",
+      "email",
+      "de",
+      "ser[i\xED]a",
+      "seria",
+      "ser\xEDa"
+    ]);
+    PRESUPUESTO_MAX_ASKS = 2;
+    FECHA_MAX_ASKS = 2;
+    PRESUPUESTO_AUTO_WAIVER = "Sin definir (no indic\xF3 monto)";
+    FECHA_AUTO_WAIVER = "Sin definir (pendiente)";
+  }
+});
+
+// src/services/serviceDecline.ts
+function declinedFamiliesInTexts(texts) {
+  const out2 = /* @__PURE__ */ new Set();
+  for (const t4 of texts) {
+    for (const f7 of clientDeclinesServiceFamilies(t4)) out2.add(f7);
+  }
+  return [...out2];
+}
+function textMentionsDeclinedFamily(text2, families) {
+  const t4 = text2 ?? "";
+  if (!t4.trim() || !families.length) return false;
+  return families.some((f7) => FAMILY_SERVICE_RE[f7].test(t4));
+}
+function isMesaDulcesDeclinePhrase(t4) {
+  return /\bno\s+(?:quiero|necesito|pedimos|pido)\s+mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t4) || /\bno\s+(?:quiero|necesito)\s+(postres?|dulces?)\b/i.test(t4) || /\bsin\s+mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t4) || /\bqu[ií]ta(le|me)?\s+(?:la\s+)?mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t4);
+}
+function captionOf(message) {
+  if (!message?.trim()) return "";
+  return (clientCaptionForServiceParse(message) || message).trim();
+}
+function isVenueProvidesContext(message) {
+  const t4 = captionOf(message).toLowerCase();
+  if (!t4) return false;
+  if (/[?¿]/.test(t4) && !/\b(sal[oó]n|venue|lugar|local|sitio|jard[ií]n|hacienda|hotel|terraza)\b/i.test(t4) && !/\bya\s+hay\b/i.test(t4)) {
+    return false;
+  }
+  return /\b(sal[oó]n|venue|lugar|local|sitio)\b.{0,48}\b(suministra|provee|incluye|trae|cuenta\s+con|ya\s+tiene)\b/i.test(
+    t4
+  ) || /\b(suministra|provee|incluye|trae|cuenta\s+con)\b.{0,72}\b(mesas?|sillas?|manteler|platos?|vasos?|meseros?|vajillas?)\b/i.test(
+    t4
+  ) || /\bya\s+hay\b.{0,96}\b(mesas?|sillas?|manteler|platos?|vasos?|cubiertos?|vajillas?|meseros?)\b/i.test(
+    t4
+  ) || /\b(escrib[ií]|mencion[eé]|dije|envi[eé]|informaci[oó]n\s+que\s+te\s+envi[eé])\b.{0,72}\b(ya\s+hay|suministra|incluye|manteler|mesas?|sillas?)\b/i.test(
+    t4
+  );
+}
+function venueProvidedServiceLabels(message) {
+  const t4 = captionOf(message);
+  if (!t4 || !isVenueProvidesContext(t4)) return [];
+  const out2 = [];
+  if (/\b(mesas?|sillas?|periqueras?|mobiliario)\b/i.test(t4)) out2.push("Mobiliario");
+  if (/\b(meseros?|staff\s+de\s+servicio|personal\s+de\s+servicio)\b/i.test(t4)) {
+    out2.push("Meseros");
+  }
+  if (/\b(vajillas?|loza|platos?|vasos?|cubiertos?|cuberter[ií]a|cristaler[ií]a|manteler[ií]a)\b/i.test(
+    t4
+  )) {
+    out2.push("Vajillas");
+  }
+  if ((out2.includes("Mobiliario") || out2.includes("Vajillas")) && (/\bmeseros?\b/i.test(t4) || /\bya\s+hay\b/i.test(t4) || /\bsuministra\b/i.test(t4))) {
+    out2.push("Meseros");
+  }
+  return [...new Set(out2)];
+}
+function serviceMatchesVenueLabel(serviceLabel, venueLabel) {
+  const s7 = serviceLabel.trim();
+  const v4 = venueLabel.trim();
+  if (!s7 || !v4) return false;
+  if (new RegExp(`^${v4}$`, "i").test(s7)) return true;
+  if (v4 === "Mobiliario" && /^Mobiliario$/i.test(s7)) return true;
+  if (v4 === "Meseros" && /^Meseros$/i.test(s7)) return true;
+  if (v4 === "Vajillas" && /^Vajillas$/i.test(s7)) return true;
+  return false;
+}
+function removeVenueProvidedFromRequirements(existing, message) {
+  const labels = venueProvidedServiceLabels(message);
+  if (!labels.length) return existing?.trim() || null;
+  if (!existing?.trim()) return null;
+  const parts2 = existing.split(",").map((s7) => s7.trim()).filter(Boolean).filter((s7) => !labels.some((l6) => serviceMatchesVenueLabel(s7, l6)));
+  return parts2.length ? parts2.join(", ") : null;
+}
+function buildVenueProvidedAck(message) {
+  const t4 = captionOf(message).toLowerCase();
+  const parts2 = [];
+  if (/\b(mesas?|sillas?)\b/i.test(t4)) parts2.push("mesas y sillas");
+  if (/\bmanteler[ií]a\b/i.test(t4)) parts2.push("manteler\xEDa");
+  if (/\b(platos?|vasos?|cubiertos?|vajillas?|loza)\b/i.test(t4)) parts2.push("vajilla y loza");
+  if (/\bmeseros?\b/i.test(t4)) parts2.push("mesero");
+  if (!parts2.length) {
+    return "Entendido \u2014 anoto lo que el sal\xF3n ya incluye; no lo sumamos a tu cotizaci\xF3n.";
+  }
+  const list = parts2.length === 1 ? parts2[0] : `${parts2.slice(0, -1).join(", ")} y ${parts2[parts2.length - 1]}`;
+  return `Entendido \u2014 el sal\xF3n ya incluye ${list}; no lo sumamos a tu cotizaci\xF3n.`;
+}
+function clientDeclinesServiceFamilies(message) {
+  const t4 = captionOf(message).toLowerCase();
+  if (!t4) return [];
+  const out2 = /* @__PURE__ */ new Set();
+  if (/\b(yo\s+)?(ya\s+)?(les\s+|le\s+)?(voy\s+a\s+dar|doy|pondr[eé]|llevo|traigo)\b/i.test(t4) && /\b(pizza|comida|alimentos?|banquete|taquiza)\b/i.test(t4)) {
+    out2.add("alimentos");
+  }
+  if (/\b(porque|por\s*qu[eé])\s+yo\b/i.test(t4) && /\b(dar|doy|pondr|voy\s+a\s+dar|comida|pizza|alimentos|les\s+voy)\b/i.test(t4)) {
+    out2.add("alimentos");
+  }
+  if (/\b(yo\s+)?(ya\s+)?les?\s+voy\s+a\s+dar\b/i.test(t4) && !/\b(correo|tel[eé]fono|whatsapp|datos|nombre|ubicaci|direcci[oó]n)\b/i.test(t4)) {
+    out2.add("alimentos");
+  }
+  if (isMesaDulcesDeclinePhrase(t4) && !isTablewareRequestText(t4)) {
+    out2.add("dulces");
+  }
+  if (/\bdj\s+no\b|\bno\s*,?\s*dj\b|\bdj\s*,?\s*no\b/i.test(t4)) {
+    out2.add("entretenimiento");
+  }
+  if (/\bpista(?:[ \t]+de[ \t]+baile)?[ \t]+no\b(?![ \t]+(?:es[ \t]+)?(?:carpas?|lonas?|toldos?)\b)|\bno[ \t]*,?[ \t]*pista(?:[ \t]+de[ \t]+baile)?\b|\bno[ \t]+quiero[ \t]+pista\b/i.test(
+    t4
+  )) {
+    out2.add("pista");
+  }
+  if (/\bno\s+(quiero\s+)?(el\s+)?(servicio\s+de\s+)?catering\b|\bsin\s+catering\b|\bno\s+comida\b/i.test(
+    t4
+  )) {
+    out2.add("alimentos");
+  }
+  if (isVenueProvidesContext(t4)) {
+    for (const label of venueProvidedServiceLabels(t4)) {
+      if (label === "Mobiliario") out2.add("mobiliario");
+    }
+  }
+  for (const family of Object.keys(FAMILY_DECLINE_WORDS)) {
+    if (family === "mobiliario" && isMesaDulcesDeclinePhrase(t4)) continue;
+    const words = FAMILY_DECLINE_WORDS[family];
+    const reNoQuiero = new RegExp(
+      `\\b(no|nop)(?:\\s+pero|\\s+peor)?(?:\\s+yo)?\\s+(quiero|necesito|requiero|requerimos|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+|el\\s+servicio\\s+de\\s+)?(${words})\\b`,
+      "i"
+    );
+    const reYoNoQuiero = new RegExp(
+      `\\b(?:pero\\s+)?yo\\s+no\\s+(quiero|necesito|requiero|requerimos|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+|el\\s+servicio\\s+de\\s+)?(${words})\\b`,
+      "i"
+    );
+    const reQuitale = new RegExp(
+      `\\b(?:pero|peor\\s+)?(qu[i\xED]ta(le|me)?|quita(r|mos)?|sacar?|saquen|elimina(r)?)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
+      "i"
+    );
+    const reSin = new RegExp(`\\bsin\\s+(${words})\\b`, "i");
+    const reQueNo = new RegExp(
+      `\\bque\\s+no\\s+(quiero|necesito)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
+      "i"
+    );
+    const reDespues = new RegExp(
+      `(?:^|[.,;!?\\n]\\s*|\\b(?:y|pero)\\s+)(?:la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\s+(?:ya\\s+)?no\\s+(?:l[oa]s?\\s+)?(quiero|queremos|necesito|necesitamos|requiero)\\b`,
+      "i"
+    );
+    if (reNoQuiero.test(t4) || reYoNoQuiero.test(t4) || reQuitale.test(t4) || reSin.test(t4) || reQueNo.test(t4) || reDespues.test(t4)) {
+      out2.add(family);
+    }
+  }
+  if (/\bno(?:\s+pero|\s+peor)?(?:\s+yo)?\s+(quiero\s+)?comoda\b/i.test(t4) || /\bqu[ií]tale?\s+la\s+comoda\b/i.test(t4) || /\bno\s+quiero\s+comoda\b/i.test(t4)) {
+    out2.add("alimentos");
+  }
+  if (/\b(?:yo\s+)?no\s+(?:quiero|necesito)\s+(?:el\s+|la\s+)?mobilairio\b/i.test(t4) || /\bmobilairio\b/i.test(t4) && /\bno\s+(quiero|necesito)\b/i.test(t4)) {
+    out2.add("mobiliario");
+  }
+  return [...out2];
+}
+function clientDeclinesServiceFamiliesWithContext(message, recentUserTexts = []) {
+  const fromCurrent = clientDeclinesServiceFamilies(message);
+  const out2 = new Set(fromCurrent);
+  const cur = captionOf(message).trim();
+  if (/^(comida|comidas|alimentos?)$/i.test(cur)) {
+    const prevBlob = recentUserTexts.slice(-3).join(" \n ");
+    if (clientDeclinesServiceFamilies(prevBlob).includes("alimentos") || /\bcomoda\b/i.test(prevBlob) || /\bno(?:\s+pero|\s+peor)?\s+no\s+quiero\b/i.test(prevBlob) || /\bqu[ií]tale?\s+la\s+comi/i.test(prevBlob)) {
+      out2.add("alimentos");
+    }
+  }
+  return [...out2];
+}
+function significantWords(text2) {
+  return text2.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-zñ]+/).filter((w5) => w5.length >= 4 && !SIGNIFICANT_STOPWORDS.has(w5));
+}
+function extractDeclinedServiceObjects(message, existing) {
+  const t4 = captionOf(message);
+  if (!t4) return [];
+  if (clientDeclinesServiceFamilies(t4).length > 0) return [];
+  const existingWords = new Set(significantWords(existing ?? ""));
+  const out2 = [];
+  for (const m6 of [...t4.matchAll(SPECIFIC_DECLINE_RE), ...t4.matchAll(SPECIFIC_DECLINE_AFTER_RE)]) {
+    const obj = m6[1].trim();
+    if (!obj || NOT_A_SERVICE_WORD.test(obj)) continue;
+    const words = significantWords(obj);
+    if (!words.length) continue;
+    const inCatalog = parseServicesFromText(obj).length > 0;
+    const inExisting = words.some((w5) => existingWords.has(w5));
+    if (inCatalog || inExisting) out2.push(obj);
+  }
+  return [...new Set(out2)];
+}
+function removeSpecificDeclinedServices(existing, message) {
+  if (!existing?.trim()) return existing?.trim() || null;
+  const objects = extractDeclinedServiceObjects(message, existing);
+  if (!objects.length) return existing.trim();
+  const declinedWords = new Set(objects.flatMap(significantWords));
+  const catalogLabels = new Set(
+    objects.flatMap((o6) => parseServicesFromText(o6)).map((s7) => s7.toLowerCase())
+  );
+  const parts2 = existing.split(",").map((s7) => s7.trim()).filter(Boolean).filter((part) => {
+    const base = part.replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase();
+    if (catalogLabels.has(base)) return false;
+    return !significantWords(base).some((w5) => declinedWords.has(w5));
+  });
+  return parts2.length ? parts2.join(", ") : null;
+}
+function declinedServiceObjectLabels(objects) {
+  return [
+    ...new Set(
+      objects.map((o6) => {
+        const sku = parseServicesFromText(o6)[0];
+        return sku ?? o6.trim();
+      })
+    )
+  ];
+}
+function clientDeclinesAnyService(message) {
+  return clientDeclinesServiceFamilies(message).length > 0;
+}
+function serviceMatchesDeclinedFamily(serviceLabel, family) {
+  return FAMILY_SERVICE_RE[family].test(serviceLabel.trim());
+}
+function serviceIsDeclined(serviceLabel, families) {
+  return families.some((f7) => serviceMatchesDeclinedFamily(serviceLabel, f7));
+}
+function removeDeclinedFamiliesFromRequirements(existing, families) {
+  if (!existing?.trim() || families.length === 0) {
+    return existing?.trim() || null;
+  }
+  const parts2 = existing.split(",").map((s7) => s7.trim()).filter(Boolean).filter((s7) => !serviceIsDeclined(s7, families));
+  return parts2.length ? parts2.join(", ") : null;
+}
+function declinedFamilyLabel(family) {
+  switch (family) {
+    case "alimentos":
+      return "alimentos / comida";
+    case "bebidas":
+      return "bebidas";
+    case "mobiliario":
+      return "mobiliario";
+    case "carpas":
+      return "carpas";
+    case "decoracion":
+      return "decoraci\xF3n";
+    case "entretenimiento":
+      return "entretenimiento";
+    case "animacion":
+      return "animaci\xF3n / hora loca";
+    case "pista":
+      return "pista de baile";
+    case "tarima":
+      return "tarima";
+    case "dulces":
+      return "mesa de dulces / postres";
+  }
+}
+function buildServiceDeclineAck(families) {
+  if (!families.length) return "Listo, lo quito de la cotizaci\xF3n.";
+  const labels = families.map(declinedFamilyLabel);
+  const list = labels.length === 1 ? labels[0] : labels.length === 2 ? `${labels[0]} y ${labels[1]}` : `${labels.slice(0, -1).join(", ")} y ${labels[labels.length - 1]}`;
+  return `Listo \u2014 *no* incluimos ${list} en tu cotizaci\xF3n.`;
+}
+function looksLikeThemeColorNotLocation(value) {
+  const t4 = (value ?? "").trim();
+  if (!t4) return false;
+  if (/^colores?\b/i.test(t4)) return true;
+  if (/^tem[aá]tica\b/i.test(t4)) return true;
+  if (/^(blanco|negro|dorado|plateado|rojo|azul|verde|rosa|morado|violeta|gris|beige|dorado)(\s*(y|con|\/|,)\s*(blanco|negro|dorado|plateado|rojo|azul|verde|rosa|morado|violeta|gris|beige))+$/i.test(
+    t4
+  )) {
+    return true;
+  }
+  return false;
+}
+function stripThemeColorsFromZona(value) {
+  if (!value?.trim()) return null;
+  let v4 = value.trim();
+  v4 = v4.replace(
+    /,\s*(blanco|negro|dorado|plateado|rojo|azul|verde|rosa|morado|violeta|gris|beige)(\s*(y|con|\/)\s*(blanco|negro|dorado|plateado|rojo|azul|verde|rosa|morado|violeta|gris|beige))*\s*$/i,
+    ""
+  );
+  v4 = v4.replace(/\s*[-–]\s*(rojo|negro|azul|blanco|dorado).*$/i, "");
+  return v4.trim() || null;
+}
+var FAMILY_SERVICE_RE, FAMILY_DECLINE_WORDS, SPECIFIC_DECLINE_RE, SPECIFIC_DECLINE_AFTER_RE, NOT_A_SERVICE_WORD, SIGNIFICANT_STOPWORDS;
+var init_serviceDecline = __esm({
+  "src/services/serviceDecline.ts"() {
+    "use strict";
+    init_imageProcessor();
+    init_conversation_understanding();
+    FAMILY_SERVICE_RE = {
+      alimentos: /^(Alimentos|Comida)$|banquete|taquiza|catering|pizzas?|barra\s+de\s+(pizzas?|pastas?|alimentos|sushi)|brunch|parrillada|sushi|canap|bocadillo|coffee\s*break|puestos?\s+de\s+comida|desayuno|paella|pozole|pasta/i,
+      bebidas: /bebidas?|barra\s+de\s+bebidas|coctel|m[oó]cteles|mixolog|barra\s+de\s+caf[eé]/i,
+      mobiliario: /mobiliario|mobilairio|mibiliario|mobilario|sillas?|mesas?(?!\s+de\s+(postres?|dulces?|quesos?|imperial))|periqueras?|salas?\s+lounge|tiffany/i,
+      carpas: /carpas?|capras?|toldos?|lonas?/i,
+      decoracion: /decoraci[oó]n|centros?\s+de\s+mesa|florister|globos?|tem[aá]tica/i,
+      entretenimiento: /show|dj\b|entretenimiento|hora\s+loca|photobooth|photo\s*booth|bailarinas|batucada|robots?/i,
+      // A16438: "no quiero animación" quita la hora loca, NO los shows con nombre.
+      animacion: /animaci[oó]n|hora\s+loca|happening|animador/i,
+      // A16074: declinar pista NO quita tarima.
+      pista: /pista(\s+de\s+baile)?/i,
+      tarima: /^Tarima\b|tarimas?|entarimad/i,
+      dulces: /mesa\s+de\s+dulces|postres?|cupcakes?|bet[uú]n|pastel(es)?|fondant|candy/i
+    };
+    FAMILY_DECLINE_WORDS = {
+      // A16503: SKUs con nombre ("no quiero taquiza") van por extractDeclinedServiceObjects,
+      // si no se borraba también el banquete que sí quiere.
+      alimentos: "comida|comidas|alimentos?|catering",
+      bebidas: "bebidas?|barra\\s+de\\s+bebidas|cocteler[i\xED]a|m[o\xF3]cteles?|mixolog[i\xED]a",
+      mobiliario: "mobiliario|mobilairio|mibiliario|mobilario|sillas?|mesas?|periqueras?|salas?",
+      carpas: "carpas?|capras?|toldos?|lonas?",
+      decoracion: "decoraci[o\xF3]n|centros?\\s+de\\s+mesa|flores?|globos?",
+      entretenimiento: "show|dj|entretenimiento|photobooth|photo\\s*booth",
+      animacion: "animaci[o\xF3]n|animador(?:es)?|hora\\s+loca|happening",
+      pista: "pista(\\s+de\\s+baile)?",
+      tarima: "tarimas?|entarimad[oa]s?",
+      dulces: "mesa\\s+de\\s+dulces|mesa\\s+de\\s+postres?|postres?|dulces?|cupcakes?|pastel(es)?|fondant"
+    };
+    SPECIFIC_DECLINE_RE = /\b(?:(?:ya\s+)?no\s+(?:quiero|queremos|necesito|necesitamos|me\s+gusta|me\s+late)|qu[ií]ta(?:le|me|lo)?|quita(?:r|mos)?)\s+(?:el\s+|la\s+|los\s+|las\s+|lo\s+del?\s+|servicio\s+de\s+)?([a-záéíóúñü]+(?:\s+(?:y\s+|de\s+)?[a-záéíóúñü]+){0,2})/gi;
+    SPECIFIC_DECLINE_AFTER_RE = /(?:^|[.,;!?\n]\s*|\b(?:y|pero)\s+)(?:el\s+|la\s+|los\s+|las\s+)?([a-záéíóúñü]+(?:\s+(?:de\s+)?[a-záéíóúñü]+){0,2})\s+(?:ya\s+)?no\s+(?:l[oa]s?\s+)?(?:quiero|queremos|necesito|necesitamos|me\s+gusta|me\s+late|me\s+interesa)\b/gi;
+    NOT_A_SERVICE_WORD = /^(nada|eso|esto|esa|ese|m[aá]s|otro|otra|dar|dar\s+mi|mi|mis|ya|que|prisa|problema|correo|tel[eé]fono|datos|gastar|esperar|pagar|presupuesto|cotizaci[oó]n|urgencia|compromiso|embargo|duda)\b/i;
+    SIGNIFICANT_STOPWORDS = /* @__PURE__ */ new Set([
+      "para",
+      "como",
+      "algo",
+      "tipo",
+      "barra",
+      "servicio",
+      "mesa",
+      "favor",
+      "gracias",
+      "mejor",
+      "ahora",
+      "todo",
+      "toda"
+    ]);
+  }
+});
+
+// src/services/trendKnowledge.ts
+function eventKey(tipo) {
+  const t4 = (tipo ?? "").toLowerCase();
+  if (/apertura|inaugura|lanzamiento|showroom|tienda|negocio|open\s*house/.test(t4)) return "apertura";
+  if (/boda|wedding/.test(t4)) return "boda";
+  if (/xv|quince/.test(t4)) return "xv";
+  if (/corporativ|empresarial|gala|conferenc|premiaci|congreso|convenci/.test(t4)) return "corporativo";
+  if (/cumple|birthday|aniversario/.test(t4)) return "cumple";
+  if (/bautizo|baby\s*shower/.test(t4)) return "bautizo";
+  return "default";
+}
+function clientWantsIdeasOrTrends(message) {
+  if (!message?.trim()) return false;
+  return TREND_IDEA_PATTERN.test(message) || ACCEPTS_IDEAS_PATTERN.test(message);
+}
+function lucyOfferedIdeas(lucyText) {
+  const t4 = lucyText ?? "";
+  if (!t4.trim()) return false;
+  return /\b(?:te\s+(?:puedo\s+)?(?:dar|compartir|pasar|mandar|sugerir)|quieres\s+(?:que\s+te\s+(?:d[eé]|comparta|pase|mande|sugiera)\s+)?|te\s+late\s+que\s+te\s+(?:d[eé]|comparta|pase))[^.?!\n]{0,40}\b(?:ideas?|sugerencias?|recomendaciones?|opciones)\b/i.test(
+    t4
+  ) || /\b(?:ideas?|sugerencias?)\b[^.?!\n]{0,60}\?/i.test(t4);
+}
+function clientAcceptsIdeasOffer(message, lastLucyText) {
+  const m6 = (message ?? "").trim();
+  if (!m6 || m6.length > 80 || !lucyOfferedIdeas(lastLucyText)) return false;
+  if (/\bno\b(?!\s+s[eé]\b)/i.test(m6) && !/\bpor\s+qu[eé]\s+no\b/i.test(m6)) return false;
+  return /^(?:s[ií]+|sip|claro|dale|va|vale|ok(?:ay)?|sale|porfa|por\s+favor|me\s+encantar[ií]a|obvio|perfecto|de\s+acuerdo|por\s+supuesto|adelante|a\s+ver|por\s+qu[eé]\s+no|me\s+late|[aá]ndale)(?=[\s,.!¡?]|$)/i.test(
+    m6
+  );
+}
+function normalizeForTipMatch(text2) {
+  return text2.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[\u200B-\u200D\u2060\uFEFF]/g, "").replace(/[*_]/g, "").replace(/\s+/g, " ");
+}
+function extractStyleCues(...texts) {
+  const blob = texts.filter(Boolean).join(" \n ");
+  if (!blob.trim()) return [];
+  const found = [];
+  for (const { pattern, label } of STYLE_CUES) {
+    if (pattern.test(blob) && !found.includes(label)) found.push(label);
+    if (found.length >= 4) break;
+  }
+  return found;
+}
+function pickTips(tipoEvento, max = 2, alreadySent, declined = []) {
+  const tips = TIPS_BY_EVENT[eventKey(tipoEvento)] ?? TIPS_BY_EVENT.default;
+  const sent = alreadySent ? normalizeForTipMatch(alreadySent) : "";
+  const fresh = (sent ? tips.filter((tip) => !sent.includes(normalizeForTipMatch(tip).slice(0, 40))) : tips).filter((tip) => !textMentionsDeclinedFamily(tip, declined));
+  return fresh.slice(0, max);
+}
+function stripEchoedLucyText(message, lucyTexts) {
+  const raw = message ?? "";
+  if (!raw.trim()) return raw;
+  const lucyNorm = normalizeForTipMatch(lucyTexts.filter(Boolean).join("\n"));
+  if (!lucyNorm.trim()) return raw;
+  const pieces = raw.split(/\n+|(?<=[.!?])\s+/);
+  const kept = pieces.filter((piece) => {
+    const p5 = normalizeForTipMatch(piece.replace(/^[\s•⁠\-*]+/, "")).trim();
+    if (/^lo que se esta usando\b.*:$/.test(p5)) return false;
+    return !(p5.length >= 25 && lucyNorm.includes(p5.slice(0, 60)));
+  });
+  return kept.join("\n").trim();
+}
+function clientClosedServiceList(message) {
+  const t4 = (message ?? "").trim();
+  if (!t4) return false;
+  return /\b(?:eso\s+)?es\s+todo\b|\bser[ií]a\s+todo\b|\bnada\s+m[aá]s\b|\b(?:el\s+)?resto\b[^.\n]{0,30}\bya\s+(?:lo\s+)?tengo\b|\bya\s+tengo\s+(?:lo\s+dem[aá]s|el\s+resto)\b/i.test(
+    t4
+  );
+}
+function parseGroundingBullets(snippet, max = 2) {
+  const raw = (snippet ?? "").trim();
+  if (!raw) return [];
+  const lines = raw.includes("\n") ? raw.split(/\n+/) : raw.split(/\s+(?=[-*•]\s)|(?<=[.!])\s+(?=[A-ZÁÉÍÓÚÑ])/);
+  const out2 = [];
+  for (const line2 of lines) {
+    const t4 = line2.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").replace(/\*\*/g, "").replace(/\s+/g, " ").trim();
+    if (t4.length < 15 || t4.length > 220) continue;
+    if (/\$|https?:|www\.|\bmxn\b|\bpesos\b/i.test(t4)) continue;
+    if (/^(aqu[ií]|claro|estas son|te comparto|tendencias)\b.*:$/i.test(t4)) continue;
+    out2.push(/[.!]$/.test(t4) ? t4 : `${t4}.`);
+    if (out2.length >= max) break;
+  }
+  return out2;
+}
+function containsStaticSalesTip(text2) {
+  const norm2 = normalizeForTipMatch(text2 ?? "");
+  if (!norm2.trim()) return false;
+  return Object.values(TIPS_BY_EVENT).some(
+    (tips) => tips.some((tip) => norm2.includes(normalizeForTipMatch(tip).slice(0, 40)))
+  );
+}
+function messageAlreadyOffersSalesIdeas(text2) {
+  const t4 = text2 ?? "";
+  if (!t4.trim()) return false;
+  return /algunas ideas que funcionan|una idea que funciona|ideas que suelen funcionar|para un vibe/i.test(t4) || /iluminaci[oó]n c[aá]lida|lounge peque|pista iluminada|coffee break \+ pantallas|mesa de dulces/i.test(
+    t4
+  ) || /•\s*.+\n•\s*/.test(t4) && /iluminaci|mobiliario|banquete|dj|carpa|lounge/i.test(t4);
+}
+function buildSalesIdeasSnippet(opts) {
+  const cues = extractStyleCues(
+    opts.messageText,
+    opts.contextText,
+    opts.tipoEvento,
+    opts.requerimientos
+  );
+  const max = opts.maxTips ?? 2;
+  const declined = opts.declinedFamilies ?? [];
+  const vibeCues = cues.filter((c5) => !EVENT_TYPE_CUES.has(c5));
+  const sentNorm = opts.alreadySent ? normalizeForTipMatch(opts.alreadySent) : "";
+  const trends = parseGroundingBullets(opts.groundingSnippet, 4).filter((t4) => !textMentionsDeclinedFamily(t4, declined)).filter((t4) => !sentNorm || !sentNorm.includes(normalizeForTipMatch(t4).slice(0, 40))).slice(0, 2);
+  const staticTips = pickTips(
+    opts.tipoEvento || cues[0],
+    Math.max(1, max - trends.length),
+    opts.alreadySent,
+    declined
+  );
+  const tips = [...trends, ...staticTips].slice(0, Math.max(max, trends.length + 1));
+  if (!tips.length) return null;
+  if (opts.accepted) {
+    const tipo = opts.tipoEvento?.trim();
+    const inv = opts.numInvitados ? `${opts.numInvitados} personas` : null;
+    const vibe = vibeCues[0];
+    const detalles = [inv, vibe ? `algo ${vibe}` : null].filter(Boolean).join(", ");
+    const para = tipo ? `Para tu ${tipo.toLowerCase()}${detalles ? ` (${detalles})` : ""}` : detalles ? `Para tu evento (${detalles})` : "Para tu evento";
+    const lead = trends.length ? `\xA1Claro! ${para}, esto es lo que se est\xE1 usando y funciona muy bien:` : `\xA1Claro! ${para}, algunas ideas que funcionan muy bien:`;
+    return `${lead}
+${tips.map((t4) => `\u2022 ${t4}`).join("\n")}`.trim();
+  }
+  if (trends.length) {
+    const cueTrend = vibeCues[0] ? ` para un vibe *${vibeCues[0]}*` : "";
+    return `Lo que se est\xE1 usando${cueTrend}:
+${tips.map((t4) => `\u2022 ${t4}`).join("\n")}`.trim();
+  }
+  const cue = vibeCues[0] ? `Para un vibe *${vibeCues[0]}*: ` : "";
+  if (tips.length === 1) {
+    return cue ? `${cue}${tips[0]}` : `Una idea que funciona muy bien: ${tips[0]}`;
+  }
+  return `${cue}Algunas ideas que funcionan bien:
+${tips.map((t4) => `\u2022 ${t4}`).join("\n")}`.trim();
+}
+function enrichReplyWithSalesIdeas(mensaje, opts) {
+  const out2 = (mensaje || "").trim();
+  if (!out2) return out2;
+  if (messageAlreadyOffersSalesIdeas(out2)) return out2;
+  if (clientClosedServiceList(opts.messageText) && !opts.accepted) return out2;
+  if (opts.accepted) {
+    const snippet2 = buildSalesIdeasSnippet({
+      tipoEvento: opts.tipoEvento,
+      messageText: opts.messageText,
+      requerimientos: opts.requerimientos,
+      maxTips: 3,
+      alreadySent: opts.alreadySent,
+      contextText: opts.contextText,
+      accepted: true,
+      numInvitados: opts.numInvitados,
+      groundingSnippet: opts.groundingSnippet,
+      declinedFamilies: opts.declinedFamilies
+    });
+    if (!snippet2) return out2;
+    const questions = (out2.match(/[^.!?\n]*\?/g) ?? []).map((q4) => q4.trim()).filter(Boolean);
+    const q3 = questions[questions.length - 1];
+    if (!q3) return `${snippet2}
+
+${out2}`.trim();
+    const cleanQ = q3.startsWith("\xBF") ? q3 : `\xBF${q3.replace(/^¿?/, "")}`;
+    return `${snippet2}
+
+${cleanQ}`.trim();
+  }
+  const wants = opts.force || clientWantsIdeasOrTrends(opts.messageText) || /recomendaciones?|recomiendas?|ideas?\b|colores?|montajes?|decoraci/i.test(
+    opts.messageText ?? ""
+  );
+  const askingServices = /qu[eé]\s+(servicios|necesitas|gustar)|plat[ií]came|armar para|te gustar[ií]a ir armando/i.test(
+    out2
+  );
+  const hasTipo = !!(opts.tipoEvento && opts.tipoEvento.trim().length >= 3);
+  if (!wants && !(hasTipo && askingServices)) return out2;
+  const snippet = buildSalesIdeasSnippet({
+    tipoEvento: opts.tipoEvento,
+    messageText: opts.messageText,
+    requerimientos: opts.requerimientos,
+    maxTips: wants ? 2 : 1,
+    alreadySent: opts.alreadySent,
+    contextText: opts.contextText,
+    groundingSnippet: wants ? opts.groundingSnippet : null,
+    declinedFamilies: opts.declinedFamilies
+  });
+  if (!snippet) return out2;
+  const qMatch = out2.match(/((?:¿|\?)[^\n]*\?\s*)$/);
+  if (qMatch?.[1]) {
+    const before = out2.slice(0, out2.length - qMatch[1].length).trim();
+    if (before) return `${before}
+
+${snippet}
+
+${qMatch[1]}`.trim();
+    return `${snippet}
+
+${qMatch[1]}`.trim();
+  }
+  return `${out2}
+
+${snippet}`.trim();
+}
+function buildTrendContextBlock(opts) {
+  const cues = extractStyleCues(opts.messageText, opts.tipoEvento, opts.requerimientos);
+  const tips = pickTips(opts.tipoEvento, cues.length ? 1 : 2);
+  const team = advisorLabelForClient();
+  const wantsIdeas = clientWantsIdeasOrTrends(opts.messageText);
+  const lines = [
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 IDEAS / TENDENCIAS (compacto \u2014 sin precios) \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "Usa esto para asesorar y generar negocio. NO cites montos aqu\xED.",
+    `Precio solo si el cliente lo pidi\xF3 y hay ficha Sheet/PDF; si no, ${team} cotiza.`
+  ];
+  if (cues.length) {
+    lines.push(`Estilo/vibe detectado: ${cues.join(", ")}.`);
+  }
+  if (tips.length) {
+    lines.push(`Ideas \xFAtiles: ${tips.join(" ")}`);
+  }
+  if (opts.groundingSnippet?.trim()) {
+    const snip = opts.groundingSnippet.trim().length > 500 ? `${opts.groundingSnippet.trim().slice(0, 497)}\u2026` : opts.groundingSnippet.trim();
+    lines.push(`Notas al d\xEDa (grounding): ${snip}`);
+  } else if (wantsIdeas) {
+    lines.push(
+      "El cliente pidi\xF3/acept\xF3 ideas: propone 1\u20132 sugerencias concretas atadas a servicios Bodasesor y pide 1 dato del embudo."
+    );
+  } else if (opts.tipoEvento || cues.length) {
+    lines.push(
+      "INVITA ideas (proactivo, 1 frase): pregunta si quiere ideas de lo que se puede armar para su evento. No listes 8 cosas; solo invita."
+    );
+  }
+  const block = lines.join("\n");
+  return block.length > 900 ? `${block.slice(0, 897)}\u2026` : block;
+}
+function shouldInjectTrendBlock(messageText, tipoEvento) {
+  if (clientWantsIdeasOrTrends(messageText)) return true;
+  if (extractStyleCues(messageText, tipoEvento).length > 0) return true;
+  return !!(tipoEvento && tipoEvento.trim().length >= 3);
+}
+var ACCEPTS_IDEAS_PATTERN, TREND_IDEA_PATTERN, STYLE_CUES, EVENT_TYPE_CUES, TIPS_BY_EVENT;
+var init_trendKnowledge = __esm({
+  "src/services/trendKnowledge.ts"() {
+    "use strict";
+    init_bodasesorAdvisor();
+    init_serviceDecline();
+    ACCEPTS_IDEAS_PATTERN = /\b(?:s[ií](?:\s+por\s+favor)?|claro|dale|va|ok|okay|sale|perfecto)\b.{0,40}\b(?:ideas?|recomendaci|sugerenc)|\b(?:dame|quiero|pásame|pasame|necesito)\s+ideas?\b|\bideas?\s+por\s+favor\b/i;
+    TREND_IDEA_PATTERN = /\b(?:tendenci(?:a|as)|ideas?\s+(?:de\s+)?(?:decoraci[oó]n|evento|fiesta|boda|xv|ambient|colores?|montaje)|inspiraci[oó]n|mood\s*board|estilos?\b|tem[aá]tica|ambiente|colores?|paleta|montajes?|decoraci[oó]n|qu[eé]\s+(?:se\s+)?(?:usa|lleva|est[aá]\s+usando)|novedades?|recomendaci[oó]n(?:es)?|c[oó]mo\s+(?:armar|decorar|montar)|qu[eé]\s+(?:me\s+)?(?:recomiendas?|sugieres?)|opciones?\s+de\s+(?:decor|estilo|color)|look\b|vibe\b|aesthetic)\b/i;
+    STYLE_CUES = [
+      { pattern: /\bboho|bohemio/i, label: "boho" },
+      { pattern: /\br[uú]stic/i, label: "r\xFAstico" },
+      { pattern: /\belegante|formal|black\s*tie/i, label: "elegante" },
+      { pattern: /\bminimal(?:ista)?/i, label: "minimalista" },
+      { pattern: /\bne[oó]n|fluo/i, label: "ne\xF3n / fiesta" },
+      { pattern: /\bjard[ií]n|garden|al\s+aire\s+libre|exterior/i, label: "jard\xEDn / exterior" },
+      { pattern: /\bcoquette|rosad[oa]|pink/i, label: "coquette / rosa" },
+      { pattern: /\bvintage|retr[oó]/i, label: "vintage" },
+      { pattern: /\bindustrial|loft/i, label: "industrial" },
+      { pattern: /\btropical|player[oa]|beach/i, label: "tropical" },
+      { pattern: /\bm[eé]xico|mexicana|folkl[oó]r/i, label: "mexicana" },
+      { pattern: /\bxv|quince/i, label: "XV a\xF1os" },
+      { pattern: /\bboda|wedding/i, label: "boda" },
+      { pattern: /\bcorporativ|empresarial|gala/i, label: "corporativo" },
+      { pattern: /\bfamiliar|en\s+familia|convivio|reuni[oó]n\s+peque/i, label: "familiar" }
+    ];
+    EVENT_TYPE_CUES = /* @__PURE__ */ new Set(["XV a\xF1os", "boda", "corporativo"]);
+    TIPS_BY_EVENT = {
+      boda: [
+        "Iluminaci\xF3n c\xE1lida + lounge peque\xF1o suele elevar el ambiente sin saturar.",
+        "Carpa + entelado + pista iluminada arma un look completo en jard\xEDn.",
+        "Estaciones casuales + barra de bebidas liberan el sal\xF3n vs banquete fijo."
+      ],
+      xv: [
+        "Entrada con luces o LED wall + pista grande marca el momento del vals.",
+        "Mobiliario lounge en zona VIP + periqueras en c\xF3ctel funciona muy bien.",
+        "Mesa de dulces + barra de postres refuerza el tema de color."
+      ],
+      corporativo: [
+        "Coffee break + pantallas LED + audio claro = formato profesional limpio.",
+        "Periqueras + branding en backdrop para networking sin montaje pesado.",
+        "Si hay premiaci\xF3n: tarima + iluminaci\xF3n enfocada al escenario."
+      ],
+      cumple: [
+        "Tem\xE1tica clara (color/estilo) + mesa de dulces + DJ suele cerrar bien.",
+        "Para algo familiar: taquiza o parrillada + mesa de dulces + m\xFAsica de fondo, ambiente relajado sin montaje pesado.",
+        "Mesas largas tipo convivio o una sala lounge hacen que todos platiquen m\xE1s.",
+        "Un toque personal: pastel tem\xE1tico y un backdrop sencillo para fotos.",
+        "Para jard\xEDn: carpa + iluminaci\xF3n tipo edison + estaciones de comida."
+      ],
+      bautizo: [
+        "Brunch o banquete ligero + pastel + mesa de dulces arma un look familiar limpio.",
+        "En jard\xEDn o terraza: carpas o sombrillas + mobiliario b\xE1sico sin saturar."
+      ],
+      apertura: [
+        "C\xF3ctel de bienvenida con canap\xE9s y barra de mixolog\xEDa: la gente recorre el espacio con copa en mano.",
+        "Iluminaci\xF3n ambiental que resalte el producto + DJ en modo lounge, sin tapar la pl\xE1tica.",
+        "Un backdrop con la marca para fotos y redes hace que la apertura se comparta sola."
+      ],
+      default: [
+        "Barra de bebidas + estaciones de comida hacen que la gente se mueva y conviva m\xE1s que un banquete fijo.",
+        "Iluminaci\xF3n c\xE1lida + una sala lounge elevan el ambiente sin saturar el espacio.",
+        "Un DJ que arranque tranquilo y suba al final mantiene la energ\xEDa toda la noche."
+      ]
+    };
+  }
+});
+
 // src/lib/authJwt.ts
 var authJwt_exports = {};
 __export(authJwt_exports, {
@@ -130368,135 +137130,6 @@ var init_serviceSynonyms = __esm({
   }
 });
 
-// src/lib/chairModels.ts
-function chairModelAlternation() {
-  return [
-    "tiffany\\s+infantil",
-    "louis\\s*xv",
-    "luis\\s*xv",
-    "avant\\s*garde",
-    "mariantonieta",
-    "wishbone",
-    "tiffany",
-    "crossback",
-    "ghost",
-    "tolix",
-    "camila",
-    "antonella",
-    "basket",
-    "cabos",
-    "caroline",
-    "smith",
-    "mar[i\xED]a"
-  ].join("|");
-}
-function fold(s7) {
-  return s7.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-}
-function textMentionsChairModel(text2) {
-  return parseChairModelFromText(text2) != null;
-}
-function parseChairModelFromText(text2) {
-  const t4 = String(text2 || "").trim();
-  if (!t4) return null;
-  const hasSillas = /\bsillas?\b/i.test(t4);
-  const hasMesa = /\bmesas?\b/i.test(t4);
-  const priceOrCotizar = /\b(precio|cotiz|cu[aá]nto\s+cuesta|requiero|necesito|quiero|anoto|renta)\b/i.test(t4) || /\bmobiliario\b/i.test(t4);
-  if (hasMesa && !hasSillas && !priceOrCotizar) return null;
-  if (hasMesa && !hasSillas && /\bmesa\s+(rectangular|redonda|cuadrada|picnic|centro)\b/i.test(t4)) {
-    return null;
-  }
-  const ambiguousNames = /* @__PURE__ */ new Set([
-    "Mar\xEDa",
-    "Smith",
-    "Caroline",
-    "Camila",
-    "Antonella",
-    "Cabos",
-    "Basket"
-  ]);
-  for (const { pattern, canonical } of CHAIR_MODEL_ALIASES) {
-    if (!pattern.test(t4)) continue;
-    if (ambiguousNames.has(canonical) && !hasSillas && !priceOrCotizar) continue;
-    return canonical;
-  }
-  return null;
-}
-function chairModelTokensFromQuery(query) {
-  const f7 = fold(query);
-  const hits = [];
-  for (const tok of CHAIR_MODEL_FOLD_TOKENS) {
-    if (f7.includes(tok) && !hits.includes(tok)) hits.push(tok);
-  }
-  const model = parseChairModelFromText(query);
-  if (model) {
-    const mf = fold(model);
-    if (!hits.includes(mf)) hits.unshift(mf);
-  }
-  return hits;
-}
-function parseChairQtyFromText(text2) {
-  const t4 = String(text2 || "");
-  const model = parseChairModelFromText(t4);
-  if (model) {
-    const esc = model.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
-    const withModel = t4.match(new RegExp(`(\\d+)\\s*sillas?(?:\\s+\\w+){0,4}\\s*${esc}`, "i")) || t4.match(new RegExp(`(\\d+)\\s*(?:sillas?\\s+)?${esc}`, "i"));
-    if (withModel?.[1]) return parseInt(withModel[1], 10);
-  }
-  const plain = t4.match(/(\d+)\s*sillas?\b/i);
-  return plain?.[1] ? parseInt(plain[1], 10) : null;
-}
-function formatChairSku(text2) {
-  const model = parseChairModelFromText(text2);
-  if (!model) return null;
-  const qty = parseChairQtyFromText(text2);
-  return qty && qty > 0 ? `${qty} Sillas ${model}` : `Sillas ${model}`;
-}
-var CHAIR_MODEL_ALIASES, CHAIR_MODEL_PATTERN, CHAIR_MODEL_FOLD_TOKENS;
-var init_chairModels = __esm({
-  "src/lib/chairModels.ts"() {
-    "use strict";
-    CHAIR_MODEL_ALIASES = [
-      { pattern: /\btiffany\s+infantil\b/i, canonical: "Tiffany Infantil" },
-      { pattern: /\blouis\s*xv\b|\bluis\s*xv\b/i, canonical: "Louis XV" },
-      { pattern: /\bavant\s*garde\b/i, canonical: "Avant Garde" },
-      { pattern: /\bmariantonieta\b/i, canonical: "Mariantonieta" },
-      { pattern: /\bmar[ií]a\b/i, canonical: "Mar\xEDa" },
-      { pattern: /\bwishbone\b/i, canonical: "Wishbone" },
-      { pattern: /\btiffany\b/i, canonical: "Tiffany" },
-      { pattern: /\bcrossback\b/i, canonical: "Crossback" },
-      { pattern: /\bghost\b/i, canonical: "Ghost" },
-      { pattern: /\btolix\b/i, canonical: "Tolix" },
-      { pattern: /\bcamila\b/i, canonical: "Camila" },
-      { pattern: /\bantonella\b/i, canonical: "Antonella" },
-      { pattern: /\bbasket\b/i, canonical: "Basket" },
-      { pattern: /\bcabos\b/i, canonical: "Cabos" },
-      { pattern: /\bcaroline\b/i, canonical: "Caroline" },
-      { pattern: /\bsmith\b/i, canonical: "Smith" }
-    ];
-    CHAIR_MODEL_PATTERN = new RegExp(`\\b(?:${chairModelAlternation()})\\b`, "i");
-    CHAIR_MODEL_FOLD_TOKENS = [
-      "tiffany infantil",
-      "louis xv",
-      "luis xv",
-      "avant garde",
-      "mariantonieta",
-      "wishbone",
-      "tiffany",
-      "crossback",
-      "ghost",
-      "tolix",
-      "camila",
-      "antonella",
-      "basket",
-      "cabos",
-      "caroline",
-      "smith",
-      "maria"
-    ];
-  }
-});
-
 // src/services/lucyInfoPriceCache.ts
 import { existsSync as existsSync2, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -130508,7 +137141,7 @@ function cacheState() {
   }
   return g7.__lucyInfoPriceCache;
 }
-function fold2(text2) {
+function fold3(text2) {
   return (text2 || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ñ/g, "n");
 }
 function refreshLucyInfoPriceCache(input) {
@@ -130518,7 +137151,7 @@ function refreshLucyInfoPriceCache(input) {
     content: d3.content.trim(),
     kind: d3.kind
   }));
-  state.corpusFold = fold2(state.docs.map((d3) => `${d3.title}
+  state.corpusFold = fold3(state.docs.map((d3) => `${d3.title}
 ${d3.content}`).join("\n\n"));
 }
 function getLucyInfoCachedDocs() {
@@ -130550,8 +137183,8 @@ function lucyInfoSupportsPriceClaim(mensaje) {
 }
 function scoreDoc(doc, tokens) {
   if (!tokens.length) return 0;
-  const title = fold2(doc.title);
-  const body2 = fold2(doc.content);
+  const title = fold3(doc.title);
+  const body2 = fold3(doc.content);
   let s7 = 0;
   for (const tok of tokens) {
     if (title.includes(tok)) s7 += 14;
@@ -130561,11 +137194,11 @@ function scoreDoc(doc, tokens) {
   return s7;
 }
 function isMobiliarioPdfTitle(title) {
-  const t4 = fold2(title);
+  const t4 = fold3(title);
   return /\bmesas?\b.*\bsillas?\b|\bsillas?\b.*\bmesas?\b/.test(t4) || /\bmobiliario\b|\bperiqueras?\b|\bsalas?\s+lounge\b|\bluxor\b/.test(t4);
 }
 function isFoodServiceQuery(text2) {
-  const t4 = fold2(text2);
+  const t4 = fold3(text2);
   return /\b(canap|bocadillo|banquete|catering|taquiza|paella|pozole|pizza|pasta|sushi|crepa|coffee\s*break|barra\s+de|parrillada|brunch|desayuno|coctel|mixolog|moctel|americano|marisco|panini|yucateca)\b/.test(
     t4
   );
@@ -130582,7 +137215,7 @@ function pdfDocMatchesStrictQuery(query, docTitle) {
   return true;
 }
 function tokenize(text2) {
-  const raw = fold2(text2).replace(/[^a-z0-9\s]/g, " ");
+  const raw = fold3(text2).replace(/[^a-z0-9\s]/g, " ");
   const stop2 = /* @__PURE__ */ new Set([
     "de",
     "del",
@@ -130656,9 +137289,9 @@ function tokenize(text2) {
 }
 function findInclusionSection(content, query, maxChars = 1100) {
   if (!content?.trim()) return null;
-  const q3 = fold2(query);
+  const q3 = fold3(query);
   const c5 = content;
-  const f7 = fold2(c5);
+  const f7 = fold3(c5);
   const anchors = [];
   const cb = q3.match(/coffee\s*break\s*(\d)/);
   if (cb) {
@@ -130696,7 +137329,7 @@ function findInclusionSection(content, query, maxChars = 1100) {
   let bestIdx = -1;
   let bestScore = -1;
   for (const a4 of anchors) {
-    const fa2 = fold2(a4);
+    const fa2 = fold3(a4);
     if (fa2.length < 2) continue;
     let from = 0;
     while (from < f7.length) {
@@ -130754,7 +137387,7 @@ function trimToWordBoundary(text2, maxChars, truncated) {
   return `${out2.replace(/[\s,;:·|-]+$/, "")}\u2026`;
 }
 function queryHasServicePdfAnchor(query) {
-  const q3 = fold2(query);
+  const q3 = fold3(query);
   return /\b(banquete|taquiza|coffee|break|barra|catering|pizza|pasta|sushi|dj|pista|tarima|crepas?|canapes?|queso|dulce|postre|paella|pozole|brunch|desayuno|cena|mesero|mobiliario|carpa|iluminaci|pantalla|formal|tiempos|tradicional|premium|basico|bocadillos?|entradas?|vajilla|mixolog|coctel|helado|fruta|inflable|softplay|letras?|valet|pirotecnia)\b/.test(
     q3
   );
@@ -130785,9 +137418,9 @@ function buildLucyInfoInclusionReply(query, maxChars = 1100) {
     "barra americana",
     "bocadillo"
   ];
-  const qf = fold2(query);
+  const qf = fold3(query);
   const preferred = ranked.filter((x8) => {
-    const title = fold2(x8.d.title);
+    const title = fold3(x8.d.title);
     return serviceHints.some((h5) => qf.includes(h5) && title.includes(h5));
   });
   const pool2 = preferred.length ? preferred : ranked;
@@ -130891,7 +137524,7 @@ function extractModelAnchoredPriceWindows(content, modelTokens) {
     let m6;
     while ((m6 = modeloPrecio.exec(content)) && out2.length < 2) {
       const w5 = m6[0].replace(/\s+/g, " ").trim();
-      const f7 = fold2(w5);
+      const f7 = fold3(w5);
       if (/\bmesa\b/.test(f7)) continue;
       const key = f7.slice(0, 100);
       if (w5.length > 12 && !seen.has(key)) {
@@ -130905,7 +137538,7 @@ function extractModelAnchoredPriceWindows(content, modelTokens) {
     );
     while ((m6 = sillaPrecio.exec(content)) && out2.length < 2) {
       const w5 = m6[0].replace(/\s+/g, " ").trim();
-      const f7 = fold2(w5);
+      const f7 = fold3(w5);
       if (/\bmesa\b/.test(f7)) continue;
       const key = f7.slice(0, 100);
       if (w5.length > 12 && !seen.has(key)) {
@@ -130925,7 +137558,7 @@ function extractModelAnchoredPriceWindows(content, modelTokens) {
     let m6;
     while ((m6 = near.exec(content)) && out2.length < 2) {
       const w5 = m6[0].replace(/\s+/g, " ").trim();
-      const f7 = fold2(w5);
+      const f7 = fold3(w5);
       if (/\b(mesa|tablon)\b/.test(f7) && !/\bsilla/.test(f7)) continue;
       if (/\bmesa\b/.test(f7)) continue;
       const key = f7.slice(0, 80);
@@ -130955,7 +137588,7 @@ function buildLucyInfoPriceSnippet(query, maxChars = 520) {
   }
   const windows = extractPriceWindows(top.content, chairAsk ? 80 : 10);
   const scored = windows.map((l6) => {
-    const f7 = fold2(l6);
+    const f7 = fold3(l6);
     let s7 = 0;
     for (const tok of tokens) if (f7.includes(tok)) s7 += 3;
     for (const tok of modelTokens) if (f7.includes(tok)) s7 += 25;
@@ -130981,7 +137614,7 @@ function buildLucyInfoLearnedPriceReply(message) {
   const priceQuery = chairModel ? `Silla ${chairModel} precio` : message;
   const snip = buildLucyInfoPriceSnippet(priceQuery, focusedPista || !!chairModel ? 420 : 520);
   if (!snip) return null;
-  const t4 = fold2(message);
+  const t4 = fold3(message);
   let ask = "\xBFLo agregamos a tu cotizaci\xF3n?";
   if (/pista|tarima|baile/.test(t4)) {
     ask = "\xBFQu\xE9 medidas aproximadas tiene el espacio?";
@@ -131025,6559 +137658,6 @@ var init_lucyInfoPriceCache = __esm({
   }
 });
 
-// src/lib/locationDedupe.ts
-function foldToponym(s7) {
-  return s7.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}]/gu, "");
-}
-function editDistance(a4, b5) {
-  const dp = Array.from({ length: b5.length + 1 }, (_4, j5) => j5);
-  for (let i6 = 1; i6 <= a4.length; i6++) {
-    let prevDiag = dp[0];
-    dp[0] = i6;
-    for (let j5 = 1; j5 <= b5.length; j5++) {
-      const tmp = dp[j5];
-      dp[j5] = Math.min(dp[j5] + 1, dp[j5 - 1] + 1, prevDiag + (a4[i6 - 1] === b5[j5 - 1] ? 0 : 1));
-      prevDiag = tmp;
-    }
-  }
-  return dp[b5.length];
-}
-function looseSameToponym(a4, b5) {
-  const fa2 = foldToponym(a4);
-  const fb = foldToponym(b5);
-  if (!fa2 || !fb) return false;
-  if (fa2 === fb) return true;
-  const len = Math.max(fa2.length, fb.length);
-  if (len < 6) return false;
-  return editDistance(fa2, fb) <= Math.max(1, Math.floor(len * 0.12));
-}
-function preferToponymSpelling(a4, b5) {
-  const score = (s7) => (/[áéíóúñ]/i.test(s7) ? 2 : 0) + (/[A-ZÁÉÍÓÚÑ]{4,}/.test(s7) ? -1 : 0);
-  return score(b5) > score(a4) ? b5 : a4;
-}
-function dedupeLocationParts(value) {
-  const raw = value?.trim();
-  if (!raw) return value ?? null;
-  const parts2 = raw.split(/\s*,\s*/).filter(Boolean);
-  const out2 = [];
-  for (const p5 of parts2) {
-    const idx = out2.findIndex((o6) => looseSameToponym(o6, p5));
-    if (idx >= 0) out2[idx] = preferToponymSpelling(out2[idx], p5);
-    else out2.push(p5);
-  }
-  return out2.join(", ");
-}
-var init_locationDedupe = __esm({
-  "src/lib/locationDedupe.ts"() {
-    "use strict";
-  }
-});
-
-// src/client-email.ts
-function normalizeEmail(email) {
-  const trimmed = email?.trim().toLowerCase() ?? "";
-  return trimmed || null;
-}
-function isOwnCompanyEmail(email) {
-  const norm2 = normalizeEmail(email);
-  if (!norm2) return false;
-  if (OWN_EMAILS.has(norm2)) return true;
-  return /@bodasesor\.com$/i.test(norm2) || /@capybaraeventos\./i.test(norm2);
-}
-function filterClientEmail(email) {
-  const norm2 = normalizeEmail(email);
-  if (!norm2 || isOwnCompanyEmail(norm2)) return null;
-  return email.trim();
-}
-function looksLikeValidClientEmail(email) {
-  const norm2 = normalizeEmail(email);
-  if (!norm2) return false;
-  if (/\s/.test(email ?? "")) return false;
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(norm2)) return false;
-  const domain = norm2.split("@")[1] ?? "";
-  if (!domain || /\.\./.test(domain) || domain.startsWith(".") || domain.endsWith(".")) return false;
-  if (SUSPICIOUS_TLD.test(domain)) return false;
-  if (/^(gmial|gmal|gmai|hotmial|yaho|outlok)(\.|$)/i.test(domain)) return false;
-  const tld = domain.split(".").pop() ?? "";
-  return tld.length >= 2 && /^[a-z]{2,}$/i.test(tld);
-}
-function sanitizeStoredClientEmail(email) {
-  const filtered = filterClientEmail(email);
-  if (!filtered) return null;
-  if (!looksLikeValidClientEmail(filtered)) return null;
-  return filtered;
-}
-function suggestEmailDomainFix(email) {
-  const norm2 = normalizeEmail(email);
-  const m6 = norm2?.match(/^([^\s@]+)@([a-z0-9-]+)((?:\.[a-z]{2,})*)$/i);
-  if (!m6) return null;
-  const [, user, host, rest] = m6;
-  const tld = rest || ".com";
-  const badTld = /^\.(comm?|con|cmo|co)$/i.test(tld) && tld !== ".com" && !/^\.com\.mx$/i.test(tld);
-  if (COMMON_EMAIL_HOSTS.includes(host)) {
-    return badTld ? `${user}@${host}.com` : null;
-  }
-  for (const h5 of COMMON_EMAIL_HOSTS) {
-    if (Math.abs(h5.length - host.length) <= 2 && editDistance(host, h5) <= 2) {
-      return `${user}@${h5}${badTld ? ".com" : tld}`;
-    }
-  }
-  return null;
-}
-function buildEmailConfirmationPrompt(email) {
-  return `\xBFMe confirmas tu correo? Lo le\xED como ${email.trim()}, quiero anotarlo bien.`;
-}
-var OWN_EMAILS, SUSPICIOUS_TLD, COMMON_EMAIL_HOSTS;
-var init_client_email = __esm({
-  "src/client-email.ts"() {
-    "use strict";
-    init_locationDedupe();
-    OWN_EMAILS = new Set(
-      [
-        "capybaraeventos@gmail.com",
-        "bodasesor@gmail.com",
-        "hola@bodasesor.com",
-        "ventas@bodasesor.com",
-        "info@bodasesor.com"
-      ].map((e4) => e4.toLowerCase())
-    );
-    SUSPICIOUS_TLD = /\.(comm|con|cmo|gmial|gmal|gmai|hotmial|yaho|outlok)\b/i;
-    COMMON_EMAIL_HOSTS = ["gmail", "hotmail", "outlook", "yahoo", "icloud"];
-  }
-});
-
-// src/services/imageProcessor.ts
-function pruneImageCache() {
-  const now = Date.now();
-  for (const [url2, entry] of imageAnalysisCache) {
-    if (now - entry.at > IMAGE_CACHE_TTL_MS) imageAnalysisCache.delete(url2);
-  }
-  if (imageAnalysisCache.size <= IMAGE_CACHE_MAX) return;
-  const sorted = [...imageAnalysisCache.entries()].sort((a4, b5) => a4[1].at - b5[1].at);
-  for (let i6 = 0; i6 < sorted.length - IMAGE_CACHE_MAX; i6++) {
-    imageAnalysisCache.delete(sorted[i6][0]);
-  }
-}
-function getCachedImageAnalysis(imageUrl) {
-  const entry = imageAnalysisCache.get(imageUrl);
-  if (!entry) return null;
-  if (Date.now() - entry.at > IMAGE_CACHE_TTL_MS) {
-    imageAnalysisCache.delete(imageUrl);
-    return null;
-  }
-  return entry.analysis;
-}
-function cacheImageAnalysis(imageUrl, analysis) {
-  imageAnalysisCache.set(imageUrl, { analysis, at: Date.now() });
-  if (imageAnalysisCache.size > IMAGE_CACHE_MAX * 0.9) pruneImageCache();
-}
-function isImageMessage(message) {
-  const att = message["attachment"];
-  if (typeof att === "object" && att !== null) {
-    const a4 = att;
-    if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) return true;
-    if (typeof a4["mime_type"] === "string" && a4["mime_type"].startsWith("image/")) return true;
-  }
-  const atts = message["attachments"];
-  if (Array.isArray(atts)) {
-    for (const item of atts) {
-      if (typeof item === "object" && item !== null) {
-        const a4 = item;
-        if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) return true;
-        if (typeof a4["mime_type"] === "string" && a4["mime_type"].startsWith("image/")) return true;
-      }
-    }
-  }
-  const mediaType = String(message["media_type"] ?? "");
-  if (IMAGE_TYPES.has(mediaType)) return true;
-  const mimeType = String(message["mime_type"] ?? "");
-  if (mimeType.startsWith("image/")) return true;
-  return false;
-}
-function getImageUrl(message) {
-  const att = message["attachment"];
-  if (typeof att === "object" && att !== null) {
-    const a4 = att;
-    for (const key of ["link", "url", "media_url"]) {
-      if (typeof a4[key] === "string" && a4[key].length > 0) return a4[key];
-    }
-  }
-  const atts = message["attachments"];
-  if (Array.isArray(atts)) {
-    for (const item of atts) {
-      if (typeof item === "object" && item !== null) {
-        const a4 = item;
-        if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) {
-          for (const key of ["link", "url", "media_url"]) {
-            if (typeof a4[key] === "string" && a4[key].length > 0) return a4[key];
-          }
-        }
-      }
-    }
-  }
-  for (const key of ["media_url", "file_url", "url"]) {
-    if (typeof message[key] === "string" && message[key].length > 0) {
-      return message[key];
-    }
-  }
-  const media = message["media"];
-  if (typeof media === "object" && media !== null) {
-    const m6 = media;
-    if (typeof m6["url"] === "string" && m6["url"].length > 0) return m6["url"];
-  }
-  return null;
-}
-function getImageCaption(message) {
-  const att = message["attachment"];
-  if (typeof att === "object" && att !== null) {
-    const a4 = att;
-    const caption = (typeof a4["text"] === "string" ? a4["text"] : "") || (typeof a4["caption"] === "string" ? a4["caption"] : "") || (typeof a4["title"] === "string" ? a4["title"] : "");
-    if (caption.trim()) return caption.trim();
-  }
-  const rawText = message["text"];
-  if (typeof rawText === "string" && rawText.trim()) return rawText.trim();
-  return null;
-}
-function parseAmountMxn(raw) {
-  if (typeof raw === "number" && Number.isFinite(raw) && raw >= 1 && raw <= 2e7) {
-    return Math.round(raw);
-  }
-  const s7 = String(raw ?? "").trim();
-  if (!s7) return null;
-  const m6 = s7.replace(/\s/g, "").match(/(\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)/);
-  if (!m6?.[1]) return null;
-  const n5 = Number(m6[1].replace(/,/g, ""));
-  if (!Number.isFinite(n5) || n5 < 1 || n5 > 2e7) return null;
-  return Math.round(n5);
-}
-function parseAmountFromDescription(desc2) {
-  const m6 = desc2.match(/(?:\$|mxn|monto|importe)\s*:?\s*([\d.,]+)/i);
-  return m6?.[1] ? parseAmountMxn(m6[1]) : null;
-}
-function normalizePaymentMethod(raw) {
-  const s7 = String(raw ?? "").trim().toLowerCase();
-  if (/transfer|spei|dep[oó]sit|banc/.test(s7)) return "transferencia";
-  if (/efectivo|cash|caja/.test(s7)) return "efectivo";
-  if (/\bticket\b/.test(s7) && !/spei|transfer/.test(s7)) return "efectivo";
-  return "otro";
-}
-function normalizeIntent(raw) {
-  const s7 = String(raw ?? "").trim().toLowerCase().replace(/\s+/g, "_");
-  if (VALID_INTENTS.has(s7)) return s7;
-  if (/montaje|referencia|estilo|mobiliario|mesa|silla|decor/i.test(s7)) return "montaje_referencia";
-  if (/comprobante|pago|transfer|spei|ticket/i.test(s7)) return "comprobante_pago";
-  if (/comida|producto|menu|taquiza|banquete|pastel/i.test(s7)) return "comida_producto";
-  if (/lugar|salon|salón|venue|jard[ií]n/i.test(s7)) return "lugar_evento";
-  if (/documento|ine|identific/i.test(s7)) return "documento";
-  return "no_claro";
-}
-function looksLikeOwnerDescription(text2) {
-  return /^(el|la|los|las)\s+(espacio|área|area|imagen|foto|sal[oó]n|jard[ií]n|mesa)/i.test(text2.trim()) || /\b(se observa|se aprecia|la imagen muestra|en la fotograf[ií]a|resumen\s+de\s+la\s+(imagen|foto)|descripci[oó]n\s+de\s+la\s+(imagen|foto))\b/i.test(
-    text2
-  ) || /\ban[aá]lisis\s+(interno|de\s+la\s+imagen|visual)\b/i.test(text2);
-}
-function looksLikeImageInternalSummary(text2) {
-  if (!text2?.trim()) return false;
-  return looksLikeOwnerDescription(text2) || /\[Imagen nota interna\]/i.test(text2);
-}
-function buildAnalysisFromParts(intentRaw, internalRaw, clientRaw, amountRaw, methodRaw) {
-  const intent = normalizeIntent(intentRaw);
-  const internalDescription = String(internalRaw ?? "").trim().slice(0, 500) || "Imagen recibida sin detalle.";
-  let clientReply = String(clientRaw ?? "").trim().slice(0, 400);
-  if (!clientReply || looksLikeOwnerDescription(clientReply)) {
-    clientReply = FALLBACK_REPLIES[intent];
-  }
-  const amountMxn = intent === "comprobante_pago" ? parseAmountMxn(amountRaw) ?? parseAmountFromDescription(internalDescription) : null;
-  let paymentMethod = null;
-  if (intent === "comprobante_pago") {
-    const fromJson = normalizePaymentMethod(methodRaw);
-    paymentMethod = fromJson !== "otro" ? fromJson : normalizePaymentMethod(internalDescription);
-  }
-  return { intent, internalDescription, clientReply, amountMxn, paymentMethod };
-}
-function parseVisionImageJson(raw) {
-  const trimmed = raw.trim();
-  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return null;
-  try {
-    const parsed = JSON.parse(jsonMatch[0]);
-    return buildAnalysisFromParts(
-      parsed.intent ?? parsed.Intent,
-      parsed.internal_description ?? parsed.internalDescription ?? parsed.description,
-      parsed.client_reply ?? parsed.clientReply ?? parsed.reply,
-      parsed.amount_mxn ?? parsed.amountMxn ?? parsed.monto ?? parsed.monto_mxn,
-      parsed.payment_method ?? parsed.paymentMethod ?? parsed.metodo
-    );
-  } catch {
-    return null;
-  }
-}
-async function analyzeImageFull(imageUrl, accessToken, log) {
-  const cached2 = getCachedImageAnalysis(imageUrl);
-  if (cached2) {
-    log.info({ imageUrl: imageUrl.slice(0, 80), intent: cached2.intent }, "Imagen en cach\xE9 (Vision)");
-    return cached2;
-  }
-  try {
-    const imgResponse = await fetch(imageUrl, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    if (!imgResponse.ok) {
-      log.warn({ status: imgResponse.status, imageUrl }, "Error descargando imagen del cliente");
-      return null;
-    }
-    const contentType = imgResponse.headers.get("content-type") || "image/jpeg";
-    const buffer = await imgResponse.arrayBuffer();
-    const compressed = await tryCompressImageForVision(buffer);
-    const mimeType = compressed?.mimeType ?? (contentType.split(";")[0]?.trim() || "image/jpeg");
-    const base64 = compressed?.base64 ?? Buffer.from(buffer).toString("base64");
-    const dataUrl = `data:${mimeType};base64,${base64}`;
-    if (compressed) {
-      log.info(
-        {
-          bytesIn: compressed.bytesIn,
-          bytesOut: compressed.bytesOut,
-          width: compressed.width,
-          height: compressed.height,
-          resized: compressed.resized
-        },
-        "Imagen comprimida para Vision"
-      );
-    }
-    const completion = await completeChat({
-      model: getChatModel(),
-      purpose: "vision",
-      maxTokens: 320,
-      temperature: 0.3,
-      json: true,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: VISION_PROMPT },
-            {
-              type: "image_url",
-              image_url: { url: dataUrl },
-              mimeType,
-              base64
-            }
-          ]
-        }
-      ]
-    });
-    const raw = completion.text.trim();
-    const parsed = raw ? parseVisionImageJson(raw) : null;
-    const analysis = parsed ?? buildAnalysisFromParts(
-      "no_claro",
-      raw || "No se pudo parsear la visi\xF3n",
-      FALLBACK_REPLIES.no_claro
-    );
-    cacheImageAnalysis(imageUrl, analysis);
-    log.info(
-      { intent: analysis.intent, chars: analysis.clientReply.length },
-      "Imagen analizada (Vision accionable)"
-    );
-    return analysis;
-  } catch (err2) {
-    log.error({ err: err2 }, "Error analizando imagen con Vision");
-    return null;
-  }
-}
-function formatImageTurnText(analysis, caption) {
-  const parts2 = [
-    `${IMAGE_INTENT_MARKER} ${analysis.intent}`,
-    `${IMAGE_ACTION_MARKER} ${analysis.clientReply}`
-  ];
-  if (caption?.trim()) {
-    return `${caption.trim()}
-
-${parts2.join("\n")}`;
-  }
-  return parts2.join("\n");
-}
-function formatImageTeamNote(analysis, caption, opts) {
-  const notified = opts?.notifiedClient !== false;
-  const parts2 = [
-    `Intent: ${analysis.intent}`,
-    notified ? `Respuesta enviada al cliente: ${analysis.clientReply}` : `Respuesta al cliente: NO enviada (Lucy en silencio / post\u2013Humano Trabaja). Vision: ${analysis.clientReply}`,
-    `Ref. equipo (no enviar): ${analysis.internalDescription}`
-  ];
-  if (analysis.intent === "comprobante_pago") {
-    const amount = analysis.amountMxn != null ? `$${analysis.amountMxn.toLocaleString("es-MX")}` : "sin monto";
-    parts2.push(`Pago: ${amount} \xB7 ${analysis.paymentMethod ?? "otro"}`);
-  }
-  if (caption?.trim()) parts2.push(`Caption: ${caption.trim().slice(0, 180)}`);
-  return parts2.join("\n");
-}
-function stripImageClientReplyForSilence(text2) {
-  if (!text2?.trim()) return "";
-  return text2.replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/gi, "").replace(/\n{3,}/g, "\n\n").trim();
-}
-function rewriteImageTurnClientReply(turnText, clientReply) {
-  if (!turnText.trim()) return `${IMAGE_ACTION_MARKER} ${clientReply}`;
-  if (/\[Imagen respuesta cliente\]:/i.test(turnText)) {
-    return turnText.replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/i, `${IMAGE_ACTION_MARKER} ${clientReply}`);
-  }
-  return `${turnText}
-${IMAGE_ACTION_MARKER} ${clientReply}`;
-}
-function extractImageClientReply(text2) {
-  if (!text2) return null;
-  const m6 = text2.match(/\[Imagen respuesta cliente\]:\s*([^\n\[]+)/i);
-  return m6?.[1]?.trim() || null;
-}
-function stripImageMarkersFromText(text2) {
-  if (!text2?.trim()) return "";
-  return text2.replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/gi, "").replace(/\[Imagen nota interna\]:\s*[^\n]*/gi, "").replace(/\[Imagen intent\]:\s*[^\n]*/gi, "").replace(/\[Imagen adjunta:[^\]]*\]/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
-}
-function clientCaptionForServiceParse(text2) {
-  return stripImageMarkersFromText(text2);
-}
-function extractImageIntent(text2) {
-  if (!text2) return null;
-  const m6 = text2.match(/\[Imagen intent\]:\s*([a-z_]+)/i);
-  if (!m6?.[1]) return null;
-  return normalizeIntent(m6[1]);
-}
-var IMAGE_TYPES, IMAGE_CACHE_TTL_MS, IMAGE_CACHE_MAX, imageAnalysisCache, VALID_INTENTS, VISION_PROMPT, FALLBACK_REPLIES, IMAGE_ACTION_MARKER, IMAGE_INTENT_MARKER;
-var init_imageProcessor = __esm({
-  "src/services/imageProcessor.ts"() {
-    "use strict";
-    init_llmChat();
-    init_llmEnv();
-    init_imageCompress();
-    IMAGE_TYPES = /* @__PURE__ */ new Set(["picture", "image", "photo"]);
-    IMAGE_CACHE_TTL_MS = 2 * 60 * 60 * 1e3;
-    IMAGE_CACHE_MAX = 500;
-    imageAnalysisCache = /* @__PURE__ */ new Map();
-    VALID_INTENTS = /* @__PURE__ */ new Set([
-      "montaje_referencia",
-      "comprobante_pago",
-      "comida_producto",
-      "lugar_evento",
-      "documento",
-      "otro",
-      "no_claro"
-    ]);
-    VISION_PROMPT = `Eres Lucy de Bodasesor (bodas y eventos en M\xE9xico). Un cliente envi\xF3 una imagen por WhatsApp.
-Tu trabajo: ENTENDER la foto y CONTESTARLE AL CLIENTE sobre lo que envi\xF3.
-NO hagas un resumen t\xE9cnico/interno. NO digas 'la imagen muestra\u2026', 'se observa\u2026', 'el espacio es\u2026'.
-Habla como en un chat: menciona 1-2 detalles concretos de LA FOTO y dile c\xF3mo lo ayudas (cotizaci\xF3n, estilo, servicio).
-
-Clasifica intent como UNO de:
-- montaje_referencia: foto de montaje, mesas/sillas, decoraci\xF3n o estilo de referencia
-- comprobante_pago: captura de transferencia, SPEI, ticket de caja o foto de pago en efectivo
-- comida_producto: comida, men\xFA, taquiza, pastel, bebida u otro producto de catering
-- lugar_evento: foto del sal\xF3n, jard\xEDn o venue del evento
-- documento: INE, contrato u otro documento
-- otro: relacionado con el evento pero no encaja arriba
-- no_claro: no se entiende qu\xE9 quiere el cliente con la foto
-
-Responde SOLO JSON v\xE1lido (sin markdown) con estas claves:
-{"intent":"...","internal_description":"muy breve para el equipo (max 12 palabras)","client_reply":"2-3 oraciones AL CLIENTE sobre su foto","amount_mxn":null,"payment_method":"otro"}
-
-Si intent es comprobante_pago:
-- amount_mxn = monto en pesos (n\xFAmero, sin comas). null si no se lee.
-- payment_method = transferencia (SPEI, dep\xF3sito, app bancaria) o efectivo (ticket de caja, pago en efectivo) u otro.
-- NUNCA copies CLABE, cuentas, NIP ni n\xFAmeros de tarjeta en ning\xFAn campo.
-Si NO es comprobante: amount_mxn null y payment_method otro.
-
-Reglas para client_reply (ES LO IMPORTANTE):
-- Es la respuesta que el cliente leer\xE1 en WhatsApp.
-- Debe sonar a conversaci\xF3n: 'Vi que\u2026 / Me encanta el estilo\u2026 / Anoto\u2026 / \xBFQuieres\u2026?'
-- Nombra algo concreto que salga en la foto (color, tipo de mesa, plato, jard\xEDn, etc.).
-- montaje_referencia: confirma que pueden armar ese estilo/mobiliario y an\xF3talo.
-- comprobante_pago: agradece el pago y di que el equipo da seguimiento (sin leer datos sensibles ni el monto).
-- comida_producto: nombra el platillo/estilo de la foto. Si el caption ya dice un servicio (ej. barra de pastas), confirma ESE servicio. NO inventes alternativas (taquiza, banquete) si la foto o el caption ya son claros.
-- lugar_evento: reconoce el espacio y confirma si ah\xED ser\xEDa el evento.
-- documento: confirma recepci\xF3n sin leer datos sensibles.
-- no_claro / otro: pregunta qu\xE9 le gustar\xEDa de esa foto para su evento.
-- Espa\xF1ol mexicano, de t\xFA, c\xE1lida. NUNCA digas 'resumen', 'descripci\xF3n' ni 'an\xE1lisis'.`;
-    FALLBACK_REPLIES = {
-      montaje_referencia: "\xA1S\xED! Manejamos mesas, sillas y montajes de ese estilo. Lo anoto para tu cotizaci\xF3n.",
-      comprobante_pago: "\xA1Gracias por tu pago! Lo registro y el equipo da seguimiento.",
-      comida_producto: "\xA1Qu\xE9 rico! Lo tomo como referencia de lo que buscas y lo anoto para tu cotizaci\xF3n.",
-      lugar_evento: "Recib\xED la foto del lugar. \xBFConfirmas que ah\xED ser\xEDa tu evento?",
-      documento: "Listo, recib\xED el documento. El equipo lo revisa y te confirma.",
-      otro: "Recib\xED tu imagen. \xBFMe confirmas qu\xE9 te gustar\xEDa de esta foto para tu evento?",
-      no_claro: "Recib\xED tu imagen. \xBFMe confirmas qu\xE9 te gustar\xEDa de esta foto?"
-    };
-    IMAGE_ACTION_MARKER = "[Imagen respuesta cliente]:";
-    IMAGE_INTENT_MARKER = "[Imagen intent]:";
-  }
-});
-
-// src/services/serviceDecline.ts
-function isMesaDulcesDeclinePhrase(t4) {
-  return /\bno\s+(?:quiero|necesito|pedimos|pido)\s+mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t4) || /\bno\s+(?:quiero|necesito)\s+(postres?|dulces?)\b/i.test(t4) || /\bsin\s+mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t4) || /\bqu[ií]ta(le|me)?\s+(?:la\s+)?mesa\s+de\s+(postres?|dulces?|quesos?)\b/i.test(t4);
-}
-function captionOf(message) {
-  if (!message?.trim()) return "";
-  return (clientCaptionForServiceParse(message) || message).trim();
-}
-function isVenueProvidesContext(message) {
-  const t4 = captionOf(message).toLowerCase();
-  if (!t4) return false;
-  if (/[?¿]/.test(t4) && !/\b(sal[oó]n|venue|lugar|local|sitio|jard[ií]n|hacienda|hotel|terraza)\b/i.test(t4) && !/\bya\s+hay\b/i.test(t4)) {
-    return false;
-  }
-  return /\b(sal[oó]n|venue|lugar|local|sitio)\b.{0,48}\b(suministra|provee|incluye|trae|cuenta\s+con|ya\s+tiene)\b/i.test(
-    t4
-  ) || /\b(suministra|provee|incluye|trae|cuenta\s+con)\b.{0,72}\b(mesas?|sillas?|manteler|platos?|vasos?|meseros?|vajillas?)\b/i.test(
-    t4
-  ) || /\bya\s+hay\b.{0,96}\b(mesas?|sillas?|manteler|platos?|vasos?|cubiertos?|vajillas?|meseros?)\b/i.test(
-    t4
-  ) || /\b(escrib[ií]|mencion[eé]|dije|envi[eé]|informaci[oó]n\s+que\s+te\s+envi[eé])\b.{0,72}\b(ya\s+hay|suministra|incluye|manteler|mesas?|sillas?)\b/i.test(
-    t4
-  );
-}
-function venueProvidedServiceLabels(message) {
-  const t4 = captionOf(message);
-  if (!t4 || !isVenueProvidesContext(t4)) return [];
-  const out2 = [];
-  if (/\b(mesas?|sillas?|periqueras?|mobiliario)\b/i.test(t4)) out2.push("Mobiliario");
-  if (/\b(meseros?|staff\s+de\s+servicio|personal\s+de\s+servicio)\b/i.test(t4)) {
-    out2.push("Meseros");
-  }
-  if (/\b(vajillas?|loza|platos?|vasos?|cubiertos?|cuberter[ií]a|cristaler[ií]a|manteler[ií]a)\b/i.test(
-    t4
-  )) {
-    out2.push("Vajillas");
-  }
-  if ((out2.includes("Mobiliario") || out2.includes("Vajillas")) && (/\bmeseros?\b/i.test(t4) || /\bya\s+hay\b/i.test(t4) || /\bsuministra\b/i.test(t4))) {
-    out2.push("Meseros");
-  }
-  return [...new Set(out2)];
-}
-function serviceMatchesVenueLabel(serviceLabel, venueLabel) {
-  const s7 = serviceLabel.trim();
-  const v4 = venueLabel.trim();
-  if (!s7 || !v4) return false;
-  if (new RegExp(`^${v4}$`, "i").test(s7)) return true;
-  if (v4 === "Mobiliario" && /^Mobiliario$/i.test(s7)) return true;
-  if (v4 === "Meseros" && /^Meseros$/i.test(s7)) return true;
-  if (v4 === "Vajillas" && /^Vajillas$/i.test(s7)) return true;
-  return false;
-}
-function removeVenueProvidedFromRequirements(existing, message) {
-  const labels = venueProvidedServiceLabels(message);
-  if (!labels.length) return existing?.trim() || null;
-  if (!existing?.trim()) return null;
-  const parts2 = existing.split(",").map((s7) => s7.trim()).filter(Boolean).filter((s7) => !labels.some((l6) => serviceMatchesVenueLabel(s7, l6)));
-  return parts2.length ? parts2.join(", ") : null;
-}
-function buildVenueProvidedAck(message) {
-  const t4 = captionOf(message).toLowerCase();
-  const parts2 = [];
-  if (/\b(mesas?|sillas?)\b/i.test(t4)) parts2.push("mesas y sillas");
-  if (/\bmanteler[ií]a\b/i.test(t4)) parts2.push("manteler\xEDa");
-  if (/\b(platos?|vasos?|cubiertos?|vajillas?|loza)\b/i.test(t4)) parts2.push("vajilla y loza");
-  if (/\bmeseros?\b/i.test(t4)) parts2.push("mesero");
-  if (!parts2.length) {
-    return "Entendido \u2014 anoto lo que el sal\xF3n ya incluye; no lo sumamos a tu cotizaci\xF3n.";
-  }
-  const list = parts2.length === 1 ? parts2[0] : `${parts2.slice(0, -1).join(", ")} y ${parts2[parts2.length - 1]}`;
-  return `Entendido \u2014 el sal\xF3n ya incluye ${list}; no lo sumamos a tu cotizaci\xF3n.`;
-}
-function clientDeclinesServiceFamilies(message) {
-  const t4 = captionOf(message).toLowerCase();
-  if (!t4) return [];
-  const out2 = /* @__PURE__ */ new Set();
-  if (/\b(yo\s+)?(ya\s+)?(les\s+|le\s+)?(voy\s+a\s+dar|doy|pondr[eé]|llevo|traigo)\b/i.test(t4) && /\b(pizza|comida|alimentos?|banquete|taquiza)\b/i.test(t4)) {
-    out2.add("alimentos");
-  }
-  if (/\b(porque|por\s*qu[eé])\s+yo\b/i.test(t4) && /\b(dar|doy|pondr|voy\s+a\s+dar|comida|pizza|alimentos|les\s+voy)\b/i.test(t4)) {
-    out2.add("alimentos");
-  }
-  if (/\b(yo\s+)?(ya\s+)?les?\s+voy\s+a\s+dar\b/i.test(t4) && !/\b(correo|tel[eé]fono|whatsapp|datos|nombre|ubicaci|direcci[oó]n)\b/i.test(t4)) {
-    out2.add("alimentos");
-  }
-  if (isMesaDulcesDeclinePhrase(t4) && !isTablewareRequestText(t4)) {
-    out2.add("dulces");
-  }
-  if (/\bdj\s+no\b|\bno\s*,?\s*dj\b|\bdj\s*,?\s*no\b/i.test(t4)) {
-    out2.add("entretenimiento");
-  }
-  if (/\bpista(?:[ \t]+de[ \t]+baile)?[ \t]+no\b(?![ \t]+(?:es[ \t]+)?(?:carpas?|lonas?|toldos?)\b)|\bno[ \t]*,?[ \t]*pista(?:[ \t]+de[ \t]+baile)?\b|\bno[ \t]+quiero[ \t]+pista\b/i.test(
-    t4
-  )) {
-    out2.add("pista");
-  }
-  if (/\bno\s+(quiero\s+)?(el\s+)?(servicio\s+de\s+)?catering\b|\bsin\s+catering\b|\bno\s+comida\b/i.test(
-    t4
-  )) {
-    out2.add("alimentos");
-  }
-  if (isVenueProvidesContext(t4)) {
-    for (const label of venueProvidedServiceLabels(t4)) {
-      if (label === "Mobiliario") out2.add("mobiliario");
-    }
-  }
-  for (const family of Object.keys(FAMILY_DECLINE_WORDS)) {
-    if (family === "mobiliario" && isMesaDulcesDeclinePhrase(t4)) continue;
-    const words = FAMILY_DECLINE_WORDS[family];
-    const reNoQuiero = new RegExp(
-      `\\b(no|nop)(?:\\s+pero|\\s+peor)?(?:\\s+yo)?\\s+(quiero|necesito|requiero|requerimos|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+|el\\s+servicio\\s+de\\s+)?(${words})\\b`,
-      "i"
-    );
-    const reYoNoQuiero = new RegExp(
-      `\\b(?:pero\\s+)?yo\\s+no\\s+(quiero|necesito|requiero|requerimos|pido|pedimos)\\s+(la\\s+|el\\s+|los\\s+|las\\s+|el\\s+servicio\\s+de\\s+)?(${words})\\b`,
-      "i"
-    );
-    const reQuitale = new RegExp(
-      `\\b(?:pero|peor\\s+)?(qu[i\xED]ta(le|me)?|quita(r|mos)?|sacar?|saquen|elimina(r)?)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
-      "i"
-    );
-    const reSin = new RegExp(`\\bsin\\s+(${words})\\b`, "i");
-    const reQueNo = new RegExp(
-      `\\bque\\s+no\\s+(quiero|necesito)\\s+(la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\b`,
-      "i"
-    );
-    const reDespues = new RegExp(
-      `(?:^|[.,;!?\\n]\\s*|\\b(?:y|pero)\\s+)(?:la\\s+|el\\s+|los\\s+|las\\s+)?(${words})\\s+(?:ya\\s+)?no\\s+(?:l[oa]s?\\s+)?(quiero|queremos|necesito|necesitamos|requiero)\\b`,
-      "i"
-    );
-    if (reNoQuiero.test(t4) || reYoNoQuiero.test(t4) || reQuitale.test(t4) || reSin.test(t4) || reQueNo.test(t4) || reDespues.test(t4)) {
-      out2.add(family);
-    }
-  }
-  if (/\bno(?:\s+pero|\s+peor)?(?:\s+yo)?\s+(quiero\s+)?comoda\b/i.test(t4) || /\bqu[ií]tale?\s+la\s+comoda\b/i.test(t4) || /\bno\s+quiero\s+comoda\b/i.test(t4)) {
-    out2.add("alimentos");
-  }
-  if (/\b(?:yo\s+)?no\s+(?:quiero|necesito)\s+(?:el\s+|la\s+)?mobilairio\b/i.test(t4) || /\bmobilairio\b/i.test(t4) && /\bno\s+(quiero|necesito)\b/i.test(t4)) {
-    out2.add("mobiliario");
-  }
-  return [...out2];
-}
-function clientDeclinesServiceFamiliesWithContext(message, recentUserTexts = []) {
-  const fromCurrent = clientDeclinesServiceFamilies(message);
-  const out2 = new Set(fromCurrent);
-  const cur = captionOf(message).trim();
-  if (/^(comida|comidas|alimentos?)$/i.test(cur)) {
-    const prevBlob = recentUserTexts.slice(-3).join(" \n ");
-    if (clientDeclinesServiceFamilies(prevBlob).includes("alimentos") || /\bcomoda\b/i.test(prevBlob) || /\bno(?:\s+pero|\s+peor)?\s+no\s+quiero\b/i.test(prevBlob) || /\bqu[ií]tale?\s+la\s+comi/i.test(prevBlob)) {
-      out2.add("alimentos");
-    }
-  }
-  return [...out2];
-}
-function significantWords(text2) {
-  return text2.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").split(/[^a-zñ]+/).filter((w5) => w5.length >= 4 && !SIGNIFICANT_STOPWORDS.has(w5));
-}
-function extractDeclinedServiceObjects(message, existing) {
-  const t4 = captionOf(message);
-  if (!t4) return [];
-  if (clientDeclinesServiceFamilies(t4).length > 0) return [];
-  const existingWords = new Set(significantWords(existing ?? ""));
-  const out2 = [];
-  for (const m6 of [...t4.matchAll(SPECIFIC_DECLINE_RE), ...t4.matchAll(SPECIFIC_DECLINE_AFTER_RE)]) {
-    const obj = m6[1].trim();
-    if (!obj || NOT_A_SERVICE_WORD.test(obj)) continue;
-    const words = significantWords(obj);
-    if (!words.length) continue;
-    const inCatalog = parseServicesFromText(obj).length > 0;
-    const inExisting = words.some((w5) => existingWords.has(w5));
-    if (inCatalog || inExisting) out2.push(obj);
-  }
-  return [...new Set(out2)];
-}
-function removeSpecificDeclinedServices(existing, message) {
-  if (!existing?.trim()) return existing?.trim() || null;
-  const objects = extractDeclinedServiceObjects(message, existing);
-  if (!objects.length) return existing.trim();
-  const declinedWords = new Set(objects.flatMap(significantWords));
-  const catalogLabels = new Set(
-    objects.flatMap((o6) => parseServicesFromText(o6)).map((s7) => s7.toLowerCase())
-  );
-  const parts2 = existing.split(",").map((s7) => s7.trim()).filter(Boolean).filter((part) => {
-    const base = part.replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase();
-    if (catalogLabels.has(base)) return false;
-    return !significantWords(base).some((w5) => declinedWords.has(w5));
-  });
-  return parts2.length ? parts2.join(", ") : null;
-}
-function declinedServiceObjectLabels(objects) {
-  return [
-    ...new Set(
-      objects.map((o6) => {
-        const sku = parseServicesFromText(o6)[0];
-        return sku ?? o6.trim();
-      })
-    )
-  ];
-}
-function clientDeclinesAnyService(message) {
-  return clientDeclinesServiceFamilies(message).length > 0;
-}
-function serviceMatchesDeclinedFamily(serviceLabel, family) {
-  return FAMILY_SERVICE_RE[family].test(serviceLabel.trim());
-}
-function serviceIsDeclined(serviceLabel, families) {
-  return families.some((f7) => serviceMatchesDeclinedFamily(serviceLabel, f7));
-}
-function removeDeclinedFamiliesFromRequirements(existing, families) {
-  if (!existing?.trim() || families.length === 0) {
-    return existing?.trim() || null;
-  }
-  const parts2 = existing.split(",").map((s7) => s7.trim()).filter(Boolean).filter((s7) => !serviceIsDeclined(s7, families));
-  return parts2.length ? parts2.join(", ") : null;
-}
-function declinedFamilyLabel(family) {
-  switch (family) {
-    case "alimentos":
-      return "alimentos / comida";
-    case "bebidas":
-      return "bebidas";
-    case "mobiliario":
-      return "mobiliario";
-    case "carpas":
-      return "carpas";
-    case "decoracion":
-      return "decoraci\xF3n";
-    case "entretenimiento":
-      return "entretenimiento";
-    case "animacion":
-      return "animaci\xF3n / hora loca";
-    case "pista":
-      return "pista de baile";
-    case "tarima":
-      return "tarima";
-    case "dulces":
-      return "mesa de dulces / postres";
-  }
-}
-function buildServiceDeclineAck(families) {
-  if (!families.length) return "Listo, lo quito de la cotizaci\xF3n.";
-  const labels = families.map(declinedFamilyLabel);
-  const list = labels.length === 1 ? labels[0] : labels.length === 2 ? `${labels[0]} y ${labels[1]}` : `${labels.slice(0, -1).join(", ")} y ${labels[labels.length - 1]}`;
-  return `Listo \u2014 *no* incluimos ${list} en tu cotizaci\xF3n.`;
-}
-function looksLikeThemeColorNotLocation(value) {
-  const t4 = (value ?? "").trim();
-  if (!t4) return false;
-  if (/^colores?\b/i.test(t4)) return true;
-  if (/^tem[aá]tica\b/i.test(t4)) return true;
-  if (/^(blanco|negro|dorado|plateado|rojo|azul|verde|rosa|morado|violeta|gris|beige|dorado)(\s*(y|con|\/|,)\s*(blanco|negro|dorado|plateado|rojo|azul|verde|rosa|morado|violeta|gris|beige))+$/i.test(
-    t4
-  )) {
-    return true;
-  }
-  return false;
-}
-function stripThemeColorsFromZona(value) {
-  if (!value?.trim()) return null;
-  let v4 = value.trim();
-  v4 = v4.replace(
-    /,\s*(blanco|negro|dorado|plateado|rojo|azul|verde|rosa|morado|violeta|gris|beige)(\s*(y|con|\/)\s*(blanco|negro|dorado|plateado|rojo|azul|verde|rosa|morado|violeta|gris|beige))*\s*$/i,
-    ""
-  );
-  v4 = v4.replace(/\s*[-–]\s*(rojo|negro|azul|blanco|dorado).*$/i, "");
-  return v4.trim() || null;
-}
-var FAMILY_SERVICE_RE, FAMILY_DECLINE_WORDS, SPECIFIC_DECLINE_RE, SPECIFIC_DECLINE_AFTER_RE, NOT_A_SERVICE_WORD, SIGNIFICANT_STOPWORDS;
-var init_serviceDecline = __esm({
-  "src/services/serviceDecline.ts"() {
-    "use strict";
-    init_imageProcessor();
-    init_conversation_understanding();
-    FAMILY_SERVICE_RE = {
-      alimentos: /^(Alimentos|Comida)$|banquete|taquiza|catering|pizzas?|barra\s+de\s+(pizzas?|pastas?|alimentos|sushi)|brunch|parrillada|sushi|canap|bocadillo|coffee\s*break|puestos?\s+de\s+comida|desayuno|paella|pozole|pasta/i,
-      bebidas: /bebidas?|barra\s+de\s+bebidas|coctel|m[oó]cteles|mixolog|barra\s+de\s+caf[eé]/i,
-      mobiliario: /mobiliario|mobilairio|mibiliario|mobilario|sillas?|mesas?(?!\s+de\s+(postres?|dulces?|quesos?|imperial))|periqueras?|salas?\s+lounge|tiffany/i,
-      carpas: /carpas?|capras?|toldos?|lonas?/i,
-      decoracion: /decoraci[oó]n|centros?\s+de\s+mesa|florister|globos?|tem[aá]tica/i,
-      entretenimiento: /show|dj\b|entretenimiento|hora\s+loca|photobooth|photo\s*booth|bailarinas|batucada|robots?/i,
-      // A16438: "no quiero animación" quita la hora loca, NO los shows con nombre.
-      animacion: /animaci[oó]n|hora\s+loca|happening|animador/i,
-      // A16074: declinar pista NO quita tarima.
-      pista: /pista(\s+de\s+baile)?/i,
-      tarima: /^Tarima\b|tarimas?|entarimad/i,
-      dulces: /mesa\s+de\s+dulces|postres?|cupcakes?|bet[uú]n|pastel(es)?|fondant|candy/i
-    };
-    FAMILY_DECLINE_WORDS = {
-      // A16503: SKUs con nombre ("no quiero taquiza") van por extractDeclinedServiceObjects,
-      // si no se borraba también el banquete que sí quiere.
-      alimentos: "comida|comidas|alimentos?|catering",
-      bebidas: "bebidas?|barra\\s+de\\s+bebidas|cocteler[i\xED]a|m[o\xF3]cteles?|mixolog[i\xED]a",
-      mobiliario: "mobiliario|mobilairio|mibiliario|mobilario|sillas?|mesas?|periqueras?|salas?",
-      carpas: "carpas?|capras?|toldos?|lonas?",
-      decoracion: "decoraci[o\xF3]n|centros?\\s+de\\s+mesa|flores?|globos?",
-      entretenimiento: "show|dj|entretenimiento|photobooth|photo\\s*booth",
-      animacion: "animaci[o\xF3]n|animador(?:es)?|hora\\s+loca|happening",
-      pista: "pista(\\s+de\\s+baile)?",
-      tarima: "tarimas?|entarimad[oa]s?",
-      dulces: "mesa\\s+de\\s+dulces|mesa\\s+de\\s+postres?|postres?|dulces?|cupcakes?|pastel(es)?|fondant"
-    };
-    SPECIFIC_DECLINE_RE = /\b(?:(?:ya\s+)?no\s+(?:quiero|queremos|necesito|necesitamos|me\s+gusta|me\s+late)|qu[ií]ta(?:le|me|lo)?|quita(?:r|mos)?)\s+(?:el\s+|la\s+|los\s+|las\s+|lo\s+del?\s+|servicio\s+de\s+)?([a-záéíóúñü]+(?:\s+(?:y\s+|de\s+)?[a-záéíóúñü]+){0,2})/gi;
-    SPECIFIC_DECLINE_AFTER_RE = /(?:^|[.,;!?\n]\s*|\b(?:y|pero)\s+)(?:el\s+|la\s+|los\s+|las\s+)?([a-záéíóúñü]+(?:\s+(?:de\s+)?[a-záéíóúñü]+){0,2})\s+(?:ya\s+)?no\s+(?:l[oa]s?\s+)?(?:quiero|queremos|necesito|necesitamos|me\s+gusta|me\s+late|me\s+interesa)\b/gi;
-    NOT_A_SERVICE_WORD = /^(nada|eso|esto|esa|ese|m[aá]s|otro|otra|dar|dar\s+mi|mi|mis|ya|que|prisa|problema|correo|tel[eé]fono|datos|gastar|esperar|pagar|presupuesto|cotizaci[oó]n|urgencia|compromiso|embargo|duda)\b/i;
-    SIGNIFICANT_STOPWORDS = /* @__PURE__ */ new Set([
-      "para",
-      "como",
-      "algo",
-      "tipo",
-      "barra",
-      "servicio",
-      "mesa",
-      "favor",
-      "gracias",
-      "mejor",
-      "ahora",
-      "todo",
-      "toda"
-    ]);
-  }
-});
-
-// src/services/geoResolve.ts
-function fold3(s7) {
-  return s7.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
-}
-function addPart(parts2, raw) {
-  const t4 = raw?.trim().replace(/[.,;:]+$/g, "").replace(/\s+/g, " ");
-  if (!t4 || t4.length < 2) return;
-  const key = fold3(t4);
-  if (/^(es|la|el|de|del|en)$/i.test(t4)) return;
-  for (let i6 = 0; i6 < parts2.length; i6++) {
-    const pk = fold3(parts2[i6]);
-    if (pk === key || pk.includes(key)) return;
-    if (key.includes(pk) && t4.length > parts2[i6].length) {
-      parts2[i6] = t4;
-      return;
-    }
-  }
-  parts2.push(t4);
-}
-function appendCdmxIfNeeded(joined) {
-  if (!joined) return joined;
-  if (CDMX_CITY.test(joined)) return joined;
-  if (CDMX_ALCALDIAS.test(joined)) {
-    return `${joined}, CDMX`;
-  }
-  return joined;
-}
-function composeEventLocation(text2) {
-  const trimmed = (text2 ?? "").replace(/\s+/g, " ").trim();
-  if (!trimmed) return null;
-  const parts2 = [];
-  const colonia = trimmed.match(
-    /\bcolonia\s+(?:es\s+)?([A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ.-]{1,28})/i
-  );
-  if (colonia?.[1] && !/^(es|la|el|de|del)$/i.test(colonia[1].trim())) {
-    addPart(parts2, `colonia ${colonia[1].trim()}`);
-  }
-  const alcaldia = trimmed.match(CDMX_ALCALDIAS);
-  if (alcaldia?.[0]) addPart(parts2, alcaldia[0]);
-  const city = trimmed.match(CDMX_CITY);
-  if (city?.[0]) addPart(parts2, /cdmx|d\.?\s*f/i.test(city[0]) ? "CDMX" : city[0]);
-  if (parts2.length === 0) return null;
-  const joined = parts2.join(", ");
-  if (CDMX_ALCALDIAS.test(joined)) {
-    return appendCdmxIfNeeded(joined);
-  }
-  return joined;
-}
-function enrichDireccionLocal(value) {
-  const t4 = value?.trim();
-  if (!t4) return null;
-  const composed = composeEventLocation(t4);
-  if (composed && composed.length >= t4.length) return composed;
-  return appendCdmxIfNeeded(t4);
-}
-function mergeAddr(a4, b5) {
-  const prev = a4?.trim() ?? "";
-  const next = b5?.trim() ?? "";
-  if (!next) return prev || null;
-  if (!prev) return next;
-  if (fold3(prev).includes(fold3(next))) return prev;
-  if (fold3(next).includes(fold3(prev))) return next;
-  return dedupeLocationParts(`${prev}, ${next}`);
-}
-function direccionNeedsMapsLookup(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4) return false;
-  if (CDMX_CITY.test(t4) || CDMX_ALCALDIAS.test(t4)) return false;
-  if (/\b(monterrey|guadalajara|puebla|quer[eé]taro|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|jiutepec|morelos)\b/i.test(
-    t4
-  )) {
-    return false;
-  }
-  return /\bcolonia\b/i.test(t4) || /\b(calle|av\.?|avenida|blvd)\b/i.test(t4) || /\b(sal[oó]n|hacienda|hotel|club(\s+de\s+golf)?)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]/i.test(t4);
-}
-function mapsKey() {
-  return process.env.GOOGLE_MAPS_API_KEY?.trim() || process.env.MAPS_API_KEY?.trim() || null;
-}
-async function geocodeGoogle(query) {
-  const key = mapsKey();
-  if (!key) return null;
-  const url2 = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&region=mx&language=es&key=${encodeURIComponent(key)}`;
-  const res = await fetch(url2, { signal: AbortSignal.timeout(2500) });
-  if (!res.ok) return null;
-  const data = await res.json();
-  const hit = data.results?.[0];
-  if (!hit?.formatted_address) return null;
-  const city = hit.address_components?.find(
-    (c5) => c5.types?.some((t4) => t4 === "locality" || t4 === "administrative_area_level_1")
-  )?.long_name;
-  return { formatted: hit.formatted_address, city };
-}
-async function geocodeNominatim(query) {
-  const url2 = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&countrycodes=mx&limit=1`;
-  const res = await fetch(url2, {
-    signal: AbortSignal.timeout(2500),
-    headers: {
-      "User-Agent": "Lucy-Bodasesor/1.0 (eventos; geocode de sedes)",
-      Accept: "application/json"
-    }
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  const hit = data[0];
-  if (!hit?.display_name) return null;
-  const city = hit.address?.city || hit.address?.town || hit.address?.state;
-  return { formatted: hit.display_name, city };
-}
-async function lookupDireccionInMaps(query) {
-  const q3 = query.trim();
-  if (q3.length < 4 || q3.length > 120) return null;
-  const cacheKey = fold3(q3);
-  if (mapsCache.has(cacheKey)) return mapsCache.get(cacheKey) ?? null;
-  let hit = null;
-  try {
-    hit = await geocodeGoogle(`${q3}, M\xE9xico`) ?? await geocodeNominatim(`${q3}, M\xE9xico`);
-  } catch {
-    hit = null;
-  }
-  mapsCache.set(cacheKey, hit);
-  return hit;
-}
-async function enrichExtractedDireccionWithMaps(extracted, messageText) {
-  const msg = messageText?.trim() ?? "";
-  const localFromMsg = composeEventLocation(msg);
-  if (localFromMsg) {
-    extracted.direccion_evento = mergeAddr(extracted.direccion_evento, localFromMsg);
-  } else if (extracted.direccion_evento) {
-    extracted.direccion_evento = enrichDireccionLocal(extracted.direccion_evento);
-  }
-  const current = extracted.direccion_evento?.trim() ?? "";
-  const lookupQ = current || msg;
-  if (!direccionNeedsMapsLookup(lookupQ)) return;
-  const hit = await lookupDireccionInMaps(lookupQ);
-  if (!hit) return;
-  const cityBit = hit.city?.trim();
-  if (cityBit && current && !fold3(current).includes(fold3(cityBit))) {
-    extracted.direccion_evento = mergeAddr(current, cityBit);
-  } else if (!current && hit.formatted) {
-    extracted.direccion_evento = hit.formatted.split(",").slice(0, 3).join(",").trim();
-  }
-}
-var CDMX_ALCALDIAS, CDMX_CITY, mapsCache;
-var init_geoResolve = __esm({
-  "src/services/geoResolve.ts"() {
-    "use strict";
-    init_locationDedupe();
-    CDMX_ALCALDIAS = /\b(alvaro\s+obregon|[aá]lvaro\s+obreg[oó]n|azcapotzalco|benito\s+ju[aá]rez|coyoac[aá]n|cuajimalpa|cuauht[eé]moc|gustavo\s+a\.?\s*madero|iztacalco|iztapalapa|magdalena\s+contreras|miguel\s+hidalgo|milpa\s+alta|tl[aá]huac|tlalpan|venustiano\s+carranza|xochimilco)\b/i;
-    CDMX_CITY = /\b(cdmx|ciudad\s+de\s+m[eé]xico|\bdf\b|d\.?\s*f\.?)\b/i;
-    mapsCache = /* @__PURE__ */ new Map();
-  }
-});
-
-// src/lib/eventDateTime.ts
-function stripAccents(s7) {
-  return s7.normalize("NFD").replace(/\p{M}/gu, "");
-}
-function mexicoNowParts(now = /* @__PURE__ */ new Date()) {
-  const parts2 = new Intl.DateTimeFormat("en-CA", {
-    timeZone: TZ,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).formatToParts(now);
-  const get = (t4) => Number(parts2.find((p5) => p5.type === t4)?.value ?? "0");
-  return { y: get("year"), m: get("month"), d: get("day"), hh: get("hour") % 24, mm: get("minute") };
-}
-function weekdayOf({ y: y5, m: m6, d: d3 }) {
-  return new Date(Date.UTC(y5, m6 - 1, d3)).getUTCDay();
-}
-function addDays({ y: y5, m: m6, d: d3 }, n5) {
-  const dt3 = new Date(Date.UTC(y5, m6 - 1, d3 + n5));
-  return { y: dt3.getUTCFullYear(), m: dt3.getUTCMonth() + 1, d: dt3.getUTCDate() };
-}
-function daysInMonth(y5, m6) {
-  return new Date(Date.UTC(y5, m6, 0)).getUTCDate();
-}
-function cmp(a4, b5) {
-  return a4.y - b5.y || a4.m - b5.m || a4.d - b5.d;
-}
-function formatYmd(date2) {
-  return `${DIAS[weekdayOf(date2)]} ${date2.d} de ${MESES[date2.m - 1]} de ${date2.y}`;
-}
-function formatMexicoNowForPrompt(now = /* @__PURE__ */ new Date()) {
-  const p5 = mexicoNowParts(now);
-  return `${formatYmd(p5)}, ${String(p5.hh).padStart(2, "0")}:${String(p5.mm).padStart(2, "0")}`;
-}
-function relativeEventYear(normalized, currentYear) {
-  if (NEXT_YEAR_RE.test(normalized)) return currentYear + 1;
-  if (/\beste\s+ano\b/.test(normalized)) return currentYear;
-  return null;
-}
-function relativeYearPhrase(text2) {
-  const t4 = stripAccents((text2 ?? "").toLowerCase());
-  if (NEXT_YEAR_RE.test(t4)) return "siguiente ano";
-  if (/\beste\s+ano\b/.test(t4)) return "este ano";
-  return null;
-}
-function resolveFechaEvento(text2, now = /* @__PURE__ */ new Date()) {
-  const raw = (text2 ?? "").trim();
-  if (!raw) return null;
-  const t4 = stripAccents(raw.toLowerCase()).replace(/[.,;:!?¡¿]+/g, " ").replace(/\s+/g, " ").trim();
-  const today = mexicoNowParts(now);
-  const aprox = /\b(aprox|aproximadamente|mas o menos|tentativ)/.test(t4);
-  if (/^(?:para\s+|es\s+|seria\s+)?hoy(?:\s+mismo)?$/.test(t4)) return formatYmd(today);
-  if (/^(?:para\s+|es\s+|seria\s+)?pasado\s+manana$/.test(t4)) return formatYmd(addDays(today, 2));
-  if (/^(?:para\s+|es\s+|seria\s+)?manana$/.test(t4)) return formatYmd(addDays(today, 1));
-  const yearM = t4.match(/\b(20\d{2})\b/);
-  const explicitYear = yearM ? Number(yearM[1]) : relativeEventYear(t4, today.y);
-  const monthM = t4.match(new RegExp(`\\b(${MES_RE})\\b`));
-  const month = monthM ? MESES.findIndex((m6) => stripAccents(m6) === monthM[1]) + 1 : 0;
-  const dayM = t4.match(/\b(\d{1,2})\b(?!\s*(?::|am|pm|hrs?|horas?|personas?|invitad))/);
-  const weekdayM = t4.match(new RegExp(`\\b(${DIA_RE})\\b`));
-  const weekday = weekdayM ? DIAS.findIndex((d3) => stripAccents(d3) === weekdayM[1]) : -1;
-  if (month && dayM) {
-    const d3 = Number(dayM[1]);
-    let y5 = explicitYear ?? today.y;
-    if (d3 < 1 || d3 > 31) return null;
-    if (!explicitYear && cmp({ y: y5, m: month, d: d3 }, today) < 0) y5 += 1;
-    if (d3 > daysInMonth(y5, month)) return null;
-    const date2 = { y: y5, m: month, d: d3 };
-    if (weekday >= 0 && weekdayOf(date2) !== weekday) return null;
-    const out2 = formatYmd(date2);
-    return aprox ? `${out2} (aprox.)` : out2;
-  }
-  if (month && !dayM) {
-    let y5 = explicitYear ?? today.y;
-    if (!explicitYear && month < today.m) y5 += 1;
-    const out2 = `${MESES[month - 1]} de ${y5}`;
-    return aprox ? `${out2} (aprox.)` : out2;
-  }
-  if (weekday >= 0 && !dayM) {
-    let ahead = (weekday - weekdayOf(today) + 7) % 7;
-    if (ahead === 0 && !/\b(este|esta|hoy)\b/.test(t4)) ahead = 7;
-    if (/\b(siguiente|que\s+viene)\b/.test(t4) && ahead < 7 && /\bsemana\b/.test(t4)) ahead += 7;
-    return formatYmd(addDays(today, ahead));
-  }
-  const onlyDay = t4.match(/^(?:el\s+)?(?:dia\s+)?(\d{1,2})$/);
-  if (onlyDay) {
-    const d3 = Number(onlyDay[1]);
-    if (d3 < 1 || d3 > 31) return null;
-    let y5 = today.y;
-    let m6 = today.m;
-    if (d3 < today.d) {
-      m6 += 1;
-      if (m6 > 12) {
-        m6 = 1;
-        y5 += 1;
-      }
-    }
-    if (d3 > daysInMonth(y5, m6)) return null;
-    return formatYmd({ y: y5, m: m6, d: d3 });
-  }
-  return null;
-}
-function contextPeriod(context) {
-  const c5 = context.toLowerCase();
-  const pm = /\b\d{1,2}(?::\d{2})?\s*(?:pm|p\.\s*m)/.test(c5) || /\bde\s+la\s+(tarde|noche)\b|\b(cena|noche|nocturn)/.test(c5);
-  const am = /\b\d{1,2}(?::\d{2})?\s*(?:am|a\.\s*m)/.test(c5) || /\bde\s+la\s+ma[nñ]ana\b|\b(desayuno|brunch|almuerzo|matutin)/.test(c5);
-  if (pm && !am) return "pm";
-  if (am && !pm) return "am";
-  return null;
-}
-function inferHorarioAmPm(horario, context = "") {
-  const value = (horario ?? "").trim();
-  if (!value || PERIOD_WORDS.test(value)) return { value, ambiguous: false };
-  const m6 = value.match(
-    /^(?:de\s+(?:las?\s+)?)?(\d{1,2})(?::(\d{2}))?(?:\s*(?:a|-|–|hasta)\s*(?:las?\s+)?(\d{1,2})(?::(\d{2}))?)?$/i
-  );
-  if (!m6) return { value, ambiguous: false };
-  const h1 = Number(m6[1]);
-  const m1 = m6[2];
-  const h22 = m6[3] !== void 0 ? Number(m6[3]) : null;
-  const m22 = m6[4];
-  if (h1 > 12 || h22 !== null && h22 > 12 || h1 === 0) return { value, ambiguous: false };
-  let p1 = null;
-  if (h1 >= 1 && h1 <= 6) p1 = "pm";
-  else if (h1 === 12) p1 = "pm";
-  else p1 = contextPeriod(context);
-  if (!p1) return { value, ambiguous: true };
-  const fmt = (h5, mm, p5) => `${h5}${mm ? `:${mm}` : ""} ${p5}`;
-  if (h22 === null) return { value: fmt(h1, m1, p1), ambiguous: false };
-  const start24 = h1 % 12 + (p1 === "pm" ? 12 : 0) + (m1 ? Number(m1) / 60 : 0);
-  const endPm = h22 % 12 + 12 + (m22 ? Number(m22) / 60 : 0);
-  const p22 = endPm > start24 && endPm - start24 <= 14 ? "pm" : "am";
-  return { value: `${fmt(h1, m1, p1)} a ${fmt(h22, m22, p22)}`, ambiguous: false };
-}
-function resolveHorarioWithContext(incoming, previous, context = "") {
-  const inc = (incoming ?? "").trim();
-  if (!inc) return null;
-  const prev = (previous ?? "").trim();
-  if (/\d/.test(inc)) return inferHorarioAmPm(inc, `${context} ${prev}`).value;
-  if (prev && /\d/.test(prev) && PERIOD_WORDS.test(inc)) {
-    const r5 = inferHorarioAmPm(prev, inc);
-    if (!r5.ambiguous && r5.value !== prev) return r5.value;
-  }
-  return inc;
-}
-function horarioNeedsAmPmConfirmation(horario, context = "") {
-  return inferHorarioAmPm(horario, context).ambiguous;
-}
-var TZ, MESES, DIAS, MES_RE, DIA_RE, NEXT_YEAR_RE, PERIOD_WORDS;
-var init_eventDateTime = __esm({
-  "src/lib/eventDateTime.ts"() {
-    "use strict";
-    TZ = "America/Mexico_City";
-    MESES = [
-      "enero",
-      "febrero",
-      "marzo",
-      "abril",
-      "mayo",
-      "junio",
-      "julio",
-      "agosto",
-      "septiembre",
-      "octubre",
-      "noviembre",
-      "diciembre"
-    ];
-    DIAS = ["domingo", "lunes", "martes", "mi\xE9rcoles", "jueves", "viernes", "s\xE1bado"];
-    MES_RE = MESES.map((m6) => stripAccents(m6)).join("|");
-    DIA_RE = "domingo|lunes|martes|miercoles|jueves|viernes|sabado";
-    NEXT_YEAR_RE = /\b(?:(?:el\s+)?(?:siguiente|proximo|otro)\s+ano|ano\s+(?:que\s+(?:viene|entra)|siguiente|proximo))\b/;
-    PERIOD_WORDS = /\b(am|pm|hrs?|horas?|tarde|noche|ma[nñ]ana|mediod[ií]a|medio\s*d[ií]a|madrugada)\b|\b[ap]\.\s*m\.?/i;
-  }
-});
-
-// src/conversation-understanding.ts
-function parseTipoEventoLabeled(text2) {
-  const m6 = text2.match(/\bTipo\s+de\s+evento\s*:\s*([^\n.]{3,60})/i);
-  if (!m6?.[1]) return null;
-  const raw = m6[1].trim().replace(/\s+/g, " ");
-  if (/^(cotizaci|servicio|catering|banquete)$/i.test(raw)) return null;
-  return raw.slice(0, 80);
-}
-function normalizePresentationText(text2) {
-  return text2.toLowerCase().replace(/[¿?.,!]/g, "").trim();
-}
-function clientAsksAboutTeam(message, clientName) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim();
-  const normalized = normalizePresentationText(t4);
-  const name2 = clientName?.trim().toLowerCase() ?? "";
-  const advisor = getAdvisorName().toLowerCase();
-  const advisorEsc = advisor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  if (name2) {
-    if (normalized === name2 || normalized === `soy ${name2}` || normalized === `me llamo ${name2}`) {
-      return false;
-    }
-  }
-  if (/^(soy\s+)?[a-záéíóúñ]{2,30}$/i.test(normalized)) return false;
-  if (/^hola,?\s+[a-záéíóúñ]{2,30}$/i.test(normalized)) return false;
-  if (name2 && name2 === advisor && new RegExp(`^${advisorEsc}$`, "i").test(normalized)) {
-    return false;
-  }
-  if (/^[a-záéíóúñ]{2,30}!?$/i.test(normalized)) return false;
-  const legacyTeamAsk = LEGACY_ADVISOR_NAMES.some((legacy) => {
-    const esc = legacy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp(`^${esc}$`, "i").test(normalized) || new RegExp(`\\bqui[e\xE9]n\\s+es\\s+${esc}\\b`, "i").test(t4) || new RegExp(`\\best[a\xE1]\\s+${esc}\\b`, "i").test(t4);
-  });
-  return legacyTeamAsk || new RegExp(`^${advisorEsc}$`, "i").test(normalized) && !(name2 && name2 === advisor) || new RegExp(`\\bqui[e\xE9]n\\s+es\\s+${advisorEsc}\\b`, "i").test(t4) || /\bqui[eé]n\s+es\s+alejandro\b/i.test(t4) || new RegExp(`\\best[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t4) || new RegExp(`\\bhablo\\s+con\\s+${advisorEsc}\\b`, "i").test(t4) || new RegExp(`\\bpuedo\\s+hablar\\s+con\\s+${advisorEsc}\\b`, "i").test(t4) || new RegExp(`\\bd[o\xF3]nde\\s+est[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t4) || /\bel\s+asesor\b/i.test(t4);
-}
-function clientAddsToQuote(message) {
-  if (!message?.trim()) return false;
-  if (isRichQuoteBrief(message)) return false;
-  if (clientAsksAlternativeMenus(message)) return false;
-  const t4 = message.toLowerCase();
-  if (/\b(incluir|agregar|sumar|tambi[eé]n|adem[aá]s)\b/i.test(t4) && /\b(cotizaci[oó]n|propuesta|cotizar)\b/i.test(t4) || /\bincluir\b.+\b(en\s+la\s+)?cotiz/i.test(t4)) {
-    return true;
-  }
-  if (/\b(queremos|quisiera|me\s+gustar[ií]a|sumamos|ponemos|buscamos)\b/i.test(t4)) {
-    const services = parseServicesFromText(message);
-    if (services.length >= 1) return true;
-    if (/\b(helado|frutas?|vasitos?|postres?|dulces?)\b/i.test(t4)) return true;
-  }
-  return false;
-}
-function clientAsksAlternativeMenus(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.toLowerCase();
-  return /\b(alg[uú]n\s+)?otro(s)?\s+men[uú]/i.test(t4) || /\bmen[uú]s?\s+t[ií]pic/i.test(t4) || /\b(otras?\s+)?opciones?\s+de\s+(men[uú]|banquete|comida|alimentos?)\b/i.test(t4) || /\bqu[eé]\s+otros?\s+(men[uú]s?|banquetes?)\b/i.test(t4) || /\balternativa(s)?\s+(de\s+)?(men[uú]|banquete)\b/i.test(t4);
-}
-function assistantAskedDeliveryChannel(text2) {
-  if (!text2?.trim()) return false;
-  return /confirmen?\s+por\s+aqu[ií].{0,100}correo/i.test(text2) || /escriba\s+por\s+aqu[ií].{0,100}correo/i.test(text2) || /preferes\s+esperar\s+el\s+correo/i.test(text2) || /por\s+aqu[ií]\s+con\s+la\s+propuesta.{0,60}correo/i.test(text2) || /recibirla\s+por\s+correo\s+o\s+por\s+este\s+chat/i.test(text2);
-}
-function normalizeDeliveryReply(message) {
-  return message.toLowerCase().replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, " ").replace(/\b(?:por\s+favor|porfa(?:vor)?|porfis|please|pls|gracias)\b/gi, " ").replace(/[¡!¿?.,;:]+/g, " ").replace(/\s+/g, " ").trim();
-}
-function clientChoosesEmailDelivery(message) {
-  if (!message?.trim()) return false;
-  const t4 = normalizeDeliveryReply(message);
-  if (!t4) return false;
-  if (/^(por\s+)?(el\s+)?correo$/i.test(t4)) return true;
-  if (/^(email|e-?mail|mail)$/i.test(t4)) return true;
-  if (/\bpor\s+(el\s+)?correo\b/i.test(t4) && t4.split(/\s+/).length <= 8) return true;
-  if (/\bmejor\s+(el\s+)?correo\b/i.test(t4) && t4.split(/\s+/).length <= 8) return true;
-  if (/\besper(o|ar)\s+(el\s+)?correo\b/i.test(t4) && t4.split(/\s+/).length <= 10) return true;
-  return false;
-}
-function clientChoosesChatDelivery(message) {
-  if (!message?.trim()) return false;
-  const lines = message.split(/\n+/).filter((l6) => l6.trim());
-  if (lines.length > 1 && lines.some((l6) => clientChoosesChatDelivery(l6))) return true;
-  const t4 = normalizeDeliveryReply(message);
-  if (!t4) return false;
-  if (/^(por\s+)?aqu[ií]$/i.test(t4)) return true;
-  if (/^(whatsapp|chat|wa|por\s+whatsapp)$/i.test(t4)) return true;
-  if (/^(?:mejor\s+)?(?:en|por)\s+(?:el\s+|este\s+)?(?:chat|whats?app|wh?ats?ap+|wpp)$/i.test(t4)) return true;
-  if (/\bpor\s+(aqu[ií]|este\s+(chat|medio)|whatsapp)(?!\p{L})/iu.test(t4) && t4.split(/\s+/).length <= 8) {
-    return true;
-  }
-  return false;
-}
-function listItemsFromAssistant(text2) {
-  return text2.split(/\n+/).map((line2) => line2.match(/^\s*(?:[•●▪◦·\-–*]|\d{1,2}[.)])\s+(.+)$/)?.[1] ?? null).filter((item) => !!item).map(
-    (item) => item.replace(/[*_]/g, "").split(/\s+[—–-]\s+|:\s|\s\(/)[0].replace(/\.{2,}|…/g, "").trim()
-  ).filter((item) => item.length >= 3);
-}
-function expandOrdinalListChoice(message, lastAssistantText) {
-  if (!message?.trim() || !lastAssistantText?.trim()) return message;
-  const items = listItemsFromAssistant(lastAssistantText);
-  if (items.length < 2) return message;
-  let changed = false;
-  const lines = message.split(/\n/).map((line2) => {
-    const t4 = line2.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[¡!¿?.,;:]+/g, " ").replace(/\s+/g, " ").trim();
-    let idx = null;
-    const word = t4.match(
-      /^(?:(?:me\s+(?:gusta|late)|quiero|prefiero|mejor)\s+)?(?:la\s+|el\s+)?(primer[ao]?|segund[ao]|tercer[ao]?|cuart[ao]|quint[ao]|ultim[ao])(?:\s+opcion)?(?:\s+por\s+favor)?$/
-    );
-    if (word) idx = ORDINAL_INDEX[word[1]] ?? null;
-    const num = t4.match(/^(?:la\s+)?opcion\s*(?:numero\s*)?#?([1-9])$/) ?? t4.match(/^(?:la\s+)?([1-9])\s*(?:ra|da|ta|a)?\s+opcion$/);
-    if (!idx && num) idx = Number(num[1]);
-    if (!idx) return line2;
-    const item = idx === -1 ? items[items.length - 1] : items[idx - 1];
-    if (!item) return line2;
-    changed = true;
-    return `${line2.trim()} (${item})`;
-  });
-  return changed ? lines.join("\n") : message;
-}
-function clientSaysNoUrgency(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.toLowerCase();
-  return /\btomen\s+su\s+tiempo\b/i.test(t4) || /\bno\s+hay\s+prisa\b/i.test(t4) || /\bsin\s+(ninguna\s+)?(prisa|urgencia)\b/i.test(t4) || /\bsin\s+problema\b/i.test(t4) && /\b(tiempo|prisa|cuando\s+puedan)\b/i.test(t4) || /\bcuando\s+puedan\b/i.test(t4);
-}
-function clientSignalsSomethingWrong(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim().toLowerCase().replace(/[¡!¿?.,;:]+$/g, "").trim();
-  if (/^(no\s+est[aá]\s+bien|est[aá]\s+mal|incorrecto|eso\s+no|no\s+es\s+(correcto|as[ií]))$/i.test(t4)) {
-    return true;
-  }
-  return /\bno\s+est[aá]\s+bien\b/i.test(t4) && t4.split(/\s+/).length <= 6;
-}
-function historyHasDeliveryChannelChoice(history, currentMessage) {
-  const msgs = [...history];
-  if (currentMessage?.trim()) {
-    msgs.push({ role: "user", content: currentMessage });
-  }
-  for (let i6 = msgs.length - 1; i6 >= 0; i6--) {
-    const m6 = msgs[i6];
-    if (m6.role !== "user" || typeof m6.content !== "string") continue;
-    if (!clientChoosesEmailDelivery(m6.content) && !clientChoosesChatDelivery(m6.content)) {
-      continue;
-    }
-    for (let j5 = i6 - 1; j5 >= 0; j5--) {
-      const prev = msgs[j5];
-      if (prev.role !== "assistant" || typeof prev.content !== "string") continue;
-      if (assistantAskedDeliveryChannel(prev.content)) return true;
-      break;
-    }
-  }
-  return false;
-}
-function clientAsksForRecommendations(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.toLowerCase();
-  return /recomendaciones?|recomiendas?/i.test(t4) || /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t4) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t4) || /qu[eé]\s+opciones/i.test(t4) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t4) || // A15165: "Qué otros servicios manejas" / "Tienes más servicios?"
-  /qu[eé]\s+(otros\s+)?servicios(\s+\w+){0,3}\s+(maneja(?:s|n)|ofreces?|tienen?|hay)/i.test(t4) || /tienes?\s+m[aá]s\s+servicios?\b/i.test(t4) || /m[aá]s\s+servicios?\s*\??\s*$/i.test(t4) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen|qu[eé]\s+manejas/i.test(t4) || /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t4) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t4) || /algo\s+m[aá]s\s*\?/i.test(t4);
-}
-function lastAssistantOfferedNumberedPackages(lastAssistantText) {
-  const last = lastAssistantText ?? "";
-  return /coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]/i.test(last) || /\d\.\s*\*?coffee\s*break/i.test(last) || // A15168: menú corto "paquetes (1 a 5)" / listado CB 1–5.
-  /coffee\s*break|coffe\s*break/i.test(last) && (/paquetes?\s*\(?\s*1\s*a\s*5\s*\)?/i.test(last) || /coffee\s*break\s*1/i.test(last) && /coffee\s*break\s*5/i.test(last)) || /cu[aá]l\s+nivel\s+prefieres/i.test(last) && /coffee\s*break|coffe{1,2}\s*break/i.test(last) && /\$\s*\d/.test(last);
-}
-function foldNivelLabel(s7) {
-  return s7.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
-}
-function parseNumberedNivelesFromAssistant(lastAssistantText) {
-  const last = lastAssistantText ?? "";
-  if (!last.trim()) return [];
-  const out2 = [];
-  const re4 = /^\s*(\d+)\.\s*\*?([^*\n]+?)\*?(?:\s*[—\-–:].*)?$/gim;
-  let m6;
-  while ((m6 = re4.exec(last)) !== null) {
-    const index = parseInt(m6[1], 10);
-    let label = (m6[2] ?? "").replace(/\*+/g, "").trim();
-    label = label.replace(/\s+[—\-–].*$/, "").trim();
-    if (index >= 1 && index <= 9 && label.length >= 2 && label.length <= 80) {
-      out2.push({ index, label });
-    }
-  }
-  return out2;
-}
-function extractNumberedNivelFromLastAssistant(text2, lastAssistantText) {
-  const niveles = parseNumberedNivelesFromAssistant(lastAssistantText);
-  if (!niveles.length) return null;
-  const raw = text2?.trim() ?? "";
-  if (!raw) return null;
-  const bare = raw.match(/^(?:el\s+|la\s+|opci[oó]n(?:es)?\s+|paquete\s+|nivel\s+)?(\d+)\s*[.)]?$/i) || raw.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*(\d+)\b/i);
-  if (bare) {
-    const hit = niveles.find((x8) => x8.index === parseInt(bare[1], 10));
-    if (hit) return hit.label;
-  }
-  const numbered = raw.match(/^\s*(\d+)\s*[.)]?\s+(.+)$/i);
-  if (numbered) {
-    const hit = niveles.find((x8) => x8.index === parseInt(numbered[1], 10));
-    if (hit) return hit.label;
-  }
-  const tf = foldNivelLabel(raw);
-  for (const n5 of niveles) {
-    const lf = foldNivelLabel(n5.label);
-    if (!lf) continue;
-    if (tf === lf || tf.includes(lf) || lf.includes(tf)) return n5.label;
-  }
-  return null;
-}
-function extractCatalogNivelFromText(text2, lastAssistantText) {
-  const t4 = text2?.trim().toLowerCase() ?? "";
-  if (!t4) return null;
-  const fromMenu = extractNumberedNivelFromLastAssistant(text2, lastAssistantText);
-  if (fromMenu) return fromMenu;
-  const coffeeNamed = t4.match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
-  if (coffeeNamed) return `Coffee Break ${coffeeNamed[1]}`;
-  if (lastAssistantOfferedNumberedPackages(lastAssistantText)) {
-    const bare = t4.match(/^(?:el\s+|la\s+)?([1-9])$/i) || t4.match(/\bel\s+([1-9])\b/i);
-    if (bare) return `Coffee Break ${bare[1]}`;
-    const opcionN = t4.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*([1-9])\b/i);
-    if (opcionN) return `Coffee Break ${opcionN[1]}`;
-  }
-  const m6 = t4.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|servicio\s*completo)\b/i) || t4.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|servicio\s*completo)\b/i) || t4.match(/^(1|2|3|4)$/);
-  if (!m6 && /\bcompleto\b/i.test(t4) && /solo\s+alimentos|servicio\s+completo|cu[aá]l te late|dos caminos/i.test(lastAssistantText ?? "")) {
-    return "Servicio completo";
-  }
-  if (!m6) return null;
-  const raw = (m6[1] ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-  if (/^(1|2|3|4)$/.test(raw)) {
-    const last = lastAssistantText ?? "";
-    const numbered = parseNumberedNivelesFromAssistant(last);
-    const classicInMenu = /b[aá]sic|tradicional|premium|solo\s*alimentos/i.test(last);
-    if (numbered.length && !classicInMenu) return null;
-  }
-  if (raw === "1" || raw.startsWith("basic")) return "basica";
-  if (raw === "2" || raw.startsWith("tradicional")) return "tradicional";
-  if (raw === "3" || raw.startsWith("premium")) return "premium";
-  if (raw === "4" || /solo\s*alimento/.test(raw)) return "solo alimentos";
-  if (/completo/.test(raw)) return "Servicio completo";
-  return null;
-}
-function isCatalogLevelSelection(text2, lastAssistantText) {
-  const t4 = text2?.trim().toLowerCase() ?? "";
-  if (!t4) return false;
-  const last = lastAssistantText?.toLowerCase() ?? "";
-  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|varios paquetes|paquetes?\s*\(?\s*1\s*a\s*5|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles|manejamos estos paquetes|cu[aá]l te late m[aá]s|dos caminos|solo\s+alimentos[\s\S]{0,80}servicio\s+completo/i.test(
-    last
-  );
-  if (!askedNivel) {
-    return /\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(t4);
-  }
-  if (extractNumberedNivelFromLastAssistant(text2, lastAssistantText)) return true;
-  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|servicio\s*completo|completo|[1-9])$/i.test(t4)) return true;
-  if (/^(?:el\s+|la\s+)?[1-9]$/i.test(t4) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
-    return true;
-  }
-  if (/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*[1-9]\b/i.test(t4) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
-    return true;
-  }
-  return !!extractCatalogNivelFromText(t4, lastAssistantText);
-}
-function isAmbiguousShortNumber(text2, ctx) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return false;
-  if (ctx?.lastAskedField === "invitados") return false;
-  const guestCount = t4.match(/^(?:son\s+)?(\d+)\s*(?:personas?|invitados?|pax|gente)?$/i);
-  if (guestCount) {
-    const n5 = parseInt(guestCount[1], 10);
-    if (n5 >= 10) return false;
-  }
-  const elMatch = t4.match(/^el\s+(\d{1,2})$/i);
-  if (elMatch) {
-    const n5 = parseInt(elMatch[1], 10);
-    return n5 >= 1 && n5 <= 9;
-  }
-  const bareMatch = t4.match(/^(\d+)$/);
-  if (bareMatch) {
-    const n5 = parseInt(bareMatch[1], 10);
-    if (n5 >= 10) return false;
-    return n5 >= 1 && n5 <= 9;
-  }
-  return false;
-}
-function parseWebLeadBrief(text2) {
-  const t4 = text2.trim();
-  if (!/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t4)) return null;
-  const result = {};
-  const eventoMatch = t4.match(
-    /(?:evento|celebraci[oó]n)\s*:\s*([^.\n]+?)(?:\.|,|\s+ser[ií]a|\s+para\s+\d|\s+en\s+)/i
-  );
-  if (eventoMatch) {
-    const chunk = eventoMatch[1].trim();
-    const tipo = parseTipoEventoFromText(chunk);
-    if (tipo) result.tipo_evento = tipo;
-    const services = parseServicesFromText(chunk);
-    if (services.length) result.requerimientos_evento = services.slice(0, 6).join(", ");
-    else if (!tipo) result.requerimientos_evento = chunk;
-  }
-  if (!result.requerimientos_evento) {
-    const colonSvc = t4.match(/me\s+interesa\s+cotizar\s*:\s*([^.\n]+)/i);
-    const quotedSvc = t4.match(
-      /(?:me\s+interesa\s+)?cotizar\s*[“"']([^”"']+)[”"']/i
-    );
-    const enSvc = t4.match(
-      /(?:me\s+interesa\s+)?cotizar\s+(.+?)\s+en\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]/i
-    );
-    const raw = (colonSvc?.[1] ?? quotedSvc?.[1] ?? enSvc?.[1] ?? "").trim();
-    if (raw) {
-      const chunk = raw.replace(/\s+para\s+eventos?(?:\s+\w+)*\s*$/i, "").replace(/^["'“”]+|["'“”]+$/g, "").trim();
-      const services = parseServicesFromText(chunk || raw);
-      if (services.length) result.requerimientos_evento = services.slice(0, 6).join(", ");
-      else if (chunk) result.requerimientos_evento = chunk;
-      const tipo = parseTipoEventoFromText(raw);
-      if (tipo && !result.tipo_evento) result.tipo_evento = tipo;
-    }
-  }
-  if (!result.direccion_evento) {
-    const enZona = t4.match(/\ben\s+((?:Ciudad\s+de\s+)?M[eé]xico|CDMX|[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ\s.-]{2,40})(?:\s+para\s+mi\s+evento)?/i);
-    if (enZona?.[1]) {
-      const z4 = parseZonaFromText(enZona[1]) ?? enZona[1].trim();
-      if (z4 && isUsableDireccionEvento(z4)) result.direccion_evento = z4;
-    }
-  }
-  const seriaMatch = t4.match(/ser[ií]a\s+(?:el\s+)?([^,.\n]+?)\s+en\s+([^,.\n]+?)(?:\.|,|\s+para\s+)/i);
-  if (seriaMatch) {
-    const fechaPart = seriaMatch[1].trim();
-    const lugarPart = seriaMatch[2].trim();
-    result.fecha_evento = parseFechaFromText(fechaPart) ?? fechaPart;
-    const horarioPart = parseHorarioFromText(fechaPart);
-    if (horarioPart) result.horario_evento = horarioPart;
-    result.direccion_evento = parseZonaFromText(lugarPart) ?? lugarPart;
-  }
-  const invMatch = t4.match(/para\s+(\d{1,4})\s*(?:personas?|invitados?|pax|gente)/i);
-  if (invMatch) result.num_invitados = parseInt(invMatch[1], 10);
-  const servicesFromFull = parseServicesFromText(t4);
-  if (servicesFromFull.length) {
-    if (!result.requerimientos_evento) {
-      result.requerimientos_evento = servicesFromFull.slice(0, 6).join(", ");
-    } else {
-      const merged = mergeServiceRequirements(
-        result.requerimientos_evento,
-        servicesFromFull.join(", "),
-        6
-      );
-      if (merged) result.requerimientos_evento = merged;
-    }
-  }
-  return Object.keys(result).length > 0 ? result : null;
-}
-function applyWebLeadBrief(extracted, text2) {
-  const brief = parseWebLeadBrief(text2);
-  if (!brief) return false;
-  if (!extracted.tipo_evento?.trim() && brief.tipo_evento) extracted.tipo_evento = brief.tipo_evento;
-  if (brief.requerimientos_evento) {
-    const merged = mergeServiceRequirements(
-      extracted.requerimientos_evento,
-      brief.requerimientos_evento,
-      6
-    );
-    if (merged) extracted.requerimientos_evento = merged;
-  }
-  if (!extracted.fecha_evento?.trim() && brief.fecha_horario) {
-    const { fecha, horario } = splitCombinedFechaHorario(brief.fecha_horario);
-    if (fecha) extracted.fecha_evento = fecha;
-    if (horario) extracted.horario_evento = horario;
-    syncLegacyFechaHorarioField(extracted);
-  }
-  if (!isUsableDireccionEvento(extracted.direccion_evento) && brief.direccion_evento && isUsableDireccionEvento(brief.direccion_evento)) {
-    extracted.direccion_evento = brief.direccion_evento;
-  }
-  if (!extracted.num_invitados && brief.num_invitados) extracted.num_invitados = brief.num_invitados;
-  return true;
-}
-function isGettingReadyContext(text2) {
-  if (!text2?.trim()) return false;
-  return /\b(getting\s*ready|nos\s+arreglamos|arreglo\s+de\s+novia|donde\s+nos\s+arreglamos|d[ií]a\s+de\s+la\s+boda\s+en\s+casa)\b/i.test(
-    text2
-  );
-}
-function needsAlimentosTipoClarification(value) {
-  const t4 = value?.trim() ?? "";
-  if (!t4) return false;
-  if (hasSpecificFoodService(t4)) return false;
-  if (/\b(brunch|desayunos?|comida\s+corrida|puestos?\s+de\s+comida)\b/i.test(t4)) return false;
-  return /\b(alimentos?|comidas?|catering|banquetes?|algo\s+de\s+comer)\b/i.test(t4) && !/\bcomida\s+corrida\b/i.test(t4);
-}
-function hasSpecificFoodService(text2) {
-  if (/\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b|\bbanquetes?\s+o\s+catering\b/i.test(
-    text2
-  )) {
-    return false;
-  }
-  if (/\bbanquetes?\b/i.test(text2) && !/\b(banquete\s+)?(formal|mexicano|kosher|navide[nñ]o)\b/i.test(text2) && !/\b\d\s*tiempos?\b|\bbufet\b|\bbuffet\b/i.test(text2) && !/\b(taquiza|coffee\s*break|barra\s+de|sushi|pizza|pasta|canap|bocadillo|parrillada|puestos?)\b/i.test(
-    text2
-  )) {
-    return false;
-  }
-  return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé](?!\p{L})|pizzas?|pastas?|crepas?|mariscos?|paninis?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?(?!\p{L})|bocadillos?|parrillada|brunch\s+buf[eé](?!\p{L})|desayuno\s+(?:buffet|ejecutivo|continental)|puestos?\s+de\s+comida|antojitos?|quesadillas?|paninis?|pizzas?|pastas?|crepas?|mariscos?|san+dw?ich|s[aá]ndwich|sanwich)\b/iu.test(
-    text2
-  );
-}
-function isEventTypeMealPhrase(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4) return false;
-  if (/\b(cotizar|quiero|necesito|busco|me\s+interesa)\b.{0,30}\b(comida|cena|almuerzo|brunch|desayuno|alimentos?|catering|banquete)\b/i.test(
-    t4
-  ) || /\b(catering|banquete|taquiza|barra\s+de|alimentos?)\b/i.test(t4)) {
-    return false;
-  }
-  if (/^(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)s?[.!?]*$/i.test(t4)) {
-    return true;
-  }
-  if (new RegExp(`\\bes\\s+un[a]?\\s+(${EVENT_MEAL_TYPE.source})\\b`, "i").test(t4)) return true;
-  if (new RegExp(
-    `\\b(ser[a\xE1]|ser[i\xED]a|es)\\s+(una\\s+)?(${EVENT_MEAL_TYPE.source})\\s+(para|el|del)\\b`,
-    "i"
-  ).test(t4)) {
-    return true;
-  }
-  return new RegExp(
-    `\\b(${EVENT_MEAL_TYPE.source})\\s+para\\s+(el\\s+)?(lunes|martes|mi[e\xE9]rcoles|jueves|viernes|s[a\xE1]bado|domingo|\\d{1,2}\\s+de\\s+\\w+)`,
-    "i"
-  ).test(t4);
-}
-function isVagueFoodTerm(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return false;
-  if (isEventTypeMealPhrase(t4)) return false;
-  if (isScheduleLabeledClock(t4)) return false;
-  if (clientDeclinesServiceFamilies(t4).includes("alimentos")) return false;
-  if (clientAsksForFoodMenu(t4)) return true;
-  if (clientAsksCafeOrCateringChoice(t4)) return true;
-  if (/\b(desayuno|snack|cena|coffee\s*break)\b/i.test(t4) && /\b(desayuno|comida|cena|snack|coffee)\b/i.test(t4) && (t4.match(/\b(desayuno|comida|cena|snack|coffee\s*break)\b/gi) ?? []).length >= 2) {
-    return false;
-  }
-  if (hasSpecificFoodService(t4)) return false;
-  {
-    const concrete = parseServicesFromText(t4).filter(
-      (s7) => !/^(Comida|Alimentos|Banquete|banquete\s*\/\s*taquiza)$/i.test(s7) && /barra|banquete|taquiza|sushi|pizza|pasta|panini|crepa|marisco|pozole|paella|canap|bocadillo|coffee|desayuno|brunch|puestos/i.test(
-        s7
-      )
-    );
-    if (concrete.length > 0) return false;
-  }
-  if (/\b(comidas?|alimentos?|algo\s+de\s+comer|catering|banquetes?)\b/i.test(t4) && !/\b(banquete\s+(formal|mexicano|premium|b[aá]sic|tradicional)|\d\s*tiempos?|taquiza|coffee\s*break|barra\s+de|sushi|parrillada|canap|pizza|pasta|pozole|paella)\b/i.test(
-    t4
-  )) {
-    return true;
-  }
-  if (/\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b/i.test(
-    t4
-  ) || /^(me\s+interesa\s+(cotizar\s+)?)?(un\s+)?(servicio\s+de\s+)?(banquetes?|catering)(\s+para\s+mi\s+evento)?[.!?¿?]*$/i.test(
-    t4
-  )) {
-    if (!/\b(banquete\s+(formal|mexicano|premium|b[aá]sic|tradicional|\d\s+tiempos)|\d\s+tiempos|taquiza|coffee\s*break|barra\s+de|sushi|parrillada)\b/i.test(t4)) {
-      return true;
-    }
-  }
-  const services = parseServicesFromText(t4);
-  if (services.length >= 2) return false;
-  if (services.length > 0 && !/^(comida|alimentos?|men[uú]|desayuno|brunch|catering|banquetes?)$/i.test(t4) && !/^(quiero|necesito|busco)\s+(comida|alimentos?|men[uú]|desayuno|brunch|catering|banquetes?)$/i.test(t4)) {
-    if (services.length === 1 && /^(Desayuno|Snack|Cena|Coffee break|Brunch)$/i.test(services[0])) {
-      return false;
-    }
-    if (services.length === 1 && !/^(Comida|Alimentos|banquete \/ taquiza)$/i.test(services[0])) {
-      return false;
-    }
-  }
-  const cleaned = t4.replace(
-    /^(quer[ií]a|quiero|necesito|busco|solo|solamente|[uú]nicamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i,
-    ""
-  ).replace(/^(una?|el|la|los|las|un\s+servicio\s+de|servicio\s+de)\s+/i, "").replace(/\s+para\s+(un\s+)?evento\b.*$/i, "").trim();
-  if (/^(comidas?|alimentos?|men[uú]s?|catering|banquetes?|algo\s+de\s+comer|servicio\s+de\s+(banquetes?|catering)(\s+o\s+catering)?|banquetes?\s+o\s+catering)$/i.test(
-    cleaned
-  )) {
-    return true;
-  }
-  if (/\b([uú]nicamente|solo|solamente|nada\s+m[aá]s)\b.{0,40}\b(catering|comida|alimentos?|banquetes?)\b/i.test(
-    t4
-  )) {
-    return true;
-  }
-  return /\b(quer[ií]a|quiero|necesito|busco|me\s+interesa|cotizar?)\b.{0,24}\b(comidas?|alimentos?|algo\s+de\s+comer|banquetes?|catering)\b/i.test(
-    t4
-  );
-}
-function sanitizeExtractedAmbiguousNumbers(extracted, messageText, ctx) {
-  if (isAmbiguousShortNumber(messageText, ctx)) {
-    extracted.num_invitados = null;
-  }
-  const m6 = (messageText ?? "").match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
-  if (m6 && extracted.num_invitados === parseInt(m6[1], 10)) {
-    extracted.num_invitados = null;
-  }
-}
-function stripNombrePresentationPrefix(raw) {
-  const t4 = raw.trim();
-  const esName = t4.match(
-    /^\s*es\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{1,30}(?:\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.'-]{1,30}){0,3})\s*$/i
-  );
-  if (esName?.[1]) {
-    return esName[1].replace(
-      /[,.]?\s*no\s+(?:la\s+|el\s+)?(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n)\b.*$/i,
-      ""
-    ).replace(/[.!🙂😊😉]*$/u, "").trim();
-  }
-  const mid = t4.match(
-    /(?:^|[,!.]\s*)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+(.+)$/i
-  );
-  let rest = mid?.[1] ?? null;
-  if (!rest) {
-    const m6 = t4.match(/^\s*(?:c[oó]mo)\s+(.+)$/i);
-    rest = m6?.[1] ?? t4;
-  }
-  return rest.replace(
-    /[,.]?\s*no\s+(?:la\s+|el\s+)?(recepci[oó]n|reception|hospitality|ventas|gerencia|administraci[oó]n)\b.*$/i,
-    ""
-  ).replace(/[.!🙂😊😉]*$/u, "").trim();
-}
-function recoverClienteNombreFromHistory(history, currentMessage) {
-  let lastAssistant = "";
-  for (const msg of history) {
-    if (msg.role === "assistant" && typeof msg.content === "string") {
-      lastAssistant = msg.content;
-      continue;
-    }
-    if (msg.role !== "user" || typeof msg.content !== "string") continue;
-    const asked = inferLucyAskedField(lastAssistant);
-    if (asked !== "nombre" && !LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) continue;
-    const raw = msg.content.trim();
-    if (!raw || isAffirmativeOnlyMessage(raw) || isAmbiguousShortNumber(raw)) continue;
-    const nombreSalvage = sanitizeCrmNombre(raw);
-    if (isLikelyNotPersonNameMessage(raw) || isServiceRelatedMessage(raw) || isQuoteIntentMessage(raw)) {
-      if (nombreSalvage && (clientAsksForHumanAdvisor(raw) || /\b(hablar|asesor|agente|humano)\b/i.test(raw))) {
-        return nombreSalvage;
-      }
-      continue;
-    }
-    const candidato = stripNombrePresentationPrefix(raw);
-    const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
-    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato) && !isLikelyNotPersonNameMessage(candidato)) {
-      return nombre;
-    }
-  }
-  if (currentMessage?.trim()) {
-    const asked = inferLucyAskedField(lastAssistant);
-    if (asked === "nombre" || LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) {
-      const raw = currentMessage.trim();
-      if (!isAffirmativeOnlyMessage(raw) && !isAmbiguousShortNumber(raw) && !isLikelyNotPersonNameMessage(raw) && !isServiceRelatedMessage(raw) && !isQuoteIntentMessage(raw)) {
-        const candidato = stripNombrePresentationPrefix(raw);
-        const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
-        if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato)) {
-          return nombre;
-        }
-      }
-    }
-  }
-  return null;
-}
-function clientAsksLocation(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.toLowerCase();
-  return /d[oó]nde\s+(se\s+)?ubican/i.test(t4) || /d[oó]nde\s+est[aá]n(\s+ubicados?)?/i.test(t4) || /en\s+d[oó]nde\s+est[aá]n/i.test(t4) || /cu[aá]l\s+es\s+su\s+ubicaci[oó]n/i.test(t4) || /zona\s+de\s+cobertura/i.test(t4) || /en\s+qu[eé]\s+ciudad\s+est[aá]n/i.test(t4) || /\b(est[aá]n|quedan)\s+ubicados?\b/i.test(t4) || /\bd[oó]nde\s+tienen\s+(oficina|sucursal|local)\b/i.test(t4) || // A16095: "tendrá un lugar para poder visitarlos" / showroom.
-  /\b(lugar|oficina|sucursal|local|showroom|espacio)\s+(para\s+)?(poder\s+)?visitar/i.test(t4) || /\b(puedo|podemos|podr[ií]amos|gustar[ií]a)\s+visitar(los|las|te|los)?\b/i.test(t4) || /\bvisitar(los|las)?\b.{0,40}\b(oficina|sucursal|lugar|local|showroom)\b/i.test(t4) || /\b(tienen|tendr[aá]|hay)\s+(un\s+)?lugar\s+(para\s+)?(visitar|conocer)/i.test(t4);
-}
-function looksLikeCompanyLocationQuestionFragment(text2) {
-  const t4 = (text2 ?? "").trim().toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
-  if (!t4) return false;
-  if (clientAsksLocation(t4)) return true;
-  return /^(d[oó]nde\s+est[aá]n|en\s+d[oó]nde(\s+est[aá]n)?|donde\s+estan|ubicados?|su\s+ubicaci[oó]n|ubicaci[oó]n)$/i.test(
-    t4
-  ) || /^d[oó]nde\s+est[aá]n(\s+ubicados?)?$/i.test(t4) || /^en\s+d[oó]nde(\s+est[aá]n)?(\s+ubicados?)?$/i.test(t4);
-}
-function clientMentionsItalianTheme(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim();
-  if (/\bbarra\s+de\s+pastas?\b/i.test(t4) && !/\b(italian[ao]?|italia|toscana|mafia\s+italiana)\b/i.test(t4)) {
-    return false;
-  }
-  if (/\bbarra\s+italian|\bestaci[oó]n\s+italian|\bcomida\s+italian/i.test(t4)) {
-    return true;
-  }
-  return /\b(italian[ao]?|italia|toscana|toscano|mafia\s+italiana|pastas?|pizzas?|antipasti|selecci[oó]n\s+de\s+italia|partido.*italia)\b/i.test(
-    t4
-  );
-}
-function clientAsksForFoodMenu(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim();
-  if (hasSpecificFoodService(t4) && !/\bmen[uú]\b/i.test(t4)) return false;
-  if (/\bmen[uú]\s+(casual|formal|premium|b[aá]sic|tradicional|kosher|mexicano|navide)/i.test(t4) || /\b(banquete|taquiza|coffee\s*break|barra\s+de)\b.{0,20}\bmen[uú]\b/i.test(t4)) {
-    return false;
-  }
-  return /\b(me\s+)?(regalas?|pasas?|mandas?|env[ií]as?|das?|compartes?)\b.{0,24}\b(tu\s+|el\s+|su\s+)?men[uú]/i.test(
-    t4
-  ) || /\b(tu|el|su)\s+men[uú]\b.{0,16}\b(por\s*fa|porfavor|please)\b/i.test(t4) || /\b(quiero|necesito|puedes?\s+pasar)\b.{0,20}\b(el\s+|tu\s+)?men[uú]\b/i.test(t4) || /^\s*men[uú]s?\s*[?¿.!]*\s*$/i.test(t4) && t4.length <= 12;
-}
-function clientMentionsEntertainment(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.toLowerCase();
-  return /\bshows?\b/i.test(t4) || /\bgrupo\s+vers[aá]til\b/i.test(t4) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t4) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento|espect[aá]culos?)\b/i.test(t4) || /\bmariachis?\b|\bbaile\s+regional\b|\bfolkl[oó]rico\b/i.test(t4) || /\bpercusi[oó]n.{0,24}leds?\b|\bleds?.{0,24}percusi[oó]n\b/i.test(t4) || /\bgrupo\s+(vers[aá]til|b[aá]sico|m[aá]s\s+b[aá]sico)\b/i.test(t4) || /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t4) || /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(shows?|maestro|animaci)/i.test(t4) || // A14962 Vane: batucada / robots LED / ambientación de show
-  /\bbatucada\b/i.test(t4) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t4) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|shows?|robots?|leds?)\b/i.test(t4) || // A14988 Ernesto / A16254 Marlen: bailarinas, bailarines, hombres que bailen
-  /\bbailarin(?:es|as?|a)?\b|\bdancers?\b|\bvedettes?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i.test(
-    t4
-  ) || // A15003 Juan: photo booth / cabina
-  /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
-    t4
-  ) || // A15009 Erick: circo / Blue Man / actos en vivo especiales
-  clientMentionsSpecialLiveAct(message);
-}
-function clientMentionsSpecialLiveAct(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.toLowerCase();
-  if (/\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca|entretenimiento)\b/i.test(t4) || /\bgrupo\s+vers[aá]til\b/i.test(t4)) {
-    return false;
-  }
-  return parseNamedShowLabels(message).length > 0 || /\bcirco\b/i.test(t4) || /\bblue\s*mans?\b|\bblueman\b/i.test(t4) || /\b(mago|magia|ilusionista)\b/i.test(t4) || /\bcrudo\s*wheel\b|\bshow\s+crudo\b/i.test(t4) || /\bacrobacia\s+a[eé]rea\b/i.test(t4) || /\b(payasos?|malabares?|acr[oó]batas?|trapecio|contorsion)\b/i.test(t4) || // "show blueman" / "show X" con nombre propio (no "show de…").
-  /\bshow\s+[a-záéíóúüñ][\wáéíóúüñ.-]{2,}(?!\s+de\b)/i.test(t4) && !/\bshow\s+(de|en|para|con|un|una|el|la|los|las)\b/i.test(t4) || /\b(quiero|busco|necesito|interes[aá]|cotiz)\b.{0,40}\bcirco\b/i.test(t4);
-}
-function parseNamedShowLabels(text2) {
-  if (!text2?.trim()) return [];
-  const out2 = [];
-  const push = (raw) => {
-    const name2 = raw.replace(/\s+/g, " ").replace(/^\s*shows?\s+/i, "").replace(/\s+shows?\s*$/i, "").trim();
-    if (name2.length < 2 || name2.length > 50) return;
-    const label = /\bblue\s*mans?\b|\bblueman\b/i.test(name2) ? "Show Blue Man" : `Show ${name2}`;
-    if (!out2.some((s7) => s7.toLowerCase() === label.toLowerCase())) out2.push(label);
-  };
-  for (const m6 of text2.matchAll(/\bshows?\s*[“"«']\s*([^"“”«»']{2,60}?)\s*[”"»']/giu)) {
-    if (m6[1]) push(m6[1]);
-  }
-  for (const part of text2.split(/[,\n]/)) {
-    const seg = part.trim();
-    if (/^Show\s+[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÜÑáéíóúüñ ]{1,48}$/u.test(seg) && !/^Show\s+(De|En|Para|Con)\b/.test(seg)) {
-      push(seg);
-    }
-  }
-  return out2;
-}
-function clientAsksVentaOrRenta(message) {
-  const t4 = message?.trim() ?? "";
-  if (!t4) return false;
-  if (/\b(les|a\s+ustedes)\s+(vendo|vendemos|ofrezco|ofrecemos)\b|\bquiero\s+venderles\b|\bventas\s+(en|de\s+la\s+empresa)\b/i.test(t4)) {
-    return false;
-  }
-  return /\b(venta|renta)\s+o\s+(renta|venta)\b/i.test(t4) || /\b(rentan|rentas)\s+o\s+(venden|vendes)\b|\b(venden|vendes)\s+o\s+(rentan|rentas)\b/i.test(t4) || /\b(venden|vendes|manejan\s+venta|hacen\s+venta|tienen\s+venta|se\s+pueden?\s+comprar|puedo\s+comprar(las|los)?|est[aá]n?\s+a\s+la\s+venta|es\s+(solo\s+)?(para\s+)?venta)\b/i.test(
-    t4
-  );
-}
-function clientChoosesVenta(message) {
-  const t4 = message?.trim() ?? "";
-  if (!t4 || t4.length > 60 || clientAsksVentaOrRenta(t4)) return false;
-  return /^(?:s[ií][\s,.!]+)?(?:(?:ser[ií]a|es|la\s+quiero|lo\s+quiero|quiero|me\s+interesa)\s+)?(?:para\s+|en\s+)?(venta|compra|comprar(las|los)?)\b/i.test(
-    t4
-  );
-}
-function parseSpecialLiveActLabel(message) {
-  if (!message?.trim()) return null;
-  const t4 = message.trim();
-  const namedShows = parseNamedShowLabels(t4);
-  if (namedShows.length) return namedShows[0];
-  if (/\bcirco\b/i.test(t4)) return "Circo para eventos";
-  if (/\bblue\s*mans?\b|\bblueman\b/i.test(t4)) return "Show Blue Man";
-  if (/\b(mago|magia|ilusionista)\b/i.test(t4)) return "Show de magia";
-  if (/\bcrudo\s*wheel\b|\bshow\s+crudo\b/i.test(t4)) return "Show crudo wheel";
-  if (/\bacrobacia\s+a[eé]rea\b|\bshow\s+acrobacia\b/i.test(t4)) return "Show acrobacia a\xE9rea";
-  if (/\b(payasos?|malabares?|acr[oó]batas?)\b/i.test(t4)) return "Actos de circo / animaci\xF3n";
-  if (/\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca)\b/i.test(t4) || /\bgrupo\s+vers[aá]til\b/i.test(t4)) {
-    return null;
-  }
-  const named = t4.match(/\bshow\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.-]{1,40})/i);
-  if (named?.[1] && !/^(de|en|para|con|un|una|el|la)$/i.test(named[1])) {
-    return `Show ${named[1].trim()}`;
-  }
-  if (clientMentionsSpecialLiveAct(t4)) {
-    return t4.replace(/\s+/g, " ").slice(0, 60);
-  }
-  return null;
-}
-function clientConfirmsOfferReview(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim();
-  return /^(revisar|revisemos|revisarlo|revisarla|revisar\s+primero|el\s+detalle|detallame|det[aá]llame)[\s.!]*$/i.test(
-    t4
-  );
-}
-function clientMentionsLedRobotsOrBatucada(message) {
-  if (!message?.trim()) return false;
-  return /\bbatucada\b/i.test(message) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(message) || /\bpercusi[oó]n.{0,24}leds?\b|\bleds?.{0,24}percusi[oó]n\b/i.test(message) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\bbatucada\b/i.test(message);
-}
-function clientDeclinesMoreServices(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim().toLowerCase();
-  if (clientWantsFoodOnlyQuote(message)) return false;
-  if (/\bsolo\s+(el\s+)?(servicio|photo|photobooth|cabina|banquete|barra|dj|mobiliario)/i.test(t4) && !/\bno\s+quiero\b/i.test(t4)) {
-    return false;
-  }
-  if (isPointingReferentialEmoji(message)) return true;
-  return /^(no|nop)[\s.,!]*$/i.test(t4) || /\bsolo\s+(con\s+)?eso\b/i.test(t4) || /\bsolo\s+ese\b/i.test(t4) || /\bsolamente\s+eso\b/i.test(t4) || /\bnada\s+m[aá]s\b/i.test(t4) || /\bno\s+quiero\s+nada\s+m[aá]s\b/i.test(t4) || /\bno\s+quiero\s+(nada\s+)?m[aá]s\b/i.test(t4) || /\bning[uú]n[a]?\b/i.test(t4) || /\bning[uú]n\s+otro\b/i.test(t4) || /\bninguno\s+de\s+(esos|ellos|estos)\b/i.test(t4) || /\bno[.\s,¡!]+gracias\b/i.test(t4) || /\bno\s+gracias\b/i.test(t4) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t4) || /\beso\s+es\s+todo\b/i.test(t4) || /\bes\s+todo\b/i.test(t4) || /\bya\s+no\b/i.test(t4) || /\bno\s+m[aá]s\b/i.test(t4) || /\blisto\s+as[ií]\b/i.test(t4) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t4) || /\bya\s+con\s+eso\b/i.test(t4) || /\bser[ií]a\s+todo\b/i.test(t4) || /\bsolo\s+eso\b/i.test(t4) || /\bya\s+(est[aá]|queda)\s+(bien|listo)\b/i.test(t4) || /\bno\s+me\s+interesa\b/i.test(t4) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t4) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t4) || /\bpor\s+ahora\s+no\b/i.test(t4) || // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
-  /\bsolo\s+quiero\b/i.test(t4) && !/\bcomida\b|\bcotiz/i.test(t4) || /\bquiero\s+solo\b/i.test(t4) && !/\bcomida\b|\bcotiz/i.test(t4);
-}
-function clientChoosesOtherCatalogOption(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim().toLowerCase();
-  return /\b(voy\s+a\s+ver|prefiero\s+ver|mejor\s+veo|reviso|quiero\s+ver)\s+(otra|otras)\s+opci/i.test(
-    t4
-  ) || /\bprefiero\s+revisar\s+otra\b/i.test(t4) || /^otra\s+opci[oó]n[.!]*$/i.test(t4);
-}
-function clientSoftDeclinesLead(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim().toLowerCase();
-  if (/\bme\s+pongo\s+en\s+contacto\b/i.test(t4)) return true;
-  if (/\blo\s+evalu(o|amos|ar[eé])\b/i.test(t4)) return true;
-  if (/\bpor\s+ahora\b/i.test(t4) && /\bgracias\b/i.test(t4)) return true;
-  const condicional = /\b(?:si|cuando)\s+(?:nos|me)\s+interes(?:a|e)\b/i.test(t4);
-  const contactoFuturo = /\b(?:avis|contact|escrib|marc|busc|hablam|llam|coment)(?:o|amos|ar[eé]|aremos)\b/i.test(t4);
-  return condicional && contactoFuturo;
-}
-function clientMentionsCatering(message) {
-  if (!message?.trim()) return false;
-  if (isEventTypeMealPhrase(message)) return false;
-  const t4 = message.toLowerCase();
-  return /\bcatering\b/i.test(t4) || /\bbanquetes?\b/i.test(t4) || /\btaquiza\b|\btacos?\b/i.test(t4) || /\b(brunch|desayuno)\b/i.test(t4) || /\bbrunch\s*\/\s*desayuno/i.test(t4) || /\bcoffee\s*break\b|\bcoffe\s*break\b|\bcoffeebreak\b/i.test(t4) || /\bbarra\s+de\s+caf[eé](?!\p{L})/iu.test(t4) || // Barras de comida / sushi (form leads y WhatsApp) — misma pista que coffee break.
-  /\bbarra\s+de\s+(sushi|pizzas?|alimentos|bebidas?|crepas?|pastas?|mariscos?)\b/i.test(t4) || /\b(sushi|poke(\s*bowl)?)\b/i.test(t4) || /\b(busco|necesito|quiero|cotizar|interesa)\s+(cotizar\s+)?(comida|alimentos?|men[uú])\b/i.test(t4) || /\bcomida\s+para\b/i.test(t4) && !isEventTypeMealPhrase(message) || /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t4) || /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t4) && !isEventTypeMealPhrase(message);
-}
-function clientAsksNamedServiceDetail(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim();
-  if (/\b(opci[oó]n|opciones)\s+de\s+alimentos?\b/i.test(t4) || /\bqu[eé]\s+opci[oó]n\b/i.test(t4) || /\b(regala|pasa|manda|dame|quiero)\s+detalles?\b/i.test(t4) || /\bdetalles?\s+de\s+los\s+solicitados\b/i.test(t4)) {
-    if (/\bdetalles?\s+de\s+los\s+solicitados\b/i.test(t4) || /\b(regala|pasa|manda|dame)\s+detalles?\b/i.test(t4)) {
-      return true;
-    }
-    return parseServicesFromText(t4).length > 0 || isServiceRelatedMessage(t4) || /\b(yucateca|crepas?|taquiza|pastas?|pizzas?|sushi|parrillada|banquete|barra)\b/i.test(t4);
-  }
-  if (!/\b(m[aá]s\s+)?detalles?\s+(de|del|sobre|para)\b/i.test(t4) && !/\b(m[aá]s\s+)?detalle\b/i.test(t4)) {
-    return false;
-  }
-  return parseServicesFromText(t4).length > 0 || isServiceRelatedMessage(t4) || isTablewareRequestText(t4);
-}
-function clientAsksProductAvailability(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.toLowerCase().replace(/\s+/g, " ").trim();
-  if (!/\?/.test(message) && !/\b(tienen|tienes|hay|manejan|ofrecen|cuenta|cuentan)\b/i.test(t4)) {
-    return false;
-  }
-  if (/\balcohol\b/i.test(t4) && isServiceRelatedMessage(message)) return true;
-  if (isServiceRelatedMessage(message) && /\b(tienen|tienes|hay|manejan|ofrecen|cuenta|cuentan)\b/i.test(t4)) {
-    return true;
-  }
-  if (t4.length <= 80 && /\?/.test(message) && isServiceRelatedMessage(message) && !/\b(quiero|necesito|sum[ae]|agreg|anot)\b/i.test(t4)) {
-    return true;
-  }
-  return false;
-}
-function clientAsksServiceInfo(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.toLowerCase();
-  if (clientAsksNamedServiceDetail(message)) return true;
-  if (clientAsksProductAvailability(message)) return true;
-  const asksWhatTypes = /\bqu[eé]\s+(tipo\s+de\s+)?(snacks?|snaks?|bocadillos?|antojitos?|puestos?)\b/i.test(t4) || /\b(snacks?|snaks?|bocadillos?|antojitos?).{0,40}\b(tienen|tienes|manejan|ofrecen)\b/i.test(t4) || /\b(tienen|tienes|manejan|ofrecen).{0,40}\b(snacks?|snaks?|bocadillos?|antojitos?)\b/i.test(t4);
-  if (!isServiceRelatedMessage(message) && !asksWhatTypes) return false;
-  return asksWhatTypes || /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?|modelos?)\b/i.test(t4) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t4) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t4) || /\bnecesito\s+saber\b/i.test(t4) || /\b(tiene|tienes|tienen)\s+(info|informaci[oó]n|cat[aá]logo|detalle|modelos?)\b/i.test(t4) || // "¿Cuentan/cuenta con carpas…?" / "¿tienen pista?" / "¿tienes modelos?"
-  /\b(cuenta|cuentan|tienen|tienes|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t4) || /\b(cuenta|cuentan|tienen|tienes|manejan|ofrecen)\s+con\b/i.test(t4) || // A14938: "¿Hacen las pizzas en el evento?" / preparan / cocinan / montan.
-  /\b(hacen|preparan|cocinan|sirven|montan|elaboran)\b.{0,60}\?/i.test(t4);
-}
-function isPromoTemplateMessage(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4 || t4.length < 40) return false;
-  const promoSignal = /\b(promo|c[oó]digo|cierre\s+r[aá]pido|cierrerapido)\b/i.test(t4) || /\bc[oó]digo\s*:\s*\w+/i.test(t4);
-  const metaSignal = /\bpedido\s+m[ií]nimo\b/i.test(t4) || /\bhorario\s+en\s+que\s+env[ií]o\b/i.test(t4) || /\bhora\s+ciudad\s+de\s+m[eé]xico\b/i.test(t4);
-  if (!(promoSignal && metaSignal)) return false;
-  if (/\b(ex\s+hacienda|hacienda|sal[oó]n|san\s+miguel|boda\s+en|xv\s+en)\b/i.test(t4) && /\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
-    t4
-  )) {
-    return false;
-  }
-  return true;
-}
-function isPromoMinimumGuestLine(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return false;
-  if (/\bpedido\s+m[ií]nimo\b/i.test(t4)) return true;
-  if (/\b(desde|a\s+partir\s+de)\s+\d+\s*personas?\b/i.test(t4) && !/\b(ser[ií]an?|somos|invitados?)\b/i.test(t4)) {
-    return true;
-  }
-  return /\bm[ií]nimo\s*:?\s*\d+\s*personas?\b/i.test(t4) && !/\b(ser[ií]an?|somos|invitados?|asistentes?|para\s+\d+\s+personas)\b/i.test(t4);
-}
-function clientQuestionsServiceMinimum(message) {
-  const t4 = message?.trim() ?? "";
-  if (!t4) return false;
-  return /\b(veo\s+que|not[eé]|dice|indican?|aparecen?|tienen)\b[\s\S]{0,40}\bm[ií]n(\.|imo)?\b/i.test(
-    t4
-  ) || /\bm[ií]n(\.|imo)?\s*(?:de\s+)?(?:\d{2,3}|treinta\s+y\s+cinco)\s*personas?\b/i.test(t4) || /\bpara\s+(?:m[ií]n(\.|imo)?|min)\s*\d{2,3}\s*personas?\b/i.test(t4) || /\bpedido\s+m[ií]nimo\b/i.test(t4);
-}
-function buildBelowMinimumGuestReply(guestCount) {
-  const n5 = guestCount && guestCount > 0 ? guestCount : null;
-  const size = n5 ? `Para *${n5} personas*` : "Para grupos m\xE1s peque\xF1os";
-  return `${size} el banquete formal suele no ser lo m\xE1s pr\xE1ctico (el cat\xE1logo arranca cerca de 35). Igual te podemos armar una propuesta a la medida \u2014 coffee break, barra de alimentos o un men\xFA m\xE1s liviano. \xBFTe late alguna de esas opciones o prefieres que el equipo te sugiera seg\xFAn la junta?`;
-}
-function stripPromoTemplateMetadata(text2) {
-  return text2.replace(/\bpedido\s+m[ií]nimo\s*:?\s*\d+\s*personas?\b/gi, " ").replace(/\bm[ií]nimo\s*:?\s*\d+\s*personas?\b/gi, " ").replace(/\b(desde|a\s+partir\s+de)\s+\d+\s*personas?\b/gi, " ").replace(/\bhorario\s+en\s+que\s+env[ií]o\s+este\s+mensaje\s*:?[^\n]*/gi, " ").replace(/\(?\s*hora\s+ciudad\s+de\s+m[eé]xico\s*\)?/gi, " ").replace(/\s+/g, " ").trim();
-}
-function isLikelyProductNameNotLocation(value) {
-  const t4 = (value ?? "").trim();
-  if (!t4) return false;
-  if (/^sala\s*:/i.test(t4)) return true;
-  if (/\bsala\s*:/i.test(t4)) return true;
-  if (/^luxor(\s+rosa)?$/i.test(t4)) return true;
-  if (parseCarpaVariantFromText(t4)) return true;
-  if (/^(cathedral|catedral|pir[aá]mide|planas?)(\s+(carpa|tent))?$/i.test(t4)) return true;
-  if (/^(salas?(\s+lounge)?|periqueras?|lounge|mobiliario|carpas?|pistas?|tarimas?|tiffany|vajilla|manteler[ií]a)$/i.test(
-    t4
-  )) {
-    return true;
-  }
-  if (/\b(luxor|tiffany|vers[aá]til)\b/i.test(t4) && !/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida|quer[eé]taro|polanco|santa\s+fe)\b/i.test(
-    t4
-  )) {
-    return true;
-  }
-  return false;
-}
-function parseCarpaVariantFromText(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4) return null;
-  if (/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida)\b/i.test(t4)) {
-    return null;
-  }
-  const shortOrCarpaBrief = t4.length <= 60 || /\bcarpas?\b/i.test(t4);
-  if (!shortOrCarpaBrief) return null;
-  if (/^blancas?(\s+(carpa|tent))?$/i.test(t4) || /\bcarpa\s+blanca\b/i.test(t4)) {
-    return "Carpa blanca";
-  }
-  if (/^negras?(\s+(carpa|tent))?$/i.test(t4) || /\bcarpa\s+negra\b/i.test(t4)) {
-    return "Carpa negra";
-  }
-  if (/^transparentes?(\s+(carpa|tent))?$/i.test(t4) || /\bcarpa\s+transparente\b/i.test(t4) || /\btransparentes?\b/i.test(t4) && /\bcarpas?\b/i.test(t4)) {
-    return "Carpa transparente";
-  }
-  if (/^domos?(\s+(carpa|tent))?$/i.test(t4) || /\bcarpa\s+(?:tipo\s+)?domo\b/i.test(t4)) {
-    return "Carpa tipo domo";
-  }
-  return null;
-}
-function parseSalaProductFromText(text2) {
-  const named = text2.match(/\bsala\s*:\s*([A-Za-zÁÉÍÓÚáéíóúñ0-9][\w\s.-]{1,40})/i);
-  if (named?.[1]) {
-    const qty = text2.match(/\b(\d+)\s+salas?\b/i);
-    const name2 = named[1].trim().replace(/[.,;]+$/, "");
-    return qty ? `${qty[1]} salas ${name2}` : `Sala ${name2}`;
-  }
-  const qtyOnly = text2.match(/\b(\d+)\s+salas?\b/i);
-  if (qtyOnly) return `${qtyOnly[1]} salas lounge`;
-  const luxor = text2.match(
-    /\bluxor(?:\s+(rosa|negr[oa]|blanc[oa]|dorad[oa]|gris|azul|verde|beige|nude|plata|platead[oa]|gold))?\b/i
-  );
-  if (luxor) {
-    const color = luxor[1] ? ` ${luxor[1][0].toUpperCase()}${luxor[1].slice(1).toLowerCase()}` : "";
-    return `Sala Luxor${color}`;
-  }
-  if (/\bsalas?\s+lounge\b/i.test(text2)) return "Salas lounge";
-  const namedLoose = text2.match(
-    /\bsala\s+((?!lounge\b)[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ.-]*(?:\s+(?:Color\s+)?[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ.-]*){1,5})\b/i
-  );
-  if (namedLoose?.[1]) {
-    const name2 = namedLoose[1].trim().replace(/[.,;]+$/, "");
-    if (name2.length >= 4 && !/^(lounge|mesas?|sillas?)$/i.test(name2)) {
-      return `Sala ${name2}`;
-    }
-  }
-  return null;
-}
-function parseFurnitureCatalogSkuFromText(text2) {
-  const t4 = String(text2 || "").trim();
-  if (!t4) return null;
-  const mesaCentro = t4.match(
-    /\bmesa\s+centro\s+(?:rectangular\s+)?m[aá]rmol(?:\s+redonda)?|\bmesa\s+centro\s+m[aá]rmol\s+redonda|\bmesa\s+centro\s+rectangular(?:\s+m[aá]rmol)?\b/i
-  );
-  if (mesaCentro) {
-    return mesaCentro[0].replace(/\s+/g, " ").trim().replace(/\b\w/g, (c5) => c5.toUpperCase()).replace(/\bMÁRMOL\b/gi, "M\xE1rmol").replace(/\bMarmol\b/g, "M\xE1rmol");
-  }
-  const sala = parseSalaProductFromText(t4);
-  if (sala && !/^Salas lounge$/i.test(sala) && !/^\d+\s+salas?\s+lounge$/i.test(sala)) {
-    return sala;
-  }
-  return formatChairSku(t4);
-}
-function assistantAskedVagueEmbudoContinue(text2) {
-  if (!text2?.trim()) return false;
-  return /\bseguimos con el siguiente dato\b/i.test(text2) || /\bsiguiente dato del evento\b/i.test(text2) || /\bseguimos con lo que ya platicamos\b/i.test(text2) || /\bsiguiente dato\b/i.test(text2);
-}
-function clientAffirmsEmbudoContinue(message, lastAssistantText) {
-  if (!assistantAskedVagueEmbudoContinue(lastAssistantText)) return false;
-  const t4 = String(message || "").trim().toLowerCase();
-  if (!t4) return false;
-  if (clientAsksForCatalog(message)) return false;
-  return /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|adelante|sigamos|contin[uú]a)([.!?]|\s|$)/i.test(
-    t4
-  );
-}
-function clientMentionsCarpas(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim();
-  if (/\b(no|sin)\s+(una?\s+)?carpas?\b/i.test(t4) || /\bno\s+es\s+(una?\s+)?carpas?\b/i.test(t4) || /\bes\s+pista(\s+de\s+baile)?\b/i.test(t4) && /\bcarpas?\b/i.test(t4)) {
-    if (!/\b(quiero|necesito|cotizar|me\s+interesa|busco)\b.{0,30}\bcarpas?\b/i.test(t4)) {
-      return false;
-    }
-  }
-  return /\bcarpas?\b|\bcapras?\b|\btoldos?\b|\blonas?\b/i.test(t4) || !!parseCarpaVariantFromText(t4);
-}
-function clientCorrectsCarpaToPista(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim();
-  return /\bes\s+pista(\s+de\s+baile)?\b/i.test(t4) && /\b(no|sin)\s+(una?\s+)?carpas?\b/i.test(t4) || /\bno\s+(es\s+)?(una?\s+)?carpas?\b/i.test(t4) && /\bpista\b/i.test(t4) || /^no\s+carpa\.?$/i.test(t4) || /^es\s+pista(\s+de\s+baile)?\.?$/i.test(t4);
-}
-function resolveSpaceMeasureServiceBase(opts) {
-  const req = opts.requerimientos ?? "";
-  const last = opts.lastLucy ?? "";
-  const msg = opts.currentMessage ?? "";
-  const hist = opts.historyBlob ?? "";
-  if (clientCorrectsCarpaToPista(msg) || /\bes\s+pista\b/i.test(msg) && !clientMentionsCarpas(msg)) {
-    return "pista";
-  }
-  if (preferTarimaLabelOverPista(msg, req) || clientMentionsTarimaOnly(msg)) {
-    return "tarima";
-  }
-  if (/\btarimas?\b|\bentarimad/i.test(req) && !/\bpista(\s+de\s+baile)?\b/i.test(req)) {
-    return "tarima";
-  }
-  if (isEnteladoRequestText(msg) || isEnteladoRequestText(req) && !clientMentionsPistaTarima(req) && !clientMentionsCarpas(req)) {
-    return "entelado";
-  }
-  const lucyAskedTarima = /\btarima|entarimad/i.test(last) && !/\bpista(\s+de\s+baile)?\b/i.test(last);
-  const lucyAskedPista = /\bpista(\s+de\s+baile)?\b/i.test(last) && !/\bcarpas?\b/i.test(last);
-  const lucyAskedCarpa = /\bcarpas?\b/i.test(last) && !/pista|tarima/i.test(last);
-  if (/\bTarima\b|\btarimas?\b|\bentarimad/i.test(req) && !/\bpista(\s+de\s+baile)?\b/i.test(req)) {
-    return "tarima";
-  }
-  if (/\bpista(\s+de\s+baile)?\b/i.test(req) && !clientMentionsCarpas(req)) return "pista";
-  if (clientMentionsCarpas(req) && !clientMentionsPistaTarima(req)) return "carpa";
-  if (clientMentionsPistaTarima(req) && clientMentionsCarpas(req)) {
-    if (lucyAskedTarima) return "tarima";
-    if (lucyAskedPista) return "pista";
-    if (lucyAskedCarpa) return "carpa";
-    return preferTarimaLabelOverPista(msg, req) ? "tarima" : "pista";
-  }
-  if (lucyAskedTarima) return "tarima";
-  if (lucyAskedPista) return "pista";
-  if (lucyAskedCarpa) return "carpa";
-  if (clientMentionsTarimaOnly(msg) || clientMentionsTarimaOnly(hist)) return "tarima";
-  if (clientMentionsPistaTarima(msg) || clientMentionsPistaTarima(hist)) return "pista";
-  if (clientMentionsCarpas(msg) || clientMentionsCarpas(hist)) return "carpa";
-  if (isEnteladoRequestText(last) || isEnteladoRequestText(hist)) return "entelado";
-  return "carpa";
-}
-function spaceMeasureServiceLabel(kind) {
-  if (kind === "pista") return "Pista de baile";
-  if (kind === "tarima") return "Tarima";
-  if (kind === "entelado") return "Entelados para Techo";
-  return "Carpas";
-}
-function stripAccidentalCarpasFromPistaRequirements(req) {
-  const raw = (req ?? "").trim();
-  if (!raw) return raw || null;
-  if (!clientMentionsPistaTarima(raw) && !/\bpista\b/i.test(raw)) return raw;
-  if (!/\bcarpas?\b/i.test(raw)) return raw;
-  const dims = parseAllSpaceDimensions(raw);
-  let cleaned = raw.replace(/\bCarpas?\b/gi, " ").replace(/\(espacio[^)]*\)/gi, " ").replace(/\s*[;,/]+\s*/g, "; ").replace(/\s{2,}/g, " ").replace(/^[;\s]+|[;\s]+$/g, "").trim();
-  if (!cleaned || !/pista|tarima/i.test(cleaned)) cleaned = "Pista de baile";
-  if (dims.length > 0) {
-    cleaned = attachEspacioToRequirements(cleaned, dims);
-  }
-  return cleaned;
-}
-function clientRequestsCallback(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.toLowerCase();
-  return /\b(m[aá]rquenme|marquenme|ll[aá]menme|llamarme|me\s+marcan|me\s+llaman)\b/i.test(t4) || /\bme\s+pueden\s+(marcar|llamar)\b/i.test(t4) || /\b(pueden|pueden\s+ustedes)\s+(marcar|llamar)\b/i.test(t4) || /\batenci[oó]n\s+personalizada\b/i.test(t4) || /\bque\s+me\s+(marquen|llamen)\b/i.test(t4) || /\bnecesito\s+que\s+me\s+(marquen|llamen)\b/i.test(t4) || // A16244: "Necesito que me llamen lo más pronto posible"
-  /\b(llamen|marquen|llamar|marcar).{0,30}(lo\s+m[aá]s\s+pronto|cuanto\s+antes|urgente)\b/i.test(
-    t4
-  ) || // A15539 Jorge: "que me llamen si están interesados"
-  /\b(llamen|marquen)\s+si\s+(est[aá]n|estan)\s+interesados?\b/i.test(t4) || /\bme\s+(pueden\s+)?llamar\s+si\b/i.test(t4) || /\beste\s+es\s+mi\s+tel(e[eé]?fono)?\b/i.test(t4);
-}
-function clientSignalsUrgency(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.toLowerCase().replace(/\s+/g, " ").trim();
-  return /\b(me\s+urge|es\s+urgente|de\s+urgencia|faltan\s+pocos\s+d[ií]as|pocos\s+d[ií]as)\b/i.test(t4) || /\bno\s+sea\s+ma[nñ]ana\b/i.test(t4) || /\bnecesito\s+saber\s+si\s+(pueden|pueden\s+o\s+no|se\s+puede)\b/i.test(t4) || // A16345: "Hoy" / "Si hoy" / "Para hoy" tras CTA de contacto.
-  /^(s[ií]\s+)?hoy[.!]*$/i.test(t4) || /^para\s+hoy[.!]*$/i.test(t4) || /\b(s[ií]\s+)?(me\s+urge\s+)?(que\s+)?(me\s+)?(contacten|escriban|manden).{0,20}\bhoy\b/i.test(t4);
-}
-function assistantAskedUrgencyOrSoftExit(assistantText) {
-  if (!assistantText?.trim()) return false;
-  const t4 = assistantText.toLowerCase();
-  return /\b(te\s+urge|contacte\s+hoy|contacten\s+hoy|hoy\s+con\s+la\s+propuesta)\b/i.test(t4) || /\bte\s+dejo\s+el\s+chat\s+abierto\b/i.test(t4) || /\baqu[ií]\s+seguimos\s+cuando\s+lo\s+necesites\b/i.test(t4);
-}
-function clientAsksPhone(message) {
-  if (!message?.trim()) return false;
-  if (clientRequestsCallback(message)) return true;
-  const t4 = message.toLowerCase();
-  if (clientSignalsUrgency(message) && !/\btel[eé]fono|\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas)|\bllamar|\bmarcar\b/i.test(t4)) {
-    return false;
-  }
-  return /\btel[eé]fono/i.test(t4) || /\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas|gerencia)/i.test(t4) || /\b(llamar|marcar|contestar|contestan|nadie\s+contesta)\b/i.test(t4) || /\bwhatsapp\s+(de\s+)?(ventas|gerencia|corporativo|bodasesor)/i.test(t4) || /\btienen\s+whatsapp/i.test(t4);
-}
-function parseEquipmentRfqLineItems(text2) {
-  const items = [];
-  for (const m6 of text2.matchAll(
-    /\b(\d+)\s*(mesas?(?:\s*\([^)]+\))?|sillas?(?:\s+tipo\s+\w+)?|bocinas?|micr[oó]fonos?|podium|podios?|tarimas?|carpas?|periqueras?|bancos?)\b/gi
-  )) {
-    items.push(`${m6[1]} ${m6[2].trim().toLowerCase()}`);
-  }
-  return [...new Set(items)];
-}
-function isEquipmentListRfq(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (t4.length < 60) return false;
-  const items = parseEquipmentRfqLineItems(t4);
-  if (items.length >= 3) return true;
-  if (items.length >= 2) {
-    return /\b(el\s+)?evento\s+es\s+el\b/i.test(t4) || /\b\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)/i.test(
-      t4
-    );
-  }
-  return false;
-}
-function mergeEquipmentRfqIntoRequirements(existing, text2, max = 8) {
-  const services = mergeServiceRequirements(existing, text2, max);
-  const lineItems = text2?.trim() ? parseEquipmentRfqLineItems(text2) : [];
-  if (!lineItems.length) return services;
-  const parts2 = [...services ? services.split(/,\s*/) : [], ...lineItems];
-  return [...new Set(parts2.map((p5) => p5.trim()).filter(Boolean))].slice(0, max).join(", ");
-}
-function isRichQuoteBrief(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (isEquipmentListRfq(t4)) return true;
-  if (isPromoTemplateMessage(t4)) return false;
-  if (t4.length < 100) return false;
-  const labeledCount = (/\bfecha\s*:/i.test(t4) ? 1 : 0) + (/\b(lugar|ubicaci[oó]n|sede)\s*:/i.test(t4) ? 1 : 0) + (/\btipo\s+de\s+evento\s*:/i.test(t4) ? 1 : 0) + (/\b(n[uú]mero\s+estimado\s+de\s+)?(asistentes?|invitados?)\s*:/i.test(t4) ? 1 : 0) + (/\bhorario\s*:/i.test(t4) ? 1 : 0);
-  const minLen = labeledCount >= 3 ? 100 : labeledCount >= 2 ? 120 : 140;
-  if (t4.length < minLen) return false;
-  let score = 0;
-  if (labeledCount >= 2) score += 2;
-  if (/\bcotiz/i.test(t4)) score += 1;
-  if (/\b(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|fecha\s*:)/i.test(
-    t4
-  )) {
-    score += 1;
-  }
-  if (/\b(ubicaci[oó]n|lugar\s*:|santa\s+fe|ciudad\s+de\s+m[eé]xico|cdmx|polanco|narvarte|coyoac[aá]n|pedregal|centro\s+cultural)\b/i.test(
-    t4
-  ) || /\ben\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s*,\s*|\s+)(?:ciudad\s+de\s+m[eé]xico|cdmx|m[eé]xico)/i.test(t4)) {
-    score += 1;
-  }
-  if (/\b\d{2,4}\s*(?:personas?|invitados?|asistentes?)\b/i.test(t4)) score += 1;
-  if (parseServicesFromText(t4).length >= 2) score += 1;
-  if (/\b(opci[oó]n\s*[123]|tres\s+propuestas|propuestas?\s+de\s+men[uú]|diferentes\s+rangos?\s+de\s+precio)\b/i.test(
-    t4
-  )) {
-    score += 1;
-  }
-  if (/\b(distribuidor|precio\s+para\s+distribuidor|margen\s+comercial)\b/i.test(t4)) score += 1;
-  if (/\b(meseros?|mobiliario|manteler|cristal|sillas?\s+con\s+fundas?)\b/i.test(t4)) score += 1;
-  if (/\b(fotograf[ií]as?|fotos?)\b.{0,40}\b(mobiliario|mesas?|sillas?)/i.test(t4)) score += 1;
-  if (/\b(mesas?\s+tipo\s+picnic|picnic|periqueras?|bancos?)\b/i.test(t4) && /\b(entrega|recoger|sin\s+montaje|periqueras?|bancos?)\b/i.test(t4)) {
-    score += 2;
-  }
-  if (/\b(avenida|calle|planta|cuautlancingo|puebla|cp\s*\d{4,5}|\d{5}\s+\w+)/i.test(t4)) {
-    score += 1;
-  }
-  if (/@[a-z0-9.-]+\.[a-z]{2,}/i.test(t4)) score += 1;
-  if (/\b(propuestas?\s+de\s+men[uú]|cantidades?\s+sugeridas|costos?|disponibilidad)\b/i.test(t4)) {
-    score += 1;
-  }
-  return score >= 3;
-}
-function clientAsksToRereadBrief(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim();
-  return /\bleer.{0,40}especificaciones\b/i.test(t4) || /\bespecificaciones\b/i.test(t4) || /\blee\s+(muy\s+)?bien\b/i.test(t4) || /\bno\s+le[ií]ste\b/i.test(t4) || /\bfavor\s+de\s+leer\b/i.test(t4);
-}
-function clientAsksDistributorPricing(message) {
-  if (!message?.trim()) return false;
-  return /\bprecio\s+(para\s+)?distribuidor\b/i.test(message) || /\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message) || /\b(somos|como)\s+distribuidores?\b/i.test(message) || /\bmargen\s+comercial\b/i.test(message) || /\bprecio\s+de\s+mayoreo\b/i.test(message);
-}
-function clientAsksForHumanAdvisor(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim();
-  if (/\bqui[eé]n\s+es\b/i.test(t4) && !/\b(prefiero|quiero|necesito|puedo|pueden|hablar)\b/i.test(t4)) {
-    return false;
-  }
-  const tNoPp = t4.replace(/\bpor\s+personas?\b/gi, " ").replace(/\b\d+\s*pp\b/gi, " ").replace(/\bpp\b/gi, " ").replace(/\s+/g, " ").trim();
-  if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(tNoPp)) {
-    return true;
-  }
-  if (/^hablar\s+con\s+(un\s+)?humano\b/i.test(tNoPp) || /^humano(\s+por\s+favor)?[\s!.]*$/i.test(tNoPp)) {
-    return true;
-  }
-  if (/^(asesor|agente|humano)(\s+por\s+favor)?[\s!.]*$/i.test(tNoPp) || /^(quiero|necesito|prefiero)\s+(un\s+|una\s+)?(asesor|agente|humano)\b/i.test(tNoPp)) {
-    return true;
-  }
-  if (/\b(prefiero|quiero|necesito|mejor)\b.{0,40}\b(hablar|comunicar|platicar|atenci[oó]n|contacto)\b.{0,40}\b(asesor|agente|humano|persona|equipo)\b/i.test(
-    tNoPp
-  )) {
-    return true;
-  }
-  if (/\b(prefiero|quiero|necesito)\b.{0,30}\b(un\s+|una\s+)?(asesor|agente|humano|persona)\b/i.test(
-    tNoPp
-  )) {
-    return true;
-  }
-  if (/\b(asesor|agente|humano|alguien\s+del\s+equipo)\b.{0,30}\b(se\s+)?(comunique|contacte|llame|hable)\b/i.test(
-    tNoPp
-  )) {
-    return true;
-  }
-  if (/\bpuede(n)?\s+(un\s+)?(asesor|agente)\s+(contactarme|comunicarse|llamarme)\b/i.test(tNoPp)) {
-    return true;
-  }
-  if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano)\b/im.test(tNoPp)) return true;
-  if (/\b(?:comun[ií]ca(?:me|nos)?|p[aá]sa(?:me)?|conecta(?:me)?|canal[ií]za(?:me)?)\s+con\s+(un\s+|una\s+|alg[uú]n\s+|alguna\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(
-    tNoPp
-  )) {
-    return true;
-  }
-  return false;
-}
-function clientNeedsEmergencyContact(message) {
-  if (!message?.trim()) return false;
-  if (clientAsksPhone(message)) return true;
-  if (clientAsksForHumanAdvisor(message)) return true;
-  const t4 = message.trim();
-  if (/\b(ayuda|ayudar|ayudame|ayúdame)\b/i.test(t4) && isServiceRelatedMessage(t4) && !/\b(emergencia|urgente|me\s+urge|auxilio|nadie\s+(me\s+)?(contesta|atiende))\b/i.test(t4)) {
-    return false;
-  }
-  return /\b(emergencia|urgente|me\s+urge|es\s+urgente|auxilio)\b/i.test(t4) || /\b(contacto\s+(de\s+)?emergencia|n[uú]mero\s+de\s+emergencia)\b/i.test(t4) || /\b(necesito|quiero|puedo)\s+(hablar|contactar|llamar).{0,40}(alguien|humano|asesor|persona|equipo|ustedes)\b/i.test(
-    t4
-  ) || /\b(nadie\s+(me\s+)?(contesta|atiende)|no\s+me\s+(contesta|atiende|responde))\b/i.test(t4) || /\b(ayuda|auxilio).{0,25}(urgente|emergencia|humano|asesor|persona)\b/i.test(t4) || /\b(pasame|pásame|dame|necesito)\s+(un\s+)?(contacto|tel[eé]fono|n[uú]mero)\b/i.test(t4) || /\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(t4);
-}
-function clientAsksForCatalog(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.toLowerCase();
-  if (/\b(m[aá]nda|env[ií]a|pasa|dame|quiero|necesito).{0,40}\b(cotizaci[oó]n|propuesta)\b/i.test(t4) && !CATALOG_TYPO_RE.test(t4)) {
-    return false;
-  }
-  if (CATALOG_TYPO_RE.test(t4) && /\b(de|web|completo|general|sillas?|mesas?|men[uú]|carpas?)\b/i.test(t4)) {
-    return true;
-  }
-  if (CATALOG_TYPO_RE.test(t4) && t4.trim().split(/\s+/).length <= 4) return true;
-  if (/\b(manda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|comparte|quiero|necesito|dame|puedes\s+(manda|envia|pasar)|me\s+puedes\s+(manda|envia|pasar))\b.{0,50}\b(cat[aá]logo|c+t?a+l+[oó]+g+[oa])/i.test(
-    t4
-  )) {
-    return true;
-  }
-  if (/\bel\s+cat[aá]logo\s+(de|con|completo|general|web)/i.test(t4)) return true;
-  if (/\bcat[aá]logo\s+(de|web|completo|general)\b/i.test(t4)) return true;
-  if (/\b(cuentan|tienen|hay|manejan)\s+.{0,20}\bcat[aá]logo/i.test(t4)) return true;
-  if (/\bcat[aá]logo\s+de\s+men[uú]/i.test(t4)) return true;
-  if (/\blink\s+(del\s+)?cat[aá]logo/i.test(t4)) return true;
-  if (/bodasesor\.com\/catalogos/i.test(t4)) return true;
-  if (/\b(m[aá]nda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|dame)\s+el\s+(de|del)\b/i.test(t4) || /\b(m[aá]nda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same)\s+el\s+link\b/i.test(t4)) {
-    return true;
-  }
-  if (/^(s[ií][,.]?\s*)?(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)([.!?]|\s|$)/i.test(
-    t4.trim()
-  )) {
-    return true;
-  }
-  return false;
-}
-function clientWantsQuoteDelivery(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim();
-  if (CATALOG_TYPO_RE.test(t4)) return false;
-  const hasDeliveryVerb = /\b(m[aá]nda|env[ií]a|pasa|dame)\b/i.test(t4) || /\b(cotizaci[oó]n|propuesta)\s+(por\s+favor|ya|ahora)\b/i.test(t4) || /\bs[ií],?\s*(m[aá]ndame|env[ií]ame)/i.test(t4);
-  if (!hasDeliveryVerb && (/\b(quiero|necesito|busco|me\s+interesa)\s+(hacer|una|un|cotizar)\b/i.test(t4) || isQuoteIntentMessage(t4) && (/\b(hacer\s+una?\s+)?cotiz/i.test(t4) || /\bpara\s+\d+\s+personas?\b/i.test(t4) || parseServicesFromText(t4).length > 0))) {
-    return false;
-  }
-  return /\b(m[aá]nda|env[ií]a|pasa|dame).{0,40}\b(cotizaci[oó]n|propuesta)\b/i.test(t4) || /\b(cotizaci[oó]n|propuesta)\s+(por\s+favor|ya|ahora)\b/i.test(t4) || /\bs[ií],?\s*(m[aá]ndame|env[ií]ame).{0,20}\b(cotizaci[oó]n|propuesta)\b/i.test(t4);
-}
-function clientAsksGenericMenuCatalog(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.toLowerCase();
-  if (parseServicesFromText(message).length > 0) return false;
-  if (/\bcat[aá]logo\s+de\s+men[uú]\b/i.test(t4) || /\b(cuentan|tienen|hay|manejan)\s+.{0,24}\bcat[aá]logo/i.test(t4) || /\bcat[aá]logo\s+(general|completo|de\s+servicios?|de\s+opciones)\b/i.test(t4) || /\b(conocer|ver|explorar)\s+m[aá]s\s+de\s+(sus\s+)?servicios\b/i.test(t4) && /\bcat[aá]logo|men[uú]/i.test(t4) || /\b(conocer|ver)\s+(sus\s+)?servicios\b/i.test(t4) && /\bcat[aá]logo|men[uú]/i.test(t4)) {
-    return true;
-  }
-  if (clientAsksForCatalog(message) && !/\b(barra|banquete|taquiza|coffee|pizza|sushi|dj|carpa|pista|mobiliario|sillas?|mesas?)\b/i.test(
-    t4
-  )) {
-    return true;
-  }
-  return false;
-}
-function clientWantsFullCatalog(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.toLowerCase();
-  if (clientAsksGenericMenuCatalog(message)) return true;
-  if (/\b(m[aá]ndame|env[ií]ame|pasa(me)?|pásame)\s+todo\b/i.test(t4)) return true;
-  if (/\bcat[aá]logo\s+(completo|general|todo|todos)\b/i.test(t4)) return true;
-  if (/\b(todo|todos)\s+(el\s+)?cat[aá]logo/i.test(t4)) return true;
-  if (/\bno\s+s[eé]\s+cu[aá]l\b/i.test(t4) && /\bcat[aá]logo/i.test(t4)) return true;
-  if (/\bindeciso|todas\s+las\s+opciones/i.test(t4) && /\bcat[aá]logo/i.test(t4)) return true;
-  return false;
-}
-function assistantOfferedCatalogDetail(lastAssistantText) {
-  if (!lastAssistantText?.trim()) return false;
-  if (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(lastAssistantText)) {
-    return true;
-  }
-  return /cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo|mande\s+el\s+cat[aá]logo\s+con\s+m[aá]s\s+detalle|aqu[ií]\s+tienes\s+el\s+cat[aá]logo|te\s+dejo\s+el\s+cat[aá]logo|cat[aá]logo\s+general/i.test(
-    lastAssistantText
-  );
-}
-function isThanksOnlyAck(message) {
-  const t4 = message?.trim().toLowerCase() ?? "";
-  if (!t4) return false;
-  if (!/\bgracias\b/i.test(t4)) return false;
-  if (/\b(s[ií]|sip|claro|dale|por\s+favor|m[aá]nda|env[ií]a|pasa|link|enlace|cat[aá]logo)\b/i.test(t4)) {
-    return false;
-  }
-  return /^(ok|okay|va|perfecto|listo|muy\s+bien)?[\s,]*(muchas\s+|mil\s+)?gracias[\s.!]*$/i.test(t4);
-}
-function clientAffirmsCatalogOffer(message, lastAssistantText) {
-  if (!message?.trim() || !assistantOfferedCatalogDetail(lastAssistantText)) return false;
-  if (assistantAskedVagueEmbudoContinue(lastAssistantText)) return false;
-  if (/quieres que te d[eé] detalles de alguno/i.test(lastAssistantText ?? "") && !/cat[aá]logo|bodasesor\.com\/catalogos/i.test(lastAssistantText ?? "")) {
-    return false;
-  }
-  const t4 = message.trim().toLowerCase();
-  if (clientAsksForCatalog(message)) return true;
-  if (/^m[aá]s\s+detalles?[\s.!]*$/i.test(t4) || /^con\s+m[aá]s\s+detalle[\s.!]*$/i.test(t4)) {
-    return true;
-  }
-  const alreadySentLink = /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(lastAssistantText ?? "");
-  if (alreadySentLink && isThanksOnlyAck(t4)) return false;
-  if (/^si\s+(?:me\s+|nos\s+|les?\s+|lo\s+|la\s+)?(?:pued|podr|quier|necesit|v[ií]\b|tien|cotiz|interes|gust|hac|agreg|sum)/i.test(
-    t4
-  )) {
-    return false;
-  }
-  if (/^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|p[aá]samelo)([.!?]|\s|$)/i.test(
-    t4
-  )) {
-    return true;
-  }
-  return /^(s[ií]|claro|ok|okay|dale|va)([\s,]+(por\s+favor|pls|please|mande|m[aá]nda(me)?lo|env[ií]a(me)?lo|env[ií]a|env[ií]ame))?[\s.!]*$/i.test(
-    t4
-  );
-}
-function looksLikeGuestCountRange(text2) {
-  const trimmed = text2?.trim() ?? "";
-  if (!trimmed) return false;
-  if (/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed)) {
-    return false;
-  }
-  const hasGuestWord = /\b(personas?|invitad[oa]s?|asistentes?|comensales?|gente)\b/i.test(
-    trimmed
-  );
-  if (!hasGuestWord && /\d{1,2}:\d{2}/.test(trimmed)) return false;
-  const m6 = trimmed.match(/\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i);
-  if (!m6) {
-    const crm = trimmed.match(/^(\d{1,4})\s*[-–]\s*(\d{1,4})(?:\s*MXN)?$/i);
-    if (!crm) return false;
-    const a5 = parseInt(crm[1], 10);
-    const b6 = parseInt(crm[2], 10);
-    const lo3 = Math.min(a5, b6);
-    const hi3 = Math.max(a5, b6);
-    if (lo3 <= 12 && hi3 <= 24 && hi3 - lo3 <= 16 && !hasGuestWord) return false;
-    return a5 >= 10 && b6 >= 10 && a5 <= 2e3 && b6 <= 2e3 && Math.abs(a5 - b6) <= 500;
-  }
-  const a4 = parseInt(m6[1], 10);
-  const b5 = parseInt(m6[2], 10);
-  const lo2 = Math.min(a4, b5);
-  const hi2 = Math.max(a4, b5);
-  if (lo2 <= 12 && hi2 <= 24 && hi2 - lo2 <= 16 && !hasGuestWord) return false;
-  return a4 >= 10 && b5 >= 10 && a4 <= 2e3 && b5 <= 2e3 && Math.abs(a4 - b5) <= 500;
-}
-function clientAsksBanqueteVsTaquiza(message) {
-  if (!message?.trim()) return false;
-  return /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(message.toLowerCase());
-}
-function matchesKnownZone(text2) {
-  const t4 = text2.trim();
-  if (!t4) return false;
-  if (KNOWN_ZONES.test(t4)) return true;
-  const bare = t4.normalize("NFD").replace(/\p{M}/gu, "");
-  return bare !== t4 && KNOWN_ZONES.test(bare);
-}
-function looksLikeMxMunicipalityToponym(text2) {
-  const raw = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!raw) return false;
-  const t4 = raw.replace(/^(s[ií][,.]?\s+|es\s+en\s+|en\s+|ser[ií]a\s+en\s+|ser[aá]\s+en\s+)/i, "").trim();
-  if (!t4 || t4.length > 56) return false;
-  const words = t4.split(/\s+/).filter(Boolean);
-  if (words.length < 2 || words.length > 5) return false;
-  if (CATALOG_TYPO_RE.test(t4)) return false;
-  if (/\b(barras?|pizzas?|pastas?|crepas?|sushi|banquetes?|taquizas?|catering|carpas?|dj|mobiliario|mesas?|sillas?|periqueras?|salas?|sal[oó]n|hotel|hacienda|club|expo|cabana|caba[nñ]a|venue|servicio|evento|correo|presupuesto|cotizaci[oó]n|cumplea[nñ]os?|cumple|boda|bautizo|xv|quincea[nñ]era|graduaci[oó]n|baby\s*shower|aniversario|posada|suegra|esposo|esposa|novio|novia|padrinos?|podr[ií]as?|darme|dame|dar(me)?|informaci[oó]n|ambos|ambas|opciones?|propuestas?|compartir|regalas?)\b/i.test(
-    t4
-  )) {
-    return false;
-  }
-  const bare = t4.normalize("NFD").replace(/\p{M}/gu, "");
-  if (!/\b(de|del|de\s+los|de\s+las|de\s+la)\b/i.test(bare) && !/\b(huasca|tequisquiapan|bernal|taxco|tulancingo|zacatl[aá]n|amealco|tepeji|actopan|ixmiquilpan|tula|pachuca|teoloyucan|cuautitl[aá]n|zumpango|huehuetoca|coyotepec|tultepec|tultitl[aá]n|coacalco|tec[aá]mac)\b/i.test(
-    bare
-  )) {
-    return false;
-  }
-  const okPart = /^(de|del|la|las|los|san|santa|santo|el)$/i;
-  return words.every((w5) => okPart.test(w5) || /^[A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,}(?:'[A-Za-zÁÉÍÓÚáéíóúüñÑ]+)?$/.test(w5));
-}
-function hasGeoLocationSignal(text2) {
-  const t4 = text2.trim();
-  if (!t4) return false;
-  if (isLocationMetaReferential(t4)) return false;
-  if (matchesKnownZone(t4)) return true;
-  if (looksLikeMxMunicipalityToponym(t4)) return true;
-  if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio|calle|av\.?|avenida|blvd|boulevard|cp\.?|c\.p\.?|cdmx|estado\s+de|edo\.?\s*m[eé]x|quer[eé]taro|puebla|monterrey|guadalajara|tlaquepaque|zapopan|hospital|entre\s+\w+\s+y)\b/i.test(
-    t4
-  )) {
-    return true;
-  }
-  if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t4)) return true;
-  if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(\s+de\s+golf)?|expo|centro\s+de\s+convenciones|hospital(?:\s+general)?|cl[ií]nica|auditorio)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ0-9]/i.test(
-    t4
-  )) {
-    return true;
-  }
-  if (/\b(calle|av\.?|avenida|blvd)\b.+\d/i.test(t4)) return true;
-  if (/\b\d{4,5}\b/.test(t4) && /\b(colonia|delegaci|cdmx|estado|municipio)\b/i.test(t4)) return true;
-  return false;
-}
-function hasCityOrMetroSignal(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4) return false;
-  if (isLocationMetaReferential(t4)) return false;
-  if (matchesKnownZone(t4)) return true;
-  if (looksLikeMxMunicipalityToponym(t4)) return true;
-  if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio)\s+[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(
-    t4
-  )) {
-    return true;
-  }
-  if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t4)) return true;
-  if (/\b(estado\s+de|edo\.?\s*m[eé]x|cdmx|d\.?\s*f\.?)\b/i.test(t4)) return true;
-  if (/\b(gdl|mty|qro|ags|qroo|cuerna|tlaque)\b/i.test(t4)) return true;
-  if (/\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica|atlixco|cholula|tehuac[aá]n|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|tlaquepaque|zapopan|tonal[aá]|tlajomulco|jalisco)\b/i.test(
-    t4
-  )) {
-    return true;
-  }
-  return false;
-}
-function isLocationMetaReferential(message) {
-  if (!message?.trim()) return false;
-  const n5 = message.trim().normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
-  if (!n5 || n5.length > 80) return false;
-  return /^(esa|eso|este|esta)\s+es\s+(la\s+|el\s+)?(ciudad|ubicacion|zona|direccion|lugar|sede)(\s+(del\s+evento|que\s+(te\s+)?(dije|di|mande|envie)))?$/.test(
-    n5
-  ) || /^(esa|eso)\s+(misma\s+)?(ciudad|ubicacion|zona|direccion)$/.test(n5) || /^ya\s+(te\s+)?(di|dije|mande|envie)\s+(la\s+|el\s+)?(ciudad|ubicacion|zona|direccion)\b/.test(
-    n5
-  ) || /^(la\s+)?(ciudad|ubicacion|zona)\s+(es\s+)?(esa|esa\s+que\s+te\s+dije|la\s+de\s+arriba)$/.test(n5);
-}
-function cleanVenueCandidate(raw) {
-  let venue = raw.trim().replace(/[.,;:]+$/g, "").replace(VENUE_DISCOURSE_CUT, "").replace(/\s+/g, " ").trim();
-  venue = venue.replace(/\s+(?:y\s+)?(?:nos\s+encontramos\s+en|se\s+llama|estamos\s+en)\s*$/i, "").replace(/^(?:el\s+|la\s+|un\s+|una\s+)/i, "").trim();
-  if (!venue || venue.length < 3) return null;
-  if (VAGUE_VENUE_LABEL.test(venue)) return null;
-  if (VENUE_DISCOURSE_JUNK.test(venue) && !/\b(sal[oó]n|hotel|hacienda|plaza|hospital)\s+[A-ZÁÉÍÓÚÑ]/i.test(venue)) {
-    return null;
-  }
-  if (/\b(buscando|proveedor|sillas?|invitados?|coordino)\b/i.test(venue)) return null;
-  const words = venue.split(/\s+/);
-  if (words.length > 8) venue = words.slice(0, 8).join(" ");
-  return venue.length >= 3 ? venue : null;
-}
-function extractVenueNameHint(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4) return null;
-  const seLlama = t4.match(
-    /\b(?:el\s+|la\s+)?(?:sal[oó]n|hotel|hacienda|jard[ií]n|plaza|venue)?\s*se\s+llama\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{2,48}?)(?=\s+y\s+(?:nos|estamos|contamos|buscamos)|\s*[,.]|\s+(?:contamos|realmente|buscamos|buscando)\b|$)/i
-  );
-  if (seLlama?.[1]) {
-    const named = cleanVenueCandidate(seLlama[1]);
-    if (named) return named;
-  }
-  const encontramos = t4.match(
-    /\b(?:nos\s+encontramos|estamos|ubicad[oa]s?)\s+en\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{2,48}?)(?=\s+y\s+(?:nos|estamos|contamos|buscamos)|\s*[,.]|\s+(?:contamos|realmente|buscamos|buscando)\b|$)/i
-  );
-  if (encontramos?.[1] && !KNOWN_ZONES.test(encontramos[1]) && !/^(el|la|un|una)\s+estado\b/i.test(encontramos[1])) {
-    const place = cleanVenueCandidate(encontramos[1]);
-    if (place && !matchesKnownZone(place) && place.split(/\s+/).length >= 2) {
-    }
-  }
-  const horno = t4.match(/\bhorno\s*(\d+)\b/i);
-  if (horno) return `Horno ${horno[1]}`;
-  const hospital = t4.match(
-    /\b(?:adentro|dentro|en\s+el\s+interior)\s+del?\s+(hospital(?:\s+general)?(?:\s+regional)?\s+[A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.-]{1,40})/i
-  );
-  if (hospital?.[1]) {
-    const h5 = cleanVenueCandidate(hospital[1]);
-    if (h5) return h5;
-  }
-  const m6 = t4.match(VENUE_NAME_PATTERN);
-  if (m6?.[1]) {
-    const venue = cleanVenueCandidate(m6[1]);
-    if (venue) return venue;
-  }
-  const nameBeforeType = t4.match(
-    /\b([A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚáéíóúñ0-9]+(?:\s+[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚáéíóúñ0-9]+){0,3}\s+sal[oó]n(?:\s+terraza)?)\b/i
-  );
-  if (nameBeforeType?.[1]) {
-    const venue = cleanVenueCandidate(nameBeforeType[1]);
-    if (venue) return venue;
-  }
-  if (encontramos?.[1]) {
-    const place = cleanVenueCandidate(encontramos[1]);
-    if (place && !matchesKnownZone(place) && place.split(/\s+/).length >= 2) return place;
-  }
-  return null;
-}
-function extractStreetDetailHint(text2) {
-  const t4 = (text2 ?? "").replace(/\s+/g, " ").trim();
-  if (!t4) return null;
-  const entre = t4.match(
-    /\bentre\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{1,40}?)\s+y\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{1,40})/i
-  );
-  if (entre?.[1] && entre[2]) {
-    const a4 = entre[1].trim().replace(/[.,;:]+$/g, "");
-    const b5 = entre[2].trim().replace(/[.,;:]+$/g, "");
-    if (/^\d+$/.test(a4) && /^\d+$/.test(b5)) return null;
-    if (a4.length >= 2 && b5.length >= 2 && !/^(buscando|proveedor|sillas?)$/i.test(a4)) {
-      return `entre ${a4} y ${b5}`;
-    }
-  }
-  const calle = t4.match(
-    /\b((?:calle|av\.?|avenida|blvd\.?|boulevard|calzada|esq\.?|esquina(?:\s+con)?)\s+[A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'#-]{2,48})/i
-  );
-  if (calle?.[1]) {
-    const s7 = cleanVenueCandidate(calle[1]);
-    if (s7 && s7.length >= 6) return s7;
-  }
-  return null;
-}
-function looksLikeSupplierSearchNotVenue(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4) return false;
-  if (/\bse\s+llama\b/i.test(t4)) return false;
-  return /\b(buscando|buscamos|proveedor|nos\s+apoye|coordino\s+eventos|complemento\s+de\s+sillas|tipo\s+de\s+silla|basket\s+tony)\b/i.test(
-    t4
-  ) && !extractVenueNameHint(t4);
-}
-function isCityOnlyDireccion(value) {
-  const t4 = (value ?? "").trim();
-  if (!t4) return false;
-  if (extractVenueNameHint(t4) || extractStreetDetailHint(t4)) return false;
-  if (/\b(entre|calle|av\.?|avenida|blvd|hospital|sal[oó]n|hotel|hacienda|colonia\s+\w)/i.test(t4) && t4.split(/\s+/).length > 4) {
-    return false;
-  }
-  const stripped = t4.replace(/^(en\s+)/i, "").replace(/[.,;:]+$/g, "").trim();
-  if (!stripped || stripped.split(/\s+/).length > 5) return false;
-  return matchesKnownZone(stripped) || looksLikeMxMunicipalityToponym(stripped) || hasCityOrMetroSignal(stripped);
-}
-function isRicherDireccionCapture(incoming, existing) {
-  const nextRaw = (incoming ?? "").trim();
-  const prevRaw = (existing ?? "").trim();
-  const next = sanitizeDireccionCapture(nextRaw) ?? nextRaw;
-  const prev = sanitizeDireccionCapture(prevRaw) ?? prevRaw;
-  if (!next || !isUsableDireccionEvento(next)) return false;
-  if (/\b(buscando|proveedor|se\s+llama|nos\s+encontramos\s+en|contamos\s+con\s+\d+\s+invitados)\b/i.test(nextRaw) && !/\b(buscando|proveedor|se\s+llama|nos\s+encontramos\s+en)\b/i.test(next)) {
-  } else if (/\b(buscando a un proveedor|estamos buscando|coordino eventos)\b/i.test(nextRaw)) {
-    return false;
-  }
-  if (!prev || !isUsableDireccionEvento(prev)) return true;
-  if (next.toLowerCase() === prev.toLowerCase()) return false;
-  if (isCityOnlyDireccion(prev) && !isCityOnlyDireccion(next)) {
-    const prevCore = prev.replace(/^(en\s+)/i, "").trim().toLowerCase();
-    if (next.toLowerCase().includes(prevCore) || prevCore.includes(next.toLowerCase().slice(0, 12))) {
-      return true;
-    }
-    if (shouldReplaceCrmDireccion(prev, next) && next.length > prev.length + 4) return true;
-  }
-  if (shouldReplaceCrmDireccion(prev, next) && next.length > prev.length + 6 && (extractVenueNameHint(next) || extractStreetDetailHint(next) || extractLocatedPlaceHint(nextRaw) || next.includes(","))) {
-    return true;
-  }
-  return false;
-}
-function extractLocatedPlaceHint(text2) {
-  const t4 = (text2 ?? "").replace(/\s+/g, " ").trim();
-  if (!t4) return null;
-  const m6 = t4.match(
-    /\b(?:nos\s+encontramos|estamos|ubicad[oa]s?)\s+en\s+([A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{2,48}?)(?=\s+y\s+(?:nos|estamos|contamos|buscamos)|\s*[,.]|\s+(?:contamos|realmente|buscamos|buscando)\b|$)/i
-  );
-  if (!m6?.[1]) return null;
-  const place = cleanVenueCandidate(m6[1]);
-  if (!place) return null;
-  if (matchesKnownZone(place) || looksLikeMxMunicipalityToponym(place)) return null;
-  if (/^(el|la)\s+estado\b/i.test(place)) return null;
-  return place;
-}
-function composeDetailedEventLocation(text2) {
-  const trimmed = (text2 ?? "").replace(/\s+/g, " ").trim();
-  if (!trimmed) return null;
-  const cityHit = trimmed.match(KNOWN_ZONES)?.[0]?.trim() ?? null;
-  const venue = extractVenueNameHint(trimmed);
-  const located = extractLocatedPlaceHint(trimmed);
-  const street = extractStreetDetailHint(trimmed);
-  if (!cityHit && !venue && !located && !street) return null;
-  let out2 = cityHit;
-  if (venue) out2 = mergeZonaDetail(out2, venue);
-  if (located && (!venue || foldLoc(located) !== foldLoc(venue))) {
-    out2 = mergeZonaDetail(out2, located);
-  }
-  if (street) out2 = mergeZonaDetail(out2, street);
-  out2 = sanitizeDireccionCapture(out2);
-  if (out2 && isUsableDireccionEvento(out2)) return out2;
-  return null;
-}
-function foldLoc(s7) {
-  return s7.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\s+/g, " ").trim();
-}
-function sanitizeDireccionCapture(value) {
-  let t4 = (value ?? "").replace(/\s+/g, " ").trim();
-  if (!t4) return null;
-  t4 = stripServiceDeclineClausesFromDireccion(t4);
-  if ((isEventTypeOnlyMessage(t4) || parseTipoEventoFromText(t4)) && !hasCityOrMetroSignal(t4) && !KNOWN_ZONES.test(t4)) {
-    return null;
-  }
-  if (/\b(cumplea[nñ]os?|boda|bautizo|xv|quincea[nñ]era|graduaci[oó]n|baby\s*shower|aniversario|posada)\b/i.test(
-    t4
-  ) && !hasCityOrMetroSignal(t4) && !KNOWN_ZONES.test(t4)) {
-    return null;
-  }
-  t4 = t4.replace(/\b(?:el\s+)?sal[oó]n\s+se\s+llama\s+/gi, "").replace(/\b(?:y\s+)?nos\s+encontramos\s+en\s*$/gi, "").replace(/\b(?:y\s+)?nos\s+encontramos\s+en\b/gi, ", ").replace(/\bcontamos\s+con\s+\d+\s+invitados?\b.*$/gi, "").replace(/\brealmente\s+buscamos\b.*$/gi, "").replace(/\by\s+estamos\s+buscando\b.*$/gi, "").replace(/\bsal[oó]n\s+de\s+fiestas?\s+y\s+estamos\b.*$/gi, "").replace(/[,.]?\s*\b(espera|ahorita|al\s+rato|en\s+un\s+momento)\s*$/gi, "").replace(/[,;]?\s*(?:para\s+)?(?:la\s+)?entrada\s+del\s+sal[oó]n\b[^,]*/gi, "").replace(/[,;]?\s*piso\s+y\s+algo\b[^,]*/gi, "").replace(/[,;]?\s*(?:show\s+)?en\s+piso\b[^,]*/gi, "").replace(/[,;]?\s*con\s+q(?:ue)?\s+comenzar\s+el\s+baile\b[^,]*/gi, "").replace(/[,;]?\s*decoraci[oó]n(?:\s+para\s+la\s+entrada[^,]*)?/gi, "").replace(/,\s*,+/g, ",").replace(/^,\s*|,\s*$/g, "").replace(/\s+/g, " ").trim();
-  if (/\b(buscando|proveedor|coordino\s+eventos|complemento\s+de\s+sillas)\b/i.test(t4)) {
-    const city = t4.match(KNOWN_ZONES)?.[0]?.trim();
-    const venue = extractVenueNameHint(t4);
-    const located = extractLocatedPlaceHint(value ?? t4);
-    if (city || venue || located) {
-      let out2 = city ?? null;
-      if (venue) out2 = mergeZonaDetail(out2, venue);
-      if (located) out2 = mergeZonaDetail(out2, located);
-      return out2;
-    }
-    return city ?? null;
-  }
-  return t4 || null;
-}
-function stripServiceDeclineClausesFromDireccion(value) {
-  return value.replace(
-    /[,;]?\s*\bno\s+(quiero|necesito|requiero|requerimos)\s+(la\s+|el\s+|los\s+|las\s+|el\s+servicio\s+de\s+)?[^.!,;]{0,60}/gi,
-    ""
-  ).replace(/[,;]?\s*\bsolo\s+(la\s+|el\s+)?(tarima|pista|entarimad)[^.!,;]{0,40}/gi, "").replace(/[,;]?\s*\bnada\s+m[aá]s\s+que\s+[^.!,;]{0,40}/gi, "").replace(/,\s*,+/g, ",").replace(/^,\s*|,\s*$/g, "").replace(/\s+/g, " ").trim();
-}
-function isVenueWithoutCity(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4) return false;
-  if (looksLikeSupplierSearchNotVenue(t4)) return false;
-  if (hasCityOrMetroSignal(t4) || KNOWN_ZONES.test(t4) || looksLikeMxMunicipalityToponym(t4)) {
-    return false;
-  }
-  const venue = extractVenueNameHint(t4);
-  if (venue) return true;
-  if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club|expo|centro\s+(de\s+)?(convenciones|cultural)|venue|caba[nñ]as?|cabanas?|villas?|finca|lodge|hospital|cl[ií]nica|auditorio|universidad|museo)\b/i.test(
-    t4
-  ) && t4.split(/\s+/).length <= 10 && !/\b(buscando|proveedor|sillas?|coordino)\b/i.test(t4)) {
-    return true;
-  }
-  if (/\bhorno\s*\d+\b/i.test(t4)) return true;
-  return false;
-}
-function looksLikeDiscourseNotPlace(text2) {
-  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t4) return true;
-  if (isLocationMetaReferential(t4)) return true;
-  if (JUNK_DIRECCION_PATTERN.test(t4)) return true;
-  if (looksLikeMealTimeNotLocation(t4)) return true;
-  if (/\binformaci[oó]n\s+de\s+(ambos|los\s+dos|todo)\b/i.test(t4) || /\bpodr[ií]as?\s+(darme|dar(me)?|compartir)\s+informaci/i.test(t4) || /\bdarme\s+informaci[oó]n\b/i.test(t4)) {
-    return true;
-  }
-  if (hasGeoLocationSignal(t4) || KNOWN_ZONES.test(t4)) return false;
-  const lower2 = t4.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
-  if (/\b(es|son|esta|estan|esta|estan|quiero|necesito|busco|tengo|hay|muy|mas|mas|importante|necesario|urgente|parece|creo|pienso)\b/.test(
-    lower2
-  )) {
-    return true;
-  }
-  if (/^(en\s+)?(la\s+)?(noche|tarde|manana|mañana|vivo|directo|realidad|verdad|serio|cambio|caso|color(\s+\w+)?)$/i.test(
-    t4
-  )) {
-    return true;
-  }
-  return false;
-}
-function isNonLocationBusinessPhrase(text2) {
-  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t4) return true;
-  if (JUNK_DIRECCION_PATTERN.test(t4)) return true;
-  if (looksLikeDiscourseNotPlace(t4)) return true;
-  const cleaned = t4.replace(
-    /^(el|la|los|las|un|una|mi|mis|su|sus|nuestr[oa]s?|en\s+(el|la|los|las|un|una|mi|mis|su|sus|nuestr[oa]s?)?)\s+/i,
-    ""
-  ).trim();
-  if (!cleaned) return true;
-  if (JUNK_DIRECCION_PATTERN.test(cleaned)) return true;
-  if (isVagueVenueOnly(t4) || isVagueVenueOnly(cleaned)) return true;
-  if (/^color(\s+\w+)?$/i.test(cleaned)) return true;
-  if (/^(blanco|negro|dorado|plateado|natural|madera|rojo|azul|verde|rosa)$/i.test(cleaned)) {
-    return true;
-  }
-  if (looksLikeThemeColorNotLocation(cleaned) || looksLikeThemeColorNotLocation(t4)) {
-    return true;
-  }
-  if (/^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n|noche|tarde|vivo|realidad|serio|importante|empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|negocio|sede|ratito|ahorita|restaurantes?|restaurants?|hotel|terraza|stand)$/i.test(
-    cleaned
-  )) {
-    return true;
-  }
-  if (looksLikeCompanyLocationQuestionFragment(cleaned) || looksLikeCompanyLocationQuestionFragment(t4)) {
-    return true;
-  }
-  if (/^cotizaci[oó]n\b/i.test(cleaned) && cleaned.split(/\s+/).length <= 2) return true;
-  if (cleaned.split(/\s+/).length <= 4) {
-    if (/^(quiero|necesito|requiero|busco|me\s+interesa)\b/i.test(cleaned) || /^(una?\s+)?cotizaci[oó]n$/i.test(cleaned) || /^(la\s+)?(propuesta|montaje|presentaci[oó]n|informaci[oó]n)$/i.test(cleaned)) {
-      return true;
-    }
-    if (/\b(cotizaci[oó]n|propuesta|montaje|presentaci[oó]n)\b/i.test(cleaned) && !KNOWN_ZONES.test(cleaned) && !/\b(colonia|delegaci[oó]n|alcald[ií]a|calle|av\.|avenida|cdmx|ciudad|sal[oó]n\s+\w)/i.test(
-      cleaned
-    )) {
-      return true;
-    }
-  }
-  return false;
-}
-function isVagueVenueOnly(text2) {
-  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t4) return true;
-  const cleaned = t4.replace(
-    /^(el|la|los|las|un|una|mi|mis|su|sus|nuestr[oa]s?|en\s+(el|la|los|las|un|una|mi|mis|su|sus|nuestr[oa]s?)?)\s+/i,
-    ""
-  ).trim().split(/\n/)[0].replace(/\s+tipo\s+de.*$/i, "").trim();
-  if (!cleaned) return true;
-  if (/^(sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede|trabajo|hotel|terraza|restaurantes?|restaurants?|local|localcito|saloncito)$/i.test(
-    cleaned
-  )) {
-    return true;
-  }
-  if (/^(primer|segundo|tercer|cuarto|quinto|\d+(er|do|to)?)\s+piso$/i.test(cleaned)) {
-    return true;
-  }
-  if (/^(sal[oó]n|edificio|venue|jard[ií]n|restaurantes?|restaurants?|hotel|terraza|casa)(\s+de)?(\s+(eventos?|fiestas?|oficinas?|corporativo|privado|la\s+empresa|la\s+compa[nñ][ií]a))?$/i.test(
-    cleaned
-  )) {
-    return true;
-  }
-  if (/^(nuestras?|nuestros?|mi|mis|su|sus|la|el|en)\s+(casa|empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede|restaurantes?|restaurants?|hotel|terraza|jard[ií]n|sal[oó]n|local)(\s+de\s+(eventos?|fiestas?|la\s+empresa))?$/i.test(
-    cleaned
-  ) || /^(nuestras?|nuestros?|mi|mis|su|sus|la|el)\s+(casa|empresa|compa[nñ][ií]a|negocio|espacio|oficinas?|instalaciones|sede|restaurantes?|restaurants?|hotel|terraza|jard[ií]n|sal[oó]n|local)(\s+de\s+(eventos?|fiestas?|la\s+empresa))?$/i.test(
-    t4
-  ) || /^en\s+(mi\s+|su\s+|la\s+|el\s+|un\s+|una\s+)?(casa|restaurantes?|restaurants?|hotel|terraza|jard[ií]n|sal[oó]n|local)$/i.test(
-    t4
-  )) {
-    return true;
-  }
-  return false;
-}
-function isLocationDeferralOrVagueWorkplace(text2) {
-  const raw = (text2 ?? "").trim();
-  if (!raw) return true;
-  const t4 = raw.replace(/[¡!¿?]+/g, "").replace(/\s+/g, " ").trim();
-  if (!t4) return true;
-  if (hasGeoLocationSignal(t4) || KNOWN_ZONES.test(t4)) {
-    if (!/\b(empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|negocio|sede)\b/i.test(t4) || hasGeoLocationSignal(t4) || KNOWN_ZONES.test(t4)) {
-      if (hasGeoLocationSignal(t4) || KNOWN_ZONES.test(t4)) return false;
-    }
-  }
-  if (/^(un\s+)?(ratito|rato|momento|minuto)[\s.,!]*$/i.test(t4) || /^(ahorita|luego|despu[eé]s)(\s+te\s+(digo|paso|mando|aviso|confirmo))?[\s.,!]*$/i.test(
-    t4
-  ) || /^en\s+un\s+(rato|momento|minuto)[\s.,!]*$/i.test(t4) || /^(te\s+aviso|te\s+digo|todav[ií]a\s+no(\s+s[eé]|\s+lo\s+tengo)?)[\s.,!]*$/i.test(t4)) {
-    return true;
-  }
-  if (/\b(un\s+ratito|un\s+rato|ahorita(\s+te\s+\w+)?|luego\s+te\s+(digo|aviso|paso)|en\s+un\s+(rato|momento)|todav[ií]a\s+no\s+(s[eé]|lo\s+tengo)|te\s+aviso\s+despu[eé]s)\b/i.test(
-    t4
-  ) && !hasGeoLocationSignal(t4) && !KNOWN_ZONES.test(t4)) {
-    return true;
-  }
-  const withoutDeferral = t4.replace(
-    /[,;]?\s*(un\s+)?(ratito|rato|momento|minuto|ahorita|luego|despu[eé]s)(\s+te\s+\w+)?.*$/i,
-    ""
-  ).trim().replace(/[.,;:]+$/g, "").trim();
-  const core = withoutDeferral || t4;
-  if (isVagueVenueOnly(core)) return true;
-  if (/\b(empresa|espacio|oficinas?|instalaciones|compa[nñ][ií]a|negocio|sede)\b/i.test(core) && !hasGeoLocationSignal(core) && !KNOWN_ZONES.test(core) && !/\b(sal[oó]n|hotel|hacienda|expo|club|centro\s+cultural)\s+\S+/i.test(core) && core.split(/\s+/).length <= 6) {
-    return true;
-  }
-  return false;
-}
-function inferLucyAskedField(lastLucyMessage) {
-  const msg = lastLucyMessage?.trim() ?? "";
-  if (!msg) return null;
-  const priority = [
-    "nombre",
-    "correo",
-    "tipo_evento",
-    "requerimientos",
-    "invitados",
-    "zona",
-    "fecha",
-    "horario",
-    "presupuesto"
-  ];
-  for (const field of priority) {
-    if (LUCY_FIELD_ASK_PATTERNS[field].test(msg)) return field;
-  }
-  return null;
-}
-function parseCentrosDeMesaRequirement(text2) {
-  if (!text2?.trim()) return null;
-  const t4 = text2.trim();
-  if (!/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:florales?\s+)?(?:de\s+)?mesas?\b/i.test(
-    t4
-  )) {
-    return null;
-  }
-  const qty = t4.match(
-    /\bcentros?\s+de\s+mesas?\b[\s\S]{0,48}\b(?:ser[ií]an?|seran|son|como|unos?|unas?)?\s*(\d{1,3})\b/i
-  )?.[1] || t4.match(
-    /\b(\d{1,3})\s*(?:centros?\s+de\s+mesas?|centros?\s+florales?|arreglos?\s+(?:de\s+)?mesas?)\b/i
-  )?.[1] || (/\bcentros?\s+de\s+mesas?\b/i.test(t4) ? t4.match(/\bser[ií]an?\s+(\d{1,3})\b/i)?.[1] : null);
-  if (qty && Number(qty) >= 1 && Number(qty) <= 500) {
-    return `Centros de mesa (${qty})`;
-  }
-  return "Centros de mesa";
-}
-function isTablewareRequestText(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return false;
-  return /\b(loza|vajillas?|cubiertos?|cuberter[ií]a|cristaler[ií]a|plato\s+trinche|platos?\s+trinche|plato\s+postre|platos?\s+postre|cucharas?|tenedores?|cuchillos?)\b/i.test(
-    t4
-  );
-}
-function isEnteladoRequestText(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return false;
-  return /\bentelados?\b/i.test(t4) || /\btela\s+(en\s+|de\s+|para\s+)?techo\b/i.test(t4) || /\bentelados?\s+para\s+techo\b/i.test(t4) || /\btecho\s+entelado\b/i.test(t4);
-}
-function excludedServiceFragments(text2) {
-  const out2 = [];
-  for (const re4 of EXCLUDED_SERVICE_LEADS) {
-    for (const m6 of text2.matchAll(re4)) {
-      const frag = (m6[1] ?? "").split(/\s*,\s*|\s+(?:pero|sino|y\s+(?:quiero|queremos|necesito|me\s+gustar[ií]a|cotizar|deja|dejas|agrega|agregas|pon|pones|mant[eé]n))\s+/i)[0].trim();
-      const first = frag.split(/\s+/)[0]?.toLowerCase() ?? "";
-      if (!frag || /^(que|nada|mucho|tanto|algo)$/.test(first) || /(ar|er|ir)$/.test(first)) continue;
-      out2.push(frag);
-    }
-  }
-  for (const m6 of text2.matchAll(EXCLUDED_TRAILING_RE)) {
-    if (m6[1]) out2.push(m6[1]);
-  }
-  for (const m6 of text2.matchAll(EXCLUDED_BEFORE_NO_RE)) {
-    if (m6[1]) out2.push(m6[1]);
-  }
-  return out2;
-}
-function stripExcludedServiceMentions(text2) {
-  const fragments = excludedServiceFragments(text2);
-  if (!fragments.length) return text2;
-  let rest = text2;
-  for (const f7 of fragments) rest = rest.split(f7).join(" ");
-  return rest.replace(/\s{2,}/g, " ").trim();
-}
-function parseServicesFromText(text2) {
-  const found = parseServicesFromTextRaw(text2);
-  if (!found.length) return found;
-  const fragments = excludedServiceFragments(text2);
-  if (!fragments.length) return found;
-  const excluded = new Set(fragments.flatMap((f7) => parseServicesFromTextRaw(f7)));
-  if (!excluded.size) return found;
-  let rest = text2;
-  for (const f7 of fragments) rest = rest.split(f7).join(" ");
-  const stillAsked = new Set(parseServicesFromTextRaw(rest));
-  return found.filter((s7) => !excluded.has(s7) || stillAsked.has(s7));
-}
-function parseServicesFromTextRaw(text2) {
-  const t4 = text2.trim();
-  if (/\b(únicamente|unicamente|solo|solamente)\s+(vajillas?|loza|cubiertos?)\b/i.test(t4) || /\b(únicamente|unicamente)\s+vajilla\b/i.test(t4)) {
-    return dedupeServiceHierarchy(["Vajillas"], t4);
-  }
-  if (clientSwapsPlatedMealForSnacks(t4)) {
-    return [resolveSnackSwapLabel(t4)];
-  }
-  const found = [];
-  const lower2 = text2.toLowerCase();
-  const declined = clientDeclinesServiceFamilies(text2);
-  const hasMealListContext = /\b(desayuno|snack|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text2) || (text2.match(/,/g) ?? []).length >= 1 || /\b(desayuno|snack|comida|cena)\b.+\b(desayuno|snack|comida|cena)\b/i.test(text2);
-  const snackIsAntojito = /\bsnacks?\b/i.test(text2) && /\b(banderillas?|antojitos?|esquites?|elotes?|garnachas?|quesadillas?)\b/i.test(text2);
-  const hasCorporateMealList = /\b(desayuno|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text2) || /\bsnack\b/i.test(text2) && /\b(desayuno|comida|cena|coffee)\b/i.test(text2) && !snackIsAntojito;
-  const occasionMeal = isOccasionMealEventType(text2);
-  for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
-    if (label === "Comida" && !hasMealListContext) continue;
-    if (label === "Snack" && (snackIsAntojito || !hasCorporateMealList)) continue;
-    if (label === "Mesa de postres" && isTablewareRequestText(text2)) continue;
-    if (occasionMeal && /^(Cena|Comida)$/i.test(label)) continue;
-    if (pattern.test(text2) || pattern.test(lower2)) found.push(label);
-  }
-  if (!found.includes("Banquete Mexicano") && /\bmexicano\b/i.test(text2) && !/\b(desayuno|brunch|tem[aá]tico)\b/i.test(text2) && (/^mexicano[\s.,!]*$/i.test(text2.trim()) || /\b(banquete|formal|tiempos|comida\s+mexicana|men[uú]\s+mexicano)\b/i.test(text2))) {
-    found.push("Banquete Mexicano");
-  }
-  if (!found.some((s7) => /barra\s+de\s+bebidas/i.test(s7)) && /\bbebidas?\b/i.test(text2) && /\b(cerveza|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|alcohol|open\s*bar)\b/i.test(
-    text2
-  ) && !/\bbarra\s+de\s+caf[eé]/i.test(text2)) {
-    found.push("Barra de bebidas");
-  }
-  for (const show of parseNamedShowLabels(text2)) {
-    if (!found.some((s7) => s7.toLowerCase() === show.toLowerCase())) found.push(show);
-  }
-  const deduped = dedupeServiceHierarchy(found, text2);
-  found.length = 0;
-  found.push(...deduped);
-  if (/\b(pastas?\s+y\s+pizzas?|pizzas?\s+y\s+pastas?)\b/i.test(text2) || /\bbarra\s+de\s+pastas?\s+y\s+pizzas?\b/i.test(text2)) {
-    if (!found.some((s7) => /pasta/i.test(s7))) found.push("Barra de pastas");
-    if (!found.some((s7) => /pizza/i.test(s7))) found.push("Barra de pizzas");
-  }
-  const salaProduct = parseSalaProductFromText(text2);
-  if (salaProduct) {
-    const idx = found.findIndex((s7) => /salas?\s*lounge/i.test(s7));
-    if (idx >= 0) found[idx] = salaProduct;
-    else if (!found.some((s7) => /sala|luxor/i.test(s7))) found.push(salaProduct);
-  }
-  const chairSku = formatChairSku(text2);
-  if (chairSku) {
-    const idxMob = found.findIndex((s7) => /^Mobiliario$/i.test(s7) || /^mesas?\s+y\s+sillas?$/i.test(s7));
-    if (idxMob >= 0) found[idxMob] = chairSku;
-    else if (!found.some((s7) => /^(\d+\s+)?Sillas\s+/i.test(s7))) {
-      found.unshift(chairSku);
-    }
-  }
-  const normalized = normalizeShortServicePhrase(text2);
-  if (normalized) {
-    const normLower = normalized.toLowerCase();
-    const already = found.some(
-      (s7) => s7.toLowerCase().includes(normLower) || normLower.includes(s7.toLowerCase())
-    );
-    const isVagueFoodAlias = /banquete\s*\/\s*taquiza/i.test(normalized);
-    if (isVagueFoodAlias && clientAsksCafeOrCateringChoice(text2)) {
-    } else if (
-      // A15000: "alimentos + meseros + mobiliario" — conservar Alimentos aunque haya otros.
-      isVagueFoodAlias && found.length > 0 && /\b(alimentos?|comida|banquete|catering|taquiza)\b/i.test(text2)
-    ) {
-      if (!found.some((s7) => /alimento|banquete|taquiza|catering|comida/i.test(s7))) {
-        found.push("Alimentos");
-      }
-    } else if (!already && !(isVagueFoodAlias && found.length > 0)) {
-      found.push(normalized);
-    }
-  }
-  if (/\b(alimentos?|comidas?)\b/i.test(text2) && !clientAsksCafeOrCateringChoice(text2) && !declined.includes("alimentos") && !found.some((s7) => /alimento|banquete|taquiza|catering|comida|barra\s+de\s+alimentos/i.test(s7))) {
-    found.push("Alimentos");
-  }
-  let filtered = declined.length > 0 ? found.filter((s7) => !serviceIsDeclined(s7, declined)) : found;
-  if (isVenueProvidesContext(text2)) {
-    const venueExclude = venueProvidedServiceLabels(text2);
-    if (venueExclude.length) {
-      filtered = filtered.filter(
-        (s7) => !venueExclude.some((ex) => new RegExp(`^${ex}$`, "i").test(s7.trim()))
-      );
-    }
-  }
-  if (isTablewareRequestText(text2) && !isVenueProvidesContext(text2)) {
-    const withoutDulces = filtered.filter(
-      (s7) => !/mesa\s+de\s+(postres?|dulces?|quesos?)/i.test(s7)
-    );
-    if (!withoutDulces.some((s7) => /vajilla/i.test(s7))) {
-      withoutDulces.push("Vajillas");
-    }
-    return dedupeServiceHierarchy([...new Set(withoutDulces)], text2);
-  }
-  return dedupeServiceHierarchy([...new Set(filtered)], text2);
-}
-function formatServicesList(services) {
-  const clean = services.map((s7) => s7.trim()).filter(Boolean);
-  if (clean.length === 0) return "";
-  if (clean.length === 1) return clean[0];
-  if (clean.length === 2) return `${clean[0]} y ${clean[1]}`;
-  return `${clean.slice(0, -1).join(", ")} y ${clean[clean.length - 1]}`;
-}
-function dedupeServiceHierarchy(services, sourceText) {
-  const found = [...services].map((s7) => s7.trim()).filter(Boolean);
-  const text2 = sourceText ?? found.join(" ");
-  const animIdx = found.indexOf("Animaci\xF3n / Hora loca");
-  if (animIdx >= 0 && found.some((s7) => /^Show\s|^Circo\b/i.test(s7)) && !/\b(hora\s+loca|happening|animaci[oó]n|animador|pixel|espejos|l[aá]ser)\b/i.test(
-    sourceText ?? ""
-  )) {
-    found.splice(animIdx, 1);
-  }
-  if (found.includes("Men\xFA staff")) {
-    const meserosIdx = found.indexOf("Meseros");
-    if (meserosIdx >= 0) found.splice(meserosIdx, 1);
-  }
-  if (found.includes("Barra de pastas")) {
-    const pastasIdx = found.indexOf("Pastas");
-    if (pastasIdx >= 0) found.splice(pastasIdx, 1);
-  }
-  if (found.includes("Barra de pastas y ensaladas")) {
-    const shortIdx = found.indexOf("Barra de pastas");
-    if (shortIdx >= 0) found.splice(shortIdx, 1);
-    const pastasIdx = found.indexOf("Pastas");
-    if (pastasIdx >= 0) found.splice(pastasIdx, 1);
-  }
-  if (found.includes("Barra de pizzas")) {
-    const pizzasIdx = found.indexOf("Pizzas");
-    if (pizzasIdx >= 0) found.splice(pizzasIdx, 1);
-  }
-  if (found.includes("Barra de Crepas")) {
-    const crepasIdx = found.indexOf("Crepas");
-    if (crepasIdx >= 0) found.splice(crepasIdx, 1);
-  }
-  const specificBanqueteVariant = found.find(
-    (s7) => /Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s7)
-  );
-  if (specificBanqueteVariant) {
-    for (let i6 = found.length - 1; i6 >= 0; i6--) {
-      if (/^Banquete$/i.test(found[i6])) found.splice(i6, 1);
-    }
-  }
-  const nonFormalBanquete = found.find(
-    (s7) => /Banquete\s+(Mexicano|Kosher|Navide)/i.test(s7)
-  );
-  if (nonFormalBanquete) {
-    const formalIdx = found.indexOf("Banquete Formal");
-    if (formalIdx >= 0) found.splice(formalIdx, 1);
-  }
-  if (found.some((s7) => /^Desayuno$/i.test(s7) || /^Brunch$/i.test(s7)) && found.some((s7) => /Banquete\s+Mexicano/i.test(s7)) && /\b(desayuno|brunch|tem[aá]tico)\b/i.test(text2) && !/\bbanquete\b/i.test(text2)) {
-    for (let i6 = found.length - 1; i6 >= 0; i6--) {
-      if (/Banquete\s+Mexicano/i.test(found[i6])) found.splice(i6, 1);
-    }
-  }
-  if (found.some((s7) => /puestos?\s+de\s+comida/i.test(s7))) {
-    for (let i6 = found.length - 1; i6 >= 0; i6--) {
-      if (/^Snack$/i.test(found[i6])) found.splice(i6, 1);
-    }
-  }
-  if (found.some((s7) => /centros?\s+de\s+mesa/i.test(s7))) {
-    for (let i6 = found.length - 1; i6 >= 0; i6--) {
-      if (/^Mobiliario$/i.test(found[i6])) found.splice(i6, 1);
-    }
-    if (/\b(centros?\s+de\s+mesas?|centros?\s+florales?|arreglos?\s+(?:de\s+)?mesas?|decoraci[oó]n\s+de\s+mesas?|flores?\s+(?:para|en|de)\s+mesas?)\b/i.test(
-      text2
-    )) {
-      for (let i6 = found.length - 1; i6 >= 0; i6--) {
-        if (/^(Decoraci[oó]n|Florister[ií]a)$/i.test(found[i6])) found.splice(i6, 1);
-      }
-    }
-    const centrosLabel = parseCentrosDeMesaRequirement(text2);
-    if (centrosLabel) {
-      for (let i6 = 0; i6 < found.length; i6++) {
-        if (/^Centros de mesa/i.test(found[i6])) found[i6] = centrosLabel;
-      }
-    }
-  }
-  if (found.includes("Parrillada Argentina") || found.includes("Parrillada Tacos")) {
-    const genIdx = found.indexOf("Parrillada");
-    if (genIdx >= 0) found.splice(genIdx, 1);
-  }
-  if (found.includes("Parrillada Tacos")) {
-    const taqIdx = found.indexOf("Taquiza");
-    if (taqIdx >= 0) found.splice(taqIdx, 1);
-  }
-  const hasPastaBar = found.some((s7) => /barra\s+de\s+pastas/i.test(s7));
-  if (hasPastaBar) {
-    for (let i6 = found.length - 1; i6 >= 0; i6--) {
-      if (/^(Taquiza|Pastas|Comida)$/i.test(found[i6])) found.splice(i6, 1);
-    }
-  }
-  const hasMealTimes = found.some((s7) => /^(Desayuno|Snack|Cena|Coffee break)$/i.test(s7)) || /\b(desayuno|snack|cena|coffee\s*break)\b/i.test(text2);
-  if (!hasMealTimes && found.some(
-    (s7) => /barra\s+de|banquete|taquiza|parrillada|paella|cupcake|mesa\s+de/i.test(s7)
-  )) {
-    for (let i6 = found.length - 1; i6 >= 0; i6--) {
-      if (/^Comida$/i.test(found[i6])) found.splice(i6, 1);
-    }
-  }
-  if (found.includes("Colgantes Premium") || found.includes("Entelados para Techo")) {
-    const decoIdx = found.indexOf("Decoraci\xF3n");
-    if (decoIdx >= 0 && /decoraci[oó]n\s+a[eé]rea|colgante|entelado|wisteria/i.test(text2)) {
-      found.splice(decoIdx, 1);
-    }
-  }
-  if (found.includes("Video")) {
-    const pantIdx = found.indexOf("Pantallas");
-    if (pantIdx >= 0 && /\bled\s*wall\b/i.test(text2)) found.splice(pantIdx, 1);
-  }
-  return [...new Set(found)];
-}
-function looksLikeConflictingFoodAlternatives(services) {
-  const foods = services.filter((s7) => !/^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i.test(s7.trim()));
-  if (foods.length < 2) return false;
-  const hasPasta = foods.some((s7) => /pasta/i.test(s7));
-  const hasTaquiza = foods.some((s7) => /^taquiza$/i.test(s7));
-  const hasBanquete = foods.some((s7) => /banquete/i.test(s7));
-  if (hasPasta && hasTaquiza) return true;
-  if (hasBanquete && hasTaquiza && foods.length <= 3) return true;
-  return false;
-}
-function clientWantsFoodOnlyQuote(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return false;
-  return /\bsolo\s+(quiero\s+)?(que\s+me\s+)?cotice?n?\s+la\s+comida\b/i.test(t4) || /\bsolo\s+(la\s+)?comida\b/i.test(t4) || /\bnada\s+m[aá]s\s+(que\s+)?(la\s+)?comida\b/i.test(t4) || /\bsolo\s+(quiero|necesito)\s+(la\s+)?comida\b/i.test(t4) || /\bcoticen?\s+solo\s+(la\s+)?comida\b/i.test(t4) || // A15212: "Solo dame cotización de los antojitos".
-  /\bsolo\s+(dame\s+)?(la\s+|una\s+)?cotizaci[oó]n\s+(de\s+)?(los\s+)?(antojitos?|puestos?)\b/i.test(
-    t4
-  ) || /\bsolo\s+(los\s+)?(antojitos?|puestos?(\s+de\s+comida)?)\b/i.test(t4);
-}
-function clientNarrowsToOnlyService(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return null;
-  const hasSolo = /\b(solo|solamente|[uú]nicamente)\b/i.test(t4) || /\bnada\s+m[aá]s\s+que\b/i.test(t4) || /\bno\s+(requiero|quiero|necesito)\s+nada\s+m[aá]s\s+(que\s+)?/i.test(t4);
-  const replaceIntent = /\b(estoy\s+buscando|busco|quiero|necesito|me\s+interesa)\s+(?:un\s+|una\s+|el\s+|la\s+)?/i.test(
-    t4
-  ) && /\b(banquete|taquiza|coffee\s*break|barra\s+de|mesa\s+de\s+dulces|carpa|pista|tarima|entarimad|dj)\b/i.test(t4) && !/\by\s+(tambi[eé]n|adem[aá]s)\b/i.test(t4);
-  if (!hasSolo && !replaceIntent) return null;
-  if (clientWantsFoodOnlyQuote(t4) && !/\bmesa\s+de\s+dulces\b/i.test(t4) && hasSolo) return null;
-  const narrowIntent = hasSolo && (/\b(cotizar|cotizaci[oó]n|quiero|necesito|requiero|requerimos|ser[ií]a|dejamos?|quedamos?|anota)\b/i.test(t4) || /\bsolo\s+(la\s+|el\s+|una\s+|un\s+)?(mesa\s+de\s+dulces|banquete|taquiza|carpa|pista|tarima|entarimad|barra|pastel|cupcakes?|bet[uú]n)/i.test(
-    t4
-  ) || /\bnada\s+m[aá]s\s+que\s+(la\s+|el\s+|un\s+)?(tarima|entarimad|pista|banquete|carpa|pastel)/i.test(t4));
-  if (!narrowIntent && !replaceIntent) return null;
-  if (/\bmesa\s+de\s+dulces\b/i.test(t4)) return "Mesa de dulces";
-  if (/\bmesa\s+de\s+postres?\b|\bmesa\s+de\s+pasteles?\b/i.test(t4)) return "Mesa de postres";
-  if (/(?<!mesa\s+de\s+)\bpastel(es)?\b(?!\s*er[ií]a)|\bfondant\b|\bcakes?\b/iu.test(t4)) {
-    return "Cupcakes y Bet\xFAn";
-  }
-  if (/\bbanquete\s+mexicano\b/i.test(t4)) return "Banquete Mexicano";
-  if (/\bbanquete\s+formal\b/i.test(t4)) return "Banquete Formal";
-  if (/\b(tarimas?|entarimad[oa]s?)\b/i.test(t4) && !/\bpista(\s+de\s+baile)?\b/i.test(t4.replace(/\bno\s+(quiero|necesito|requiero).{0,20}pista\b/gi, " "))) {
-    return "Tarima";
-  }
-  if (/\bshows?\b/i.test(t4) && parseNamedShowLabels(t4).length === 0 && !/\b(hora\s+loca|happening|animaci[oó]n|animador)\b/i.test(t4)) {
-    return null;
-  }
-  const fromMsg = parseServicesFromText(t4).filter(
-    (s7) => !/^(Comida|Alimentos|Evento|Servicio)$/i.test(s7)
-  );
-  if (fromMsg.length === 1) return fromMsg[0];
-  if (fromMsg.length > 1) {
-    const afterSolo = t4.match(
-      /\b(?:solo|solamente|[uú]nicamente|buscando|busco|quiero|necesito)\s+(?:cotizar\s+)?(?:la\s+|el\s+|una\s+|un\s+)?(.+?)(?:\s+para\s+\d|\s*$)/i
-    )?.[1];
-    if (afterSolo) {
-      const hit = parseServicesFromText(afterSolo);
-      if (hit.length === 1) return hit[0];
-    }
-  }
-  return null;
-}
-function clientSwapsPlatedMealForSnacks(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return false;
-  const declinesPlated = /\bno\s+(requiero|requerimos|quiero|queremos|necesito|necesitamos|busco|buscamos|ocupo|ocupamos|va(mos)?\s+a\s+querer)\b[^.!?]{0,40}\b(comida|men[uú]|banquete|alimentos?)\b/i.test(
-    t4
-  ) || /\bsin\s+(comida|men[uú]|banquete)\s+(de\s+)?tiempos?\b/i.test(t4);
-  if (!declinesPlated) return false;
-  return /\b(snacks?|snaks?|bocadillos?|canap[eé]s?|finger\s*food|botanas?)\b/i.test(t4);
-}
-function resolveSnackSwapLabel(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (/\bcanap[eé]s?\b/i.test(t4)) return "Canap\xE9s";
-  if (/\b(gourmet|premium|finos?)\b/i.test(t4)) return "Canap\xE9s";
-  return "Bocadillos";
-}
-function mergeServiceRequirements(existing, text2, max = 6) {
-  const merged = mergeServiceRequirementsRaw(existing, text2, max);
-  if (merged && /\(venta\)/i.test(existing ?? "") && !/\(venta\)/i.test(merged)) {
-    return `${merged} (venta)`;
-  }
-  return merged;
-}
-function mergeServiceRequirementsRaw(existing, text2, max = 6) {
-  const onlySku = clientNarrowsToOnlyService(text2);
-  if (onlySku) {
-    return preserveSpaceAnnotation(onlySku, `${existing ?? ""} ${text2 ?? ""}`);
-  }
-  if (clientSwapsPlatedMealForSnacks(text2)) {
-    const snackLabel = resolveSnackSwapLabel(text2);
-    const kept = (existing ?? "").split(",").map((s7) => s7.trim()).filter(Boolean).filter((s7) => !PLATED_MEAL_LABEL_RE.test(s7.replace(/\s*\(espacio [^)]+\)/i, "").trim()));
-    const rest = kept.filter((s7) => !new RegExp(`^${snackLabel}$`, "i").test(s7));
-    const swapped = [snackLabel, ...rest].slice(0, max).join(", ");
-    return preserveSpaceAnnotation(swapped, `${existing ?? ""} ${text2 ?? ""}`);
-  }
-  const declined = clientDeclinesServiceFamilies(text2);
-  const declinedObjects = declined.length ? [] : extractDeclinedServiceObjects(text2, existing);
-  const existingClean = declined.length ? removeDeclinedFamiliesFromRequirements(existing, declined) : declinedObjects.length ? removeSpecificDeclinedServices(existing, text2) : existing;
-  const fromExisting = existingClean?.trim() ? parseServicesFromText(existingClean).filter((s7) => !serviceIsDeclined(s7, declined)) : [];
-  const textTrim = text2?.trim() ?? "";
-  const textIsLocation = !!textTrim && (isLikelyUbicacionNotNombre(textTrim) || !!parseZonaFromText(textTrim) && textTrim.split(/\s+/).length <= 8);
-  const fromText = textTrim && !textIsLocation && !declinedObjects.length ? parseServicesFromText(textTrim).filter((s7) => !serviceIsDeclined(s7, declined)) : [];
-  const merged = dedupeServiceHierarchy(
-    [...fromExisting, ...fromText],
-    `${existingClean ?? ""} ${text2 ?? ""}`
-  ).slice(0, max);
-  if (merged.length === 0) {
-    if (declined.length > 0 || declinedObjects.length > 0) {
-      return existingClean?.trim() || null;
-    }
-    const fallback = existingClean?.trim() || text2?.trim() || "";
-    if (!fallback) return null;
-    if (isGenericQuoteIntentRequerimiento(fallback) || isQuoteIntentMessage(fallback) || isGreetingOnlyMessage(fallback)) {
-      return null;
-    }
-    if (existingClean?.trim() && !isGenericQuoteIntentRequerimiento(existingClean)) {
-      return existingClean.trim().slice(0, 250);
-    }
-    return null;
-  }
-  const joined = merged.join(", ");
-  const blob = `${existingClean ?? ""} ${text2 ?? ""}`.trim();
-  const withVenue = removeVenueProvidedFromRequirements(joined, blob) ?? joined;
-  const dimsFromText = parseAllSpaceDimensions(textTrim);
-  if (dimsFromText.length > 0 && (clientMentionsCarpas(withVenue) || clientMentionsPistaTarima(withVenue) || clientMentionsCarpas(blob) || clientMentionsPistaTarima(blob))) {
-    return attachEspacioToRequirements(withVenue, dimsFromText);
-  }
-  return preserveSpaceAnnotation(withVenue, `${existingClean ?? ""} ${text2 ?? ""}`);
-}
-function preserveSpaceAnnotation(services, blob) {
-  if (!services.trim()) return services;
-  if (!clientMentionsCarpas(services) && !clientMentionsPistaTarima(services)) {
-    return services;
-  }
-  if (/\(espacio\s+[^)]+\)/i.test(services)) return services;
-  const bareOnServices = services.match(
-    /\((\d+\s*m?\s*[x×]\s*\d+\s*m?(?:\s+y\s+\d+\s*m?\s*[x×]\s*\d+\s*m?)*)\)/i
-  );
-  if (bareOnServices?.[1]) {
-    const dims = parseAllSpaceDimensions(bareOnServices[1]);
-    if (dims.length) return attachEspacioToRequirements(services, dims);
-  }
-  const prev = blob.match(/\(espacio\s+([^)]+)\)/i)?.[1]?.trim();
-  if (prev) {
-    const parsed = parseAllSpaceDimensions(prev);
-    return attachEspacioToRequirements(services, parsed.length ? parsed : [prev]);
-  }
-  const fromBlob3 = parseAllSpaceDimensions(blob);
-  if (fromBlob3.length) return attachEspacioToRequirements(services, fromBlob3);
-  return services;
-}
-function serviceRequirementsGainedDimensions(existing, next) {
-  const nextDims = parseAllSpaceDimensions(next ?? "");
-  if (nextDims.length === 0) return false;
-  const prevDims = parseAllSpaceDimensions(existing ?? "");
-  if (prevDims.length === 0) return true;
-  return nextDims.join("|") !== prevDims.join("|");
-}
-function buildMultiServiceAck(services) {
-  const list = formatServicesList(services);
-  if (!list) return "Perfecto, anoto lo que necesitas para tu evento.";
-  if (services.length === 1) {
-    return `Perfecto, veo que necesitas ${list}.`;
-  }
-  return `Perfecto, veo que necesitas ${list}. Te cotizamos todo eso.`;
-}
-function buildRichBriefAcknowledgment(text2) {
-  if (isPromoTemplateMessage(text2)) {
-    return "Claro, te ayudo con la cotizaci\xF3n de tu evento.";
-  }
-  const services = parseServicesFromText(text2);
-  const tipo = parseTipoEventoFromText(text2);
-  const invParsed = parseInvitadosFromText(text2);
-  const inv = invParsed && /^\d+$/.test(invParsed) ? invParsed : null;
-  const fecha = text2.match(
-    /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+\d{4})?)/i
-  );
-  const zona = parseZonaFromText(text2) || text2.match(/\ben\s+(Santa\s+Fe(?:,?\s*Ciudad\s+de\s+M[eé]xico)?)/i)?.[1] || text2.match(/\bUbicaci[oó]n:\s*([^\n.*]{4,60})/i)?.[1]?.trim() || text2.match(/\bLugar\s*:\s*([^\n,]{4,60})/i)?.[1]?.trim() || text2.match(/\ben\s+([A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+){0,3}),?\s*(?:Ciudad\s+de\s+M[eé]xico|CDMX)/i)?.[0]?.replace(/^en\s+/i, "");
-  const hasThreeMenus = /\b(opci[oó]n\s*[123]|tres\s+propuestas|propuestas?\s+de\s+men[uú])\b/i.test(text2);
-  const distributor = clientAsksDistributorPricing(text2);
-  const bits = [];
-  if (tipo) bits.push(tipo);
-  if (fecha) bits.push(fecha[1]);
-  if (zona) bits.push(zona.trim());
-  if (inv) bits.push(`${inv} personas`);
-  let ack = bits.length > 0 ? `De acuerdo, revis\xE9 tu solicitud para ${bits.join(", ")}.` : "De acuerdo, revis\xE9 con detalle tu solicitud de cotizaci\xF3n.";
-  const equipSummary = parseEquipmentRfqLineItems(text2).length >= 2 ? parseEquipmentRfqLineItems(text2).join(", ") : null;
-  const mobItems = text2.match(
-    /(\d+\s+mesas?\s+tipo\s+picnic|\d+\s+picnic|\d+\s+periqueras?|\d+\s+bancos?)/gi
-  );
-  const mobSummary = equipSummary ? equipSummary : mobItems?.length ? [...new Set(mobItems.map((m6) => m6.trim().toLowerCase()))].join(", ") : null;
-  if (hasThreeMenus && services.length >= 1) {
-    ack += ` Anoto las tres propuestas de men\xFA y ${formatServicesList(services)}.`;
-  } else if (hasThreeMenus) {
-    ack += " Anoto las tres propuestas de men\xFA que pediste, con servicio y montaje.";
-  } else if (mobSummary) {
-    ack += ` Anoto ${mobSummary}.`;
-  } else if (services.length >= 2) {
-    ack += ` Anoto ${formatServicesList(services)}.`;
-  } else if (services.length === 1) {
-    ack += ` Anoto ${services[0]}.`;
-  }
-  if (distributor) {
-    ack += " Como cotizan como distribuidores, el equipo les arma precio de mayoreo (no lista al p\xFAblico).";
-  } else {
-    ack += " Nuestro equipo arma la cotizaci\xF3n a la medida con lo que pediste.";
-  }
-  return ack;
-}
-function appendPostCierreRequirements(existing, message) {
-  const t4 = message.trim();
-  if (!t4) return existing?.trim() || null;
-  if (clientDeclinesServiceFamilies(t4).length > 0 || extractDeclinedServiceObjects(t4, existing).length > 0) {
-    return mergeServiceRequirements(existing, t4, 8);
-  }
-  const services = parseServicesFromText(t4);
-  const addPostre = /\bpostres?\b/i.test(t4) && !isTablewareRequestText(t4) && !services.some((s7) => /postre/i.test(s7));
-  const withPostre = (value) => {
-    if (!addPostre) return value;
-    if (!value) return "Postre";
-    return /\bpostres?\b/i.test(value) ? value : `${value}, Postre`;
-  };
-  const hasServiceIntent = services.length > 0 || clientAddsToQuote(t4) || isServiceRelatedMessage(t4) || isServicePreferenceRefinement(t4, existing) || /\b(pantalla|audio|microfon|led|dj|entradas?|postres?|canap)\b/i.test(t4);
-  if (!hasServiceIntent) return existing?.trim() || null;
-  const base = existing?.trim() || "";
-  if (isServicePreferenceRefinement(t4, base)) {
-    const snippet2 = t4.replace(/\s+/g, " ").slice(0, 250);
-    if (base && base.toLowerCase().includes(snippet2.toLowerCase().slice(0, 40))) return base;
-    return base ? `${base}; preferencia: ${snippet2}` : snippet2;
-  }
-  if (services.length > 0) {
-    const merged = mergeServiceRequirements(base || null, services.join(", "), 8);
-    return withPostre(merged || base || null);
-  }
-  if (addPostre) return withPostre(base || null);
-  const snippet = t4.replace(/\s+/g, " ").slice(0, 250);
-  if (base && base.toLowerCase().includes(snippet.toLowerCase().slice(0, 40))) return base;
-  return base ? `${base}; ${snippet}` : snippet;
-}
-function preferPrimaryCatalogService(services) {
-  if (!services.length) return null;
-  const cleaned = dedupeServiceHierarchy(services);
-  const pool2 = cleaned.filter((s7) => !STAFF_OR_ADDON_SERVICE.test(s7.trim()));
-  const candidates = pool2.length ? pool2 : cleaned;
-  const scored = [...candidates].sort((a4, b5) => {
-    const score = (s7) => {
-      let n5 = s7.length;
-      if (/^Barra de /i.test(s7)) n5 += 40;
-      if (/Puestos\s+de\s+Comida/i.test(s7)) n5 += 45;
-      if (/Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s7)) n5 += 30;
-      if (/Parrillada|Paella|Coffee|Cupcakes|Mesa de/i.test(s7)) n5 += 20;
-      if (/^(Pastas|Pizzas|Crepas|Comida|Taquiza|Parrillada|Bocadillos?|Snack)$/i.test(s7)) n5 -= 25;
-      return n5;
-    };
-    return score(b5) - score(a4);
-  });
-  return (scored[0] || candidates[0]).trim();
-}
-function isServicePreferenceRefinement(message, serviceHint) {
-  const t4 = message?.trim() ?? "";
-  if (!t4 || t4.length > 320) return false;
-  if (/\b(cotizar|cu[aá]nto\s+cuesta|precio\s+de|otra\s+barra|nuevo\s+servicio)\b/i.test(t4)) {
-    return false;
-  }
-  const cafeCtx = /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcafeter[ií]a\b|\bbarista\b/iu.test(t4) || /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcaf[eé](?!\p{L})|barista|coffee\s*break/iu.test(
-    serviceHint ?? ""
-  );
-  const beveragePick = /\b(americano|capuchin?o|cappuccino|espresso|latte|moc?cha|t[eé]s?\b|chocolates?|bebidas?\s+artesanal)/i.test(
-    t4
-  );
-  const refineCue = /\b(solo\s+requieren|solo\s+quieren|solo\s+necesitan|respecto\s+a|nada\s+m[aá]s|nomas|nom[aá]s|unicamente|únicamente)\b/i.test(
-    t4
-  );
-  return cafeCtx && (beveragePick || refineCue);
-}
-function parsePrimaryService(text2) {
-  const services = parseServicesFromText(text2);
-  if (services.length > 0) return preferPrimaryCatalogService(services);
-  const normalized = normalizeShortServicePhrase(text2);
-  return normalized;
-}
-function normalizeShortServicePhrase(text2) {
-  const trimmed = text2.trim();
-  if (!trimmed) return null;
-  let cleaned = trimmed.replace(/^(quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i, "").replace(/^(una?|el|la|los|las)\s+/i, "").trim();
-  const lower2 = cleaned.toLowerCase();
-  if (SHORT_SERVICE_ALIASES[lower2]) return SHORT_SERVICE_ALIASES[lower2];
-  if (/^pista$/i.test(cleaned)) return "pista de baile";
-  if (/^dj$/i.test(cleaned)) return "DJ";
-  return null;
-}
-function isServiceRelatedMessage(text2) {
-  const trimmed = text2?.trim() ?? "";
-  if (!trimmed || /^info pendiente$/i.test(trimmed)) return false;
-  if (/\bservicio\s+completo\b/i.test(trimmed)) return true;
-  if (SERVICE_HINT.test(trimmed)) return true;
-  if (parsePrimaryService(trimmed)) return true;
-  if (/^(una?\s+)?(pista|tarima|dj|mesas?|sillas?|carpa|banquete|taquiza)\b/i.test(trimmed)) return true;
-  return false;
-}
-function parseTipoEventoFromText(text2) {
-  for (const [pattern, label] of TIPO_EVENTO_PATTERNS) {
-    if (!pattern.test(text2)) continue;
-    if (label === "__meal_event__") {
-      const m6 = text2.match(
-        /\b(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)\b/i
-      );
-      return (m6?.[1] ?? "comida").toLowerCase().replace(/ó/, "o");
-    }
-    return label;
-  }
-  return parseTipoEventoLabeled(text2);
-}
-function isOccasionMealEventType(text2) {
-  const raw = (text2 ?? "").trim();
-  if (!raw) return false;
-  if (/\b(cotizar|precio|barra\s+de|taquiza|banquete\s+formal|yucateca|crepas?)\b/i.test(raw) && !/\bconmemorativ|d[ií]a\s+del\s+m[eé]dico|gala\b/i.test(raw)) {
-    return false;
-  }
-  return /\b(cena|comida|almuerzo|brunch)\s+conmemorativ/i.test(raw) || /\bd[ií]a\s+del\s+m[eé]dico\b/i.test(raw) || /\b(cena|comida)\s+(de\s+)?gala\b/i.test(raw) || /\b(cena|comida)\s+empresarial\b/i.test(raw) || /\bconmemorativ\w*\s+por\b/i.test(raw);
-}
-function isEventTypeOnlyMessage(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4 || t4.length > 100) return false;
-  if (isUnusableTipoEventoReply(t4)) return false;
-  if (clientAsksAlternativeMenus(t4)) return false;
-  if (isOccasionMealEventType(t4)) return true;
-  const tipo = parseTipoEventoFromText(t4);
-  if (!tipo) return false;
-  if (/\b(cotizar|precio|quiero|necesito|busco|me\s+interesa)\b.{0,50}\b(banquete|taquiza|carpas?|pista|tarima|mobiliario|dj|mesas?|sillas?|entelado|barra|sushi|catering)\b/i.test(
-    t4
-  )) {
-    return false;
-  }
-  if (isServiceRelatedMessage(t4)) {
-    const primary = parsePrimaryService(t4);
-    if (primary && !new RegExp(tipo.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(primary)) {
-      return false;
-    }
-    if (/\b(banquete|taquiza|carpas?|pista|tarima|mobiliario|dj|mesas?\s+y\s+sillas?|entelado|barra\s+de|sushi|catering|mesa\s+de\s+dulces)\b/i.test(
-      t4
-    )) {
-      return false;
-    }
-  }
-  if (t4.split(/\s+/).filter(Boolean).length > 10) return false;
-  return true;
-}
-function clientSaidAperturaNegocio(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4) return false;
-  if (/\b(boda|matrimonio|casamiento|nupcial|quincea[nñ]era|xv\s*a[nñ]os?)\b/i.test(t4)) {
-    return false;
-  }
-  return /\b(apertura|inauguraci[oó]n)\s+(de\s+)?(un\s+)?(negocio|local|tienda|sucursal|empresa|plaza)\b/i.test(
-    t4
-  ) || /\bapertura\s+de\s+un\s+negocio\b/i.test(t4);
-}
-function clientSaidReunionNotXv(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4) return false;
-  if (/\b(quincea[nñ]era|xv\s*a[nñ]os?|\bmis\s+xv\b|\bmis\s+15\b)/i.test(t4)) {
-    return false;
-  }
-  return /\breun[ií][oó]n(es)?\s+de\s+(\d{1,2}|quince|veinte|veinti\w+|treinta|cuarenta|cincuenta)\s*a[nñ]os?\b/i.test(
-    t4
-  ) || /\b(aniversario|reencuentro)\s+(de\s+)?(\d{1,2}\s*a[nñ]os?|laboral|escolar|generacional)\b/i.test(t4);
-}
-function parseReunionAniosLabel(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4 || !clientSaidReunionNotXv(t4)) return null;
-  const m6 = t4.match(
-    /\breun[ií][oó]n(es)?\s+de\s+(\d{1,2}|quince|veinte|veinti\w+|treinta|cuarenta|cincuenta)\s*a[nñ]os?\b/i
-  );
-  if (m6?.[0]) return m6[0].replace(/\s+/g, " ").trim();
-  const a4 = t4.match(/\b(aniversario|reencuentro)\s+(de\s+)?(\d{1,2}\s*a[nñ]os?)\b/i);
-  if (a4?.[0]) return a4[0].replace(/\s+/g, " ").trim();
-  return "reuni\xF3n";
-}
-function isScheduleLabeledClock(text2) {
-  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t4 || t4.length > 120) return false;
-  if (/^(a\s+)?medio\s*d[ií]a$/i.test(t4) || /^a\s+mediod[ií]a$/i.test(t4) || /^(por\s+la\s+)?(ma[nñ]ana|tarde|noche)$/i.test(t4)) {
-    return true;
-  }
-  if (/\b(cocktail|c[oó]ctel|comida|cena|desayuno|brunch|almuerzo|recepci[oó]n|pizzas?|pastas?|barra|taquiza|sushi)\s+(a\s+las\s+)?\d{1,2}(?::\d{2})?\b/i.test(
-    t4
-  )) {
-    return true;
-  }
-  if (/\b(pizzas?|pastas?|comida|cena|barra|servicio)\b/i.test(t4) && /\ba\s+las?\s+\d{1,2}(?::\d{2})?\s*(am|pm|a\.?m\.?|p\.?m\.?)?\b/i.test(t4) && t4.split(/\s+/).length <= 14) {
-    return true;
-  }
-  const labeledClocks = (t4.match(
-    /\b(cocktail|c[oó]ctel|comida|cena|desayuno|brunch|pizzas?)\s+(a\s+las\s+)?\d{1,2}(?::\d{2})?/gi
-  ) ?? []).length;
-  return labeledClocks >= 1 && t4.split(/\s+/).length <= 20;
-}
-function looksLikeMealTimeNotLocation(text2) {
-  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t4) return false;
-  if (isScheduleLabeledClock(t4) && /\d/.test(t4)) return false;
-  const n5 = t4.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ");
-  const meal = /\bhora\s+de\s+(comida|cena|desayuno|almuerzo|lunch|brunch|fomida|comidita)\b/.test(n5) || /^(en\s+)?(hora\s+de\s+)?(comida|cena|desayuno|almuerzo|lunch|brunch|fomida)$/.test(n5) || /\ben\s+hora\s+de\s+\w{3,20}$/.test(n5);
-  return meal;
-}
-function isMealTimeOnlySchedule(text2) {
-  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t4) return false;
-  if (isScheduleLabeledClock(t4)) return true;
-  if (looksLikeMealTimeNotLocation(t4) && t4.split(/\s+/).length <= 6) {
-    if (/\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
-      t4
-    )) {
-      return false;
-    }
-    return true;
-  }
-  return false;
-}
-function isSimpleClockTime(text2) {
-  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t4 || t4.length > 70) return false;
-  if (MONTH_PATTERN.test(t4)) return false;
-  if (/\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
-    t4
-  )) {
-    return false;
-  }
-  if (/^(a\s+)?medio\s*d[ií]a$/i.test(t4) || /^a\s+mediod[ií]a$/i.test(t4)) return true;
-  if (/^(?:alrededor\s+de\s+)?(?:a\s+)?la\s+\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)?$/i.test(
-    t4
-  )) {
-    return true;
-  }
-  const bareClock = t4.match(
-    new RegExp(String.raw`^(?:a\s+las?\s+)?(\d{1,2})(?::(\d{2}))?\s*(?:${CLOCK_AMPM})?$`, "i")
-  );
-  if (bareClock) {
-    const hour = Number(bareClock[1]);
-    const minutes = bareClock[2] ? Number(bareClock[2]) : 0;
-    return hour <= 24 && minutes <= 59;
-  }
-  if (/^(?:a\s+las?\s+)?\d{1,2}(?::\d{2})?\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana)(?:\s*(?:hrs?|horas?))?$/i.test(
-    t4
-  )) {
-    return true;
-  }
-  if (new RegExp(
-    String.raw`^(?:a\s+)?(?:partir|desde)\s+de\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
-    "i"
-  ).test(t4) || new RegExp(
-    String.raw`^desde\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
-    "i"
-  ).test(t4)) {
-    return true;
-  }
-  if (new RegExp(
-    String.raw`^despu[eé]s\s+de\s+(?:las\s+)?${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?\s*(?:${CLOCK_AMPM})?$`,
-    "i"
-  ).test(t4)) {
-    return true;
-  }
-  if (new RegExp(
-    String.raw`^de\s+(?:las?\s+)?${CLOCK_TOKEN}\s*${CLOCK_AMPM}$`,
-    "i"
-  ).test(t4)) {
-    return true;
-  }
-  return false;
-}
-function isClockTimeOnlySchedule(text2) {
-  const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
-  if (!t4 || t4.length > 80) return false;
-  if (isSimpleClockTime(t4)) return true;
-  if (MONTH_PATTERN.test(t4)) return false;
-  if (/\b(\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}[\/\-]\d{1,2})\b/i.test(
-    t4
-  )) {
-    return false;
-  }
-  const clock = new RegExp(
-    String.raw`^(?:de\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
-    "i"
-  ).test(t4) || new RegExp(
-    String.raw`^(?:horario\s*:?\s*)?${CLOCK_TOKEN}\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?$`,
-    "i"
-  ).test(t4);
-  return clock;
-}
-function looksLikeFechaDiscourseJunk(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4) return false;
-  if (t4.length > 55 && MONTH_PATTERN.test(t4)) {
-    if (/\b(únicamente|unicamente|por\s+favor|observaciones?|cotizaci|sigue\s+siendo|corrige|cambia|quitar|vi[aá]ticos)\b/i.test(
-      t4
-    )) {
-      return true;
-    }
-    if (t4.split(/\s+/).length >= 8) return true;
-  }
-  return false;
-}
-function extractFechaCorrectionFragment(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4) return null;
-  const dayMonth = t4.match(
-    /\b(\d{1,2}\s+(?:de\s+)?(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)\b/i
-  );
-  if (dayMonth?.[1]) {
-    const normalized = parseFechaFromText(dayMonth[1]) || dayMonth[1].replace(/\s+/g, " ").trim();
-    return normalized;
-  }
-  const sigue = t4.match(
-    /\b(?:sigue\s+siendo|sigue\s+en|es\s+en|ser[ií]a\s+en|queda\s+en|corrige\s+a|cambia\s+a|en\s+vez\s+de\s+\w+\s+(?:pon|usa|deja))\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i
-  );
-  if (sigue?.[1]) {
-    const m6 = sigue[1];
-    return m6.charAt(0).toUpperCase() + m6.slice(1).toLowerCase();
-  }
-  if (looksLikeFechaDiscourseJunk(t4) || /\bsigue\s+siendo\b/i.test(t4)) {
-    const month = t4.match(
-      /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b(?:\s+(?:de(?:l)?\s+)?(20\d{2}))?/i
-    );
-    if (month?.[1]) {
-      const m6 = month[1];
-      const label = m6.charAt(0).toUpperCase() + m6.slice(1).toLowerCase();
-      return month[2] ? `${label} de ${month[2]}` : label;
-    }
-  }
-  return null;
-}
-function combinedScheduleDisplay(fecha, horario) {
-  const f7 = (fecha ?? "").trim();
-  const h5 = (horario ?? "").trim();
-  if (f7 && h5) return `${f7}, ${h5}`;
-  return f7 || h5 || null;
-}
-function syncLegacyFechaHorarioField(extracted) {
-  extracted.fecha_horario = combinedScheduleDisplay(
-    extracted.fecha_evento,
-    extracted.horario_evento
-  );
-}
-function normalizeHorarioCapture(text2) {
-  return text2.replace(/^(?:ser[ií]a|ser[aá]|ser[ií]an|es)\s+/i, "").replace(/^a\s+las\s+/i, "").replace(/^(?:a\s+)?partir\s+de\s+(?:las\s+)?/i, "a partir de las ").replace(/^desde\s+(?:las\s+)?/i, "desde las ").replace(
-    new RegExp(String.raw`^de\s+(?:las?\s+)?(${CLOCK_TOKEN}\s*${CLOCK_AMPM})$`, "i"),
-    "a partir de las $1"
-  ).replace(/\s+/g, " ").trim().slice(0, 80);
-}
-function normalizeAbsurdEventYear(fecha) {
-  const nowY = (/* @__PURE__ */ new Date()).getFullYear();
-  const inRange = (y5) => y5 >= nowY - 1 && y5 <= nowY + 12;
-  return fecha.replace(/\b(\d{4})\b/g, (raw) => {
-    const y5 = Number(raw);
-    if (!Number.isFinite(y5)) return raw;
-    if (inRange(y5)) return raw;
-    const cands = /* @__PURE__ */ new Set([y5]);
-    const s7 = raw;
-    for (let i6 = 0; i6 < 3; i6++) {
-      const a4 = s7.split("");
-      const tmp = a4[i6];
-      a4[i6] = a4[i6 + 1];
-      a4[i6 + 1] = tmp;
-      cands.add(Number(a4.join("")));
-    }
-    if (/^22\d{2}$/.test(s7)) cands.add(Number(`20${s7.slice(2)}`));
-    let best = null;
-    let bestDist = Infinity;
-    for (const c5 of cands) {
-      if (!inRange(c5)) continue;
-      const d3 = Math.abs(c5 - Math.max(nowY, nowY + 1));
-      if (d3 < bestDist) {
-        bestDist = d3;
-        best = c5;
-      }
-    }
-    return best != null ? String(best) : raw;
-  });
-}
-function normalizeWrittenClockInText(text2) {
-  let out2 = text2.replace(/\b(\d{1,2});(\d{2})\b/g, "$1:$2");
-  for (const [word, digit] of Object.entries(WRITTEN_NUMBERS)) {
-    const n5 = parseInt(digit, 10);
-    if (n5 < 1 || n5 > 12) continue;
-    out2 = out2.replace(
-      new RegExp(
-        String.raw`\b((?:a\s+)?(?:partir\s+de\s+|desde\s+)?(?:las\s+|a\s+las\s+)?)${word}\b`,
-        "gi"
-      ),
-      `$1${digit}`
-    );
-  }
-  return out2;
-}
-function clientRequestsDualProposals(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.toLowerCase();
-  if (/\b(dos|2)\s+propuestas?\b/i.test(t4)) return true;
-  if (/\b(?:informaci[oó]n|info)\s+de\s+(ambos|los\s+dos|las\s+dos)\b/i.test(t4) || /\b(ambos|ambas)\s+(opciones?|propuestas?|estilos?|men[uú]s?)\b/i.test(t4) || /\b(los|las)\s+dos\b/i.test(t4) || /\bambas?\s+opciones?\b/i.test(t4)) {
-    return true;
-  }
-  return /\bpropuesta\b/i.test(t4) && /\b(banquete|formal)\b/i.test(t4) && /\b(casual|relajad)\b/i.test(t4);
-}
-function buildDualProposalAck(displayName) {
-  const who = displayName?.trim();
-  const prefix = who ? `Perfecto, ${who}.` : "Perfecto.";
-  return `${prefix} Anoto *dos propuestas*: banquete *formal* y otra *casual*, para que tu equipo compare.`;
-}
-function clientScopesServiceToProposalOption(message) {
-  if (!message?.trim()) return null;
-  const t4 = message.toLowerCase();
-  if (!/\b(solo|solamente|nada\s+m[aá]s|unicamente|únicamente)\b/i.test(t4)) return null;
-  if (!/\b(agreg\w*|sum\w*|inclu\w*|pon\w*|anot\w*|dej\w*)\b/i.test(t4)) return null;
-  if (/\b(casual|relajad)\b/i.test(t4)) return "casual";
-  if (/\b(formal|banquete)\b/i.test(t4)) return "formal";
-  return null;
-}
-function buildScopedServiceProposalAck(serviceLabel, scope, displayName) {
-  const who = displayName?.trim();
-  const prefix = who ? `Perfecto, ${who}.` : "Perfecto.";
-  const other = scope === "casual" ? "formal" : "casual";
-  return `${prefix} Anoto *${serviceLabel}* solo en la propuesta ${scope}; la ${other} va sin ${serviceLabel}.`;
-}
-function clientAsksHorarioExactitud(message) {
-  if (!message?.trim()) return false;
-  return /\b(requiere|necesita|hace\s+falta|piden)\b.{0,40}\b(hora\s+exacta|horario\s+exacto|hora\s+precisa)\b/i.test(
-    message
-  ) || /\b(hora\s+exacta|horario\s+exacto)\b/i.test(message);
-}
-function clientAsksDjClarification(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim();
-  return /^\s*[¿?]*\s*de\s+alg[uú]n\s+dj\s*[¿?]*\s*$/i.test(t4);
-}
-function clientAsksDjInclusion(message) {
-  const t4 = message?.trim() ?? "";
-  if (!/\bdj\b|disc\s*jockey/i.test(t4)) return false;
-  if (!/qu[eé]\s+(?:es\s+lo\s+que\s+)?(?:incluir[ií]a|incluye|trae|traer[ií]a|lleva)|en\s+qu[eé]\s+consiste/i.test(
-    t4
-  )) {
-    return false;
-  }
-  return parseServicesFromText(t4).every((s7) => /\bdj\b|audio|sonido/i.test(s7));
-}
-function clientDefersHorario(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4) return false;
-  return /\bno\s+(cuento|tengo|tenemos|contamos)\s+con\s+(el\s+)?horario\b/i.test(t4) || /\b(a[uú]n|todav[ií]a)\s+no\s+(tengo|tenemos|cuento|contamos|hay|s[eé])\s+(el\s+)?horario\b/i.test(
-    t4
-  ) || /\bhorario\s+(a[uú]n|todav[ií]a)\s+no\b/i.test(t4) || /\b(sin|no\s+tengo)\s+horario\s+(a[uú]n|definido|por\s+ahora|todav[ií]a)\b/i.test(t4) || /\bno\s+cuento\s+con\s+el\s+horario\b/i.test(t4) || /\bel\s+horario\s+(a[uú]n\s+)?(no\s+lo\s+tengo|est[aá]\s+por\s+definir|pendiente)\b/i.test(t4) || // A15893 Suria: "2 horarios (aún no definidos)" / "horarios aún no definidos"
-  /\bhorarios?\b[\s\S]{0,40}\b(a[uú]n|todav[ií]a)\s+no\s+defin/i.test(t4) || /\b\d+\s+horarios?\b[\s\S]{0,40}\b(a[uú]n\s+no|por\s+definir|pendiente)/i.test(t4) || /\bhorarios?\s*\([^)]*(a[uú]n\s+no|por\s+definir|pendiente)/i.test(t4) || // "Aún no se definen" / typo "Aún no sé definen"
-  /\b(a[uú]n|todav[ií]a)\s+no\s+(?:se\s+|s[eé]\s+)?defin/i.test(t4) || /\b(a[uú]n|todav[ií]a)\s+no\s+definid/i.test(t4) || // A15918: "No se sabe" / "no se sabe el horario"
-  /^\s*no\s+se\s+sabe\b/i.test(t4) || /\bno\s+se\s+sabe(\s+(el\s+)?horario)?\b/i.test(t4) || /^(no\s+s[eé]|ni\s+idea)[\s.,!]*$/i.test(t4);
-}
-function dayPeriodToAmPm(hour, period) {
-  const p5 = (period ?? "").toLowerCase().replace(/\s+/g, " ");
-  if (!p5) return null;
-  if (/^(hrs?|horas)$/.test(p5)) return "24h";
-  if (/^a\.?\s*m|^am$|ma[nñ]ana|madrugada/.test(p5)) return "am";
-  if (/noche/.test(p5) && hour === 12) return "am";
-  return "pm";
-}
-function parseClockRangeWithPeriods(text2) {
-  const t4 = (text2 ?? "").replace(/\s+/g, " ").trim();
-  if (!t4 || /\b(personas?|invitad[oa]s?|asistentes?|comensales?|pax)\b/i.test(t4)) return null;
-  const re4 = new RegExp(
-    String.raw`(?:^|[^\d:])(?:de\s+(?:las?\s+)?)?(\d{1,2})(?::(\d{2}))?\s*(${DAY_PERIOD_SRC})?(\s*(?:a|[-–]|hasta)\s*|\s+)(?:las?\s+)?(\d{1,2})(?::(\d{2}))?\s*(${DAY_PERIOD_SRC})?(?=$|[^\d:])`,
-    "i"
-  );
-  const m6 = t4.match(re4);
-  if (!m6) return null;
-  const h1 = Number(m6[1]);
-  const h22 = Number(m6[5]);
-  const hasConnector = /\S/.test(m6[4] ?? "");
-  const p1 = dayPeriodToAmPm(h1, m6[3]);
-  const p22 = dayPeriodToAmPm(h22, m6[7]);
-  if (!p1 && !p22) return null;
-  if (!hasConnector && !(p1 && p22)) return null;
-  if (h1 > 24 || h22 > 24) return null;
-  const mm1 = m6[2];
-  const mm2 = m6[6];
-  if ((p1 === "24h" || p22 === "24h") && !mm1 && !mm2 && h1 <= 12 && h22 <= 12) return null;
-  const to24 = (h5, p5) => p5 === "24h" ? h5 % 24 : h5 % 12 + (p5 === "pm" ? 12 : 0);
-  const fmt = (h24, mm) => {
-    const p5 = h24 >= 12 ? "pm" : "am";
-    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-    return `${h12}${mm ? `:${mm}` : ""} ${p5}`;
-  };
-  const nearestAfter = (start24, h5) => {
-    const cands = [h5 % 12, h5 % 12 + 12];
-    return cands.reduce(
-      (best, c5) => ((c5 - start24 + 24) % 24 || 24) < ((best - start24 + 24) % 24 || 24) ? c5 : best
-    );
-  };
-  let s24;
-  let e24;
-  if (p1 && p22) {
-    s24 = to24(h1, p1);
-    e24 = to24(h22, p22);
-  } else if (p1) {
-    s24 = to24(h1, p1);
-    e24 = h22 > 12 ? h22 % 24 : nearestAfter(s24, h22);
-  } else {
-    e24 = to24(h22, p22);
-    const cands = h1 > 12 ? [h1 % 24] : [h1 % 12, h1 % 12 + 12];
-    s24 = cands.reduce(
-      (best, c5) => ((e24 - c5 + 24) % 24 || 24) < ((e24 - best + 24) % 24 || 24) ? c5 : best
-    );
-  }
-  return `${fmt(s24, mm1)} a ${fmt(e24, mm2)}`;
-}
-function parseHorarioFromText(text2) {
-  const trimmed = text2.trim();
-  if (!trimmed) return null;
-  if (isPromoTemplateMessage(trimmed)) return null;
-  const stripped = stripPromoTemplateMetadata(trimmed);
-  if (!stripped) return null;
-  const clean = normalizeWrittenClockInText(stripped.replace(/[.,;:¡!¿?]+$/g, "").trim());
-  if (!clean) return null;
-  if (/\bhorario\s+en\s+que\s+env[ií]o\b/i.test(trimmed)) return null;
-  if (clientDefersHorario(clean)) {
-    return "Sin definir (pendiente)";
-  }
-  {
-    const noc = clean.match(/\bnocturn[oa]\b[\s,.]*(?:aprox(?:imadamente)?\s*)?(\d{1,2})(?::(\d{2}))?\b/i);
-    if (noc) {
-      let h5 = Number(noc[1]);
-      const m6 = noc[2] ?? "00";
-      if (h5 > 0 && h5 <= 12) h5 += 12;
-      if (h5 === 24) h5 = 12;
-      return `${String(h5).padStart(2, "0")}:${m6}`;
-    }
-  }
-  {
-    const rangeWithPeriods = parseClockRangeWithPeriods(clean);
-    if (rangeWithPeriods) return rangeWithPeriods;
-  }
-  if (/\b(personas?|invitad[oa]s?|asistentes?|comensales?)\b/i.test(clean) && /\b\d{1,4}\s*(?:a|[-–]|hasta)\s*\d{1,4}\b/i.test(clean)) {
-    return null;
-  }
-  if (looksLikeGuestCountRange(clean)) {
-    return null;
-  }
-  if (isClockTimeOnlySchedule(clean)) return normalizeHorarioCapture(clean);
-  if (isMealTimeOnlySchedule(clean)) return clean;
-  if (isScheduleLabeledClock(clean)) {
-    const parts2 = [
-      ...clean.matchAll(
-        /\b((?:cocktail|c[oó]ctel|comida|cena|desayuno|brunch|pizzas?|pastas?|barra)\s+(?:a\s+las\s+)?\d{1,2}(?::\d{2})?(?:\s*(?:am|pm|a\.?m\.?|p\.?m\.?))?)/gi
-      )
-    ].map((m6) => m6[1].trim());
-    if (parts2.length >= 1) return parts2.join("; ").slice(0, 100);
-    const bareALas = clean.match(
-      new RegExp(
-        String.raw`\b(a\s+las?\s+${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
-        "i"
-      )
-    );
-    if (bareALas?.[1]) return normalizeHorarioCapture(bareALas[1]);
-    if (/medio\s*d[ií]a/i.test(clean)) return "a medio d\xEDa";
-    return clean.slice(0, 80);
-  }
-  const horarioLabel = clean.match(/\bhorario\s*:?\s*(.+)$/i);
-  if (horarioLabel?.[1] && /\d/.test(horarioLabel[1])) {
-    const labeled = horarioLabel[1].trim();
-    if (clientDefersHorario(labeled)) return "Sin definir (pendiente)";
-    return labeled.slice(0, 80);
-  }
-  const rangeAmpm = clean.match(
-    new RegExp(
-      String.raw`\b((?:de\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
-      "i"
-    )
-  );
-  if (rangeAmpm?.[1]) {
-    const frag = rangeAmpm[1].trim();
-    if (!new RegExp(CLOCK_AMPM, "i").test(frag) && !/\b(hrs?|horas?)\b/i.test(frag) && !/\b(a\s+las?|de\s+las?)\b/i.test(clean) && !/\d:\d{2}\D+\d{1,2}:\d{2}/.test(frag)) {
-    } else {
-      const without = clean.replace(rangeAmpm[1], "").trim();
-      if (!without || parseFechaFromText(without) || MONTH_PATTERN.test(without) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(without) || /\b(evento|ser[ií]a|ser[aá]|es|planean|planeamos|tendr[ií]a|horario)\b/i.test(without)) {
-        return frag.replace(/^de\s+/i, "de ").slice(0, 80);
-      }
-    }
-  }
-  const aPartir = clean.match(
-    new RegExp(
-      String.raw`\b((?:a\s+)?partir\s+de\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
-      "i"
-    )
-  );
-  if (aPartir?.[1]) {
-    return normalizeHorarioCapture(aPartir[1]);
-  }
-  const desdeLas = clean.match(
-    new RegExp(
-      String.raw`\b(desde\s+(?:las\s+)?${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
-      "i"
-    )
-  );
-  if (desdeLas?.[1]) {
-    return normalizeHorarioCapture(desdeLas[1]);
-  }
-  const despuesDe = clean.match(
-    new RegExp(
-      String.raw`\b(despu[eé]s\s+de\s+(?:las\s+)?${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?\s*(?:${CLOCK_AMPM})?)`,
-      "i"
-    )
-  );
-  if (despuesDe?.[1]) {
-    return normalizeHorarioCapture(despuesDe[1]);
-  }
-  const aLasPhrase = clean.match(
-    new RegExp(
-      String.raw`^a\s+las?\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?)\s*(?:${CLOCK_AMPM})?$`,
-      "i"
-    )
-  );
-  if (aLasPhrase?.[1]) return normalizeHorarioCapture(aLasPhrase[0]);
-  const alrededorLa = clean.match(
-    new RegExp(
-      String.raw`\b((?:alrededor\s+de\s+)?(?:a\s+)?la\s+${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
-      "i"
-    )
-  );
-  if (alrededorLa?.[1]) {
-    const without = clean.replace(alrededorLa[1], "").trim();
-    if (!without || without.length < 8 || /\b(pero|apenas|confirme|detalles?|por\s+favor|horario|evento)\b/i.test(without)) {
-      return normalizeHorarioCapture(alrededorLa[1]);
-    }
-  }
-  const atTime = clean.match(
-    new RegExp(
-      String.raw`\b(?:a\s+las?|a\s+partir\s+de(?:\s+las)?)\s+(${CLOCK_TOKEN}(?:\s+de\s+la\s+(?:tarde|noche|ma[nñ]ana))?(?:\s*(?:${CLOCK_AMPM}))?)`,
-      "i"
-    )
-  );
-  if (atTime?.[1]) {
-    const withoutTime = clean.replace(atTime[0], "").trim();
-    const withoutIsFiller = /^(ser[ií]a|ser[aá]|ser[ií]an|es)\.?$/i.test(withoutTime);
-    if (!withoutTime || withoutIsFiller || parseFechaFromText(withoutTime) || MONTH_PATTERN.test(withoutTime)) {
-      if (/de\s+la\s+(tarde|noche|ma[nñ]ana)/i.test(clean) && !/de\s+la/i.test(atTime[1])) {
-        return normalizeHorarioCapture(
-          withoutIsFiller ? atTime[0] : clean.replace(/^(?:ser[ií]a|ser[aá]|es)\s+/i, "")
-        );
-      }
-      return normalizeHorarioCapture(atTime[1]);
-    }
-    if (/\b(pizzas?|pastas?|comida|cena|barra|servicio|alimentos?|taquiza|sushi|necesito|necesitar)/i.test(
-      withoutTime
-    ) && withoutTime.split(/\s+/).length <= 12) {
-      return normalizeHorarioCapture(`a las ${atTime[1]}`);
-    }
-  }
-  const range = clean.match(
-    new RegExp(
-      String.raw`\b(${CLOCK_TOKEN}\s*(?:a|[-–]|hasta)\s*${CLOCK_TOKEN}\s*(?:${CLOCK_AMPM})?)`,
-      "i"
-    )
-  );
-  if (range?.[1]) {
-    const frag = range[1].trim();
-    if (!new RegExp(CLOCK_AMPM, "i").test(frag) && !/\b(hrs?|horas?)\b/i.test(frag)) {
-    } else {
-      const withoutRange = clean.replace(range[1], "").trim();
-      if (parseFechaFromText(withoutRange) || MONTH_PATTERN.test(withoutRange) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(withoutRange)) {
-        return frag;
-      }
-      if (!parseFechaFromText(clean)) return frag;
-    }
-  }
-  {
-    const explicitClock = clean.match(
-      /(?:^|\s)(\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.\s*m\.?|p\.\s*m\.?)|\d{1,2}:\d{2}(?:\s*hrs?)?)(?=\s|$)/i
-    );
-    if (explicitClock?.[1]) {
-      const rest = clean.replace(explicitClock[1], " ").replace(/\b(el|la|los|para|sería|seria|es|y|a|las?)\b/gi, " ").replace(/\s+/g, " ").trim();
-      if (!rest || parseFechaFromText(rest) || MONTH_PATTERN.test(rest) || /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|hoy|ma[nñ]ana)\b/i.test(rest)) {
-        return normalizeHorarioCapture(explicitClock[1].trim());
-      }
-    }
-  }
-  if (/\b(tarde|noche|mediod[ií]a|medio\s*d[ií]a|ma[nñ]ana)\b/i.test(clean) && clean.split(/\s+/).length <= 7 && !MONTH_PATTERN.test(clean)) {
-    return normalizeHorarioCapture(clean).slice(0, 40);
-  }
-  if (/\b(sin\s+horario|por\s+definir|a[uú]n\s+no\s+(sabemos|tenemos)\s+horario|todav[ií]a\s+no\s+(sabemos|tenemos))\b/i.test(
-    clean
-  )) {
-    return "Sin definir (pendiente)";
-  }
-  return null;
-}
-function splitCombinedFechaHorario(combined) {
-  const t4 = combined.trim();
-  if (!t4) return { fecha: null, horario: null };
-  if (/^sin\s+definir/i.test(t4)) return { fecha: t4, horario: null };
-  if (isClockTimeOnlySchedule(t4) || isMealTimeOnlySchedule(t4)) {
-    return { fecha: null, horario: t4 };
-  }
-  const fecha = parseFechaFromText(t4);
-  const horario = parseHorarioFromText(t4);
-  if (fecha && horario) {
-    const f7 = fecha.replace(/\s+a\s+las\s+\d.+$/i, "").trim();
-    return { fecha: f7 || fecha, horario };
-  }
-  if (fecha && isUsableFechaHorario(fecha)) return { fecha, horario: null };
-  if (horario) return { fecha: null, horario };
-  if (isUsableFechaHorario(t4)) return { fecha: t4, horario: null };
-  if (isUsableHorarioEvento(t4)) return { fecha: null, horario: t4 };
-  return { fecha: t4, horario: null };
-}
-function isUsableFechaEvento(value) {
-  return isUsableFechaHorario(value);
-}
-function isUsableHorarioEvento(value) {
-  const t4 = (value ?? "").trim();
-  if (!t4) return false;
-  if (/^sin\s+definir/i.test(t4)) return true;
-  if (/pendiente/i.test(t4) && /sin\s+definir|por\s+definir/i.test(t4)) return true;
-  if (/\ba\s+partir\s+de\s+(?:las\s+)?\d/i.test(t4)) return true;
-  if (/\bdespu[eé]s\s+de\s+(?:las\s+)?\d/i.test(t4)) return true;
-  if (/\b(?:alrededor\s+de\s+)?(?:a\s+)?la\s+\d{1,2}\b/i.test(t4)) return true;
-  if (isClockTimeOnlySchedule(t4)) return true;
-  if (isMealTimeOnlySchedule(t4)) return true;
-  if (isSimpleClockTime(t4)) return true;
-  if (isScheduleLabeledClock(t4)) return true;
-  if (looksLikeMealTimeNotLocation(t4) && t4.split(/\s+/).length <= 6) return true;
-  if (/\b\d{1,2}(?::\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}/i.test(t4)) return true;
-  if (/\b(?:a\s+las|desde\s+las)\s+\d/i.test(t4)) return true;
-  if (parseClockRangeWithPeriods(t4)) return true;
-  if (/\b(tarde|noche|mediod[ií]a|ma[nñ]ana)\b/i.test(t4) && t4.split(/\s+/).length <= 5) {
-    return true;
-  }
-  return false;
-}
-function isRicherHorarioCapture(incoming, existing) {
-  const next = (incoming ?? "").trim();
-  const prev = (existing ?? "").trim();
-  if (!next || !isUsableHorarioEvento(next)) return false;
-  if (!prev) return true;
-  if (next.toLowerCase() === prev.toLowerCase()) return false;
-  const startMeridiem = /(?:^|\bde\s+)\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.m\.?|p\.m\.?)\b/i;
-  const nextStart = startMeridiem.test(next) || /^\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/i.test(next);
-  const prevStart = startMeridiem.test(prev) || /^\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/i.test(prev);
-  if (nextStart && !prevStart) return true;
-  if (next.length > prev.length + 2 && /\d/.test(next) && nextStart) return true;
-  return false;
-}
-function hydrateScheduleFields(extracted) {
-  if (extracted.fecha_evento?.trim() || extracted.horario_evento?.trim()) {
-    syncLegacyFechaHorarioField(extracted);
-    return;
-  }
-  const legacy = extracted.fecha_horario?.trim();
-  if (!legacy) return;
-  const { fecha, horario } = splitCombinedFechaHorario(legacy);
-  if (fecha) extracted.fecha_evento = fecha;
-  if (horario) extracted.horario_evento = horario;
-  syncLegacyFechaHorarioField(extracted);
-}
-function migrateLegacyCrmFechaHorarioLines(lines) {
-  const out2 = [];
-  for (const line2 of lines) {
-    const m6 = line2.match(/^(-?\s*)Fecha y horario:\s*(.+)$/i);
-    if (!m6) {
-      out2.push(line2);
-      continue;
-    }
-    const prefix = m6[1] ?? "- ";
-    const { fecha, horario } = splitCombinedFechaHorario(m6[2].trim());
-    if (fecha) out2.push(`${prefix}${CRM_FECHA_LABEL}: ${fecha}`);
-    if (horario) out2.push(`${prefix}${CRM_HORARIO_LABEL}: ${horario}`);
-    if (!fecha && !horario) out2.push(line2);
-  }
-  return out2;
-}
-function isUsableFechaHorario(value) {
-  const t4 = (value ?? "").trim();
-  if (!t4) return false;
-  if (isMealTimeOnlySchedule(t4)) return false;
-  if (isClockTimeOnlySchedule(t4)) return false;
-  if (looksLikeFechaDiscourseJunk(t4)) return false;
-  if (/^(?:(?:ser[ií]a|es)\s+)?(?:en\s+(?:el|la)\s+|al\s+|por\s+la\s+|a\s+la\s+|de\s+)?(atardecer|anochecer|amanecer|tarde|noche|mediod[ií]a|medio\s+d[ií]a|madrugada|puesta\s+de\s+sol)\s*[\p{Extended_Pictographic}\s]*$/iu.test(
-    t4
-  )) {
-    return false;
-  }
-  if (t4.split(/\s+/).length >= 10 && !/\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
-    t4
-  )) {
-    return false;
-  }
-  return true;
-}
-function isPointingReferentialEmoji(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim();
-  const withoutPoint = t4.replace(/[\u{1F446}\u{1F445}\u{1F447}\u{1F448}\u{1F449}\u{261D}\u{2B06}\u{2191}\u{2197}\u{2934}]/gu, "").replace(
-    /[\s.!,;:¿?¡]+/g,
-    ""
-  );
-  if (withoutPoint.length > 0) return false;
-  return /[\u{1F446}\u{261D}\u{2B06}\u{2191}]/u.test(t4);
-}
-function isReferentialPriorAnswer(message) {
-  if (!message?.trim()) return false;
-  if (isPointingReferentialEmoji(message)) return true;
-  if (isLocationMetaReferential(message)) return true;
-  const n5 = message.trim().normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
-  if (!n5 || n5.length > 160) return false;
-  return /^(a\s+)?(este|ese|esta|esa)(\s+(mismo|misma|correo|mail|email|dato))?$/.test(n5) || /^(el|la)\s+(mismo|misma)(\s+(correo|mail|email|dato))?$/.test(n5) || /^(el|la)\s+de\s+(antes|arriba|hace\s+rato|hace\s+un\s+rato)$/.test(n5) || /^(ese|este)\s+(que\s+)?(ya\s+)?(te\s+)?(di|mande|envie|pase)$/.test(n5) || /^(el\s+)?(mismo\s+)?(correo|mail|email)(\s+(de\s+antes|anterior))?$/.test(n5) || /^ya\s+(te\s+)?(lo\s+)?(di|mande|envie|pase|he\s+enviado|he\s+mandado)(\s+(ese|el|antes))?$/.test(
-    n5
-  ) || /^(ese|este)\s+mismo$/.test(n5) || // A15212: "Al mismo que ya te he enviado" / "el mismo que ya te mandé".
-  /^al\s+(mismo|que\s+ya\s+(te\s+)?(he\s+)?(di|mande|envie|enviado|mandado))$/.test(n5) || /^al\s+mismo\s+que\s+ya\s+(te\s+)?(he\s+)?(enviado|mandado|dado|di|mande|envie)\b/.test(n5) || /^(el\s+)?mismo\s+que\s+ya\s+(te\s+)?(he\s+)?(enviado|mandado|dado|di|mande|envie)\b/.test(n5) || /\bya\s+te\s+(lo\s+)?he\s+(enviado|mandado|dado)\b/.test(n5) || // A15727+: "lo que mencioné", "esa sería la comida", "eso mismo que dije".
-  /\blo\s+que\s+(te\s+)?(mencione|dije|comente|explique|indique)\b/.test(n5) || /\b(esa|eso|este|esto)\s+ser[ií]a\s+(la\s+)?(comida|opcion|servicio|que\s+quiero)\b/.test(n5) || /^(esa|eso)\s+(misma\s+)?(comida|opcion|servicio)?$/.test(n5) || /\bcomo\s+(te\s+)?(dije|mencione|comente)\b/.test(n5);
-}
-function clientComplainsAboutRepeat(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim();
-  return /\bya\s+me\s+(hab[ií]as|habias|hab[ií]a|habia|hab[eé]is)?\s*preguntad/i.test(t4) || /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t4) || /\bperd[oó]n\b[\s\S]{0,40}\bya\s+(me\s+)?preguntaste\b/i.test(t4) || /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé]|pase|compart[ií]|he\s+enviado|he\s+mandado|he\s+dado)\b/i.test(
-    t4
-  ) || /\bya\s+(te\s+)?(lo\s+)?(dije|mencion[eé]|coment[eé])\b/i.test(t4) || /\beso\s+ya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t4) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(t4) || /\b(otra\s+vez|de\s+nuevo)\s+(me\s+)?preguntas?\b/i.test(t4) || /\bya\s+respond[ií]\b/i.test(t4);
-}
-function recoverZonaFromUserTexts(texts, currentMessage) {
-  const blob = [...texts, currentMessage ?? ""].filter(Boolean).filter((msg) => !isLocationMetaReferential(msg) && !isReferentialPriorAnswer(msg));
-  let best = null;
-  for (const msg of blob) {
-    const z4 = parseZonaFromText(msg);
-    if (!z4 || !isUsableDireccionEvento(z4)) continue;
-    if (!hasCityOrMetroSignal(z4) && !KNOWN_ZONES.test(z4) && !looksLikeMxMunicipalityToponym(z4)) {
-      continue;
-    }
-    best = mergeZonaDetail(best, z4);
-  }
-  return best && isUsableDireccionEvento(best) ? best : null;
-}
-function recoverCorreoFromUserTexts(texts, currentMessage) {
-  const blob = [...texts, currentMessage ?? ""].filter(Boolean).join("\n");
-  return parseCorreoFromText(blob);
-}
-function isUnusableTipoEventoReply(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return true;
-  const n5 = t4.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
-  if (/^(lo\s+)?(acabo|acabe)\s+de\s+(mencionar|decir|comentar|explicar)(lo)?$/.test(n5) || /^(ya\s+)?(lo\s+)?(dije|mencione|comente|te\s+dije|te\s+lo\s+dije)$/.test(n5) || /^(como\s+)?(te\s+)?(dije|mencione|arriba|antes|hace\s+rato)$/.test(n5) || /^(igual|lo\s+mismo|idem|ya\s+te\s+dije|eso|eso\s+mismo|lo\s+de\s+arriba)$/.test(n5) || /^ya\s+(te\s+)?(lo\s+)?(dije|mencione|comente)$/.test(n5)) {
-    return true;
-  }
-  if (isGreetingOnlyMessage(t4) || /^(hola|hello|hi|hey)[,!]?\s+lucy\b/i.test(t4) || /^(hola|hello|hi|hey|buenas?|buen\s+d[ií]a)(\s+lucy)?[\s.!]*$/i.test(n5)) {
-    return true;
-  }
-  if (/\?/.test(t4) && t4.length <= 80 && !parseTipoEventoFromText(t4)) return true;
-  if (clientComplainsAboutRepeat(t4) || isReferentialPriorAnswer(t4)) return true;
-  if (parseCorreoFromText(t4)) return true;
-  if (looksLikePersonNameAsEventType(t4)) return true;
-  return false;
-}
-function looksLikePersonNameAsEventType(text2) {
-  const raw = (text2 ?? "").trim();
-  if (!raw || raw.length > 90) return false;
-  if (parseTipoEventoFromText(raw)) return false;
-  if (isServiceRelatedMessage(raw)) return false;
-  if (/\d/.test(raw) || /@/.test(raw) || /\?/.test(raw)) return false;
-  const words = raw.split(/\s+/).filter(Boolean);
-  if (words.length < 2 || words.length > 6) return false;
-  if (/\b(fiesta|boda|evento|cumple|xv|corporativ|empresa|fin\s+de\s+a[nñ]o|posada|bautizo|graduaci)/i.test(raw)) {
-    return false;
-  }
-  return words.every(
-    (w5) => /^[A-ZÁÉÍÓÚÑ][a-záéíóúñ'’.-]{1,30}$/u.test(w5) || /^(de|del|la|los|las|y|e|da|do|di|van|von)$/i.test(w5)
-  );
-}
-function clientAsksCafeOrCateringChoice(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return false;
-  if (/\b(caf[eé](?!\p{L})|barista|barra\s+de\s+caf[eé](?!\p{L})).{0,50}\b(o|u)\b.{0,50}\b(catering|comida|banquete|alimentos?)\b/iu.test(
-    t4
-  )) {
-    return true;
-  }
-  if (/\b(catering|comida|banquete|alimentos?).{0,50}\b(o|u)\b.{0,50}\b(caf[eé](?!\p{L})|barista)\b/iu.test(
-    t4
-  )) {
-    return true;
-  }
-  return /\bes\s+solo\s+caf[eé](?!\p{L})/iu.test(t4) || /\btienes\s+(tambi[eé]n\s+)?catering(\s+de\s+comida)?\b/i.test(t4) || /\bsolo\s+caf[eé](?!\p{L})\s+o\b/iu.test(t4);
-}
-function looksLikeNameAnswerMessage(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4 || t4.length > 90 || /\?/.test(t4) || /@/.test(t4) || /\d{3,}/.test(t4)) return false;
-  if (isDimensionText(t4) || isMeasurementOrDimensionAsNombre(t4)) return false;
-  if (isOccasionOrStyleAsNombre(t4) || isNumberWordsAsNombre(t4)) return false;
-  if (clientAsksCafeOrCateringChoice(t4)) return false;
-  if (isServicePreferenceAsNombre(t4)) return false;
-  if (isServiceRelatedMessage(t4) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\b/i.test(t4)) {
-    if (/\b(quiero|necesito|busco|cotiz|banquete|taquiza|barra|dj|pista|catering)\b/i.test(t4)) {
-      return false;
-    }
-  }
-  const strippedCompany = t4.replace(
-    /\s+de\s+(?!catering\b|banquete\b|taquiza\b|coffee\b|brunch\b|comida\b|alimentos?\b)([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúñ.\s-]{2,50})$/iu,
-    ""
-  );
-  const candidato = stripNombrePresentationPrefix(strippedCompany).trim();
-  if (isServicePreferenceAsNombre(candidato)) return false;
-  const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
-  if (!nombre) return false;
-  if (isLikelyNotPersonNameMessage(candidato) && !/^(soy|me\s+llamo)/i.test(t4)) {
-    const full = sanitizeCrmNombre(stripNombrePresentationPrefix(t4).split(/\s+de\s+/i)[0] ?? "");
-    return !!full && !isServicePreferenceAsNombre(full);
-  }
-  return true;
-}
-function recoverInvitadosFromUserTexts(texts, currentMessage, opts) {
-  const merged = [...texts, currentMessage?.trim() ?? ""].filter(Boolean);
-  for (let i6 = merged.length - 1; i6 >= 0; i6--) {
-    if (isPromoTemplateMessage(merged[i6])) continue;
-    const inv = parseInvitadosFromText(merged[i6], {
-      askedInvitados: true,
-      mobiliarioRenta: opts?.mobiliarioRenta,
-      ...opts
-    });
-    if (inv && /^\d+$/.test(inv)) {
-      const n5 = parseInt(inv, 10);
-      if (n5 >= 1 && n5 <= 5e3) return n5;
-    }
-  }
-  return null;
-}
-function messageIsAboutScheduleOrPlaceNotGuests(text2) {
-  return /\b(horario|hora|fecha|d[ií]a|mes|ciudad|colonia|alcald[ií]a|delegaci[oó]n|correo|e-?mail|ubicaci[oó]n|direcci[oó]n|sal[oó]n|lugar)\b/i.test(
-    text2
-  ) || MONTH_PATTERN.test(text2);
-}
-function parseInvitadosFromText(text2, opts) {
-  const raw = text2.trim();
-  if (!raw) return null;
-  const trimmed = stripPromoTemplateMetadata(raw);
-  if (!trimmed) return null;
-  if (isPromoTemplateMessage(raw) || isPromoTemplateMessage(trimmed)) return null;
-  if (isPromoMinimumGuestLine(raw) || isPromoMinimumGuestLine(trimmed)) {
-    if (trimmed.length >= 8 && /\b(ser[ií]an?|somos|invitados?|asistentes?|para\s+\d+\s+personas)\b/i.test(trimmed)) {
-    } else {
-      return null;
-    }
-  }
-  if (opts?.askedInvitados && (/^a[uú]n\s+no[,.]?\s*$/i.test(trimmed) || /\ba[uú]n\s+no\b/i.test(trimmed) && trimmed.split(/\s+/).length <= 4)) {
-    return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
-  }
-  if (/\b(\d|dos|tres|cuatro)\s*tiempos?\b/i.test(trimmed) && !/\b(personas?|invitados?|invitadas?|pax|guests?)\b/i.test(trimmed)) {
-    return null;
-  }
-  if (/\bhorno\s*\d+\b/i.test(trimmed) && !/\b(personas?|invitados?|invitadas?|pax)\b/i.test(trimmed)) {
-    return null;
-  }
-  const numMatchEarly = trimmed.match(
-    new RegExp(`\\b(\\d+)\\s*(${GUEST_COUNT_WORDS})\\b`, "i")
-  );
-  if (numMatchEarly) return numMatchEarly[1];
-  if (/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(trimmed) && trimmed.split(/\s+/).length <= 14) {
-    return null;
-  }
-  if (isCatalogLevelSelection(trimmed) && trimmed.split(/\s+/).length <= 10 && !/\b(personas?|invitados?|invitadas?|pax|guests?)\b/i.test(trimmed)) {
-    return null;
-  }
-  const kidsAdults = trimmed.match(
-    /\b(\d+)\s*(niñ[oa]s?|chiquit[oa]s?|peques?|infantes?)\s*y\s*(\d+)\s*(adultos?|mayores?)\b/i
-  );
-  if (kidsAdults) {
-    return String(parseInt(kidsAdults[1], 10) + parseInt(kidsAdults[3], 10));
-  }
-  const adultsKids = trimmed.match(
-    /\b(\d+)\s*(adultos?|mayores?)\s*y\s*(\d+)\s*(niñ[oa]s?|chiquit[oa]s?|peques?|infantes?)\b/i
-  );
-  if (adultsKids) {
-    return String(parseInt(adultsKids[1], 10) + parseInt(adultsKids[3], 10));
-  }
-  if (/\bniñ[oa]s?\b/i.test(trimmed) && /\badultos?\b/i.test(trimmed)) {
-    const nums = [...trimmed.matchAll(/\b(\d{1,4})\b/g)].map((m6) => parseInt(m6[1], 10));
-    if (nums.length >= 2 && nums.every((n5) => n5 >= 1 && n5 <= 500)) {
-      return String(nums[0] + nums[1]);
-    }
-  }
-  if (NON_GUEST_UNIT_PATTERN.test(trimmed)) {
-    if (opts?.askedInvitados || opts?.mobiliarioRenta) {
-      const chairQty = trimmed.match(/\b(\d{1,4})\s*sillas?\b/i);
-      if (chairQty && !new RegExp(`\\b\\d+\\s*(${GUEST_COUNT_WORDS})\\b`, "i").test(trimmed)) {
-        return chairQty[1];
-      }
-    }
-    return null;
-  }
-  const approxSuffix = trimmed.match(
-    /^(\d{1,4})\s*(?:aprox(?:imadamente)?|aproximados?|personas?\s+aprox)\.?$/i
-  );
-  if (approxSuffix) return approxSuffix[1];
-  if (isServiceRelatedMessage(trimmed)) return null;
-  if (/\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+(?:lo\s+)?sabemos|no\s+(?:te\s+)?(?:lo\s+)?(?:puedo|podr[ií]a)\s+(?:decir|confirmar)|van\s+viendo)\b/i.test(
-    trimmed
-  )) {
-    const guestWords = /\b(invitados?|invitadas?|personas?|gente|afluencia|asistentes?|pax|cu[aá]nt[oa]s)\b/i.test(
-      trimmed
-    );
-    const otherField = messageIsAboutScheduleOrPlaceNotGuests(trimmed);
-    if (guestWords && !otherField) {
-      return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
-    }
-    if (otherField && !guestWords) {
-      return null;
-    }
-    if (opts?.askedInvitados && !otherField) {
-      return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
-    }
-    if (!otherField && trimmed.split(/\s+/).length <= 14) {
-      return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
-    }
-  }
-  const rangoMatch = trimmed.match(/\bentre\s+(\d+)\s+y\s+(\d+)\b/i);
-  if (rangoMatch) {
-    const a4 = parseInt(rangoMatch[1], 10);
-    const b5 = parseInt(rangoMatch[2], 10);
-    return String(Math.max(a4, b5));
-  }
-  {
-    if (looksLikeGuestCountRange(trimmed) && !parseFechaFromText(trimmed)) {
-      const guestRange = trimmed.match(
-        /\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i
-      );
-      if (guestRange) {
-        const a4 = parseInt(guestRange[1], 10);
-        const b5 = parseInt(guestRange[2], 10);
-        return String(Math.round((a4 + b5) / 2));
-      }
-    }
-  }
-  const numMatch = trimmed.match(
-    new RegExp(`\\b(\\d+)\\s*(${GUEST_COUNT_WORDS})\\b`, "i")
-  );
-  if (numMatch) return numMatch[1];
-  const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como|unos?|unas?)\s+(\d+)\b/i);
-  if (paraMatch) {
-    const after = trimmed.slice(paraMatch.index + paraMatch[0].length);
-    if (/^\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?)\b/i.test(after)) {
-      return null;
-    }
-    return paraMatch[1];
-  }
-  const aproxMatch = trimmed.match(
-    /\b(?:m[aá]s\s+o\s+menos|aproximadamente|al\s+rededor\s+de|alrededor\s+de|cerca\s+de)\s+(\d+)\b/i
-  );
-  if (aproxMatch) return aproxMatch[1];
-  const writtenMatch = trimmed.match(
-    /\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|doscientos|trescientos|cuatrocientos|quinientos)\s+(personas?|invitados?|invitadas?)\b/i
-  );
-  if (writtenMatch) {
-    return WRITTEN_NUMBERS[writtenMatch[1].toLowerCase()] ?? null;
-  }
-  if (/^el\s+\d{1,2}$/i.test(trimmed)) return null;
-  if (/^\d{1,4}$/.test(trimmed)) {
-    const n5 = parseInt(trimmed, 10);
-    if (n5 < 10) return null;
-    return trimmed;
-  }
-  return null;
-}
-function isDimensionText(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return false;
-  if (/^(?:aprox\.?|aproximadamente|unos?|unas?|de|son|mide(?:n)?|miden)?\s*\d+([.,]\d+)?\s*(?:metros?|mts?|m2|m²|m\b|cm)\b/i.test(
-    t4
-  )) {
-    return true;
-  }
-  if (parseSpaceDimensions(t4)) return true;
-  const dePrefixed = t4.replace(/^(de|son|miden|mide|aproximadamente|aprox\.?)\s+/i, "").trim();
-  return /\bmedida(?:s)?\s+de\s+la\s+carpa\b/i.test(t4) || /\b(?:ancho|largo|altura|alto|fondo|frente)\b.{0,12}\b\d+/i.test(t4) || /^\d+\s*(?:por|x|×)\s*\d+\s*(?:m|mts?|metros?)?(?:\s*(?:por|x|×)\s*\d+\s*(?:m|mts?|metros?)?)?$/i.test(
-    dePrefixed
-  );
-}
-function isUsableDireccionEvento(value) {
-  const t4 = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
-  if (!t4) return false;
-  if (/^(?:alcald[ií]a\s+|municipio\s+de\s+)?(?:benito\s+ju[aá]rez|cuauht[eé]moc|[aá]lvaro\s+obreg[oó]n|gustavo\s+a\.?\s+madero|venustiano\s+carranza|magdalena\s+contreras|miguel\s+hidalgo|nicol[aá]s\s+romero|lerma)(?:\s*,.*)?$/i.test(
-    t4
-  )) {
-    return true;
-  }
-  if (/^(el\s+)?techos?$/i.test(t4)) return false;
-  if (/\btechos?\b/i.test(t4) && !hasCityOrMetroSignal(t4) && !KNOWN_ZONES.test(t4) && t4.split(/\s+/).length <= 4) {
-    return false;
-  }
-  if (isLocationMetaReferential(t4)) return false;
-  if (/^(pdf|excel|word|archivo|documento)s?$/i.test(t4)) return false;
-  if (/,?\s*pdf\s*$/i.test(t4) && !KNOWN_ZONES.test(t4.replace(/,?\s*pdf\s*$/i, ""))) return false;
-  if (isDimensionText(t4)) return false;
-  if (looksLikeMealTimeNotLocation(t4)) return false;
-  if (isVagueVenueOnly(t4)) return false;
-  if (isLocationDeferralOrVagueWorkplace(t4)) return false;
-  if (isVenueWithoutCity(t4)) return false;
-  if (isLikelyProductNameNotLocation(t4)) return false;
-  if (JUNK_DIRECCION_PATTERN.test(t4)) return false;
-  if (isNonLocationBusinessPhrase(t4)) return false;
-  if (/\b(cumplea[nñ]os?|boda|bautizo|xv|quincea[nñ]era|graduaci[oó]n|baby\s*shower|aniversario|posada)\b/i.test(
-    t4
-  ) && !hasCityOrMetroSignal(t4) && !KNOWN_ZONES.test(t4)) {
-    return false;
-  }
-  if ((isEventTypeOnlyMessage(t4) || parseTipoEventoFromText(t4)) && !hasCityOrMetroSignal(t4) && !KNOWN_ZONES.test(t4)) {
-    return false;
-  }
-  if (looksLikePersonFullName(t4) && !hasCityOrMetroSignal(t4) && !KNOWN_ZONES.test(t4)) {
-    return false;
-  }
-  if (looksLikeThemeColorNotLocation(t4)) return false;
-  if (looksLikeDiscourseNotPlace(t4)) return false;
-  if (looksLikeCompanyLocationQuestionFragment(t4)) return false;
-  if (/\bd[oó]nde\b|\bubicad/i.test(t4) && !KNOWN_ZONES.test(t4) && t4.split(/\s+/).length <= 5) {
-    return false;
-  }
-  if (hasCityOrMetroSignal(t4) || KNOWN_ZONES.test(t4) || looksLikeMxMunicipalityToponym(t4)) {
-    return true;
-  }
-  if (/[,|]/.test(t4) || /\s+en\s+/i.test(t4)) {
-    const parts2 = t4.split(/[,|]|(\s+en\s+)/i).map((p5) => p5?.trim()).filter(Boolean);
-    if (parts2.some((p5) => hasCityOrMetroSignal(p5) || looksLikeMxMunicipalityToponym(p5) || matchesKnownZone(p5))) {
-      return true;
-    }
-  }
-  if (!hasGeoLocationSignal(t4) && !KNOWN_ZONES.test(t4) && !looksLikeMxMunicipalityToponym(t4)) {
-    return false;
-  }
-  return false;
-}
-function isCompleteEventLocation(value) {
-  const t4 = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
-  if (!t4 || !isUsableDireccionEvento(t4)) return false;
-  if (isVenueWithoutCity(t4)) return false;
-  if (KNOWN_ZONES.test(t4) || matchesKnownZone(t4) || looksLikeMxMunicipalityToponym(t4)) {
-    return true;
-  }
-  if (/\b(cdmx|d\.?\s*f\.?|estado\s+de|edo\.?\s*m[eé]x)\b/i.test(t4)) return true;
-  if (/\bciudad\s+(de\s+)?[A-Za-zÁÉÍÓÚáéíóúñ]/i.test(t4)) return true;
-  if (/\b(jiutepec|morelos|hidalgo|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|baj[ií]o|morelia|saltillo|torre[oó]n|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|canc[uú]n|playa\s+del\s+carmen|tulum|valle\s+de\s+bravo|mesa\s+rica|atlixco|cholula|tehuac[aá]n|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|tlaquepaque|zapopan|tonal[aá]|tlajomulco|jalisco|puebla|monterrey|guadalajara|quer[eé]taro)\b/i.test(
-    t4
-  )) {
-    return true;
-  }
-  if (/^(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+\S+/i.test(t4) && !KNOWN_ZONES.test(t4) && !looksLikeMxMunicipalityToponym(t4)) {
-    return false;
-  }
-  if (hasCityOrMetroSignal(t4) && !/^(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+/i.test(t4)) {
-    return true;
-  }
-  if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+/i.test(t4) && (KNOWN_ZONES.test(t4) || looksLikeMxMunicipalityToponym(t4) || /\b(cdmx|d\.?\s*f\.?|estado\s+de|edo\.?\s*m[eé]x|ciudad\s+)/i.test(t4))) {
-    return true;
-  }
-  return false;
-}
-function clientCorrectsLocation(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4) return false;
-  return /\bme\s+equivoqu[eé]/i.test(t4) || /\bno\s+es\s+en\s+(el\s+)?piso\b/i.test(t4) || /\bno\s+es\s+(en\s+)?(la\s+)?(torre|piso|edificio)\b/i.test(t4) || /\b(es\s+en\s+)?otra\s+ubicaci[oó]n\b/i.test(t4) || /\bcambi[oó]\s+(de\s+)?(ubicaci[oó]n|lugar|direcci[oó]n)\b/i.test(t4) || /\bes\s+un\s+patio\b/i.test(t4) || /\bpatio\s+techado\b/i.test(t4) || // A15419: "el evento es en CDMX" / "no Puebla… es en CDMX"
-  // V9.75: "el evento es en 2026 / en octubre" = cuándo, no dónde.
-  /\bel\s+evento\s+(es|ser[ií]a|queda)\s+en\b(?!\s+(?:(?:19|20)\d{2}\b|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))/i.test(
-    t4
-  ) || /\bno\s+(es\s+)?(en\s+)?(puebla|monterrey|guadalajara|quer[eé]taro)\b.{0,80}\b(cdmx|ciudad\s+de\s+m[eé]xico)\b/i.test(
-    t4
-  ) || /\b(cdmx|ciudad\s+de\s+m[eé]xico)\b.{0,40}\bno\s+(en\s+)?(puebla|otro\s+estado)\b/i.test(t4);
-}
-function isVenueSpaceDetail(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4) return false;
-  if (/\b(ser[aá]|ser[ií]a|es|queda|va\s+a\s+ser)\s+(en\s+)?(un\s+|una\s+)?(patio(\s+techado)?|techado|jard[ií]n|azotea|rooftop|terraza)\b/i.test(
-    t4
-  ) && t4.split(/\s+/).length <= 10 && !parseZonaFromText(t4)) {
-    return true;
-  }
-  return /^(el\s+|un\s+|una\s+|en\s+(un\s+|una\s+)?)?(patio(\s+techado)?|techado|jard[ií]n|azotea|rooftop|terraza)[\s.,!]*$/i.test(
-    t4
-  );
-}
-function applyLocationCorrectionToAddress(existing, message) {
-  const msg = (message ?? "").trim();
-  const prev = (existing ?? "").trim();
-  if (!msg) return null;
-  const corrects = clientCorrectsLocation(msg);
-  const spaceDetail = isVenueSpaceDetail(msg);
-  if (!corrects && !spaceDetail) return null;
-  if (!corrects && spaceDetail && !prev) {
-    if (/\bjard[ií]n\b/i.test(msg)) return "jard\xEDn";
-    if (/\bpatio(\s+techado)?\b/i.test(msg)) {
-      return /\btechado\b/i.test(msg) ? "patio techado" : "patio";
-    }
-    if (/\b(azotea|rooftop|terraza)\b/i.test(msg)) {
-      return msg.match(/\b(azotea|rooftop|terraza)\b/i)?.[1] ?? "terraza";
-    }
-    return null;
-  }
-  let zoneFromMsg = parseZonaFromText(msg);
-  if (!zoneFromMsg) {
-    const m6 = msg.match(KNOWN_ZONES);
-    if (m6?.[0]) zoneFromMsg = m6[0].trim();
-  }
-  let zoneFromPrev = null;
-  if (prev) {
-    const m6 = prev.match(KNOWN_ZONES);
-    if (m6?.[0]) zoneFromPrev = m6[0].trim();
-  }
-  const zone = zoneFromMsg || zoneFromPrev;
-  let result = prev;
-  if (/\bno\s+es\s+en\s+(el\s+)?piso\b|\botra\s+ubicaci[oó]n\b|\bme\s+equivoqu|\bno\s+es\s+(en\s+)?(la\s+)?torre\b/i.test(
-    msg
-  )) {
-    result = result.replace(/,?\s*piso\s*\d+/gi, "").replace(/\btorre\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ-]*/gi, "").replace(/\s*,\s*,+/g, ",").replace(/^\s*,\s*|\s*,\s*$/g, "").replace(/\s{2,}/g, " ").trim();
-    if (/\botra\s+ubicaci[oó]n\b/i.test(msg) && zone) {
-      result = zone;
-    }
-  }
-  if (/\bpatio\b/i.test(msg)) {
-    result = result.replace(/,?\s*piso\s*\d+/gi, "").trim();
-    if (!/\bpatio\b/i.test(result)) {
-      result = result ? `${result}, patio` : zone ? `${zone}, patio` : "patio";
-    }
-  }
-  if (/\btechado\b/i.test(msg)) {
-    if (/\bpatio\b/i.test(result) && !/\btechado\b/i.test(result)) {
-      result = result.replace(/\bpatio\b/i, "patio techado");
-    } else if (!/\btechado\b/i.test(result)) {
-      result = result ? `${result}, techado` : zone ? `${zone}, techado` : "";
-    }
-  }
-  if (/\bjard[ií]n\b/i.test(msg) && !/\bjard[ií]n\b/i.test(result)) {
-    result = result ? `${result}, jard\xEDn` : zone ? `${zone}, jard\xEDn` : "jard\xEDn";
-  }
-  if (/\b(azotea|rooftop|terraza)\b/i.test(msg)) {
-    const detail = msg.match(/\b(azotea|rooftop|terraza)\b/i)?.[1] ?? "terraza";
-    if (!new RegExp(`\\b${detail}\\b`, "i").test(result)) {
-      result = result ? `${result}, ${detail}` : zone ? `${zone}, ${detail}` : detail;
-    }
-  }
-  if (zone && result && !new RegExp(zone.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(result)) {
-    result = `${result}, ${zone}`;
-  }
-  if ((!result || !result.trim()) && zone) result = zone;
-  result = (result ?? "").replace(/\s*,\s*,+/g, ",").replace(/^\s*,\s*|\s*,\s*$/g, "").trim();
-  if (!result) return null;
-  if (!isUsableDireccionEvento(result)) {
-    if (zone && isUsableDireccionEvento(zone)) return zone;
-    return null;
-  }
-  return result;
-}
-function shouldReplaceCrmDireccion(existing, incoming) {
-  const next = incoming?.trim() ?? "";
-  if (!next || !isUsableDireccionEvento(next)) return false;
-  const prev = existing?.trim() ?? "";
-  if (!prev || !isUsableDireccionEvento(prev)) return true;
-  if (prev.toLowerCase() === next.toLowerCase()) return false;
-  if (clientCorrectsLocation(next) || isVenueSpaceDetail(next)) return true;
-  if (/\bpiso\s*\d+/i.test(prev) && !/\bpiso\s*\d+/i.test(next) && KNOWN_ZONES.test(prev) && KNOWN_ZONES.test(next)) {
-    return true;
-  }
-  if (prev.toLowerCase().includes(next.toLowerCase()) && next.length < prev.length) return false;
-  if (next.toLowerCase().includes(prev.toLowerCase()) && next.length > prev.length + 2) return true;
-  if (hasGeoLocationSignal(next) && !hasGeoLocationSignal(prev) && next.length >= prev.length) {
-    return true;
-  }
-  return false;
-}
-function applyLocationCorrectionToCrm(mergedLines, filledSet, extracted, currentMessage) {
-  const msg = currentMessage?.trim() ?? "";
-  if (!msg) return false;
-  const idx = mergedLines.findIndex((l6) => /^-?\s*Lugar\/dirección del evento:/i.test(l6));
-  const existing = (idx >= 0 ? mergedLines[idx].replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "").trim() : null) || extracted.direccion_evento?.trim() || null;
-  if (!clientCorrectsLocation(msg) && !(isVenueSpaceDetail(msg) && existing)) return false;
-  const next = applyLocationCorrectionToAddress(existing, msg);
-  if (!next || next === existing) return false;
-  if (idx >= 0) {
-    mergedLines[idx] = `- Lugar/direcci\xF3n del evento: ${next}`;
-  } else {
-    mergedLines.push(`- Lugar/direcci\xF3n del evento: ${next}`);
-  }
-  filledSet.add("Lugar/direcci\xF3n del evento");
-  extracted.direccion_evento = next;
-  return true;
-}
-function parseAllSpaceDimensions(text2) {
-  if (!text2?.trim()) return [];
-  const out2 = [];
-  const seen = /* @__PURE__ */ new Set();
-  const push = (a4, b5, height) => {
-    let d3 = `${a4}m x ${b5}m`;
-    if (height) d3 = `${d3} x ${height}m alt`;
-    if (seen.has(d3)) return;
-    seen.add(d3);
-    out2.push(d3);
-  };
-  const AXIS = "ancho|largo|fondo|frente|altura|alto|profundidad";
-  const UNIT = "metros?|mts?|m";
-  const heightMatch = text2.match(
-    new RegExp(`\\b(?:altura|alto)\\s*(?:de\\s*)?(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\b`, "i")
-  );
-  const heightOnly = heightMatch?.[1]?.replace(",", ".") ?? null;
-  {
-    const ancho = text2.match(
-      new RegExp(`\\bancho\\s*[:=]?\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\b`, "i")
-    )?.[1];
-    const largo = text2.match(
-      new RegExp(`\\blargo\\s*[:=]?\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\b`, "i")
-    )?.[1];
-    const fondo = text2.match(
-      new RegExp(`\\b(?:fondo|frente|profundidad)\\s*[:=]?\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\b`, "i")
-    )?.[1];
-    if (ancho && largo) push(ancho.replace(",", "."), largo.replace(",", "."), heightOnly);
-    else if (ancho && fondo) push(ancho.replace(",", "."), fondo.replace(",", "."), heightOnly);
-    else if (largo && fondo) push(largo.replace(",", "."), fondo.replace(",", "."), heightOnly);
-  }
-  for (const m6 of text2.matchAll(
-    new RegExp(
-      `\\b(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\s*(?:de\\s+)?(${AXIS})\\s*(?:por|x|\xD7)\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\s*(?:de\\s+)?(${AXIS})?(?:\\s*(?:por|x|\xD7)\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\s*(?:de\\s+)?(?:altura|alto))?\\b`,
-      "gi"
-    )
-  )) {
-    const n1 = m6[1].replace(",", ".");
-    const n22 = m6[3].replace(",", ".");
-    const axis1 = (m6[2] ?? "").toLowerCase();
-    const axis2 = (m6[4] ?? "").toLowerCase();
-    const h5 = m6[5]?.replace(",", ".") || heightOnly;
-    const isH1 = /altura|alto/.test(axis1);
-    const isH2 = /altura|alto/.test(axis2);
-    if (isH1 || isH2) continue;
-    if (/ancho/.test(axis1) && /largo|fondo|frente|profundidad/.test(axis2)) push(n1, n22, h5);
-    else if (/largo|fondo|frente|profundidad/.test(axis1) && /ancho/.test(axis2)) push(n22, n1, h5);
-    else push(n1, n22, h5);
-  }
-  for (const m6 of text2.matchAll(
-    new RegExp(
-      `\\b(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})\\s*(?:de\\s+(?:${AXIS})\\s*)?(?:por|x|\xD7)\\s*(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?(?:\\s*de\\s+(?:${AXIS}))?\\b`,
-      "gi"
-    )
-  )) {
-    push(m6[1].replace(",", "."), m6[2].replace(",", "."), heightOnly);
-  }
-  for (const m6 of text2.matchAll(
-    new RegExp(
-      `\\bespacio\\s+(?:es\\s+de|de|mide)\\s+(\\d+(?:[.,]\\d+)?)\\s*(?:${UNIT})?\\s*(?:por|x|\xD7)\\s*(\\d+(?:[.,]\\d+)?)`,
-      "gi"
-    )
-  )) {
-    push(m6[1].replace(",", "."), m6[2].replace(",", "."), heightOnly);
-  }
-  for (const m6 of text2.matchAll(
-    /\b(\d+(?:[.,]\d+)?)\s*(?:m|mts?|metros?)?\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(?:m|mts?|metros?)?(?:\s*[x×]\s*(\d+(?:[.,]\d+)?)\s*(?:m|mts?|metros?)?)?\b/gi
-  )) {
-    push(m6[1].replace(",", "."), m6[2].replace(",", "."), m6[3]?.replace(",", ".") || heightOnly);
-  }
-  {
-    const dimContext = /\b(medida|medidas|carpa|carpas|sal[oó]n|pista|tarima|entelado|espacio|jard[ií]n|metros?|mts?|\bm\b|ancho|largo|altura|alto|cubre|cubrir)\b/i.test(
-      text2
-    ) || text2.trim().length <= 40;
-    if (dimContext && !/\bpor\s+(persona|personas|invitado|invitados|pax|paquete|d[ií]a)\b/i.test(text2)) {
-      for (const m6 of text2.matchAll(
-        /\b(\d+(?:[.,]\d+)?)\s+por\s+(\d+(?:[.,]\d+)?)(?:\s*(?:m|mts?|metros?))?\b/gi
-      )) {
-        const a4 = Number(m6[1].replace(",", "."));
-        const b5 = Number(m6[2].replace(",", "."));
-        if (a4 >= 2 && a4 <= 120 && b5 >= 2 && b5 <= 120) {
-          push(m6[1].replace(",", "."), m6[2].replace(",", "."), heightOnly);
-        }
-      }
-    }
-  }
-  if (out2.length === 0) {
-    for (const m6 of text2.matchAll(
-      /\b(\d+(?:[.,]\d+)?)\s*(?:m\s*[²2]|metros?\s*cuadrados?)\b/gi
-    )) {
-      const area = Number(m6[1].replace(",", "."));
-      if (area >= 4 && area <= 5e3) {
-        const side = Math.max(2, Math.round(Math.sqrt(area) * 10) / 10);
-        push(String(side), String(side), heightOnly);
-      }
-    }
-  }
-  return out2;
-}
-function formatEspacioAnnotation(dims) {
-  if (dims.length === 0) return "";
-  if (dims.length === 1) return `(espacio ${dims[0]})`;
-  return `(espacio ${dims.join(" y ")})`;
-}
-function attachEspacioToRequirements(req, dims) {
-  const list = (Array.isArray(dims) ? dims : [dims]).filter(Boolean);
-  const base = req.replace(/\s*\((?:espacio\s+)?[^)]*\d+\s*m?\s*[x×]\s*\d+[^)]*\)/gi, "").replace(/\s*—\s*espacio\s+\d+(?:\.\d+)?m\s*x\s*\d+(?:\.\d+)?m(?:\s*x\s*\d+(?:\.\d+)?m\s*alt)?/gi, "").trim() || "Servicio";
-  if (list.length === 0) return base;
-  return `${base} ${formatEspacioAnnotation(list)}`.trim();
-}
-function parseSpaceDimensions(text2) {
-  return parseAllSpaceDimensions(text2)[0] ?? null;
-}
-function buildCarpaRequirementsFromText(text2) {
-  if (!text2?.trim()) return null;
-  if (!clientMentionsCarpas(text2) && !parseCarpaVariantFromText(text2)) return null;
-  const parts2 = [];
-  const seen = /* @__PURE__ */ new Set();
-  for (const m6 of text2.matchAll(
-    /\b(tela|lona|blanca|negra|transparentes?|domo)?\s*(?:de\s+)?(\d+)\s*m?\s*[x×]\s*(\d+)\s*m?\b/gi
-  )) {
-    const rawVar = (m6[1] ?? "").toLowerCase();
-    const dim = `${m6[2]}m x ${m6[3]}m`;
-    let label = dim;
-    if (/transparent/.test(rawVar)) label = `transparente ${dim}`;
-    else if (/tela|lona/.test(rawVar)) label = `tela ${dim}`;
-    else if (/blanca/.test(rawVar)) label = `blanca ${dim}`;
-    else if (/negra/.test(rawVar)) label = `negra ${dim}`;
-    else if (/domo/.test(rawVar)) label = `domo ${dim}`;
-    if (seen.has(label)) continue;
-    seen.add(label);
-    parts2.push(label);
-  }
-  const variant = parseCarpaVariantFromText(text2);
-  if (parts2.length >= 2) {
-    return `Carpas (${parts2.join(", ")})`;
-  }
-  if (parts2.length === 1) {
-    const base = variant && /transparent/i.test(variant) ? "Carpas transparentes" : "Carpas";
-    return `${base} (espacio ${parts2[0].replace(/^(tela|transparente|blanca|negra|domo)\s+/, "")})`;
-  }
-  const all3 = parseAllSpaceDimensions(text2);
-  if (all3.length > 1) return `Carpas ${formatEspacioAnnotation(all3)}`;
-  if (all3.length === 1) {
-    const base = variant ?? "Carpas";
-    return `${base} ${formatEspacioAnnotation(all3)}`;
-  }
-  return variant ?? "Carpas";
-}
-function clientAsksDimensionRecommendation(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.toLowerCase();
-  return /recomend\w*\s+(?:el\s+)?(?:tama[nñ]o|medida)/i.test(t4) || /qu[eé]\s+(?:tama[nñ]o|medida)\s+me\s+recomiend/i.test(t4) || /(?:tama[nñ]o|medida).{0,50}(?:invitad|personas?|gente)/i.test(t4) || /(?:invitad|personas?|gente).{0,50}(?:tama[nñ]o|medida)/i.test(t4) || /me\s+propon\w*\s+(?:un\s+)?(?:tama[nñ]o|medida)/i.test(t4) || /seg[uú]n\s+(?:la\s+)?(?:cantidad\s+de\s+)?(?:invitad|personas?)/i.test(t4) || /pensando\s+en\s+(?:la\s+)?(?:cantidad\s+de\s+)?(?:invitad|personas?)/i.test(t4) || /(?:cu[aá]nto|qu[eé]\s+medidas?).{0,40}deber[ií]a\s+(?:medir|ser)/i.test(t4) || /prefiero\s+que\s+me\s+propong/i.test(t4);
-}
-function pickStandardPistaSize(targetAreaM2) {
-  const pick = STANDARD_PISTA_SIZES.find((s7) => s7.area >= targetAreaM2) ?? STANDARD_PISTA_SIZES[STANDARD_PISTA_SIZES.length - 1];
-  return { w: pick.w, h: pick.h };
-}
-function recommendPistaDimensionsForGuests(guests, tipoEvento) {
-  const tipo = (tipoEvento ?? "").toLowerCase();
-  const danceRatio = /xv|quince|boda|fiesta|graduaci|cumplea/i.test(tipo) ? 0.55 : 0.45;
-  const areaM2 = Math.max(16, Math.ceil(guests * danceRatio * 0.9));
-  const { w: w5, h: h5 } = pickStandardPistaSize(areaM2);
-  const guestLabel = guests > 0 ? `~${guests} invitados` : "tu evento";
-  return {
-    dims: `${w5}m x ${h5}m`,
-    rationale: `referencia para ${guestLabel} (no todos bailan al mismo tiempo)`
-  };
-}
-function pickStandardCarpaSize(targetAreaM2) {
-  const pick = STANDARD_CARPA_SIZES.find((s7) => s7.area >= targetAreaM2) ?? STANDARD_CARPA_SIZES[STANDARD_CARPA_SIZES.length - 1];
-  return { w: pick.w, h: pick.h };
-}
-function recommendCarpaAreaM2ForGuests(guests) {
-  if (!Number.isFinite(guests) || guests <= 0) return 0;
-  return Math.ceil(guests * CARPA_M2_PER_GUEST);
-}
-function recommendCarpaDimensionsForGuests(guests) {
-  if (guests <= 0) return "seg\xFAn invitados (1.5 m\xB2 por persona)";
-  const m22 = recommendCarpaAreaM2ForGuests(guests);
-  const { w: w5, h: h5 } = pickStandardCarpaSize(m22);
-  return `${m22} m\xB2 (aprox. ${w5}m x ${h5}m)`;
-}
-function buildCarpaGuestRecommendationLine(guests) {
-  if (!Number.isFinite(guests) || guests <= 0) return null;
-  const m22 = recommendCarpaAreaM2ForGuests(guests);
-  const dims = recommendCarpaDimensionsForGuests(guests);
-  return `Para que est\xE9n c\xF3modos con *${guests} invitados*, te recomiendo *${m22} m\xB2* de carpa (${CARPA_M2_PER_GUEST} m\xB2 por invitado; ${dims.replace(`${m22} m\xB2 `, "")}).`;
-}
-function clientMentionsPistaTarima(message) {
-  if (!message?.trim()) return false;
-  return /\bpista(\s+de\s+baile)?\b|\btarimas?\b|\bentarimad[oa]s?\b/i.test(message);
-}
-function clientMentionsTarimaOnly(message) {
-  if (!message?.trim()) return false;
-  const t4 = message.trim();
-  if (!/\btarimas?\b|\bentarimad[oa]s?\b/i.test(t4)) return false;
-  if (/\bpista(\s+de\s+baile)?\b/i.test(t4) && !/\bno\s+(quiero|necesito|requiero).{0,20}pista\b/i.test(t4)) {
-    return false;
-  }
-  return true;
-}
-function preferTarimaLabelOverPista(message, existingReq) {
-  const blob = `${message ?? ""} ${existingReq ?? ""}`;
-  if (clientMentionsTarimaOnly(message ?? "") || /\btarimas?\b|\bentarimad/i.test(blob)) {
-    if (/\bno\s+(quiero|necesito|requiero).{0,30}pista\b/i.test(blob)) return true;
-    if (!/\bpista(\s+de\s+baile)?\b/i.test(message ?? "")) return true;
-  }
-  return false;
-}
-function isNegativeOnlyReply(text2) {
-  const t4 = (text2 ?? "").trim().toLowerCase().replace(/[.!¡,;\s]+$/g, "");
-  if (!t4 || t4.length > 40) return false;
-  return /^(no|nop|nel|no\s+gracias|no\s+s[eé]|(?:a[uú]n|todav[ií]a|de\s+momento|por\s+(?:ahora|el\s+momento|lo\s+pronto))\s+no|no\s+(?:a[uú]n|todav[ií]a|de\s+momento|por\s+(?:ahora|el\s+momento)))$/i.test(
-    t4
-  );
-}
-function expandMxCityAbbreviations(text2) {
-  let out2 = text2;
-  for (const [re4, city] of MX_CITY_ABBREVIATIONS) out2 = out2.replace(re4, city);
-  if (/^\s*pue\.?\s*$/i.test(out2)) out2 = "Puebla";
-  return out2;
-}
-function parseZonaFromText(text2) {
-  text2 = expandMxCityAbbreviations(text2);
-  const withoutEmails = text2.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, " ").replace(/\s+/g, " ").trim();
-  const trimmed = withoutEmails.replace(/\(?\s*hora\s+ciudad\s+de\s+m[eé]xico\s*\)?/gi, " ").replace(/\bhorario\s+en\s+que\s+env[ií]o\s+este\s+mensaje\s*:?[^\n]*/gi, " ").replace(/\bcotizaci[oó]n(es)?\s+en\s+pdf\b/gi, " ").replace(/\b(en\s+)?pdf\b/gi, " ").replace(/^(s[ií][,.]?\s+)(?=[A-Za-zÁÉÍÓÚáéíóúñÑ])/i, "").replace(/\s+/g, " ").trim();
-  if (!trimmed) return null;
-  if (isLocationMetaReferential(trimmed) || isReferentialPriorAnswer(trimmed)) {
-    return null;
-  }
-  if (/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(text2.trim())) {
-    return null;
-  }
-  if (isGreetingOnlyMessage(trimmed)) return null;
-  if (isAffirmativeOnlyMessage(trimmed)) return null;
-  if (isNegativeOnlyReply(trimmed)) return null;
-  if (clientDeclinesServiceFamilies(trimmed).length > 0) return null;
-  if (isEventTypeMealPhrase(trimmed)) return null;
-  if (isDimensionText(trimmed)) return null;
-  if (isPromoTemplateMessage(text2)) {
-    const realVenue = trimmed.match(
-      /\ben\s+(San\s+Miguel\s+de\s+Allende|Ex\s+Hacienda\s+[^\n.]{3,40}|[A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+){0,3})\b/i
-    );
-    if (realVenue?.[1] && isUsableDireccionEvento(realVenue[1])) return realVenue[1].trim();
-    return null;
-  }
-  const knownPlaceHeader = trimmed.match(/^([A-Za-zÁÉÍÓÚ][A-Za-záéíóúñÁÉÍÓÚ\s.-]{2,35})\s*:\s*/)?.[1]?.trim();
-  if (knownPlaceHeader && new RegExp(`^(?:${KNOWN_ZONES.source})$`, "i").test(knownPlaceHeader)) {
-    return knownPlaceHeader;
-  }
-  if (looksLikeMealTimeNotLocation(trimmed)) return null;
-  if (/\b(?:\d|uno|un|dos|tres|cuatro|cinco)\s+tiempos?\b/i.test(trimmed) && !KNOWN_ZONES.test(trimmed)) {
-    return null;
-  }
-  if (isLikelyProductNameNotLocation(trimmed)) return null;
-  if (/\bsala\s*:/i.test(trimmed)) return null;
-  if (clientAsksLocation(trimmed) || looksLikeCompanyLocationQuestionFragment(trimmed)) {
-    return null;
-  }
-  const eventoEsEn = trimmed.match(
-    /\bel\s+evento\s+(?:es|ser[ií]a|queda|ser[aá])\s+en\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{1,40})/i
-  );
-  if (eventoEsEn?.[1]) {
-    let lugar = eventoEsEn[1].trim().replace(/[.,;:]+$/g, "").split(/\s+(?:y|,|entonces|pero|no|porque)\b/i)[0].trim().replace(/^(el|la|los|las)\s+/i, "").trim();
-    if (/^cdmx$/i.test(lugar) || /^df$/i.test(lugar)) lugar = "Ciudad de M\xE9xico";
-    if (lugar && (KNOWN_ZONES.test(lugar) || isUsableDireccionEvento(lugar))) {
-      return lugar;
-    }
-  }
-  const composed = composeEventLocation(trimmed);
-  if (composed && /\bcolonia\b/i.test(composed) && /cdmx/i.test(composed) && isUsableDireccionEvento(composed)) {
-    return composed;
-  }
-  if (/\bvalle\s+de\s+bravo\b/i.test(trimmed) && /\bmesa\s+rica\b/i.test(trimmed)) {
-    return "valle de bravo";
-  }
-  const placeHeader = trimmed.match(/^([A-Za-zÁÉÍÓÚ][A-Za-záéíóúñÁÉÍÓÚ\s.-]{2,35})\s*:\s*/);
-  if (placeHeader?.[1]) {
-    const place = placeHeader[1].trim();
-    if (place.length >= 3 && !/^(tipo|fecha|horario|lugar|servicios|requerimientos|ubicaci[oó]n)$/i.test(place) && // A15298: "Número estimado de asistentes: 60" es un campo del brief, no un lugar.
-    !/\b(n[uú]mero|estimad[oa]s?|asistentes|invitados|personas|evento|presupuesto|nombre|correo|tel[eé]fono|contacto|hora|d[ií]a|servicios?|requerimientos?|cantidad|total|notas?)\b/i.test(
-      place
-    ) && isUsableDireccionEvento(place)) {
-      return place;
-    }
-  }
-  const lugarLabel = trimmed.match(/\bLugar\s*:\s*([^\n,]{4,80})(?:,|\n|$)/i);
-  if (lugarLabel?.[1]) {
-    const venue = lugarLabel[1].trim().replace(/\s+/g, " ");
-    if (isUsableDireccionEvento(venue) && !isVagueVenueOnly(venue)) {
-      return venue;
-    }
-  }
-  const centroCultural = trimmed.match(
-    /\b(Centro\s+Cultural\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.-]{2,40})/i
-  );
-  if (centroCultural?.[1] && isUsableDireccionEvento(centroCultural[1].trim())) {
-    return centroCultural[1].trim().replace(/\s+/g, " ");
-  }
-  const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
-  if (expoMatch?.[0] && isUsableDireccionEvento(expoMatch[0].trim())) {
-    return expoMatch[0].trim();
-  }
-  if (KNOWN_ZONES.test(trimmed)) {
-    const zoneHits = [
-      ...trimmed.matchAll(new RegExp(KNOWN_ZONES.source, "gi"))
-    ].map((m7) => m7[0].trim()).filter(Boolean);
-    const uniqueZones = [];
-    for (const z4 of zoneHits) {
-      if (!uniqueZones.some((u5) => u5.toLowerCase() === z4.toLowerCase())) {
-        uniqueZones.push(z4);
-      }
-    }
-    if (uniqueZones.length >= 2) {
-      let composedMulti = uniqueZones[0];
-      for (let i6 = 1; i6 < uniqueZones.length; i6++) {
-        composedMulti = mergeZonaDetail(composedMulti, uniqueZones[i6]);
-      }
-      if (composedMulti && isUsableDireccionEvento(composedMulti)) {
-        return composedMulti;
-      }
-    }
-    const m6 = trimmed.match(KNOWN_ZONES);
-    if (m6 && isUsableDireccionEvento(m6[0].trim())) {
-      const city = m6[0].trim();
-      if (/estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x/i.test(city) && m6.index != null && m6.index > 0) {
-        const before = trimmed.slice(0, m6.index).trim();
-        const muni = before.match(
-          /(?:^|[\s,])([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ]{3,})\s*$/i
-        )?.[1];
-        if (muni && !NON_LOCATION_WORDS.test(muni) && !/^(y|el|la|en|de|del|para|con|ser[ií]a|aun|a[uú]n|no|se|sabe)\b/i.test(muni)) {
-          const composedMuni = mergeZonaDetail(muni, city);
-          if (composedMuni && isUsableDireccionEvento(composedMuni)) return composedMuni;
-        }
-      }
-      const detailed = composeDetailedEventLocation(trimmed);
-      if (detailed && isRicherDireccionCapture(detailed, city)) {
-        return sanitizeDireccionCapture(detailed) ?? detailed;
-      }
-      const venue = extractVenueNameHint(trimmed);
-      const located = extractLocatedPlaceHint(trimmed);
-      const street = extractStreetDetailHint(trimmed);
-      let composed2 = city;
-      if (venue && !KNOWN_ZONES.test(venue)) {
-        composed2 = mergeZonaDetail(composed2, venue);
-      }
-      if (located) {
-        composed2 = mergeZonaDetail(composed2, located);
-      }
-      if (street) {
-        composed2 = mergeZonaDetail(composed2, street);
-      }
-      composed2 = sanitizeDireccionCapture(composed2);
-      if (composed2 && isUsableDireccionEvento(composed2)) return composed2;
-      return city;
-    }
-  }
-  const coloniaMatch = trimmed.match(
-    /\b((?:colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+[A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{1,28})/i
-  );
-  if (coloniaMatch?.[1] && isUsableDireccionEvento(coloniaMatch[1].trim())) {
-    return coloniaMatch[1].trim();
-  }
-  const venueEn = trimmed.match(
-    /\ben\s+(?:una|la|mi|nuestra|un|el)\s+(casa|quinta|residencia|jard[ií]n|terraza|finca|rancho|hacienda|departamento|depa)\s+(?:particular\s+)?en\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,48})/i
-  );
-  if (venueEn?.[2]) {
-    const place = venueEn[2].split(/\n/)[0].split(/\s+(?:para|con|por|pero|y|el\s+d[ií]a|a\s+las)\s+/i)[0].replace(/[.,;:\s]+$/g, "").trim();
-    const lugar = `${venueEn[1].toLowerCase()} en ${place}`;
-    if (place.length >= 3 && isUsableDireccionEvento(lugar)) return lugar;
-  }
-  const enMatch = trimmed.match(
-    /\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,28})(?:\s|,|\.|$)/i
-  );
-  if (enMatch) {
-    let lugar = enMatch[1].trim().replace(/[.,;:]+$/g, "").trim();
-    lugar = lugar.split(/\n/)[0].trim();
-    lugar = lugar.split(/\s+(?:para|con|por|donde|cuando|porque|que|y\s+también|tipo\s+de)\b/i)[0].trim().replace(/[.,;:]+$/g, "").trim();
-    const sinArticulo = lugar.replace(/^(el|la|los|las)\s+/i, "").trim();
-    const candidato = sinArticulo || lugar;
-    if (candidato && !MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !isVagueVenueOnly(candidato) && !isNonLocationBusinessPhrase(candidato) && !looksLikeDiscourseNotPlace(candidato) && !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje|color|noche|tarde|vivo|realidad|serio|importante|hora)\b/i.test(
-      candidato
-    ) && !looksLikeMealTimeNotLocation(candidato) && !/^color\b/i.test(candidato) && isUsableDireccionEvento(candidato)) {
-      return candidato;
-    }
-  }
-  const venueMatch = trimmed.match(
-    /\b((?:la\s+)?casa\s+del\s+corregidor|cd\.?\s*nezahualc[oó]yotl)\b/i
-  );
-  if (venueMatch?.[1] && isUsableDireccionEvento(venueMatch[1].trim())) {
-    return venueMatch[1].trim();
-  }
-  const clubMatch = trimmed.match(/\b(club\s+de\s+golf\s+[A-Za-zÁÉÍÓÚáéíóúñ\s]{2,30})/i);
-  if (clubMatch?.[1] && isUsableDireccionEvento(clubMatch[1].trim())) {
-    return clubMatch[1].trim();
-  }
-  if (/\b(se\s+llevar[aá]|llevaremos|ser[aá])\s+(a\s+cabo\s+)?en\s+(el\s+)?/i.test(trimmed)) {
-    const enVenue = trimmed.match(/\ben\s+(el\s+)?([A-ZÁÉÍÓÚ][A-Za-zÁÉÍÓÚáéíóúñ\s]{4,40})/);
-    if (enVenue?.[2] && !MONTH_PATTERN.test(enVenue[2]) && isUsableDireccionEvento(enVenue[2].trim())) {
-      return enVenue[2].trim();
-    }
-  }
-  const perteneceMatch = trimmed.match(
-    /\bpertenece\s+a\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,40})/i
-  );
-  if (perteneceMatch?.[1]) {
-    const lugar = perteneceMatch[1].trim().replace(/[.,;:]+$/g, "").split(/\s+(?:a\s+media|a\s+\d|por\s+la|por\s+que)\b/i)[0].trim();
-    if (lugar && isUsableDireccionEvento(lugar)) return lugar;
-  }
-  const shortPlace = trimmed.replace(/^(es\s+en\s+|en\s+|ser[ií]a\s+en\s+|s[ií][,.]?\s+)/i, "").trim().replace(/[.,;:]+$/g, "").trim();
-  if (shortPlace && shortPlace.split(/\s+/).length <= 5 && shortPlace.length <= 56 && (hasCityOrMetroSignal(shortPlace) || KNOWN_ZONES.test(shortPlace) || looksLikeMxMunicipalityToponym(shortPlace)) && isUsableDireccionEvento(shortPlace)) {
-    return shortPlace;
-  }
-  return null;
-}
-function normalizeDictatedCorreo(text2) {
-  const lower2 = text2.toLowerCase().replace(/[¿?¡!,.;:]+$/g, "");
-  if (!/\barroba\b/.test(lower2)) return null;
-  const tokens = lower2.split(/\s+/);
-  const arrobaIdx = tokens.indexOf("arroba");
-  if (arrobaIdx === -1) return null;
-  const localParts = [];
-  for (let i6 = arrobaIdx - 1; i6 >= 0; ) {
-    const tok = tokens[i6];
-    if (tok === "bajo" && i6 - 1 >= 0 && (tokens[i6 - 1] === "guion" || tokens[i6 - 1] === "gui\xF3n")) {
-      localParts.unshift("_");
-      i6 -= 2;
-      continue;
-    }
-    if (tok === "guion" || tok === "gui\xF3n") {
-      localParts.unshift("-");
-      i6 -= 1;
-      continue;
-    }
-    if (CORREO_DICTADO_STOPWORDS.has(tok)) break;
-    if (!/^[a-z0-9]+$/.test(tok)) break;
-    localParts.unshift(tok);
-    i6 -= 1;
-  }
-  if (localParts.length === 0) return null;
-  const domainParts = [];
-  for (let i6 = arrobaIdx + 1; i6 < tokens.length; ) {
-    const tok = tokens[i6];
-    if (tok === "punto") {
-      domainParts.push(".");
-      i6 += 1;
-      continue;
-    }
-    if (tok === "guion" || tok === "gui\xF3n") {
-      if (tokens[i6 + 1] === "bajo") {
-        domainParts.push("_");
-        i6 += 2;
-        continue;
-      }
-      domainParts.push("-");
-      i6 += 1;
-      continue;
-    }
-    if (!/^[a-z0-9]+$/.test(tok)) break;
-    domainParts.push(tok);
-    i6 += 1;
-  }
-  if (domainParts.length === 0) return null;
-  const candidate = `${localParts.join("")}@${domainParts.join("")}`;
-  return /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(candidate) ? candidate : null;
-}
-function parseCorreoFromText(text2) {
-  if (!text2) return null;
-  const m6 = text2.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
-  const raw = m6 ? m6[1] : normalizeDictatedCorreo(text2);
-  if (!raw) return null;
-  return filterClientEmail(raw);
-}
-function isServiceLabelNotTipoEvento(label) {
-  if (!label?.trim()) return false;
-  const t4 = label.trim();
-  if (/^evento\s+con\s+/i.test(t4) || /^celebraci[oó]n\b/i.test(t4)) return false;
-  if (SERVICE_LABELS_NOT_TIPO.test(t4)) return true;
-  if (parseTipoEventoFromText(t4)) return false;
-  return !!parsePrimaryService(t4);
-}
-function isMonthOnlyFecha(value) {
-  const t4 = (value ?? "").trim();
-  if (!t4) return false;
-  return /^(?:en\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/i.test(
-    t4
-  );
-}
-function isRicherFechaCapture(incoming, existing) {
-  const next = (incoming ?? "").trim();
-  const prev = (existing ?? "").trim();
-  if (!next || !isUsableFechaEvento(next)) return false;
-  if (!prev) return true;
-  if (next.toLowerCase() === prev.toLowerCase()) return false;
-  const nextHasDay = /\b\d{1,2}\s+(?:de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
-    next
-  ) || /\b\d{1,2}[\/\-]\d{1,2}/.test(next);
-  const prevHasDay = /\b\d{1,2}\s+(?:de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
-    prev
-  ) || /\b\d{1,2}[\/\-]\d{1,2}/.test(prev);
-  if (nextHasDay && (isMonthOnlyFecha(prev) || !prevHasDay)) return true;
-  if (/\b20\d{2}\b/.test(next) && !/\b20\d{2}\b/.test(prev) && isMonthOnlyFecha(prev) && next.toLowerCase().startsWith(prev.toLowerCase())) {
-    return true;
-  }
-  if (nextHasDay && prevHasDay && /\b\d{4}\b/.test(next) && !/\b\d{4}\b/.test(prev)) return true;
-  if (next.length > prev.length + 2 && nextHasDay) return true;
-  return false;
-}
-function parseFechaFromText(text2) {
-  const trimmed = text2.trim();
-  if (isMealTimeOnlySchedule(trimmed)) return null;
-  if (isClockTimeOnlySchedule(trimmed)) return null;
-  const MONTHS2 = "enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre";
-  const dayMonthBare = trimmed.match(
-    new RegExp(
-      `\\b(?:el\\s+)?(\\d{1,2})\\s+(?:de\\s+)?(${MONTHS2})(?:\\s+(?:de\\s+)?(\\d{4}))?\\b`,
-      "i"
-    )
-  );
-  if (dayMonthBare) {
-    const day = dayMonthBare[1];
-    const month = dayMonthBare[2].toLowerCase();
-    const year = dayMonthBare[3];
-    const base = normalizeAbsurdEventYear(
-      year ? `${day} de ${month} ${year}` : `${day} de ${month}`
-    );
-    const horaMatch = trimmed.match(
-      /\ba\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?\b/i
-    );
-    if (horaMatch?.[1]) {
-      const h5 = horaMatch[1];
-      return `${base} a las ${h5}${h5.includes(":") ? "" : ":00"} horas`;
-    }
-    return base;
-  }
-  const fechaMatch = trimmed.match(
-    /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+(?:de\s+)?\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
-  );
-  if (fechaMatch) {
-    const base = normalizeAbsurdEventYear(fechaMatch[1]);
-    const hora = fechaMatch[2];
-    return hora ? `${base} a las ${hora}${hora.includes(":") ? "" : ":00"} horas` : base;
-  }
-  const correction = extractFechaCorrectionFragment(trimmed);
-  if (correction) return correction;
-  if (/\b(todav[ií]a\s+la\s+vamos\s+a\s+definir|todav[ií]a\s+(no\s+)?la\s+van?\s+a\s+definir|vamos\s+a\s+definir|siguen\s+viendo\s+opciones?|a[uú]n\s+sin\s+fecha|la\s+fecha\s+(a[uú]n\s+)?no\s+est[aá]|a[uú]n\s+no\s+(la\s+)?defin|no\s+tenemos\s+(fecha|d[ií]a)|sin\s+definir\s+(a[uú]n|todav[ií]a)|todav[ií]a\s+no\s+sabemos)\b/i.test(
-    trimmed
-  )) {
-    return "Sin definir (pendiente)";
-  }
-  if (/\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|a[uú]n\s+no\s+tenemos\s+fecha|todav[ií]a\s+no|por\s+definir)\b/i.test(
-    trimmed
-  )) {
-    if (trimmed.length > 50 || looksLikeFechaDiscourseJunk(trimmed)) {
-      const short = trimmed.match(
-        /\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|por\s+definir)\b/i
-      );
-      return short?.[1] ?? "Sin definir (pendiente)";
-    }
-    return trimmed.slice(0, 80);
-  }
-  const weekdayDate = trimmed.match(
-    /\b((?:este|el|pr[oó]ximo)\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+(\d{1,2})(?:\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))?\b/i
-  );
-  if (weekdayDate) {
-    return weekdayDate[0].replace(/^(s[ií]|ok|vale)[,.]?\s+/i, "").trim().slice(0, 80);
-  }
-  const relativeDay = trimmed.match(
-    /\b((?:este|el|pr[oó]ximo)\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+de\s+(\d{1,2})\s*(?:a|[-–]|hasta)\s*(\d{1,2}))?\b/i
-  );
-  if (relativeDay) {
-    const day = relativeDay[0].replace(/^(s[ií]|ok|vale)[,.]?\s+/i, "").trim();
-    return day.slice(0, 80);
-  }
-  const numeric2 = trimmed.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
-  const numericIsTimeRange = !!numeric2 && !numeric2[3] && numeric2[0].includes("-") && (/\b(horario|hora|horas|de|desde|las)\s*$/i.test(trimmed.slice(0, numeric2.index)) || /^\s*(?:am|pm|a\.?\s?m\.?|p\.?\s?m\.?|hrs?|horas?)\b/i.test(
-    trimmed.slice((numeric2.index ?? 0) + numeric2[0].length)
-  ));
-  if (numeric2 && !numericIsTimeRange) {
-    const d3 = Number(numeric2[1]);
-    const m6 = Number(numeric2[2]);
-    if (d3 >= 1 && d3 <= 31 && m6 >= 1 && m6 <= 12) {
-      const monthNames = [
-        "enero",
-        "febrero",
-        "marzo",
-        "abril",
-        "mayo",
-        "junio",
-        "julio",
-        "agosto",
-        "septiembre",
-        "octubre",
-        "noviembre",
-        "diciembre"
-      ];
-      const month = monthNames[m6 - 1];
-      const yRaw = numeric2[3];
-      const year = yRaw ? yRaw.length === 2 ? `20${yRaw}` : yRaw : null;
-      return year ? `${d3} de ${month} ${year}` : `${d3} de ${month}`;
-    }
-  }
-  if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
-    const monthWithYear = () => {
-      const month = trimmed.match(
-        /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b(?:\s+(?:de(?:l)?\s+)?(20\d{2}))?/i
-      );
-      if (!month?.[1]) return null;
-      const m6 = month[1];
-      const label = m6.charAt(0).toUpperCase() + m6.slice(1).toLowerCase();
-      return month[2] ? `${label} de ${month[2]}` : label;
-    };
-    if (looksLikeFechaDiscourseJunk(trimmed) || trimmed.length > 40 || trimmed.split(/\s+/).length > 5) {
-      const withYear = monthWithYear();
-      if (withYear) return withYear;
-    }
-    if (isMonthOnlyFecha(trimmed) || /^en\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)$/i.test(trimmed)) {
-      const withYear = monthWithYear();
-      if (withYear) return withYear;
-    }
-    return trimmed.slice(0, 80);
-  }
-  if (/\b(d[ií]a\s+no|sin\s+d[ií]a|a[uú]n\s+no\s+(hay|tenemos)\s+d[ií]a)\b/i.test(trimmed) && /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–a]|hasta)\s*\d{1,2}/i.test(trimmed)) {
-    return "Sin definir (pendiente)";
-  }
-  if (/\bhorario\b/i.test(trimmed) && /\b\d{1,2}\s*(?::\d{2})?\s*(?:[-–a]|hasta)\s*\d{1,2}/i.test(trimmed) && !MONTH_PATTERN.test(trimmed) && !/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(trimmed)) {
-    return null;
-  }
-  return null;
-}
-function isGenericQuoteIntentRequerimiento(value) {
-  const t4 = value?.trim() ?? "";
-  if (!t4) return false;
-  if (isServiceRelatedMessage(t4) && parseServicesFromText(t4).length > 0) return false;
-  if (isQuoteIntentMessage(t4)) return true;
-  return /^(quiero|necesito|requiero|busco|me\s+interesa)\s+(una?\s+)?cotiz/i.test(t4) || /^cotizaci[oó]n$/i.test(t4) || /^una?\s+cotizaci[oó]n$/i.test(t4) || /\bquiero\s+una?\s+cotizaci[oó]n\b/i.test(t4) || /\bsolicito\s+(una?\s+)?cotizaci[oó]n\b/i.test(t4);
-}
-function mergeZonaDetail(existing, incoming) {
-  return dedupeLocationParts(mergeZonaDetailRaw(existing, incoming));
-}
-function mergeZonaDetailRaw(existing, incoming) {
-  const prevRaw = existing?.trim() ?? "";
-  const nextRaw = incoming?.trim() ?? "";
-  if (looksLikeThemeColorNotLocation(nextRaw)) {
-    return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
-  }
-  if (/\bno\s+(quiero|necesito|requiero)\b/i.test(nextRaw) || /\bsolo\s+(la\s+)?(tarima|pista|entarimad)/i.test(nextRaw) || /\bsin\s+(catering|comida|pista|tarima)\b/i.test(nextRaw)) {
-    return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
-  }
-  if (/^(pdf|excel|word|archivo|documento)s?$/i.test(nextRaw)) {
-    return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
-  }
-  const prev = (stripThemeColorsFromZona(prevRaw) || prevRaw).replace(/,?\s*pdf\s*$/i, "").trim();
-  const next = (stripThemeColorsFromZona(nextRaw) || nextRaw).replace(/,?\s*pdf\s*$/i, "").trim();
-  if (!next) return prev || null;
-  if (!prev) return next;
-  if (isLocationMetaReferential(prev)) return next;
-  if (isLocationMetaReferential(next)) return prev || null;
-  const prevIsCity = hasCityOrMetroSignal(prev) || looksLikeMxMunicipalityToponym(prev) || matchesKnownZone(prev);
-  const nextIsVenue = isVenueWithoutCity(next) || extractVenueNameHint(next);
-  const nextIsCity = hasCityOrMetroSignal(next) || looksLikeMxMunicipalityToponym(next) || matchesKnownZone(next);
-  const prevIsVenue = isVenueWithoutCity(prev) || extractVenueNameHint(prev);
-  if (prevIsCity && nextIsVenue && !nextIsCity) {
-    if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
-    return `${prev}, ${next}`;
-  }
-  if (nextIsCity && prevIsVenue && !prevIsCity) {
-    if (next.toLowerCase().includes(prev.toLowerCase())) return next;
-    return `${next}, ${prev}`;
-  }
-  if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
-  if (next.toLowerCase().includes(prev.toLowerCase())) return next;
-  if (textOverlapLoose(prev, next) >= 0.85) return prev.length >= next.length ? prev : next;
-  if (looseSameToponym(prev, next)) return preferToponymSpelling(prev, next);
-  if (/\bsan\s+miguel|hacienda|allende\b/i.test(next) && /^(ciudad\s+de\s+m[eé]xico|cdmx)$/i.test(prev)) {
-    return next;
-  }
-  return `${prev}, ${next}`;
-}
-function textOverlapLoose(a4, b5) {
-  const norm2 = (s7) => s7.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(Boolean);
-  const wa2 = new Set(norm2(a4));
-  const wb = new Set(norm2(b5));
-  if (!wa2.size || !wb.size) return 0;
-  let shared = 0;
-  for (const w5 of wa2) if (wb.has(w5)) shared++;
-  return shared / Math.max(wa2.size, wb.size);
-}
-function bareNumberLooksLikeInvitados(num, trimmed) {
-  if (/\$|k\b|mil\b|pesos|mxn|mnx/i.test(trimmed)) return false;
-  return num >= 5 && num <= 999;
-}
-function countLucyFieldAsks(history, field) {
-  const pattern = LUCY_FIELD_ASK_PATTERNS[field];
-  return history.filter(
-    (m6) => m6.role === "assistant" && typeof m6.content === "string" && pattern.test(m6.content)
-  ).length;
-}
-function clientAsksTeamOptionsInsteadOfBudget(text2) {
-  const t4 = (text2 ?? "").trim();
-  if (!t4 || t4.length > 80) return false;
-  if (/\$\s*\d|\b\d{3,}\s*(mil|pesos|mxn)\b/i.test(t4)) return false;
-  return /^(?:una[s]?\s+)?opciones?(?:\s+por\s+favor)?[\s.,!]*$/i.test(t4) || /^(?:la\s+)?opci[oó]n\s+base[\s.,!]*$/i.test(t4) || /\bopciones?\s+por\s+favor\b/i.test(t4) || /\bprefiero\s+(?:que\s+)?(?:me\s+)?(?:manden|propongan|den|pasen)\s+opciones\b/i.test(t4) || /\bque\s+(?:el\s+)?equipo\s+(?:me\s+)?(?:proponga|presente)\b/i.test(t4);
-}
-function detectPresupuestoRefusal(text2) {
-  const t4 = text2?.trim() ?? "";
-  if (!t4) return false;
-  if (isRichQuoteBrief(t4)) return false;
-  if (!/\bpresupuesto\b/i.test(t4) && (/\b(por\s+este\s+medio|por\s+whatsapp|aqu[ií]\s+por\s+whatsapp|a\s+qui(?:[eé])?\s+por\s+whatsapp|whatsapp\s+no\s+se\s+puede|no\s+tengo(\s+un?)?\s+correo)\b/i.test(
-    t4
-  ) || /\bno\s+s[eé]\s+puede\b/i.test(t4))) {
-    return false;
-  }
-  if (/^(no|nop)[\s.,!]*$/i.test(t4)) return true;
-  if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t4)) return true;
-  if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t4)) return true;
-  if (/\bopci[oó]n\s+completa\b/i.test(t4) || /\bpropuesta\s+completa\b/i.test(t4)) return true;
-  if (t4.length <= 100 && /\b(una\s+)?propuesta\b/i.test(t4) && !/\bpresupuesto\s+(de|estimado|aprox)/i.test(t4) && !/\$\s*\d|\b\d{3,}\s*(mil|pesos|mxn)\b/i.test(t4)) {
-    return true;
-  }
-  if (/^\.{2,}$/.test(t4)) return true;
-  if (/\bpara\s+eso\s+(te\s+)?(contacto|contact[eé]|escribo|hablo|llamo)\b/i.test(t4) || /\b(por|para)\s+eso\s+(te\s+)?(estoy\s+)?(contactando|escribiendo|llamando)\b/i.test(t4)) {
-    return true;
-  }
-  const explicitNoBudget = /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t4) || /\bno\s+me\s+brindaron\b/i.test(t4) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t4) || /\bsin\s+presupuesto\b/i.test(t4) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t4) || // A15815: "No hemos cotizado nada aún Uds son los primeros"
-  /\bno\s+hemos\s+cotizado\b/i.test(t4) || /\b(ustedes|uds\.?|ustedes)\s+son\s+los\s+primeros\b/i.test(t4) || /\bson\s+los\s+primeros\b/i.test(t4);
-  if (explicitNoBudget) return true;
-  const budgetCareLanguage = /\b(dentro\s+del\s+presupuesto|sin\s+perder.{0,40}presupuesto|al\s+presupuesto|bajo\s+presupuesto|mantener.{0,25}presupuesto|seg[uú]n\s+(el\s+)?presupuesto|cuidando.{0,25}presupuesto)\b/i.test(
-    t4
-  );
-  if (!budgetCareLanguage && t4.length <= 160 && /\bno\b/i.test(t4) && /\bpresupuesto\b/i.test(t4)) {
-    return true;
-  }
-  if (t4.length > 140) return false;
-  const norm2 = t4.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-  if (/\bno\s+se\b/.test(norm2) && /\b(cual|nivel|opcion|variante|paquete|incluir|incluye|podria\s+ser)\b/.test(norm2)) {
-    return false;
-  }
-  return /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t4) || /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t4) || /\bt[uú]\s+m[aá]ndame\b/i.test(t4) || /\bsi\s+quieres\s+vemos\b/i.test(t4) || /\b(no\s+s[eé](?!\s+puede)|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s*$|[.,!?]|\s+(cu[aá]nto|a[uú]n|si)\b)/i.test(t4) || // A15893: "Aún no sé definen" es horario, no presupuesto. "aún no sé" solo al final o con cuánto.
-  /\ba[uú]n\s+no\s+(?:lo\s+s[eé]|s[eé]\s+cu[aá]nto)(?!\s+defin)/i.test(t4) || /\ba[uú]n\s+no\s+s[eé](?!\s+defin)(?:\s*$|[.,!?])/i.test(t4) || /\btodav[ií]a\s+no\b/i.test(t4) || /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t4) || /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t4) || /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t4) || /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t4) || /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t4) || /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t4) || /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t4) || /\b(el\s+)?equipo\s+(me\s+)?propong/i.test(t4);
-}
-function isSoftDeferralNo(text2) {
-  const t4 = (text2 ?? "").trim().replace(/[\s.,!¡]+$/g, "");
-  if (!t4 || t4.length > 40) return false;
-  return /^(de\s+momento|por\s+(ahora|el\s+momento|lo\s+pronto)|a[uú]n|todav[ií]a|hasta\s+ahora)\s+no$/i.test(
-    t4
-  ) || /^no\s+(por\s+(ahora|el\s+momento)|de\s+momento|a[uú]n|todav[ií]a)$/i.test(t4);
-}
-function detectPresupuestoRefusalInContext(text2, lastAssistantText) {
-  if (clientDefersHorario(text2)) return false;
-  const asked = lastAssistantText ?? "";
-  if (asked.trim() && LUCY_FIELD_ASK_PATTERNS.horario.test(asked) && !LUCY_FIELD_ASK_PATTERNS.presupuesto.test(asked)) {
-    return false;
-  }
-  if (detectPresupuestoRefusal(text2)) return true;
-  if (clientAsksTeamOptionsInsteadOfBudget(text2) && LUCY_FIELD_ASK_PATTERNS.presupuesto.test(asked)) {
-    return true;
-  }
-  if (!isSoftDeferralNo(text2)) return false;
-  if (!asked.trim()) return false;
-  return LUCY_FIELD_ASK_PATTERNS.presupuesto.test(asked);
-}
-function isPresupuestoResuelto(filledSet, texts = [], history) {
-  if (filledSet.has("Presupuesto (MXN)")) return true;
-  if (findPresupuestoInTexts(texts, history)) return true;
-  if (texts.some((t4) => detectPresupuestoRefusal(t4))) return true;
-  return false;
-}
-function findPresupuestoInTexts(texts, history) {
-  if (history?.length) {
-    let lastAssistant = "";
-    for (const msg of history) {
-      if (msg.role === "assistant" && typeof msg.content === "string") {
-        lastAssistant = msg.content;
-      }
-      if (msg.role === "user" && typeof msg.content === "string") {
-        const asked = inferLucyAskedField(lastAssistant);
-        const pres = parsePresupuestoFromText(msg.content, {
-          askedField: asked === "presupuesto" ? "presupuesto" : null
-        });
-        if (pres) return pres;
-      }
-    }
-  }
-  for (const t4 of texts) {
-    const pres = parsePresupuestoFromText(t4);
-    if (pres) return pres;
-  }
-  return null;
-}
-function looksLikeCalendarYearAmount(num, text2) {
-  if (num < 1990 || num > 2100) return false;
-  if (/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget|tope)\b/i.test(text2)) {
-    return false;
-  }
-  const t4 = text2.trim();
-  if (/^(19|20)\d{2}$/.test(t4)) return true;
-  if (/\b(19|20)\d{2}\b/.test(t4) && /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|fecha|a[nñ]o)\b/i.test(
-    t4
-  )) {
-    return true;
-  }
-  return false;
-}
-function parsePresupuestoFromText(text2, opts) {
-  const withoutEmails = text2.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ").replace(/\s+/g, " ").trim();
-  const trimmed = withoutEmails || text2.trim();
-  if (!trimmed) return null;
-  if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(text2.trim())) return null;
-  if (clientCorrectsLocation(trimmed) || isVenueSpaceDetail(trimmed)) return null;
-  if (/\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?(presupuesto|cotiz)/i.test(trimmed) || /\bt[uú]\s+m[aá]ndame\b/i.test(trimmed)) {
-    return "Sin definir (cliente pidi\xF3 que propongamos)";
-  }
-  if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(trimmed)) {
-    return "Sin definir (cliente pidi\xF3 que propongamos)";
-  }
-  if (/^(abiert[oa]s?)[\s.,!]*$/i.test(trimmed) || /\bpropuesta\s+abierta\b/i.test(trimmed) || /\bpresupuesto\s+abiert[oa]\b/i.test(trimmed) || /\bcotizaci[oó]n\s+abierta\b/i.test(trimmed)) {
-    return "Sin definir (propuesta abierta / cliente pidi\xF3 opciones)";
-  }
-  if (/\bopci[oó]n\s+completa\b/i.test(trimmed) || /\bpropuesta\s+completa\b/i.test(trimmed)) {
-    return "Sin definir (cliente pidi\xF3 que propongamos)";
-  }
-  if (/\b(que\s+(me\s+)?propongan|el\s+equipo\s+(me\s+)?propong|ustedes\s+(me\s+)?propong)/i.test(
-    trimmed
-  )) {
-    return "Sin definir (cliente pidi\xF3 que propongamos)";
-  }
-  if (/\bno\s+hay\s+l[ií]mite(\s+de\s+presupuesto)?\b/i.test(trimmed) || /\bsin\s+l[ií]mite(\s+de\s+presupuesto)?\b/i.test(trimmed) || /\bpresupuesto\s+sin\s+l[ií]mite\b/i.test(trimmed)) {
-    return "Sin l\xEDmite (cliente indic\xF3 flexibilidad)";
-  }
-  if (detectPresupuestoRefusal(trimmed)) {
-    return "Sin definir (cliente indic\xF3 que no tiene)";
-  }
-  if (/\b(lo\s+m[aá]s\s+)?econ[oó]mic[oa]s?\b/i.test(trimmed) || /\b(barato|accesible|ajustad[oa]|menor\s+costo|lo\s+m[aá]s\s+barato)\b/i.test(trimmed)) {
-    return "Opciones econ\xF3micas (sin monto fijo)";
-  }
-  if (/\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(trimmed)) {
-    return "Sin definir (cliente indic\xF3 que no tiene)";
-  }
-  if (/\b(poquito|lo\s+que\s+sea\s+necesario|flexible|lo\s+que\s+se\s+necesite)\b/i.test(trimmed)) {
-    return "Flexible (sin monto fijo)";
-  }
-  if (opts?.askedField === "presupuesto" && /^(no|nop)[\s.,!]*$/i.test(trimmed)) {
-    return "Sin definir (cliente indic\xF3 que no tiene)";
-  }
-  if (opts?.askedField === "presupuesto") {
-    if (/^(s[ií]|ok|vale|bueno|est[aá]\s+bien|perfecto|claro|de\s+acuerdo|opciones?|propuestas?|abiert[oa]s?)[\s.,!]*$/i.test(
-      trimmed
-    )) {
-      return trimmed.match(/^opciones?|^propuestas?|^abiert/i) ? "Sin definir (cliente pidi\xF3 que propongamos)" : PRESUPUESTO_AUTO_WAIVER;
-    }
-    if (/^(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea|\.\.+)[\s.,!]*$/i.test(trimmed)) {
-      return "Sin definir (cliente indic\xF3 que no tiene)";
-    }
-  }
-  if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones|todav[ií]a\s+no|despu[eé]s\s+vemos)\b/i.test(
-    trimmed
-  )) {
-    if (opts?.askedField !== "presupuesto" && !/\b(presupuesto|inversi[oó]n|cu[aá]nto\s+(?:puedo|pueden|tenemos)\s+gastar)\b/i.test(
-      trimmed
-    ) && /\b(sal[oó]n|venue|lugar|sede|ubicaci[oó]n|direcci[oó]n|colonia|jard[ií]n|casa|hotel|hacienda)\b/i.test(
-      trimmed
-    )) {
-      return null;
-    }
-    return "Sin definir (cliente indic\xF3 que no tiene)";
-  }
-  if (parseFechaFromText(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b)/i.test(trimmed)) {
-    return null;
-  }
-  if (/\b\d+\s*(personas?|invitados?|pax)\b/i.test(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b)/i.test(trimmed)) {
-    return null;
-  }
-  if (/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|hoy|ma[nñ]ana|esta?\s+semana|este\s+s[aá]bado|pr[oó]ximo)\b/i.test(
-    trimmed
-  ) && /\b\d{1,2}\s*(?:[:.]\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}\b/i.test(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)) {
-    return null;
-  }
-  {
-    const hourRange = trimmed.match(/\b(\d{1,2})\s*(?:[:.]\d{2})?\s*(?:a|[-–]|hasta)\s*(\d{1,2})\b/i);
-    if (hourRange && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)) {
-      const a4 = parseInt(hourRange[1], 10);
-      const b5 = parseInt(hourRange[2], 10);
-      if (a4 >= 0 && a4 <= 24 && b5 >= 0 && b5 <= 24 && a4 < 1e3 && b5 < 1e3) {
-        if (a4 < 100 && b5 < 100) return null;
-      }
-    }
-  }
-  const rangeMatch = trimmed.match(/\b(\d[\d,.]*)\s*[-–a]\s*(\d[\d,.]*)\s*(mxn|mnx|pesos)?\b/i);
-  if (rangeMatch) {
-    const aRaw = rangeMatch[1].replace(/,/g, "");
-    const bRaw = rangeMatch[2].replace(/,/g, "");
-    const a4 = parseInt(aRaw, 10);
-    const b5 = parseInt(bRaw, 10);
-    const hasMoneyToken = !!(rangeMatch[3] || /\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed));
-    if (!hasMoneyToken && looksLikeGuestCountRange(trimmed)) return null;
-    if (!hasMoneyToken && Number.isFinite(a4) && Number.isFinite(b5) && a4 < 1e3 && b5 < 1e3) {
-      if (opts?.askedField !== "presupuesto") return null;
-      if (a4 < 500 && b5 < 500) return null;
-    }
-    const unit = trimmed.match(
-      /\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona|pax|cabeza)\b|\/\s*(silla|pieza|mesa|pp)\b/i
-    );
-    const unitLabel = unit ? /persona|pax|cabeza|pp/i.test(unit[1] || unit[2] || "") ? "por persona" : `por ${(unit[1] || unit[2] || "pieza").toLowerCase()}` : null;
-    const ship = trimmed.match(
-      /\b(?:acarreo|desplazamiento|env[ií]o|flete)\s*(?:de\s*)?\$?\s*([\d][\d,.]*)/i
-    );
-    let out2 = unitLabel ? `$${aRaw}\u2013$${bRaw} MXN ${unitLabel}` : `$${aRaw}\u2013$${bRaw} MXN`;
-    if (ship?.[1]) {
-      out2 += ` + $${ship[1].replace(/,/g, "")} ${/acarreo/i.test(trimmed) ? "acarreo" : "desplazamiento"}`;
-    }
-    return out2;
-  }
-  const perUnitMatch = trimmed.match(
-    /\$?\s*([\d][\d,.]*)\s*(?:mxn|mnx|pesos)?\s*(?:por\s+(?:cada\s+)?(persona|cabeza|silla|pieza|mesa)|x\s+persona|pp\b|c\/u\b|\/\s*(silla|pieza|pp))/i
-  );
-  if (perUnitMatch) {
-    const hasBudgetIntent = opts?.askedField === "presupuesto" || /\b(presupuesto|rango|inversi[oó]n|budget|tope|menos\s+de|hasta|m[aá]ximo|acarreo|desplazamiento)\b/i.test(
-      trimmed
-    );
-    const looksLikeCatalogPitch = /\b(manejamos|desde|ofrecemos|tenemos|niveles?|incluye)\b/i.test(trimmed) || trimmed.length > 120;
-    if (hasBudgetIntent || !looksLikeCatalogPitch) {
-      const num = parseInt(perUnitMatch[1].replace(/,/g, ""), 10);
-      const unitRaw = (perUnitMatch[2] || perUnitMatch[3] || "persona").toLowerCase();
-      const unitLabel = /persona|cabeza|pp/.test(unitRaw) ? "por persona" : `por ${unitRaw}`;
-      if (!isNaN(num) && num > 0) {
-        let out2 = `$${num.toLocaleString("es-MX")} MXN ${unitLabel}`;
-        const ship = trimmed.match(
-          /\b(?:acarreo|desplazamiento|env[ií]o|flete)\s*(?:de\s*)?\$?\s*([\d][\d,.]*)/i
-        );
-        if (ship?.[1]) {
-          out2 += ` + $${ship[1].replace(/,/g, "")} desplazamiento`;
-        }
-        return out2;
-      }
-    }
-  }
-  const menosDeMatch = trimmed.match(
-    /\b(?:menos\s+de|hasta|m[aá]ximo|max\.?)\s+\$?\s*([\d][\d,.]*)\s*(mxn|mnx|pesos)?\b/i
-  );
-  if (menosDeMatch) {
-    return `Hasta $${menosDeMatch[1].replace(/,/g, "")} MXN`;
-  }
-  const topeMatch = trimmed.match(
-    /\btope\s+(?:es\s+)?(?:de\s+)?\$?\s*([\d][\d,.]*)\s*(mxn|mnx|pesos|k)?\b/i
-  );
-  if (topeMatch) {
-    const suffix = topeMatch[2]?.toLowerCase() === "k" ? "k" : "";
-    return `Hasta $${topeMatch[1].replace(/,/g, "")}${suffix} MXN`;
-  }
-  const kMatch = trimmed.match(/\$?\s*([\d,.]+)\s*k\b/i);
-  if (kMatch) {
-    const num = parseInt(kMatch[1].replace(/[,.]/g, ""), 10);
-    if (!isNaN(num) && num > 0) return `$${num}k`;
-  }
-  const milMatch = trimmed.match(/([\d,.]+)\s*mil\b/i);
-  if (milMatch) {
-    const num = parseInt(milMatch[1].replace(/[,.]/g, ""), 10);
-    if (!isNaN(num) && num > 0) return `$${num * 1e3}`;
-  }
-  {
-    const yearOnly = trimmed.match(/^(19|20)\d{2}$/);
-    if (yearOnly) return null;
-    const yearNum = parseInt(trimmed.replace(/[^\d]/g, ""), 10);
-    if (looksLikeCalendarYearAmount(yearNum, trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)) {
-      if (/^(19|20)\d{2}$/.test(trimmed) || trimmed.length <= 6) return null;
-    }
-  }
-  const hasMoneyWord = /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn|mnx|tope)\b/i.test(trimmed) || opts?.askedField === "presupuesto";
-  const hasAproxBudget = hasMoneyWord && /\b(como|aprox|alrededor|cerca\s+de|menos\s+de|hasta)\b/i.test(trimmed);
-  if (hasMoneyWord || hasAproxBudget || /\$/.test(trimmed) && hasMoneyWord) {
-    const amountMatch = trimmed.match(/(?<![A-Za-z0-9])\$?\s*([\d][\d,.]*)/);
-    if (amountMatch) {
-      const num = parseInt(amountMatch[1].replace(/,/g, ""), 10);
-      if (!isNaN(num) && looksLikeCalendarYearAmount(num, trimmed) && !/\$/.test(trimmed)) {
-        return null;
-      }
-      const dollarAmount = trimmed.match(/\$\s*([\d][\d,.]{3,})/);
-      if (dollarAmount && /\b(19|20)\d{2}\b/.test(trimmed.replace(dollarAmount[0], " "))) {
-        const n5 = parseInt(dollarAmount[1].replace(/[,.]/g, ""), 10);
-        if (!isNaN(n5) && n5 >= 1e3) return `$${n5.toLocaleString("es-MX")} MXN`;
-      }
-      return trimmed.slice(0, 80);
-    }
-  }
-  if (/\$\s*[\d][\d,.]{3,}/.test(trimmed) && !/\bdesde\s+\$/i.test(trimmed)) {
-    const amountMatch = trimmed.match(/\$\s*([\d][\d,.]*)/);
-    if (amountMatch) {
-      const num = parseInt(amountMatch[1].replace(/,/g, ""), 10);
-      if (!isNaN(num) && num >= 1e3) return trimmed.slice(0, 80);
-    }
-  }
-  const bareMatch = trimmed.match(/^\$?\s*([\d][\d,.]*)\s*(k|mxn|mnx|pesos)?$/i);
-  if (bareMatch) {
-    const num = parseInt(bareMatch[1].replace(/,/g, ""), 10);
-    if (isNaN(num) || num <= 0) return null;
-    if (looksLikeCalendarYearAmount(num, trimmed) && !bareMatch[2]) return null;
-    if (opts?.askedField === "presupuesto") return trimmed.slice(0, 80);
-    if (bareNumberLooksLikeInvitados(num, trimmed)) return null;
-    if (num >= 1e3) return `$${num.toLocaleString("es-MX")} MXN`;
-    return null;
-  }
-  return null;
-}
-function presupuestoToSafeNumber(value) {
-  if (value === null || value === void 0) return null;
-  if (typeof value === "number") {
-    return Number.isFinite(value) && value > 0 ? value : null;
-  }
-  const t4 = value.trim();
-  if (!t4 || /sin definir|flexible|econ[oó]mic|propong|l[ií]mite/i.test(t4)) return null;
-  const range = t4.match(/\$?\s*([\d][\d,.]*)\s*[–\-a]\s*\$?\s*([\d][\d,.]*)/i);
-  if (range) {
-    const a4 = parseInt(range[1].replace(/,/g, ""), 10);
-    const b5 = parseInt(range[2].replace(/,/g, ""), 10);
-    if (!isNaN(a4) && !isNaN(b5)) {
-      const hi2 = Math.max(a4, b5);
-      if (/\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona)\b/i.test(t4) && hi2 < 1e3) {
-        return null;
-      }
-      if (hi2 >= 1e3) return hi2;
-      return null;
-    }
-  }
-  const primary = t4.split(/\s*\+\s*/)[0] ?? t4;
-  const m6 = primary.match(/\$?\s*([\d][\d,.]*)/);
-  if (!m6) return null;
-  const n5 = parseInt(m6[1].replace(/,/g, ""), 10);
-  if (isNaN(n5) || n5 <= 0) return null;
-  if (/\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona)\b/i.test(t4) && n5 < 1e3) return null;
-  return n5;
-}
-function getLastLucyMessage(history) {
-  return history.filter((m6) => m6.role === "assistant" && typeof m6.content === "string").slice(-1)[0]?.content ?? "";
-}
-function collectUserMessages(history, currentMessage) {
-  const fromHistory = history.filter((m6) => m6.role === "user" && typeof m6.content === "string").map((m6) => m6.content);
-  return currentMessage?.trim() ? [...fromHistory, currentMessage.trim()] : fromHistory;
-}
-function captureContextualAnswer(history, currentMessage, filledSet) {
-  const msg = currentMessage.trim();
-  if (!msg) return [];
-  const lastLucy = getLastLucyMessage(history);
-  const asked = inferLucyAskedField(lastLucy);
-  const captures = [];
-  const carpaVariant = parseCarpaVariantFromText(msg);
-  if (carpaVariant && !filledSet.has("Requerimientos o servicios")) {
-    captures.push({ label: "Requerimientos o servicios", value: carpaVariant });
-  } else if (carpaVariant) {
-    captures.push({ label: "Requerimientos o servicios", value: carpaVariant });
-  }
-  const zonaFromMsg = parseZonaFromText(msg);
-  const msgLooksLikePlace = !!zonaFromMsg && isUsableDireccionEvento(zonaFromMsg) && (isLikelyUbicacionNotNombre(msg) || asked === "zona" || /^en\s+/i.test(msg.trim()) || msg.trim().split(/\s+/).length <= 8 && (hasCityOrMetroSignal(msg) || KNOWN_ZONES.test(msg)));
-  const strongPlaceSignal = /^en\s+/i.test(msg.trim()) || isLikelyUbicacionNotNombre(msg);
-  const msgIsLocation = !carpaVariant && (asked !== "nombre" || strongPlaceSignal) && msgLooksLikePlace && !looksLikePersonFullName(msg);
-  if (msgIsLocation && zonaFromMsg && !filledSet.has("Lugar/direcci\xF3n del evento")) {
-    captures.push({ label: "Lugar/direcci\xF3n del evento", value: zonaFromMsg });
-  }
-  const dimsNowList = parseAllSpaceDimensions(msg);
-  if (dimsNowList.length > 0 && (isDimensionText(msg) || /medidas?/i.test(lastLucy) || /carpa|pista|tarima|entelado/i.test(lastLucy))) {
-    const existingReq = captures.find((c5) => c5.label === "Requerimientos o servicios");
-    if (existingReq) {
-      const cleaned = stripAccidentalCarpasFromPistaRequirements(existingReq.value) ?? existingReq.value;
-      existingReq.value = attachEspacioToRequirements(cleaned, dimsNowList);
-    } else {
-      const kind = resolveSpaceMeasureServiceBase({
-        requerimientos: null,
-        lastLucy,
-        currentMessage: msg,
-        historyBlob: history.filter((m6) => m6.role === "user" && typeof m6.content === "string").map((m6) => m6.content).join(" ")
-      });
-      captures.push({
-        label: "Requerimientos o servicios",
-        value: attachEspacioToRequirements(spaceMeasureServiceLabel(kind), dimsNowList)
-      });
-    }
-  }
-  if (!msgIsLocation && !filledSet.has("Nombre del cliente") && asked !== "zona" && (asked === "nombre" || !history.some((m6) => m6.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && !isQuoteIntentMessage(msg) && !isServiceRelatedMessage(msg) && !isAmbiguousShortNumber(msg) && !isLikelyUbicacionNotNombre(msg) && !isOccasionOrStyleAsNombre(msg) && !isNumberWordsAsNombre(msg) && !isMeasurementOrDimensionAsNombre(msg) && !isEventTypeOnlyMessage(msg) && !parseTipoEventoFromText(msg) && !parseZonaFromText(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
-    const candidato = stripNombrePresentationPrefix(msg);
-    const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
-    const handoffNoise = clientAsksForHumanAdvisor(msg) || /\b(hablar|asesor|agente|humano)\b/i.test(candidato);
-    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && (!isLikelyNotPersonNameMessage(candidato) || handoffNoise) && !isServiceRelatedMessage(candidato) && !isLikelyUbicacionNotNombre(candidato) && !isOccasionOrStyleAsNombre(candidato) && !isNumberWordsAsNombre(candidato)) {
-      captures.push({ label: "Nombre del cliente", value: nombre });
-    }
-  }
-  if (asked === "nombre" && !filledSet.has("Nombre del cliente")) {
-    const tipoMisroute = parseTipoEventoFromText(msg) || (isEventTypeOnlyMessage(msg) ? msg.trim() : null);
-    if (tipoMisroute && !filledSet.has("Tipo de evento")) {
-      captures.push({
-        label: "Tipo de evento",
-        value: parseTipoEventoFromText(msg) ?? tipoMisroute
-      });
-    }
-  }
-  if (!filledSet.has("Tipo de evento") && asked === "tipo_evento") {
-    if (isUnusableTipoEventoReply(msg)) {
-      const histBlob = history.filter((m6) => m6.role === "user" && typeof m6.content === "string").map((m6) => m6.content).join(" ");
-      const tipoHist = parseTipoEventoFromText(histBlob) || (/\bbanquete\b/i.test(histBlob) ? "evento con banquete" : /\bcatering\b/i.test(histBlob) ? "evento con catering" : null);
-      if (tipoHist) {
-        captures.push({ label: "Tipo de evento", value: tipoHist });
-      }
-    } else {
-      const tipo = parseTipoEventoFromText(msg);
-      if (tipo) {
-        captures.push({ label: "Tipo de evento", value: tipo });
-      } else if (isServiceRelatedMessage(msg) || /\b(banquete|catering)\b/i.test(msg)) {
-        const services = parseServicesFromText(msg);
-        const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
-        const inv = parseInvitadosFromText(msg);
-        if (service) {
-          captures.push({ label: "Requerimientos o servicios", value: service });
-        }
-        if (inv) {
-          captures.push({ label: "N\xFAmero de invitados", value: inv });
-        }
-        if (/\bbanquete\b/i.test(msg)) {
-          captures.push({ label: "Tipo de evento", value: "evento con banquete" });
-        } else if (/\bcatering\b/i.test(msg)) {
-          captures.push({ label: "Tipo de evento", value: "evento con catering" });
-        } else {
-          const tipoHist = parseTipoEventoFromText(
-            history.filter((m6) => m6.role === "user" && typeof m6.content === "string").map((m6) => m6.content).join(" ")
-          );
-          if (tipoHist) {
-            captures.push({ label: "Tipo de evento", value: tipoHist });
-          }
-        }
-      } else if (tipo == null && msg.length >= 2 && msg.length <= 60 && !/@/.test(msg) && !isUnusableTipoEventoReply(msg) && !looksLikePersonNameAsEventType(msg) && !looksLikeNameAnswerMessage(msg)) {
-        captures.push({ label: "Tipo de evento", value: msg.slice(0, 80) });
-      }
-    }
-  }
-  if (!filledSet.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && !clientAsksCafeOrCateringChoice(msg) && (asked === "requerimientos" || isServiceRelatedMessage(msg))) {
-    const services = parseServicesFromText(msg);
-    const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
-    const carpaBrief = clientMentionsCarpas(msg) ? buildCarpaRequirementsFromText(msg) : null;
-    const dims = parseAllSpaceDimensions(msg);
-    if (service || isServiceRelatedMessage(msg) || carpaBrief) {
-      let value = carpaBrief ?? service ?? msg.slice(0, 120);
-      if (!carpaBrief && dims.length && service) {
-        value = attachEspacioToRequirements(service, dims);
-      } else if (!carpaBrief && dims.length && !service) {
-        value = `Tarima/pista \u2014 espacio ${dims.join(" y ")}`;
-      }
-      captures.push({
-        label: "Requerimientos o servicios",
-        value
-      });
-    }
-  }
-  if (!filledSet.has("N\xFAmero de invitados") && asked === "invitados") {
-    const inv = parseInvitadosFromText(msg, { askedInvitados: true });
-    if (inv) captures.push({ label: "N\xFAmero de invitados", value: inv });
-  }
-  if (!filledSet.has("N\xFAmero de invitados") && asked !== "invitados" && lastLucy && /invitados|cu[aá]ntos\s+invit|asistir[aá]n/i.test(lastLucy) && /^\d{2,4}$/.test(msg)) {
-    const inv = parseInvitadosFromText(msg);
-    if (inv) captures.push({ label: "N\xFAmero de invitados", value: inv });
-  }
-  if (asked === "zona") {
-    const zona = parseZonaFromText(msg);
-    if (zona && isUsableDireccionEvento(zona)) {
-      captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
-    }
-  }
-  if (!filledSet.has(CRM_FECHA_LABEL) && asked === "fecha") {
-    const fecha = parseFechaFromText(msg);
-    if (fecha) captures.push({ label: CRM_FECHA_LABEL, value: fecha });
-  }
-  if (clientCorrectsLocation(msg) || isVenueSpaceDetail(msg) && filledSet.has("Lugar/direcci\xF3n del evento")) {
-    const zonaHint = parseZonaFromText(msg);
-    if (zonaHint && isUsableDireccionEvento(zonaHint)) {
-      captures.push({ label: "Lugar/direcci\xF3n del evento", value: zonaHint });
-    }
-  } else if (!filledSet.has("Presupuesto (MXN)") && (asked === "presupuesto" || detectPresupuestoRefusal(msg))) {
-    const pres = parsePresupuestoFromText(msg, { askedField: asked === "presupuesto" ? "presupuesto" : null });
-    if (pres) {
-      captures.push({ label: "Presupuesto (MXN)", value: pres });
-    } else if (/\b(s[ií]|ok|dale|claro)\b/i.test(msg) && /\b(alejandro|opciones|propong)\b/i.test(msg)) {
-      captures.push({
-        label: "Presupuesto (MXN)",
-        value: "Sin definir (cliente pidi\xF3 opciones)"
-      });
-    }
-  }
-  return captures;
-}
-function scanConversationForCaptures(history, currentMessage, filledSet) {
-  const captures = [];
-  const pending = new Set(filledSet);
-  const userTexts = collectUserMessages(history, currentMessage).slice(-12);
-  if (!pending.has("Nombre del cliente")) {
-    const nombre = recoverClienteNombreFromHistory(history, currentMessage);
-    if (nombre) {
-      captures.push({ label: "Nombre del cliente", value: nombre });
-      pending.add("Nombre del cliente");
-    }
-  }
-  for (const msg of userTexts) {
-    if (!pending.has("Tipo de evento")) {
-      const tipo = parseTipoEventoFromText(msg);
-      if (tipo) {
-        captures.push({ label: "Tipo de evento", value: tipo });
-        pending.add("Tipo de evento");
-      }
-    }
-    if (!pending.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && !clientAsksCafeOrCateringChoice(msg) && isServiceRelatedMessage(msg)) {
-      const services = parseServicesFromText(msg);
-      const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
-      const carpaBrief = clientMentionsCarpas(msg) ? buildCarpaRequirementsFromText(msg) : null;
-      const dims = parseAllSpaceDimensions(msg);
-      let value = carpaBrief ?? service ?? msg.trim().slice(0, 120);
-      if (!carpaBrief && dims.length && service) {
-        value = attachEspacioToRequirements(service, dims);
-      } else if (!carpaBrief && dims.length && /pista|tarima/i.test(msg)) {
-        value = `Pista de baile ${formatEspacioAnnotation(dims)}`;
-      }
-      captures.push({
-        label: "Requerimientos o servicios",
-        value
-      });
-      pending.add("Requerimientos o servicios");
-    }
-    if (!pending.has("N\xFAmero de invitados") && !isAmbiguousShortNumber(msg)) {
-      const inv = parseInvitadosFromText(msg);
-      if (inv) {
-        captures.push({ label: "N\xFAmero de invitados", value: inv });
-        pending.add("N\xFAmero de invitados");
-      }
-    }
-    {
-      const zona = parseZonaFromText(msg);
-      if (zona && isUsableDireccionEvento(zona)) {
-        captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
-        pending.add("Lugar/direcci\xF3n del evento");
-      }
-    }
-    if (!pending.has(CRM_FECHA_LABEL)) {
-      const fecha = parseFechaFromText(msg);
-      if (fecha) {
-        captures.push({ label: CRM_FECHA_LABEL, value: fecha });
-        pending.add(CRM_FECHA_LABEL);
-      }
-    }
-    if (!pending.has("Presupuesto (MXN)")) {
-      const invMatch = parseInvitadosFromText(msg);
-      const looksLikeInvitadosOnly = !!invMatch && !/\$|presupuesto|mil\b|pesos|mxn|mnx/i.test(msg);
-      if (!looksLikeInvitadosOnly) {
-        const pres = parsePresupuestoFromText(msg);
-        if (pres) {
-          captures.push({ label: "Presupuesto (MXN)", value: pres });
-          pending.add("Presupuesto (MXN)");
-        }
-      }
-    }
-    const dimsList = parseAllSpaceDimensions(msg);
-    if (dimsList.length && /pista|tarima|carpa/i.test(userTexts.join(" "))) {
-      const reqIdx = captures.findIndex((c5) => c5.label === "Requerimientos o servicios");
-      if (reqIdx >= 0) {
-        captures[reqIdx].value = attachEspacioToRequirements(
-          captures[reqIdx].value,
-          dimsList
-        );
-      } else if (!pending.has("Requerimientos o servicios")) {
-        const service = parsePrimaryService(userTexts.join(" ")) ?? (/\bcarpa/i.test(msg) ? "Carpas" : "Pista de baile");
-        captures.push({
-          label: "Requerimientos o servicios",
-          value: attachEspacioToRequirements(service, dimsList)
-        });
-        pending.add("Requerimientos o servicios");
-      }
-    }
-  }
-  return captures;
-}
-function appendSpaceDimensionsToRequerimientos(mergedLines, filledSet, history, currentMessage) {
-  const userTexts = collectUserMessages(history, currentMessage);
-  const contextText = userTexts.join(" ");
-  if (!/pista|tarima|carpa/i.test(contextText)) return;
-  const dimsNow = parseAllSpaceDimensions(currentMessage ?? "");
-  const dims = dimsNow.length > 0 ? dimsNow : parseAllSpaceDimensions(contextText);
-  if (dims.length === 0) return;
-  const idx = mergedLines.findIndex((l6) => /^-?\s*Requerimientos o servicios:/i.test(l6));
-  if (idx >= 0) {
-    const existing = mergedLines[idx].replace(/^-?\s*Requerimientos o servicios:\s*/i, "").trim();
-    const next = attachEspacioToRequirements(existing, dims);
-    if (next !== existing) {
-      mergedLines[idx] = `- Requerimientos o servicios: ${next}`;
-    }
-    return;
-  }
-  if (!filledSet.has("Requerimientos o servicios")) {
-    const service = parsePrimaryService(contextText) ?? (/\bcarpa/i.test(contextText) ? "Carpas" : "Pista de baile");
-    mergedLines.push(
-      `- Requerimientos o servicios: ${attachEspacioToRequirements(service, dims)}`
-    );
-    filledSet.add("Requerimientos o servicios");
-  }
-}
-function applyCapturesToCrm(mergedLines, filledSet, captures) {
-  const crmBlob = mergedLines.join("\n");
-  for (const capture of captures) {
-    const { label } = capture;
-    let { value } = capture;
-    if (!value?.trim()) continue;
-    if (label === CRM_FECHA_LABEL) {
-      value = resolveFechaEvento(value) ?? value;
-      if (filledSet.has(label)) {
-        const re4 = new RegExp(`^-?\\s*${CRM_FECHA_LABEL}:\\s*`, "i");
-        const idx = mergedLines.findIndex((l6) => re4.test(l6));
-        const existing = idx >= 0 ? mergedLines[idx].replace(re4, "").trim() : "";
-        if (idx >= 0 && isUsableFechaEvento(value) && (!isUsableFechaEvento(existing) || isRicherFechaCapture(value, existing))) {
-          mergedLines[idx] = `- ${CRM_FECHA_LABEL}: ${value}`;
-        }
-        continue;
-      }
-    }
-    if (label === CRM_HORARIO_LABEL) {
-      const idx = mergedLines.findIndex(
-        (l6) => new RegExp(`^-?\\s*${CRM_HORARIO_LABEL}:`, "i").test(l6)
-      );
-      const existing = idx >= 0 ? mergedLines[idx].replace(new RegExp(`^-?\\s*${CRM_HORARIO_LABEL}:\\s*`, "i"), "").trim() : null;
-      const resolved = resolveHorarioWithContext(value, existing, crmBlob) ?? value;
-      if (idx >= 0 && filledSet.has(label) && existing && /\d/.test(existing) && !/\d/.test(value)) {
-        if (resolved !== value) mergedLines[idx] = `- ${CRM_HORARIO_LABEL}: ${resolved}`;
-        continue;
-      }
-      if (idx >= 0 && filledSet.has(label) && existing && /\d/.test(resolved) && (!/\d/.test(existing) || isRicherHorarioCapture(resolved, existing))) {
-        mergedLines[idx] = `- ${CRM_HORARIO_LABEL}: ${resolved}`;
-        continue;
-      }
-      value = resolved;
-    }
-    if (label === "Lugar/direcci\xF3n del evento" && filledSet.has(label)) {
-      const idx = mergedLines.findIndex((l6) => /^-?\s*Lugar\/dirección del evento:/i.test(l6));
-      if (idx >= 0) {
-        const existing = mergedLines[idx].replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "").trim();
-        if (shouldReplaceCrmDireccion(existing, value)) {
-          mergedLines[idx] = `- Lugar/direcci\xF3n del evento: ${value}`;
-        } else {
-          const merged = mergeZonaDetail(existing, value);
-          if (merged && merged !== existing) {
-            mergedLines[idx] = `- Lugar/direcci\xF3n del evento: ${merged}`;
-          }
-        }
-      }
-      continue;
-    }
-    if (label === "Requerimientos o servicios" && filledSet.has(label)) {
-      const idx = mergedLines.findIndex((l6) => /^-?\s*Requerimientos o servicios:/i.test(l6));
-      if (idx >= 0) {
-        const existing = mergedLines[idx].replace(/^-?\s*Requerimientos o servicios:\s*/i, "").trim();
-        const merged = mergeServiceRequirements(existing, value, 6);
-        const prev = parseServicesFromText(existing).length;
-        const next = merged ? parseServicesFromText(merged).length : 0;
-        if (merged && (next > prev || serviceRequirementsGainedDimensions(existing, merged))) {
-          mergedLines[idx] = `- Requerimientos o servicios: ${merged}`;
-        }
-      }
-      continue;
-    }
-    if (label === "Presupuesto (MXN)" && filledSet.has(label)) {
-      const idx = mergedLines.findIndex((l6) => /^-?\s*Presupuesto \(MXN\):/i.test(l6));
-      if (idx >= 0) {
-        const existing = mergedLines[idx].replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "").trim();
-        const oldNum = parseInt(existing.replace(/[^\d]/g, ""), 10);
-        const newNum = parseInt(value.replace(/[^\d]/g, ""), 10);
-        if (!isNaN(newNum) && newNum >= 1e3 && (isNaN(oldNum) || newNum > oldNum)) {
-          mergedLines[idx] = `- Presupuesto (MXN): ${value}`;
-        }
-      }
-      continue;
-    }
-    if (filledSet.has(label)) continue;
-    mergedLines.push(`- ${label}: ${value}`);
-    filledSet.add(label);
-  }
-}
-function enrichExtractedFromConversation(extracted, conversationText) {
-  const promo = isPromoTemplateMessage(conversationText);
-  const parseText = promo ? stripPromoTemplateMetadata(conversationText) : conversationText;
-  if (!extracted.tipo_evento?.trim()) {
-    const tipo = parseTipoEventoFromText(parseText);
-    if (tipo) extracted.tipo_evento = tipo;
-  }
-  if (!extracted.fecha_evento?.trim() && !promo) {
-    const fecha = parseFechaFromText(parseText);
-    if (fecha) extracted.fecha_evento = fecha;
-  } else if (!promo && extracted.fecha_evento?.trim()) {
-    const richer = parseFechaFromText(parseText);
-    if (richer && isRicherFechaCapture(richer, extracted.fecha_evento)) {
-      extracted.fecha_evento = richer;
-    }
-  }
-  if (!extracted.horario_evento?.trim() && !promo) {
-    const horario = parseHorarioFromText(conversationText);
-    if (horario) extracted.horario_evento = horario;
-  }
-  syncLegacyFechaHorarioField(extracted);
-  if (!extracted.num_invitados && !promo) {
-    const inv = parseInvitadosFromText(conversationText);
-    if (inv) extracted.num_invitados = parseInt(inv, 10);
-  }
-  if (!isUsableDireccionEvento(extracted.direccion_evento)) {
-    extracted.direccion_evento = null;
-    const zona = parseZonaFromText(conversationText);
-    if (zona && isUsableDireccionEvento(zona)) extracted.direccion_evento = zona;
-  } else {
-    const richer = parseZonaFromText(conversationText);
-    if (richer && isRicherDireccionCapture(richer, extracted.direccion_evento)) {
-      extracted.direccion_evento = richer;
-    } else {
-      const zones = [...conversationText.matchAll(new RegExp(KNOWN_ZONES.source, "gi"))].map((m6) => m6[0].trim()).filter(Boolean);
-      let merged = extracted.direccion_evento;
-      for (const z4 of zones) {
-        if (isUsableDireccionEvento(z4)) merged = mergeZonaDetail(merged, z4);
-      }
-      const venue = extractVenueNameHint(conversationText);
-      const street = extractStreetDetailHint(conversationText);
-      if (venue) merged = mergeZonaDetail(merged, venue);
-      if (street) merged = mergeZonaDetail(merged, street);
-      if (merged) extracted.direccion_evento = merged;
-    }
-  }
-  if (extracted.requerimientos_evento?.trim() && isGenericQuoteIntentRequerimiento(extracted.requerimientos_evento)) {
-    extracted.requerimientos_evento = null;
-  }
-  {
-    const serviceSource = conversationText.split(/\n+/).map((l6) => l6.trim()).filter(
-      (l6) => l6 && !isGenericQuoteIntentRequerimiento(l6) && !isQuoteIntentMessage(l6) && !isGreetingOnlyMessage(l6)
-    ).join(" ");
-    const merged = mergeServiceRequirements(
-      extracted.requerimientos_evento,
-      serviceSource,
-      6
-    );
-    if (merged) extracted.requerimientos_evento = merged;
-  }
-  if (extracted.presupuesto === null || extracted.presupuesto === void 0) {
-    const scrubbedConv = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
-    const presChunks = scrubbedConv.split(/\n|\.|;/).map((s7) => s7.trim()).filter(
-      (s7) => /\b(presupuesto|mil\b|pesos|\$|k\b|inversi[oó]n|rango|por\s+(?:cada\s+)?silla|acarreo|desplazamiento)\b/i.test(
-        s7
-      )
-    );
-    for (const chunk of presChunks) {
-      const pres = parsePresupuestoFromText(chunk, { askedField: "presupuesto" });
-      if (!pres) continue;
-      const num = presupuestoToSafeNumber(pres);
-      if (num != null && num >= 1e3) {
-        extracted.presupuesto = num;
-        break;
-      }
-    }
-  } else {
-    const scrubbed = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
-    const amounts = [...scrubbed.matchAll(/(?<![A-Za-z0-9])\$?\s*([\d][\d,]{2,})\b/g)].map((m6) => {
-      const n5 = parseInt(m6[1].replace(/,/g, ""), 10);
-      const around = scrubbed.slice(Math.max(0, (m6.index ?? 0) - 20), (m6.index ?? 0) + 40);
-      if (/\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona)\b/i.test(around) && n5 < 1e3) {
-        return NaN;
-      }
-      if (/\b\d+\s*[-–a]\s*\d+/i.test(around) && n5 < 1e3) return NaN;
-      return n5;
-    }).filter((n5) => !isNaN(n5) && n5 >= 1e3 && n5 <= 5e7);
-    const maxAmt = amounts.length ? Math.max(...amounts) : 0;
-    if (typeof extracted.presupuesto === "number" && maxAmt > extracted.presupuesto) {
-      extracted.presupuesto = maxAmt;
-    }
-  }
-  if (extracted.presupuesto !== null && extracted.num_invitados !== null && extracted.presupuesto === extracted.num_invitados && extracted.presupuesto < 1e3) {
-    extracted.presupuesto = null;
-  }
-  if (!extracted.correo?.trim()) {
-    const fromConv = parseCorreoFromText(conversationText);
-    if (fromConv && looksLikeValidClientEmail(fromConv)) extracted.correo = fromConv;
-  } else {
-    const cleaned = filterClientEmail(parseCorreoFromText(extracted.correo) ?? null);
-    extracted.correo = cleaned && looksLikeValidClientEmail(cleaned) ? cleaned : null;
-  }
-  if (extracted.requerimientos_evento?.trim() && extracted.tipo_evento?.trim() && extracted.requerimientos_evento.trim().toLowerCase() === extracted.tipo_evento.trim().toLowerCase()) {
-    extracted.requerimientos_evento = null;
-  }
-}
-var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, ORDINAL_INDEX, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_DISCOURSE_CUT, VENUE_DISCOURSE_JUNK, VAGUE_VENUE_LABEL, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, EXCLUDED_SERVICE_LEADS, EXCLUDED_TRAILING_RE, EXCLUDED_BEFORE_NO_RE, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, DAY_PERIOD_SRC, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, MX_CITY_ABBREVIATIONS, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
-var init_conversation_understanding = __esm({
-  "src/conversation-understanding.ts"() {
-    "use strict";
-    init_contact_name();
-    init_client_email();
-    init_bodasesorAdvisor();
-    init_serviceDecline();
-    init_geoResolve();
-    init_eventDateTime();
-    init_locationDedupe();
-    init_chairModels();
-    init_chairModels();
-    CRM_FECHA_LABEL = "Fecha del evento";
-    CRM_HORARIO_LABEL = "Horario del evento";
-    LEGACY_CRM_FECHA_HORARIO_LABEL = "Fecha y horario";
-    LUCY_FIELD_ASK_PATTERNS = {
-      nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
-      correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
-      tipo_evento: (
-        // A16095: "¿Qué van a celebrar?" (van a entre qué y celebr*)
-        /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+(van\s+a\s+)?celebr|van\s+a\s+celebrar|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i
-      ),
-      requerimientos: (
-        // No usar "cotización" suelta: "la anoto para tu cotización" NO es pregunta de servicios.
-        /pensado|servicios?|banquete|taquiza|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|plat[ií]came|otro\s+servicio|te\s+gustar[ií]a\s+cotizar|qu[eé].{0,40}cotizar|animaci[oó]n|hora\s+loca|happening|show|incluir\s+en\s+la\s+cotiz|\bmen[uú]\b(?!\s+staff)/i
-      ),
-      invitados: /invitados|personas|gente|pax|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an|asistir[aá]n/i,
-      zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n|es)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n|venue|sede|colonia|municipio/i,
-      fecha: /(?:^|[\s,.])fecha(?:[\s,.]|$)|cu[aá]ndo\s+(ser[ií]a|es|tienen|tengan)|d[ií]a\s+(del\s+evento|tienen|tengan|definido)|agenda|definiendo|opciones\s+de\s+fecha|para\s+qu[eé]\s+d[ií]a|qu[eé]\s+d[ií]a|siguen\s+sin\s+fecha|ya\s+tienen\s+fecha/i,
-      horario: /horario|a\s+qu[eé]\s+hora|qu[eé]\s+hora|desde\s+qu[eé]\s+hora|(?:^|[\s,.])hora(?:[\s,.]|$)|\bhrs?\b|\d{1,2}:\d{2}/i,
-      presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto|cu[aá]nto\s+cuesta|precio\s+total|para\s+la\s+comida|menos\s+de|hasta\s+\$?|opciones\s+de\s+precio/i
-    };
-    BODASESOR_SERVICE_PATTERNS = [
-      ["Parrillada Argentina", /parrillada\s+argentina/i],
-      // Antes de Taquiza: "parrillada tacos" ≠ taquiza.
-      ["Parrillada Tacos", /\bparrillada\s+(de\s+)?tacos?\b/i],
-      ["Banquete Kosher Buffet", /\bkosher\s+buffet\b|\bbuffet\s+kosher\b/i],
-      ["Banquete Kosher", /\bkosher\b/i],
-      ["Banquete Navide\xF1o", /\bnavide[nñ]o\b/i],
-      // A15210: bare "mexicano" en "desayuno temático mexicano" ≠ Banquete Mexicano.
-      // Banquete: "banquete mexicano", "mexicano N tiempos", o "mexicano" suelto (elección de menú).
-      ["Banquete Mexicano", /\bbanquete\s+mexicano\b|\bmexicano\s+\d\s*tiempos?\b|\b\d\s*tiempos?\s+mexicanos?\b/i],
-      // A15935: "banquete" / "solo el banquete" ≠ Banquete Formal — primero Formal vs Mexicano.
-      ["Banquete Formal", /\bbanquete\s+formal\b|\bformal\s+\d\s*tiempos?\b|\b\d\s*tiempos?\s+formales?\b|\bbufet\b|\bbuffet\b/i],
-      ["Banquete", /\bbanquetes?\b/i],
-      // Barras específicas ANTES de genéricas (A14934 Barra Yucateca).
-      ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
-      // "americano" (bebida) ≠ Barra Americana (A14970).
-      ["Barra Americana", /\bbarra\s+americana\b/i],
-      ["Barra de mariscos", /\bbarra\s+de\s+mariscos?\b|\bmariscos?\b/i],
-      // Bare paninis / sandwiches (y typos sanwich*) = Barra de paninis (clase A15727+).
-      [
-        "Barra de paninis",
-        /\bbarra\s+de\s+paninis?\b|\bpaninis?\b|\bsan+dw?ich(es|itos|ito)?\b|\bs[aá]ndwich(es|itos|ito)?\b|\bsanwich(es|itos|ito)?\b/i
-      ],
-      ["Barra de Crepas", /\bbarra\s+de\s+crepas?\b|\bcrepas?\b/i],
-      ["Barra de pastas y ensaladas", /\bbarra\s+de\s+pastas?\s+y\s+ensaladas?\b/i],
-      ["Barra de pastas", /\bbarra\s+de\s+pastas?\b|\bpastas?\b(?!\s+y\s+pizzas?)/i],
-      ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra|pizzas?)\b/i],
-      // A14985: cerveza/whisky/licores → Barra de bebidas (no solo "barra de bebidas" literal).
-      ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?|cervezas?|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|open\s*bar|barra\s+libre)\b/i],
-      ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
-      ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
-      // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
-      ["Barra de Caf\xE9", /\bbarra\s+de\s+caf[eé](?!\p{L})|\bservicio\s+de\s+caf[eé](?!\p{L})/iu],
-      ["Coffee break", /\b(coffee\s*break|coffeebreak|coffe\s*break)\b/i],
-      ["Comida Corrida", /\bcomida\s+corrida\b/i],
-      ["Paella", /\bpaellas?\b|\bpaellada\b/i],
-      ["Pozole y Tostadas", /\bpozole(\s+y\s+tostadas?)?\b|\bpozolada\b/i],
-      // A14985: banderillas / antojitos de stand → Puestos de Comida (no "Snack" corporativo).
-      ["Puestos de Comida", /\bpuestos?\s+de\s+comida\b|\bantojitos?\b|\bbanderillas?\b|\besquites?\b|\belotes?\b|\bgarnachas?\b|\bquesadillas?\b/i],
-      // A16096: pastel/cake/fondant → familia Cupcakes y Betún (no Level-2).
-      // "mesa de pasteles" va a Mesa de postres (abajo), no aquí.
-      [
-        "Cupcakes y Bet\xFAn",
-        /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})|(?<!mesa\s+de\s+)\bpastel(es)?\b(?!\s*er[ií]a)|\bfondant\b|\bcakes?\b(?!\s*topper)/iu
-      ],
-      ["Carrito de Snacks", /\bcarrito\s+de\s+snacks?\b|\bcarrito\s+de\s+snaks?\b/i],
-      ["Paletas de Hielo y Helados", /\bpaletas?(\s+de\s+hielo)?\b|\bhelados?\b/i],
-      ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
-      // A15503: "plato postre" = vajilla, no servicio de postres.
-      // A16096: "mesa de pasteles" = mesa, no pastel suelto.
-      [
-        "Mesa de postres",
-        /\bmesa\s+de\s+postres?\b|\bmesa\s+de\s+pasteles?\b|\bpostres?\s+(?:y|con|para|de\s+mesa)\b/i
-      ],
-      ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
-      ["Canap\xE9s", /\bcanap[eé]s?(?!\p{L})/iu],
-      ["Bocadillos", /\bbocadillos?\b/i],
-      // A16259: entrada del salón ≠ Entradas (bocadillos).
-      ["Entradas", /\bentradas?\b(?!\s+del\s+sal[oó]n)(?!\s+(?:principal|del\s+evento|del\s+lugar))/i],
-      // Tiempos de comida corporativos (briefs con varios servicios).
-      ["Desayuno", /\bdesayunos?\b/i],
-      ["Brunch", /\bbrunch\b/i],
-      // A15212: typo frecuente "snaks".
-      ["Snack", /\bsnacks?\b|\bsnaks?\b/i],
-      ["Comida", /\bcomidas?\b/i],
-      // A16263: "cena conmemorativa / día del médico" = tipo, no SKU Cena.
-      ["Cena", /\bcenas?\b(?!\s+conmemorativ)(?!\s+empresarial)(?!\s+(?:de\s+)?gala)(?!\s+navide)/i],
-      ["Men\xFA staff", /\bmen[uú]\s+(para\s+)?staff\b/iu],
-      ["Men\xFA Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/iu],
-      ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
-      ["Pista de baile", /\bpista(\s+de\s+baile)?\b/i],
-      // A16074: tarima/entarimado ≠ pista de baile (cotización por m² aparte).
-      ["Tarima", /\btarimas?\b|\bentarimad[oa]s?\b|\bentarimado\b/i],
-      ["Mariachi", /\bmariachis?\b/i],
-      ["Baile regional", /\bbaile\s+regional\b|\bfolkl[oó]rico\b/i],
-      ["Animaci\xF3n / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|shows?|pixel|espejos|l[aá]ser|laser)\b/i],
-      // A15003 Juan: photo booth / cabina de fotos (entretenimiento).
-      ["Photo Booth", /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i],
-      // A15009 Erick: circo / Blue Man.
-      ["Circo para eventos", /\bcirco(\s+para\s+eventos?)?\b/i],
-      ["Show Blue Man", /\bblue\s*mans?\b|\bblueman\b/i],
-      // A14988 Ernesto / A16254 Marlen: bailarinas/bailarines / dancers = entretenimiento.
-      [
-        "Bailarinas",
-        /\bbailarin(?:es|as?|a)?\b|\bdancers?\b|\bvedettes?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail\w*/i
-      ],
-      // A14962: robots LED / batucada = entretenimiento, NUNCA banquete.
-      ["Robots LED", /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b|\bpercusi[oó]n.{0,24}leds?\b|\bleds?.{0,24}percusi[oó]n\b/i],
-      ["Batucada", /\bbatucada\b|\bambienta(?:r|ci[oó]n)\b.{0,40}\bbatucada\b|\bbatucada\b.{0,40}\bambient/i],
-      ["Maestro de ceremonias", /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador(\s+de\s+eventos?)?)\b/i],
-      ["Iluminaci\xF3n", /\biluminaci[oó]n\b/i],
-      // Antes de Decoración / Pantallas: "decoración aérea" y LED wall no deben robarse.
-      ["Colgantes Premium", /\bcolgantes?(?:\s+premium)?\b|\bwisteria\b|\bdecoraci[oó]n\s+a[eé]rea\b/i],
-      ["Entelados para Techo", /\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b/i],
-      [
-        "Vajillas",
-        /\bvajillas?\b|\bloza\b|\bcubiertos?\b|\bcuberter[ií]a\b|\bcristaler[ií]a\b|\bplato\s+trinche\b|\bplatos?\s+trinche\b|\bplato\s+postre\b|\bplatos?\s+postre\b|\b(cuchara|tenedor|cuchillo)s?\s+(?:postre|trinche)?\b/i
-      ],
-      ["Video", /\bvideo\b|\bled\s*wall\b/i],
-      // A15190: centros de mesa = floral/decorativo, NUNCA mobiliario (antes de Decoración/Mobiliario).
-      [
-        "Centros de mesa",
-        /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:florales?\s+)?(?:de\s+)?mesas?\b|\bdecoraci[oó]n\s+de\s+mesas?\b|\bflores?\s+(?:para|en|de)\s+mesas?\b/i
-      ],
-      ["Decoraci\xF3n", /\bdecoraci[oó]n\b/i],
-      ["Florister\xEDa", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
-      // Salas lounge / "sala: Luxor Rosa" / "4 salas" — producto, NO invitados ni ubicación.
-      ["Salas lounge", /\b(salas?\s+lounge|sala\s*:|ser[ií]an?\s+\d+\s+salas?|\d+\s+salas?)\b/i],
-      // "mesas?" no debe capturar "centros/arreglos/decoración de mesa" ni "mesa de dulces/…".
-      [
-        "Mobiliario",
-        /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|periqueras?)\b|(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+(?:de\s|rica\b|imperial\b))/i
-      ],
-      ["Carpas", /\b(carpa|carpas|capra|capras|toldo)\b/i],
-      ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
-      [
-        "Audio y sonido",
-        /\b(audio|microfon[ií]a|micr[oó]fonos?|sonido|bocinas?|podium|podios?|amplificaci[oó]n)\b/i
-      ],
-      ["Estructuras", /\bestructuras?\b/i],
-      ["Inflables", /\binflable/i],
-      ["Softplay", /\bsoft\s*play\b/i],
-      ["Meseros", /\b(meseros?|staff|personal\s+de\s+servicio)\b/i],
-      ["DJ", /\bdj\b/i],
-      ["Mixolog\xEDa", /\bmixolog[ií]a\b/i],
-      ["Cocteler\xEDa", /\b(cocteler[ií]a|bartender|bar\s*tender|barmen|barman)\b/i],
-      ["M\xF3cteles", /\bm[oó]cteles?\b/i],
-      ["Pastas", /\bpastas?\b/i],
-      ["Pizzas", /\bpizza/i],
-      ["Taquiza", /\btaquiza\b|\btacos?\b/i],
-      ["Parrillada", /\bparrillada\b/i],
-      ["Crepas", /\bcrep[aá]s?\b/i],
-      ["Frutas en vasito", /\bfrutas?\s+en\s+vasitos?\b|\bvasitos?\s+de\s+fruta/i],
-      ["Poptails", /\bpoptails?\b/i],
-      ["Renta de letras", /\b(renta\s+de\s+letras?|letras?\s+(xv|gigantes?)|letra\s+xv)\b/i],
-      ["Valet parking", /\b(valet|estacionamiento\s+valet)\b/i],
-      ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
-      ["Mesa imperial", /\bmesa\s+imperial\b/i]
-    ];
-    SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|catering|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|pastel|fondant|\bcake\b|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|entarimad|baile|bailarin\w*|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|\bloza\b|cubiert|plato\s+trinche|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
-    SHORT_SERVICE_ALIASES = {
-      pista: "pista de baile",
-      tarima: "Tarima",
-      tarimas: "Tarima",
-      entarimado: "Tarima",
-      entarimada: "Tarima",
-      entarimados: "Tarima",
-      dj: "DJ",
-      mesa: "mobiliario",
-      mesas: "mobiliario",
-      "centro de mesa": "Centros de mesa",
-      "centros de mesa": "Centros de mesa",
-      "centros florales": "Centros de mesa",
-      "centro floral": "Centros de mesa",
-      "arreglo de mesa": "Centros de mesa",
-      "arreglos de mesa": "Centros de mesa",
-      "decoracion de mesas": "Centros de mesa",
-      "decoraci\xF3n de mesas": "Centros de mesa",
-      silla: "mobiliario",
-      sillas: "mobiliario",
-      sala: "salas lounge",
-      salas: "salas lounge",
-      lounge: "salas lounge",
-      periquera: "mobiliario",
-      periqueras: "mobiliario",
-      carpa: "carpas",
-      carpas: "carpas",
-      bebidas: "barra de bebidas",
-      bebida: "barra de bebidas",
-      banquete: "banquete",
-      taquiza: "taquiza",
-      tacos: "taquiza",
-      pizza: "pizzas",
-      pizzas: "pizzas",
-      pasta: "pastas",
-      pastas: "pastas",
-      cafe: "Barra de Caf\xE9",
-      caf\u00E9: "Barra de Caf\xE9",
-      sushi: "Barra de sushi",
-      kosher: "banquete kosher",
-      paella: "Paella",
-      pozole: "Pozole y Tostadas",
-      pozolada: "Pozole y Tostadas",
-      cupcakes: "Cupcakes y Bet\xFAn",
-      cupcake: "Cupcakes y Bet\xFAn",
-      betun: "Cupcakes y Bet\xFAn",
-      bet\u00FAn: "Cupcakes y Bet\xFAn",
-      // A16096
-      pastel: "Cupcakes y Bet\xFAn",
-      pasteles: "Cupcakes y Bet\xFAn",
-      cake: "Cupcakes y Bet\xFAn",
-      fondant: "Cupcakes y Bet\xFAn",
-      entelado: "Entelados para Techo",
-      entelados: "Entelados para Techo",
-      colgantes: "Colgantes Premium",
-      colgante: "Colgantes Premium",
-      vajilla: "Vajillas",
-      vajillas: "Vajillas",
-      loza: "Vajillas",
-      cubiertos: "Vajillas",
-      cubierto: "Vajillas",
-      mocteles: "M\xF3cteles",
-      m\u00F3cteles: "M\xF3cteles",
-      video: "Video",
-      meseros: "meseros",
-      mesero: "meseros",
-      decoracion: "decoraci\xF3n",
-      iluminacion: "iluminaci\xF3n",
-      pantalla: "pantallas",
-      inflable: "inflables",
-      mobiliario: "mobiliario",
-      helado: "Paletas de Hielo y Helados",
-      helados: "Paletas de Hielo y Helados",
-      paletas: "Paletas de Hielo y Helados",
-      brunch: "Brunch",
-      softplay: "Softplay",
-      "soft play": "Softplay",
-      "comida corrida": "Comida Corrida",
-      antojitos: "Puestos de Comida",
-      "fiesta infantil": "Fiesta Infantil",
-      "carrito de snacks": "Carrito de Snacks",
-      "carrito de snaks": "Carrito de Snacks",
-      "parrillada tacos": "Parrillada Tacos",
-      "tarima y pista": "Pista de baile",
-      "tarimas y pistas": "Pista de baile",
-      bailarina: "Bailarinas",
-      bailarinas: "Bailarinas",
-      bailarin: "Bailarinas",
-      bailarines: "Bailarinas",
-      dancers: "Bailarinas",
-      dancer: "Bailarinas",
-      vedette: "Bailarinas",
-      vedettes: "Bailarinas",
-      "audio e iluminacion": "Audio y sonido",
-      "audio e iluminaci\xF3n": "Audio y sonido",
-      "desayuno o brunch": "Desayuno",
-      // A15205: comida/alimentos vagos NO se aliasan a banquete — van a formal vs casual.
-      letras: "renta de letras",
-      "renta de letras": "renta de letras",
-      "letra xv": "renta de letras"
-    };
-    TIPO_EVENTO_PATTERNS = [
-      // A15509 Gaby: apertura/inauguración de negocio — antes de boda (GPT no debe inferir boda).
-      [
-        /\b(apertura|inauguraci[oó]n)\s+(de\s+)?(un\s+)?(negocio|local|tienda|sucursal|empresa|plaza|centro\s+comercial)\b/i,
-        "apertura de negocio"
-      ],
-      [
-        /\b(apertura|inauguraci[oó]n)\s+(de\s+)?(un\s+)?evento\b/i,
-        "evento corporativo"
-      ],
-      [/\b(apertura|inauguraci[oó]n)\b/i, "apertura de negocio"],
-      [/\b(expo(sición)?|feria|stand\s+de|congreso)\b/i, "evento corporativo"],
-      // A14985 Lilian: torneo de golf / stand en campo.
-      [/\b(torneo(\s+de\s+golf)?|torneo\s+de\s+golf|golf|stand\s+en\s+campo)\b/i, "evento corporativo"],
-      [/\b(boda|bodas|matrimonio|casamiento|nupcial)\b/i, "boda"],
-      [/\b(baby\s*shower)\b/i, "baby shower"],
-      // A15443 Rosario: "reunión de 15 años" ≠ XV / quinceañera.
-      [
-        /\breun[ií][oó]n(es)?\s+de\s+(\d{1,2}|quince|veinte|veinti\w+|treinta|cuarenta|cincuenta)\s*a[nñ]os?\b/i,
-        "reuni\xF3n"
-      ],
-      [/\b(aniversario(\s+de\s+\d{1,2}\s*a[nñ]os?)?|reencuentro)\b/i, "aniversario"],
-      [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV a\xF1os"],
-      [/\bfiesta\s+de\s+fin\s+de\s+a[nñ]o\b/i, "fiesta de fin de a\xF1o"],
-      [/\b(fin\s+de\s+a[nñ]o|fiesta\s+de\s+empresa|eventos?\s+de\s+empresa|de\s+empresa)\b/i, "evento corporativo"],
-      [/\b(eventos?\s+corporativos?|convenci[oó]n(es)?|conferencias?|corporativos?)\b/i, "evento corporativo"],
-      [/\b(cumplea[nñ]os?|cumple)\b/i, "cumplea\xF1os"],
-      [/\b(bautizos?)\b/i, "bautizo"],
-      [/\bprimera\s+comuni[oó]n\b/i, "primera comuni\xF3n"],
-      [/\b(comuni[oó]n)\b/i, "primera comuni\xF3n"],
-      [/\b(graduaci[oó]n(es)?)\b/i, "graduaci\xF3n"],
-      // Fiesta / celebración / reunión familiar (A15000 Itzel: "Reunión familiar").
-      [/\b(fiesta|celebraci[oó]n(es)?(\s+familiares?)?|reun[ií][oó]n(es)?\s+(social|familiar(es)?))\b/i, "fiesta"],
-      [/\b(reun[ií][oó]n\s+familiar|celebraci[oó]n\s+familiar)\b/i, "fiesta"],
-      [/\bpozolada\b/i, "pozolada"],
-      [/\bpaellada\b/i, "paellada"],
-      [/\btaquiza\b/i, "taquiza"],
-      [/\bparrillada\b/i, "parrillada"],
-      [/\bcarne\s+asada\b/i, "carne asada"],
-      [/\bposada\b/i, "posada"],
-      [/\bcena\s+conmemorativa\b|\bcomida\s+conmemorativa\b|\bd[ií]a\s+del\s+m[eé]dico\b|\bcena\s+(?:de\s+)?gala\b|\bcena\s+empresarial\b/i, "cena conmemorativa"],
-      [/\bcena\s+navide[nñ]a\b/i, "cena navide\xF1a"],
-      // A15642+: meal-as-event-type (comida/cena/brunch/…) — no catering.
-      [
-        /\bes\s+un[a]?\s+(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)\b/i,
-        "__meal_event__"
-      ],
-      [
-        /\b(ser[aá]|ser[ií]a)\s+(una?\s+)?(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)\s+(para|el|del)\b/i,
-        "__meal_event__"
-      ],
-      [
-        /\b(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)\s+para\s+(el\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|\d{1,2}\s+de\s+)/i,
-        "__meal_event__"
-      ],
-      // A16074: "Comida" / "Cena" sueltos como respuesta a tipo de evento.
-      [/^(comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail)s?[.!?]*$/i, "__meal_event__"],
-      // A14988 Ernesto: concierto es tipo de evento (no servicio).
-      [/\bconciertos?\b/i, "concierto"],
-      // A15205 Mariel: campamento / concentración deportiva.
-      [/\bcampamentos?\b|\bconcentraci[oó]n\b|\batletas?\b/i, "campamento"],
-      // A15298: presentación editorial / lanzamiento de libro.
-      [
-        /\bpresentaci[oó]n\s+editorial\b|\blanzamiento\s+de\s+(libro|libro|revista)\b|\bpresentaci[oó]n\s+de\s+libro\b/i,
-        "presentaci\xF3n editorial"
-      ]
-    ];
-    ORDINAL_INDEX = {
-      primer: 1,
-      primera: 1,
-      primero: 1,
-      segunda: 2,
-      segundo: 2,
-      tercer: 3,
-      tercera: 3,
-      tercero: 3,
-      cuarta: 4,
-      cuarto: 4,
-      quinta: 5,
-      quinto: 5,
-      ultima: -1,
-      ultimo: -1
-    };
-    EVENT_MEAL_TYPE = /comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail/i;
-    NON_GUEST_UNIT_PATTERN = /\b\d+\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?|pantallas?|paquetes?|juegos?|m[oó]dulos?|piezas?)\b/i;
-    CARPA_OPTIONS_TEXT = "blancas, negras, transparentes y tipo domo";
-    CATALOG_TYPO_RE = /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b|\bcata?lgos?\b|\bcatl[oó]gos?\b|\bcatalog[oa]s?\b/i;
-    WRITTEN_NUMBERS = {
-      uno: "1",
-      una: "1",
-      dos: "2",
-      tres: "3",
-      cuatro: "4",
-      cinco: "5",
-      seis: "6",
-      siete: "7",
-      ocho: "8",
-      nueve: "9",
-      diez: "10",
-      once: "11",
-      doce: "12",
-      quince: "15",
-      veinte: "20",
-      treinta: "30",
-      cuarenta: "40",
-      cincuenta: "50",
-      sesenta: "60",
-      setenta: "70",
-      ochenta: "80",
-      noventa: "90",
-      cien: "100",
-      ciento: "100",
-      doscientos: "200",
-      trescientos: "300",
-      cuatrocientos: "400",
-      quinientos: "500"
-    };
-    MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
-    KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|(?:jardines\s+del\s+)?pedregal(?:\s+de\s+san\s+[aá]ngel)?|(?:av(?:enida|\.)?\s+)?insurgentes\s+(?:sur|norte|centro)|iztapalapa|tlalpan|azcapotzalco|iztacalco|cuajimalpa|milpa\s+alta|tl[aá]huac|valle\s+de\s+chalco|chalco|ixtapaluca|texcoco|chimalhuac[aá]n|chicoloapan|metepec|zinacantepec|huixquilucan|tepotzotl[aá]n|teotihuac[aá]n|acolman|amecameca|tlalmanalco|ocoyoacac|san\s+mateo\s+atenco|tenancingo|malinalco|tepoztl[aá]n|oaxtepec|cocoyoc|xalapa|tampico|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|zapopan|tlaquepaque|san\s+pedro\s+tlaquepaque|tonal[aá]|tlajomulco(\s+de\s+z[uú][nñ]iga)?|el\s+salto|chapala|ajijic|puebla|atlixco|cholula|tehuac[aá]n|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|pinotepa(?:\s+nacional)?|huatulco|juchit[aá]n|salina\s+cruz|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|teoloyucan|cuautitl[aá]n(\s+izcalli)?|zumpango|huehuetoca|coyotepec|tultepec|tultitl[aá]n|coacalco|tec[aá]mac|nextlalpan|tonanitla|jilotepec|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|valle\s+de\s+bravo|mesa\s+rica|torre[oó]n|san\s+miguel\s+de\s+allende|allende|puerto\s+vallarta|nuevo\s+vallarta|puerto\s+escondido|los\s+cabos|cabo\s+san\s+lucas|mazatl[aá]n|manzanillo|ensenada|bah[ií]a\s+de\s+banderas|cozumel|isla\s+mujeres|reynosa|matamoros|ciudad\s+ju[aá]rez|ciudad\s+obreg[oó]n|pachuca|tlaxcala|jiutepec|morelos|aguascalientes|chihuahua|oaxaca|chiapas|yucat[aá]n|campeche|tabasco|sinaloa|sonora|coahuila|durango|zacatecas|san\s+luis(\s+potos[ií])?|slp|quintana\s+roo|morelia|saltillo|culiac[aá]n|hermosillo|tuxtla|villahermosa|chetumal|quer[eé]taro|guanajuato|le[oó]n|irapuato|celaya|m[eé]rida|campeche|la\s+paz|loreto|huatulco|ixtapa|zihuatanejo|sayulita|jalisco|huasca(\s+de\s+ocampo)?|real\s+del\s+monte|mineral\s+del\s+chico|tequisquiapan|bernal|taxco|tulancingo|actopan|ixmiquilpan|tepeji|amealco|tula(\s+de\s+allende)?)\b/i;
-    NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|empresa|compa[nñ][ií]a|negocio|espacio|sede|trabajo|cerca|lejos|centro|hotel|restaurantes?|restaurants?|terraza|local|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale|ratito|rato|momento|minuto|ahorita)\b/i;
-    VENUE_DISCOURSE_CUT = /\s+(?:y\s+)?(?:estamos|estoy|buscando|buscamos|busco|necesito|necesitamos|contamos|queremos|quiero|nos\s+encontramos|se\s+llama|realmente|ya\s+que|porque|para\s+que|que\s+nos|con\s+un\s+tipo|complemento|proveedor|sillas?|invitados?)\b.*$/i;
-    VENUE_DISCOURSE_JUNK = /\b(buscando|buscamos|busco|proveedor|nos\s+apoye|estamos\s+buscando|contamos\s+con|realmente|complemento\s+de|tipo\s+de\s+silla|basket|coordino\s+eventos)\b/i;
-    VAGUE_VENUE_LABEL = /^(?:un\s+|una\s+|el\s+|la\s+|mi\s+|su\s+)?(?:sal[oó]n(?:\s+de\s+fiestas?)?|hotel|jard[ií]n|espacio|lugar|venue|edificio|terraza|casa|restaurantes?|restaurants?)$/i;
-    VENUE_NAME_PATTERN = /\b((?:sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(?:\s+de\s+golf)?|expo|centro\s+cultural|centro\s+de\s+convenciones|venue|hospital(?:\s+general)?(?:\s+regional)?|cl[ií]nica|auditorio|universidad|museo|plaza|edificio|instituto|facultad|torre|caba[nñ]as?|cabanas?)\s+[A-ZÁÉÍÓÚÑ0-9][A-Za-zÁÉÍÓÚáéíóúñ0-9][\wÁÉÍÓÚáéíóúñ\s.'-]{0,40})/i;
-    JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|un\s+ratito|un\s+rato|un\s+momento|ahorita|ahorita\s+te\s+(digo|paso|aviso)|luego|luego\s+te\s+(digo|paso|aviso)|en\s+un\s+(rato|momento)|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda(\s+civil)?|bautizo(\s+de\s+(ni[nñ][ao]|beb[eé]))?|graduaci[oó]n|cumplea[nñ]os|xv(\s*a[nñ]os?)?|quincea[nñ]era|baby\s*shower|primera\s+comuni[oó]n|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|nuestras?\s+oficinas?|nuestra\s+empresa|nuestro\s+espacio|mi\s+empresa|su\s+empresa|empresa|espacio|compa[nñ][ií]a|negocio|sede|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|en\s+(mi\s+|su\s+|la\s+)?casa|en\s+(un\s+|el\s+)?restaurantes?|restaurantes?|restaurants?|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
-    EXCLUDED_SERVICE_LEADS = [
-      /\b(?:ya\s+)?no\s+(?:quiero|queremos|necesito|necesitamos|requiero|requerimos|ocupo|ocupamos)\s+([^.;!?\n]{2,70})/gi,
-      /\bya\s+(?:tengo|tenemos|contamos\s+con|conseguimos|consegu[ií]|compr[eé]|compramos)\s+([^.;!?\n]{2,70})/gi,
-      /\b(?:para\s+)?(?:complementar|combinar|acompa[nñ]ar)(?:l[oa]s?)?\s+con\s+([^.;!?\n]{2,70})/gi,
-      /\b(?:qu[ií]tale|quita(?:r|mos)?|sin\s+(?:el|la|los|las))\s+([^.;!?\n]{2,70})/gi
-    ];
-    EXCLUDED_TRAILING_RE = /\b(?:el|la|los|las)\s+([a-záéíóúñ]+(?:\s+[a-záéíóúñ]+){0,3}?)\s*,?\s*(?:es[eao]s?\s+)?ya\s+l[oa]s?\s+(?:tengo|tenemos)\b/gi;
-    EXCLUDED_BEFORE_NO_RE = /(?:^|[.,;!?\n]\s*|\b(?:y|pero)\s+)(?:el\s+|la\s+|los\s+|las\s+)?([a-záéíóúñ]+(?:\s+(?:de\s+)?[a-záéíóúñ]+){0,2})\s+(?:ya\s+)?no\s+(?:l[oa]s?\s+)?(?:quiero|queremos|necesito|necesitamos|me\s+interesa)\b/gi;
-    PLATED_MEAL_LABEL_RE = /^(banquete(\s+\w+)?|comida|men[uú].*tiempos?|tres\s+tiempos)$/i;
-    STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
-    CLOCK_AMPM = String.raw`(?:am|pm|a\.?\s*m\.?|p\.?\s*m\.?|hrs?|horas?)`;
-    CLOCK_TOKEN = String.raw`\d{1,2}(?::\d{2})?`;
-    DAY_PERIOD_SRC = String.raw`de\s+la\s+(?:ma[nñ]ana|tarde|noche|madrugada)|del\s+medio\s*d[ií]a|am|pm|a\.\s*m\.?|p\.\s*m\.?|hrs?|horas`;
-    GUEST_COUNT_WORDS = "personas?|invitados?|invitadas?|pax|guests?|gentes?|cabezas?";
-    STANDARD_PISTA_SIZES = [
-      { w: 4, h: 4, area: 16 },
-      { w: 5, h: 5, area: 25 },
-      { w: 6, h: 6, area: 36 },
-      { w: 6, h: 8, area: 48 },
-      { w: 8, h: 8, area: 64 },
-      { w: 6, h: 10, area: 60 },
-      { w: 8, h: 10, area: 80 },
-      { w: 10, h: 10, area: 100 }
-    ];
-    STANDARD_CARPA_SIZES = [
-      { w: 6, h: 6, area: 36 },
-      { w: 6, h: 9, area: 54 },
-      { w: 9, h: 9, area: 81 },
-      { w: 9, h: 12, area: 108 },
-      { w: 10, h: 12, area: 120 },
-      { w: 10, h: 15, area: 150 },
-      { w: 12, h: 15, area: 180 },
-      { w: 15, h: 15, area: 225 },
-      { w: 15, h: 18, area: 270 },
-      { w: 15, h: 21, area: 315 },
-      { w: 18, h: 21, area: 378 }
-    ];
-    CARPA_M2_PER_GUEST = 1.5;
-    MX_CITY_ABBREVIATIONS = [
-      [/\bgdl\b\.?/gi, "Guadalajara"],
-      [/\bmty\b\.?/gi, "Monterrey"],
-      [/\bqro\b\.?/gi, "Quer\xE9taro"],
-      [/\bags\b\.?/gi, "Aguascalientes"],
-      [/\bqroo\b\.?/gi, "Quintana Roo"],
-      [/\bcuerna\b/gi, "Cuernavaca"],
-      [/\btlaque\b/gi, "Tlaquepaque"],
-      [/,\s*jal\b\.?/gi, ", Jalisco"],
-      [/,\s*n\.?\s*l\.?$/gi, ", Nuevo Le\xF3n"]
-    ];
-    SERVICE_LABELS_NOT_TIPO = /^(brunch|banquete|taquiza|desayuno|catering|pista de baile|dj|mobiliario|bebidas?)$/i;
-    CORREO_DICTADO_STOPWORDS = /* @__PURE__ */ new Set([
-      "es",
-      "mi",
-      "correo",
-      "el",
-      "mail",
-      "email",
-      "de",
-      "ser[i\xED]a",
-      "seria",
-      "ser\xEDa"
-    ]);
-    PRESUPUESTO_MAX_ASKS = 2;
-    FECHA_MAX_ASKS = 2;
-    PRESUPUESTO_AUTO_WAIVER = "Sin definir (no indic\xF3 monto)";
-    FECHA_AUTO_WAIVER = "Sin definir (pendiente)";
-  }
-});
-
 // src/price-guard.ts
 function escapeRegex2(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -137598,6 +137678,7 @@ function clientAsksPrice(message) {
     return false;
   }
   if (/\bprecio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
+  if (clientWorriesAboutCost(message)) return false;
   if (/\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
   if (/\brangos?\s+de\s+precio\b/i.test(message) && /\b(propuestas?|opci[oó]n|men[uú])\b/i.test(message)) {
     return false;
@@ -139587,7 +139668,15 @@ function buildKnownCatalogAck(serviceLabel, query) {
       "\xBFLa sumamos a tu cotizaci\xF3n?"
     ].join(" ");
   }
-  const url2 = getCatalogWebUrlForQuery(query) || getCatalogWebUrlForQuery(name2) || null;
+  const url2 = getCatalogWebUrlForQuery(name2) || getCatalogWebUrlForQuery(query) || null;
+  if (/\bbarra\s+(?:libre\s+)?(?:de\s+)?(?:licores?\s+)?(?:nacional|internacional|premium)/i.test(query)) {
+    return [
+      "\xA1S\xED! Manejamos *barra de bebidas* con licores nacionales (y tambi\xE9n internacional o premium); el equipo arma la propuesta seg\xFAn horas e invitados.",
+      ...url2 ? [`Cat\xE1logo de *Barra de bebidas*:
+${url2}`] : [],
+      "\xBFLa sumo a tu cotizaci\xF3n?"
+    ].join("\n");
+  }
   if (!url2) {
     return `\xA1Claro! Anoto *${name2}* para tu cotizaci\xF3n. Nuestro equipo arma la propuesta seg\xFAn estilo y cantidad.`;
   }
@@ -166369,10 +166458,19 @@ function upgradeVagueFoodRequirement(value, label) {
   return [label, ...kept.filter((p5) => p5.toLowerCase() !== label.toLowerCase())].join(", ");
 }
 function applyLucyMessageGuards(input) {
-  const mensaje = applyLucyMessageGuardsRaw(input).replace(
+  let mensaje = applyLucyMessageGuardsRaw(input).replace(
     /^(¡?)Perfecto,\s+que\s+es\s+\*[^*\n]+\*\s*([!.])?\s*/i,
     (_m, open2) => open2 ? "\xA1Perfecto! " : "Perfecto. "
   );
+  {
+    const cm = input.currentMessage ?? "";
+    const sala = /\bplural\b|\bsigues?\s+(?:diciendo|poniendo)\b|\bes\s+una\s+sola\b/i.test(cm) ? parseSalaProductFromText(cm) : null;
+    if (sala === "Sala lounge (1)" && !/\buna\s+sala\s+lounge\b/i.test(mensaje)) {
+      mensaje = `Tienes raz\xF3n, es *una sala lounge*; ya lo correg\xED.
+
+${mensaje.replace(/^¡Con gusto(?:,\s*[^!]+)?!\s*/i, "")}`.trim();
+    }
+  }
   {
     const parts2 = (input.extracted.requerimientos_evento ?? "").split(",").map((s7) => s7.trim()).filter(Boolean);
     const vague = (p5) => /^(alimentos?|comidas?|catering|banquetes?)$/i.test(p5);
@@ -166385,7 +166483,7 @@ function applyLucyMessageGuards(input) {
   const historyClosed = detectCierreEnviado(
     input.presentationHistory ?? input.history
   );
-  return ensureOutboundAlwaysAsks(mensaje, {
+  const asked = ensureOutboundAlwaysAsks(mensaje, {
     extracted: input.extracted,
     filledSet: input.filledSet,
     ctx: makeQuestionCtx(input),
@@ -166393,6 +166491,11 @@ function applyLucyMessageGuards(input) {
     cierreYaEnviado: (Boolean(input.cierreYaEnviado) || historyClosed) && !hardPending,
     history: input.presentationHistory ?? input.history
   });
+  const trailingQ = asked.match(/¿[^?\n]+\?\s*$/)?.[0] ?? "";
+  if (/¿Quieres que te d[eé] detalles de alguno\?\s*\n+¿[^?\n]+\?\s*$/i.test(asked) && /presupuesto|estimado|rango|les\s+proponga\s+opciones/i.test(trailingQ)) {
+    return asked.slice(0, asked.length - trailingQ.length).trim();
+  }
+  return asked;
 }
 function applyLucyMessageGuardsRaw(input) {
   const {
@@ -167501,9 +167604,15 @@ ${follow}` : ack,
         filledSet.add(CRM_HORARIO_LABEL);
       }
       syncLegacyFechaHorarioField(extracted);
+      const zonaJunto = parseZonaFromText(currentMessage ?? "");
+      const zonaAck = zonaJunto && isCompleteEventLocation(zonaJunto) ? zonaJunto : null;
+      if (zonaAck && !isCompleteEventLocation(extracted.direccion_evento)) {
+        extracted.direccion_evento = zonaAck;
+        filledSet.add("Lugar/direcci\xF3n del evento");
+      }
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-      const ack = `Perfecto, anoto la fecha: *${extracted.fecha_evento}*.`;
+      const ack = zonaAck ? `Perfecto, queda el *${extracted.fecha_evento}* en *${zonaAck}*.` : `Perfecto, anoto la fecha: *${extracted.fecha_evento}*.`;
       log?.info(
         { entityId, fecha: extracted.fecha_evento, pending },
         "GUARD: A15297 \u2014 fecha capturada + embudo real"
@@ -167646,6 +167755,17 @@ ${follow}` : ack,
     const ack = `${display ? `Claro, ${display}. ` : "Claro. "}Nuestro servicio de *DJ* incluye equipo de audio completo, micr\xF3fono para brindis e iluminaci\xF3n b\xE1sica; puedes mandar tu playlist. \xBFQuieres que lo sume a tu cotizaci\xF3n?`;
     log?.info({ entityId }, "GUARD: A15581 \u2014 qu\xE9 incluye el DJ");
     return normalizeAdvisorReferences2(ack, extracted.nombre ?? display);
+  }
+  if (currentMessage && clientAsksToWaitWhileBrowsing(currentMessage)) {
+    log?.info({ entityId }, "GUARD: A16523 \u2014 cliente pide un momento");
+    return "\xA1Claro, con calma! Aqu\xED te espero. \xBFMe dices cu\xE1l te gust\xF3 cuando lo veas?";
+  }
+  if (currentMessage && clientWorriesAboutCost(currentMessage)) {
+    const tiffany = /tiffany/i.test(`${extracted.requerimientos_evento ?? ""} ${collectUserTexts(presHistory).slice(-3).join(" ")}`);
+    const ack = tiffany ? "Entiendo, cuidamos el costo: las *Tiffany* son de las m\xE1s accesibles y se ven muy bien, as\xED las dejo en tu cotizaci\xF3n." : "Entiendo, cuidamos el costo: dejo la opci\xF3n m\xE1s accesible en tu cotizaci\xF3n.";
+    const presPending = !isFieldSatisfied("presupuesto", filledSet, extracted);
+    log?.info({ entityId }, "GUARD: A16523 \u2014 cliente cuida el costo");
+    return presPending ? `${ack} \xBFManejan alg\xFAn presupuesto estimado? As\xED el equipo ajusta la propuesta.` : `${ack} \xBFAlgo m\xE1s que quieras ajustar?`;
   }
   if (!cierreYaEnviado && currentMessage && clientWantsQuoteDelivery(currentMessage) && conversationAlreadyStarted(filledSet, presHistory) && // "Quisiera una cotización para una pista…" pide cotizar un servicio nuevo, no el envío.
   !parseServicesFromText(currentMessage).some(
@@ -167914,7 +168034,7 @@ ${buildNaturalQuestion(pending, ctx)}` : consultative;
           "i"
         ).test(blob);
         const asFurnitureOnly = new RegExp(
-          `\\b${n5}\\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?)\\b`,
+          `\\b${n5}\\s*(salas?|mesas?|carpas?|pistas?|tarimas?)\\b`,
           "i"
         ).test(blob);
         if (asFurnitureOnly && !asGuests) {
@@ -168317,7 +168437,7 @@ Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
     const services = parseServicesFromText(currentMessage ?? "");
     const list = services.length > 0 ? formatServicesList(services) : (currentMessage ?? "").trim().replace(/\s+/g, " ").slice(0, 100);
     const nombre = getDisplayName(extracted, whatsappDisplayName);
-    mensaje = nombre ? `Perfecto, ${nombre}. Anoto ${list} para que el equipo lo sume a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?` : `Perfecto. Anoto ${list} para que el equipo lo sume a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?`;
+    mensaje = nombre ? `Perfecto, ${nombre}. Sumo ${list} a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?` : `Perfecto. Sumo ${list} a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 servicios adicionales (ack corto)");
   } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && (isRichQuoteBrief(currentMessage) || parseServicesFromText(currentMessage ?? "").length >= 2)) {
@@ -168345,7 +168465,7 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     const services = parseServicesFromText(currentMessage);
     const list = services.length > 0 ? formatServicesList(services) : currentMessage.trim().replace(/\s+/g, " ").slice(0, 80);
     const nombre = getDisplayName(extracted, whatsappDisplayName);
-    mensaje = nombre ? `Perfecto, ${nombre}. Anoto ${list} para que el equipo lo sume a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?` : `Perfecto. Anoto ${list} para que el equipo lo sume a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?`;
+    mensaje = nombre ? `Perfecto, ${nombre}. Sumo ${list} a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?` : `Perfecto. Sumo ${list} a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 servicio adicional (ack corto, sin niveles)");
   } else if (cierreYaEnviado && (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))) {
@@ -234141,15 +234261,18 @@ function pendingFields(mergedLines, extracted) {
   }
   return pending;
 }
-function extractRentalPieceCount(text2) {
+function extractRentalPieceList(text2) {
   const t4 = text2 ?? "";
-  const m6 = t4.match(
-    /\b(?:alrededor\s+de|aprox(?:imadamente)?|ocupamos|necesitamos?|buscamos?|renta(?:r|mos)?|son|de)?\s*(\d{1,3})\s*(sillas?|mesas?|periqueras?|carpas?|lounges?|piezas?|manteles?)\b/i
-  );
-  if (!m6) return null;
-  const count2 = parseInt(m6[1], 10);
-  if (!Number.isFinite(count2) || count2 < 1 || count2 > 500) return null;
-  return { count: count2, unit: m6[2].toLowerCase() };
+  const byUnit = /* @__PURE__ */ new Map();
+  const re4 = /\b(\d{1,3})\s*(sillas?|mesas?|periqueras?|carpas?|lounges?|manteles?)\b(?!\s+de\s+\d)/gi;
+  for (const m6 of t4.matchAll(re4)) {
+    const count2 = parseInt(m6[1], 10);
+    if (!Number.isFinite(count2) || count2 < 1 || count2 > 500) continue;
+    const unit = m6[2].toLowerCase().replace(/^(silla|mesa|periquera|carpa|lounge|mantel)$/, "$1s").replace(/^mantels$/, "manteles");
+    if (!byUnit.has(unit)) byUnit.set(unit, count2);
+  }
+  if (!byUnit.size) return null;
+  return [...byUnit.entries()].map(([unit, count2]) => `${count2} ${unit}`).join(", ");
 }
 function pushUnique(out2, value, max = 10) {
   const v4 = (value ?? "").replace(/\s+/g, " ").trim();
@@ -234392,7 +234515,7 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   const evento = pickFromMergedLines(mergedLines, /Tipo de evento/i) || extracted.tipo_evento?.trim() || null;
   const fecha = pickFromMergedLines(mergedLines, /Fecha del evento/i) || extracted.fecha_evento?.trim() || pickFromMergedLines(mergedLines, /Fecha y horario/i) || extracted.fecha_horario?.trim() || null;
   const horario = pickFromMergedLines(mergedLines, /Horario del evento/i) || extracted.horario_evento?.trim() || null;
-  const fechaResumen = horario && fecha ? `${fecha}, ${horario}` : fecha;
+  const fechaResumen = horario && fecha ? fecha.toLowerCase().includes(horario.toLowerCase()) ? fecha : `${fecha}, ${horario}` : fecha;
   const invitados = pickFromMergedLines(mergedLines, /Número de invitados/i) || (extracted.num_invitados !== null && extracted.num_invitados > 0 ? String(extracted.num_invitados) : null);
   const ubicacionRaw = pickFromMergedLines(mergedLines, /Lugar\/dirección/i) || extracted.direccion_evento?.trim() || null;
   const ubicacion = formatUbicacionResumen(ubicacionRaw, conversationText);
@@ -234414,12 +234537,12 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
     reqs = reqFromLines || (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) || reqFromConversation;
   }
   const blob = [conversationText, reqs, reqFromLinesRaw].filter(Boolean).join("\n");
-  const pieces = extractRentalPieceCount(blob);
+  const pieces = extractRentalPieceList(blob);
   const specs = extractQuoteKeyPoints(blob);
   const ppto = resolveResumenPresupuesto(extracted, mergedLines, conversationText);
   let serviciosLine = reqs || "(a\xFAn por definir con m\xE1s detalle)";
   if (pieces && reqs && /mobiliario|silla|mesa|carpa|lounge|periquera|mantel/i.test(`${reqs} ${blob}`)) {
-    serviciosLine = `${reqs} \u2014 ${pieces.count} ${pieces.unit}`;
+    serviciosLine = `${reqs} \u2014 ${pieces}`;
   }
   if (specs.length) {
     const foodTip = specs.find(
@@ -234453,7 +234576,7 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
     lineas.push(escalaAbierta ? `\u2022 Invitados: ${invitados}` : `\u2022 Invitados del evento: ${invitados}`);
   }
   if (pieces) {
-    lineas.push(`\u2022 Piezas a cotizar: ${pieces.count} ${pieces.unit}`);
+    lineas.push(`\u2022 Piezas a cotizar: ${pieces}`);
   }
   lineas.push("");
   if (specs.length) {
@@ -236146,6 +236269,10 @@ function softenRobotAcks(mensaje) {
   out2 = out2.replace(/(?:¡|\b)Claro!?\.?\s*Anoto\s+/gi, "\xA1Claro! Vamos con ");
   out2 = out2.replace(/\bPerfecto\s*[—–,-]\s*anoto\s+/gi, "\xA1Va! Sumamos ");
   out2 = out2.replace(
+    /\bAnoto\s+([^.!?\n]{2,80}?)\s+para\s+que\s+(?:el|nuestro)\s+equipo\s+lo\s+sume\s+a\s+tu\s+cotizaci[oó]n[.!]?\s*/gi,
+    "Sumo $1 a tu cotizaci\xF3n. "
+  );
+  out2 = out2.replace(
     /\bAnoto\s+(\*[^*]{1,80}\*|(?:medidas?\s+)?[^.!?\n]{2,80}?)\s+para\s+tu\s+cotizaci[oó]n[.!]?\s*/gi,
     "Seguimos con $1. "
   );
@@ -236175,6 +236302,7 @@ function softenRobotAcks(mensaje) {
 
 // src/lucyOutboundPipeline.ts
 init_trendKnowledge();
+init_serviceDecline();
 init_conversation_understanding();
 init_client_email();
 init_eventDateTime();
@@ -236395,17 +236523,22 @@ ${keepQ}` : ack;
     const lucyTexts = historyText("assistant");
     const lastLucy = lucyTexts[lucyTexts.length - 1] ?? "";
     const acceptedIdeas = clientAcceptsIdeasOffer(input.currentMessage, lastLucy);
-    const forceIdeas = acceptedIdeas || clientWantsIdeasOrTrends(input.currentMessage) || /recomendaciones?|ideas?\b|colores?|montajes?/i.test(input.currentMessage ?? "");
+    const ownWords = stripEchoedLucyText(input.currentMessage, lucyTexts);
+    const forceIdeas = acceptedIdeas || !clientClosedServiceList(ownWords) && (clientWantsIdeasOrTrends(ownWords) || /recomendaciones?|ideas?\b|colores?|montajes?/i.test(ownWords));
     const withIdeas = !forceIdeas ? mensaje : enrichReplyWithSalesIdeas(mensaje, {
       tipoEvento: input.extracted.tipo_evento,
-      messageText: input.currentMessage,
+      messageText: ownWords,
       requerimientos: input.extracted.requerimientos_evento,
       force: forceIdeas,
       accepted: acceptedIdeas,
       alreadySent: lucyTexts.join("\n"),
       contextText: historyText("user").slice(-6).join("\n"),
       numInvitados: input.extracted.num_invitados ?? null,
-      groundingSnippet: input.trendGroundingSnippet ?? null
+      groundingSnippet: input.trendGroundingSnippet ?? null,
+      declinedFamilies: declinedFamiliesInTexts([
+        ...historyText("user"),
+        input.currentMessage
+      ])
     });
     if (withIdeas !== mensaje && withIdeas.trim().length >= 8) {
       input.log?.info?.({ entityId: input.entityId }, "GUARD: tono \u2014 ideas de venta inyectadas");

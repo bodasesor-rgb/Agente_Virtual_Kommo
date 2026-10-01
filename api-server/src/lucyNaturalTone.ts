@@ -125,6 +125,11 @@ export function softenRobotAcks(mensaje: string): string {
   out = out.replace(/(?:¡|\b)Claro!?\.?\s*Anoto\s+/gi, "¡Claro! Vamos con ");
   // "Perfecto — anoto *bailarinas* …" / A16511: "Perfecto, anoto *X*" (antes "Perfecto, Seguimos con").
   out = out.replace(/\bPerfecto\s*[—–,-]\s*anoto\s+/gi, "¡Va! Sumamos ");
+  // A16523: "Anoto Cena para que el equipo lo sume…" salía "Va, Cena para que el equipo lo sume…".
+  out = out.replace(
+    /\bAnoto\s+([^.!?\n]{2,80}?)\s+para\s+que\s+(?:el|nuestro)\s+equipo\s+lo\s+sume\s+a\s+tu\s+cotizaci[oó]n[.!]?\s*/gi,
+    "Sumo $1 a tu cotización. "
+  );
   // "Anoto *X* para tu cotización."
   out = out.replace(
     /\bAnoto\s+(\*[^*]{1,80}\*|(?:medidas?\s+)?[^.!?\n]{2,80}?)\s+para\s+tu\s+cotizaci[oó]n[.!]?\s*/gi,

@@ -5,6 +5,10 @@
  */
 
 import { advisorLabelForClient } from "../lib/bodasesorAdvisor.js";
+import {
+  textMentionsDeclinedFamily,
+  type DeclinedServiceFamily,
+} from "./serviceDecline.js";
 
 const ACCEPTS_IDEAS_PATTERN =
   /\b(?:s[ií](?:\s+por\s+favor)?|claro|dale|va|ok|okay|sale|perfecto)\b.{0,40}\b(?:ideas?|recomendaci|sugerenc)|\b(?:dame|quiero|pásame|pasame|necesito)\s+ideas?\b|\bideas?\s+por\s+favor\b/i;
@@ -78,7 +82,7 @@ function eventKey(tipo?: string | null): keyof typeof TIPS_BY_EVENT {
   if (/apertura|inaugura|lanzamiento|showroom|tienda|negocio|open\s*house/.test(t)) return "apertura";
   if (/boda|wedding/.test(t)) return "boda";
   if (/xv|quince/.test(t)) return "xv";
-  if (/corporativ|empresarial|gala|conferenc/.test(t)) return "corporativo";
+  if (/corporativ|empresarial|gala|conferenc|premiaci|congreso|convenci/.test(t)) return "corporativo";
   if (/cumple|birthday|aniversario/.test(t)) return "cumple";
   if (/bautizo|baby\s*shower/.test(t)) return "bautizo";
   return "default";
@@ -124,6 +128,7 @@ function normalizeForTipMatch(text: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, "")
     .replace(/[*_]/g, "")
     .replace(/\s+/g, " ");
 }
@@ -140,13 +145,49 @@ export function extractStyleCues(...texts: Array<string | null | undefined>): st
   return found;
 }
 
-function pickTips(tipoEvento?: string | null, max = 2, alreadySent?: string | null): string[] {
+function pickTips(
+  tipoEvento?: string | null,
+  max = 2,
+  alreadySent?: string | null,
+  declined: DeclinedServiceFamily[] = []
+): string[] {
   const tips = TIPS_BY_EVENT[eventKey(tipoEvento)] ?? TIPS_BY_EVENT.default!;
   const sent = alreadySent ? normalizeForTipMatch(alreadySent) : "";
-  const fresh = sent
+  const fresh = (sent
     ? tips.filter((tip) => !sent.includes(normalizeForTipMatch(tip).slice(0, 40)))
-    : tips;
+    : tips
+  ).filter((tip) => !textMentionsDeclinedFamily(tip, declined));
   return fresh.slice(0, max);
+}
+
+/**
+ * A16523: el cliente pegó texto de Lucy ("Lo que se está usando… • Integra iluminación…")
+ * para comentarlo. Quita esas líneas para no tomarlas como pedido de ideas.
+ */
+export function stripEchoedLucyText(
+  message: string | null | undefined,
+  lucyTexts: Array<string | null | undefined>
+): string {
+  const raw = message ?? "";
+  if (!raw.trim()) return raw;
+  const lucyNorm = normalizeForTipMatch(lucyTexts.filter(Boolean).join("\n"));
+  if (!lucyNorm.trim()) return raw;
+  const pieces = raw.split(/\n+|(?<=[.!?])\s+/);
+  const kept = pieces.filter((piece) => {
+    const p = normalizeForTipMatch(piece.replace(/^[\s•⁠\-*]+/, "")).trim();
+    if (/^lo que se esta usando\b.*:$/.test(p)) return false;
+    return !(p.length >= 25 && lucyNorm.includes(p.slice(0, 60)));
+  });
+  return kept.join("\n").trim();
+}
+
+/** "es todo" / "el resto de producción ya lo tengo" — no más ideas ni upsell. */
+export function clientClosedServiceList(message: string | null | undefined): boolean {
+  const t = (message ?? "").trim();
+  if (!t) return false;
+  return /\b(?:eso\s+)?es\s+todo\b|\bser[ií]a\s+todo\b|\bnada\s+m[aá]s\b|\b(?:el\s+)?resto\b[^.\n]{0,30}\bya\s+(?:lo\s+)?tengo\b|\bya\s+tengo\s+(?:lo\s+dem[aá]s|el\s+resto)\b/i.test(
+    t
+  );
 }
 
 /**
@@ -214,6 +255,8 @@ export function buildSalesIdeasSnippet(opts: {
   numInvitados?: number | string | null;
   /** Viñetas frescas de Google (LUCY_GOOGLE_GROUNDING=1) — van primero. */
   groundingSnippet?: string | null;
+  /** Familias que el cliente ya rechazó ("DJ no") — ningún tip las sugiere. */
+  declinedFamilies?: DeclinedServiceFamily[];
 }): string | null {
   const cues = extractStyleCues(
     opts.messageText,
@@ -222,12 +265,18 @@ export function buildSalesIdeasSnippet(opts: {
     opts.requerimientos
   );
   const max = opts.maxTips ?? 2;
+  const declined = opts.declinedFamilies ?? [];
   const vibeCues = cues.filter((c) => !EVENT_TYPE_CUES.has(c));
-  const trends = parseGroundingBullets(opts.groundingSnippet, 2);
+  const sentNorm = opts.alreadySent ? normalizeForTipMatch(opts.alreadySent) : "";
+  const trends = parseGroundingBullets(opts.groundingSnippet, 4)
+    .filter((t) => !textMentionsDeclinedFamily(t, declined))
+    .filter((t) => !sentNorm || !sentNorm.includes(normalizeForTipMatch(t).slice(0, 40)))
+    .slice(0, 2);
   const staticTips = pickTips(
     opts.tipoEvento || cues[0],
     Math.max(1, max - trends.length),
-    opts.alreadySent
+    opts.alreadySent,
+    declined
   );
   const tips = [...trends, ...staticTips].slice(0, Math.max(max, trends.length + 1));
   if (!tips.length) return null;
@@ -273,11 +322,13 @@ export function enrichReplyWithSalesIdeas(
     contextText?: string | null;
     numInvitados?: number | string | null;
     groundingSnippet?: string | null;
+    declinedFamilies?: DeclinedServiceFamily[];
   }
 ): string {
   const out = (mensaje || "").trim();
   if (!out) return out;
   if (messageAlreadyOffersSalesIdeas(out)) return out;
+  if (clientClosedServiceList(opts.messageText) && !opts.accepted) return out;
 
   if (opts.accepted) {
     const snippet = buildSalesIdeasSnippet({
@@ -290,6 +341,7 @@ export function enrichReplyWithSalesIdeas(
       accepted: true,
       numInvitados: opts.numInvitados,
       groundingSnippet: opts.groundingSnippet,
+      declinedFamilies: opts.declinedFamilies,
     });
     if (!snippet) return out;
     const questions = (out.match(/[^.!?\n]*\?/g) ?? []).map((q) => q.trim()).filter(Boolean);
@@ -321,6 +373,7 @@ export function enrichReplyWithSalesIdeas(
     alreadySent: opts.alreadySent,
     contextText: opts.contextText,
     groundingSnippet: wants ? opts.groundingSnippet : null,
+    declinedFamilies: opts.declinedFamilies,
   });
   if (!snippet) return out;
 

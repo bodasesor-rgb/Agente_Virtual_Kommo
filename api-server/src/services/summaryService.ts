@@ -207,6 +207,22 @@ export function extractRentalPieceCount(text: string | null | undefined): {
   return { count, unit: m[2]!.toLowerCase() };
 }
 
+/** A16523: "10 mesas" + "70 sillas" en mensajes distintos → "10 mesas, 70 sillas" (antes solo una). */
+export function extractRentalPieceList(text: string | null | undefined): string | null {
+  const t = text ?? "";
+  const byUnit = new Map<string, number>();
+  const re =
+    /\b(\d{1,3})\s*(sillas?|mesas?|periqueras?|carpas?|lounges?|manteles?)\b(?!\s+de\s+\d)/gi;
+  for (const m of t.matchAll(re)) {
+    const count = parseInt(m[1]!, 10);
+    if (!Number.isFinite(count) || count < 1 || count > 500) continue;
+    const unit = m[2]!.toLowerCase().replace(/^(silla|mesa|periquera|carpa|lounge|mantel)$/, "$1s").replace(/^mantels$/, "manteles");
+    if (!byUnit.has(unit)) byUnit.set(unit, count);
+  }
+  if (!byUnit.size) return null;
+  return [...byUnit.entries()].map(([unit, count]) => `${count} ${unit}`).join(", ");
+}
+
 function pushUnique(out: string[], value: string | null | undefined, max = 10): void {
   const v = (value ?? "").replace(/\s+/g, " ").trim();
   if (!v || v.length < 3) return;
@@ -534,7 +550,13 @@ export function buildResumenClienteLargo(
     pickFromMergedLines(mergedLines, /Horario del evento/i) ||
     extracted.horario_evento?.trim() ||
     null;
-  const fechaResumen = horario && fecha ? `${fecha}, ${horario}` : fecha;
+  // A16523: fecha_horario = solo el horario ("5 horas") → no "5 horas, 5 horas".
+  const fechaResumen =
+    horario && fecha
+      ? fecha.toLowerCase().includes(horario.toLowerCase())
+        ? fecha
+        : `${fecha}, ${horario}`
+      : fecha;
   const invitados =
     pickFromMergedLines(mergedLines, /Número de invitados/i) ||
     (extracted.num_invitados !== null && extracted.num_invitados > 0
@@ -571,13 +593,13 @@ export function buildResumenClienteLargo(
   }
 
   const blob = [conversationText, reqs, reqFromLinesRaw].filter(Boolean).join("\n");
-  const pieces = extractRentalPieceCount(blob);
+  const pieces = extractRentalPieceList(blob);
   const specs = extractQuoteKeyPoints(blob);
   const ppto = resolveResumenPresupuesto(extracted, mergedLines, conversationText);
 
   let serviciosLine = reqs || "(aún por definir con más detalle)";
   if (pieces && reqs && /mobiliario|silla|mesa|carpa|lounge|periquera|mantel/i.test(`${reqs} ${blob}`)) {
-    serviciosLine = `${reqs} — ${pieces.count} ${pieces.unit}`;
+    serviciosLine = `${reqs} — ${pieces}`;
   }
   // Enriquecer con la clave más específica de alimentos/barra si el CRM solo dice genérico.
   if (specs.length) {
@@ -626,7 +648,7 @@ export function buildResumenClienteLargo(
     lineas.push(escalaAbierta ? `• Invitados: ${invitados}` : `• Invitados del evento: ${invitados}`);
   }
   if (pieces) {
-    lineas.push(`• Piezas a cotizar: ${pieces.count} ${pieces.unit}`);
+    lineas.push(`• Piezas a cotizar: ${pieces}`);
   }
   lineas.push("");
 

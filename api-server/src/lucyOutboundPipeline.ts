@@ -23,9 +23,12 @@ import { applyLucyGlobalAntiRepetition } from "./lucyOutboundAntiRepeat.js";
 import { applyClientNameCadence, stripMidMessageFiller, softenRobotAcks } from "./lucyNaturalTone.js";
 import {
   clientAcceptsIdeasOffer,
+  clientClosedServiceList,
   clientWantsIdeasOrTrends,
   enrichReplyWithSalesIdeas,
+  stripEchoedLucyText,
 } from "./services/trendKnowledge.js";
+import { declinedFamiliesInTexts } from "./services/serviceDecline.js";
 import { maybeRefinarMensajeCierre } from "./services/lucyRedaction.js";
 import {
   clientAsksServiceInfo,
@@ -271,14 +274,17 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
     const lastLucy = lucyTexts[lucyTexts.length - 1] ?? "";
     // A16427: Lucy ofreció ideas y el cliente dijo "Si, por favor" → darlas sí o sí.
     const acceptedIdeas = clientAcceptsIdeasOffer(input.currentMessage, lastLucy);
+    // A16523: si el cliente pega texto de Lucy para comentarlo, eso no es pedir ideas.
+    const ownWords = stripEchoedLucyText(input.currentMessage, lucyTexts);
     const forceIdeas =
       acceptedIdeas ||
-      clientWantsIdeasOrTrends(input.currentMessage) ||
-      /recomendaciones?|ideas?\b|colores?|montajes?/i.test(input.currentMessage ?? "");
+      (!clientClosedServiceList(ownWords) &&
+        (clientWantsIdeasOrTrends(ownWords) ||
+          /recomendaciones?|ideas?\b|colores?|montajes?/i.test(ownWords)));
     // A16484: sin tip proactivo ("Una idea que funciona muy bien…") — solo si el cliente pide ideas.
     const withIdeas = !forceIdeas ? mensaje : enrichReplyWithSalesIdeas(mensaje, {
       tipoEvento: input.extracted.tipo_evento,
-      messageText: input.currentMessage,
+      messageText: ownWords,
       requerimientos: input.extracted.requerimientos_evento,
       force: forceIdeas,
       accepted: acceptedIdeas,
@@ -286,6 +292,10 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
       contextText: historyText("user").slice(-6).join("\n"),
       numInvitados: input.extracted.num_invitados ?? null,
       groundingSnippet: input.trendGroundingSnippet ?? null,
+      declinedFamilies: declinedFamiliesInTexts([
+        ...historyText("user"),
+        input.currentMessage,
+      ]),
     });
     if (withIdeas !== mensaje && withIdeas.trim().length >= 8) {
       input.log?.info?.({ entityId: input.entityId }, "GUARD: tono — ideas de venta inyectadas");

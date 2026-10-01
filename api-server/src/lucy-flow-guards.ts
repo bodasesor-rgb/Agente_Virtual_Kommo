@@ -321,6 +321,8 @@ import {
   clientAsksHorarioExactitud,
   clientAsksDjClarification,
   clientAsksDjInclusion,
+  clientAsksToWaitWhileBrowsing,
+  clientWorriesAboutCost,
   CRM_FECHA_LABEL,
   CRM_HORARIO_LABEL,
   LEGACY_CRM_FECHA_HORARIO_LABEL,
@@ -6316,10 +6318,20 @@ function upgradeVagueFoodRequirement(value: string | null | undefined, label: st
 
 export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   // A16477: "¡Perfecto, que es *comida*!" — acuse roto sin sujeto.
-  const mensaje = applyLucyMessageGuardsRaw(input).replace(
+  let mensaje = applyLucyMessageGuardsRaw(input).replace(
     /^(¡?)Perfecto,\s+que\s+es\s+\*[^*\n]+\*\s*([!.])?\s*/i,
     (_m, open: string) => (open ? "¡Perfecto! " : "Perfecto. ")
   );
+  // A16523: "es una sala lounge, sigue diciendo salas en plural" — reconocer la corrección.
+  {
+    const cm = input.currentMessage ?? "";
+    const sala = /\bplural\b|\bsigues?\s+(?:diciendo|poniendo)\b|\bes\s+una\s+sola\b/i.test(cm)
+      ? parseSalaProductFromText(cm)
+      : null;
+    if (sala === "Sala lounge (1)" && !/\buna\s+sala\s+lounge\b/i.test(mensaje)) {
+      mensaje = `Tienes razón, es *una sala lounge*; ya lo corregí.\n\n${mensaje.replace(/^¡Con gusto(?:,\s*[^!]+)?!\s*/i, "")}`.trim();
+    }
+  }
   // A16503: "Banquete Formal, Alimentos" → sin la comida genérica si ya hay SKU concreto.
   {
     const parts = (input.extracted.requerimientos_evento ?? "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -6335,7 +6347,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const historyClosed = detectCierreEnviado(
     input.presentationHistory ?? input.history
   );
-  return ensureOutboundAlwaysAsks(mensaje, {
+  const asked = ensureOutboundAlwaysAsks(mensaje, {
     extracted: input.extracted,
     filledSet: input.filledSet,
     ctx: makeQuestionCtx(input),
@@ -6344,6 +6356,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       (Boolean(input.cierreYaEnviado) || historyClosed) && !hardPending,
     history: input.presentationHistory ?? input.history,
   });
+  // A16523: "¿Quieres que te dé detalles de alguno?\n¿Prefieren que nuestro equipo les proponga opciones?"
+  // — tras los links, la de presupuesto suena a otra cosa; queda solo la del catálogo.
+  const trailingQ = asked.match(/¿[^?\n]+\?\s*$/)?.[0] ?? "";
+  if (
+    /¿Quieres que te d[eé] detalles de alguno\?\s*\n+¿[^?\n]+\?\s*$/i.test(asked) &&
+    /presupuesto|estimado|rango|les\s+proponga\s+opciones/i.test(trailingQ)
+  ) {
+    return asked.slice(0, asked.length - trailingQ.length).trim();
+  }
+  return asked;
 }
 
 function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
@@ -8035,9 +8057,18 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
         filledSet.add(CRM_HORARIO_LABEL);
       }
       syncLegacyFechaHorarioField(extracted);
+      // A16523: "1 de diciembre / 70 sillas / en el Pedregal" — la zona del mismo mensaje también cuenta.
+      const zonaJunto = parseZonaFromText(currentMessage ?? "");
+      const zonaAck = zonaJunto && isCompleteEventLocation(zonaJunto) ? zonaJunto : null;
+      if (zonaAck && !isCompleteEventLocation(extracted.direccion_evento)) {
+        extracted.direccion_evento = zonaAck;
+        filledSet.add("Lugar/dirección del evento");
+      }
       const pending = getNextPendingField(extracted, filledSet);
       const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-      const ack = `Perfecto, anoto la fecha: *${extracted.fecha_evento}*.`;
+      const ack = zonaAck
+        ? `Perfecto, queda el *${extracted.fecha_evento}* en *${zonaAck}*.`
+        : `Perfecto, anoto la fecha: *${extracted.fecha_evento}*.`;
       log?.info(
         { entityId, fecha: extracted.fecha_evento, pending },
         "GUARD: A15297 — fecha capturada + embudo real"
@@ -8288,6 +8319,25 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       "¿Quieres que lo sume a tu cotización?";
     log?.info({ entityId }, "GUARD: A15581 — qué incluye el DJ");
     return normalizeAdvisorReferences(ack, extracted.nombre ?? display);
+  }
+
+  // A16523: "espera, déjame veo en tu sitio las sillas" → esperar, no "¿algo más que sumar?".
+  if (currentMessage && clientAsksToWaitWhileBrowsing(currentMessage)) {
+    log?.info({ entityId }, "GUARD: A16523 — cliente pide un momento");
+    return "¡Claro, con calma! Aquí te espero. ¿Me dices cuál te gustó cuando lo veas?";
+  }
+
+  // A16523: "las otras están padres pero se me puede elevar al costo" → tranquilizar, no ofrecer precios.
+  if (currentMessage && clientWorriesAboutCost(currentMessage)) {
+    const tiffany = /tiffany/i.test(`${extracted.requerimientos_evento ?? ""} ${collectUserTexts(presHistory).slice(-3).join(" ")}`);
+    const ack = tiffany
+      ? "Entiendo, cuidamos el costo: las *Tiffany* son de las más accesibles y se ven muy bien, así las dejo en tu cotización."
+      : "Entiendo, cuidamos el costo: dejo la opción más accesible en tu cotización.";
+    const presPending = !isFieldSatisfied("presupuesto", filledSet, extracted);
+    log?.info({ entityId }, "GUARD: A16523 — cliente cuida el costo");
+    return presPending
+      ? `${ack} ¿Manejan algún presupuesto estimado? Así el equipo ajusta la propuesta.`
+      : `${ack} ¿Algo más que quieras ajustar?`;
   }
 
   // A15627: "mándame la cotización" → cierre/equipo, NUNCA link genérico de catálogo.
@@ -8664,8 +8714,9 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
           `\\b${n}\\s*(personas?|invitados?|pax|guests?)\\b`,
           "i"
         ).test(blob);
+        // A16523: "70 sillas" con invitados=70 es consistente (una silla por invitado), no se borra.
         const asFurnitureOnly = new RegExp(
-          `\\b${n}\\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?)\\b`,
+          `\\b${n}\\s*(salas?|mesas?|carpas?|pistas?|tarimas?)\\b`,
           "i"
         ).test(blob);
         if (asFurnitureOnly && !asGuests) {
@@ -9302,8 +9353,8 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
         : (currentMessage ?? "").trim().replace(/\s+/g, " ").slice(0, 100);
     const nombre = getDisplayName(extracted, whatsappDisplayName);
     mensaje = nombre
-      ? `Perfecto, ${nombre}. Anoto ${list} para que el equipo lo sume a tu cotización. ¿Algo más que quieras agregar?`
-      : `Perfecto. Anoto ${list} para que el equipo lo sume a tu cotización. ¿Algo más que quieras agregar?`;
+      ? `Perfecto, ${nombre}. Sumo ${list} a tu cotización. ¿Algo más que quieras agregar?`
+      : `Perfecto. Sumo ${list} a tu cotización. ¿Algo más que quieras agregar?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre — servicios adicionales (ack corto)");
   } else if (
@@ -9355,8 +9406,8 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
         : currentMessage.trim().replace(/\s+/g, " ").slice(0, 80);
     const nombre = getDisplayName(extracted, whatsappDisplayName);
     mensaje = nombre
-      ? `Perfecto, ${nombre}. Anoto ${list} para que el equipo lo sume a tu cotización. ¿Algo más que quieras agregar?`
-      : `Perfecto. Anoto ${list} para que el equipo lo sume a tu cotización. ¿Algo más que quieras agregar?`;
+      ? `Perfecto, ${nombre}. Sumo ${list} a tu cotización. ¿Algo más que quieras agregar?`
+      : `Perfecto. Sumo ${list} a tu cotización. ¿Algo más que quieras agregar?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre — servicio adicional (ack corto, sin niveles)");
   } else if (

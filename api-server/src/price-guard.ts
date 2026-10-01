@@ -8,7 +8,7 @@ import {
   buildLucyInfoLearnedPriceReply,
   lucyInfoSupportsPriceClaim,
 } from "./services/lucyInfoPriceCache.js";
-import { CARPA_OPTIONS_TEXT } from "./conversation-understanding.js";
+import { CARPA_OPTIONS_TEXT, clientWorriesAboutCost } from "./conversation-understanding.js";
 
 /** Servicios sin precio publicado — Alejandro cotiza (fallback estático). */
 const NO_LISTED_PRICE_PATTERN =
@@ -59,6 +59,8 @@ export function clientAsksPrice(message?: string): boolean {
     return false;
   }
   if (/\bprecio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
+  // A16523: "las otras están padres pero se me puede elevar el costo" = cuida el costo, no pide precio.
+  if (clientWorriesAboutCost(message)) return false;
   if (/\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
   if (/\brangos?\s+de\s+precio\b/i.test(message) && /\b(propuestas?|opci[oó]n|men[uú])\b/i.test(message)) {
     return false;

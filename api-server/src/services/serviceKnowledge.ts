@@ -130,10 +130,19 @@ export function buildKnownCatalogAck(serviceLabel: string, query: string): strin
       "¿La sumamos a tu cotización?",
     ].join(" ");
   }
+  // A16523: "estoy viendo que hacen banquetes / ¿tienen barra nacional?" — el link sale del
+  // servicio anotado, no de la otra palabra del mensaje (antes: barra → banquete-formal).
   const url =
-    getCatalogWebUrlForQuery(query) ||
     getCatalogWebUrlForQuery(name) ||
+    getCatalogWebUrlForQuery(query) ||
     null;
+  if (/\bbarra\s+(?:libre\s+)?(?:de\s+)?(?:licores?\s+)?(?:nacional|internacional|premium)/i.test(query)) {
+    return [
+      "¡Sí! Manejamos *barra de bebidas* con licores nacionales (y también internacional o premium); el equipo arma la propuesta según horas e invitados.",
+      ...(url ? [`Catálogo de *Barra de bebidas*:\n${url}`] : []),
+      "¿La sumo a tu cotización?",
+    ].join("\n");
+  }
   if (!url) {
     return `¡Claro! Anoto *${name}* para tu cotización. Nuestro equipo arma la propuesta según estilo y cantidad.`;
   }
