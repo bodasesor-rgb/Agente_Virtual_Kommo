@@ -111724,6 +111724,10 @@ function replaceAdvisorTokensPreservingClientName(text2, token, replacement, cli
     new RegExp(`(${CLIENT_GREETING_PREFIX.source})${clientEsc}\\b`, "gi"),
     `$1${placeholder}`
   );
+  out2 = out2.replace(
+    new RegExp(`((?:^|,|\xA1)\\s*)${clientEsc}(?=\\s*(?:[.!?,:;]|$))`, "gim"),
+    `$1${placeholder}`
+  );
   out2 = out2.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
   return out2.replace(new RegExp(placeholder, "g"), clientFirst);
 }
@@ -130303,6 +130307,9 @@ function mergeZonaDetailRaw(existing, incoming) {
   if (/^(pdf|excel|word|archivo|documento)s?$/i.test(nextRaw)) {
     return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
   }
+  if (prevRaw && (/[?¿]/.test(nextRaw) || /\b(ideas?|decoraci[oó]n|tem[aá]tica|moda|tendencias?|precios?|cotizaci[oó]n|men[uú])\b/i.test(nextRaw)) && !/\b(cdmx|colonia|sal[oó]n|hotel|jard[ií]n|hacienda|terraza|quinta|municipio|alcald[ií]a|calle|avenida|av\.)\b/i.test(nextRaw) && !matchesKnownZone(nextRaw)) {
+    return stripThemeColorsFromZona(prevRaw) || prevRaw;
+  }
   const prev = (stripThemeColorsFromZona(prevRaw) || prevRaw).replace(/,?\s*pdf\s*$/i, "").trim();
   const next = (stripThemeColorsFromZona(nextRaw) || nextRaw).replace(/,?\s*pdf\s*$/i, "").trim();
   if (!next) return prev || null;
@@ -130516,7 +130523,7 @@ function parsePresupuestoFromText(text2, opts) {
   if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones|todav[ií]a\s+no|despu[eé]s\s+vemos)\b/i.test(
     trimmed
   )) {
-    if (opts?.askedField !== "presupuesto" && !/\b(presupuesto|inversi[oó]n|cu[aá]nto\s+(?:puedo|pueden|tenemos)\s+gastar)\b/i.test(
+    if (!/\b(presupuesto|inversi[oó]n|cu[aá]nto\s+(?:puedo|pueden|tenemos)\s+gastar)\b/i.test(
       trimmed
     ) && /\b(sal[oó]n|venue|lugar|sede|ubicaci[oó]n|direcci[oó]n|colonia|jard[ií]n|casa|hotel|hacienda)\b/i.test(
       trimmed
@@ -132689,6 +132696,63 @@ function queryHasServicePdfAnchor(query) {
     q2
   );
 }
+var PDF_ITEM_START = /(?<=[\p{Ll})\]:])\s+(?=(?:Una?|Dos|Tres|Cuatro|Cinco|Seis)\s+[\p{Ll}(])/gu;
+var PDF_HEADING_START = /(?<!\p{Extended_Pictographic}\uFE0F?)\s+(?=(?:Men[uú]\s+\d\s+tiempos\s+(?:B[aá]sico|Tradicional|Premium|Ejecutivo|Gourmet)\b|Opciones\s+de\s+Men[uú]|Opci[oó]n\s+(?:Solo|Servicio)|Coffee\s+Break\s+\d|Condiciones\b|Ideal\s+para:|No\s+incluye|Incluye:|Elige\s+tu\s+[Pp]aquete|INVERSI[OÓ]N\b|Inversi[oó]n\s+y\s+[Dd]etalles))/gu;
+var PDF_NOTE_START = /(?<=[\p{Ll})\].])\s+(?=(?:En|Para)\s+eventos\b)/gu;
+var PDF_EMOJI_START = /(?<=[\p{L}\d).:])\s+(?=\p{Extended_Pictographic})/gu;
+var PDF_PRICED_PACKAGE_START = /(?<=\p{Ll}{3}|\))\s+(?=[\p{Lu}][\p{Ll}]+\s+\$\s?\d)/gu;
+var PDF_CAPS_TITLE_START = /(?<=[\p{Ll}\d).])\s+(?=[A-ZÁÉÍÓÚÑ]{4,}(?:\s+[A-ZÁÉÍÓÚÑ]{2,})+\b)/gu;
+var PDF_SUBHEAD_START = /(?<=[\p{Ll})])\s+(?=(?:Personaliza\s+tu|Todos\s+los\s+paquetes|Tu\s+paquete\s+incluye)\b)/gu;
+function splitLongLine(line2) {
+  if (line2.length <= 200) return line2;
+  return line2.replace(/([.!?])\s+(?=[\p{Lu}¿¡*$])/gu, "$1\n");
+}
+function formatCatalogTextForChat(raw) {
+  if (/\n/.test(raw ?? "")) return (raw ?? "").trim();
+  let text2 = (raw ?? "").replace(/\s+/g, " ").trim();
+  if (!text2) return text2;
+  if (/^[\p{Ll}]/u.test(text2)) {
+    const cut = text2.search(/[.!?]\s+(?=[\p{Lu}🍽🥐☕])/u);
+    if (cut >= 0 && cut < 220) text2 = text2.slice(cut + 1).trim();
+  }
+  text2 = text2.replace(PDF_HEADING_START, "\n\n").replace(PDF_CAPS_TITLE_START, "\n\n").replace(PDF_SUBHEAD_START, "\n").replace(PDF_PRICED_PACKAGE_START, "\n\u2022 ").replace(PDF_EMOJI_START, "\n").replace(PDF_NOTE_START, "\n").replace(PDF_ITEM_START, "\n\u2022 ").replace(/:\s+(?=Men[uú]\s+\d\s+tiempos\s+desde)/giu, ":\n\u2022 ").replace(/\s*\|\s*/g, "\n\u2022 ").replace(/(compuesto\s+por|incluye):\s+(?=[\p{Lu}])/giu, "$1:\n\u2022 ");
+  let noteSeen = false;
+  const lines = text2.split("\n").map((l5) => l5.trim()).filter((line2) => {
+    if (!/eventos\s+(?:que\s+superen|con\s+m[aá]s\s+de)\s+(?:las\s+)?\d+\s+personas/i.test(line2)) return true;
+    if (noteSeen) return false;
+    noteSeen = true;
+    return true;
+  }).map((line2) => {
+    const head = line2.match(/^(Men[uú]\s+\d\s+tiempos\s+(?:B[aá]sico|Tradicional|Premium|Ejecutivo|Gourmet)|Opciones\s+de\s+Men[uú][^•\n]{0,30}?\d\s+Tiempos)\b\s*(.*)$/iu);
+    if (head) return head[2] ? `*${head[1]}*
+${head[2]}` : `*${head[1]}*`;
+    return splitLongLine(line2);
+  });
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").replace(/\n• \n/g, "\n").trim();
+}
+function formatCatalogDumpsInMessage(mensaje) {
+  if (!mensaje?.trim()) return mensaje;
+  return mensaje.split(/\n{2,}/).map((p4) => p4.length > 200 && !p4.includes("\n") && !/https?:\/\//.test(p4) ? formatCatalogTextForChat(p4) : p4).join("\n\n");
+}
+function clientComplainsAboutFormat(message) {
+  return /\b(amontonad[oa]s?|todo\s+(?:junto|pegado|encimado)|desordenad[oa]|ilegible|sin\s+(?:espacios|separaci)|no\s+se\s+entiende(?:\s+nada)?|muy\s+largo|much[oa]\s+texto|choro)\b/i.test(
+    message ?? ""
+  );
+}
+function lastDenseLucyBlock(history) {
+  for (let i5 = history.length - 1; i5 >= 0; i5--) {
+    const m5 = history[i5];
+    if (m5.role !== "assistant" || typeof m5.content !== "string") continue;
+    const dense = m5.content.split(/\n{2,}/).filter((p4) => p4.length > 200 && !p4.includes("\n"));
+    if (!dense.length) continue;
+    const label = m5.content.match(/Según el catálogo que ya tenemos de \*([^*]+)\*/i)?.[1];
+    const body2 = dense.map((p4) => formatCatalogTextForChat(p4)).join("\n\n");
+    return label ? `*${label}*
+
+${body2}` : body2;
+  }
+  return null;
+}
 function buildLucyInfoInclusionReply(query, maxChars = 1100) {
   ensureCacheFromSeedSync();
   const docs = cacheState().docs;
@@ -132728,7 +132792,7 @@ function buildLucyInfoInclusionReply(query, maxChars = 1100) {
     if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(label)) continue;
     return `Seg\xFAn el cat\xE1logo que ya tenemos de *${label}*:
 
-${section}
+${formatCatalogTextForChat(section)}
 
 \xBFTe late este nivel o quieres que te detalle otro?`;
   }
@@ -137313,7 +137377,7 @@ function messageOffersCatalogLink(text2) {
 
 // src/services/trendKnowledge.ts
 var ACCEPTS_IDEAS_PATTERN = /\b(?:s[ií](?:\s+por\s+favor)?|claro|dale|va|ok|okay|sale|perfecto)\b.{0,40}\b(?:ideas?|recomendaci|sugerenc)|\b(?:dame|quiero|pásame|pasame|necesito)\s+ideas?\b|\bideas?\s+por\s+favor\b/i;
-var TREND_IDEA_PATTERN = /\b(?:tendenci(?:a|as)|ideas?\s+(?:de\s+)?(?:decoraci[oó]n|evento|fiesta|boda|xv|ambient|colores?|montaje)|inspiraci[oó]n|mood\s*board|estilos?\b|tem[aá]tica|ambiente|colores?|paleta|montajes?|decoraci[oó]n|qu[eé]\s+(?:se\s+)?(?:usa|lleva|est[aá]\s+usando)|novedades?|recomendaci[oó]n(?:es)?|c[oó]mo\s+(?:armar|decorar|montar)|qu[eé]\s+(?:me\s+)?(?:recomiendas?|sugieres?)|opciones?\s+de\s+(?:decor|estilo|color)|look\b|vibe\b|aesthetic)\b/i;
+var TREND_IDEA_PATTERN = /\b(?:tendenci(?:a|as)|ideas?\s+(?:de\s+)?(?:decoraci[oó]n|evento|fiesta|boda|xv|ambient|colores?|montaje)|inspiraci[oó]n|mood\s*board|estilos?\b|tem[aá]tica|ambiente|colores?|paleta|montajes?|decoraci[oó]n|qu[eé]\s+(?:se\s+)?(?:usa|lleva|est[aá]\s+usando)|novedades?|recomendaci[oó]n(?:es)?|c[oó]mo\s+(?:armar|decorar|montar)|qu[eé]\s+(?:me\s+)?(?:recomiendas?|sugieres?)|opciones?\s+de\s+(?:decor|estilo|color)|look\b|vibe\b|aesthetic|(?:est[aá]n?\s+)?de\s+moda|esa\s+moda)\b/i;
 var STYLE_CUES = [
   { pattern: /\bboho|bohemio/i, label: "boho" },
   { pattern: /\br[uú]stic/i, label: "r\xFAstico" },
@@ -137403,7 +137467,7 @@ function normalizeForTipMatch(text2) {
   return text2.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[\u200B-\u200D\u2060\uFEFF]/g, "").replace(/[*_]/g, "").replace(/\s+/g, " ");
 }
 function extractStyleCues(...texts) {
-  const blob = texts.filter(Boolean).join(" \n ");
+  const blob = texts.filter(Boolean).join(" \n ").replace(/\bbanquete\s+formal\b/gi, "banquete");
   if (!blob.trim()) return [];
   const found = [];
   for (const { pattern, label } of STYLE_CUES) {
@@ -147558,6 +147622,23 @@ ${keepQ}` : ack;
   if (clientAsksInclusion(input.currentMessage) || /Según el catálogo que ya tenemos/i.test(mensaje) || /¿Te late este nivel o quieres que te detalle otro\?/i.test(mensaje)) {
     mensaje = collapseDuplicatedInclusionReply(mensaje);
   }
+  if (/Según el catálogo que ya tenemos/i.test(mensaje)) {
+    mensaje = formatCatalogDumpsInMessage(mensaje);
+  }
+  if (clientComplainsAboutFormat(input.currentMessage)) {
+    const prior = lastDenseLucyBlock(input.history ?? []);
+    const first = input.extracted.nombre?.trim().split(/\s+/)[0];
+    const sorry = `Tienes raz\xF3n${first ? `, ${first}` : ""}, perd\xF3n.`;
+    const keepQ = (mensaje.match(/¿[^¿?\n]*\?/g) ?? []).slice(-1)[0] ?? "";
+    mensaje = prior ? `${sorry} Te lo paso m\xE1s ordenado:
+
+${prior}${keepQ && !prior.includes(keepQ) ? `
+
+${keepQ}` : ""}` : `${sorry} Te escribo m\xE1s claro.${keepQ ? `
+
+${keepQ}` : ""}`;
+    input.log?.info?.({ entityId: input.entityId }, "GUARD: A16567 \u2014 queja de formato, reenv\xEDo ordenado");
+  }
   mensaje = stripClientServiceConfusionNotes(mensaje);
   mensaje = dedupeCatalogUrlsInMessage(mensaje);
   mensaje = preferSpecificCatalogOverHub(
@@ -147588,6 +147669,13 @@ ${keepQ}` : ack;
     const acceptedIdeas = clientAcceptsIdeasOffer(input.currentMessage, lastLucy);
     const ownWords = stripEchoedLucyText(input.currentMessage, lucyTexts);
     const forceIdeas = acceptedIdeas || !clientClosedServiceList(ownWords) && (clientWantsIdeasOrTrends(ownWords) || /recomendaciones?|ideas?\b|colores?|montajes?/i.test(ownWords));
+    if (forceIdeas && /no lo tengo listado en el cat[aá]logo/i.test(mensaje)) {
+      const completo = /servicio\s+completo/i.test(
+        [input.extracted.requerimientos_evento ?? "", ...historyText("user")].join(" ")
+      );
+      const decor = /decoraci|centros?\s+de\s+mesa|globos|tem[aá]tica|moda/i.test(ownWords);
+      mensaje = decor && completo ? "\xA1Claro! La *decoraci\xF3n* va incluida en el *servicio completo* y la adaptamos a la tem\xE1tica que elijas." : "\xA1Claro! Te comparto algunas ideas.";
+    }
     const withIdeas = !forceIdeas ? mensaje : enrichReplyWithSalesIdeas(mensaje, {
       tipoEvento: input.extracted.tipo_evento,
       messageText: ownWords,
@@ -148511,6 +148599,12 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
 // src/services/googleGrounding.ts
 init_node();
 init_llmEnv();
+var RESEARCH_TTL_MS = 30 * 24 * 60 * 60 * 1e3;
+var TOPIC_STOPWORDS = new Set(
+  "para como pero esta este esto esos esas unos unas sobre tienes tienen quiero queria quisiera puedes pueden ideas idea algo cosa cosas hacer hacemos podemos tambien tengo tenemos mucho muchos poco bien porfa favor gracias hola evento fiesta moda ubicas vimos visto donde cuando cual cuales seria ser\xEDa esta est\xE1n estan".split(
+    " "
+  )
+);
 
 // src/services/lucyInfoStore.ts
 await init_src2();

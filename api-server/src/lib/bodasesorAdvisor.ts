@@ -70,6 +70,12 @@ function replaceAdvisorTokensPreservingClientName(
     new RegExp(`(${CLIENT_GREETING_PREFIX.source})${clientEsc}\\b`, "gi"),
     `$1${placeholder}`
   );
+  // A16567: vocativo "Entendido, Alejandro." / "Gracias por tu correo, Alejandro." / "¡Alejandro!"
+  // es el cliente, no el asesor.
+  out = out.replace(
+    new RegExp(`((?:^|,|¡)\\s*)${clientEsc}(?=\\s*(?:[.!?,:;]|$))`, "gim"),
+    `$1${placeholder}`
+  );
   out = out.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
   return out.replace(new RegExp(placeholder, "g"), clientFirst);
 }

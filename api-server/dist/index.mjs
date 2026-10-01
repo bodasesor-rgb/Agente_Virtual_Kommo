@@ -19369,10 +19369,10 @@ var require_view = __commonJS({
     var debug2 = require_src()("express:view");
     var path7 = __require("node:path");
     var fs8 = __require("node:fs");
-    var dirname6 = path7.dirname;
+    var dirname7 = path7.dirname;
     var basename3 = path7.basename;
     var extname = path7.extname;
-    var join9 = path7.join;
+    var join10 = path7.join;
     var resolve3 = path7.resolve;
     module2.exports = View2;
     function View2(name2, options) {
@@ -19408,7 +19408,7 @@ var require_view = __commonJS({
       for (var i6 = 0; i6 < roots.length && !path8; i6++) {
         var root = roots[i6];
         var loc = resolve3(root, name2);
-        var dir = dirname6(loc);
+        var dir = dirname7(loc);
         var file = basename3(loc);
         path8 = this.resolve(dir, file);
       }
@@ -19434,12 +19434,12 @@ var require_view = __commonJS({
     };
     View2.prototype.resolve = function resolve4(dir, file) {
       var ext = this.ext;
-      var path8 = join9(dir, file);
+      var path8 = join10(dir, file);
       var stat3 = tryStat(path8);
       if (stat3 && stat3.isFile()) {
         return path8;
       }
-      path8 = join9(dir, basename3(file, ext), "index" + ext);
+      path8 = join10(dir, basename3(file, ext), "index" + ext);
       stat3 = tryStat(path8);
       if (stat3 && stat3.isFile()) {
         return path8;
@@ -23323,7 +23323,7 @@ var require_send = __commonJS({
     var Stream6 = __require("stream");
     var util5 = __require("util");
     var extname = path7.extname;
-    var join9 = path7.join;
+    var join10 = path7.join;
     var normalize2 = path7.normalize;
     var resolve3 = path7.resolve;
     var sep = path7.sep;
@@ -23495,7 +23495,7 @@ var require_send = __commonJS({
           return res;
         }
         parts2 = path8.split(sep);
-        path8 = normalize2(join9(root, path8));
+        path8 = normalize2(join10(root, path8));
       } else {
         if (UP_PATH_REGEXP.test(path8)) {
           debug2('malicious path "%s"', path8);
@@ -23628,7 +23628,7 @@ var require_send = __commonJS({
           if (err2) return self2.onStatError(err2);
           return self2.error(404);
         }
-        var p5 = join9(path8, self2._index[i6]);
+        var p5 = join10(path8, self2._index[i6]);
         debug2('stat "%s"', p5);
         fs8.stat(p5, function(err3, stat3) {
           if (err3) return next(err3);
@@ -26011,7 +26011,7 @@ var require_sonic_boom = __commonJS({
       if (!(this instanceof SonicBoom)) {
         return new SonicBoom(opts);
       }
-      let { fd, dest, minLength, maxLength, maxWrite, periodicFlush, sync, append: append2 = true, mkdir, retryEAGAIN, fsync, contentMode, mode } = opts || {};
+      let { fd, dest, minLength, maxLength, maxWrite, periodicFlush, sync, append: append2 = true, mkdir: mkdir2, retryEAGAIN, fsync, contentMode, mode } = opts || {};
       fd = fd || dest;
       this._len = 0;
       this.fd = -1;
@@ -26036,7 +26036,7 @@ var require_sonic_boom = __commonJS({
       this.append = append2 || false;
       this.mode = mode;
       this.retryEAGAIN = retryEAGAIN || (() => true);
-      this.mkdir = mkdir || false;
+      this.mkdir = mkdir2 || false;
       let fsWriteSync;
       let fsWrite;
       if (contentMode === kContentModeBuffer) {
@@ -26752,7 +26752,7 @@ var require_thread_stream = __commonJS({
     var { version: version2 } = require_package();
     var { EventEmitter: EventEmitter2 } = __require("events");
     var { Worker: Worker2 } = __require("worker_threads");
-    var { join: join9 } = __require("path");
+    var { join: join10 } = __require("path");
     var { pathToFileURL } = __require("url");
     var { wait } = require_wait();
     var {
@@ -26788,7 +26788,7 @@ var require_thread_stream = __commonJS({
     function createWorker(stream4, opts) {
       const { filename, workerData } = opts;
       const bundlerOverrides = "__bundlerPathsOverrides" in globalThis ? globalThis.__bundlerPathsOverrides : {};
-      const toExecute = bundlerOverrides["thread-stream-worker"] || join9(__dirname, "lib", "worker.js");
+      const toExecute = bundlerOverrides["thread-stream-worker"] || join10(__dirname, "lib", "worker.js");
       const worker = new Worker2(toExecute, {
         ...opts.workerOpts,
         trackUnmanagedFds: false,
@@ -27174,7 +27174,7 @@ var require_transport = __commonJS({
     "use strict";
     var { createRequire } = __require("module");
     var getCallers = require_caller();
-    var { join: join9, isAbsolute, sep } = __require("node:path");
+    var { join: join10, isAbsolute, sep } = __require("node:path");
     var sleep6 = require_atomic_sleep();
     var onExit = require_on_exit_leak_free();
     var ThreadStream = require_thread_stream();
@@ -27237,7 +27237,7 @@ var require_transport = __commonJS({
         throw new Error("only one of target or targets can be specified");
       }
       if (targets) {
-        target = bundlerOverrides["pino-worker"] || join9(__dirname, "worker.js");
+        target = bundlerOverrides["pino-worker"] || join10(__dirname, "worker.js");
         options.targets = targets.filter((dest) => dest.target).map((dest) => {
           return {
             ...dest,
@@ -27255,7 +27255,7 @@ var require_transport = __commonJS({
           });
         });
       } else if (pipeline3) {
-        target = bundlerOverrides["pino-worker"] || join9(__dirname, "worker.js");
+        target = bundlerOverrides["pino-worker"] || join10(__dirname, "worker.js");
         options.pipelines = [pipeline3.map((dest) => {
           return {
             ...dest,
@@ -27277,7 +27277,7 @@ var require_transport = __commonJS({
           return origin2;
         }
         if (origin2 === "pino/file") {
-          return join9(__dirname, "..", "file.js");
+          return join10(__dirname, "..", "file.js");
         }
         let fixTarget2;
         for (const filePath of callers) {
@@ -28266,7 +28266,7 @@ var require_safe_stable_stringify = __commonJS({
               return circularValue;
             }
             let res = "";
-            let join9 = ",";
+            let join10 = ",";
             const originalIndentation = indentation;
             if (Array.isArray(value)) {
               if (value.length === 0) {
@@ -28280,7 +28280,7 @@ var require_safe_stable_stringify = __commonJS({
                 indentation += spacer;
                 res += `
 ${indentation}`;
-                join9 = `,
+                join10 = `,
 ${indentation}`;
               }
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
@@ -28288,13 +28288,13 @@ ${indentation}`;
               for (; i6 < maximumValuesToStringify - 1; i6++) {
                 const tmp2 = stringifyFnReplacer(String(i6), value, stack, replacer, spacer, indentation);
                 res += tmp2 !== void 0 ? tmp2 : "null";
-                res += join9;
+                res += join10;
               }
               const tmp = stringifyFnReplacer(String(i6), value, stack, replacer, spacer, indentation);
               res += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res += `${join9}"... ${getItemCount(removedKeys)} not stringified"`;
+                res += `${join10}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               if (spacer !== "") {
                 res += `
@@ -28315,7 +28315,7 @@ ${originalIndentation}`;
             let separator = "";
             if (spacer !== "") {
               indentation += spacer;
-              join9 = `,
+              join10 = `,
 ${indentation}`;
               whitespace = " ";
             }
@@ -28329,13 +28329,13 @@ ${indentation}`;
               const tmp = stringifyFnReplacer(key2, value, stack, replacer, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}:${whitespace}${tmp}`;
-                separator = join9;
+                separator = join10;
               }
             }
             if (keyLength > maximumBreadth) {
               const removedKeys = keyLength - maximumBreadth;
               res += `${separator}"...":${whitespace}"${getItemCount(removedKeys)} not stringified"`;
-              separator = join9;
+              separator = join10;
             }
             if (spacer !== "" && separator.length > 1) {
               res = `
@@ -28376,7 +28376,7 @@ ${originalIndentation}`;
             }
             const originalIndentation = indentation;
             let res = "";
-            let join9 = ",";
+            let join10 = ",";
             if (Array.isArray(value)) {
               if (value.length === 0) {
                 return "[]";
@@ -28389,7 +28389,7 @@ ${originalIndentation}`;
                 indentation += spacer;
                 res += `
 ${indentation}`;
-                join9 = `,
+                join10 = `,
 ${indentation}`;
               }
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
@@ -28397,13 +28397,13 @@ ${indentation}`;
               for (; i6 < maximumValuesToStringify - 1; i6++) {
                 const tmp2 = stringifyArrayReplacer(String(i6), value[i6], stack, replacer, spacer, indentation);
                 res += tmp2 !== void 0 ? tmp2 : "null";
-                res += join9;
+                res += join10;
               }
               const tmp = stringifyArrayReplacer(String(i6), value[i6], stack, replacer, spacer, indentation);
               res += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res += `${join9}"... ${getItemCount(removedKeys)} not stringified"`;
+                res += `${join10}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               if (spacer !== "") {
                 res += `
@@ -28416,7 +28416,7 @@ ${originalIndentation}`;
             let whitespace = "";
             if (spacer !== "") {
               indentation += spacer;
-              join9 = `,
+              join10 = `,
 ${indentation}`;
               whitespace = " ";
             }
@@ -28425,7 +28425,7 @@ ${indentation}`;
               const tmp = stringifyArrayReplacer(key2, value[key2], stack, replacer, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}:${whitespace}${tmp}`;
-                separator = join9;
+                separator = join10;
               }
             }
             if (spacer !== "" && separator.length > 1) {
@@ -28483,20 +28483,20 @@ ${originalIndentation}`;
               indentation += spacer;
               let res2 = `
 ${indentation}`;
-              const join10 = `,
+              const join11 = `,
 ${indentation}`;
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
               let i6 = 0;
               for (; i6 < maximumValuesToStringify - 1; i6++) {
                 const tmp2 = stringifyIndent(String(i6), value[i6], stack, spacer, indentation);
                 res2 += tmp2 !== void 0 ? tmp2 : "null";
-                res2 += join10;
+                res2 += join11;
               }
               const tmp = stringifyIndent(String(i6), value[i6], stack, spacer, indentation);
               res2 += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res2 += `${join10}"... ${getItemCount(removedKeys)} not stringified"`;
+                res2 += `${join11}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               res2 += `
 ${originalIndentation}`;
@@ -28512,16 +28512,16 @@ ${originalIndentation}`;
               return '"[Object]"';
             }
             indentation += spacer;
-            const join9 = `,
+            const join10 = `,
 ${indentation}`;
             let res = "";
             let separator = "";
             let maximumPropertiesToStringify = Math.min(keyLength, maximumBreadth);
             if (isTypedArrayWithEntries(value)) {
-              res += stringifyTypedArray(value, join9, maximumBreadth);
+              res += stringifyTypedArray(value, join10, maximumBreadth);
               keys = keys.slice(value.length);
               maximumPropertiesToStringify -= value.length;
-              separator = join9;
+              separator = join10;
             }
             if (deterministic) {
               keys = sort(keys, comparator);
@@ -28532,13 +28532,13 @@ ${indentation}`;
               const tmp = stringifyIndent(key2, value[key2], stack, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}: ${tmp}`;
-                separator = join9;
+                separator = join10;
               }
             }
             if (keyLength > maximumBreadth) {
               const removedKeys = keyLength - maximumBreadth;
               res += `${separator}"...": "${getItemCount(removedKeys)} not stringified"`;
-              separator = join9;
+              separator = join10;
             }
             if (separator !== "") {
               res = `
@@ -90085,6 +90085,35 @@ var init_llmChat = __esm({
   }
 });
 
+// src/lib/lucyDataPaths.ts
+import { mkdirSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+function getLucyDataRoot() {
+  const fromEnv = process.env["LUCY_DATA_DIR"]?.trim();
+  if (fromEnv) return resolve(fromEnv);
+  return resolve(process.cwd(), "..", "lucy-data");
+}
+function ensureLucyDataRoot() {
+  const root = getLucyDataRoot();
+  mkdirSync(root, { recursive: true });
+  return root;
+}
+function getLucyRepairsJsonPath() {
+  const fromEnv = process.env["LUCY_REPAIRS_JSON_PATH"]?.trim();
+  if (fromEnv) return resolve(fromEnv);
+  return join(getLucyDataRoot(), "lucy-repairs.json");
+}
+function getKommoRelayDir() {
+  const fromEnv = process.env["LUCY_RELAY_DIR"]?.trim();
+  if (fromEnv) return resolve(fromEnv);
+  return join(getLucyDataRoot(), "kommo-relay");
+}
+var init_lucyDataPaths = __esm({
+  "src/lib/lucyDataPaths.ts"() {
+    "use strict";
+  }
+});
+
 // src/contact-name.ts
 function isRoleOrDepartmentAsNombre(text2) {
   const t4 = (text2 ?? "").trim();
@@ -90778,6 +90807,10 @@ function replaceAdvisorTokensPreservingClientName(text2, token, replacement, cli
   const clientEsc = escapeRegex(clientFirst);
   let out2 = text2.replace(
     new RegExp(`(${CLIENT_GREETING_PREFIX.source})${clientEsc}\\b`, "gi"),
+    `$1${placeholder}`
+  );
+  out2 = out2.replace(
+    new RegExp(`((?:^|,|\xA1)\\s*)${clientEsc}(?=\\s*(?:[.!?,:;]|$))`, "gim"),
     `$1${placeholder}`
   );
   out2 = out2.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
@@ -133882,6 +133915,9 @@ function mergeZonaDetailRaw(existing, incoming) {
   if (/^(pdf|excel|word|archivo|documento)s?$/i.test(nextRaw)) {
     return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
   }
+  if (prevRaw && (/[?¿]/.test(nextRaw) || /\b(ideas?|decoraci[oó]n|tem[aá]tica|moda|tendencias?|precios?|cotizaci[oó]n|men[uú])\b/i.test(nextRaw)) && !/\b(cdmx|colonia|sal[oó]n|hotel|jard[ií]n|hacienda|terraza|quinta|municipio|alcald[ií]a|calle|avenida|av\.)\b/i.test(nextRaw) && !matchesKnownZone(nextRaw)) {
+    return stripThemeColorsFromZona(prevRaw) || prevRaw;
+  }
   const prev = (stripThemeColorsFromZona(prevRaw) || prevRaw).replace(/,?\s*pdf\s*$/i, "").trim();
   const next = (stripThemeColorsFromZona(nextRaw) || nextRaw).replace(/,?\s*pdf\s*$/i, "").trim();
   if (!next) return prev || null;
@@ -134091,7 +134127,7 @@ function parsePresupuestoFromText(text2, opts) {
   if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones|todav[ií]a\s+no|despu[eé]s\s+vemos)\b/i.test(
     trimmed
   )) {
-    if (opts?.askedField !== "presupuesto" && !/\b(presupuesto|inversi[oó]n|cu[aá]nto\s+(?:puedo|pueden|tenemos)\s+gastar)\b/i.test(
+    if (!/\b(presupuesto|inversi[oó]n|cu[aá]nto\s+(?:puedo|pueden|tenemos)\s+gastar)\b/i.test(
       trimmed
     ) && /\b(sal[oó]n|venue|lugar|sede|ubicaci[oó]n|direcci[oó]n|colonia|jard[ií]n|casa|hotel|hacienda)\b/i.test(
       trimmed
@@ -135569,7 +135605,7 @@ function normalizeForTipMatch(text2) {
   return text2.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[\u200B-\u200D\u2060\uFEFF]/g, "").replace(/[*_]/g, "").replace(/\s+/g, " ");
 }
 function extractStyleCues(...texts) {
-  const blob = texts.filter(Boolean).join(" \n ");
+  const blob = texts.filter(Boolean).join(" \n ").replace(/\bbanquete\s+formal\b/gi, "banquete");
   if (!blob.trim()) return [];
   const found = [];
   for (const { pattern, label } of STYLE_CUES) {
@@ -135782,7 +135818,7 @@ var init_trendKnowledge = __esm({
     init_bodasesorAdvisor();
     init_serviceDecline();
     ACCEPTS_IDEAS_PATTERN = /\b(?:s[ií](?:\s+por\s+favor)?|claro|dale|va|ok|okay|sale|perfecto)\b.{0,40}\b(?:ideas?|recomendaci|sugerenc)|\b(?:dame|quiero|pásame|pasame|necesito)\s+ideas?\b|\bideas?\s+por\s+favor\b/i;
-    TREND_IDEA_PATTERN = /\b(?:tendenci(?:a|as)|ideas?\s+(?:de\s+)?(?:decoraci[oó]n|evento|fiesta|boda|xv|ambient|colores?|montaje)|inspiraci[oó]n|mood\s*board|estilos?\b|tem[aá]tica|ambiente|colores?|paleta|montajes?|decoraci[oó]n|qu[eé]\s+(?:se\s+)?(?:usa|lleva|est[aá]\s+usando)|novedades?|recomendaci[oó]n(?:es)?|c[oó]mo\s+(?:armar|decorar|montar)|qu[eé]\s+(?:me\s+)?(?:recomiendas?|sugieres?)|opciones?\s+de\s+(?:decor|estilo|color)|look\b|vibe\b|aesthetic)\b/i;
+    TREND_IDEA_PATTERN = /\b(?:tendenci(?:a|as)|ideas?\s+(?:de\s+)?(?:decoraci[oó]n|evento|fiesta|boda|xv|ambient|colores?|montaje)|inspiraci[oó]n|mood\s*board|estilos?\b|tem[aá]tica|ambiente|colores?|paleta|montajes?|decoraci[oó]n|qu[eé]\s+(?:se\s+)?(?:usa|lleva|est[aá]\s+usando)|novedades?|recomendaci[oó]n(?:es)?|c[oó]mo\s+(?:armar|decorar|montar)|qu[eé]\s+(?:me\s+)?(?:recomiendas?|sugieres?)|opciones?\s+de\s+(?:decor|estilo|color)|look\b|vibe\b|aesthetic|(?:est[aá]n?\s+)?de\s+moda|esa\s+moda)\b/i;
     STYLE_CUES = [
       { pattern: /\bboho|bohemio/i, label: "boho" },
       { pattern: /\br[uú]stic/i, label: "r\xFAstico" },
@@ -137205,8 +137241,8 @@ var init_serviceSynonyms = __esm({
 });
 
 // src/services/lucyInfoPriceCache.ts
-import { existsSync as existsSync2, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync as existsSync2, readFileSync as readFileSync2 } from "node:fs";
+import { dirname as dirname3, join as join3 } from "node:path";
 import { fileURLToPath } from "node:url";
 function cacheState() {
   const g7 = globalThis;
@@ -137466,6 +137502,56 @@ function queryHasServicePdfAnchor(query) {
     q3
   );
 }
+function splitLongLine(line2) {
+  if (line2.length <= 200) return line2;
+  return line2.replace(/([.!?])\s+(?=[\p{Lu}¿¡*$])/gu, "$1\n");
+}
+function formatCatalogTextForChat(raw) {
+  if (/\n/.test(raw ?? "")) return (raw ?? "").trim();
+  let text2 = (raw ?? "").replace(/\s+/g, " ").trim();
+  if (!text2) return text2;
+  if (/^[\p{Ll}]/u.test(text2)) {
+    const cut = text2.search(/[.!?]\s+(?=[\p{Lu}🍽🥐☕])/u);
+    if (cut >= 0 && cut < 220) text2 = text2.slice(cut + 1).trim();
+  }
+  text2 = text2.replace(PDF_HEADING_START, "\n\n").replace(PDF_CAPS_TITLE_START, "\n\n").replace(PDF_SUBHEAD_START, "\n").replace(PDF_PRICED_PACKAGE_START, "\n\u2022 ").replace(PDF_EMOJI_START, "\n").replace(PDF_NOTE_START, "\n").replace(PDF_ITEM_START, "\n\u2022 ").replace(/:\s+(?=Men[uú]\s+\d\s+tiempos\s+desde)/giu, ":\n\u2022 ").replace(/\s*\|\s*/g, "\n\u2022 ").replace(/(compuesto\s+por|incluye):\s+(?=[\p{Lu}])/giu, "$1:\n\u2022 ");
+  let noteSeen = false;
+  const lines = text2.split("\n").map((l6) => l6.trim()).filter((line2) => {
+    if (!/eventos\s+(?:que\s+superen|con\s+m[aá]s\s+de)\s+(?:las\s+)?\d+\s+personas/i.test(line2)) return true;
+    if (noteSeen) return false;
+    noteSeen = true;
+    return true;
+  }).map((line2) => {
+    const head = line2.match(/^(Men[uú]\s+\d\s+tiempos\s+(?:B[aá]sico|Tradicional|Premium|Ejecutivo|Gourmet)|Opciones\s+de\s+Men[uú][^•\n]{0,30}?\d\s+Tiempos)\b\s*(.*)$/iu);
+    if (head) return head[2] ? `*${head[1]}*
+${head[2]}` : `*${head[1]}*`;
+    return splitLongLine(line2);
+  });
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").replace(/\n• \n/g, "\n").trim();
+}
+function formatCatalogDumpsInMessage(mensaje) {
+  if (!mensaje?.trim()) return mensaje;
+  return mensaje.split(/\n{2,}/).map((p5) => p5.length > 200 && !p5.includes("\n") && !/https?:\/\//.test(p5) ? formatCatalogTextForChat(p5) : p5).join("\n\n");
+}
+function clientComplainsAboutFormat(message) {
+  return /\b(amontonad[oa]s?|todo\s+(?:junto|pegado|encimado)|desordenad[oa]|ilegible|sin\s+(?:espacios|separaci)|no\s+se\s+entiende(?:\s+nada)?|muy\s+largo|much[oa]\s+texto|choro)\b/i.test(
+    message ?? ""
+  );
+}
+function lastDenseLucyBlock(history) {
+  for (let i6 = history.length - 1; i6 >= 0; i6--) {
+    const m6 = history[i6];
+    if (m6.role !== "assistant" || typeof m6.content !== "string") continue;
+    const dense = m6.content.split(/\n{2,}/).filter((p5) => p5.length > 200 && !p5.includes("\n"));
+    if (!dense.length) continue;
+    const label = m6.content.match(/Según el catálogo que ya tenemos de \*([^*]+)\*/i)?.[1];
+    const body2 = dense.map((p5) => formatCatalogTextForChat(p5)).join("\n\n");
+    return label ? `*${label}*
+
+${body2}` : body2;
+  }
+  return null;
+}
 function buildLucyInfoInclusionReply(query, maxChars = 1100) {
   ensureCacheFromSeedSync();
   const docs = cacheState().docs;
@@ -137505,7 +137591,7 @@ function buildLucyInfoInclusionReply(query, maxChars = 1100) {
     if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(label)) continue;
     return `Seg\xFAn el cat\xE1logo que ya tenemos de *${label}*:
 
-${section2}
+${formatCatalogTextForChat(section2)}
 
 \xBFTe late este nivel o quieres que te detalle otro?`;
   }
@@ -137535,35 +137621,35 @@ function ensureCacheFromSeedSync() {
   try {
     let moduleDir2 = "";
     try {
-      moduleDir2 = dirname(fileURLToPath(import.meta.url));
+      moduleDir2 = dirname3(fileURLToPath(import.meta.url));
     } catch {
     }
     let argvDir = "";
     try {
       const entry = process.argv[1];
-      if (entry) argvDir = dirname(entry);
+      if (entry) argvDir = dirname3(entry);
     } catch {
     }
     const here = typeof __dirname === "string" && __dirname || moduleDir2 || argvDir || process.cwd();
     const candidates = [
       process.env["LUCY_INFO_SEED_PATH"]?.trim(),
-      join(here, "config", "lucy-info-seed.json"),
-      join(here, "lucy-info-seed.json"),
-      join(here, "data", "lucy-info-seed.json"),
-      join(moduleDir2, "config", "lucy-info-seed.json"),
-      join(moduleDir2, "lucy-info-seed.json"),
-      join(argvDir, "lucy-info-seed.json"),
-      join(argvDir, "config", "lucy-info-seed.json"),
-      join(process.cwd(), "config", "lucy-info-seed.json"),
-      join(process.cwd(), "lucy-info-seed.json"),
-      join(process.cwd(), "data", "lucy-info-seed.json"),
-      join(process.cwd(), "api-server", "config", "lucy-info-seed.json"),
-      join(process.cwd(), "api-server", "dist", "lucy-info-seed.json"),
-      join(process.cwd(), "deploy", "lucy-info-seed.json")
+      join3(here, "config", "lucy-info-seed.json"),
+      join3(here, "lucy-info-seed.json"),
+      join3(here, "data", "lucy-info-seed.json"),
+      join3(moduleDir2, "config", "lucy-info-seed.json"),
+      join3(moduleDir2, "lucy-info-seed.json"),
+      join3(argvDir, "lucy-info-seed.json"),
+      join3(argvDir, "config", "lucy-info-seed.json"),
+      join3(process.cwd(), "config", "lucy-info-seed.json"),
+      join3(process.cwd(), "lucy-info-seed.json"),
+      join3(process.cwd(), "data", "lucy-info-seed.json"),
+      join3(process.cwd(), "api-server", "config", "lucy-info-seed.json"),
+      join3(process.cwd(), "api-server", "dist", "lucy-info-seed.json"),
+      join3(process.cwd(), "deploy", "lucy-info-seed.json")
     ].filter(Boolean);
     for (const p5 of candidates) {
       if (!existsSync2(p5)) continue;
-      const raw = JSON.parse(readFileSync(p5, "utf8"));
+      const raw = JSON.parse(readFileSync2(p5, "utf8"));
       const docs = (raw.documents || []).filter((d3) => d3?.content?.trim());
       if (docs.length) {
         refreshLucyInfoPriceCache(docs);
@@ -137702,7 +137788,7 @@ function buildLucyInfoLearnedPriceReply(message) {
 ${body2}
 ${ask}`;
 }
-var STRICT_PDF_SERVICE_FAMILIES;
+var STRICT_PDF_SERVICE_FAMILIES, PDF_ITEM_START, PDF_HEADING_START, PDF_NOTE_START, PDF_EMOJI_START, PDF_PRICED_PACKAGE_START, PDF_CAPS_TITLE_START, PDF_SUBHEAD_START;
 var init_lucyInfoPriceCache = __esm({
   "src/services/lucyInfoPriceCache.ts"() {
     "use strict";
@@ -137729,6 +137815,13 @@ var init_lucyInfoPriceCache = __esm({
       "banquete_kosher",
       "banquete_navideno"
     ]);
+    PDF_ITEM_START = /(?<=[\p{Ll})\]:])\s+(?=(?:Una?|Dos|Tres|Cuatro|Cinco|Seis)\s+[\p{Ll}(])/gu;
+    PDF_HEADING_START = /(?<!\p{Extended_Pictographic}\uFE0F?)\s+(?=(?:Men[uú]\s+\d\s+tiempos\s+(?:B[aá]sico|Tradicional|Premium|Ejecutivo|Gourmet)\b|Opciones\s+de\s+Men[uú]|Opci[oó]n\s+(?:Solo|Servicio)|Coffee\s+Break\s+\d|Condiciones\b|Ideal\s+para:|No\s+incluye|Incluye:|Elige\s+tu\s+[Pp]aquete|INVERSI[OÓ]N\b|Inversi[oó]n\s+y\s+[Dd]etalles))/gu;
+    PDF_NOTE_START = /(?<=[\p{Ll})\].])\s+(?=(?:En|Para)\s+eventos\b)/gu;
+    PDF_EMOJI_START = /(?<=[\p{L}\d).:])\s+(?=\p{Extended_Pictographic})/gu;
+    PDF_PRICED_PACKAGE_START = /(?<=\p{Ll}{3}|\))\s+(?=[\p{Lu}][\p{Ll}]+\s+\$\s?\d)/gu;
+    PDF_CAPS_TITLE_START = /(?<=[\p{Ll}\d).])\s+(?=[A-ZÁÉÍÓÚÑ]{4,}(?:\s+[A-ZÁÉÍÓÚÑ]{2,})+\b)/gu;
+    PDF_SUBHEAD_START = /(?<=[\p{Ll})])\s+(?=(?:Personaliza\s+tu|Todos\s+los\s+paquetes|Tu\s+paquete\s+incluye)\b)/gu;
   }
 });
 
@@ -138444,7 +138537,7 @@ var init_gammaCatalog = __esm({
 });
 
 // src/services/catalogWebKnowledge.ts
-import { readFileSync as readFileSync2 } from "node:fs";
+import { readFileSync as readFileSync3 } from "node:fs";
 import path3 from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 function embedsJsonPath() {
@@ -138457,7 +138550,7 @@ function embedsJsonPath() {
   ];
   for (const p5 of candidates) {
     try {
-      readFileSync2(p5, "utf8");
+      readFileSync3(p5, "utf8");
       return p5;
     } catch {
     }
@@ -138471,7 +138564,7 @@ function extractGammaIdFromEmbed(embedSrc) {
 function loadCatalogEmbeds() {
   if (embedsCache) return embedsCache;
   try {
-    const raw = readFileSync2(embedsJsonPath(), "utf8");
+    const raw = readFileSync3(embedsJsonPath(), "utf8");
     const parsed = JSON.parse(raw);
     embedsCache = Object.entries(parsed).map(([slug, v4]) => {
       const embedSrc = (v4.embedSrc ?? "").trim();
@@ -140108,7 +140201,7 @@ var init_serviceKnowledge = __esm({
 });
 
 // src/services/catalogService.ts
-import { readFileSync as readFileSync3, existsSync as existsSync3 } from "node:fs";
+import { readFileSync as readFileSync4, existsSync as existsSync3 } from "node:fs";
 import path4 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 function emptyStatus() {
@@ -140268,7 +140361,7 @@ function tryLoadSinonimosJsonFile() {
   for (const p5 of candidates) {
     if (!existsSync3(p5)) continue;
     try {
-      const raw = JSON.parse(readFileSync3(p5, "utf8"));
+      const raw = JSON.parse(readFileSync4(p5, "utf8"));
       const n5 = loadSinonimosJson(raw);
       if (n5 > 0) return;
     } catch {
@@ -148827,7 +148920,7 @@ var init_sql = __esm({
         return new SQL([new StringChunk(str3)]);
       }
       sql22.raw = raw;
-      function join9(chunks, separator) {
+      function join10(chunks, separator) {
         const result = [];
         for (const [i6, chunk] of chunks.entries()) {
           if (i6 > 0 && separator !== void 0) {
@@ -148837,7 +148930,7 @@ var init_sql = __esm({
         }
         return new SQL(result);
       }
-      sql22.join = join9;
+      sql22.join = join10;
       function identifier(value) {
         return new Name(value);
       }
@@ -153072,7 +153165,7 @@ var init_select2 = __esm({
           const baseTableName = this.tableName;
           const tableName = getTableLikeName(table);
           for (const item of extractUsedTable(table)) this.usedTables.add(item);
-          if (typeof tableName === "string" && this.config.joins?.some((join9) => join9.alias === tableName)) {
+          if (typeof tableName === "string" && this.config.joins?.some((join10) => join10.alias === tableName)) {
             throw new Error(`Alias "${tableName}" is already used in this query`);
           }
           if (!this.isPartialSelect) {
@@ -154599,7 +154692,7 @@ var init_update = __esm({
       createJoin(joinType) {
         return (table, on3) => {
           const tableName = getTableLikeName(table);
-          if (typeof tableName === "string" && this.config.joins.some((join9) => join9.alias === tableName)) {
+          if (typeof tableName === "string" && this.config.joins.some((join10) => join10.alias === tableName)) {
             throw new Error(`Alias "${tableName}" is already used in this query`);
           }
           if (typeof on3 === "function") {
@@ -154695,10 +154788,10 @@ var init_update = __esm({
               const fromFields = this.getTableLikeFields(this.config.from);
               fields[tableName] = fromFields;
             }
-            for (const join9 of this.config.joins) {
-              const tableName2 = getTableLikeName(join9.table);
-              if (typeof tableName2 === "string" && !is(join9.table, SQL)) {
-                const fromFields = this.getTableLikeFields(join9.table);
+            for (const join10 of this.config.joins) {
+              const tableName2 = getTableLikeName(join10.table);
+              if (typeof tableName2 === "string" && !is(join10.table, SQL)) {
+                const fromFields = this.getTableLikeFields(join10.table);
                 fields[tableName2] = fromFields;
               }
             }
@@ -162774,29 +162867,29 @@ __export(chat_history_exports, {
   getHistory: () => getHistory,
   listHistoryKeys: () => listHistoryKeys
 });
-import { readFileSync as readFileSync6, writeFileSync, existsSync as existsSync7, mkdirSync as mkdirSync2 } from "fs";
-import { join as join5, dirname as dirname2 } from "path";
+import { readFileSync as readFileSync7, writeFileSync, existsSync as existsSync7, mkdirSync as mkdirSync3 } from "fs";
+import { join as join7, dirname as dirname4 } from "path";
 import { fileURLToPath as fileURLToPath4 } from "url";
 function resolveHistoryFile() {
   const fromEnv = process.env["LUCY_CHAT_HISTORY_PATH"]?.trim();
   if (fromEnv) return fromEnv;
-  const sibling = join5(process.cwd(), "..", "lucy-data", "chat-history.json");
-  const legacy = join5(__dirname2, "../../data/chat-history.json");
+  const sibling = join7(process.cwd(), "..", "lucy-data", "chat-history.json");
+  const legacy = join7(__dirname2, "../../data/chat-history.json");
   return sibling || legacy;
 }
 function load() {
   try {
     const file = resolveHistoryFile();
-    const legacy = join5(__dirname2, "../../data/chat-history.json");
+    const legacy = join7(__dirname2, "../../data/chat-history.json");
     if (!existsSync7(file) && existsSync7(legacy) && file !== legacy) {
       try {
-        mkdirSync2(dirname2(file), { recursive: true });
-        writeFileSync(file, readFileSync6(legacy, "utf-8"));
+        mkdirSync3(dirname4(file), { recursive: true });
+        writeFileSync(file, readFileSync7(legacy, "utf-8"));
       } catch {
       }
     }
     if (existsSync7(file)) {
-      return JSON.parse(readFileSync6(file, "utf-8"));
+      return JSON.parse(readFileSync7(file, "utf-8"));
     }
   } catch {
   }
@@ -162805,7 +162898,7 @@ function load() {
 function save(store2) {
   try {
     const file = resolveHistoryFile();
-    mkdirSync2(dirname2(file), { recursive: true });
+    mkdirSync3(dirname4(file), { recursive: true });
     writeFileSync(file, JSON.stringify(store2), "utf-8");
   } catch {
   }
@@ -162834,7 +162927,7 @@ var __dirname2, MAX_MESSAGES, store;
 var init_chat_history = __esm({
   "src/chat-history.ts"() {
     "use strict";
-    __dirname2 = dirname2(fileURLToPath4(import.meta.url));
+    __dirname2 = dirname4(fileURLToPath4(import.meta.url));
     MAX_MESSAGES = 40;
     store = load();
   }
@@ -171770,14 +171863,14 @@ var init_kommoWebhookParse = __esm({
 
 // src/lib/trainingPaths.ts
 import { existsSync as existsSync8 } from "fs";
-import { join as join6, dirname as dirname3 } from "path";
+import { join as join8, dirname as dirname5 } from "path";
 import { fileURLToPath as fileURLToPath5 } from "url";
 function resolveTrainingJsonFile() {
   const candidates = [
-    join6(moduleDir, "training-examples.json"),
-    join6(moduleDir, "data/training-examples.json"),
-    join6(moduleDir, "../../data/training-examples.json"),
-    join6(moduleDir, "../data/training-examples.json")
+    join8(moduleDir, "training-examples.json"),
+    join8(moduleDir, "data/training-examples.json"),
+    join8(moduleDir, "../../data/training-examples.json"),
+    join8(moduleDir, "../data/training-examples.json")
   ];
   for (const path7 of candidates) {
     if (existsSync8(path7)) return path7;
@@ -171788,12 +171881,12 @@ var moduleDir;
 var init_trainingPaths = __esm({
   "src/lib/trainingPaths.ts"() {
     "use strict";
-    moduleDir = dirname3(fileURLToPath5(import.meta.url));
+    moduleDir = dirname5(fileURLToPath5(import.meta.url));
   }
 });
 
 // src/services/trainingStore.ts
-import { readFileSync as readFileSync7 } from "fs";
+import { readFileSync as readFileSync8 } from "fs";
 import { randomUUID } from "crypto";
 function rowToExample(row) {
   return {
@@ -171806,7 +171899,7 @@ function rowToExample(row) {
 }
 function loadExamplesFromJsonFile() {
   try {
-    const raw = readFileSync7(resolveTrainingJsonFile(), "utf-8");
+    const raw = readFileSync8(resolveTrainingJsonFile(), "utf-8");
     const parsed = JSON.parse(raw);
     return parsed.examples ?? [];
   } catch {
@@ -190451,35 +190544,6 @@ var init_kommoMirror = __esm({
   }
 });
 
-// src/lib/lucyDataPaths.ts
-import { mkdirSync as mkdirSync3 } from "node:fs";
-import { dirname as dirname4, join as join7, resolve as resolve2 } from "node:path";
-function getLucyDataRoot() {
-  const fromEnv = process.env["LUCY_DATA_DIR"]?.trim();
-  if (fromEnv) return resolve2(fromEnv);
-  return resolve2(process.cwd(), "..", "lucy-data");
-}
-function ensureLucyDataRoot() {
-  const root = getLucyDataRoot();
-  mkdirSync3(root, { recursive: true });
-  return root;
-}
-function getLucyRepairsJsonPath() {
-  const fromEnv = process.env["LUCY_REPAIRS_JSON_PATH"]?.trim();
-  if (fromEnv) return resolve2(fromEnv);
-  return join7(getLucyDataRoot(), "lucy-repairs.json");
-}
-function getKommoRelayDir() {
-  const fromEnv = process.env["LUCY_RELAY_DIR"]?.trim();
-  if (fromEnv) return resolve2(fromEnv);
-  return join7(getLucyDataRoot(), "kommo-relay");
-}
-var init_lucyDataPaths = __esm({
-  "src/lib/lucyDataPaths.ts"() {
-    "use strict";
-  }
-});
-
 // src/services/incomingLeadRecovery.ts
 var incomingLeadRecovery_exports = {};
 __export(incomingLeadRecovery_exports, {
@@ -190937,12 +191001,12 @@ function runAuditorHeuristics(turns) {
     const prev = extractUrls(assistants[i6 - 1].content);
     const cur = extractUrls(assistants[i6].content);
     if (prev.length === 0 || cur.length === 0) continue;
-    const overlap = cur.filter((u5) => prev.some((p5) => p5 === u5));
-    if (overlap.length >= 1 && similar(assistants[i6 - 1].content, assistants[i6].content)) {
+    const overlap2 = cur.filter((u5) => prev.some((p5) => p5 === u5));
+    if (overlap2.length >= 1 && similar(assistants[i6 - 1].content, assistants[i6].content)) {
       findings.push({
         category: "loop_links",
         severity: "warn",
-        evidence: `Lucy repiti\xF3 links (${overlap.slice(0, 2).join(", ")}) en respuestas seguidas.`,
+        evidence: `Lucy repiti\xF3 links (${overlap2.slice(0, 2).join(", ")}) en respuestas seguidas.`,
         proposedRepair: "Evitar reenviar el mismo cat\xE1logo/link si el cliente pide detalle o precio; responder con solo/completo o Sheet."
       });
       break;
@@ -191276,8 +191340,8 @@ var init_lucyAuditorLlm = __esm({
 });
 
 // src/services/lucyRepairPersist.ts
-import { existsSync as existsSync9, mkdirSync as mkdirSync4, readFileSync as readFileSync9, writeFileSync as writeFileSync2 } from "node:fs";
-import { dirname as dirname5 } from "node:path";
+import { existsSync as existsSync9, mkdirSync as mkdirSync4, readFileSync as readFileSync10, writeFileSync as writeFileSync2 } from "node:fs";
+import { dirname as dirname6 } from "node:path";
 function repairsPath() {
   ensureLucyDataRoot();
   return getLucyRepairsJsonPath();
@@ -191286,7 +191350,7 @@ function readRepairsBackup() {
   const path7 = repairsPath();
   if (!existsSync9(path7)) return [];
   try {
-    const raw = readFileSync9(path7, "utf8");
+    const raw = readFileSync10(path7, "utf8");
     const parsed = JSON.parse(raw);
     const list = Array.isArray(parsed) ? parsed : parsed.repairs ?? [];
     return list.filter((r5) => r5 && typeof r5.id === "string" && r5.evidence && r5.proposedRepair);
@@ -191316,7 +191380,7 @@ async function dumpRepairsToBackup() {
       dedupeKey: row.dedupeKey ?? void 0
     }));
     const path7 = repairsPath();
-    mkdirSync4(dirname5(path7), { recursive: true });
+    mkdirSync4(dirname6(path7), { recursive: true });
     writeFileSync2(
       path7,
       JSON.stringify(
@@ -231943,17 +232007,95 @@ init_llmChat();
 // src/services/googleGrounding.ts
 init_node();
 init_llmEnv();
+init_lucyDataPaths();
 init_trendKnowledge();
+import { readFileSync } from "node:fs";
+import { mkdir, writeFile as writeFile3 } from "node:fs/promises";
+import { dirname as dirname2, join as join2 } from "node:path";
 var groundingStats = {
   attempts: 0,
   hits: 0,
   skips: 0,
   errors: 0,
+  cacheHits: 0,
+  cacheSize: 0,
   lastAt: null,
   lastChars: 0
 };
 function getGoogleGroundingStats() {
   return { ...groundingStats };
+}
+var RESEARCH_TTL_MS = 30 * 24 * 60 * 60 * 1e3;
+var RESEARCH_MAX = 300;
+var TOPIC_STOPWORDS = new Set(
+  "para como pero esta este esto esos esas unos unas sobre tienes tienen quiero queria quisiera puedes pueden ideas idea algo cosa cosas hacer hacemos podemos tambien tengo tenemos mucho muchos poco bien porfa favor gracias hola evento fiesta moda ubicas vimos visto donde cuando cual cuales seria ser\xEDa esta est\xE1n estan".split(
+    " "
+  )
+);
+function foldText(s7) {
+  return s7.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+}
+function trendTopicWords(text2) {
+  const words = foldText(text2).replace(/[^a-z0-9ñ\s]/g, " ").split(/\s+/).filter((w5) => w5.length >= 4 && !TOPIC_STOPWORDS.has(w5)).map((w5) => w5.replace(/(es|s)$/, (m6) => w5.length - m6.length >= 4 ? "" : m6));
+  return [...new Set(words)].sort().slice(0, 8);
+}
+function overlap(a4, b5) {
+  if (!a4.length || !b5.length) return 0;
+  const sb = new Set(b5);
+  const inter = a4.filter((w5) => sb.has(w5)).length;
+  return inter / Math.max(a4.length, b5.length);
+}
+function findTrendResearch(store2, tipo, words, now = Date.now()) {
+  const t4 = foldText(tipo?.trim() ?? "");
+  if (words.length < 1) return null;
+  let best = null;
+  let bestScore = 0;
+  for (const e4 of store2) {
+    if (now - Date.parse(e4.savedAt) > RESEARCH_TTL_MS) continue;
+    if (foldText(e4.tipo) !== t4) continue;
+    const s7 = overlap(words, e4.words);
+    if (s7 > bestScore) {
+      best = e4;
+      bestScore = s7;
+    }
+  }
+  return bestScore >= 0.6 ? best : null;
+}
+var researchPathOverride = null;
+var researchStore = null;
+function researchPath() {
+  if (researchPathOverride !== null) return researchPathOverride || null;
+  return join2(getLucyDataRoot(), "trend-research.json");
+}
+function loadResearchStore() {
+  if (researchStore) return researchStore;
+  const p5 = researchPath();
+  try {
+    researchStore = p5 ? JSON.parse(readFileSync(p5, "utf8")) : [];
+  } catch {
+    researchStore = [];
+  }
+  groundingStats.cacheSize = researchStore.length;
+  return researchStore;
+}
+async function persistResearchStore() {
+  const p5 = researchPath();
+  if (!p5 || !researchStore) return;
+  try {
+    await mkdir(dirname2(p5), { recursive: true });
+    await writeFile3(p5, JSON.stringify(researchStore, null, 1), "utf8");
+  } catch {
+  }
+}
+function rememberTrendResearch(tipo, words, snippet) {
+  if (!words.length || !snippet.trim()) return;
+  const store2 = loadResearchStore();
+  const now = Date.now();
+  const fresh = store2.filter((e4) => now - Date.parse(e4.savedAt) <= RESEARCH_TTL_MS);
+  fresh.push({ tipo: tipo?.trim() ?? "", words, snippet, savedAt: new Date(now).toISOString(), uses: 0 });
+  researchStore = fresh.slice(-RESEARCH_MAX);
+  groundingStats.cacheSize = researchStore.length;
+  void persistResearchStore();
 }
 function isGoogleGroundingEnabled() {
   const raw = (process.env["LUCY_GOOGLE_GROUNDING"] ?? "0").trim().toLowerCase();
@@ -231972,6 +232114,14 @@ async function fetchTrendGroundingSnippet(opts) {
     groundingStats.skips += 1;
     return null;
   }
+  const clientContext = (accepted ? textOf("user").slice(-5).join(" | ") : opts.messageText).slice(0, 400);
+  const topicWords = trendTopicWords(clientContext);
+  const remembered = findTrendResearch(loadResearchStore(), opts.tipoEvento, topicWords);
+  if (remembered) {
+    remembered.uses += 1;
+    groundingStats.cacheHits += 1;
+    return remembered.snippet;
+  }
   const key = getGeminiApiKey();
   if (!key) {
     groundingStats.skips += 1;
@@ -231983,8 +232133,7 @@ async function fetchTrendGroundingSnippet(opts) {
     const ai2 = new GoogleGenAI2({ apiKey: key });
     const eventHint = opts.tipoEvento?.trim() ? `Evento: ${opts.tipoEvento.trim()}. ` : "";
     const invHint = opts.numInvitados ? `Invitados: ${opts.numInvitados}. ` : "";
-    const clientContext = (accepted ? textOf("user").slice(-5).join(" | ") : opts.messageText).slice(0, 400);
-    const prompt = `Eres asesora de eventos en M\xE9xico. ${eventHint}${invHint}Lo que dijo el cliente: "${clientContext}". Busca tendencias actuales (${(/* @__PURE__ */ new Date()).getFullYear()}) y da exactamente 2 vi\xF1etas, cada una en su propia l\xEDnea iniciando con "- ", m\xE1ximo 22 palabras cada una. Ideas de ambientaci\xF3n, comida, decoraci\xF3n o din\xE1mica que se puedan armar con banquetes, barras, mobiliario, DJ, iluminaci\xF3n, carpas o mesa de dulces. Sin precios, sin marcas, sin links, sin introducci\xF3n. Espa\xF1ol MX.`;
+    const prompt = `Eres asesora de eventos en M\xE9xico. ${eventHint}${invHint}Lo que dijo el cliente: "${clientContext}". Busca tendencias actuales (${(/* @__PURE__ */ new Date()).getFullYear()}) y da exactamente 2 vi\xF1etas, sobre la tem\xE1tica concreta que menciona el cliente si la hay (ej. abejitas, ositos, safari), cada una en su propia l\xEDnea iniciando con "- ", m\xE1ximo 22 palabras cada una. Ideas de ambientaci\xF3n, comida, decoraci\xF3n o din\xE1mica que se puedan armar con banquetes, barras, mobiliario, DJ, iluminaci\xF3n, carpas o mesa de dulces. Sin precios, sin marcas, sin links, sin introducci\xF3n. Espa\xF1ol MX.`;
     const response = await ai2.models.generateContent({
       model: DEFAULT_GEMINI_MODEL,
       contents: prompt,
@@ -232002,6 +232151,7 @@ async function fetchTrendGroundingSnippet(opts) {
     const clipped = text2.length > 480 ? `${text2.slice(0, 477)}\u2026` : text2;
     groundingStats.hits += 1;
     groundingStats.lastChars = clipped.length;
+    rememberTrendResearch(opts.tipoEvento, topicWords, clipped);
     return clipped;
   } catch {
     groundingStats.errors += 1;
@@ -232054,8 +232204,8 @@ init_authJwt();
 init_catalogService();
 
 // src/lib/buildMeta.ts
-import { existsSync as existsSync4, readFileSync as readFileSync4 } from "node:fs";
-import { join as join2 } from "node:path";
+import { existsSync as existsSync4, readFileSync as readFileSync5 } from "node:fs";
+import { join as join4 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
@@ -232092,10 +232242,10 @@ function fallbackMeta() {
 }
 function getBuildMeta() {
   if (cached) return cached;
-  const metaPath = join2(process.cwd(), "build-meta.json");
+  const metaPath = join4(process.cwd(), "build-meta.json");
   if (existsSync4(metaPath)) {
     try {
-      const raw = JSON.parse(readFileSync4(metaPath, "utf8"));
+      const raw = JSON.parse(readFileSync5(metaPath, "utf8"));
       const builtAt = raw.built_at ?? (/* @__PURE__ */ new Date()).toISOString();
       cached = {
         version: raw.version ?? LUCY_SERVER_VERSION,
@@ -232116,8 +232266,8 @@ function getBuildMeta() {
 // src/services/lucyInfoStore.ts
 await init_src2();
 init_drizzle_orm();
-import { existsSync as existsSync6, readFileSync as readFileSync5 } from "node:fs";
-import { join as join4 } from "node:path";
+import { existsSync as existsSync6, readFileSync as readFileSync6 } from "node:fs";
+import { join as join6 } from "node:path";
 
 // src/services/lucyInfoSchema.ts
 await init_src2();
@@ -232334,11 +232484,11 @@ async function warmLucyInfoPriceCache() {
 function resolveLucyInfoSeedPath() {
   const candidates = [
     process.env["LUCY_INFO_SEED_PATH"]?.trim(),
-    join4(process.cwd(), "config", "lucy-info-seed.json"),
-    join4(process.cwd(), "data", "lucy-info-seed.json"),
-    join4(process.cwd(), "lucy-info-seed.json"),
-    join4(process.cwd(), "dist", "config", "lucy-info-seed.json"),
-    join4(process.cwd(), "dist", "data", "lucy-info-seed.json")
+    join6(process.cwd(), "config", "lucy-info-seed.json"),
+    join6(process.cwd(), "data", "lucy-info-seed.json"),
+    join6(process.cwd(), "lucy-info-seed.json"),
+    join6(process.cwd(), "dist", "config", "lucy-info-seed.json"),
+    join6(process.cwd(), "dist", "data", "lucy-info-seed.json")
   ].filter(Boolean);
   for (const p5 of candidates) {
     if (existsSync6(p5)) return p5;
@@ -232358,7 +232508,7 @@ async function seedLucyInfoIfEmpty() {
   }
   let payload;
   try {
-    payload = JSON.parse(readFileSync5(seedPath, "utf8"));
+    payload = JSON.parse(readFileSync6(seedPath, "utf8"));
   } catch (err2) {
     logger.warn({ err: err2, seedPath }, "lucyInfo seed: no se pudo leer JSON");
     return { seeded: 0, skipped: false };
@@ -236708,6 +236858,23 @@ ${keepQ}` : ack;
   if (clientAsksInclusion(input.currentMessage) || /Según el catálogo que ya tenemos/i.test(mensaje) || /¿Te late este nivel o quieres que te detalle otro\?/i.test(mensaje)) {
     mensaje = collapseDuplicatedInclusionReply(mensaje);
   }
+  if (/Según el catálogo que ya tenemos/i.test(mensaje)) {
+    mensaje = formatCatalogDumpsInMessage(mensaje);
+  }
+  if (clientComplainsAboutFormat(input.currentMessage)) {
+    const prior = lastDenseLucyBlock(input.history ?? []);
+    const first = input.extracted.nombre?.trim().split(/\s+/)[0];
+    const sorry = `Tienes raz\xF3n${first ? `, ${first}` : ""}, perd\xF3n.`;
+    const keepQ = (mensaje.match(/¿[^¿?\n]*\?/g) ?? []).slice(-1)[0] ?? "";
+    mensaje = prior ? `${sorry} Te lo paso m\xE1s ordenado:
+
+${prior}${keepQ && !prior.includes(keepQ) ? `
+
+${keepQ}` : ""}` : `${sorry} Te escribo m\xE1s claro.${keepQ ? `
+
+${keepQ}` : ""}`;
+    input.log?.info?.({ entityId: input.entityId }, "GUARD: A16567 \u2014 queja de formato, reenv\xEDo ordenado");
+  }
   mensaje = stripClientServiceConfusionNotes(mensaje);
   mensaje = dedupeCatalogUrlsInMessage(mensaje);
   mensaje = preferSpecificCatalogOverHub(
@@ -236738,6 +236905,13 @@ ${keepQ}` : ack;
     const acceptedIdeas = clientAcceptsIdeasOffer(input.currentMessage, lastLucy);
     const ownWords = stripEchoedLucyText(input.currentMessage, lucyTexts);
     const forceIdeas = acceptedIdeas || !clientClosedServiceList(ownWords) && (clientWantsIdeasOrTrends(ownWords) || /recomendaciones?|ideas?\b|colores?|montajes?/i.test(ownWords));
+    if (forceIdeas && /no lo tengo listado en el cat[aá]logo/i.test(mensaje)) {
+      const completo = /servicio\s+completo/i.test(
+        [input.extracted.requerimientos_evento ?? "", ...historyText("user")].join(" ")
+      );
+      const decor = /decoraci|centros?\s+de\s+mesa|globos|tem[aá]tica|moda/i.test(ownWords);
+      mensaje = decor && completo ? "\xA1Claro! La *decoraci\xF3n* va incluida en el *servicio completo* y la adaptamos a la tem\xE1tica que elijas." : "\xA1Claro! Te comparto algunas ideas.";
+    }
     const withIdeas = !forceIdeas ? mensaje : enrichReplyWithSalesIdeas(mensaje, {
       tipoEvento: input.extracted.tipo_evento,
       messageText: ownWords,
@@ -238061,8 +238235,8 @@ await init_kommoMirror();
 // src/services/stageActivation.ts
 init_lucyDataPaths();
 await init_embudo();
-import { readdirSync, readFileSync as readFileSync8 } from "node:fs";
-import { join as join8 } from "node:path";
+import { readdirSync, readFileSync as readFileSync9 } from "node:fs";
+import { join as join9 } from "node:path";
 var WHATSAPP_WINDOW_MS = 23.5 * 60 * 60 * 1e3;
 var CLIENT_JUST_WROTE_MS = 2 * 60 * 1e3;
 var MANUAL_MOVE_MAX_AGE_MS = 5 * 60 * 1e3;
@@ -238145,7 +238319,7 @@ function readRelayMessages(leadId, sinceMs, dir = getKommoRelayDir()) {
     if (f7.slice(0, 10) < sinceDay) continue;
     let raw;
     try {
-      raw = readFileSync8(join8(dir, f7), "utf8");
+      raw = readFileSync9(join9(dir, f7), "utf8");
     } catch {
       continue;
     }

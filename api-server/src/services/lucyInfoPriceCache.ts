@@ -376,6 +376,95 @@ function queryHasServicePdfAnchor(query: string): boolean {
   );
 }
 
+const PDF_ITEM_START =
+  /(?<=[\p{Ll})\]:])\s+(?=(?:Una?|Dos|Tres|Cuatro|Cinco|Seis)\s+[\p{Ll}(])/gu;
+const PDF_HEADING_START =
+  /(?<!\p{Extended_Pictographic}\uFE0F?)\s+(?=(?:Men[uú]\s+\d\s+tiempos\s+(?:B[aá]sico|Tradicional|Premium|Ejecutivo|Gourmet)\b|Opciones\s+de\s+Men[uú]|Opci[oó]n\s+(?:Solo|Servicio)|Coffee\s+Break\s+\d|Condiciones\b|Ideal\s+para:|No\s+incluye|Incluye:|Elige\s+tu\s+[Pp]aquete|INVERSI[OÓ]N\b|Inversi[oó]n\s+y\s+[Dd]etalles))/gu;
+const PDF_NOTE_START = /(?<=[\p{Ll})\].])\s+(?=(?:En|Para)\s+eventos\b)/gu;
+const PDF_EMOJI_START = /(?<=[\p{L}\d).:])\s+(?=\p{Extended_Pictographic})/gu;
+const PDF_PRICED_PACKAGE_START = /(?<=\p{Ll}{3}|\))\s+(?=[\p{Lu}][\p{Ll}]+\s+\$\s?\d)/gu;
+const PDF_CAPS_TITLE_START = /(?<=[\p{Ll}\d).])\s+(?=[A-ZÁÉÍÓÚÑ]{4,}(?:\s+[A-ZÁÉÍÓÚÑ]{2,})+\b)/gu;
+const PDF_SUBHEAD_START = /(?<=[\p{Ll})])\s+(?=(?:Personaliza\s+tu|Todos\s+los\s+paquetes|Tu\s+paquete\s+incluye)\b)/gu;
+
+/** Línea larga sin estructura → una oración por línea (WhatsApp no tiene márgenes). */
+function splitLongLine(line: string): string {
+  if (line.length <= 200) return line;
+  return line.replace(/([.!?])\s+(?=[\p{Lu}¿¡*$])/gu, "$1\n");
+}
+
+/**
+ * A16567: el texto del PDF llega en una sola línea ("Menú 4 tiempos Tradicional Una entrada Una sopa…").
+ * Lo parte en encabezados en negritas y viñetas legibles en WhatsApp; la nota repetida de
+ * "más de 100 personas" queda una sola vez.
+ */
+export function formatCatalogTextForChat(raw: string): string {
+  if (/\n/.test(raw ?? "")) return (raw ?? "").trim();
+  let text = (raw ?? "").replace(/\s+/g, " ").trim();
+  if (!text) return text;
+  // Nunca abrir a media frase ("entre dos menús diferentes. Menú 4…").
+  if (/^[\p{Ll}]/u.test(text)) {
+    const cut = text.search(/[.!?]\s+(?=[\p{Lu}🍽🥐☕])/u);
+    if (cut >= 0 && cut < 220) text = text.slice(cut + 1).trim();
+  }
+  text = text
+    .replace(PDF_HEADING_START, "\n\n")
+    .replace(PDF_CAPS_TITLE_START, "\n\n")
+    .replace(PDF_SUBHEAD_START, "\n")
+    .replace(PDF_PRICED_PACKAGE_START, "\n• ")
+    .replace(PDF_EMOJI_START, "\n")
+    .replace(PDF_NOTE_START, "\n")
+    .replace(PDF_ITEM_START, "\n• ")
+    .replace(/:\s+(?=Men[uú]\s+\d\s+tiempos\s+desde)/giu, ":\n• ")
+    .replace(/\s*\|\s*/g, "\n• ")
+    .replace(/(compuesto\s+por|incluye):\s+(?=[\p{Lu}])/giu, "$1:\n• ");
+  let noteSeen = false;
+  const lines = text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((line) => {
+      if (!/eventos\s+(?:que\s+superen|con\s+m[aá]s\s+de)\s+(?:las\s+)?\d+\s+personas/i.test(line)) return true;
+      if (noteSeen) return false;
+      noteSeen = true;
+      return true;
+    })
+    .map((line) => {
+      const head = line.match(/^(Men[uú]\s+\d\s+tiempos\s+(?:B[aá]sico|Tradicional|Premium|Ejecutivo|Gourmet)|Opciones\s+de\s+Men[uú][^•\n]{0,30}?\d\s+Tiempos)\b\s*(.*)$/iu);
+      if (head) return head[2] ? `*${head[1]}*\n${head[2]}` : `*${head[1]}*`;
+      return splitLongLine(line);
+    });
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").replace(/\n• \n/g, "\n").trim();
+}
+
+/** Párrafos de PDF pegados en una línea (venga de la plantilla o del modelo) → formato legible. */
+export function formatCatalogDumpsInMessage(mensaje: string): string {
+  if (!mensaje?.trim()) return mensaje;
+  return mensaje
+    .split(/\n{2,}/)
+    .map((p) => (p.length > 200 && !p.includes("\n") && !/https?:\/\//.test(p) ? formatCatalogTextForChat(p) : p))
+    .join("\n\n");
+}
+
+/** "¿Por qué escribes así de amontonado?" — queja de formato, no pregunta de servicio. */
+export function clientComplainsAboutFormat(message?: string | null): boolean {
+  return /\b(amontonad[oa]s?|todo\s+(?:junto|pegado|encimado)|desordenad[oa]|ilegible|sin\s+(?:espacios|separaci)|no\s+se\s+entiende(?:\s+nada)?|muy\s+largo|much[oa]\s+texto|choro)\b/i.test(
+    message ?? ""
+  );
+}
+
+/** Último texto largo de Lucy (dump de catálogo) para reenviarlo ordenado. */
+export function lastDenseLucyBlock(history: Array<{ role?: string; content?: unknown }>): string | null {
+  for (let i = history.length - 1; i >= 0; i--) {
+    const m = history[i]!;
+    if (m.role !== "assistant" || typeof m.content !== "string") continue;
+    const dense = m.content.split(/\n{2,}/).filter((p) => p.length > 200 && !p.includes("\n"));
+    if (!dense.length) continue;
+    const label = m.content.match(/Según el catálogo que ya tenemos de \*([^*]+)\*/i)?.[1];
+    const body = dense.map((p) => formatCatalogTextForChat(p)).join("\n\n");
+    return label ? `*${label}*\n\n${body}` : body;
+  }
+  return null;
+}
+
 export function buildLucyInfoInclusionReply(query: string, maxChars = 1100): string | null {
   ensureCacheFromSeedSync();
   const docs = cacheState().docs;
@@ -425,7 +514,7 @@ export function buildLucyInfoInclusionReply(query: string, maxChars = 1100): str
     if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(label)) continue;
     return (
       `Según el catálogo que ya tenemos de *${label}*:\n\n` +
-      `${section}\n\n` +
+      `${formatCatalogTextForChat(section)}\n\n` +
       `¿Te late este nivel o quieres que te detalle otro?`
     );
   }

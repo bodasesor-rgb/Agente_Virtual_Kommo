@@ -49,7 +49,12 @@ import {
   buildConcreteProductQuestionReply,
   clientAsksConcreteProductQuestion,
 } from "./services/concreteProductQuestion.js";
-import { collapseDuplicatedInclusionReply } from "./services/lucyInfoPriceCache.js";
+import {
+  clientComplainsAboutFormat,
+  collapseDuplicatedInclusionReply,
+  formatCatalogDumpsInMessage,
+  lastDenseLucyBlock,
+} from "./services/lucyInfoPriceCache.js";
 import { clientAsksInclusion } from "./services/catalogService.js";
 import { ensureDishCatalogLink, repairOrphanCatalogLinks } from "./services/catalogLinkRepair.js";
 
@@ -233,6 +238,20 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
   ) {
     mensaje = collapseDuplicatedInclusionReply(mensaje);
   }
+  // A16567: el texto del PDF llegaba en un solo bloque ("amontonado").
+  if (/Según el catálogo que ya tenemos/i.test(mensaje)) {
+    mensaje = formatCatalogDumpsInMessage(mensaje);
+  }
+  if (clientComplainsAboutFormat(input.currentMessage)) {
+    const prior = lastDenseLucyBlock(input.history ?? []);
+    const first = input.extracted.nombre?.trim().split(/\s+/)[0];
+    const sorry = `Tienes razón${first ? `, ${first}` : ""}, perdón.`;
+    const keepQ = (mensaje.match(/¿[^¿?\n]*\?/g) ?? []).slice(-1)[0] ?? "";
+    mensaje = prior
+      ? `${sorry} Te lo paso más ordenado:\n\n${prior}${keepQ && !prior.includes(keepQ) ? `\n\n${keepQ}` : ""}`
+      : `${sorry} Te escribo más claro.${keepQ ? `\n\n${keepQ}` : ""}`;
+    input.log?.info?.({ entityId: input.entityId }, "GUARD: A16567 — queja de formato, reenvío ordenado");
+  }
 
   mensaje = stripClientServiceConfusionNotes(mensaje);
   // A15903: red de seguridad — misma URL de catálogo nunca dos veces.
@@ -281,6 +300,18 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
       (!clientClosedServiceList(ownWords) &&
         (clientWantsIdeasOrTrends(ownWords) ||
           /recomendaciones?|ideas?\b|colores?|montajes?/i.test(ownWords)));
+    // A16567: "¿Tienes ideas de decoración?" pide ideas, no un servicio nuevo — sin aviso
+    // "no lo tengo listado" ni "¿Lo dejamos anotado?" encima de las ideas.
+    if (forceIdeas && /no lo tengo listado en el cat[aá]logo/i.test(mensaje)) {
+      const completo = /servicio\s+completo/i.test(
+        [input.extracted.requerimientos_evento ?? "", ...historyText("user")].join(" ")
+      );
+      const decor = /decoraci|centros?\s+de\s+mesa|globos|tem[aá]tica|moda/i.test(ownWords);
+      mensaje =
+        decor && completo
+          ? "¡Claro! La *decoración* va incluida en el *servicio completo* y la adaptamos a la temática que elijas."
+          : "¡Claro! Te comparto algunas ideas.";
+    }
     // A16484: sin tip proactivo ("Una idea que funciona muy bien…") — solo si el cliente pide ideas.
     const withIdeas = !forceIdeas ? mensaje : enrichReplyWithSalesIdeas(mensaje, {
       tipoEvento: input.extracted.tipo_evento,

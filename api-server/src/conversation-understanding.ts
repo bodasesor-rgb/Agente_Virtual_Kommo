@@ -7443,6 +7443,16 @@ function mergeZonaDetailRaw(
   if (/^(pdf|excel|word|archivo|documento)s?$/i.test(nextRaw)) {
     return stripThemeColorsFromZona(prevRaw) || prevRaw || null;
   }
+  // A16567: "CDMX, Tienes ideas de decoración?" — una pregunta o un tema de ideas no es lugar.
+  if (
+    prevRaw &&
+    (/[?¿]/.test(nextRaw) ||
+      /\b(ideas?|decoraci[oó]n|tem[aá]tica|moda|tendencias?|precios?|cotizaci[oó]n|men[uú])\b/i.test(nextRaw)) &&
+    !/\b(cdmx|colonia|sal[oó]n|hotel|jard[ií]n|hacienda|terraza|quinta|municipio|alcald[ií]a|calle|avenida|av\.)\b/i.test(nextRaw) &&
+    !matchesKnownZone(nextRaw)
+  ) {
+    return stripThemeColorsFromZona(prevRaw) || prevRaw;
+  }
   const prev =
     (stripThemeColorsFromZona(prevRaw) || prevRaw).replace(/,?\s*pdf\s*$/i, "").trim();
   const next =
@@ -7871,9 +7881,9 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
       trimmed
     )
   ) {
-    // A15910: "aún no se sabe el salón" ≠ rechazo de presupuesto.
+    // A15910 / A16567: "aún no sabemos la ubicación" ≠ rechazo de presupuesto (aunque se
+    // llame con askedField "presupuesto" desde resumen/invariantes).
     if (
-      opts?.askedField !== "presupuesto" &&
       !/\b(presupuesto|inversi[oó]n|cu[aá]nto\s+(?:puedo|pueden|tenemos)\s+gastar)\b/i.test(
         trimmed
       ) &&

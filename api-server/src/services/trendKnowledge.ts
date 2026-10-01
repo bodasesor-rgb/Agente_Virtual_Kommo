@@ -14,7 +14,7 @@ const ACCEPTS_IDEAS_PATTERN =
   /\b(?:s[ií](?:\s+por\s+favor)?|claro|dale|va|ok|okay|sale|perfecto)\b.{0,40}\b(?:ideas?|recomendaci|sugerenc)|\b(?:dame|quiero|pásame|pasame|necesito)\s+ideas?\b|\bideas?\s+por\s+favor\b/i;
 
 const TREND_IDEA_PATTERN =
-  /\b(?:tendenci(?:a|as)|ideas?\s+(?:de\s+)?(?:decoraci[oó]n|evento|fiesta|boda|xv|ambient|colores?|montaje)|inspiraci[oó]n|mood\s*board|estilos?\b|tem[aá]tica|ambiente|colores?|paleta|montajes?|decoraci[oó]n|qu[eé]\s+(?:se\s+)?(?:usa|lleva|est[aá]\s+usando)|novedades?|recomendaci[oó]n(?:es)?|c[oó]mo\s+(?:armar|decorar|montar)|qu[eé]\s+(?:me\s+)?(?:recomiendas?|sugieres?)|opciones?\s+de\s+(?:decor|estilo|color)|look\b|vibe\b|aesthetic)\b/i;
+  /\b(?:tendenci(?:a|as)|ideas?\s+(?:de\s+)?(?:decoraci[oó]n|evento|fiesta|boda|xv|ambient|colores?|montaje)|inspiraci[oó]n|mood\s*board|estilos?\b|tem[aá]tica|ambiente|colores?|paleta|montajes?|decoraci[oó]n|qu[eé]\s+(?:se\s+)?(?:usa|lleva|est[aá]\s+usando)|novedades?|recomendaci[oó]n(?:es)?|c[oó]mo\s+(?:armar|decorar|montar)|qu[eé]\s+(?:me\s+)?(?:recomiendas?|sugieres?)|opciones?\s+de\s+(?:decor|estilo|color)|look\b|vibe\b|aesthetic|(?:est[aá]n?\s+)?de\s+moda|esa\s+moda)\b/i;
 
 const STYLE_CUES: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\bboho|bohemio/i, label: "boho" },
@@ -135,7 +135,11 @@ function normalizeForTipMatch(text: string): string {
 
 /** Estilos/vibes detectados en texto (mensaje + CRM). Máx 4. */
 export function extractStyleCues(...texts: Array<string | null | undefined>): string[] {
-  const blob = texts.filter(Boolean).join(" \n ");
+  // "Banquete Formal" es un servicio, no un estilo — no es vibe "elegante".
+  const blob = texts
+    .filter(Boolean)
+    .join(" \n ")
+    .replace(/\bbanquete\s+formal\b/gi, "banquete");
   if (!blob.trim()) return [];
   const found: string[] = [];
   for (const { pattern, label } of STYLE_CUES) {
