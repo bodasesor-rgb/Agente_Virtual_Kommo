@@ -130750,6 +130750,10 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
       });
     }
   }
+  if (!filledSet.has("Presupuesto (MXN)") && asked === "requerimientos" && lastLucy && /presupuesto|monto/i.test(lastLucy) && /\$|\bmil\b|pesos|mxn|presupuesto|monto|\d\s*k\b/i.test(msg)) {
+    const pres = parsePresupuestoFromText(msg, { askedField: "presupuesto" });
+    if (pres) captures.push({ label: "Presupuesto (MXN)", value: pres });
+  }
   if (!filledSet.has("N\xFAmero de invitados") && asked === "invitados") {
     const inv = parseInvitadosFromText(msg, { askedInvitados: true });
     if (inv) captures.push({ label: "N\xFAmero de invitados", value: inv });
@@ -130767,13 +130771,21 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
   if (!filledSet.has(CRM_FECHA_LABEL) && asked === "fecha") {
     const fecha = parseFechaFromText(msg);
     if (fecha) captures.push({ label: CRM_FECHA_LABEL, value: fecha });
+    if (!filledSet.has(CRM_HORARIO_LABEL) && lastLucy && LUCY_FIELD_ASK_PATTERNS.horario.test(lastLucy)) {
+      const horario = parseHorarioFromText(msg);
+      if (horario) {
+        captures.push({ label: CRM_HORARIO_LABEL, value: horario });
+      } else if (fecha && /sin\s+definir|pendiente|por\s+definir|a[uú]n\s+no|todav[ií]a\s+no|no\s+(sabemos|tenemos)/i.test(fecha)) {
+        captures.push({ label: CRM_HORARIO_LABEL, value: "Sin definir (pendiente)" });
+      }
+    }
   }
   if (clientCorrectsLocation(msg) || isVenueSpaceDetail(msg) && filledSet.has("Lugar/direcci\xF3n del evento")) {
     const zonaHint = parseZonaFromText(msg);
     if (zonaHint && isUsableDireccionEvento(zonaHint)) {
       captures.push({ label: "Lugar/direcci\xF3n del evento", value: zonaHint });
     }
-  } else if (!filledSet.has("Presupuesto (MXN)") && (asked === "presupuesto" || detectPresupuestoRefusal(msg))) {
+  } else if (!filledSet.has("Presupuesto (MXN)") && !captures.some((c4) => c4.label === "Presupuesto (MXN)") && (asked === "presupuesto" || detectPresupuestoRefusal(msg) && !((asked === "fecha" || asked === "horario") && !/presupuesto|monto|\$|dinero/i.test(msg)))) {
     const pres = parsePresupuestoFromText(msg, { askedField: asked === "presupuesto" ? "presupuesto" : null });
     if (pres) {
       captures.push({ label: "Presupuesto (MXN)", value: pres });
@@ -140333,10 +140345,24 @@ function buildNaturalQuestion(field, ctx) {
     }
     return prefix ? `${prefix}${tipoVariant}` : tipoVariant;
   }
+  const fechaVariant = field === "fecha" && !horarioAlreadyKnown(ctx) ? FECHA_HORARIO_VARIANTS[variantIndex("fecha", history, ctx.entityId) % FECHA_HORARIO_VARIANTS.length] : variant;
   if (thanks && (field === "zona" || field === "fecha" || field === "invitados" || field === "presupuesto")) {
-    return `${thanks}${variant}`;
+    return `${thanks}${fechaVariant}`;
   }
-  return prefix ? `${prefix}${variant}` : variant;
+  return prefix ? `${prefix}${fechaVariant}` : fechaVariant;
+}
+var FECHA_HORARIO_VARIANTS = [
+  "\xBFYa tienen fecha y horario del evento?",
+  "\xBFQu\xE9 d\xEDa y a qu\xE9 hora ser\xEDa el evento?",
+  "\xBFPara qu\xE9 fecha y en qu\xE9 horario lo tienen pensado?"
+];
+var REQUERIMIENTOS_MONTO_VARIANTS = [
+  "\xBFQu\xE9 servicios te gustar\xEDa cotizar y qu\xE9 presupuesto aproximado manejan?",
+  "Plat\xEDcame, \xBFqu\xE9 te gustar\xEDa armar para el evento y con qu\xE9 monto m\xE1s o menos?",
+  "\xBFQu\xE9 necesitas cotizar y tienes alg\xFAn monto aproximado en mente?"
+];
+function horarioAlreadyKnown(ctx) {
+  return !!ctx.filledSet?.has(CRM_HORARIO_LABEL) || isUsableHorarioEvento(ctx.extracted.horario_evento);
 }
 function isBareBanqueteRequirement(value) {
   return /^banquetes?$/i.test((value ?? "").trim());
@@ -140383,10 +140409,14 @@ function buildRequerimientosQuestion(extracted, history, currentMessage, entityI
       return `${prefix}Seguimos con *${service}*.`.trim();
     }
     const idx = variantIndex("requerimientos", history, entityId);
-    const followUps = [
+    const followUps = hasPresupuestoValue(extracted) ? [
       `Adem\xE1s del ${service}, \xBFte gustar\xEDa cotizar alg\xFAn otro servicio?`,
       `\xBFSolo el ${service} o tambi\xE9n algo m\xE1s?`,
       `Perfecto. Con el ${service}, \xBFnecesitan alg\xFAn otro servicio?`
+    ] : [
+      `Adem\xE1s del ${service}, \xBFte gustar\xEDa cotizar alg\xFAn otro servicio y qu\xE9 presupuesto aproximado manejan?`,
+      `\xBFSolo el ${service} o tambi\xE9n algo m\xE1s, y con qu\xE9 monto m\xE1s o menos?`,
+      `Perfecto. Con el ${service}, \xBFnecesitan alg\xFAn otro servicio y tienen un monto aproximado en mente?`
     ];
     return appendServiciosCatalogoHint(
       `${prefix}${followUps[idx % followUps.length]}`,
@@ -140394,7 +140424,7 @@ function buildRequerimientosQuestion(extracted, history, currentMessage, entityI
       history
     );
   }
-  const variant = pickVariant("requerimientos", history, entityId);
+  const variant = !hasPresupuestoValue(extracted) ? REQUERIMIENTOS_MONTO_VARIANTS[variantIndex("requerimientos", history, entityId) % REQUERIMIENTOS_MONTO_VARIANTS.length] : pickVariant("requerimientos", history, entityId);
   const core = prefix ? `${prefix}${variant}` : variant;
   return appendServiciosCatalogoHint(core, false, history);
 }
@@ -146716,7 +146746,9 @@ de asesor inventado). T\xFA calificas y asesoras; no inventas precios ni inclusi
 ===================================================================
 Tu meta es generar negocio: ideas, estilo, combinaciones de servicios y criterio.
 No eres un cuestionario que dispara campo tras campo.
-- Embudo = meta interna: mezcla UNA pregunta natural en la charla tras aportar valor.
+- Embudo = meta interna: mezcla UNA pregunta natural en la charla tras aportar valor
+  (puede pedir dos datos que van juntos: fecha + horario, ciudad + colonia/sal\xF3n,
+  servicios + monto aproximado).
 - Precio/monto: SOLO si el cliente lo pide expl\xEDcitamente Y hay paquete/ficha en Sheet/PDF.
   Si pide precio y no hay ficha publicada \u2192 dilo con naturalidad: el precio lo arma ${TEAM} /
   el vendedor humano; t\xFA sigues con ideas y capturando datos.
@@ -146833,7 +146865,11 @@ prefiere no darlo, responde de inmediato:
 \u2014 jam\xE1s insistas ni bloquees la conversaci\xF3n.
 
 Otras reglas:
-- Un dato a la vez, natural, encadenado a lo que dijo.
+- Para acortar el chat, pide JUNTOS solo estos pares en una sola pregunta:
+  fecha + horario ("\xBFYa tienen fecha y horario del evento?"),
+  ciudad + colonia/sal\xF3n ("\xBFEn qu\xE9 ciudad y colonia o sal\xF3n ser\xEDa?"),
+  servicios + monto ("\xBFQu\xE9 servicios te gustar\xEDa cotizar y qu\xE9 presupuesto aproximado manejan?").
+  Nombre, tipo de evento, invitados y correo van SIEMPRE por separado.
 - Si aporta un dato \xFAtil mientras falta otro: primero acusa, luego pide el faltante.
 - Presupuesto resuelto por monto, "no", "no s\xE9", "una propuesta" / "propuesta
   completa" o "que el equipo proponga" \u2192 no vuelvas a preguntarlo; cierra o sigue.
@@ -147528,7 +147564,9 @@ NO suenes a formulario ni a men\xFA autom\xE1tico ni a chatbot de pasos.
 Tu prioridad: ideas y criterio de venta; invita a dar ideas para el evento cuando encaje; el embudo se cuela en UNA pregunta natural.
 Precio/monto SOLO si el cliente lo pidi\xF3 y hay ficha Sheet/PDF; si no hay ficha \u2192 el equipo cotiza.
 El bloque de cat\xE1logo/contexto del turno es REFERENCIA: \xFAsalo para no inventar; NO lo pegues.
-M\xE1ximo una pregunta de embudo por mensaje.
+M\xE1ximo una pregunta de embudo por mensaje. Solo estos pares van juntos en esa pregunta:
+fecha + horario, ciudad + colonia/sal\xF3n, servicios + monto aproximado.
+Nombre, tipo de evento, invitados y correo siempre por separado.
 El nombre del cliente se usa MUY de vez en cuando, no en cada mensaje: nadie escribe
 "Perfecto, Lizbeth" turno tras turno. Si ya lo nombraste hace poco, om\xEDtelo.
 Un mensaje = una idea hilada. Nada de pegar frases sueltas ("Claro que s\xED.") antes de

@@ -8305,6 +8305,18 @@ export function captureContextualAnswer(
     }
   }
 
+  // A16524: "¿Qué servicios… y qué presupuesto manejan?" — anotar el monto si lo dio.
+  if (
+    !filledSet.has("Presupuesto (MXN)") &&
+    asked === "requerimientos" &&
+    lastLucy &&
+    /presupuesto|monto/i.test(lastLucy) &&
+    /\$|\bmil\b|pesos|mxn|presupuesto|monto|\d\s*k\b/i.test(msg)
+  ) {
+    const pres = parsePresupuestoFromText(msg, { askedField: "presupuesto" });
+    if (pres) captures.push({ label: "Presupuesto (MXN)", value: pres });
+  }
+
   if (!filledSet.has("Número de invitados") && asked === "invitados") {
     const inv = parseInvitadosFromText(msg, { askedInvitados: true });
     if (inv) captures.push({ label: "Número de invitados", value: inv });
@@ -8331,6 +8343,22 @@ export function captureContextualAnswer(
   if (!filledSet.has(CRM_FECHA_LABEL) && asked === "fecha") {
     const fecha = parseFechaFromText(msg);
     if (fecha) captures.push({ label: CRM_FECHA_LABEL, value: fecha });
+    // A16524: "¿Ya tienen fecha y horario?" — una respuesta llena ambos (o ambos quedan pendientes).
+    if (
+      !filledSet.has(CRM_HORARIO_LABEL) &&
+      lastLucy &&
+      LUCY_FIELD_ASK_PATTERNS.horario.test(lastLucy)
+    ) {
+      const horario = parseHorarioFromText(msg);
+      if (horario) {
+        captures.push({ label: CRM_HORARIO_LABEL, value: horario });
+      } else if (
+        fecha &&
+        /sin\s+definir|pendiente|por\s+definir|a[uú]n\s+no|todav[ií]a\s+no|no\s+(sabemos|tenemos)/i.test(fecha)
+      ) {
+        captures.push({ label: CRM_HORARIO_LABEL, value: "Sin definir (pendiente)" });
+      }
+    }
   }
 
   // A15210: si corrige ubicación, anotar lugar (aunque el campo ya esté lleno) y no presupuesto.
@@ -8341,7 +8369,10 @@ export function captureContextualAnswer(
     }
   } else if (
     !filledSet.has("Presupuesto (MXN)") &&
-    (asked === "presupuesto" || detectPresupuestoRefusal(msg))
+    !captures.some((c) => c.label === "Presupuesto (MXN)") &&
+    (asked === "presupuesto" ||
+      (detectPresupuestoRefusal(msg) &&
+        !((asked === "fecha" || asked === "horario") && !/presupuesto|monto|\$|dinero/i.test(msg))))
   ) {
     const pres = parsePresupuestoFromText(msg, { askedField: asked === "presupuesto" ? "presupuesto" : null });
     if (pres) {

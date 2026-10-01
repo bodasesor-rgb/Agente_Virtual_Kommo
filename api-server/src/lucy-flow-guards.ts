@@ -4781,11 +4781,37 @@ export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionCo
     return prefix ? `${prefix}${tipoVariant}` : tipoVariant;
   }
 
+  // A16524: chat más corto — fecha y horario en una sola pregunta si faltan los dos.
+  const fechaVariant =
+    field === "fecha" && !horarioAlreadyKnown(ctx)
+      ? FECHA_HORARIO_VARIANTS[variantIndex("fecha", history, ctx.entityId) % FECHA_HORARIO_VARIANTS.length]!
+      : variant;
+
   if (thanks && (field === "zona" || field === "fecha" || field === "invitados" || field === "presupuesto")) {
-    return `${thanks}${variant}`;
+    return `${thanks}${fechaVariant}`;
   }
 
-  return prefix ? `${prefix}${variant}` : variant;
+  return prefix ? `${prefix}${fechaVariant}` : fechaVariant;
+}
+
+/** A16524: preguntas 2 en 1 (fecha + horario). */
+const FECHA_HORARIO_VARIANTS = [
+  "¿Ya tienen fecha y horario del evento?",
+  "¿Qué día y a qué hora sería el evento?",
+  "¿Para qué fecha y en qué horario lo tienen pensado?",
+] as const;
+
+/** A16524: preguntas 2 en 1 (servicios + monto) — solo cuando aún no hay servicios. */
+const REQUERIMIENTOS_MONTO_VARIANTS = [
+  "¿Qué servicios te gustaría cotizar y qué presupuesto aproximado manejan?",
+  "Platícame, ¿qué te gustaría armar para el evento y con qué monto más o menos?",
+  "¿Qué necesitas cotizar y tienes algún monto aproximado en mente?",
+] as const;
+
+function horarioAlreadyKnown(ctx: NaturalQuestionContext): boolean {
+  return (
+    !!ctx.filledSet?.has(CRM_HORARIO_LABEL) || isUsableHorarioEvento(ctx.extracted.horario_evento)
+  );
 }
 
 /** A15935: el cliente ya eligió banquete (sin variante) → toca Formal/Mexicano, no formal vs casual. */
@@ -4864,11 +4890,18 @@ export function buildRequerimientosQuestion(
       return `${prefix}Seguimos con *${service}*.`.trim();
     }
     const idx = variantIndex("requerimientos", history, entityId);
-    const followUps = [
-      `Además del ${service}, ¿te gustaría cotizar algún otro servicio?`,
-      `¿Solo el ${service} o también algo más?`,
-      `Perfecto. Con el ${service}, ¿necesitan algún otro servicio?`,
-    ];
+    // A16524: servicios + monto en la misma pregunta mientras no haya presupuesto.
+    const followUps = hasPresupuestoValue(extracted)
+      ? [
+          `Además del ${service}, ¿te gustaría cotizar algún otro servicio?`,
+          `¿Solo el ${service} o también algo más?`,
+          `Perfecto. Con el ${service}, ¿necesitan algún otro servicio?`,
+        ]
+      : [
+          `Además del ${service}, ¿te gustaría cotizar algún otro servicio y qué presupuesto aproximado manejan?`,
+          `¿Solo el ${service} o también algo más, y con qué monto más o menos?`,
+          `Perfecto. Con el ${service}, ¿necesitan algún otro servicio y tienen un monto aproximado en mente?`,
+        ];
     return appendServiciosCatalogoHint(
       `${prefix}${followUps[idx % followUps.length]}`,
       true,
@@ -4876,7 +4909,9 @@ export function buildRequerimientosQuestion(
     );
   }
 
-  const variant = pickVariant("requerimientos", history, entityId);
+  const variant = !hasPresupuestoValue(extracted)
+    ? REQUERIMIENTOS_MONTO_VARIANTS[variantIndex("requerimientos", history, entityId) % REQUERIMIENTOS_MONTO_VARIANTS.length]!
+    : pickVariant("requerimientos", history, entityId);
   const core = prefix ? `${prefix}${variant}` : variant;
   return appendServiciosCatalogoHint(core, false, history);
 }
