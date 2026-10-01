@@ -11,7 +11,12 @@ import {
   CRM_FECHA_LABEL,
   CRM_HORARIO_LABEL,
 } from "../conversation-understanding.js";
-import { parseNombreCorrection } from "../contact-name.js";
+import {
+  parseNombreCorrection,
+  sanitizeCrmNombre,
+  isWeakOrJunkNombre,
+  resolveKommoLeadNamePatch,
+} from "../contact-name.js";
 import { applyLucyMessageGuards } from "../lucy-flow-guards.js";
 import { setCatalogSnapshotForTests } from "../services/catalogService.js";
 import { parseSheetCatalogCsv } from "../services/googleSheetsCatalog.js";
@@ -43,6 +48,14 @@ assert.equal(parseNombreCorrection("soy cliente, no proveedor"), null);
 assert.equal(parseNombreCorrection("no soy proveedor, soy cliente"), null);
 assert.equal(parseNombreCorrection("no es para mí, es para mi hija"), null);
 assert.equal(parseNombreCorrection("soy Alejandro"), null);
+
+// A16554: lead.name con saludo del chat → se reemplaza por el nombre real.
+assert.equal(sanitizeCrmNombre("Alex Como Estas Espero"), null);
+assert.ok(isWeakOrJunkNombre("Hola Buenas Tardes"));
+assert.equal(resolveKommoLeadNamePatch("Alex Como Estas Espero", "Santiago Abascal"), "Santiago Abascal");
+assert.equal(sanitizeCrmNombre("Esperanza Gomez"), "Esperanza Gomez");
+assert.equal(sanitizeCrmNombre("Santi Abascal"), "Santi Abascal");
+assert.equal(resolveKommoLeadNamePatch("Santi Abascal", "Pedro"), null);
 
 const guard = (o: { ai: string; cur: string; hist: OpenAI.Chat.ChatCompletionMessageParam[]; extracted: Partial<ExtractedData>; filled: string[] }) =>
   applyLucyMessageGuards({

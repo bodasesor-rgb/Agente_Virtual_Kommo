@@ -111247,6 +111247,17 @@ function isAffirmativeOnlyMessage(text2) {
   );
 }
 var NAME_COURTESY_OR_ROLE_TOKEN = /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto|servidor[ao]?|servidora|a\s+sus\s+[oó]rdenes|presente|mismo|misma)$/i;
+function isChatPhraseAsNombre(name2) {
+  const t3 = (name2 ?? "").trim();
+  if (!t3 || t3.split(/\s+/).length < 2) return false;
+  if (/(?:^|[,!.]\s*|\s)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t3)) return false;
+  const fold5 = t3.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/\b(espero|estas|saludos|que\s+tal|como\s+esta|como\s+te\s+va|muy\s+bien)\b/.test(fold5)) return true;
+  const chat = fold5.split(/[^a-zñ]+/).filter(
+    (w4) => /^(hola|buenas|buenos|buen|dia|dias|tardes|noches|como|esta|que|tal|bien|gracias|oye|disculpa|perdon|favor|porfa|muy)$/.test(w4)
+  );
+  return chat.length >= 2;
+}
 function isWeakOrJunkNombre(name2) {
   const t3 = (name2 ?? "").trim();
   if (!t3) return true;
@@ -111256,6 +111267,7 @@ function isWeakOrJunkNombre(name2) {
   if (isPlaceholderLeadName(t3)) return true;
   if (isAffirmativeOnlyMessage(t3)) return true;
   if (/\bcon\s+gusto\b/i.test(t3)) return true;
+  if (isChatPhraseAsNombre(t3)) return true;
   const parts2 = t3.split(/\s+/).filter(Boolean);
   if (parts2.length === 1) {
     const rawPart = parts2[0] ?? "";

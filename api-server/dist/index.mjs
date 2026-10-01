@@ -90376,6 +90376,17 @@ function isAffirmativeOnlyMessage(text2) {
     t4
   );
 }
+function isChatPhraseAsNombre(name2) {
+  const t4 = (name2 ?? "").trim();
+  if (!t4 || t4.split(/\s+/).length < 2) return false;
+  if (/(?:^|[,!.]\s*|\s)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t4)) return false;
+  const fold5 = t4.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/\b(espero|estas|saludos|que\s+tal|como\s+esta|como\s+te\s+va|muy\s+bien)\b/.test(fold5)) return true;
+  const chat = fold5.split(/[^a-zñ]+/).filter(
+    (w5) => /^(hola|buenas|buenos|buen|dia|dias|tardes|noches|como|esta|que|tal|bien|gracias|oye|disculpa|perdon|favor|porfa|muy)$/.test(w5)
+  );
+  return chat.length >= 2;
+}
 function isWeakOrJunkNombre(name2) {
   const t4 = (name2 ?? "").trim();
   if (!t4) return true;
@@ -90385,6 +90396,7 @@ function isWeakOrJunkNombre(name2) {
   if (isPlaceholderLeadName(t4)) return true;
   if (isAffirmativeOnlyMessage(t4)) return true;
   if (/\bcon\s+gusto\b/i.test(t4)) return true;
+  if (isChatPhraseAsNombre(t4)) return true;
   const parts2 = t4.split(/\s+/).filter(Boolean);
   if (parts2.length === 1) {
     const rawPart = parts2[0] ?? "";
@@ -239137,7 +239149,7 @@ async function fetchLeadContactId(subdomain, accessToken, leadId) {
     return null;
   }
 }
-async function updateKommoContact(subdomain, accessToken, contactId, extracted, log, currentContactName) {
+async function updateKommoContact(subdomain, accessToken, contactId, extracted, log, currentContactName, correctedNombre) {
   const hasContact2 = extracted.nombre || extracted.telefono || extracted.correo;
   if (!hasContact2) return;
   const contactPayload = {};
@@ -239156,7 +239168,9 @@ async function updateKommoContact(subdomain, accessToken, contactId, extracted, 
     }
     const baseline = pickBetterNombre(contactRealName, currentContactName) ?? contactRealName ?? currentContactName ?? null;
     const namePatch = resolveKommoLeadNamePatch(baseline, extracted.nombre);
-    if (namePatch) {
+    if (correctedNombre && (baseline ?? "").trim().toLowerCase() !== correctedNombre.toLowerCase()) {
+      contactPayload["name"] = correctedNombre;
+    } else if (namePatch) {
       contactPayload["name"] = namePatch;
     } else if (!baseline?.trim()) {
       const fresh = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
@@ -239832,13 +239846,15 @@ async function processBatch(batch, accessToken, log) {
       const contactId = await fetchLeadContactId(subdomain, accessToken, entityId);
       if (contactId) {
         const extractedForContact = withCrmNombre(extracted, crmMergedLines);
+        const correctedNombre = parseNombreCorrection(conversationText);
         await updateKommoContact(
           subdomain,
           accessToken,
           contactId,
           extractedForContact,
           log,
-          kommoLeadName
+          kommoLeadName,
+          correctedNombre && parseNombreFromCrmLines(crmMergedLines)?.toLowerCase() === correctedNombre.toLowerCase() ? correctedNombre : null
         );
       } else {
         log.warn({ entityId }, "No se encontr\xF3 contacto vinculado al lead");

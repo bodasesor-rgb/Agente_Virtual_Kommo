@@ -558,6 +558,24 @@ export function isAffirmativeOnlyMessage(text: string | null | undefined): boole
 const NAME_COURTESY_OR_ROLE_TOKEN =
   /^(mucho|gusto|encantad[oa]|placer|igualmente|un\s+gusto|servidor[ao]?|servidora|a\s+sus\s+[oó]rdenes|presente|mismo|misma)$/i;
 
+/**
+ * A16554: lead.name "Alex Como Estas Espero" = saludo del chat, no persona.
+ * "Hola, soy Ana" (presentación) no cuenta; "Gracias Alex" (una sola cortesía) tampoco.
+ */
+export function isChatPhraseAsNombre(name: string | null | undefined): boolean {
+  const t = (name ?? "").trim();
+  if (!t || t.split(/\s+/).length < 2) return false;
+  if (/(?:^|[,!.]\s*|\s)(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
+  const fold = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/\b(espero|estas|saludos|que\s+tal|como\s+esta|como\s+te\s+va|muy\s+bien)\b/.test(fold)) return true;
+  const chat = fold
+    .split(/[^a-zñ]+/)
+    .filter((w) =>
+      /^(hola|buenas|buenos|buen|dia|dias|tardes|noches|como|esta|que|tal|bien|gracias|oye|disculpa|perdon|favor|porfa|muy)$/.test(w)
+    );
+  return chat.length >= 2;
+}
+
 /** Nombre CRM débil/basura: "Con", "Claro", un solo token preposición/cortesía. */
 export function isWeakOrJunkNombre(name: string | null | undefined): boolean {
   const t = (name ?? "").trim();
@@ -568,6 +586,7 @@ export function isWeakOrJunkNombre(name: string | null | undefined): boolean {
   if (isPlaceholderLeadName(t)) return true;
   if (isAffirmativeOnlyMessage(t)) return true;
   if (/\bcon\s+gusto\b/i.test(t)) return true;
+  if (isChatPhraseAsNombre(t)) return true;
   const parts = t.split(/\s+/).filter(Boolean);
   if (parts.length === 1) {
     const rawPart = parts[0] ?? "";

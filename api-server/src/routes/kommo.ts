@@ -1284,7 +1284,9 @@ async function updateKommoContact(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   log: any,
   /** Nombre actual del contacto/lead — no acortar apellido (clase A15727+). */
-  currentContactName?: string | null
+  currentContactName?: string | null,
+  /** A16550: el cliente corrigió su nombre ("No soy Romeo, soy Alejandro") — gana sobre WhatsApp. */
+  correctedNombre?: string | null
 ): Promise<void> {
   const hasContact = extracted.nombre || extracted.telefono || extracted.correo;
   if (!hasContact) return;
@@ -1314,7 +1316,9 @@ async function updateKommoContact(
       null;
     // Nunca degradar "Daniela Loustaunau" → "Daniela" al sincronizar el contacto.
     const namePatch = resolveKommoLeadNamePatch(baseline, extracted.nombre);
-    if (namePatch) {
+    if (correctedNombre && (baseline ?? "").trim().toLowerCase() !== correctedNombre.toLowerCase()) {
+      contactPayload["name"] = correctedNombre;
+    } else if (namePatch) {
       contactPayload["name"] = namePatch;
     } else if (!baseline?.trim()) {
       const fresh = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
@@ -2346,13 +2350,18 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       const contactId = await fetchLeadContactId(subdomain, accessToken, entityId);
       if (contactId) {
         const extractedForContact = withCrmNombre(extracted, crmMergedLines);
+        const correctedNombre = parseNombreCorrection(conversationText);
         await updateKommoContact(
           subdomain,
           accessToken,
           contactId,
           extractedForContact,
           log,
-          kommoLeadName
+          kommoLeadName,
+          correctedNombre &&
+            parseNombreFromCrmLines(crmMergedLines)?.toLowerCase() === correctedNombre.toLowerCase()
+            ? correctedNombre
+            : null
         );
       } else {
         log.warn({ entityId }, "No se encontró contacto vinculado al lead");
