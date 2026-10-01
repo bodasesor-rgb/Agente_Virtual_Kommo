@@ -14,6 +14,7 @@ import { ensureKnowledgeGapSchema } from "./services/knowledgeGapSchema.js";
 import { ensureLucyInfoSchema } from "./services/lucyInfoSchema.js";
 import { seedLucyInfoIfEmpty, warmLucyInfoPriceCache } from "./services/lucyInfoStore.js";
 import { bootstrapCatalog, startCatalogAutoRefresh } from "./services/catalogService.js";
+import { startCatalogWebSyncScheduler } from "./services/catalogWebSync.js";
 
 const rawPort = process.env["PORT"] ?? "3000";
 
@@ -108,6 +109,7 @@ async function startServer(): Promise<void> {
   });
 
   startCatalogAutoRefresh();
+  startCatalogWebSyncScheduler();
   void bootstrapCatalog()
     .then(() => {
       logger.info("Catálogo Google Sheets cargado al arranque");

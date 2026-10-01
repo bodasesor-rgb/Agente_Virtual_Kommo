@@ -869,14 +869,15 @@ function renderLearnedPdfsZone(documents) {
 
   listEl.innerHTML = learnedCatalogDocs
     .map((d) => {
-      const label = d.sourceFilename || d.title || "Sin nombre";
+      const label = d.webSlug ? `${d.title} (web)` : d.sourceFilename || d.title || "Sin nombre";
       const when = d.updatedAt ? formatDate(d.updatedAt) : "—";
       const chars = d.charCount ?? d.content?.length ?? 0;
+      const superseded = d.supersededByWeb ? " · reemplazado por la web (respaldo)" : "";
       return `
-        <li class="learned-pdf-chip" data-id="${escapeHtml(d.id)}" title="${escapeHtml(label)}">
-          <span class="learned-pdf-icon" aria-hidden="true">PDF</span>
+        <li class="learned-pdf-chip${d.supersededByWeb ? " superseded" : ""}" data-id="${escapeHtml(d.id)}" title="${escapeHtml(label)}">
+          <span class="learned-pdf-icon" aria-hidden="true">${d.webSlug ? "WEB" : "PDF"}</span>
           <span class="learned-pdf-name">${escapeHtml(label)}</span>
-          <span class="learned-pdf-meta">${chars} car. · ${escapeHtml(when)}</span>
+          <span class="learned-pdf-meta">${chars} car. · ${escapeHtml(when)}${superseded}</span>
           <div class="learned-pdf-actions">
             <button type="button" class="btn-ghost learned-pdf-ver-mas" data-id="${escapeHtml(d.id)}">Ver más</button>
             <button type="button" class="btn-ghost learned-pdf-delete" data-id="${escapeHtml(d.id)}">Quitar</button>
@@ -912,13 +913,77 @@ function renderLearnedPdfsZone(documents) {
   });
 }
 
+let webSyncPoll = null;
+
+function describeWebSync(s) {
+  if (!s || !s.enabled) {
+    return "Sincronización con la web apagada (falta GAMMA_API_KEY en el servidor).";
+  }
+  if (s.running) {
+    return `Leyendo catálogos de la web… ${s.current ? `(${s.current})` : ""}`;
+  }
+  const r = s.lastResult;
+  if (!r || !s.lastFinishedAt) return `Automática: ${s.schedule}. Aún no corre.`;
+  const fails = r.failed ? ` · ${r.failed} con error (${(r.failedSlugs || []).join(", ")})` : "";
+  return `Última: ${formatDate(s.lastFinishedAt)} — ${r.exported} actualizados · ${r.unchanged} sin cambios${fails}. Automática: ${s.schedule}.`;
+}
+
+async function refreshWebSyncStatus() {
+  const el = document.getElementById("web-sync-status");
+  const btn = document.getElementById("web-sync-btn");
+  if (!el) return;
+  const res = await fetchJson("/lucy-info/web-sync");
+  if (!res.ok) return;
+  const s = res.data;
+  el.textContent = describeWebSync(s);
+  if (btn) btn.disabled = !s.enabled || s.running;
+  if (s.running && !webSyncPoll) {
+    webSyncPoll = setInterval(async () => {
+      const r = await fetchJson("/lucy-info/web-sync");
+      if (!r.ok) return;
+      el.textContent = describeWebSync(r.data);
+      if (!r.data.running) {
+        clearInterval(webSyncPoll);
+        webSyncPoll = null;
+        if (btn) btn.disabled = !r.data.enabled;
+        await loadInfoModeDocsOnly().catch(() => {});
+        await loadStats().catch(() => {});
+      }
+    }, 5000);
+  }
+}
+
+function bindWebSyncButton() {
+  const btn = document.getElementById("web-sync-btn");
+  if (!btn || btn.dataset.bound) return;
+  btn.dataset.bound = "1";
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    const res = await fetchJson("/lucy-info/web-sync", { method: "POST", body: "{}" });
+    const el = document.getElementById("web-sync-status");
+    if (!res.ok && el) {
+      el.textContent =
+        res.error === "cooldown"
+          ? "Se acaba de actualizar; intenta de nuevo en unos minutos."
+          : res.error === "already_running"
+            ? "Ya se está actualizando."
+            : res.error === "disabled"
+              ? "Sincronización apagada (falta GAMMA_API_KEY en el servidor)."
+              : `No se pudo iniciar (${res.error}).`;
+    }
+    await refreshWebSyncStatus();
+  });
+}
+
 async function loadInfoModeDocsOnly() {
   const listEl = document.getElementById("info-docs-list");
   if (!listEl) return;
-  const data = await api("/lucy-info?limit=80");
+  const data = await api("/lucy-info?limit=200");
   const docs = data.documents || [];
 
   renderLearnedPdfsZone(docs);
+  bindWebSyncButton();
+  void refreshWebSyncStatus();
 
   listEl.innerHTML = "";
   if (!docs.length) {
@@ -1144,6 +1209,12 @@ function renderInfoPanelShell() {
           Si vuelves a soltar el mismo archivo, se omite automáticamente.
           <span id="learned-pdfs-count">0 PDF/catálogo</span>
         </p>
+        <div class="web-sync-row">
+          <button type="button" id="web-sync-btn" class="btn-ghost">Actualizar desde la web</button>
+          <span id="web-sync-status" class="info-help">
+            Cada noche Lucy lee los catálogos de bodasesor.com/catalogos; lo de la web manda sobre el PDF subido a mano.
+          </span>
+        </div>
       </div>
       <ul id="learned-pdfs-list" class="learned-pdfs-list"></ul>
     </section>

@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ensureLucyInfoSchema } from "./lucyInfoSchema.js";
 import { refreshLucyInfoPriceCache } from "./lucyInfoPriceCache.js";
+import { WEB_SOURCE_PREFIX, dropSupersededByWeb } from "./catalogWebKnowledge.js";
 import { logger } from "../lib/logger.js";
 
 export type LucyInfoKind = "catalog" | "tips";
@@ -33,7 +34,7 @@ export async function listLucyInfoDocuments(
   limit = 50,
 ): Promise<LucyInfoDocumentRecord[]> {
   await ensureLucyInfoSchema();
-  const capped = Math.min(Math.max(limit, 1), 100);
+  const capped = Math.min(Math.max(limit, 1), 200);
   const rows = kind
     ? await db
         .select()
@@ -49,7 +50,7 @@ export async function listLucyInfoDocuments(
   // Mantener caché de precios PDF para el price-guard (no inventados si están del panel).
   if (!kind || kind === "catalog") {
     refreshLucyInfoPriceCache(
-      rows
+      dropSupersededByWeb(rows)
         .filter((r) => r.kind !== "tips")
         .map((r) => ({ title: r.title, content: r.content, kind: r.kind })),
     );
@@ -109,7 +110,7 @@ export async function createLucyInfoDocument(input: {
     .returning();
   if (!row) throw new Error("insert_failed");
   // Refresco best-effort del índice de precios aprendidos.
-  void listLucyInfoDocuments(undefined, 100).catch(() => undefined);
+  void listLucyInfoDocuments(undefined, 200).catch(() => undefined);
   return row;
 }
 
@@ -140,6 +141,47 @@ export async function updateLucyInfoDocument(
   return row ?? null;
 }
 
+export async function webCatalogDocExists(slug: string): Promise<boolean> {
+  await ensureLucyInfoSchema();
+  const rows = await db
+    .select({ id: lucyInfoDocuments.id })
+    .from(lucyInfoDocuments)
+    .where(eq(lucyInfoDocuments.sourceFilename, `${WEB_SOURCE_PREFIX}${slug}`))
+    .limit(1);
+  return rows.length > 0;
+}
+
+/** Crea o actualiza el documento "web:{slug}" que trae la sincronización de catálogos. */
+export async function upsertWebCatalogDocument(input: {
+  slug: string;
+  title: string;
+  content: string;
+}): Promise<LucyInfoDocumentRecord> {
+  await ensureLucyInfoSchema();
+  const sourceFilename = `${WEB_SOURCE_PREFIX}${input.slug}`;
+  const content = normalizeContent(input.content).slice(0, 200_000);
+  if (!content) throw new Error("content_required");
+  const title = normalizeTitle(input.title, "catalog");
+  const [existing] = await db
+    .select({ id: lucyInfoDocuments.id })
+    .from(lucyInfoDocuments)
+    .where(eq(lucyInfoDocuments.sourceFilename, sourceFilename))
+    .limit(1);
+  const [row] = existing
+    ? await db
+        .update(lucyInfoDocuments)
+        .set({ title, content, updatedAt: new Date() })
+        .where(eq(lucyInfoDocuments.id, existing.id))
+        .returning()
+    : await db
+        .insert(lucyInfoDocuments)
+        .values({ kind: "catalog", title, content, sourceFilename, updatedAt: new Date() })
+        .returning();
+  if (!row) throw new Error("upsert_failed");
+  void listLucyInfoDocuments(undefined, 200).catch(() => undefined);
+  return row;
+}
+
 export async function deleteLucyInfoDocument(id: string): Promise<boolean> {
   await ensureLucyInfoSchema();
   const deleted = await db
@@ -147,7 +189,7 @@ export async function deleteLucyInfoDocument(id: string): Promise<boolean> {
     .where(eq(lucyInfoDocuments.id, id))
     .returning({ id: lucyInfoDocuments.id });
   if (deleted.length > 0) {
-    void listLucyInfoDocuments(undefined, 100).catch(() => undefined);
+    void listLucyInfoDocuments(undefined, 200).catch(() => undefined);
   }
   return deleted.length > 0;
 }
@@ -254,7 +296,7 @@ function formatDocBody(doc: LucyInfoDocumentRecord): string {
 
 /** Carga PDFs a la caché de precios (para guards de pista/mobiliario). */
 export async function warmLucyInfoPriceCache(): Promise<number> {
-  const docs = await listLucyInfoDocuments(undefined, 100);
+  const docs = await listLucyInfoDocuments(undefined, 200);
   return docs.filter((d) => d.kind !== "tips").length;
 }
 
@@ -337,11 +379,11 @@ export async function buildLucyInfoPromptBlock(opts?: {
   const maxCatalog = opts?.maxCatalogChars ?? 22_000;
   const maxTips = opts?.maxTipsChars ?? 6_000;
 
-  const docs = await listLucyInfoDocuments(undefined, 100);
+  const docs = await listLucyInfoDocuments(undefined, 200);
   if (!docs.length) return "";
 
   const tokens = tokenizeLucyInfoQuery(opts?.queryText || "");
-  const catalogs = docs.filter((d) => d.kind !== "tips");
+  const catalogs = dropSupersededByWeb(docs).filter((d) => d.kind !== "tips");
   const tips = docs.filter((d) => d.kind === "tips");
 
   // A15204: si el hilo habla de comida/canapés, no inyectar PDF de mesas/sillas

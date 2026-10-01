@@ -161,7 +161,7 @@ async function tryGammaExportUrl(gammaId: string): Promise<string | null> {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify({ format: "pdf" }),
+      body: JSON.stringify({ exportAs: "pdf" }),
       signal: AbortSignal.timeout(20_000),
     });
 

@@ -14,6 +14,7 @@ import { getCatalogStatus } from "../services/catalogService.js";
 import { getBuildMeta } from "../lib/buildMeta.js";
 import { getLucyInfoStats } from "../services/lucyInfoStore.js";
 import { getLucyInfoCachedDocs } from "../services/lucyInfoPriceCache.js";
+import { getCatalogWebSyncStatus } from "../services/catalogWebSync.js";
 
 const router: IRouter = Router();
 
@@ -67,6 +68,7 @@ router.get("/health", async (_req, res) => {
       "gemini-image-compress-1024",
       "proveedor-alianza-handoff",
       "proveedor-questionnaire-sheets",
+      "catalog-web-sync-gamma",
     ],
     learning: {
       note: "Panel /aprendizaje: chats, huecos Sheet e Información para Lucy (PDF→texto + tendencias). Sync Kommo; cron 5 min; auto-aprueba ≥0.85",
@@ -122,6 +124,7 @@ router.get("/health", async (_req, res) => {
       note: "Campo 1048786 = resumen interno CRM, no mensaje WhatsApp",
     },
     catalog: getCatalogStatus(),
+    catalog_web_sync: getCatalogWebSyncStatus(),
   });
 });
 

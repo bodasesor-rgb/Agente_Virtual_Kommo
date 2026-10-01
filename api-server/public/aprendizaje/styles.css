@@ -822,6 +822,18 @@ textarea.answer-box { min-height: 110px; }
   white-space: nowrap;
 }
 
+.learned-pdf-chip.superseded {
+  opacity: 0.55;
+}
+
+.web-sync-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.5rem;
+}
+
 .learned-pdf-ver-mas,
 .learned-pdf-delete {
   padding: 0.3rem 0.55rem !important;

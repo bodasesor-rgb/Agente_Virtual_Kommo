@@ -6,7 +6,9 @@ import {
   updateLucyInfoDocument,
   deleteLucyInfoDocument,
 } from "../services/lucyInfoStore.js";
+import { isSupersededByWeb, webCatalogSlugOf } from "../services/catalogWebKnowledge.js";
 import { extractPlainTextFromPdf } from "../services/pdfTextExtract.js";
+import { getCatalogWebSyncStatus, triggerManualCatalogWebSync } from "../services/catalogWebSync.js";
 
 const router: IRouter = Router();
 
@@ -43,12 +45,36 @@ router.get("/lucy-info", async (req: Request, res: Response) => {
   try {
     const kindParam = String(req.query.kind ?? "").trim();
     const kind = kindParam === "tips" || kindParam === "catalog" ? kindParam : undefined;
-    const limit = Math.min(Number(req.query.limit ?? 50), 100);
+    const limit = Math.min(Number(req.query.limit ?? 50), 200);
     const docs = await listLucyInfoDocuments(kind, limit);
-    res.json({ documents: docs.map(mapDoc), total: docs.length });
+    const webSlugs = new Set(docs.map(webCatalogSlugOf).filter((s): s is string => !!s));
+    res.json({
+      documents: docs.map((d) => ({
+        ...mapDoc(d),
+        webSlug: webCatalogSlugOf(d),
+        supersededByWeb: isSupersededByWeb(d, webSlugs),
+      })),
+      total: docs.length,
+    });
   } catch {
     res.status(500).json({ error: "failed_to_load_lucy_info" });
   }
+});
+
+/** Estado de la sincronización con bodasesor.com/catalogos (Gamma → PDF → texto). */
+router.get("/lucy-info/web-sync", (_req: Request, res: Response) => {
+  res.json(getCatalogWebSyncStatus());
+});
+
+/** Botón "Actualizar desde la web": corre en segundo plano; solo exporta lo que cambió. */
+router.post("/lucy-info/web-sync", (_req: Request, res: Response) => {
+  const r = triggerManualCatalogWebSync();
+  if (!r.started) {
+    const code = r.reason === "disabled" ? 503 : r.reason === "cooldown" ? 429 : 409;
+    res.status(code).json({ error: r.reason, status: getCatalogWebSyncStatus() });
+    return;
+  }
+  res.status(202).json({ ok: true, status: getCatalogWebSyncStatus() });
 });
 
 /** Extrae texto plano de un PDF (base64) sin guardar todavía. */

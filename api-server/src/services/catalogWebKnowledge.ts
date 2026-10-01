@@ -304,6 +304,33 @@ export function buildCatalogWebDetailHint(query: string): string | null {
   return parts.join("\n");
 }
 
+export const WEB_SOURCE_PREFIX = "web:";
+
+export function webCatalogSlugOf(doc: { sourceFilename?: string | null }): string | null {
+  const src = doc.sourceFilename?.trim() ?? "";
+  return src.startsWith(WEB_SOURCE_PREFIX) ? src.slice(WEB_SOURCE_PREFIX.length) : null;
+}
+
+/**
+ * Catálogo de la web (web:{slug}) manda sobre el PDF subido a mano del mismo catálogo:
+ * el manual queda en la base como respaldo pero Lucy no lo usa mientras exista el de la web.
+ */
+export function isSupersededByWeb(
+  doc: { kind: string; title: string; sourceFilename?: string | null },
+  webSlugs: Set<string>
+): boolean {
+  if (!webSlugs.size || doc.kind === "tips" || webCatalogSlugOf(doc)) return false;
+  const slug = resolveCatalogWebSlug(`${doc.title} ${doc.sourceFilename ?? ""}`.replace(/\.pdf\b/gi, ""));
+  return !!slug && webSlugs.has(slug);
+}
+
+export function dropSupersededByWeb<T extends { kind: string; title: string; sourceFilename?: string | null }>(
+  docs: T[]
+): T[] {
+  const webSlugs = new Set(docs.map(webCatalogSlugOf).filter((s): s is string => !!s));
+  return webSlugs.size ? docs.filter((d) => !isSupersededByWeb(d, webSlugs)) : docs;
+}
+
 /** Solo tests. */
 export function resetCatalogWebKnowledgeForTests(): void {
   embedsCache = null;
