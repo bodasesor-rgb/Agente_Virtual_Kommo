@@ -819,6 +819,36 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
   return candidate;
 }
 
+/**
+ * A16550: el cliente corrige el nombre guardado — "No soy Romeo, soy Alejandro",
+ * "no me llamo Romeo, me llamo Alejandro", "mi nombre es Alejandro, no Romeo".
+ * Devuelve el nombre nuevo (gana sobre CRM / WhatsApp aunque sea otra persona).
+ */
+export function parseNombreCorrection(message: string | null | undefined): string | null {
+  const t = (message ?? "").trim();
+  if (!t) return null;
+  const NAME = String.raw`(\p{L}{2,}(?:\s+\p{Lu}\p{L}+)?)`;
+  const patterns = [
+    new RegExp(
+      String.raw`\bno\s+(?:soy|me\s+llamo|es)\s+\p{L}+[\s,.;:!-]+(?:sino\s+|yo\s+)?(?:soy|me\s+llamo|mi\s+nombre\s+es|es)\s+${NAME}`,
+      "iu"
+    ),
+    new RegExp(String.raw`\b(?:me\s+llamo|mi\s+nombre\s+es|soy)\s+${NAME}[\s,.;:!-]+no\s+\p{L}+`, "iu"),
+    new RegExp(
+      String.raw`\b(?:me\s+equivoqu[eé]|corrijo|perd[oó]n)\b[^\n]{0,20}\b(?:me\s+llamo|mi\s+nombre\s+es|soy)\s+${NAME}`,
+      "iu"
+    ),
+  ];
+  for (const re of patterns) {
+    const raw = t.match(re)?.[1];
+    if (!raw) continue;
+    const firstLineOnly = raw.split(/\n/)[0]!.trim();
+    const cleaned = sanitizeCrmNombre(firstLineOnly) ?? sanitizeCrmNombre(firstLineOnly.split(/\s+/)[0]);
+    if (cleaned && !isWeakOrJunkNombre(cleaned)) return cleaned;
+  }
+  return null;
+}
+
 /** Nunca sobrescribir un nombre existente con uno más corto (menos palabras). */
 export function shouldUpdateName(current?: string, incoming?: string): boolean {
   const c = (current ?? "").trim();

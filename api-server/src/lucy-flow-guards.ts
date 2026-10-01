@@ -19,6 +19,7 @@ import {
   clientAsksLucyIdentity,
   buildLucyIdentityReply,
   stripNameHonorific,
+  parseNombreCorrection,
 } from "./contact-name.js";
 import {
   buildEmailConfirmationPrompt,
@@ -4801,7 +4802,7 @@ export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionCo
 const FECHA_HORARIO_VARIANTS = [
   "¿Ya tienen fecha y horario del evento?",
   "¿Qué día y a qué hora sería el evento?",
-  "¿Para qué fecha y en qué horario lo tienen pensado?",
+  "¿Para qué fecha y en qué horario sería?",
 ] as const;
 
 /** A16524: preguntas 2 en 1 (servicios + monto) — solo cuando aún no hay servicios. */
@@ -6385,6 +6386,58 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       : null;
     if (sala === "Sala lounge (1)" && !/\buna\s+sala\s+lounge\b/i.test(mensaje)) {
       mensaje = `Tienes razón, es *una sala lounge*; ya lo corregí.\n\n${mensaje.replace(/^¡Con gusto(?:,\s*[^!]+)?!\s*/i, "")}`.trim();
+    }
+  }
+  // A16550: Lucy ofreció "¿te comparto el detalle de los niveles…?" y el cliente dijo "sí, adelante"
+  // → mandar los niveles del servicio (no "te lo confirmo con el equipo" sin nada).
+  {
+    const lastLucy = [...input.history]
+      .reverse()
+      .find((m) => m.role === "assistant" && typeof m.content === "string")?.content as string | undefined;
+    const offered =
+      !!lastLucy &&
+      /(?:te\s+(?:gustar[ií]a\s+que\s+te\s+)?(?:comparta|comparto|pase|paso|mande|mando|env[ií]e|detalle|detallo)|quieres\s+que\s+te\s+(?:comparta|pase|mande|detalle|d[eé]|env[ií]e))[^?]{0,80}\b(niveles|opciones|paquetes|detalle|men[uú])\b/i.test(
+        lastLucy
+      );
+    const yes =
+      /^(s[ií]|sip|dale|claro|ok|okay|va|adelante|por\s+favor|porfa|me\s+late|perfecto)([\s,.!]+(s[ií]|adelante|por\s+favor|porfa|claro|dale|comp[aá]rtelo|m[aá]ndalo|p[aá]salo|gracias))*[\s.!]*$/i.test(
+        (input.currentMessage ?? "").trim()
+      );
+    if (offered && yes && !/\$\s*\d|manejamos|niveles?:/i.test(mensaje)) {
+      const service =
+        parseServicesFromText(lastLucy!)[0] ??
+        (input.extracted.requerimientos_evento ?? "").split(",")[0]?.trim();
+      const levels = service ? buildCatalogPriceAnswer(service) : null;
+      const body =
+        levels ?? (service ? buildCatalogWebLinkReply({ query: service, serviceHint: service }) : null);
+      if (body) {
+        const pending = getNextPendingField(input.extracted, input.filledSet);
+        const nextQ =
+          pending && pending !== "requerimientos" && pending !== "nombre" && !/\?\s*$/.test(body)
+            ? `\n\n${buildNaturalQuestion(pending, makeQuestionCtx(input))}`
+            : "";
+        mensaje = `Claro, aquí van las opciones de *${service}*:\n\n${body}${nextQ}`.trim();
+      }
+    }
+  }
+  // A16550: "No soy Romeo, soy Alejandro" — disculpa con el nombre correcto, nunca el viejo.
+  {
+    const corrected = parseNombreCorrection(input.currentMessage);
+    if (corrected) {
+      const first = corrected.split(/\s+/)[0]!;
+      const wrong = input.whatsappDisplayName?.trim().split(/\s+/)[0];
+      let body = mensaje
+        .replace(/^(?:¡?Gracias por (?:la )?aclar(?:ación|arlo|arme)[^.!?\n]*[.!]\s*)/i, "")
+        .replace(/^¡?Mucho gusto,?\s+[^!.\n]+[!.]\s*/i, "")
+        .replace(/^¡?Perfecto,\s+[^!.\n]+[!.]\s*/i, "");
+      if (wrong && wrong.toLowerCase() !== first.toLowerCase()) {
+        body = body.replace(new RegExp(`\\b${wrong.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi"), first);
+      }
+      if (!new RegExp(`\\b${first}\\b`, "i").test(body.slice(0, 60))) {
+        mensaje = `Perdón, ${first}, ya lo corregí. ${body}`.trim();
+      } else {
+        mensaje = body.trim();
+      }
     }
   }
   // A16503: "Banquete Formal, Alimentos" → sin la comida genérica si ya hay SKU concreto.

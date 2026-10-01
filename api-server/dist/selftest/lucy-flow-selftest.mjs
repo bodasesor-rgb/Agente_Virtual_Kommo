@@ -111425,6 +111425,30 @@ function sanitizeCrmNombre(name2) {
   if (CATALOG_LEVEL_OR_BRAND_NAME.test(candidate.split(/\s+/)[0] ?? "")) return null;
   return candidate;
 }
+function parseNombreCorrection(message) {
+  const t3 = (message ?? "").trim();
+  if (!t3) return null;
+  const NAME2 = String.raw`(\p{L}{2,}(?:\s+\p{Lu}\p{L}+)?)`;
+  const patterns = [
+    new RegExp(
+      String.raw`\bno\s+(?:soy|me\s+llamo|es)\s+\p{L}+[\s,.;:!-]+(?:sino\s+|yo\s+)?(?:soy|me\s+llamo|mi\s+nombre\s+es|es)\s+${NAME2}`,
+      "iu"
+    ),
+    new RegExp(String.raw`\b(?:me\s+llamo|mi\s+nombre\s+es|soy)\s+${NAME2}[\s,.;:!-]+no\s+\p{L}+`, "iu"),
+    new RegExp(
+      String.raw`\b(?:me\s+equivoqu[eé]|corrijo|perd[oó]n)\b[^\n]{0,20}\b(?:me\s+llamo|mi\s+nombre\s+es|soy)\s+${NAME2}`,
+      "iu"
+    )
+  ];
+  for (const re3 of patterns) {
+    const raw = t3.match(re3)?.[1];
+    if (!raw) continue;
+    const firstLineOnly = raw.split(/\n/)[0].trim();
+    const cleaned = sanitizeCrmNombre(firstLineOnly) ?? sanitizeCrmNombre(firstLineOnly.split(/\s+/)[0]);
+    if (cleaned && !isWeakOrJunkNombre(cleaned)) return cleaned;
+  }
+  return null;
+}
 function shouldUpdateName(current, incoming) {
   const c4 = (current ?? "").trim();
   const i5 = (incoming ?? "").trim();
@@ -127710,6 +127734,9 @@ function isLocationDeferralOrVagueWorkplace(text2) {
 function inferLucyAskedField(lastLucyMessage) {
   const msg = lastLucyMessage?.trim() ?? "";
   if (!msg) return null;
+  if (/\bfecha\s+y\s+(?:en\s+qu[eé]\s+)?(?:hora|horario)\b|\bqu[eé]\s+d[ií]a\s+y\s+a\s+qu[eé]\s+hora\b/i.test(msg)) {
+    return "fecha";
+  }
   const priority = [
     "nombre",
     "correo",
@@ -128927,8 +128954,17 @@ function parseHorarioFromText(text2) {
       }
     }
   }
-  if (/\b(tarde|noche|mediod[ií]a|medio\s*d[ií]a|ma[nñ]ana)\b/i.test(clean) && clean.split(/\s+/).length <= 7 && !MONTH_PATTERN.test(clean)) {
+  if (
+    // "mañana te confirmo" = día siguiente, no franja.
+    /\b(tarde|noche|mediod[ií]a|medio\s*d[ií]a)\b|\b(?:la|de)\s+ma[nñ]ana\b/i.test(clean) && clean.split(/\s+/).length <= 7 && !MONTH_PATTERN.test(clean)
+  ) {
     return normalizeHorarioCapture(clean).slice(0, 40);
+  }
+  {
+    const franja = clean.match(
+      /(?<!\d\s{0,3})\b((?:en|por|durante)\s+la\s+(?:ma[nñ]ana|tarde|noche)|(?:al|a)\s+medio\s*d[ií]a|al\s+mediod[ií]a|de\s+(?:noche|tarde))\b/i
+    );
+    if (franja?.[1]) return franja[1].toLowerCase();
   }
   if (/\b(sin\s+horario|por\s+definir|a[uú]n\s+no\s+(sabemos|tenemos)\s+horario|todav[ií]a\s+no\s+(sabemos|tenemos))\b/i.test(
     clean
@@ -140356,7 +140392,7 @@ function buildNaturalQuestion(field, ctx) {
 var FECHA_HORARIO_VARIANTS = [
   "\xBFYa tienen fecha y horario del evento?",
   "\xBFQu\xE9 d\xEDa y a qu\xE9 hora ser\xEDa el evento?",
-  "\xBFPara qu\xE9 fecha y en qu\xE9 horario lo tienen pensado?"
+  "\xBFPara qu\xE9 fecha y en qu\xE9 horario ser\xEDa?"
 ];
 var REQUERIMIENTOS_MONTO_VARIANTS = [
   "\xBFQu\xE9 servicios te gustar\xEDa cotizar y qu\xE9 presupuesto aproximado manejan?",
@@ -141288,6 +141324,45 @@ function applyLucyMessageGuards(input) {
       mensaje = `Tienes raz\xF3n, es *una sala lounge*; ya lo correg\xED.
 
 ${mensaje.replace(/^¡Con gusto(?:,\s*[^!]+)?!\s*/i, "")}`.trim();
+    }
+  }
+  {
+    const lastLucy = [...input.history].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string")?.content;
+    const offered = !!lastLucy && /(?:te\s+(?:gustar[ií]a\s+que\s+te\s+)?(?:comparta|comparto|pase|paso|mande|mando|env[ií]e|detalle|detallo)|quieres\s+que\s+te\s+(?:comparta|pase|mande|detalle|d[eé]|env[ií]e))[^?]{0,80}\b(niveles|opciones|paquetes|detalle|men[uú])\b/i.test(
+      lastLucy
+    );
+    const yes = /^(s[ií]|sip|dale|claro|ok|okay|va|adelante|por\s+favor|porfa|me\s+late|perfecto)([\s,.!]+(s[ií]|adelante|por\s+favor|porfa|claro|dale|comp[aá]rtelo|m[aá]ndalo|p[aá]salo|gracias))*[\s.!]*$/i.test(
+      (input.currentMessage ?? "").trim()
+    );
+    if (offered && yes && !/\$\s*\d|manejamos|niveles?:/i.test(mensaje)) {
+      const service = parseServicesFromText(lastLucy)[0] ?? (input.extracted.requerimientos_evento ?? "").split(",")[0]?.trim();
+      const levels = service ? buildCatalogPriceAnswer(service) : null;
+      const body2 = levels ?? (service ? buildCatalogWebLinkReply({ query: service, serviceHint: service }) : null);
+      if (body2) {
+        const pending2 = getNextPendingField(input.extracted, input.filledSet);
+        const nextQ = pending2 && pending2 !== "requerimientos" && pending2 !== "nombre" && !/\?\s*$/.test(body2) ? `
+
+${buildNaturalQuestion(pending2, makeQuestionCtx(input))}` : "";
+        mensaje = `Claro, aqu\xED van las opciones de *${service}*:
+
+${body2}${nextQ}`.trim();
+      }
+    }
+  }
+  {
+    const corrected = parseNombreCorrection(input.currentMessage);
+    if (corrected) {
+      const first = corrected.split(/\s+/)[0];
+      const wrong = input.whatsappDisplayName?.trim().split(/\s+/)[0];
+      let body2 = mensaje.replace(/^(?:¡?Gracias por (?:la )?aclar(?:ación|arlo|arme)[^.!?\n]*[.!]\s*)/i, "").replace(/^¡?Mucho gusto,?\s+[^!.\n]+[!.]\s*/i, "").replace(/^¡?Perfecto,\s+[^!.\n]+[!.]\s*/i, "");
+      if (wrong && wrong.toLowerCase() !== first.toLowerCase()) {
+        body2 = body2.replace(new RegExp(`\\b${wrong.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi"), first);
+      }
+      if (!new RegExp(`\\b${first}\\b`, "i").test(body2.slice(0, 60))) {
+        mensaje = `Perd\xF3n, ${first}, ya lo correg\xED. ${body2}`.trim();
+      } else {
+        mensaje = body2.trim();
+      }
     }
   }
   {

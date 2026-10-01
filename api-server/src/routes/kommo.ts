@@ -98,6 +98,7 @@ import {
   sanitizeCrmNombre,
   shouldUpdateName,
   resolveKommoLeadNamePatch,
+  parseNombreCorrection,
 } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, sanitizeStoredClientEmail } from "../client-email.js";
 import { prepareLucyExtraction, generateLucyOutbound } from "../lucyTurnProcessor.js";
@@ -839,7 +840,12 @@ function buildCrmContext(
         pickBetterNombre(extracted.nombre, fromTurn),
         pickBetterNombre(existing, whatsappDisplayName)
       );
-      if (upgraded && shouldUpdateName(existing, upgraded)) {
+      const corrected = parseNombreCorrection(currentMessage);
+      if (corrected && corrected.toLowerCase() !== existing.toLowerCase()) {
+        // A16550: "No soy Romeo, soy Alejandro" — reemplaza aunque sea otra persona.
+        mergedLines[idx] = `- Nombre del cliente: ${corrected}`;
+        extracted.nombre = corrected;
+      } else if (upgraded && shouldUpdateName(existing, upgraded)) {
         const suffix = rawLine.includes(WHATSAPP_NOMBRE_NOTE) ? ` ${WHATSAPP_NOMBRE_NOTE}` : "";
         mergedLines[idx] = `- Nombre del cliente: ${upgraded}${suffix}`;
         extracted.nombre = upgraded;
@@ -1459,7 +1465,15 @@ function buildPatchPayload(
       pickBetterNombre(fromLines, currentLeadName)
     );
     const nombrePatch = resolveKommoLeadNamePatch(currentLeadName, candidate);
-    if (nombrePatch) {
+    // A16550: "No soy Romeo, soy Alejandro" — el lead también toma el nombre corregido.
+    const corrected = parseNombreCorrection(conversationText);
+    if (
+      corrected &&
+      fromLines?.toLowerCase() === corrected.toLowerCase() &&
+      (currentLeadName ?? "").trim().toLowerCase() !== corrected.toLowerCase()
+    ) {
+      payload["name"] = cap255(corrected);
+    } else if (nombrePatch) {
       payload["name"] = cap255(nombrePatch);
     }
   }

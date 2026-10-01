@@ -3510,6 +3510,11 @@ export function inferLucyAskedField(lastLucyMessage: string | null | undefined):
   const msg = lastLucyMessage?.trim() ?? "";
   if (!msg) return null;
 
+  // A16550: pregunta 2 en 1 "¿fecha y horario…?" es fecha (aunque diga "lo tienen pensado").
+  if (/\bfecha\s+y\s+(?:en\s+qu[eé]\s+)?(?:hora|horario)\b|\bqu[eé]\s+d[ií]a\s+y\s+a\s+qu[eé]\s+hora\b/i.test(msg)) {
+    return "fecha";
+  }
+
   const priority: UnderstandingField[] = [
     "nombre",
     "correo",
@@ -5384,11 +5389,20 @@ export function parseHorarioFromText(text: string): string | null {
   }
 
   if (
-    /\b(tarde|noche|mediod[ií]a|medio\s*d[ií]a|ma[nñ]ana)\b/i.test(clean) &&
+    // "mañana te confirmo" = día siguiente, no franja.
+    /\b(tarde|noche|mediod[ií]a|medio\s*d[ií]a)\b|\b(?:la|de)\s+ma[nñ]ana\b/i.test(clean) &&
     clean.split(/\s+/).length <= 7 &&
     !MONTH_PATTERN.test(clean)
   ) {
     return normalizeHorarioCapture(clean).slice(0, 40);
+  }
+
+  // A16550: "el 25 de noviembre en la mañana" / "no sé bien… pero sería en la mañana" → franja.
+  {
+    const franja = clean.match(
+      /(?<!\d\s{0,3})\b((?:en|por|durante)\s+la\s+(?:ma[nñ]ana|tarde|noche)|(?:al|a)\s+medio\s*d[ií]a|al\s+mediod[ií]a|de\s+(?:noche|tarde))\b/i
+    );
+    if (franja?.[1]) return franja[1].toLowerCase();
   }
 
   if (
