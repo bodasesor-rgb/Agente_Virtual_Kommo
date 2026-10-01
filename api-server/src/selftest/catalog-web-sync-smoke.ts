@@ -10,6 +10,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  getCatalogWebSyncStatus,
   isNightlySyncDue,
   readCatalogWebSyncState,
   syncWebCatalogs,
@@ -93,6 +94,10 @@ const deps = {
   // Documento web borrado a mano → se vuelve a crear aunque Gamma no cambió.
   const r5 = await syncWebCatalogs({ trigger: "cron" }, { ...deps, docExists: async (s: string) => s !== "taquiza" });
   assert.deepEqual(r5.exported, ["taquiza"]);
+
+  // Sin lista de catálogos (embeds.json no encontrado) → error visible, no "0 cambios".
+  await assert.rejects(syncWebCatalogs({ trigger: "cron" }, { ...deps, embeds: [] }), /catalog_embeds_missing/);
+  assert.equal(getCatalogWebSyncStatus().lastError, "catalog_embeds_missing");
 
   // Web manda sobre el PDF manual.
   const docs = [

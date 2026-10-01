@@ -138544,7 +138544,9 @@ function embedsJsonPath() {
   const here = path3.dirname(fileURLToPath2(import.meta.url));
   const candidates = [
     path3.resolve(here, "../../public/catalogos-light/embeds.json"),
+    path3.resolve(here, "catalogos-light/embeds.json"),
     path3.resolve(here, "../catalogos-light/embeds.json"),
+    path3.resolve(process.cwd(), "catalogos-light/embeds.json"),
     path3.resolve(process.cwd(), "public/catalogos-light/embeds.json"),
     path3.resolve(process.cwd(), "dist/catalogos-light/embeds.json")
   ];
@@ -232810,6 +232812,7 @@ async function syncWebCatalogs(opts = {}, deps = {}) {
   status.lastStartedAt = (/* @__PURE__ */ new Date()).toISOString();
   status.lastError = null;
   try {
+    if (!embeds.length && !opts.slugs?.length) throw new Error("catalog_embeds_missing");
     for (const e4 of embeds) {
       status.current = e4.slug;
       const prev = state[e4.slug];

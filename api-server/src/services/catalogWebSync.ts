@@ -163,6 +163,7 @@ export async function syncWebCatalogs(
   status.lastStartedAt = new Date().toISOString();
   status.lastError = null;
   try {
+    if (!embeds.length && !opts.slugs?.length) throw new Error("catalog_embeds_missing");
     for (const e of embeds) {
       status.current = e.slug;
       const prev = state[e.slug];

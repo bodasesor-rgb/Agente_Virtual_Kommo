@@ -32,7 +32,9 @@ function embedsJsonPath(): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const candidates = [
     path.resolve(here, "../../public/catalogos-light/embeds.json"),
+    path.resolve(here, "catalogos-light/embeds.json"),
     path.resolve(here, "../catalogos-light/embeds.json"),
+    path.resolve(process.cwd(), "catalogos-light/embeds.json"),
     path.resolve(process.cwd(), "public/catalogos-light/embeds.json"),
     path.resolve(process.cwd(), "dist/catalogos-light/embeds.json"),
   ];
