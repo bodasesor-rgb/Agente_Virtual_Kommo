@@ -4258,6 +4258,8 @@ function rewriteRepeatedProductMenu(
     .find((m) => m.role === "assistant" && typeof m.content === "string");
   const lastAsstText =
     lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : null;
+  // A16531: sin menú previo de Lucy no hay "producto elegido" (primer mensaje = presentación).
+  if (!lastAsstText) return mensaje;
   const pick =
     extractNumberedNivelFromLastAssistant(currentMessage, lastAsstText) ||
     extractCatalogNivelFromText(currentMessage, lastAsstText) ||
@@ -4277,6 +4279,7 @@ function rewriteRepeatedProductMenu(
     buildCatalogPriceAnswer(pick) ||
     attachAvailableSheetDetail(pick, pick);
   if (!detail || looksLikeNivelOptionsDump(detail)) return mensaje;
+  if (!detailMatchesBanqueteVariant(detail, pick)) return mensaje;
   const display = getDisplayName(extracted, ctx.whatsappName);
   const pending = getNextPendingField(extracted, filledSet);
   const nextQ =
@@ -4812,6 +4815,23 @@ function horarioAlreadyKnown(ctx: NaturalQuestionContext): boolean {
   return (
     !!ctx.filledSet?.has(CRM_HORARIO_LABEL) || isUsableHorarioEvento(ctx.extracted.horario_evento)
   );
+}
+
+/**
+ * A16531: "Banquete Kosher 3 tiempos" no puede llevar la ficha de *Banquete Formal*.
+ * Si la variante (kosher, mexicano, navideño…) no aparece en el detalle, el detalle es de otro producto.
+ */
+function detailMatchesBanqueteVariant(detail: string, label: string): boolean {
+  if (!/banquete/i.test(label)) return true;
+  const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const variant = fold(label)
+    .replace(/\bbanquetes?\b/g, " ")
+    .replace(/\b(de\s+)?(tres|3|cuatro|4)\s*tiempos?\b/g, " ")
+    .replace(/\b(formal|buffet|bufet)\b/g, " ")
+    .trim();
+  if (!variant) return true;
+  const source = fold(detail.match(/cat[aá]logo que ya tenemos de \*([^*]+)\*/i)?.[1] ?? detail);
+  return variant.split(/\s+/).every((w) => w.length < 4 || source.includes(w));
 }
 
 /** A15935: el cliente ya eligió banquete (sin variante) → toca Formal/Mexicano, no formal vs casual. */
@@ -9618,6 +9638,12 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     !cierreYaEnviado &&
     currentMessage &&
     !extractImageClientReply(currentMessage) &&
+    // A16531: formulario web "me interesa cotizar: X de 3 tiempos" → primero presentación + nombre.
+    !(
+      (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
+      !conversationAlreadyStarted(filledSet, presHistory) &&
+      !!parseWebLeadBrief(currentMessage)
+    ) &&
     /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(
       clientCaptionForServiceParse(currentMessage) || currentMessage
     ) &&
@@ -9640,11 +9666,17 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     filledSet.add("Requerimientos o servicios");
     const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
     if (merged) extracted.requerimientos_evento = merged;
-    const detail =
+    // A16531: precios/inclusiones solo si los pidió, y nunca de otro producto (Kosher ≠ Formal).
+    const wantsDetail =
+      clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage);
+    const rawDetail =
       buildSoloVsCompletoOfferIfApplicable(label) ||
-      buildCatalogPriceAnswer(label) ||
-      buildCatalogServiceDetailAnswer(label) ||
-      resolveCatalogInclusionReply(label, label);
+      (wantsDetail
+        ? buildCatalogPriceAnswer(label) ||
+          buildCatalogServiceDetailAnswer(label) ||
+          resolveCatalogInclusionReply(label, label)
+        : null);
+    const detail = rawDetail && detailMatchesBanqueteVariant(rawDetail, label) ? rawDetail : null;
     const link = buildCatalogWebLinkReply({ query: label, serviceHint: label });
     const display = getDisplayName(extracted, whatsappDisplayName);
     const ack = display ? `Perfecto, ${display}.` : "Perfecto.";

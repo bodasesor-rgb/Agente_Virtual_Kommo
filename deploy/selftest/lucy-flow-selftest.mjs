@@ -140046,6 +140046,7 @@ function rewriteRepeatedProductMenu(mensaje, currentMessage, history, extracted,
   if (parseServicesFromText(currentMessage).length >= 2) return mensaje;
   const lastAsst = [...history].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
   const lastAsstText = lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : null;
+  if (!lastAsstText) return mensaje;
   const pick = extractNumberedNivelFromLastAssistant(currentMessage, lastAsstText) || extractCatalogNivelFromText(currentMessage, lastAsstText) || resolveProgressiveDetailQuery({
     currentMessage,
     serviceHint: extracted.requerimientos_evento,
@@ -140056,6 +140057,7 @@ function rewriteRepeatedProductMenu(mensaje, currentMessage, history, extracted,
   if (!wants) return mensaje;
   const detail = buildCatalogServiceDetailAnswer(pick) || buildCatalogPriceAnswer(pick) || attachAvailableSheetDetail(pick, pick);
   if (!detail || looksLikeNivelOptionsDump(detail)) return mensaje;
+  if (!detailMatchesBanqueteVariant(detail, pick)) return mensaje;
   const display = getDisplayName(extracted, ctx.whatsappName);
   const pending = getNextPendingField(extracted, filledSet);
   const nextQ = pending && pending !== "requerimientos" && pending !== "nombre" ? buildNaturalQuestion(pending, ctx) : "";
@@ -140363,6 +140365,14 @@ var REQUERIMIENTOS_MONTO_VARIANTS = [
 ];
 function horarioAlreadyKnown(ctx) {
   return !!ctx.filledSet?.has(CRM_HORARIO_LABEL) || isUsableHorarioEvento(ctx.extracted.horario_evento);
+}
+function detailMatchesBanqueteVariant(detail, label) {
+  if (!/banquete/i.test(label)) return true;
+  const fold5 = (s6) => s6.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const variant = fold5(label).replace(/\bbanquetes?\b/g, " ").replace(/\b(de\s+)?(tres|3|cuatro|4)\s*tiempos?\b/g, " ").replace(/\b(formal|buffet|bufet)\b/g, " ").trim();
+  if (!variant) return true;
+  const source = fold5(detail.match(/cat[aá]logo que ya tenemos de \*([^*]+)\*/i)?.[1] ?? detail);
+  return variant.split(/\s+/).every((w4) => w4.length < 4 || source.includes(w4));
 }
 function isBareBanqueteRequirement(value) {
   return /^banquetes?$/i.test((value ?? "").trim());
@@ -143380,7 +143390,8 @@ ${mapped}`.trim() : buildCatalogWebLinkReply({
     }
     appliedDirectReply = true;
     log?.info({ entityId, wantFull, mapped: mappedServices.length }, "GUARD: cliente pidi\xF3/afirm\xF3 cat\xE1logo \u2014 link(s)");
-  } else if (!cierreYaEnviado && currentMessage && !extractImageClientReply(currentMessage) && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(
+  } else if (!cierreYaEnviado && currentMessage && !extractImageClientReply(currentMessage) && // A16531: formulario web "me interesa cotizar: X de 3 tiempos" → primero presentación + nombre.
+  !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !!parseWebLeadBrief(currentMessage)) && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(
     clientCaptionForServiceParse(currentMessage) || currentMessage
   ) && // A14995: paquete multi-servicio (banquete+barra+dulces+mobiliario) NO es solo "tiempos".
   servicesFromCurrentMessage.length < 2 && parseServicesFromText(clientCaptionForServiceParse(currentMessage) || currentMessage).length < 2 && !isCatalogLevelSelection(
@@ -143394,7 +143405,9 @@ ${mapped}`.trim() : buildCatalogWebLinkReply({
     filledSet.add("Requerimientos o servicios");
     const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
     if (merged) extracted.requerimientos_evento = merged;
-    const detail = buildSoloVsCompletoOfferIfApplicable(label) || buildCatalogPriceAnswer(label) || buildCatalogServiceDetailAnswer(label) || resolveCatalogInclusionReply(label, label);
+    const wantsDetail = clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage);
+    const rawDetail = buildSoloVsCompletoOfferIfApplicable(label) || (wantsDetail ? buildCatalogPriceAnswer(label) || buildCatalogServiceDetailAnswer(label) || resolveCatalogInclusionReply(label, label) : null);
+    const detail = rawDetail && detailMatchesBanqueteVariant(rawDetail, label) ? rawDetail : null;
     const link = buildCatalogWebLinkReply({ query: label, serviceHint: label });
     const display = getDisplayName(extracted, whatsappDisplayName);
     const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
