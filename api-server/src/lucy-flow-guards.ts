@@ -4523,8 +4523,28 @@ function textOverlapRatio(a: string, b: string): number {
   return shared / Math.max(wordsA.size, wordsB.size);
 }
 
-/** Evita enviar al cliente el mismo bloque casi idéntico que un turno anterior. */
-function avoidRepeatPreviousReply(
+/**
+ * Aísla la pregunta final («¿…?») de un mensaje de una sola línea, para poder
+ * descartar el saludo/pitch repetido y quedarnos solo con la pregunta.
+ * repeat_reply (auditor): mensajes tipo "¡Mucho gusto, X! Para poder orientarte
+ * con [servicio], ¿qué tipo de evento…?" no traían "\n", así que el recorte por
+ * línea de `avoidRepeatPreviousReply` no lograba separar el pitch de la pregunta.
+ */
+function extractTrailingQuestion(text: string): string | null {
+  const idx = text.lastIndexOf("¿");
+  if (idx === -1) return null;
+  const question = text.slice(idx).trim();
+  return question.length > 0 && question.length < text.trim().length ? question : null;
+}
+
+function waiveCorreoAfterRepeatedAsks(filledSet: Set<string>): void {
+  if (!isEmailSatisfied(filledSet)) {
+    filledSet.add(EMAIL_WAIVED_LABEL);
+  }
+}
+
+/** Evita enviar al cliente el mismo bloque casi idéntico que un turno anterior. Exportado para smoke. */
+export function avoidRepeatPreviousReply(
   mensaje: string,
   presHistory: OpenAI.Chat.ChatCompletionMessageParam[]
 ): string {
@@ -4544,6 +4564,12 @@ function avoidRepeatPreviousReply(
   const outOverlap = Math.max(...prev.map((p) => textOverlapRatio(out, p)));
   if (outOverlap < 0.65) return out.trim();
 
+  const bareQuestion = extractTrailingQuestion(mensaje);
+  if (bareQuestion) {
+    const bareOverlap = Math.max(...prev.map((p) => textOverlapRatio(bareQuestion, p)));
+    if (bareOverlap < maxOverlap && bareOverlap < 0.7) return bareQuestion;
+  }
+
   const questionLine =
     mensaje.split("\n").find((l) => l.includes("?")) ?? mensaje.split("\n").pop();
   const q = questionLine?.trim() || mensaje;
@@ -4555,6 +4581,7 @@ function avoidRepeatPreviousReply(
       .pop();
     if (pendingLine && textOverlapRatio(pendingLine, last) < 0.65) return pendingLine.trim();
   }
+  if (bareQuestion && textOverlapRatio(q, last) >= 0.68) return bareQuestion;
   return q;
 }
 
@@ -12058,17 +12085,14 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       const ack = ackBits.join(" ") || "Perfecto, lo anoto.";
 
       if (correoAsks >= CORREO_MAX_ASKS) {
-        // Ya preguntamos correo bastante: sigue el embudo (tipo/servicios/zona…).
-        const skipEmail = new Set(filledSet);
-        // Marca temporal solo para elegir siguiente pregunta; NO waiver permanente.
-        skipEmail.add("Correo electrónico");
-        const pending = getNextPendingField(extracted, skipEmail);
+        waiveCorreoAfterRepeatedAsks(filledSet);
+        const pending = getNextPendingField(extracted, filledSet);
         const nextQ =
           pending && pending !== "correo"
-            ? buildNaturalQuestion(pending, { ...ctx, filledSet: skipEmail })
+            ? buildNaturalQuestion(pending, { ...ctx, filledSet })
             : null;
         mensaje = nextQ ? `${ack} ${nextQ}`.trim() : ack;
-        log?.info({ entityId, correoAsks }, "GUARD: correo — tope de asks, avanza embudo");
+        log?.info({ entityId, correoAsks }, "GUARD: correo — tope de asks, waiver + embudo");
       } else if (correoAsks >= 1 || lastAskedCorreo) {
         const emailQ = pickVariant("correo", presHistory, entityId);
         mensaje = `${ack} ${emailQ}`.trim();
@@ -12078,12 +12102,14 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       correoAsks >= CORREO_MAX_ASKS &&
       mensajeAsksForField(mensaje, "correo")
     ) {
-      const skipEmail = new Set(filledSet);
-      skipEmail.add("Correo electrónico");
-      const pending = getNextPendingField(extracted, skipEmail);
+      waiveCorreoAfterRepeatedAsks(filledSet);
+      const pending = getNextPendingField(extracted, filledSet);
       if (pending && pending !== "correo") {
-        mensaje = buildNaturalQuestion(pending, { ...ctx, filledSet: skipEmail });
-        log?.info({ entityId, correoAsks }, "GUARD: correo — evita 3ª repetición");
+        mensaje = buildNaturalQuestion(pending, { ...ctx, filledSet });
+        log?.info({ entityId, correoAsks }, "GUARD: correo — waiver tras repetición, siguiente dato");
+      } else if (filledSet.has(EMAIL_WAIVED_LABEL)) {
+        mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
+        log?.info({ entityId, correoAsks }, "GUARD: correo — waiver, continuar por chat");
       }
     }
   }

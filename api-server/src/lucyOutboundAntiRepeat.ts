@@ -361,6 +361,14 @@ export function cleanupBrokenOutboundFragments(text: string): string {
   return t.replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
 
+function stripRepeatedCatalogUrls(text: string): string {
+  return text
+    .replace(/\s*:?\s*https?:\/\/(?:www\.)?bodasesor\.com\/catalogos[^\s)]+/gi, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function stripCatalogOfferBlock(text: string): string {
   let t = text
     .replace(
@@ -511,6 +519,32 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
       input.currentMessage ?? ""
     );
 
+  // loop_links: cliente pidió precio/detalle — no re-enviar el mismo URL de catálogo.
+  const normalizeCatalogUrl = (u: string) => u.replace(/[.,;!?)]+$/, "").toLowerCase();
+  const extractCatalogUrls = (text: string) =>
+    [
+      ...text.matchAll(/https?:\/\/(?:www\.)?bodasesor\.com\/catalogos[^\s)]+/gi),
+    ].map((m) => normalizeCatalogUrl(m[0]!));
+  if (
+    !cierre &&
+    hasCatalogNow &&
+    (clientAsksPrice(input.currentMessage) ||
+      clientAsksNamedServiceDetail(input.currentMessage) ||
+      clientAskedInclusion) &&
+    previous.some((p) => CATALOG_SEND_PATTERN.test(p))
+  ) {
+    const prevUrls = new Set(previous.flatMap((p) => extractCatalogUrls(p)));
+    const curUrls = extractCatalogUrls(mensaje);
+    if (curUrls.some((u) => prevUrls.has(u))) {
+      const stripped = stripRepeatedCatalogUrls(stripCatalogOfferBlock(mensaje));
+      const urlRemoved = curUrls.every((u) => !stripped.toLowerCase().includes(u));
+      if (stripped && stripped.length >= 8 && urlRemoved) {
+        mensaje = stripped;
+        applied.push("catalog-link-loop-price-detail");
+      }
+    }
+  }
+
   // 1) Post-cierre: no repetir el mismo agradecimiento.
   if (cierre && THANKS_ACK_PATTERN.test(mensaje) && previous.some((p) => THANKS_ACK_PATTERN.test(p))) {
     const lastThanks = [...previous].reverse().find((p) => THANKS_ACK_PATTERN.test(p));
@@ -614,6 +648,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     !clientAskedServiceInfo &&
     !clientAskingInfo &&
     !clientAffirmingCatalog &&
+    !applied.includes("catalog-link-loop-price-detail") &&
     !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") &&
     previous.some((p) => CATALOG_SEND_PATTERN.test(p))
   ) {

@@ -310,11 +310,13 @@ export function runCrmFieldHeuristics(crm: CrmFieldSnapshot): HeuristicFinding[]
     });
   }
 
-  // Truncado típico de campos 255
+  const RESUMEN_IA_SIGNATURE = "— Actualizado por Lucy en cada mensaje —";
+  const RESUMEN_IA_MAX = 8000;
+
+  // Truncado típico de campos 255 (Requerimientos / Dirección — cap255 en Kommo).
   for (const [label, val] of [
     ["Requerimientos", req],
     ["Dirección", crm.direccion ?? ""],
-    ["Resumen IA", crm.resumen_ia ?? ""],
   ] as const) {
     const v = val.trim();
     if (v.length >= 250 || /\.\.\.$/.test(v)) {
@@ -326,6 +328,24 @@ export function runCrmFieldHeuristics(crm: CrmFieldSnapshot): HeuristicFinding[]
           "Detalle largo → Respuesta IA Largo / nota; campos cortos solo con resumen.",
       });
       break;
+    }
+  }
+
+  const resumenRaw = (crm.resumen_ia ?? "").trim();
+  if (resumenRaw) {
+    const nearCap = resumenRaw.length >= RESUMEN_IA_MAX - 80;
+    const hasClosingSignature = resumenRaw.includes(RESUMEN_IA_SIGNATURE);
+    const looksCutMidContent =
+      (nearCap && !hasClosingSignature) ||
+      (/\.\.\.$/.test(resumenRaw) && !hasClosingSignature);
+    if (looksCutMidContent) {
+      findings.push({
+        category: "bad_field",
+        severity: "warn",
+        evidence: `CRM Resumen IA parece truncado (${resumenRaw.length} chars): «${resumenRaw.slice(-40)}»`,
+        proposedRepair:
+          "Detalle largo → Respuesta IA Largo / nota; campos cortos solo con resumen.",
+      });
     }
   }
 
