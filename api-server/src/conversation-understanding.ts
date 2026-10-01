@@ -1534,6 +1534,33 @@ export function clientAsksVentaOrRenta(message?: string | null): boolean {
   );
 }
 
+const MOBILIARIO_PIECE_RE =
+  /\b(mobiliario|mobilairio|muebles?|sillas?|mesas?|periqueras?|salas?|lounge|tablones?|bancos?|sof[aá]s?)\b/i;
+
+/**
+ * A16555: "Mesas para comprarles" / "quiero comprar sillas" / "¿vendes mobiliario?" —
+ * el cliente quiere COMPRAR piezas (no rentar para un evento).
+ */
+export function clientWantsToBuyMobiliario(
+  message?: string | null,
+  requerimientos?: string | null
+): boolean {
+  const t = message?.trim() ?? "";
+  if (!t) return false;
+  if (/\b(rent(a|ar|an|amos|arlas|arlos)|alquil\w*)\b/i.test(t) && !/\bno\b.{0,15}\brent/i.test(t)) return false;
+  if (/\b(les|a\s+ustedes)\s+(vendo|vendemos|ofrezco|ofrecemos)\b|\bquiero\s+venderles\b/i.test(t)) return false;
+  const buys =
+    /\bcompr(ar|arlas|arlos|arles|arla|arlo|aria|ar[ií]a|ar[ií]amos)\b|\bpara\s+(?:la\s+)?compra\b|\b(?:para|en)\s+venta\b|\bvend(en|es|an)\b|\bse\s+pueden?\s+comprar\b/i.test(
+      t
+    ) || clientChoosesVenta(t);
+  return buys && (MOBILIARIO_PIECE_RE.test(t) || MOBILIARIO_PIECE_RE.test(requerimientos ?? ""));
+}
+
+/** Requerimientos marcados como compra de mobiliario ("Mobiliario (venta)"). */
+export function isVentaMobiliarioReq(requerimientos?: string | null): boolean {
+  return /\(venta\)/i.test(requerimientos ?? "");
+}
+
 /** Respuesta corta del cliente eligiendo compra tras la aclaración venta/renta. */
 export function clientChoosesVenta(message?: string | null): boolean {
   const t = message?.trim() ?? "";

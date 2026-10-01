@@ -156,6 +156,22 @@ function pendingFields(mergedLines: string[], extracted: ExtractedData): string[
   ) {
     pending.push("correo");
   }
+  // A16555: compra de mobiliario — sin evento; lo que falta es entrega y cantidades.
+  const venta =
+    /\(venta\)/i.test(pickFromMergedLines(mergedLines, /Requerimientos/i) ?? "") ||
+    /\(venta\)/i.test(extracted.requerimientos_evento ?? "");
+  if (venta) {
+    if (
+      !isUsableResumenUbicacion(pickFromMergedLines(mergedLines, /Lugar\/dirección/i)) &&
+      !isUsableResumenUbicacion(extracted.direccion_evento)
+    ) {
+      pending.push("ciudad de entrega");
+    }
+    if (!pickFromMergedLines(mergedLines, /Presupuesto/i) && extracted.presupuesto == null) {
+      pending.push("presupuesto");
+    }
+    return pending;
+  }
   if (!pickFromMergedLines(mergedLines, /Tipo de evento/i) && !extracted.tipo_evento?.trim()) {
     pending.push("tipo de evento");
   }

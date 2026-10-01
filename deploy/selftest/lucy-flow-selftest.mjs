@@ -126639,6 +126639,20 @@ function clientAsksVentaOrRenta(message) {
     t3
   );
 }
+var MOBILIARIO_PIECE_RE = /\b(mobiliario|mobilairio|muebles?|sillas?|mesas?|periqueras?|salas?|lounge|tablones?|bancos?|sof[aá]s?)\b/i;
+function clientWantsToBuyMobiliario(message, requerimientos) {
+  const t3 = message?.trim() ?? "";
+  if (!t3) return false;
+  if (/\b(rent(a|ar|an|amos|arlas|arlos)|alquil\w*)\b/i.test(t3) && !/\bno\b.{0,15}\brent/i.test(t3)) return false;
+  if (/\b(les|a\s+ustedes)\s+(vendo|vendemos|ofrezco|ofrecemos)\b|\bquiero\s+venderles\b/i.test(t3)) return false;
+  const buys = /\bcompr(ar|arlas|arlos|arles|arla|arlo|aria|ar[ií]a|ar[ií]amos)\b|\bpara\s+(?:la\s+)?compra\b|\b(?:para|en)\s+venta\b|\bvend(en|es|an)\b|\bse\s+pueden?\s+comprar\b/i.test(
+    t3
+  ) || clientChoosesVenta(t3);
+  return buys && (MOBILIARIO_PIECE_RE.test(t3) || MOBILIARIO_PIECE_RE.test(requerimientos ?? ""));
+}
+function isVentaMobiliarioReq(requerimientos) {
+  return /\(venta\)/i.test(requerimientos ?? "");
+}
 function clientChoosesVenta(message) {
   const t3 = message?.trim() ?? "";
   if (!t3 || t3.length > 60 || clientAsksVentaOrRenta(t3)) return false;
@@ -138179,7 +138193,17 @@ function isEmailSatisfied(filledSet, extracted) {
   const email = filterClientEmail(extracted.correo);
   return !!(email && looksLikeValidClientEmail(email));
 }
+var VENTA_CLOSING_CORE_FIELDS = [
+  "Nombre del cliente",
+  "Requerimientos o servicios",
+  "Lugar/direcci\xF3n del evento",
+  "Presupuesto (MXN)"
+];
+var VENTA_MOBILIARIO_MARK = "Venta de mobiliario";
 function isReadyForClosing(filledSet) {
+  if (filledSet.has(VENTA_MOBILIARIO_MARK)) {
+    return VENTA_CLOSING_CORE_FIELDS.every((label) => filledSet.has(label)) && isEmailSatisfied(filledSet);
+  }
   const hasSchedule = filledSet.has(CRM_FECHA_LABEL) && filledSet.has(CRM_HORARIO_LABEL) || filledSet.has(LEGACY_CRM_FECHA_HORARIO_LABEL);
   const coreOk = CLOSING_CORE_FIELDS.every((label) => {
     if (label === CRM_FECHA_LABEL || label === CRM_HORARIO_LABEL) return hasSchedule;
@@ -139516,6 +139540,15 @@ function applyEmailCaptureTone(mensaje, ctx) {
 function getNextPendingField(extracted, filledSet) {
   const filled = filledSet ?? /* @__PURE__ */ new Set();
   if (!isFieldSatisfied("nombre", filled, extracted)) return "nombre";
+  if (isVentaMobiliarioReq(extracted.requerimientos_evento)) {
+    if (!isFieldSatisfied("requerimientos", filled, extracted)) return "requerimientos";
+    if (!filled.has("Lugar/direcci\xF3n del evento") && !isUsableDireccionEvento(extracted.direccion_evento)) {
+      return "zona";
+    }
+    if (!isEmailSatisfied(filled, extracted)) return "correo";
+    if (!filled.has("Presupuesto (MXN)") && !hasPresupuestoValue(extracted)) return "presupuesto";
+    return null;
+  }
   if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
   if (!isFieldSatisfied("requerimientos", filled, extracted)) return "requerimientos";
   const hasInv = filled.has("N\xFAmero de invitados") || !!extracted.num_invitados;
@@ -140374,6 +140407,11 @@ function buildNaturalQuestion(field, ctx) {
   const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage, history);
   const variant = pickVariant(field, history, ctx.entityId);
   const thanks = emailThanksPrefix(ctx);
+  if (field === "zona" && isVentaMobiliarioReq(ctx.extracted.requerimientos_evento)) {
+    const qtyKnown = /\d/.test(ctx.extracted.requerimientos_evento ?? "") || collectUserTexts(history, ctx.currentMessage).some((t3) => /\b\d{1,4}\s+(mesas?|sillas?|periqueras?|salas?|piezas?)\b/i.test(t3));
+    const q2 = qtyKnown ? "\xBFA qu\xE9 ciudad y colonia ser\xEDa la entrega?" : "\xBFCu\xE1ntas piezas de cada modelo necesitas y a qu\xE9 ciudad ser\xEDa la entrega?";
+    return prefix ? `${prefix}${q2}` : q2;
+  }
   if (field === "correo") {
     return pickVariant("correo", history, ctx.entityId);
   }
@@ -141324,7 +141362,29 @@ function upgradeVagueFoodRequirement(value, label) {
   const kept = parts2.filter((p4) => !vague(p4));
   return [label, ...kept.filter((p4) => p4.toLowerCase() !== label.toLowerCase())].join(", ");
 }
+function markVentaMobiliarioMode(input) {
+  const req = input.extracted.requerimientos_evento;
+  const userTexts = collectUserTexts(input.history, input.currentMessage ?? void 0);
+  const lucyOfferedVenta = input.history.some(
+    (m5) => m5.role === "assistant" && typeof m5.content === "string" && /cotizar\s+para\s+\*?venta/i.test(m5.content)
+  );
+  const venta = isVentaMobiliarioReq(req) || userTexts.some((t3) => clientWantsToBuyMobiliario(t3, req)) || lucyOfferedVenta && userTexts.some((t3) => /\bcompr(ar|arles|arlas|arlos|a)\b/i.test(t3));
+  if (!venta) return false;
+  if (!isVentaMobiliarioReq(req)) {
+    input.extracted.requerimientos_evento = `${req?.trim() || "Mobiliario"} (venta)`;
+  }
+  input.filledSet.add("Requerimientos o servicios");
+  input.filledSet.add(VENTA_MOBILIARIO_MARK);
+  return true;
+}
+function stripEventFramingForVenta(mensaje) {
+  let out2 = mensaje.replace(/[^.!?\n]*\bcon\s+o\s+sin\s+montaje\b[^.!?\n]*[.!]?/gi, " ").replace(/\bManejamos\s+renta\s+de\s+/gi, "Manejamos ").replace(/\s+para\s+eventos\b/gi, "").replace(/\bciudad\*?\s+del\s+evento\b/gi, (m5) => m5.replace(/del\s+evento/i, "de entrega")).replace(/\s*en\s+el\s+montaje\s+de\s+tu\s+evento/gi, " en tu cotizaci\xF3n").replace(/\s*para\s+(?:tu|el)\s+evento\b/gi, " para tu compra").replace(/\s*de\s+tu\s+evento\b/gi, "");
+  const eventQ = /¿[^?¿]*(tipo\s+de\s+evento|qu[eé]\s+(?:van\s+a\s+)?celebr|festejan|fecha|qu[eé]\s+d[ií]a|a\s+qu[eé]\s+hora|horario|cu[aá]ntos\s+invitados|cu[aá]ntas\s+personas|invitados)[^?¿]*\?/gi;
+  out2 = out2.replace(eventQ, " ");
+  return out2.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
 function applyLucyMessageGuards(input) {
+  const ventaMode = markVentaMobiliarioMode(input);
   let mensaje = applyLucyMessageGuardsRaw(input).replace(
     /^(¡?)Perfecto,\s+que\s+es\s+\*[^*\n]+\*\s*([!.])?\s*/i,
     (_m, open2) => open2 ? "\xA1Perfecto! " : "Perfecto. "
@@ -141389,6 +141449,10 @@ ${body2}${nextQ}`.trim();
   const historyClosed = detectCierreEnviado(
     input.presentationHistory ?? input.history
   );
+  if (ventaMode) {
+    markVentaMobiliarioMode(input);
+    mensaje = stripEventFramingForVenta(mensaje);
+  }
   const asked = ensureOutboundAlwaysAsks(mensaje, {
     extracted: input.extracted,
     filledSet: input.filledSet,
@@ -148068,6 +148132,16 @@ function pendingFields(mergedLines, extracted) {
   }
   if (!pickFromMergedLines(mergedLines, /Correo electrónico/i) && !mergedLines.some((l5) => /continuar por whatsapp/i.test(l5)) && !extracted.correo?.trim()) {
     pending.push("correo");
+  }
+  const venta = /\(venta\)/i.test(pickFromMergedLines(mergedLines, /Requerimientos/i) ?? "") || /\(venta\)/i.test(extracted.requerimientos_evento ?? "");
+  if (venta) {
+    if (!isUsableResumenUbicacion(pickFromMergedLines(mergedLines, /Lugar\/dirección/i)) && !isUsableResumenUbicacion(extracted.direccion_evento)) {
+      pending.push("ciudad de entrega");
+    }
+    if (!pickFromMergedLines(mergedLines, /Presupuesto/i) && extracted.presupuesto == null) {
+      pending.push("presupuesto");
+    }
+    return pending;
   }
   if (!pickFromMergedLines(mergedLines, /Tipo de evento/i) && !extracted.tipo_evento?.trim()) {
     pending.push("tipo de evento");

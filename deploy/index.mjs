@@ -130344,6 +130344,19 @@ function clientAsksVentaOrRenta(message) {
     t4
   );
 }
+function clientWantsToBuyMobiliario(message, requerimientos) {
+  const t4 = message?.trim() ?? "";
+  if (!t4) return false;
+  if (/\b(rent(a|ar|an|amos|arlas|arlos)|alquil\w*)\b/i.test(t4) && !/\bno\b.{0,15}\brent/i.test(t4)) return false;
+  if (/\b(les|a\s+ustedes)\s+(vendo|vendemos|ofrezco|ofrecemos)\b|\bquiero\s+venderles\b/i.test(t4)) return false;
+  const buys = /\bcompr(ar|arlas|arlos|arles|arla|arlo|aria|ar[ií]a|ar[ií]amos)\b|\bpara\s+(?:la\s+)?compra\b|\b(?:para|en)\s+venta\b|\bvend(en|es|an)\b|\bse\s+pueden?\s+comprar\b/i.test(
+    t4
+  ) || clientChoosesVenta(t4);
+  return buys && (MOBILIARIO_PIECE_RE.test(t4) || MOBILIARIO_PIECE_RE.test(requerimientos ?? ""));
+}
+function isVentaMobiliarioReq(requerimientos) {
+  return /\(venta\)/i.test(requerimientos ?? "");
+}
 function clientChoosesVenta(message) {
   const t4 = message?.trim() ?? "";
   if (!t4 || t4.length > 60 || clientAsksVentaOrRenta(t4)) return false;
@@ -134719,7 +134732,7 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     extracted.requerimientos_evento = null;
   }
 }
-var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, ORDINAL_INDEX, EVENT_MEAL_TYPE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_DISCOURSE_CUT, VENUE_DISCOURSE_JUNK, VAGUE_VENUE_LABEL, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, EXCLUDED_SERVICE_LEADS, EXCLUDED_TRAILING_RE, EXCLUDED_BEFORE_NO_RE, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, DAY_PERIOD_SRC, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, MX_CITY_ABBREVIATIONS, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
+var CRM_FECHA_LABEL, CRM_HORARIO_LABEL, LEGACY_CRM_FECHA_HORARIO_LABEL, LUCY_FIELD_ASK_PATTERNS, BODASESOR_SERVICE_PATTERNS, SERVICE_HINT, SHORT_SERVICE_ALIASES, TIPO_EVENTO_PATTERNS, ORDINAL_INDEX, EVENT_MEAL_TYPE, MOBILIARIO_PIECE_RE, NON_GUEST_UNIT_PATTERN, CARPA_OPTIONS_TEXT, CATALOG_TYPO_RE, WRITTEN_NUMBERS, MONTH_PATTERN, KNOWN_ZONES, NON_LOCATION_WORDS, VENUE_DISCOURSE_CUT, VENUE_DISCOURSE_JUNK, VAGUE_VENUE_LABEL, VENUE_NAME_PATTERN, JUNK_DIRECCION_PATTERN, EXCLUDED_SERVICE_LEADS, EXCLUDED_TRAILING_RE, EXCLUDED_BEFORE_NO_RE, PLATED_MEAL_LABEL_RE, STAFF_OR_ADDON_SERVICE, CLOCK_AMPM, CLOCK_TOKEN, DAY_PERIOD_SRC, GUEST_COUNT_WORDS, STANDARD_PISTA_SIZES, STANDARD_CARPA_SIZES, CARPA_M2_PER_GUEST, MX_CITY_ABBREVIATIONS, SERVICE_LABELS_NOT_TIPO, CORREO_DICTADO_STOPWORDS, PRESUPUESTO_MAX_ASKS, FECHA_MAX_ASKS, PRESUPUESTO_AUTO_WAIVER, FECHA_AUTO_WAIVER;
 var init_conversation_understanding = __esm({
   "src/conversation-understanding.ts"() {
     "use strict";
@@ -135077,6 +135090,7 @@ var init_conversation_understanding = __esm({
       ultimo: -1
     };
     EVENT_MEAL_TYPE = /comida|cena|almuerzo|brunch|desayuno|c[oó]ctel|cocktail/i;
+    MOBILIARIO_PIECE_RE = /\b(mobiliario|mobilairio|muebles?|sillas?|mesas?|periqueras?|salas?|lounge|tablones?|bancos?|sof[aá]s?)\b/i;
     NON_GUEST_UNIT_PATTERN = /\b\d+\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?|pantallas?|paquetes?|juegos?|m[oó]dulos?|piezas?)\b/i;
     CARPA_OPTIONS_TEXT = "blancas, negras, transparentes y tipo domo";
     CATALOG_TYPO_RE = /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b|\bcata?lgos?\b|\bcatl[oó]gos?\b|\bcatalog[oa]s?\b/i;
@@ -163480,6 +163494,9 @@ function isEmailSatisfied(filledSet, extracted) {
   return !!(email && looksLikeValidClientEmail(email));
 }
 function isReadyForClosing(filledSet) {
+  if (filledSet.has(VENTA_MOBILIARIO_MARK)) {
+    return VENTA_CLOSING_CORE_FIELDS.every((label) => filledSet.has(label)) && isEmailSatisfied(filledSet);
+  }
   const hasSchedule = filledSet.has(CRM_FECHA_LABEL) && filledSet.has(CRM_HORARIO_LABEL) || filledSet.has(LEGACY_CRM_FECHA_HORARIO_LABEL);
   const coreOk = CLOSING_CORE_FIELDS.every((label) => {
     if (label === CRM_FECHA_LABEL || label === CRM_HORARIO_LABEL) return hasSchedule;
@@ -164744,6 +164761,15 @@ function applyEmailCaptureTone(mensaje, ctx) {
 function getNextPendingField(extracted, filledSet) {
   const filled = filledSet ?? /* @__PURE__ */ new Set();
   if (!isFieldSatisfied("nombre", filled, extracted)) return "nombre";
+  if (isVentaMobiliarioReq(extracted.requerimientos_evento)) {
+    if (!isFieldSatisfied("requerimientos", filled, extracted)) return "requerimientos";
+    if (!filled.has("Lugar/direcci\xF3n del evento") && !isUsableDireccionEvento(extracted.direccion_evento)) {
+      return "zona";
+    }
+    if (!isEmailSatisfied(filled, extracted)) return "correo";
+    if (!filled.has("Presupuesto (MXN)") && !hasPresupuestoValue(extracted)) return "presupuesto";
+    return null;
+  }
   if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
   if (!isFieldSatisfied("requerimientos", filled, extracted)) return "requerimientos";
   const hasInv = filled.has("N\xFAmero de invitados") || !!extracted.num_invitados;
@@ -165602,6 +165628,11 @@ function buildNaturalQuestion(field, ctx) {
   const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage, history);
   const variant = pickVariant(field, history, ctx.entityId);
   const thanks = emailThanksPrefix(ctx);
+  if (field === "zona" && isVentaMobiliarioReq(ctx.extracted.requerimientos_evento)) {
+    const qtyKnown = /\d/.test(ctx.extracted.requerimientos_evento ?? "") || collectUserTexts(history, ctx.currentMessage).some((t4) => /\b\d{1,4}\s+(mesas?|sillas?|periqueras?|salas?|piezas?)\b/i.test(t4));
+    const q3 = qtyKnown ? "\xBFA qu\xE9 ciudad y colonia ser\xEDa la entrega?" : "\xBFCu\xE1ntas piezas de cada modelo necesitas y a qu\xE9 ciudad ser\xEDa la entrega?";
+    return prefix ? `${prefix}${q3}` : q3;
+  }
   if (field === "correo") {
     return pickVariant("correo", history, ctx.entityId);
   }
@@ -166535,7 +166566,29 @@ function upgradeVagueFoodRequirement(value, label) {
   const kept = parts2.filter((p5) => !vague(p5));
   return [label, ...kept.filter((p5) => p5.toLowerCase() !== label.toLowerCase())].join(", ");
 }
+function markVentaMobiliarioMode(input) {
+  const req = input.extracted.requerimientos_evento;
+  const userTexts = collectUserTexts(input.history, input.currentMessage ?? void 0);
+  const lucyOfferedVenta = input.history.some(
+    (m6) => m6.role === "assistant" && typeof m6.content === "string" && /cotizar\s+para\s+\*?venta/i.test(m6.content)
+  );
+  const venta = isVentaMobiliarioReq(req) || userTexts.some((t4) => clientWantsToBuyMobiliario(t4, req)) || lucyOfferedVenta && userTexts.some((t4) => /\bcompr(ar|arles|arlas|arlos|a)\b/i.test(t4));
+  if (!venta) return false;
+  if (!isVentaMobiliarioReq(req)) {
+    input.extracted.requerimientos_evento = `${req?.trim() || "Mobiliario"} (venta)`;
+  }
+  input.filledSet.add("Requerimientos o servicios");
+  input.filledSet.add(VENTA_MOBILIARIO_MARK);
+  return true;
+}
+function stripEventFramingForVenta(mensaje) {
+  let out2 = mensaje.replace(/[^.!?\n]*\bcon\s+o\s+sin\s+montaje\b[^.!?\n]*[.!]?/gi, " ").replace(/\bManejamos\s+renta\s+de\s+/gi, "Manejamos ").replace(/\s+para\s+eventos\b/gi, "").replace(/\bciudad\*?\s+del\s+evento\b/gi, (m6) => m6.replace(/del\s+evento/i, "de entrega")).replace(/\s*en\s+el\s+montaje\s+de\s+tu\s+evento/gi, " en tu cotizaci\xF3n").replace(/\s*para\s+(?:tu|el)\s+evento\b/gi, " para tu compra").replace(/\s*de\s+tu\s+evento\b/gi, "");
+  const eventQ = /¿[^?¿]*(tipo\s+de\s+evento|qu[eé]\s+(?:van\s+a\s+)?celebr|festejan|fecha|qu[eé]\s+d[ií]a|a\s+qu[eé]\s+hora|horario|cu[aá]ntos\s+invitados|cu[aá]ntas\s+personas|invitados)[^?¿]*\?/gi;
+  out2 = out2.replace(eventQ, " ");
+  return out2.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
 function applyLucyMessageGuards(input) {
+  const ventaMode = markVentaMobiliarioMode(input);
   let mensaje = applyLucyMessageGuardsRaw(input).replace(
     /^(¡?)Perfecto,\s+que\s+es\s+\*[^*\n]+\*\s*([!.])?\s*/i,
     (_m, open2) => open2 ? "\xA1Perfecto! " : "Perfecto. "
@@ -166600,6 +166653,10 @@ ${body2}${nextQ}`.trim();
   const historyClosed = detectCierreEnviado(
     input.presentationHistory ?? input.history
   );
+  if (ventaMode) {
+    markVentaMobiliarioMode(input);
+    mensaje = stripEventFramingForVenta(mensaje);
+  }
   const asked = ensureOutboundAlwaysAsks(mensaje, {
     extracted: input.extracted,
     filledSet: input.filledSet,
@@ -171399,7 +171456,7 @@ function stripImageAnnotation(text2) {
   }
   return text2.replace(/\[imagen\s+adjunta:[^\]]*\]/gi, "").replace(/\[imagen\s+respuesta\s+cliente\]:\s*[^\n]*/gi, "").replace(/\[imagen\s+nota\s+interna\]:\s*[^\n]*/gi, "").replace(/\[imagen\s+intent\]:\s*[^\n]*/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
-var EMAIL_WAIVED_LABEL, WHATSAPP_NOMBRE_NOTE, EMAIL_REFUSAL_PATTERN, CANT_USE_EMAIL_AFTER_ASK_RE, CLOSING_CORE_FIELDS, LUCY_INTRO, SERVICIOS_CATALOGO_HINT_ADICIONAL, OTRO_SERVICIO_ASK_PATTERN, CORREO_MAX_ASKS, FIELD_ASK_PATTERNS, CLOSING_SIGNATURE, SHORT_NO_REPLY_RE, INVITADOS_UNAVAILABLE_VALUE, _outboundFinalizeCtx, PISTA_TARIMA_VARIANTS, LUCY_TRANSITIONS, TRANSITION_START_PATTERN, FIELD_ORDER, SALES_CTA_NOT_FUNNEL, FECHA_HORARIO_VARIANTS, REQUERIMIENTOS_MONTO_VARIANTS, MINIMAL_SERVICE_PATTERN, FOOD_MODE_ASK_RE;
+var EMAIL_WAIVED_LABEL, WHATSAPP_NOMBRE_NOTE, EMAIL_REFUSAL_PATTERN, CANT_USE_EMAIL_AFTER_ASK_RE, CLOSING_CORE_FIELDS, LUCY_INTRO, SERVICIOS_CATALOGO_HINT_ADICIONAL, OTRO_SERVICIO_ASK_PATTERN, CORREO_MAX_ASKS, FIELD_ASK_PATTERNS, CLOSING_SIGNATURE, SHORT_NO_REPLY_RE, INVITADOS_UNAVAILABLE_VALUE, VENTA_CLOSING_CORE_FIELDS, VENTA_MOBILIARIO_MARK, _outboundFinalizeCtx, PISTA_TARIMA_VARIANTS, LUCY_TRANSITIONS, TRANSITION_START_PATTERN, FIELD_ORDER, SALES_CTA_NOT_FUNNEL, FECHA_HORARIO_VARIANTS, REQUERIMIENTOS_MONTO_VARIANTS, MINIMAL_SERVICE_PATTERN, FOOD_MODE_ASK_RE;
 var init_lucy_flow_guards = __esm({
   "src/lucy-flow-guards.ts"() {
     "use strict";
@@ -171456,6 +171513,13 @@ var init_lucy_flow_guards = __esm({
     CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
     SHORT_NO_REPLY_RE = /^(?:no+|nop|nel|no\s*,?\s*gracias|mejor\s+no|ahorita\s+no|por\s+ahora\s+no|no\s+por\s+ahora|de\s+momento\s+no|no\s+tengo)[\s.!¡]*$/i;
     INVITADOS_UNAVAILABLE_VALUE = "Sin definir (afluencia abierta / cliente no dispone del dato)";
+    VENTA_CLOSING_CORE_FIELDS = [
+      "Nombre del cliente",
+      "Requerimientos o servicios",
+      "Lugar/direcci\xF3n del evento",
+      "Presupuesto (MXN)"
+    ];
+    VENTA_MOBILIARIO_MARK = "Venta de mobiliario";
     _outboundFinalizeCtx = null;
     PISTA_TARIMA_VARIANTS = [
       {
@@ -234368,6 +234432,16 @@ function pendingFields(mergedLines, extracted) {
   if (!pickFromMergedLines(mergedLines, /Correo electrónico/i) && !mergedLines.some((l6) => /continuar por whatsapp/i.test(l6)) && !extracted.correo?.trim()) {
     pending.push("correo");
   }
+  const venta = /\(venta\)/i.test(pickFromMergedLines(mergedLines, /Requerimientos/i) ?? "") || /\(venta\)/i.test(extracted.requerimientos_evento ?? "");
+  if (venta) {
+    if (!isUsableResumenUbicacion(pickFromMergedLines(mergedLines, /Lugar\/dirección/i)) && !isUsableResumenUbicacion(extracted.direccion_evento)) {
+      pending.push("ciudad de entrega");
+    }
+    if (!pickFromMergedLines(mergedLines, /Presupuesto/i) && extracted.presupuesto == null) {
+      pending.push("presupuesto");
+    }
+    return pending;
+  }
   if (!pickFromMergedLines(mergedLines, /Tipo de evento/i) && !extracted.tipo_evento?.trim()) {
     pending.push("tipo de evento");
   }
@@ -239064,6 +239138,18 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
       }
     }
   }
+  const ventaMobiliario = markVentaMobiliarioMode({
+    extracted,
+    filledSet,
+    history: historyFull,
+    currentMessage
+  });
+  if (ventaMobiliario) {
+    const rIdx = mergedLines.findIndex((l6) => /^-?\s*Requerimientos o servicios:/i.test(l6));
+    if (rIdx >= 0 && !/\(venta\)/i.test(mergedLines[rIdx])) {
+      mergedLines[rIdx] = `${mergedLines[rIdx].trim()} (venta)`;
+    }
+  }
   const allFieldsFilled = isReadyForClosing(filledSet);
   let context = "";
   if (mergedLines.length > 0) {
@@ -239082,8 +239168,9 @@ ${filledList}`;
 ESTADO COMPLETO \u2014 aplica cierre (secci\xF3n 7 del prompt).
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501`;
   } else if (mergedLines.length > 0) {
+    const core = ventaMobiliario ? VENTA_CLOSING_CORE_FIELDS : CLOSING_CORE_FIELDS;
     const missing = [
-      ...CLOSING_CORE_FIELDS.filter((f7) => !filledSet.has(f7)),
+      ...core.filter((f7) => !filledSet.has(f7)),
       ...!isEmailSatisfied(filledSet) ? ["Correo electr\xF3nico (opcional \u2014 intentar, no bloquear)"] : []
     ];
     if (missing.length) {
@@ -239091,6 +239178,9 @@ ESTADO COMPLETO \u2014 aplica cierre (secci\xF3n 7 del prompt).
 
 ESTADO ACTUAL \u2014 FALTA: ${missing.join(", ")} \u2014 pregunta SOLO el primero. NUNCA repitas un dato \u2713 de arriba.`;
     }
+  }
+  if (ventaMobiliario) {
+    context += '\n\nCOMPRA DE MOBILIARIO: el cliente quiere COMPRAR piezas, no rentar para un evento. NO preguntes tipo de evento, fecha, horario ni invitados, ni hables de "tu evento" o "montaje". Pide modelos y cantidades, ciudad de entrega, correo y presupuesto.';
   }
   return { context, allFieldsFilled, mergedLines, filledLabels: filledSet };
 }

@@ -24,6 +24,8 @@ import {
   detectCierreEnviado,
   WHATSAPP_NOMBRE_NOTE,
   CLOSING_CORE_FIELDS,
+  VENTA_CLOSING_CORE_FIELDS,
+  markVentaMobiliarioMode,
   collectUserTexts,
   EMAIL_WAIVED_LABEL,
   isEmailSatisfied,
@@ -1163,6 +1165,20 @@ function buildCrmContext(
     }
   }
 
+  // A16555: compra de mobiliario — sin evento (tipo/fecha/horario/invitados no aplican).
+  const ventaMobiliario = markVentaMobiliarioMode({
+    extracted,
+    filledSet,
+    history: historyFull,
+    currentMessage,
+  });
+  if (ventaMobiliario) {
+    const rIdx = mergedLines.findIndex((l) => /^-?\s*Requerimientos o servicios:/i.test(l));
+    if (rIdx >= 0 && !/\(venta\)/i.test(mergedLines[rIdx]!)) {
+      mergedLines[rIdx] = `${mergedLines[rIdx]!.trim()} (venta)`;
+    }
+  }
+
   const allFieldsFilled = isReadyForClosing(filledSet);
 
   let context = "";
@@ -1173,13 +1189,20 @@ function buildCrmContext(
   if (allFieldsFilled && mergedLines.length > 0) {
     context += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nESTADO COMPLETO — aplica cierre (sección 7 del prompt).\n━━━━━━━━━━━━━━━━━━━━━━━━`;
   } else if (mergedLines.length > 0) {
+    const core: readonly string[] = ventaMobiliario ? VENTA_CLOSING_CORE_FIELDS : CLOSING_CORE_FIELDS;
     const missing = [
-      ...CLOSING_CORE_FIELDS.filter((f) => !filledSet.has(f)),
+      ...core.filter((f) => !filledSet.has(f)),
       ...(!isEmailSatisfied(filledSet) ? ["Correo electrónico (opcional — intentar, no bloquear)"] : []),
     ];
     if (missing.length) {
       context += `\n\nESTADO ACTUAL — FALTA: ${missing.join(", ")} — pregunta SOLO el primero. NUNCA repitas un dato ✓ de arriba.`;
     }
+  }
+  if (ventaMobiliario) {
+    context +=
+      "\n\nCOMPRA DE MOBILIARIO: el cliente quiere COMPRAR piezas, no rentar para un evento. " +
+      "NO preguntes tipo de evento, fecha, horario ni invitados, ni hables de \"tu evento\" o \"montaje\". " +
+      "Pide modelos y cantidades, ciudad de entrega, correo y presupuesto.";
   }
   return { context, allFieldsFilled, mergedLines, filledLabels: filledSet };
 }

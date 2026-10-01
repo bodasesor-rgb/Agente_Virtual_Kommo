@@ -186,6 +186,8 @@ import {
   parseNamedShowLabels,
   clientAsksVentaOrRenta,
   clientChoosesVenta,
+  clientWantsToBuyMobiliario,
+  isVentaMobiliarioReq,
   clientConfirmsOfferReview,
   clientMentionsLedRobotsOrBatucada,
   clientMentionsPistaTarima,
@@ -1283,7 +1285,21 @@ export function isEmailSatisfied(filledSet: Set<string>, extracted?: ExtractedDa
   return !!(email && looksLikeValidClientEmail(email));
 }
 
+/** A16555: datos mínimos para cerrar una compra de mobiliario (no hay evento). */
+export const VENTA_CLOSING_CORE_FIELDS = [
+  "Nombre del cliente",
+  "Requerimientos o servicios",
+  "Lugar/dirección del evento",
+  "Presupuesto (MXN)",
+] as const;
+
+/** Marca en filledSet (no es campo CRM): conversación de compra de mobiliario. */
+export const VENTA_MOBILIARIO_MARK = "Venta de mobiliario";
+
 export function isReadyForClosing(filledSet: Set<string>): boolean {
+  if (filledSet.has(VENTA_MOBILIARIO_MARK)) {
+    return VENTA_CLOSING_CORE_FIELDS.every((label) => filledSet.has(label)) && isEmailSatisfied(filledSet);
+  }
   const hasSchedule =
     (filledSet.has(CRM_FECHA_LABEL) && filledSet.has(CRM_HORARIO_LABEL)) ||
     filledSet.has(LEGACY_CRM_FECHA_HORARIO_LABEL);
@@ -3296,6 +3312,21 @@ export function getNextPendingField(
   const filled = filledSet ?? new Set<string>();
 
   if (!isFieldSatisfied("nombre", filled, extracted)) return "nombre";
+
+  // A16555: compra de mobiliario — no hay evento (sin tipo/fecha/horario/invitados).
+  if (isVentaMobiliarioReq(extracted.requerimientos_evento)) {
+    if (!isFieldSatisfied("requerimientos", filled, extracted)) return "requerimientos";
+    if (
+      !filled.has("Lugar/dirección del evento") &&
+      !isUsableDireccionEvento(extracted.direccion_evento)
+    ) {
+      return "zona";
+    }
+    if (!isEmailSatisfied(filled, extracted)) return "correo";
+    if (!filled.has("Presupuesto (MXN)") && !hasPresupuestoValue(extracted)) return "presupuesto";
+    return null;
+  }
+
   if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
 
   if (!isFieldSatisfied("requerimientos", filled, extracted)) return "requerimientos";
@@ -4754,6 +4785,16 @@ export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionCo
   const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage, history);
   const variant = pickVariant(field, history, ctx.entityId);
   const thanks = emailThanksPrefix(ctx);
+
+  // A16555: compra de mobiliario — entrega (y cantidades), no "dónde es tu evento".
+  if (field === "zona" && isVentaMobiliarioReq(ctx.extracted.requerimientos_evento)) {
+    const qtyKnown = /\d/.test(ctx.extracted.requerimientos_evento ?? "") ||
+      collectUserTexts(history, ctx.currentMessage).some((t) => /\b\d{1,4}\s+(mesas?|sillas?|periqueras?|salas?|piezas?)\b/i.test(t));
+    const q = qtyKnown
+      ? "¿A qué ciudad y colonia sería la entrega?"
+      : "¿Cuántas piezas de cada modelo necesitas y a qué ciudad sería la entrega?";
+    return prefix ? `${prefix}${q}` : q;
+  }
 
   if (field === "correo") {
     // Mucho gusto lo antepone el turno de captura de nombre; aquí solo la pregunta.
@@ -6372,7 +6413,52 @@ function upgradeVagueFoodRequirement(value: string | null | undefined, label: st
   return [label, ...kept.filter((p) => p.toLowerCase() !== label.toLowerCase())].join(", ");
 }
 
+/**
+ * A16555: "Mesas para comprarles" → compra de mobiliario. Marca requerimientos "(venta)" y
+ * filledSet para que el embudo/cierre no pidan tipo de evento, fecha, horario ni invitados.
+ */
+export function markVentaMobiliarioMode(input: {
+  extracted: ExtractedData;
+  filledSet: Set<string>;
+  history: OpenAI.Chat.ChatCompletionMessageParam[];
+  currentMessage?: string | null;
+}): boolean {
+  const req = input.extracted.requerimientos_evento;
+  const userTexts = collectUserTexts(input.history, input.currentMessage ?? undefined);
+  const lucyOfferedVenta = input.history.some(
+    (m) => m.role === "assistant" && typeof m.content === "string" && /cotizar\s+para\s+\*?venta/i.test(m.content)
+  );
+  const venta =
+    isVentaMobiliarioReq(req) ||
+    userTexts.some((t) => clientWantsToBuyMobiliario(t, req)) ||
+    (lucyOfferedVenta && userTexts.some((t) => /\bcompr(ar|arles|arlas|arlos|a)\b/i.test(t)));
+  if (!venta) return false;
+  if (!isVentaMobiliarioReq(req)) {
+    input.extracted.requerimientos_evento = `${req?.trim() || "Mobiliario"} (venta)`;
+  }
+  input.filledSet.add("Requerimientos o servicios");
+  input.filledSet.add(VENTA_MOBILIARIO_MARK);
+  return true;
+}
+
+/** A16555: en compra de mobiliario no hay "evento" — quitar esas preguntas/frases del texto. */
+function stripEventFramingForVenta(mensaje: string): string {
+  let out = mensaje
+    .replace(/[^.!?\n]*\bcon\s+o\s+sin\s+montaje\b[^.!?\n]*[.!]?/gi, " ")
+    .replace(/\bManejamos\s+renta\s+de\s+/gi, "Manejamos ")
+    .replace(/\s+para\s+eventos\b/gi, "")
+    .replace(/\bciudad\*?\s+del\s+evento\b/gi, (m) => m.replace(/del\s+evento/i, "de entrega"))
+    .replace(/\s*en\s+el\s+montaje\s+de\s+tu\s+evento/gi, " en tu cotización")
+    .replace(/\s*para\s+(?:tu|el)\s+evento\b/gi, " para tu compra")
+    .replace(/\s*de\s+tu\s+evento\b/gi, "");
+  const eventQ =
+    /¿[^?¿]*(tipo\s+de\s+evento|qu[eé]\s+(?:van\s+a\s+)?celebr|festejan|fecha|qu[eé]\s+d[ií]a|a\s+qu[eé]\s+hora|horario|cu[aá]ntos\s+invitados|cu[aá]ntas\s+personas|invitados)[^?¿]*\?/gi;
+  out = out.replace(eventQ, " ");
+  return out.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
+  const ventaMode = markVentaMobiliarioMode(input);
   // A16477: "¡Perfecto, que es *comida*!" — acuse roto sin sujeto.
   let mensaje = applyLucyMessageGuardsRaw(input).replace(
     /^(¡?)Perfecto,\s+que\s+es\s+\*[^*\n]+\*\s*([!.])?\s*/i,
@@ -6455,7 +6541,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const historyClosed = detectCierreEnviado(
     input.presentationHistory ?? input.history
   );
-  const asked = ensureOutboundAlwaysAsks(mensaje, {
+  if (ventaMode) {
+    // Ramas internas pueden reescribir requerimientos ("Mobiliario: 80 sillas") — conservar "(venta)".
+    markVentaMobiliarioMode(input);
+    mensaje = stripEventFramingForVenta(mensaje);
+  }  const asked = ensureOutboundAlwaysAsks(mensaje, {
     extracted: input.extracted,
     filledSet: input.filledSet,
     ctx: makeQuestionCtx(input),
