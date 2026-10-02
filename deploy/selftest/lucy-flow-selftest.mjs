@@ -138334,7 +138334,7 @@ function getDisplayName(extracted, whatsappName) {
 }
 function lucyHasPresented(history) {
   return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some(
-    (m5) => /hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual\s+de\s+bodasesor/i.test(
+    (m5) => /hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual\s+de\s+bodasesor/i.test(
       m5.content
     )
   );
@@ -138386,7 +138386,7 @@ function presentationHistoryFrom(ctx) {
 function stripRepeatLucyIntro(mensaje, history, alreadyStarted) {
   if (!alreadyStarted && !lucyHasPresented(history)) return mensaje;
   return mensaje.replace(
-    /¡?Hola!?\.?\s*(?:Buen\s+d[ií]a\.?\s*)?Soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi,
+    /¡?Hola!?\.?\s*(?:(?:Buen\s+d[ií]a|Buenas\s+(?:tardes|noches))\.?\s*)?Soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi,
     ""
   ).replace(/Hola,?\s*soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "").replace(/\bSoy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "").replace(/¡?Hola!?\.?\s*Soy\s+Lucy[^.!?\n]{0,90}\.?/gi, "").replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "").replace(/Con gusto te ayudo(?:\.\s*|\s*$)/gi, "").replace(/^\s+/, "").trim();
 }
@@ -145468,7 +145468,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}` : fromCatalog;
       }
     }
     if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !lucyHasPresented(presHistory) && !history.some((m5) => m5.role === "assistant")) {
-      if (!/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
+      if (!/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
         mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
       }
       if (!isFieldSatisfied("nombre", filledSet, extracted) && !mensajeAsksForField(mensaje, "nombre") && !/\b(cu[aá]l\s+es\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre)\b/i.test(
@@ -145499,7 +145499,7 @@ ${pickVariant("nombre", history, entityId)}`.trim();
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
   const presHistoryForIntro = input.presentationHistory ?? history;
   const isOpeningTurn = (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) && !lucyHasPresented(presHistoryForIntro) && !history.some((m5) => m5.role === "assistant") && !(!forceFirstPresentation && crmAdvancedBeforeThisTurn(filledSet, extracted, currentMessage));
-  if (isOpeningTurn && !/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
+  if (isOpeningTurn && !/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
     mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
     log?.info({ entityId }, "GUARD: A16228 \u2014 presentaci\xF3n Lucy a\xF1adida al primer mensaje");
   }
@@ -147464,6 +147464,31 @@ function mergeExtractedPatch(target, patch) {
   }
 }
 
+// src/lib/timeOfDayGreeting.ts
+function mexicoCityHour(now) {
+  const h4 = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Mexico_City",
+    hour: "2-digit",
+    hourCycle: "h23"
+  }).format(now);
+  return Number(h4);
+}
+function timeOfDayGreeting(now = /* @__PURE__ */ new Date(), clientMessage) {
+  const m5 = clientMessage ?? "";
+  if (/\bbuenas\s+noches\b/i.test(m5)) return "Buenas noches";
+  if (/\bbuenas\s+tardes\b/i.test(m5)) return "Buenas tardes";
+  if (/\bbuen(?:os)?\s+d[ií]as?\b/i.test(m5)) return "Buen d\xEDa";
+  const h4 = mexicoCityHour(now);
+  if (h4 >= 5 && h4 < 12) return "Buen d\xEDa";
+  if (h4 >= 12 && h4 < 19) return "Buenas tardes";
+  return "Buenas noches";
+}
+function applyTimeOfDayGreeting(text2, opts = {}) {
+  if (!/¡Hola!\s*Buen\s+d[ií]a\b/.test(text2)) return text2;
+  const g6 = timeOfDayGreeting(opts.now, opts.clientMessage);
+  return g6 === "Buen d\xEDa" ? text2 : text2.replace(/¡Hola!\s*Buen\s+d[ií]a\b/, `\xA1Hola! ${g6}`);
+}
+
 // src/services/catalogLinkRepair.ts
 var CATALOG_URL_RE = /https?:\/\/\S*(?:bodasesor|hostingersite)\.com\/catalogos\S*/i;
 var ORPHAN_LINK_RE = /(\b(?:aqu[ií]|ac[aá]|en\s+(?:este|el\s+siguiente|el)\s+(?:enlace|link|v[ií]nculo)|(?:este|el\s+siguiente)\s+(?:enlace|link)|en\s+(?:nuestro|el)\s+cat[aá]logo))[ \t]*:[ \t]*(?=[.,;]|¿|\n\s*¿|\s*$)[.,;]?[ \t]*/gi;
@@ -147836,6 +147861,7 @@ ${ask}` : ask;
       input.log?.info?.({ entityId: input.entityId }, "GUARD: A16244 \u2014 always-ask continue");
     }
   }
+  mensaje = applyTimeOfDayGreeting(mensaje, { now: input.now, clientMessage: clientText });
   return formatForWhatsApp(mensaje);
 }
 
@@ -150638,7 +150664,7 @@ async function runAll() {
       history: [],
       forceFirstPresentation: true
     });
-    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 200));
+    assert2.ok(/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 200));
     assert2.ok(!clientAsksForRecommendations(webMsg) || !/lo m[aá]s com[uú]n es banquete o taquiza/i.test(first), first);
   });
   await test("39. Maestro \u2014 correo typo y nombre CRM", () => {
@@ -150790,7 +150816,7 @@ async function runAll() {
       history: [],
       forceFirstPresentation: true
     });
-    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 200));
+    assert2.ok(/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 200));
     assert2.ok(/boda|solicitud|80\s+personas/i.test(first), first);
     assert2.ok(!/opciones m[aá]s pedidas/i.test(first), first);
   });
@@ -151772,7 +151798,7 @@ ${CATALOG_OFFER_QUESTION}`
       history: [],
       forceFirstPresentation: true
     });
-    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(waReply), waReply.slice(0, 280));
+    assert2.ok(/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy/i.test(waReply), waReply.slice(0, 280));
     assert2.ok(/coffee/i.test(waReply), waReply.slice(0, 500));
     assert2.ok(/desayuno/i.test(waReply), waReply.slice(0, 500));
     assert2.ok(/cena/i.test(waReply), waReply.slice(0, 500));
@@ -151964,7 +151990,7 @@ ${CATALOG_OFFER_QUESTION}`
       history: [],
       forceFirstPresentation: true
     });
-    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 300));
+    assert2.ok(/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 300));
     assert2.ok(!/lo dejamos por definir/i.test(first), first.slice(0, 400));
     assert2.ok(/15 de agosto|santa fe|200/i.test(first), first.slice(0, 500));
     assert2.ok(/parrillada|men[uú]\s+casual|tres propuestas/i.test(first), first.slice(0, 600));
@@ -156465,7 +156491,7 @@ ${golfText}`,
       },
       true
     );
-    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first);
+    assert2.ok(/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy/i.test(first), first);
     assert2.ok(/cu[aá]l\s+es\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo/i.test(first), first);
     assert2.ok(/show|animaci|performance/i.test(first), first);
     assert2.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n/i.test(first), first);
@@ -156479,7 +156505,7 @@ ${golfText}`,
       cierreYaEnviado: false,
       entityId: 15165
     });
-    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(kept), kept);
+    assert2.ok(/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy/i.test(kept), kept);
     assert2.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n\s*\/\s*Hora\s+loca\*\s+la\s+anoto/i.test(kept), kept);
     const postShow = runGuards({
       aiResponse: "\xA1Claro! *Animaci\xF3n / Hora loca* la anoto para tu cotizaci\xF3n. Nuestro equipo te confirma descripci\xF3n, precio e inclusiones.",
@@ -158298,7 +158324,7 @@ ${golfText}`,
       history: [],
       forceFirstPresentation: true
     });
-    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(live), live.slice(0, 300));
+    assert2.ok(/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy/i.test(live), live.slice(0, 300));
     assert2.ok(!/Sobre \*bebidas\*|S[ií] incluye/i.test(live), `sin dump: ${live.slice(0, 350)}`);
     assert2.ok(/10 de octubre|polanco|120/i.test(live), live.slice(0, 500));
     assert2.ok(/coffee|meseros/i.test(live), live.slice(0, 500));

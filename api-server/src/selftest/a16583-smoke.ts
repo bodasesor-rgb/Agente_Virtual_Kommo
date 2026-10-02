@@ -6,6 +6,7 @@
  *   iluminación, ni servicio nuevo (*Iluminación*), ni pedido de ideas.
  * - "cotízame esas dos imágenes" no es pedir fotos; "solo ocupo lo de las 2 fotos" no recibe
  *   "¿Hay algo más que te gustaría sumar?".
+ * - 18:47 con "buenas tardes" → "¡Hola! Buenas tardes." (no "Buen día").
  */
 import assert from "node:assert/strict";
 import type OpenAI from "openai";
@@ -20,9 +21,22 @@ import {
   clientAsksForPhotos,
 } from "../services/concreteProductQuestion.js";
 import { clientClosedServiceList, clientWantsIdeasOrTrends } from "../services/trendKnowledge.js";
+import { applyTimeOfDayGreeting } from "../lib/timeOfDayGreeting.js";
 
 const u = (c: string) => ({ role: "user", content: c }) as OpenAI.Chat.ChatCompletionMessageParam;
 const a = (c: string) => ({ role: "assistant", content: c }) as OpenAI.Chat.ChatCompletionMessageParam;
+
+// Saludo según la hora de CDMX (UTC-6) o el saludo del cliente.
+{
+  const intro = "¡Hola! Buen día. Soy Lucy, agente virtual de Bodasesor. ¿Con quién tengo el gusto?";
+  const at = (iso: string, msg?: string) => applyTimeOfDayGreeting(intro, { now: new Date(iso), clientMessage: msg });
+  assert.match(at("2026-10-02T15:00:00Z"), /^¡Hola! Buen día\. Soy Lucy/);
+  assert.match(at("2026-10-02T00:47:00Z"), /^¡Hola! Buenas tardes\. Soy Lucy/, "18:47 CDMX");
+  assert.match(at("2026-10-03T01:30:00Z"), /^¡Hola! Buenas noches\. Soy Lucy/, "19:30 CDMX");
+  assert.match(at("2026-10-02T15:00:00Z", "hola que tal buenas tardes"), /Buenas tardes/);
+  assert.match(at("2026-10-02T20:00:00Z", "Buenas noches"), /Buenas noches/);
+  assert.equal(applyTimeOfDayGreeting("¿Cuántos invitados?", { now: new Date("2026-10-02T20:00:00Z") }), "¿Cuántos invitados?");
+}
 
 // Dirección.
 for (const t of ["de noche", "De noche", "de tarde", "por la mañana", "de día"]) {

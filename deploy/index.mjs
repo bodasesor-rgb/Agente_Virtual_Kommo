@@ -203948,7 +203948,7 @@ function getDisplayName(extracted, whatsappName) {
 }
 function lucyHasPresented(history) {
   return history.filter((m6) => m6.role === "assistant" && typeof m6.content === "string").some(
-    (m6) => /hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual\s+de\s+bodasesor/i.test(
+    (m6) => /hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual\s+de\s+bodasesor/i.test(
       m6.content
     )
   );
@@ -203999,7 +203999,7 @@ function presentationHistoryFrom(ctx) {
 function stripRepeatLucyIntro(mensaje, history, alreadyStarted) {
   if (!alreadyStarted && !lucyHasPresented(history)) return mensaje;
   return mensaje.replace(
-    /¡?Hola!?\.?\s*(?:Buen\s+d[ií]a\.?\s*)?Soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi,
+    /¡?Hola!?\.?\s*(?:(?:Buen\s+d[ií]a|Buenas\s+(?:tardes|noches))\.?\s*)?Soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi,
     ""
   ).replace(/Hola,?\s*soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "").replace(/\bSoy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "").replace(/¡?Hola!?\.?\s*Soy\s+Lucy[^.!?\n]{0,90}\.?/gi, "").replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "").replace(/Con gusto te ayudo(?:\.\s*|\s*$)/gi, "").replace(/^\s+/, "").trim();
 }
@@ -210993,7 +210993,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}` : fromCatalog;
       }
     }
     if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !lucyHasPresented(presHistory) && !history.some((m6) => m6.role === "assistant")) {
-      if (!/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
+      if (!/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
         mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
       }
       if (!isFieldSatisfied("nombre", filledSet, extracted) && !mensajeAsksForField(mensaje, "nombre") && !/\b(cu[aá]l\s+es\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre)\b/i.test(
@@ -211024,7 +211024,7 @@ ${pickVariant("nombre", history, entityId)}`.trim();
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
   const presHistoryForIntro = input.presentationHistory ?? history;
   const isOpeningTurn = (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) && !lucyHasPresented(presHistoryForIntro) && !history.some((m6) => m6.role === "assistant") && !(!forceFirstPresentation && crmAdvancedBeforeThisTurn(filledSet, extracted, currentMessage));
-  if (isOpeningTurn && !/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
+  if (isOpeningTurn && !/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
     mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
     log?.info({ entityId }, "GUARD: A16228 \u2014 presentaci\xF3n Lucy a\xF1adida al primer mensaje");
   }
@@ -213876,6 +213876,36 @@ var init_embudo = __esm({
       ETAPA.COTIZACION_REALIZADA,
       ETAPA.CLIENTE_PERDIDO
     ]);
+  }
+});
+
+// src/lib/timeOfDayGreeting.ts
+function mexicoCityHour(now) {
+  const h5 = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Mexico_City",
+    hour: "2-digit",
+    hourCycle: "h23"
+  }).format(now);
+  return Number(h5);
+}
+function timeOfDayGreeting(now = /* @__PURE__ */ new Date(), clientMessage) {
+  const m6 = clientMessage ?? "";
+  if (/\bbuenas\s+noches\b/i.test(m6)) return "Buenas noches";
+  if (/\bbuenas\s+tardes\b/i.test(m6)) return "Buenas tardes";
+  if (/\bbuen(?:os)?\s+d[ií]as?\b/i.test(m6)) return "Buen d\xEDa";
+  const h5 = mexicoCityHour(now);
+  if (h5 >= 5 && h5 < 12) return "Buen d\xEDa";
+  if (h5 >= 12 && h5 < 19) return "Buenas tardes";
+  return "Buenas noches";
+}
+function applyTimeOfDayGreeting(text2, opts = {}) {
+  if (!/¡Hola!\s*Buen\s+d[ií]a\b/.test(text2)) return text2;
+  const g7 = timeOfDayGreeting(opts.now, opts.clientMessage);
+  return g7 === "Buen d\xEDa" ? text2 : text2.replace(/¡Hola!\s*Buen\s+d[ií]a\b/, `\xA1Hola! ${g7}`);
+}
+var init_timeOfDayGreeting = __esm({
+  "src/lib/timeOfDayGreeting.ts"() {
+    "use strict";
   }
 });
 
@@ -230930,7 +230960,7 @@ function composeLucyReply(userText) {
   const trimmed = userText.trim();
   const sawRealMessage = trimmed.length > 0 && !/^hola!?$/i.test(trimmed);
   const ack = sawRealMessage ? "Vi tu mensaje. " : "";
-  return `${LUCY_INTRO} ${ack}Disculpa la espera \u2014 se hab\xEDa quedado pendiente. \xBFMe compartes tu nombre y qu\xE9 necesitas cotizar para tu evento?`.trim();
+  return `${applyTimeOfDayGreeting(LUCY_INTRO, { clientMessage: trimmed })} ${ack}Disculpa la espera \u2014 se hab\xEDa quedado pendiente. \xBFMe compartes tu nombre y qu\xE9 necesitas cotizar para tu evento?`.trim();
 }
 async function writeToLead(opts) {
   const leadId = opts.leadId;
@@ -231073,6 +231103,7 @@ var init_incomingLeadRecovery = __esm({
     init_chat_history();
     await init_chatIngest();
     init_lucy_flow_guards();
+    init_timeOfDayGreeting();
     await init_kommoMirror();
     init_whatsappDirectSender();
     await init_embudo();
@@ -236995,6 +237026,7 @@ init_eventDateTime();
 init_serviceKnowledge();
 init_concreteProductQuestion();
 init_imageProcessor();
+init_timeOfDayGreeting();
 init_lucyInfoPriceCache();
 init_catalogService();
 
@@ -237371,6 +237403,7 @@ ${ask}` : ask;
       input.log?.info?.({ entityId: input.entityId }, "GUARD: A16244 \u2014 always-ask continue");
     }
   }
+  mensaje = applyTimeOfDayGreeting(mensaje, { now: input.now, clientMessage: clientText });
   return formatForWhatsApp(mensaje);
 }
 

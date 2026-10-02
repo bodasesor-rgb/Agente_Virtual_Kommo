@@ -50,6 +50,7 @@ import {
   clientAsksConcreteProductQuestion,
 } from "./services/concreteProductQuestion.js";
 import { clientOwnText } from "./services/imageProcessor.js";
+import { applyTimeOfDayGreeting } from "./lib/timeOfDayGreeting.js";
 import {
   clientComplainsAboutFormat,
   collapseDuplicatedInclusionReply,
@@ -72,6 +73,8 @@ export interface FinalizeLucyOutboundInput {
   log?: { warn: (obj: object, msg?: string) => void; info?: (obj: object, msg?: string) => void };
   /** Viñetas de Google Grounding del turno (si LUCY_GOOGLE_GROUNDING=1). */
   trendGroundingSnippet?: string | null;
+  /** Solo tests: hora para el saludo de la presentación. */
+  now?: Date;
 }
 
 export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInput): Promise<string> {
@@ -490,5 +493,6 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
     }
   }
 
+  mensaje = applyTimeOfDayGreeting(mensaje, { now: input.now, clientMessage: clientText });
   return formatForWhatsApp(mensaje);
 }

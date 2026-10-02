@@ -1382,7 +1382,7 @@ function lucyHasPresented(history: OpenAI.Chat.ChatCompletionMessageParam[]): bo
   return history
     .filter((m) => m.role === "assistant" && typeof m.content === "string")
     .some((m) =>
-      /hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual\s+de\s+bodasesor/i.test(
+      /hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual\s+de\s+bodasesor/i.test(
         m.content as string
       )
     );
@@ -1509,7 +1509,7 @@ function stripRepeatLucyIntro(
   if (!alreadyStarted && !lucyHasPresented(history)) return mensaje;
   return mensaje
     .replace(
-      /¡?Hola!?\.?\s*(?:Buen\s+d[ií]a\.?\s*)?Soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi,
+      /¡?Hola!?\.?\s*(?:(?:Buen\s+d[ií]a|Buenas\s+(?:tardes|noches))\.?\s*)?Soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi,
       ""
     )
     .replace(/Hola,?\s*soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "")
@@ -12502,7 +12502,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       !lucyHasPresented(presHistory) &&
       !history.some((m) => m.role === "assistant")
     ) {
-      if (!/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
+      if (!/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
         mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
       }
       if (
@@ -12545,7 +12545,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     !(!forceFirstPresentation && crmAdvancedBeforeThisTurn(filledSet, extracted, currentMessage));
   if (
     isOpeningTurn &&
-    !/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)
+    !/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)
   ) {
     mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
     log?.info({ entityId }, "GUARD: A16228 — presentación Lucy añadida al primer mensaje");

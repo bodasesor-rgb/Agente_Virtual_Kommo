@@ -6,6 +6,7 @@ import { logger } from "../lib/logger.js";
 import { appendHistory, getHistory } from "../chat-history.js";
 import { persistLucyExchange } from "./chatIngest.js";
 import { LUCY_INTRO } from "../lucy-flow-guards.js";
+import { applyTimeOfDayGreeting } from "../lib/timeOfDayGreeting.js";
 import { deliverLucyOutbound } from "./kommoMirror.js";
 import { fetchContactPhone } from "./whatsappDirectSender.js";
 import {
@@ -129,7 +130,7 @@ function composeLucyReply(userText: string): string {
   const trimmed = userText.trim();
   const sawRealMessage = trimmed.length > 0 && !/^hola!?$/i.test(trimmed);
   const ack = sawRealMessage ? "Vi tu mensaje. " : "";
-  return `${LUCY_INTRO} ${ack}Disculpa la espera — se había quedado pendiente. ¿Me compartes tu nombre y qué necesitas cotizar para tu evento?`.trim();
+  return `${applyTimeOfDayGreeting(LUCY_INTRO, { clientMessage: trimmed })} ${ack}Disculpa la espera — se había quedado pendiente. ¿Me compartes tu nombre y qué necesitas cotizar para tu evento?`.trim();
 }
 
 async function writeToLead(opts: {

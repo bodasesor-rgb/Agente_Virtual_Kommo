@@ -2299,7 +2299,7 @@ async function runAll(): Promise<void> {
       history: [],
       forceFirstPresentation: true,
     });
-    assert.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 200));
+    assert.ok(/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 200));
     assert.ok(!clientAsksForRecommendations(webMsg) || !/lo m[aá]s com[uú]n es banquete o taquiza/i.test(first), first);
   });
 
@@ -2476,7 +2476,7 @@ async function runAll(): Promise<void> {
       history: [],
       forceFirstPresentation: true,
     });
-    assert.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 200));
+    assert.ok(/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 200));
     assert.ok(/boda|solicitud|80\s+personas/i.test(first), first);
     assert.ok(!/opciones m[aá]s pedidas/i.test(first), first);
   });
@@ -3572,7 +3572,7 @@ async function runAll(): Promise<void> {
       history: [],
       forceFirstPresentation: true,
     });
-    assert.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(waReply), waReply.slice(0, 280));
+    assert.ok(/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy/i.test(waReply), waReply.slice(0, 280));
     assert.ok(/coffee/i.test(waReply), waReply.slice(0, 500));
     assert.ok(/desayuno/i.test(waReply), waReply.slice(0, 500));
     assert.ok(/cena/i.test(waReply), waReply.slice(0, 500));
@@ -3796,7 +3796,7 @@ async function runAll(): Promise<void> {
       history: [],
       forceFirstPresentation: true,
     });
-    assert.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 300));
+    assert.ok(/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 300));
     assert.ok(!/lo dejamos por definir/i.test(first), first.slice(0, 400));
     assert.ok(/15 de agosto|santa fe|200/i.test(first), first.slice(0, 500));
     assert.ok(/parrillada|men[uú]\s+casual|tres propuestas/i.test(first), first.slice(0, 600));
@@ -8854,7 +8854,7 @@ async function runAll(): Promise<void> {
       },
       true
     );
-    assert.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first);
+    assert.ok(/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy/i.test(first), first);
     assert.ok(/cu[aá]l\s+es\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo/i.test(first), first);
     assert.ok(/show|animaci|performance/i.test(first), first);
     assert.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n/i.test(first), first);
@@ -8870,7 +8870,7 @@ async function runAll(): Promise<void> {
       cierreYaEnviado: false,
       entityId: 15165,
     });
-    assert.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(kept), kept);
+    assert.ok(/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy/i.test(kept), kept);
     assert.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n\s*\/\s*Hora\s+loca\*\s+la\s+anoto/i.test(kept), kept);
 
     // Post-cierre: info de shows → catálogo / orientación, no Level-2 ni "Queda anotado".
@@ -10926,7 +10926,7 @@ async function runAll(): Promise<void> {
       history: [],
       forceFirstPresentation: true,
     });
-    assert.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(live), live.slice(0, 300));
+    assert.ok(/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy/i.test(live), live.slice(0, 300));
     assert.ok(!/Sobre \*bebidas\*|S[ií] incluye/i.test(live), `sin dump: ${live.slice(0, 350)}`);
     assert.ok(/10 de octubre|polanco|120/i.test(live), live.slice(0, 500));
     assert.ok(/coffee|meseros/i.test(live), live.slice(0, 500));
