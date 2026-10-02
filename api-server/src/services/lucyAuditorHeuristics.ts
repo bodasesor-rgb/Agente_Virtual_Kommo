@@ -310,14 +310,13 @@ export function runCrmFieldHeuristics(crm: CrmFieldSnapshot): HeuristicFinding[]
     });
   }
 
-  // Truncado típico de campos 255
+  // Truncado típico de campos cortos (255). Requerimientos/Dirección usan cap255() en Kommo.
   for (const [label, val] of [
     ["Requerimientos", req],
     ["Dirección", crm.direccion ?? ""],
-    ["Resumen IA", crm.resumen_ia ?? ""],
   ] as const) {
     const v = val.trim();
-    if (v.length >= 250 || /\.\.\.$/.test(v)) {
+    if (v.length >= 250 || /\.\.\.$|…$/.test(v)) {
       findings.push({
         category: "bad_field",
         severity: "info",
@@ -326,6 +325,27 @@ export function runCrmFieldHeuristics(crm: CrmFieldSnapshot): HeuristicFinding[]
           "Detalle largo → Respuesta IA Largo / nota; campos cortos solo con resumen.",
       });
       break;
+    }
+  }
+
+  // Resumen IA = Respuesta IA Largo (1048786): texto largo (hasta ~8000), no cap255.
+  const resumenIa = (crm.resumen_ia ?? "").trim();
+  const RESUMEN_IA_HARD_CAP = 8000;
+  const RESUMEN_IA_CLOSING_MARK = "— Actualizado por Lucy en cada mensaje —";
+  if (resumenIa) {
+    const hitHardCap =
+      resumenIa.length >= RESUMEN_IA_HARD_CAP - 20 &&
+      !resumenIa.endsWith(RESUMEN_IA_CLOSING_MARK);
+    const endsWithCutMarker =
+      /\.\.\.$|…$/.test(resumenIa) && !resumenIa.endsWith(RESUMEN_IA_CLOSING_MARK);
+    if (hitHardCap || endsWithCutMarker) {
+      findings.push({
+        category: "bad_field",
+        severity: "warn",
+        evidence: `CRM Resumen IA (Respuesta IA Largo) parece cortado (${resumenIa.length} chars): «${resumenIa.slice(-40)}»`,
+        proposedRepair:
+          "buildResumenClienteLargo debe recortar por sección antes del cap de 8000, no a media palabra.",
+      });
     }
   }
 

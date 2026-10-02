@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { runAuditorHeuristics } from "../services/lucyAuditorHeuristics.js";
+import {
+  runAuditorHeuristics,
+  runCrmFieldHeuristics,
+} from "../services/lucyAuditorHeuristics.js";
 import {
   getAuditorModel,
   DEFAULT_AUDITOR_MODEL,
@@ -47,5 +50,13 @@ const bad = runAuditorHeuristics([
   },
 ]);
 assert.ok(bad.some((f) => f.category === "bad_field"), JSON.stringify(bad));
+
+const resumenOk = runCrmFieldHeuristics({
+  resumen_ia: `${"Resumen del cliente. ".repeat(30)}— Actualizado por Lucy en cada mensaje —`,
+});
+assert.ok(
+  !resumenOk.some((f) => f.evidence.includes("parece truncado")),
+  JSON.stringify(resumenOk)
+);
 
 console.log("reparaciones-auditor smoke OK");

@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import {
   parseTipoEventoFromText,
   isOccasionMealEventType,
+  isStandaloneMealEventType,
   isEventTypeOnlyMessage,
   parseServicesFromText,
   parsePrimaryService,
@@ -29,6 +30,14 @@ assert.ok(/^V10\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
 const occasion = "Cena conmemorativa por día del médico";
 assert.equal(isOccasionMealEventType(occasion), true);
 assert.equal(isEventTypeOnlyMessage(occasion), true);
+
+assert.equal(isEventTypeOnlyMessage("Cena"), true);
+assert.equal(isStandaloneMealEventType("Cena"), true);
+assert.ok(!parseServicesFromText("Cena").includes("Cena"));
+const skCena = getServiceKnowledge("Cena");
+assert.equal(skCena, null);
+const ackCena = buildGuardServiceAck("Cena");
+assert.ok(!/no lo tengo listado/i.test(ackCena), ackCena);
 assert.equal(parseTipoEventoFromText(occasion), "cena conmemorativa");
 assert.ok(!parseServicesFromText(occasion).includes("Cena"), parseServicesFromText(occasion));
 assert.ok(!/Cena/i.test(parsePrimaryService(occasion) ?? ""));
