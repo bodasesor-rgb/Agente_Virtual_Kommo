@@ -431,7 +431,10 @@ if (btnCleanup) {
       alert(
         `Limpieza lista (nada se borró, quedan en Descartadas):\n` +
           `· ${d.duplicates ?? 0} duplicados\n· ${d.retired ?? 0} falsos positivos de reglas viejas\n` +
-          `· ${d.released ?? 0} devueltas a Abiertas (estaban «En Cursor» sin trabajo vivo)`
+          `· ${d.released ?? 0} devueltas a Abiertas (estaban «En Cursor» sin trabajo vivo)\n` +
+          `· ${d.joined ?? 0} sumadas al arreglo en curso (mismo problema)\n` +
+          `· ${d.covered ?? 0} cerradas: ya las cubre un arreglo publicado\n` +
+          `· ${d.falsePositive ?? 0} descartadas: mismo falso positivo que Cursor ya revisó`
       );
     } finally {
       btnCleanup.disabled = false;

@@ -104,7 +104,7 @@ export async function listLucyRepairs(
   const capped =
     status === "resolved" || status === "all"
       ? Math.min(Math.max(limit, 50), 300)
-      : Math.min(limit, 100);
+      : Math.min(limit, 300);
   const q = db.select().from(lucyRepairs).orderBy(desc(lucyRepairs.createdAt)).limit(capped);
   if (status === "all") {
     const rows = await q;

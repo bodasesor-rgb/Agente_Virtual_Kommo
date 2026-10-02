@@ -254,6 +254,72 @@ assert.equal(
 const again = await agent.cleanupRepairQueue();
 assert.deepEqual([again.retired, again.duplicates, again.released], [0, 0, 0], "idempotente");
 
+// ── No reparar dos veces lo mismo
+const findLead = async (lead: string) =>
+  (await db.select().from(lucyRepairs).where(eq(lucyRepairs.kommoLeadId, lead)))[0]!;
+// Mismo bug que el arreglo publicado: conversación vieja → cerrada; posterior → vuelve a la cola.
+assert.ok(await rec("900", "bad_field", "[2026-01-01] CRM Tipo de evento parece servicio/SKU: «Mesas»"));
+assert.ok(await rec("901", "bad_field", "[2999-01-01] CRM Tipo de evento parece servicio/SKU: «Sillas»"));
+// Mismo falso positivo que Cursor ya revisó → descartado.
+assert.ok(await rec("902", "repeat_reply", "[2026-10-02] Respuesta casi idéntica repetida: «buenas»", "warn"));
+const absorbed1 = await agent.cleanupRepairQueue();
+assert.equal(absorbed1.covered, 1, JSON.stringify(absorbed1));
+assert.equal(absorbed1.falsePositive, 1, JSON.stringify(absorbed1));
+assert.equal((await findLead("900")).status, "resolved");
+assert.match((await findLead("900")).appliedRepair ?? "", /Mismo problema que el arreglo publicado/);
+assert.equal((await findLead("901")).status, "auto_flagged", "después del arreglo = el arreglo no bastó");
+assert.equal((await findLead("902")).status, "dismissed");
+
+// Trabajo en curso: hallazgos nuevos del mismo bug se suman a ese trabajo.
+assert.ok(await rec("1000", "loop_links", "[2026-10-02] Lucy repitió el link «mocteles»"));
+const job4 = await agent.launchRepairJob([await store.getLucyRepair((await findLead("1000")).id).then((r) => r!)]);
+assert.ok(await rec("1001", "loop_links", "[2026-10-02] Lucy repitió el link «barra»"));
+const absorbed2 = await agent.cleanupRepairQueue();
+assert.equal(absorbed2.joined, 1, JSON.stringify(absorbed2));
+const lead1001 = await findLead("1001");
+assert.equal(lead1001.status, "in_progress");
+assert.ok(agent.getRepairJob(job4.id)!.repairIds.includes(lead1001.id));
+// Lo que Cursor diga de un id aplica a todo su grupo.
+runs.set(`${job4.agentId}/${job4.runId}`, {
+  status: "FINISHED",
+  result:
+    "```json\n" +
+    JSON.stringify({ fixed: [], falsePositive: [{ ids: [job4.repairIds[0]], text: "No era loop." }], notFixed: [] }) +
+    "\n```",
+});
+await agent.tickRepairJobs();
+assert.equal((await findLead("1000")).status, "dismissed");
+assert.equal((await findLead("1001")).status, "dismissed", "falso positivo aplica al grupo");
+
+// Lo que Cursor no pudo arreglar no se vuelve a mandar solo por 3 días.
+assert.ok(await rec("1100", "premature_close", "[2026-10-02] Lucy cerró sin fecha «x»"));
+const job5 = await agent.launchRepairJob([(await store.getLucyRepair((await findLead("1100")).id))!]);
+runs.set(`${job5.agentId}/${job5.runId}`, {
+  status: "FINISHED",
+  result:
+    "```json\n" +
+    JSON.stringify({ fixed: [], falsePositive: [], notFixed: [{ ids: [job5.repairIds[0]], text: "Falta info." }] }) +
+    "\n```",
+});
+await agent.tickRepairJobs();
+assert.equal((await findLead("1100")).status, "auto_flagged");
+const pendingNow = [
+  ...(await store.listLucyRepairs("auto_flagged", 300)),
+  ...(await store.listLucyRepairs("open", 300)),
+];
+assert.ok(pendingNow.some((r) => r.kommoLeadId === "1100"));
+assert.ok(!agent.pickRepairsForJob(pendingNow).some((r) => r.kommoLeadId === "1100"), "no reintenta solo");
+
+// Un problema visto en muchas conversaciones va completo (todas sus filas) en un solo envío.
+const many = Array.from({ length: 18 }, (_, i) => ({
+  ...pendingNow[0]!,
+  id: `many-${i}`,
+  kommoLeadId: `m${i}`,
+  category: "bad_field",
+  evidence: `[2026-10-02] CRM Dirección parece frase: «calle ${i}»`,
+}));
+assert.equal(agent.pickRepairsForJob(many).length, 18);
+
 agent.__resetRepairJobsForTest();
 console.log("cursor-repair-agent smoke OK");
 process.exit(0);

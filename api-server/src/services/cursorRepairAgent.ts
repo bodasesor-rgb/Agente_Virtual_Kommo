@@ -13,6 +13,7 @@ import { logger } from "../lib/logger.js";
 import {
   cleanupLucyRepairBacklog,
   dismissLucyRepair,
+  listLucyRepairs,
   markLucyRepairsInProgress,
   releaseLucyRepairs,
   repairSignature,
@@ -65,6 +66,8 @@ export interface RepairJob {
   runId: string;
   publishRunId?: string;
   repairIds: string[];
+  /** id → firma del problema: lo que Cursor diga de un id aplica a todo su grupo. */
+  repairSigs?: Record<string, string>;
   problems: RepairJobProblem[];
   branch?: string;
   prUrl?: string;
@@ -103,7 +106,7 @@ function repoUrl(): string {
 }
 
 const DEFAULT_MAX_JOBS_PER_DAY = 12;
-const DEFAULT_MAX_PROBLEMS = 12;
+const DEFAULT_MAX_PROBLEMS = 15;
 const DEFAULT_MODEL = "composer-2.5";
 
 function maxJobsPerDay(): number {
@@ -176,6 +179,18 @@ export function listRepairJobs(limit = 20): RepairJob[] {
 
 export function getRepairJob(id: string): RepairJob | undefined {
   return loadJobs().find((j) => j.id === id);
+}
+
+function sigOfRepair(r: Pick<LucyRepairDto, "category" | "evidence">): string {
+  return repairSignature(r.category, r.evidence);
+}
+
+/** Ids del trabajo que comparten problema con `ids` (incluidos ellos mismos). */
+function expandToGroups(job: RepairJob, ids: string[]): string[] {
+  const sigs = job.repairSigs;
+  if (!sigs) return ids;
+  const wanted = new Set(ids.map((id) => sigs[id]).filter(Boolean));
+  return [...new Set([...ids, ...job.repairIds.filter((id) => wanted.has(sigs[id]!))])];
 }
 
 /** Reparaciones que un trabajo vivo (o listo para publicar) tiene tomadas. */
@@ -314,7 +329,12 @@ export function buildRepairPrompt(repairs: LucyRepairDto[]): string {
       `   Propuesta del supervisor: ${first.proposedRepair}`,
       `   Ejemplos:`,
       examples,
-      `   ids: ${g.items.map((r) => r.id).join(", ")}`,
+      `   ids: ${g.items
+        .slice(0, 25)
+        .map((r) => r.id)
+        .join(", ")}${
+        g.items.length > 25 ? ` (+${g.items.length - 25} del mismo problema; basta con citar uno)` : ""
+      }`,
     ].join("\n");
   });
 
@@ -583,21 +603,20 @@ async function applyRunTerminal(job: RepairJob, runId: string, run: ApiRun): Pro
     if (status === "FINISHED") {
       const outcome = parseRepairOutcome(run.result ?? "", job.repairIds) ?? undefined;
       const summary = summarize(run.result);
+      const falsePositiveIds = new Set<string>();
       if (outcome) {
         for (const fp of outcome.falsePositive) {
-          for (const id of fp.ids) {
+          for (const id of expandToGroups(job, fp.ids)) {
+            falsePositiveIds.add(id);
             await dismissLucyRepair(id, "cursor-agent", `Falso positivo (agente Cursor): ${fp.text}`);
           }
         }
-        const notFixedIds = outcome.notFixed.flatMap((x) => x.ids);
+        const notFixedIds = expandToGroups(job, outcome.notFixed.flatMap((x) => x.ids));
         if (notFixedIds.length) await releaseLucyRepairs(notFixedIds);
       }
       const hasChanges = Boolean(branch);
       if (!hasChanges) {
-        const pending = job.repairIds.filter(
-          (id) => !outcome?.falsePositive.some((x) => x.ids.includes(id))
-        );
-        await releaseLucyRepairs(pending);
+        await releaseLucyRepairs(job.repairIds.filter((id) => !falsePositiveIds.has(id)));
       }
       addStep(job, hasChanges ? "Arreglo listo para publicar" : "Terminó sin cambios de código");
       touch(job, {
@@ -628,12 +647,16 @@ async function applyRunTerminal(job: RepairJob, runId: string, run: ApiRun): Pro
 }
 
 async function resolvePublishedRepairs(job: RepairJob): Promise<void> {
-  const settled = new Set([
-    ...(job.outcome?.falsePositive ?? []).flatMap((x) => x.ids),
-    ...(job.outcome?.notFixed ?? []).flatMap((x) => x.ids),
-  ]);
+  const settled = new Set(
+    expandToGroups(job, [
+      ...(job.outcome?.falsePositive ?? []).flatMap((x) => x.ids),
+      ...(job.outcome?.notFixed ?? []).flatMap((x) => x.ids),
+    ])
+  );
   const fixedText = new Map<string, string>();
-  for (const f of job.outcome?.fixed ?? []) for (const id of f.ids) fixedText.set(id, f.text);
+  for (const f of job.outcome?.fixed ?? []) {
+    for (const id of expandToGroups(job, f.ids)) fixedText.set(id, f.text);
+  }
   for (const id of job.repairIds) {
     if (settled.has(id)) continue;
     const text =
@@ -701,6 +724,7 @@ export async function launchRepairJob(repairs: LucyRepairDto[]): Promise<RepairJ
     runId: created.run.id,
     model: model?.id ?? "default",
     repairIds: repairs.map((r) => r.id),
+    repairSigs: Object.fromEntries(repairs.map((r) => [r.id, sigOfRepair(r)])),
     problems: groups.map((g) => ({
       category: g.items[0]!.category,
       label: stripRepairDayPrefix(g.items[0]!.evidence).slice(0, 140),
@@ -847,25 +871,120 @@ export function repairAgentStatusSummary(): {
  * Un trabajo = los problemas más repetidos (cada uno con todas sus conversaciones),
  * para que un solo arreglo cubra muchas filas del panel.
  */
-export function pickRepairsForJob(pending: LucyRepairDto[]): LucyRepairDto[] {
+export function pickRepairsForJob(pending: LucyRepairDto[], now = new Date()): LucyRepairDto[] {
   const maxProblems = Math.max(
     1,
     Number(process.env["LUCY_REPAIR_MAX_PROBLEMS"] ?? DEFAULT_MAX_PROBLEMS) || DEFAULT_MAX_PROBLEMS
   );
+  const skip = recentlyNotFixedSigs(now);
   const severityRank: Record<string, number> = { error: 0, warn: 1, info: 2 };
-  const groups = groupProblems(pending).sort((a, b) => {
+  const groups = groupProblems(pending.filter((r) => !skip.has(sigOfRepair(r)))).sort((a, b) => {
     const sa = Math.min(...a.items.map((r) => severityRank[r.severity] ?? 1));
     const sb = Math.min(...b.items.map((r) => severityRank[r.severity] ?? 1));
     return sa !== sb ? sa - sb : b.items.length - a.items.length;
   });
-  return groups.slice(0, maxProblems).flatMap((g) => g.items.slice(0, 15));
+  return groups.slice(0, maxProblems).flatMap((g) => g.items);
+}
+
+const NOT_FIXED_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000;
+const COVERAGE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+
+function outcomeSigs(job: RepairJob, kind: keyof Pick<RepairJobOutcome, "fixed" | "falsePositive" | "notFixed">) {
+  const sigs = new Set<string>();
+  for (const item of job.outcome?.[kind] ?? []) {
+    for (const id of item.ids) {
+      const sig = job.repairSigs?.[id];
+      if (sig) sigs.add(sig);
+    }
+  }
+  return sigs;
+}
+
+/** Lo que Cursor dijo hace poco que no pudo arreglar no se vuelve a mandar solo (sí con el botón de la fila). */
+function recentlyNotFixedSigs(now: Date): Set<string> {
+  const out = new Set<string>();
+  for (const job of loadJobs()) {
+    const at = new Date(job.finishedAt ?? job.updatedAt).getTime();
+    if (now.getTime() - at > NOT_FIXED_COOLDOWN_MS) continue;
+    for (const sig of outcomeSigs(job, "notFixed")) out.add(sig);
+  }
+  return out;
+}
+
+function repairDay(r: LucyRepairDto): string {
+  return r.evidence.match(/^\s*\[(\d{4}-\d{2}-\d{2})\]/)?.[1] ?? r.createdAt.slice(0, 10);
+}
+
+export interface RepairAbsorbResult {
+  joined: number;
+  covered: number;
+  falsePositive: number;
+}
+
+/**
+ * Hallazgos nuevos de un problema que Cursor ya tiene o ya resolvió no generan otro arreglo:
+ * - trabajo en curso / listo → se suman a ese trabajo;
+ * - arreglo publicado → si la conversación es de antes de que estuviera activo, se cierra;
+ *   si es posterior, el arreglo no bastó y vuelve a la cola;
+ * - falso positivo ya revisado por Cursor → se descarta.
+ */
+export async function absorbCoveredRepairs(pending: LucyRepairDto[], now = new Date()): Promise<RepairAbsorbResult> {
+  const result: RepairAbsorbResult = { joined: 0, covered: 0, falsePositive: 0 };
+  const recent = loadJobs().filter(
+    (j) => j.repairSigs && now.getTime() - new Date(j.createdAt).getTime() <= COVERAGE_WINDOW_MS
+  );
+  if (!recent.length || !pending.length) return result;
+  const handled = new Set<string>();
+  let dirty = false;
+
+  for (const job of recent) {
+    const sigs = new Set(Object.values(job.repairSigs!));
+    const fp = outcomeSigs(job, "falsePositive");
+    const notFixed = outcomeSigs(job, "notFixed");
+    const open = ACTIVE.has(job.status) || job.status === "fix_ready";
+    const published = job.status === "published";
+    const liveDay = (job.liveAt ?? now.toISOString()).slice(0, 10);
+
+    for (const r of pending) {
+      if (handled.has(r.id)) continue;
+      const sig = sigOfRepair(r);
+      if (!sigs.has(sig)) continue;
+      if (fp.has(sig)) {
+        handled.add(r.id);
+        await dismissLucyRepair(r.id, "cursor-agent", "Mismo falso positivo que Cursor ya revisó.");
+        result.falsePositive += 1;
+      } else if (notFixed.has(sig)) {
+        continue;
+      } else if (open) {
+        handled.add(r.id);
+        await markLucyRepairsInProgress([r.id], `cursor-agent:${job.id}`);
+        job.repairIds.push(r.id);
+        job.repairSigs![r.id] = sig;
+        dirty = true;
+        result.joined += 1;
+      } else if (published && repairDay(r) <= liveDay) {
+        handled.add(r.id);
+        await resolveLucyRepair(
+          r.id,
+          `Mismo problema que el arreglo publicado el ${(job.publishedAt ?? job.updatedAt).slice(0, 10)}; esta conversación fue antes de que estuviera activo.`,
+          "cursor-agent"
+        );
+        result.covered += 1;
+      }
+    }
+  }
+  if (dirty) saveJobs();
+  return result;
 }
 
 export async function cleanupRepairQueue() {
-  return cleanupLucyRepairBacklog({
+  const backlog = await cleanupLucyRepairBacklog({
     trackedRepairIds: trackedRepairIds(),
     staleInProgressMs: isCursorAgentConfigured() ? 30 * 60 * 1000 : 6 * 60 * 60 * 1000,
   });
+  const pending = [...(await listLucyRepairs("auto_flagged", 300)), ...(await listLucyRepairs("open", 300))];
+  const absorbed = await absorbCoveredRepairs(pending);
+  return { ...backlog, ...absorbed };
 }
 
 /** Solo para smoke: reinicia el estado en memoria. */

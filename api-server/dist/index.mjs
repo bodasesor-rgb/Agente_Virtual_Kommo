@@ -203555,7 +203555,7 @@ async function persistBackupSafe() {
 }
 async function listLucyRepairs(status2 = "open", limit2 = 50) {
   await ensureLucyRepairSchema();
-  const capped = status2 === "resolved" || status2 === "all" ? Math.min(Math.max(limit2, 50), 300) : Math.min(limit2, 100);
+  const capped = status2 === "resolved" || status2 === "all" ? Math.min(Math.max(limit2, 50), 300) : Math.min(limit2, 300);
   const q3 = db.select().from(lucyRepairs).orderBy(desc(lucyRepairs.createdAt)).limit(capped);
   if (status2 === "all") {
     const rows2 = await q3;
@@ -203785,6 +203785,7 @@ __export(cursorRepairAgent_exports, {
   PUBLISH_PROMPT: () => PUBLISH_PROMPT,
   RepairJobError: () => RepairJobError,
   __resetRepairJobsForTest: () => __resetRepairJobsForTest,
+  absorbCoveredRepairs: () => absorbCoveredRepairs,
   buildRepairPrompt: () => buildRepairPrompt,
   cancelRepairJob: () => cancelRepairJob,
   cleanupRepairQueue: () => cleanupRepairQueue,
@@ -203873,6 +203874,15 @@ function listRepairJobs(limit2 = 20) {
 function getRepairJob(id) {
   return loadJobs().find((j5) => j5.id === id);
 }
+function sigOfRepair(r5) {
+  return repairSignature(r5.category, r5.evidence);
+}
+function expandToGroups(job, ids) {
+  const sigs = job.repairSigs;
+  if (!sigs) return ids;
+  const wanted = new Set(ids.map((id) => sigs[id]).filter(Boolean));
+  return [.../* @__PURE__ */ new Set([...ids, ...job.repairIds.filter((id) => wanted.has(sigs[id]))])];
+}
 function trackedRepairIds() {
   const ids = /* @__PURE__ */ new Set();
   for (const j5 of loadJobs()) {
@@ -203957,7 +203967,7 @@ function buildRepairPrompt(repairs) {
       `   Propuesta del supervisor: ${first.proposedRepair}`,
       `   Ejemplos:`,
       examples,
-      `   ids: ${g7.items.map((r5) => r5.id).join(", ")}`
+      `   ids: ${g7.items.slice(0, 25).map((r5) => r5.id).join(", ")}${g7.items.length > 25 ? ` (+${g7.items.length - 25} del mismo problema; basta con citar uno)` : ""}`
     ].join("\n");
   });
   return `Eres el agente de reparaciones de Lucy, la vendedora virtual de Bodasesor en WhatsApp (Kommo).
@@ -204186,21 +204196,20 @@ async function applyRunTerminal(job, runId, run2) {
     if (status2 === "FINISHED") {
       const outcome = parseRepairOutcome(run2.result ?? "", job.repairIds) ?? void 0;
       const summary = summarize(run2.result);
+      const falsePositiveIds = /* @__PURE__ */ new Set();
       if (outcome) {
         for (const fp of outcome.falsePositive) {
-          for (const id of fp.ids) {
+          for (const id of expandToGroups(job, fp.ids)) {
+            falsePositiveIds.add(id);
             await dismissLucyRepair(id, "cursor-agent", `Falso positivo (agente Cursor): ${fp.text}`);
           }
         }
-        const notFixedIds = outcome.notFixed.flatMap((x8) => x8.ids);
+        const notFixedIds = expandToGroups(job, outcome.notFixed.flatMap((x8) => x8.ids));
         if (notFixedIds.length) await releaseLucyRepairs(notFixedIds);
       }
       const hasChanges = Boolean(branch);
       if (!hasChanges) {
-        const pending = job.repairIds.filter(
-          (id) => !outcome?.falsePositive.some((x8) => x8.ids.includes(id))
-        );
-        await releaseLucyRepairs(pending);
+        await releaseLucyRepairs(job.repairIds.filter((id) => !falsePositiveIds.has(id)));
       }
       addStep(job, hasChanges ? "Arreglo listo para publicar" : "Termin\xF3 sin cambios de c\xF3digo");
       touch(job, {
@@ -204229,12 +204238,16 @@ async function applyRunTerminal(job, runId, run2) {
   }
 }
 async function resolvePublishedRepairs(job) {
-  const settled = /* @__PURE__ */ new Set([
-    ...(job.outcome?.falsePositive ?? []).flatMap((x8) => x8.ids),
-    ...(job.outcome?.notFixed ?? []).flatMap((x8) => x8.ids)
-  ]);
+  const settled = new Set(
+    expandToGroups(job, [
+      ...(job.outcome?.falsePositive ?? []).flatMap((x8) => x8.ids),
+      ...(job.outcome?.notFixed ?? []).flatMap((x8) => x8.ids)
+    ])
+  );
   const fixedText = /* @__PURE__ */ new Map();
-  for (const f7 of job.outcome?.fixed ?? []) for (const id of f7.ids) fixedText.set(id, f7.text);
+  for (const f7 of job.outcome?.fixed ?? []) {
+    for (const id of expandToGroups(job, f7.ids)) fixedText.set(id, f7.text);
+  }
   for (const id of job.repairIds) {
     if (settled.has(id)) continue;
     const text2 = fixedText.get(id) || job.summary?.slice(0, 600) || "Arreglado por el agente de Cursor y publicado.";
@@ -204285,6 +204298,7 @@ async function launchRepairJob(repairs) {
     runId: created.run.id,
     model: model?.id ?? "default",
     repairIds: repairs.map((r5) => r5.id),
+    repairSigs: Object.fromEntries(repairs.map((r5) => [r5.id, sigOfRepair(r5)])),
     problems: groups.map((g7) => ({
       category: g7.items[0].category,
       label: stripRepairDayPrefix(g7.items[0].evidence).slice(0, 140),
@@ -204409,31 +204423,103 @@ function repairAgentStatusSummary() {
     active: active ? { id: active.id, status: active.status, since: active.createdAt } : null
   };
 }
-function pickRepairsForJob(pending) {
+function pickRepairsForJob(pending, now = /* @__PURE__ */ new Date()) {
   const maxProblems = Math.max(
     1,
     Number(process.env["LUCY_REPAIR_MAX_PROBLEMS"] ?? DEFAULT_MAX_PROBLEMS) || DEFAULT_MAX_PROBLEMS
   );
+  const skip = recentlyNotFixedSigs(now);
   const severityRank = { error: 0, warn: 1, info: 2 };
-  const groups = groupProblems(pending).sort((a4, b5) => {
+  const groups = groupProblems(pending.filter((r5) => !skip.has(sigOfRepair(r5)))).sort((a4, b5) => {
     const sa2 = Math.min(...a4.items.map((r5) => severityRank[r5.severity] ?? 1));
     const sb = Math.min(...b5.items.map((r5) => severityRank[r5.severity] ?? 1));
     return sa2 !== sb ? sa2 - sb : b5.items.length - a4.items.length;
   });
-  return groups.slice(0, maxProblems).flatMap((g7) => g7.items.slice(0, 15));
+  return groups.slice(0, maxProblems).flatMap((g7) => g7.items);
+}
+function outcomeSigs(job, kind) {
+  const sigs = /* @__PURE__ */ new Set();
+  for (const item of job.outcome?.[kind] ?? []) {
+    for (const id of item.ids) {
+      const sig = job.repairSigs?.[id];
+      if (sig) sigs.add(sig);
+    }
+  }
+  return sigs;
+}
+function recentlyNotFixedSigs(now) {
+  const out2 = /* @__PURE__ */ new Set();
+  for (const job of loadJobs()) {
+    const at3 = new Date(job.finishedAt ?? job.updatedAt).getTime();
+    if (now.getTime() - at3 > NOT_FIXED_COOLDOWN_MS) continue;
+    for (const sig of outcomeSigs(job, "notFixed")) out2.add(sig);
+  }
+  return out2;
+}
+function repairDay(r5) {
+  return r5.evidence.match(/^\s*\[(\d{4}-\d{2}-\d{2})\]/)?.[1] ?? r5.createdAt.slice(0, 10);
+}
+async function absorbCoveredRepairs(pending, now = /* @__PURE__ */ new Date()) {
+  const result = { joined: 0, covered: 0, falsePositive: 0 };
+  const recent = loadJobs().filter(
+    (j5) => j5.repairSigs && now.getTime() - new Date(j5.createdAt).getTime() <= COVERAGE_WINDOW_MS
+  );
+  if (!recent.length || !pending.length) return result;
+  const handled = /* @__PURE__ */ new Set();
+  let dirty = false;
+  for (const job of recent) {
+    const sigs = new Set(Object.values(job.repairSigs));
+    const fp = outcomeSigs(job, "falsePositive");
+    const notFixed = outcomeSigs(job, "notFixed");
+    const open2 = ACTIVE.has(job.status) || job.status === "fix_ready";
+    const published = job.status === "published";
+    const liveDay = (job.liveAt ?? now.toISOString()).slice(0, 10);
+    for (const r5 of pending) {
+      if (handled.has(r5.id)) continue;
+      const sig = sigOfRepair(r5);
+      if (!sigs.has(sig)) continue;
+      if (fp.has(sig)) {
+        handled.add(r5.id);
+        await dismissLucyRepair(r5.id, "cursor-agent", "Mismo falso positivo que Cursor ya revis\xF3.");
+        result.falsePositive += 1;
+      } else if (notFixed.has(sig)) {
+        continue;
+      } else if (open2) {
+        handled.add(r5.id);
+        await markLucyRepairsInProgress([r5.id], `cursor-agent:${job.id}`);
+        job.repairIds.push(r5.id);
+        job.repairSigs[r5.id] = sig;
+        dirty = true;
+        result.joined += 1;
+      } else if (published && repairDay(r5) <= liveDay) {
+        handled.add(r5.id);
+        await resolveLucyRepair(
+          r5.id,
+          `Mismo problema que el arreglo publicado el ${(job.publishedAt ?? job.updatedAt).slice(0, 10)}; esta conversaci\xF3n fue antes de que estuviera activo.`,
+          "cursor-agent"
+        );
+        result.covered += 1;
+      }
+    }
+  }
+  if (dirty) saveJobs();
+  return result;
 }
 async function cleanupRepairQueue() {
-  return cleanupLucyRepairBacklog({
+  const backlog = await cleanupLucyRepairBacklog({
     trackedRepairIds: trackedRepairIds(),
     staleInProgressMs: isCursorAgentConfigured() ? 30 * 60 * 1e3 : 6 * 60 * 60 * 1e3
   });
+  const pending = [...await listLucyRepairs("auto_flagged", 300), ...await listLucyRepairs("open", 300)];
+  const absorbed = await absorbCoveredRepairs(pending);
+  return { ...backlog, ...absorbed };
 }
 function __resetRepairJobsForTest() {
   jobs = null;
   for (const c5 of streams.values()) c5.abort();
   streams.clear();
 }
-var ACTIVE, MAX_STEPS, MAX_JOBS_KEPT, BOOTED_AT, DEFAULT_REPO, DEFAULT_MAX_JOBS_PER_DAY, DEFAULT_MAX_PROBLEMS, DEFAULT_MODEL, jobs, CursorApiError, modelCache, PUBLISH_PROMPT, streams, applying, RepairJobError, timer;
+var ACTIVE, MAX_STEPS, MAX_JOBS_KEPT, BOOTED_AT, DEFAULT_REPO, DEFAULT_MAX_JOBS_PER_DAY, DEFAULT_MAX_PROBLEMS, DEFAULT_MODEL, jobs, CursorApiError, modelCache, PUBLISH_PROMPT, streams, applying, RepairJobError, timer, NOT_FIXED_COOLDOWN_MS, COVERAGE_WINDOW_MS;
 var init_cursorRepairAgent = __esm({
   async "src/services/cursorRepairAgent.ts"() {
     "use strict";
@@ -204446,7 +204532,7 @@ var init_cursorRepairAgent = __esm({
     BOOTED_AT = /* @__PURE__ */ new Date();
     DEFAULT_REPO = "https://github.com/bodasesor-rgb/Agente_Virtual_Kommo";
     DEFAULT_MAX_JOBS_PER_DAY = 12;
-    DEFAULT_MAX_PROBLEMS = 12;
+    DEFAULT_MAX_PROBLEMS = 15;
     DEFAULT_MODEL = "composer-2.5";
     jobs = null;
     CursorApiError = class extends Error {
@@ -204481,6 +204567,8 @@ o, si no se pudo: {"published":false,"text":"motivo"}`;
       httpStatus;
     };
     timer = null;
+    NOT_FIXED_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1e3;
+    COVERAGE_WINDOW_MS = 14 * 24 * 60 * 60 * 1e3;
   }
 });
 
@@ -243925,8 +244013,8 @@ router12.post("/reparaciones/send-to-cursor", async (req, res) => {
       } else {
         await cleanupRepairQueue();
         repairs = pickRepairsForJob([
-          ...await listLucyRepairs("auto_flagged", 100),
-          ...await listLucyRepairs("open", 100)
+          ...await listLucyRepairs("auto_flagged", 300),
+          ...await listLucyRepairs("open", 300)
         ]);
       }
       const job = await launchRepairJob(repairs);

@@ -220,8 +220,8 @@ router.post("/reparaciones/send-to-cursor", async (req: Request, res: Response) 
       } else {
         await cleanupRepairQueue();
         repairs = pickRepairsForJob([
-          ...(await listLucyRepairs("auto_flagged", 100)),
-          ...(await listLucyRepairs("open", 100)),
+          ...(await listLucyRepairs("auto_flagged", 300)),
+          ...(await listLucyRepairs("open", 300)),
         ]);
       }
       const job = await launchRepairJob(repairs);
