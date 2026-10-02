@@ -3705,7 +3705,8 @@ function parseServicesFromTextRaw(text: string): string[] {
       !snackIsAntojito);
 
   // A16263: ocasión (cena conmemorativa / día del médico) ≠ SKU Cena/Comida.
-  const occasionMeal = isOccasionMealEventType(text);
+  const occasionMeal =
+    isOccasionMealEventType(text) || isStandaloneMealEventType(text);
 
   for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
     if (label === "Comida" && !hasMealListContext) continue;
@@ -4533,8 +4534,31 @@ export function isOccasionMealEventType(text: string | null | undefined): boolea
     /\bd[ií]a\s+del\s+m[eé]dico\b/i.test(raw) ||
     /\b(cena|comida)\s+(de\s+)?gala\b/i.test(raw) ||
     /\b(cena|comida)\s+empresarial\b/i.test(raw) ||
-    /\bconmemorativ\w*\s+por\b/i.test(raw)
+    /\bconmemorativ\w*\s+por\b/i.test(raw) ||
+    (/\bconmemorativ\w*\b/i.test(raw) && /\b(cena|comida|almuerzo|brunch)\b/i.test(raw))
   );
+}
+
+/** "Cena" / "Comida" sueltos como tipo de evento (A16074), no SKU corporativo Cena/Comida. */
+export function isStandaloneMealEventType(text: string | null | undefined): boolean {
+  const raw = (text ?? "").trim();
+  if (!raw) return false;
+  if (isOccasionMealEventType(raw)) return true;
+  if (/^(cena|comida)s?[.!?]*$/i.test(raw)) return true;
+  if (
+    /\b(es\s+un[a]?|ser[aá]|ser[ií]a)\s+(?:una?\s+)?(cena|comida)\b/i.test(raw) &&
+    raw.split(/\s+/).filter(Boolean).length <= 12
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** Historial + turno actual: ocasión conmemorativa / día del médico (no SKU Cena). */
+export function conversationHasOccasionMealContext(texts: readonly string[]): boolean {
+  const blob = texts.filter(Boolean).join("\n");
+  if (!blob.trim()) return false;
+  return isOccasionMealEventType(blob) || isStandaloneMealEventType(blob);
 }
 
 /**
@@ -4548,9 +4572,12 @@ export function isEventTypeOnlyMessage(text: string | null | undefined): boolean
   // A16309: "Algún otro menú típico para boda" ≠ solo tipo.
   if (clientAsksAlternativeMenus(t)) return false;
   // A16263: cena/comida conmemorativa / día del médico = TIPO, no SKU Level-2.
-  if (isOccasionMealEventType(t)) return true;
+  if (isOccasionMealEventType(t) || isStandaloneMealEventType(t)) return true;
   const tipo = parseTipoEventoFromText(t);
   if (!tipo) return false;
+  if (/^(cena|comida)$/i.test(tipo) && t.split(/\s+/).filter(Boolean).length <= 4) {
+    return true;
+  }
   // Pedido claro de un servicio del catálogo junto al tipo → no es solo tipo.
   if (
     /\b(cotizar|precio|quiero|necesito|busco|me\s+interesa)\b.{0,50}\b(banquete|taquiza|carpas?|pista|tarima|mobiliario|dj|mesas?|sillas?|entelado|barra|sushi|catering)\b/i.test(
