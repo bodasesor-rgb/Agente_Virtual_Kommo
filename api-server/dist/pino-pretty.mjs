@@ -1728,7 +1728,6 @@ var require_cjs = __commonJS({
       return type.substring(8, type.length - 1);
     }
     var { propertyIsEnumerable } = Object.prototype;
-    var sliceTypedArray = Object.getPrototypeOf(Int8Array.prototype).slice;
     function copyOwnDescriptor(original, clone, property, state) {
       const ownDescriptor = Object.getOwnPropertyDescriptor(original, property) || {
         configurable: true,
@@ -1771,7 +1770,7 @@ var require_cjs = __commonJS({
       return copyOwnPropertiesStrict(array, clone, state);
     }
     function copyArrayBuffer(arrayBuffer, _state) {
-      return ArrayBuffer.isView(arrayBuffer) ? sliceTypedArray.call(arrayBuffer, 0) : arrayBuffer.slice(0);
+      return arrayBuffer.slice(0);
     }
     function copyBlob(blob, _state) {
       return blob.slice(0, blob.size, blob.type);
@@ -1867,7 +1866,7 @@ var require_cjs = __commonJS({
       };
     }
     function getTagSpecificCopiers(methods) {
-      return Object.assign(/* @__PURE__ */ Object.create(null), {
+      return {
         Arguments: methods.object,
         Array: methods.array,
         ArrayBuffer: methods.arrayBuffer,
@@ -1898,7 +1897,7 @@ var require_cjs = __commonJS({
         Uint8ClampedArray: methods.arrayBuffer,
         Uint16Array: methods.arrayBuffer,
         Uint32Array: methods.arrayBuffer
-      });
+      };
     }
     function createCopier(options = {}) {
       const { createCache, copiers, maxDepth } = getOptions(options);

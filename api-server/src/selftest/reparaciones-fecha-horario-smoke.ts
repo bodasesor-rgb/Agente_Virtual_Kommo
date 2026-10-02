@@ -22,6 +22,14 @@ const seriaPm = "sería aproximadamente a las 9:30 pm";
 assert.equal(parseHorarioFromText(seriaPm), "9:30 pm");
 assert.equal(isUsableFechaEvento(seriaPm), false);
 assert.equal(polishHorarioEventoCapture(seriaPm), "9:30 pm");
+assert.equal(parseHorarioFromText("Sería a las 8 de la noche"), "8 de la noche");
+// «es una mesa de dulces» no es «es a la 1».
+assert.equal(parseHorarioFromText("Es una mesa de dulces por favor"), null);
+assert.equal(parseHorarioFromText("es un evento para 100 personas"), null);
+assert.equal(parseHorarioFromText("Sería a las 8 de la noche"), "8 de la noche");
+// «es una mesa de dulces» no es «es a la 1».
+assert.equal(parseHorarioFromText("Es una mesa de dulces por favor"), null);
+assert.equal(parseHorarioFromText("es un evento para 100 personas"), null);
 
 const novCocktail =
   "06 de noviembre El cóctel empieza a las 6.30 termina 1.00 de la mañana";

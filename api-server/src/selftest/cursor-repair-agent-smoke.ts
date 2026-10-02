@@ -17,7 +17,7 @@ process.env["LUCY_REPAIRS_JSON_PATH"] = join(dir, "lucy-repairs.json");
 process.env["LUCY_REPAIR_RUNS_PATH"] = join(dir, "repair-runs.json");
 process.env["CURSOR_API_KEY"] = "test-key";
 process.env["CURSOR_API_BASE"] = "https://cursor.mock";
-delete process.env["LUCY_REPAIR_AUTO_PUBLISH"];
+process.env["LUCY_REPAIR_AUTO_PUBLISH"] = "0";
 delete process.env["LUCY_REPAIR_MODEL"];
 delete process.env["LUCY_REPAIR_MODEL_FAST"];
 
@@ -319,6 +319,18 @@ const many = Array.from({ length: 18 }, (_, i) => ({
   evidence: `[2026-10-02] CRM Dirección parece frase: «calle ${i}»`,
 }));
 assert.equal(agent.pickRepairsForJob(many).length, 18);
+
+// Por defecto publica solo al terminar con cambios.
+delete process.env["LUCY_REPAIR_AUTO_PUBLISH"];
+assert.ok(await rec("1200", "bad_field", "[2026-10-02] CRM Fecha parece horario: «5 pm»"));
+const job6 = await agent.launchRepairJob([(await store.getLucyRepair((await findLead("1200")).id))!]);
+runs.set(`${job6.agentId}/${job6.runId}`, {
+  status: "FINISHED",
+  result: "```json\n" + JSON.stringify({ fixed: [{ ids: [job6.repairIds[0]], text: "ok" }], falsePositive: [], notFixed: [] }) + "\n```",
+  git: { branches: [{ branch: "cursor/fix-fecha", prUrl: "https://github.com/x/pull/10" }] },
+});
+await agent.tickRepairJobs();
+assert.equal(agent.getRepairJob(job6.id)!.status, "publishing", "auto-publica sin botón");
 
 agent.__resetRepairJobsForTest();
 console.log("cursor-repair-agent smoke OK");

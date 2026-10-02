@@ -5276,7 +5276,7 @@ export function parseHorarioFromText(text: string): string | null {
   // A16583: "sería aproximadamente a las 9:30 pm" → solo hora.
   {
     const approxSeria = clean.match(
-      /^(?:ser[ií]a|ser[aá]|es)\s+(?:aproximadamente\s+)?(?:a\s+las?\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.\s*m\.?|p\.\s*m\.?)?)/i
+      /^(?:ser[ií]a|ser[aá]|es)\s+(?:aproximadamente\s+)?(?:a\s+las?\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.\s*m\.?|p\.\s*m\.?|de\s+la\s+(?:mañana|manana|tarde|noche)\b)?)(?=\s*(?:$|[.,;!?]|hrs?\b|horas?\b|aprox))/i
     );
     if (approxSeria?.[1]) {
       return normalizeHorarioCapture(`a las ${approxSeria[1].replace(/\./g, ":")}`);

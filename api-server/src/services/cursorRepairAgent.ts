@@ -119,7 +119,7 @@ function requestedModel(): string {
 }
 
 function autoPublish(): boolean {
-  return /^(1|true|si|sí|yes)$/i.test(process.env["LUCY_REPAIR_AUTO_PUBLISH"]?.trim() ?? "");
+  return !/^(0|false|no)$/i.test(process.env["LUCY_REPAIR_AUTO_PUBLISH"]?.trim() ?? "");
 }
 
 export function isCursorAgentConfigured(): boolean {
@@ -316,6 +316,9 @@ function groupProblems(repairs: LucyRepairDto[]): Array<{ sig: string; items: Lu
     .sort((a, b) => b.items.length - a.items.length);
 }
 
+const ALL_SMOKES_CMD =
+  'fails=0; for f in src/selftest/*-smoke.ts scripts/_smoke-*.mjs; do [ -e "$f" ] || continue; npx --yes tsx "$f" >/tmp/smoke.log 2>&1 || { echo "FAIL $f"; tail -20 /tmp/smoke.log; fails=1; }; done; [ $fails = 0 ] && echo "TODOS OK"';
+
 export function buildRepairPrompt(repairs: LucyRepairDto[]): string {
   const groups = groupProblems(repairs);
   const blocks = groups.map((g, i) => {
@@ -355,9 +358,9 @@ REGLAS
 2. Si un hallazgo es un falso positivo del supervisor, corrige la regla en lucyAuditorHeuristics.ts o repórtalo como falso positivo.
 3. Agrega o amplía un smoke en api-server/src/selftest/ que reproduzca cada problema arreglado.
 4. Dependencias (como .github/workflows/deploy-hostinger.yml): cp package.json /tmp/pkg.json && cp package.development.json package.json && npm install && cp /tmp/pkg.json package.json. No commitees package.json modificado.
-5. Pruebas obligatorias, todas deben pasar:
+5. Pruebas obligatorias, todas deben pasar (no solo las que tocaste; un cambio puede romper otro caso):
    cd api-server && npx --yes tsx ./src/selftest/lucy-flow-selftest.ts
-   y cada smoke que toques: npx --yes tsx ./src/selftest/<nombre>-smoke.ts
+   cd api-server && ${ALL_SMOKES_CMD}
 6. Compila: cd api-server && npm run build. Esto actualiza api-server/dist/ y deploy/ — commitea ambos, sin eso el servidor no cambia.
 7. No toques lucy-data/, hostinger-relay/ ni archivos .env. No hagas push a main en este paso: deja tu rama y el PR.
 
@@ -374,7 +377,8 @@ Tu último mensaje debe terminar con este bloque JSON (en español simple, para 
 export const PUBLISH_PROMPT = `El dueño aprobó publicar este arreglo. Pásalo a main:
 1. git fetch origin main && git rebase origin/main (o merge si el rebase se complica).
 2. Si hay conflictos en api-server/dist/ o deploy/, toma la versión de main para esos archivos y vuelve a compilar: cd api-server && npm run build.
-3. Vuelve a correr cd api-server && npx --yes tsx ./src/selftest/lucy-flow-selftest.ts y los smokes que tocaste. Si algo falla, NO publiques.
+3. Vuelve a correr cd api-server && npx --yes tsx ./src/selftest/lucy-flow-selftest.ts y TODOS los smokes: cd api-server && ${ALL_SMOKES_CMD}
+   Si algo falla, arréglalo sin romper los demás casos; si no puedes, NO publiques.
 4. Commitea dist/ y deploy/ actualizados y haz git push origin HEAD:main (sin force-push).
 Tu último mensaje debe terminar con:
 \`\`\`json
