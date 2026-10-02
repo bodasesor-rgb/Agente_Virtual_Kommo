@@ -203816,8 +203816,11 @@ function repoUrl() {
   return process.env["LUCY_REPAIR_REPO_URL"]?.trim() || DEFAULT_REPO;
 }
 function maxJobsPerDay() {
-  const n5 = Number(process.env["LUCY_REPAIR_MAX_JOBS_PER_DAY"] ?? 4);
-  return Number.isFinite(n5) && n5 > 0 ? Math.floor(n5) : 4;
+  const n5 = Number(process.env["LUCY_REPAIR_MAX_JOBS_PER_DAY"] ?? DEFAULT_MAX_JOBS_PER_DAY);
+  return Number.isFinite(n5) && n5 > 0 ? Math.floor(n5) : DEFAULT_MAX_JOBS_PER_DAY;
+}
+function requestedModel() {
+  return process.env["LUCY_REPAIR_MODEL"]?.trim() || DEFAULT_MODEL;
 }
 function autoPublish() {
   return /^(1|true|si|sí|yes)$/i.test(process.env["LUCY_REPAIR_AUTO_PUBLISH"]?.trim() ?? "");
@@ -203905,6 +203908,34 @@ async function cursorApi(path7, init2) {
     throw new CursorApiError(res.status, code, message || `HTTP ${res.status}`);
   }
   return data;
+}
+function normModelName(s7) {
+  return s7.toLowerCase().replace(/[^a-z0-9.]/g, "");
+}
+async function resolveRepairModel() {
+  const wanted = requestedModel();
+  const fast = (process.env["LUCY_REPAIR_MODEL_FAST"]?.trim() || "false").toLowerCase();
+  const key = `${wanted}|${fast}`;
+  const ttl = modelCache?.selection ? 6 * 60 * 60 * 1e3 : 10 * 60 * 1e3;
+  if (modelCache && modelCache.key === key && Date.now() - modelCache.at < ttl) return modelCache.selection;
+  let selection = null;
+  try {
+    const { items = [] } = await cursorApi("/v1/models");
+    const w5 = normModelName(wanted);
+    const names3 = (m6) => [m6.id, ...m6.aliases ?? []].map(normModelName);
+    const model = items.find((m6) => names3(m6).includes(w5)) ?? items.find((m6) => [...names3(m6), normModelName(m6.displayName ?? "")].some((n5) => n5.startsWith(w5)));
+    if (model) {
+      const fastParam = model.parameters?.find((p5) => p5.id === "fast");
+      const allowed = fastParam?.values?.some((v4) => v4.value === fast);
+      selection = { id: model.id, ...fastParam && allowed ? { params: [{ id: "fast", value: fast }] } : {} };
+    } else {
+      logger.warn({ wanted, available: items.map((m6) => m6.id) }, "Modelo de reparaciones no disponible \u2014 uso el default");
+    }
+  } catch (err2) {
+    logger.warn({ err: String(err2) }, "No pude listar modelos de Cursor \u2014 uso el default");
+  }
+  modelCache = { key, at: Date.now(), selection };
+  return selection;
 }
 function groupProblems(repairs) {
   const groups = /* @__PURE__ */ new Map();
@@ -204230,7 +204261,7 @@ async function launchRepairJob(repairs) {
       429
     );
   }
-  const model = process.env["LUCY_REPAIR_MODEL"]?.trim();
+  const model = await resolveRepairModel();
   const groups = groupProblems(repairs);
   const created = await cursorApi("/v1/agents", {
     method: "POST",
@@ -204240,7 +204271,7 @@ async function launchRepairJob(repairs) {
       repos: [{ url: repoUrl(), startingRef: "main" }],
       autoCreatePR: true,
       skipReviewerRequest: true,
-      ...model ? { model: { id: model } } : {}
+      ...model ? { model } : {}
     }
   });
   const now = (/* @__PURE__ */ new Date()).toISOString();
@@ -204252,6 +204283,7 @@ async function launchRepairJob(repairs) {
     agentId: created.agent.id,
     agentUrl: created.agent.url,
     runId: created.run.id,
+    model: model?.id ?? "default",
     repairIds: repairs.map((r5) => r5.id),
     problems: groups.map((g7) => ({
       category: g7.items[0].category,
@@ -204371,13 +204403,17 @@ function repairAgentStatusSummary() {
   return {
     configured: isCursorAgentConfigured(),
     auto_publish: autoPublish(),
+    model: modelCache?.selection?.id ?? requestedModel(),
     max_jobs_per_day: maxJobsPerDay(),
     jobs_today: jobsToday(),
     active: active ? { id: active.id, status: active.status, since: active.createdAt } : null
   };
 }
 function pickRepairsForJob(pending) {
-  const maxProblems = Math.max(1, Number(process.env["LUCY_REPAIR_MAX_PROBLEMS"] ?? 6) || 6);
+  const maxProblems = Math.max(
+    1,
+    Number(process.env["LUCY_REPAIR_MAX_PROBLEMS"] ?? DEFAULT_MAX_PROBLEMS) || DEFAULT_MAX_PROBLEMS
+  );
   const severityRank = { error: 0, warn: 1, info: 2 };
   const groups = groupProblems(pending).sort((a4, b5) => {
     const sa2 = Math.min(...a4.items.map((r5) => severityRank[r5.severity] ?? 1));
@@ -204397,7 +204433,7 @@ function __resetRepairJobsForTest() {
   for (const c5 of streams.values()) c5.abort();
   streams.clear();
 }
-var ACTIVE, MAX_STEPS, MAX_JOBS_KEPT, BOOTED_AT, DEFAULT_REPO, jobs, CursorApiError, PUBLISH_PROMPT, streams, applying, RepairJobError, timer;
+var ACTIVE, MAX_STEPS, MAX_JOBS_KEPT, BOOTED_AT, DEFAULT_REPO, DEFAULT_MAX_JOBS_PER_DAY, DEFAULT_MAX_PROBLEMS, DEFAULT_MODEL, jobs, CursorApiError, modelCache, PUBLISH_PROMPT, streams, applying, RepairJobError, timer;
 var init_cursorRepairAgent = __esm({
   async "src/services/cursorRepairAgent.ts"() {
     "use strict";
@@ -204409,6 +204445,9 @@ var init_cursorRepairAgent = __esm({
     MAX_JOBS_KEPT = 60;
     BOOTED_AT = /* @__PURE__ */ new Date();
     DEFAULT_REPO = "https://github.com/bodasesor-rgb/Agente_Virtual_Kommo";
+    DEFAULT_MAX_JOBS_PER_DAY = 12;
+    DEFAULT_MAX_PROBLEMS = 12;
+    DEFAULT_MODEL = "composer-2.5";
     jobs = null;
     CursorApiError = class extends Error {
       constructor(status2, code, message) {
@@ -204419,6 +204458,7 @@ var init_cursorRepairAgent = __esm({
       status;
       code;
     };
+    modelCache = null;
     PUBLISH_PROMPT = `El due\xF1o aprob\xF3 publicar este arreglo. P\xE1salo a main:
 1. git fetch origin main && git rebase origin/main (o merge si el rebase se complica).
 2. Si hay conflictos en api-server/dist/ o deploy/, toma la versi\xF3n de main para esos archivos y vuelve a compilar: cd api-server && npm run build.

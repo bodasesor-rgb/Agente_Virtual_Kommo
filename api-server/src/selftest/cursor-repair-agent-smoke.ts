@@ -18,6 +18,8 @@ process.env["LUCY_REPAIR_RUNS_PATH"] = join(dir, "repair-runs.json");
 process.env["CURSOR_API_KEY"] = "test-key";
 process.env["CURSOR_API_BASE"] = "https://cursor.mock";
 delete process.env["LUCY_REPAIR_AUTO_PUBLISH"];
+delete process.env["LUCY_REPAIR_MODEL"];
+delete process.env["LUCY_REPAIR_MODEL_FAST"];
 
 type MockRun = { status: string; result?: string; git?: unknown };
 const runs = new Map<string, MockRun>();
@@ -48,6 +50,18 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
     new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
 
   let m: RegExpMatchArray | null;
+  if (method === "GET" && url.pathname === "/v1/models") {
+    return json({
+      items: [
+        { id: "composer-2", aliases: ["composer"] },
+        {
+          id: "composer-2.5",
+          displayName: "Composer 2.5",
+          parameters: [{ id: "fast", values: [{ value: "false" }, { value: "true" }] }],
+        },
+      ],
+    });
+  }
   if (method === "POST" && url.pathname === "/v1/agents") {
     agentSeq += 1;
     const agentId = `bc-${agentSeq}`;
@@ -135,8 +149,14 @@ assert.equal(job.status, "creating");
 assert.equal(job.agentUrl, "https://cursor.com/agents/bc-1");
 const create = calls.find((c) => c.method === "POST" && c.path === "/v1/agents")!;
 assert.equal(create.auth, `Basic ${Buffer.from("test-key:").toString("base64")}`);
-const createBody = create.body as { repos: Array<{ url: string; startingRef: string }>; autoCreatePR: boolean };
+const createBody = create.body as {
+  repos: Array<{ url: string; startingRef: string }>;
+  autoCreatePR: boolean;
+  model?: { id: string; params?: Array<{ id: string; value: string }> };
+};
 assert.equal(createBody.repos[0]!.startingRef, "main");
+assert.deepEqual(createBody.model, { id: "composer-2.5", params: [{ id: "fast", value: "false" }] });
+assert.equal(job.model, "composer-2.5");
 assert.equal(createBody.autoCreatePR, true);
 assert.equal((await store.listLucyRepairs("in_progress", 50)).length, 3);
 

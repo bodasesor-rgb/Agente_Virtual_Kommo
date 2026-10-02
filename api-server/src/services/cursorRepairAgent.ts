@@ -77,6 +77,7 @@ export interface RepairJob {
   publishedAt?: string;
   liveAt?: string;
   durationMs?: number;
+  model?: string;
   lastEventId?: string;
   publishLastEventId?: string;
   streamExpired?: boolean;
@@ -101,9 +102,17 @@ function repoUrl(): string {
   return process.env["LUCY_REPAIR_REPO_URL"]?.trim() || DEFAULT_REPO;
 }
 
+const DEFAULT_MAX_JOBS_PER_DAY = 12;
+const DEFAULT_MAX_PROBLEMS = 12;
+const DEFAULT_MODEL = "composer-2.5";
+
 function maxJobsPerDay(): number {
-  const n = Number(process.env["LUCY_REPAIR_MAX_JOBS_PER_DAY"] ?? 4);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 4;
+  const n = Number(process.env["LUCY_REPAIR_MAX_JOBS_PER_DAY"] ?? DEFAULT_MAX_JOBS_PER_DAY);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : DEFAULT_MAX_JOBS_PER_DAY;
+}
+
+function requestedModel(): string {
+  return process.env["LUCY_REPAIR_MODEL"]?.trim() || DEFAULT_MODEL;
 }
 
 function autoPublish(): boolean {
@@ -219,6 +228,54 @@ async function cursorApi<T>(path: string, init?: { method?: string; body?: unkno
     throw new CursorApiError(res.status, code, message || `HTTP ${res.status}`);
   }
   return data as T;
+}
+
+type ApiModel = {
+  id: string;
+  displayName?: string;
+  aliases?: string[];
+  parameters?: Array<{ id: string; values?: Array<{ value: string }> }>;
+};
+
+export type RepairModelSelection = { id: string; params?: Array<{ id: string; value: string }> };
+
+let modelCache: { key: string; at: number; selection: RepairModelSelection | null } | null = null;
+
+function normModelName(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9.]/g, "");
+}
+
+/**
+ * `GET /v1/models` da los ids válidos; si el pedido no existe se usa el modelo por defecto
+ * de la cuenta en vez de fallar al crear el agente. «fast» cuesta más: por defecto apagado.
+ */
+async function resolveRepairModel(): Promise<RepairModelSelection | null> {
+  const wanted = requestedModel();
+  const fast = (process.env["LUCY_REPAIR_MODEL_FAST"]?.trim() || "false").toLowerCase();
+  const key = `${wanted}|${fast}`;
+  const ttl = modelCache?.selection ? 6 * 60 * 60 * 1000 : 10 * 60 * 1000;
+  if (modelCache && modelCache.key === key && Date.now() - modelCache.at < ttl) return modelCache.selection;
+
+  let selection: RepairModelSelection | null = null;
+  try {
+    const { items = [] } = await cursorApi<{ items?: ApiModel[] }>("/v1/models");
+    const w = normModelName(wanted);
+    const names = (m: ApiModel) => [m.id, ...(m.aliases ?? [])].map(normModelName);
+    const model =
+      items.find((m) => names(m).includes(w)) ??
+      items.find((m) => [...names(m), normModelName(m.displayName ?? "")].some((n) => n.startsWith(w)));
+    if (model) {
+      const fastParam = model.parameters?.find((p) => p.id === "fast");
+      const allowed = fastParam?.values?.some((v) => v.value === fast);
+      selection = { id: model.id, ...(fastParam && allowed ? { params: [{ id: "fast", value: fast }] } : {}) };
+    } else {
+      logger.warn({ wanted, available: items.map((m) => m.id) }, "Modelo de reparaciones no disponible — uso el default");
+    }
+  } catch (err) {
+    logger.warn({ err: String(err) }, "No pude listar modelos de Cursor — uso el default");
+  }
+  modelCache = { key, at: Date.now(), selection };
+  return selection;
 }
 
 type ApiRun = {
@@ -619,7 +676,7 @@ export async function launchRepairJob(repairs: LucyRepairDto[]): Promise<RepairJ
     );
   }
 
-  const model = process.env["LUCY_REPAIR_MODEL"]?.trim();
+  const model = await resolveRepairModel();
   const groups = groupProblems(repairs);
   const created = await cursorApi<{ agent: { id: string; url?: string }; run: { id: string } }>("/v1/agents", {
     method: "POST",
@@ -629,7 +686,7 @@ export async function launchRepairJob(repairs: LucyRepairDto[]): Promise<RepairJ
       repos: [{ url: repoUrl(), startingRef: "main" }],
       autoCreatePR: true,
       skipReviewerRequest: true,
-      ...(model ? { model: { id: model } } : {}),
+      ...(model ? { model } : {}),
     },
   });
 
@@ -642,6 +699,7 @@ export async function launchRepairJob(repairs: LucyRepairDto[]): Promise<RepairJ
     agentId: created.agent.id,
     agentUrl: created.agent.url,
     runId: created.run.id,
+    model: model?.id ?? "default",
     repairIds: repairs.map((r) => r.id),
     problems: groups.map((g) => ({
       category: g.items[0]!.category,
@@ -769,6 +827,7 @@ export function startRepairJobTracker(intervalMs = 30_000): void {
 export function repairAgentStatusSummary(): {
   configured: boolean;
   auto_publish: boolean;
+  model: string;
   max_jobs_per_day: number;
   jobs_today: number;
   active: { id: string; status: RepairJobStatus; since: string } | null;
@@ -777,6 +836,7 @@ export function repairAgentStatusSummary(): {
   return {
     configured: isCursorAgentConfigured(),
     auto_publish: autoPublish(),
+    model: modelCache?.selection?.id ?? requestedModel(),
     max_jobs_per_day: maxJobsPerDay(),
     jobs_today: jobsToday(),
     active: active ? { id: active.id, status: active.status, since: active.createdAt } : null,
@@ -788,7 +848,10 @@ export function repairAgentStatusSummary(): {
  * para que un solo arreglo cubra muchas filas del panel.
  */
 export function pickRepairsForJob(pending: LucyRepairDto[]): LucyRepairDto[] {
-  const maxProblems = Math.max(1, Number(process.env["LUCY_REPAIR_MAX_PROBLEMS"] ?? 6) || 6);
+  const maxProblems = Math.max(
+    1,
+    Number(process.env["LUCY_REPAIR_MAX_PROBLEMS"] ?? DEFAULT_MAX_PROBLEMS) || DEFAULT_MAX_PROBLEMS
+  );
   const severityRank: Record<string, number> = { error: 0, warn: 1, info: 2 };
   const groups = groupProblems(pending).sort((a, b) => {
     const sa = Math.min(...a.items.map((r) => severityRank[r.severity] ?? 1));
