@@ -7,6 +7,7 @@
 import assert from "node:assert/strict";
 import type OpenAI from "openai";
 import { avoidRepeatPreviousReply } from "../lucy-flow-guards.js";
+import { lucyTextOverlapRatio } from "../lucyOutboundAntiRepeat.js";
 
 const previousReply =
   "¡Mucho gusto, Cynthia! Para poder orientarte mejor con la propuesta de entelado, " +
@@ -45,5 +46,19 @@ const multiLineDraft =
   "¿A qué correo te comparto la propuesta?";
 const multiLineOut = avoidRepeatPreviousReply(multiLineDraft, [{ role: "assistant", content: multiLinePrev }]);
 assert.match(multiLineOut, /correo/i, multiLineOut);
+
+const closingPrev =
+  "Recibido, Sayuri. Ya tengo todos los detalles para que nuestro equipo arme la propuesta. ¿Tienes algún presupuesto estimado?";
+const closingDraft =
+  "Recibido, Sayuri. Ya tengo todos los detalles para que nuestro equipo arme la propuesta. ¿Manejan algún presupuesto estimado?";
+const closingOut = avoidRepeatPreviousReply(closingDraft, [
+  { role: "assistant", content: closingPrev },
+  { role: "user", content: "Ok" },
+]);
+assert.notEqual(closingOut, closingDraft, closingOut);
+assert.ok(
+  lucyTextOverlapRatio(closingOut, closingPrev) < 0.75 || !/recibido,\s*sayuri/i.test(closingOut),
+  closingOut
+);
 
 console.log("reparaciones-repeat-reply smoke OK");

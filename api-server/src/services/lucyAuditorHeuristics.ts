@@ -38,6 +38,19 @@ const URL_RE = /https?:\/\/[^\s)]+/gi;
 const CLOSE_RE = /\bya tengo todo\b|\bcotizaci[oó]n personalizada\b/i;
 const PRICE_RE = /\b(precio|costo|cu[aá]nto\s+cuesta|cotiz)/i;
 const DETAIL_RE = /\b(detalle|detalles|opci[oó]n\s+de\s+alimentos|qu[eé]\s+incluye)/i;
+
+/** Pedido de envío de cotización por asesor/equipo — cierre legítimo, no premature_close. */
+function clientRequestedQuoteHandoff(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (/\b(asesor|agente|equipo).{0,50}\b(env[ií]e|mande|manda|pase|pasen)\b.{0,30}\b(cotizaci[oó]n|propuesta)\b/i.test(t)) {
+    return true;
+  }
+  return (
+    /\b(quiero|necesito)\s+un\s+asesor\b/i.test(t) &&
+    /\b(cotizaci[oó]n|propuesta)\b/i.test(t)
+  );
+}
 const FUNNEL_Q_RE =
   /\b(cu[aá]ntos?\s+invitados|qu[eé]\s+d[ií]a|a\s+qu[eé]\s+hora|en\s+qu[eé]\s+ciudad|correo|presupuesto|qu[eé]\s+van\s+a\s+celebrar|regalas?\s+tu\s+nombre)/i;
 const RESUMEN_IA_CIERRE = "Actualizado por Lucy en cada mensaje";
@@ -161,7 +174,11 @@ export function runAuditorHeuristics(turns: TranscriptTurn[]): HeuristicFinding[
     const t = turns[i]!;
     if (t.role !== "assistant" || !CLOSE_RE.test(t.content)) continue;
     const prevUser = [...turns.slice(0, i)].reverse().find((x) => x.role === "user");
-    if (prevUser && (PRICE_RE.test(prevUser.content) || DETAIL_RE.test(prevUser.content))) {
+    if (
+      prevUser &&
+      !clientRequestedQuoteHandoff(prevUser.content) &&
+      (PRICE_RE.test(prevUser.content) || DETAIL_RE.test(prevUser.content))
+    ) {
       findings.push({
         category: "premature_close",
         severity: "error",
