@@ -239,6 +239,9 @@ import {
   recoverZonaFromUserTexts,
   isUnusableTipoEventoReply,
   isEventTypeOnlyMessage,
+  isOccasionMealEventType,
+  isStandaloneMealEventType,
+  conversationHasOccasionMealContext,
   isReferentialPriorAnswer,
   isLocationMetaReferential,
   clientComplainsAboutRepeat,
@@ -350,6 +353,8 @@ import {
 } from "./conversation-understanding.js";
 
 export const EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
+/** Tras CORREO_MAX_ASKS sin respuesta: no repreguntar correo en el embudo (cierre puede pedirlo). */
+export const EMAIL_EMBUDO_PAUSED_LABEL = "Correo (pospuesto en embudo)";
 export const BODASESOR_EMAIL = "hola@bodasesor.com";
 /** Sufijo CRM cuando el nombre viene de WhatsApp porque el cliente no lo escribió. */
 export const WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp — el cliente no lo escribió)";
@@ -1171,6 +1176,17 @@ function repairKnownCatalogAndBudgetRepeat(
     if (!/anoto tu/i.test(out)) {
       out = `Perfecto. Anoto tu *${tipo}*. ${out}`.trim();
     }
+  }
+  const userBlob = collectUserTexts(history, currentMessage).join("\n");
+  const mealContext = conversationHasOccasionMealContext([userBlob, currentMessage ?? ""]);
+  if (
+    /no lo tengo listado/i.test(out) &&
+    (mealContext ||
+      isOccasionMealEventType(currentMessage) ||
+      isStandaloneMealEventType(currentMessage) ||
+      /\*(Cena|Comida)\*[^.]{0,40}no lo tengo listado/i.test(out))
+  ) {
+    out = buildGuardServiceAck(userBlob || currentMessage || "cena conmemorativa");
   }
   const lastAssistant = [...history]
     .reverse()
@@ -3371,7 +3387,9 @@ export function getNextPendingField(
     isUsableDireccionEvento(extracted.direccion_evento);
   if (!hasZona) return "zona";
 
-  if (!isEmailSatisfied(filled, extracted)) return "correo";
+  if (!isEmailSatisfied(filled, extracted) && !filled.has(EMAIL_EMBUDO_PAUSED_LABEL)) {
+    return "correo";
+  }
 
   if (requiredServiceDimensionsMissing(extracted)) return "requerimientos";
 
@@ -4571,7 +4589,7 @@ function avoidRepeatPreviousReply(
 
   const maxOverlap = Math.max(...prev.map((p) => textOverlapRatio(mensaje, p)));
   const last = prev[prev.length - 1]!;
-  if (maxOverlap < 0.68) return mensaje;
+  if (maxOverlap < 0.62) return mensaje;
 
   let out = mensaje
     .replace(/^Hola,?\s*soy\s+Lucy[^.]*\.\s*/i, "")
@@ -4591,6 +4609,102 @@ function avoidRepeatPreviousReply(
     if (pendingLine && textOverlapRatio(pendingLine, last) < 0.65) return pendingLine.trim();
   }
   return q;
+}
+
+/** Si el cuerpo sigue casi igual al turno anterior, avanza embudo con pregunta distinta. */
+function breakRepeatIfStillSimilar(
+  mensaje: string,
+  presHistory: OpenAI.Chat.ChatCompletionMessageParam[],
+  ctx: NaturalQuestionContext,
+  filledSet: Set<string>,
+  extracted: ExtractedData
+): string {
+  const prev = presHistory
+    .filter((m) => m.role === "assistant" && typeof m.content === "string")
+    .map((m) => (m.content as string).trim())
+    .filter(Boolean);
+  if (!prev.length) return mensaje;
+  const last = prev[prev.length - 1]!;
+  if (textOverlapRatio(mensaje, last) < 0.62) return mensaje;
+  const pending = getNextPendingField(extracted, filledSet);
+  if (!pending) return mensaje;
+  const nextQ = buildNaturalQuestion(pending, ctx);
+  if (textOverlapRatio(nextQ, last) >= 0.55) return mensaje;
+  return `${pickTransition(presHistory)} ${nextQ}`.trim();
+}
+
+/** Tras CORREO_MAX_ASKS: no volver a pedir correo en el mismo hilo de embudo. */
+function enforceCorreoAskCap(
+  mensaje: string,
+  presHistory: OpenAI.Chat.ChatCompletionMessageParam[],
+  filledSet: Set<string>,
+  extracted: ExtractedData,
+  ctx: NaturalQuestionContext
+): string {
+  if (isEmailSatisfied(filledSet, extracted)) return mensaje;
+  const correoAsks = countLucyFieldAsks(presHistory, "correo");
+  if (correoAsks < CORREO_MAX_ASKS) return mensaje;
+  if (!mensajeAsksForField(mensaje, "correo") && !softAsksFilledField(mensaje, "correo")) {
+    return mensaje;
+  }
+  filledSet.add(EMAIL_EMBUDO_PAUSED_LABEL);
+  const pending = getNextPendingField(extracted, filledSet);
+  if (pending && pending !== "correo") {
+    return buildNaturalQuestion(pending, ctx);
+  }
+  return mensaje
+    .split("\n")
+    .filter((line) => !mensajeAsksForField(line, "correo"))
+    .join("\n")
+    .trim();
+}
+
+const CATALOG_URL_EXTRACT =
+  /https?:\/\/[^\s]*?(?:bodasesor|hostingersite)\.com\/catalogos[^\s]*/gi;
+
+/** A16309 / reparaciones loop_links: no reenviar el mismo link si piden detalle o precio. */
+export function stripCatalogUrlsRepeatedInHistory(
+  text: string,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
+): string {
+  if (!text?.trim() || !CATALOG_URL_EXTRACT.test(text)) return text;
+  CATALOG_URL_EXTRACT.lastIndex = 0;
+  const asksDetailOrPrice =
+    !!currentMessage &&
+    (clientAsksNamedServiceDetail(currentMessage) ||
+      clientAsksPrice(currentMessage) ||
+      /\b(precio|costo|cu[aá]nto|detalle|incluye|solo\s+alimentos|servicio\s+completo)\b/i.test(
+        currentMessage
+      ));
+  if (!asksDetailOrPrice) return text;
+  const recentAssistant = history
+    .filter((m) => m.role === "assistant" && typeof m.content === "string")
+    .slice(-3)
+    .map((m) => (m.content as string).trim())
+    .filter(Boolean);
+  const prevUrls = new Set<string>();
+  for (const block of recentAssistant) {
+    for (const u of block.match(CATALOG_URL_EXTRACT) ?? []) {
+      prevUrls.add(u.replace(/[),.;]+$/g, "").replace(/\/+$/, "").toLowerCase());
+    }
+  }
+  if (!prevUrls.size) return text;
+  let removedAny = false;
+  const out = text.replace(CATALOG_URL_EXTRACT, (url) => {
+    const key = url.replace(/[),.;]+$/g, "").replace(/\/+$/, "").toLowerCase();
+    if (prevUrls.has(key)) {
+      removedAny = true;
+      return "";
+    }
+    return url;
+  });
+  if (!removedAny) return text;
+  return out
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/^\s*cat[aá]logo(?:\s+de\s+\*[^*]+\*)?\s*:\s*$/gim, "")
+    .trim();
 }
 
 /** Si ya capturamos un dato, no volver a preguntarlo — pide el siguiente pendiente. */
@@ -12234,13 +12348,11 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
 
       if (correoAsks >= CORREO_MAX_ASKS) {
         // Ya preguntamos correo bastante: sigue el embudo (tipo/servicios/zona…).
-        const skipEmail = new Set(filledSet);
-        // Marca temporal solo para elegir siguiente pregunta; NO waiver permanente.
-        skipEmail.add("Correo electrónico");
-        const pending = getNextPendingField(extracted, skipEmail);
+        filledSet.add(EMAIL_EMBUDO_PAUSED_LABEL);
+        const pending = getNextPendingField(extracted, filledSet);
         const nextQ =
           pending && pending !== "correo"
-            ? buildNaturalQuestion(pending, { ...ctx, filledSet: skipEmail })
+            ? buildNaturalQuestion(pending, { ...ctx, filledSet })
             : null;
         mensaje = nextQ ? `${ack} ${nextQ}`.trim() : ack;
         log?.info({ entityId, correoAsks }, "GUARD: correo — tope de asks, avanza embudo");
@@ -12253,11 +12365,10 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       correoAsks >= CORREO_MAX_ASKS &&
       mensajeAsksForField(mensaje, "correo")
     ) {
-      const skipEmail = new Set(filledSet);
-      skipEmail.add("Correo electrónico");
-      const pending = getNextPendingField(extracted, skipEmail);
+      filledSet.add(EMAIL_EMBUDO_PAUSED_LABEL);
+      const pending = getNextPendingField(extracted, filledSet);
       if (pending && pending !== "correo") {
-        mensaje = buildNaturalQuestion(pending, { ...ctx, filledSet: skipEmail });
+        mensaje = buildNaturalQuestion(pending, { ...ctx, filledSet });
         log?.info({ entityId, correoAsks }, "GUARD: correo — evita 3ª repetición");
       }
     }
@@ -12696,6 +12807,9 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
+  mensaje = breakRepeatIfStillSimilar(mensaje, presHistory, ctx, filledSet, extracted);
+  mensaje = enforceCorreoAskCap(mensaje, presHistory, filledSet, extracted, ctx);
+  mensaje = stripCatalogUrlsRepeatedInHistory(mensaje, presHistory, currentMessage);
 
   // A15701+/A15791+: si ya hay ciudad usable (mensaje, historial o extracted), no re-preguntar zona.
   if (
