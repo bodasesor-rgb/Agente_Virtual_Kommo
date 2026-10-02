@@ -4,7 +4,7 @@
  * "no quiero comida", "quítale los alimentos", "yo les voy a dar pizza"
  * debe QUITAR la familia del CRM, no re-anotar ni tirar catálogo.
  */
-import { clientCaptionForServiceParse } from "./imageProcessor.js";
+import { clientOwnText } from "./imageProcessor.js";
 import { isTablewareRequestText, parseServicesFromText } from "../conversation-understanding.js";
 
 /** Familias de servicio que el cliente puede rechazar explícitamente. */
@@ -85,7 +85,7 @@ const FAMILY_DECLINE_WORDS: Record<DeclinedServiceFamily, string> = {
 
 function captionOf(message?: string | null): string {
   if (!message?.trim()) return "";
-  return (clientCaptionForServiceParse(message) || message).trim();
+  return clientOwnText(message);
 }
 
 /** A15550: el salón/venue ya incluye mobiliario, vajilla o mesero. */

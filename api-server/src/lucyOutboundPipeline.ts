@@ -49,6 +49,7 @@ import {
   buildConcreteProductQuestionReply,
   clientAsksConcreteProductQuestion,
 } from "./services/concreteProductQuestion.js";
+import { clientOwnText } from "./services/imageProcessor.js";
 import {
   clientComplainsAboutFormat,
   collapseDuplicatedInclusionReply,
@@ -189,21 +190,20 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
     ) ||
     // A16511: menú numerado ("1. *Solo alimentos* … 2. *Servicio completo*") ya responde.
     /(?:^|\n)\s*1\.\s+\S[\s\S]*\n\s*2\.\s+\S/.test(mensaje);
+  const clientText = clientOwnText(input.currentMessage);
   if (
     !input.cierreYaEnviado &&
     !openingNombreOnly &&
     !hasLucyIntro &&
-    input.currentMessage &&
-    !(clientAsksVentaOrRenta(input.currentMessage) && /\b(renta|venta)\b/i.test(mensaje)) &&
-    (clientAsksServiceInfo(input.currentMessage) ||
-      clientAsksConcreteProductQuestion(input.currentMessage)) &&
-    (isServiceRelatedMessage(input.currentMessage) ||
-      clientAsksConcreteProductQuestion(input.currentMessage)) &&
+    clientText &&
+    !(clientAsksVentaOrRenta(clientText) && /\b(renta|venta)\b/i.test(mensaje)) &&
+    (clientAsksServiceInfo(clientText) || clientAsksConcreteProductQuestion(clientText)) &&
+    (isServiceRelatedMessage(clientText) || clientAsksConcreteProductQuestion(clientText)) &&
     !alreadyOperational
   ) {
     const ack =
-      buildConcreteProductQuestionReply(input.currentMessage) ||
-      buildGuardServiceAck(input.currentMessage);
+      buildConcreteProductQuestionReply(clientText) ||
+      buildGuardServiceAck(clientText);
     // Solo preguntas completas "¿…?" — [^.!?]*\? arrastraba líneas de listas sin punto.
     const keepQ = (mensaje.match(/¿[^¿?\n]*\?/g) ?? []).slice(-1).join(" ").trim();
     mensaje = keepQ ? `${ack}\n\n${keepQ}` : ack;
@@ -211,6 +211,23 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
       { entityId: input.entityId },
       "GUARD: pregunta de servicio — ack forzado post anti-repeat"
     );
+  }
+
+  // A16583: "Pues solo ocupo lo de las 2 fotos" → nada de "¿Hay algo más que te gustaría sumar?".
+  if (clientText && clientClosedServiceList(clientText)) {
+    const stripped = mensaje
+      .replace(/¿\s*(?:hay\s+)?algo\s+m[aá]s\s+que\s+(?:te\s+gustar[ií]a\s+)?(?:sumar|agregar|a[nñ]adir|incluir)[^?]*\?/gi, "")
+      .replace(/\s*Si\s+necesitas\s+(?:cualquier\s+)?otra\s+cosa[^.!\n]*[.!]?/gi, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    if (stripped !== mensaje.trim()) {
+      const ack = /\b(fotos?|im[aá]genes?)\b/i.test(clientText)
+        ? "Perfecto, cotizamos solo lo de las fotos que nos mandaste."
+        : "Perfecto, lo cotizamos así.";
+      const rest = stripped.replace(/^(?:entendido|perfecto|listo|de\s+acuerdo)[.!,]?\s*/i, "");
+      mensaje = rest ? `${ack} ${rest}` : ack;
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: lista cerrada — sin '¿algo más?'");
+    }
   }
 
   // A15204: si pidió comida/canapés y la respuesta volcó mobiliario, reemplazar.
@@ -294,7 +311,7 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
     // A16427: Lucy ofreció ideas y el cliente dijo "Si, por favor" → darlas sí o sí.
     const acceptedIdeas = clientAcceptsIdeasOffer(input.currentMessage, lastLucy);
     // A16523: si el cliente pega texto de Lucy para comentarlo, eso no es pedir ideas.
-    const ownWords = stripEchoedLucyText(input.currentMessage, lucyTexts);
+    const ownWords = stripEchoedLucyText(clientOwnText(input.currentMessage), lucyTexts);
     const forceIdeas =
       acceptedIdeas ||
       (!clientClosedServiceList(ownWords) &&

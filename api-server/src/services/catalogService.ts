@@ -43,7 +43,7 @@ import {
   buildLevel3Ack,
   classifyServiceKnowledgeLevel,
 } from "./serviceKnowledge.js";
-import { clientCaptionForServiceParse } from "./imageProcessor.js";
+import { clientOwnText } from "./imageProcessor.js";
 import {
   registerSheetSynonyms,
   loadSinonimosJson,
@@ -1768,7 +1768,7 @@ export function resolveCatalogInclusionReply(
 export function clientAsksInclusion(message?: string): boolean {
   if (!message?.trim()) return false;
   // A15296: solo caption del cliente — "incluyamos…" de Vision no cuenta.
-  const caption = clientCaptionForServiceParse(message) || message;
+  const caption = clientOwnText(message);
   const t = caption.toLowerCase();
   if (!t.trim()) return false;
   // "descripción", "qué incluye/incluiría", "detalle", "paquetes/niveles".

@@ -157,6 +157,7 @@ import {
   extractImageIntent,
   looksLikeImageInternalSummary,
   clientCaptionForServiceParse,
+  clientOwnText,
 } from "./services/imageProcessor.js";
 import {
   BODASESOR_SERVICE_PATTERNS,
@@ -1355,7 +1356,9 @@ export function crmStoredValue(mergedLines: string[], label: string): string | n
   return val || null;
 }
 
-function findMentionedService(text: string): string | null {
+function findMentionedService(raw: string): string | null {
+  const text = clientOwnText(raw);
+  if (!text) return null;
   for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
     if (pattern.test(text)) return label;
   }
@@ -2785,7 +2788,7 @@ function buildFoodSalesReply(
   const resolvedServiceLabel =
     preferPrimaryCatalogService(allServices) ||
     mentionedService ||
-    parsePrimaryService(clientCaptionForServiceParse(currentMessage) || currentMessage || "") ||
+    parsePrimaryService(clientOwnText(currentMessage) || "") ||
     (crmService ? preferPrimaryCatalogService(parseServicesFromText(crmService)) || crmService : null);
 
   // Un solo SKU concreto de comida → detalle / solo vs completo (no menú vago ni multi genérico).
@@ -7703,7 +7706,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       );
       const afterRaw = mergeServiceRequirements(
         extracted.requerimientos_evento,
-        clientCaptionForServiceParse(currentMessage) || currentMessage,
+        clientOwnText(currentMessage),
         6
       );
       const after = removeDeclinedFamiliesFromRequirements(afterRaw, declineFamilies);
@@ -8627,7 +8630,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       const mergedVenue = removeVenueProvidedFromRequirements(
         mergeServiceRequirements(
           extracted.requerimientos_evento,
-          clientCaptionForServiceParse(currentMessage) || currentMessage,
+          clientOwnText(currentMessage),
           6
         ),
         currentMessage
@@ -9788,14 +9791,14 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       !!parseWebLeadBrief(currentMessage)
     ) &&
     /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(
-      clientCaptionForServiceParse(currentMessage) || currentMessage
+      clientOwnText(currentMessage)
     ) &&
     // A14995: paquete multi-servicio (banquete+barra+dulces+mobiliario) NO es solo "tiempos".
     servicesFromCurrentMessage.length < 2 &&
-    parseServicesFromText(clientCaptionForServiceParse(currentMessage) || currentMessage)
+    parseServicesFromText(clientOwnText(currentMessage))
       .length < 2 &&
     !isCatalogLevelSelection(
-      clientCaptionForServiceParse(currentMessage) || currentMessage,
+      clientOwnText(currentMessage),
       lastAssistantMsg && typeof lastAssistantMsg.content === "string"
         ? (lastAssistantMsg.content as string)
         : null

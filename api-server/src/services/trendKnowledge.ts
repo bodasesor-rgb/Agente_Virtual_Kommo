@@ -90,8 +90,13 @@ function eventKey(tipo?: string | null): keyof typeof TIPS_BY_EVENT {
 
 /** True si el cliente pide ideas, tendencias, estilo o recomendación creativa. */
 export function clientWantsIdeasOrTrends(message?: string): boolean {
-  if (!message?.trim()) return false;
-  return TREND_IDEA_PATTERN.test(message) || ACCEPTS_IDEAS_PATTERN.test(message);
+  // A16583: la descripción de Vision ("estilo", "montaje", "iluminación") no es pedido de ideas.
+  const own = (message ?? "")
+    .replace(/\[Imagen (?:respuesta cliente|nota interna|intent)\]:\s*[^\n]*/gi, "")
+    .replace(/\[Imagen adjunta:[^\]]*\]/gi, "")
+    .trim();
+  if (!own) return false;
+  return TREND_IDEA_PATTERN.test(own) || ACCEPTS_IDEAS_PATTERN.test(own);
 }
 
 /** Lucy ofreció ideas en su mensaje ("Si quieres, te puedo dar algunas ideas…"). */
@@ -189,6 +194,14 @@ export function stripEchoedLucyText(
 export function clientClosedServiceList(message: string | null | undefined): boolean {
   const t = (message ?? "").trim();
   if (!t) return false;
+  // A16583: "Pues solo ocupo lo de las 2 fotos".
+  if (
+    /\b(?:solo|s[oó]lo|solamente|nada\s+m[aá]s)\s+(?:ocupo|quiero|necesito|ser[ií]a|es)?\s*(?:eso|esto|lo\s+de\s+(?:la|las|esa|esas)\s+(?:\d+\s+|dos\s+)?(?:fotos?|im[aá]genes?))\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
   return /\b(?:eso\s+)?es\s+todo\b|\bser[ií]a\s+todo\b|\bnada\s+m[aá]s\b|\b(?:el\s+)?resto\b[^.\n]{0,30}\bya\s+(?:lo\s+)?tengo\b|\bya\s+tengo\s+(?:lo\s+dem[aá]s|el\s+resto)\b/i.test(
     t
   );

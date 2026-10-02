@@ -4683,7 +4683,12 @@ export function looksLikeMealTimeNotLocation(text: string | null | undefined): b
     /\bhora\s+de\s+(comida|cena|desayuno|almuerzo|lunch|brunch|fomida|comidita)\b/.test(n) ||
     /^(en\s+)?(hora\s+de\s+)?(comida|cena|desayuno|almuerzo|lunch|brunch|fomida)$/.test(n) ||
     /\ben\s+hora\s+de\s+\w{3,20}$/.test(n);
-  return meal;
+  // A16583: "de noche" / "de tarde" (respuesta al horario) ≠ "de Puebla".
+  const timeOfDay =
+    /^(?:(?:de|en|por|a|para|al|ya)\s+)?(?:la\s+|el\s+)?(?:noche|tarde|manana|madrugada|mediodia|medio\s+dia|dia|tardeada|nochecita)(?:\s+(?:temprano|tarde|mejor|preferentemente))?$/.test(
+      n
+    );
+  return meal || timeOfDay;
 }
 
 /**

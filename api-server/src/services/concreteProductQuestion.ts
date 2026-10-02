@@ -15,7 +15,7 @@ import {
   getCatalogWebHubDeliveryUrl,
 } from "./catalogService.js";
 import { getCatalogWebUrlForQuery } from "./catalogWebKnowledge.js";
-import { clientCaptionForServiceParse } from "./imageProcessor.js";
+import { clientOwnText } from "./imageProcessor.js";
 
 /** Instagram de Bodasesor — fotos reales de eventos montados. */
 export const BODASESOR_INSTAGRAM_HANDLE = "@bodasesormx";
@@ -58,11 +58,21 @@ export function clientAsksCapacityLayout(message?: string): boolean {
  */
 export function clientAsksForPhotos(message?: string): boolean {
   if (!message?.trim()) return false;
-  const caption = clientCaptionForServiceParse(message) || message;
+  const caption = clientOwnText(message);
   if (!caption.trim()) return false;
   // Pedido real de fotos ("manda fotos", "fotos de lo solicitado"), no mención de imagen adjunta.
   if (
     !/\b(fotos?|fotograf[ií]as?|im[aá]genes?|referencias?\s+visuales?|pics?)\b/i.test(caption)
+  ) {
+    return false;
+  }
+  // A16583: "cotízame esas dos imágenes" / "lo de las 2 fotos" = las fotos que mandó el cliente.
+  const sendToMe = /\b(m[aá]nda|env[ií]a|p[aá]sa|comparte|ens[eé][nñ]a)(me|nos)?\b/i;
+  if (
+    (/\b(?:esas?|estas?|ambas|mis|las\s+(?:dos|2))\s+(?:dos\s+|2\s+)?(?:fotos?|fotograf[ií]as?|im[aá]genes?)\b/i.test(caption) ||
+      /\b(?:fotos?|im[aá]genes?)\s+que\s+te\s+(?:mand[eé]|envi[eé]|pas[eé]|compart[ií])\b/i.test(caption) ||
+      /\blo\s+de\s+(?:la|las)\s+(?:\d+\s+|dos\s+)?(?:fotos?|im[aá]genes?)\b/i.test(caption)) &&
+    !sendToMe.test(caption)
   ) {
     return false;
   }
@@ -83,7 +93,7 @@ export function clientAsksForPhotos(message?: string): boolean {
     /\b(solicitad|pedido|cotiz|carpa|mesa|silla|toldo|mobiliario|lo\s+solicitado)\b/i.test(
       caption
     ) ||
-    /\b(manda|env[ií]a|pasa|comparte|quiero|necesito|tienes|tienen|hay)\b/i.test(caption)
+    /\b(m[aá]nda(me|nos)?|env[ií]a(me|nos)?|p[aá]sa(me|nos)?|comparte(me|nos)?|quiero|necesito|tienes|tienen|hay)\b/i.test(caption)
   );
 }
 
@@ -93,7 +103,7 @@ export function clientAsksForPhotos(message?: string): boolean {
  */
 export function clientAsksForSocialMedia(message?: string): boolean {
   if (!message?.trim()) return false;
-  const t = (clientCaptionForServiceParse(message) || message).trim();
+  const t = clientOwnText(message).trim();
   if (!t) return false;
   const NET = "instagram|insta\\b|redes\\s+sociales|red\\s+social|facebook";
   return (
@@ -108,6 +118,8 @@ export function clientAsksForSocialMedia(message?: string): boolean {
 /** Iluminación / luz en carpa u otro montaje. */
 export function clientAsksAboutLighting(message?: string): boolean {
   if (!message?.trim()) return false;
+  message = clientOwnText(message);
+  if (!message.trim()) return false;
   const t = message.toLowerCase();
   // A15383: percusión LED / mariachi / baile ≠ iluminación de carpa o pista.
   if (
@@ -136,7 +148,7 @@ export function clientAsksAboutLighting(message?: string): boolean {
 export function clientAsksConcreteProductQuestion(message?: string): boolean {
   if (!message?.trim()) return false;
   // A15296: detectar solo sobre caption del cliente (sin marcadores Vision).
-  const t = (clientCaptionForServiceParse(message) || message).trim();
+  const t = clientOwnText(message).trim();
   if (!t) return false;
   if (clientAsksForCatalog(t) || CATALOG_WORD_RE.test(t)) return true;
   if (
@@ -198,7 +210,7 @@ export function buildConcreteProductQuestionReply(
   const team = advisorLabelForClient();
 
   // A15296: caption limpio (sin "tu foto" de Vision).
-  const caption = (clientCaptionForServiceParse(msg) || msg).trim();
+  const caption = clientOwnText(msg).trim();
   const cleanBlob = `${caption} ${hint}`;
 
   // 1) Catálogo (con typo) → enviar link, no solo CTA.

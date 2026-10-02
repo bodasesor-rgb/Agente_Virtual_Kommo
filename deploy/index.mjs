@@ -90335,7 +90335,7 @@ function isLikelyNotPersonNameMessage(text2) {
   if (COMPANY_OR_CHANNEL_PATTERN.test(t4)) return true;
   if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona)\b/i.test(t4)) return true;
   if (/\b(asesor|agente|humano)\b/i.test(t4) && t4.split(/\s+/).length <= 5) return true;
-  if (/\b(crepas?|sushi|poke|banquete|taquiza|catering|coffee\s*break|brunch|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mobiliario|salas?\s+lounge|photo\s*booth|photobooth|cabina|nigiris?)\b/i.test(
+  if (/\b(crepas?|sushi|poke|banquete|taquiza|catering|coffee\s*break|brunch|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mo[bv]iliario|salas?\s+lounge|photo\s*booth|photobooth|cabina|nigiris?)\b/i.test(
     t4
   ) && !/^(soy|me\s+llamo)/i.test(t4)) {
     return true;
@@ -90370,13 +90370,13 @@ function isServicePreferenceAsNombre(text2) {
   const t4 = text2?.trim() ?? "";
   if (!t4) return false;
   if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t4)) return false;
-  const serviceFamily = /\b(catering|banquete|taquiza|coffee(\s*break)?|brunch|comida|alimentos?|formal|casual|desayuno|canap[eé]s?|barra|sushi|pizza|pasta|nigiri|mobiliario|mesas?|sillas?|periqueras?|carpas?|pista|dj|bebidas?|mixolog[ií]a|helado|crepas?|photo\s*booth|photobooth|vajillas?|loza)\b/i;
+  const serviceFamily = /\b(catering|banquete|taquiza|coffee(\s*break)?|brunch|comida|alimentos?|formal|casual|desayuno|canap[eé]s?|barra|sushi|pizza|pasta|nigiri|mo[bv]iliario|mesas?|sillas?|periqueras?|carpas?|pista|dj|bebidas?|mixolog[ií]a|helado|crepas?|photo\s*booth|photobooth|vajillas?|loza)\b/i;
   if (/\b(ser[ií]a(n)?|prefiero|preferimos|quiero|necesito|busco|solo|solamente|nada\s+m[aá]s)\s+(de\s+|un\s+|una\s+|el\s+|la\s+)?/i.test(
     t4
   ) && serviceFamily.test(t4)) {
     return true;
   }
-  if (/^(de\s+)?(catering|banquete|taquiza|coffee(\s*break)?|brunch|mobiliario)(\s+\w+){0,2}$/i.test(t4)) {
+  if (/^(de\s+)?(catering|banquete|taquiza|coffee(\s*break)?|brunch|mo[bv]iliario)(\s+\w+){0,2}$/i.test(t4)) {
     return true;
   }
   if (/^ser[ií]a(n)?$/i.test(t4)) return true;
@@ -90756,7 +90756,7 @@ var init_contact_name = __esm({
     MUCHO_GUSTO_LEADING = /^mucho\s+gusto,?\s+/i;
     HONORIFIC_PREFIX = /^(?:sr|sra|srta|se[nñ]or|se[nñ]ora|se[nñ]orita|lic|licenciad[oa]|ing|ingenier[oa]|dr|dra|doctor|doctora|don|do[nñ]a|mtro|mtra|maestr[oa]|prof|profe|profesor|profesora|arq|c\.?p)\.?(?:\s+|$)/i;
     CATALOG_LEVEL_OR_BRAND_NAME = /^(premium|b[aá]sic[ao]|tradicional|solo\s*alimentos?|deluxe|vip|gold|silver|platinum|business|premium\s*events?)$/i;
-    SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|hablar|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale|manda|m[aá]nda|mandame|m[aá]ndame|mandamelo|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|pasa|p[aá]same|conocer)\b/i;
+    SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|hablar|llamo|escribo|quiero|quer[ií]a|necesito|necesitaba|necesitamos|ocupo|ocupaba|ocupamos|busco|buscaba|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale|manda|m[aá]nda|mandame|m[aá]ndame|mandamelo|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|pasa|p[aá]same|conocer)\b/i;
     HANDOFF_OR_META_NAME_TOKEN = /^(hablar|asesor|agente|humano|persona|ejecutivo|equipo|conmigo|contigo|por|favor)$/i;
     PRICE_OR_SERVICE_NAME_TOKEN = /^(cu[aá]nto|cu[aacute]nto|cuesta|cuestan|costo|precio|renta|rentar|cobran|vale|valen|mesas?|sillas?|periqueras?|salas?|mobiliario|personas?|invitados?)$/i;
     MEASUREMENT_UNIT_NAME_TOKEN = /^(metros?|mts?|m2|m²|cm|mms?|km|pulgadas?|pies?|ft|inch(?:es)?|yardas?|litros?|kg|kilos?|toneladas?)$/i;
@@ -129082,13 +129082,18 @@ function stripImageMarkersFromText(text2) {
 function clientCaptionForServiceParse(text2) {
   return stripImageMarkersFromText(text2);
 }
+function clientOwnText(text2) {
+  const caption = stripImageMarkersFromText(text2);
+  if (caption) return caption;
+  return text2 && !IMAGE_MARKER_RE.test(text2) ? text2.trim() : "";
+}
 function extractImageIntent(text2) {
   if (!text2) return null;
   const m6 = text2.match(/\[Imagen intent\]:\s*([a-z_]+)/i);
   if (!m6?.[1]) return null;
   return normalizeIntent(m6[1]);
 }
-var IMAGE_TYPES, IMAGE_CACHE_TTL_MS, IMAGE_CACHE_MAX, imageAnalysisCache, VALID_INTENTS, VISION_PROMPT, FALLBACK_REPLIES, IMAGE_ACTION_MARKER, IMAGE_INTENT_MARKER;
+var IMAGE_TYPES, IMAGE_CACHE_TTL_MS, IMAGE_CACHE_MAX, imageAnalysisCache, VALID_INTENTS, VISION_PROMPT, FALLBACK_REPLIES, IMAGE_ACTION_MARKER, IMAGE_INTENT_MARKER, IMAGE_MARKER_RE;
 var init_imageProcessor = __esm({
   "src/services/imageProcessor.ts"() {
     "use strict";
@@ -129153,6 +129158,7 @@ Reglas para client_reply (ES LO IMPORTANTE):
     };
     IMAGE_ACTION_MARKER = "[Imagen respuesta cliente]:";
     IMAGE_INTENT_MARKER = "[Imagen intent]:";
+    IMAGE_MARKER_RE = /\[Imagen (?:respuesta cliente|nota interna|intent|adjunta)/i;
   }
 });
 
@@ -132163,7 +132169,10 @@ function looksLikeMealTimeNotLocation(text2) {
   if (isScheduleLabeledClock(t4) && /\d/.test(t4)) return false;
   const n5 = t4.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ");
   const meal = /\bhora\s+de\s+(comida|cena|desayuno|almuerzo|lunch|brunch|fomida|comidita)\b/.test(n5) || /^(en\s+)?(hora\s+de\s+)?(comida|cena|desayuno|almuerzo|lunch|brunch|fomida)$/.test(n5) || /\ben\s+hora\s+de\s+\w{3,20}$/.test(n5);
-  return meal;
+  const timeOfDay = /^(?:(?:de|en|por|a|para|al|ya)\s+)?(?:la\s+|el\s+)?(?:noche|tarde|manana|madrugada|mediodia|medio\s+dia|dia|tardeada|nochecita)(?:\s+(?:temprano|tarde|mejor|preferentemente))?$/.test(
+    n5
+  );
+  return meal || timeOfDay;
 }
 function isMealTimeOnlySchedule(text2) {
   const t4 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
@@ -135255,7 +135264,7 @@ function isMesaDulcesDeclinePhrase(t4) {
 }
 function captionOf(message) {
   if (!message?.trim()) return "";
-  return (clientCaptionForServiceParse(message) || message).trim();
+  return clientOwnText(message);
 }
 function isVenueProvidesContext(message) {
   const t4 = captionOf(message).toLowerCase();
@@ -135583,8 +135592,9 @@ function eventKey(tipo) {
   return "default";
 }
 function clientWantsIdeasOrTrends(message) {
-  if (!message?.trim()) return false;
-  return TREND_IDEA_PATTERN.test(message) || ACCEPTS_IDEAS_PATTERN.test(message);
+  const own2 = (message ?? "").replace(/\[Imagen (?:respuesta cliente|nota interna|intent)\]:\s*[^\n]*/gi, "").replace(/\[Imagen adjunta:[^\]]*\]/gi, "").trim();
+  if (!own2) return false;
+  return TREND_IDEA_PATTERN.test(own2) || ACCEPTS_IDEAS_PATTERN.test(own2);
 }
 function lucyOfferedIdeas(lucyText) {
   const t4 = lucyText ?? "";
@@ -135636,6 +135646,11 @@ function stripEchoedLucyText(message, lucyTexts) {
 function clientClosedServiceList(message) {
   const t4 = (message ?? "").trim();
   if (!t4) return false;
+  if (/\b(?:solo|s[oó]lo|solamente|nada\s+m[aá]s)\s+(?:ocupo|quiero|necesito|ser[ií]a|es)?\s*(?:eso|esto|lo\s+de\s+(?:la|las|esa|esas)\s+(?:\d+\s+|dos\s+)?(?:fotos?|im[aá]genes?))\b/i.test(
+    t4
+  )) {
+    return true;
+  }
   return /\b(?:eso\s+)?es\s+todo\b|\bser[ií]a\s+todo\b|\bnada\s+m[aá]s\b|\b(?:el\s+)?resto\b[^.\n]{0,30}\bya\s+(?:lo\s+)?tengo\b|\bya\s+tengo\s+(?:lo\s+dem[aá]s|el\s+resto)\b/i.test(
     t4
   );
@@ -139666,9 +139681,13 @@ function clientAsksCapacityLayout(message) {
 }
 function clientAsksForPhotos(message) {
   if (!message?.trim()) return false;
-  const caption = clientCaptionForServiceParse(message) || message;
+  const caption = clientOwnText(message);
   if (!caption.trim()) return false;
   if (!/\b(fotos?|fotograf[ií]as?|im[aá]genes?|referencias?\s+visuales?|pics?)\b/i.test(caption)) {
+    return false;
+  }
+  const sendToMe = /\b(m[aá]nda|env[ií]a|p[aá]sa|comparte|ens[eé][nñ]a)(me|nos)?\b/i;
+  if ((/\b(?:esas?|estas?|ambas|mis|las\s+(?:dos|2))\s+(?:dos\s+|2\s+)?(?:fotos?|fotograf[ií]as?|im[aá]genes?)\b/i.test(caption) || /\b(?:fotos?|im[aá]genes?)\s+que\s+te\s+(?:mand[eé]|envi[eé]|pas[eé]|compart[ií])\b/i.test(caption) || /\blo\s+de\s+(?:la|las)\s+(?:\d+\s+|dos\s+)?(?:fotos?|im[aá]genes?)\b/i.test(caption)) && !sendToMe.test(caption)) {
     return false;
   }
   if (/\b(tengo\s+pensado|algo\s+as[ií]|referencia|as[ií]\s+como|estilo)\b/i.test(caption) && !/\b(manda|env[ií]a|pasa|comparte|quiero|necesito|tienes|tienen|hay)\b.{0,24}\b(fotos?|fotograf)/i.test(
@@ -139680,11 +139699,11 @@ function clientAsksForPhotos(message) {
   }
   return isServiceRelatedMessage(caption) || /\b(solicitad|pedido|cotiz|carpa|mesa|silla|toldo|mobiliario|lo\s+solicitado)\b/i.test(
     caption
-  ) || /\b(manda|env[ií]a|pasa|comparte|quiero|necesito|tienes|tienen|hay)\b/i.test(caption);
+  ) || /\b(m[aá]nda(me|nos)?|env[ií]a(me|nos)?|p[aá]sa(me|nos)?|comparte(me|nos)?|quiero|necesito|tienes|tienen|hay)\b/i.test(caption);
 }
 function clientAsksForSocialMedia(message) {
   if (!message?.trim()) return false;
-  const t4 = (clientCaptionForServiceParse(message) || message).trim();
+  const t4 = clientOwnText(message).trim();
   if (!t4) return false;
   const NET = "instagram|insta\\b|redes\\s+sociales|red\\s+social|facebook";
   return new RegExp(
@@ -139694,6 +139713,8 @@ function clientAsksForSocialMedia(message) {
 }
 function clientAsksAboutLighting(message) {
   if (!message?.trim()) return false;
+  message = clientOwnText(message);
+  if (!message.trim()) return false;
   const t4 = message.toLowerCase();
   if (/\b(percusi[oó]n|mariachis?|baile\s+regional|folkl[oó]rico|entretenimiento|espect[aá]culos?|robots?\s*leds?)\b/i.test(
     t4
@@ -139709,7 +139730,7 @@ function clientAsksAboutLighting(message) {
 }
 function clientAsksConcreteProductQuestion(message) {
   if (!message?.trim()) return false;
-  const t4 = (clientCaptionForServiceParse(message) || message).trim();
+  const t4 = clientOwnText(message).trim();
   if (!t4) return false;
   if (clientAsksForCatalog(t4) || CATALOG_WORD_RE.test(t4)) return true;
   if (clientAsksForPhotos(t4) || clientAsksForSocialMedia(t4) || clientAsksAboutLighting(t4) || clientAsksCapacityLayout(t4)) {
@@ -139740,7 +139761,7 @@ function buildConcreteProductQuestionReply(message, serviceHint) {
   const hint = (serviceHint ?? "").trim();
   const blob = `${msg} ${hint}`;
   const team = advisorLabelForClient();
-  const caption = (clientCaptionForServiceParse(msg) || msg).trim();
+  const caption = clientOwnText(msg).trim();
   const cleanBlob = `${caption} ${hint}`;
   if (clientAsksForCatalog(caption) || CATALOG_WORD_RE.test(caption)) {
     const q3 = isCentrosDeMesaFloral(cleanBlob) ? "centros de mesa" : /\bsillas?\b/i.test(cleanBlob) ? "mesas y sillas" : /\bmesas?\b/i.test(cleanBlob) && !isCentrosDeMesaFloral(cleanBlob) ? "mesas y sillas" : /\bcarpas?|toldos?|lonas?\b/i.test(cleanBlob) ? "carpas" : hint || caption;
@@ -141390,7 +141411,7 @@ ${SERVICE_NIVEL_DETAIL_CTA}`,
 }
 function clientAsksInclusion(message) {
   if (!message?.trim()) return false;
-  const caption = clientCaptionForServiceParse(message) || message;
+  const caption = clientOwnText(message);
   const t4 = caption.toLowerCase();
   if (!t4.trim()) return false;
   return /\bqu[eé]\s+incluye|\bqu[eé]\s+(?:es\s+lo\s+que\s+)?incluir[ií]a|\bincluir[ií]a\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bdescripci[oó]n(es)?\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b|\bqu[eé]\s+trae\s+cada\b|\bqu[eé]\s+incluye\s+cada\b|\b(ver|quiero|dame|pasar?)\s+(los\s+)?paquetes?\b|\b(ver|quiero|dame)\s+(los\s+)?niveles?\b|\bpaquetes?\s+(disponibles?|que\s+(manejan|tienes|ofrecen))\b|\bno\s+s[eé]\s+(muy\s+bien\s+)?cu[aá]l\b.{0,40}\b(incluir|nivel|opci[oó]n|variante|paquete)\b|\bcu[aá]l\s+podr[ií]a\s+ser\b/i.test(
@@ -203911,7 +203932,9 @@ function crmStoredValue(mergedLines, label) {
   const val = line2.replace(pattern, "").trim();
   return val || null;
 }
-function findMentionedService(text2) {
+function findMentionedService(raw) {
+  const text2 = clientOwnText(raw);
+  if (!text2) return null;
   for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
     if (pattern.test(text2)) return label;
   }
@@ -204800,7 +204823,7 @@ ${nextQ}`;
     return concrete.length > 0 ? concrete : allServicesRaw;
   })();
   const crmService = isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento.trim() : null;
-  const resolvedServiceLabel = preferPrimaryCatalogService(allServices) || mentionedService || parsePrimaryService(clientCaptionForServiceParse(currentMessage) || currentMessage || "") || (crmService ? preferPrimaryCatalogService(parseServicesFromText(crmService)) || crmService : null);
+  const resolvedServiceLabel = preferPrimaryCatalogService(allServices) || mentionedService || parsePrimaryService(clientOwnText(currentMessage) || "") || (crmService ? preferPrimaryCatalogService(parseServicesFromText(crmService)) || crmService : null);
   if (allServices.length === 1 && resolvedServiceLabel && /^Banquete$/i.test(resolvedServiceLabel) && currentMessage && !/\b(formal|mexicano|kosher|navide|\d\s*tiempos?)\b/i.test(currentMessage)) {
     if (filledSet) {
       const merged = mergeServiceRequirements(extracted.requerimientos_evento, "banquete", 6);
@@ -207835,7 +207858,7 @@ ${catalogUrl}`
       );
       const afterRaw = mergeServiceRequirements(
         extracted.requerimientos_evento,
-        clientCaptionForServiceParse(currentMessage) || currentMessage,
+        clientOwnText(currentMessage),
         6
       );
       const after = removeDeclinedFamiliesFromRequirements(afterRaw, declineFamilies);
@@ -208388,7 +208411,7 @@ ${follow}` : ack,
       const mergedVenue = removeVenueProvidedFromRequirements(
         mergeServiceRequirements(
           extracted.requerimientos_evento,
-          clientCaptionForServiceParse(currentMessage) || currentMessage,
+          clientOwnText(currentMessage),
           6
         ),
         currentMessage
@@ -209134,10 +209157,10 @@ ${mapped}`.trim() : buildCatalogWebLinkReply({
     log?.info({ entityId, wantFull, mapped: mappedServices.length }, "GUARD: cliente pidi\xF3/afirm\xF3 cat\xE1logo \u2014 link(s)");
   } else if (!cierreYaEnviado && currentMessage && !extractImageClientReply(currentMessage) && // A16531: formulario web "me interesa cotizar: X de 3 tiempos" → primero presentación + nombre.
   !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !!parseWebLeadBrief(currentMessage)) && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(
-    clientCaptionForServiceParse(currentMessage) || currentMessage
+    clientOwnText(currentMessage)
   ) && // A14995: paquete multi-servicio (banquete+barra+dulces+mobiliario) NO es solo "tiempos".
-  servicesFromCurrentMessage.length < 2 && parseServicesFromText(clientCaptionForServiceParse(currentMessage) || currentMessage).length < 2 && !isCatalogLevelSelection(
-    clientCaptionForServiceParse(currentMessage) || currentMessage,
+  servicesFromCurrentMessage.length < 2 && parseServicesFromText(clientOwnText(currentMessage)).length < 2 && !isCatalogLevelSelection(
+    clientOwnText(currentMessage),
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   )) {
     const label = resolveDetailQueryForFamily(
@@ -236971,6 +236994,7 @@ init_client_email();
 init_eventDateTime();
 init_serviceKnowledge();
 init_concreteProductQuestion();
+init_imageProcessor();
 init_lucyInfoPriceCache();
 init_catalogService();
 
@@ -237131,8 +237155,9 @@ async function finalizeLucyOutboundMessage(input) {
     mensaje
   ) || // A16511: menú numerado ("1. *Solo alimentos* … 2. *Servicio completo*") ya responde.
   /(?:^|\n)\s*1\.\s+\S[\s\S]*\n\s*2\.\s+\S/.test(mensaje);
-  if (!input.cierreYaEnviado && !openingNombreOnly && !hasLucyIntro && input.currentMessage && !(clientAsksVentaOrRenta(input.currentMessage) && /\b(renta|venta)\b/i.test(mensaje)) && (clientAsksServiceInfo(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage)) && (isServiceRelatedMessage(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage)) && !alreadyOperational) {
-    const ack = buildConcreteProductQuestionReply(input.currentMessage) || buildGuardServiceAck(input.currentMessage);
+  const clientText = clientOwnText(input.currentMessage);
+  if (!input.cierreYaEnviado && !openingNombreOnly && !hasLucyIntro && clientText && !(clientAsksVentaOrRenta(clientText) && /\b(renta|venta)\b/i.test(mensaje)) && (clientAsksServiceInfo(clientText) || clientAsksConcreteProductQuestion(clientText)) && (isServiceRelatedMessage(clientText) || clientAsksConcreteProductQuestion(clientText)) && !alreadyOperational) {
+    const ack = buildConcreteProductQuestionReply(clientText) || buildGuardServiceAck(clientText);
     const keepQ = (mensaje.match(/¿[^¿?\n]*\?/g) ?? []).slice(-1).join(" ").trim();
     mensaje = keepQ ? `${ack}
 
@@ -237141,6 +237166,15 @@ ${keepQ}` : ack;
       { entityId: input.entityId },
       "GUARD: pregunta de servicio \u2014 ack forzado post anti-repeat"
     );
+  }
+  if (clientText && clientClosedServiceList(clientText)) {
+    const stripped = mensaje.replace(/¿\s*(?:hay\s+)?algo\s+m[aá]s\s+que\s+(?:te\s+gustar[ií]a\s+)?(?:sumar|agregar|a[nñ]adir|incluir)[^?]*\?/gi, "").replace(/\s*Si\s+necesitas\s+(?:cualquier\s+)?otra\s+cosa[^.!\n]*[.!]?/gi, "").replace(/\n{3,}/g, "\n\n").trim();
+    if (stripped !== mensaje.trim()) {
+      const ack = /\b(fotos?|im[aá]genes?)\b/i.test(clientText) ? "Perfecto, cotizamos solo lo de las fotos que nos mandaste." : "Perfecto, lo cotizamos as\xED.";
+      const rest = stripped.replace(/^(?:entendido|perfecto|listo|de\s+acuerdo)[.!,]?\s*/i, "");
+      mensaje = rest ? `${ack} ${rest}` : ack;
+      input.log?.info?.({ entityId: input.entityId }, "GUARD: lista cerrada \u2014 sin '\xBFalgo m\xE1s?'");
+    }
   }
   const foodAsk = /\b(canap[eé]s?|bocadillos?|catering|banquete|taquiza|paella|coffee\s*break|barra\s+de)\b/iu.test(
     input.currentMessage ?? ""
@@ -237203,7 +237237,7 @@ ${keepQ}` : ""}`;
     const lucyTexts = historyText("assistant");
     const lastLucy = lucyTexts[lucyTexts.length - 1] ?? "";
     const acceptedIdeas = clientAcceptsIdeasOffer(input.currentMessage, lastLucy);
-    const ownWords = stripEchoedLucyText(input.currentMessage, lucyTexts);
+    const ownWords = stripEchoedLucyText(clientOwnText(input.currentMessage), lucyTexts);
     const forceIdeas = acceptedIdeas || !clientClosedServiceList(ownWords) && (clientWantsIdeasOrTrends(ownWords) || /recomendaciones?|ideas?\b|colores?|montajes?/i.test(ownWords));
     if (forceIdeas && /no lo tengo listado en el cat[aá]logo/i.test(mensaje)) {
       const completo = /servicio\s+completo/i.test(

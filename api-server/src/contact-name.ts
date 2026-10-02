@@ -138,7 +138,7 @@ function stripPresentationPrefixLocal(raw: string): string {
 
 /** Verbos de frase/pregunta — el mensaje no es un nombre propio. */
 const SENTENCE_VERB_PATTERN =
-  /\b(comunico|comunica|hablo|hablar|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale|manda|m[aá]nda|mandame|m[aá]ndame|mandamelo|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|pasa|p[aá]same|conocer)\b/i;
+  /\b(comunico|comunica|hablo|hablar|llamo|escribo|quiero|quer[ií]a|necesito|necesitaba|necesitamos|ocupo|ocupaba|ocupamos|busco|buscaba|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale|manda|m[aá]nda|mandame|m[aá]ndame|mandamelo|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|pasa|p[aá]same|conocer)\b/i;
 
 /** Tokens de handoff / meta que nunca son apellido (A15003: "Juan Hablar Agente"). */
 const HANDOFF_OR_META_NAME_TOKEN =
@@ -428,7 +428,7 @@ export function isLikelyNotPersonNameMessage(text: string | null | undefined): b
   if (/\b(asesor|agente|humano)\b/i.test(t) && t.split(/\s+/).length <= 5) return true;
   // Servicio del catálogo sin verbo ("crepas para eventos", "barra de sushi", mesas/periqueras).
   if (
-    /\b(crepas?|sushi|poke|banquete|taquiza|catering|coffee\s*break|brunch|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mobiliario|salas?\s+lounge|photo\s*booth|photobooth|cabina|nigiris?)\b/i.test(
+    /\b(crepas?|sushi|poke|banquete|taquiza|catering|coffee\s*break|brunch|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mo[bv]iliario|salas?\s+lounge|photo\s*booth|photobooth|cabina|nigiris?)\b/i.test(
       t
     ) &&
     !/^(soy|me\s+llamo)/i.test(t)
@@ -499,7 +499,7 @@ export function isServicePreferenceAsNombre(text: string | null | undefined): bo
   if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
 
   const serviceFamily =
-    /\b(catering|banquete|taquiza|coffee(\s*break)?|brunch|comida|alimentos?|formal|casual|desayuno|canap[eé]s?|barra|sushi|pizza|pasta|nigiri|mobiliario|mesas?|sillas?|periqueras?|carpas?|pista|dj|bebidas?|mixolog[ií]a|helado|crepas?|photo\s*booth|photobooth|vajillas?|loza)\b/i;
+    /\b(catering|banquete|taquiza|coffee(\s*break)?|brunch|comida|alimentos?|formal|casual|desayuno|canap[eé]s?|barra|sushi|pizza|pasta|nigiri|mo[bv]iliario|mesas?|sillas?|periqueras?|carpas?|pista|dj|bebidas?|mixolog[ií]a|helado|crepas?|photo\s*booth|photobooth|vajillas?|loza)\b/i;
 
   // Modalidad / preferencia + familia de servicio.
   if (
@@ -511,7 +511,7 @@ export function isServicePreferenceAsNombre(text: string | null | undefined): bo
     return true;
   }
   // Display WA corto: "De Catering", "Catering", "Banquete Formal".
-  if (/^(de\s+)?(catering|banquete|taquiza|coffee(\s*break)?|brunch|mobiliario)(\s+\w+){0,2}$/i.test(t)) {
+  if (/^(de\s+)?(catering|banquete|taquiza|coffee(\s*break)?|brunch|mo[bv]iliario)(\s+\w+){0,2}$/i.test(t)) {
     return true;
   }
   // Solo el token "Sería"/"Serían" tras strip de empresa.

@@ -529,6 +529,18 @@ export function clientCaptionForServiceParse(text: string | null | undefined): s
   return stripImageMarkersFromText(text);
 }
 
+const IMAGE_MARKER_RE = /\[Imagen (?:respuesta cliente|nota interna|intent|adjunta)/i;
+
+/**
+ * Lo que escribió el cliente. Foto sin caption → "" (nunca el texto de Vision: A16583
+ * "luces tipo verbena… montaje" se leía como pedido de iluminación).
+ */
+export function clientOwnText(text: string | null | undefined): string {
+  const caption = stripImageMarkersFromText(text);
+  if (caption) return caption;
+  return text && !IMAGE_MARKER_RE.test(text) ? text.trim() : "";
+}
+
 export function extractImageIntent(text: string | null | undefined): ImageIntent | null {
   if (!text) return null;
   const m = text.match(/\[Imagen intent\]:\s*([a-z_]+)/i);
