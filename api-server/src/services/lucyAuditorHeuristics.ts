@@ -40,6 +40,57 @@ const PRICE_RE = /\b(precio|costo|cu[aá]nto\s+cuesta|cotiz)/i;
 const DETAIL_RE = /\b(detalle|detalles|opci[oó]n\s+de\s+alimentos|qu[eé]\s+incluye)/i;
 const FUNNEL_Q_RE =
   /\b(cu[aá]ntos?\s+invitados|qu[eé]\s+d[ií]a|a\s+qu[eé]\s+hora|en\s+qu[eé]\s+ciudad|correo|presupuesto|qu[eé]\s+van\s+a\s+celebrar|regalas?\s+tu\s+nombre)/i;
+const RESUMEN_IA_CIERRE = "Actualizado por Lucy en cada mensaje";
+
+type FunnelSlot = "invitados" | "fecha" | "hora" | "ciudad" | "correo" | "presupuesto" | "tipo" | "nombre";
+
+function funnelSlotOf(match: string): FunnelSlot {
+  const m = match.toLowerCase();
+  if (/invitados/.test(m)) return "invitados";
+  if (/d[ií]a/.test(m)) return "fecha";
+  if (/hora/.test(m)) return "hora";
+  if (/ciudad/.test(m)) return "ciudad";
+  if (/correo/.test(m)) return "correo";
+  if (/presupuesto/.test(m)) return "presupuesto";
+  if (/celebrar/.test(m)) return "tipo";
+  return "nombre";
+}
+
+const MONTH_RE = /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i;
+
+/** ¿El cliente ya dio este dato en su mensaje? Solo slots con señal inequívoca. */
+function clientAnsweredSlot(slot: FunnelSlot, text: string): boolean {
+  const t = text.trim();
+  switch (slot) {
+    case "correo":
+      return /[\w.+-]+@[\w-]+\.[\w.]+/.test(t);
+    case "invitados":
+      return (
+        /\b\d{2,4}\s*(personas|invitados|pax|gentes?)\b/i.test(t) ||
+        /^(?:(?:como|aprox\w*|unos?|unas)\s+)?\d{2,4}\s*(?:personas|invitados|pax)?\.?$/i.test(t)
+      );
+    case "fecha":
+      return MONTH_RE.test(t) || /\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/.test(t);
+    default:
+      return false;
+  }
+}
+
+/** Solape de palabras (>3 letras) entre dos respuestas, 0..1. */
+function wordOverlap(a: string, b: string): number {
+  const words = (s: string) =>
+    new Set(
+      normalizeText(s)
+        .split(" ")
+        .filter((w) => w.length > 3)
+    );
+  const wa = words(a);
+  const wb = words(b);
+  if (!wa.size || !wb.size) return 0;
+  let shared = 0;
+  for (const w of wa) if (wb.has(w)) shared++;
+  return shared / Math.max(wa.size, wb.size);
+}
 
 function normalizeText(t: string): string {
   return t
@@ -88,9 +139,12 @@ export function runAuditorHeuristics(turns: TranscriptTurn[]): HeuristicFinding[
     }
   }
 
-  // repeat_reply
+  // repeat_reply: mismo cuerpo casi completo, no solo el mismo arranque.
   for (let i = 1; i < assistants.length; i++) {
-    if (similar(assistants[i - 1]!.content, assistants[i]!.content)) {
+    const a = assistants[i - 1]!.content;
+    const b = assistants[i]!.content;
+    if (normalizeText(b).length < 40) continue;
+    if (normalizeText(a) === normalizeText(b) || wordOverlap(a, b) >= 0.8) {
       findings.push({
         category: "repeat_reply",
         severity: "warn",
@@ -133,23 +187,43 @@ export function runAuditorHeuristics(turns: TranscriptTurn[]): HeuristicFinding[
     }
   }
 
-  // stuck_funnel: misma pregunta embudo 3+
-  const funnelAsks = assistants
-    .map((a) => a.content.match(FUNNEL_Q_RE)?.[0]?.toLowerCase())
-    .filter(Boolean) as string[];
-  const counts = new Map<string, number>();
-  for (const q of funnelAsks) counts.set(q, (counts.get(q) ?? 0) + 1);
-  for (const [q, n] of counts) {
-    if (n >= 3) {
-      findings.push({
-        category: "stuck_funnel",
-        severity: "warn",
-        evidence: `Pregunta de embudo «${q}» repetida ${n} veces.`,
-        proposedRepair:
-          "Marcar campo satisfecho o cambiar de pregunta; no repreguntar el mismo slot.",
-      });
-      break;
+  // stuck_funnel: re-pregunta un dato que el cliente YA dio, o el mismo slot 4+ veces.
+  const asks = new Map<FunnelSlot, number>();
+  const reasksAfterAnswer = new Map<FunnelSlot, number>();
+  const answered = new Set<FunnelSlot>();
+  for (const t of turns) {
+    if (!t.content?.trim()) continue;
+    if (isClient(t)) {
+      for (const slot of ["correo", "invitados", "fecha"] as const) {
+        if (clientAnsweredSlot(slot, t.content)) answered.add(slot);
+      }
+      continue;
     }
+    if (!isOutgoing(t)) continue;
+    const m = t.content.match(FUNNEL_Q_RE)?.[0];
+    if (!m || !/\?/.test(t.content)) continue;
+    const slot = funnelSlotOf(m);
+    asks.set(slot, (asks.get(slot) ?? 0) + 1);
+    if (answered.has(slot)) reasksAfterAnswer.set(slot, (reasksAfterAnswer.get(slot) ?? 0) + 1);
+  }
+  const reasked = [...reasksAfterAnswer.entries()][0];
+  const tooMany = [...asks.entries()].find(([, n]) => n >= 4);
+  if (reasked) {
+    findings.push({
+      category: "stuck_funnel",
+      severity: "warn",
+      evidence: `Lucy volvió a pedir «${reasked[0]}» después de que el cliente ya lo dio.`,
+      proposedRepair:
+        "Marcar campo satisfecho con lo que dio el cliente; no repreguntar el mismo slot.",
+    });
+  } else if (tooMany) {
+    findings.push({
+      category: "stuck_funnel",
+      severity: "warn",
+      evidence: `Pregunta de embudo «${tooMany[0]}» repetida varias veces.`,
+      proposedRepair:
+        "Si el cliente no responde ese dato, cambiar de pregunta o dejarlo pendiente.",
+    });
   }
 
   // A16309: bucle post-cierre aquí/correo ↔ “algo más”
@@ -310,11 +384,26 @@ export function runCrmFieldHeuristics(crm: CrmFieldSnapshot): HeuristicFinding[]
     });
   }
 
-  // Truncado típico de campos 255
+  // Resumen IA (1048786) es campo largo (hasta 8000): truncado solo si termina en "..."
+  // o si el resumen de Lucy se corta antes de su firma de cierre.
+  const resumenIa = (crm.resumen_ia ?? "").trim();
+  if (
+    resumenIa &&
+    (/\.\.\.$/.test(resumenIa) ||
+      (/^RESUMEN DE CONVERSACI[OÓ]N/i.test(resumenIa) && !resumenIa.includes(RESUMEN_IA_CIERRE)))
+  ) {
+    findings.push({
+      category: "bad_field",
+      severity: "info",
+      evidence: `CRM Resumen IA cortado antes de terminar (${resumenIa.length} chars): «${resumenIa.slice(-40)}»`,
+      proposedRepair: "El resumen debe llegar completo hasta la firma «Actualizado por Lucy».",
+    });
+  }
+
+  // Truncado típico de campos cortos cap255 (Requerimientos / Dirección).
   for (const [label, val] of [
     ["Requerimientos", req],
     ["Dirección", crm.direccion ?? ""],
-    ["Resumen IA", crm.resumen_ia ?? ""],
   ] as const) {
     const v = val.trim();
     if (v.length >= 250 || /\.\.\.$/.test(v)) {

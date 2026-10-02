@@ -6,9 +6,22 @@ import {
   listLucyRepairs,
   markLucyRepairsInProgress,
   resolveLucyRepair,
+  type LucyRepairDto,
   type LucyRepairStatus,
 } from "../services/lucyRepairStore.js";
 import { runLucyAuditorBatch } from "../services/lucyAuditor.js";
+import {
+  RepairJobError,
+  cancelRepairJob,
+  cleanupRepairQueue,
+  getRepairJob,
+  isCursorAgentConfigured,
+  launchRepairJob,
+  listRepairJobs,
+  pickRepairsForJob,
+  publishRepairJob,
+  repairAgentStatusSummary,
+} from "../services/cursorRepairAgent.js";
 
 const router: IRouter = Router();
 
@@ -133,18 +146,99 @@ router.post("/reparaciones/cron", async (req: Request, res: Response) => {
   }
 });
 
+function sendJobError(res: Response, err: unknown): void {
+  if (err instanceof RepairJobError) {
+    res.status(err.httpStatus).json({ error: err.code, message: err.message });
+    return;
+  }
+  res.status(502).json({
+    error: "cursor_api_failed",
+    message: err instanceof Error ? err.message : String(err),
+  });
+}
+
+router.get("/reparaciones/jobs", (_req: Request, res: Response) => {
+  res.json({ ...repairAgentStatusSummary(), jobs: listRepairJobs(15) });
+});
+
+router.get("/reparaciones/jobs/:jobId", (req: Request, res: Response) => {
+  const job = getRepairJob(String(req.params["jobId"]));
+  if (!job) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  res.json(job);
+});
+
+router.post("/reparaciones/jobs/:jobId/publish", async (req: Request, res: Response) => {
+  try {
+    res.json({ ok: true, job: await publishRepairJob(String(req.params["jobId"])) });
+  } catch (err) {
+    req.log?.error?.({ err }, "reparaciones/jobs/publish failed");
+    sendJobError(res, err);
+  }
+});
+
+router.post("/reparaciones/jobs/:jobId/cancel", async (req: Request, res: Response) => {
+  try {
+    res.json({ ok: true, job: await cancelRepairJob(String(req.params["jobId"])) });
+  } catch (err) {
+    req.log?.error?.({ err }, "reparaciones/jobs/cancel failed");
+    sendJobError(res, err);
+  }
+});
+
+router.post("/reparaciones/cleanup", async (req: Request, res: Response) => {
+  try {
+    res.json({ ok: true, ...(await cleanupRepairQueue()) });
+  } catch (err) {
+    req.log?.error?.({ err }, "reparaciones/cleanup failed");
+    res.status(500).json({ error: "cleanup_failed" });
+  }
+});
+
 /**
- * Dispara la Cursor Automation (webhook) con hallazgos abiertos.
- * Requiere CURSOR_REPAIR_WEBHOOK_URL en Hostinger (URL del trigger webhook).
- * Tras éxito, marca los envíos como in_progress (panel: “En Cursor”).
+ * Manda pendientes a Cursor. Con CURSOR_API_KEY: agente en la nube con seguimiento en vivo
+ * (/reparaciones/jobs). Sin ella: webhook de Automation (CURSOR_REPAIR_WEBHOOK_URL), sin seguimiento.
  */
 router.post("/reparaciones/send-to-cursor", async (req: Request, res: Response) => {
+  if (isCursorAgentConfigured()) {
+    try {
+      const onlyId = typeof req.body?.repairId === "string" ? req.body.repairId.trim() : "";
+      let repairs: LucyRepairDto[];
+      if (onlyId) {
+        const one = await getLucyRepair(onlyId);
+        if (!one) {
+          res.status(404).json({ error: "not_found" });
+          return;
+        }
+        if (one.status !== "open" && one.status !== "auto_flagged") {
+          res.status(409).json({ error: "not_sendable", message: `Estado ${one.status}: solo pendientes.` });
+          return;
+        }
+        repairs = [one];
+      } else {
+        await cleanupRepairQueue();
+        repairs = pickRepairsForJob([
+          ...(await listLucyRepairs("auto_flagged", 100)),
+          ...(await listLucyRepairs("open", 100)),
+        ]);
+      }
+      const job = await launchRepairJob(repairs);
+      res.json({ ok: true, mode: "cloud_agent", sent: repairs.length, job });
+    } catch (err) {
+      req.log?.error?.({ err }, "reparaciones/send-to-cursor (agent) failed");
+      sendJobError(res, err);
+    }
+    return;
+  }
+
   const webhookUrl = process.env["CURSOR_REPAIR_WEBHOOK_URL"]?.trim();
   if (!webhookUrl) {
     res.status(503).json({
-      error: "webhook_not_configured",
+      error: "cursor_not_configured",
       message:
-        "Falta CURSOR_REPAIR_WEBHOOK_URL. Guarda la Automation en Cursor, copia el webhook y pégalo en Hostinger.",
+        "Falta CURSOR_API_KEY en Hostinger (Cursor → Dashboard → API Keys). Con ella el panel muestra el avance en vivo.",
     });
     return;
   }

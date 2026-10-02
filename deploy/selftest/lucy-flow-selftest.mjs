@@ -140370,6 +140370,12 @@ function textOverlapRatio(a3, b4) {
   for (const w4 of wordsA) if (wordsB.has(w4)) shared++;
   return shared / Math.max(wordsA.size, wordsB.size);
 }
+function extractTrailingQuestion(text2) {
+  const idx = text2.lastIndexOf("\xBF");
+  if (idx === -1) return null;
+  const question = text2.slice(idx).trim();
+  return question.length > 0 && question.length < text2.trim().length ? question : null;
+}
 function avoidRepeatPreviousReply(mensaje, presHistory) {
   const prev = presHistory.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").map((m5) => m5.content.trim()).filter(Boolean);
   if (prev.length === 0) return mensaje;
@@ -140379,6 +140385,11 @@ function avoidRepeatPreviousReply(mensaje, presHistory) {
   let out2 = mensaje.replace(/^Hola,?\s*soy\s+Lucy[^.]*\.\s*/i, "").replace(TRANSITION_START_PATTERN, pickTransition(presHistory));
   const outOverlap = Math.max(...prev.map((p4) => textOverlapRatio(out2, p4)));
   if (outOverlap < 0.65) return out2.trim();
+  const bareQuestion = extractTrailingQuestion(mensaje);
+  if (bareQuestion) {
+    const bareOverlap = Math.max(...prev.map((p4) => textOverlapRatio(bareQuestion, p4)));
+    if (bareOverlap < maxOverlap && bareOverlap < 0.7) return bareQuestion;
+  }
   const questionLine = mensaje.split("\n").find((l5) => l5.includes("?")) ?? mensaje.split("\n").pop();
   const q2 = questionLine?.trim() || mensaje;
   const qOverlap = Math.max(...prev.map((p4) => textOverlapRatio(q2, p4)));
@@ -140386,6 +140397,7 @@ function avoidRepeatPreviousReply(mensaje, presHistory) {
     const pendingLine = mensaje.split("\n").filter((l5) => l5.includes("?")).pop();
     if (pendingLine && textOverlapRatio(pendingLine, last) < 0.65) return pendingLine.trim();
   }
+  if (bareQuestion && textOverlapRatio(q2, last) >= 0.68) return bareQuestion;
   return q2;
 }
 function redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx) {

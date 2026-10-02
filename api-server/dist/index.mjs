@@ -5665,9 +5665,9 @@ var require_lib = __commonJS({
       if (module2.exports.supportsStreams) {
         return;
       }
-      var streams = require_streams()(streamModule2);
-      module2.exports.IconvLiteEncoderStream = streams.IconvLiteEncoderStream;
-      module2.exports.IconvLiteDecoderStream = streams.IconvLiteDecoderStream;
+      var streams2 = require_streams()(streamModule2);
+      module2.exports.IconvLiteEncoderStream = streams2.IconvLiteEncoderStream;
+      module2.exports.IconvLiteDecoderStream = streams2.IconvLiteDecoderStream;
       module2.exports.encodeStream = function encodeStream(encoding, options) {
         return new module2.exports.IconvLiteEncoderStream(module2.exports.getEncoder(encoding, options), options);
       };
@@ -19369,7 +19369,7 @@ var require_view = __commonJS({
     var debug2 = require_src()("express:view");
     var path7 = __require("node:path");
     var fs8 = __require("node:fs");
-    var dirname8 = path7.dirname;
+    var dirname9 = path7.dirname;
     var basename3 = path7.basename;
     var extname = path7.extname;
     var join11 = path7.join;
@@ -19408,7 +19408,7 @@ var require_view = __commonJS({
       for (var i6 = 0; i6 < roots.length && !path8; i6++) {
         var root = roots[i6];
         var loc = resolve3(root, name2);
-        var dir = dirname8(loc);
+        var dir = dirname9(loc);
         var file = basename3(loc);
         path8 = this.resolve(dir, file);
       }
@@ -28727,11 +28727,11 @@ var require_multistream = __commonJS({
       function write2(data) {
         let dest;
         const level = this.lastLevel;
-        const { streams } = this;
+        const { streams: streams2 } = this;
         let recordedLevel = 0;
         let stream4;
-        for (let i6 = initLoopVar(streams.length, opts.dedupe); checkLoopVar(i6, streams.length, opts.dedupe); i6 = adjustLoopVar(i6, opts.dedupe)) {
-          dest = streams[i6];
+        for (let i6 = initLoopVar(streams2.length, opts.dedupe); checkLoopVar(i6, streams2.length, opts.dedupe); i6 = adjustLoopVar(i6, opts.dedupe)) {
+          dest = streams2[i6];
           if (dest.level <= level) {
             if (recordedLevel !== 0 && recordedLevel !== dest.level) {
               break;
@@ -28777,7 +28777,7 @@ var require_multistream = __commonJS({
         if (!isStream2) {
           throw Error("stream object needs to implement either StreamEntry or DestinationStream interface");
         }
-        const { streams, streamLevels: streamLevels2 } = this;
+        const { streams: streams2, streamLevels: streamLevels2 } = this;
         let level;
         if (typeof dest.levelVal === "number") {
           level = dest.levelVal;
@@ -28794,18 +28794,18 @@ var require_multistream = __commonJS({
           levelVal: void 0,
           id: ++res.lastId
         };
-        streams.unshift(dest_);
-        streams.sort(compareByLevel);
-        this.minLevel = streams[0].level;
+        streams2.unshift(dest_);
+        streams2.sort(compareByLevel);
+        this.minLevel = streams2[0].level;
         return res;
       }
       function remove(id) {
-        const { streams } = this;
-        const index = streams.findIndex((s7) => s7.id === id);
+        const { streams: streams2 } = this;
+        const index = streams2.findIndex((s7) => s7.id === id);
         if (index >= 0) {
-          streams.splice(index, 1);
-          streams.sort(compareByLevel);
-          this.minLevel = streams.length > 0 ? streams[0].level : -1;
+          streams2.splice(index, 1);
+          streams2.sort(compareByLevel);
+          this.minLevel = streams2.length > 0 ? streams2[0].level : -1;
         }
         return res;
       }
@@ -28818,9 +28818,9 @@ var require_multistream = __commonJS({
         }
       }
       function clone4(level) {
-        const streams = new Array(this.streams.length);
-        for (let i6 = 0; i6 < streams.length; i6++) {
-          streams[i6] = {
+        const streams2 = new Array(this.streams.length);
+        for (let i6 = 0; i6 < streams2.length; i6++) {
+          streams2[i6] = {
             level,
             stream: this.streams[i6].stream
           };
@@ -28830,7 +28830,7 @@ var require_multistream = __commonJS({
           add: add2,
           remove,
           minLevel: level,
-          streams,
+          streams: streams2,
           clone: clone4,
           emit,
           flushSync,
@@ -45132,10 +45132,10 @@ var init_client = __esm({
             throw new OpenAIError(`The \`provider\` option cannot be used with ${conflictingOptions.map((key) => `\`${key}\``).join(", ")}. Configure authentication and the base URL through the provider instead.`);
           }
         }
-        const { baseURL = provider ? null : readEnv("OPENAI_BASE_URL"), apiKey = provider ? null : readEnv("OPENAI_API_KEY") ?? null, adminAPIKey = provider ? null : readEnv("OPENAI_ADMIN_KEY") ?? null, organization = provider ? null : readEnv("OPENAI_ORG_ID") ?? null, project = provider ? null : readEnv("OPENAI_PROJECT_ID") ?? null, webhookSecret = readEnv("OPENAI_WEBHOOK_SECRET") ?? null, workloadIdentity, ...opts } = clientOptions;
+        const { baseURL = provider ? null : readEnv("OPENAI_BASE_URL"), apiKey: apiKey2 = provider ? null : readEnv("OPENAI_API_KEY") ?? null, adminAPIKey = provider ? null : readEnv("OPENAI_ADMIN_KEY") ?? null, organization = provider ? null : readEnv("OPENAI_ORG_ID") ?? null, project = provider ? null : readEnv("OPENAI_PROJECT_ID") ?? null, webhookSecret = readEnv("OPENAI_WEBHOOK_SECRET") ?? null, workloadIdentity, ...opts } = clientOptions;
         const providerRuntime = provider ? configureProvider(provider) : void 0;
         const options = {
-          apiKey,
+          apiKey: apiKey2,
           adminAPIKey,
           organization,
           project,
@@ -45145,10 +45145,10 @@ var init_client = __esm({
           ...opts,
           baseURL: providerRuntime?.baseURL ?? (baseURL || `https://api.openai.com/v1`)
         };
-        if (apiKey && workloadIdentity) {
+        if (apiKey2 && workloadIdentity) {
           throw new OpenAIError("The `apiKey` and `workloadIdentity` options are mutually exclusive");
         }
-        if (!providerRuntime && !apiKey && !adminAPIKey && !workloadIdentity) {
+        if (!providerRuntime && !apiKey2 && !adminAPIKey && !workloadIdentity) {
           throw new OpenAIError("Missing credentials. Please pass an `apiKey`, `workloadIdentity`, `adminAPIKey`, or set the `OPENAI_API_KEY` or `OPENAI_ADMIN_KEY` environment variable.");
         }
         if (!options.dangerouslyAllowBrowser && isRunningInBrowser()) {
@@ -45180,7 +45180,7 @@ var init_client = __esm({
         if (workloadIdentity) {
           this._workloadIdentityAuth = new WorkloadIdentityAuth(workloadIdentity, this.fetch);
         }
-        this.apiKey = typeof apiKey === "string" ? apiKey : null;
+        this.apiKey = typeof apiKey2 === "string" ? apiKey2 : null;
         this.adminAPIKey = adminAPIKey;
         this.organization = organization;
         this.project = project;
@@ -45283,12 +45283,12 @@ var init_client = __esm({
       async _callApiKey() {
         if (this._provider)
           return false;
-        const apiKey = this._options.apiKey;
-        if (typeof apiKey !== "function")
+        const apiKey2 = this._options.apiKey;
+        if (typeof apiKey2 !== "function")
           return false;
         let token;
         try {
-          token = await apiKey();
+          token = await apiKey2();
         } catch (err2) {
           if (err2 instanceof OpenAIError)
             throw err2;
@@ -45491,8 +45491,8 @@ var init_client = __esm({
       }) {
         if (this._workloadIdentityAuth && schemes.bearerAuth) {
           const headers = init2.headers;
-          const authHeader = headers.get("Authorization");
-          if (!authHeader || authHeader === `Bearer ${WORKLOAD_IDENTITY_API_KEY_PLACEHOLDER}`) {
+          const authHeader2 = headers.get("Authorization");
+          if (!authHeader2 || authHeader2 === `Bearer ${WORKLOAD_IDENTITY_API_KEY_PLACEHOLDER}`) {
             const token = await this._workloadIdentityAuth.getToken();
             headers.set("Authorization", `Bearer ${token}`);
           }
@@ -53601,7 +53601,7 @@ var require_gaxios = __commonJS({
     var retry_js_1 = require_retry3();
     var stream_1 = __require("stream");
     var interceptor_js_1 = require_interceptor();
-    var randomUUID2 = async () => globalThis.crypto?.randomUUID() || (await import("crypto")).randomUUID();
+    var randomUUID3 = async () => globalThis.crypto?.randomUUID() || (await import("crypto")).randomUUID();
     var HTTP_STATUS_NO_CONTENT = 204;
     var Gaxios = class {
       agentCache = /* @__PURE__ */ new Map();
@@ -53874,7 +53874,7 @@ var require_gaxios = __commonJS({
          */
         ["Blob", "File", "FormData"].includes(opts.data?.constructor?.name || "");
         if (opts.multipart?.length) {
-          const boundary = await randomUUID2();
+          const boundary = await randomUUID3();
           preparedHeaders.set("content-type", `multipart/related; boundary=${boundary}`);
           opts.body = stream_1.Readable.from(this.getMultipartRequest(opts.multipart, boundary));
         } else if (shouldDirectlyPassData) {
@@ -59865,11 +59865,11 @@ var require_jwtclient = __commonJS({
        * Creates a JWT credentials instance using an API Key for authentication.
        * @param apiKey The API Key in string form.
        */
-      fromAPIKey(apiKey) {
-        if (typeof apiKey !== "string") {
+      fromAPIKey(apiKey2) {
+        if (typeof apiKey2 !== "string") {
           throw new Error("Must provide an API Key string.");
         }
-        this.apiKey = apiKey;
+        this.apiKey = apiKey2;
       }
       /**
        * Using the key or keyFile on the JWT client, obtain an object that contains
@@ -63079,8 +63079,8 @@ var require_googleauth = __commonJS({
        * @param options An optional options object.
        * @returns A JWT loaded from the key
        */
-      fromAPIKey(apiKey, options = {}) {
-        return new jwtclient_1.JWT({ ...options, apiKey });
+      fromAPIKey(apiKey2, options = {}) {
+        return new jwtclient_1.JWT({ ...options, apiKey: apiKey2 });
       }
       /**
        * Determines whether the current operating system is Windows.
@@ -85079,8 +85079,8 @@ var init_node = __esm({
         const websocketBaseUrl = this.apiClient.getWebsocketBaseUrl();
         const apiVersion = this.apiClient.getApiVersion();
         const headers = mapToHeaders$1(this.apiClient.getDefaultHeaders());
-        const apiKey = this.apiClient.getApiKey();
-        const url2 = `${websocketBaseUrl}/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.BidiGenerateMusic?key=${apiKey}`;
+        const apiKey2 = this.apiClient.getApiKey();
+        const url2 = `${websocketBaseUrl}/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.BidiGenerateMusic?key=${apiKey2}`;
         let onopenResolve = () => {
         };
         const onopenPromise = new Promise((resolve3) => {
@@ -85266,8 +85266,8 @@ var init_node = __esm({
         if (this.apiClient.isVertexAI()) {
           const project = this.apiClient.getProject();
           const location2 = this.apiClient.getLocation();
-          const apiKey = this.apiClient.getApiKey();
-          const hasStandardAuth = !!project && !!location2 || !!apiKey;
+          const apiKey2 = this.apiClient.getApiKey();
+          const hasStandardAuth = !!project && !!location2 || !!apiKey2;
           if (this.apiClient.getCustomBaseUrl() && !hasStandardAuth) {
             url2 = websocketBaseUrl;
           } else {
@@ -85275,10 +85275,10 @@ var init_node = __esm({
             await this.auth.addAuthHeaders(headers, url2);
           }
         } else {
-          const apiKey = this.apiClient.getApiKey();
+          const apiKey2 = this.apiClient.getApiKey();
           let method = "BidiGenerateContent";
           let keyName = "key";
-          if (apiKey === null || apiKey === void 0 ? void 0 : apiKey.startsWith("auth_tokens/")) {
+          if (apiKey2 === null || apiKey2 === void 0 ? void 0 : apiKey2.startsWith("auth_tokens/")) {
             console.warn("Warning: Ephemeral token support is experimental and may change in future versions.");
             if (apiVersion !== "v1alpha") {
               console.warn("Warning: The SDK's ephemeral token support is in v1alpha only. Please use const ai = new GoogleGenAI({apiKey: token.name, httpOptions: { apiVersion: 'v1alpha' }}); before session connection.");
@@ -85286,7 +85286,7 @@ var init_node = __esm({
             method = "BidiGenerateContentConstrained";
             keyName = "access_token";
           }
-          url2 = `${websocketBaseUrl}/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.${method}?${keyName}=${apiKey}`;
+          url2 = `${websocketBaseUrl}/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.${method}?${keyName}=${apiKey2}`;
         }
         let onopenResolve = () => {
         };
@@ -90102,6 +90102,11 @@ function getLucyRepairsJsonPath() {
   const fromEnv = process.env["LUCY_REPAIRS_JSON_PATH"]?.trim();
   if (fromEnv) return resolve(fromEnv);
   return join(getLucyDataRoot(), "lucy-repairs.json");
+}
+function getLucyRepairRunsPath() {
+  const fromEnv = process.env["LUCY_REPAIR_RUNS_PATH"]?.trim();
+  if (fromEnv) return resolve(fromEnv);
+  return join(getLucyDataRoot(), "repair-runs.json");
 }
 function getKommoRelayDir() {
   const fromEnv = process.env["LUCY_RELAY_DIR"]?.trim();
@@ -138387,11 +138392,11 @@ function extractGammaIdFromUrl(url2) {
   return match2?.[1] ?? null;
 }
 async function fetchGammaDocKnowledge(gammaId) {
-  const apiKey = gammaApiKey();
-  if (!apiKey) return { title: "", description: "" };
+  const apiKey2 = gammaApiKey();
+  if (!apiKey2) return { title: "", description: "" };
   try {
     const res = await fetch(`${GAMMA_API_BASE}/gammas/${encodeURIComponent(gammaId)}`, {
-      headers: { "X-API-KEY": apiKey, Accept: "application/json" },
+      headers: { "X-API-KEY": apiKey2, Accept: "application/json" },
       signal: AbortSignal.timeout(2e4)
     });
     if (!res.ok) return { title: "", description: "" };
@@ -138447,11 +138452,11 @@ async function loadGammaKnowledgeFromSheet(rows) {
   return lines.join("\n").trim();
 }
 async function fetchGammaMetadata(gammaId) {
-  const apiKey = gammaApiKey();
-  if (!apiKey) return {};
+  const apiKey2 = gammaApiKey();
+  if (!apiKey2) return {};
   const res = await fetch(`${GAMMA_API_BASE}/gammas/${encodeURIComponent(gammaId)}`, {
     headers: {
-      "X-API-KEY": apiKey,
+      "X-API-KEY": apiKey2,
       Accept: "application/json"
     },
     signal: AbortSignal.timeout(2e4)
@@ -138463,13 +138468,13 @@ async function fetchGammaMetadata(gammaId) {
   return { title, url: url2 };
 }
 async function tryGammaExportUrl(gammaId) {
-  const apiKey = gammaApiKey();
-  if (!apiKey) return null;
+  const apiKey2 = gammaApiKey();
+  if (!apiKey2) return null;
   try {
     const res = await fetch(`${GAMMA_API_BASE}/gammas/${encodeURIComponent(gammaId)}/export`, {
       method: "POST",
       headers: {
-        "X-API-KEY": apiKey,
+        "X-API-KEY": apiKey2,
         "Content-Type": "application/json",
         Accept: "application/json"
       },
@@ -138482,7 +138487,7 @@ async function tryGammaExportUrl(gammaId) {
     for (let i6 = 0; i6 < 12; i6++) {
       await new Promise((r5) => setTimeout(r5, 2500));
       const poll = await fetch(`${GAMMA_API_BASE}/exports/${data.exportId}`, {
-        headers: { "X-API-KEY": apiKey, Accept: "application/json" },
+        headers: { "X-API-KEY": apiKey2, Accept: "application/json" },
         signal: AbortSignal.timeout(15e3)
       });
       if (!poll.ok) continue;
@@ -138686,10 +138691,10 @@ function getCatalogWebUrlForQuery(query) {
 function getCatalogEmbed(slug) {
   return loadCatalogEmbeds().find((e4) => e4.slug === slug) ?? null;
 }
-async function fetchGammaMeta(gammaId, apiKey) {
+async function fetchGammaMeta(gammaId, apiKey2) {
   try {
     const res = await fetch(`https://public-api.gamma.app/v1.0/gammas/${encodeURIComponent(gammaId)}`, {
-      headers: { "X-API-KEY": apiKey, Accept: "application/json" },
+      headers: { "X-API-KEY": apiKey2, Accept: "application/json" },
       signal: AbortSignal.timeout(15e3)
     });
     if (!res.ok) return { title: "", description: "" };
@@ -138704,16 +138709,16 @@ async function fetchGammaMeta(gammaId, apiKey) {
 }
 async function refreshCatalogWebKnowledge(limit2 = 40) {
   const embeds = loadCatalogEmbeds();
-  const apiKey = process.env["GAMMA_API_KEY"]?.trim() || "";
+  const apiKey2 = process.env["GAMMA_API_KEY"]?.trim() || "";
   const withGamma = embeds.filter((e4) => e4.gammaId).slice(0, limit2);
   const entries = [];
-  if (apiKey && withGamma.length) {
+  if (apiKey2 && withGamma.length) {
     const chunkSize = 8;
     for (let i6 = 0; i6 < withGamma.length; i6 += chunkSize) {
       const chunk = withGamma.slice(i6, i6 + chunkSize);
       const results = await Promise.all(
         chunk.map(async (e4) => {
-          const meta = await fetchGammaMeta(e4.gammaId, apiKey);
+          const meta = await fetchGammaMeta(e4.gammaId, apiKey2);
           return {
             ...e4,
             gammaTitle: meta.title,
@@ -141615,12 +141620,12 @@ function buildCatalogInclusionAnswer(query) {
       const row = rowsWithInclusion[0];
       return `*${formatCatalogRowLabel(row)}* \u2014 *Incluye:* ${getInclusionFromRow(row)}`;
     }
-    const baseName = resolved.serviceName ?? rowsWithInclusion[0].servicio;
+    const baseName2 = resolved.serviceName ?? rowsWithInclusion[0].servicio;
     const blocks = rowsWithInclusion.slice(0, 5).map((row) => {
       const nivel = extractNivelLabel(row);
       return `\u2022 *${nivel}:* ${getInclusionFromRow(row)}`;
     });
-    return `*Incluye:* \u2014 *${baseName}*:
+    return `*Incluye:* \u2014 *${baseName2}*:
 ${blocks.join("\n")}`;
   }
   return null;
@@ -141643,12 +141648,12 @@ function buildCatalogPriceAnswer(query) {
       const unique2 = [
         ...new Map(priced.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()
       ];
-      const baseName2 = resolved.serviceName ?? unique2[0].servicio;
+      const baseName3 = resolved.serviceName ?? unique2[0].servicio;
       if (serviceHasSoloVsCompleto(unique2) && !queryWantsSpecificCompletoNivel(query) && !queryWantsSoloAlimentos(query)) {
         if (queryWantsCompletoMode(query)) {
-          return withLink(buildCompletoNivelesTeaser(baseName2, unique2));
+          return withLink(buildCompletoNivelesTeaser(baseName3, unique2));
         }
-        return withLink(buildSoloVsCompletoModeAnswerWithPrices(baseName2, unique2));
+        return withLink(buildSoloVsCompletoModeAnswerWithPrices(baseName3, unique2));
       }
       const priceLines2 = unique2.slice(0, 6).map((row) => {
         const parsed = parseRowNotes(row.notas);
@@ -141661,7 +141666,7 @@ function buildCatalogPriceAnswer(query) {
       if (priceLines2) {
         const inclusionBlock2 = buildInclusionBlock(unique2, 220);
         return withLink(
-          `S\xED, manejamos ${baseName2}:
+          `S\xED, manejamos ${baseName3}:
 
 ${priceLines2}${inclusionBlock2}
 
@@ -141676,12 +141681,12 @@ ${priceLines2}${inclusionBlock2}
     return buildServiceNivelChoiceAnswer(resolved, query);
   }
   const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
-  const baseName = resolved.serviceName ?? unique[0].servicio;
+  const baseName2 = resolved.serviceName ?? unique[0].servicio;
   if (serviceHasSoloVsCompleto(unique) && !queryWantsSpecificCompletoNivel(query) && !queryWantsSoloAlimentos(query)) {
     if (queryWantsCompletoMode(query)) {
-      return withLink(buildCompletoNivelesTeaser(baseName, unique));
+      return withLink(buildCompletoNivelesTeaser(baseName2, unique));
     }
-    return withLink(buildSoloVsCompletoModeAnswerWithPrices(baseName, unique));
+    return withLink(buildSoloVsCompletoModeAnswerWithPrices(baseName2, unique));
   }
   const priceLines = unique.filter((r5) => r5.tienePrecio && r5.precio).slice(0, 6).map((row) => {
     const parsed = parseRowNotes(row.notas);
@@ -141692,7 +141697,7 @@ ${priceLines2}${inclusionBlock2}
   }).join("\n");
   if (!priceLines) return buildServiceNivelChoiceAnswer(resolved, query);
   const inclusionBlock = buildInclusionBlock(unique, 280);
-  return withLink(`S\xED, manejamos ${baseName}:
+  return withLink(`S\xED, manejamos ${baseName2}:
 
 ${priceLines}${inclusionBlock}`);
 }
@@ -148628,10 +148633,10 @@ var init_table = __esm({
       [IsDrizzleTable] = true;
       /** @internal */
       [ExtraConfigBuilder] = void 0;
-      constructor(name2, schema, baseName) {
+      constructor(name2, schema, baseName2) {
         this[TableName] = this[OriginalName] = name2;
         this[Schema] = schema;
-        this[BaseName] = baseName;
+        this[BaseName] = baseName2;
       }
     };
   }
@@ -151053,8 +151058,8 @@ var init_all = __esm({
 });
 
 // ../node_modules/drizzle-orm/pg-core/table.js
-function pgTableWithSchema(name2, columns, extraConfig, schema, baseName = name2) {
-  const rawTable = new PgTable(name2, schema, baseName);
+function pgTableWithSchema(name2, columns, extraConfig, schema, baseName2 = name2) {
+  const rawTable = new PgTable(name2, schema, baseName2);
   const parsedColumns = typeof columns === "function" ? columns(getPgColumnBuilders()) : columns;
   const builtColumns = Object.fromEntries(
     Object.entries(parsedColumns).map(([name22, colBuilderBase]) => {
@@ -162577,14 +162582,14 @@ async function openPgAt(dir) {
   return db2;
 }
 function withOpenTimeout(p5, dir) {
-  let timer;
+  let timer2;
   const timeout = new Promise((_4, reject) => {
-    timer = setTimeout(
+    timer2 = setTimeout(
       () => reject(new PgliteOpenTimeout(`PGlite no abri\xF3 ${dir} en ${PGLITE_OPEN_TIMEOUT_MS} ms`)),
       PGLITE_OPEN_TIMEOUT_MS
     );
   });
-  return Promise.race([p5, timeout]).finally(() => clearTimeout(timer));
+  return Promise.race([p5, timeout]).finally(() => clearTimeout(timer2));
 }
 async function getLocalDb() {
   if (localDb) return localDb;
@@ -203174,6 +203179,1247 @@ var init_dist3 = __esm({
   }
 });
 
+// src/services/lucyRepairPersist.ts
+import { existsSync as existsSync7, mkdirSync as mkdirSync3, readFileSync as readFileSync8, writeFileSync } from "node:fs";
+import { dirname as dirname5 } from "node:path";
+function repairsPath() {
+  ensureLucyDataRoot();
+  return getLucyRepairsJsonPath();
+}
+function readRepairsBackup() {
+  const path7 = repairsPath();
+  if (!existsSync7(path7)) return [];
+  try {
+    const raw = readFileSync8(path7, "utf8");
+    const parsed = JSON.parse(raw);
+    const list = Array.isArray(parsed) ? parsed : parsed.repairs ?? [];
+    return list.filter((r5) => r5 && typeof r5.id === "string" && r5.evidence && r5.proposedRepair);
+  } catch (err2) {
+    logger.warn({ err: err2, path: path7 }, "lucyRepairPersist: no se pudo leer backup");
+    return [];
+  }
+}
+async function dumpRepairsToBackup() {
+  try {
+    const rows = await db.select().from(lucyRepairs);
+    const repairs = rows.map((row) => ({
+      id: row.id,
+      kommoLeadId: row.kommoLeadId ?? void 0,
+      category: row.category,
+      severity: row.severity,
+      evidence: row.evidence,
+      proposedRepair: row.proposedRepair,
+      appliedRepair: row.appliedRepair ?? void 0,
+      status: row.status,
+      source: row.source,
+      model: row.model ?? void 0,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      resolvedAt: row.resolvedAt?.toISOString(),
+      resolvedBy: row.resolvedBy ?? void 0,
+      dedupeKey: row.dedupeKey ?? void 0
+    }));
+    const path7 = repairsPath();
+    mkdirSync3(dirname5(path7), { recursive: true });
+    writeFileSync(
+      path7,
+      JSON.stringify(
+        {
+          savedAt: (/* @__PURE__ */ new Date()).toISOString(),
+          count: repairs.length,
+          repairs
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+    return repairs.length;
+  } catch (err2) {
+    logger.warn({ err: err2 }, "lucyRepairPersist: dump fall\xF3");
+    return 0;
+  }
+}
+async function restoreRepairsFromBackupIfNeeded() {
+  if (restoredOnce) return 0;
+  restoredOnce = true;
+  try {
+    const [{ n: n5 }] = await db.select({ n: sql`count(*)::int` }).from(lucyRepairs);
+    const count2 = Number(n5 ?? 0);
+    const backup = readRepairsBackup();
+    if (backup.length === 0) return 0;
+    let inserted = 0;
+    for (const r5 of backup) {
+      const [byId] = await db.select({ id: lucyRepairs.id }).from(lucyRepairs).where(eq(lucyRepairs.id, r5.id)).limit(1);
+      if (byId) continue;
+      if (r5.dedupeKey) {
+        const [byKey] = await db.select({ id: lucyRepairs.id }).from(lucyRepairs).where(eq(lucyRepairs.dedupeKey, r5.dedupeKey)).limit(1);
+        if (byKey) continue;
+      }
+      try {
+        await db.insert(lucyRepairs).values({
+          id: r5.id,
+          kommoLeadId: r5.kommoLeadId ?? null,
+          category: (r5.category || "other").slice(0, 40),
+          severity: r5.severity || "warn",
+          evidence: r5.evidence,
+          proposedRepair: r5.proposedRepair,
+          appliedRepair: r5.appliedRepair ?? null,
+          status: r5.status || "open",
+          source: r5.source || "heuristic",
+          model: r5.model ?? null,
+          dedupeKey: r5.dedupeKey ?? null,
+          resolvedAt: r5.resolvedAt ? new Date(r5.resolvedAt) : null,
+          resolvedBy: r5.resolvedBy ?? null,
+          createdAt: r5.createdAt ? new Date(r5.createdAt) : /* @__PURE__ */ new Date(),
+          updatedAt: r5.updatedAt ? new Date(r5.updatedAt) : /* @__PURE__ */ new Date()
+        });
+        inserted += 1;
+      } catch (err2) {
+        logger.warn({ err: err2, id: r5.id }, "lucyRepairPersist: skip insert");
+      }
+    }
+    if (inserted > 0 || count2 === 0 && backup.length > 0) {
+      logger.info(
+        { inserted, backup: backup.length, hadDb: count2 },
+        "lucyRepairPersist: restaurado desde JSON"
+      );
+    }
+    return inserted;
+  } catch (err2) {
+    logger.warn({ err: err2 }, "lucyRepairPersist: restore fall\xF3");
+    return 0;
+  }
+}
+var restoredOnce;
+var init_lucyRepairPersist = __esm({
+  async "src/services/lucyRepairPersist.ts"() {
+    "use strict";
+    await init_src2();
+    init_drizzle_orm();
+    init_lucyDataPaths();
+    init_logger2();
+    restoredOnce = false;
+  }
+});
+
+// src/services/lucyRepairSchema.ts
+async function ensureLucyRepairSchema() {
+  if (ensured2) return;
+  try {
+    await db.execute(sql.raw(CREATE_TABLE2));
+    await db.execute(
+      sql.raw(
+        `CREATE INDEX IF NOT EXISTS lucy_repairs_status_idx ON lucy_repairs (status, created_at DESC)`
+      )
+    );
+    await restoreRepairsFromBackupIfNeeded();
+  } catch (err2) {
+    logger.warn({ err: err2 }, "lucyRepairSchema: fall\xF3");
+  }
+  ensured2 = true;
+}
+var ensured2, CREATE_TABLE2;
+var init_lucyRepairSchema = __esm({
+  async "src/services/lucyRepairSchema.ts"() {
+    "use strict";
+    await init_src2();
+    init_drizzle_orm();
+    init_logger2();
+    await init_lucyRepairPersist();
+    ensured2 = false;
+    CREATE_TABLE2 = `
+CREATE TABLE IF NOT EXISTS lucy_repairs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kommo_lead_id TEXT,
+  category VARCHAR(40) NOT NULL DEFAULT 'other',
+  severity VARCHAR(20) NOT NULL DEFAULT 'warn',
+  evidence TEXT NOT NULL,
+  proposed_repair TEXT NOT NULL,
+  applied_repair TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'open',
+  source VARCHAR(20) NOT NULL DEFAULT 'heuristic',
+  model TEXT,
+  dedupe_key TEXT UNIQUE,
+  resolved_at TIMESTAMP,
+  resolved_by TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+)`;
+  }
+});
+
+// src/services/lucyAuditorLlm.ts
+var lucyAuditorLlm_exports = {};
+__export(lucyAuditorLlm_exports, {
+  DEFAULT_AUDITOR_MODEL: () => DEFAULT_AUDITOR_MODEL,
+  canSpendAuditorCall: () => canSpendAuditorCall,
+  getAuditorMaxCallsPerDay: () => getAuditorMaxCallsPerDay,
+  getAuditorModel: () => getAuditorModel,
+  getAuditorQuotaSnapshot: () => getAuditorQuotaSnapshot,
+  runAuditorLlm: () => runAuditorLlm
+});
+function getAuditorModel() {
+  const raw = (process.env["LUCY_AUDITOR_MODEL"] ?? DEFAULT_AUDITOR_MODEL).trim();
+  if (!raw || BLOCKED_AUDITOR.test(raw)) return DEFAULT_AUDITOR_MODEL;
+  return raw;
+}
+function getAuditorMaxCallsPerDay() {
+  const n5 = Number(process.env["LUCY_AUDITOR_MAX_CALLS_PER_DAY"] ?? "40");
+  if (!Number.isFinite(n5) || n5 < 0) return 40;
+  return Math.min(Math.floor(n5), 200);
+}
+function todayKey() {
+  return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+}
+function getAuditorQuotaSnapshot() {
+  const key = todayKey();
+  if (key !== dayKey) {
+    dayKey = key;
+    callsToday = 0;
+  }
+  const maxPerDay = getAuditorMaxCallsPerDay();
+  return {
+    callsToday,
+    maxPerDay,
+    model: getAuditorModel(),
+    remaining: Math.max(0, maxPerDay - callsToday)
+  };
+}
+function canSpendAuditorCall() {
+  return getAuditorQuotaSnapshot().remaining > 0 && isLlmConfigured();
+}
+function noteAuditorCall() {
+  const key = todayKey();
+  if (key !== dayKey) {
+    dayKey = key;
+    callsToday = 0;
+  }
+  callsToday += 1;
+}
+async function runAuditorLlm(transcript) {
+  if (!canSpendAuditorCall()) return [];
+  const model = getAuditorModel();
+  const key = getGeminiApiKey();
+  if (!key) return [];
+  noteAuditorCall();
+  const ai2 = new GoogleGenAI2({ apiKey: key });
+  const prompt = [
+    "Eres auditor de calidad de Lucy (agente Bodasesor). NUNCA escribes al cliente.",
+    "Revisa el transcript y detecta SOLO: bucles de links, respuestas repetidas,",
+    "cierre prematuro (ya tengo todo) cuando ped\xEDan precio/detalle, campos mal",
+    "(cena ocasi\xF3n como SKU), embudo trabado (misma pregunta 3+ veces).",
+    "Responde JSON array: [{category,severity,evidence,proposedRepair}]",
+    "category: loop_links|repeat_reply|premature_close|bad_field|stuck_funnel|other",
+    "severity: info|warn|error. proposedRepair: acci\xF3n concreta para el equipo/c\xF3digo.",
+    "Si no hay problemas, responde [].",
+    "",
+    "TRANSCRIPT:",
+    transcript.slice(0, 6e3)
+  ].join("\n");
+  try {
+    const result = await ai2.models.generateContent({
+      model,
+      contents: prompt,
+      config: {
+        temperature: 0.1,
+        maxOutputTokens: 800,
+        responseMimeType: "application/json"
+      }
+    });
+    try {
+      const usage = result.usageMetadata;
+      recordGeminiSpend({
+        channel: "auditor",
+        model,
+        usage: usage ? {
+          promptTokenCount: Number(usage.promptTokenCount ?? 0),
+          candidatesTokenCount: Number(usage.candidatesTokenCount ?? 0),
+          cachedContentTokenCount: Number(
+            usage.cachedContentTokenCount ?? 0
+          ),
+          totalTokenCount: Number(usage.totalTokenCount ?? 0)
+        } : null
+      });
+    } catch {
+    }
+    const text2 = (result.text ?? "").trim();
+    if (!text2) return [];
+    const parsed = JSON.parse(text2);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((x8) => x8 && typeof x8 === "object").map((x8) => {
+      const o6 = x8;
+      return {
+        category: String(o6.category ?? "other").slice(0, 40),
+        severity: ["info", "warn", "error"].includes(String(o6.severity)) ? o6.severity : "warn",
+        evidence: String(o6.evidence ?? "").slice(0, 800),
+        proposedRepair: String(o6.proposedRepair ?? "").slice(0, 800)
+      };
+    }).filter((f7) => f7.evidence && f7.proposedRepair);
+  } catch (err2) {
+    logger.warn({ err: err2, model }, "runAuditorLlm fall\xF3");
+    return [];
+  }
+}
+var DEFAULT_AUDITOR_MODEL, BLOCKED_AUDITOR, dayKey, callsToday;
+var init_lucyAuditorLlm = __esm({
+  "src/services/lucyAuditorLlm.ts"() {
+    "use strict";
+    init_node();
+    init_llmEnv();
+    init_lucyGeminiSpend();
+    init_logger2();
+    DEFAULT_AUDITOR_MODEL = "gemini-2.5-flash";
+    BLOCKED_AUDITOR = /(?:^|\/)(imagen|nano[-\s]?banana|gemini-[\w.-]*-image|gemini-.*-pro|gemini-ultra|gemini-3\.6)(?:$|\/|-)/i;
+    dayKey = "";
+    callsToday = 0;
+  }
+});
+
+// src/services/lucyRepairStore.ts
+var lucyRepairStore_exports = {};
+__export(lucyRepairStore_exports, {
+  cleanupLucyRepairBacklog: () => cleanupLucyRepairBacklog,
+  countOpenRepairs: () => countOpenRepairs,
+  dismissLucyRepair: () => dismissLucyRepair,
+  getLucyRepair: () => getLucyRepair,
+  getLucyRepairStats: () => getLucyRepairStats,
+  listLucyRepairs: () => listLucyRepairs,
+  markLucyRepairsInProgress: () => markLucyRepairsInProgress,
+  normalizeDedupeKey: () => normalizeDedupeKey,
+  recordLucyRepair: () => recordLucyRepair,
+  releaseLucyRepairs: () => releaseLucyRepairs,
+  repairSignature: () => repairSignature,
+  resolveLucyRepair: () => resolveLucyRepair,
+  stripRepairDayPrefix: () => stripRepairDayPrefix
+});
+function rowToDto(row) {
+  return {
+    id: row.id,
+    kommoLeadId: row.kommoLeadId ?? void 0,
+    category: row.category,
+    severity: row.severity,
+    evidence: row.evidence,
+    proposedRepair: row.proposedRepair,
+    appliedRepair: row.appliedRepair ?? void 0,
+    status: row.status,
+    source: row.source,
+    model: row.model ?? void 0,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+    resolvedAt: row.resolvedAt?.toISOString(),
+    resolvedBy: row.resolvedBy ?? void 0
+  };
+}
+function stripRepairDayPrefix(evidence) {
+  return evidence.replace(/^\s*\[\d{4}-\d{2}-\d{2}\]\s*/, "");
+}
+function normalizeDedupeKey(category, leadId, evidence) {
+  const e4 = stripRepairDayPrefix(evidence).toLowerCase().replace(/\d+/g, "#").replace(/\s+/g, " ").trim().slice(0, 120);
+  return `${category}:${leadId ?? "none"}:${e4}`;
+}
+function repairSignature(category, evidence) {
+  const e4 = stripRepairDayPrefix(evidence).toLowerCase().replace(/«[^»]*»?/g, "\xAB\u2026\xBB").replace(/\d+/g, "#").replace(/\s+/g, " ").trim().slice(0, 70);
+  return `${category}:${e4}`;
+}
+async function persistBackupSafe() {
+  try {
+    await dumpRepairsToBackup();
+  } catch (err2) {
+    logger.warn({ err: err2 }, "lucyRepairStore: backup JSON fall\xF3");
+  }
+}
+async function listLucyRepairs(status2 = "open", limit2 = 50) {
+  await ensureLucyRepairSchema();
+  const capped = status2 === "resolved" || status2 === "all" ? Math.min(Math.max(limit2, 50), 300) : Math.min(limit2, 100);
+  const q3 = db.select().from(lucyRepairs).orderBy(desc(lucyRepairs.createdAt)).limit(capped);
+  if (status2 === "all") {
+    const rows2 = await q3;
+    return rows2.map(rowToDto);
+  }
+  const rows = await db.select().from(lucyRepairs).where(eq(lucyRepairs.status, status2)).orderBy(desc(status2 === "resolved" ? lucyRepairs.resolvedAt : lucyRepairs.createdAt)).limit(capped);
+  return rows.map(rowToDto);
+}
+async function getLucyRepairStats() {
+  await ensureLucyRepairSchema();
+  const rows = await db.select().from(lucyRepairs);
+  const { getAuditorQuotaSnapshot: getAuditorQuotaSnapshot2 } = await Promise.resolve().then(() => (init_lucyAuditorLlm(), lucyAuditorLlm_exports));
+  const { getGeminiSpendSnapshot: getGeminiSpendSnapshot2 } = await Promise.resolve().then(() => (init_lucyGeminiSpend(), lucyGeminiSpend_exports));
+  const quota = getAuditorQuotaSnapshot2();
+  const spend = getGeminiSpendSnapshot2();
+  return {
+    open: rows.filter((r5) => r5.status === "open").length,
+    auto_flagged: rows.filter((r5) => r5.status === "auto_flagged").length,
+    in_progress: rows.filter((r5) => r5.status === "in_progress").length,
+    resolved: rows.filter((r5) => r5.status === "resolved").length,
+    dismissed: rows.filter((r5) => r5.status === "dismissed").length,
+    auditor_calls_today: quota.callsToday,
+    auditor_max_per_day: quota.maxPerDay,
+    auditor_model: quota.model,
+    auditor_usd_today: spend.auditor.usdEstimate,
+    auditor_tokens_today: spend.auditor.inputTokens + spend.auditor.outputTokens,
+    spend_day_key: spend.dayKey
+  };
+}
+async function recordLucyRepair(input) {
+  const evidence = input.evidence?.trim();
+  const proposed = input.proposedRepair?.trim();
+  if (!evidence || !proposed) return false;
+  await ensureLucyRepairSchema();
+  const category = (input.category || "other").trim().slice(0, 40);
+  const leadId = input.kommoLeadId ? String(input.kommoLeadId) : void 0;
+  const dedupeKey2 = normalizeDedupeKey(category, leadId, evidence);
+  try {
+    const [existing] = await db.select().from(lucyRepairs).where(eq(lucyRepairs.dedupeKey, dedupeKey2)).limit(1);
+    if (existing) {
+      if (existing.status === "dismissed" || existing.status === "resolved") return false;
+      if (existing.status === "in_progress") return false;
+      await db.update(lucyRepairs).set({
+        evidence,
+        proposedRepair: proposed,
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq(lucyRepairs.id, existing.id));
+      await persistBackupSafe();
+      return true;
+    }
+    await db.insert(lucyRepairs).values({
+      kommoLeadId: leadId ?? null,
+      category,
+      severity: input.severity ?? "warn",
+      evidence,
+      proposedRepair: proposed,
+      status: input.status ?? "auto_flagged",
+      source: input.source ?? "heuristic",
+      model: input.model ?? null,
+      dedupeKey: dedupeKey2
+    });
+    logger.info({ category, leadId, source: input.source }, "lucy_repair registrado");
+    await persistBackupSafe();
+    return true;
+  } catch (err2) {
+    logger.warn({ err: err2, dedupeKey: dedupeKey2 }, "recordLucyRepair: fall\xF3");
+    return false;
+  }
+}
+async function markLucyRepairsInProgress(ids, startedBy = "cursor") {
+  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  if (unique.length === 0) return 0;
+  await ensureLucyRepairSchema();
+  let marked = 0;
+  const now = /* @__PURE__ */ new Date();
+  for (const id of unique) {
+    const [row] = await db.select().from(lucyRepairs).where(eq(lucyRepairs.id, id)).limit(1);
+    if (!row) continue;
+    if (row.status !== "open" && row.status !== "auto_flagged" && row.status !== "in_progress") {
+      continue;
+    }
+    await db.update(lucyRepairs).set({
+      status: "in_progress",
+      resolvedBy: startedBy,
+      updatedAt: now
+    }).where(eq(lucyRepairs.id, id));
+    marked += 1;
+  }
+  if (marked > 0) await persistBackupSafe();
+  return marked;
+}
+async function resolveLucyRepair(id, appliedRepair, reviewer) {
+  await ensureLucyRepairSchema();
+  const note = appliedRepair?.trim();
+  if (!note) return null;
+  const [updated] = await db.update(lucyRepairs).set({
+    status: "resolved",
+    appliedRepair: note,
+    resolvedAt: /* @__PURE__ */ new Date(),
+    resolvedBy: reviewer ?? null,
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(eq(lucyRepairs.id, id)).returning();
+  if (updated) await persistBackupSafe();
+  return updated ? rowToDto(updated) : null;
+}
+async function dismissLucyRepair(id, reviewer, reason) {
+  await ensureLucyRepairSchema();
+  const updated = await db.update(lucyRepairs).set({
+    status: "dismissed",
+    resolvedBy: reviewer ?? null,
+    resolvedAt: /* @__PURE__ */ new Date(),
+    updatedAt: /* @__PURE__ */ new Date(),
+    ...reason?.trim() ? { appliedRepair: reason.trim().slice(0, 2e3) } : {}
+  }).where(eq(lucyRepairs.id, id)).returning({ id: lucyRepairs.id });
+  if (updated.length > 0) await persistBackupSafe();
+  return updated.length > 0;
+}
+async function releaseLucyRepairs(ids) {
+  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  if (unique.length === 0) return 0;
+  await ensureLucyRepairSchema();
+  let released = 0;
+  for (const id of unique) {
+    const updated = await db.update(lucyRepairs).set({ status: "auto_flagged", resolvedBy: null, updatedAt: /* @__PURE__ */ new Date() }).where(sql`${lucyRepairs.id} = ${id} AND ${lucyRepairs.status} = 'in_progress'`).returning({ id: lucyRepairs.id });
+    released += updated.length;
+  }
+  if (released > 0) await persistBackupSafe();
+  return released;
+}
+async function cleanupLucyRepairBacklog(opts) {
+  await ensureLucyRepairSchema();
+  const now = opts.now ?? /* @__PURE__ */ new Date();
+  const staleMs = opts.staleInProgressMs ?? 6 * 60 * 60 * 1e3;
+  const rows = await db.select().from(lucyRepairs);
+  const result = { retired: 0, duplicates: 0, released: 0, rekeyed: 0 };
+  const dismiss = async (id, by, reason) => {
+    await db.update(lucyRepairs).set({ status: "dismissed", resolvedBy: by, resolvedAt: now, updatedAt: now, appliedRepair: reason }).where(eq(lucyRepairs.id, id));
+  };
+  const active = [];
+  for (const row of rows) {
+    if (!ACTIVE_STATUSES.has(row.status)) continue;
+    const evidence = stripRepairDayPrefix(row.evidence);
+    const retired = RETIRED_RULES.find((r5) => r5.category === row.category && r5.re.test(evidence));
+    if (retired && !opts.trackedRepairIds.has(row.id)) {
+      await dismiss(row.id, "limpieza-supervisor", retired.reason);
+      result.retired += 1;
+      continue;
+    }
+    active.push(row);
+  }
+  const groups = /* @__PURE__ */ new Map();
+  for (const row of active) {
+    const key = normalizeDedupeKey(row.category, row.kommoLeadId ?? void 0, row.evidence);
+    const list = groups.get(key) ?? [];
+    list.push(row);
+    groups.set(key, list);
+  }
+  for (const [key, list] of groups) {
+    list.sort((a4, b5) => {
+      const ta2 = opts.trackedRepairIds.has(a4.id) ? 1 : 0;
+      const tb = opts.trackedRepairIds.has(b5.id) ? 1 : 0;
+      if (ta2 !== tb) return tb - ta2;
+      return b5.createdAt.getTime() - a4.createdAt.getTime();
+    });
+    const [keep, ...dupes] = list;
+    for (const d3 of dupes) {
+      if (opts.trackedRepairIds.has(d3.id)) continue;
+      await dismiss(d3.id, "limpieza-duplicado", `Descartado por limpieza: duplicado de ${keep.id}.`);
+      result.duplicates += 1;
+    }
+    if (keep && keep.dedupeKey !== key) {
+      try {
+        await db.update(lucyRepairs).set({ dedupeKey: key }).where(eq(lucyRepairs.id, keep.id));
+        result.rekeyed += 1;
+      } catch {
+      }
+    }
+    if (keep && keep.status === "in_progress" && !opts.trackedRepairIds.has(keep.id) && Math.abs(now.getTime() - keep.updatedAt.getTime()) > staleMs) {
+      await db.update(lucyRepairs).set({ status: "auto_flagged", resolvedBy: null, updatedAt: now }).where(eq(lucyRepairs.id, keep.id));
+      result.released += 1;
+    }
+  }
+  if (result.retired || result.duplicates || result.released || result.rekeyed) {
+    await persistBackupSafe();
+    logger.info(result, "lucyRepairStore: limpieza de cola");
+  }
+  return result;
+}
+async function getLucyRepair(id) {
+  await ensureLucyRepairSchema();
+  const [row] = await db.select().from(lucyRepairs).where(eq(lucyRepairs.id, id)).limit(1);
+  return row ? rowToDto(row) : null;
+}
+async function countOpenRepairs() {
+  await ensureLucyRepairSchema();
+  const rows = await db.select({ n: sql`count(*)::int` }).from(lucyRepairs).where(eq(lucyRepairs.status, "open"));
+  return Number(rows[0]?.n ?? 0);
+}
+var ACTIVE_STATUSES, RETIRED_RULES;
+var init_lucyRepairStore = __esm({
+  async "src/services/lucyRepairStore.ts"() {
+    "use strict";
+    await init_src2();
+    init_drizzle_orm();
+    await init_lucyRepairSchema();
+    await init_lucyRepairPersist();
+    init_logger2();
+    ACTIVE_STATUSES = /* @__PURE__ */ new Set(["open", "auto_flagged", "in_progress"]);
+    RETIRED_RULES = [
+      {
+        category: "bad_field",
+        re: /^CRM Resumen IA parece truncado/i,
+        reason: "Descartado por limpieza: Resumen IA es un campo largo; la regla vieja lo marcaba solo por pasar de 250 letras."
+      },
+      {
+        category: "stuck_funnel",
+        re: /^Pregunta de embudo «[^»]+» repetida \d+ veces/i,
+        reason: "Descartado por limpieza: la regla vieja marcaba 3 preguntas iguales aunque el cliente no hubiera contestado; ahora solo se marca si el cliente ya dio el dato o tras 4+ intentos."
+      }
+    ];
+  }
+});
+
+// src/services/cursorRepairAgent.ts
+var cursorRepairAgent_exports = {};
+__export(cursorRepairAgent_exports, {
+  PUBLISH_PROMPT: () => PUBLISH_PROMPT,
+  RepairJobError: () => RepairJobError,
+  __resetRepairJobsForTest: () => __resetRepairJobsForTest,
+  buildRepairPrompt: () => buildRepairPrompt,
+  cancelRepairJob: () => cancelRepairJob,
+  cleanupRepairQueue: () => cleanupRepairQueue,
+  describeToolCall: () => describeToolCall,
+  getRepairJob: () => getRepairJob,
+  isCursorAgentConfigured: () => isCursorAgentConfigured,
+  launchRepairJob: () => launchRepairJob,
+  listRepairJobs: () => listRepairJobs,
+  markPublishedJobsLive: () => markPublishedJobsLive,
+  parsePublishOutcome: () => parsePublishOutcome,
+  parseRepairOutcome: () => parseRepairOutcome,
+  pickRepairsForJob: () => pickRepairsForJob,
+  publishRepairJob: () => publishRepairJob,
+  repairAgentStatusSummary: () => repairAgentStatusSummary,
+  startRepairJobTracker: () => startRepairJobTracker,
+  tickRepairJobs: () => tickRepairJobs,
+  trackedRepairIds: () => trackedRepairIds
+});
+import { existsSync as existsSync8, mkdirSync as mkdirSync4, readFileSync as readFileSync9, writeFileSync as writeFileSync2 } from "node:fs";
+import { dirname as dirname6 } from "node:path";
+import { randomUUID } from "node:crypto";
+function apiKey() {
+  return process.env["CURSOR_API_KEY"]?.trim() ?? "";
+}
+function apiBase() {
+  return (process.env["CURSOR_API_BASE"]?.trim() || "https://api.cursor.com").replace(/\/+$/, "");
+}
+function repoUrl() {
+  return process.env["LUCY_REPAIR_REPO_URL"]?.trim() || DEFAULT_REPO;
+}
+function maxJobsPerDay() {
+  const n5 = Number(process.env["LUCY_REPAIR_MAX_JOBS_PER_DAY"] ?? 4);
+  return Number.isFinite(n5) && n5 > 0 ? Math.floor(n5) : 4;
+}
+function autoPublish() {
+  return /^(1|true|si|sí|yes)$/i.test(process.env["LUCY_REPAIR_AUTO_PUBLISH"]?.trim() ?? "");
+}
+function isCursorAgentConfigured() {
+  return apiKey().length > 0;
+}
+function loadJobs() {
+  if (jobs) return jobs;
+  const path7 = getLucyRepairRunsPath();
+  try {
+    if (existsSync8(path7)) {
+      const parsed = JSON.parse(readFileSync9(path7, "utf8"));
+      jobs = Array.isArray(parsed.jobs) ? parsed.jobs : [];
+    } else {
+      jobs = [];
+    }
+  } catch (err2) {
+    logger.warn({ err: err2 }, "cursorRepairAgent: no se pudo leer repair-runs.json");
+    jobs = [];
+  }
+  return jobs;
+}
+function saveJobs() {
+  const list = loadJobs();
+  if (list.length > MAX_JOBS_KEPT) list.splice(0, list.length - MAX_JOBS_KEPT);
+  const path7 = getLucyRepairRunsPath();
+  try {
+    mkdirSync4(dirname6(path7), { recursive: true });
+    writeFileSync2(path7, JSON.stringify({ savedAt: (/* @__PURE__ */ new Date()).toISOString(), jobs: list }, null, 2), "utf8");
+  } catch (err2) {
+    logger.warn({ err: err2 }, "cursorRepairAgent: no se pudo guardar repair-runs.json");
+  }
+}
+function touch(job, patch) {
+  Object.assign(job, patch, { updatedAt: (/* @__PURE__ */ new Date()).toISOString() });
+  saveJobs();
+}
+function addStep(job, text2) {
+  const clean = text2.replace(/\s+/g, " ").trim().slice(0, 160);
+  if (!clean) return;
+  if (job.steps[job.steps.length - 1]?.text === clean) return;
+  job.steps.push({ at: (/* @__PURE__ */ new Date()).toISOString(), text: clean });
+  if (job.steps.length > MAX_STEPS) job.steps.splice(0, job.steps.length - MAX_STEPS);
+  job.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+}
+function listRepairJobs(limit2 = 20) {
+  return [...loadJobs()].reverse().slice(0, limit2);
+}
+function getRepairJob(id) {
+  return loadJobs().find((j5) => j5.id === id);
+}
+function trackedRepairIds() {
+  const ids = /* @__PURE__ */ new Set();
+  for (const j5 of loadJobs()) {
+    if (ACTIVE.has(j5.status) || j5.status === "fix_ready") for (const id of j5.repairIds) ids.add(id);
+  }
+  return ids;
+}
+function authHeader() {
+  return `Basic ${Buffer.from(`${apiKey()}:`).toString("base64")}`;
+}
+async function cursorApi(path7, init2) {
+  const res = await fetch(`${apiBase()}${path7}`, {
+    method: init2?.method ?? "GET",
+    headers: {
+      Authorization: authHeader(),
+      Accept: "application/json",
+      ...init2?.body !== void 0 ? { "Content-Type": "application/json" } : {}
+    },
+    body: init2?.body !== void 0 ? JSON.stringify(init2.body) : void 0,
+    signal: AbortSignal.timeout(3e4)
+  });
+  const text2 = await res.text();
+  let data = null;
+  try {
+    data = text2 ? JSON.parse(text2) : null;
+  } catch {
+    data = null;
+  }
+  if (!res.ok) {
+    const err2 = data ?? {};
+    const code = err2.error?.code ?? err2.code ?? `http_${res.status}`;
+    const message = err2.error?.message ?? err2.message ?? text2.slice(0, 200);
+    throw new CursorApiError(res.status, code, message || `HTTP ${res.status}`);
+  }
+  return data;
+}
+function groupProblems(repairs) {
+  const groups = /* @__PURE__ */ new Map();
+  for (const r5 of repairs) {
+    const sig = repairSignature(r5.category, r5.evidence);
+    const list = groups.get(sig) ?? [];
+    list.push(r5);
+    groups.set(sig, list);
+  }
+  return [...groups.entries()].map(([sig, items]) => ({ sig, items })).sort((a4, b5) => b5.items.length - a4.items.length);
+}
+function buildRepairPrompt(repairs) {
+  const groups = groupProblems(repairs);
+  const blocks = groups.map((g7, i6) => {
+    const first = g7.items[0];
+    const examples = g7.items.slice(0, 3).map((r5) => `   - lead ${r5.kommoLeadId ?? "?"}: ${stripRepairDayPrefix(r5.evidence).slice(0, 300)}`).join("\n");
+    return [
+      `${i6 + 1}. [${first.category} \xB7 ${first.severity}] visto en ${g7.items.length} conversaci\xF3n(es)`,
+      `   Propuesta del supervisor: ${first.proposedRepair}`,
+      `   Ejemplos:`,
+      examples,
+      `   ids: ${g7.items.map((r5) => r5.id).join(", ")}`
+    ].join("\n");
+  });
+  return `Eres el agente de reparaciones de Lucy, la vendedora virtual de Bodasesor en WhatsApp (Kommo).
+El supervisor autom\xE1tico encontr\xF3 estos problemas en conversaciones reales. Arr\xE9glalos en el c\xF3digo.
+
+PROBLEMAS
+${blocks.join("\n\n")}
+
+D\xD3NDE EST\xC1 EL C\xD3DIGO
+- api-server/src: lucy-flow-guards.ts (reglas sobre la respuesta), lucyOutboundPipeline.ts (paso final),
+  conversation-understanding.ts y contact-name.ts (lectura de datos del cliente), services/ (cat\xE1logo, CRM, im\xE1genes),
+  services/lucyAuditorHeuristics.ts (reglas del supervisor).
+- Pruebas: api-server/src/selftest/ (lucy-flow-selftest.ts y *-smoke.ts).
+
+REGLAS
+1. Arreglo general en c\xF3digo, no un parche para un lead espec\xEDfico. No escribas a clientes ni toques Kommo.
+2. Si un hallazgo es un falso positivo del supervisor, corrige la regla en lucyAuditorHeuristics.ts o rep\xF3rtalo como falso positivo.
+3. Agrega o ampl\xEDa un smoke en api-server/src/selftest/ que reproduzca cada problema arreglado.
+4. Dependencias (como .github/workflows/deploy-hostinger.yml): cp package.json /tmp/pkg.json && cp package.development.json package.json && npm install && cp /tmp/pkg.json package.json. No commitees package.json modificado.
+5. Pruebas obligatorias, todas deben pasar:
+   cd api-server && npx --yes tsx ./src/selftest/lucy-flow-selftest.ts
+   y cada smoke que toques: npx --yes tsx ./src/selftest/<nombre>-smoke.ts
+6. Compila: cd api-server && npm run build. Esto actualiza api-server/dist/ y deploy/ \u2014 commitea ambos, sin eso el servidor no cambia.
+7. No toques lucy-data/, hostinger-relay/ ni archivos .env. No hagas push a main en este paso: deja tu rama y el PR.
+
+AL TERMINAR
+Tu \xFAltimo mensaje debe terminar con este bloque JSON (en espa\xF1ol simple, para el due\xF1o del negocio):
+\`\`\`json
+{"fixed":[{"ids":["<id>"],"text":"qu\xE9 cambi\xF3 y qu\xE9 har\xE1 Lucy distinto"}],
+ "falsePositive":[{"ids":["<id>"],"text":"por qu\xE9 no era un error"}],
+ "notFixed":[{"ids":["<id>"],"text":"por qu\xE9 no se pudo"}],
+ "tests":"qu\xE9 pruebas corriste y resultado"}
+\`\`\``;
+}
+function lastJsonBlock(text2) {
+  const fenced = [...text2.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi)].map((m6) => m6[1].trim());
+  const candidates = fenced.length ? fenced.reverse() : [];
+  const braceStart = text2.lastIndexOf('{"');
+  if (braceStart >= 0) candidates.push(text2.slice(braceStart));
+  for (const c5 of candidates) {
+    try {
+      const parsed = JSON.parse(c5);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch {
+    }
+  }
+  return null;
+}
+function outcomeItems(raw, knownIds) {
+  if (!Array.isArray(raw)) return [];
+  const out2 = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const o6 = item;
+    const ids = [
+      ...Array.isArray(o6["ids"]) ? o6["ids"] : [],
+      ...typeof o6["id"] === "string" ? [o6["id"]] : []
+    ].map((x8) => String(x8).trim()).filter((x8) => knownIds.has(x8));
+    const text2 = String(o6["text"] ?? o6["applied"] ?? o6["reason"] ?? "").trim();
+    if (ids.length) out2.push({ ids, text: text2.slice(0, 1500) });
+  }
+  return out2;
+}
+function parseRepairOutcome(text2, repairIds) {
+  const json3 = lastJsonBlock(text2);
+  if (!json3) return null;
+  const known = new Set(repairIds);
+  return {
+    fixed: outcomeItems(json3["fixed"], known),
+    falsePositive: outcomeItems(json3["falsePositive"], known),
+    notFixed: outcomeItems(json3["notFixed"], known),
+    tests: typeof json3["tests"] === "string" ? json3["tests"].slice(0, 500) : void 0
+  };
+}
+function parsePublishOutcome(text2) {
+  const json3 = lastJsonBlock(text2);
+  if (json3 && typeof json3["published"] === "boolean") {
+    return {
+      published: json3["published"],
+      commit: typeof json3["commit"] === "string" ? json3["commit"].slice(0, 40) : void 0,
+      text: typeof json3["text"] === "string" ? json3["text"].slice(0, 500) : void 0
+    };
+  }
+  return { published: false, text: "El agente no confirm\xF3 la publicaci\xF3n." };
+}
+function summarize(text2) {
+  if (!text2) return void 0;
+  const withoutJson = text2.replace(/```[\s\S]*?```/g, "").trim();
+  return (withoutJson || text2).slice(0, 1200);
+}
+function baseName(p5) {
+  return typeof p5 === "string" ? p5.split(/[\\/]/).pop() ?? p5 : "";
+}
+function describeToolCall(name2, args2) {
+  const a4 = args2 && typeof args2 === "object" ? args2 : {};
+  const file = baseName(a4["path"] ?? a4["target_file"] ?? a4["file_path"] ?? a4["filePath"] ?? a4["file"]);
+  const cmd = String(a4["command"] ?? a4["cmd"] ?? "");
+  const n5 = name2.toLowerCase();
+  if (/read|view|open/.test(n5) && file) return `Leyendo ${file}`;
+  if (/edit|write|replace|patch|create|delete/.test(n5)) return file ? `Editando ${file}` : "Editando c\xF3digo";
+  if (/terminal|shell|command|bash|run/.test(n5) && cmd) {
+    if (/selftest|smoke/.test(cmd)) return "Corriendo pruebas";
+    if (/npm run build|build\.mjs/.test(cmd)) return "Compilando (build)";
+    if (/npm (ci|install)|pnpm install/.test(cmd)) return "Instalando dependencias";
+    if (/git push/.test(cmd)) return "Subiendo cambios a GitHub";
+    if (/git commit/.test(cmd)) return "Guardando cambios (commit)";
+    if (/git (rebase|merge|fetch)/.test(cmd)) return "Juntando con la versi\xF3n actual (main)";
+    return `Terminal: ${cmd.slice(0, 70)}`;
+  }
+  if (/grep|search|glob|find|list/.test(n5)) {
+    const q3 = String(a4["pattern"] ?? a4["query"] ?? a4["glob_pattern"] ?? "").slice(0, 50);
+    return q3 ? `Buscando \xAB${q3}\xBB` : "Buscando en el c\xF3digo";
+  }
+  return name2;
+}
+function handleStreamEvent(job, runId, event, data, id) {
+  const isPublish = runId === job.publishRunId;
+  if (id) {
+    if (isPublish) job.publishLastEventId = id;
+    else job.lastEventId = id;
+  }
+  let payload = {};
+  try {
+    payload = JSON.parse(data);
+  } catch {
+    return;
+  }
+  if (event === "status" && payload["status"] === "RUNNING" && job.status === "creating") {
+    job.status = "running";
+    addStep(job, "El agente empez\xF3 a trabajar");
+  } else if (event === "tool_call" && payload["status"] === "running") {
+    addStep(job, describeToolCall(String(payload["name"] ?? ""), payload["args"]));
+  } else if (event === "result") {
+    void applyRunTerminal(job, runId, {
+      id: runId,
+      status: String(payload["status"] ?? ""),
+      result: typeof payload["text"] === "string" ? payload["text"] : void 0,
+      durationMs: typeof payload["durationMs"] === "number" ? payload["durationMs"] : void 0,
+      git: payload["git"]
+    });
+    return;
+  }
+  saveJobs();
+}
+async function followStream(job, runId) {
+  if (streams.has(runId) || job.streamExpired) return;
+  const ctrl = new AbortController();
+  streams.set(runId, ctrl);
+  const lastId = runId === job.publishRunId ? job.publishLastEventId : job.lastEventId;
+  try {
+    const res = await fetch(`${apiBase()}/v1/agents/${job.agentId}/runs/${runId}/stream`, {
+      headers: {
+        Authorization: authHeader(),
+        Accept: "text/event-stream",
+        ...lastId ? { "Last-Event-ID": lastId } : {}
+      },
+      signal: ctrl.signal
+    });
+    if (res.status === 410) {
+      touch(job, { streamExpired: true });
+      return;
+    }
+    if (!res.ok || !res.body) return;
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    for (; ; ) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let sep;
+      while ((sep = buffer.search(/\r?\n\r?\n/)) >= 0) {
+        const raw = buffer.slice(0, sep);
+        buffer = buffer.slice(sep).replace(/^\r?\n\r?\n/, "");
+        let event = "message";
+        let id;
+        const dataLines = [];
+        for (const line2 of raw.split(/\r?\n/)) {
+          if (line2.startsWith("event:")) event = line2.slice(6).trim();
+          else if (line2.startsWith("id:")) id = line2.slice(3).trim();
+          else if (line2.startsWith("data:")) dataLines.push(line2.slice(5).trimStart());
+        }
+        if (event === "done") return;
+        if (dataLines.length) handleStreamEvent(job, runId, event, dataLines.join("\n"), id);
+      }
+    }
+  } catch (err2) {
+    if (!ctrl.signal.aborted) logger.debug({ err: err2, runId }, "cursorRepairAgent: stream cortado");
+  } finally {
+    streams.delete(runId);
+  }
+}
+function pickBranch(run2) {
+  const branches = run2.git?.branches ?? [];
+  const repo = repoUrl().replace(/^https?:\/\//, "").replace(/\.git$/, "").toLowerCase();
+  const b5 = branches.find((x8) => (x8.repoUrl ?? "").toLowerCase().includes(repo)) ?? branches[0];
+  return { branch: b5?.branch, prUrl: b5?.prUrl };
+}
+async function applyRunTerminal(job, runId, run2) {
+  const key = `${job.id}:${runId}`;
+  if (applying.has(key)) return;
+  const isPublish = runId === job.publishRunId;
+  if (isPublish ? job.status !== "publishing" : job.status !== "creating" && job.status !== "running") return;
+  applying.add(key);
+  try {
+    streams.get(runId)?.abort();
+    const status2 = run2.status.toUpperCase();
+    const { branch, prUrl } = pickBranch(run2);
+    if (isPublish) {
+      if (status2 === "FINISHED") {
+        const pub = parsePublishOutcome(run2.result ?? "");
+        if (pub.published) {
+          addStep(job, `Publicado en main${pub.commit ? ` (${pub.commit})` : ""}`);
+          touch(job, { status: "published", publishedAt: (/* @__PURE__ */ new Date()).toISOString(), error: void 0 });
+          await resolvePublishedRepairs(job);
+          return;
+        }
+        touch(job, { status: "fix_ready", error: pub.text ?? "No se pudo publicar." });
+        return;
+      }
+      touch(job, { status: "fix_ready", error: `La publicaci\xF3n termin\xF3 en ${status2}.` });
+      return;
+    }
+    if (status2 === "FINISHED") {
+      const outcome = parseRepairOutcome(run2.result ?? "", job.repairIds) ?? void 0;
+      const summary = summarize(run2.result);
+      if (outcome) {
+        for (const fp of outcome.falsePositive) {
+          for (const id of fp.ids) {
+            await dismissLucyRepair(id, "cursor-agent", `Falso positivo (agente Cursor): ${fp.text}`);
+          }
+        }
+        const notFixedIds = outcome.notFixed.flatMap((x8) => x8.ids);
+        if (notFixedIds.length) await releaseLucyRepairs(notFixedIds);
+      }
+      const hasChanges = Boolean(branch);
+      if (!hasChanges) {
+        const pending = job.repairIds.filter(
+          (id) => !outcome?.falsePositive.some((x8) => x8.ids.includes(id))
+        );
+        await releaseLucyRepairs(pending);
+      }
+      addStep(job, hasChanges ? "Arreglo listo para publicar" : "Termin\xF3 sin cambios de c\xF3digo");
+      touch(job, {
+        status: hasChanges ? "fix_ready" : "no_changes",
+        branch,
+        prUrl,
+        summary,
+        outcome,
+        durationMs: run2.durationMs,
+        finishedAt: (/* @__PURE__ */ new Date()).toISOString()
+      });
+      if (hasChanges && autoPublish()) await publishRepairJob(job.id).catch(() => void 0);
+      return;
+    }
+    await releaseLucyRepairs(job.repairIds);
+    touch(job, {
+      status: status2 === "CANCELLED" ? "cancelled" : "error",
+      error: status2 === "CANCELLED" ? void 0 : `El agente termin\xF3 en ${status2}.`,
+      summary: summarize(run2.result),
+      branch,
+      prUrl,
+      finishedAt: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  } finally {
+    applying.delete(key);
+  }
+}
+async function resolvePublishedRepairs(job) {
+  const settled = /* @__PURE__ */ new Set([
+    ...(job.outcome?.falsePositive ?? []).flatMap((x8) => x8.ids),
+    ...(job.outcome?.notFixed ?? []).flatMap((x8) => x8.ids)
+  ]);
+  const fixedText = /* @__PURE__ */ new Map();
+  for (const f7 of job.outcome?.fixed ?? []) for (const id of f7.ids) fixedText.set(id, f7.text);
+  for (const id of job.repairIds) {
+    if (settled.has(id)) continue;
+    const text2 = fixedText.get(id) || job.summary?.slice(0, 600) || "Arreglado por el agente de Cursor y publicado.";
+    await resolveLucyRepair(id, text2, "cursor-agent");
+  }
+}
+function jobsToday() {
+  const day = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  return loadJobs().filter((j5) => j5.createdAt.slice(0, 10) === day).length;
+}
+async function launchRepairJob(repairs) {
+  if (!isCursorAgentConfigured()) {
+    throw new RepairJobError("cursor_not_configured", "Falta CURSOR_API_KEY en Hostinger.", 503);
+  }
+  if (repairs.length === 0) throw new RepairJobError("nothing_to_send", "No hay reparaciones pendientes.", 400);
+  const active = loadJobs().find((j5) => ACTIVE.has(j5.status));
+  if (active) {
+    throw new RepairJobError("job_active", "Ya hay un arreglo en curso; espera a que termine o canc\xE9lalo.");
+  }
+  if (jobsToday() >= maxJobsPerDay()) {
+    throw new RepairJobError(
+      "daily_limit",
+      `L\xEDmite de ${maxJobsPerDay()} env\xEDos a Cursor por d\xEDa alcanzado (LUCY_REPAIR_MAX_JOBS_PER_DAY).`,
+      429
+    );
+  }
+  const model = process.env["LUCY_REPAIR_MODEL"]?.trim();
+  const groups = groupProblems(repairs);
+  const created = await cursorApi("/v1/agents", {
+    method: "POST",
+    body: {
+      prompt: { text: buildRepairPrompt(repairs) },
+      name: `Lucy reparaciones ${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}`,
+      repos: [{ url: repoUrl(), startingRef: "main" }],
+      autoCreatePR: true,
+      skipReviewerRequest: true,
+      ...model ? { model: { id: model } } : {}
+    }
+  });
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  const job = {
+    id: randomUUID(),
+    createdAt: now,
+    updatedAt: now,
+    status: "creating",
+    agentId: created.agent.id,
+    agentUrl: created.agent.url,
+    runId: created.run.id,
+    repairIds: repairs.map((r5) => r5.id),
+    problems: groups.map((g7) => ({
+      category: g7.items[0].category,
+      label: stripRepairDayPrefix(g7.items[0].evidence).slice(0, 140),
+      count: g7.items.length
+    })),
+    steps: [{ at: now, text: "Agente creado en Cursor; preparando m\xE1quina" }]
+  };
+  loadJobs().push(job);
+  saveJobs();
+  await markLucyRepairsInProgress(job.repairIds, `cursor-agent:${job.id}`);
+  void followStream(job, job.runId);
+  return job;
+}
+async function publishRepairJob(jobId) {
+  const job = getRepairJob(jobId);
+  if (!job) throw new RepairJobError("not_found", "Trabajo no encontrado.", 404);
+  if (job.status !== "fix_ready") {
+    throw new RepairJobError("not_ready", "Solo se publica un arreglo listo.");
+  }
+  const created = await cursorApi(`/v1/agents/${job.agentId}/runs`, {
+    method: "POST",
+    body: { prompt: { text: PUBLISH_PROMPT } }
+  });
+  addStep(job, "Publicando: juntando con main, compilando y probando");
+  touch(job, {
+    status: "publishing",
+    publishRunId: created.run.id,
+    publishRequestedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    publishLastEventId: void 0,
+    streamExpired: false,
+    error: void 0
+  });
+  void followStream(job, created.run.id);
+  return job;
+}
+async function cancelRepairJob(jobId) {
+  const job = getRepairJob(jobId);
+  if (!job) throw new RepairJobError("not_found", "Trabajo no encontrado.", 404);
+  if (ACTIVE.has(job.status)) {
+    const runId = job.status === "publishing" ? job.publishRunId : job.runId;
+    try {
+      await cursorApi(`/v1/agents/${job.agentId}/runs/${runId}/cancel`, { method: "POST" });
+    } catch (err2) {
+      if (!(err2 instanceof CursorApiError && err2.code === "run_not_cancellable")) throw err2;
+    }
+    streams.get(runId)?.abort();
+    if (job.status === "publishing") {
+      touch(job, { status: "fix_ready", error: "Publicaci\xF3n cancelada." });
+      return job;
+    }
+    await releaseLucyRepairs(job.repairIds);
+    addStep(job, "Cancelado desde el panel");
+    touch(job, { status: "cancelled", finishedAt: (/* @__PURE__ */ new Date()).toISOString() });
+    return job;
+  }
+  if (job.status === "fix_ready") {
+    await releaseLucyRepairs(job.repairIds);
+    addStep(job, "Arreglo descartado desde el panel (no se public\xF3)");
+    touch(job, { status: "discarded", finishedAt: (/* @__PURE__ */ new Date()).toISOString() });
+    return job;
+  }
+  throw new RepairJobError("not_cancellable", "Este trabajo ya termin\xF3.");
+}
+async function tickRepairJobs() {
+  if (!isCursorAgentConfigured()) return;
+  for (const job of loadJobs()) {
+    if (!ACTIVE.has(job.status)) continue;
+    const runId = job.status === "publishing" ? job.publishRunId : job.runId;
+    if (!runId) continue;
+    try {
+      const run2 = await cursorApi(`/v1/agents/${job.agentId}/runs/${runId}`);
+      const status2 = run2.status.toUpperCase();
+      if (["FINISHED", "ERROR", "CANCELLED", "EXPIRED"].includes(status2)) {
+        await applyRunTerminal(job, runId, run2);
+        continue;
+      }
+      if (status2 === "RUNNING" && job.status === "creating") {
+        addStep(job, "El agente empez\xF3 a trabajar");
+        touch(job, { status: "running" });
+      }
+      const { branch, prUrl } = pickBranch(run2);
+      if (branch && branch !== job.branch || prUrl && prUrl !== job.prUrl) {
+        touch(job, { branch: branch ?? job.branch, prUrl: prUrl ?? job.prUrl });
+      }
+      void followStream(job, runId);
+    } catch (err2) {
+      logger.warn({ err: err2, jobId: job.id }, "cursorRepairAgent: sondeo fall\xF3");
+      if (err2 instanceof CursorApiError && err2.status === 404) {
+        await releaseLucyRepairs(job.repairIds);
+        touch(job, { status: "error", error: "Cursor ya no encuentra este agente." });
+      }
+    }
+  }
+}
+function markPublishedJobsLive(bootedAt = BOOTED_AT) {
+  let n5 = 0;
+  for (const job of loadJobs()) {
+    if (job.status === "published" && job.publishedAt && !job.liveAt && new Date(job.publishedAt) < bootedAt) {
+      job.liveAt = bootedAt.toISOString();
+      job.steps.push({ at: job.liveAt, text: "Ya est\xE1 activo en el servidor de Lucy" });
+      n5 += 1;
+    }
+  }
+  if (n5) saveJobs();
+  return n5;
+}
+function startRepairJobTracker(intervalMs = 3e4) {
+  if (timer) return;
+  markPublishedJobsLive();
+  timer = setInterval(() => void tickRepairJobs(), intervalMs);
+  timer.unref?.();
+  setTimeout(() => void tickRepairJobs(), 5e3).unref?.();
+}
+function repairAgentStatusSummary() {
+  const active = loadJobs().find((j5) => ACTIVE.has(j5.status) || j5.status === "fix_ready");
+  return {
+    configured: isCursorAgentConfigured(),
+    auto_publish: autoPublish(),
+    max_jobs_per_day: maxJobsPerDay(),
+    jobs_today: jobsToday(),
+    active: active ? { id: active.id, status: active.status, since: active.createdAt } : null
+  };
+}
+function pickRepairsForJob(pending) {
+  const maxProblems = Math.max(1, Number(process.env["LUCY_REPAIR_MAX_PROBLEMS"] ?? 6) || 6);
+  const severityRank = { error: 0, warn: 1, info: 2 };
+  const groups = groupProblems(pending).sort((a4, b5) => {
+    const sa2 = Math.min(...a4.items.map((r5) => severityRank[r5.severity] ?? 1));
+    const sb = Math.min(...b5.items.map((r5) => severityRank[r5.severity] ?? 1));
+    return sa2 !== sb ? sa2 - sb : b5.items.length - a4.items.length;
+  });
+  return groups.slice(0, maxProblems).flatMap((g7) => g7.items.slice(0, 15));
+}
+async function cleanupRepairQueue() {
+  return cleanupLucyRepairBacklog({
+    trackedRepairIds: trackedRepairIds(),
+    staleInProgressMs: isCursorAgentConfigured() ? 30 * 60 * 1e3 : 6 * 60 * 60 * 1e3
+  });
+}
+function __resetRepairJobsForTest() {
+  jobs = null;
+  for (const c5 of streams.values()) c5.abort();
+  streams.clear();
+}
+var ACTIVE, MAX_STEPS, MAX_JOBS_KEPT, BOOTED_AT, DEFAULT_REPO, jobs, CursorApiError, PUBLISH_PROMPT, streams, applying, RepairJobError, timer;
+var init_cursorRepairAgent = __esm({
+  async "src/services/cursorRepairAgent.ts"() {
+    "use strict";
+    init_lucyDataPaths();
+    init_logger2();
+    await init_lucyRepairStore();
+    ACTIVE = /* @__PURE__ */ new Set(["creating", "running", "publishing"]);
+    MAX_STEPS = 30;
+    MAX_JOBS_KEPT = 60;
+    BOOTED_AT = /* @__PURE__ */ new Date();
+    DEFAULT_REPO = "https://github.com/bodasesor-rgb/Agente_Virtual_Kommo";
+    jobs = null;
+    CursorApiError = class extends Error {
+      constructor(status2, code, message) {
+        super(message);
+        this.status = status2;
+        this.code = code;
+      }
+      status;
+      code;
+    };
+    PUBLISH_PROMPT = `El due\xF1o aprob\xF3 publicar este arreglo. P\xE1salo a main:
+1. git fetch origin main && git rebase origin/main (o merge si el rebase se complica).
+2. Si hay conflictos en api-server/dist/ o deploy/, toma la versi\xF3n de main para esos archivos y vuelve a compilar: cd api-server && npm run build.
+3. Vuelve a correr cd api-server && npx --yes tsx ./src/selftest/lucy-flow-selftest.ts y los smokes que tocaste. Si algo falla, NO publiques.
+4. Commitea dist/ y deploy/ actualizados y haz git push origin HEAD:main (sin force-push).
+Tu \xFAltimo mensaje debe terminar con:
+\`\`\`json
+{"published":true,"commit":"<sha corto>","text":"resumen corto"}
+\`\`\`
+o, si no se pudo: {"published":false,"text":"motivo"}`;
+    streams = /* @__PURE__ */ new Map();
+    applying = /* @__PURE__ */ new Set();
+    RepairJobError = class extends Error {
+      constructor(code, message, httpStatus = 409) {
+        super(message);
+        this.code = code;
+        this.httpStatus = httpStatus;
+      }
+      code;
+      httpStatus;
+    };
+    timer = null;
+  }
+});
+
 // src/chat-history.ts
 var chat_history_exports = {};
 __export(chat_history_exports, {
@@ -203182,8 +204428,8 @@ __export(chat_history_exports, {
   getHistory: () => getHistory,
   listHistoryKeys: () => listHistoryKeys
 });
-import { readFileSync as readFileSync8, writeFileSync, existsSync as existsSync7, mkdirSync as mkdirSync3 } from "fs";
-import { join as join8, dirname as dirname5 } from "path";
+import { readFileSync as readFileSync10, writeFileSync as writeFileSync3, existsSync as existsSync9, mkdirSync as mkdirSync5 } from "fs";
+import { join as join8, dirname as dirname7 } from "path";
 import { fileURLToPath as fileURLToPath4 } from "url";
 function resolveHistoryFile() {
   const fromEnv = process.env["LUCY_CHAT_HISTORY_PATH"]?.trim();
@@ -203196,15 +204442,15 @@ function load() {
   try {
     const file = resolveHistoryFile();
     const legacy = join8(__dirname2, "../../data/chat-history.json");
-    if (!existsSync7(file) && existsSync7(legacy) && file !== legacy) {
+    if (!existsSync9(file) && existsSync9(legacy) && file !== legacy) {
       try {
-        mkdirSync3(dirname5(file), { recursive: true });
-        writeFileSync(file, readFileSync8(legacy, "utf-8"));
+        mkdirSync5(dirname7(file), { recursive: true });
+        writeFileSync3(file, readFileSync10(legacy, "utf-8"));
       } catch {
       }
     }
-    if (existsSync7(file)) {
-      return JSON.parse(readFileSync8(file, "utf-8"));
+    if (existsSync9(file)) {
+      return JSON.parse(readFileSync10(file, "utf-8"));
     }
   } catch {
   }
@@ -203213,8 +204459,8 @@ function load() {
 function save(store2) {
   try {
     const file = resolveHistoryFile();
-    mkdirSync3(dirname5(file), { recursive: true });
-    writeFileSync(file, JSON.stringify(store2), "utf-8");
+    mkdirSync5(dirname7(file), { recursive: true });
+    writeFileSync3(file, JSON.stringify(store2), "utf-8");
   } catch {
   }
 }
@@ -203242,7 +204488,7 @@ var __dirname2, MAX_MESSAGES, store;
 var init_chat_history = __esm({
   "src/chat-history.ts"() {
     "use strict";
-    __dirname2 = dirname5(fileURLToPath4(import.meta.url));
+    __dirname2 = dirname7(fileURLToPath4(import.meta.url));
     MAX_MESSAGES = 40;
     store = load();
   }
@@ -205912,6 +207158,12 @@ function textOverlapRatio(a4, b5) {
   for (const w5 of wordsA) if (wordsB.has(w5)) shared++;
   return shared / Math.max(wordsA.size, wordsB.size);
 }
+function extractTrailingQuestion(text2) {
+  const idx = text2.lastIndexOf("\xBF");
+  if (idx === -1) return null;
+  const question = text2.slice(idx).trim();
+  return question.length > 0 && question.length < text2.trim().length ? question : null;
+}
 function avoidRepeatPreviousReply(mensaje, presHistory) {
   const prev = presHistory.filter((m6) => m6.role === "assistant" && typeof m6.content === "string").map((m6) => m6.content.trim()).filter(Boolean);
   if (prev.length === 0) return mensaje;
@@ -205921,6 +207173,11 @@ function avoidRepeatPreviousReply(mensaje, presHistory) {
   let out2 = mensaje.replace(/^Hola,?\s*soy\s+Lucy[^.]*\.\s*/i, "").replace(TRANSITION_START_PATTERN, pickTransition(presHistory));
   const outOverlap = Math.max(...prev.map((p5) => textOverlapRatio(out2, p5)));
   if (outOverlap < 0.65) return out2.trim();
+  const bareQuestion = extractTrailingQuestion(mensaje);
+  if (bareQuestion) {
+    const bareOverlap = Math.max(...prev.map((p5) => textOverlapRatio(bareQuestion, p5)));
+    if (bareOverlap < maxOverlap && bareOverlap < 0.7) return bareQuestion;
+  }
   const questionLine = mensaje.split("\n").find((l6) => l6.includes("?")) ?? mensaje.split("\n").pop();
   const q3 = questionLine?.trim() || mensaje;
   const qOverlap = Math.max(...prev.map((p5) => textOverlapRatio(q3, p5)));
@@ -205928,6 +207185,7 @@ function avoidRepeatPreviousReply(mensaje, presHistory) {
     const pendingLine = mensaje.split("\n").filter((l6) => l6.includes("?")).pop();
     if (pendingLine && textOverlapRatio(pendingLine, last) < 0.65) return pendingLine.trim();
   }
+  if (bareQuestion && textOverlapRatio(q3, last) >= 0.68) return bareQuestion;
   return q3;
 }
 function redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx) {
@@ -212031,7 +213289,7 @@ var init_lucy_flow_guards = __esm({
 
 // src/services/learningSchema.ts
 async function ensureLearningSchema() {
-  if (ensured2) return;
+  if (ensured3) return;
   for (const statement of STATEMENTS) {
     try {
       await db.execute(sql.raw(statement));
@@ -212039,16 +213297,16 @@ async function ensureLearningSchema() {
       logger.warn({ err: err2, statement: statement.slice(0, 60) }, "learningSchema: statement fall\xF3");
     }
   }
-  ensured2 = true;
+  ensured3 = true;
 }
-var ensured2, STATEMENTS;
+var ensured3, STATEMENTS;
 var init_learningSchema = __esm({
   async "src/services/learningSchema.ts"() {
     "use strict";
     await init_src2();
     init_drizzle_orm();
     init_logger2();
-    ensured2 = false;
+    ensured3 = false;
     STATEMENTS = [
       `ALTER TABLE messages ADD COLUMN IF NOT EXISTS author_type VARCHAR(20)`,
       `ALTER TABLE messages ADD COLUMN IF NOT EXISTS kommo_message_id TEXT`,
@@ -212179,8 +213437,8 @@ var init_kommoWebhookParse = __esm({
 });
 
 // src/lib/trainingPaths.ts
-import { existsSync as existsSync8 } from "fs";
-import { join as join9, dirname as dirname6 } from "path";
+import { existsSync as existsSync10 } from "fs";
+import { join as join9, dirname as dirname8 } from "path";
 import { fileURLToPath as fileURLToPath5 } from "url";
 function resolveTrainingJsonFile() {
   const candidates = [
@@ -212190,7 +213448,7 @@ function resolveTrainingJsonFile() {
     join9(moduleDir, "../data/training-examples.json")
   ];
   for (const path7 of candidates) {
-    if (existsSync8(path7)) return path7;
+    if (existsSync10(path7)) return path7;
   }
   return candidates[1];
 }
@@ -212198,13 +213456,13 @@ var moduleDir;
 var init_trainingPaths = __esm({
   "src/lib/trainingPaths.ts"() {
     "use strict";
-    moduleDir = dirname6(fileURLToPath5(import.meta.url));
+    moduleDir = dirname8(fileURLToPath5(import.meta.url));
   }
 });
 
 // src/services/trainingStore.ts
-import { readFileSync as readFileSync9 } from "fs";
-import { randomUUID } from "crypto";
+import { readFileSync as readFileSync11 } from "fs";
+import { randomUUID as randomUUID2 } from "crypto";
 function rowToExample(row) {
   return {
     id: row.id,
@@ -212216,7 +213474,7 @@ function rowToExample(row) {
 }
 function loadExamplesFromJsonFile() {
   try {
-    const raw = readFileSync9(resolveTrainingJsonFile(), "utf-8");
+    const raw = readFileSync11(resolveTrainingJsonFile(), "utf-8");
     const parsed = JSON.parse(raw);
     return parsed.examples ?? [];
   } catch {
@@ -212241,7 +213499,7 @@ async function seedFromJsonIfEmpty() {
     if (fromJson.length === 0) return;
     await db.insert(trainingExamples).values(
       fromJson.map((ex, idx) => ({
-        id: ex.id && isUuid(ex.id) ? ex.id : randomUUID(),
+        id: ex.id && isUuid(ex.id) ? ex.id : randomUUID2(),
         userMessage: ex.userMessage,
         lucyResponse: ex.lucyResponse,
         label: ex.label ?? null,
@@ -212301,7 +213559,7 @@ async function getTrainingStats() {
   return { total: examples.length, byLabel, lastUpdated };
 }
 async function createTrainingExample(input) {
-  const id = randomUUID();
+  const id = randomUUID2();
   const now = /* @__PURE__ */ new Date();
   try {
     const [row] = await db.insert(trainingExamples).values({
@@ -212365,7 +213623,7 @@ CREATE TABLE IF NOT EXISTS training_examples (
 });
 
 // src/services/learningStore.ts
-function rowToDto(row) {
+function rowToDto2(row) {
   return {
     id: row.id,
     kommoLeadId: row.kommoLeadId,
@@ -212382,7 +213640,7 @@ function rowToDto(row) {
 async function listLearningCandidates(status2 = "pending", limit2 = 50) {
   await ensureLearningSchema();
   const rows = await db.select().from(learningCandidates).where(eq(learningCandidates.status, status2)).orderBy(desc(learningCandidates.createdAt)).limit(limit2);
-  return rows.map(rowToDto);
+  return rows.map(rowToDto2);
 }
 async function getLearningStats() {
   await ensureLearningSchema();
@@ -212414,7 +213672,7 @@ async function approveLearningCandidate(id, reviewerEmail, patch) {
     reviewedBy: reviewerEmail ?? null,
     updatedAt: /* @__PURE__ */ new Date()
   }).where(eq(learningCandidates.id, id)).returning();
-  return updated ? rowToDto(updated) : null;
+  return updated ? rowToDto2(updated) : null;
 }
 async function rejectLearningCandidate(id, reviewerEmail) {
   await ensureLearningSchema();
@@ -212906,7 +214164,7 @@ async function sendKommoTalkMessage(opts) {
   const url2 = `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/send_message`;
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12e3);
+    const timer2 = setTimeout(() => controller.abort(), 12e3);
     const res = await fetch(url2, {
       method: "POST",
       headers: {
@@ -212916,7 +214174,7 @@ async function sendKommoTalkMessage(opts) {
       signal: controller.signal,
       body: JSON.stringify({ text: texto })
     });
-    clearTimeout(timer);
+    clearTimeout(timer2);
     if (!res.ok) {
       const errBody = await res.text().catch(() => "(no body)");
       logger.warn(
@@ -213534,7 +214792,7 @@ async function removerTag(subdomain, accessToken, leadId, tagToRemove, existingT
 async function enviarMensaje(subdomain, accessToken, talkId, texto) {
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 1e4);
+    const timer2 = setTimeout(() => controller.abort(), 1e4);
     const res = await fetch(
       `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages`,
       {
@@ -213544,7 +214802,7 @@ async function enviarMensaje(subdomain, accessToken, talkId, texto) {
         body: JSON.stringify({ text: texto })
       }
     );
-    clearTimeout(timer);
+    clearTimeout(timer2);
     if (!res.ok) {
       const errBody = await res.text().catch(() => "(no body)");
       logger.warn(
@@ -226933,15 +228191,15 @@ var init_Http2Sessions = __esm({
         }
         const session = http22.connect(authority, options);
         let removed;
-        let timer;
+        let timer2;
         const removeSession = () => {
           if (removed) {
             return;
           }
           removed = true;
-          if (timer) {
-            clearTimeout(timer);
-            timer = null;
+          if (timer2) {
+            clearTimeout(timer2);
+            timer2 = null;
           }
           let entries = authoritySessions, len = entries.length, i6 = len;
           while (i6--) {
@@ -226965,14 +228223,14 @@ var init_Http2Sessions = __esm({
           session.request = function() {
             const stream4 = originalRequestFn.apply(this, arguments);
             streamsCount++;
-            if (timer) {
-              clearTimeout(timer);
-              timer = null;
+            if (timer2) {
+              clearTimeout(timer2);
+              timer2 = null;
             }
             stream4.once("close", () => {
               if (!--streamsCount) {
-                timer = setTimeout(() => {
-                  timer = null;
+                timer2 = setTimeout(() => {
+                  timer2 = null;
                   removeSession();
                 }, sessionTimeout);
               }
@@ -227388,13 +228646,13 @@ function throttle(fn3, freq) {
   let timestamp2 = 0;
   let threshold = 1e3 / freq;
   let lastArgs;
-  let timer;
+  let timer2;
   const invoke = (args2, now = Date.now()) => {
     timestamp2 = now;
     lastArgs = null;
-    if (timer) {
-      clearTimeout(timer);
-      timer = null;
+    if (timer2) {
+      clearTimeout(timer2);
+      timer2 = null;
     }
     fn3(...args2);
   };
@@ -227405,9 +228663,9 @@ function throttle(fn3, freq) {
       invoke(args2, now);
     } else {
       lastArgs = args2;
-      if (!timer) {
-        timer = setTimeout(() => {
-          timer = null;
+      if (!timer2) {
+        timer2 = setTimeout(() => {
+          timer2 = null;
           invoke(lastArgs);
         }, threshold - passed);
       }
@@ -228381,7 +229639,7 @@ var init_http = __esm({
         req = transport.request(options, function handleResponse(res) {
           clearConnectPhaseTimer();
           if (req.destroyed) return;
-          const streams = [res];
+          const streams2 = [res];
           const responseLength = utils_default.toFiniteNumber(res.headers["content-length"]);
           if (onDownloadProgress || maxDownloadRate) {
             const transformStream = new AxiosTransformStream_default({
@@ -228401,7 +229659,7 @@ var init_http = __esm({
                 )
               )
             );
-            streams.push(transformStream);
+            streams2.push(transformStream);
           }
           let responseStream = res;
           const lastRequest = res.req || req;
@@ -228415,29 +229673,29 @@ var init_http = __esm({
               case "x-gzip":
               case "compress":
               case "x-compress":
-                streams.push(zlib2.createUnzip(zlibOptions));
+                streams2.push(zlib2.createUnzip(zlibOptions));
                 delete res.headers["content-encoding"];
                 break;
               case "deflate":
-                streams.push(new ZlibHeaderTransformStream_default());
-                streams.push(zlib2.createUnzip(zlibOptions));
+                streams2.push(new ZlibHeaderTransformStream_default());
+                streams2.push(zlib2.createUnzip(zlibOptions));
                 delete res.headers["content-encoding"];
                 break;
               case "br":
                 if (isBrotliSupported) {
-                  streams.push(zlib2.createBrotliDecompress(brotliOptions));
+                  streams2.push(zlib2.createBrotliDecompress(brotliOptions));
                   delete res.headers["content-encoding"];
                 }
                 break;
               case "zstd":
                 if (isZstdSupported) {
-                  streams.push(zlib2.createZstdDecompress(zstdOptions));
+                  streams2.push(zlib2.createZstdDecompress(zstdOptions));
                   delete res.headers["content-encoding"];
                 }
                 break;
             }
           }
-          responseStream = streams.length > 1 ? stream3.pipeline(streams, utils_default.noop) : streams[0];
+          responseStream = streams2.length > 1 ? stream3.pipeline(streams2, utils_default.noop) : streams2[0];
           const response = {
             status: res.statusCode,
             statusText: res.statusMessage,
@@ -229140,16 +230398,16 @@ var init_composeSignals = __esm({
           );
         }
       };
-      let timer = timeout && setTimeout(() => {
-        timer = null;
+      let timer2 = timeout && setTimeout(() => {
+        timer2 = null;
         onabort(new AxiosError_default(`timeout of ${timeout}ms exceeded`, AxiosError_default.ETIMEDOUT));
       }, timeout);
       const unsubscribe = () => {
         if (!signals) {
           return;
         }
-        timer && clearTimeout(timer);
-        timer = null;
+        timer2 && clearTimeout(timer2);
+        timer2 = null;
         signals.forEach((signal2) => {
           signal2.unsubscribe ? signal2.unsubscribe(onabort) : signal2.removeEventListener("abort", onabort);
         });
@@ -230642,7 +231900,7 @@ async function registrarMensajeSalienteKommo(opts) {
   };
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 1e4);
+    const timer2 = setTimeout(() => controller.abort(), 1e4);
     const res = await fetch(url2, {
       method: "POST",
       headers: {
@@ -230652,7 +231910,7 @@ async function registrarMensajeSalienteKommo(opts) {
       signal: controller.signal,
       body: JSON.stringify(body2)
     });
-    clearTimeout(timer);
+    clearTimeout(timer2);
     if (!res.ok) {
       const errBody = await res.text().catch(() => "(no body)");
       logger.warn(
@@ -231326,6 +232584,41 @@ function isClient(t4) {
   const r5 = String(t4.role ?? "").toLowerCase();
   return r5 === "user" || r5 === "client" || r5 === "customer";
 }
+function funnelSlotOf(match2) {
+  const m6 = match2.toLowerCase();
+  if (/invitados/.test(m6)) return "invitados";
+  if (/d[ií]a/.test(m6)) return "fecha";
+  if (/hora/.test(m6)) return "hora";
+  if (/ciudad/.test(m6)) return "ciudad";
+  if (/correo/.test(m6)) return "correo";
+  if (/presupuesto/.test(m6)) return "presupuesto";
+  if (/celebrar/.test(m6)) return "tipo";
+  return "nombre";
+}
+function clientAnsweredSlot(slot, text2) {
+  const t4 = text2.trim();
+  switch (slot) {
+    case "correo":
+      return /[\w.+-]+@[\w-]+\.[\w.]+/.test(t4);
+    case "invitados":
+      return /\b\d{2,4}\s*(personas|invitados|pax|gentes?)\b/i.test(t4) || /^(?:(?:como|aprox\w*|unos?|unas)\s+)?\d{2,4}\s*(?:personas|invitados|pax)?\.?$/i.test(t4);
+    case "fecha":
+      return MONTH_RE.test(t4) || /\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/.test(t4);
+    default:
+      return false;
+  }
+}
+function wordOverlap(a4, b5) {
+  const words = (s7) => new Set(
+    normalizeText2(s7).split(" ").filter((w5) => w5.length > 3)
+  );
+  const wa2 = words(a4);
+  const wb = words(b5);
+  if (!wa2.size || !wb.size) return 0;
+  let shared = 0;
+  for (const w5 of wa2) if (wb.has(w5)) shared++;
+  return shared / Math.max(wa2.size, wb.size);
+}
 function normalizeText2(t4) {
   return t4.toLowerCase().replace(/https?:\/\/\S+/g, "URL").replace(/\s+/g, " ").trim().slice(0, 280);
 }
@@ -231361,7 +232654,10 @@ function runAuditorHeuristics(turns) {
     }
   }
   for (let i6 = 1; i6 < assistants.length; i6++) {
-    if (similar(assistants[i6 - 1].content, assistants[i6].content)) {
+    const a4 = assistants[i6 - 1].content;
+    const b5 = assistants[i6].content;
+    if (normalizeText2(b5).length < 40) continue;
+    if (normalizeText2(a4) === normalizeText2(b5) || wordOverlap(a4, b5) >= 0.8) {
       findings.push({
         category: "repeat_reply",
         severity: "warn",
@@ -231396,19 +232692,40 @@ function runAuditorHeuristics(turns) {
       break;
     }
   }
-  const funnelAsks = assistants.map((a4) => a4.content.match(FUNNEL_Q_RE)?.[0]?.toLowerCase()).filter(Boolean);
-  const counts = /* @__PURE__ */ new Map();
-  for (const q3 of funnelAsks) counts.set(q3, (counts.get(q3) ?? 0) + 1);
-  for (const [q3, n5] of counts) {
-    if (n5 >= 3) {
-      findings.push({
-        category: "stuck_funnel",
-        severity: "warn",
-        evidence: `Pregunta de embudo \xAB${q3}\xBB repetida ${n5} veces.`,
-        proposedRepair: "Marcar campo satisfecho o cambiar de pregunta; no repreguntar el mismo slot."
-      });
-      break;
+  const asks = /* @__PURE__ */ new Map();
+  const reasksAfterAnswer = /* @__PURE__ */ new Map();
+  const answered = /* @__PURE__ */ new Set();
+  for (const t4 of turns) {
+    if (!t4.content?.trim()) continue;
+    if (isClient(t4)) {
+      for (const slot2 of ["correo", "invitados", "fecha"]) {
+        if (clientAnsweredSlot(slot2, t4.content)) answered.add(slot2);
+      }
+      continue;
     }
+    if (!isOutgoing(t4)) continue;
+    const m6 = t4.content.match(FUNNEL_Q_RE)?.[0];
+    if (!m6 || !/\?/.test(t4.content)) continue;
+    const slot = funnelSlotOf(m6);
+    asks.set(slot, (asks.get(slot) ?? 0) + 1);
+    if (answered.has(slot)) reasksAfterAnswer.set(slot, (reasksAfterAnswer.get(slot) ?? 0) + 1);
+  }
+  const reasked = [...reasksAfterAnswer.entries()][0];
+  const tooMany = [...asks.entries()].find(([, n5]) => n5 >= 4);
+  if (reasked) {
+    findings.push({
+      category: "stuck_funnel",
+      severity: "warn",
+      evidence: `Lucy volvi\xF3 a pedir \xAB${reasked[0]}\xBB despu\xE9s de que el cliente ya lo dio.`,
+      proposedRepair: "Marcar campo satisfecho con lo que dio el cliente; no repreguntar el mismo slot."
+    });
+  } else if (tooMany) {
+    findings.push({
+      category: "stuck_funnel",
+      severity: "warn",
+      evidence: `Pregunta de embudo \xAB${tooMany[0]}\xBB repetida varias veces.`,
+      proposedRepair: "Si el cliente no responde ese dato, cambiar de pregunta o dejarlo pendiente."
+    });
   }
   const canalAsks = assistants.filter(
     (a4) => /preferes\s+esperar\s+el\s+correo|confirmen?\s+por\s+aqu[ií].{0,80}correo|escriba\s+por\s+aqu[ií].{0,80}correo/i.test(
@@ -231525,10 +232842,18 @@ function runCrmFieldHeuristics(crm) {
       proposedRepair: "No forzar $0 si el cliente dijo sin definir; dejar vac\xEDo o texto coherente."
     });
   }
+  const resumenIa = (crm.resumen_ia ?? "").trim();
+  if (resumenIa && (/\.\.\.$/.test(resumenIa) || /^RESUMEN DE CONVERSACI[OÓ]N/i.test(resumenIa) && !resumenIa.includes(RESUMEN_IA_CIERRE))) {
+    findings.push({
+      category: "bad_field",
+      severity: "info",
+      evidence: `CRM Resumen IA cortado antes de terminar (${resumenIa.length} chars): \xAB${resumenIa.slice(-40)}\xBB`,
+      proposedRepair: "El resumen debe llegar completo hasta la firma \xABActualizado por Lucy\xBB."
+    });
+  }
   for (const [label, val] of [
     ["Requerimientos", req],
-    ["Direcci\xF3n", crm.direccion ?? ""],
-    ["Resumen IA", crm.resumen_ia ?? ""]
+    ["Direcci\xF3n", crm.direccion ?? ""]
   ]) {
     const v4 = val.trim();
     if (v4.length >= 250 || /\.\.\.$/.test(v4)) {
@@ -231548,7 +232873,7 @@ function transcriptNeedsFlash(turns, heuristicCount) {
   const assistants = turns.filter((t4) => isOutgoing(t4)).length;
   return assistants >= 2 && turns.length >= 4;
 }
-var URL_RE, CLOSE_RE, PRICE_RE, DETAIL_RE, FUNNEL_Q_RE;
+var URL_RE, CLOSE_RE, PRICE_RE, DETAIL_RE, FUNNEL_Q_RE, RESUMEN_IA_CIERRE, MONTH_RE;
 var init_lucyAuditorHeuristics = __esm({
   "src/services/lucyAuditorHeuristics.ts"() {
     "use strict";
@@ -231557,484 +232882,8 @@ var init_lucyAuditorHeuristics = __esm({
     PRICE_RE = /\b(precio|costo|cu[aá]nto\s+cuesta|cotiz)/i;
     DETAIL_RE = /\b(detalle|detalles|opci[oó]n\s+de\s+alimentos|qu[eé]\s+incluye)/i;
     FUNNEL_Q_RE = /\b(cu[aá]ntos?\s+invitados|qu[eé]\s+d[ií]a|a\s+qu[eé]\s+hora|en\s+qu[eé]\s+ciudad|correo|presupuesto|qu[eé]\s+van\s+a\s+celebrar|regalas?\s+tu\s+nombre)/i;
-  }
-});
-
-// src/services/lucyAuditorLlm.ts
-var lucyAuditorLlm_exports = {};
-__export(lucyAuditorLlm_exports, {
-  DEFAULT_AUDITOR_MODEL: () => DEFAULT_AUDITOR_MODEL,
-  canSpendAuditorCall: () => canSpendAuditorCall,
-  getAuditorMaxCallsPerDay: () => getAuditorMaxCallsPerDay,
-  getAuditorModel: () => getAuditorModel,
-  getAuditorQuotaSnapshot: () => getAuditorQuotaSnapshot,
-  runAuditorLlm: () => runAuditorLlm
-});
-function getAuditorModel() {
-  const raw = (process.env["LUCY_AUDITOR_MODEL"] ?? DEFAULT_AUDITOR_MODEL).trim();
-  if (!raw || BLOCKED_AUDITOR.test(raw)) return DEFAULT_AUDITOR_MODEL;
-  return raw;
-}
-function getAuditorMaxCallsPerDay() {
-  const n5 = Number(process.env["LUCY_AUDITOR_MAX_CALLS_PER_DAY"] ?? "40");
-  if (!Number.isFinite(n5) || n5 < 0) return 40;
-  return Math.min(Math.floor(n5), 200);
-}
-function todayKey() {
-  return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-}
-function getAuditorQuotaSnapshot() {
-  const key = todayKey();
-  if (key !== dayKey) {
-    dayKey = key;
-    callsToday = 0;
-  }
-  const maxPerDay = getAuditorMaxCallsPerDay();
-  return {
-    callsToday,
-    maxPerDay,
-    model: getAuditorModel(),
-    remaining: Math.max(0, maxPerDay - callsToday)
-  };
-}
-function canSpendAuditorCall() {
-  return getAuditorQuotaSnapshot().remaining > 0 && isLlmConfigured();
-}
-function noteAuditorCall() {
-  const key = todayKey();
-  if (key !== dayKey) {
-    dayKey = key;
-    callsToday = 0;
-  }
-  callsToday += 1;
-}
-async function runAuditorLlm(transcript) {
-  if (!canSpendAuditorCall()) return [];
-  const model = getAuditorModel();
-  const key = getGeminiApiKey();
-  if (!key) return [];
-  noteAuditorCall();
-  const ai2 = new GoogleGenAI2({ apiKey: key });
-  const prompt = [
-    "Eres auditor de calidad de Lucy (agente Bodasesor). NUNCA escribes al cliente.",
-    "Revisa el transcript y detecta SOLO: bucles de links, respuestas repetidas,",
-    "cierre prematuro (ya tengo todo) cuando ped\xEDan precio/detalle, campos mal",
-    "(cena ocasi\xF3n como SKU), embudo trabado (misma pregunta 3+ veces).",
-    "Responde JSON array: [{category,severity,evidence,proposedRepair}]",
-    "category: loop_links|repeat_reply|premature_close|bad_field|stuck_funnel|other",
-    "severity: info|warn|error. proposedRepair: acci\xF3n concreta para el equipo/c\xF3digo.",
-    "Si no hay problemas, responde [].",
-    "",
-    "TRANSCRIPT:",
-    transcript.slice(0, 6e3)
-  ].join("\n");
-  try {
-    const result = await ai2.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        temperature: 0.1,
-        maxOutputTokens: 800,
-        responseMimeType: "application/json"
-      }
-    });
-    try {
-      const usage = result.usageMetadata;
-      recordGeminiSpend({
-        channel: "auditor",
-        model,
-        usage: usage ? {
-          promptTokenCount: Number(usage.promptTokenCount ?? 0),
-          candidatesTokenCount: Number(usage.candidatesTokenCount ?? 0),
-          cachedContentTokenCount: Number(
-            usage.cachedContentTokenCount ?? 0
-          ),
-          totalTokenCount: Number(usage.totalTokenCount ?? 0)
-        } : null
-      });
-    } catch {
-    }
-    const text2 = (result.text ?? "").trim();
-    if (!text2) return [];
-    const parsed = JSON.parse(text2);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((x8) => x8 && typeof x8 === "object").map((x8) => {
-      const o6 = x8;
-      return {
-        category: String(o6.category ?? "other").slice(0, 40),
-        severity: ["info", "warn", "error"].includes(String(o6.severity)) ? o6.severity : "warn",
-        evidence: String(o6.evidence ?? "").slice(0, 800),
-        proposedRepair: String(o6.proposedRepair ?? "").slice(0, 800)
-      };
-    }).filter((f7) => f7.evidence && f7.proposedRepair);
-  } catch (err2) {
-    logger.warn({ err: err2, model }, "runAuditorLlm fall\xF3");
-    return [];
-  }
-}
-var DEFAULT_AUDITOR_MODEL, BLOCKED_AUDITOR, dayKey, callsToday;
-var init_lucyAuditorLlm = __esm({
-  "src/services/lucyAuditorLlm.ts"() {
-    "use strict";
-    init_node();
-    init_llmEnv();
-    init_lucyGeminiSpend();
-    init_logger2();
-    DEFAULT_AUDITOR_MODEL = "gemini-2.5-flash";
-    BLOCKED_AUDITOR = /(?:^|\/)(imagen|nano[-\s]?banana|gemini-[\w.-]*-image|gemini-.*-pro|gemini-ultra|gemini-3\.6)(?:$|\/|-)/i;
-    dayKey = "";
-    callsToday = 0;
-  }
-});
-
-// src/services/lucyRepairPersist.ts
-import { existsSync as existsSync9, mkdirSync as mkdirSync4, readFileSync as readFileSync11, writeFileSync as writeFileSync2 } from "node:fs";
-import { dirname as dirname7 } from "node:path";
-function repairsPath() {
-  ensureLucyDataRoot();
-  return getLucyRepairsJsonPath();
-}
-function readRepairsBackup() {
-  const path7 = repairsPath();
-  if (!existsSync9(path7)) return [];
-  try {
-    const raw = readFileSync11(path7, "utf8");
-    const parsed = JSON.parse(raw);
-    const list = Array.isArray(parsed) ? parsed : parsed.repairs ?? [];
-    return list.filter((r5) => r5 && typeof r5.id === "string" && r5.evidence && r5.proposedRepair);
-  } catch (err2) {
-    logger.warn({ err: err2, path: path7 }, "lucyRepairPersist: no se pudo leer backup");
-    return [];
-  }
-}
-async function dumpRepairsToBackup() {
-  try {
-    const rows = await db.select().from(lucyRepairs);
-    const repairs = rows.map((row) => ({
-      id: row.id,
-      kommoLeadId: row.kommoLeadId ?? void 0,
-      category: row.category,
-      severity: row.severity,
-      evidence: row.evidence,
-      proposedRepair: row.proposedRepair,
-      appliedRepair: row.appliedRepair ?? void 0,
-      status: row.status,
-      source: row.source,
-      model: row.model ?? void 0,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-      resolvedAt: row.resolvedAt?.toISOString(),
-      resolvedBy: row.resolvedBy ?? void 0,
-      dedupeKey: row.dedupeKey ?? void 0
-    }));
-    const path7 = repairsPath();
-    mkdirSync4(dirname7(path7), { recursive: true });
-    writeFileSync2(
-      path7,
-      JSON.stringify(
-        {
-          savedAt: (/* @__PURE__ */ new Date()).toISOString(),
-          count: repairs.length,
-          repairs
-        },
-        null,
-        2
-      ),
-      "utf8"
-    );
-    return repairs.length;
-  } catch (err2) {
-    logger.warn({ err: err2 }, "lucyRepairPersist: dump fall\xF3");
-    return 0;
-  }
-}
-async function restoreRepairsFromBackupIfNeeded() {
-  if (restoredOnce) return 0;
-  restoredOnce = true;
-  try {
-    const [{ n: n5 }] = await db.select({ n: sql`count(*)::int` }).from(lucyRepairs);
-    const count2 = Number(n5 ?? 0);
-    const backup = readRepairsBackup();
-    if (backup.length === 0) return 0;
-    let inserted = 0;
-    for (const r5 of backup) {
-      const [byId] = await db.select({ id: lucyRepairs.id }).from(lucyRepairs).where(eq(lucyRepairs.id, r5.id)).limit(1);
-      if (byId) continue;
-      if (r5.dedupeKey) {
-        const [byKey] = await db.select({ id: lucyRepairs.id }).from(lucyRepairs).where(eq(lucyRepairs.dedupeKey, r5.dedupeKey)).limit(1);
-        if (byKey) continue;
-      }
-      try {
-        await db.insert(lucyRepairs).values({
-          id: r5.id,
-          kommoLeadId: r5.kommoLeadId ?? null,
-          category: (r5.category || "other").slice(0, 40),
-          severity: r5.severity || "warn",
-          evidence: r5.evidence,
-          proposedRepair: r5.proposedRepair,
-          appliedRepair: r5.appliedRepair ?? null,
-          status: r5.status || "open",
-          source: r5.source || "heuristic",
-          model: r5.model ?? null,
-          dedupeKey: r5.dedupeKey ?? null,
-          resolvedAt: r5.resolvedAt ? new Date(r5.resolvedAt) : null,
-          resolvedBy: r5.resolvedBy ?? null,
-          createdAt: r5.createdAt ? new Date(r5.createdAt) : /* @__PURE__ */ new Date(),
-          updatedAt: r5.updatedAt ? new Date(r5.updatedAt) : /* @__PURE__ */ new Date()
-        });
-        inserted += 1;
-      } catch (err2) {
-        logger.warn({ err: err2, id: r5.id }, "lucyRepairPersist: skip insert");
-      }
-    }
-    if (inserted > 0 || count2 === 0 && backup.length > 0) {
-      logger.info(
-        { inserted, backup: backup.length, hadDb: count2 },
-        "lucyRepairPersist: restaurado desde JSON"
-      );
-    }
-    return inserted;
-  } catch (err2) {
-    logger.warn({ err: err2 }, "lucyRepairPersist: restore fall\xF3");
-    return 0;
-  }
-}
-var restoredOnce;
-var init_lucyRepairPersist = __esm({
-  async "src/services/lucyRepairPersist.ts"() {
-    "use strict";
-    await init_src2();
-    init_drizzle_orm();
-    init_lucyDataPaths();
-    init_logger2();
-    restoredOnce = false;
-  }
-});
-
-// src/services/lucyRepairSchema.ts
-async function ensureLucyRepairSchema() {
-  if (ensured4) return;
-  try {
-    await db.execute(sql.raw(CREATE_TABLE3));
-    await db.execute(
-      sql.raw(
-        `CREATE INDEX IF NOT EXISTS lucy_repairs_status_idx ON lucy_repairs (status, created_at DESC)`
-      )
-    );
-    await restoreRepairsFromBackupIfNeeded();
-  } catch (err2) {
-    logger.warn({ err: err2 }, "lucyRepairSchema: fall\xF3");
-  }
-  ensured4 = true;
-}
-var ensured4, CREATE_TABLE3;
-var init_lucyRepairSchema = __esm({
-  async "src/services/lucyRepairSchema.ts"() {
-    "use strict";
-    await init_src2();
-    init_drizzle_orm();
-    init_logger2();
-    await init_lucyRepairPersist();
-    ensured4 = false;
-    CREATE_TABLE3 = `
-CREATE TABLE IF NOT EXISTS lucy_repairs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  kommo_lead_id TEXT,
-  category VARCHAR(40) NOT NULL DEFAULT 'other',
-  severity VARCHAR(20) NOT NULL DEFAULT 'warn',
-  evidence TEXT NOT NULL,
-  proposed_repair TEXT NOT NULL,
-  applied_repair TEXT,
-  status VARCHAR(20) NOT NULL DEFAULT 'open',
-  source VARCHAR(20) NOT NULL DEFAULT 'heuristic',
-  model TEXT,
-  dedupe_key TEXT UNIQUE,
-  resolved_at TIMESTAMP,
-  resolved_by TEXT,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-)`;
-  }
-});
-
-// src/services/lucyRepairStore.ts
-var lucyRepairStore_exports = {};
-__export(lucyRepairStore_exports, {
-  countOpenRepairs: () => countOpenRepairs,
-  dismissLucyRepair: () => dismissLucyRepair,
-  getLucyRepair: () => getLucyRepair,
-  getLucyRepairStats: () => getLucyRepairStats,
-  listLucyRepairs: () => listLucyRepairs,
-  markLucyRepairsInProgress: () => markLucyRepairsInProgress,
-  recordLucyRepair: () => recordLucyRepair,
-  resolveLucyRepair: () => resolveLucyRepair
-});
-function rowToDto3(row) {
-  return {
-    id: row.id,
-    kommoLeadId: row.kommoLeadId ?? void 0,
-    category: row.category,
-    severity: row.severity,
-    evidence: row.evidence,
-    proposedRepair: row.proposedRepair,
-    appliedRepair: row.appliedRepair ?? void 0,
-    status: row.status,
-    source: row.source,
-    model: row.model ?? void 0,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-    resolvedAt: row.resolvedAt?.toISOString(),
-    resolvedBy: row.resolvedBy ?? void 0
-  };
-}
-function normalizeDedupeKey2(category, leadId, evidence) {
-  const e4 = evidence.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 160);
-  return `${category}:${leadId ?? "none"}:${e4}`;
-}
-async function persistBackupSafe() {
-  try {
-    await dumpRepairsToBackup();
-  } catch (err2) {
-    logger.warn({ err: err2 }, "lucyRepairStore: backup JSON fall\xF3");
-  }
-}
-async function listLucyRepairs(status2 = "open", limit2 = 50) {
-  await ensureLucyRepairSchema();
-  const capped = status2 === "resolved" || status2 === "all" ? Math.min(Math.max(limit2, 50), 300) : Math.min(limit2, 100);
-  const q3 = db.select().from(lucyRepairs).orderBy(desc(lucyRepairs.createdAt)).limit(capped);
-  if (status2 === "all") {
-    const rows2 = await q3;
-    return rows2.map(rowToDto3);
-  }
-  const rows = await db.select().from(lucyRepairs).where(eq(lucyRepairs.status, status2)).orderBy(desc(status2 === "resolved" ? lucyRepairs.resolvedAt : lucyRepairs.createdAt)).limit(capped);
-  return rows.map(rowToDto3);
-}
-async function getLucyRepairStats() {
-  await ensureLucyRepairSchema();
-  const rows = await db.select().from(lucyRepairs);
-  const { getAuditorQuotaSnapshot: getAuditorQuotaSnapshot2 } = await Promise.resolve().then(() => (init_lucyAuditorLlm(), lucyAuditorLlm_exports));
-  const { getGeminiSpendSnapshot: getGeminiSpendSnapshot2 } = await Promise.resolve().then(() => (init_lucyGeminiSpend(), lucyGeminiSpend_exports));
-  const quota = getAuditorQuotaSnapshot2();
-  const spend = getGeminiSpendSnapshot2();
-  return {
-    open: rows.filter((r5) => r5.status === "open").length,
-    auto_flagged: rows.filter((r5) => r5.status === "auto_flagged").length,
-    in_progress: rows.filter((r5) => r5.status === "in_progress").length,
-    resolved: rows.filter((r5) => r5.status === "resolved").length,
-    dismissed: rows.filter((r5) => r5.status === "dismissed").length,
-    auditor_calls_today: quota.callsToday,
-    auditor_max_per_day: quota.maxPerDay,
-    auditor_model: quota.model,
-    auditor_usd_today: spend.auditor.usdEstimate,
-    auditor_tokens_today: spend.auditor.inputTokens + spend.auditor.outputTokens,
-    spend_day_key: spend.dayKey
-  };
-}
-async function recordLucyRepair(input) {
-  const evidence = input.evidence?.trim();
-  const proposed = input.proposedRepair?.trim();
-  if (!evidence || !proposed) return false;
-  await ensureLucyRepairSchema();
-  const category = (input.category || "other").trim().slice(0, 40);
-  const leadId = input.kommoLeadId ? String(input.kommoLeadId) : void 0;
-  const dedupeKey2 = normalizeDedupeKey2(category, leadId, evidence);
-  try {
-    const [existing] = await db.select().from(lucyRepairs).where(eq(lucyRepairs.dedupeKey, dedupeKey2)).limit(1);
-    if (existing) {
-      if (existing.status === "dismissed" || existing.status === "resolved") return false;
-      if (existing.status === "in_progress") return false;
-      await db.update(lucyRepairs).set({
-        evidence,
-        proposedRepair: proposed,
-        updatedAt: /* @__PURE__ */ new Date()
-      }).where(eq(lucyRepairs.id, existing.id));
-      await persistBackupSafe();
-      return true;
-    }
-    await db.insert(lucyRepairs).values({
-      kommoLeadId: leadId ?? null,
-      category,
-      severity: input.severity ?? "warn",
-      evidence,
-      proposedRepair: proposed,
-      status: input.status ?? "auto_flagged",
-      source: input.source ?? "heuristic",
-      model: input.model ?? null,
-      dedupeKey: dedupeKey2
-    });
-    logger.info({ category, leadId, source: input.source }, "lucy_repair registrado");
-    await persistBackupSafe();
-    return true;
-  } catch (err2) {
-    logger.warn({ err: err2, dedupeKey: dedupeKey2 }, "recordLucyRepair: fall\xF3");
-    return false;
-  }
-}
-async function markLucyRepairsInProgress(ids, startedBy = "cursor") {
-  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
-  if (unique.length === 0) return 0;
-  await ensureLucyRepairSchema();
-  let marked = 0;
-  const now = /* @__PURE__ */ new Date();
-  for (const id of unique) {
-    const [row] = await db.select().from(lucyRepairs).where(eq(lucyRepairs.id, id)).limit(1);
-    if (!row) continue;
-    if (row.status !== "open" && row.status !== "auto_flagged" && row.status !== "in_progress") {
-      continue;
-    }
-    await db.update(lucyRepairs).set({
-      status: "in_progress",
-      resolvedBy: startedBy,
-      updatedAt: now
-    }).where(eq(lucyRepairs.id, id));
-    marked += 1;
-  }
-  if (marked > 0) await persistBackupSafe();
-  return marked;
-}
-async function resolveLucyRepair(id, appliedRepair, reviewer) {
-  await ensureLucyRepairSchema();
-  const note = appliedRepair?.trim();
-  if (!note) return null;
-  const [updated] = await db.update(lucyRepairs).set({
-    status: "resolved",
-    appliedRepair: note,
-    resolvedAt: /* @__PURE__ */ new Date(),
-    resolvedBy: reviewer ?? null,
-    updatedAt: /* @__PURE__ */ new Date()
-  }).where(eq(lucyRepairs.id, id)).returning();
-  if (updated) await persistBackupSafe();
-  return updated ? rowToDto3(updated) : null;
-}
-async function dismissLucyRepair(id, reviewer) {
-  await ensureLucyRepairSchema();
-  const updated = await db.update(lucyRepairs).set({
-    status: "dismissed",
-    resolvedBy: reviewer ?? null,
-    resolvedAt: /* @__PURE__ */ new Date(),
-    updatedAt: /* @__PURE__ */ new Date()
-  }).where(eq(lucyRepairs.id, id)).returning({ id: lucyRepairs.id });
-  if (updated.length > 0) await persistBackupSafe();
-  return updated.length > 0;
-}
-async function getLucyRepair(id) {
-  await ensureLucyRepairSchema();
-  const [row] = await db.select().from(lucyRepairs).where(eq(lucyRepairs.id, id)).limit(1);
-  return row ? rowToDto3(row) : null;
-}
-async function countOpenRepairs() {
-  await ensureLucyRepairSchema();
-  const rows = await db.select({ n: sql`count(*)::int` }).from(lucyRepairs).where(eq(lucyRepairs.status, "open"));
-  return Number(rows[0]?.n ?? 0);
-}
-var init_lucyRepairStore = __esm({
-  async "src/services/lucyRepairStore.ts"() {
-    "use strict";
-    await init_src2();
-    init_drizzle_orm();
-    await init_lucyRepairSchema();
-    await init_lucyRepairPersist();
-    init_logger2();
+    RESUMEN_IA_CIERRE = "Actualizado por Lucy en cada mensaje";
+    MONTH_RE = /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i;
   }
 });
 
@@ -232327,6 +233176,12 @@ async function runLucyAuditorBatch(opts) {
   }
   if (opts?.oncePerDay) {
     lastDailyRunDay = dayKey2;
+  }
+  try {
+    const { cleanupRepairQueue: cleanupRepairQueue2 } = await init_cursorRepairAgent().then(() => cursorRepairAgent_exports);
+    await cleanupRepairQueue2();
+  } catch (err2) {
+    logger.warn({ err: err2 }, "lucyAuditor: limpieza de cola fall\xF3");
   }
   const modeHint = " Modo local: chat por webhook + campos CRM del panel Kommo (sin leer Talks).";
   const summary = leadIds.length === 0 ? `No encontr\xE9 leads para auditar` + (hydrated.keys ? ` (${hydrated.keys} en chat-history, +${hydrated.inserted} importados)` : "") + `.` + modeHint : findings === 0 ? `Revis\xE9 ${leadIds.length} lead(s) (${scannedChats} con chat local)` + (hydrated.inserted ? ` (+${hydrated.inserted} del historial)` : "") + `. Flash ${flashCalls}. Sin errores detectados` + (withLucy ? ` (${withLucy} con Lucy).` : ".") + modeHint : `Revis\xE9 ${leadIds.length} lead(s) (${scannedChats} con chat): ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.` + modeHint;
@@ -232963,6 +233818,7 @@ function startCatalogWebSyncScheduler() {
 }
 
 // src/routes/health.ts
+await init_cursorRepairAgent();
 var router = (0, import_express.Router)();
 router.get("/healthz", (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });
@@ -233011,7 +233867,8 @@ router.get("/health", async (_req, res) => {
       "gemini-image-compress-1024",
       "proveedor-alianza-handoff",
       "proveedor-questionnaire-sheets",
-      "catalog-web-sync-gamma"
+      "catalog-web-sync-gamma",
+      "repairs-cursor-cloud-agent"
     ],
     learning: {
       note: "Panel /aprendizaje: chats, huecos Sheet e Informaci\xF3n para Lucy (PDF\u2192texto + tendencias). Sync Kommo; cron 5 min; auto-aprueba \u22650.85",
@@ -233066,7 +233923,8 @@ router.get("/health", async (_req, res) => {
       note: "Campo 1048786 = resumen interno CRM, no mensaje WhatsApp"
     },
     catalog: getCatalogStatus(),
-    catalog_web_sync: getCatalogWebSyncStatus()
+    catalog_web_sync: getCatalogWebSyncStatus(),
+    repair_agent: repairAgentStatusSummary()
   });
 });
 var health_default = router;
@@ -233341,19 +234199,19 @@ function normalizeSimulatorBase(base) {
 }
 var leadState = /* @__PURE__ */ new Map();
 async function resetSimulator(base, leadId) {
-  const apiBase = normalizeSimulatorBase(base);
+  const apiBase2 = normalizeSimulatorBase(base);
   leadState.delete(leadId);
-  await fetch(`${apiBase}/api/kommo/simulator/reset`, {
+  await fetch(`${apiBase2}/api/kommo/simulator/reset`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ lead_id: leadId })
   });
 }
 async function sendToLucy(base, leadId, text2, client2) {
-  const apiBase = normalizeSimulatorBase(base);
+  const apiBase2 = normalizeSimulatorBase(base);
   const prev = leadState.get(leadId);
   const custom_fields = { ...prev?.fields ?? {} };
-  const res = await fetch(`${apiBase}/api/kommo/simulator`, {
+  const res = await fetch(`${apiBase2}/api/kommo/simulator`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -234437,7 +235295,7 @@ function findFieldValue(cfv, fieldId) {
 }
 async function patchLeadField(subdomain, accessToken, leadId, fieldId, value) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 12e3);
+  const timer2 = setTimeout(() => controller.abort(), 12e3);
   try {
     const res = await fetch(`https://${subdomain}.kommo.com/api/v4/leads/${leadId}`, {
       method: "PATCH",
@@ -234454,7 +235312,7 @@ async function patchLeadField(subdomain, accessToken, leadId, fieldId, value) {
   } catch {
     return { ok: false, status: 0 };
   } finally {
-    clearTimeout(timer);
+    clearTimeout(timer2);
   }
 }
 async function applyPaymentReceiptToLead(opts) {
@@ -238602,7 +239460,7 @@ await init_kommoMirror();
 // src/services/stageActivation.ts
 init_lucyDataPaths();
 await init_embudo();
-import { readdirSync, readFileSync as readFileSync10 } from "node:fs";
+import { readdirSync, readFileSync as readFileSync12 } from "node:fs";
 import { join as join10 } from "node:path";
 var WHATSAPP_WINDOW_MS = 23.5 * 60 * 60 * 1e3;
 var CLIENT_JUST_WROTE_MS = 2 * 60 * 1e3;
@@ -238686,7 +239544,7 @@ function readRelayMessages(leadId, sinceMs, dir = getKommoRelayDir()) {
     if (f7.slice(0, 10) < sinceDay) continue;
     let raw;
     try {
-      raw = readFileSync10(join10(dir, f7), "utf8");
+      raw = readFileSync12(join10(dir, f7), "utf8");
     } catch {
       continue;
     }
@@ -238800,8 +239658,8 @@ init_drizzle_orm();
 await init_src2();
 init_drizzle_orm();
 init_logger2();
-var ensured3 = false;
-var CREATE_TABLE2 = `
+var ensured4 = false;
+var CREATE_TABLE3 = `
 CREATE TABLE IF NOT EXISTS knowledge_gaps (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   kommo_lead_id TEXT,
@@ -238819,22 +239677,22 @@ CREATE TABLE IF NOT EXISTS knowledge_gaps (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 )`;
 async function ensureKnowledgeGapSchema() {
-  if (ensured3) return;
+  if (ensured4) return;
   try {
-    await db.execute(sql.raw(CREATE_TABLE2));
+    await db.execute(sql.raw(CREATE_TABLE3));
     await db.execute(sql.raw(
       `CREATE INDEX IF NOT EXISTS knowledge_gaps_status_idx ON knowledge_gaps (status, created_at DESC)`
     ));
   } catch (err2) {
     logger.warn({ err: err2 }, "knowledgeGapSchema: fall\xF3");
   }
-  ensured3 = true;
+  ensured4 = true;
 }
 
 // src/services/knowledgeGapStore.ts
 await init_trainingStore();
 init_logger2();
-function rowToDto2(row) {
+function rowToDto3(row) {
   return {
     id: row.id,
     kommoLeadId: row.kommoLeadId ?? void 0,
@@ -238850,14 +239708,14 @@ function rowToDto2(row) {
     answeredBy: row.answeredBy ?? void 0
   };
 }
-function normalizeDedupeKey(question, gapType) {
+function normalizeDedupeKey2(question, gapType) {
   const q3 = question.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 200);
   return `${gapType}:${q3}`;
 }
 async function listKnowledgeGaps(status2 = "pending", limit2 = 50) {
   await ensureKnowledgeGapSchema();
   const rows = await db.select().from(knowledgeGaps).where(eq(knowledgeGaps.status, status2)).orderBy(desc(knowledgeGaps.createdAt)).limit(limit2);
-  return rows.map(rowToDto2);
+  return rows.map(rowToDto3);
 }
 async function getKnowledgeGapStats() {
   await ensureKnowledgeGapSchema();
@@ -238873,7 +239731,7 @@ async function recordKnowledgeGap(input) {
   if (!question || question.length < 4) return false;
   await ensureKnowledgeGapSchema();
   const gapType = input.gapType?.trim() || "unknown";
-  const dedupeKey2 = normalizeDedupeKey(question, gapType);
+  const dedupeKey2 = normalizeDedupeKey2(question, gapType);
   try {
     const [existing] = await db.select().from(knowledgeGaps).where(eq(knowledgeGaps.dedupeKey, dedupeKey2)).limit(1);
     if (existing) {
@@ -238920,7 +239778,7 @@ async function answerKnowledgeGap(id, answer, reviewerEmail) {
     answeredBy: reviewerEmail ?? null,
     updatedAt: /* @__PURE__ */ new Date()
   }).where(eq(knowledgeGaps.id, id)).returning();
-  return updated ? rowToDto2(updated) : null;
+  return updated ? rowToDto3(updated) : null;
 }
 async function dismissKnowledgeGap(id, reviewerEmail) {
   await ensureKnowledgeGapSchema();
@@ -242751,6 +243609,7 @@ var ops_default = router11;
 var import_express12 = __toESM(require_express2(), 1);
 await init_lucyRepairStore();
 await init_lucyAuditor();
+await init_cursorRepairAgent();
 var router12 = (0, import_express12.Router)();
 var PUBLIC_API = "https://midnightblue-mosquito-424375.hostingersite.com/api/reparaciones";
 var CURSOR_REPAIR_INSTRUCTION = `Al dispararse (webhook / cron):
@@ -242857,12 +243716,87 @@ router12.post("/reparaciones/cron", async (req, res) => {
     res.status(500).json({ error: "cron_failed" });
   }
 });
+function sendJobError(res, err2) {
+  if (err2 instanceof RepairJobError) {
+    res.status(err2.httpStatus).json({ error: err2.code, message: err2.message });
+    return;
+  }
+  res.status(502).json({
+    error: "cursor_api_failed",
+    message: err2 instanceof Error ? err2.message : String(err2)
+  });
+}
+router12.get("/reparaciones/jobs", (_req, res) => {
+  res.json({ ...repairAgentStatusSummary(), jobs: listRepairJobs(15) });
+});
+router12.get("/reparaciones/jobs/:jobId", (req, res) => {
+  const job = getRepairJob(String(req.params["jobId"]));
+  if (!job) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  res.json(job);
+});
+router12.post("/reparaciones/jobs/:jobId/publish", async (req, res) => {
+  try {
+    res.json({ ok: true, job: await publishRepairJob(String(req.params["jobId"])) });
+  } catch (err2) {
+    req.log?.error?.({ err: err2 }, "reparaciones/jobs/publish failed");
+    sendJobError(res, err2);
+  }
+});
+router12.post("/reparaciones/jobs/:jobId/cancel", async (req, res) => {
+  try {
+    res.json({ ok: true, job: await cancelRepairJob(String(req.params["jobId"])) });
+  } catch (err2) {
+    req.log?.error?.({ err: err2 }, "reparaciones/jobs/cancel failed");
+    sendJobError(res, err2);
+  }
+});
+router12.post("/reparaciones/cleanup", async (req, res) => {
+  try {
+    res.json({ ok: true, ...await cleanupRepairQueue() });
+  } catch (err2) {
+    req.log?.error?.({ err: err2 }, "reparaciones/cleanup failed");
+    res.status(500).json({ error: "cleanup_failed" });
+  }
+});
 router12.post("/reparaciones/send-to-cursor", async (req, res) => {
+  if (isCursorAgentConfigured()) {
+    try {
+      const onlyId = typeof req.body?.repairId === "string" ? req.body.repairId.trim() : "";
+      let repairs;
+      if (onlyId) {
+        const one = await getLucyRepair(onlyId);
+        if (!one) {
+          res.status(404).json({ error: "not_found" });
+          return;
+        }
+        if (one.status !== "open" && one.status !== "auto_flagged") {
+          res.status(409).json({ error: "not_sendable", message: `Estado ${one.status}: solo pendientes.` });
+          return;
+        }
+        repairs = [one];
+      } else {
+        await cleanupRepairQueue();
+        repairs = pickRepairsForJob([
+          ...await listLucyRepairs("auto_flagged", 100),
+          ...await listLucyRepairs("open", 100)
+        ]);
+      }
+      const job = await launchRepairJob(repairs);
+      res.json({ ok: true, mode: "cloud_agent", sent: repairs.length, job });
+    } catch (err2) {
+      req.log?.error?.({ err: err2 }, "reparaciones/send-to-cursor (agent) failed");
+      sendJobError(res, err2);
+    }
+    return;
+  }
   const webhookUrl = process.env["CURSOR_REPAIR_WEBHOOK_URL"]?.trim();
   if (!webhookUrl) {
     res.status(503).json({
-      error: "webhook_not_configured",
-      message: "Falta CURSOR_REPAIR_WEBHOOK_URL. Guarda la Automation en Cursor, copia el webhook y p\xE9galo en Hostinger."
+      error: "cursor_not_configured",
+      message: "Falta CURSOR_API_KEY en Hostinger (Cursor \u2192 Dashboard \u2192 API Keys). Con ella el panel muestra el avance en vivo."
     });
     return;
   }
@@ -243202,6 +244136,7 @@ await init_learningSchema();
 await init_lucyInfoSchema();
 await init_lucyInfoStore();
 init_catalogService();
+await init_cursorRepairAgent();
 ensureOpenAiApiKeyEnv();
 ensureKommoEnv();
 var rawPort = process.env["PORT"] ?? "3000";
@@ -243271,6 +244206,12 @@ async function startServer() {
   });
   startCatalogAutoRefresh();
   startCatalogWebSyncScheduler();
+  startRepairJobTracker();
+  setTimeout(() => {
+    void cleanupRepairQueue().catch(
+      (err2) => logger.warn({ err: err2 }, "Limpieza de reparaciones al arranque fall\xF3")
+    );
+  }, 6e4).unref();
   void bootstrapCatalog().then(() => {
     logger.info("Cat\xE1logo Google Sheets cargado al arranque");
   }).catch((err2) => {

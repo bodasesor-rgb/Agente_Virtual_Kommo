@@ -15,6 +15,7 @@ import { ensureLucyInfoSchema } from "./services/lucyInfoSchema.js";
 import { seedLucyInfoIfEmpty, warmLucyInfoPriceCache } from "./services/lucyInfoStore.js";
 import { bootstrapCatalog, startCatalogAutoRefresh } from "./services/catalogService.js";
 import { startCatalogWebSyncScheduler } from "./services/catalogWebSync.js";
+import { cleanupRepairQueue, startRepairJobTracker } from "./services/cursorRepairAgent.js";
 
 const rawPort = process.env["PORT"] ?? "3000";
 
@@ -110,6 +111,12 @@ async function startServer(): Promise<void> {
 
   startCatalogAutoRefresh();
   startCatalogWebSyncScheduler();
+  startRepairJobTracker();
+  setTimeout(() => {
+    void cleanupRepairQueue().catch((err) =>
+      logger.warn({ err }, "Limpieza de reparaciones al arranque falló"),
+    );
+  }, 60_000).unref();
   void bootstrapCatalog()
     .then(() => {
       logger.info("Catálogo Google Sheets cargado al arranque");

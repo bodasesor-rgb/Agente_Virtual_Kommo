@@ -55,13 +55,36 @@ function rowToDto(row: typeof lucyRepairs.$inferSelect): LucyRepairDto {
   };
 }
 
-function normalizeDedupeKey(
+/** Quita el prefijo de día «[2026-10-01] » que pone el auditor en cada hallazgo. */
+export function stripRepairDayPrefix(evidence: string): string {
+  return evidence.replace(/^\s*\[\d{4}-\d{2}-\d{2}\]\s*/, "");
+}
+
+/** Mismo problema en el mismo lead = misma fila, aunque cambie el día o un conteo. */
+export function normalizeDedupeKey(
   category: string,
   leadId: string | undefined,
   evidence: string
 ): string {
-  const e = evidence.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 160);
+  const e = stripRepairDayPrefix(evidence)
+    .toLowerCase()
+    .replace(/\d+/g, "#")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
   return `${category}:${leadId ?? "none"}:${e}`;
+}
+
+/** Firma del problema sin lead ni citas: agrupa el mismo bug visto en varios leads. */
+export function repairSignature(category: string, evidence: string): string {
+  const e = stripRepairDayPrefix(evidence)
+    .toLowerCase()
+    .replace(/«[^»]*»?/g, "«…»")
+    .replace(/\d+/g, "#")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 70);
+  return `${category}:${e}`;
 }
 
 async function persistBackupSafe(): Promise<void> {
@@ -251,7 +274,11 @@ export async function resolveLucyRepair(
   return updated ? rowToDto(updated) : null;
 }
 
-export async function dismissLucyRepair(id: string, reviewer?: string): Promise<boolean> {
+export async function dismissLucyRepair(
+  id: string,
+  reviewer?: string,
+  reason?: string
+): Promise<boolean> {
   await ensureLucyRepairSchema();
   const updated = await db
     .update(lucyRepairs)
@@ -260,11 +287,141 @@ export async function dismissLucyRepair(id: string, reviewer?: string): Promise<
       resolvedBy: reviewer ?? null,
       resolvedAt: new Date(),
       updatedAt: new Date(),
+      ...(reason?.trim() ? { appliedRepair: reason.trim().slice(0, 2000) } : {}),
     })
     .where(eq(lucyRepairs.id, id))
     .returning({ id: lucyRepairs.id });
   if (updated.length > 0) await persistBackupSafe();
   return updated.length > 0;
+}
+
+/** Devuelve a pendientes (auto_flagged) reparaciones que estaban «En Cursor». */
+export async function releaseLucyRepairs(ids: string[]): Promise<number> {
+  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  if (unique.length === 0) return 0;
+  await ensureLucyRepairSchema();
+  let released = 0;
+  for (const id of unique) {
+    const updated = await db
+      .update(lucyRepairs)
+      .set({ status: "auto_flagged", resolvedBy: null, updatedAt: new Date() })
+      .where(sql`${lucyRepairs.id} = ${id} AND ${lucyRepairs.status} = 'in_progress'`)
+      .returning({ id: lucyRepairs.id });
+    released += updated.length;
+  }
+  if (released > 0) await persistBackupSafe();
+  return released;
+}
+
+const ACTIVE_STATUSES = new Set(["open", "auto_flagged", "in_progress"]);
+
+/** Hallazgos de reglas viejas del supervisor que ya no aplican (se descartan, no se borran). */
+const RETIRED_RULES: Array<{ category: string; re: RegExp; reason: string }> = [
+  {
+    category: "bad_field",
+    re: /^CRM Resumen IA parece truncado/i,
+    reason:
+      "Descartado por limpieza: Resumen IA es un campo largo; la regla vieja lo marcaba solo por pasar de 250 letras.",
+  },
+  {
+    category: "stuck_funnel",
+    re: /^Pregunta de embudo «[^»]+» repetida \d+ veces/i,
+    reason:
+      "Descartado por limpieza: la regla vieja marcaba 3 preguntas iguales aunque el cliente no hubiera contestado; ahora solo se marca si el cliente ya dio el dato o tras 4+ intentos.",
+  },
+];
+
+export interface RepairCleanupResult {
+  retired: number;
+  duplicates: number;
+  released: number;
+  rekeyed: number;
+}
+
+/**
+ * Limpia la cola: descarta hallazgos de reglas retiradas y duplicados (mismo problema
+ * en el mismo lead, distinto día), y devuelve a pendientes lo que quedó «En Cursor»
+ * sin un trabajo vivo. Nunca borra filas.
+ */
+export async function cleanupLucyRepairBacklog(opts: {
+  trackedRepairIds: Set<string>;
+  staleInProgressMs?: number;
+  now?: Date;
+}): Promise<RepairCleanupResult> {
+  await ensureLucyRepairSchema();
+  const now = opts.now ?? new Date();
+  const staleMs = opts.staleInProgressMs ?? 6 * 60 * 60 * 1000;
+  const rows = await db.select().from(lucyRepairs);
+  const result: RepairCleanupResult = { retired: 0, duplicates: 0, released: 0, rekeyed: 0 };
+
+  const dismiss = async (id: string, by: string, reason: string) => {
+    await db
+      .update(lucyRepairs)
+      .set({ status: "dismissed", resolvedBy: by, resolvedAt: now, updatedAt: now, appliedRepair: reason })
+      .where(eq(lucyRepairs.id, id));
+  };
+
+  const active: typeof rows = [];
+  for (const row of rows) {
+    if (!ACTIVE_STATUSES.has(row.status)) continue;
+    const evidence = stripRepairDayPrefix(row.evidence);
+    const retired = RETIRED_RULES.find((r) => r.category === row.category && r.re.test(evidence));
+    if (retired && !opts.trackedRepairIds.has(row.id)) {
+      await dismiss(row.id, "limpieza-supervisor", retired.reason);
+      result.retired += 1;
+      continue;
+    }
+    active.push(row);
+  }
+
+  const groups = new Map<string, typeof rows>();
+  for (const row of active) {
+    const key = normalizeDedupeKey(row.category, row.kommoLeadId ?? undefined, row.evidence);
+    const list = groups.get(key) ?? [];
+    list.push(row);
+    groups.set(key, list);
+  }
+
+  for (const [key, list] of groups) {
+    list.sort((a, b) => {
+      const ta = opts.trackedRepairIds.has(a.id) ? 1 : 0;
+      const tb = opts.trackedRepairIds.has(b.id) ? 1 : 0;
+      if (ta !== tb) return tb - ta;
+      return b.createdAt.getTime() - a.createdAt.getTime();
+    });
+    const [keep, ...dupes] = list;
+    for (const d of dupes) {
+      if (opts.trackedRepairIds.has(d.id)) continue;
+      await dismiss(d.id, "limpieza-duplicado", `Descartado por limpieza: duplicado de ${keep!.id}.`);
+      result.duplicates += 1;
+    }
+    if (keep && keep.dedupeKey !== key) {
+      try {
+        await db.update(lucyRepairs).set({ dedupeKey: key }).where(eq(lucyRepairs.id, keep.id));
+        result.rekeyed += 1;
+      } catch {
+        /* otra fila (resuelta/descartada) ya tiene esa llave */
+      }
+    }
+    if (
+      keep &&
+      keep.status === "in_progress" &&
+      !opts.trackedRepairIds.has(keep.id) &&
+      Math.abs(now.getTime() - keep.updatedAt.getTime()) > staleMs
+    ) {
+      await db
+        .update(lucyRepairs)
+        .set({ status: "auto_flagged", resolvedBy: null, updatedAt: now })
+        .where(eq(lucyRepairs.id, keep.id));
+      result.released += 1;
+    }
+  }
+
+  if (result.retired || result.duplicates || result.released || result.rekeyed) {
+    await persistBackupSafe();
+    logger.info(result, "lucyRepairStore: limpieza de cola");
+  }
+  return result;
 }
 
 export async function getLucyRepair(id: string): Promise<LucyRepairDto | null> {

@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { runAuditorHeuristics } from "../services/lucyAuditorHeuristics.js";
+import {
+  runAuditorHeuristics,
+  runCrmFieldHeuristics,
+} from "../services/lucyAuditorHeuristics.js";
 import {
   getAuditorModel,
   DEFAULT_AUDITOR_MODEL,
@@ -47,5 +50,68 @@ const bad = runAuditorHeuristics([
   },
 ]);
 assert.ok(bad.some((f) => f.category === "bad_field"), JSON.stringify(bad));
+
+// Resumen IA es campo largo: completo con firma no es «truncado» aunque pase de 250.
+const resumenCompleto = [
+  "RESUMEN DE CONVERSACIÓN — Lucy",
+  "",
+  "Qué busca el cliente:",
+  "• Servicios: (aún por definir con más detalle)",
+  "",
+  "Datos capturados:",
+  "• Nombre: Maria",
+  "",
+  "Pendiente / próximo paso:",
+  "• Completar: correo, tipo de evento, servicios / requerimientos, ubicación, fecha, horario, invitados, presupuesto",
+  "• Equipo: armar cotización con lo ya platicado.",
+  "",
+  "— Actualizado por Lucy en cada mensaje —",
+].join("\n");
+assert.ok(resumenCompleto.length >= 250);
+const okResumen = runCrmFieldHeuristics({ resumen_ia: resumenCompleto });
+assert.ok(!okResumen.some((f) => /Resumen IA/.test(f.evidence)), JSON.stringify(okResumen));
+const cortado = runCrmFieldHeuristics({ resumen_ia: resumenCompleto.slice(0, 260) });
+assert.ok(cortado.some((f) => /Resumen IA cortado/.test(f.evidence)), JSON.stringify(cortado));
+const req255 = runCrmFieldHeuristics({ requerimientos: "x".repeat(255) });
+assert.ok(req255.some((f) => /Requerimientos/.test(f.evidence)), JSON.stringify(req255));
+
+// stuck_funnel: 3 veces «correo» sin que el cliente lo diera ya NO es hallazgo…
+const askCorreo = "¿Me compartes tu correo para enviarte la cotización?";
+const sinDar = runAuditorHeuristics([
+  { role: "user", content: "Hola, quiero cotizar carpas" },
+  { role: "assistant", content: `Claro. ${askCorreo}` },
+  { role: "user", content: "¿Cuánto cuesta?" },
+  { role: "assistant", content: `Depende del tamaño. ${askCorreo}` },
+  { role: "user", content: "Ok" },
+  { role: "assistant", content: `Perfecto. ${askCorreo}` },
+]);
+assert.ok(!sinDar.some((f) => f.category === "stuck_funnel"), JSON.stringify(sinDar));
+
+// …pero volver a pedirlo cuando el cliente YA lo dio sí.
+const yaLoDio = runAuditorHeuristics([
+  { role: "assistant", content: askCorreo },
+  { role: "user", content: "ana.lopez@gmail.com" },
+  { role: "assistant", content: `Gracias. ${askCorreo}` },
+]);
+assert.ok(
+  yaLoDio.some((f) => f.category === "stuck_funnel" && /ya lo dio/.test(f.evidence)),
+  JSON.stringify(yaLoDio)
+);
+
+// repeat_reply: mismo arranque con contenido distinto no es repetición.
+const mismoArranque = runAuditorHeuristics([
+  {
+    role: "assistant",
+    content:
+      "Perfecto — anoto *Carpas* para tu cotización. Catálogo: https://bodasesor.com/catalogos/carpas ¿Cuánto mide el espacio?",
+  },
+  { role: "user", content: "10x20" },
+  {
+    role: "assistant",
+    content:
+      "Perfecto — anoto *Carpas* para tu cotización. Con 10x20 cabe una carpa árabe para 150 personas. ¿Para qué fecha sería tu evento?",
+  },
+]);
+assert.ok(!mismoArranque.some((f) => f.category === "repeat_reply"), JSON.stringify(mismoArranque));
 
 console.log("reparaciones-auditor smoke OK");

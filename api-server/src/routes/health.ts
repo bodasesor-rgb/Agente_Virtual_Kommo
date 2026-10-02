@@ -15,6 +15,7 @@ import { getBuildMeta } from "../lib/buildMeta.js";
 import { getLucyInfoStats } from "../services/lucyInfoStore.js";
 import { getLucyInfoCachedDocs } from "../services/lucyInfoPriceCache.js";
 import { getCatalogWebSyncStatus } from "../services/catalogWebSync.js";
+import { repairAgentStatusSummary } from "../services/cursorRepairAgent.js";
 
 const router: IRouter = Router();
 
@@ -69,6 +70,7 @@ router.get("/health", async (_req, res) => {
       "proveedor-alianza-handoff",
       "proveedor-questionnaire-sheets",
       "catalog-web-sync-gamma",
+      "repairs-cursor-cloud-agent",
     ],
     learning: {
       note: "Panel /aprendizaje: chats, huecos Sheet e Información para Lucy (PDF→texto + tendencias). Sync Kommo; cron 5 min; auto-aprueba ≥0.85",
@@ -125,6 +127,7 @@ router.get("/health", async (_req, res) => {
     },
     catalog: getCatalogStatus(),
     catalog_web_sync: getCatalogWebSyncStatus(),
+    repair_agent: repairAgentStatusSummary(),
   });
 });
 

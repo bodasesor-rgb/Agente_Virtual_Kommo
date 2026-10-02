@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Reparaciones Lucy — Bodasesor</title>
   <base href="/reparaciones/" />
-  <link rel="stylesheet" href="/reparaciones/styles.css?v=6" />
+  <link rel="stylesheet" href="/reparaciones/styles.css?v=7" />
 </head>
 <body>
   <div class="page">
@@ -23,10 +23,11 @@
       </div>
       <div class="header-actions">
         <a href="/panel">← Panel</a>
-        <button type="button" id="btn-send-cursor" class="btn-primary" title="Dispara la Automation de Cursor con los hallazgos abiertos">
+        <button type="button" id="btn-send-cursor" class="btn-primary" title="Manda los problemas más repetidos a un agente de Cursor y muestra su avance aquí">
           Enviar a Cursor
         </button>
         <button type="button" id="btn-run" class="btn-ghost">Auditar ahora</button>
+        <button type="button" id="btn-cleanup" class="btn-ghost" title="Descarta duplicados y falsos positivos conocidos (no borra nada)">Limpiar cola</button>
         <button type="button" id="btn-refresh" class="btn-ghost">Actualizar</button>
       </div>
     </header>
@@ -46,6 +47,14 @@
         <button type="button" id="btn-goto-progress" class="btn-sm">Ver en curso</button>
       </div>
       <ul id="working-list" class="working-list"></ul>
+    </section>
+
+    <section id="jobs" class="jobs hidden" aria-live="polite">
+      <div class="jobs-top">
+        <strong>Arreglos con Cursor</strong>
+        <span id="jobs-note" class="muted"></span>
+      </div>
+      <div id="jobs-list" class="jobs-list"></div>
     </section>
 
     <section id="audit-progress" class="audit-progress hidden" aria-live="polite">
@@ -69,6 +78,6 @@
     <div id="list" class="list"></div>
     <p id="empty" class="muted empty hidden">Sin hallazgos en este filtro.</p>
   </div>
-  <script src="/reparaciones/app.js?v=10" type="module"></script>
+  <script src="/reparaciones/app.js?v=11" type="module"></script>
 </body>
 </html>

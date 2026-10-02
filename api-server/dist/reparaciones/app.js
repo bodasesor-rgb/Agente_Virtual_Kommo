@@ -14,9 +14,160 @@ const workingBanner = document.getElementById("working-banner");
 const workingList = document.getElementById("working-list");
 const workingTitle = document.getElementById("working-title");
 const btnGotoProgress = document.getElementById("btn-goto-progress");
+const btnCleanup = document.getElementById("btn-cleanup");
+const jobsEl = document.getElementById("jobs");
+const jobsListEl = document.getElementById("jobs-list");
+const jobsNoteEl = document.getElementById("jobs-note");
 
 let currentStatus = "open";
 let pollTimer = null;
+let jobsTimer = null;
+let agentConfigured = false;
+let hasLiveJob = false;
+
+const JOB_ACTIVE = new Set(["creating", "running", "publishing"]);
+
+function hhmm(iso) {
+  return iso ? new Date(iso).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }) : "";
+}
+
+function minutesSince(iso) {
+  return iso ? Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000)) : 0;
+}
+
+function jobHeadline(j) {
+  switch (j.status) {
+    case "creating":
+      return { cls: "progress", text: `Preparando agente… (desde ${hhmm(j.createdAt)})` };
+    case "running":
+      return {
+        cls: "progress",
+        text: `Reparando — trabajando desde ${hhmm(j.createdAt)} (${minutesSince(j.createdAt)} min)`,
+      };
+    case "fix_ready":
+      return { cls: "ready", text: "Arreglo listo — falta publicarlo" };
+    case "publishing":
+      return { cls: "progress", text: `Publicando… (desde ${hhmm(j.publishRequestedAt)})` };
+    case "published":
+      return j.liveAt
+        ? { cls: "ok", text: `Publicado y activo en Lucy desde ${new Date(j.liveAt).toLocaleString("es-MX")}` }
+        : { cls: "ok", text: "Publicado — se aplica en Lucy en unos minutos (despliegue automático)" };
+    case "no_changes":
+      return { cls: "mute", text: "Terminó sin cambios de código" };
+    case "cancelled":
+      return { cls: "mute", text: "Cancelado" };
+    case "discarded":
+      return { cls: "mute", text: "Arreglo descartado (no se publicó)" };
+    default:
+      return { cls: "error", text: "Error" };
+  }
+}
+
+function outcomeHtml(o) {
+  if (!o) return "";
+  const block = (title, items) =>
+    items && items.length
+      ? `<div class="job-outcome"><strong>${title}</strong><ul>${items
+          .map((x) => `<li>${escapeHtml(x.text || "—")} <span class="muted">(${x.ids.length})</span></li>`)
+          .join("")}</ul></div>`
+      : "";
+  return (
+    block("Qué arregló", o.fixed) +
+    block("No eran errores", o.falsePositive) +
+    block("No pudo arreglar (vuelven a Abiertas)", o.notFixed) +
+    (o.tests ? `<p class="muted">Pruebas: ${escapeHtml(o.tests)}</p>` : "")
+  );
+}
+
+function jobCardHtml(j) {
+  const head = jobHeadline(j);
+  const live = JOB_ACTIVE.has(j.status);
+  const steps = (j.steps || []).slice(-8).reverse();
+  const problems = (j.problems || [])
+    .map(
+      (p) =>
+        `<li><span class="tag">${escapeHtml(p.category)}</span>${escapeHtml(p.label)}${
+          p.count > 1 ? ` <span class="muted">· ${p.count} chats</span>` : ""
+        }</li>`
+    )
+    .join("");
+  const links = [
+    j.agentUrl ? `<a href="${escapeHtml(j.agentUrl)}" target="_blank" rel="noopener">Ver agente en Cursor</a>` : "",
+    j.prUrl ? `<a href="${escapeHtml(j.prUrl)}" target="_blank" rel="noopener">Ver cambios (PR)</a>` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const actions = [
+    j.status === "fix_ready" ? `<button type="button" class="btn-sm ok" data-job-act="publish">Publicar</button>` : "",
+    j.status === "fix_ready" ? `<button type="button" class="btn-sm mute" data-job-act="cancel">Descartar arreglo</button>` : "",
+    live ? `<button type="button" class="btn-sm mute" data-job-act="cancel">Cancelar</button>` : "",
+  ]
+    .filter(Boolean)
+    .join("");
+  return `
+    <article class="job job-${head.cls}" data-job-id="${escapeHtml(j.id)}">
+      <div class="job-head">
+        ${live ? '<span class="pulse" aria-hidden="true"></span>' : ""}
+        <strong>${escapeHtml(head.text)}</strong>
+        <span class="muted">${escapeHtml((j.repairIds || []).length)} reparación(es) · ${new Date(j.createdAt).toLocaleString("es-MX")}</span>
+      </div>
+      ${j.error ? `<p class="job-error">${escapeHtml(j.error)}</p>` : ""}
+      ${problems ? `<ul class="job-problems">${problems}</ul>` : ""}
+      ${
+        steps.length
+          ? `<ol class="job-steps">${steps
+              .map((s) => `<li><span class="muted">${hhmm(s.at)}</span> ${escapeHtml(s.text)}</li>`)
+              .join("")}</ol>`
+          : ""
+      }
+      ${outcomeHtml(j.outcome)}
+      ${j.summary ? `<details><summary>Lo que dijo el agente</summary><p class="job-summary">${escapeHtml(j.summary)}</p></details>` : ""}
+      ${links ? `<p class="job-links">${links}</p>` : ""}
+      ${actions ? `<div class="actions">${actions}</div>` : ""}
+    </article>`;
+}
+
+async function loadJobs() {
+  const data = await fetch("/api/reparaciones/jobs")
+    .then((r) => r.json())
+    .catch(() => null);
+  if (!data || !jobsEl) return { live: false };
+  agentConfigured = Boolean(data.configured);
+  const jobs = data.jobs || [];
+  const recent = jobs.filter(
+    (j, i) => JOB_ACTIVE.has(j.status) || j.status === "fix_ready" || i < 3
+  );
+  const live = jobs.some((j) => JOB_ACTIVE.has(j.status));
+  hasLiveJob = live || jobs.some((j) => j.status === "fix_ready");
+  jobsEl.classList.toggle("hidden", recent.length === 0 && agentConfigured);
+  if (jobsNoteEl) {
+    jobsNoteEl.textContent = agentConfigured
+      ? `${data.jobs_today ?? 0}/${data.max_jobs_per_day ?? 4} envíos hoy${data.auto_publish ? " · publica solo" : ""}`
+      : "Falta CURSOR_API_KEY en Hostinger: sin ella no hay avance en vivo.";
+  }
+  jobsListEl.innerHTML = recent.length
+    ? recent.map(jobCardHtml).join("")
+    : agentConfigured
+      ? ""
+      : `<p class="muted">Cuando pegues CURSOR_API_KEY, aquí verás qué está reparando Cursor, cada paso, y el botón para publicar.</p>`;
+  if (!agentConfigured) jobsEl.classList.remove("hidden");
+  ensureJobsPoll(live);
+  return { live };
+}
+
+function ensureJobsPoll(live) {
+  const every = live ? 5_000 : 0;
+  if (every && !jobsTimer) {
+    jobsTimer = setInterval(async () => {
+      const before = hasLiveJob;
+      const { live: still } = await loadJobs();
+      if (!still && before) void refresh({ quiet: true });
+    }, every);
+  } else if (!every && jobsTimer) {
+    clearInterval(jobsTimer);
+    jobsTimer = null;
+  }
+}
 
 const STATUS_LABEL = {
   open: "Abierta",
@@ -33,15 +184,13 @@ async function sendToCursor(repairId) {
     body: JSON.stringify(repairId ? { repairId } : {}),
   });
   const data = await res.json().catch(() => ({}));
-  if (res.status === 503) {
-    alert(
-      data.message ||
-        "Falta CURSOR_REPAIR_WEBHOOK_URL en Hostinger. Guarda la Automation en Cursor y pega la URL del webhook."
-    );
-    return;
-  }
   if (!res.ok) {
     alert(data.message || data.error || `Error al enviar (${res.status})`);
+    return;
+  }
+  if (data.mode === "cloud_agent") {
+    await refresh();
+    jobsEl?.scrollIntoView({ behavior: "smooth", block: "start" });
     return;
   }
   const n = data.sent || 0;
@@ -161,7 +310,16 @@ function cardHtml(r) {
   } else if (r.status === "in_progress") {
     fixBlock = `<div class="repair working">
         <strong>En curso con Cursor</strong>
-        <p class="muted">El agente cloud está aplicando la reparación propuesta. Cuando termine, quedará marcada como hecha con la descripción del fix.</p>
+        <p class="muted">${
+          agentConfigured
+            ? "El avance en vivo está arriba, en «Arreglos con Cursor». Al publicarse, queda en Resueltas con lo que se cambió."
+            : "Enviada por webhook (sin seguimiento). Si en 6 h no hay noticias, vuelve sola a Abiertas."
+        }</p>
+      </div>`;
+  } else if (r.status === "dismissed" && r.appliedRepair) {
+    fixBlock = `<div class="repair">
+        <strong>Por qué se descartó</strong>
+        <p>${escapeHtml(r.appliedRepair)}</p>
       </div>`;
   }
 
@@ -192,8 +350,10 @@ function cardHtml(r) {
               <button type="button" class="btn-sm mute" data-act="dismiss">Descartar</button>
               ${
                 r.status !== "in_progress"
-                  ? `<button type="button" class="btn-sm" data-act="cursor">Enviar a Cursor</button>`
-                  : `<button type="button" class="btn-sm" data-act="cursor">Reenviar a Cursor</button>`
+                  ? `<button type="button" class="btn-sm" data-act="cursor">Enviar solo esta a Cursor</button>`
+                  : agentConfigured
+                    ? ""
+                    : `<button type="button" class="btn-sm" data-act="cursor">Reenviar a Cursor</button>`
               }
             </div>`
           : ""
@@ -228,14 +388,56 @@ function ensurePoll(hasInProgress) {
   }
 }
 
-async function refresh(opts = {}) {
+async function refresh() {
+  await loadJobs();
   const s = await loadStats();
   const working = await loadWorkingBanner();
+  if (agentConfigured && hasLiveJob) workingBanner?.classList.add("hidden");
   await loadList();
   ensurePoll((s.in_progress ?? 0) > 0 || working.length > 0);
-  if (!opts.quiet && modelEl) {
-    /* no-op */
-  }
+}
+
+if (jobsListEl) {
+  jobsListEl.addEventListener("click", async (ev) => {
+    const btn = ev.target.closest("[data-job-act]");
+    if (!btn) return;
+    const id = btn.closest("[data-job-id]")?.dataset.jobId;
+    if (!id) return;
+    const act = btn.dataset.jobAct;
+    if (act === "publish" && !confirm("¿Publicar este arreglo? Pasa a main y Lucy lo usa en unos minutos.")) return;
+    if (act === "cancel" && !confirm("¿Cancelar / descartar este arreglo? Las reparaciones vuelven a Abiertas.")) return;
+    btn.disabled = true;
+    try {
+      const res = await fetch(`/api/reparaciones/jobs/${encodeURIComponent(id)}/${act}`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) alert(data.message || data.error || `Error (${res.status})`);
+    } finally {
+      btn.disabled = false;
+      await refresh();
+    }
+  });
+}
+
+if (btnCleanup) {
+  btnCleanup.addEventListener("click", async () => {
+    btnCleanup.disabled = true;
+    try {
+      const res = await fetch("/api/reparaciones/cleanup", { method: "POST" });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(d.error || "No se pudo limpiar");
+        return;
+      }
+      alert(
+        `Limpieza lista (nada se borró, quedan en Descartadas):\n` +
+          `· ${d.duplicates ?? 0} duplicados\n· ${d.retired ?? 0} falsos positivos de reglas viejas\n` +
+          `· ${d.released ?? 0} devueltas a Abiertas (estaban «En Cursor» sin trabajo vivo)`
+      );
+    } finally {
+      btnCleanup.disabled = false;
+      await refresh();
+    }
+  });
 }
 
 function setProgressVisible(on) {

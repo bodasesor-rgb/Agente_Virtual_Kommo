@@ -500,6 +500,13 @@ export async function runLucyAuditorBatch(opts?: {
     lastDailyRunDay = dayKey;
   }
 
+  try {
+    const { cleanupRepairQueue } = await import("./cursorRepairAgent.js");
+    await cleanupRepairQueue();
+  } catch (err) {
+    logger.warn({ err }, "lucyAuditor: limpieza de cola falló");
+  }
+
   const modeHint =
     " Modo local: chat por webhook + campos CRM del panel Kommo (sin leer Talks).";
 

@@ -36,6 +36,13 @@ export function getLucyRepairsJsonPath(): string {
   return join(getLucyDataRoot(), "lucy-repairs.json");
 }
 
+/** Historial de trabajos de agentes Cursor sobre reparaciones. */
+export function getLucyRepairRunsPath(): string {
+  const fromEnv = process.env["LUCY_REPAIR_RUNS_PATH"]?.trim();
+  if (fromEnv) return resolve(fromEnv);
+  return join(getLucyDataRoot(), "repair-runs.json");
+}
+
 /** Buzón de respaldo que escribe hostinger-relay/kommo-relay.php (un .jsonl por día). */
 export function getKommoRelayDir(): string {
   const fromEnv = process.env["LUCY_RELAY_DIR"]?.trim();
