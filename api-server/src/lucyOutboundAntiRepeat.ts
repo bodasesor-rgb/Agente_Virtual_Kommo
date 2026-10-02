@@ -361,6 +361,20 @@ export function cleanupBrokenOutboundFragments(text: string): string {
   return t.replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
 
+const CATALOG_URL_RE = /https?:\/\/(?:www\.)?bodasesor\.com\/catalogos[^\s)]+/gi;
+
+function extractCatalogUrls(text: string): string[] {
+  return [...text.matchAll(CATALOG_URL_RE)].map((m) => m[0]!.replace(/[.,;!?)]+$/, "").toLowerCase());
+}
+
+function stripRepeatedCatalogUrls(text: string): string {
+  return text
+    .replace(/\s*:?\s*https?:\/\/(?:www\.)?bodasesor\.com\/catalogos[^\s)]+/gi, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function stripCatalogOfferBlock(text: string): string {
   let t = text
     .replace(
@@ -510,6 +524,27 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|info|coffee\s*break|coffe\s*break|fotos?|carpa|luz|iluminaci|detalle|detalles|vajilla|audio)\b/i.test(
       input.currentMessage ?? ""
     );
+
+  // loop_links: el cliente pidió precio/detalle — no reenviar el mismo link de catálogo.
+  if (
+    !cierre &&
+    hasCatalogNow &&
+    (clientAsksPrice(input.currentMessage) ||
+      clientAsksNamedServiceDetail(input.currentMessage) ||
+      clientAskedInclusion) &&
+    previous.some((p) => CATALOG_SEND_PATTERN.test(p))
+  ) {
+    const prevUrls = new Set(previous.flatMap((p) => extractCatalogUrls(p)));
+    const curUrls = extractCatalogUrls(mensaje);
+    if (curUrls.some((u) => prevUrls.has(u))) {
+      const stripped = stripRepeatedCatalogUrls(stripCatalogOfferBlock(mensaje));
+      const urlRemoved = curUrls.every((u) => !stripped.toLowerCase().includes(u));
+      if (stripped.length >= 8 && urlRemoved) {
+        mensaje = stripped;
+        applied.push("catalog-link-loop-price-detail");
+      }
+    }
+  }
 
   // 1) Post-cierre: no repetir el mismo agradecimiento.
   if (cierre && THANKS_ACK_PATTERN.test(mensaje) && previous.some((p) => THANKS_ACK_PATTERN.test(p))) {

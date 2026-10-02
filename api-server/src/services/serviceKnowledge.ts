@@ -15,7 +15,9 @@ import {
   isServiceRelatedMessage,
   isEventTypeOnlyMessage,
   isOccasionMealEventType,
+  isStandaloneMealEventType,
   parsePrimaryService,
+  parseTipoEventoFromText,
   parseSalaProductFromText,
   parseSpaceDimensions,
   clientAsksForCatalog,
@@ -338,9 +340,17 @@ export function buildGuardServiceAck(rawQuery: string): string {
     return buildKnownCatalogAck("Paletas de Hielo y Helados", query);
   }
   // A16046 / A16263: nunca Level-2 "no lo tengo listado" para un tipo de evento.
-  if (isEventTypeOnlyMessage(query) || isOccasionMealEventType(query)) {
+  if (
+    isEventTypeOnlyMessage(query) ||
+    isOccasionMealEventType(query) ||
+    isStandaloneMealEventType(query)
+  ) {
     if (isOccasionMealEventType(query)) {
       return "¡Va! Armamos tu *cena conmemorativa*. ¿Cuántos invitados tienen contemplados?";
+    }
+    if (isStandaloneMealEventType(query)) {
+      const meal = parseTipoEventoFromText(query) ?? "comida";
+      return `¡Va! Anoto la *${meal}*. ¿Cuántos invitados tienen contemplados?`;
     }
     const tipoMatch = query.match(/\b(boda(\s+civil)?|bautizo|xv|cumplea[nñ]os|graduaci[oó]n|baby\s*shower)\b/i);
     const label = tipoMatch?.[0] ?? "ese evento";
@@ -541,6 +551,11 @@ export function buildGuardServiceAck(rawQuery: string): string {
     );
   }
 
+  if (/^(Cena|Comida)$/i.test(label) && !hasSheetKnowledge(query)) {
+    const meal = parseTipoEventoFromText(query) ?? label.toLowerCase();
+    return `¡Va! Anoto la *${meal}*. ¿Cuántos invitados tienen contemplados?`;
+  }
+
   return buildLevel2Ack(label);
 }
 
@@ -557,7 +572,13 @@ export function getServiceKnowledge(query: string): ServiceKnowledgeResult | nul
   const trimmed = query.trim();
   if (!trimmed || trimmed.length < 3) return null;
   // A16046: "Boda civil" / tipo de evento ≠ servicio Level-2.
-  if (isEventTypeOnlyMessage(trimmed) || isOccasionMealEventType(trimmed)) return null;
+  if (
+    isEventTypeOnlyMessage(trimmed) ||
+    isOccasionMealEventType(trimmed) ||
+    isStandaloneMealEventType(trimmed)
+  ) {
+    return null;
+  }
   if (!isServiceRelatedMessage(trimmed) && !EVENT_CONTEXT_PATTERN.test(trimmed)) {
     if (!/\b(quiero|necesito|busco|cotizar|precio|incluye)\b/i.test(trimmed)) return null;
   }
@@ -611,6 +632,8 @@ export function getServiceKnowledge(query: string): ServiceKnowledgeResult | nul
       guardAck: buildLevel3Ack(label),
     };
   }
+
+  if (/^(Cena|Comida)$/i.test(label) && !hasSheetKnowledge(trimmed)) return null;
 
   // A16511: sala nombrada (Luxor Rosa…) sí está en catálogo de salas → nunca "no lo tengo listado".
   if (parseSalaProductFromText(trimmed)) {

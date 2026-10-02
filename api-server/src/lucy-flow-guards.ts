@@ -240,6 +240,9 @@ import {
   recoverZonaFromUserTexts,
   isUnusableTipoEventoReply,
   isEventTypeOnlyMessage,
+  isOccasionMealEventType,
+  isStandaloneMealEventType,
+  conversationHasOccasionMealContext,
   isReferentialPriorAnswer,
   isLocationMetaReferential,
   clientComplainsAboutRepeat,
@@ -1172,6 +1175,21 @@ function repairKnownCatalogAndBudgetRepeat(
     if (!/anoto tu/i.test(out)) {
       out = `Perfecto. Anoto tu *${tipo}*. ${out}`.trim();
     }
+  }
+  if (
+    /no lo tengo listado/i.test(out) &&
+    (isOccasionMealEventType(currentMessage) ||
+      isStandaloneMealEventType(currentMessage) ||
+      /\*(Cena|Comida)\*[^.]{0,40}no lo tengo listado/i.test(out))
+  ) {
+    const userBlob = collectUserTexts(history, currentMessage).join("\n");
+    const mealSource =
+      isOccasionMealEventType(currentMessage) || isStandaloneMealEventType(currentMessage)
+        ? currentMessage!
+        : conversationHasOccasionMealContext([userBlob])
+          ? userBlob
+          : "Cena";
+    out = buildGuardServiceAck(mealSource);
   }
   const lastAssistant = [...history]
     .reverse()
@@ -4615,6 +4633,70 @@ export function avoidRepeatPreviousReply(
   return q;
 }
 
+/**
+ * Pregunta de embudo que sigue casi igual a la del turno anterior (el cliente no contestó):
+ * pide el siguiente dato pendiente con otra frase en vez de repetir el mismo texto.
+ */
+function breakRepeatIfStillSimilar(
+  mensaje: string,
+  presHistory: OpenAI.Chat.ChatCompletionMessageParam[],
+  ctx: NaturalQuestionContext,
+  filledSet: Set<string>,
+  extracted: ExtractedData
+): string {
+  if (!mensaje.includes("?") || mensaje.length > 400) return mensaje;
+  const last = [...presHistory]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string")?.content as
+    | string
+    | undefined;
+  if (!last?.trim() || textOverlapRatio(mensaje, last) < 0.62) return mensaje;
+  const pending = getNextPendingField(extracted, filledSet);
+  if (!pending) return mensaje;
+  const nextQ = buildNaturalQuestion(pending, ctx);
+  if (textOverlapRatio(nextQ, last) >= 0.55) return mensaje;
+  return `${pickTransition(presHistory)} ${nextQ}`.trim();
+}
+
+/** Quita de una línea la pregunta «¿…?» que pide correo; si no se puede aislar, quita la línea. */
+function dropCorreoQuestion(line: string): string {
+  const idx = line.lastIndexOf("¿");
+  if (idx > 0) {
+    const tail = line.slice(idx);
+    if (mensajeAsksForField(tail, "correo") || softAsksFilledField(tail, "correo")) {
+      return line.slice(0, idx).trim();
+    }
+  }
+  return "";
+}
+
+/** Tras CORREO_MAX_ASKS sin respuesta, ningún camino del embudo vuelve a pedir correo. */
+function enforceCorreoAskCap(
+  mensaje: string,
+  presHistory: OpenAI.Chat.ChatCompletionMessageParam[],
+  filledSet: Set<string>,
+  extracted: ExtractedData,
+  ctx: NaturalQuestionContext
+): string {
+  if (isEmailSatisfied(filledSet, extracted)) return mensaje;
+  if (countLucyFieldAsks(presHistory, "correo") < CORREO_MAX_ASKS) return mensaje;
+  const asks = (t: string) => mensajeAsksForField(t, "correo") || softAsksFilledField(t, "correo");
+  if (!asks(mensaje)) return mensaje;
+  const kept = mensaje
+    .split("\n")
+    .map((line) => (asks(line) ? dropCorreoQuestion(line) : line))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  const skipEmail = new Set(filledSet);
+  skipEmail.add("Correo electrónico");
+  const pending = getNextPendingField(extracted, skipEmail);
+  const nextQ =
+    pending && pending !== "correo" ? buildNaturalQuestion(pending, { ...ctx, filledSet: skipEmail }) : "";
+  const out = [kept, nextQ].filter(Boolean).join("\n\n").trim();
+  return out || mensaje;
+}
+
 /** Si ya capturamos un dato, no volver a preguntarlo — pide el siguiente pendiente. */
 function redirectIfAskingFilledField(
   mensaje: string,
@@ -6128,6 +6210,33 @@ function responseLooksLikePrematureClose(mensaje: string): boolean {
     /cdn\.shopify\.com/i.test(mensaje) ||
     /cat[aá]logo completo/i.test(mensaje) ||
     /ya tengo todos los datos/i.test(mensaje)
+  );
+}
+
+/** Solo el mensaje actual: mirar turnos viejos haría repetir el precio en vez de cerrar. */
+function clientAsksPriceOrDetailNow(message?: string): boolean {
+  return (
+    clientAsksPrice(message) ||
+    clientAsksNamedServiceDetail(message) ||
+    clientAsksInclusion(message) ||
+    clientAsksServiceInfo(message)
+  );
+}
+
+function looksLikeClosingDraft(text: string): boolean {
+  return responseLooksLikePrematureClose(text) || /\bya tengo todo\b/i.test(text);
+}
+
+function answerPriceOrDetailInsteadOfClosing(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
+): string {
+  const msg = currentMessage ?? "";
+  return (
+    buildCatalogPriceAnswer(msg) ||
+    buildCatalogServiceDetailAnswer(msg) ||
+    buildGenericPriceClarifyReply(extracted, history, currentMessage)
   );
 }
 
@@ -11932,19 +12041,31 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
         );
     log?.info({ entityId }, "GUARD: follow-up de servicios ya hecho — avanzar");
   } else if (trulyReadyForClosing && !cierreYaEnviado) {
-    mensaje = buildClosing(
-      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-      extracted.nombre
-    );
-    log?.info({ entityId }, "Datos completos — mensaje de cierre desde plantilla");
-  } else {
-    mensaje = aiResponse;
-    if (aiResponse.includes("DATOS DEL CLIENTE:") || aiResponse.includes("Información completa obtenida")) {
+    if (clientAsksPriceOrDetailNow(currentMessage)) {
+      mensaje = looksLikeClosingDraft(aiResponse)
+        ? answerPriceOrDetailInsteadOfClosing(extracted, presHistory, currentMessage)
+        : aiResponse;
+      log?.info({ entityId }, "GUARD: cierre pospuesto — el cliente pidió precio/detalle en este mensaje");
+    } else {
       mensaje = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
         extracted.nombre
       );
+      log?.info({ entityId }, "Datos completos — mensaje de cierre desde plantilla");
+    }
+  } else {
+    mensaje = aiResponse;
+    if (aiResponse.includes("DATOS DEL CLIENTE:") || aiResponse.includes("Información completa obtenida")) {
+      mensaje = clientAsksPriceOrDetailNow(currentMessage)
+        ? answerPriceOrDetailInsteadOfClosing(extracted, presHistory, currentMessage)
+        : buildClosing(
+            extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+            extracted.nombre
+          );
       log?.warn({ entityId }, "GPT generó nota interna — usando cierre desde plantilla");
+    } else if (looksLikeClosingDraft(aiResponse) && clientAsksPriceOrDetailNow(currentMessage)) {
+      mensaje = answerPriceOrDetailInsteadOfClosing(extracted, presHistory, currentMessage);
+      log?.info({ entityId }, "GUARD: cierre GPT reemplazado — el cliente pidió precio/detalle");
     }
   }
 
@@ -12273,7 +12394,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       }
     } else if (
       correoAsks >= CORREO_MAX_ASKS &&
-      mensajeAsksForField(mensaje, "correo")
+      (mensajeAsksForField(mensaje, "correo") || softAsksFilledField(mensaje, "correo"))
     ) {
       const skipEmail = new Set(filledSet);
       skipEmail.add("Correo electrónico");
@@ -12718,6 +12839,20 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
+  if (
+    !cierreYaEnviado &&
+    !trulyReadyForClosing &&
+    !clientAskedFreeformQuestion(currentMessage) &&
+    !clientAsksPrice(currentMessage) &&
+    !clientAsksNamedServiceDetail(currentMessage) &&
+    !clientAsksInclusion(currentMessage) &&
+    !clientAsksServiceInfo(currentMessage)
+  ) {
+    mensaje = breakRepeatIfStillSimilar(mensaje, presHistory, ctx, filledSet, extracted);
+  }
+  if (!cierreYaEnviado && !trulyReadyForClosing) {
+    mensaje = enforceCorreoAskCap(mensaje, presHistory, filledSet, extracted, ctx);
+  }
 
   // A15701+/A15791+: si ya hay ciudad usable (mensaje, historial o extracted), no re-preguntar zona.
   if (

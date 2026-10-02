@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import {
   parseTipoEventoFromText,
   isOccasionMealEventType,
+  isStandaloneMealEventType,
   isEventTypeOnlyMessage,
   parseServicesFromText,
   parsePrimaryService,
@@ -29,6 +30,14 @@ assert.ok(/^V10\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
 const occasion = "Cena conmemorativa por día del médico";
 assert.equal(isOccasionMealEventType(occasion), true);
 assert.equal(isEventTypeOnlyMessage(occasion), true);
+
+// «Cena» suelto como tipo de evento ≠ SKU Level-2.
+assert.equal(isEventTypeOnlyMessage("Cena"), true);
+assert.equal(isStandaloneMealEventType("Cena"), true);
+assert.equal(isStandaloneMealEventType("Necesito una cena para 50 personas con banquete"), false);
+assert.ok(!parseServicesFromText("Cena").includes("Cena"));
+assert.equal(getServiceKnowledge("Cena"), null);
+assert.ok(!/no lo tengo listado/i.test(buildGuardServiceAck("Cena")), buildGuardServiceAck("Cena"));
 assert.equal(parseTipoEventoFromText(occasion), "cena conmemorativa");
 assert.ok(!parseServicesFromText(occasion).includes("Cena"), parseServicesFromText(occasion));
 assert.ok(!/Cena/i.test(parsePrimaryService(occasion) ?? ""));
