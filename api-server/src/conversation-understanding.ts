@@ -4954,6 +4954,7 @@ function normalizeHorarioCapture(text: string): string {
   return text
     // A16309: "Sería a las 8 de la noche" → no guardar el "Sería".
     .replace(/^(?:ser[ií]a|ser[aá]|ser[ií]an|es)\s+/i, "")
+    .replace(/^aproximadamente\s+/i, "")
     .replace(/^a\s+las\s+/i, "")
     .replace(/^(?:a\s+)?partir\s+de\s+(?:las\s+)?/i, "a partir de las ")
     .replace(/^desde\s+(?:las\s+)?/i, "desde las ")
@@ -4965,6 +4966,37 @@ function normalizeHorarioCapture(text: string): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 80);
+}
+
+/** Quita fecha al inicio para parsear solo el horario (ej. "06 de noviembre El cóctel…"). */
+export function stripLeadingFechaFromScheduleText(text: string): string {
+  const t = text.trim();
+  if (!t) return t;
+  const fecha = parseFechaFromText(t);
+  if (!fecha) return t;
+  const escaped = fecha.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const rest = t
+    .replace(new RegExp(`^\\s*(?:el\\s+)?${escaped}\\b[\\s,.:;-]*`, "i"), "")
+    .trim();
+  return rest || t;
+}
+
+/** Limpia horario_evento CRM: sin fecha embebida ni filler «Sería…». */
+export function polishHorarioEventoCapture(value: string | null | undefined): string | null {
+  const raw = (value ?? "").trim();
+  if (!raw) return null;
+  let h = normalizeHorarioCapture(raw);
+  if (/\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(h)) {
+    const stripped = stripLeadingFechaFromScheduleText(h);
+    const reparsed = parseHorarioFromText(stripped);
+    if (reparsed) return reparsed;
+    h = stripped;
+  }
+  if (/^(?:ser[ií]a|ser[aá])\s+/i.test(h)) {
+    const reparsed = parseHorarioFromText(h);
+    if (reparsed) return reparsed;
+  }
+  return h.slice(0, 80);
 }
 
 /**
@@ -5202,6 +5234,7 @@ export function parseClockRangeWithPeriods(text: string): string | null {
 export function parseHorarioFromText(text: string): string | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
+  if (/\bes\s+un[ao]\s+(boda|fiesta|evento|celebraci|xv|quincea[nñ]era)\b/i.test(trimmed)) return null;
   if (isPromoTemplateMessage(trimmed)) return null;
   const stripped = stripPromoTemplateMetadata(trimmed);
   if (!stripped) return null;
@@ -5240,6 +5273,28 @@ export function parseHorarioFromText(text: string): string | null {
     return null;
   }
 
+  // A16583: "sería aproximadamente a las 9:30 pm" → solo hora.
+  {
+    const approxSeria = clean.match(
+      /^(?:ser[ií]a|ser[aá]|es)\s+(?:aproximadamente\s+)?(?:a\s+las?\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.\s*m\.?|p\.\s*m\.?)?)/i
+    );
+    if (approxSeria?.[1]) {
+      return normalizeHorarioCapture(`a las ${approxSeria[1].replace(/\./g, ":")}`);
+    }
+  }
+
+  // A16583: cóctel con rango empieza/termina (fecha aparte en fecha_evento).
+  {
+    const cocktailRange = clean.match(
+      /\b(?:empieza|inicia|comienza)\s+(?:a\s+las?\s+)?(\d{1,2}(?:[.:]\d{2})?\s*(?:am|pm|a\.\s*m\.?|p\.\s*m\.?)?)\s+(?:y\s+)?(?:termina|acaba|finaliza)\s+(?:a\s+las?\s+)?(\d{1,2}(?:[.:]\d{2})?[^.]{0,35})/i
+    );
+    if (cocktailRange) {
+      const start = cocktailRange[1].replace(/\./g, ":").trim();
+      const end = cocktailRange[2].replace(/\./g, ":").trim();
+      return normalizeHorarioCapture(`de ${start} a ${end}`);
+    }
+  }
+
   if (isClockTimeOnlySchedule(clean)) return normalizeHorarioCapture(clean);
   if (isMealTimeOnlySchedule(clean)) return clean;
 
@@ -5260,7 +5315,13 @@ export function parseHorarioFromText(text: string): string | null {
     );
     if (bareALas?.[1]) return normalizeHorarioCapture(bareALas[1]);
     if (/medio\s*d[ií]a/i.test(clean)) return "a medio día";
-    return clean.slice(0, 80);
+    const withoutFecha = stripLeadingFechaFromScheduleText(clean);
+    if (withoutFecha !== clean) {
+      const sub = parseHorarioFromText(withoutFecha);
+      if (sub) return sub;
+      return normalizeHorarioCapture(withoutFecha).slice(0, 80);
+    }
+    return normalizeHorarioCapture(clean).slice(0, 80);
   }
 
   const horarioLabel = clean.match(/\bhorario\s*:?\s*(.+)$/i);
@@ -5492,7 +5553,8 @@ export function splitCombinedFechaHorario(combined: string): {
   if (horario) return { fecha: null, horario };
   if (isUsableFechaHorario(t)) return { fecha: t, horario: null };
   if (isUsableHorarioEvento(t)) return { fecha: null, horario: t };
-  return { fecha: t, horario: null };
+  if (fecha && isUsableFechaEvento(fecha)) return { fecha, horario: null };
+  return { fecha: null, horario: null };
 }
 
 /** Fecha usable para embudo (solo día/mes; no horario suelto). */
@@ -5549,6 +5611,10 @@ export function isRicherHorarioCapture(
 
 /** Hidrata fecha_evento/horario_evento desde CRM legacy o combinado. */
 export function hydrateScheduleFields(extracted: ExtractedData): void {
+  if (extracted.horario_evento?.trim()) {
+    const polished = polishHorarioEventoCapture(extracted.horario_evento);
+    extracted.horario_evento = polished ?? extracted.horario_evento;
+  }
   if (extracted.fecha_evento?.trim() || extracted.horario_evento?.trim()) {
     syncLegacyFechaHorarioField(extracted);
     return;
@@ -5586,6 +5652,21 @@ export function isUsableFechaHorario(value: string | null | undefined): boolean 
   if (isMealTimeOnlySchedule(t)) return false;
   if (isClockTimeOnlySchedule(t)) return false;
   if (looksLikeFechaDiscourseJunk(t)) return false;
+  // A16583: "3 fechas diferentes a las 10am" = indecisión de horario, no fecha CRM.
+  if (/\b\d+\s+fechas?\s+diferentes\b/i.test(t)) return false;
+  if (/\bfechas?\s+diferentes\b/i.test(t) && /\b(a\s+las|am|pm|hrs?)\b/i.test(t)) return false;
+  // Solo hora sin ancla de calendario.
+  if (
+    /\ba\s+las\s+\d/i.test(t) &&
+    !MONTH_PATTERN.test(t) &&
+    !/\b\d{1,2}\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+      t
+    ) &&
+    t.split(/\s+/).length <= 10
+  ) {
+    return false;
+  }
+  if (/^(?:ser[ií]a|ser[aá])\s+(?:aproximadamente\s+)?a\s+las\s+\d/i.test(t)) return false;
   // A16434: "atardecer" / "en la noche" es momento del día, no fecha.
   if (
     /^(?:(?:ser[ií]a|es)\s+)?(?:en\s+(?:el|la)\s+|al\s+|por\s+la\s+|a\s+la\s+|de\s+)?(atardecer|anochecer|amanecer|tarde|noche|mediod[ií]a|medio\s+d[ií]a|madrugada|puesta\s+de\s+sol)\s*[\p{Extended_Pictographic}\s]*$/iu.test(

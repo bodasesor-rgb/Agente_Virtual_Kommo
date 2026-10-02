@@ -114,4 +114,48 @@ const afterMax = runGuards({
 assert.ok(!/correo|e-?mail/i.test(afterMax), afterMax);
 assert.match(afterMax, /\?/, afterMax);
 
+// Sin correo ahora (compu en reparación) → waiver, no cierre «ya tengo todo» con embudo incompleto.
+const noEmailFilled = new Set([...coreFilled]);
+noEmailFilled.delete("Correo electrónico");
+noEmailFilled.delete("Presupuesto (MXN)");
+const rafaelaMsg =
+  "No tengo correo ahorita ,si tengo pero mi compu la mandé arreglar soy escritora me llamo Rafaela de";
+assert.ok(detectEmailRefusal([rafaelaMsg]));
+const noEmailClose = runGuards({
+  aiResponse: "Perfecto, ya tengo todo. Le paso esta información al equipo para preparar la cotización.",
+  extracted: { ...extracted, correo: null, presupuesto: null },
+  filledSet: noEmailFilled,
+  readyForClosing: false,
+  currentMessage: rafaelaMsg,
+});
+assert.ok(!/ya tengo todo/i.test(noEmailClose), noEmailClose.slice(0, 300));
+assert.ok(
+  noEmailClose.includes("?") || noEmailClose.toLowerCase().includes("whatsapp"),
+  noEmailClose
+);
+
+// Pide asesor + cotización con datos incompletos → embudo, no cierre.
+const partialFilled = new Set(["Nombre del cliente", "Requerimientos o servicios"]);
+const advisorQuote = runGuards({
+  aiResponse: "Perfecto, ya tengo todo. Nuestro equipo preparará una cotización personalizada.",
+  extracted: {
+    ...extracted,
+    correo: null,
+    tipo_evento: null,
+    fecha_evento: null,
+    horario_evento: null,
+    num_invitados: null,
+    presupuesto: null,
+    direccion_evento: null,
+  },
+  filledSet: partialFilled,
+  readyForClosing: false,
+  currentMessage: "Quiero un asesor que me envíe la cotización por favor",
+});
+assert.ok(!/ya tengo todo/i.test(advisorQuote), advisorQuote.slice(0, 300));
+assert.ok(
+  /\?/.test(advisorQuote) || /asesor|equipo|0373/i.test(advisorQuote),
+  advisorQuote.slice(0, 200)
+);
+
 console.log("reparaciones-premature-close smoke OK");

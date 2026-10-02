@@ -4605,6 +4605,22 @@ export function avoidRepeatPreviousReply(
   const last = prev[prev.length - 1]!;
   if (maxOverlap < 0.68) return mensaje;
 
+  // A16583: acuse/cierre casi idéntico ("Recibido… ya tengo todos los detalles…").
+  if (
+    /ya tengo todos los detalles|arme la propuesta|recibido,\s*\p{L}/iu.test(mensaje) &&
+    maxOverlap >= 0.62
+  ) {
+    const strippedPitch = mensaje
+      .replace(/^[^¿?]*?(?=¿)/, "")
+      .replace(/^recibido[^.!?]*[.!?]\s*/i, "")
+      .replace(/^¡?mucho gusto[^.!?]*[.!?]\s*/i, "")
+      .trim();
+    const withTransition = `${pickTransition(presHistory)} ${strippedPitch || mensaje}`.trim();
+    if (textOverlapRatio(withTransition, last) < 0.62) return withTransition;
+    const bareQuestion = extractTrailingQuestion(mensaje);
+    if (bareQuestion && textOverlapRatio(bareQuestion, last) < 0.65) return bareQuestion;
+  }
+
   let out = mensaje
     .replace(/^Hola,?\s*soy\s+Lucy[^.]*\.\s*/i, "")
     .replace(TRANSITION_START_PATTERN, pickTransition(presHistory));
@@ -6719,6 +6735,14 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
 
   // A16503: rechazó el correo en este turno → ninguna red posterior lo vuelve a pedir.
   if (emailRefusedThisTurn && !extracted.correo?.trim()) filledSet.add(EMAIL_WAIVED_LABEL);
+  if (
+    !emailRefusedThisTurn &&
+    currentMessage?.trim() &&
+    detectEmailRefusal([currentMessage]) &&
+    !extracted.correo?.trim()
+  ) {
+    filledSet.add(EMAIL_WAIVED_LABEL);
+  }
   if (extracted.nombre?.trim()) {
     const sinTratamiento = stripNameHonorific(extracted.nombre);
     if (sinTratamiento !== extracted.nombre.trim()) extracted.nombre = sinTratamiento || null;
@@ -8690,7 +8714,8 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       );
     }
     const display = getDisplayName(extracted, whatsappDisplayName);
-    if (isReadyForClosing(filledSet) || isEmailSatisfied(filledSet, extracted)) {
+    const pendingQuote = getNextPendingField(extracted, filledSet);
+    if (isReadyForClosing(filledSet) && !pendingQuote) {
       const close = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
         extracted.nombre
@@ -8698,7 +8723,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       log?.info({ entityId }, "GUARD: A15627 — cotización pedida → cierre (no catálogo)");
       return normalizeAdvisorReferences(close, extracted.nombre ?? display);
     }
-    const pending = getNextPendingField(extracted, filledSet);
+    const pending = pendingQuote;
     const hasProgress = funnelHasSubstance(filledSet, extracted);
     const ack = hasProgress
       ? display
@@ -13775,11 +13800,11 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   // V9.26 / V9.36: nunca salir con ack muerto ni "ya tengo todo" si falta embudo.
   if (!cierreYaEnviado && !trulyReadyForClosing) {
     const pendingDead = getNextPendingField(extracted, filledSet);
-    if (pendingDead && (looksLikeDeadEndAck(mensaje) || responseLooksLikePrematureClose(mensaje))) {
+    if (pendingDead && (looksLikeDeadEndAck(mensaje) || looksLikeClosingDraft(mensaje))) {
       const nextQ = buildNaturalQuestion(pendingDead, ctx);
       const display = getDisplayName(extracted, whatsappDisplayName);
       const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
-      mensaje = looksLikeDeadEndAck(mensaje) && !responseLooksLikePrematureClose(mensaje)
+      mensaje = looksLikeDeadEndAck(mensaje) && !looksLikeClosingDraft(mensaje)
         ? `${mensaje.trim()}\n\n${nextQ}`
         : `${ack} ${nextQ}`;
       log?.info({ entityId, pending: pendingDead }, "GUARD: V9.36 — corte de chat → sigue embudo");
@@ -13843,6 +13868,29 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
           ? buildNaturalQuestion(pending, ctx)
           : null;
       mensaje = nextQ ? `${ack} ${nextQ}` : ack;
+    }
+  }
+
+  // A16583: GPT cerró «ya tengo todo» pero el turno aún no está listo para cierre (p. ej. sin correo).
+  if (!cierreYaEnviado && !readyForClosing && looksLikeClosingDraft(mensaje)) {
+    const pendingFinal = getNextPendingField(extracted, filledSet);
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    if (pendingFinal) {
+      mensaje = `${display ? `Perfecto, ${display}.` : "Perfecto."} ${buildNaturalQuestion(pendingFinal, ctx)}`;
+      log?.info({ entityId, pending: pendingFinal }, "GUARD: cierre GPT bloqueado — falta embudo");
+    } else if (
+      filledSet.has(EMAIL_WAIVED_LABEL) &&
+      currentMessage &&
+      detectEmailRefusal([currentMessage])
+    ) {
+      mensaje = emailRefusalAckMessage(
+        extracted,
+        presHistory,
+        currentMessage,
+        entityId,
+        filledSet
+      );
+      log?.info({ entityId }, "GUARD: cierre GPT bloqueado — correo diferido");
     }
   }
 

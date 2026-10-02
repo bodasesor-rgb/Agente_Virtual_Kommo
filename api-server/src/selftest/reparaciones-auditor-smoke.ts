@@ -42,6 +42,18 @@ const close = runAuditorHeuristics([
 ]);
 assert.ok(close.some((f) => f.category === "premature_close"), JSON.stringify(close));
 
+const advisorHandoff = runAuditorHeuristics([
+  { role: "user", content: "Quiero un asesor que me envíe la cotización por favor" },
+  {
+    role: "assistant",
+    content: "Perfecto, ya tengo todo. Nuestro equipo preparará una cotización personalizada.",
+  },
+]);
+assert.ok(
+  !advisorHandoff.some((f) => f.category === "premature_close"),
+  JSON.stringify(advisorHandoff)
+);
+
 const bad = runAuditorHeuristics([
   { role: "user", content: "Cena conmemorativa por día del médico" },
   {
