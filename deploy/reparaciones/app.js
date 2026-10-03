@@ -109,7 +109,9 @@ function jobCardHtml(j) {
       <div class="job-head">
         ${live ? '<span class="pulse" aria-hidden="true"></span>' : ""}
         <strong>${escapeHtml(head.text)}</strong>
-        <span class="muted">${escapeHtml((j.repairIds || []).length)} reparación(es) · ${new Date(j.createdAt).toLocaleString("es-MX")}</span>
+        <span class="muted">${escapeHtml((j.repairIds || []).length)} reparación(es) · ${new Date(j.createdAt).toLocaleString("es-MX")}${
+          j.model ? ` · ${escapeHtml(j.model)}${j.escalatedFrom ? " (2.º intento)" : ""}` : ""
+        }</span>
       </div>
       ${j.error ? `<p class="job-error">${escapeHtml(j.error)}</p>` : ""}
       ${problems ? `<ul class="job-problems">${problems}</ul>` : ""}
@@ -142,7 +144,7 @@ async function loadJobs() {
   jobsEl.classList.toggle("hidden", recent.length === 0 && agentConfigured);
   if (jobsNoteEl) {
     jobsNoteEl.textContent = agentConfigured
-      ? `${data.jobs_today ?? 0}/${data.max_jobs_per_day ?? 12} envíos hoy${data.model ? ` · ${data.model}` : ""}${data.auto_publish ? " · publica solo" : ""}`
+      ? `${data.jobs_today ?? 0}/${data.max_jobs_per_day ?? 12} envíos hoy${data.model ? ` · ${data.model}` : ""}${data.fallback_model ? ` → ${data.fallback_model} si no puede` : ""}${data.auto_publish ? " · publica solo" : ""}`
       : "Falta CURSOR_API_KEY en Hostinger: sin ella no hay avance en vivo.";
   }
   jobsListEl.innerHTML = recent.length

@@ -13,6 +13,7 @@ import { logger } from "../lib/logger.js";
 import {
   cleanupLucyRepairBacklog,
   dismissLucyRepair,
+  getLucyRepair,
   listLucyRepairs,
   markLucyRepairsInProgress,
   releaseLucyRepairs,
@@ -81,6 +82,10 @@ export interface RepairJob {
   liveAt?: string;
   durationMs?: number;
   model?: string;
+  /** 2.º intento con el modelo fuerte: id del trabajo original. */
+  escalatedFrom?: string;
+  /** Problemas que este trabajo no resolvió y pasan al modelo fuerte. */
+  escalation?: { ids: string[]; reason: string; jobId?: string; skipped?: string };
   lastEventId?: string;
   publishLastEventId?: string;
   streamExpired?: boolean;
@@ -108,6 +113,7 @@ function repoUrl(): string {
 const DEFAULT_MAX_JOBS_PER_DAY = 12;
 const DEFAULT_MAX_PROBLEMS = 15;
 const DEFAULT_MODEL = "composer-2.5";
+const DEFAULT_FALLBACK_MODEL = "claude-sonnet-5.5";
 
 function maxJobsPerDay(): number {
   const n = Number(process.env["LUCY_REPAIR_MAX_JOBS_PER_DAY"] ?? DEFAULT_MAX_JOBS_PER_DAY);
@@ -254,22 +260,22 @@ type ApiModel = {
 
 export type RepairModelSelection = { id: string; params?: Array<{ id: string; value: string }> };
 
-let modelCache: { key: string; at: number; selection: RepairModelSelection | null } | null = null;
+const modelCache = new Map<string, { at: number; selection: RepairModelSelection | null }>();
 
 function normModelName(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9.]/g, "");
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 /**
  * `GET /v1/models` da los ids válidos; si el pedido no existe se usa el modelo por defecto
  * de la cuenta en vez de fallar al crear el agente. «fast» cuesta más: por defecto apagado.
  */
-async function resolveRepairModel(): Promise<RepairModelSelection | null> {
-  const wanted = requestedModel();
+async function resolveRepairModel(wanted = requestedModel()): Promise<RepairModelSelection | null> {
   const fast = (process.env["LUCY_REPAIR_MODEL_FAST"]?.trim() || "false").toLowerCase();
   const key = `${wanted}|${fast}`;
-  const ttl = modelCache?.selection ? 6 * 60 * 60 * 1000 : 10 * 60 * 1000;
-  if (modelCache && modelCache.key === key && Date.now() - modelCache.at < ttl) return modelCache.selection;
+  const cached = modelCache.get(key);
+  const ttl = cached?.selection ? 6 * 60 * 60 * 1000 : 10 * 60 * 1000;
+  if (cached && Date.now() - cached.at < ttl) return cached.selection;
 
   let selection: RepairModelSelection | null = null;
   try {
@@ -289,8 +295,15 @@ async function resolveRepairModel(): Promise<RepairModelSelection | null> {
   } catch (err) {
     logger.warn({ err: String(err) }, "No pude listar modelos de Cursor — uso el default");
   }
-  modelCache = { key, at: Date.now(), selection };
+  modelCache.set(key, { at: Date.now(), selection });
   return selection;
+}
+
+/** Modelo fuerte para el 2.º intento cuando el principal no pudo. «0» lo apaga. */
+function fallbackModelName(): string | null {
+  const v = process.env["LUCY_REPAIR_FALLBACK_MODEL"]?.trim();
+  if (v && /^(0|no|none|false)$/i.test(v)) return null;
+  return v || DEFAULT_FALLBACK_MODEL;
 }
 
 type ApiRun = {
@@ -603,10 +616,10 @@ async function applyRunTerminal(job: RepairJob, runId: string, run: ApiRun): Pro
           await resolvePublishedRepairs(job);
           return;
         }
-        touch(job, { status: "fix_ready", error: pub.text ?? "No se pudo publicar." });
+        await failPublish(job, pub.text ?? "No se pudo publicar.");
         return;
       }
-      touch(job, { status: "fix_ready", error: `La publicación terminó en ${status}.` });
+      await failPublish(job, `La publicación terminó en ${status}.`);
       return;
     }
 
@@ -621,12 +634,19 @@ async function applyRunTerminal(job: RepairJob, runId: string, run: ApiRun): Pro
             await dismissLucyRepair(id, "cursor-agent", `Falso positivo (agente Cursor): ${fp.text}`);
           }
         }
-        const notFixedIds = expandToGroups(job, outcome.notFixed.flatMap((x) => x.ids));
+      }
+      let notFixedIds: string[] = [];
+      if (outcome) {
+        notFixedIds = expandToGroups(job, outcome.notFixed.flatMap((x) => x.ids));
         if (notFixedIds.length) await releaseLucyRepairs(notFixedIds);
       }
       const hasChanges = Boolean(branch);
       if (!hasChanges) {
-        await releaseLucyRepairs(job.repairIds.filter((id) => !falsePositiveIds.has(id)));
+        const leftover = job.repairIds.filter((id) => !falsePositiveIds.has(id));
+        await releaseLucyRepairs(leftover);
+        queueEscalation(job, leftover, "no logró cambiar el código");
+      } else {
+        queueEscalation(job, notFixedIds, "dijo que no pudo con estos");
       }
       addStep(job, hasChanges ? "Arreglo listo para publicar" : "Terminó sin cambios de código");
       touch(job, {
@@ -651,8 +671,90 @@ async function applyRunTerminal(job: RepairJob, runId: string, run: ApiRun): Pro
       prUrl,
       finishedAt: new Date().toISOString(),
     });
+    if (status !== "CANCELLED") queueEscalation(job, job.repairIds, `terminó en ${status}`);
   } finally {
     applying.delete(key);
+    void launchPendingEscalations();
+  }
+}
+
+/**
+ * Publicar falló (pruebas rotas, conflicto…). Con publicación automática no hay quien lo
+ * revise: se descarta y el modelo fuerte lo intenta desde el main actual.
+ */
+async function failPublish(job: RepairJob, reason: string): Promise<void> {
+  if (!autoPublish() || !canEscalate(job)) {
+    touch(job, { status: "fix_ready", error: reason });
+    return;
+  }
+  const settled = new Set(
+    expandToGroups(job, [
+      ...(job.outcome?.falsePositive ?? []).flatMap((x) => x.ids),
+      ...(job.outcome?.notFixed ?? []).flatMap((x) => x.ids),
+    ])
+  );
+  const ids = job.repairIds.filter((id) => !settled.has(id));
+  await releaseLucyRepairs(ids);
+  addStep(job, `No se publicó: ${reason.slice(0, 160)}`);
+  touch(job, { status: "discarded", error: reason, finishedAt: new Date().toISOString() });
+  queueEscalation(job, ids, "su arreglo no pasó las pruebas al publicar");
+}
+
+function canEscalate(job: RepairJob): boolean {
+  const fallback = fallbackModelName();
+  if (!fallback || job.escalatedFrom) return false;
+  return normModelName(job.model ?? "") !== normModelName(fallback);
+}
+
+function queueEscalation(job: RepairJob, ids: string[], reason: string): void {
+  const unique = [...new Set(ids)];
+  if (!unique.length || job.escalation || !canEscalate(job)) return;
+  addStep(job, `${unique.length} problema(s) pasan al modelo fuerte: ${reason}`);
+  touch(job, { escalation: { ids: unique, reason } });
+}
+
+let escalating: Promise<void> | null = null;
+
+/** Lanza (uno a la vez) los 2.º intentos pendientes con el modelo fuerte. */
+export function launchPendingEscalations(): Promise<void> {
+  escalating ??= runPendingEscalations().finally(() => {
+    escalating = null;
+  });
+  return escalating;
+}
+
+async function runPendingEscalations(): Promise<void> {
+  {
+    for (const job of loadJobs()) {
+      const esc = job.escalation;
+      if (!esc || esc.jobId || esc.skipped) continue;
+      if (loadJobs().some((j) => ACTIVE.has(j.status))) return;
+      const fallback = fallbackModelName();
+      const model = fallback ? await resolveRepairModel(fallback) : null;
+      if (!model) {
+        touch(job, { escalation: { ...esc, skipped: "modelo fuerte no disponible en la cuenta" } });
+        continue;
+      }
+      const repairs: LucyRepairDto[] = [];
+      for (const id of esc.ids) {
+        const r = await getLucyRepair(id);
+        if (r && (r.status === "open" || r.status === "auto_flagged")) repairs.push(r);
+      }
+      if (!repairs.length) {
+        touch(job, { escalation: { ...esc, skipped: "ya no quedan pendientes" } });
+        continue;
+      }
+      try {
+        const next = await launchRepairJob(repairs, { model, escalatedFrom: job.id });
+        addStep(job, `Reintento lanzado con ${model.id}`);
+        touch(job, { escalation: { ...esc, jobId: next.id } });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (err instanceof RepairJobError && err.code === "job_active") return;
+        touch(job, { escalation: { ...esc, skipped: msg.slice(0, 200) } });
+      }
+      return;
+    }
   }
 }
 
@@ -692,7 +794,10 @@ function jobsToday(): number {
   return loadJobs().filter((j) => j.createdAt.slice(0, 10) === day).length;
 }
 
-export async function launchRepairJob(repairs: LucyRepairDto[]): Promise<RepairJob> {
+export async function launchRepairJob(
+  repairs: LucyRepairDto[],
+  opts: { model?: RepairModelSelection; escalatedFrom?: string } = {}
+): Promise<RepairJob> {
   if (!isCursorAgentConfigured()) {
     throw new RepairJobError("cursor_not_configured", "Falta CURSOR_API_KEY en Hostinger.", 503);
   }
@@ -709,7 +814,7 @@ export async function launchRepairJob(repairs: LucyRepairDto[]): Promise<RepairJ
     );
   }
 
-  const model = await resolveRepairModel();
+  const model = opts.model ?? (await resolveRepairModel());
   const groups = groupProblems(repairs);
   const created = await cursorApi<{ agent: { id: string; url?: string }; run: { id: string } }>("/v1/agents", {
     method: "POST",
@@ -733,6 +838,7 @@ export async function launchRepairJob(repairs: LucyRepairDto[]): Promise<RepairJ
     agentUrl: created.agent.url,
     runId: created.run.id,
     model: model?.id ?? "default",
+    ...(opts.escalatedFrom ? { escalatedFrom: opts.escalatedFrom } : {}),
     repairIds: repairs.map((r) => r.id),
     repairSigs: Object.fromEntries(repairs.map((r) => [r.id, sigOfRepair(r)])),
     problems: groups.map((g) => ({
@@ -832,6 +938,7 @@ export async function tickRepairJobs(): Promise<void> {
       }
     }
   }
+  await launchPendingEscalations();
 }
 
 /** Tras un reinicio posterior a publicar, el código nuevo ya está corriendo. */
@@ -862,15 +969,20 @@ export function repairAgentStatusSummary(): {
   configured: boolean;
   auto_publish: boolean;
   model: string;
+  fallback_model: string | null;
   max_jobs_per_day: number;
   jobs_today: number;
   active: { id: string; status: RepairJobStatus; since: string } | null;
 } {
   const active = loadJobs().find((j) => ACTIVE.has(j.status) || j.status === "fix_ready");
+  const resolvedName = (wanted: string) =>
+    [...modelCache.entries()].find(([k]) => k.startsWith(`${wanted}|`))?.[1].selection?.id ?? wanted;
+  const fallback = fallbackModelName();
   return {
     configured: isCursorAgentConfigured(),
     auto_publish: autoPublish(),
-    model: modelCache?.selection?.id ?? requestedModel(),
+    model: resolvedName(requestedModel()),
+    fallback_model: fallback ? resolvedName(fallback) : null,
     max_jobs_per_day: maxJobsPerDay(),
     jobs_today: jobsToday(),
     active: active ? { id: active.id, status: active.status, since: active.createdAt } : null,

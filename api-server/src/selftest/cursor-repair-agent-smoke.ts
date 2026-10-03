@@ -20,6 +20,7 @@ process.env["CURSOR_API_BASE"] = "https://cursor.mock";
 process.env["LUCY_REPAIR_AUTO_PUBLISH"] = "0";
 delete process.env["LUCY_REPAIR_MODEL"];
 delete process.env["LUCY_REPAIR_MODEL_FAST"];
+process.env["LUCY_REPAIR_FALLBACK_MODEL"] = "0";
 
 type MockRun = { status: string; result?: string; git?: unknown };
 const runs = new Map<string, MockRun>();
@@ -59,6 +60,7 @@ globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) =>
           displayName: "Composer 2.5",
           parameters: [{ id: "fast", values: [{ value: "false" }, { value: "true" }] }],
         },
+        { id: "claude-sonnet-5-5-high", displayName: "Claude Sonnet 5.5" },
       ],
     });
   }
@@ -331,6 +333,34 @@ runs.set(`${job6.agentId}/${job6.runId}`, {
 });
 await agent.tickRepairJobs();
 assert.equal(agent.getRepairJob(job6.id)!.status, "publishing", "auto-publica sin botón");
+
+// Composer no pasó las pruebas al publicar → se descarta y Sonnet lo reintenta una vez.
+process.env["LUCY_REPAIR_FALLBACK_MODEL"] = "claude-sonnet-5.5";
+runs.set(`${job6.agentId}/run-${job6.agentId}-pub`, {
+  status: "FINISHED",
+  result: '```json\n{"published":false,"text":"a15961 falla"}\n```',
+});
+await agent.tickRepairJobs();
+await agent.launchPendingEscalations();
+const failed6 = agent.getRepairJob(job6.id)!;
+assert.equal(failed6.status, "discarded");
+assert.ok(failed6.escalation?.jobId, JSON.stringify(failed6.escalation));
+const job7 = agent.getRepairJob(failed6.escalation!.jobId!)!;
+assert.equal(job7.model, "claude-sonnet-5-5-high");
+assert.equal(job7.escalatedFrom, job6.id);
+assert.deepEqual(job7.repairIds, [(await findLead("1200")).id]);
+const create7 = calls.filter((c) => c.method === "POST" && c.path === "/v1/agents").at(-1)!;
+assert.deepEqual((create7.body as { model?: { id: string } }).model, { id: "claude-sonnet-5-5-high" });
+// El 2.º intento no escala otra vez.
+runs.set(`${job7.agentId}/${job7.runId}`, {
+  status: "FINISHED",
+  result: "```json\n" + JSON.stringify({ fixed: [], falsePositive: [], notFixed: [{ ids: [job7.repairIds[0]], text: "no" }] }) + "\n```",
+});
+await agent.tickRepairJobs();
+await agent.launchPendingEscalations();
+assert.equal(agent.getRepairJob(job7.id)!.status, "no_changes");
+assert.equal(agent.getRepairJob(job7.id)!.escalation, undefined);
+assert.equal((await findLead("1200")).status, "auto_flagged");
 
 agent.__resetRepairJobsForTest();
 console.log("cursor-repair-agent smoke OK");

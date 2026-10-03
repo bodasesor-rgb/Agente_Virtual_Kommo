@@ -203855,6 +203855,7 @@ __export(cursorRepairAgent_exports, {
   describeToolCall: () => describeToolCall,
   getRepairJob: () => getRepairJob,
   isCursorAgentConfigured: () => isCursorAgentConfigured,
+  launchPendingEscalations: () => launchPendingEscalations,
   launchRepairJob: () => launchRepairJob,
   listRepairJobs: () => listRepairJobs,
   markPublishedJobsLive: () => markPublishedJobsLive,
@@ -203983,14 +203984,14 @@ async function cursorApi(path7, init2) {
   return data;
 }
 function normModelName(s7) {
-  return s7.toLowerCase().replace(/[^a-z0-9.]/g, "");
+  return s7.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
-async function resolveRepairModel() {
-  const wanted = requestedModel();
+async function resolveRepairModel(wanted = requestedModel()) {
   const fast = (process.env["LUCY_REPAIR_MODEL_FAST"]?.trim() || "false").toLowerCase();
   const key = `${wanted}|${fast}`;
-  const ttl = modelCache?.selection ? 6 * 60 * 60 * 1e3 : 10 * 60 * 1e3;
-  if (modelCache && modelCache.key === key && Date.now() - modelCache.at < ttl) return modelCache.selection;
+  const cached2 = modelCache.get(key);
+  const ttl = cached2?.selection ? 6 * 60 * 60 * 1e3 : 10 * 60 * 1e3;
+  if (cached2 && Date.now() - cached2.at < ttl) return cached2.selection;
   let selection = null;
   try {
     const { items = [] } = await cursorApi("/v1/models");
@@ -204007,8 +204008,13 @@ async function resolveRepairModel() {
   } catch (err2) {
     logger.warn({ err: String(err2) }, "No pude listar modelos de Cursor \u2014 uso el default");
   }
-  modelCache = { key, at: Date.now(), selection };
+  modelCache.set(key, { at: Date.now(), selection });
   return selection;
+}
+function fallbackModelName() {
+  const v4 = process.env["LUCY_REPAIR_FALLBACK_MODEL"]?.trim();
+  if (v4 && /^(0|no|none|false)$/i.test(v4)) return null;
+  return v4 || DEFAULT_FALLBACK_MODEL;
 }
 function groupProblems(repairs) {
   const groups = /* @__PURE__ */ new Map();
@@ -204251,10 +204257,10 @@ async function applyRunTerminal(job, runId, run2) {
           await resolvePublishedRepairs(job);
           return;
         }
-        touch(job, { status: "fix_ready", error: pub.text ?? "No se pudo publicar." });
+        await failPublish(job, pub.text ?? "No se pudo publicar.");
         return;
       }
-      touch(job, { status: "fix_ready", error: `La publicaci\xF3n termin\xF3 en ${status2}.` });
+      await failPublish(job, `La publicaci\xF3n termin\xF3 en ${status2}.`);
       return;
     }
     if (status2 === "FINISHED") {
@@ -204268,12 +204274,19 @@ async function applyRunTerminal(job, runId, run2) {
             await dismissLucyRepair(id, "cursor-agent", `Falso positivo (agente Cursor): ${fp.text}`);
           }
         }
-        const notFixedIds = expandToGroups(job, outcome.notFixed.flatMap((x8) => x8.ids));
+      }
+      let notFixedIds = [];
+      if (outcome) {
+        notFixedIds = expandToGroups(job, outcome.notFixed.flatMap((x8) => x8.ids));
         if (notFixedIds.length) await releaseLucyRepairs(notFixedIds);
       }
       const hasChanges = Boolean(branch);
       if (!hasChanges) {
-        await releaseLucyRepairs(job.repairIds.filter((id) => !falsePositiveIds.has(id)));
+        const leftover = job.repairIds.filter((id) => !falsePositiveIds.has(id));
+        await releaseLucyRepairs(leftover);
+        queueEscalation(job, leftover, "no logr\xF3 cambiar el c\xF3digo");
+      } else {
+        queueEscalation(job, notFixedIds, "dijo que no pudo con estos");
       }
       addStep(job, hasChanges ? "Arreglo listo para publicar" : "Termin\xF3 sin cambios de c\xF3digo");
       touch(job, {
@@ -204297,8 +204310,78 @@ async function applyRunTerminal(job, runId, run2) {
       prUrl,
       finishedAt: (/* @__PURE__ */ new Date()).toISOString()
     });
+    if (status2 !== "CANCELLED") queueEscalation(job, job.repairIds, `termin\xF3 en ${status2}`);
   } finally {
     applying.delete(key);
+    void launchPendingEscalations();
+  }
+}
+async function failPublish(job, reason) {
+  if (!autoPublish() || !canEscalate(job)) {
+    touch(job, { status: "fix_ready", error: reason });
+    return;
+  }
+  const settled = new Set(
+    expandToGroups(job, [
+      ...(job.outcome?.falsePositive ?? []).flatMap((x8) => x8.ids),
+      ...(job.outcome?.notFixed ?? []).flatMap((x8) => x8.ids)
+    ])
+  );
+  const ids = job.repairIds.filter((id) => !settled.has(id));
+  await releaseLucyRepairs(ids);
+  addStep(job, `No se public\xF3: ${reason.slice(0, 160)}`);
+  touch(job, { status: "discarded", error: reason, finishedAt: (/* @__PURE__ */ new Date()).toISOString() });
+  queueEscalation(job, ids, "su arreglo no pas\xF3 las pruebas al publicar");
+}
+function canEscalate(job) {
+  const fallback = fallbackModelName();
+  if (!fallback || job.escalatedFrom) return false;
+  return normModelName(job.model ?? "") !== normModelName(fallback);
+}
+function queueEscalation(job, ids, reason) {
+  const unique = [...new Set(ids)];
+  if (!unique.length || job.escalation || !canEscalate(job)) return;
+  addStep(job, `${unique.length} problema(s) pasan al modelo fuerte: ${reason}`);
+  touch(job, { escalation: { ids: unique, reason } });
+}
+function launchPendingEscalations() {
+  escalating ??= runPendingEscalations().finally(() => {
+    escalating = null;
+  });
+  return escalating;
+}
+async function runPendingEscalations() {
+  {
+    for (const job of loadJobs()) {
+      const esc = job.escalation;
+      if (!esc || esc.jobId || esc.skipped) continue;
+      if (loadJobs().some((j5) => ACTIVE.has(j5.status))) return;
+      const fallback = fallbackModelName();
+      const model = fallback ? await resolveRepairModel(fallback) : null;
+      if (!model) {
+        touch(job, { escalation: { ...esc, skipped: "modelo fuerte no disponible en la cuenta" } });
+        continue;
+      }
+      const repairs = [];
+      for (const id of esc.ids) {
+        const r5 = await getLucyRepair(id);
+        if (r5 && (r5.status === "open" || r5.status === "auto_flagged")) repairs.push(r5);
+      }
+      if (!repairs.length) {
+        touch(job, { escalation: { ...esc, skipped: "ya no quedan pendientes" } });
+        continue;
+      }
+      try {
+        const next = await launchRepairJob(repairs, { model, escalatedFrom: job.id });
+        addStep(job, `Reintento lanzado con ${model.id}`);
+        touch(job, { escalation: { ...esc, jobId: next.id } });
+      } catch (err2) {
+        const msg = err2 instanceof Error ? err2.message : String(err2);
+        if (err2 instanceof RepairJobError && err2.code === "job_active") return;
+        touch(job, { escalation: { ...esc, skipped: msg.slice(0, 200) } });
+      }
+      return;
+    }
   }
 }
 async function resolvePublishedRepairs(job) {
@@ -204322,7 +204405,7 @@ function jobsToday() {
   const day = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   return loadJobs().filter((j5) => j5.createdAt.slice(0, 10) === day).length;
 }
-async function launchRepairJob(repairs) {
+async function launchRepairJob(repairs, opts = {}) {
   if (!isCursorAgentConfigured()) {
     throw new RepairJobError("cursor_not_configured", "Falta CURSOR_API_KEY en Hostinger.", 503);
   }
@@ -204338,7 +204421,7 @@ async function launchRepairJob(repairs) {
       429
     );
   }
-  const model = await resolveRepairModel();
+  const model = opts.model ?? await resolveRepairModel();
   const groups = groupProblems(repairs);
   const created = await cursorApi("/v1/agents", {
     method: "POST",
@@ -204361,6 +204444,7 @@ async function launchRepairJob(repairs) {
     agentUrl: created.agent.url,
     runId: created.run.id,
     model: model?.id ?? "default",
+    ...opts.escalatedFrom ? { escalatedFrom: opts.escalatedFrom } : {},
     repairIds: repairs.map((r5) => r5.id),
     repairSigs: Object.fromEntries(repairs.map((r5) => [r5.id, sigOfRepair(r5)])),
     problems: groups.map((g7) => ({
@@ -204456,6 +204540,7 @@ async function tickRepairJobs() {
       }
     }
   }
+  await launchPendingEscalations();
 }
 function markPublishedJobsLive(bootedAt = BOOTED_AT) {
   let n5 = 0;
@@ -204478,10 +204563,13 @@ function startRepairJobTracker(intervalMs = 3e4) {
 }
 function repairAgentStatusSummary() {
   const active = loadJobs().find((j5) => ACTIVE.has(j5.status) || j5.status === "fix_ready");
+  const resolvedName = (wanted) => [...modelCache.entries()].find(([k5]) => k5.startsWith(`${wanted}|`))?.[1].selection?.id ?? wanted;
+  const fallback = fallbackModelName();
   return {
     configured: isCursorAgentConfigured(),
     auto_publish: autoPublish(),
-    model: modelCache?.selection?.id ?? requestedModel(),
+    model: resolvedName(requestedModel()),
+    fallback_model: fallback ? resolvedName(fallback) : null,
     max_jobs_per_day: maxJobsPerDay(),
     jobs_today: jobsToday(),
     active: active ? { id: active.id, status: active.status, since: active.createdAt } : null
@@ -204583,7 +204671,7 @@ function __resetRepairJobsForTest() {
   for (const c5 of streams.values()) c5.abort();
   streams.clear();
 }
-var ACTIVE, MAX_STEPS, MAX_JOBS_KEPT, BOOTED_AT, DEFAULT_REPO, DEFAULT_MAX_JOBS_PER_DAY, DEFAULT_MAX_PROBLEMS, DEFAULT_MODEL, jobs, CursorApiError, modelCache, ALL_TESTS_CMD, KEEP_OLD_FIXES_RULE, PUBLISH_PROMPT, streams, applying, RepairJobError, timer, NOT_FIXED_COOLDOWN_MS, COVERAGE_WINDOW_MS;
+var ACTIVE, MAX_STEPS, MAX_JOBS_KEPT, BOOTED_AT, DEFAULT_REPO, DEFAULT_MAX_JOBS_PER_DAY, DEFAULT_MAX_PROBLEMS, DEFAULT_MODEL, DEFAULT_FALLBACK_MODEL, jobs, CursorApiError, modelCache, ALL_TESTS_CMD, KEEP_OLD_FIXES_RULE, PUBLISH_PROMPT, streams, applying, escalating, RepairJobError, timer, NOT_FIXED_COOLDOWN_MS, COVERAGE_WINDOW_MS;
 var init_cursorRepairAgent = __esm({
   async "src/services/cursorRepairAgent.ts"() {
     "use strict";
@@ -204598,6 +204686,7 @@ var init_cursorRepairAgent = __esm({
     DEFAULT_MAX_JOBS_PER_DAY = 12;
     DEFAULT_MAX_PROBLEMS = 15;
     DEFAULT_MODEL = "composer-2.5";
+    DEFAULT_FALLBACK_MODEL = "claude-sonnet-5.5";
     jobs = null;
     CursorApiError = class extends Error {
       constructor(status2, code, message) {
@@ -204608,7 +204697,7 @@ var init_cursorRepairAgent = __esm({
       status;
       code;
     };
-    modelCache = null;
+    modelCache = /* @__PURE__ */ new Map();
     ALL_TESTS_CMD = "cd api-server && node scripts/run-all-tests.mjs";
     KEEP_OLD_FIXES_RULE = `Cada prueba existente en api-server/src/selftest/ es un arreglo anterior que ya funcionaba.
    No borres, saltes ni aflojes ninguna (no cambies lo que espera un assert para que pase).
@@ -204628,6 +204717,7 @@ Tu \xFAltimo mensaje debe terminar con:
 o, si no se pudo: {"published":false,"text":"motivo"}`;
     streams = /* @__PURE__ */ new Map();
     applying = /* @__PURE__ */ new Set();
+    escalating = null;
     RepairJobError = class extends Error {
       constructor(code, message, httpStatus = 409) {
         super(message);
