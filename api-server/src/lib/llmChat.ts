@@ -23,7 +23,7 @@ import {
   getGeminiContextCacheStats,
   getOrCreateSystemCache,
 } from "./geminiContextCache.js";
-import { recordGeminiSpend } from "./lucyGeminiSpend.js";
+import { recordGeminiSpend, recordOpenAiSpend } from "./lucyGeminiSpend.js";
 
 /** Contadores en memoria para /api/health (diagnóstico de gasto). */
 const geminiCallStats = {
@@ -282,7 +282,10 @@ async function completeWithGemini(opts: CompleteChatOptions): Promise<CompleteCh
   return { text, provider: "gemini", model: DEFAULT_GEMINI_MODEL };
 }
 
-async function completeWithOpenAi(opts: CompleteChatOptions): Promise<CompleteChatResult> {
+async function completeWithOpenAi(
+  opts: CompleteChatOptions,
+  reason: string,
+): Promise<CompleteChatResult> {
   const model = opts.model ?? getChatModel();
   const openai = getOpenAiClient();
 
@@ -318,6 +321,17 @@ async function completeWithOpenAi(opts: CompleteChatOptions): Promise<CompleteCh
     ...(opts.json ? { response_format: { type: "json_object" as const } } : {}),
   });
 
+  try {
+    recordOpenAiSpend({
+      kind: "chat",
+      model,
+      inputTokens: completion.usage?.prompt_tokens,
+      outputTokens: completion.usage?.completion_tokens,
+      reason,
+    });
+  } catch {
+    /* métricas no deben tumbar el chat */
+  }
   const text = (completion.choices[0]?.message?.content ?? "").trim();
   return { text, provider: "openai", model };
 }
@@ -339,7 +353,7 @@ export async function completeChat(opts: CompleteChatOptions): Promise<CompleteC
     if (provider === "gemini") {
       return await completeWithGemini(opts);
     }
-    return await completeWithOpenAi(opts);
+    return await completeWithOpenAi(opts, "OpenAI es el proveedor principal");
   } catch (err) {
     // Fallback a OpenAI solo si Gemini falló y hay key (salvo LLM_NO_FALLBACK=1).
     if (
@@ -348,10 +362,17 @@ export async function completeChat(opts: CompleteChatOptions): Promise<CompleteC
       getOpenAiApiKeyForClient() !== "lucy-not-configured"
     ) {
       try {
-        return await completeWithOpenAi({
-          ...opts,
-          model: process.env["OPENAI_MODEL"]?.trim() || "gpt-4o-mini",
-        });
+        const why = (err instanceof Error ? err.message : String(err))
+          .replace(/\s+/g, " ")
+          .replace(/key=[^&\s]+/gi, "key=…")
+          .slice(0, 140);
+        return await completeWithOpenAi(
+          {
+            ...opts,
+            model: process.env["OPENAI_MODEL"]?.trim() || "gpt-4o-mini",
+          },
+          `Gemini falló (${opts.purpose ?? "chat"}): ${why}`,
+        );
       } catch {
         throw err;
       }

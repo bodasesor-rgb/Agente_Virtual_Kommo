@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { getOpenAiApiKeyForClient, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import { completeChat } from "../lib/llmChat.js";
+import { recordOpenAiSpend } from "../lib/lucyGeminiSpend.js";
 import { getChatModel, getLlmProvider, isGeminiConfigured } from "../lib/llmEnv.js";
 import {
   isImageMessage,
@@ -84,6 +85,17 @@ async function transcribeWithWhisper(
     language: "es",
     response_format: "text",
   })) as unknown as string;
+  try {
+    // WhatsApp manda opus ~16 kbps (≈2 KB por segundo); Whisper cobra por minuto.
+    recordOpenAiSpend({
+      kind: "voice",
+      model: "whisper-1",
+      audioSeconds: Math.max(1, Math.round(audioBuffer.byteLength / 2000)),
+      reason: "Gemini no pudo transcribir la nota de voz",
+    });
+  } catch {
+    /* métricas no deben tumbar la transcripción */
+  }
   log.info({ chars: transcription.length }, "Nota de voz transcrita (Whisper fallback)");
   return transcription;
 }

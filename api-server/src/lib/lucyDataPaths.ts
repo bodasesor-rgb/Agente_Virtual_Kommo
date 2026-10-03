@@ -50,6 +50,13 @@ export function getLucyAuditorLogPath(): string {
   return join(getLucyDataRoot(), "auditor-log.json");
 }
 
+/** Gasto estimado de IA por día (Gemini chat/auditor + respaldo OpenAI); sobrevive redeploys. */
+export function getLucyLlmSpendPath(): string {
+  const fromEnv = process.env["LUCY_LLM_SPEND_PATH"]?.trim();
+  if (fromEnv) return resolve(fromEnv);
+  return join(getLucyDataRoot(), "llm-spend.json");
+}
+
 export function getKommoRelayDir(): string {
   const fromEnv = process.env["LUCY_RELAY_DIR"]?.trim();
   if (fromEnv) return resolve(fromEnv);

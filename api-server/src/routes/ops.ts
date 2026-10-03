@@ -138,6 +138,34 @@ async function buildOpsStatus(): Promise<{
       detail: `${spend.auditor.calls} llamadas · ${spend.auditor.inputTokens + spend.auditor.outputTokens} tokens · cupo ${quota.callsToday}/${quota.maxPerDay} · ${openN} abiertas`,
     });
 
+    const oa = spend.openai;
+    const oaWhen = oa.lastAt
+      ? new Date(oa.lastAt).toLocaleTimeString("es-MX", {
+          timeZone: "America/Mexico_City",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "";
+    checks.push({
+      id: "openai_fallback",
+      label: `Respaldo OpenAI hoy ${formatUsd(oa.usdEstimate)}`,
+      status: oa.calls > 0 ? "warn" : "ok",
+      detail:
+        oa.calls > 0
+          ? `Se usó ${oa.calls} vez/veces (chat ${oa.chatCalls} · voz ${oa.voiceCalls}) · última ${oaWhen}${oa.lastReason ? ` · motivo: ${oa.lastReason}` : ""}`
+          : "No se usó hoy · solo entra si Gemini falla (chat → gpt-4o-mini, voz → Whisper)",
+    });
+
+    const w = spend.last7;
+    checks.push({
+      id: "spend_week",
+      label: `Gasto 7 días ${formatUsd(w.chatUsd + w.auditorUsd + w.openaiUsd)}`,
+      status: "ok",
+      detail: spend.persisted
+        ? `Chat ${formatUsd(w.chatUsd)} (${w.chatCalls}) · auditor ${formatUsd(w.auditorUsd)} (${w.auditorCalls}) · OpenAI ${formatUsd(w.openaiUsd)} (${w.openaiCalls}) · ${w.days} día(s) con registro`
+        : "Sin historial: el gasto solo vive en memoria en este proceso",
+    });
+
     checks.push({
       id: "auditor",
       label: `Auditor · ${quota.model}`,

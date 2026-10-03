@@ -16,6 +16,7 @@ import { seedLucyInfoIfEmpty, warmLucyInfoPriceCache } from "./services/lucyInfo
 import { bootstrapCatalog, startCatalogAutoRefresh } from "./services/catalogService.js";
 import { startCatalogWebSyncScheduler } from "./services/catalogWebSync.js";
 import { cleanupRepairQueue, startRepairJobTracker } from "./services/cursorRepairAgent.js";
+import { enableSpendPersistence } from "./lib/lucyGeminiSpend.js";
 
 const rawPort = process.env["PORT"] ?? "3000";
 
@@ -26,6 +27,7 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 async function startServer(): Promise<void> {
+  enableSpendPersistence();
   // No bloquear listen: Hostinger marca 503 si el puerto tarda en abrirse.
   void initializeTrainingStore().catch((err) => {
     logger.warn({ err }, "trainingStore init en background falló — se usará JSON");

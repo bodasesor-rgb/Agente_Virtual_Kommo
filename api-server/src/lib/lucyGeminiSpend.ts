@@ -1,9 +1,13 @@
 /**
- * Medidor de gasto Gemini por canal (chat vs auditor).
- * Estimación Lucy a partir de usageMetadata — no es la factura de Google.
- * Contadores en memoria; se reinician con el proceso Node y cada día civil Mexico City.
+ * Medidor de gasto de IA por canal: Gemini chat, Gemini auditor y respaldo OpenAI.
+ * Estimación Lucy a partir del uso de tokens — no es la factura de Google/OpenAI.
+ * Por día civil Mexico City; se guarda en lucy-data/llm-spend.json (sobrevive redeploys)
+ * cuando el servidor llama enableSpendPersistence() al arrancar.
  */
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { mexicoCityDayKey } from "../services/lucyAuditorTime.js";
+import { getLucyLlmSpendPath } from "./lucyDataPaths.js";
 
 export type GeminiSpendChannel = "chat" | "auditor";
 
@@ -24,11 +28,32 @@ export type ChannelSpend = {
   lastAt: string | null;
 };
 
+/** Respaldo OpenAI: solo entra si Gemini falla (chat → gpt-4o-mini, voz → Whisper). */
+export type OpenAiSpend = ChannelSpend & {
+  chatCalls: number;
+  voiceCalls: number;
+  audioSeconds: number;
+  lastReason: string | null;
+};
+
+export type SpendDayTotals = {
+  chatUsd: number;
+  auditorUsd: number;
+  openaiUsd: number;
+  chatCalls: number;
+  auditorCalls: number;
+  openaiCalls: number;
+};
+
 export type GeminiSpendSnapshot = {
   dayKey: string;
   note: string;
   chat: ChannelSpend;
   auditor: ChannelSpend;
+  openai: OpenAiSpend;
+  /** Suma de los últimos 7 días (incluye hoy). */
+  last7: SpendDayTotals & { days: number };
+  persisted: boolean;
   totalUsdEstimate: number;
   warn: {
     chat: boolean;
@@ -70,21 +95,109 @@ function emptyChannel(): ChannelSpend {
   };
 }
 
+function emptyOpenAi(): OpenAiSpend {
+  return { ...emptyChannel(), chatCalls: 0, voiceCalls: 0, audioSeconds: 0, lastReason: null };
+}
+
 let spendDayKey = "";
 let chatSpend = emptyChannel();
 let auditorSpend = emptyChannel();
+let openaiSpend = emptyOpenAi();
+let history: Record<string, SpendDayTotals> = {};
+let loaded = false;
+
+const HISTORY_DAYS = 14;
+
+let persistOn = false;
+
+/** El servidor lo activa al arrancar; las pruebas no (no tocan lucy-data). */
+export function enableSpendPersistence(on = true): void {
+  persistOn = on;
+  loaded = false;
+}
+
+function persistEnabled(): boolean {
+  return persistOn;
+}
+
+type SpendFile = {
+  dayKey?: string;
+  chat?: ChannelSpend;
+  auditor?: ChannelSpend;
+  openai?: OpenAiSpend;
+  history?: Record<string, SpendDayTotals>;
+};
+
+function loadFromDisk(): void {
+  loaded = true;
+  if (!persistEnabled()) return;
+  const path = getLucyLlmSpendPath();
+  if (!existsSync(path)) return;
+  try {
+    const raw = JSON.parse(readFileSync(path, "utf8")) as SpendFile;
+    history = raw.history && typeof raw.history === "object" ? raw.history : {};
+    if (raw.dayKey === mexicoCityDayKey()) {
+      spendDayKey = raw.dayKey;
+      chatSpend = { ...emptyChannel(), ...raw.chat };
+      auditorSpend = { ...emptyChannel(), ...raw.auditor };
+      openaiSpend = { ...emptyOpenAi(), ...raw.openai };
+    }
+  } catch {
+    /* archivo dañado: empezar en cero */
+  }
+}
+
+function todayTotals(): SpendDayTotals {
+  return {
+    chatUsd: chatSpend.usdEstimate,
+    auditorUsd: auditorSpend.usdEstimate,
+    openaiUsd: openaiSpend.usdEstimate,
+    chatCalls: chatSpend.calls,
+    auditorCalls: auditorSpend.calls,
+    openaiCalls: openaiSpend.calls,
+  };
+}
+
+function saveToDisk(): void {
+  history[spendDayKey] = todayTotals();
+  const keep = Object.keys(history).sort().slice(-HISTORY_DAYS);
+  history = Object.fromEntries(keep.map((k) => [k, history[k]!]));
+  if (!persistEnabled()) return;
+  const path = getLucyLlmSpendPath();
+  try {
+    mkdirSync(dirname(path), { recursive: true });
+    const data: SpendFile = { dayKey: spendDayKey, chat: chatSpend, auditor: auditorSpend, openai: openaiSpend, history };
+    writeFileSync(path, JSON.stringify(data), "utf8");
+  } catch {
+    /* el medidor nunca debe tumbar a Lucy */
+  }
+}
 
 function ensureToday(): void {
+  if (!loaded) loadFromDisk();
   const key = mexicoCityDayKey();
   if (key !== spendDayKey) {
     spendDayKey = key;
     chatSpend = emptyChannel();
     auditorSpend = emptyChannel();
+    openaiSpend = emptyOpenAi();
   }
 }
 
+/** Solo pruebas: reinicia el estado en memoria (relee disco en la siguiente llamada). */
+export function resetSpendForTests(): void {
+  spendDayKey = "";
+  chatSpend = emptyChannel();
+  auditorSpend = emptyChannel();
+  openaiSpend = emptyOpenAi();
+  history = {};
+  loaded = false;
+}
+
 function envRate(name: string, fallback: number): number {
-  const n = Number(process.env[name] ?? "");
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const n = Number(raw);
   if (!Number.isFinite(n) || n < 0) return fallback;
   return n;
 }
@@ -158,10 +271,57 @@ export function recordGeminiSpend(opts: {
     Math.round((bucket.usdEstimate + usd) * 1_000_000) / 1_000_000;
   bucket.lastModel = model;
   bucket.lastAt = new Date().toISOString();
+  saveToDisk();
+}
+
+/** USD / 1M tokens (OpenAI, aprox. publicados). Whisper: USD por minuto. */
+const OPENAI_RATES: Record<string, { inputPerM: number; outputPerM: number }> = {
+  "gpt-4o-mini": { inputPerM: 0.15, outputPerM: 0.6 },
+  "gpt-4o": { inputPerM: 2.5, outputPerM: 10 },
+};
+const WHISPER_USD_PER_MIN = 0.006;
+
+export function recordOpenAiSpend(opts: {
+  kind: "chat" | "voice";
+  model: string;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  audioSeconds?: number | null;
+  reason?: string | null;
+}): void {
+  ensureToday();
+  const model = (opts.model || "unknown").trim() || "unknown";
+  const inputTokens = asNonNegInt(opts.inputTokens);
+  const outputTokens = asNonNegInt(opts.outputTokens);
+  const audioSeconds = asNonNegInt(opts.audioSeconds);
+  let usd: number;
+  if (opts.kind === "voice") {
+    usd = (audioSeconds / 60) * WHISPER_USD_PER_MIN;
+  } else {
+    const r = OPENAI_RATES[model.toLowerCase()] ?? OPENAI_RATES["gpt-4o-mini"]!;
+    usd = (inputTokens / 1_000_000) * r.inputPerM + (outputTokens / 1_000_000) * r.outputPerM;
+  }
+  const b = openaiSpend;
+  b.calls += 1;
+  if (opts.kind === "voice") {
+    b.voiceCalls += 1;
+    b.audioSeconds += audioSeconds;
+  } else {
+    b.chatCalls += 1;
+  }
+  b.inputTokens += inputTokens;
+  b.outputTokens += outputTokens;
+  b.usdEstimate = Math.round((b.usdEstimate + usd) * 1_000_000) / 1_000_000;
+  b.lastModel = model;
+  b.lastAt = new Date().toISOString();
+  b.lastReason = opts.reason?.replace(/\s+/g, " ").trim().slice(0, 160) || null;
+  saveToDisk();
 }
 
 function warnLimit(envName: string, fallback: number): number {
-  const n = Number(process.env[envName] ?? fallback);
+  const raw = process.env[envName]?.trim();
+  if (!raw) return fallback;
+  const n = Number(raw);
   if (!Number.isFinite(n) || n < 0) return fallback;
   return n;
 }
@@ -176,14 +336,35 @@ export function getGeminiSpendSnapshot(): GeminiSpendSnapshot {
   const auditorUsdLimit = warnLimit("LUCY_COST_WARN_AUDITOR_USD", 0.5);
   const chat = cloneChannel(chatSpend);
   const auditor = cloneChannel(auditorSpend);
+  const openai = { ...openaiSpend };
+  const days = { ...history, [spendDayKey]: todayTotals() };
+  const cutoff = new Date(`${spendDayKey}T12:00:00Z`);
+  cutoff.setUTCDate(cutoff.getUTCDate() - 6);
+  const cutoffKey = Number.isNaN(cutoff.getTime()) ? "" : cutoff.toISOString().slice(0, 10);
+  const recent = Object.keys(days)
+    .sort()
+    .filter((d) => d >= cutoffKey && d <= spendDayKey);
+  const round = (n: number) => Math.round(n * 1_000_000) / 1_000_000;
+  const sum = (k: keyof SpendDayTotals) => round(recent.reduce((n, d) => n + (days[d]?.[k] ?? 0), 0));
   return {
     dayKey: spendDayKey,
-    note: "Estimado Lucy (tokens × precios publicados). No es la factura de Google. Se reinicia al redeploy / nuevo día Mexico.",
+    note: persistEnabled()
+      ? "Estimado Lucy (tokens × precios publicados). No es la factura de Google/OpenAI. Se guarda por día (no se borra al redeploy)."
+      : "Estimado Lucy (tokens × precios publicados). Solo en memoria: se reinicia al redeploy.",
     chat,
     auditor,
-    totalUsdEstimate:
-      Math.round((chat.usdEstimate + auditor.usdEstimate) * 1_000_000) /
-      1_000_000,
+    openai,
+    last7: {
+      days: recent.length,
+      chatUsd: sum("chatUsd"),
+      auditorUsd: sum("auditorUsd"),
+      openaiUsd: sum("openaiUsd"),
+      chatCalls: sum("chatCalls"),
+      auditorCalls: sum("auditorCalls"),
+      openaiCalls: sum("openaiCalls"),
+    },
+    persisted: persistEnabled(),
+    totalUsdEstimate: round(chat.usdEstimate + auditor.usdEstimate + openai.usdEstimate),
     warn: {
       chat: chat.usdEstimate >= chatUsdLimit,
       auditor: auditor.usdEstimate >= auditorUsdLimit,
