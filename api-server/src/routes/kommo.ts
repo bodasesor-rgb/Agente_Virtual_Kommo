@@ -3837,9 +3837,20 @@ router.get("/kommo/cron/learning", async (req: Request, res: Response) => {
   await handleLearningCron(req, res);
 });
 
+router.get("/kommo/cron/reparaciones/status", async (req: Request, res: Response) => {
+  if (!assertCronAuthorized(req, res)) return;
+  const { getDailyAuditState } = await import("../services/lucyAuditor.js");
+  res.json({ ok: true, ...getDailyAuditState() });
+});
+
 router.get("/kommo/cron/reparaciones", async (req: Request, res: Response) => {
   if (!assertCronAuthorized(req, res)) return;
   try {
+    if (req.query.async === "1") {
+      const { startLucyAuditorDailyInBackground } = await import("../services/lucyAuditor.js");
+      res.status(202).json({ ok: true, mode: "daily_async", ...startLucyAuditorDailyInBackground() });
+      return;
+    }
     const { runLucyAuditorDaily } = await import("../services/lucyAuditor.js");
     const result = await runLucyAuditorDaily();
     res.json({ ok: true, mode: "daily", ...result });

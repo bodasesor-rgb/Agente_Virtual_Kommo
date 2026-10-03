@@ -688,7 +688,7 @@ async function applyRunTerminal(job: RepairJob, runId: string, run: ApiRun): Pro
     if (status !== "CANCELLED") queueEscalation(job, job.repairIds, `terminó en ${status}`);
   } finally {
     applying.delete(key);
-    void launchPendingEscalations();
+    void launchPendingEscalations().then(() => autoSendNextRepairJob("terminó el arreglo anterior"));
   }
 }
 
@@ -953,7 +953,14 @@ export async function tickRepairJobs(): Promise<void> {
     }
   }
   await launchPendingEscalations();
+  if (Date.now() - lastTickAutoSend >= TICK_AUTO_SEND_EVERY_MS) {
+    lastTickAutoSend = Date.now();
+    await autoSendNextRepairJob("quedaban pendientes en la cola");
+  }
 }
+
+const TICK_AUTO_SEND_EVERY_MS = 10 * 60 * 1000;
+let lastTickAutoSend = 0;
 
 /** Tras un reinicio posterior a publicar, el código nuevo ya está corriendo. */
 export function markPublishedJobsLive(bootedAt: Date = BOOTED_AT): number {
@@ -982,6 +989,7 @@ export function startRepairJobTracker(intervalMs = 30_000): void {
 export function repairAgentStatusSummary(): {
   configured: boolean;
   auto_publish: boolean;
+  auto_send: boolean;
   model: string;
   fallback_model: string | null;
   max_jobs_per_day: number;
@@ -995,6 +1003,7 @@ export function repairAgentStatusSummary(): {
   return {
     configured: isCursorAgentConfigured(),
     auto_publish: autoPublish(),
+    auto_send: autoSendEnabled(),
     model: resolvedName(requestedModel()),
     fallback_model: fallback ? resolvedName(fallback) : null,
     max_jobs_per_day: maxJobsPerDay(),
@@ -1036,15 +1045,62 @@ function outcomeSigs(job: RepairJob, kind: keyof Pick<RepairJobOutcome, "fixed" 
   return sigs;
 }
 
-/** Lo que Cursor dijo hace poco que no pudo arreglar no se vuelve a mandar solo (sí con el botón de la fila). */
+const FAILED_END: ReadonlySet<RepairJobStatus> = new Set(["no_changes", "error", "discarded"]);
+
+/**
+ * Lo que Cursor dijo hace poco que no pudo arreglar no se vuelve a mandar solo (sí con el botón de la fila).
+ * Igual con un trabajo fallido sin 2.º intento pendiente: si no, el envío automático lo repetiría todo el día.
+ */
 function recentlyNotFixedSigs(now: Date): Set<string> {
   const out = new Set<string>();
   for (const job of loadJobs()) {
     const at = new Date(job.finishedAt ?? job.updatedAt).getTime();
     if (now.getTime() - at > NOT_FIXED_COOLDOWN_MS) continue;
     for (const sig of outcomeSigs(job, "notFixed")) out.add(sig);
+    const retryPending = job.escalation && !job.escalation.skipped;
+    if (FAILED_END.has(job.status) && !retryPending && job.repairSigs) {
+      const settled = new Set([...outcomeSigs(job, "fixed"), ...outcomeSigs(job, "falsePositive")]);
+      for (const sig of Object.values(job.repairSigs)) if (!settled.has(sig)) out.add(sig);
+    }
   }
   return out;
+}
+
+function autoSendEnabled(): boolean {
+  return autoPublish() && !/^(0|false|no)$/i.test(process.env["LUCY_REPAIR_AUTO_SEND"]?.trim() ?? "");
+}
+
+let autoSending: Promise<RepairJob | null> | null = null;
+
+/**
+ * Ciclo automático: si no hay arreglo en curso, manda el siguiente bloque de la cola
+ * (los 2.º intentos van primero) hasta vaciarla o llegar al límite diario.
+ */
+export function autoSendNextRepairJob(reason: string): Promise<RepairJob | null> {
+  autoSending ??= runAutoSend(reason).finally(() => {
+    autoSending = null;
+  });
+  return autoSending;
+}
+
+async function runAutoSend(reason: string): Promise<RepairJob | null> {
+  if (!isCursorAgentConfigured() || !autoSendEnabled()) return null;
+  await launchPendingEscalations();
+  if (loadJobs().some((j) => ACTIVE.has(j.status))) return null;
+  if (jobsToday() >= maxJobsPerDay()) return null;
+  const repairs = pickRepairsForJob([
+    ...(await listLucyRepairs("auto_flagged", 300)),
+    ...(await listLucyRepairs("open", 300)),
+  ]);
+  if (!repairs.length) return null;
+  try {
+    const job = await launchRepairJob(repairs);
+    addStep(job, `Enviado automáticamente (${reason})`);
+    return job;
+  } catch (err) {
+    if (!(err instanceof RepairJobError)) logger.warn({ err }, "cursorRepairAgent: envío automático falló");
+    return null;
+  }
 }
 
 function repairDay(r: LucyRepairDto): string {

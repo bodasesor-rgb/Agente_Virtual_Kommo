@@ -19369,7 +19369,7 @@ var require_view = __commonJS({
     var debug2 = require_src()("express:view");
     var path7 = __require("node:path");
     var fs8 = __require("node:fs");
-    var dirname9 = path7.dirname;
+    var dirname10 = path7.dirname;
     var basename3 = path7.basename;
     var extname = path7.extname;
     var join11 = path7.join;
@@ -19408,7 +19408,7 @@ var require_view = __commonJS({
       for (var i6 = 0; i6 < roots.length && !path8; i6++) {
         var root = roots[i6];
         var loc = resolve3(root, name2);
-        var dir = dirname9(loc);
+        var dir = dirname10(loc);
         var file = basename3(loc);
         path8 = this.resolve(dir, file);
       }
@@ -90108,6 +90108,11 @@ function getLucyRepairRunsPath() {
   if (fromEnv) return resolve(fromEnv);
   return join(getLucyDataRoot(), "repair-runs.json");
 }
+function getLucyAuditorLogPath() {
+  const fromEnv = process.env["LUCY_AUDITOR_LOG_PATH"]?.trim();
+  if (fromEnv) return resolve(fromEnv);
+  return join(getLucyDataRoot(), "auditor-log.json");
+}
 function getKommoRelayDir() {
   const fromEnv = process.env["LUCY_RELAY_DIR"]?.trim();
   if (fromEnv) return resolve(fromEnv);
@@ -142783,9 +142788,9 @@ var require_postgres_interval = __commonJS({
     var NUMBER = "([+-]?\\d+)";
     var YEAR = NUMBER + "\\s+years?";
     var MONTH = NUMBER + "\\s+mons?";
-    var DAY = NUMBER + "\\s+days?";
+    var DAY2 = NUMBER + "\\s+days?";
     var TIME = "([+-])?([\\d]*):(\\d\\d):(\\d\\d)\\.?(\\d{1,6})?";
-    var INTERVAL = new RegExp([YEAR, MONTH, DAY, TIME].map(function(regexString) {
+    var INTERVAL = new RegExp([YEAR, MONTH, DAY2, TIME].map(function(regexString) {
       return "(" + regexString + ")?";
     }).join("\\s*"));
     var positions = {
@@ -203439,11 +203444,16 @@ CREATE TABLE IF NOT EXISTS lucy_repairs (
 // src/services/lucyAuditorLlm.ts
 var lucyAuditorLlm_exports = {};
 __export(lucyAuditorLlm_exports, {
+  AUDITOR_LLM_CATEGORIES: () => AUDITOR_LLM_CATEGORIES,
+  AUDITOR_NEW_MARKER: () => AUDITOR_NEW_MARKER,
   DEFAULT_AUDITOR_MODEL: () => DEFAULT_AUDITOR_MODEL,
+  buildAuditorPrompt: () => buildAuditorPrompt,
   canSpendAuditorCall: () => canSpendAuditorCall,
   getAuditorMaxCallsPerDay: () => getAuditorMaxCallsPerDay,
   getAuditorModel: () => getAuditorModel,
   getAuditorQuotaSnapshot: () => getAuditorQuotaSnapshot,
+  lucyQuoteIsReal: () => lucyQuoteIsReal,
+  parseAuditorLlmFindings: () => parseAuditorLlmFindings,
   runAuditorLlm: () => runAuditorLlm
 });
 function getAuditorModel() {
@@ -203484,33 +203494,100 @@ function noteAuditorCall() {
   }
   callsToday += 1;
 }
-async function runAuditorLlm(transcript) {
+function buildAuditorPrompt(transcript, mode = "daily") {
+  return [
+    "Eres el supervisor de calidad de Lucy, la vendedora virtual de Bodasesor por WhatsApp",
+    "(renta de mobiliario, banquetes, barras, decoraci\xF3n y servicios para eventos). NUNCA escribes al cliente.",
+    "El trabajo de Lucy: entender qu\xE9 quiere el cliente, contestar sus dudas (precios, cat\xE1logo, qu\xE9 incluye)",
+    "y juntar los datos (nombre, tipo de evento, servicios, fecha, horario, invitados, lugar, presupuesto, correo)",
+    "para pasarlo a un asesor humano. L\xEDneas HUMANO son del equipo, no de Lucy.",
+    "",
+    "Busca CUALQUIER cosa que Lucy hizo mal y que pueda costar la venta o verse mal. Ejemplos, no te limites a ellos:",
+    "- ignor\xF3 o no contest\xF3 una pregunta del cliente (ignored_question)",
+    "- pidi\xF3 un dato que el cliente ya hab\xEDa dado (asked_known_data)",
+    "- entendi\xF3 mal lo que el cliente pidi\xF3 (misunderstood)",
+    "- dio informaci\xF3n que suena inventada o contradice algo dicho antes (wrong_info)",
+    "- repiti\xF3 la misma respuesta o se qued\xF3 en bucle (repeat_reply, loop_links, stuck_funnel)",
+    "- cerr\xF3 (\xABya tengo todo\xBB, \xABun asesor te contacta\xBB) cuando el cliente segu\xEDa preguntando (premature_close)",
+    "- anot\xF3 mal un dato del evento (bad_field)",
+    "- mensaje demasiado largo, confuso, fr\xEDo o rob\xF3tico; nombre mal usado (tone)",
+    "- contest\xF3 encima del equipo humano, o no pas\xF3 a humano cuando el cliente lo pidi\xF3 o se molest\xF3 (handoff)",
+    ...mode === "silent" ? [
+      "",
+      "IMPORTANTE: el cliente dej\xF3 de contestar justo despu\xE9s del \xFAltimo mensaje de Lucy.",
+      "Revisa si algo de Lucy pudo causarlo. Si el silencio parece normal (ya ten\xEDa lo que necesitaba,",
+      "dijo que lo pensar\xEDa, se despidi\xF3), responde []."
+    ] : [],
+    "",
+    "REGLAS ESTRICTAS:",
+    `- Si aparece la l\xEDnea \xAB${AUDITOR_NEW_MARKER}\xBB, lo de arriba es solo contexto ya revisado: reporta errores solo en mensajes de Lucy debajo de esa l\xEDnea.`,
+    "- Solo reporta si puedes copiar TEXTUAL un fragmento del mensaje de LUCY que estuvo mal (lucy_quote, 8-120 caracteres).",
+    "- Nada de gustos de estilo menores. Si el chat est\xE1 bien, responde [].",
+    "- M\xE1ximo 3 hallazgos, el m\xE1s grave primero.",
+    "",
+    "Responde SOLO un JSON array:",
+    '[{"category":"\u2026","severity":"info|warn|error","problem":"el error en general, m\xE1x. 12 palabras, sin datos del cliente",',
+    '"client_quote":"lo que dijo el cliente antes (textual, corto)","lucy_quote":"fragmento textual de Lucy",',
+    '"proposedRepair":"qu\xE9 regla general debe cambiar en Lucy (no algo para este cliente)"}]',
+    `category: ${AUDITOR_LLM_CATEGORIES.join("|")}`,
+    "",
+    "TRANSCRIPT:",
+    transcript.slice(-MAX_TRANSCRIPT_CHARS)
+  ].join("\n");
+}
+function normQuote(s7) {
+  return s7.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9ñ]+/g, " ").trim();
+}
+function lucyQuoteIsReal(transcript, quote) {
+  const q3 = normQuote(quote);
+  if (q3.length < 8) return false;
+  const lines = transcript.split("\n");
+  const marker = lines.lastIndexOf(AUDITOR_NEW_MARKER);
+  return lines.slice(marker + 1).filter((line2) => line2.startsWith("LUCY:")).some((line2) => normQuote(line2).includes(q3));
+}
+function parseAuditorLlmFindings(text2, transcript) {
+  const parsed = JSON.parse(text2);
+  if (!Array.isArray(parsed)) return [];
+  const allowed = new Set(AUDITOR_LLM_CATEGORIES);
+  const out2 = [];
+  for (const x8 of parsed.slice(0, 8)) {
+    if (out2.length >= 3) break;
+    if (!x8 || typeof x8 !== "object") continue;
+    const o6 = x8;
+    const lucyQuote = String(o6.lucy_quote ?? "").trim().slice(0, 160);
+    if (!lucyQuoteIsReal(transcript, lucyQuote)) continue;
+    const problem = String(o6.problem ?? o6.evidence ?? "").trim().slice(0, 140);
+    const proposedRepair = String(o6.proposedRepair ?? "").trim().slice(0, 800);
+    if (!problem || !proposedRepair) continue;
+    const clientQuote = String(o6.client_quote ?? "").trim().slice(0, 200);
+    const category = String(o6.category ?? "other").trim();
+    out2.push({
+      category: allowed.has(category) ? category : "other",
+      severity: ["info", "warn", "error"].includes(String(o6.severity)) ? o6.severity : "warn",
+      // La descripción va primero: agrupa el mismo bug sin mezclar errores distintos.
+      evidence: `${problem}. ${clientQuote ? `Cliente: \xAB${clientQuote}\xBB \u2192 ` : ""}Lucy: \xAB${lucyQuote}\xBB`.slice(0, 800),
+      proposedRepair
+    });
+  }
+  return out2;
+}
+async function runAuditorLlm(transcript, mode = "daily") {
   if (!canSpendAuditorCall()) return [];
   const model = getAuditorModel();
   const key = getGeminiApiKey();
   if (!key) return [];
   noteAuditorCall();
   const ai2 = new GoogleGenAI2({ apiKey: key });
-  const prompt = [
-    "Eres auditor de calidad de Lucy (agente Bodasesor). NUNCA escribes al cliente.",
-    "Revisa el transcript y detecta SOLO: bucles de links, respuestas repetidas,",
-    "cierre prematuro (ya tengo todo) cuando ped\xEDan precio/detalle, campos mal",
-    "(cena ocasi\xF3n como SKU), embudo trabado (misma pregunta 3+ veces).",
-    "Responde JSON array: [{category,severity,evidence,proposedRepair}]",
-    "category: loop_links|repeat_reply|premature_close|bad_field|stuck_funnel|other",
-    "severity: info|warn|error. proposedRepair: acci\xF3n concreta para el equipo/c\xF3digo.",
-    "Si no hay problemas, responde [].",
-    "",
-    "TRANSCRIPT:",
-    transcript.slice(0, 6e3)
-  ].join("\n");
+  const prompt = buildAuditorPrompt(transcript, mode);
   try {
     const result = await ai2.models.generateContent({
       model,
       contents: prompt,
       config: {
         temperature: 0.1,
-        maxOutputTokens: 800,
+        // Incluye el «pensamiento» de 2.5 Flash: con 800 el JSON salía cortado.
+        maxOutputTokens: 1500,
+        thinkingConfig: { thinkingBudget: 384 },
         responseMimeType: "application/json"
       }
     });
@@ -203532,23 +203609,13 @@ async function runAuditorLlm(transcript) {
     }
     const text2 = (result.text ?? "").trim();
     if (!text2) return [];
-    const parsed = JSON.parse(text2);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((x8) => x8 && typeof x8 === "object").map((x8) => {
-      const o6 = x8;
-      return {
-        category: String(o6.category ?? "other").slice(0, 40),
-        severity: ["info", "warn", "error"].includes(String(o6.severity)) ? o6.severity : "warn",
-        evidence: String(o6.evidence ?? "").slice(0, 800),
-        proposedRepair: String(o6.proposedRepair ?? "").slice(0, 800)
-      };
-    }).filter((f7) => f7.evidence && f7.proposedRepair);
+    return parseAuditorLlmFindings(text2, transcript.slice(-MAX_TRANSCRIPT_CHARS));
   } catch (err2) {
     logger.warn({ err: err2, model }, "runAuditorLlm fall\xF3");
     return [];
   }
 }
-var DEFAULT_AUDITOR_MODEL, BLOCKED_AUDITOR, dayKey, callsToday;
+var DEFAULT_AUDITOR_MODEL, BLOCKED_AUDITOR, dayKey, callsToday, AUDITOR_LLM_CATEGORIES, AUDITOR_NEW_MARKER, MAX_TRANSCRIPT_CHARS;
 var init_lucyAuditorLlm = __esm({
   "src/services/lucyAuditorLlm.ts"() {
     "use strict";
@@ -203560,6 +203627,22 @@ var init_lucyAuditorLlm = __esm({
     BLOCKED_AUDITOR = /(?:^|\/)(imagen|nano[-\s]?banana|gemini-[\w.-]*-image|gemini-.*-pro|gemini-ultra|gemini-3\.6)(?:$|\/|-)/i;
     dayKey = "";
     callsToday = 0;
+    AUDITOR_LLM_CATEGORIES = [
+      "loop_links",
+      "repeat_reply",
+      "premature_close",
+      "bad_field",
+      "stuck_funnel",
+      "ignored_question",
+      "asked_known_data",
+      "misunderstood",
+      "wrong_info",
+      "tone",
+      "handoff",
+      "other"
+    ];
+    AUDITOR_NEW_MARKER = "=== MENSAJES NUEVOS: revisa solo desde aqu\xED ===";
+    MAX_TRANSCRIPT_CHARS = 6e3;
   }
 });
 
@@ -203849,6 +203932,7 @@ __export(cursorRepairAgent_exports, {
   RepairJobError: () => RepairJobError,
   __resetRepairJobsForTest: () => __resetRepairJobsForTest,
   absorbCoveredRepairs: () => absorbCoveredRepairs,
+  autoSendNextRepairJob: () => autoSendNextRepairJob,
   buildRepairPrompt: () => buildRepairPrompt,
   cancelRepairJob: () => cancelRepairJob,
   cleanupRepairQueue: () => cleanupRepairQueue,
@@ -204321,7 +204405,7 @@ async function applyRunTerminal(job, runId, run2) {
     if (status2 !== "CANCELLED") queueEscalation(job, job.repairIds, `termin\xF3 en ${status2}`);
   } finally {
     applying.delete(key);
-    void launchPendingEscalations();
+    void launchPendingEscalations().then(() => autoSendNextRepairJob("termin\xF3 el arreglo anterior"));
   }
 }
 async function failPublish(job, reason) {
@@ -204549,6 +204633,10 @@ async function tickRepairJobs() {
     }
   }
   await launchPendingEscalations();
+  if (Date.now() - lastTickAutoSend >= TICK_AUTO_SEND_EVERY_MS) {
+    lastTickAutoSend = Date.now();
+    await autoSendNextRepairJob("quedaban pendientes en la cola");
+  }
 }
 function markPublishedJobsLive(bootedAt = BOOTED_AT) {
   let n5 = 0;
@@ -204576,6 +204664,7 @@ function repairAgentStatusSummary() {
   return {
     configured: isCursorAgentConfigured(),
     auto_publish: autoPublish(),
+    auto_send: autoSendEnabled(),
     model: resolvedName(requestedModel()),
     fallback_model: fallback ? resolvedName(fallback) : null,
     max_jobs_per_day: maxJobsPerDay(),
@@ -204613,8 +204702,41 @@ function recentlyNotFixedSigs(now) {
     const at3 = new Date(job.finishedAt ?? job.updatedAt).getTime();
     if (now.getTime() - at3 > NOT_FIXED_COOLDOWN_MS) continue;
     for (const sig of outcomeSigs(job, "notFixed")) out2.add(sig);
+    const retryPending = job.escalation && !job.escalation.skipped;
+    if (FAILED_END.has(job.status) && !retryPending && job.repairSigs) {
+      const settled = /* @__PURE__ */ new Set([...outcomeSigs(job, "fixed"), ...outcomeSigs(job, "falsePositive")]);
+      for (const sig of Object.values(job.repairSigs)) if (!settled.has(sig)) out2.add(sig);
+    }
   }
   return out2;
+}
+function autoSendEnabled() {
+  return autoPublish() && !/^(0|false|no)$/i.test(process.env["LUCY_REPAIR_AUTO_SEND"]?.trim() ?? "");
+}
+function autoSendNextRepairJob(reason) {
+  autoSending ??= runAutoSend(reason).finally(() => {
+    autoSending = null;
+  });
+  return autoSending;
+}
+async function runAutoSend(reason) {
+  if (!isCursorAgentConfigured() || !autoSendEnabled()) return null;
+  await launchPendingEscalations();
+  if (loadJobs().some((j5) => ACTIVE.has(j5.status))) return null;
+  if (jobsToday() >= maxJobsPerDay()) return null;
+  const repairs = pickRepairsForJob([
+    ...await listLucyRepairs("auto_flagged", 300),
+    ...await listLucyRepairs("open", 300)
+  ]);
+  if (!repairs.length) return null;
+  try {
+    const job = await launchRepairJob(repairs);
+    addStep(job, `Enviado autom\xE1ticamente (${reason})`);
+    return job;
+  } catch (err2) {
+    if (!(err2 instanceof RepairJobError)) logger.warn({ err: err2 }, "cursorRepairAgent: env\xEDo autom\xE1tico fall\xF3");
+    return null;
+  }
 }
 function repairDay(r5) {
   return r5.evidence.match(/^\s*\[(\d{4}-\d{2}-\d{2})\]/)?.[1] ?? r5.createdAt.slice(0, 10);
@@ -204679,7 +204801,7 @@ function __resetRepairJobsForTest() {
   for (const c5 of streams.values()) c5.abort();
   streams.clear();
 }
-var ACTIVE, MAX_STEPS, MAX_JOBS_KEPT, BOOTED_AT, DEFAULT_REPO, DEFAULT_MAX_JOBS_PER_DAY, DEFAULT_MAX_PROBLEMS, DEFAULT_MODEL, DEFAULT_FALLBACK_MODEL, jobs, CursorApiError, modelCache, ALL_TESTS_CMD, KEEP_OLD_FIXES_RULE, PUBLISH_PROMPT, streams, applying, escalating, RepairJobError, timer, NOT_FIXED_COOLDOWN_MS, COVERAGE_WINDOW_MS;
+var ACTIVE, MAX_STEPS, MAX_JOBS_KEPT, BOOTED_AT, DEFAULT_REPO, DEFAULT_MAX_JOBS_PER_DAY, DEFAULT_MAX_PROBLEMS, DEFAULT_MODEL, DEFAULT_FALLBACK_MODEL, jobs, CursorApiError, modelCache, ALL_TESTS_CMD, KEEP_OLD_FIXES_RULE, PUBLISH_PROMPT, streams, applying, escalating, RepairJobError, TICK_AUTO_SEND_EVERY_MS, lastTickAutoSend, timer, NOT_FIXED_COOLDOWN_MS, COVERAGE_WINDOW_MS, FAILED_END, autoSending;
 var init_cursorRepairAgent = __esm({
   async "src/services/cursorRepairAgent.ts"() {
     "use strict";
@@ -204735,9 +204857,13 @@ o, si no se pudo: {"published":false,"text":"motivo"}`;
       code;
       httpStatus;
     };
+    TICK_AUTO_SEND_EVERY_MS = 10 * 60 * 1e3;
+    lastTickAutoSend = 0;
     timer = null;
     NOT_FIXED_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1e3;
     COVERAGE_WINDOW_MS = 14 * 24 * 60 * 60 * 1e3;
+    FAILED_END = /* @__PURE__ */ new Set(["no_changes", "error", "discarded"]);
+    autoSending = null;
   }
 });
 
@@ -233306,15 +233432,94 @@ var init_lucyAuditorHeuristics = __esm({
   }
 });
 
+// src/services/lucyAuditorLog.ts
+import { existsSync as existsSync11, mkdirSync as mkdirSync6, readFileSync as readFileSync13, writeFileSync as writeFileSync4 } from "node:fs";
+import { dirname as dirname9 } from "node:path";
+function logPath() {
+  ensureLucyDataRoot();
+  return getLucyAuditorLogPath();
+}
+function readAuditorLog() {
+  const path7 = logPath();
+  if (!existsSync11(path7)) return { flashSeen: {}, runs: [] };
+  try {
+    const parsed = JSON.parse(readFileSync13(path7, "utf8"));
+    return {
+      lastDailyAt: typeof parsed.lastDailyAt === "string" ? parsed.lastDailyAt : void 0,
+      flashSeen: parsed.flashSeen && typeof parsed.flashSeen === "object" ? parsed.flashSeen : {},
+      runs: Array.isArray(parsed.runs) ? parsed.runs : []
+    };
+  } catch (err2) {
+    logger.warn({ err: err2, path: path7 }, "lucyAuditorLog: no se pudo leer");
+    return { flashSeen: {}, runs: [] };
+  }
+}
+function writeAuditorLog(log) {
+  const path7 = logPath();
+  try {
+    const seen = Object.entries(log.flashSeen);
+    if (seen.length > MAX_SEEN) {
+      seen.sort((a4, b5) => b5[1].at.localeCompare(a4[1].at));
+      log.flashSeen = Object.fromEntries(seen.slice(0, MAX_SEEN));
+    }
+    log.runs = log.runs.slice(-MAX_RUNS);
+    mkdirSync6(dirname9(path7), { recursive: true });
+    writeFileSync4(path7, JSON.stringify(log, null, 2), "utf8");
+  } catch (err2) {
+    logger.warn({ err: err2, path: path7 }, "lucyAuditorLog: no se pudo guardar");
+  }
+}
+function getFlashSeen(leadId) {
+  return readAuditorLog().flashSeen[leadId]?.fp;
+}
+function markFlashSeen(leadId, fp) {
+  const log = readAuditorLog();
+  log.flashSeen[leadId] = { fp, at: (/* @__PURE__ */ new Date()).toISOString() };
+  writeAuditorLog(log);
+}
+function getLastDailyAuditAt() {
+  const at3 = readAuditorLog().lastDailyAt;
+  const d3 = at3 ? new Date(at3) : null;
+  return d3 && Number.isFinite(d3.getTime()) ? d3 : null;
+}
+function recordAuditorRun(run2, opts) {
+  const log = readAuditorLog();
+  log.runs.push(run2);
+  if (opts?.daily) log.lastDailyAt = run2.at;
+  writeAuditorLog(log);
+}
+function listAuditorRuns() {
+  return readAuditorLog().runs;
+}
+var MAX_RUNS, MAX_SEEN;
+var init_lucyAuditorLog = __esm({
+  "src/services/lucyAuditorLog.ts"() {
+    "use strict";
+    init_lucyDataPaths();
+    init_logger2();
+    MAX_RUNS = 90;
+    MAX_SEEN = 3e3;
+  }
+});
+
 // src/services/lucyAuditor.ts
 var lucyAuditor_exports = {};
 __export(lucyAuditor_exports, {
+  dailyAuditSince: () => dailyAuditSince,
+  findNewTurnsStart: () => findNewTurnsStart,
+  formatTranscript: () => formatTranscript,
   getAuditorQuotaSnapshot: () => getAuditorQuotaSnapshot,
+  getControlMaxPerDay: () => getControlMaxPerDay,
+  getDailyAuditState: () => getDailyAuditState,
   getLastDailyAuditDay: () => getLastDailyAuditDay,
+  isSilentAfterLucy: () => isSilentAfterLucy,
   mexicoCityDayKey: () => mexicoCityDayKey,
   runLucyAuditorBatch: () => runLucyAuditorBatch,
   runLucyAuditorDaily: () => runLucyAuditorDaily,
-  startOfMexicoCityDay: () => startOfMexicoCityDay
+  runSilentLeadReview: () => runSilentLeadReview,
+  startLucyAuditorDailyInBackground: () => startLucyAuditorDailyInBackground,
+  startOfMexicoCityDay: () => startOfMexicoCityDay,
+  turnFingerprint: () => turnFingerprint
 });
 function getLastDailyAuditDay() {
   return lastDailyRunDay;
@@ -233333,17 +233538,35 @@ async function loadLeadIdsRecent(limitLeads) {
   }).from(messages).groupBy(messages.kommoLeadId).orderBy(desc(sql`max(${messages.timestamp})`)).limit(limitLeads);
   return rows.map((r5) => String(r5.leadId)).filter(Boolean);
 }
-async function loadTurnsForLead(leadId, since, limit2 = 60) {
+async function loadTurnsForLead(leadId, since, limit2 = 80) {
   const rows = await db.select({
     role: messages.role,
-    content: messages.content
+    content: messages.content,
+    at: messages.timestamp
   }).from(messages).where(
     since ? and(eq(messages.kommoLeadId, leadId), gte(messages.timestamp, since)) : eq(messages.kommoLeadId, leadId)
-  ).orderBy(messages.timestamp).limit(limit2);
-  return rows.map((r5) => ({
+  ).orderBy(desc(messages.timestamp)).limit(limit2);
+  return rows.reverse().map((r5) => ({
     role: r5.role,
-    content: r5.content ?? ""
+    content: r5.content ?? "",
+    at: r5.at ? new Date(r5.at) : null
   }));
+}
+function normFp(s7) {
+  return s7.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9ñ]+/g, " ").trim().slice(0, 80);
+}
+function turnFingerprint(t4) {
+  return `${t4.role}|${normFp(t4.content)}`;
+}
+function findNewTurnsStart(turns, seenFp, since) {
+  if (seenFp) {
+    for (let i7 = turns.length - 1; i7 >= 0; i7--) {
+      if (turnFingerprint(turns[i7]) === seenFp) return i7 + 1;
+    }
+  }
+  if (!since) return 0;
+  const i6 = turns.findIndex((t4) => t4.at != null && t4.at >= since);
+  return i6 < 0 ? turns.length : i6;
 }
 async function fetchCrmFieldSnapshot(leadId) {
   const subdomain = getKommoSubdomain();
@@ -233379,14 +233602,14 @@ async function fetchCrmFieldSnapshot(leadId) {
     return null;
   }
 }
-async function listTodayLeadIdsFromKommo(limitLeads, onProgress) {
+async function listTodayLeadIdsFromKommo(limitLeads, since, onProgress) {
   const subdomain = getKommoSubdomain();
   const accessToken = getKommoAccessToken();
   if (!subdomain || !accessToken) {
     logger.warn("lucyAuditor: sin Kommo \u2014 no se listan leads del d\xEDa");
     return [];
   }
-  const sinceSec = Math.floor(startOfMexicoCityDay().getTime() / 1e3);
+  const sinceSec = Math.floor(since.getTime() / 1e3);
   const leadIds = /* @__PURE__ */ new Set();
   const urls = [
     `https://${subdomain}.kommo.com/api/v4/leads?filter[pipeline_id]=${PIPELINE_ID}&limit=${Math.min(limitLeads, 100)}&order[updated_at]=desc`,
@@ -233421,11 +233644,15 @@ async function listTodayLeadIdsFromKommo(limitLeads, onProgress) {
   logger.info({ candidates: ids.length }, "lucyAuditor: leads Kommo del d\xEDa (solo IDs)");
   return ids;
 }
-function formatTranscript(turns) {
-  return turns.map((t4) => {
+function formatTranscript(turns, newStart = 0) {
+  const lines = turns.map((t4) => {
     const who = t4.role === "assistant" ? "LUCY" : t4.role === "human" ? "HUMANO" : "CLIENTE";
-    return `${who}: ${t4.content}`;
-  }).join("\n").slice(0, 6e3);
+    return `${who}: ${t4.content.replace(/\s*\n\s*/g, " ")}`;
+  });
+  if (newStart > 0 && newStart < lines.length) lines.splice(newStart, 0, AUDITOR_NEW_MARKER);
+  let total = lines.reduce((n5, l6) => n5 + l6.length + 1, 0);
+  while (lines.length > 1 && total > 6e3) total -= lines.shift().length + 1;
+  return lines.join("\n").slice(-6e3);
 }
 async function runLucyAuditorBatch(opts) {
   const dayKey2 = mexicoCityDayKey();
@@ -233449,11 +233676,13 @@ async function runLucyAuditorBatch(opts) {
     report({ type: "result", result: result2 });
     return result2;
   }
-  const onlyToday = opts?.onlyToday === true;
+  const onlyToday = opts?.onlyToday === true || opts?.since != null;
   const limitLeads = opts?.limitLeads ?? (onlyToday ? 50 : 20);
   const useFlash = opts?.useFlash !== false;
   const forceFlash = opts?.forceFlash === true;
   const listKommo = opts?.syncFromKommo !== false && onlyToday;
+  const flashReserve = Math.max(0, opts?.flashReserve ?? 0);
+  const since = onlyToday ? opts?.since ?? startOfMexicoCityDay() : null;
   report({
     type: "phase",
     phase: "sync",
@@ -233463,9 +233692,8 @@ async function runLucyAuditorBatch(opts) {
   const historyKeys = listHistoryKeys().length;
   let kommoLeadIds = [];
   if (listKommo) {
-    kommoLeadIds = await listTodayLeadIdsFromKommo(limitLeads, report);
+    kommoLeadIds = await listTodayLeadIdsFromKommo(limitLeads, since, report);
   }
-  const since = onlyToday ? startOfMexicoCityDay() : null;
   const fromDb = onlyToday ? await loadLeadIdsWithMessagesSince(since, limitLeads) : await loadLeadIdsRecent(limitLeads);
   const localSet = new Set(fromDb);
   const historySet = new Set(listHistoryKeys());
@@ -233525,9 +233753,12 @@ async function runLucyAuditorBatch(opts) {
           source: "heuristic"
         });
       }
-      const shouldFlash = useFlash && canSpendAuditorCall() && turns.length >= 3 && (forceFlash ? lucyLike || turns.length >= 4 : lucyLike && transcriptNeedsFlash(turns, heuristic.length));
+      const newStart = findNewTurnsStart(turns, getFlashSeen(leadId), since);
+      const hasNewLucy = turns.slice(newStart).some((t4) => t4.role === "assistant");
+      const shouldFlash = useFlash && hasNewLucy && canSpendAuditorCall() && getAuditorQuotaSnapshot().remaining > flashReserve && turns.length >= 3 && (forceFlash ? lucyLike || turns.length >= 4 : lucyLike && transcriptNeedsFlash(turns, heuristic.length));
       if (shouldFlash) {
-        const llmFindings = await runAuditorLlm(formatTranscript(turns));
+        const llmFindings = await runAuditorLlm(formatTranscript(turns, newStart));
+        markFlashSeen(leadId, turnFingerprint(turns[turns.length - 1]));
         flashCalls += 1;
         for (const f7 of llmFindings) {
           findings += 1;
@@ -233606,6 +233837,7 @@ async function runLucyAuditorBatch(opts) {
   const summary = leadIds.length === 0 ? `No encontr\xE9 leads para auditar` + (hydrated.keys ? ` (${hydrated.keys} en chat-history, +${hydrated.inserted} importados)` : "") + `.` + modeHint : findings === 0 ? `Revis\xE9 ${leadIds.length} lead(s) (${scannedChats} con chat local)` + (hydrated.inserted ? ` (+${hydrated.inserted} del historial)` : "") + `. Flash ${flashCalls}. Sin errores detectados` + (withLucy ? ` (${withLucy} con Lucy).` : ".") + modeHint : `Revis\xE9 ${leadIds.length} lead(s) (${scannedChats} con chat): ${findings} hallazgo(s), ${recorded} registrado(s), Flash ${flashCalls}.` + modeHint;
   const result = {
     scanned: leadIds.length,
+    scannedChats,
     findings,
     recorded,
     flashCalls,
@@ -233618,24 +233850,180 @@ async function runLucyAuditorBatch(opts) {
     withLucy,
     tooShort,
     summary,
+    since: since?.toISOString(),
     quota: getAuditorQuotaSnapshot()
   };
+  if ((opts?.kind ?? "manual") !== "daily") {
+    recordAuditorRun({
+      at: (/* @__PURE__ */ new Date()).toISOString(),
+      kind: "manual",
+      since: result.since,
+      scanned: result.scanned,
+      scannedChats,
+      withLucy,
+      flashCalls,
+      findings,
+      recorded
+    });
+  }
   report({ type: "phase", phase: "done", message: summary });
   report({ type: "result", result });
   logger.info(result, "lucyAuditor batch finished");
   return result;
 }
-async function runLucyAuditorDaily() {
-  return runLucyAuditorBatch({
-    onlyToday: true,
-    oncePerDay: true,
+function getControlMaxPerDay() {
+  const n5 = Number(process.env["LUCY_CONTROL_MAX_PER_DAY"] ?? "8");
+  if (!Number.isFinite(n5) || n5 < 0) return 8;
+  return Math.min(Math.floor(n5), 40);
+}
+function dailyAuditSince(now, lastDailyAt) {
+  const minus24 = now.getTime() - 24 * HOUR;
+  const minus48 = now.getTime() - 48 * HOUR;
+  const last = lastDailyAt?.getTime() ?? minus24;
+  return new Date(Math.max(minus48, Math.min(minus24, last)));
+}
+async function loadSilentCandidateLeadIds(now, limit2) {
+  const rows = await db.select({ leadId: messages.kommoLeadId }).from(messages).where(gte(messages.timestamp, new Date(now.getTime() - 7 * 24 * HOUR))).groupBy(messages.kommoLeadId).having(
+    sql`max(${messages.timestamp}) <= ${new Date(now.getTime() - 18 * HOUR).toISOString()}::timestamp`
+  ).orderBy(desc(sql`max(${messages.timestamp})`)).limit(limit2);
+  return rows.map((r5) => String(r5.leadId)).filter(Boolean);
+}
+function isSilentAfterLucy(turns) {
+  const last = turns[turns.length - 1];
+  if (!last || last.role !== "assistant") return false;
+  return turns.filter((t4) => t4.role === "user").length >= 2;
+}
+async function runSilentLeadReview(opts) {
+  const out2 = { reviewed: 0, findings: 0, recorded: 0 };
+  if (opts.max <= 0) return out2;
+  const now = opts.now ?? /* @__PURE__ */ new Date();
+  const dayKey2 = mexicoCityDayKey(now);
+  const candidates = await loadSilentCandidateLeadIds(now, 120);
+  for (const leadId of candidates) {
+    if (out2.reviewed >= opts.max || !canSpendAuditorCall()) break;
+    const turns = await loadTurnsForLead(leadId, null);
+    if (!isSilentAfterLucy(turns)) continue;
+    const lastFp = turnFingerprint(turns[turns.length - 1]);
+    if (getFlashSeen(leadId) === lastFp) continue;
+    let lastClient = turns.length - 1;
+    while (lastClient > 0 && turns[lastClient].role !== "user") lastClient -= 1;
+    const llmFindings = await runAuditorLlm(formatTranscript(turns, lastClient), "silent");
+    markFlashSeen(leadId, lastFp);
+    out2.reviewed += 1;
+    for (const f7 of llmFindings) {
+      out2.findings += 1;
+      const ok = await recordLucyRepair({
+        kommoLeadId: leadId,
+        category: f7.category,
+        severity: f7.severity,
+        evidence: `[${dayKey2}] ${f7.evidence}`,
+        proposedRepair: `El cliente dej\xF3 de contestar despu\xE9s de esto. ${f7.proposedRepair}`,
+        status: "open",
+        source: "flash",
+        model: getAuditorModel()
+      });
+      if (ok) out2.recorded += 1;
+      opts.onProgress?.({
+        type: "finding",
+        leadId,
+        category: f7.category,
+        severity: f7.severity,
+        evidence: f7.evidence,
+        source: "flash"
+      });
+    }
+  }
+  return out2;
+}
+async function runLucyAuditorDaily(opts) {
+  const now = opts?.now ?? /* @__PURE__ */ new Date();
+  const lastDailyAt = getLastDailyAuditAt();
+  if (lastDailyAt && now.getTime() - lastDailyAt.getTime() < 12 * HOUR) {
+    return {
+      scanned: 0,
+      findings: 0,
+      recorded: 0,
+      flashCalls: 0,
+      skipped: "already_ran_today",
+      dayKey: mexicoCityDayKey(now),
+      summary: "Ya se corri\xF3 la auditor\xEDa autom\xE1tica en las \xFAltimas 12 horas.",
+      quota: getAuditorQuotaSnapshot()
+    };
+  }
+  const controlMax = getControlMaxPerDay();
+  const since = dailyAuditSince(now, lastDailyAt);
+  const result = await runLucyAuditorBatch({
+    since,
     syncFromKommo: true,
     forceFlash: true,
-    limitLeads: 50,
-    useFlash: true
+    limitLeads: 80,
+    useFlash: true,
+    flashReserve: controlMax,
+    kind: "daily"
   });
+  let silent = { reviewed: 0, findings: 0, recorded: 0 };
+  try {
+    silent = await runSilentLeadReview({ max: controlMax, now });
+  } catch (err2) {
+    logger.warn({ err: err2 }, "lucyAuditor: revisi\xF3n de puntos ciegos fall\xF3");
+  }
+  lastDailyRunDay = mexicoCityDayKey(now);
+  const merged = {
+    ...result,
+    findings: result.findings + silent.findings,
+    recorded: result.recorded + silent.recorded,
+    flashCalls: result.flashCalls + silent.reviewed,
+    silentReviewed: silent.reviewed,
+    silentFindings: silent.findings,
+    summary: `${result.summary ?? ""} Puntos ciegos: ${silent.reviewed} chat(s) donde el cliente dej\xF3 de contestar` + (silent.findings ? `, ${silent.findings} hallazgo(s).` : ", sin hallazgos."),
+    quota: getAuditorQuotaSnapshot()
+  };
+  recordAuditorRun(
+    {
+      at: now.toISOString(),
+      kind: "daily",
+      since: since.toISOString(),
+      scanned: merged.scanned,
+      scannedChats: merged.scannedChats ?? 0,
+      withLucy: merged.withLucy ?? 0,
+      flashCalls: merged.flashCalls,
+      findings: merged.findings,
+      recorded: merged.recorded,
+      silentReviewed: silent.reviewed,
+      silentFindings: silent.findings
+    },
+    { daily: true }
+  );
+  try {
+    const { cleanupRepairQueue: cleanupRepairQueue2, autoSendNextRepairJob: autoSendNextRepairJob2 } = await init_cursorRepairAgent().then(() => cursorRepairAgent_exports);
+    if (silent.recorded > 0) await cleanupRepairQueue2();
+    await autoSendNextRepairJob2("auditor\xEDa nocturna");
+  } catch (err2) {
+    logger.warn({ err: err2 }, "lucyAuditor: env\xEDo autom\xE1tico a Cursor fall\xF3");
+  }
+  logger.info(merged, "lucyAuditor daily finished");
+  return merged;
 }
-var lastDailyRunDay;
+function getDailyAuditState() {
+  return dailyState;
+}
+function startLucyAuditorDailyInBackground() {
+  if (dailyState.running) return dailyState;
+  dailyState = { running: true, startedAt: (/* @__PURE__ */ new Date()).toISOString() };
+  void runLucyAuditorDaily().then((result) => {
+    dailyState = { ...dailyState, running: false, finishedAt: (/* @__PURE__ */ new Date()).toISOString(), result };
+  }).catch((err2) => {
+    logger.error({ err: err2 }, "lucyAuditor daily (background) fall\xF3");
+    dailyState = {
+      ...dailyState,
+      running: false,
+      finishedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      error: err2 instanceof Error ? err2.message : String(err2)
+    };
+  });
+  return dailyState;
+}
+var lastDailyRunDay, HOUR, dailyState;
 var init_lucyAuditor = __esm({
   async "src/services/lucyAuditor.ts"() {
     "use strict";
@@ -233646,6 +234034,7 @@ var init_lucyAuditor = __esm({
     init_chat_history();
     init_lucyAuditorHeuristics();
     init_lucyAuditorLlm();
+    init_lucyAuditorLog();
     await init_lucyRepairStore();
     init_lucyAuditorTime();
     await init_chatIngest();
@@ -233653,6 +234042,87 @@ var init_lucyAuditor = __esm({
     init_lucyAuditorLlm();
     init_lucyAuditorTime();
     lastDailyRunDay = null;
+    HOUR = 36e5;
+    dailyState = { running: false };
+  }
+});
+
+// src/services/lucyQuality.ts
+var lucyQuality_exports = {};
+__export(lucyQuality_exports, {
+  buildQualityReport: () => buildQualityReport,
+  summarizeCoverage: () => summarizeCoverage,
+  summarizeCursor: () => summarizeCursor,
+  summarizeRules: () => summarizeRules
+});
+function summarizeRules(rows) {
+  const by = /* @__PURE__ */ new Map();
+  for (const r5 of rows) {
+    const key = `${r5.source}|${r5.category}`;
+    const row = by.get(key) ?? { source: r5.source, category: r5.category, total: 0, pending: 0, fixed: 0, falseAlarm: 0 };
+    row.total += 1;
+    if (r5.status === "resolved") row.fixed += 1;
+    else if (r5.status === "dismissed") {
+      if (/falso positivo/i.test(r5.appliedRepair ?? "")) row.falseAlarm += 1;
+    } else row.pending += 1;
+    by.set(key, row);
+  }
+  return [...by.values()].map((row) => {
+    const decided = row.fixed + row.falseAlarm;
+    const rate = decided ? row.falseAlarm / decided : null;
+    return { ...row, falseAlarmRate: rate, noisy: rate != null && decided >= 3 && rate >= 0.4 };
+  }).sort((a4, b5) => b5.total - a4.total);
+}
+function summarizeCoverage(runs, now) {
+  const recent = runs.filter((r5) => now.getTime() - new Date(r5.at).getTime() <= 14 * DAY);
+  const nightDays = new Set(
+    recent.filter((r5) => r5.kind === "daily" && now.getTime() - new Date(r5.at).getTime() <= 7 * DAY).map((r5) => mexicoCityDayKey(new Date(r5.at)))
+  );
+  return {
+    nightsLast7: nightDays.size,
+    runs: recent.slice(-14).reverse()
+  };
+}
+function summarizeCursor(jobs2, now) {
+  const recent = jobs2.filter((j5) => now.getTime() - new Date(j5.createdAt).getTime() <= 30 * DAY);
+  const count2 = (s7) => recent.filter((j5) => s7.includes(j5.status)).length;
+  const ids = (k5) => recent.reduce((n5, j5) => n5 + (j5.outcome?.[k5] ?? []).reduce((m6, x8) => m6 + x8.ids.length, 0), 0);
+  const retries = recent.filter((j5) => j5.escalatedFrom);
+  return {
+    jobs: recent.length,
+    published: count2(["published"]),
+    failed: count2(["no_changes", "error", "discarded"]),
+    active: count2(["creating", "running", "publishing", "fix_ready"]),
+    problemsFixed: ids("fixed"),
+    problemsFalsePositive: ids("falsePositive"),
+    problemsNotFixed: ids("notFixed"),
+    retries: retries.length,
+    retriesPublished: retries.filter((j5) => j5.status === "published").length,
+    learned: recent.flatMap((j5) => (j5.outcome?.newRules ?? []).map((text2) => ({ at: j5.finishedAt ?? j5.updatedAt, text: text2 }))).slice(0, 30)
+  };
+}
+async function buildQualityReport(now = /* @__PURE__ */ new Date()) {
+  await ensureLucyRepairSchema();
+  const rows = (await db.select().from(lucyRepairs)).filter(
+    (r5) => now.getTime() - r5.createdAt.getTime() <= 30 * DAY
+  );
+  return {
+    windowDays: 30,
+    rules: summarizeRules(rows),
+    coverage: summarizeCoverage(listAuditorRuns(), now),
+    cursor: summarizeCursor(listRepairJobs(60), now)
+  };
+}
+var DAY;
+var init_lucyQuality = __esm({
+  async "src/services/lucyQuality.ts"() {
+    "use strict";
+    await init_src2();
+    await init_lucyRepairSchema();
+    init_lucyAuditorLog();
+    await init_cursorRepairAgent();
+    init_lucyAuditorTime();
+    DAY = 24 * 36e5;
   }
 });
 
@@ -242944,9 +243414,19 @@ router3.get("/kommo/cron/learning", async (req, res) => {
   const { handleLearningCron: handleLearningCron2 } = await init_learning().then(() => learning_exports);
   await handleLearningCron2(req, res);
 });
+router3.get("/kommo/cron/reparaciones/status", async (req, res) => {
+  if (!assertCronAuthorized(req, res)) return;
+  const { getDailyAuditState: getDailyAuditState2 } = await init_lucyAuditor().then(() => lucyAuditor_exports);
+  res.json({ ok: true, ...getDailyAuditState2() });
+});
 router3.get("/kommo/cron/reparaciones", async (req, res) => {
   if (!assertCronAuthorized(req, res)) return;
   try {
+    if (req.query.async === "1") {
+      const { startLucyAuditorDailyInBackground: startLucyAuditorDailyInBackground2 } = await init_lucyAuditor().then(() => lucyAuditor_exports);
+      res.status(202).json({ ok: true, mode: "daily_async", ...startLucyAuditorDailyInBackground2() });
+      return;
+    }
     const { runLucyAuditorDaily: runLucyAuditorDaily2 } = await init_lucyAuditor().then(() => lucyAuditor_exports);
     const result = await runLucyAuditorDaily2();
     res.json({ ok: true, mode: "daily", ...result });
@@ -244090,11 +244570,19 @@ router12.get("/reparaciones/stats", async (_req, res) => {
     res.status(500).json({ error: "failed_to_load_stats" });
   }
 });
+router12.get("/reparaciones/quality", async (_req, res) => {
+  try {
+    const { buildQualityReport: buildQualityReport2 } = await init_lucyQuality().then(() => lucyQuality_exports);
+    res.json(await buildQualityReport2());
+  } catch {
+    res.status(500).json({ error: "failed_to_load_quality" });
+  }
+});
 router12.post("/reparaciones/run", async (req, res) => {
   try {
     const onlyToday = req.body?.onlyToday !== false;
     const result = await runLucyAuditorBatch({
-      limitLeads: Math.min(Number(req.body?.limitLeads ?? (onlyToday ? 50 : 20)), 80),
+      limitLeads: Math.min(Number(req.body?.limitLeads ?? (onlyToday ? 80 : 20)), 80),
       useFlash: req.body?.useFlash !== false,
       onlyToday,
       syncFromKommo: req.body?.syncFromKommo !== false,
@@ -244125,7 +244613,7 @@ router12.post("/reparaciones/run-stream", async (req, res) => {
   try {
     send({ type: "phase", phase: "sync", message: "Iniciando auditor\xEDa\u2026" });
     const result = await runLucyAuditorBatch({
-      limitLeads: Math.min(Number(req.body?.limitLeads ?? (onlyToday ? 50 : 20)), 80),
+      limitLeads: Math.min(Number(req.body?.limitLeads ?? (onlyToday ? 80 : 20)), 80),
       useFlash: req.body?.useFlash !== false,
       onlyToday,
       syncFromKommo: req.body?.syncFromKommo !== false,

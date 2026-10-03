@@ -1,47 +1,66 @@
 name: Auditor diario Reparaciones Lucy
 
-# Una vez al día (≈ 22:00 Mexico / 04:00 UTC): revisa chats del día civil
-# America/Mexico_City. Heurísticas gratis + gemini-2.5-flash con cupo.
+# Una vez al día (programado 04:00 UTC ≈ 22:00 Mexico; GitHub suele retrasarlo horas).
+# Revisa desde la última auditoría (mín. 24 h): heurísticas gratis + gemini-2.5-flash con cupo,
+# puntos ciegos (clientes que dejaron de contestar) y manda la cola a Cursor sola.
 # Nunca escribe al cliente.
 
 on:
   schedule:
-    # 04:00 UTC ≈ 22:00 CST (Mexico) / 23:00 CDT
     - cron: "0 4 * * *"
   workflow_dispatch:
 
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
-      - name: Ping health
+      - name: Despertar servidor (health con reintentos)
         env:
           LUCY_PUBLIC_URL: ${{ vars.LUCY_PUBLIC_URL }}
         run: |
           BASE="${LUCY_PUBLIC_URL:-https://midnightblue-mosquito-424375.hostingersite.com}"
-          HTTP=$(curl -sS -o /tmp/h.json -w "%{http_code}" --max-time 45 "${BASE%/}/api/health" || echo "000")
-          echo "health=$HTTP"
-          cat /tmp/h.json || true
-          test "$HTTP" = "200"
+          for i in 1 2 3 4 5 6; do
+            HTTP=$(curl -sS -o /tmp/h.json -w "%{http_code}" --max-time 45 "${BASE%/}/api/health" || echo "000")
+            echo "intento $i: health=$HTTP"
+            if [ "$HTTP" = "200" ]; then exit 0; fi
+            sleep 30
+          done
+          echo "ERROR: el servidor no respondió"
+          exit 1
 
-      - name: Cron auditor diario (chats del día)
+      - name: Auditoría (en segundo plano en el servidor)
         env:
           LUCY_PUBLIC_URL: ${{ vars.LUCY_PUBLIC_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           BASE="${LUCY_PUBLIC_URL:-https://midnightblue-mosquito-424375.hostingersite.com}"
           URL="${BASE%/}/api/kommo/cron/reparaciones"
+          QS="async=1"
+          SQ=""
           if [ -n "$CRON_SECRET" ]; then
-            URL="${URL}?secret=${CRON_SECRET}"
+            QS="${QS}&secret=${CRON_SECRET}"
+            SQ="?secret=${CRON_SECRET}"
           fi
-          echo "Auditor diario → $URL"
-          HTTP=$(curl -sS -o /tmp/audit.json -w "%{http_code}" --max-time 120 "$URL" || echo "000")
-          cat /tmp/audit.json || true
-          echo ""
-          echo "http=$HTTP"
-          if [ "$HTTP" != "200" ]; then
-            echo "ERROR: auditor HTTP $HTTP"
+          HTTP=$(curl -sS -o /tmp/start.json -w "%{http_code}" --max-time 60 "${URL}?${QS}" || echo "000")
+          echo "inicio http=$HTTP"
+          if [ "$HTTP" != "202" ] && [ "$HTTP" != "200" ]; then
+            cat /tmp/start.json || true
+            echo "ERROR: no arrancó la auditoría"
             exit 1
           fi
-          node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/audit.json','utf8')); console.log('day='+(j.dayKey||'?')+' scanned='+(j.scanned??'?')+' recorded='+(j.recorded??'?')+' flash='+(j.flashCalls??'?')+' skipped='+(j.skipped||'-'))"
+          for i in $(seq 1 60); do
+            sleep 20
+            curl -sS -o /tmp/st.json --max-time 30 "${URL}/status${SQ}" || continue
+            RUNNING=$(node -e "try{const j=JSON.parse(require('fs').readFileSync('/tmp/st.json','utf8'));console.log(j.running?'1':'0')}catch{console.log('1')}")
+            if [ "$RUNNING" = "0" ]; then break; fi
+            echo "…sigue revisando ($((i*20)) s)"
+          done
+          node -e "
+            const j=JSON.parse(require('fs').readFileSync('/tmp/st.json','utf8'));
+            if (j.running) { console.log('ERROR: sigue corriendo tras 20 min'); process.exit(1); }
+            if (j.error) { console.log('ERROR: '+j.error); process.exit(1); }
+            const r=j.result||{};
+            console.log('desde='+(r.since||'?')+' revisados='+(r.scanned??'?')+' registrados='+(r.recorded??'?')+' gemini='+(r.flashCalls??'?')+' puntos_ciegos='+(r.silentReviewed??'?')+' skipped='+(r.skipped||'-'));
+            console.log(r.summary||'');
+          "

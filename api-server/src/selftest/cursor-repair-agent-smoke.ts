@@ -18,6 +18,7 @@ process.env["LUCY_REPAIR_RUNS_PATH"] = join(dir, "repair-runs.json");
 process.env["CURSOR_API_KEY"] = "test-key";
 process.env["CURSOR_API_BASE"] = "https://cursor.mock";
 process.env["LUCY_REPAIR_AUTO_PUBLISH"] = "0";
+process.env["LUCY_REPAIR_AUTO_SEND"] = "0";
 delete process.env["LUCY_REPAIR_MODEL"];
 delete process.env["LUCY_REPAIR_MODEL_FAST"];
 process.env["LUCY_REPAIR_FALLBACK_MODEL"] = "0";
@@ -372,6 +373,19 @@ await agent.launchPendingEscalations();
 assert.equal(agent.getRepairJob(job7.id)!.status, "no_changes");
 assert.equal(agent.getRepairJob(job7.id)!.escalation, undefined);
 assert.equal((await findLead("1200")).status, "auto_flagged");
+
+// Ciclo automático: manda la cola sola, sin repetir lo que ya falló (error sin 2.º intento, no pudo).
+process.env["LUCY_REPAIR_AUTO_SEND"] = "1";
+const auto = await agent.autoSendNextRepairJob("prueba");
+assert.ok(auto, "manda el siguiente bloque");
+const autoLeads = await Promise.all(auto.repairIds.map(async (id) => (await store.getLucyRepair(id))?.kommoLeadId));
+assert.ok(autoLeads.includes("901"), autoLeads.join(","));
+for (const lead of ["400", "1100", "1200"]) assert.ok(!autoLeads.includes(lead), `${lead} ya falló: ${autoLeads.join(",")}`);
+assert.ok(auto.steps.some((s) => s.text === "Enviado automáticamente (prueba)"));
+assert.equal(await agent.autoSendNextRepairJob("prueba"), null, "uno a la vez");
+assert.equal(agent.repairAgentStatusSummary().auto_send, true);
+process.env["LUCY_REPAIR_AUTO_PUBLISH"] = "0";
+assert.equal(agent.repairAgentStatusSummary().auto_send, false, "sin publicación automática no envía solo");
 
 agent.__resetRepairJobsForTest();
 console.log("cursor-repair-agent smoke OK");

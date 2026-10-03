@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Reparaciones Lucy — Bodasesor</title>
   <base href="/reparaciones/" />
-  <link rel="stylesheet" href="/reparaciones/styles.css?v=7" />
+  <link rel="stylesheet" href="/reparaciones/styles.css?v=8" />
 </head>
 <body>
   <div class="page">
@@ -18,7 +18,8 @@
           las abiertas solo salen de la lista al pasar a <strong>Resueltas</strong> (con descripción del fix).
           El auditor <strong>nunca escribe al cliente</strong> · modelo
           <code id="auditor-model">…</code>.
-          <br />Auditoría <strong>automática 1×/día</strong> (≈22:00 Mexico).
+          <br />Auditoría <strong>automática 1×/día</strong> (noche/madrugada): revisa desde la última vez, busca
+          errores nuevos y clientes que dejaron de contestar, y manda la cola a Cursor sola.
         </p>
       </div>
       <div class="header-actions">
@@ -40,6 +41,11 @@
       <div class="stat"><strong id="stat-quota">—</strong><span>Llamadas hoy</span></div>
       <div class="stat"><strong id="stat-spend">—</strong><span>Gasto auditor hoy</span></div>
     </div>
+
+    <details id="quality" class="quality">
+      <summary><strong>¿Qué tan bien trabaja el supervisor?</strong> <span id="quality-note" class="muted"></span></summary>
+      <div id="quality-body" class="quality-body"><p class="muted">Cargando…</p></div>
+    </details>
 
     <section id="working-banner" class="working-banner hidden" aria-live="polite">
       <div class="working-banner-top">
@@ -78,6 +84,6 @@
     <div id="list" class="list"></div>
     <p id="empty" class="muted empty hidden">Sin hallazgos en este filtro.</p>
   </div>
-  <script src="/reparaciones/app.js?v=14" type="module"></script>
+  <script src="/reparaciones/app.js?v=15" type="module"></script>
 </body>
 </html>

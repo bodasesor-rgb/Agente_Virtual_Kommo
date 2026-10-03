@@ -18,11 +18,20 @@ import {
   type TranscriptTurn,
 } from "./lucyAuditorHeuristics.js";
 import {
+  AUDITOR_NEW_MARKER,
   canSpendAuditorCall,
   getAuditorModel,
   getAuditorQuotaSnapshot,
   runAuditorLlm,
+  type AuditorLlmMode,
 } from "./lucyAuditorLlm.js";
+import {
+  getFlashSeen,
+  getLastDailyAuditAt,
+  markFlashSeen,
+  recordAuditorRun,
+  type AuditorRunKind,
+} from "./lucyAuditorLog.js";
 import { recordLucyRepair } from "./lucyRepairStore.js";
 import { mexicoCityDayKey, startOfMexicoCityDay } from "./lucyAuditorTime.js";
 import { hydrateMessagesFromChatHistory } from "./chatIngest.js";
@@ -33,6 +42,8 @@ export { mexicoCityDayKey, startOfMexicoCityDay } from "./lucyAuditorTime.js";
 
 export type AuditorRunResult = {
   scanned: number;
+  /** Leads con chat local revisable. */
+  scannedChats?: number;
   findings: number;
   recorded: number;
   flashCalls: number;
@@ -50,6 +61,11 @@ export type AuditorRunResult = {
   withLucy?: number;
   tooShort?: number;
   summary?: string;
+  /** Inicio de la ventana revisada (ISO). */
+  since?: string;
+  /** Revisión de puntos ciegos: chats donde el cliente dejó de contestar tras Lucy. */
+  silentReviewed?: number;
+  silentFindings?: number;
   quota: ReturnType<typeof getAuditorQuotaSnapshot>;
 };
 
@@ -118,15 +134,19 @@ async function loadLeadIdsRecent(limitLeads: number): Promise<string[]> {
   return rows.map((r) => String(r.leadId)).filter(Boolean);
 }
 
+type AuditTurn = TranscriptTurn & { at: Date | null };
+
+/** Los últimos `limit` mensajes del lead, en orden cronológico. */
 async function loadTurnsForLead(
   leadId: string,
   since: Date | null,
-  limit = 60
-): Promise<TranscriptTurn[]> {
+  limit = 80
+): Promise<AuditTurn[]> {
   const rows = await db
     .select({
       role: messages.role,
       content: messages.content,
+      at: messages.timestamp,
     })
     .from(messages)
     .where(
@@ -134,12 +154,46 @@ async function loadTurnsForLead(
         ? and(eq(messages.kommoLeadId, leadId), gte(messages.timestamp, since))
         : eq(messages.kommoLeadId, leadId)
     )
-    .orderBy(messages.timestamp)
+    .orderBy(desc(messages.timestamp))
     .limit(limit);
-  return rows.map((r) => ({
+  return rows.reverse().map((r) => ({
     role: r.role,
     content: r.content ?? "",
+    at: r.at ? new Date(r.at) : null,
   }));
+}
+
+function normFp(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9ñ]+/g, " ")
+    .trim()
+    .slice(0, 80);
+}
+
+export function turnFingerprint(t: TranscriptTurn): string {
+  return `${t.role}|${normFp(t.content)}`;
+}
+
+/**
+ * Índice del primer mensaje que Gemini aún no leyó: tras la huella guardada,
+ * o (sin huella) el primero dentro de la ventana. turns.length = nada nuevo.
+ */
+export function findNewTurnsStart(
+  turns: Array<TranscriptTurn & { at?: Date | null }>,
+  seenFp: string | undefined,
+  since: Date | null
+): number {
+  if (seenFp) {
+    for (let i = turns.length - 1; i >= 0; i--) {
+      if (turnFingerprint(turns[i]!) === seenFp) return i + 1;
+    }
+  }
+  if (!since) return 0;
+  const i = turns.findIndex((t) => t.at != null && t.at >= since);
+  return i < 0 ? turns.length : i;
 }
 
 /** Lee campos del panel Kommo (CRM). No requiere External chat history. */
@@ -188,6 +242,7 @@ async function fetchCrmFieldSnapshot(leadId: string): Promise<CrmFieldSnapshot |
  */
 async function listTodayLeadIdsFromKommo(
   limitLeads: number,
+  since: Date,
   onProgress?: (ev: AuditorProgressEvent) => void
 ): Promise<string[]> {
   const subdomain = getKommoSubdomain();
@@ -197,7 +252,7 @@ async function listTodayLeadIdsFromKommo(
     return [];
   }
 
-  const sinceSec = Math.floor(startOfMexicoCityDay().getTime() / 1000);
+  const sinceSec = Math.floor(since.getTime() / 1000);
   const leadIds = new Set<string>();
 
   const urls = [
@@ -275,19 +330,21 @@ async function loadTranscriptsForLeadIds(
   return { transcripts: out, emptyOrShort, noReply };
 }
 
-function formatTranscript(turns: TranscriptTurn[]): string {
-  return turns
-    .map((t) => {
-      const who =
-        t.role === "assistant"
-          ? "LUCY"
-          : t.role === "human"
-            ? "HUMANO"
-            : "CLIENTE";
-      return `${who}: ${t.content}`;
-    })
-    .join("\n")
-    .slice(0, 6000);
+/** Transcript para Gemini (máx. 6000 caracteres, se conserva lo más reciente). */
+export function formatTranscript(turns: TranscriptTurn[], newStart = 0): string {
+  const lines = turns.map((t) => {
+    const who =
+      t.role === "assistant"
+        ? "LUCY"
+        : t.role === "human"
+          ? "HUMANO"
+          : "CLIENTE";
+    return `${who}: ${t.content.replace(/\s*\n\s*/g, " ")}`;
+  });
+  if (newStart > 0 && newStart < lines.length) lines.splice(newStart, 0, AUDITOR_NEW_MARKER);
+  let total = lines.reduce((n, l) => n + l.length + 1, 0);
+  while (lines.length > 1 && total > 6000) total -= lines.shift()!.length + 1;
+  return lines.join("\n").slice(-6000);
 }
 
 export async function runLucyAuditorBatch(opts?: {
@@ -298,6 +355,11 @@ export async function runLucyAuditorBatch(opts?: {
   /** Lista IDs del día en Kommo (no lee mensajes). */
   syncFromKommo?: boolean;
   forceFlash?: boolean;
+  /** Inicio de ventana explícito (cron: desde la última auditoría). Implica onlyToday. */
+  since?: Date;
+  /** Llamadas Gemini que se dejan libres (revisión de puntos ciegos). */
+  flashReserve?: number;
+  kind?: AuditorRunKind;
   onProgress?: (ev: AuditorProgressEvent) => void;
 }): Promise<AuditorRunResult> {
   const dayKey = mexicoCityDayKey();
@@ -324,11 +386,13 @@ export async function runLucyAuditorBatch(opts?: {
     return result;
   }
 
-  const onlyToday = opts?.onlyToday === true;
+  const onlyToday = opts?.onlyToday === true || opts?.since != null;
   const limitLeads = opts?.limitLeads ?? (onlyToday ? 50 : 20);
   const useFlash = opts?.useFlash !== false;
   const forceFlash = opts?.forceFlash === true;
   const listKommo = opts?.syncFromKommo !== false && onlyToday;
+  const flashReserve = Math.max(0, opts?.flashReserve ?? 0);
+  const since = onlyToday ? (opts?.since ?? startOfMexicoCityDay()) : null;
 
   report({
     type: "phase",
@@ -340,10 +404,9 @@ export async function runLucyAuditorBatch(opts?: {
 
   let kommoLeadIds: string[] = [];
   if (listKommo) {
-    kommoLeadIds = await listTodayLeadIdsFromKommo(limitLeads, report);
+    kommoLeadIds = await listTodayLeadIdsFromKommo(limitLeads, since!, report);
   }
 
-  const since = onlyToday ? startOfMexicoCityDay() : null;
   const fromDb = onlyToday
     ? await loadLeadIdsWithMessagesSince(since!, limitLeads)
     : await loadLeadIdsRecent(limitLeads);
@@ -417,16 +480,22 @@ export async function runLucyAuditorBatch(opts?: {
         });
       }
 
+      // Gemini solo lee lo que no ha leído antes (y solo si Lucy habló ahí).
+      const newStart = findNewTurnsStart(turns, getFlashSeen(leadId), since);
+      const hasNewLucy = turns.slice(newStart).some((t) => t.role === "assistant");
       const shouldFlash =
         useFlash &&
+        hasNewLucy &&
         canSpendAuditorCall() &&
+        getAuditorQuotaSnapshot().remaining > flashReserve &&
         turns.length >= 3 &&
         (forceFlash
           ? lucyLike || turns.length >= 4
           : lucyLike && transcriptNeedsFlash(turns, heuristic.length));
 
       if (shouldFlash) {
-        const llmFindings = await runAuditorLlm(formatTranscript(turns));
+        const llmFindings = await runAuditorLlm(formatTranscript(turns, newStart));
+        markFlashSeen(leadId, turnFingerprint(turns[turns.length - 1]!));
         flashCalls += 1;
         for (const f of llmFindings) {
           findings += 1;
@@ -527,6 +596,7 @@ export async function runLucyAuditorBatch(opts?: {
 
   const result: AuditorRunResult = {
     scanned: leadIds.length,
+    scannedChats,
     findings,
     recorded,
     flashCalls,
@@ -539,22 +609,227 @@ export async function runLucyAuditorBatch(opts?: {
     withLucy,
     tooShort,
     summary,
+    since: since?.toISOString(),
     quota: getAuditorQuotaSnapshot(),
   };
+  if ((opts?.kind ?? "manual") !== "daily") {
+    recordAuditorRun({
+      at: new Date().toISOString(),
+      kind: "manual",
+      since: result.since,
+      scanned: result.scanned,
+      scannedChats,
+      withLucy,
+      flashCalls,
+      findings,
+      recorded,
+    });
+  }
   report({ type: "phase", phase: "done", message: summary });
   report({ type: "result", result });
   logger.info(result, "lucyAuditor batch finished");
   return result;
 }
 
-/** Cron diario / botón: chats locales del día + Flash forzado. */
-export async function runLucyAuditorDaily(): Promise<AuditorRunResult> {
-  return runLucyAuditorBatch({
-    onlyToday: true,
-    oncePerDay: true,
+const HOUR = 3600_000;
+
+export function getControlMaxPerDay(): number {
+  const n = Number(process.env["LUCY_CONTROL_MAX_PER_DAY"] ?? "8");
+  if (!Number.isFinite(n) || n < 0) return 8;
+  return Math.min(Math.floor(n), 40);
+}
+
+/**
+ * Ventana del cron: desde la última auditoría nocturna (mín. 24 h, máx. 48 h).
+ * GitHub retrasa el cron horas; con «solo hoy» se perdía casi todo el día.
+ */
+export function dailyAuditSince(now: Date, lastDailyAt: Date | null): Date {
+  const minus24 = now.getTime() - 24 * HOUR;
+  const minus48 = now.getTime() - 48 * HOUR;
+  const last = lastDailyAt?.getTime() ?? minus24;
+  return new Date(Math.max(minus48, Math.min(minus24, last)));
+}
+
+async function loadSilentCandidateLeadIds(now: Date, limit: number): Promise<string[]> {
+  const rows = await db
+    .select({ leadId: messages.kommoLeadId })
+    .from(messages)
+    .where(gte(messages.timestamp, new Date(now.getTime() - 7 * 24 * HOUR)))
+    .groupBy(messages.kommoLeadId)
+    .having(
+      sql`max(${messages.timestamp}) <= ${new Date(now.getTime() - 18 * HOUR).toISOString()}::timestamp`
+    )
+    .orderBy(desc(sql`max(${messages.timestamp})`))
+    .limit(limit);
+  return rows.map((r) => String(r.leadId)).filter(Boolean);
+}
+
+/** Cliente que sí platicó (2+ mensajes) y dejó de contestar tras el último mensaje de Lucy. */
+export function isSilentAfterLucy(turns: TranscriptTurn[]): boolean {
+  const last = turns[turns.length - 1];
+  if (!last || last.role !== "assistant") return false;
+  return turns.filter((t) => t.role === "user").length >= 2;
+}
+
+/**
+ * Puntos ciegos: chats de la semana que Gemini no ha leído donde el cliente
+ * dejó de contestar justo después de Lucy. Pregunta: ¿fue culpa de Lucy?
+ */
+export async function runSilentLeadReview(opts: {
+  max: number;
+  now?: Date;
+  onProgress?: (ev: AuditorProgressEvent) => void;
+}): Promise<{ reviewed: number; findings: number; recorded: number }> {
+  const out = { reviewed: 0, findings: 0, recorded: 0 };
+  if (opts.max <= 0) return out;
+  const now = opts.now ?? new Date();
+  const dayKey = mexicoCityDayKey(now);
+  const candidates = await loadSilentCandidateLeadIds(now, 120);
+  for (const leadId of candidates) {
+    if (out.reviewed >= opts.max || !canSpendAuditorCall()) break;
+    const turns = await loadTurnsForLead(leadId, null);
+    if (!isSilentAfterLucy(turns)) continue;
+    const lastFp = turnFingerprint(turns[turns.length - 1]!);
+    if (getFlashSeen(leadId) === lastFp) continue;
+
+    let lastClient = turns.length - 1;
+    while (lastClient > 0 && turns[lastClient]!.role !== "user") lastClient -= 1;
+    const llmFindings = await runAuditorLlm(formatTranscript(turns, lastClient), "silent");
+    markFlashSeen(leadId, lastFp);
+    out.reviewed += 1;
+    for (const f of llmFindings) {
+      out.findings += 1;
+      const ok = await recordLucyRepair({
+        kommoLeadId: leadId,
+        category: f.category,
+        severity: f.severity,
+        evidence: `[${dayKey}] ${f.evidence}`,
+        proposedRepair: `El cliente dejó de contestar después de esto. ${f.proposedRepair}`,
+        status: "open",
+        source: "flash",
+        model: getAuditorModel(),
+      });
+      if (ok) out.recorded += 1;
+      opts.onProgress?.({
+        type: "finding",
+        leadId,
+        category: f.category,
+        severity: f.severity,
+        evidence: f.evidence,
+        source: "flash",
+      });
+    }
+  }
+  return out;
+}
+
+/** Cron diario: ventana desde la última auditoría + puntos ciegos + siguiente envío a Cursor. */
+export async function runLucyAuditorDaily(opts?: { now?: Date }): Promise<AuditorRunResult> {
+  const now = opts?.now ?? new Date();
+  const lastDailyAt = getLastDailyAuditAt();
+  if (lastDailyAt && now.getTime() - lastDailyAt.getTime() < 12 * HOUR) {
+    return {
+      scanned: 0,
+      findings: 0,
+      recorded: 0,
+      flashCalls: 0,
+      skipped: "already_ran_today",
+      dayKey: mexicoCityDayKey(now),
+      summary: "Ya se corrió la auditoría automática en las últimas 12 horas.",
+      quota: getAuditorQuotaSnapshot(),
+    };
+  }
+
+  const controlMax = getControlMaxPerDay();
+  const since = dailyAuditSince(now, lastDailyAt);
+  const result = await runLucyAuditorBatch({
+    since,
     syncFromKommo: true,
     forceFlash: true,
-    limitLeads: 50,
+    limitLeads: 80,
     useFlash: true,
+    flashReserve: controlMax,
+    kind: "daily",
   });
+
+  let silent = { reviewed: 0, findings: 0, recorded: 0 };
+  try {
+    silent = await runSilentLeadReview({ max: controlMax, now });
+  } catch (err) {
+    logger.warn({ err }, "lucyAuditor: revisión de puntos ciegos falló");
+  }
+  lastDailyRunDay = mexicoCityDayKey(now);
+
+  const merged: AuditorRunResult = {
+    ...result,
+    findings: result.findings + silent.findings,
+    recorded: result.recorded + silent.recorded,
+    flashCalls: result.flashCalls + silent.reviewed,
+    silentReviewed: silent.reviewed,
+    silentFindings: silent.findings,
+    summary:
+      `${result.summary ?? ""} Puntos ciegos: ${silent.reviewed} chat(s) donde el cliente dejó de contestar` +
+      (silent.findings ? `, ${silent.findings} hallazgo(s).` : ", sin hallazgos."),
+    quota: getAuditorQuotaSnapshot(),
+  };
+  recordAuditorRun(
+    {
+      at: now.toISOString(),
+      kind: "daily",
+      since: since.toISOString(),
+      scanned: merged.scanned,
+      scannedChats: merged.scannedChats ?? 0,
+      withLucy: merged.withLucy ?? 0,
+      flashCalls: merged.flashCalls,
+      findings: merged.findings,
+      recorded: merged.recorded,
+      silentReviewed: silent.reviewed,
+      silentFindings: silent.findings,
+    },
+    { daily: true }
+  );
+
+  try {
+    const { cleanupRepairQueue, autoSendNextRepairJob } = await import("./cursorRepairAgent.js");
+    if (silent.recorded > 0) await cleanupRepairQueue();
+    await autoSendNextRepairJob("auditoría nocturna");
+  } catch (err) {
+    logger.warn({ err }, "lucyAuditor: envío automático a Cursor falló");
+  }
+  logger.info(merged, "lucyAuditor daily finished");
+  return merged;
+}
+
+export type DailyAuditState = {
+  running: boolean;
+  startedAt?: string;
+  finishedAt?: string;
+  result?: AuditorRunResult;
+  error?: string;
+};
+
+let dailyState: DailyAuditState = { running: false };
+
+export function getDailyAuditState(): DailyAuditState {
+  return dailyState;
+}
+
+/** El cron responde al instante y la auditoría sigue en segundo plano (curl cortaba a los 120 s). */
+export function startLucyAuditorDailyInBackground(): DailyAuditState {
+  if (dailyState.running) return dailyState;
+  dailyState = { running: true, startedAt: new Date().toISOString() };
+  void runLucyAuditorDaily()
+    .then((result) => {
+      dailyState = { ...dailyState, running: false, finishedAt: new Date().toISOString(), result };
+    })
+    .catch((err: unknown) => {
+      logger.error({ err }, "lucyAuditor daily (background) falló");
+      dailyState = {
+        ...dailyState,
+        running: false,
+        finishedAt: new Date().toISOString(),
+        error: err instanceof Error ? err.message : String(err),
+      };
+    });
+  return dailyState;
 }

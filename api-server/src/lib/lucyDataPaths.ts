@@ -44,6 +44,12 @@ export function getLucyRepairRunsPath(): string {
 }
 
 /** Buzón de respaldo que escribe hostinger-relay/kommo-relay.php (un .jsonl por día). */
+export function getLucyAuditorLogPath(): string {
+  const fromEnv = process.env["LUCY_AUDITOR_LOG_PATH"]?.trim();
+  if (fromEnv) return resolve(fromEnv);
+  return join(getLucyDataRoot(), "auditor-log.json");
+}
+
 export function getKommoRelayDir(): string {
   const fromEnv = process.env["LUCY_RELAY_DIR"]?.trim();
   if (fromEnv) return resolve(fromEnv);

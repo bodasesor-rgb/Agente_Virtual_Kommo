@@ -149,7 +149,7 @@ async function loadJobs() {
   jobsEl.classList.toggle("hidden", recent.length === 0 && agentConfigured);
   if (jobsNoteEl) {
     jobsNoteEl.textContent = agentConfigured
-      ? `${data.jobs_today ?? 0}/${data.max_jobs_per_day ?? 12} envíos hoy${data.model ? ` · ${data.model}` : ""}${data.fallback_model ? ` → ${data.fallback_model} si no puede` : ""}${data.auto_publish ? " · publica solo" : ""}`
+      ? `${data.jobs_today ?? 0}/${data.max_jobs_per_day ?? 12} envíos hoy${data.model ? ` · ${data.model}` : ""}${data.fallback_model ? ` → ${data.fallback_model} si no puede` : ""}${data.auto_publish ? " · publica solo" : ""}${data.auto_send ? " · envía la cola solo" : ""}`
       : "Falta CURSOR_API_KEY en Hostinger: sin ella no hay avance en vivo.";
   }
   jobsListEl.innerHTML = recent.length
@@ -395,7 +395,88 @@ function ensurePoll(hasInProgress) {
   }
 }
 
+const CATEGORY_LABEL = {
+  loop_links: "links repetidos",
+  repeat_reply: "respuesta repetida",
+  premature_close: "cerró antes de tiempo",
+  bad_field: "dato mal anotado",
+  stuck_funnel: "embudo trabado",
+  ignored_question: "ignoró una pregunta",
+  asked_known_data: "pidió un dato ya dado",
+  misunderstood: "entendió mal",
+  wrong_info: "información incorrecta",
+  tone: "tono / mensaje confuso",
+  handoff: "no pasó a humano",
+};
+
+async function loadQuality() {
+  const body = document.getElementById("quality-body");
+  const note = document.getElementById("quality-note");
+  if (!body) return;
+  const q = await fetch("/api/reparaciones/quality")
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
+  if (!q) {
+    body.innerHTML = `<p class="muted">No se pudo cargar el reporte.</p>`;
+    return;
+  }
+  const pct = (x) => (x == null ? "—" : `${Math.round(x * 100)}%`);
+  const noisy = q.rules.filter((r) => r.noisy);
+  const c = q.cursor;
+  if (note) {
+    note.textContent = `· ${q.coverage.nightsLast7}/7 noches auditadas · ${c.published} arreglos publicados (30 días)${
+      noisy.length ? ` · ${noisy.length} regla(s) con muchas falsas alarmas` : ""
+    }`;
+  }
+  const rules = q.rules
+    .slice(0, 20)
+    .map(
+      (r) => `<tr class="${r.noisy ? "noisy" : ""}">
+        <td>${escapeHtml(CATEGORY_LABEL[r.category] || r.category)}</td>
+        <td>${r.source === "flash" ? "Gemini" : "regla fija"}</td>
+        <td>${r.total}</td><td>${r.fixed}</td><td>${r.falseAlarm}</td><td>${r.pending}</td>
+        <td>${pct(r.falseAlarmRate)}${r.noisy ? " ⚠" : ""}</td>
+      </tr>`
+    )
+    .join("");
+  const runs = q.coverage.runs
+    .map(
+      (r) => `<tr>
+        <td>${new Date(r.at).toLocaleString("es-MX")}</td>
+        <td>${r.kind === "daily" ? "automática" : "manual"}</td>
+        <td>${r.scannedChats}</td><td>${r.flashCalls}</td>
+        <td>${r.silentReviewed ?? "—"}</td><td>${r.recorded}</td>
+      </tr>`
+    )
+    .join("");
+  const learned = c.learned
+    .map((x) => `<li>${escapeHtml(x.text)} <span class="muted">(${new Date(x.at).toLocaleDateString("es-MX")})</span></li>`)
+    .join("");
+  body.innerHTML = `
+    <h3>Errores por tipo (últimos ${q.windowDays} días)</h3>
+    <p class="muted">«Falsas alarmas» = Cursor revisó y dijo que no era error. Si una regla pasa de 40% se marca ⚠ y conviene afinarla.</p>
+    ${
+      rules
+        ? `<table><thead><tr><th>Tipo</th><th>Quién lo detectó</th><th>Total</th><th>Arreglados</th><th>Falsas alarmas</th><th>Pendientes</th><th>% falsas</th></tr></thead><tbody>${rules}</tbody></table>`
+        : `<p class="muted">Sin hallazgos aún.</p>`
+    }
+    <h3>Cobertura de las auditorías</h3>
+    ${
+      runs
+        ? `<table><thead><tr><th>Cuándo</th><th>Tipo</th><th>Chats revisados</th><th>Leídos por Gemini</th><th>Clientes que dejaron de contestar</th><th>Hallazgos</th></tr></thead><tbody>${runs}</tbody></table>`
+        : `<p class="muted">Aún no hay auditorías registradas con el nuevo reporte.</p>`
+    }
+    <h3>Cursor (últimos 30 días)</h3>
+    <p>${c.jobs} envíos · ${c.published} publicados · ${c.failed} sin éxito${c.active ? ` · ${c.active} en curso` : ""}.
+      Problemas: ${c.problemsFixed} arreglados, ${c.problemsFalsePositive} no eran error, ${c.problemsNotFixed} no pudo.
+      2.º intentos: ${c.retries} (${c.retriesPublished} publicados).</p>
+    <h3>Reglas nuevas que aprendió el supervisor</h3>
+    ${learned ? `<ul>${learned}</ul>` : `<p class="muted">Todavía ninguna: aparecen cuando Gemini encuentra un error nuevo y Cursor lo vuelve regla fija.</p>`}
+  `;
+}
+
 async function refresh() {
+  void loadQuality();
   await loadJobs();
   const s = await loadStats();
   const working = await loadWorkingBanner();
@@ -523,7 +604,7 @@ async function runAuditWithProgress() {
       Accept: "text/event-stream",
     },
     body: JSON.stringify({
-      limitLeads: 50,
+      limitLeads: 80,
       onlyToday: true,
       syncFromKommo: true,
       useFlash: true,
@@ -545,7 +626,7 @@ async function runAuditWithProgress() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        limitLeads: 50,
+        limitLeads: 80,
         onlyToday: true,
         syncFromKommo: true,
         useFlash: true,
