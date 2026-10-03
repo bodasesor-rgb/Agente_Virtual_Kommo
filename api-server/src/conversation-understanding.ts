@@ -5840,12 +5840,47 @@ export function resolveClientEmailForFunnel(
 }
 
 /**
+ * Descripción logística del evento (pax, lugar, duración) — no es tipo boda/XV/corporativo.
+ * Ej. «Un evento para aproximadamente 900 personas en un colegio».
+ */
+export function looksLikeEventDescriptionNotTipoEvento(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim();
+  if (!t || t.length < 15) return false;
+  if (parseTipoEventoFromText(t)) return false;
+  if (isServiceRelatedMessage(t) || /\b(banquete|catering|taquiza|parrillada)\b/i.test(t)) {
+    return false;
+  }
+  const n = t
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+  if (/\b\d+\s*d[ií]as?\b/.test(n) || /\b\d+\s*horas?\b/.test(n)) return true;
+  if (/^un\s+evento\b/.test(n)) return true;
+  const hasOccasion =
+    /\b(boda|xv|quince|cumple|corporativ|graduaci|bautizo|posada|aniversario|baby\s*shower|concierto)\b/.test(
+      n
+    );
+  if (
+    !hasOccasion &&
+    /\b\d{2,4}\s*(personas|invitados|pax|gente)\b/.test(n) &&
+    (/\b(en\s+un|en\s+el|en\s+la|para)\s+(colegio|escuela|universidad|auditorio|sal[oó]n|jard[ií]n|hotel|plaza)\b/.test(
+      n
+    ) ||
+      t.length > 45)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Respuestas meta a "¿qué tipo de evento?" que NO son un tipo usable (A14964 Victor).
  * Ej: "Lo acabo de mencionar", "ya te dije", "eso mismo".
  */
 export function isUnusableTipoEventoReply(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return true;
+  if (looksLikeEventDescriptionNotTipoEvento(t)) return true;
   const n = t
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
@@ -7680,6 +7715,12 @@ export const PRESUPUESTO_AUTO_WAIVER = "Sin definir (no indicó monto)";
 /** Valor CRM cuando Lucy ya preguntó fecha dos veces sin fecha concreta. */
 export const FECHA_AUTO_WAIVER = "Sin definir (pendiente)";
 
+/** Mensajes salientes de Lucy en historial (Kommo a veces marca role human). */
+export function isLucyOutgoingHistoryRole(role: string | undefined): boolean {
+  const r = String(role ?? "").toLowerCase();
+  return r === "assistant" || r === "human" || r === "bot" || r === "lucy";
+}
+
 /** Cuenta cuántas veces Lucy preguntó por un dato en el historial. */
 export function countLucyFieldAsks(
   history: import("openai").OpenAI.Chat.ChatCompletionMessageParam[],
@@ -7687,7 +7728,10 @@ export function countLucyFieldAsks(
 ): number {
   const pattern = LUCY_FIELD_ASK_PATTERNS[field];
   return history.filter(
-    (m) => m.role === "assistant" && typeof m.content === "string" && pattern.test(m.content as string)
+    (m) =>
+      isLucyOutgoingHistoryRole(m.role) &&
+      typeof m.content === "string" &&
+      pattern.test(m.content as string)
   ).length;
 }
 
@@ -7864,6 +7908,9 @@ export function isPresupuestoResuelto(
   history?: import("openai").OpenAI.Chat.ChatCompletionMessageParam[]
 ): boolean {
   if (filledSet.has("Presupuesto (MXN)")) return true;
+  if (history && countLucyFieldAsks(history, "presupuesto") >= PRESUPUESTO_MAX_ASKS) {
+    return true;
+  }
   if (findPresupuestoInTexts(texts, history)) return true;
   if (texts.some((t) => detectPresupuestoRefusal(t))) return true;
   return false;
@@ -8471,6 +8518,7 @@ export function captureContextualAnswer(
         msg.length <= 60 &&
         !/@/.test(msg) &&
         !isUnusableTipoEventoReply(msg) &&
+        !looksLikeEventDescriptionNotTipoEvento(msg) &&
         !looksLikePersonNameAsEventType(msg) &&
         !looksLikeNameAnswerMessage(msg)
       ) {

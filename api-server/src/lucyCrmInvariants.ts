@@ -5,7 +5,10 @@
  */
 import type { ExtractedData } from "./types.js";
 import { dedupeLocationParts } from "./lib/locationDedupe.js";
-import { looksLikePersonNameAsEventType } from "./conversation-understanding.js";
+import {
+  looksLikeEventDescriptionNotTipoEvento,
+  looksLikePersonNameAsEventType,
+} from "./conversation-understanding.js";
 import {
   isLikelyUbicacionNotNombre,
   isLikelyNotPersonNameMessage,
@@ -159,6 +162,10 @@ export function applyCrmWriteInvariants(
   if (out.tipo_evento && looksLikePersonNameAsEventType(out.tipo_evento)) {
     out.tipo_evento = null;
     applied.push("tipo-name-cleared");
+  }
+  if (out.tipo_evento && looksLikeEventDescriptionNotTipoEvento(out.tipo_evento)) {
+    out.tipo_evento = null;
+    applied.push("tipo-logistics-cleared");
   }
 
   // 2) Presupuesto solo si el CLIENTE lo justificó (nunca eco de Lucy "$300 pp").

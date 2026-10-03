@@ -5423,13 +5423,17 @@ export function clientAsksPaymentOrQuoteDelivery(message?: string): boolean {
   return (
     /\b(anticipo|50\s*%|porcentaje|dep[oó]sito|se[nñ]a)\b/i.test(t) ||
     /\b(donde|dónde|a\s+d[oó]nde)\s+(mando|deposit|transfer|pag)/i.test(t) ||
-    /\b(manda|env[ií]a|pasa).{0,30}\b(presupuesto|cotizaci[oó]n|datos\s+de\s+pago)\b/i.test(t) ||
+    /\b(manda|env[ií]a|pasa|compart).{0,30}\b(presupuesto|cotizaci[oó]n|datos\s+de\s+pago)\b/i.test(t) ||
     /\b(presupuesto|cotizaci[oó]n).{0,40}\b(anticipo|pago|transfer)/i.test(t) ||
     /\bdatos\s+(para\s+el\s+)?pago\b/i.test(t) ||
     // A15486: "cotizaciones en PDF" / "envíame la cotización en PDF"
     /\bcotizaci[oó]n(es)?\s+(en\s+)?pdf\b/i.test(t) ||
     /\b(manda|env[ií]a|env[ií]e|pasa|enviar).{0,40}\bcotizaci[oó]n(es)?.{0,20}\bpdf\b/i.test(t) ||
-    /\bpdf\b.{0,30}\bcotizaci[oó]n/i.test(t)
+    /\bpdf\b.{0,30}\bcotizaci[oó]n/i.test(t) ||
+    // «¿Cuándo me puedes compartir la cotización?» — no cerrar con «ya tengo todo».
+    /\b(cu[aá]ndo|para\s+cu[aá]ndo).{0,55}\b(compartir|enviar|mandar|pasar).{0,35}\bcotiz/i.test(t) ||
+    /\b(cu[aá]ndo|para\s+cu[aá]ndo).{0,40}\bcotiz/i.test(t) ||
+    /\bme\s+puedes?\s+compartir.{0,35}\bcotiz/i.test(t)
   );
 }
 
@@ -6303,7 +6307,8 @@ function clientAsksPriceOrDetailNow(message?: string): boolean {
     clientAsksPrice(message) ||
     clientAsksNamedServiceDetail(message) ||
     clientAsksInclusion(message) ||
-    clientAsksServiceInfo(message)
+    clientAsksServiceInfo(message) ||
+    clientAsksPaymentOrQuoteDelivery(message)
   );
 }
 
@@ -6317,6 +6322,16 @@ function answerPriceOrDetailInsteadOfClosing(
   currentMessage?: string
 ): string {
   const msg = currentMessage ?? "";
+  if (
+    clientAsksPaymentOrQuoteDelivery(msg) &&
+    !clientAsksPrice(msg) &&
+    !clientAsksNamedServiceDetail(msg)
+  ) {
+    const nombre = getDisplayName(extracted, null);
+    return nombre
+      ? `¡Claro, ${nombre}! El equipo ya tiene tus datos y te comparte la cotización en breve por aquí o por correo. ¿Prefieres que te confirmen por WhatsApp?`
+      : "¡Claro! El equipo ya tiene tus datos y te comparte la cotización en breve. ¿Prefieres que te confirmen por aquí?";
+  }
   return (
     buildCatalogPriceAnswer(msg) ||
     buildCatalogServiceDetailAnswer(msg) ||
@@ -9388,6 +9403,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     !clientWantsCatalogNow &&
     !clientAsksPrice(currentMessage) &&
     !clientAsksNamedServiceDetail(currentMessage) &&
+    !clientAsksPaymentOrQuoteDelivery(currentMessage) &&
     !clientAsksServiceInfo(currentMessage) &&
     !clientAsksInclusion(currentMessage)
   ) {
@@ -9416,6 +9432,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     (currentMessage?.includes("?") ?? false) ||
     clientAsksPrice(currentMessage) ||
     clientAsksNamedServiceDetail(currentMessage) ||
+    clientAsksPaymentOrQuoteDelivery(currentMessage) ||
     clientAsksServiceInfo(currentMessage) ||
     clientAsksInclusion(currentMessage);
   const mentionedServiceNow = currentMessage ? findMentionedService(currentMessage) : null;
