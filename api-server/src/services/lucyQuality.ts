@@ -7,6 +7,7 @@ import { ensureLucyRepairSchema } from "./lucyRepairSchema.js";
 import { listAuditorRuns, type AuditorRunRecord } from "./lucyAuditorLog.js";
 import { listRepairJobs, type RepairJob } from "./cursorRepairAgent.js";
 import { mexicoCityDayKey } from "./lucyAuditorTime.js";
+import { listSupervisorLessons } from "./lucySupervisorLessons.js";
 
 const DAY = 24 * 3600_000;
 
@@ -98,5 +99,6 @@ export async function buildQualityReport(now = new Date()) {
     rules: summarizeRules(rows),
     coverage: summarizeCoverage(listAuditorRuns(), now),
     cursor: summarizeCursor(listRepairJobs(60), now),
+    lessons: listSupervisorLessons(listRepairJobs(200)),
   };
 }

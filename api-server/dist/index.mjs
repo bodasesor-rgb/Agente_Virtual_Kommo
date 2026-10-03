@@ -203678,7 +203678,7 @@ function takeAuditorLlmStats() {
   llmStats = { calls: 0, errors: 0, proposed: 0, droppedNoQuote: 0, kept: 0 };
   return out2;
 }
-function buildAuditorPrompt(transcript, mode = "daily") {
+function buildAuditorPrompt(transcript, mode = "daily", lessonsBlock = "") {
   return [
     "Eres el supervisor de calidad de Lucy, la vendedora virtual de Bodasesor por WhatsApp",
     "(renta de mobiliario, banquetes, barras, decoraci\xF3n y servicios para eventos). NUNCA escribes al cliente.",
@@ -203706,6 +203706,7 @@ function buildAuditorPrompt(transcript, mode = "daily") {
       "Revisa si algo de Lucy pudo causarlo. Si el silencio parece normal (ya ten\xEDa lo que necesitaba,",
       "dijo que lo pensar\xEDa, se despidi\xF3), responde []."
     ] : [],
+    ...lessonsBlock.trim() ? ["", lessonsBlock.trim()] : [],
     "",
     "REGLAS ESTRICTAS:",
     `- Si aparece la l\xEDnea \xAB${AUDITOR_NEW_MARKER}\xBB, lo de arriba es solo contexto ya revisado: reporta errores solo en mensajes de Lucy debajo de esa l\xEDnea.`,
@@ -203774,14 +203775,14 @@ function parseAuditorLlmDetailed(text2, transcript) {
   }
   return { findings: out2, proposed: list.length, droppedNoQuote };
 }
-async function runAuditorLlm(transcript, mode = "daily") {
+async function runAuditorLlm(transcript, mode = "daily", lessonsBlock = "") {
   if (!canSpendAuditorCall()) return [];
   const model = getAuditorModel();
   const key = getGeminiApiKey();
   if (!key) return [];
   noteAuditorCall();
   const ai2 = new GoogleGenAI2({ apiKey: key });
-  const prompt = buildAuditorPrompt(transcript, mode);
+  const prompt = buildAuditorPrompt(transcript, mode, lessonsBlock);
   try {
     const result = await ai2.models.generateContent({
       model,
@@ -233778,6 +233779,222 @@ var init_lucyAuditorHeuristics = __esm({
   }
 });
 
+// src/services/lucySupervisorLessons.ts
+import { existsSync as existsSync12, readFileSync as readFileSync14 } from "node:fs";
+function noQuotes(s7) {
+  return s7.replace(/(?:Cliente|Lucy):\s*«[^»]*»?/gi, "").replace(/«[^»]*»?/g, "\xAB\u2026\xBB").replace(/\s*→\s*$/, "").replace(/\s+/g, " ").trim();
+}
+function sigLike(label) {
+  return label.toLowerCase().replace(/«[^»]*»?/g, "\xAB\u2026\xBB").replace(/\d+/g, "#").replace(/\s+/g, " ").trim();
+}
+function readJobs() {
+  const path7 = getLucyRepairRunsPath();
+  if (!existsSync12(path7)) return [];
+  try {
+    const parsed = JSON.parse(readFileSync14(path7, "utf8"));
+    return Array.isArray(parsed.jobs) ? parsed.jobs : [];
+  } catch {
+    return [];
+  }
+}
+function lessonsFromRepairJobs(jobs2) {
+  const out2 = [];
+  for (const job of jobs2) {
+    if (job.status !== "published") continue;
+    const date2 = (job.publishedAt ?? job.finishedAt ?? job.updatedAt ?? "").slice(0, 10);
+    for (const item of job.outcome?.fixed ?? []) {
+      const sig = item.ids.map((id) => job.repairSigs?.[id]).find(Boolean);
+      const category = sig?.split(":")[0] ?? job.problems[0]?.category ?? "other";
+      const sigText = sig ? sig.slice(category.length + 1, category.length + 41) : "";
+      const problem = job.problems.find((p5) => p5.category === category && sigText && sigLike(p5.label).startsWith(sigText)) ?? job.problems.find((p5) => p5.category === category);
+      const wrong = noQuotes(problem?.label ?? "");
+      const right = noQuotes(item.text).slice(0, 220);
+      if (!wrong || !right) continue;
+      out2.push({ ref: `Cursor ${job.id.slice(0, 8)}`, date: date2, category, wrong: wrong.slice(0, 200), right, source: "cursor" });
+    }
+  }
+  return out2;
+}
+function listSupervisorLessons(jobs2 = readJobs()) {
+  const all3 = [
+    ...MANUAL_LESSONS.map((l6) => ({ ...l6, source: "manual" })),
+    ...lessonsFromRepairJobs(jobs2)
+  ];
+  const seen = /* @__PURE__ */ new Set();
+  return all3.sort((a4, b5) => b5.date.localeCompare(a4.date)).filter((l6) => {
+    const key = `${l6.category}|${l6.wrong.toLowerCase().slice(0, 60)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function buildSupervisorLessonsBlock(lessons = listSupervisorLessons()) {
+  if (!lessons.length) return "";
+  const lines = [];
+  let size = 0;
+  for (const l6 of lessons.slice(0, MAX_LESSONS)) {
+    const line2 = `- (${l6.category}) MAL: ${l6.wrong} \u2192 BIEN: ${l6.right}`;
+    if (size + line2.length > MAX_BLOCK_CHARS) break;
+    lines.push(line2);
+    size += line2.length;
+  }
+  return [
+    "ERRORES QUE YA SE REPARARON (Lucy ya no deber\xEDa cometerlos; si vuelves a ver uno, rep\xF3rtalo SIEMPRE con esa categor\xEDa):",
+    ...lines
+  ].join("\n");
+}
+var MANUAL_LESSONS, MAX_LESSONS, MAX_BLOCK_CHARS;
+var init_lucySupervisorLessons = __esm({
+  "src/services/lucySupervisorLessons.ts"() {
+    "use strict";
+    init_lucyDataPaths();
+    MANUAL_LESSONS = [
+      {
+        ref: "A16614",
+        date: "2026-10-03",
+        category: "misunderstood",
+        wrong: "El cliente pidi\xF3 \xABpaquete todo incluido, desde el lugar\xBB y Lucy repiti\xF3 el men\xFA de servicios / \xAB\xBFQu\xE9 te gustar\xEDa revisar primero?\xBB",
+        right: "Confirmar que el equipo arma paquete todo incluido con lugar y preguntar la zona (luego presupuesto)"
+      },
+      {
+        ref: "A16612",
+        date: "2026-10-03",
+        category: "misunderstood",
+        wrong: "Ante una promo pegada a mitad de chat, Lucy desaconsej\xF3 el banquete (\xABno es lo m\xE1s pr\xE1ctico\xBB), habl\xF3 de \xABla junta\xBB sin serlo y re-pregunt\xF3 invitados ya dados",
+        right: "Acusar el c\xF3digo de promo, explicar el m\xEDnimo de personas sin desaconsejar servicios y conservar invitados/fecha/horario ya dados"
+      },
+      {
+        ref: "A16612",
+        date: "2026-10-03",
+        category: "tone",
+        wrong: "Lucy invent\xF3 un estilo (\xABpara un vibe mexicana\xBB) porque el evento es en Estado de M\xE9xico, y us\xF3 la palabra \xABvibe\xBB",
+        right: "No suponer estilos que el cliente no pidi\xF3; decir \xABestilo\xBB o \xABambiente\xBB, nunca \xABvibe\xBB"
+      },
+      {
+        ref: "A16612",
+        date: "2026-10-03",
+        category: "misunderstood",
+        wrong: "El cliente dijo \xABMe encanta esta idea\xBB (reacci\xF3n) y Lucy le solt\xF3 ideas/tips de decoraci\xF3n no pedidos",
+        right: "Una reacci\xF3n positiva no es pedido de ideas: seguir con lo que se estaba platicando"
+      },
+      {
+        ref: "A16610",
+        date: "2026-10-03",
+        category: "tone",
+        wrong: "Elogios forzados al saber el tipo de evento: \xAB\xA1Qu\xE9 buen plan!\xBB, \xABsuena incre\xEDble\xBB, \xAB\xA1Qu\xE9 padre!\xBB",
+        right: "Acuse cordial y profesional: \xABPerfecto, con gusto te ayudamos con el aniversario de tu empresa\xBB"
+      },
+      {
+        ref: "A16583",
+        date: "2026-10-02",
+        category: "bad_field",
+        wrong: "Tom\xF3 \xABde noche\xBB como direcci\xF3n, \xABNecesitaba Moviliario\xBB como nombre, y una foto sin texto como pregunta de servicio/ideas",
+        right: "Solo anotar direcci\xF3n/nombre reales; una foto sin texto no es una pregunta"
+      },
+      {
+        ref: "A16567",
+        date: "2026-10-01",
+        category: "tone",
+        wrong: "Mand\xF3 cat\xE1logo desordenado, dijo \xABno lo tengo listado\xBB al dar ideas y cambi\xF3 el nombre del asesor por \xABnuestro equipo\xBB",
+        right: "Cat\xE1logo ordenado, ideas sin avisos de inventario y respetar el nombre del asesor"
+      },
+      {
+        ref: "A16555",
+        date: "2026-10-01",
+        category: "asked_known_data",
+        wrong: "En una compra de mobiliario pregunt\xF3 tipo de evento, fecha, horario e invitados",
+        right: "En compra/venta pedir piezas, ciudad de entrega, correo y presupuesto; no datos de evento"
+      },
+      {
+        ref: "A16550",
+        date: "2026-10-01",
+        category: "ignored_question",
+        wrong: "Ofreci\xF3 \xAB\xBFte comparto los niveles?\xBB, el cliente dijo \xABs\xED, adelante\xBB y Lucy no los mand\xF3; y sigui\xF3 usando un nombre que el cliente corrigi\xF3",
+        right: "Cumplir lo ofrecido cuando el cliente acepta; usar siempre el nombre corregido"
+      },
+      {
+        ref: "A16531",
+        date: "2026-10-01",
+        category: "wrong_info",
+        wrong: "Volc\xF3 PDF/precios que el cliente no pidi\xF3 y us\xF3 la ficha de banquete Formal para Kosher",
+        right: "Precios solo si los pide; cada servicio con su propia ficha"
+      },
+      {
+        ref: "A16523",
+        date: "2026-09-30",
+        category: "bad_field",
+        wrong: "Tom\xF3 \xAB7 personas por mesa\xBB como invitados, \xABno\xBB suelto como presupuesto, y puso \xABsalas\xBB en plural cuando era una",
+        right: "Invitados solo del total de personas; respetar cantidades exactas"
+      },
+      {
+        ref: "A16512",
+        date: "2026-09-30",
+        category: "bad_field",
+        wrong: "\xABEs pista / no carpa\xBB borr\xF3 la pista; fecha y horario juntos perdieron la fecha; repiti\xF3 medidas ya dadas",
+        right: "Una negaci\xF3n quita solo lo negado; conservar fecha y horario; no repetir datos dados"
+      },
+      {
+        ref: "A16511",
+        date: "2026-09-30",
+        category: "asked_known_data",
+        wrong: "Pidi\xF3 correo aunque el cliente eligi\xF3 seguir por WhatsApp",
+        right: "Si eligi\xF3 WhatsApp/chat, no pedir correo"
+      },
+      {
+        ref: "A16484",
+        date: "2026-09-29",
+        category: "misunderstood",
+        wrong: "No entendi\xF3 negaciones (\xABno quiero\xBB, \xABya lo tengo\xBB, \xABpara complementar con\xBB) y ofreci\xF3 ideas no pedidas",
+        right: "Respetar lo que el cliente descarta o ya tiene"
+      },
+      {
+        ref: "A16477",
+        date: "2026-09-29",
+        category: "repeat_reply",
+        wrong: "Respondi\xF3 doble, insisti\xF3 con \xAB\xBFalgo m\xE1s?\xBB repetido y volvi\xF3 a pedir correo tras un \xABNo\xBB",
+        right: "Una respuesta por turno; no repetir \xABalgo m\xE1s\xBB; un \xABNo\xBB al correo se respeta"
+      },
+      {
+        ref: "A16445",
+        date: "2026-09-28",
+        category: "misunderstood",
+        wrong: "Con \xABventa o renta\xBB no aclar\xF3 el enfoque y tom\xF3 la frase como nombre",
+        right: "Decir que nos enfocamos en renta y tambi\xE9n cotizamos venta"
+      },
+      {
+        ref: "A16438",
+        date: "2026-09-28",
+        category: "misunderstood",
+        wrong: "Agreg\xF3 animaci\xF3n/hora loca cuando el cliente pidi\xF3 solo un show con nombre",
+        right: "Cotizar solo el show pedido; \xABno quiero animaci\xF3n\xBB se respeta"
+      },
+      {
+        ref: "A16345",
+        date: "2026-09-24",
+        category: "stuck_funnel",
+        wrong: "Tras el cierre qued\xF3 en bucle: canal aqu\xED/correo \u2194 \xAB\xBFalgo m\xE1s?\xBB \u2194 urgencia",
+        right: "Tras elegir canal, salida suave con el chat abierto; no repetir preguntas de cierre"
+      },
+      {
+        ref: "A16263",
+        date: "2026-09-22",
+        category: "bad_field",
+        wrong: "Trat\xF3 \xABcena conmemorativa\xBB como el producto Cena y cerr\xF3 \xABya tengo todo\xBB cuando el cliente pidi\xF3 precio",
+        right: "Cena de ocasi\xF3n = tipo de evento; si pide precio, contestar antes de cerrar"
+      },
+      {
+        ref: "A16244",
+        date: "2026-09-21",
+        category: "premature_close",
+        wrong: "Dej\xF3 el chat muerto con un acuse sin pregunta (\xABQueda anotado lo de Banquete.\xBB)",
+        right: "Cada mensaje termina con una pregunta que mantiene la conversaci\xF3n"
+      }
+    ];
+    MAX_LESSONS = 30;
+    MAX_BLOCK_CHARS = 4500;
+  }
+});
+
 // src/services/lucyAuditor.ts
 var lucyAuditor_exports = {};
 __export(lucyAuditor_exports, {
@@ -234043,7 +234260,11 @@ async function runLucyAuditorBatch(opts) {
       const hasNewLucy = turns.slice(newStart).some((t4) => t4.role === "assistant");
       const shouldFlash = useFlash && hasNewLucy && canSpendAuditorCall() && getAuditorQuotaSnapshot().remaining > flashReserve && turns.length >= 3 && (forceFlash ? lucyLike || turns.length >= 4 : lucyLike && transcriptNeedsFlash(turns, heuristic.length));
       if (shouldFlash) {
-        const llmFindings = await runAuditorLlm(formatTranscript(turns, newStart));
+        const llmFindings = await runAuditorLlm(
+          formatTranscript(turns, newStart),
+          "daily",
+          buildSupervisorLessonsBlock()
+        );
         markFlashSeen(leadId, turnFingerprint(turns[turns.length - 1]));
         flashCalls += 1;
         for (const f7 of llmFindings) {
@@ -234196,7 +234417,11 @@ async function runSilentLeadReview(opts) {
     if (getFlashSeen(leadId) === lastFp) continue;
     let lastClient = turns.length - 1;
     while (lastClient > 0 && turns[lastClient].role !== "user") lastClient -= 1;
-    const llmFindings = await runAuditorLlm(formatTranscript(turns, lastClient), "silent");
+    const llmFindings = await runAuditorLlm(
+      formatTranscript(turns, lastClient),
+      "silent",
+      buildSupervisorLessonsBlock()
+    );
     markFlashSeen(leadId, lastFp);
     out2.reviewed += 1;
     for (const f7 of llmFindings) {
@@ -234329,6 +234554,7 @@ var init_lucyAuditor = __esm({
     init_lucyAuditorLlm();
     init_lucyAuditorLog();
     await init_lucyRepairStore();
+    init_lucySupervisorLessons();
     init_lucyAuditorTime();
     await init_chatIngest();
     await init_embudo();
@@ -234403,7 +234629,8 @@ async function buildQualityReport(now = /* @__PURE__ */ new Date()) {
     windowDays: 30,
     rules: summarizeRules(rows),
     coverage: summarizeCoverage(listAuditorRuns(), now),
-    cursor: summarizeCursor(listRepairJobs(60), now)
+    cursor: summarizeCursor(listRepairJobs(60), now),
+    lessons: listSupervisorLessons(listRepairJobs(200))
   };
 }
 var DAY;
@@ -234415,6 +234642,7 @@ var init_lucyQuality = __esm({
     init_lucyAuditorLog();
     await init_cursorRepairAgent();
     init_lucyAuditorTime();
+    init_lucySupervisorLessons();
     DAY = 24 * 36e5;
   }
 });

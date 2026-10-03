@@ -469,6 +469,19 @@ async function loadQuality() {
   const learned = c.learned
     .map((x) => `<li>${escapeHtml(x.text)} <span class="muted">(${new Date(x.at).toLocaleDateString("es-MX")})</span></li>`)
     .join("");
+  const lessonsList = q.lessons || [];
+  const lessons = lessonsList
+    .slice(0, 40)
+    .map(
+      (l) => `<tr>
+        <td>${escapeHtml(l.date)}</td>
+        <td>${escapeHtml(l.ref)}</td>
+        <td>${escapeHtml(CATEGORY_LABEL[l.category] || l.category)}</td>
+        <td>${escapeHtml(l.wrong)}</td>
+        <td>${escapeHtml(l.right)}</td>
+      </tr>`
+    )
+    .join("");
   body.innerHTML = `
     <h3>Errores por tipo (últimos ${q.windowDays} días)</h3>
     <p class="muted">«Falsas alarmas» = Cursor revisó y dijo que no era error. Si una regla pasa de 40% se marca ⚠ y conviene afinarla.</p>
@@ -487,6 +500,13 @@ async function loadQuality() {
     <p>${c.jobs} envíos · ${c.published} publicados · ${c.failed} sin éxito${c.active ? ` · ${c.active} en curso` : ""}.
       Problemas: ${c.problemsFixed} arreglados, ${c.problemsFalsePositive} no eran error, ${c.problemsNotFixed} no pudo.
       2.º intentos: ${c.retries} (${c.retriesPublished} publicados).</p>
+    <h3>Errores ya reparados que vigila el supervisor (${lessonsList.length})</h3>
+    <p class="muted">Gemini recibe esta lista en cada revisión: si Lucy vuelve a cometer uno, lo reporta. Se suman solos los arreglos de Cursor publicados y los que hacemos a mano.</p>
+    ${
+      lessons
+        ? `<table><thead><tr><th>Fecha</th><th>Origen</th><th>Tipo</th><th>Qué estaba mal</th><th>Qué hace ahora</th></tr></thead><tbody>${lessons}</tbody></table>`
+        : `<p class="muted">Sin reparaciones registradas aún.</p>`
+    }
     <h3>Reglas nuevas que aprendió el supervisor</h3>
     ${learned ? `<ul>${learned}</ul>` : `<p class="muted">Todavía ninguna: aparecen cuando Gemini encuentra un error nuevo y Cursor lo vuelve regla fija.</p>`}
   `;

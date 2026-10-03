@@ -116,7 +116,11 @@ export const AUDITOR_NEW_MARKER = "=== MENSAJES NUEVOS: revisa solo desde aquí 
 
 const MAX_TRANSCRIPT_CHARS = 6000;
 
-export function buildAuditorPrompt(transcript: string, mode: AuditorLlmMode = "daily"): string {
+export function buildAuditorPrompt(
+  transcript: string,
+  mode: AuditorLlmMode = "daily",
+  lessonsBlock = ""
+): string {
   return [
     "Eres el supervisor de calidad de Lucy, la vendedora virtual de Bodasesor por WhatsApp",
     "(renta de mobiliario, banquetes, barras, decoración y servicios para eventos). NUNCA escribes al cliente.",
@@ -146,6 +150,7 @@ export function buildAuditorPrompt(transcript: string, mode: AuditorLlmMode = "d
           "dijo que lo pensaría, se despidió), responde [].",
         ]
       : []),
+    ...(lessonsBlock.trim() ? ["", lessonsBlock.trim()] : []),
     "",
     "REGLAS ESTRICTAS:",
     `- Si aparece la línea «${AUDITOR_NEW_MARKER}», lo de arriba es solo contexto ya revisado: reporta errores solo en mensajes de Lucy debajo de esa línea.`,
@@ -249,7 +254,8 @@ function parseAuditorLlmDetailed(
  */
 export async function runAuditorLlm(
   transcript: string,
-  mode: AuditorLlmMode = "daily"
+  mode: AuditorLlmMode = "daily",
+  lessonsBlock = ""
 ): Promise<AuditorLlmFinding[]> {
   if (!canSpendAuditorCall()) return [];
   const model = getAuditorModel();
@@ -258,7 +264,7 @@ export async function runAuditorLlm(
 
   noteAuditorCall();
   const ai = new GoogleGenAI({ apiKey: key });
-  const prompt = buildAuditorPrompt(transcript, mode);
+  const prompt = buildAuditorPrompt(transcript, mode, lessonsBlock);
 
   try {
     const result = await ai.models.generateContent({

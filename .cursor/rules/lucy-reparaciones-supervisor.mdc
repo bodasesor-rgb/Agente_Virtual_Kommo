@@ -1,0 +1,26 @@
+---
+description: Cada reparación de Lucy se registra como lección para el supervisor (auditor Gemini)
+alwaysApply: true
+---
+
+# Toda reparación de Lucy alimenta al supervisor
+
+Cuando se arregla un error de Lucy a mano (un chat A16xxx que manda el dueño, un bug de tono,
+datos mal anotados, etc.), en el mismo commit agrega una entrada al inicio de `MANUAL_LESSONS`
+en `api-server/src/services/lucySupervisorLessons.ts`:
+
+```ts
+{
+  ref: "A16614",
+  date: "2026-10-03",
+  category: "misunderstood", // una de AUDITOR_LLM_CATEGORIES (lucyAuditorLlm.ts)
+  wrong: "Qué hizo mal Lucy, en general (sin nombres ni datos del cliente)",
+  right: "Qué debe hacer ahora",
+},
+```
+
+- Una entrada por error distinto (si un chat trae 3 errores, 3 entradas).
+- Sin datos de clientes: ni nombres, ni teléfonos, ni direcciones.
+- Los arreglos de Cursor publicados se suman solos (se leen de repair-runs.json); no hace falta agregarlos.
+- Si el error se puede reconocer con un patrón fiable, además agrega una regla fija en
+  `api-server/src/services/lucyAuditorHeuristics.ts` con su smoke (un caso que marca y uno que no).

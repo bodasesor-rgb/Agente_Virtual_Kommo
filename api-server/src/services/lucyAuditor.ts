@@ -34,6 +34,7 @@ import {
   type AuditorRunKind,
 } from "./lucyAuditorLog.js";
 import { recordLucyRepair } from "./lucyRepairStore.js";
+import { buildSupervisorLessonsBlock } from "./lucySupervisorLessons.js";
 import { mexicoCityDayKey, startOfMexicoCityDay } from "./lucyAuditorTime.js";
 import { hydrateMessagesFromChatHistory } from "./chatIngest.js";
 import { ETAPA, PIPELINE_ID } from "./embudo.js";
@@ -507,7 +508,11 @@ export async function runLucyAuditorBatch(opts?: {
           : lucyLike && transcriptNeedsFlash(turns, heuristic.length));
 
       if (shouldFlash) {
-        const llmFindings = await runAuditorLlm(formatTranscript(turns, newStart));
+        const llmFindings = await runAuditorLlm(
+          formatTranscript(turns, newStart),
+          "daily",
+          buildSupervisorLessonsBlock()
+        );
         markFlashSeen(leadId, turnFingerprint(turns[turns.length - 1]!));
         flashCalls += 1;
         for (const f of llmFindings) {
@@ -710,7 +715,11 @@ export async function runSilentLeadReview(opts: {
 
     let lastClient = turns.length - 1;
     while (lastClient > 0 && turns[lastClient]!.role !== "user") lastClient -= 1;
-    const llmFindings = await runAuditorLlm(formatTranscript(turns, lastClient), "silent");
+    const llmFindings = await runAuditorLlm(
+      formatTranscript(turns, lastClient),
+      "silent",
+      buildSupervisorLessonsBlock()
+    );
     markFlashSeen(leadId, lastFp);
     out.reviewed += 1;
     for (const f of llmFindings) {
