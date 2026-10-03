@@ -5799,6 +5799,47 @@ export function recoverCorreoFromUserTexts(
 }
 
 /**
+ * Correo usable para el embudo: mensaje actual, historial del cliente y confirmación
+ * tras «¿Tu correo es *x*?» (A16437 — antes solo en kommo.ts).
+ */
+export function resolveClientEmailForFunnel(
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string | null
+): string | null {
+  const fromNow = parseCorreoFromText(currentMessage ?? "");
+  if (fromNow && looksLikeValidClientEmail(fromNow)) return fromNow;
+
+  const userTexts = history
+    .filter((m) => m.role === "user" && typeof m.content === "string")
+    .map((m) => m.content as string);
+  for (let i = userTexts.length - 1; i >= 0; i--) {
+    const e = parseCorreoFromText(userTexts[i]);
+    if (e && looksLikeValidClientEmail(e)) return e;
+  }
+
+  const lastLucy = [...history]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string")?.content as
+    | string
+    | undefined;
+  const suggested =
+    lastLucy?.match(/¿Tu correo es \*([^*\s]+@[^*\s]+)\*/i)?.[1] ??
+    lastLucy?.match(/¿me confirmas (?:tu )?correo[^*]*\*([^*\s]+@[^*\s]+)\*/i)?.[1];
+  const cm = currentMessage?.trim() ?? "";
+  const affirmsEmail =
+    isAffirmativeOnlyMessage(cm) ||
+    /^(s[ií]+|sip|correcto|exacto|as[ií]\s+es|ese|ese\s+mismo|ok|va|claro)\b/i.test(cm) ||
+    /^(s[ií]+|sip)[,.\s!]*(correcto|exacto|claro|as[ií]\s+es)\b/i.test(cm);
+  if (suggested && cm && !parseCorreoFromText(cm) && affirmsEmail) {
+    const fixed = filterClientEmail(suggested);
+    if (fixed && looksLikeValidClientEmail(fixed)) return fixed;
+  }
+
+  const recovered = recoverCorreoFromUserTexts(userTexts, currentMessage);
+  return recovered && looksLikeValidClientEmail(recovered) ? recovered : null;
+}
+
+/**
  * Respuestas meta a "¿qué tipo de evento?" que NO son un tipo usable (A14964 Victor).
  * Ej: "Lo acabo de mencionar", "ya te dije", "eso mismo".
  */

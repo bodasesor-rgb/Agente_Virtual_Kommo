@@ -36,16 +36,19 @@ import {
   isReferentialPriorAnswer,
   clientComplainsAboutRepeat,
   recoverCorreoFromUserTexts,
+  resolveClientEmailForFunnel,
   assistantAskedVagueEmbudoContinue,
 } from "./conversation-understanding.js";
 import { clientAsksConcreteProductQuestion } from "./services/concreteProductQuestion.js";
 import {
   isFieldSatisfied,
+  isEmailSatisfied,
   mensajeAsksForField,
   mensajeAsksForFilledField,
   getNextPendingField,
   buildNaturalQuestion,
   isReadyForClosing,
+  syncFilledFromExtracted,
   looksLikeDeadEndAck,
   requiredServiceDimensionsMissing,
   buildDimensionRecommendationReply,
@@ -407,6 +410,15 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   const lastPrev = previous.length ? previous[previous.length - 1]! : null;
   const filled = input.filledSet ?? new Set<string>();
   const extracted = asExtracted(input.extracted);
+  syncFilledFromExtracted(filled, extracted);
+  if (!isEmailSatisfied(filled, extracted)) {
+    const resolved = resolveClientEmailForFunnel(input.history ?? [], input.currentMessage);
+    if (resolved) {
+      filled.add("Correo electrónico");
+      extracted.correo = resolved;
+      if (input.extracted) input.extracted.correo = resolved;
+    }
+  }
   const cierre = !!input.cierreYaEnviado;
   const nombre = input.clientName ?? extracted.nombre;
   const display = firstName(nombre);

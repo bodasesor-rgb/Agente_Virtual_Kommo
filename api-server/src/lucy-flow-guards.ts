@@ -237,6 +237,7 @@ import {
   clientAsksBanqueteVsTaquiza,
   parseCorreoFromText,
   recoverCorreoFromUserTexts,
+  resolveClientEmailForFunnel,
   recoverZonaFromUserTexts,
   isUnusableTipoEventoReply,
   isEventTypeOnlyMessage,
@@ -4590,6 +4591,71 @@ function extractTrailingQuestion(text: string): string | null {
   return question.length > 0 && question.length < text.trim().length ? question : null;
 }
 
+function stripRepeatedPitchPrefix(
+  text: string,
+  presHistory: OpenAI.Chat.ChatCompletionMessageParam[]
+): string {
+  return text
+    .replace(/^Hola,?\s*soy\s+Lucy[^.]*\.\s*/i, "")
+    .replace(/^¡?\s*mucho\s+gusto[^.!?]*[.!?]\s*/gi, "")
+    .replace(/^anotado[^.!?]*[.!?]\s*/i, "")
+    .replace(/^¡?\s*qu[eé]\s+buena\s+elecci[oó]n[^.!?]*[.!?]\s*/i, "")
+    .replace(TRANSITION_START_PATTERN, pickTransition(presHistory))
+    .trim();
+}
+
+function dedupeSentencesAgainstLast(text: string, last: string): string {
+  const sentences = text.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+  if (sentences.length <= 1) return text.trim();
+  const kept = sentences.filter((s) => textOverlapRatio(s, last) < 0.72);
+  const out = kept.join(" ").trim();
+  return out.length >= 12 ? out : text.trim();
+}
+
+/** Si el borrador sigue casi igual al turno anterior, recorta pitch y/o cambia la pregunta. */
+function finalizeAntiRepeatCandidate(
+  candidate: string,
+  presHistory: OpenAI.Chat.ChatCompletionMessageParam[],
+  prev: string[]
+): string {
+  const last = prev[prev.length - 1]!;
+  const maxOverlap = Math.max(...prev.map((p) => textOverlapRatio(candidate, p)));
+  if (maxOverlap < 0.68) return candidate.trim();
+
+  let stripped = stripRepeatedPitchPrefix(candidate, presHistory);
+  if (textOverlapRatio(stripped, last) < 0.68) return stripped;
+
+  const bareQuestion =
+    extractTrailingQuestion(candidate) ?? extractTrailingQuestion(stripped);
+  if (bareQuestion) {
+    const withTrans = `${pickTransition(presHistory)} ${bareQuestion}`.trim();
+    if (textOverlapRatio(withTrans, last) < 0.68) return withTrans;
+
+    const field = inferLucyAskedField(bareQuestion) as PendingField | null;
+    if (field) {
+      const alt = pickVariant(field, presHistory, undefined);
+      const altMsg = `${pickTransition(presHistory)} ${alt}`.trim();
+      if (textOverlapRatio(altMsg, last) < 0.62) return altMsg;
+    }
+    return withTrans;
+  }
+
+  const lineKept = candidate
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .filter((line) => textOverlapRatio(line, last) < 0.72);
+  if (lineKept.length) {
+    const joined = lineKept.join("\n").trim();
+    if (textOverlapRatio(joined, last) < 0.68) return joined;
+  }
+
+  const sentenceTrim = dedupeSentencesAgainstLast(stripped || candidate, last);
+  if (textOverlapRatio(sentenceTrim, last) < 0.68) return sentenceTrim;
+
+  return `${pickTransition(presHistory)} ${sentenceTrim || stripped || candidate}`.trim();
+}
+
 /** Evita enviar al cliente el mismo bloque casi idéntico que un turno anterior. Exportado para smoke. */
 export function avoidRepeatPreviousReply(
   mensaje: string,
@@ -4645,8 +4711,10 @@ export function avoidRepeatPreviousReply(
       .pop();
     if (pendingLine && textOverlapRatio(pendingLine, last) < 0.65) return pendingLine.trim();
   }
-  if (bareQuestion && textOverlapRatio(q, last) >= 0.68) return bareQuestion;
-  return q;
+  if (bareQuestion && textOverlapRatio(q, last) >= 0.68) {
+    return finalizeAntiRepeatCandidate(bareQuestion, presHistory, prev);
+  }
+  return finalizeAntiRepeatCandidate(q, presHistory, prev);
 }
 
 /**
@@ -6944,10 +7012,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
 
   // A15007: correo no es CF durable — recuperar del historial ANTES del embudo.
   if (!isEmailSatisfied(filledSet, extracted)) {
-    const recovered = recoverCorreoFromUserTexts(
-      collectUserTexts(presHistory, currentMessage),
-      currentMessage
-    );
+    const recovered = resolveClientEmailForFunnel(presHistory, currentMessage);
     if (recovered && looksLikeValidClientEmail(recovered)) {
       extracted.correo = recovered;
       filledSet.add("Correo electrónico");
@@ -7012,10 +7077,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
       }
       // A15212: "Al mismo que ya te he enviado" / queja → recuperar correo SIEMPRE si falta.
       if (!isEmailSatisfied(filledSet, extracted)) {
-        const recovered = recoverCorreoFromUserTexts(
-          collectUserTexts(presHistory, currentMessage),
-          currentMessage
-        );
+        const recovered = resolveClientEmailForFunnel(presHistory, currentMessage);
         if (recovered && looksLikeValidClientEmail(recovered)) {
           extracted.correo = recovered;
           filledSet.add("Correo electrónico");
@@ -12864,14 +12926,24 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
+  const lastAsstForRepeat = [...presHistory]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string")?.content as
+    | string
+    | undefined;
+  const forceBreakRepeat =
+    !!lastAsstForRepeat?.trim() &&
+    textOverlapRatio(mensaje, lastAsstForRepeat) >= 0.72 &&
+    mensaje.trim().length >= 40;
   if (
     !cierreYaEnviado &&
     !trulyReadyForClosing &&
-    !clientAskedFreeformQuestion(currentMessage) &&
-    !clientAsksPrice(currentMessage) &&
-    !clientAsksNamedServiceDetail(currentMessage) &&
-    !clientAsksInclusion(currentMessage) &&
-    !clientAsksServiceInfo(currentMessage)
+    (forceBreakRepeat ||
+      (!clientAskedFreeformQuestion(currentMessage) &&
+        !clientAsksPrice(currentMessage) &&
+        !clientAsksNamedServiceDetail(currentMessage) &&
+        !clientAsksInclusion(currentMessage) &&
+        !clientAsksServiceInfo(currentMessage)))
   ) {
     mensaje = breakRepeatIfStillSimilar(mensaje, presHistory, ctx, filledSet, extracted);
   }
