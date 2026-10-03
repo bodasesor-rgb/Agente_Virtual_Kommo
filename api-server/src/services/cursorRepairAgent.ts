@@ -48,6 +48,8 @@ export interface RepairJobOutcome {
   fixed: RepairOutcomeItem[];
   falsePositive: RepairOutcomeItem[];
   notFixed: RepairOutcomeItem[];
+  /** Reglas nuevas del supervisor (lo que aprendió a detectar sin Gemini). */
+  newRules?: string[];
   tests?: string;
 }
 
@@ -344,8 +346,11 @@ export function buildRepairPrompt(repairs: LucyRepairDto[]): string {
       .slice(0, 3)
       .map((r) => `   - lead ${r.kommoLeadId ?? "?"}: ${stripRepairDayPrefix(r.evidence).slice(0, 300)}`)
       .join("\n");
+    const byRule = g.items.some((r) => r.source === "heuristic");
     return [
-      `${i + 1}. [${first.category} · ${first.severity}] visto en ${g.items.length} conversación(es)`,
+      `${i + 1}. [${first.category} · ${first.severity}] visto en ${g.items.length} conversación(es) · ${
+        byRule ? "lo detectó una regla fija del supervisor" : "lo detectó Gemini leyendo el chat (no hay regla fija)"
+      }`,
       `   Propuesta del supervisor: ${first.proposedRepair}`,
       `   Ejemplos:`,
       examples,
@@ -372,15 +377,20 @@ DÓNDE ESTÁ EL CÓDIGO
 
 REGLAS
 1. Arreglo general en código, no un parche para un lead específico. No escribas a clientes ni toques Kommo.
-2. Si un hallazgo es un falso positivo del supervisor, corrige la regla en lucyAuditorHeuristics.ts o repórtalo como falso positivo.
+2. Si un hallazgo es un falso positivo de una regla fija, corrige esa regla en services/lucyAuditorHeuristics.ts
+   para que deje de marcarlo (con un smoke del caso que no debe marcar) y repórtalo en falsePositive.
 3. Agrega o amplía un smoke en api-server/src/selftest/ que reproduzca cada problema arreglado.
-4. Dependencias (como .github/workflows/deploy-hostinger.yml): cp package.json /tmp/pkg.json && cp package.development.json package.json && npm install && cp /tmp/pkg.json package.json. No commitees package.json modificado.
-5. Pruebas obligatorias, TODAS deben pasar (no solo las que tocaste; un cambio puede romper otro caso):
+4. El supervisor tiene que aprender: por cada problema real que lo detectó Gemini (sin regla fija), agrega una
+   regla en services/lucyAuditorHeuristics.ts que reconozca ese error en un chat la próxima vez, sin gastar Gemini.
+   La regla debe ser específica: su smoke prueba un chat con el error (lo marca) y uno parecido sin el error (no lo marca).
+   Si el error no se puede reconocer con una regla fiable (tono, juicio), no la inventes: explícalo en "newRules".
+5. Dependencias (como .github/workflows/deploy-hostinger.yml): cp package.json /tmp/pkg.json && cp package.development.json package.json && npm install && cp /tmp/pkg.json package.json. No commitees package.json modificado.
+6. Pruebas obligatorias, TODAS deben pasar (no solo las que tocaste; un cambio puede romper otro caso):
    ${ALL_TESTS_CMD}
    Debe terminar en «TODOS OK». El deploy corre lo mismo y no instala nada si algo falla.
    ${KEEP_OLD_FIXES_RULE}
-6. Compila: cd api-server && npm run build. Esto actualiza api-server/dist/ y deploy/ — commitea ambos, sin eso el servidor no cambia.
-7. No toques lucy-data/, hostinger-relay/ ni archivos .env. No hagas push a main en este paso: deja tu rama y el PR.
+7. Compila: cd api-server && npm run build. Esto actualiza api-server/dist/ y deploy/ — commitea ambos, sin eso el servidor no cambia.
+8. No toques lucy-data/, hostinger-relay/ ni archivos .env. No hagas push a main en este paso: deja tu rama y el PR.
 
 AL TERMINAR
 Tu último mensaje debe terminar con este bloque JSON (en español simple, para el dueño del negocio):
@@ -388,6 +398,7 @@ Tu último mensaje debe terminar con este bloque JSON (en español simple, para 
 {"fixed":[{"ids":["<id>"],"text":"qué cambió y qué hará Lucy distinto"}],
  "falsePositive":[{"ids":["<id>"],"text":"por qué no era un error"}],
  "notFixed":[{"ids":["<id>"],"text":"por qué no se pudo"}],
+ "newRules":["qué error aprendió a detectar el supervisor (o por qué no se pudo hacer regla)"],
  "tests":"qué pruebas corriste y resultado"}
 \`\`\``;
 }
@@ -451,6 +462,9 @@ export function parseRepairOutcome(text: string, repairIds: string[]): RepairJob
     fixed: outcomeItems(json["fixed"], known),
     falsePositive: outcomeItems(json["falsePositive"], known),
     notFixed: outcomeItems(json["notFixed"], known),
+    newRules: Array.isArray(json["newRules"])
+      ? json["newRules"].map((x) => String(x).trim().slice(0, 500)).filter(Boolean).slice(0, 20)
+      : [],
     tests: typeof json["tests"] === "string" ? json["tests"].slice(0, 500) : undefined,
   };
 }

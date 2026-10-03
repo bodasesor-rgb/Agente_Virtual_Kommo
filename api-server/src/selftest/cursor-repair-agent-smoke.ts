@@ -144,6 +144,17 @@ assert.match(prompt, /visto en 2 conversación/);
 assert.match(prompt, /npm run build/);
 assert.match(prompt, /"falsePositive"/);
 for (const r of picked) assert.ok(prompt.includes(r.id));
+// El supervisor aprende: errores que sólo vio Gemini piden regla fija nueva.
+assert.match(prompt, /lo detectó una regla fija del supervisor/);
+assert.match(prompt, /lucyAuditorHeuristics\.ts que reconozca ese error/);
+assert.match(prompt, /"newRules"/);
+const geminiPrompt = agent.buildRepairPrompt([{ ...picked[0]!, source: "flash" }]);
+assert.match(geminiPrompt, /lo detectó Gemini leyendo el chat/);
+const parsedRules = agent.parseRepairOutcome(
+  '```json\n{"fixed":[],"falsePositive":[],"notFixed":[],"newRules":["Detecta precio repetido"]}\n```',
+  []
+);
+assert.deepEqual(parsedRules?.newRules, ["Detecta precio repetido"]);
 
 // ── Lanzar
 const job = await agent.launchRepairJob(picked);

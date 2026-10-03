@@ -75,6 +75,11 @@ function outcomeHtml(o) {
     block("Qué arregló", o.fixed) +
     block("No eran errores", o.falsePositive) +
     block("No pudo arreglar (vuelven a Abiertas)", o.notFixed) +
+    (o.newRules && o.newRules.length
+      ? `<div class="job-outcome"><strong>Lo que aprendió el supervisor</strong><ul>${o.newRules
+          .map((t) => `<li>${escapeHtml(t)}</li>`)
+          .join("")}</ul></div>`
+      : "") +
     (o.tests ? `<p class="muted">Pruebas: ${escapeHtml(o.tests)}</p>` : "")
   );
 }
