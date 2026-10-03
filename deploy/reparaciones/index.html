@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Reparaciones Lucy — Bodasesor</title>
   <base href="/reparaciones/" />
-  <link rel="stylesheet" href="/reparaciones/styles.css?v=8" />
+  <link rel="stylesheet" href="/reparaciones/styles.css?v=9" />
 </head>
 <body>
   <div class="page">
@@ -24,6 +24,8 @@
       </div>
       <div class="header-actions">
         <a href="/panel">← Panel</a>
+        <a href="/reparaciones/?vista=supervisor" id="btn-supervisor" class="btn-ghost only-repairs">Supervisor</a>
+        <a href="/reparaciones/" class="btn-ghost only-supervisor">Ver reparaciones</a>
         <button type="button" id="btn-send-cursor" class="btn-primary" title="Manda los problemas más repetidos a un agente de Cursor y muestra su avance aquí">
           Enviar a Cursor
         </button>
@@ -41,6 +43,15 @@
       <div class="stat"><strong id="stat-quota">—</strong><span>Llamadas hoy</span></div>
       <div class="stat"><strong id="stat-spend">—</strong><span>Gasto auditor hoy</span></div>
     </div>
+
+    <section class="supervisor-intro only-supervisor">
+      <p>
+        Cada noche el supervisor lee los chats nuevos: primero con reglas fijas (gratis) y luego con Gemini, que busca
+        errores nuevos citando el mensaje exacto de Lucy. También revisa clientes que dejaron de contestar.
+        Lo que encuentra se manda solo a Cursor, que lo arregla, prueba y publica; si el error era nuevo, deja una regla
+        fija para detectarlo siempre.
+      </p>
+    </section>
 
     <details id="quality" class="quality">
       <summary><strong>¿Qué tan bien trabaja el supervisor?</strong> <span id="quality-note" class="muted"></span></summary>
@@ -84,6 +95,6 @@
     <div id="list" class="list"></div>
     <p id="empty" class="muted empty hidden">Sin hallazgos en este filtro.</p>
   </div>
-  <script src="/reparaciones/app.js?v=16" type="module"></script>
+  <script src="/reparaciones/app.js?v=17" type="module"></script>
 </body>
 </html>

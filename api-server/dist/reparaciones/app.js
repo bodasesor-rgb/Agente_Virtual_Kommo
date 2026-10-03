@@ -19,6 +19,16 @@ const jobsEl = document.getElementById("jobs");
 const jobsListEl = document.getElementById("jobs-list");
 const jobsNoteEl = document.getElementById("jobs-note");
 
+if (new URLSearchParams(window.location.search).get("vista") === "supervisor") {
+  document.body.classList.add("vista-supervisor");
+  document.getElementById("quality")?.setAttribute("open", "");
+  const h1 = document.querySelector(".header h1");
+  if (h1) h1.textContent = "Supervisor de Lucy";
+  const eyebrow = document.querySelector(".header .eyebrow");
+  if (eyebrow) eyebrow.textContent = "Calidad y aprendizaje";
+  document.title = "Supervisor de Lucy — Bodasesor";
+}
+
 let currentStatus = "open";
 let pollTimer = null;
 let jobsTimer = null;

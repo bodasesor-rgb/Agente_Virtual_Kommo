@@ -419,6 +419,26 @@ p.job-error { color: var(--err); margin: 0.4rem 0 0; }
 .job-links { margin: 0.5rem 0 0; }
 .job-links a { color: var(--accent); }
 
+body:not(.vista-supervisor) .only-supervisor { display: none !important; }
+body.vista-supervisor .only-repairs,
+body.vista-supervisor #btn-send-cursor,
+body.vista-supervisor #btn-cleanup,
+body.vista-supervisor #working-banner,
+body.vista-supervisor .filters,
+body.vista-supervisor #list,
+body.vista-supervisor #empty { display: none !important; }
+body.vista-supervisor .quality > summary { pointer-events: none; list-style: none; }
+.header-actions a.btn-ghost { text-decoration: none; }
+.supervisor-intro {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.8rem 1.1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+.supervisor-intro p { margin: 0; }
+
 .quality {
   background: var(--surface);
   border: 1px solid var(--border);

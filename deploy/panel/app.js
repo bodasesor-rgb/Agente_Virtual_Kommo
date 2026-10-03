@@ -7,6 +7,7 @@ const VIEWS = {
     title: "Información para Lucy — PDFs y tips",
   },
   reparaciones: { frame: "/reparaciones", title: "Reparaciones Lucy" },
+  supervisor: { frame: "/reparaciones/?vista=supervisor", title: "Supervisor de Lucy — calidad y aprendizaje" },
   estado: { frame: "/estado", title: "Estado de Lucy" },
 };
 
@@ -60,6 +61,7 @@ function parseHash() {
     hash === "aprendizaje" ||
     hash === "aprendizaje-info" ||
     hash === "reparaciones" ||
+    hash === "supervisor" ||
     hash === "estado"
   ) {
     return hash;
@@ -160,8 +162,8 @@ async function loadHomeStats() {
     if (cardRepairs) {
       cardRepairs.textContent =
         auditorModel !== "—"
-          ? `Auditor offline (${auditorModel}) que revisa chats: bucles, cierres mal, campos. Nunca escribe al cliente; solo propone/registra fixes.`
-          : `Auditor offline que revisa chats: bucles, cierres mal, campos. Nunca escribe al cliente; solo propone/registra fixes.`;
+          ? `Supervisor (${auditorModel}) que revisa los chats cada noche, encuentra errores nuevos y Cursor los arregla solo. Nunca escribe al cliente.`
+          : `Supervisor que revisa los chats cada noche, encuentra errores nuevos y Cursor los arregla solo. Nunca escribe al cliente.`;
     }
 
     const online = ops?.overall === "ok" || (health.status === "ok" && llmOk);
