@@ -350,6 +350,9 @@ import {
   isEnteladoRequestText,
   clientQuestionsServiceMinimum,
   buildBelowMinimumGuestReply,
+  buildPromoCodeAck,
+  buildAllInclusiveVenueReply,
+  clientAsksAllInclusiveWithVenue,
   FECHA_MAX_ASKS,
   FECHA_AUTO_WAIVER,
 } from "./conversation-understanding.js";
@@ -973,22 +976,48 @@ export function syncHorarioFromHistory(
 function clearPromoTemplateMisextracts(
   extracted: ExtractedData,
   filledSet: Set<string>,
-  message: string | undefined
+  message: string | undefined,
+  history: OpenAI.Chat.ChatCompletionMessageParam[] = []
 ): void {
   if (!message?.trim() || !isPromoTemplateMessage(message)) return;
+  // A16612: la promo llega a mitad de chat; lo que el cliente ya dio antes se conserva.
+  const earlier = collectUserTexts(history).filter((t) => !isPromoTemplateMessage(t));
 
   const parsedInv = parseInvitadosFromText(message);
   if (extracted.num_invitados != null && (!parsedInv || !/^\d+$/.test(parsedInv))) {
-    extracted.num_invitados = null;
-    filledSet.delete("Número de invitados");
+    const prior = recoverInvitadosFromUserTexts(earlier, null);
+    if (prior) {
+      extracted.num_invitados = prior;
+    } else {
+      extracted.num_invitados = null;
+      filledSet.delete("Número de invitados");
+    }
   }
 
   if (/\bhorario\s+en\s+que\s+env[ií]o\b/i.test(message)) {
-    if (extracted.horario_evento) {
+    const lastOf = <T,>(parse: (t: string) => T | null): T | null => {
+      for (let i = earlier.length - 1; i >= 0; i--) {
+        const v = parse(earlier[i]!);
+        if (v) return v;
+      }
+      return null;
+    };
+    const priorHorario = lastOf((t) => {
+      const h = parseHorarioFromText(t);
+      return h && isUsableHorarioEvento(h) ? h : null;
+    });
+    const priorFecha = lastOf(parseFechaFromText);
+    if (priorHorario) {
+      extracted.horario_evento = priorHorario;
+      filledSet.add(CRM_HORARIO_LABEL);
+    } else if (extracted.horario_evento) {
       extracted.horario_evento = null;
       filledSet.delete(CRM_HORARIO_LABEL);
     }
-    if (extracted.fecha_evento) {
+    if (priorFecha) {
+      extracted.fecha_evento = priorFecha;
+      filledSet.add(CRM_FECHA_LABEL);
+    } else if (extracted.fecha_evento) {
       extracted.fecha_evento = null;
       filledSet.delete(CRM_FECHA_LABEL);
     }
@@ -2349,7 +2378,7 @@ function buildEntertainmentSalesReply(
   } else if (wantsBatucada) {
     intro = `Claro — podemos ayudarte a *ambientar una batucada* en ${eventLabel}.`;
     ideas =
-      "Para eso solemos sumar activaciones (robots LED, show, iluminación o animación) según el vibe que busquen.";
+      "Para eso solemos sumar activaciones (robots LED, show, iluminación o animación) según el ambiente que busquen.";
   } else if (wantsMc) {
     intro = `Sí, para ${eventLabel} también manejamos *maestro de ceremonias* y shows en vivo.`;
     ideas = "¿Buscas más bien presentador, show de grupo, o animación tipo hora loca?";
@@ -4482,6 +4511,15 @@ function ensureFunnelAfterSalesReply(
   }
 
   if (lastQuestionAsksForField(out, pending)) return out;
+  // A16614: ya cierra pidiendo otro dato faltante (p. ej. zona para buscar lugar) — una sola pregunta.
+  if (
+    pending !== "invitados" &&
+    (["fecha", "horario", "zona", "correo", "presupuesto"] as const).some(
+      (f) => f !== pending && !isFieldSatisfied(f, filledSet, extracted) && lastQuestionAsksForField(out, f)
+    )
+  ) {
+    return out;
+  }
   // A16511: menú que cierra con "¿Cuál te llama/late más…?" — una sola pregunta por mensaje.
   if (/¿\s*cu[aá]l\s+te\s+(?:llama|late|interesa|gusta)\s+m[aá]s[^?]*\?\s*$/i.test(out.trim())) {
     return out;
@@ -6833,7 +6871,7 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
   syncFilledFromExtracted(filledSet, extracted);
   syncInvitadosFromHistory(filledSet, extracted, presHistory, currentMessage);
   syncHorarioFromHistory(filledSet, extracted, presHistory, currentMessage);
-  clearPromoTemplateMisextracts(extracted, filledSet, currentMessage);
+  clearPromoTemplateMisextracts(extracted, filledSet, currentMessage, presHistory);
   _outboundFinalizeCtx = {
     history: presHistory,
     currentMessage,
@@ -9495,6 +9533,31 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre — cliente pidió llamada/teléfonos");
   } else if (
+    // A16614: "paquete todo incluido, desde el lugar" — no re-volcar el menú de servicios.
+    !cierreYaEnviado &&
+    currentMessage &&
+    clientAsksAllInclusiveWithVenue(currentMessage)
+  ) {
+    const PAQUETE = "Paquete todo incluido con lugar";
+    const req = extracted.requerimientos_evento?.trim() ?? "";
+    if (!/todo\s+incluido/i.test(req)) {
+      extracted.requerimientos_evento = req ? `${PAQUETE}; ${req}` : PAQUETE;
+    }
+    filledSet.add("Requerimientos o servicios");
+    const zonaKnown = isFieldSatisfied("zona", filledSet, extracted);
+    const ack = buildAllInclusiveVenueReply({
+      nombre: getDisplayName(extracted, whatsappDisplayName),
+      tipoEvento: extracted.tipo_evento,
+      invitados: extracted.num_invitados,
+      message: currentMessage,
+      askZona: !zonaKnown,
+    });
+    const pending = zonaKnown ? getNextPendingField(extracted, filledSet) : null;
+    const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
+    mensaje = nextQ ? `${ack}\n\n${nextQ}` : ack;
+    appliedDirectReply = true;
+    log?.info({ entityId, zonaKnown }, "GUARD: A16614 — paquete todo incluido con lugar");
+  } else if (
     // A15758+: "Solo sería barra de pizzas" → modalidad solo alimentos, no reabrir menú.
     !cierreYaEnviado &&
     currentMessage &&
@@ -10921,9 +10984,26 @@ function applyLucyMessageGuardsRaw(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: pregunta de precio mobiliario/periqueras — respuesta consultiva");
   } else if (
+    // A16612: promo pegada a mitad de chat — acuse del código, sin desaconsejar ni re-preguntar.
+    currentMessage &&
+    isPromoTemplateMessage(currentMessage) &&
+    collectUserTexts(presHistory).some((t) => !isPromoTemplateMessage(t) && t.trim().length > 0)
+  ) {
+    const guests = extracted.num_invitados != null ? Number(extracted.num_invitados) : null;
+    const ack = buildPromoCodeAck(currentMessage, guests);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ =
+      pending && pending !== "requerimientos"
+        ? buildNaturalQuestion(pending, ctx)
+        : buildContinueEngagementQuestion(extracted, currentMessage, presHistory);
+    mensaje = `${ack}\n\n${nextQ}`;
+    appliedDirectReply = true;
+    log?.info({ entityId, guests }, "GUARD: A16612 — promo a mitad de chat");
+  } else if (
     // A15903 Verónica: "Veo que tus servicios son para min 35" — no saltar a fecha.
     !cierreYaEnviado &&
     currentMessage &&
+    !isPromoTemplateMessage(currentMessage) &&
     clientQuestionsServiceMinimum(currentMessage)
   ) {
     const guests =

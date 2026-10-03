@@ -27,14 +27,18 @@ const STYLE_CUES: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /\bvintage|retr[oó]/i, label: "vintage" },
   { pattern: /\bindustrial|loft/i, label: "industrial" },
   { pattern: /\btropical|player[oa]|beach/i, label: "tropical" },
-  { pattern: /\bm[eé]xico|mexicana|folkl[oó]r/i, label: "mexicana" },
+  // A16612: "Estado de México" / "comida mexicana" no son estilo de decoración.
+  {
+    pattern: /\b(?:estilo|tem[aá]tica?|decoraci[oó]n|ambiente|fiesta|noche|kerm[eé]s)\s+(?:muy\s+)?mexican[ao]|\bfolkl[oó]ric|\bmexican\s+(?:style|theme)/i,
+    label: "mexicano",
+  },
   { pattern: /\bxv|quince/i, label: "XV años" },
   { pattern: /\bboda|wedding/i, label: "boda" },
   { pattern: /\bcorporativ|empresarial|gala/i, label: "corporativo" },
   { pattern: /\bfamiliar|en\s+familia|convivio|reuni[oó]n\s+peque/i, label: "familiar" },
 ];
 
-/** Cues que son tipo de evento, no estilo ("Para un vibe *XV años*" suena mal). */
+/** Cues que son tipo de evento, no estilo ("Para un estilo *XV años*" suena mal). */
 const EVENT_TYPE_CUES = new Set(["XV años", "boda", "corporativo"]);
 
 /** Tips cortos por tipo de evento — sin precios, orientados a venta. */
@@ -97,6 +101,15 @@ export function clientWantsIdeasOrTrends(message?: string): boolean {
     .trim();
   if (!own) return false;
   return TREND_IDEA_PATTERN.test(own) || ACCEPTS_IDEAS_PATTERN.test(own);
+}
+
+/** A16612: "Me encanta esta idea" / "buena idea" es reacción a lo que dijo Lucy, no pedido de ideas. */
+export function clientReactsToIdea(message?: string | null): boolean {
+  const t = (message ?? "").trim();
+  if (!t || t.length > 80 || /\?/.test(t)) return false;
+  return /\b(?:me\s+(?:encanta|gusta|late|agrada|parece\s+(?:bien|buena))|(?:muy\s+)?buena|excelente|gran|qu[eé]\s+buena)\s+(?:(?:esta|esa|la|tu)\s+)?idea\b/i.test(
+    t
+  );
 }
 
 /** Lucy ofreció ideas en su mensaje ("Si quieres, te puedo dar algunas ideas…"). */
@@ -246,7 +259,7 @@ export function messageAlreadyOffersSalesIdeas(text: string | null | undefined):
   const t = text ?? "";
   if (!t.trim()) return false;
   return (
-    /algunas ideas que funcionan|una idea que funciona|ideas que suelen funcionar|para un vibe/i.test(t) ||
+    /algunas ideas que funcionan|una idea que funciona|ideas que suelen funcionar|para un (?:vibe|estilo)\b/i.test(t) ||
     /iluminaci[oó]n c[aá]lida|lounge peque|pista iluminada|coffee break \+ pantallas|mesa de dulces/i.test(
       t
     ) ||
@@ -313,10 +326,10 @@ export function buildSalesIdeasSnippet(opts: {
     return `${lead}\n${tips.map((t) => `• ${t}`).join("\n")}`.trim();
   }
   if (trends.length) {
-    const cueTrend = vibeCues[0] ? ` para un vibe *${vibeCues[0]}*` : "";
+    const cueTrend = vibeCues[0] ? ` para un estilo *${vibeCues[0]}*` : "";
     return `Lo que se está usando${cueTrend}:\n${tips.map((t) => `• ${t}`).join("\n")}`.trim();
   }
-  const cue = vibeCues[0] ? `Para un vibe *${vibeCues[0]}*: ` : "";
+  const cue = vibeCues[0] ? `Para un estilo *${vibeCues[0]}*: ` : "";
   if (tips.length === 1) {
     return cue ? `${cue}${tips[0]}` : `Una idea que funciona muy bien: ${tips[0]}`;
   }
@@ -370,10 +383,11 @@ export function enrichReplyWithSalesIdeas(
 
   const wants =
     opts.force ||
-    clientWantsIdeasOrTrends(opts.messageText) ||
-    /recomendaciones?|recomiendas?|ideas?\b|colores?|montajes?|decoraci/i.test(
-      opts.messageText ?? ""
-    );
+    (!clientReactsToIdea(opts.messageText) &&
+      (clientWantsIdeasOrTrends(opts.messageText) ||
+        /recomendaciones?|recomiendas?|ideas?\b|colores?|montajes?|decoraci/i.test(
+          opts.messageText ?? ""
+        )));
   const askingServices =
     /qu[eé]\s+(servicios|necesitas|gustar)|plat[ií]came|armar para|te gustar[ií]a ir armando/i.test(
       out
@@ -425,7 +439,7 @@ export function buildTrendContextBlock(opts: {
   ];
 
   if (cues.length) {
-    lines.push(`Estilo/vibe detectado: ${cues.join(", ")}.`);
+    lines.push(`Estilo detectado: ${cues.join(", ")}. (Di «estilo» o «ambiente», nunca «vibe».)`);
   }
   if (tips.length) {
     lines.push(`Ideas útiles: ${tips.join(" ")}`);

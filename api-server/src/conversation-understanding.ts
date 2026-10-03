@@ -1899,15 +1899,83 @@ export function clientQuestionsServiceMinimum(message?: string | null): boolean 
   );
 }
 
+const VENUE_WORD = String.raw`(?:lugar|sal[oó]n|espacio|venue|recinto|jard[ií]n\s+de\s+eventos|terraza|hacienda|local)`;
+
+/**
+ * A16614 Emmanuel: «paquete todo incluido, desde el lugar» / «nos ayudan a buscar salón».
+ * El equipo también cotiza opciones de lugar — no responder con el menú de servicios.
+ */
+export function clientAsksAllInclusiveWithVenue(message?: string | null): boolean {
+  const t = (message ?? "").trim();
+  if (!t) return false;
+  const allIn = /\btodo\s*inclu[ií]do\b|\bpaquete\s+(?:completo|integral)\b|\bllave\s+en\s+mano\b/i.test(t);
+  const withVenue = new RegExp(
+    String.raw`\b(?:desde|incluy\w*|con|y|m[aá]s|hasta)\s+(?:el\s+|un\s+)?${VENUE_WORD}\b`,
+    "i"
+  ).test(t);
+  if (allIn && withVenue) return true;
+  return new RegExp(
+    String.raw`\b(?:busc(?:o|amos|ando)|necesit(?:o|amos)|cotiz(?:ar|en|an)|consegu(?:ir|irnos)|recomi[eé]nd(?:an|ame|anos)|nos\s+ayudan?\s+a\s+(?:buscar|conseguir|encontrar))\s+(?:tambi[eé]n\s+)?(?:el\s+|un\s+)?${VENUE_WORD}\b(?!\s+(?:ya|tiene|incluye|cuenta|provee))`,
+    "i"
+  ).test(t);
+}
+
+/** Respuesta a paquete todo incluido con lugar (sin menú de servicios). */
+export function buildAllInclusiveVenueReply(opts: {
+  nombre?: string | null;
+  tipoEvento?: string | null;
+  invitados?: number | string | null;
+  message?: string | null;
+  askZona: boolean;
+}): string {
+  const who = opts.nombre?.trim() ? `Perfecto, ${opts.nombre.trim().split(/\s+/)[0]}.` : "Perfecto.";
+  const tipo = opts.tipoEvento?.trim() ? `tu ${opts.tipoEvento.trim().toLowerCase()}` : "tu evento";
+  const inv = Number(opts.invitados) > 0 ? ` para ${Number(opts.invitados)} personas` : "";
+  const msg = opts.message ?? "";
+  const day = msg.match(/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i)?.[1]?.toLowerCase();
+  const date = msg.match(
+    /\b(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))\b/i
+  )?.[1];
+  const fromDate = /\b(?:a\s+partir\s+del?|despu[eé]s\s+del?|desde\s+el)\s+\d{1,2}\s+de\s+/i.test(msg);
+  const fecha = date
+    ? fromDate
+      ? `, ${day ? `un ${day} ` : ""}a partir del ${date}`
+      : `, el ${day ? `${day} ` : ""}${date}`
+    : day
+      ? `, un ${day}`
+      : "";
+  const body =
+    `${who} Con gusto te armamos un paquete todo incluido para ${tipo}${inv}${fecha}, desde el lugar: ` +
+    `espacio, alimentos, bebidas, mobiliario, DJ y lo que necesiten.`;
+  return opts.askZona
+    ? `${body}\n\nPara buscarte opciones de lugar, ¿en qué zona o ciudad les gustaría que fuera?`
+    : body;
+}
+
 /** Respuesta cuando el aforo va por debajo del mínimo típico de banquete. */
 export function buildBelowMinimumGuestReply(guestCount?: number | null): string {
   const n = guestCount && guestCount > 0 ? guestCount : null;
-  const size = n ? `Para *${n} personas*` : "Para grupos más pequeños";
+  // A16612: sin desaconsejar servicios ni suponer el tipo de evento ("junta").
+  const size = n ? `para *${n} personas*` : "para grupos más pequeños";
   return (
-    `${size} el banquete formal suele no ser lo más práctico (el catálogo arranca cerca de 35). ` +
-    `Igual te podemos armar una propuesta a la medida — coffee break, barra de alimentos o un menú más liviano. ` +
-    `¿Te late alguna de esas opciones o prefieres que el equipo te sugiera según la junta?`
+    `Los paquetes de catálogo arrancan en 35 personas, pero ${size} también te podemos armar una propuesta a la medida ` +
+    `con lo que ya platicamos. El equipo revisa las opciones y te las comparte en la cotización.`
   );
+}
+
+/** A16612: plantilla de promo a mitad de chat — acuse del código sin re-preguntar datos ya dados. */
+export function buildPromoCodeAck(message: string, guestCount?: number | null): string {
+  const code = message.match(/\bc[oó]digo\s*:\s*([\wÁÉÍÓÚáéíóúñÑ-]{3,30})/i)?.[1];
+  const min = Number(message.match(/\bpedido\s+m[ií]nimo\s*:?\s*(\d{1,4})/i)?.[1] ?? 0) || null;
+  const promo = code ? `del código *${code}*` : "de la promoción";
+  const n = guestCount && guestCount > 0 ? guestCount : null;
+  if (min && n && n < min) {
+    return (
+      `Gracias, ya tomé nota ${promo}. Esa promoción aplica para pedidos desde ${min} personas; ` +
+      `para tus ${n} invitados el equipo revisa qué opción te conviene y te lo confirma en la cotización.`
+    );
+  }
+  return `Gracias, ya tomé nota ${promo}. El equipo lo toma en cuenta al armar tu cotización.`;
 }
 
 /** Quita metadatos de plantilla promo antes de parsear fecha/horario/invitados. */

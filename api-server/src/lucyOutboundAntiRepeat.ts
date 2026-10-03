@@ -84,7 +84,7 @@ const SERVICES_MENU_PATTERN =
 function stripSalesTipLines(text: string): string {
   return text
     .split(/\n+/)
-    .filter((line) => !containsStaticSalesTip(line) && !/para un vibe|ideas que funcionan|se est[aá] usando/i.test(line))
+    .filter((line) => !containsStaticSalesTip(line) && !/para un (?:vibe|estilo)\b|ideas que funcionan|se est[aá] usando/i.test(line))
     .join("\n");
 }
 

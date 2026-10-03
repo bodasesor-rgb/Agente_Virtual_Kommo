@@ -126,4 +126,24 @@ const mismoArranque = runAuditorHeuristics([
 ]);
 assert.ok(!mismoArranque.some((f) => f.category === "repeat_reply"), JSON.stringify(mismoArranque));
 
+// A16610: elogio forzado de Lucy → tone.
+const forzado = runAuditorHeuristics([
+  { role: "user", content: "Es para el aniversario de mi empresa" },
+  {
+    role: "assistant",
+    content: "¡Qué buen plan! Tu aniversario de empresa suena increíble. ¿Qué servicios te interesan?",
+    at: new Date("2026-10-04T02:00:00Z"),
+  },
+]);
+const tono = forzado.find((f) => f.category === "tone");
+assert.ok(tono && /elogio forzado/.test(tono.evidence), JSON.stringify(forzado));
+
+// Tono cordial correcto, mensajes viejos (ya corregidos en código) y textos del equipo humano no cuentan.
+const cordial = runAuditorHeuristics([
+  { role: "assistant", content: "Perfecto, con gusto te ayudamos con tu aniversario de empresa. ¿Qué te gustaría armar?" },
+  { role: "assistant", content: "¡Qué padre! Tu boda suena genial.", at: new Date("2026-10-02T12:00:00Z") },
+  { role: "human", content: "¡Qué buen plan! Te paso la cotización." },
+]);
+assert.ok(!cordial.some((f) => f.category === "tone"), JSON.stringify(cordial));
+
 console.log("reparaciones-auditor smoke OK");

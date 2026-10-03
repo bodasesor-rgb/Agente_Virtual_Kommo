@@ -3,13 +3,20 @@
  */
 
 export type HeuristicFinding = {
-  category: "loop_links" | "repeat_reply" | "premature_close" | "bad_field" | "stuck_funnel";
+  category: "loop_links" | "repeat_reply" | "premature_close" | "bad_field" | "stuck_funnel" | "tone";
   severity: "info" | "warn" | "error";
   evidence: string;
   proposedRepair: string;
 };
 
-export type TranscriptTurn = { role: "user" | "assistant" | string; content: string };
+export type TranscriptTurn = { role: "user" | "assistant" | string; content: string; at?: Date | null };
+
+/** Elogios forzados que Bodasesor no quiere (A16610): el tono debe ser cordial y profesional. */
+export const FORCED_PRAISE_RE =
+  /¡?\bqu[eé]\s+(?:buen\s+plan|padre|emoci[oó]n|padr[ií]simo)\b!?|\bsuena\s+(?:incre[ií]ble|genial|padr[ií]simo|espectacular)\b|\bvibes?\b/i;
+
+/** Mensajes de Lucy anteriores a la regla ya se corrigieron en código (a7d4058); no reabrir por ellos. */
+export const FORCED_PRAISE_RULE_SINCE = new Date("2026-10-03T17:00:00Z");
 
 /** Snapshot de campos CRM que Lucy escribe en el panel Kommo. */
 export type CrmFieldSnapshot = {
@@ -276,6 +283,24 @@ export function runAuditorHeuristics(turns: TranscriptTurn[]): HeuristicFinding[
       });
       break;
     }
+  }
+
+  // A16610: tono forzado ("¡Qué buen plan! … suena increíble"). Solo mensajes de Lucy, no del equipo.
+  for (const t of turns) {
+    if (t.role !== "assistant" || !t.content?.trim()) continue;
+    if (t.at && t.at < FORCED_PRAISE_RULE_SINCE) continue;
+    const m = t.content.match(FORCED_PRAISE_RE);
+    if (!m) continue;
+    findings.push({
+      category: "tone",
+      severity: "warn",
+      evidence: `Lucy usó un elogio forzado o palabra informal: «${m[0]}» en «${t.content.slice(0, 120)}»`,
+      proposedRepair:
+        "Tono cordial y profesional: al saber el tipo de evento usar «Perfecto, con gusto te ayudamos con…». " +
+        "Nunca «¡Qué buen plan!», «suena increíble», «¡Qué padre!» ni «vibe» (usar «estilo») " +
+        "(prompt + softenRobotAcks en lucyNaturalTone.ts).",
+    });
+    break;
   }
 
   // Señal para Flash: pocos hallazgos pero conversación larga

@@ -165,6 +165,10 @@ export function softenRobotAcks(mensaje: string): string {
     (_m, what: string) => `Perfecto, con gusto te ayudamos con tu ${what.trim()}. `
   );
   out = out.replace(/(^|[.!?]\s+)¡?Qu[eé]\s+(?:buen\s+plan|padre)!?\.?\s*/gi, "$1Perfecto. ");
+  // A16612: "vibe" es anglicismo informal — Bodasesor prefiere "estilo".
+  out = out.replace(/\b(un|el|ese|este|tu|su)\s+vibe\b/gi, (_m, art: string) => `${art} estilo`);
+  out = out.replace(/\bla\s+vibe\b/gi, "el estilo");
+  out = out.replace(/\bvibes?\b/gi, "estilo");
   // "Queda anotado lo de Banquete."
   out = out.replace(/\bQueda\s+anotado\s+lo\s+de\s+/gi, "Seguimos con ");
   // "Ya lo tengo anotado."

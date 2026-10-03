@@ -133,6 +133,10 @@ export function buildAuditorPrompt(transcript: string, mode: AuditorLlmMode = "d
     "- cerró («ya tengo todo», «un asesor te contacta») cuando el cliente seguía preguntando (premature_close)",
     "- anotó mal un dato del evento (bad_field)",
     "- mensaje demasiado largo, confuso, frío o robótico; nombre mal usado (tone)",
+    "- elogio forzado o exagerado («¡Qué buen plan!», «suena increíble», «¡Qué padre!», «¡Qué emoción!») o anglicismos como «vibe»:",
+    "  Bodasesor quiere tono cordial y profesional, p. ej. «Perfecto, con gusto te ayudamos con…».",
+    "  Esto NO es gusto menor: repórtalo siempre (tone)",
+    "- ofreció o desaconsejó algo que el cliente no pidió, o supuso un estilo/tipo de evento sin que lo dijera (misunderstood)",
     "- contestó encima del equipo humano, o no pasó a humano cuando el cliente lo pidió o se molestó (handoff)",
     ...(mode === "silent"
       ? [
