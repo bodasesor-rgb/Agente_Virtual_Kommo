@@ -23,10 +23,17 @@ export interface AuditorRunRecord {
   recorded: number;
   silentReviewed?: number;
   silentFindings?: number;
+  /** Respuestas de Gemini: propuestos, tirados por cita inventada, errores. */
+  geminiProposed?: number;
+  geminiDroppedNoQuote?: number;
+  geminiErrors?: number;
+  geminiLastError?: string;
 }
 
 interface AuditorLogFile {
   lastDailyAt?: string;
+  /** Cupo diario (UTC) de llamadas del auditor; sobrevive reinicios. */
+  quota?: { day: string; calls: number };
   /** leadId → huella del último mensaje que leyó Gemini. */
   flashSeen: Record<string, { fp: string; at: string }>;
   runs: AuditorRunRecord[];
@@ -47,6 +54,10 @@ export function readAuditorLog(): AuditorLogFile {
     const parsed = JSON.parse(readFileSync(path, "utf8")) as Partial<AuditorLogFile>;
     return {
       lastDailyAt: typeof parsed.lastDailyAt === "string" ? parsed.lastDailyAt : undefined,
+      quota:
+        parsed.quota && typeof parsed.quota.day === "string" && Number.isFinite(parsed.quota.calls)
+          ? parsed.quota
+          : undefined,
       flashSeen: parsed.flashSeen && typeof parsed.flashSeen === "object" ? parsed.flashSeen : {},
       runs: Array.isArray(parsed.runs) ? parsed.runs : [],
     };
@@ -92,6 +103,17 @@ export function recordAuditorRun(run: AuditorRunRecord, opts?: { daily?: boolean
   const log = readAuditorLog();
   log.runs.push(run);
   if (opts?.daily) log.lastDailyAt = run.at;
+  writeAuditorLog(log);
+}
+
+export function readAuditorQuota(day: string): number {
+  const q = readAuditorLog().quota;
+  return q && q.day === day ? q.calls : 0;
+}
+
+export function writeAuditorQuota(day: string, calls: number): void {
+  const log = readAuditorLog();
+  log.quota = { day, calls };
   writeAuditorLog(log);
 }
 

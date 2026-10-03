@@ -117,6 +117,12 @@ assert.ok(
   "errores distintos de Gemini no se agrupan como el mismo"
 );
 
+// Citas con «…» o casi textuales sí cuentan; frases que Lucy nunca dijo, no.
+assert.ok(llm.lucyQuoteIsReal(transcript, "carpas árabes son ideales… para qué fecha es tu evento"));
+assert.ok(llm.lucyQuoteIsReal(transcript, "LUCY: Claro, nuestras carpas arabes son ideales para la boda"));
+assert.ok(!llm.lucyQuoteIsReal(transcript, "te mando el precio de la carpa mañana temprano"));
+assert.ok(!llm.lucyQuoteIsReal(transcript, "soy Lucy de Bodasesor"), "antes de la marca no cuenta");
+
 // ── Transcript: lo más reciente, marca de nuevos, mensajes de varias líneas en una
 const many = Array.from({ length: 200 }, (_, i) => ({ role: i % 2 ? "assistant" : "user", content: `mensaje ${i} ${"x".repeat(40)}` }));
 const t = auditor.formatTranscript(many, 198);
@@ -186,6 +192,19 @@ assert.equal(r1.silentReviewed, 1, JSON.stringify(r1));
 assert.equal(r1.silentFindings, 1);
 const callsAfter1 = geminiPrompts.length;
 assert.equal(callsAfter1, 2, "A (día) + B (silencio); C no gasta");
+assert.deepEqual(
+  { ...r1.gemini, lastError: undefined },
+  { calls: 2, errors: 0, proposed: 3, droppedNoQuote: 1, kept: 2, lastError: undefined },
+  JSON.stringify(r1.gemini)
+);
+assert.match(r1.summary ?? "", /Gemini propuso 3, se quedaron 2 \(1 sin cita real\)/);
+const { readFileSync } = await import("node:fs");
+const savedLog = JSON.parse(readFileSync(join(dir, "auditor-log.json"), "utf8")) as {
+  quota?: { calls: number };
+  runs: Array<{ geminiDroppedNoQuote?: number }>;
+};
+assert.equal(savedLog.quota?.calls, 2, "el cupo sobrevive reinicios");
+assert.equal(savedLog.runs.at(-1)?.geminiDroppedNoQuote, 1);
 assert.ok(geminiPrompts[0]!.includes("thinkingBudget"), "presupuesto de pensamiento acotado");
 
 const all = await store.listLucyRepairs("open", 50);

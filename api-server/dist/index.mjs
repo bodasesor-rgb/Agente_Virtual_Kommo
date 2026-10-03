@@ -20385,9 +20385,6 @@ var require_proxy_addr = __commonJS({
       return function trust(addr2) {
         if (!isip(addr2)) return false;
         var ip = parseip(addr2);
-        if (ip.kind() === "ipv6" && ip.isIPv4MappedAddress()) {
-          ip = ip.toIPv4Address();
-        }
         var ipconv;
         var kind = ip.kind();
         for (var i6 = 0; i6 < subnets.length; i6++) {
@@ -20400,15 +20397,10 @@ var require_proxy_addr = __commonJS({
             if (subnetkind === "ipv4" && !ip.isIPv4MappedAddress()) {
               continue;
             }
-            if (subnetkind !== "ipv4" && !(subnetrange >= 96 && subnetip.isIPv4MappedAddress())) {
-              continue;
-            }
             if (!ipconv) {
               ipconv = subnetkind === "ipv4" ? ip.toIPv4Address() : ip.toIPv4MappedAddress();
             }
             trusted = ipconv;
-          } else if (kind === "ipv6" && subnetip.isIPv4MappedAddress()) {
-            continue;
           }
           if (trusted.match(subnetip, subnetrange)) {
             return true;
@@ -20425,20 +20417,12 @@ var require_proxy_addr = __commonJS({
       return function trust(addr2) {
         if (!isip(addr2)) return false;
         var ip = parseip(addr2);
-        if (ip.kind() === "ipv6" && ip.isIPv4MappedAddress()) {
-          ip = ip.toIPv4Address();
-        }
         var kind = ip.kind();
         if (kind !== subnetkind) {
           if (subnetisipv4 && !ip.isIPv4MappedAddress()) {
             return false;
           }
-          if (!subnetisipv4 && !(subnetrange >= 96 && subnetip.isIPv4MappedAddress())) {
-            return false;
-          }
           ip = subnetisipv4 ? ip.toIPv4Address() : ip.toIPv4MappedAddress();
-        } else if (kind === "ipv6" && subnetip.isIPv4MappedAddress()) {
-          return false;
         }
         return ip.match(subnetip, subnetrange);
       };
@@ -28876,7 +28860,7 @@ var require_pino = __commonJS({
     function pinoBundlerAbsolutePath(p5) {
       try {
         const path7 = __require("path");
-        const outputDir = "/workspace/api-server/dist";
+        const outputDir = "C:\\Users\\Alex\\.cursor\\projects\\c-Users-Alex-OneDrive-Documents-Bodasesor-Repos-Bodasesor-Agente-Virtual-Kommo\\Agente_Virtual_Kommo\\api-server\\dist";
         return path7.resolve(outputDir, p5.replace(/^\.\//, ""));
       } catch (e4) {
         const f7 = new Function("p", "return new URL(p, import.meta.url).pathname");
@@ -66089,23 +66073,11 @@ var require_websocket = __commonJS({
           this._isServer = false;
           this._redirects = 0;
           if (protocols === void 0) {
-            if (!options || options.protocols === void 0) {
-              protocols = [];
-            } else if (Array.isArray(options.protocols)) {
-              protocols = options.protocols;
-            } else {
-              protocols = [options.protocols];
-            }
+            protocols = [];
           } else if (!Array.isArray(protocols)) {
             if (typeof protocols === "object" && protocols !== null) {
               options = protocols;
-              if (options.protocols === void 0) {
-                protocols = [];
-              } else if (Array.isArray(options.protocols)) {
-                protocols = options.protocols;
-              } else {
-                protocols = [options.protocols];
-              }
+              protocols = [];
             } else {
               protocols = [protocols];
             }
@@ -66302,6 +66274,7 @@ var require_websocket = __commonJS({
           }
           return;
         }
+        this._readyState = _WebSocket.CLOSING;
         this._sender.close(code, data, !this._isServer, (err2) => {
           if (err2) return;
           this._closeFrameSent = true;
@@ -66309,7 +66282,6 @@ var require_websocket = __commonJS({
             this._socket.end();
           }
         });
-        this._readyState = _WebSocket.CLOSING;
         setCloseTimer(this);
       }
       /**
@@ -66534,7 +66506,6 @@ var require_websocket = __commonJS({
         socketPath: void 0,
         hostname: void 0,
         protocol: void 0,
-        protocols: void 0,
         timeout: void 0,
         method: "GET",
         host: void 0,
@@ -68876,6 +68847,21 @@ function batchJobSourceToVertex(fromObject) {
   }
   return toObject;
 }
+function blobToMldev$4(fromObject) {
+  const toObject = {};
+  const fromData = getValueByPath(fromObject, ["data"]);
+  if (fromData != null) {
+    setValueByPath(toObject, ["data"], fromData);
+  }
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
+  }
+  return toObject;
+}
 function cancelBatchJobParametersToMldev(apiClient, fromObject) {
   const toObject = {};
   const fromName = getValueByPath(fromObject, ["name"]);
@@ -68949,12 +68935,6 @@ function candidateFromMldev$1(fromObject) {
   ]);
   if (fromUrlContextMetadata != null) {
     setValueByPath(toObject, ["urlContextMetadata"], fromUrlContextMetadata);
-  }
-  const fromContinuationToken = getValueByPath(fromObject, [
-    "continuationToken"
-  ]);
-  if (fromContinuationToken != null) {
-    setValueByPath(toObject, ["continuationToken"], fromContinuationToken);
   }
   return toObject;
 }
@@ -69201,6 +69181,21 @@ function embeddingsBatchJobSourceToMldev(apiClient, fromObject) {
   }
   return toObject;
 }
+function fileDataToMldev$4(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromFileUri = getValueByPath(fromObject, ["fileUri"]);
+  if (fromFileUri != null) {
+    setValueByPath(toObject, ["fileUri"], fromFileUri);
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
+  }
+  return toObject;
+}
 function functionCallToMldev$4(fromObject) {
   const toObject = {};
   const fromArgs = getValueByPath(fromObject, ["args"]);
@@ -69358,9 +69353,8 @@ function generateContentConfigToMldev$1(apiClient, fromObject, parentObject) {
   if (parentObject !== void 0 && fromToolConfig != null) {
     setValueByPath(parentObject, ["toolConfig"], toolConfigToMldev$2(fromToolConfig));
   }
-  const fromLabels = getValueByPath(fromObject, ["labels"]);
-  if (parentObject !== void 0 && fromLabels != null) {
-    setValueByPath(parentObject, ["labels"], fromLabels);
+  if (getValueByPath(fromObject, ["labels"]) !== void 0) {
+    throw new Error("labels parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
   }
   const fromCachedContent = getValueByPath(fromObject, [
     "cachedContent"
@@ -69411,12 +69405,6 @@ function generateContentConfigToMldev$1(apiClient, fromObject, parentObject) {
   }
   if (getValueByPath(fromObject, ["modelArmorConfig"]) !== void 0) {
     throw new Error("modelArmorConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
-  }
-  const fromContinuationToken = getValueByPath(fromObject, [
-    "continuationToken"
-  ]);
-  if (parentObject !== void 0 && fromContinuationToken != null) {
-    setValueByPath(parentObject, ["continuationToken"], fromContinuationToken);
   }
   return toObject;
 }
@@ -69721,7 +69709,7 @@ function partToMldev$4(fromObject) {
   }
   const fromFileData = getValueByPath(fromObject, ["fileData"]);
   if (fromFileData != null) {
-    setValueByPath(toObject, ["fileData"], fromFileData);
+    setValueByPath(toObject, ["fileData"], fileDataToMldev$4(fromFileData));
   }
   const fromFunctionCall = getValueByPath(fromObject, ["functionCall"]);
   if (fromFunctionCall != null) {
@@ -69735,7 +69723,7 @@ function partToMldev$4(fromObject) {
   }
   const fromInlineData = getValueByPath(fromObject, ["inlineData"]);
   if (fromInlineData != null) {
-    setValueByPath(toObject, ["inlineData"], fromInlineData);
+    setValueByPath(toObject, ["inlineData"], blobToMldev$4(fromInlineData));
   }
   const fromText = getValueByPath(fromObject, ["text"]);
   if (fromText != null) {
@@ -69766,12 +69754,6 @@ function partToMldev$4(fromObject) {
   ]);
   if (fromMediaProcessing != null) {
     setValueByPath(toObject, ["mediaProcessing"], fromMediaProcessing);
-  }
-  const fromSpeechMetadata = getValueByPath(fromObject, [
-    "speechMetadata"
-  ]);
-  if (fromSpeechMetadata != null) {
-    setValueByPath(toObject, ["speechMetadata"], fromSpeechMetadata);
   }
   return toObject;
 }
@@ -69935,7 +69917,22 @@ function authConfigToMldev$3(fromObject) {
   }
   return toObject;
 }
-function computerUseToVertex$3(fromObject) {
+function blobToMldev$3(fromObject) {
+  const toObject = {};
+  const fromData = getValueByPath(fromObject, ["data"]);
+  if (fromData != null) {
+    setValueByPath(toObject, ["data"], fromData);
+  }
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
+  }
+  return toObject;
+}
+function computerUseToVertex$2(fromObject) {
   const toObject = {};
   const fromEnablePromptInjectionDetection = getValueByPath(fromObject, [
     "enablePromptInjectionDetection"
@@ -70078,7 +70075,7 @@ function createCachedContentConfigToVertex(fromObject, parentObject) {
     let transformedList = fromTools;
     if (Array.isArray(transformedList)) {
       transformedList = transformedList.map((item) => {
-        return toolToVertex$3(item);
+        return toolToVertex$2(item);
       });
     }
     setValueByPath(parentObject, ["tools"], transformedList);
@@ -70150,6 +70147,21 @@ function deleteCachedContentResponseFromVertex(fromObject) {
   ]);
   if (fromSdkHttpResponse != null) {
     setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  return toObject;
+}
+function fileDataToMldev$3(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromFileUri = getValueByPath(fromObject, ["fileUri"]);
+  if (fromFileUri != null) {
+    setValueByPath(toObject, ["fileUri"], fromFileUri);
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
   }
   return toObject;
 }
@@ -70339,7 +70351,7 @@ function listCachedContentsResponseFromVertex(fromObject) {
   }
   return toObject;
 }
-function mcpServerToVertex$3(fromObject) {
+function mcpServerToVertex$2(fromObject) {
   const toObject = {};
   if (getValueByPath(fromObject, ["name"]) !== void 0) {
     throw new Error("name parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
@@ -70385,7 +70397,7 @@ function partToMldev$3(fromObject) {
   }
   const fromFileData = getValueByPath(fromObject, ["fileData"]);
   if (fromFileData != null) {
-    setValueByPath(toObject, ["fileData"], fromFileData);
+    setValueByPath(toObject, ["fileData"], fileDataToMldev$3(fromFileData));
   }
   const fromFunctionCall = getValueByPath(fromObject, ["functionCall"]);
   if (fromFunctionCall != null) {
@@ -70399,7 +70411,7 @@ function partToMldev$3(fromObject) {
   }
   const fromInlineData = getValueByPath(fromObject, ["inlineData"]);
   if (fromInlineData != null) {
-    setValueByPath(toObject, ["inlineData"], fromInlineData);
+    setValueByPath(toObject, ["inlineData"], blobToMldev$3(fromInlineData));
   }
   const fromText = getValueByPath(fromObject, ["text"]);
   if (fromText != null) {
@@ -70430,12 +70442,6 @@ function partToMldev$3(fromObject) {
   ]);
   if (fromMediaProcessing != null) {
     setValueByPath(toObject, ["mediaProcessing"], fromMediaProcessing);
-  }
-  const fromSpeechMetadata = getValueByPath(fromObject, [
-    "speechMetadata"
-  ]);
-  if (fromSpeechMetadata != null) {
-    setValueByPath(toObject, ["speechMetadata"], fromSpeechMetadata);
   }
   return toObject;
 }
@@ -70517,12 +70523,6 @@ function partToVertex$3(fromObject) {
   ]);
   if (fromMediaProcessing != null) {
     setValueByPath(toObject, ["mediaProcessing"], fromMediaProcessing);
-  }
-  const fromSpeechMetadata = getValueByPath(fromObject, [
-    "speechMetadata"
-  ]);
-  if (fromSpeechMetadata != null) {
-    setValueByPath(toObject, ["speechMetadata"], fromSpeechMetadata);
   }
   return toObject;
 }
@@ -70635,7 +70635,7 @@ function toolToMldev$3(fromObject) {
   }
   return toObject;
 }
-function toolToVertex$3(fromObject) {
+function toolToVertex$2(fromObject) {
   const toObject = {};
   const fromRetrieval = getValueByPath(fromObject, ["retrieval"]);
   if (fromRetrieval != null) {
@@ -70650,7 +70650,7 @@ function toolToVertex$3(fromObject) {
     let transformedList = fromMcpServers;
     if (Array.isArray(transformedList)) {
       transformedList = transformedList.map((item) => {
-        return mcpServerToVertex$3(item);
+        return mcpServerToVertex$2(item);
       });
     }
     setValueByPath(toObject, ["mcpServers"], transformedList);
@@ -70663,7 +70663,7 @@ function toolToVertex$3(fromObject) {
   }
   const fromComputerUse = getValueByPath(fromObject, ["computerUse"]);
   if (fromComputerUse != null) {
-    setValueByPath(toObject, ["computerUse"], computerUseToVertex$3(fromComputerUse));
+    setValueByPath(toObject, ["computerUse"], computerUseToVertex$2(fromComputerUse));
   }
   const fromEnterpriseWebSearch = getValueByPath(fromObject, [
     "enterpriseWebSearch"
@@ -71051,7 +71051,22 @@ function authConfigToMldev$2(fromObject) {
   }
   return toObject;
 }
-function computerUseToVertex$2(fromObject) {
+function blobToMldev$2(fromObject) {
+  const toObject = {};
+  const fromData = getValueByPath(fromObject, ["data"]);
+  if (fromData != null) {
+    setValueByPath(toObject, ["data"], fromData);
+  }
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
+  }
+  return toObject;
+}
+function computerUseToVertex$1(fromObject) {
   const toObject = {};
   const fromEnablePromptInjectionDetection = getValueByPath(fromObject, [
     "enablePromptInjectionDetection"
@@ -71107,6 +71122,21 @@ function contentToVertex$2(fromObject) {
   const fromRole = getValueByPath(fromObject, ["role"]);
   if (fromRole != null) {
     setValueByPath(toObject, ["role"], fromRole);
+  }
+  return toObject;
+}
+function fileDataToMldev$2(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromFileUri = getValueByPath(fromObject, ["fileUri"]);
+  if (fromFileUri != null) {
+    setValueByPath(toObject, ["fileUri"], fromFileUri);
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
   }
   return toObject;
 }
@@ -71275,11 +71305,8 @@ function generationConfigToVertex$1(fromObject) {
   if (getValueByPath(fromObject, ["enableEnhancedCivicAnswers"]) !== void 0) {
     throw new Error("enableEnhancedCivicAnswers parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
   }
-  const fromTranslationConfig = getValueByPath(fromObject, [
-    "translationConfig"
-  ]);
-  if (fromTranslationConfig != null) {
-    setValueByPath(toObject, ["translationConfig"], fromTranslationConfig);
+  if (getValueByPath(fromObject, ["translationConfig"]) !== void 0) {
+    throw new Error("translationConfig parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
   }
   return toObject;
 }
@@ -71522,7 +71549,7 @@ function liveConnectConfigToVertex(fromObject, parentObject) {
     let transformedList = tTools(fromTools);
     if (Array.isArray(transformedList)) {
       transformedList = transformedList.map((item) => {
-        return toolToVertex$2(tTool(item));
+        return toolToVertex$1(tTool(item));
       });
     }
     setValueByPath(parentObject, ["setup", "tools"], transformedList);
@@ -71648,14 +71675,14 @@ function liveSendRealtimeInputParametersToMldev(fromObject) {
     let transformedList = tBlobs(fromMedia);
     if (Array.isArray(transformedList)) {
       transformedList = transformedList.map((item) => {
-        return item;
+        return blobToMldev$2(item);
       });
     }
     setValueByPath(toObject, ["mediaChunks"], transformedList);
   }
   const fromAudio = getValueByPath(fromObject, ["audio"]);
   if (fromAudio != null) {
-    setValueByPath(toObject, ["audio"], tAudioBlob(fromAudio));
+    setValueByPath(toObject, ["audio"], blobToMldev$2(tAudioBlob(fromAudio)));
   }
   const fromAudioStreamEnd = getValueByPath(fromObject, [
     "audioStreamEnd"
@@ -71665,7 +71692,7 @@ function liveSendRealtimeInputParametersToMldev(fromObject) {
   }
   const fromVideo = getValueByPath(fromObject, ["video"]);
   if (fromVideo != null) {
-    setValueByPath(toObject, ["video"], tImageBlob(fromVideo));
+    setValueByPath(toObject, ["video"], blobToMldev$2(tImageBlob(fromVideo)));
   }
   const fromText = getValueByPath(fromObject, ["text"]);
   if (fromText != null) {
@@ -71779,7 +71806,7 @@ function liveServerMessageFromVertex(fromObject) {
   }
   return toObject;
 }
-function mcpServerToVertex$2(fromObject) {
+function mcpServerToVertex$1(fromObject) {
   const toObject = {};
   if (getValueByPath(fromObject, ["name"]) !== void 0) {
     throw new Error("name parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
@@ -71841,7 +71868,7 @@ function partToMldev$2(fromObject) {
   }
   const fromFileData = getValueByPath(fromObject, ["fileData"]);
   if (fromFileData != null) {
-    setValueByPath(toObject, ["fileData"], fromFileData);
+    setValueByPath(toObject, ["fileData"], fileDataToMldev$2(fromFileData));
   }
   const fromFunctionCall = getValueByPath(fromObject, ["functionCall"]);
   if (fromFunctionCall != null) {
@@ -71855,7 +71882,7 @@ function partToMldev$2(fromObject) {
   }
   const fromInlineData = getValueByPath(fromObject, ["inlineData"]);
   if (fromInlineData != null) {
-    setValueByPath(toObject, ["inlineData"], fromInlineData);
+    setValueByPath(toObject, ["inlineData"], blobToMldev$2(fromInlineData));
   }
   const fromText = getValueByPath(fromObject, ["text"]);
   if (fromText != null) {
@@ -71886,12 +71913,6 @@ function partToMldev$2(fromObject) {
   ]);
   if (fromMediaProcessing != null) {
     setValueByPath(toObject, ["mediaProcessing"], fromMediaProcessing);
-  }
-  const fromSpeechMetadata = getValueByPath(fromObject, [
-    "speechMetadata"
-  ]);
-  if (fromSpeechMetadata != null) {
-    setValueByPath(toObject, ["speechMetadata"], fromSpeechMetadata);
   }
   return toObject;
 }
@@ -71973,12 +71994,6 @@ function partToVertex$2(fromObject) {
   ]);
   if (fromMediaProcessing != null) {
     setValueByPath(toObject, ["mediaProcessing"], fromMediaProcessing);
-  }
-  const fromSpeechMetadata = getValueByPath(fromObject, [
-    "speechMetadata"
-  ]);
-  if (fromSpeechMetadata != null) {
-    setValueByPath(toObject, ["speechMetadata"], fromSpeechMetadata);
   }
   return toObject;
 }
@@ -72128,7 +72143,7 @@ function toolToMldev$2(fromObject) {
   }
   return toObject;
 }
-function toolToVertex$2(fromObject) {
+function toolToVertex$1(fromObject) {
   const toObject = {};
   const fromRetrieval = getValueByPath(fromObject, ["retrieval"]);
   if (fromRetrieval != null) {
@@ -72143,7 +72158,7 @@ function toolToVertex$2(fromObject) {
     let transformedList = fromMcpServers;
     if (Array.isArray(transformedList)) {
       transformedList = transformedList.map((item) => {
-        return mcpServerToVertex$2(item);
+        return mcpServerToVertex$1(item);
       });
     }
     setValueByPath(toObject, ["mcpServers"], transformedList);
@@ -72156,7 +72171,7 @@ function toolToVertex$2(fromObject) {
   }
   const fromComputerUse = getValueByPath(fromObject, ["computerUse"]);
   if (fromComputerUse != null) {
-    setValueByPath(toObject, ["computerUse"], computerUseToVertex$2(fromComputerUse));
+    setValueByPath(toObject, ["computerUse"], computerUseToVertex$1(fromComputerUse));
   }
   const fromEnterpriseWebSearch = getValueByPath(fromObject, [
     "enterpriseWebSearch"
@@ -72323,10 +72338,6 @@ function voiceConfigToVertex$1(fromObject) {
   if (fromPrebuiltVoiceConfig != null) {
     setValueByPath(toObject, ["prebuiltVoiceConfig"], fromPrebuiltVoiceConfig);
   }
-  const fromVoice = getValueByPath(fromObject, ["voice"]);
-  if (fromVoice != null) {
-    setValueByPath(toObject, ["voice"], fromVoice);
-  }
   return toObject;
 }
 function authConfigToMldev$1(fromObject, _rootObject) {
@@ -72352,6 +72363,21 @@ function authConfigToMldev$1(fromObject, _rootObject) {
   }
   if (getValueByPath(fromObject, ["oidcConfig"]) !== void 0) {
     throw new Error("oidcConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function blobToMldev$1(fromObject, _rootObject) {
+  const toObject = {};
+  const fromData = getValueByPath(fromObject, ["data"]);
+  if (fromData != null) {
+    setValueByPath(toObject, ["data"], fromData);
+  }
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
   }
   return toObject;
 }
@@ -72413,12 +72439,6 @@ function candidateFromMldev(fromObject, rootObject) {
   if (fromUrlContextMetadata != null) {
     setValueByPath(toObject, ["urlContextMetadata"], fromUrlContextMetadata);
   }
-  const fromContinuationToken = getValueByPath(fromObject, [
-    "continuationToken"
-  ]);
-  if (fromContinuationToken != null) {
-    setValueByPath(toObject, ["continuationToken"], fromContinuationToken);
-  }
   return toObject;
 }
 function citationMetadataFromMldev(fromObject, _rootObject) {
@@ -72473,7 +72493,7 @@ function computeTokensResponseFromVertex(fromObject, _rootObject) {
   }
   return toObject;
 }
-function computerUseToVertex$1(fromObject, _rootObject) {
+function computerUseToVertex(fromObject, _rootObject) {
   const toObject = {};
   const fromEnablePromptInjectionDetection = getValueByPath(fromObject, [
     "enablePromptInjectionDetection"
@@ -72608,7 +72628,7 @@ function countTokensConfigToVertex(fromObject, parentObject, rootObject) {
     let transformedList = fromTools;
     if (Array.isArray(transformedList)) {
       transformedList = transformedList.map((item) => {
-        return toolToVertex$1(item);
+        return toolToVertex(item);
       });
     }
     setValueByPath(parentObject, ["tools"], transformedList);
@@ -73179,6 +73199,21 @@ function endpointFromVertex(fromObject, _rootObject) {
   }
   return toObject;
 }
+function fileDataToMldev$1(fromObject, _rootObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromFileUri = getValueByPath(fromObject, ["fileUri"]);
+  if (fromFileUri != null) {
+    setValueByPath(toObject, ["fileUri"], fromFileUri);
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
+  }
+  return toObject;
+}
 function functionCallToMldev$1(fromObject, _rootObject) {
   const toObject = {};
   const fromArgs = getValueByPath(fromObject, ["args"]);
@@ -73336,9 +73371,8 @@ function generateContentConfigToMldev(apiClient, fromObject, parentObject, rootO
   if (parentObject !== void 0 && fromToolConfig != null) {
     setValueByPath(parentObject, ["toolConfig"], toolConfigToMldev(fromToolConfig));
   }
-  const fromLabels = getValueByPath(fromObject, ["labels"]);
-  if (parentObject !== void 0 && fromLabels != null) {
-    setValueByPath(parentObject, ["labels"], fromLabels);
+  if (getValueByPath(fromObject, ["labels"]) !== void 0) {
+    throw new Error("labels parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
   }
   const fromCachedContent = getValueByPath(fromObject, [
     "cachedContent"
@@ -73389,12 +73423,6 @@ function generateContentConfigToMldev(apiClient, fromObject, parentObject, rootO
   }
   if (getValueByPath(fromObject, ["modelArmorConfig"]) !== void 0) {
     throw new Error("modelArmorConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
-  }
-  const fromContinuationToken = getValueByPath(fromObject, [
-    "continuationToken"
-  ]);
-  if (parentObject !== void 0 && fromContinuationToken != null) {
-    setValueByPath(parentObject, ["continuationToken"], fromContinuationToken);
   }
   return toObject;
 }
@@ -73513,7 +73541,7 @@ function generateContentConfigToVertex(apiClient, fromObject, parentObject, root
     let transformedList = tTools(fromTools);
     if (Array.isArray(transformedList)) {
       transformedList = transformedList.map((item) => {
-        return toolToVertex$1(tTool(item));
+        return toolToVertex(tTool(item));
       });
     }
     setValueByPath(parentObject, ["tools"], transformedList);
@@ -73578,12 +73606,6 @@ function generateContentConfigToVertex(apiClient, fromObject, parentObject, root
   ]);
   if (parentObject !== void 0 && fromModelArmorConfig != null) {
     setValueByPath(parentObject, ["modelArmorConfig"], fromModelArmorConfig);
-  }
-  const fromContinuationToken = getValueByPath(fromObject, [
-    "continuationToken"
-  ]);
-  if (parentObject !== void 0 && fromContinuationToken != null) {
-    setValueByPath(parentObject, ["continuationToken"], fromContinuationToken);
   }
   return toObject;
 }
@@ -74439,11 +74461,8 @@ function generationConfigToVertex(fromObject, rootObject) {
   if (getValueByPath(fromObject, ["enableEnhancedCivicAnswers"]) !== void 0) {
     throw new Error("enableEnhancedCivicAnswers parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
   }
-  const fromTranslationConfig = getValueByPath(fromObject, [
-    "translationConfig"
-  ]);
-  if (fromTranslationConfig != null) {
-    setValueByPath(toObject, ["translationConfig"], fromTranslationConfig);
+  if (getValueByPath(fromObject, ["translationConfig"]) !== void 0) {
+    throw new Error("translationConfig parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
   }
   return toObject;
 }
@@ -74742,7 +74761,7 @@ function maskReferenceConfigToVertex(fromObject, _rootObject) {
   }
   return toObject;
 }
-function mcpServerToVertex$1(fromObject, _rootObject) {
+function mcpServerToVertex(fromObject, _rootObject) {
   const toObject = {};
   if (getValueByPath(fromObject, ["name"]) !== void 0) {
     throw new Error("name parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
@@ -74922,7 +74941,7 @@ function partToMldev$1(fromObject, rootObject) {
   }
   const fromFileData = getValueByPath(fromObject, ["fileData"]);
   if (fromFileData != null) {
-    setValueByPath(toObject, ["fileData"], fromFileData);
+    setValueByPath(toObject, ["fileData"], fileDataToMldev$1(fromFileData));
   }
   const fromFunctionCall = getValueByPath(fromObject, ["functionCall"]);
   if (fromFunctionCall != null) {
@@ -74936,7 +74955,7 @@ function partToMldev$1(fromObject, rootObject) {
   }
   const fromInlineData = getValueByPath(fromObject, ["inlineData"]);
   if (fromInlineData != null) {
-    setValueByPath(toObject, ["inlineData"], fromInlineData);
+    setValueByPath(toObject, ["inlineData"], blobToMldev$1(fromInlineData));
   }
   const fromText = getValueByPath(fromObject, ["text"]);
   if (fromText != null) {
@@ -74967,12 +74986,6 @@ function partToMldev$1(fromObject, rootObject) {
   ]);
   if (fromMediaProcessing != null) {
     setValueByPath(toObject, ["mediaProcessing"], fromMediaProcessing);
-  }
-  const fromSpeechMetadata = getValueByPath(fromObject, [
-    "speechMetadata"
-  ]);
-  if (fromSpeechMetadata != null) {
-    setValueByPath(toObject, ["speechMetadata"], fromSpeechMetadata);
   }
   return toObject;
 }
@@ -75054,12 +75067,6 @@ function partToVertex$1(fromObject, _rootObject) {
   ]);
   if (fromMediaProcessing != null) {
     setValueByPath(toObject, ["mediaProcessing"], fromMediaProcessing);
-  }
-  const fromSpeechMetadata = getValueByPath(fromObject, [
-    "speechMetadata"
-  ]);
-  if (fromSpeechMetadata != null) {
-    setValueByPath(toObject, ["speechMetadata"], fromSpeechMetadata);
   }
   return toObject;
 }
@@ -75517,7 +75524,7 @@ function toolToMldev$1(fromObject, rootObject) {
   }
   return toObject;
 }
-function toolToVertex$1(fromObject, rootObject) {
+function toolToVertex(fromObject, rootObject) {
   const toObject = {};
   const fromRetrieval = getValueByPath(fromObject, ["retrieval"]);
   if (fromRetrieval != null) {
@@ -75532,7 +75539,7 @@ function toolToVertex$1(fromObject, rootObject) {
     let transformedList = fromMcpServers;
     if (Array.isArray(transformedList)) {
       transformedList = transformedList.map((item) => {
-        return mcpServerToVertex$1(item);
+        return mcpServerToVertex(item);
       });
     }
     setValueByPath(toObject, ["mcpServers"], transformedList);
@@ -75545,7 +75552,7 @@ function toolToVertex$1(fromObject, rootObject) {
   }
   const fromComputerUse = getValueByPath(fromObject, ["computerUse"]);
   if (fromComputerUse != null) {
-    setValueByPath(toObject, ["computerUse"], computerUseToVertex$1(fromComputerUse));
+    setValueByPath(toObject, ["computerUse"], computerUseToVertex(fromComputerUse));
   }
   const fromEnterpriseWebSearch = getValueByPath(fromObject, [
     "enterpriseWebSearch"
@@ -75916,10 +75923,6 @@ function voiceConfigToVertex(fromObject, rootObject) {
   ]);
   if (fromPrebuiltVoiceConfig != null) {
     setValueByPath(toObject, ["prebuiltVoiceConfig"], fromPrebuiltVoiceConfig);
-  }
-  const fromVoice = getValueByPath(fromObject, ["voice"]);
-  if (fromVoice != null) {
-    setValueByPath(toObject, ["voice"], fromVoice);
   }
   return toObject;
 }
@@ -76450,6 +76453,21 @@ function authConfigToMldev(fromObject) {
   }
   return toObject;
 }
+function blobToMldev(fromObject) {
+  const toObject = {};
+  const fromData = getValueByPath(fromObject, ["data"]);
+  if (fromData != null) {
+    setValueByPath(toObject, ["data"], fromData);
+  }
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
+  }
+  return toObject;
+}
 function contentToMldev(fromObject) {
   const toObject = {};
   const fromParts = getValueByPath(fromObject, ["parts"]);
@@ -76503,6 +76521,21 @@ function createAuthTokenParametersToMldev(apiClient, fromObject) {
   const fromConfig = getValueByPath(fromObject, ["config"]);
   if (fromConfig != null) {
     setValueByPath(toObject, ["config"], createAuthTokenConfigToMldev(apiClient, fromConfig, toObject));
+  }
+  return toObject;
+}
+function fileDataToMldev(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromFileUri = getValueByPath(fromObject, ["fileUri"]);
+  if (fromFileUri != null) {
+    setValueByPath(toObject, ["fileUri"], fromFileUri);
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
   }
   return toObject;
 }
@@ -76746,7 +76779,7 @@ function partToMldev(fromObject) {
   }
   const fromFileData = getValueByPath(fromObject, ["fileData"]);
   if (fromFileData != null) {
-    setValueByPath(toObject, ["fileData"], fromFileData);
+    setValueByPath(toObject, ["fileData"], fileDataToMldev(fromFileData));
   }
   const fromFunctionCall = getValueByPath(fromObject, ["functionCall"]);
   if (fromFunctionCall != null) {
@@ -76760,7 +76793,7 @@ function partToMldev(fromObject) {
   }
   const fromInlineData = getValueByPath(fromObject, ["inlineData"]);
   if (fromInlineData != null) {
-    setValueByPath(toObject, ["inlineData"], fromInlineData);
+    setValueByPath(toObject, ["inlineData"], blobToMldev(fromInlineData));
   }
   const fromText = getValueByPath(fromObject, ["text"]);
   if (fromText != null) {
@@ -76791,12 +76824,6 @@ function partToMldev(fromObject) {
   ]);
   if (fromMediaProcessing != null) {
     setValueByPath(toObject, ["mediaProcessing"], fromMediaProcessing);
-  }
-  const fromSpeechMetadata = getValueByPath(fromObject, [
-    "speechMetadata"
-  ]);
-  if (fromSpeechMetadata != null) {
-    setValueByPath(toObject, ["speechMetadata"], fromSpeechMetadata);
   }
   return toObject;
 }
@@ -77260,94 +77287,6 @@ function defineReadonly(target, key, value) {
     writable: false
   });
 }
-function matchContentType(response, pattern) {
-  var _a5;
-  if (pattern === "*") {
-    return true;
-  }
-  let contentType = ((_a5 = response.headers.get("content-type")) === null || _a5 === void 0 ? void 0 : _a5.trim()) || "application/octet-stream";
-  contentType = contentType.toLowerCase();
-  const wantParts = pattern.toLowerCase().trim().split(mediaParamSeparator);
-  const [wantType = "", ...wantParams] = wantParts;
-  if (wantType.split("/").length !== 2) {
-    return false;
-  }
-  const gotParts = contentType.split(mediaParamSeparator);
-  const [gotType = "", ...gotParams] = gotParts;
-  const [type = "", subtype = ""] = gotType.split("/");
-  if (!type || !subtype) {
-    return false;
-  }
-  if (wantType !== "*/*" && gotType !== wantType && `${type}/*` !== wantType && `*/${subtype}` !== wantType) {
-    return false;
-  }
-  if (gotParams.length < wantParams.length) {
-    return false;
-  }
-  const params = new Set(gotParams);
-  for (const wantParam of wantParams) {
-    if (!params.has(wantParam)) {
-      return false;
-    }
-  }
-  return true;
-}
-function matchStatusCode(response, codes) {
-  const actual = `${response.status}`;
-  const expectedCodes = Array.isArray(codes) ? codes : [codes];
-  if (!expectedCodes.length) {
-    return false;
-  }
-  return expectedCodes.some((ec2) => {
-    const code = `${ec2}`;
-    if (code === "default") {
-      return true;
-    }
-    if (!codeRangeRE$1.test(`${code}`)) {
-      return code === actual;
-    }
-    const expectFamily = code.charAt(0);
-    if (!expectFamily) {
-      throw new Error("Invalid status code range");
-    }
-    const actualFamily = actual.charAt(0);
-    if (!actualFamily) {
-      throw new Error(`Invalid response status code: ${actual}`);
-    }
-    return actualFamily === expectFamily;
-  });
-}
-function matchResponse(response, code, contentTypePattern) {
-  return matchStatusCode(response, code) && matchContentType(response, contentTypePattern);
-}
-function isConnectionError(err2) {
-  if (typeof err2 !== "object" || err2 == null) {
-    return false;
-  }
-  const isBrowserErr = err2 instanceof TypeError && err2.message.toLowerCase().startsWith("failed to fetch");
-  const isNodeErr = err2 instanceof TypeError && err2.message.toLowerCase().startsWith("fetch failed");
-  const isBunErr = "name" in err2 && err2.name === "ConnectionError";
-  const isGenericErr = "code" in err2 && typeof err2.code === "string" && err2.code.toLowerCase() === "econnreset";
-  return isBrowserErr || isNodeErr || isGenericErr || isBunErr;
-}
-function isTimeoutError(err2) {
-  if (typeof err2 !== "object" || err2 == null) {
-    return false;
-  }
-  const isNative = "name" in err2 && err2.name === "TimeoutError";
-  const isLegacyNative = "code" in err2 && err2.code === 23;
-  const isGenericErr = "code" in err2 && typeof err2.code === "string" && err2.code.toLowerCase() === "econnaborted";
-  return isNative || isLegacyNative || isGenericErr;
-}
-function isAbortError2(err2) {
-  if (typeof err2 !== "object" || err2 == null) {
-    return false;
-  }
-  const isNative = "name" in err2 && err2.name === "AbortError";
-  const isLegacyNative = "code" in err2 && err2.code === 20;
-  const isGenericErr = "code" in err2 && typeof err2.code === "string" && err2.code.toLowerCase() === "econnaborted";
-  return isNative || isLegacyNative || isGenericErr;
-}
 function initHooks(hooks) {
   const googleGenAIAuthHook = new GoogleGenAIAuthHook();
   hooks.registerBeforeCreateRequestHook(googleGenAIAuthHook);
@@ -77471,19 +77410,6 @@ function isPlainObject$1(value) {
     return false;
   }
 }
-function encodeKeyChars(v4, charEncoding) {
-  return encodeChars(v4, charEncoding === "percentExceptReserved" ? "percent" : charEncoding);
-}
-function encodeChars(v4, charEncoding) {
-  switch (charEncoding) {
-    case "percent":
-      return encodeURIComponent(v4);
-    case "percentExceptReserved":
-      return encodeURIComponent(v4).replace(reservedEscapes, (m6) => decodeURIComponent(m6));
-    default:
-      return v4;
-  }
-}
 function formEncoder(sep) {
   return (key, value, options) => {
     let out2 = "";
@@ -77492,7 +77418,7 @@ function formEncoder(sep) {
       return;
     }
     const encodeString = (v4) => {
-      return encodeChars(v4, options === null || options === void 0 ? void 0 : options.charEncoding);
+      return (options === null || options === void 0 ? void 0 : options.charEncoding) === "percent" ? encodeURIComponent(v4) : v4;
     };
     const encodeValue = (v4) => encodeString(serializeValue(v4));
     const encodedSep = encodeString(sep);
@@ -77514,7 +77440,7 @@ function formEncoder(sep) {
       if (encValue == null) {
         return;
       }
-      tmp = `${encodeKeyChars(pk, options === null || options === void 0 ? void 0 : options.charEncoding)}=${encValue}`;
+      tmp = `${encodeString(pk)}=${encValue}`;
       if (!tmp || tmp === "=") {
         return;
       }
@@ -77528,10 +77454,10 @@ function encodeJSON(key, value, options) {
     return;
   }
   const encodeString = (v4) => {
-    return encodeChars(v4, options === null || options === void 0 ? void 0 : options.charEncoding);
+    return (options === null || options === void 0 ? void 0 : options.charEncoding) === "percent" ? encodeURIComponent(v4) : v4;
   };
   const encVal = encodeString(JSON.stringify(value, jsonReplacer));
-  return (options === null || options === void 0 ? void 0 : options.explode) ? encVal : `${encodeKeyChars(key, options === null || options === void 0 ? void 0 : options.charEncoding)}=${encVal}`;
+  return (options === null || options === void 0 ? void 0 : options.explode) ? encVal : `${encodeString(key)}=${encVal}`;
 }
 function explode(key, value) {
   if (Array.isArray(value)) {
@@ -77609,6 +77535,94 @@ function queryEncoder(f7) {
     return queryJoin(...encoded);
   };
   return bulkEncode;
+}
+function matchContentType(response, pattern) {
+  var _a5;
+  if (pattern === "*") {
+    return true;
+  }
+  let contentType = ((_a5 = response.headers.get("content-type")) === null || _a5 === void 0 ? void 0 : _a5.trim()) || "application/octet-stream";
+  contentType = contentType.toLowerCase();
+  const wantParts = pattern.toLowerCase().trim().split(mediaParamSeparator);
+  const [wantType = "", ...wantParams] = wantParts;
+  if (wantType.split("/").length !== 2) {
+    return false;
+  }
+  const gotParts = contentType.split(mediaParamSeparator);
+  const [gotType = "", ...gotParams] = gotParts;
+  const [type = "", subtype = ""] = gotType.split("/");
+  if (!type || !subtype) {
+    return false;
+  }
+  if (wantType !== "*/*" && gotType !== wantType && `${type}/*` !== wantType && `*/${subtype}` !== wantType) {
+    return false;
+  }
+  if (gotParams.length < wantParams.length) {
+    return false;
+  }
+  const params = new Set(gotParams);
+  for (const wantParam of wantParams) {
+    if (!params.has(wantParam)) {
+      return false;
+    }
+  }
+  return true;
+}
+function matchStatusCode(response, codes) {
+  const actual = `${response.status}`;
+  const expectedCodes = Array.isArray(codes) ? codes : [codes];
+  if (!expectedCodes.length) {
+    return false;
+  }
+  return expectedCodes.some((ec2) => {
+    const code = `${ec2}`;
+    if (code === "default") {
+      return true;
+    }
+    if (!codeRangeRE$1.test(`${code}`)) {
+      return code === actual;
+    }
+    const expectFamily = code.charAt(0);
+    if (!expectFamily) {
+      throw new Error("Invalid status code range");
+    }
+    const actualFamily = actual.charAt(0);
+    if (!actualFamily) {
+      throw new Error(`Invalid response status code: ${actual}`);
+    }
+    return actualFamily === expectFamily;
+  });
+}
+function matchResponse(response, code, contentTypePattern) {
+  return matchStatusCode(response, code) && matchContentType(response, contentTypePattern);
+}
+function isConnectionError(err2) {
+  if (typeof err2 !== "object" || err2 == null) {
+    return false;
+  }
+  const isBrowserErr = err2 instanceof TypeError && err2.message.toLowerCase().startsWith("failed to fetch");
+  const isNodeErr = err2 instanceof TypeError && err2.message.toLowerCase().startsWith("fetch failed");
+  const isBunErr = "name" in err2 && err2.name === "ConnectionError";
+  const isGenericErr = "code" in err2 && typeof err2.code === "string" && err2.code.toLowerCase() === "econnreset";
+  return isBrowserErr || isNodeErr || isGenericErr || isBunErr;
+}
+function isTimeoutError(err2) {
+  if (typeof err2 !== "object" || err2 == null) {
+    return false;
+  }
+  const isNative = "name" in err2 && err2.name === "TimeoutError";
+  const isLegacyNative = "code" in err2 && err2.code === 23;
+  const isGenericErr = "code" in err2 && typeof err2.code === "string" && err2.code.toLowerCase() === "econnaborted";
+  return isNative || isLegacyNative || isGenericErr;
+}
+function isAbortError2(err2) {
+  if (typeof err2 !== "object" || err2 == null) {
+    return false;
+  }
+  const isNative = "name" in err2 && err2.name === "AbortError";
+  const isLegacyNative = "code" in err2 && err2.code === 20;
+  const isGenericErr = "code" in err2 && typeof err2.code === "string" && err2.code.toLowerCase() === "econnaborted";
+  return isNative || isLegacyNative || isGenericErr;
 }
 async function retry(fetchFn, options) {
   var _a5;
@@ -78169,9 +78183,9 @@ function unwrapAsAPIPromise(p5) {
   return new APIPromise2(data, callSource);
 }
 function agentsCreate(client2, body2, api_version, options) {
-  return new APIPromise2($do$A(client2, body2, api_version, options));
+  return new APIPromise2($do$q(client2, body2, api_version, options));
 }
-async function $do$A(client2, body2, api_version, options) {
+async function $do$q(client2, body2, api_version, options) {
   var _a5, _b, _c;
   const input = {
     body: body2,
@@ -78240,9 +78254,9 @@ async function $do$A(client2, body2, api_version, options) {
   return [result, { status: "complete", request: req, response }];
 }
 function agentsDelete(client2, id, api_version, options) {
-  return new APIPromise2($do$z(client2, id, api_version, options));
+  return new APIPromise2($do$p(client2, id, api_version, options));
 }
-async function $do$z(client2, id, api_version, options) {
+async function $do$p(client2, id, api_version, options) {
   var _a5, _b, _c;
   const input = {
     id,
@@ -78252,12 +78266,12 @@ async function $do$z(client2, id, api_version, options) {
   const body2 = null;
   const pathParams = {
     api_version: encodeSimple("api_version", (_a5 = payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" }),
-    agentsId: encodeSimple("agentsId", payload.id, {
+    id: encodeSimple("id", payload.id, {
       explode: false,
       charEncoding: "percent"
     })
   };
-  const path7 = pathToFunc("/{api_version}/agents/{agentsId}")(pathParams);
+  const path7 = pathToFunc("/{api_version}/agents/{id}")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -78314,9 +78328,9 @@ async function $do$z(client2, id, api_version, options) {
   return [result, { status: "complete", request: req, response }];
 }
 function agentsGet(client2, id, api_version, options) {
-  return new APIPromise2($do$y(client2, id, api_version, options));
+  return new APIPromise2($do$o(client2, id, api_version, options));
 }
-async function $do$y(client2, id, api_version, options) {
+async function $do$o(client2, id, api_version, options) {
   var _a5, _b, _c;
   const input = {
     id,
@@ -78326,12 +78340,12 @@ async function $do$y(client2, id, api_version, options) {
   const body2 = null;
   const pathParams = {
     api_version: encodeSimple("api_version", (_a5 = payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" }),
-    agentsId: encodeSimple("agentsId", payload.id, {
+    id: encodeSimple("id", payload.id, {
       explode: false,
       charEncoding: "percent"
     })
   };
-  const path7 = pathToFunc("/{api_version}/agents/{agentsId}")(pathParams);
+  const path7 = pathToFunc("/{api_version}/agents/{id}")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -78388,9 +78402,9 @@ async function $do$y(client2, id, api_version, options) {
   return [result, { status: "complete", request: req, response }];
 }
 function agentsList(client2, api_version, page_size, page_token, parent, options) {
-  return new APIPromise2($do$x(client2, api_version, page_size, page_token, parent, options));
+  return new APIPromise2($do$n(client2, api_version, page_size, page_token, parent, options));
 }
-async function $do$x(client2, api_version, page_size, page_token, parent, options) {
+async function $do$n(client2, api_version, page_size, page_token, parent, options) {
   var _a5, _b, _c;
   const input = {
     api_version,
@@ -78465,386 +78479,10 @@ async function $do$x(client2, api_version, page_size, page_token, parent, option
   }
   return [result, { status: "complete", request: req, response }];
 }
-function credentialsCreate(client2, body2, api_version, options) {
-  return new APIPromise2($do$w(client2, body2, api_version, options));
-}
-async function $do$w(client2, body2, api_version, options) {
-  var _a5, _b, _c;
-  const input = {
-    body: body2,
-    api_version
-  };
-  const payload = input;
-  const body$ = encodeJSON("body", payload.body, { explode: true });
-  const pathParams = {
-    api_version: encodeSimple("api_version", (_a5 = payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" })
-  };
-  const path7 = pathToFunc("/{api_version}/credentials")(pathParams);
-  const headers = new Headers(compactMap({
-    "Content-Type": "application/json",
-    Accept: "application/json"
-  }));
-  const securityInput = await extractSecurity(client2._options.security);
-  const requestSecurity = resolveGlobalSecurity(securityInput);
-  const context = {
-    options: client2._options,
-    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client2._baseURL) !== null && _c !== void 0 ? _c : "",
-    operation_id: "CreateCredential",
-    o_auth2_scopes: null,
-    resolved_security: requestSecurity,
-    security_source: client2._options.security,
-    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client2._options.retry_config || {
-      strategy: "attempt-count-backoff",
-      backoff: {
-        initialInterval: 500,
-        maxInterval: 8e3,
-        exponent: 2,
-        maxElapsedTime: 3e4
-      },
-      retryConnectionErrors: true,
-      maxRetries: 4
-    },
-    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
-  };
-  const requestRes = client2._createRequest(context, {
-    security: requestSecurity,
-    method: "POST",
-    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path7,
-    headers,
-    body: body$,
-    userAgent: client2._options.user_agent,
-    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client2._options.timeout_ms || -1
-  }, options);
-  if (!requestRes.ok) {
-    return [requestRes, { status: "invalid" }];
-  }
-  const req = requestRes.value;
-  const doResult = await client2._do(req, {
-    context,
-    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
-    retryConfig: context.retry_config,
-    retryCodes: context.retry_codes
-  });
-  if (!doResult.ok) {
-    return [doResult, { status: "request-error", request: req }];
-  }
-  const response = doResult.value;
-  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
-  if (!result.ok) {
-    return [result, { status: "complete", request: req, response }];
-  }
-  return [result, { status: "complete", request: req, response }];
-}
-function credentialsDelete(client2, id, api_version, options) {
-  return new APIPromise2($do$v(client2, id, api_version, options));
-}
-async function $do$v(client2, id, api_version, options) {
-  var _a5, _b, _c;
-  const input = {
-    id,
-    api_version
-  };
-  const payload = input;
-  const body2 = null;
-  const pathParams = {
-    api_version: encodeSimple("api_version", (_a5 = payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" }),
-    id: encodeSimple("id", payload.id, {
-      explode: false,
-      charEncoding: "percent"
-    })
-  };
-  const path7 = pathToFunc("/{api_version}/credentials/{id}")(pathParams);
-  const headers = new Headers(compactMap({
-    Accept: "application/json"
-  }));
-  const securityInput = await extractSecurity(client2._options.security);
-  const requestSecurity = resolveGlobalSecurity(securityInput);
-  const context = {
-    options: client2._options,
-    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client2._baseURL) !== null && _c !== void 0 ? _c : "",
-    operation_id: "DeleteCredential",
-    o_auth2_scopes: null,
-    resolved_security: requestSecurity,
-    security_source: client2._options.security,
-    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client2._options.retry_config || {
-      strategy: "attempt-count-backoff",
-      backoff: {
-        initialInterval: 500,
-        maxInterval: 8e3,
-        exponent: 2,
-        maxElapsedTime: 3e4
-      },
-      retryConnectionErrors: true,
-      maxRetries: 4
-    },
-    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
-  };
-  const requestRes = client2._createRequest(context, {
-    security: requestSecurity,
-    method: "DELETE",
-    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path7,
-    headers,
-    body: body2,
-    userAgent: client2._options.user_agent,
-    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client2._options.timeout_ms || -1
-  }, options);
-  if (!requestRes.ok) {
-    return [requestRes, { status: "invalid" }];
-  }
-  const req = requestRes.value;
-  const doResult = await client2._do(req, {
-    context,
-    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
-    retryConfig: context.retry_config,
-    retryCodes: context.retry_codes
-  });
-  if (!doResult.ok) {
-    return [doResult, { status: "request-error", request: req }];
-  }
-  const response = doResult.value;
-  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
-  if (!result.ok) {
-    return [result, { status: "complete", request: req, response }];
-  }
-  return [result, { status: "complete", request: req, response }];
-}
-function credentialsGet(client2, id, api_version, options) {
-  return new APIPromise2($do$u(client2, id, api_version, options));
-}
-async function $do$u(client2, id, api_version, options) {
-  var _a5, _b, _c;
-  const input = {
-    id,
-    api_version
-  };
-  const payload = input;
-  const body2 = null;
-  const pathParams = {
-    api_version: encodeSimple("api_version", (_a5 = payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" }),
-    id: encodeSimple("id", payload.id, {
-      explode: false,
-      charEncoding: "percent"
-    })
-  };
-  const path7 = pathToFunc("/{api_version}/credentials/{id}")(pathParams);
-  const headers = new Headers(compactMap({
-    Accept: "application/json"
-  }));
-  const securityInput = await extractSecurity(client2._options.security);
-  const requestSecurity = resolveGlobalSecurity(securityInput);
-  const context = {
-    options: client2._options,
-    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client2._baseURL) !== null && _c !== void 0 ? _c : "",
-    operation_id: "GetCredential",
-    o_auth2_scopes: null,
-    resolved_security: requestSecurity,
-    security_source: client2._options.security,
-    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client2._options.retry_config || {
-      strategy: "attempt-count-backoff",
-      backoff: {
-        initialInterval: 500,
-        maxInterval: 8e3,
-        exponent: 2,
-        maxElapsedTime: 3e4
-      },
-      retryConnectionErrors: true,
-      maxRetries: 4
-    },
-    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
-  };
-  const requestRes = client2._createRequest(context, {
-    security: requestSecurity,
-    method: "GET",
-    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path7,
-    headers,
-    body: body2,
-    userAgent: client2._options.user_agent,
-    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client2._options.timeout_ms || -1
-  }, options);
-  if (!requestRes.ok) {
-    return [requestRes, { status: "invalid" }];
-  }
-  const req = requestRes.value;
-  const doResult = await client2._do(req, {
-    context,
-    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
-    retryConfig: context.retry_config,
-    retryCodes: context.retry_codes
-  });
-  if (!doResult.ok) {
-    return [doResult, { status: "request-error", request: req }];
-  }
-  const response = doResult.value;
-  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
-  if (!result.ok) {
-    return [result, { status: "complete", request: req, response }];
-  }
-  return [result, { status: "complete", request: req, response }];
-}
-function credentialsList(client2, api_version, page_size, page_token, options) {
-  return new APIPromise2($do$t(client2, api_version, page_size, page_token, options));
-}
-async function $do$t(client2, api_version, page_size, page_token, options) {
-  var _a5, _b, _c;
-  const input = {
-    api_version,
-    page_size,
-    page_token
-  };
-  const payload = input;
-  const body2 = null;
-  const pathParams = {
-    api_version: encodeSimple("api_version", (_a5 = payload === null || payload === void 0 ? void 0 : payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" })
-  };
-  const path7 = pathToFunc("/{api_version}/credentials")(pathParams);
-  const query = encodeFormQuery({
-    "page_size": payload === null || payload === void 0 ? void 0 : payload.page_size,
-    "page_token": payload === null || payload === void 0 ? void 0 : payload.page_token
-  });
-  const headers = new Headers(compactMap({
-    Accept: "application/json"
-  }));
-  const securityInput = await extractSecurity(client2._options.security);
-  const requestSecurity = resolveGlobalSecurity(securityInput);
-  const context = {
-    options: client2._options,
-    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client2._baseURL) !== null && _c !== void 0 ? _c : "",
-    operation_id: "ListCredentials",
-    o_auth2_scopes: null,
-    resolved_security: requestSecurity,
-    security_source: client2._options.security,
-    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client2._options.retry_config || {
-      strategy: "attempt-count-backoff",
-      backoff: {
-        initialInterval: 500,
-        maxInterval: 8e3,
-        exponent: 2,
-        maxElapsedTime: 3e4
-      },
-      retryConnectionErrors: true,
-      maxRetries: 4
-    },
-    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
-  };
-  const requestRes = client2._createRequest(context, {
-    security: requestSecurity,
-    method: "GET",
-    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path7,
-    headers,
-    query,
-    body: body2,
-    userAgent: client2._options.user_agent,
-    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client2._options.timeout_ms || -1
-  }, options);
-  if (!requestRes.ok) {
-    return [requestRes, { status: "invalid" }];
-  }
-  const req = requestRes.value;
-  const doResult = await client2._do(req, {
-    context,
-    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
-    retryConfig: context.retry_config,
-    retryCodes: context.retry_codes
-  });
-  if (!doResult.ok) {
-    return [doResult, { status: "request-error", request: req }];
-  }
-  const response = doResult.value;
-  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
-  if (!result.ok) {
-    return [result, { status: "complete", request: req, response }];
-  }
-  return [result, { status: "complete", request: req, response }];
-}
-function credentialsUpdate(client2, id, body2, api_version, update_mask, options) {
-  return new APIPromise2($do$s(client2, id, body2, api_version, update_mask, options));
-}
-async function $do$s(client2, id, body2, api_version, update_mask, options) {
-  var _a5, _b, _c;
-  const input = {
-    id,
-    body: body2,
-    api_version,
-    update_mask
-  };
-  const payload = input;
-  const body$ = encodeJSON("body", payload.body, { explode: true });
-  const pathParams = {
-    api_version: encodeSimple("api_version", (_a5 = payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" }),
-    id: encodeSimple("id", payload.id, {
-      explode: false,
-      charEncoding: "percent"
-    })
-  };
-  const path7 = pathToFunc("/{api_version}/credentials/{id}")(pathParams);
-  const query = encodeFormQuery({
-    "update_mask": payload.update_mask
-  });
-  const headers = new Headers(compactMap({
-    "Content-Type": "application/json",
-    Accept: "application/json"
-  }));
-  const securityInput = await extractSecurity(client2._options.security);
-  const requestSecurity = resolveGlobalSecurity(securityInput);
-  const context = {
-    options: client2._options,
-    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client2._baseURL) !== null && _c !== void 0 ? _c : "",
-    operation_id: "UpdateCredential",
-    o_auth2_scopes: null,
-    resolved_security: requestSecurity,
-    security_source: client2._options.security,
-    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client2._options.retry_config || {
-      strategy: "attempt-count-backoff",
-      backoff: {
-        initialInterval: 500,
-        maxInterval: 8e3,
-        exponent: 2,
-        maxElapsedTime: 3e4
-      },
-      retryConnectionErrors: true,
-      maxRetries: 4
-    },
-    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
-  };
-  const requestRes = client2._createRequest(context, {
-    security: requestSecurity,
-    method: "PATCH",
-    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path7,
-    headers,
-    query,
-    body: body$,
-    userAgent: client2._options.user_agent,
-    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client2._options.timeout_ms || -1
-  }, options);
-  if (!requestRes.ok) {
-    return [requestRes, { status: "invalid" }];
-  }
-  const req = requestRes.value;
-  const doResult = await client2._do(req, {
-    context,
-    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
-    retryConfig: context.retry_config,
-    retryCodes: context.retry_codes
-  });
-  if (!doResult.ok) {
-    return [doResult, { status: "request-error", request: req }];
-  }
-  const response = doResult.value;
-  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
-  if (!result.ok) {
-    return [result, { status: "complete", request: req, response }];
-  }
-  return [result, { status: "complete", request: req, response }];
-}
 function environmentsCreateEnvironment(client2, body2, api_version, options) {
-  return new APIPromise2($do$r(client2, body2, api_version, options));
+  return new APIPromise2($do$m(client2, body2, api_version, options));
 }
-async function $do$r(client2, body2, api_version, options) {
+async function $do$m(client2, body2, api_version, options) {
   var _a5, _b, _c;
   const input = {
     body: body2,
@@ -78913,9 +78551,9 @@ async function $do$r(client2, body2, api_version, options) {
   return [result, { status: "complete", request: req, response }];
 }
 function environmentsDeleteEnvironment(client2, id, api_version, options) {
-  return new APIPromise2($do$q(client2, id, api_version, options));
+  return new APIPromise2($do$l(client2, id, api_version, options));
 }
-async function $do$q(client2, id, api_version, options) {
+async function $do$l(client2, id, api_version, options) {
   var _a5, _b, _c;
   const input = {
     id,
@@ -78987,9 +78625,9 @@ async function $do$q(client2, id, api_version, options) {
   return [result, { status: "complete", request: req, response }];
 }
 function environmentsGetEnvironment(client2, id, api_version, options) {
-  return new APIPromise2($do$p(client2, id, api_version, options));
+  return new APIPromise2($do$k(client2, id, api_version, options));
 }
-async function $do$p(client2, id, api_version, options) {
+async function $do$k(client2, id, api_version, options) {
   var _a5, _b, _c;
   const input = {
     id,
@@ -79061,9 +78699,9 @@ async function $do$p(client2, id, api_version, options) {
   return [result, { status: "complete", request: req, response }];
 }
 function environmentsListEnvironments(client2, api_version, page_size, page_token, options) {
-  return new APIPromise2($do$o(client2, api_version, page_size, page_token, options));
+  return new APIPromise2($do$j(client2, api_version, page_size, page_token, options));
 }
-async function $do$o(client2, api_version, page_size, page_token, options) {
+async function $do$j(client2, api_version, page_size, page_token, options) {
   var _a5, _b, _c;
   const input = {
     api_version,
@@ -79137,9 +78775,9 @@ async function $do$o(client2, api_version, page_size, page_token, options) {
   return [result, { status: "complete", request: req, response }];
 }
 function environmentsFilesList(client2, environment, path7, api_version, page_size, page_token, recursive, options) {
-  return new APIPromise2($do$n(client2, environment, path7, api_version, page_size, page_token, recursive, options));
+  return new APIPromise2($do$i(client2, environment, path7, api_version, page_size, page_token, recursive, options));
 }
-async function $do$n(client2, environment, path7, api_version, page_size, page_token, recursive, options) {
+async function $do$i(client2, environment, path7, api_version, page_size, page_token, recursive, options) {
   var _a5, _b, _c;
   const input = {
     environment,
@@ -79159,7 +78797,7 @@ async function $do$n(client2, environment, path7, api_version, page_size, page_t
     }),
     path: encodeSimple("path", payload.path, {
       explode: false,
-      charEncoding: "percentExceptReserved"
+      charEncoding: "percent"
     })
   };
   const path$ = pathToFunc("/{api_version}/environments/{environment}/files/{path}")(pathParams);
@@ -79224,109 +78862,10 @@ async function $do$n(client2, environment, path7, api_version, page_size, page_t
   }
   return [result, { status: "complete", request: req, response }];
 }
-function environmentsInternalStartUpload(client2, environment, path7, x_goog_upload_command, x_goog_upload_header_content_length, x_goog_upload_header_content_type, x_goog_upload_protocol, api_version, extract, overwrite, options) {
-  return new APIPromise2($do$m(client2, environment, path7, x_goog_upload_command, x_goog_upload_header_content_length, x_goog_upload_header_content_type, x_goog_upload_protocol, api_version, extract, overwrite, options));
-}
-async function $do$m(client2, environment, path7, x_goog_upload_command, x_goog_upload_header_content_length, x_goog_upload_header_content_type, x_goog_upload_protocol, api_version, extract, overwrite, options) {
-  var _a5, _b, _c;
-  const input = {
-    environment,
-    path: path7,
-    "X-Goog-Upload-Command": x_goog_upload_command,
-    "X-Goog-Upload-Header-Content-Length": x_goog_upload_header_content_length,
-    "X-Goog-Upload-Header-Content-Type": x_goog_upload_header_content_type,
-    "X-Goog-Upload-Protocol": x_goog_upload_protocol,
-    api_version,
-    extract,
-    overwrite
-  };
-  const payload = input;
-  const body2 = null;
-  const pathParams = {
-    api_version: encodeSimple("api_version", (_a5 = payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" }),
-    environment: encodeSimple("environment", payload.environment, {
-      explode: false,
-      charEncoding: "percent"
-    }),
-    path: encodeSimple("path", payload.path, {
-      explode: false,
-      charEncoding: "percentExceptReserved"
-    })
-  };
-  const path$ = pathToFunc("/upload/{api_version}/environments/{environment}/files/{path}")(pathParams);
-  const query = encodeFormQuery({
-    "extract": payload.extract,
-    "overwrite": payload.overwrite
-  });
-  const headers = new Headers(compactMap({
-    Accept: "*/*",
-    "X-Goog-Upload-Command": encodeSimple("X-Goog-Upload-Command", payload["X-Goog-Upload-Command"], { explode: false, charEncoding: "none" }),
-    "X-Goog-Upload-Header-Content-Length": encodeSimple("X-Goog-Upload-Header-Content-Length", payload["X-Goog-Upload-Header-Content-Length"], { explode: false, charEncoding: "none" }),
-    "X-Goog-Upload-Header-Content-Type": encodeSimple("X-Goog-Upload-Header-Content-Type", payload["X-Goog-Upload-Header-Content-Type"], { explode: false, charEncoding: "none" }),
-    "X-Goog-Upload-Protocol": encodeSimple("X-Goog-Upload-Protocol", payload["X-Goog-Upload-Protocol"], { explode: false, charEncoding: "none" })
-  }));
-  const securityInput = await extractSecurity(client2._options.security);
-  const requestSecurity = resolveGlobalSecurity(securityInput);
-  const context = {
-    options: client2._options,
-    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client2._baseURL) !== null && _c !== void 0 ? _c : "",
-    operation_id: "StartEnvironmentFileUpload",
-    o_auth2_scopes: null,
-    resolved_security: requestSecurity,
-    security_source: client2._options.security,
-    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client2._options.retry_config || {
-      strategy: "attempt-count-backoff",
-      backoff: {
-        initialInterval: 500,
-        maxInterval: 8e3,
-        exponent: 2,
-        maxElapsedTime: 3e4
-      },
-      retryConnectionErrors: true,
-      maxRetries: 4
-    },
-    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
-  };
-  const requestRes = client2._createRequest(context, {
-    security: requestSecurity,
-    method: "PUT",
-    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path$,
-    headers,
-    query,
-    body: body2,
-    userAgent: client2._options.user_agent,
-    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client2._options.timeout_ms || -1
-  }, options);
-  if (!requestRes.ok) {
-    return [requestRes, { status: "invalid" }];
-  }
-  const req = requestRes.value;
-  const doResult = await client2._do(req, {
-    context,
-    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
-    retryConfig: context.retry_config,
-    retryCodes: context.retry_codes
-  });
-  if (!doResult.ok) {
-    return [doResult, { status: "request-error", request: req }];
-  }
-  const response = doResult.value;
-  const responseFields = {
-    httpMeta: { response, request: req }
-  };
-  const [result] = await match(nil(200, {
-    hdrs: true
-  }), fail("4XX"), fail("5XX"))(response, req, { extraFields: responseFields });
-  if (!result.ok) {
-    return [result, { status: "complete", request: req, response }];
-  }
-  return [result, { status: "complete", request: req, response }];
-}
 function interactionsCancel(client2, id, api_version, options) {
-  return new APIPromise2($do$l(client2, id, api_version, options));
+  return new APIPromise2($do$h(client2, id, api_version, options));
 }
-async function $do$l(client2, id, api_version, options) {
+async function $do$h(client2, id, api_version, options) {
   var _a5, _b, _c;
   const input = {
     id,
@@ -79336,12 +78875,12 @@ async function $do$l(client2, id, api_version, options) {
   const body2 = null;
   const pathParams = {
     api_version: encodeSimple("api_version", (_a5 = payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" }),
-    interactionsId: encodeSimple("interactionsId", payload.id, {
+    id: encodeSimple("id", payload.id, {
       explode: false,
       charEncoding: "percent"
     })
   };
-  const path7 = pathToFunc("/{api_version}/interactions/{interactionsId}/cancel")(pathParams);
+  const path7 = pathToFunc("/{api_version}/interactions/{id}/cancel")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -79401,9 +78940,9 @@ async function $do$l(client2, id, api_version, options) {
   return [result, { status: "complete", request: req, response }];
 }
 function interactionsCreate(client2, body2, api_version, options) {
-  return new APIPromise2($do$k(client2, body2, api_version, options));
+  return new APIPromise2($do$g(client2, body2, api_version, options));
 }
-async function $do$k(client2, body2, api_version, options) {
+async function $do$g(client2, body2, api_version, options) {
   var _a5, _b, _c, _d;
   const input = {
     body: body2,
@@ -79478,9 +79017,9 @@ async function $do$k(client2, body2, api_version, options) {
   return [result, { status: "complete", request: req, response }];
 }
 function interactionsDelete(client2, id, api_version, options) {
-  return new APIPromise2($do$j(client2, id, api_version, options));
+  return new APIPromise2($do$f(client2, id, api_version, options));
 }
-async function $do$j(client2, id, api_version, options) {
+async function $do$f(client2, id, api_version, options) {
   var _a5, _b, _c;
   const input = {
     id,
@@ -79490,12 +79029,12 @@ async function $do$j(client2, id, api_version, options) {
   const body2 = null;
   const pathParams = {
     api_version: encodeSimple("api_version", (_a5 = payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" }),
-    interactionsId: encodeSimple("interactionsId", payload.id, {
+    id: encodeSimple("id", payload.id, {
       explode: false,
       charEncoding: "percent"
     })
   };
-  const path7 = pathToFunc("/{api_version}/interactions/{interactionsId}")(pathParams);
+  const path7 = pathToFunc("/{api_version}/interactions/{id}")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -79555,9 +79094,9 @@ async function $do$j(client2, id, api_version, options) {
   return [result, { status: "complete", request: req, response }];
 }
 function interactionsGet(client2, id, api_version, include_input, last_event_id, stream4, options) {
-  return new APIPromise2($do$i(client2, id, api_version, include_input, last_event_id, stream4, options));
+  return new APIPromise2($do$e(client2, id, api_version, include_input, last_event_id, stream4, options));
 }
-async function $do$i(client2, id, api_version, include_input, last_event_id, stream4, options) {
+async function $do$e(client2, id, api_version, include_input, last_event_id, stream4, options) {
   var _a5, _b, _c;
   const input = {
     id,
@@ -79570,12 +79109,12 @@ async function $do$i(client2, id, api_version, include_input, last_event_id, str
   const body2 = null;
   const pathParams = {
     api_version: encodeSimple("api_version", (_a5 = payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" }),
-    interactionsId: encodeSimple("interactionsId", payload.id, {
+    id: encodeSimple("id", payload.id, {
       explode: false,
       charEncoding: "percent"
     })
   };
-  const path7 = pathToFunc("/{api_version}/interactions/{interactionsId}")(pathParams);
+  const path7 = pathToFunc("/{api_version}/interactions/{id}")(pathParams);
   const query = encodeFormQuery({
     "include_input": payload.include_input,
     "last_event_id": payload.last_event_id,
@@ -79644,9 +79183,9 @@ async function $do$i(client2, id, api_version, include_input, last_event_id, str
   return [result, { status: "complete", request: req, response }];
 }
 function triggersCreate(client2, body2, api_version, options) {
-  return new APIPromise2($do$h(client2, body2, api_version, options));
+  return new APIPromise2($do$d(client2, body2, api_version, options));
 }
-async function $do$h(client2, body2, api_version, options) {
+async function $do$d(client2, body2, api_version, options) {
   var _a5, _b, _c;
   const input = {
     body: body2,
@@ -79708,16 +79247,16 @@ async function $do$h(client2, body2, api_version, options) {
     return [doResult, { status: "request-error", request: req }];
   }
   const response = doResult.value;
-  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  const [result] = await match(json(200), fail("4XX"), fail("5XX"))(response, req);
   if (!result.ok) {
     return [result, { status: "complete", request: req, response }];
   }
   return [result, { status: "complete", request: req, response }];
 }
 function triggersDelete(client2, id, api_version, options) {
-  return new APIPromise2($do$g(client2, id, api_version, options));
+  return new APIPromise2($do$c(client2, id, api_version, options));
 }
-async function $do$g(client2, id, api_version, options) {
+async function $do$c(client2, id, api_version, options) {
   var _a5, _b, _c;
   const input = {
     id,
@@ -79782,16 +79321,16 @@ async function $do$g(client2, id, api_version, options) {
     return [doResult, { status: "request-error", request: req }];
   }
   const response = doResult.value;
-  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  const [result] = await match(json(200), fail("4XX"), fail("5XX"))(response, req);
   if (!result.ok) {
     return [result, { status: "complete", request: req, response }];
   }
   return [result, { status: "complete", request: req, response }];
 }
 function triggersGet(client2, id, api_version, options) {
-  return new APIPromise2($do$f(client2, id, api_version, options));
+  return new APIPromise2($do$b(client2, id, api_version, options));
 }
-async function $do$f(client2, id, api_version, options) {
+async function $do$b(client2, id, api_version, options) {
   var _a5, _b, _c;
   const input = {
     id,
@@ -79856,16 +79395,16 @@ async function $do$f(client2, id, api_version, options) {
     return [doResult, { status: "request-error", request: req }];
   }
   const response = doResult.value;
-  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  const [result] = await match(json(200), fail("4XX"), fail("5XX"))(response, req);
   if (!result.ok) {
     return [result, { status: "complete", request: req, response }];
   }
   return [result, { status: "complete", request: req, response }];
 }
 function triggersListExecutions(client2, trigger_id, api_version, page_size, page_token, options) {
-  return new APIPromise2($do$e(client2, trigger_id, api_version, page_size, page_token, options));
+  return new APIPromise2($do$a(client2, trigger_id, api_version, page_size, page_token, options));
 }
-async function $do$e(client2, trigger_id, api_version, page_size, page_token, options) {
+async function $do$a(client2, trigger_id, api_version, page_size, page_token, options) {
   var _a5, _b, _c;
   const input = {
     trigger_id,
@@ -79877,12 +79416,12 @@ async function $do$e(client2, trigger_id, api_version, page_size, page_token, op
   const body2 = null;
   const pathParams = {
     api_version: encodeSimple("api_version", (_a5 = payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" }),
-    triggerId: encodeSimple("triggerId", payload.trigger_id, {
+    trigger_id: encodeSimple("trigger_id", payload.trigger_id, {
       explode: false,
       charEncoding: "percent"
     })
   };
-  const path7 = pathToFunc("/{api_version}/triggers/{triggerId}/executions")(pathParams);
+  const path7 = pathToFunc("/{api_version}/triggers/{trigger_id}/executions")(pathParams);
   const query = encodeFormQuery({
     "page_size": payload.page_size,
     "page_token": payload.page_token
@@ -79937,16 +79476,16 @@ async function $do$e(client2, trigger_id, api_version, page_size, page_token, op
     return [doResult, { status: "request-error", request: req }];
   }
   const response = doResult.value;
-  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  const [result] = await match(json(200), fail("4XX"), fail("5XX"))(response, req);
   if (!result.ok) {
     return [result, { status: "complete", request: req, response }];
   }
   return [result, { status: "complete", request: req, response }];
 }
 function triggersList(client2, api_version, filter2, page_size, page_token, options) {
-  return new APIPromise2($do$d(client2, api_version, filter2, page_size, page_token, options));
+  return new APIPromise2($do$9(client2, api_version, filter2, page_size, page_token, options));
 }
-async function $do$d(client2, api_version, filter2, page_size, page_token, options) {
+async function $do$9(client2, api_version, filter2, page_size, page_token, options) {
   var _a5, _b, _c;
   const input = {
     api_version,
@@ -80015,16 +79554,16 @@ async function $do$d(client2, api_version, filter2, page_size, page_token, optio
     return [doResult, { status: "request-error", request: req }];
   }
   const response = doResult.value;
-  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  const [result] = await match(json(200), fail("4XX"), fail("5XX"))(response, req);
   if (!result.ok) {
     return [result, { status: "complete", request: req, response }];
   }
   return [result, { status: "complete", request: req, response }];
 }
 function triggersRun(client2, trigger_id, api_version, options) {
-  return new APIPromise2($do$c(client2, trigger_id, api_version, options));
+  return new APIPromise2($do$8(client2, trigger_id, api_version, options));
 }
-async function $do$c(client2, trigger_id, api_version, options) {
+async function $do$8(client2, trigger_id, api_version, options) {
   var _a5, _b, _c;
   const input = {
     trigger_id,
@@ -80034,12 +79573,12 @@ async function $do$c(client2, trigger_id, api_version, options) {
   const body2 = null;
   const pathParams = {
     api_version: encodeSimple("api_version", (_a5 = payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" }),
-    triggerId: encodeSimple("triggerId", payload.trigger_id, {
+    trigger_id: encodeSimple("trigger_id", payload.trigger_id, {
       explode: false,
       charEncoding: "percent"
     })
   };
-  const path7 = pathToFunc("/{api_version}/triggers/{triggerId}/executions")(pathParams);
+  const path7 = pathToFunc("/{api_version}/triggers/{trigger_id}/executions")(pathParams);
   const headers = new Headers(compactMap({
     Accept: "application/json"
   }));
@@ -80089,16 +79628,16 @@ async function $do$c(client2, trigger_id, api_version, options) {
     return [doResult, { status: "request-error", request: req }];
   }
   const response = doResult.value;
-  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  const [result] = await match(json(200), fail("4XX"), fail("5XX"))(response, req);
   if (!result.ok) {
     return [result, { status: "complete", request: req, response }];
   }
   return [result, { status: "complete", request: req, response }];
 }
 function triggersUpdate(client2, id, body2, api_version, options) {
-  return new APIPromise2($do$b(client2, id, body2, api_version, options));
+  return new APIPromise2($do$7(client2, id, body2, api_version, options));
 }
-async function $do$b(client2, id, body2, api_version, options) {
+async function $do$7(client2, id, body2, api_version, options) {
   var _a5, _b, _c;
   const input = {
     id,
@@ -80165,320 +79704,7 @@ async function $do$b(client2, id, body2, api_version, options) {
     return [doResult, { status: "request-error", request: req }];
   }
   const response = doResult.value;
-  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
-  if (!result.ok) {
-    return [result, { status: "complete", request: req, response }];
-  }
-  return [result, { status: "complete", request: req, response }];
-}
-function voicesCreate(client2, body2, api_version, options) {
-  return new APIPromise2($do$a(client2, body2, api_version, options));
-}
-async function $do$a(client2, body2, api_version, options) {
-  var _a5, _b, _c;
-  const input = {
-    body: body2,
-    api_version
-  };
-  const payload = input;
-  const body$ = encodeJSON("body", payload.body, { explode: true });
-  const pathParams = {
-    api_version: encodeSimple("api_version", (_a5 = payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" })
-  };
-  const path7 = pathToFunc("/{api_version}/voices")(pathParams);
-  const headers = new Headers(compactMap({
-    "Content-Type": "application/json",
-    Accept: "application/json"
-  }));
-  const securityInput = await extractSecurity(client2._options.security);
-  const requestSecurity = resolveGlobalSecurity(securityInput);
-  const context = {
-    options: client2._options,
-    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client2._baseURL) !== null && _c !== void 0 ? _c : "",
-    operation_id: "CreateVoice",
-    o_auth2_scopes: null,
-    resolved_security: requestSecurity,
-    security_source: client2._options.security,
-    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client2._options.retry_config || {
-      strategy: "attempt-count-backoff",
-      backoff: {
-        initialInterval: 500,
-        maxInterval: 8e3,
-        exponent: 2,
-        maxElapsedTime: 3e4
-      },
-      retryConnectionErrors: true,
-      maxRetries: 4
-    },
-    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
-  };
-  const requestRes = client2._createRequest(context, {
-    security: requestSecurity,
-    method: "POST",
-    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path7,
-    headers,
-    body: body$,
-    userAgent: client2._options.user_agent,
-    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client2._options.timeout_ms || -1
-  }, options);
-  if (!requestRes.ok) {
-    return [requestRes, { status: "invalid" }];
-  }
-  const req = requestRes.value;
-  const doResult = await client2._do(req, {
-    context,
-    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
-    retryConfig: context.retry_config,
-    retryCodes: context.retry_codes
-  });
-  if (!doResult.ok) {
-    return [doResult, { status: "request-error", request: req }];
-  }
-  const response = doResult.value;
-  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
-  if (!result.ok) {
-    return [result, { status: "complete", request: req, response }];
-  }
-  return [result, { status: "complete", request: req, response }];
-}
-function voicesDelete(client2, id, api_version, options) {
-  return new APIPromise2($do$9(client2, id, api_version, options));
-}
-async function $do$9(client2, id, api_version, options) {
-  var _a5, _b, _c;
-  const input = {
-    id,
-    api_version
-  };
-  const payload = input;
-  const body2 = null;
-  const pathParams = {
-    api_version: encodeSimple("api_version", (_a5 = payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" }),
-    voicesId: encodeSimple("voicesId", payload.id, {
-      explode: false,
-      charEncoding: "percent"
-    })
-  };
-  const path7 = pathToFunc("/{api_version}/voices/{voicesId}")(pathParams);
-  const headers = new Headers(compactMap({
-    Accept: "application/json"
-  }));
-  const securityInput = await extractSecurity(client2._options.security);
-  const requestSecurity = resolveGlobalSecurity(securityInput);
-  const context = {
-    options: client2._options,
-    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client2._baseURL) !== null && _c !== void 0 ? _c : "",
-    operation_id: "DeleteVoice",
-    o_auth2_scopes: null,
-    resolved_security: requestSecurity,
-    security_source: client2._options.security,
-    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client2._options.retry_config || {
-      strategy: "attempt-count-backoff",
-      backoff: {
-        initialInterval: 500,
-        maxInterval: 8e3,
-        exponent: 2,
-        maxElapsedTime: 3e4
-      },
-      retryConnectionErrors: true,
-      maxRetries: 4
-    },
-    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
-  };
-  const requestRes = client2._createRequest(context, {
-    security: requestSecurity,
-    method: "DELETE",
-    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path7,
-    headers,
-    body: body2,
-    userAgent: client2._options.user_agent,
-    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client2._options.timeout_ms || -1
-  }, options);
-  if (!requestRes.ok) {
-    return [requestRes, { status: "invalid" }];
-  }
-  const req = requestRes.value;
-  const doResult = await client2._do(req, {
-    context,
-    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
-    retryConfig: context.retry_config,
-    retryCodes: context.retry_codes
-  });
-  if (!doResult.ok) {
-    return [doResult, { status: "request-error", request: req }];
-  }
-  const response = doResult.value;
-  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
-  if (!result.ok) {
-    return [result, { status: "complete", request: req, response }];
-  }
-  return [result, { status: "complete", request: req, response }];
-}
-function voicesGet(client2, id, api_version, options) {
-  return new APIPromise2($do$8(client2, id, api_version, options));
-}
-async function $do$8(client2, id, api_version, options) {
-  var _a5, _b, _c;
-  const input = {
-    id,
-    api_version
-  };
-  const payload = input;
-  const body2 = null;
-  const pathParams = {
-    api_version: encodeSimple("api_version", (_a5 = payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" }),
-    voicesId: encodeSimple("voicesId", payload.id, {
-      explode: false,
-      charEncoding: "percent"
-    })
-  };
-  const path7 = pathToFunc("/{api_version}/voices/{voicesId}")(pathParams);
-  const headers = new Headers(compactMap({
-    Accept: "application/json"
-  }));
-  const securityInput = await extractSecurity(client2._options.security);
-  const requestSecurity = resolveGlobalSecurity(securityInput);
-  const context = {
-    options: client2._options,
-    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client2._baseURL) !== null && _c !== void 0 ? _c : "",
-    operation_id: "GetVoice",
-    o_auth2_scopes: null,
-    resolved_security: requestSecurity,
-    security_source: client2._options.security,
-    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client2._options.retry_config || {
-      strategy: "attempt-count-backoff",
-      backoff: {
-        initialInterval: 500,
-        maxInterval: 8e3,
-        exponent: 2,
-        maxElapsedTime: 3e4
-      },
-      retryConnectionErrors: true,
-      maxRetries: 4
-    },
-    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
-  };
-  const requestRes = client2._createRequest(context, {
-    security: requestSecurity,
-    method: "GET",
-    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path7,
-    headers,
-    body: body2,
-    userAgent: client2._options.user_agent,
-    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client2._options.timeout_ms || -1
-  }, options);
-  if (!requestRes.ok) {
-    return [requestRes, { status: "invalid" }];
-  }
-  const req = requestRes.value;
-  const doResult = await client2._do(req, {
-    context,
-    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
-    retryConfig: context.retry_config,
-    retryCodes: context.retry_codes
-  });
-  if (!doResult.ok) {
-    return [doResult, { status: "request-error", request: req }];
-  }
-  const response = doResult.value;
-  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
-  if (!result.ok) {
-    return [result, { status: "complete", request: req, response }];
-  }
-  return [result, { status: "complete", request: req, response }];
-}
-function voicesList(client2, api_version, accent, contexts, gender, language_code, page_size, page_token, persona, pitch, region_code, search, type, options) {
-  return new APIPromise2($do$7(client2, api_version, accent, contexts, gender, language_code, page_size, page_token, persona, pitch, region_code, search, type, options));
-}
-async function $do$7(client2, api_version, accent, contexts, gender, language_code, page_size, page_token, persona, pitch, region_code, search, type, options) {
-  var _a5, _b, _c;
-  const input = {
-    api_version,
-    accent,
-    contexts,
-    gender,
-    language_code,
-    page_size,
-    page_token,
-    persona,
-    pitch,
-    region_code,
-    search,
-    type
-  };
-  const payload = input;
-  const body2 = null;
-  const pathParams = {
-    api_version: encodeSimple("api_version", (_a5 = payload === null || payload === void 0 ? void 0 : payload.api_version) !== null && _a5 !== void 0 ? _a5 : client2._options.api_version, { explode: false, charEncoding: "percent" })
-  };
-  const path7 = pathToFunc("/{api_version}/voices")(pathParams);
-  const query = encodeFormQuery({
-    "accent": payload === null || payload === void 0 ? void 0 : payload.accent,
-    "context": payload === null || payload === void 0 ? void 0 : payload.contexts,
-    "gender": payload === null || payload === void 0 ? void 0 : payload.gender,
-    "language_code": payload === null || payload === void 0 ? void 0 : payload.language_code,
-    "page_size": payload === null || payload === void 0 ? void 0 : payload.page_size,
-    "page_token": payload === null || payload === void 0 ? void 0 : payload.page_token,
-    "persona": payload === null || payload === void 0 ? void 0 : payload.persona,
-    "pitch": payload === null || payload === void 0 ? void 0 : payload.pitch,
-    "region_code": payload === null || payload === void 0 ? void 0 : payload.region_code,
-    "search": payload === null || payload === void 0 ? void 0 : payload.search,
-    "type": payload === null || payload === void 0 ? void 0 : payload.type
-  });
-  const headers = new Headers(compactMap({
-    Accept: "application/json"
-  }));
-  const securityInput = await extractSecurity(client2._options.security);
-  const requestSecurity = resolveGlobalSecurity(securityInput);
-  const context = {
-    options: client2._options,
-    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client2._baseURL) !== null && _c !== void 0 ? _c : "",
-    operation_id: "ListVoices",
-    o_auth2_scopes: null,
-    resolved_security: requestSecurity,
-    security_source: client2._options.security,
-    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client2._options.retry_config || {
-      strategy: "attempt-count-backoff",
-      backoff: {
-        initialInterval: 500,
-        maxInterval: 8e3,
-        exponent: 2,
-        maxElapsedTime: 3e4
-      },
-      retryConnectionErrors: true,
-      maxRetries: 4
-    },
-    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
-  };
-  const requestRes = client2._createRequest(context, {
-    security: requestSecurity,
-    method: "GET",
-    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
-    path: path7,
-    headers,
-    query,
-    body: body2,
-    userAgent: client2._options.user_agent,
-    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client2._options.timeout_ms || -1
-  }, options);
-  if (!requestRes.ok) {
-    return [requestRes, { status: "invalid" }];
-  }
-  const req = requestRes.value;
-  const doResult = await client2._do(req, {
-    context,
-    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
-    retryConfig: context.retry_config,
-    retryCodes: context.retry_codes
-  });
-  if (!doResult.ok) {
-    return [doResult, { status: "request-error", request: req }];
-  }
-  const response = doResult.value;
-  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  const [result] = await match(json(200), fail("4XX"), fail("5XX"))(response, req);
   if (!result.ok) {
     return [result, { status: "complete", request: req, response }];
   }
@@ -81029,13 +80255,11 @@ function getGoogleGenAIAPIVersion(parentClient) {
   return apiVersion;
 }
 function buildGoogleGenAIClient(parentClient, options = {}) {
-  var _a5, _b, _c, _d, _e4, _f, _g;
-  const fetchFn = options.http_client ? void 0 : (_a5 = parentClient.getFetch) === null || _a5 === void 0 ? void 0 : _a5.call(parentClient);
-  const httpClient = (_b = options.http_client) !== null && _b !== void 0 ? _b : fetchFn ? new HTTPClient({ fetcher: fetchFn }) : void 0;
-  const sdk = new GoogleGenAI$1(Object.assign(Object.assign({}, options), { http_client: httpClient, api_version: (_c = options.api_version) !== null && _c !== void 0 ? _c : getGoogleGenAIAPIVersion(parentClient), security: (_d = options.security) !== null && _d !== void 0 ? _d : new GoogleGenAISecurityProvider({
-    defaultHeaders: Object.assign(Object.assign({}, (_e4 = parentClient.getDefaultHeaders) === null || _e4 === void 0 ? void 0 : _e4.call(parentClient)), (_f = parentClient.getHeaders) === null || _f === void 0 ? void 0 : _f.call(parentClient)),
+  var _a5, _b, _c, _d, _e4;
+  const sdk = new GoogleGenAI$1(Object.assign(Object.assign({}, options), { api_version: (_a5 = options.api_version) !== null && _a5 !== void 0 ? _a5 : getGoogleGenAIAPIVersion(parentClient), security: (_b = options.security) !== null && _b !== void 0 ? _b : new GoogleGenAISecurityProvider({
+    defaultHeaders: Object.assign(Object.assign({}, (_c = parentClient.getDefaultHeaders) === null || _c === void 0 ? void 0 : _c.call(parentClient)), (_d = parentClient.getHeaders) === null || _d === void 0 ? void 0 : _d.call(parentClient)),
     getAuthHeaders: (url2) => parentClient.getAuthHeaders(url2)
-  }), server_url: (_g = options.server_url) !== null && _g !== void 0 ? _g : getGoogleGenAIServerURL(parentClient) }));
+  }), server_url: (_e4 = options.server_url) !== null && _e4 !== void 0 ? _e4 : getGoogleGenAIServerURL(parentClient) }));
   return sdk;
 }
 function trimSlashes(value) {
@@ -81256,33 +80480,6 @@ function normalizeInteractionDates(interaction) {
 function normalizeDateLike(value) {
   return value instanceof Date ? value.toISOString() : value;
 }
-function inferMimeType(filePath) {
-  const ext = filePath.slice(filePath.lastIndexOf(".") + 1).toLowerCase();
-  const mimeTypes2 = {
-    txt: "text/plain",
-    json: "application/json",
-    js: "text/javascript",
-    mjs: "text/javascript",
-    ts: "text/plain",
-    py: "text/x-python",
-    html: "text/html",
-    htm: "text/html",
-    css: "text/css",
-    csv: "text/csv",
-    xml: "application/xml",
-    png: "image/png",
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    gif: "image/gif",
-    webp: "image/webp",
-    svg: "image/svg+xml",
-    pdf: "application/pdf",
-    zip: "application/zip",
-    tar: "application/x-tar",
-    gz: "application/gzip"
-  };
-  return mimeTypes2[ext];
-}
 function buildGoogleAuthOptions(googleAuthOptions) {
   let authOptions;
   if (!googleAuthOptions) {
@@ -81365,29 +80562,6 @@ function cancelTuningJobResponseFromVertex(fromObject, _rootObject) {
   ]);
   if (fromSdkHttpResponse != null) {
     setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
-  }
-  return toObject;
-}
-function computerUseToVertex(fromObject, _rootObject) {
-  const toObject = {};
-  const fromEnablePromptInjectionDetection = getValueByPath(fromObject, [
-    "enablePromptInjectionDetection"
-  ]);
-  if (fromEnablePromptInjectionDetection != null) {
-    setValueByPath(toObject, ["enablePromptInjectionDetection"], fromEnablePromptInjectionDetection);
-  }
-  const fromEnvironment = getValueByPath(fromObject, ["environment"]);
-  if (fromEnvironment != null) {
-    setValueByPath(toObject, ["environment"], fromEnvironment);
-  }
-  const fromExcludedPredefinedFunctions = getValueByPath(fromObject, [
-    "excludedPredefinedFunctions"
-  ]);
-  if (fromExcludedPredefinedFunctions != null) {
-    setValueByPath(toObject, ["excludedPredefinedFunctions"], fromExcludedPredefinedFunctions);
-  }
-  if (getValueByPath(fromObject, ["disabledSafetyPolicies"]) !== void 0) {
-    throw new Error("disabledSafetyPolicies parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
   }
   return toObject;
 }
@@ -82138,12 +81312,6 @@ function generationConfigFromVertex(fromObject, _rootObject) {
   if (fromTopP != null) {
     setValueByPath(toObject, ["topP"], fromTopP);
   }
-  const fromTranslationConfig = getValueByPath(fromObject, [
-    "translationConfig"
-  ]);
-  if (fromTranslationConfig != null) {
-    setValueByPath(toObject, ["translationConfig"], fromTranslationConfig);
-  }
   return toObject;
 }
 function getTuningJobParametersToMldev(fromObject, _rootObject) {
@@ -82209,16 +81377,6 @@ function listTuningJobsResponseFromVertex(fromObject, rootObject) {
       });
     }
     setValueByPath(toObject, ["tuningJobs"], transformedList);
-  }
-  return toObject;
-}
-function mcpServerToVertex(fromObject, _rootObject) {
-  const toObject = {};
-  if (getValueByPath(fromObject, ["name"]) !== void 0) {
-    throw new Error("name parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
-  }
-  if (getValueByPath(fromObject, ["streamableHttpTransport"]) !== void 0) {
-    throw new Error("streamableHttpTransport parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
   }
   return toObject;
 }
@@ -82301,12 +81459,6 @@ function partToVertex(fromObject, _rootObject) {
   if (fromMediaProcessing != null) {
     setValueByPath(toObject, ["mediaProcessing"], fromMediaProcessing);
   }
-  const fromSpeechMetadata = getValueByPath(fromObject, [
-    "speechMetadata"
-  ]);
-  if (fromSpeechMetadata != null) {
-    setValueByPath(toObject, ["speechMetadata"], fromSpeechMetadata);
-  }
   return toObject;
 }
 function reinforcementTuningExampleToVertex(fromObject, rootObject) {
@@ -82330,93 +81482,6 @@ function reinforcementTuningExampleToVertex(fromObject, rootObject) {
   ]);
   if (fromSystemInstruction != null) {
     setValueByPath(toObject, ["systemInstruction"], contentToVertex(fromSystemInstruction));
-  }
-  const fromTools = getValueByPath(fromObject, ["tools"]);
-  if (fromTools != null) {
-    let transformedList = fromTools;
-    if (Array.isArray(transformedList)) {
-      transformedList = transformedList.map((item) => {
-        return toolToVertex(item);
-      });
-    }
-    setValueByPath(toObject, ["tools"], transformedList);
-  }
-  return toObject;
-}
-function toolToVertex(fromObject, rootObject) {
-  const toObject = {};
-  const fromRetrieval = getValueByPath(fromObject, ["retrieval"]);
-  if (fromRetrieval != null) {
-    setValueByPath(toObject, ["retrieval"], fromRetrieval);
-  }
-  const fromGoogleMaps = getValueByPath(fromObject, ["googleMaps"]);
-  if (fromGoogleMaps != null) {
-    setValueByPath(toObject, ["googleMaps"], fromGoogleMaps);
-  }
-  const fromMcpServers = getValueByPath(fromObject, ["mcpServers"]);
-  if (fromMcpServers != null) {
-    let transformedList = fromMcpServers;
-    if (Array.isArray(transformedList)) {
-      transformedList = transformedList.map((item) => {
-        return mcpServerToVertex(item);
-      });
-    }
-    setValueByPath(toObject, ["mcpServers"], transformedList);
-  }
-  const fromCodeExecution = getValueByPath(fromObject, [
-    "codeExecution"
-  ]);
-  if (fromCodeExecution != null) {
-    setValueByPath(toObject, ["codeExecution"], fromCodeExecution);
-  }
-  const fromComputerUse = getValueByPath(fromObject, ["computerUse"]);
-  if (fromComputerUse != null) {
-    setValueByPath(toObject, ["computerUse"], computerUseToVertex(fromComputerUse));
-  }
-  const fromEnterpriseWebSearch = getValueByPath(fromObject, [
-    "enterpriseWebSearch"
-  ]);
-  if (fromEnterpriseWebSearch != null) {
-    setValueByPath(toObject, ["enterpriseWebSearch"], fromEnterpriseWebSearch);
-  }
-  const fromExaAiSearch = getValueByPath(fromObject, ["exaAiSearch"]);
-  if (fromExaAiSearch != null) {
-    setValueByPath(toObject, ["exaAiSearch"], fromExaAiSearch);
-  }
-  const fromFunctionDeclarations = getValueByPath(fromObject, [
-    "functionDeclarations"
-  ]);
-  if (fromFunctionDeclarations != null) {
-    let transformedList = fromFunctionDeclarations;
-    if (Array.isArray(transformedList)) {
-      transformedList = transformedList.map((item) => {
-        return item;
-      });
-    }
-    setValueByPath(toObject, ["functionDeclarations"], transformedList);
-  }
-  const fromGoogleSearch = getValueByPath(fromObject, ["googleSearch"]);
-  if (fromGoogleSearch != null) {
-    setValueByPath(toObject, ["googleSearch"], fromGoogleSearch);
-  }
-  const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
-    "googleSearchRetrieval"
-  ]);
-  if (fromGoogleSearchRetrieval != null) {
-    setValueByPath(toObject, ["googleSearchRetrieval"], fromGoogleSearchRetrieval);
-  }
-  const fromParallelAiSearch = getValueByPath(fromObject, [
-    "parallelAiSearch"
-  ]);
-  if (fromParallelAiSearch != null) {
-    setValueByPath(toObject, ["parallelAiSearch"], fromParallelAiSearch);
-  }
-  const fromUrlContext = getValueByPath(fromObject, ["urlContext"]);
-  if (fromUrlContext != null) {
-    setValueByPath(toObject, ["urlContext"], fromUrlContext);
-  }
-  if (getValueByPath(fromObject, ["fileSearch"]) !== void 0) {
-    throw new Error("fileSearch parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
   }
   return toObject;
 }
@@ -82753,12 +81818,6 @@ function tuningJobFromVertex(fromObject, rootObject) {
   if (fromVeoTuningSpec != null) {
     setValueByPath(toObject, ["veoTuningSpec"], fromVeoTuningSpec);
   }
-  const fromGcsMetricsUri = getValueByPath(fromObject, [
-    "gcsMetricsUri"
-  ]);
-  if (fromGcsMetricsUri != null) {
-    setValueByPath(toObject, ["gcsMetricsUri"], fromGcsMetricsUri);
-  }
   return toObject;
 }
 function tuningOperationFromMldev(fromObject, _rootObject) {
@@ -82976,7 +82035,7 @@ function getApiKeyFromEnv() {
   }
   return envGoogleApiKey || envGeminiApiKey || void 0;
 }
-var import_p_retry, import_google_auth_library, _defaultBaseGeminiUrl, _defaultBaseVertexUrl, BaseModule, MediaProcessing, Outcome, Language, FunctionResponseScheduling, Type, AuthType, HttpElementLocation, ApiSpec, Environment, SafetyPolicy, PhishBlockThreshold, Behavior, DynamicRetrievalConfigMode, ThinkingLevel, PersonGeneration, ProminentPeople, HarmCategory, HarmBlockMethod, HarmBlockThreshold, FunctionCallingConfigMode, AudioTranscriptionConfigMode, FinishReason, HarmProbability, HarmSeverity, UrlRetrievalStatus, BlockedReason, TrafficType, MediaModality, ModelStage, MediaResolution, Modality, Delivery, AspectRatio, ImageSize, TuningMode, AdapterSize, ResponseParseType, MatchOperation, ReinforcementTuningThinkingLevel, JobState, TuningJobState, AggregationMetric, PairwiseChoice, VideoOrientation, TuningSpeed, TuningTask, DocumentState, ServiceTier, PartMediaResolutionLevel, ToolType, ResourceScope, FeatureSelectionPreference, EmbeddingApiType, SafetyFilterLevel, ImagePromptLanguage, MaskReferenceMode, ControlReferenceType, SubjectReferenceType, EditMode, SegmentMode, VideoGenerationReferenceType, VideoGenerationMaskMode, VideoCompressionQuality, ImageResizeMode, TuningMethod, FileState, FileSource, TurnCompleteReason, InteractionStatus, VadSignalType, VoiceActivityType, StartSensitivity, EndSensitivity, ActivityHandling, TurnCoverage, Scale, MusicGenerationMode, LiveMusicPlaybackControl, HttpResponse, GenerateContentResponse, EmbedContentResponse, GenerateImagesResponse, EditImageResponse, UpscaleImageResponse, RecontextImageResponse, SegmentImageResponse, ListModelsResponse, DeleteModelResponse, CountTokensResponse, ComputeTokensResponse, GenerateVideosOperation, ListTuningJobsResponse, CancelTuningJobResponse, ValidateRewardResponse, DeleteCachedContentResponse, ListCachedContentsResponse, ListDocumentsResponse, ListFileSearchStoresResponse, UploadToFileSearchStoreResumableResponse, ImportFileOperation, ListFilesResponse, CreateFileResponse, DeleteFileResponse, RegisterFilesResponse, ListBatchJobsResponse, LiveServerMessage, LiveMusicServerMessage, UploadToFileSearchStoreOperation, PagedItem, Pager, Batches2, Caches, Chats, Chat2, ApiError, Files$1, CONTENT_TYPE_HEADER, SERVER_TIMEOUT_HEADER, USER_AGENT_HEADER, GOOGLE_API_CLIENT_HEADER, SDK_VERSION, LIBRARY_LABEL, VERTEX_AI_API_DEFAULT_VERSION, GOOGLE_AI_API_DEFAULT_VERSION, MULTI_REGIONAL_LOCATIONS, DEFAULT_RETRY_ATTEMPTS, DEFAULT_RETRY_INITIAL_DELAY, DEFAULT_RETRY_MAX_DELAY, DEFAULT_RETRY_EXP_BASE, DEFAULT_RETRY_JITTER, DEFAULT_RETRY_HTTP_STATUS_CODES, ApiClient, MCP_LABEL, hasMcpToolUsageFromMcpToTool, McpCallableTool, LiveMusic, LiveMusicSession, FUNCTION_RESPONSE_REQUIRES_ID, Live, defaultLiveSendClientContentParamerters, Session, DEFAULT_MAX_REMOTE_CALLS, Models2, Operations, Tokens, Documents, FileSearchStores, envMemo, GoogleGenAISecurityProvider, GoogleGenAIAuthHook, HTTPClientError, UnexpectedClientError, InvalidRequestError, RequestAbortedError, RequestTimeoutError, ConnectionError, GoogleGenAiError, GeminiNextGenAPIClientError, APIError2, APIUserAbortError2, APIConnectionError2, APIConnectionTimeoutError2, BadRequestError2, AuthenticationError2, PermissionDeniedError2, NotFoundError2, ConflictError2, UnprocessableEntityError2, RateLimitError2, InternalServerError2, DEFAULT_FETCHER, HTTPClient, mediaParamSeparator, codeRangeRE$1, SDKHooks, hasOwn2, ServerList, SDK_METADATA, reservedEscapes, encodeForm, encodeSimple, encodeFormQuery, defaultBackoff, PermanentError, TemporaryError, codeRangeRE, gt, webWorkerLike, isBrowserLike, ClientSDK, jsonLikeContentTypeRE, jsonlLikeContentTypeRE, GoogleGenAiDefaultError, Stream4, CR2, LF2, BOUNDARIES, MAX_BOUNDARY_LEN, DEFAULT_CONTENT_TYPES, headerValRE, SecurityErrorCode, SecurityError, _a3, APIPromise2, Agents, Credentials, Files5, Internal, Environments, CancelInteractionByIdServerError, CancelInteractionByIdClientError, CreateInteractionServerError, CreateInteractionClientError, DeleteInteractionServerError, DeleteInteractionClientError, GetInteractionByIdServerError, GetInteractionByIdClientError, Interactions, Triggers, Voices, Webhooks2, GoogleGenAI$1, LEGACY_LYRIA_MODELS, GeminiNextGenInteractions, GeminiNextGenAgents, GeminiNextGenWebhooks, GeminiNextGenTriggers, GeminiNextGenEnvironmentFiles, GeminiNextGenEnvironments, GeminiNextGenCredentials, GeminiNextGenVoices, GOOGLE_API_KEY_HEADER, REQUIRED_VERTEX_AI_SCOPE, NodeAuth, NodeDownloader, NodeWebSocketFactory, NodeWebSocket, Tunings, MAX_CHUNK_SIZE, MAX_RETRY_COUNT, INITIAL_RETRY_DELAY_MS, DELAY_MULTIPLIER, X_GOOG_UPLOAD_STATUS_HEADER_FIELD, NodeUploader, NodeFiles, LANGUAGE_LABEL_PREFIX, GoogleGenAI2;
+var import_p_retry, import_google_auth_library, _defaultBaseGeminiUrl, _defaultBaseVertexUrl, BaseModule, Outcome, Language, FunctionResponseScheduling, Type, AuthType, HttpElementLocation, ApiSpec, Environment, SafetyPolicy, PhishBlockThreshold, Behavior, DynamicRetrievalConfigMode, ThinkingLevel, PersonGeneration, ProminentPeople, HarmCategory, HarmBlockMethod, HarmBlockThreshold, FunctionCallingConfigMode, FinishReason, HarmProbability, HarmSeverity, UrlRetrievalStatus, BlockedReason, TrafficType, MediaModality, ModelStage, MediaResolution, Modality, Delivery, AspectRatio, ImageSize, TuningMode, AdapterSize, ResponseParseType, MatchOperation, ReinforcementTuningThinkingLevel, JobState, TuningJobState, AggregationMetric, PairwiseChoice, VideoOrientation, TuningSpeed, TuningTask, DocumentState, ServiceTier, MediaProcessing, PartMediaResolutionLevel, ToolType, ResourceScope, FeatureSelectionPreference, EmbeddingApiType, SafetyFilterLevel, ImagePromptLanguage, MaskReferenceMode, ControlReferenceType, SubjectReferenceType, EditMode, SegmentMode, VideoGenerationReferenceType, VideoGenerationMaskMode, VideoCompressionQuality, ImageResizeMode, TuningMethod, FileState, FileSource, TurnCompleteReason, InteractionStatus, VadSignalType, VoiceActivityType, StartSensitivity, EndSensitivity, ActivityHandling, TurnCoverage, AudioTranscriptionConfigMode, Scale, MusicGenerationMode, LiveMusicPlaybackControl, HttpResponse, GenerateContentResponse, EmbedContentResponse, GenerateImagesResponse, EditImageResponse, UpscaleImageResponse, RecontextImageResponse, SegmentImageResponse, ListModelsResponse, DeleteModelResponse, CountTokensResponse, ComputeTokensResponse, GenerateVideosOperation, ListTuningJobsResponse, CancelTuningJobResponse, ValidateRewardResponse, DeleteCachedContentResponse, ListCachedContentsResponse, ListDocumentsResponse, ListFileSearchStoresResponse, UploadToFileSearchStoreResumableResponse, ImportFileOperation, ListFilesResponse, CreateFileResponse, DeleteFileResponse, RegisterFilesResponse, ListBatchJobsResponse, LiveServerMessage, LiveMusicServerMessage, UploadToFileSearchStoreOperation, PagedItem, Pager, Batches2, Caches, Chats, Chat2, ApiError, Files$1, CONTENT_TYPE_HEADER, SERVER_TIMEOUT_HEADER, USER_AGENT_HEADER, GOOGLE_API_CLIENT_HEADER, SDK_VERSION, LIBRARY_LABEL, VERTEX_AI_API_DEFAULT_VERSION, GOOGLE_AI_API_DEFAULT_VERSION, MULTI_REGIONAL_LOCATIONS, DEFAULT_RETRY_ATTEMPTS, DEFAULT_RETRY_INITIAL_DELAY, DEFAULT_RETRY_MAX_DELAY, DEFAULT_RETRY_EXP_BASE, DEFAULT_RETRY_JITTER, DEFAULT_RETRY_HTTP_STATUS_CODES, ApiClient, MCP_LABEL, hasMcpToolUsageFromMcpToTool, McpCallableTool, LiveMusic, LiveMusicSession, FUNCTION_RESPONSE_REQUIRES_ID, Live, defaultLiveSendClientContentParamerters, Session, DEFAULT_MAX_REMOTE_CALLS, Models2, Operations, Tokens, Documents, FileSearchStores, envMemo, GoogleGenAISecurityProvider, GoogleGenAIAuthHook, HTTPClientError, UnexpectedClientError, InvalidRequestError, RequestAbortedError, RequestTimeoutError, ConnectionError, GoogleGenAiError, GeminiNextGenAPIClientError, APIError2, APIUserAbortError2, APIConnectionError2, APIConnectionTimeoutError2, BadRequestError2, AuthenticationError2, PermissionDeniedError2, NotFoundError2, ConflictError2, UnprocessableEntityError2, RateLimitError2, InternalServerError2, SDKHooks, hasOwn2, ServerList, SDK_METADATA, encodeForm, encodeSimple, encodeFormQuery, DEFAULT_FETCHER, HTTPClient, mediaParamSeparator, codeRangeRE$1, defaultBackoff, PermanentError, TemporaryError, codeRangeRE, gt, webWorkerLike, isBrowserLike, ClientSDK, jsonLikeContentTypeRE, jsonlLikeContentTypeRE, GoogleGenAiDefaultError, Stream4, CR2, LF2, BOUNDARIES, MAX_BOUNDARY_LEN, DEFAULT_CONTENT_TYPES, headerValRE, SecurityErrorCode, SecurityError, _a3, APIPromise2, Agents, Files5, Environments, CancelInteractionByIdServerError, CancelInteractionByIdClientError, CreateInteractionServerError, CreateInteractionClientError, DeleteInteractionServerError, DeleteInteractionClientError, GetInteractionByIdServerError, GetInteractionByIdClientError, Interactions, Triggers, Webhooks2, GoogleGenAI$1, LEGACY_LYRIA_MODELS, GeminiNextGenInteractions, GeminiNextGenAgents, GeminiNextGenWebhooks, GeminiNextGenTriggers, GeminiNextGenEnvironmentFiles, GeminiNextGenEnvironments, GOOGLE_API_KEY_HEADER, REQUIRED_VERTEX_AI_SCOPE, NodeAuth, NodeDownloader, NodeWebSocketFactory, NodeWebSocket, Tunings, MAX_CHUNK_SIZE, MAX_RETRY_COUNT, INITIAL_RETRY_DELAY_MS, DELAY_MULTIPLIER, X_GOOG_UPLOAD_STATUS_HEADER_FIELD, NodeUploader, NodeFiles, LANGUAGE_LABEL_PREFIX, GoogleGenAI2;
 var init_node = __esm({
   "../node_modules/@google/genai/dist/node/index.mjs"() {
     import_p_retry = __toESM(require_p_retry(), 1);
@@ -82986,11 +82045,6 @@ var init_node = __esm({
     _defaultBaseVertexUrl = void 0;
     BaseModule = class {
     };
-    (function(MediaProcessing2) {
-      MediaProcessing2["MEDIA_PROCESSING_UNSPECIFIED"] = "MEDIA_PROCESSING_UNSPECIFIED";
-      MediaProcessing2["STATIC"] = "STATIC";
-      MediaProcessing2["AGENTIC"] = "AGENTIC";
-    })(MediaProcessing || (MediaProcessing = {}));
     (function(Outcome2) {
       Outcome2["OUTCOME_UNSPECIFIED"] = "OUTCOME_UNSPECIFIED";
       Outcome2["OUTCOME_OK"] = "OUTCOME_OK";
@@ -83123,11 +82177,6 @@ var init_node = __esm({
       FunctionCallingConfigMode2["NONE"] = "NONE";
       FunctionCallingConfigMode2["VALIDATED"] = "VALIDATED";
     })(FunctionCallingConfigMode || (FunctionCallingConfigMode = {}));
-    (function(AudioTranscriptionConfigMode2) {
-      AudioTranscriptionConfigMode2["MODE_UNSPECIFIED"] = "MODE_UNSPECIFIED";
-      AudioTranscriptionConfigMode2["VERBATIM"] = "VERBATIM";
-      AudioTranscriptionConfigMode2["SMART"] = "SMART";
-    })(AudioTranscriptionConfigMode || (AudioTranscriptionConfigMode = {}));
     (function(FinishReason2) {
       FinishReason2["FINISH_REASON_UNSPECIFIED"] = "FINISH_REASON_UNSPECIFIED";
       FinishReason2["STOP"] = "STOP";
@@ -83147,7 +82196,6 @@ var init_node = __esm({
       FinishReason2["NO_IMAGE"] = "NO_IMAGE";
       FinishReason2["IMAGE_RECITATION"] = "IMAGE_RECITATION";
       FinishReason2["IMAGE_OTHER"] = "IMAGE_OTHER";
-      FinishReason2["CONTINUATION"] = "CONTINUATION";
     })(FinishReason || (FinishReason = {}));
     (function(HarmProbability2) {
       HarmProbability2["HARM_PROBABILITY_UNSPECIFIED"] = "HARM_PROBABILITY_UNSPECIFIED";
@@ -83185,7 +82233,6 @@ var init_node = __esm({
       TrafficType2["ON_DEMAND"] = "ON_DEMAND";
       TrafficType2["ON_DEMAND_PRIORITY"] = "ON_DEMAND_PRIORITY";
       TrafficType2["ON_DEMAND_FLEX"] = "ON_DEMAND_FLEX";
-      TrafficType2["ON_DEMAND_OFFPEAK"] = "ON_DEMAND_OFFPEAK";
       TrafficType2["PROVISIONED_THROUGHPUT"] = "PROVISIONED_THROUGHPUT";
     })(TrafficType || (TrafficType = {}));
     (function(MediaModality2) {
@@ -83347,6 +82394,11 @@ var init_node = __esm({
       ServiceTier2["STANDARD"] = "standard";
       ServiceTier2["PRIORITY"] = "priority";
     })(ServiceTier || (ServiceTier = {}));
+    (function(MediaProcessing2) {
+      MediaProcessing2["MEDIA_PROCESSING_UNSPECIFIED"] = "MEDIA_PROCESSING_UNSPECIFIED";
+      MediaProcessing2["STATIC"] = "STATIC";
+      MediaProcessing2["AGENTIC"] = "AGENTIC";
+    })(MediaProcessing || (MediaProcessing = {}));
     (function(PartMediaResolutionLevel2) {
       PartMediaResolutionLevel2["MEDIA_RESOLUTION_UNSPECIFIED"] = "MEDIA_RESOLUTION_UNSPECIFIED";
       PartMediaResolutionLevel2["MEDIA_RESOLUTION_LOW"] = "MEDIA_RESOLUTION_LOW";
@@ -83531,6 +82583,11 @@ var init_node = __esm({
       TurnCoverage2["TURN_INCLUDES_ALL_INPUT"] = "TURN_INCLUDES_ALL_INPUT";
       TurnCoverage2["TURN_INCLUDES_AUDIO_ACTIVITY_AND_ALL_VIDEO"] = "TURN_INCLUDES_AUDIO_ACTIVITY_AND_ALL_VIDEO";
     })(TurnCoverage || (TurnCoverage = {}));
+    (function(AudioTranscriptionConfigMode2) {
+      AudioTranscriptionConfigMode2["MODE_UNSPECIFIED"] = "MODE_UNSPECIFIED";
+      AudioTranscriptionConfigMode2["VERBATIM"] = "VERBATIM";
+      AudioTranscriptionConfigMode2["SMART"] = "SMART";
+    })(AudioTranscriptionConfigMode || (AudioTranscriptionConfigMode = {}));
     (function(Scale2) {
       Scale2["SCALE_UNSPECIFIED"] = "SCALE_UNSPECIFIED";
       Scale2["C_MAJOR_A_MINOR"] = "C_MAJOR_A_MINOR";
@@ -85380,7 +84437,7 @@ var init_node = __esm({
     SERVER_TIMEOUT_HEADER = "X-Server-Timeout";
     USER_AGENT_HEADER = "User-Agent";
     GOOGLE_API_CLIENT_HEADER = "x-goog-api-client";
-    SDK_VERSION = "2.27.0";
+    SDK_VERSION = "2.20.0";
     LIBRARY_LABEL = `google-genai-sdk/${SDK_VERSION}`;
     VERTEX_AI_API_DEFAULT_VERSION = "v1beta1";
     GOOGLE_AI_API_DEFAULT_VERSION = "v1beta";
@@ -85484,10 +84541,6 @@ var init_node = __esm({
           throw new Error("Headers are not set.");
         }
       }
-      getFetch() {
-        var _a5;
-        return (_a5 = this.clientOptions.httpOptions) === null || _a5 === void 0 ? void 0 : _a5.fetch;
-      }
       getRequestUrlInternal(httpOptions) {
         if (!httpOptions || httpOptions.baseUrl === void 0 || httpOptions.apiVersion === void 0) {
           throw new Error("HTTP options are not correctly set.");
@@ -85568,13 +84621,10 @@ var init_node = __esm({
           requestInit.body = request.body;
         }
         requestInit = await this.includeExtraHttpOptionsToRequestInit(requestInit, patchedHttpOptions, url2.toString());
-        return this.unaryApiCall(url2, requestInit, request.httpMethod, patchedHttpOptions.retryOptions, patchedHttpOptions.timeout, request.abortSignal, patchedHttpOptions.fetch);
+        return this.unaryApiCall(url2, requestInit, request.httpMethod, patchedHttpOptions.retryOptions, patchedHttpOptions.timeout, request.abortSignal);
       }
       patchHttpOptions(baseHttpOptions, requestHttpOptions) {
         const patchedHttpOptions = JSON.parse(JSON.stringify(baseHttpOptions));
-        if (baseHttpOptions.fetch) {
-          patchedHttpOptions.fetch = baseHttpOptions.fetch;
-        }
         for (const [key, value] of Object.entries(requestHttpOptions)) {
           if (typeof value === "object") {
             patchedHttpOptions[key] = Object.assign(Object.assign({}, patchedHttpOptions[key]), value);
@@ -85597,7 +84647,7 @@ var init_node = __esm({
         let requestInit = {};
         requestInit.body = request.body;
         requestInit = await this.includeExtraHttpOptionsToRequestInit(requestInit, patchedHttpOptions, url2.toString());
-        return this.streamApiCall(url2, requestInit, request.httpMethod, patchedHttpOptions.retryOptions, patchedHttpOptions.timeout, request.abortSignal, patchedHttpOptions.fetch);
+        return this.streamApiCall(url2, requestInit, request.httpMethod, patchedHttpOptions.retryOptions, patchedHttpOptions.timeout, request.abortSignal);
       }
       async includeExtraHttpOptionsToRequestInit(requestInit, httpOptions, url2) {
         if ((httpOptions === null || httpOptions === void 0 ? void 0 : httpOptions.timeout) && httpOptions.timeout > 0) {
@@ -85609,8 +84659,8 @@ var init_node = __esm({
         requestInit.headers = await this.getHeadersInternal(httpOptions, url2);
         return requestInit;
       }
-      async unaryApiCall(url2, requestInit, httpMethod, retryOptions, timeout, abortSignal, fetchFn) {
-        return this.apiCall(url2.toString(), Object.assign(Object.assign({}, requestInit), { method: httpMethod }), retryOptions, timeout, abortSignal, fetchFn).then(async (response) => {
+      async unaryApiCall(url2, requestInit, httpMethod, retryOptions, timeout, abortSignal) {
+        return this.apiCall(url2.toString(), Object.assign(Object.assign({}, requestInit), { method: httpMethod }), retryOptions, timeout, abortSignal).then(async (response) => {
           await throwErrorIfNotOK(response);
           return new HttpResponse(response);
         }).catch((e4) => {
@@ -85621,8 +84671,8 @@ var init_node = __esm({
           }
         });
       }
-      async streamApiCall(url2, requestInit, httpMethod, retryOptions, timeout, abortSignal, fetchFn) {
-        return this.apiCall(url2.toString(), Object.assign(Object.assign({}, requestInit), { method: httpMethod }), retryOptions, timeout, abortSignal, fetchFn).then(async (response) => {
+      async streamApiCall(url2, requestInit, httpMethod, retryOptions, timeout, abortSignal) {
+        return this.apiCall(url2.toString(), Object.assign(Object.assign({}, requestInit), { method: httpMethod }), retryOptions, timeout, abortSignal).then(async (response) => {
           await throwErrorIfNotOK(response);
           return this.processStreamResponse(response);
         }).catch((e4) => {
@@ -85714,15 +84764,14 @@ var init_node = __esm({
           }
         });
       }
-      async apiCall(url2, requestInit, retryOptions, timeout, abortSignal, fetchFn) {
+      async apiCall(url2, requestInit, retryOptions, timeout, abortSignal) {
         var _a5, _b, _c, _d, _e4, _f;
-        const fetchFunc = fetchFn !== null && fetchFn !== void 0 ? fetchFn : fetch;
         const retryableStatusCodes = (_a5 = retryOptions === null || retryOptions === void 0 ? void 0 : retryOptions.httpStatusCodes) !== null && _a5 !== void 0 ? _a5 : DEFAULT_RETRY_HTTP_STATUS_CODES;
         const runFetch = async () => {
           const attempt = createAttemptSignal(timeout, abortSignal);
           let response;
           try {
-            response = await fetchFunc(url2, Object.assign(Object.assign({}, requestInit), { signal: attempt.signal }));
+            response = await fetch(url2, Object.assign(Object.assign({}, requestInit), { signal: attempt.signal }));
           } catch (e4) {
             attempt.dispose();
             throw e4;
@@ -88633,81 +87682,6 @@ var init_node = __esm({
     };
     InternalServerError2 = class extends APIError2 {
     };
-    DEFAULT_FETCHER = (input, init2) => {
-      if (init2 == null) {
-        return fetch(input);
-      } else {
-        return fetch(input, init2);
-      }
-    };
-    HTTPClient = class _HTTPClient {
-      constructor(options = {}) {
-        this.requestHooks = [];
-        this.requestErrorHooks = [];
-        this.responseHooks = [];
-        this.options = options;
-        this.fetcher = options.fetcher || DEFAULT_FETCHER;
-      }
-      async request(request) {
-        let req = request;
-        for (const hook of this.requestHooks) {
-          const nextRequest = await hook(req);
-          if (nextRequest) {
-            req = nextRequest;
-          }
-        }
-        try {
-          const res = await this.fetcher(req);
-          for (const hook of this.responseHooks) {
-            await hook(res, req);
-          }
-          return res;
-        } catch (err2) {
-          for (const hook of this.requestErrorHooks) {
-            await hook(err2, req);
-          }
-          throw err2;
-        }
-      }
-      addHook(...args2) {
-        if (args2[0] === "beforeRequest") {
-          this.requestHooks.push(args2[1]);
-        } else if (args2[0] === "requestError") {
-          this.requestErrorHooks.push(args2[1]);
-        } else if (args2[0] === "response") {
-          this.responseHooks.push(args2[1]);
-        } else {
-          throw new Error(`Invalid hook type: ${args2[0]}`);
-        }
-        return this;
-      }
-      removeHook(...args2) {
-        let target;
-        if (args2[0] === "beforeRequest") {
-          target = this.requestHooks;
-        } else if (args2[0] === "requestError") {
-          target = this.requestErrorHooks;
-        } else if (args2[0] === "response") {
-          target = this.responseHooks;
-        } else {
-          throw new Error(`Invalid hook type: ${args2[0]}`);
-        }
-        const index = target.findIndex((v4) => v4 === args2[1]);
-        if (index >= 0) {
-          target.splice(index, 1);
-        }
-        return this;
-      }
-      clone() {
-        const child = new _HTTPClient(this.options);
-        child.requestHooks = this.requestHooks.slice();
-        child.requestErrorHooks = this.requestErrorHooks.slice();
-        child.responseHooks = this.responseHooks.slice();
-        return child;
-      }
-    };
-    mediaParamSeparator = /\s*;\s*/g;
-    codeRangeRE$1 = new RegExp("^[0-9]xx$", "i");
     SDKHooks = class {
       constructor() {
         this.sdkInitHooks = [];
@@ -88795,7 +87769,6 @@ var init_node = __esm({
     SDK_METADATA = {
       userAgent: "speakeasy-sdk/typescript 2.4.1-preview.4 internal v1beta @google/genai"
     };
-    reservedEscapes = /%(2[346bcf]|3[abdf]|40|5[bd])/gi;
     encodeForm = formEncoder(",");
     encodeSimple = (key, value, options) => {
       let out2 = "";
@@ -88804,7 +87777,7 @@ var init_node = __esm({
         return;
       }
       const encodeString = (v4) => {
-        return encodeChars(v4, options === null || options === void 0 ? void 0 : options.charEncoding);
+        return (options === null || options === void 0 ? void 0 : options.charEncoding) === "percent" ? encodeURIComponent(v4) : v4;
       };
       const encodeValue = (v4) => encodeString(serializeValue(v4));
       pairs.forEach(([pk, pv]) => {
@@ -88828,6 +87801,81 @@ var init_node = __esm({
       return out2.slice(1);
     };
     encodeFormQuery = queryEncoder(encodeForm);
+    DEFAULT_FETCHER = (input, init2) => {
+      if (init2 == null) {
+        return fetch(input);
+      } else {
+        return fetch(input, init2);
+      }
+    };
+    HTTPClient = class _HTTPClient {
+      constructor(options = {}) {
+        this.requestHooks = [];
+        this.requestErrorHooks = [];
+        this.responseHooks = [];
+        this.options = options;
+        this.fetcher = options.fetcher || DEFAULT_FETCHER;
+      }
+      async request(request) {
+        let req = request;
+        for (const hook of this.requestHooks) {
+          const nextRequest = await hook(req);
+          if (nextRequest) {
+            req = nextRequest;
+          }
+        }
+        try {
+          const res = await this.fetcher(req);
+          for (const hook of this.responseHooks) {
+            await hook(res, req);
+          }
+          return res;
+        } catch (err2) {
+          for (const hook of this.requestErrorHooks) {
+            await hook(err2, req);
+          }
+          throw err2;
+        }
+      }
+      addHook(...args2) {
+        if (args2[0] === "beforeRequest") {
+          this.requestHooks.push(args2[1]);
+        } else if (args2[0] === "requestError") {
+          this.requestErrorHooks.push(args2[1]);
+        } else if (args2[0] === "response") {
+          this.responseHooks.push(args2[1]);
+        } else {
+          throw new Error(`Invalid hook type: ${args2[0]}`);
+        }
+        return this;
+      }
+      removeHook(...args2) {
+        let target;
+        if (args2[0] === "beforeRequest") {
+          target = this.requestHooks;
+        } else if (args2[0] === "requestError") {
+          target = this.requestErrorHooks;
+        } else if (args2[0] === "response") {
+          target = this.responseHooks;
+        } else {
+          throw new Error(`Invalid hook type: ${args2[0]}`);
+        }
+        const index = target.findIndex((v4) => v4 === args2[1]);
+        if (index >= 0) {
+          target.splice(index, 1);
+        }
+        return this;
+      }
+      clone() {
+        const child = new _HTTPClient(this.options);
+        child.requestHooks = this.requestHooks.slice();
+        child.requestErrorHooks = this.requestErrorHooks.slice();
+        child.responseHooks = this.responseHooks.slice();
+        return child;
+      }
+    };
+    mediaParamSeparator = /\s*;\s*/g;
+    codeRangeRE$1 = new RegExp("^[0-9]xx$", "i");
     defaultBackoff = {
       initialInterval: 500,
       maxInterval: 6e4,
@@ -89302,66 +88350,15 @@ var init_node = __esm({
         return unwrapAsAPIPromise(agentsGet(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
       }
     };
-    Credentials = class extends ClientSDK {
-      /**
-       * Lists credentials.
-       */
-      list(params, options) {
-        return unwrapAsAPIPromise(credentialsList(this, params === null || params === void 0 ? void 0 : params.api_version, params === null || params === void 0 ? void 0 : params.page_size, params === null || params === void 0 ? void 0 : params.page_token, options));
-      }
-      /**
-       * Creates a new credential.
-       */
-      create(params, options) {
-        const { api_version } = params, body2 = __rest(params, ["api_version"]);
-        return unwrapAsAPIPromise(credentialsCreate(this, body2, api_version, options));
-      }
-      /**
-       * Deletes a credential.
-       */
-      delete(id, params, options) {
-        return unwrapAsAPIPromise(credentialsDelete(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
-      }
-      /**
-       * Gets a credential by ID.
-       */
-      get(id, params, options) {
-        return unwrapAsAPIPromise(credentialsGet(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
-      }
-      /**
-       * Updates a credential.
-       */
-      update(id, params, options) {
-        const { api_version, update_mask } = params, body2 = __rest(params, ["api_version", "update_mask"]);
-        return unwrapAsAPIPromise(credentialsUpdate(this, id, body2, api_version, update_mask, options));
-      }
-    };
     Files5 = class extends ClientSDK {
       /**
-       * Retrieves file metadata or directory contents from an environment's snapshot. To download file content, use the download URL returned in the response.
+       * Retrieves a file or directory from an environment's snapshot.
        */
       list(environment, path7, params, options) {
         return unwrapAsAPIPromise(environmentsFilesList(this, environment, path7, params === null || params === void 0 ? void 0 : params.api_version, params === null || params === void 0 ? void 0 : params.page_size, params === null || params === void 0 ? void 0 : params.page_token, params === null || params === void 0 ? void 0 : params.recursive, options));
       }
     };
-    Internal = class extends ClientSDK {
-      /**
-       * Start an environment file upload
-       *
-       * @remarks
-       * Starts a resumable upload session for a file in an environment workspace.
-       * Upload the file bytes to the URL returned in the `X-Goog-Upload-URL`
-       * response header, using the resumable upload protocol.
-       */
-      startUpload(environment, path7, params, options) {
-        return unwrapAsAPIPromise(environmentsInternalStartUpload(this, environment, path7, params["X-Goog-Upload-Command"], params["X-Goog-Upload-Header-Content-Length"], params["X-Goog-Upload-Header-Content-Type"], params["X-Goog-Upload-Protocol"], params.api_version, params.extract, params.overwrite, options));
-      }
-    };
     Environments = class extends ClientSDK {
-      get internal() {
-        var _a5;
-        return (_a5 = this._internal) !== null && _a5 !== void 0 ? _a5 : this._internal = new Internal(this._options);
-      }
       get files() {
         var _a5;
         return (_a5 = this._files) !== null && _a5 !== void 0 ? _a5 : this._files = new Files5(this._options);
@@ -89477,6 +88474,9 @@ var init_node = __esm({
         return unwrapAsAPIPromise(interactionsCreate(this, body2, api_version, options));
       }
       /**
+       * Deleting an interaction
+       *
+       * @remarks
        * Deletes the interaction by id.
        */
       delete(id, params, options) {
@@ -89486,8 +88486,10 @@ var init_node = __esm({
         return unwrapAsAPIPromise(interactionsGet(this, id, params === null || params === void 0 ? void 0 : params.api_version, params === null || params === void 0 ? void 0 : params.include_input, params === null || params === void 0 ? void 0 : params.last_event_id, params === null || params === void 0 ? void 0 : params.stream, options));
       }
       /**
-       * Cancels an interaction by id. This only applies to background interactions
-       * that are still running.
+       * Canceling an interaction
+       *
+       * @remarks
+       * Cancels an interaction by id. This only applies to background interactions that are still running.
        */
       cancel(id, params, options) {
         return unwrapAsAPIPromise(interactionsCancel(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
@@ -89501,8 +88503,7 @@ var init_node = __esm({
         return unwrapAsAPIPromise(triggersList(this, params === null || params === void 0 ? void 0 : params.api_version, params === null || params === void 0 ? void 0 : params.filter, params === null || params === void 0 ? void 0 : params.page_size, params === null || params === void 0 ? void 0 : params.page_token, options));
       }
       /**
-       * Creates a new trigger that will invoke the specified agent on the given
-       * cron schedule.
+       * Creates a new trigger that will invoke the specified agent on the given cron schedule.
        */
       create(params, options) {
         const { api_version } = params, body2 = __rest(params, ["api_version"]);
@@ -89538,38 +88539,6 @@ var init_node = __esm({
        */
       run(trigger_id, params, options) {
         return unwrapAsAPIPromise(triggersRun(this, trigger_id, params === null || params === void 0 ? void 0 : params.api_version, options));
-      }
-    };
-    Voices = class extends ClientSDK {
-      /**
-       * Lists custom stored voices owned by the caller (ordered newest first)
-       * followed by prebuilt system voices from Google's voice catalog.
-       */
-      list(params, options) {
-        return unwrapAsAPIPromise(voicesList(this, params === null || params === void 0 ? void 0 : params.api_version, params === null || params === void 0 ? void 0 : params.accent, params === null || params === void 0 ? void 0 : params.contexts, params === null || params === void 0 ? void 0 : params.gender, params === null || params === void 0 ? void 0 : params.language_code, params === null || params === void 0 ? void 0 : params.page_size, params === null || params === void 0 ? void 0 : params.page_token, params === null || params === void 0 ? void 0 : params.persona, params === null || params === void 0 ? void 0 : params.pitch, params === null || params === void 0 ? void 0 : params.region_code, params === null || params === void 0 ? void 0 : params.search, params === null || params === void 0 ? void 0 : params.type, options));
-      }
-      /**
-       * Creates a custom voice from a natural-language prompt
-       * (`VOICE_TYPE_PROMPTED`) or from reference and consent audio recordings
-       * (`VOICE_TYPE_REPLICATED`).
-       */
-      create(body2, api_version, options) {
-        return unwrapAsAPIPromise(voicesCreate(this, body2, api_version, options));
-      }
-      /**
-       * Deletes a custom stored voice (`store = true`) by resource name.
-       * Prebuilt catalog voices (`VOICE_TYPE_PREBUILT`) cannot be deleted.
-       */
-      delete(id, params, options) {
-        return unwrapAsAPIPromise(voicesDelete(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
-      }
-      /**
-       * Gets a custom stored voice (`store = true`) by resource name.
-       * Prebuilt catalog voices (`VOICE_TYPE_PREBUILT`) cannot be retrieved via
-       * `GetVoice`; use `ListVoices` instead.
-       */
-      get(id, params, options) {
-        return unwrapAsAPIPromise(voicesGet(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
       }
     };
     Webhooks2 = class extends ClientSDK {
@@ -89620,17 +88589,13 @@ var init_node = __esm({
       }
     };
     GoogleGenAI$1 = class GoogleGenAI extends ClientSDK {
-      get environments() {
-        var _a5;
-        return (_a5 = this._environments) !== null && _a5 !== void 0 ? _a5 : this._environments = new Environments(this._options);
-      }
       get agents() {
         var _a5;
         return (_a5 = this._agents) !== null && _a5 !== void 0 ? _a5 : this._agents = new Agents(this._options);
       }
-      get credentials() {
+      get environments() {
         var _a5;
-        return (_a5 = this._credentials) !== null && _a5 !== void 0 ? _a5 : this._credentials = new Credentials(this._options);
+        return (_a5 = this._environments) !== null && _a5 !== void 0 ? _a5 : this._environments = new Environments(this._options);
       }
       get interactions() {
         var _a5;
@@ -89639,10 +88604,6 @@ var init_node = __esm({
       get triggers() {
         var _a5;
         return (_a5 = this._triggers) !== null && _a5 !== void 0 ? _a5 : this._triggers = new Triggers(this._options);
-      }
-      get voices() {
-        var _a5;
-        return (_a5 = this._voices) !== null && _a5 !== void 0 ? _a5 : this._voices = new Voices(this._options);
       }
       get webhooks() {
         var _a5;
@@ -89701,8 +88662,8 @@ var init_node = __esm({
         return unwrapWithSdkHttpResponse(agentsCreate(this.getClient(api_version), body2, api_version, toGoogleGenAIRequestOptions(options)));
       }
       async list(params = {}, options) {
-        const { api_version, page_size, page_token, parent } = params !== null && params !== void 0 ? params : {};
-        return unwrapWithSdkHttpResponse(agentsList(this.getClient(api_version), api_version, page_size, page_token, parent, toGoogleGenAIRequestOptions(options)));
+        const { api_version, pageSize, pageToken, parent } = params !== null && params !== void 0 ? params : {};
+        return unwrapWithSdkHttpResponse(agentsList(this.getClient(api_version), api_version, pageSize, pageToken, parent, toGoogleGenAIRequestOptions(options)));
       }
       async get(id, params = {}, options) {
         return unwrapWithSdkHttpResponse(agentsGet(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
@@ -89766,8 +88727,8 @@ var init_node = __esm({
         return unwrapWithSdkHttpResponse(triggersCreate(this.getClient(api_version), body2, api_version, toGoogleGenAIRequestOptions(options)));
       }
       async list(params = {}, options) {
-        const { api_version, filter: filter2, page_size, page_token } = params !== null && params !== void 0 ? params : {};
-        return unwrapWithSdkHttpResponse(triggersList(this.getClient(api_version), api_version, filter2, page_size, page_token, toGoogleGenAIRequestOptions(options)));
+        const { api_version, filter: filter2, pageSize, pageToken } = params !== null && params !== void 0 ? params : {};
+        return unwrapWithSdkHttpResponse(triggersList(this.getClient(api_version), api_version, filter2, pageSize, pageToken, toGoogleGenAIRequestOptions(options)));
       }
       async get(id, params = {}, options) {
         return unwrapWithSdkHttpResponse(triggersGet(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
@@ -89783,8 +88744,8 @@ var init_node = __esm({
         return unwrapWithSdkHttpResponse(triggersRun(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), trigger_id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
       }
       async listExecutions(trigger_id, params = {}, options) {
-        const { api_version, page_size, page_token } = params !== null && params !== void 0 ? params : {};
-        return unwrapWithSdkHttpResponse(triggersListExecutions(this.getClient(api_version), trigger_id, api_version, page_size, page_token, toGoogleGenAIRequestOptions(options)));
+        const { api_version, pageSize, pageToken } = params !== null && params !== void 0 ? params : {};
+        return unwrapWithSdkHttpResponse(triggersListExecutions(this.getClient(api_version), trigger_id, api_version, pageSize, pageToken, toGoogleGenAIRequestOptions(options)));
       }
       getClient(apiVersion) {
         var _a5;
@@ -89798,154 +88759,18 @@ var init_node = __esm({
       }
     };
     GeminiNextGenEnvironmentFiles = class {
-      constructor(resolveClient, parentClient) {
+      constructor(resolveClient) {
         this.resolveClient = resolveClient;
-        this.parentClient = parentClient;
       }
       async list(params, options) {
-        return unwrapWithSdkHttpResponse(environmentsFilesList(this.resolveClient(params.api_version), params.environment, params.path, params.api_version, params.page_size, params.page_token, params.recursive, toGoogleGenAIRequestOptions(options)));
-      }
-      async download(params, options) {
-        var _a5, _b;
-        const targetEnv = params.environment;
-        if (!targetEnv) {
-          throw new Error("environment is required.");
-        }
-        const envName = targetEnv.startsWith("environments/") ? targetEnv : `environments/${targetEnv}`;
-        const cleanPath = params.path.replace(/^\/+/, "");
-        const downloadPath = `${envName}/files/${cleanPath}`;
-        const apiClient = this.parentClient;
-        if (!apiClient || typeof apiClient.request !== "function") {
-          throw new Error("apiClient is required to download files.");
-        }
-        const response = await apiClient.request({
-          path: downloadPath,
-          httpMethod: "GET",
-          queryParams: { alt: "media" },
-          httpOptions: Object.assign(Object.assign({}, options === null || options === void 0 ? void 0 : options.httpOptions), { apiVersion: (_a5 = params.api_version) !== null && _a5 !== void 0 ? _a5 : (_b = options === null || options === void 0 ? void 0 : options.httpOptions) === null || _b === void 0 ? void 0 : _b.apiVersion })
-        });
-        if (response && response.responseInternal && typeof response.responseInternal.arrayBuffer === "function") {
-          const arrayBuffer = await response.responseInternal.arrayBuffer();
-          return new Uint8Array(arrayBuffer);
-        }
-        throw new Error("Unexpected response type from download");
-      }
-      async upload(params, options) {
-        var _a5, _b, _c, _d, _e4, _f, _g, _h;
-        const targetEnv = params.environment;
-        if (!targetEnv) {
-          throw new Error("environment is required.");
-        }
-        targetEnv.startsWith("environments/") ? targetEnv : `environments/${targetEnv}`;
-        const cleanPath = params.path.replace(/^\/+/, "");
-        const apiClient = this.parentClient;
-        if (!apiClient || typeof apiClient.request !== "function") {
-          throw new Error("apiClient is required to upload files.");
-        }
-        let fileData;
-        let sizeBytes = 0;
-        let mimeType = params.mime_type;
-        if (typeof params.file === "string") {
-          let buffer;
-          try {
-            const req = globalThis.require;
-            if (req) {
-              const fs8 = req("fs");
-              buffer = fs8.readFileSync(params.file);
-            }
-          } catch (_j) {
-          }
-          if (!buffer && typeof globalThis.process !== "undefined") {
-            try {
-              const mod = (_b = (_a5 = globalThis.process.mainModule) === null || _a5 === void 0 ? void 0 : _a5.require) !== null && _b !== void 0 ? _b : globalThis.require;
-              if (mod) {
-                const fs8 = mod("fs");
-                buffer = fs8.readFileSync(params.file);
-              }
-            } catch (_k) {
-            }
-          }
-          if (buffer) {
-            fileData = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
-            sizeBytes = fileData.byteLength;
-          } else {
-            throw new Error(`Unable to read file from path "${params.file}". File path string inputs are only supported in Node.js environments.`);
-          }
-          if (!mimeType) {
-            mimeType = inferMimeType(params.file);
-          }
-        } else if (typeof Blob !== "undefined" && params.file instanceof Blob) {
-          fileData = params.file;
-          sizeBytes = params.file.size;
-          if (!mimeType && params.file.type) {
-            mimeType = params.file.type;
-          }
-        } else if (params.file instanceof Uint8Array || params.file instanceof ArrayBuffer) {
-          fileData = params.file instanceof ArrayBuffer ? new Uint8Array(params.file) : params.file;
-          sizeBytes = fileData.byteLength;
-        } else if (typeof globalThis.Buffer !== "undefined" && typeof globalThis.Buffer.isBuffer === "function" && globalThis.Buffer.isBuffer(params.file)) {
-          const buf = params.file;
-          fileData = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
-          sizeBytes = fileData.byteLength;
-        } else {
-          throw new Error("Unsupported file type for upload.");
-        }
-        if (!mimeType) {
-          mimeType = "application/octet-stream";
-        }
-        const cleanEnv = targetEnv.startsWith("environments/") ? targetEnv.replace(/^environments\//, "") : targetEnv;
-        const [result, call] = await environmentsInternalStartUpload(this.resolveClient(params.api_version), cleanEnv, cleanPath, "start", sizeBytes, mimeType, "resumable", params.api_version, params.extract, params.overwrite, toGoogleGenAIRequestOptions(options)).$inspect();
-        if (!result.ok) {
-          throw wrapSDKError(result.error);
-        }
-        const uploadUrl = call.status === "complete" ? (_e4 = (_d = (_c = call.response) === null || _c === void 0 ? void 0 : _c.headers) === null || _d === void 0 ? void 0 : _d.get("x-goog-upload-url")) !== null && _e4 !== void 0 ? _e4 : (_g = (_f = call.response) === null || _f === void 0 ? void 0 : _f.headers) === null || _g === void 0 ? void 0 : _g.get("X-Goog-Upload-URL") : void 0;
-        if (!uploadUrl) {
-          throw new Error("Failed to get upload URL from upload handshake response.");
-        }
-        const CHUNK_SIZE = 8 * 1024 * 1024;
-        let offset = 0;
-        let uploadResponse;
-        const blob = fileData instanceof Blob ? fileData : new Blob([fileData]);
-        while (offset < sizeBytes || sizeBytes === 0 && offset === 0) {
-          const end = Math.min(offset + CHUNK_SIZE, sizeBytes);
-          const chunk = blob.slice(offset, end);
-          const isFinal = end >= sizeBytes;
-          const uploadCommand = isFinal ? "upload, finalize" : "upload";
-          uploadResponse = await apiClient.request({
-            path: "",
-            body: chunk,
-            httpMethod: "POST",
-            httpOptions: Object.assign(Object.assign({}, options === null || options === void 0 ? void 0 : options.httpOptions), { apiVersion: "", baseUrl: uploadUrl, headers: Object.assign(Object.assign({}, ((_h = options === null || options === void 0 ? void 0 : options.httpOptions) === null || _h === void 0 ? void 0 : _h.headers) || {}), { "X-Goog-Upload-Command": uploadCommand, "X-Goog-Upload-Offset": `${offset}` }) })
-          });
-          offset = end;
-          if (isFinal) {
-            break;
-          }
-        }
-        let resJson;
-        if (uploadResponse && typeof uploadResponse.json === "function") {
-          resJson = await uploadResponse.json();
-        } else if (uploadResponse && uploadResponse.responseInternal && typeof uploadResponse.responseInternal.json === "function") {
-          resJson = await uploadResponse.responseInternal.json();
-        }
-        if (resJson && typeof resJson === "object") {
-          if (Array.isArray(resJson.files)) {
-            return resJson;
-          }
-          if (resJson.name || resJson.path) {
-            return { files: [resJson] };
-          }
-          if (resJson.file && typeof resJson.file === "object") {
-            return { files: [resJson.file] };
-          }
-        }
-        return resJson;
+        const { environment, path: path7, page_size, page_token, recursive, api_version } = params;
+        return unwrapWithSdkHttpResponse(environmentsFilesList(this.resolveClient(api_version), environment, path7, api_version, page_size, page_token, recursive, toGoogleGenAIRequestOptions(options)));
       }
     };
     GeminiNextGenEnvironments = class {
       constructor(parentClient) {
         this.parentClient = parentClient;
-        this.files = new GeminiNextGenEnvironmentFiles((apiVersion) => this.getClient(apiVersion), this.parentClient);
+        this.files = new GeminiNextGenEnvironmentFiles((apiVersion) => this.getClient(apiVersion));
       }
       async create(params, options) {
         const { api_version } = params, body2 = __rest(params, ["api_version"]);
@@ -89960,68 +88785,6 @@ var init_node = __esm({
       }
       async delete(id, params = {}, options) {
         return unwrapWithSdkHttpResponse(environmentsDeleteEnvironment(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
-      }
-      getClient(apiVersion) {
-        var _a5;
-        if (apiVersion) {
-          return buildGoogleGenAIClient(this.parentClient, {
-            api_version: apiVersion
-          });
-        }
-        (_a5 = this.sdk) !== null && _a5 !== void 0 ? _a5 : this.sdk = buildGoogleGenAIClient(this.parentClient);
-        return this.sdk;
-      }
-    };
-    GeminiNextGenCredentials = class {
-      constructor(parentClient) {
-        this.parentClient = parentClient;
-      }
-      async create(params, options) {
-        const { api_version } = params, body2 = __rest(params, ["api_version"]);
-        return unwrapWithSdkHttpResponse(credentialsCreate(this.getClient(api_version), body2, api_version, toGoogleGenAIRequestOptions(options)));
-      }
-      async list(params = {}, options) {
-        const { api_version, page_size, page_token } = params !== null && params !== void 0 ? params : {};
-        return unwrapWithSdkHttpResponse(credentialsList(this.getClient(api_version), api_version, page_size, page_token, toGoogleGenAIRequestOptions(options)));
-      }
-      async get(id, params = {}, options) {
-        return unwrapWithSdkHttpResponse(credentialsGet(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
-      }
-      async update(id, params, options) {
-        const { api_version, update_mask } = params, body2 = __rest(params, ["api_version", "update_mask"]);
-        return unwrapWithSdkHttpResponse(credentialsUpdate(this.getClient(api_version), id, body2, api_version, update_mask, toGoogleGenAIRequestOptions(options)));
-      }
-      async delete(id, params = {}, options) {
-        return unwrapWithSdkHttpResponse(credentialsDelete(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
-      }
-      getClient(apiVersion) {
-        var _a5;
-        if (apiVersion) {
-          return buildGoogleGenAIClient(this.parentClient, {
-            api_version: apiVersion
-          });
-        }
-        (_a5 = this.sdk) !== null && _a5 !== void 0 ? _a5 : this.sdk = buildGoogleGenAIClient(this.parentClient);
-        return this.sdk;
-      }
-    };
-    GeminiNextGenVoices = class {
-      constructor(parentClient) {
-        this.parentClient = parentClient;
-      }
-      async create(params, options) {
-        const { api_version } = params, body2 = __rest(params, ["api_version"]);
-        return unwrapWithSdkHttpResponse(voicesCreate(this.getClient(api_version), body2, api_version, toGoogleGenAIRequestOptions(options)));
-      }
-      async list(params = {}, options) {
-        const { api_version, accent, contexts, gender, language_code, page_size, page_token, persona, pitch, region_code, search, type } = params !== null && params !== void 0 ? params : {};
-        return unwrapWithSdkHttpResponse(voicesList(this.getClient(api_version), api_version, accent, contexts, gender, language_code, page_size, page_token, persona, pitch, region_code, search, type, toGoogleGenAIRequestOptions(options)));
-      }
-      async get(id, params = {}, options) {
-        return unwrapWithSdkHttpResponse(voicesGet(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
-      }
-      async delete(id, params = {}, options) {
-        return unwrapWithSdkHttpResponse(voicesDelete(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
       }
       getClient(apiVersion) {
         var _a5;
@@ -90739,21 +89502,6 @@ var init_node = __esm({
         console.warn("GoogleGenAI.environments: Environments usage is experimental and may change in future versions.");
         this._environments = new GeminiNextGenEnvironments(this.apiClient);
         return this._environments;
-      }
-      get credentials() {
-        if (this._credentials !== void 0) {
-          return this._credentials;
-        }
-        console.warn("GoogleGenAI.credentials: Credentials usage is experimental and may change in future versions.");
-        this._credentials = new GeminiNextGenCredentials(this.apiClient);
-        return this._credentials;
-      }
-      get voices() {
-        if (this._voices !== void 0) {
-          return this._voices;
-        }
-        this._voices = new GeminiNextGenVoices(this.apiClient);
-        return this._voices;
       }
       constructor(options = {}) {
         var _a5, _b, _c, _d;
@@ -144825,14 +143573,7 @@ var require_utils4 = __commonJS({
   "../node_modules/pg/lib/utils.js"(exports, module2) {
     "use strict";
     var defaults4 = require_defaults2();
-    var nodeUtils = __require("util");
     var { isDate: isDate2 } = __require("util/types");
-    var invalidDateDeprecationNotice = nodeUtils.deprecate(
-      () => {
-      },
-      "Sending an invalid date to Postgres is deprecated and will throw an error in the next major version of pg. Ensure any Date object passed as a query parameter is valid.",
-      "PG_INVALID_DATE"
-    );
     function escapeElement(elementRepresentation) {
       const escaped = elementRepresentation.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
       return '"' + escaped + '"';
@@ -144872,9 +143613,6 @@ var require_utils4 = __commonJS({
           return Buffer.from(val.buffer, val.byteOffset, val.byteLength);
         }
         if (isDate2(val)) {
-          if (isNaN(val.getTime())) {
-            invalidDateDeprecationNotice();
-          }
           if (defaults4.parseInputDatesAsUTC) {
             return dateToStringUTC(val);
           } else {
@@ -144925,7 +143663,7 @@ var require_utils4 = __commonJS({
       return ret;
     }
     function normalizeQueryConfig(config, values, callback) {
-      config = typeof config === "string" ? { text: config } : cloneQueryConfig(config);
+      config = typeof config === "string" ? { text: config } : config;
       if (values) {
         if (typeof values === "function") {
           config.callback = values;
@@ -144937,12 +143675,6 @@ var require_utils4 = __commonJS({
         config.callback = callback;
       }
       return config;
-    }
-    function cloneQueryConfig(config) {
-      if (config == null) {
-        return config;
-      }
-      return Object.defineProperties(Object.create(Object.getPrototypeOf(config)), Object.getOwnPropertyDescriptors(config));
     }
     var escapeIdentifier2 = function(str3) {
       return '"' + str3.replace(/"/g, '""') + '"';
@@ -145133,7 +143865,7 @@ var require_cert_signatures = __commonJS({
           }
           throw x509Error("unknown hash OID " + hashOID, data);
         }
-        // Ed25519 -- see https://github.com/openssl/openssl/issues/15477
+        // Ed25519 -- see https: return//github.com/openssl/openssl/issues/15477
         case "1.3.101.110":
         case "1.3.101.112":
           return "SHA-512";
@@ -145405,7 +144137,7 @@ var require_pg_connection_string = __commonJS({
         config.client_encoding = result.searchParams.get("encoding");
         return config;
       }
-      const hostname = (dummyHost ? "" : result.hostname).replace(/^\[(.+)\]$/, "$1");
+      const hostname = dummyHost ? "" : result.hostname;
       if (!config.host) {
         config.host = decodeURIComponent(hostname);
       } else if (hostname && /^%2f/i.test(hostname)) {
@@ -145942,7 +144674,7 @@ var require_query = __commonJS({
         return null;
       }
       hasBeenParsed(connection) {
-        return this.name && (connection.parsedStatements[this.name] !== void 0 || connection.submittedNamedStatements[this.name] !== void 0);
+        return this.name && (connection.parsedStatements[this.name] || connection.submittedNamedStatements[this.name]);
       }
       handlePortalSuspended(connection) {
         this._getRows(connection, this.rows);
@@ -146184,7 +144916,7 @@ var require_buffer_writer = __commonJS({
           const oldBuffer = this.buffer;
           const newSize = oldBuffer.length + (oldBuffer.length >> 1) + size;
           this.buffer = Buffer.allocUnsafe(newSize);
-          oldBuffer.copy(this.buffer, 0, 0, this.offset);
+          oldBuffer.copy(this.buffer);
         }
       }
       addInt32(num) {
@@ -146244,15 +144976,6 @@ var require_buffer_writer = __commonJS({
         otherBuffer.copy(this.buffer, this.offset);
         this.offset += otherBuffer.length;
         return this;
-      }
-      /**
-       * Appends an uninitialized block of {@link size} bytes to the buffer and returns its offset.
-       */
-      reserveUnsafe(size) {
-        const offset = this.offset;
-        this.ensure(size);
-        this.offset += size;
-        return offset;
       }
       join(code) {
         if (code) {
@@ -146346,23 +145069,30 @@ var require_serializer = __commonJS({
         /* code.parse */
       );
     };
-    var writeValues = function(values, valueMapper, formatsOffset) {
-      const len = values.length;
-      for (let i6 = 0; i6 < len; i6++) {
+    var paramWriter = new buffer_writer_1.Writer();
+    var writeValues = function(values, valueMapper) {
+      for (let i6 = 0; i6 < values.length; i6++) {
         const mappedVal = valueMapper ? valueMapper(values[i6], i6) : values[i6];
-        let formatByte = 0;
         if (mappedVal == null) {
-          writer.addInt32(-1);
+          writer.addInt16(
+            0
+            /* ParamType.STRING */
+          );
+          paramWriter.addInt32(-1);
         } else if (mappedVal instanceof Buffer) {
-          formatByte = 1;
-          writer.addInt32(mappedVal.length);
-          writer.add(mappedVal);
+          writer.addInt16(
+            1
+            /* ParamType.BINARY */
+          );
+          paramWriter.addInt32(mappedVal.length);
+          paramWriter.add(mappedVal);
         } else {
-          writer.addInt32PrefixedString(mappedVal);
+          writer.addInt16(
+            0
+            /* ParamType.STRING */
+          );
+          paramWriter.addInt32PrefixedString(mappedVal);
         }
-        const buf = writer.buffer;
-        buf[formatsOffset++] = 0;
-        buf[formatsOffset++] = formatByte;
       }
     };
     var bind2 = (config = {}) => {
@@ -146373,14 +145103,15 @@ var require_serializer = __commonJS({
       const len = values.length;
       writer.addCString(portal).addCString(statement);
       writer.addInt16(len);
-      const formatsOffset = writer.reserveUnsafe(len * 2);
-      writer.addInt16(len);
       try {
-        writeValues(values, config.valueMapper, formatsOffset);
+        writeValues(values, config.valueMapper);
       } catch (err2) {
         writer.clear();
+        paramWriter.clear();
         throw err2;
       }
+      writer.addInt16(len);
+      writer.add(paramWriter.flush());
       writer.addInt16(1);
       writer.addInt16(
         binary2 ? 1 : 0
@@ -147038,12 +145769,7 @@ var require_connection = __commonJS({
       upgradeToSSL(host, reportStreamError) {
         const self2 = this;
         const options = {
-          socket: self2.stream,
-          // tls.connect checks the server identity against `servername`, falling
-          // back to `host` and then to 'localhost'. `servername` must stay unset
-          // for IP addresses (see below), so `host` is needed to keep certificate
-          // validation working when connecting to an IP address.
-          host
+          socket: self2.stream
         };
         if (self2.ssl !== true) {
           Object.assign(options, self2.ssl);
@@ -147121,6 +145847,7 @@ var require_connection = __commonJS({
         }
       }
       sync() {
+        this._ending = true;
         this._send(syncBuffer);
       }
       ref() {
@@ -148075,15 +146802,6 @@ var require_client = __commonJS({
         if (query._result && !query._result._types) {
           query._result._types = this._types;
         }
-        if (this.pipeline) {
-          const portalQuery = typeof config.submit === "function" && !(query instanceof Query2) ? "Custom query classes such as pg-cursor and pg-query-stream are" : query.rows ? "The `rows` option is" : null;
-          if (portalQuery) {
-            process.nextTick(() => {
-              query.handleError(new Error(`${portalQuery} not supported in pipeline mode`), this.connection);
-            });
-            return result;
-          }
-        }
         if (!this._queryable) {
           process.nextTick(() => {
             query.handleError(new Error("Client has encountered a connection error and is not queryable"), this.connection);
@@ -148605,8 +147323,6 @@ var require_query2 = __commonJS({
       sqlState: "code",
       statementPosition: "position",
       messagePrimary: "message",
-      messageDetail: "detail",
-      messageHint: "hint",
       context: "where",
       schemaName: "schema",
       tableName: "table",
@@ -148690,7 +147406,7 @@ var require_query2 = __commonJS({
           console.error("This can cause conflicts and silent errors executing queries");
         }
         const values = (this.values || []).map(utils2.prepareValue);
-        if (client2.namedQueries[this.name] !== void 0) {
+        if (client2.namedQueries[this.name]) {
           if (this.text && client2.namedQueries[this.name] !== this.text) {
             const err2 = new Error(`Prepared statements must be unique - '${this.name}' was used for a different statement`);
             return after(err2);
@@ -148982,7 +147698,7 @@ var require_client2 = __commonJS({
         this.hasExecuted = true;
         nativeQueries.push(query);
         const values = query.values ? query.values.map(utils2.prepareValue) : null;
-        const pipelineEntry = { text: query.text, name: query.name, arrayMode: query._arrayMode };
+        const pipelineEntry = { text: query.text, name: query.name };
         if (values) {
           pipelineEntry.values = values;
         }
@@ -148994,16 +147710,12 @@ var require_client2 = __commonJS({
       this.native.pipeline(queries, function(err2, results) {
         self2._pipelineInFlight = false;
         if (err2) {
-          self2._connected = false;
-          self2._queryable = false;
           for (let i6 = 0; i6 < nativeQueries.length; i6++) {
             const q3 = nativeQueries[i6];
             q3.native = self2.native;
             q3.handleError(err2);
           }
-          self2._errorAllQueries(err2);
-          self2.emit("error", err2);
-          self2.emit("end");
+          self2._pulsePipelinedQueryQueue();
           return;
         }
         for (let i6 = 0; i6 < nativeQueries.length; i6++) {
@@ -149948,7 +148660,7 @@ var init_subquery = __esm({
 var version;
 var init_version2 = __esm({
   "../node_modules/drizzle-orm/version.js"() {
-    version = "0.45.3";
+    version = "0.45.2";
   }
 });
 
@@ -204776,6 +203488,86 @@ CREATE TABLE IF NOT EXISTS lucy_repairs (
   }
 });
 
+// src/services/lucyAuditorLog.ts
+import { existsSync as existsSync8, mkdirSync as mkdirSync4, readFileSync as readFileSync9, writeFileSync as writeFileSync2 } from "node:fs";
+import { dirname as dirname6 } from "node:path";
+function logPath() {
+  ensureLucyDataRoot();
+  return getLucyAuditorLogPath();
+}
+function readAuditorLog() {
+  const path7 = logPath();
+  if (!existsSync8(path7)) return { flashSeen: {}, runs: [] };
+  try {
+    const parsed = JSON.parse(readFileSync9(path7, "utf8"));
+    return {
+      lastDailyAt: typeof parsed.lastDailyAt === "string" ? parsed.lastDailyAt : void 0,
+      quota: parsed.quota && typeof parsed.quota.day === "string" && Number.isFinite(parsed.quota.calls) ? parsed.quota : void 0,
+      flashSeen: parsed.flashSeen && typeof parsed.flashSeen === "object" ? parsed.flashSeen : {},
+      runs: Array.isArray(parsed.runs) ? parsed.runs : []
+    };
+  } catch (err2) {
+    logger.warn({ err: err2, path: path7 }, "lucyAuditorLog: no se pudo leer");
+    return { flashSeen: {}, runs: [] };
+  }
+}
+function writeAuditorLog(log) {
+  const path7 = logPath();
+  try {
+    const seen = Object.entries(log.flashSeen);
+    if (seen.length > MAX_SEEN) {
+      seen.sort((a4, b5) => b5[1].at.localeCompare(a4[1].at));
+      log.flashSeen = Object.fromEntries(seen.slice(0, MAX_SEEN));
+    }
+    log.runs = log.runs.slice(-MAX_RUNS);
+    mkdirSync4(dirname6(path7), { recursive: true });
+    writeFileSync2(path7, JSON.stringify(log, null, 2), "utf8");
+  } catch (err2) {
+    logger.warn({ err: err2, path: path7 }, "lucyAuditorLog: no se pudo guardar");
+  }
+}
+function getFlashSeen(leadId) {
+  return readAuditorLog().flashSeen[leadId]?.fp;
+}
+function markFlashSeen(leadId, fp) {
+  const log = readAuditorLog();
+  log.flashSeen[leadId] = { fp, at: (/* @__PURE__ */ new Date()).toISOString() };
+  writeAuditorLog(log);
+}
+function getLastDailyAuditAt() {
+  const at3 = readAuditorLog().lastDailyAt;
+  const d3 = at3 ? new Date(at3) : null;
+  return d3 && Number.isFinite(d3.getTime()) ? d3 : null;
+}
+function recordAuditorRun(run2, opts) {
+  const log = readAuditorLog();
+  log.runs.push(run2);
+  if (opts?.daily) log.lastDailyAt = run2.at;
+  writeAuditorLog(log);
+}
+function readAuditorQuota(day) {
+  const q3 = readAuditorLog().quota;
+  return q3 && q3.day === day ? q3.calls : 0;
+}
+function writeAuditorQuota(day, calls) {
+  const log = readAuditorLog();
+  log.quota = { day, calls };
+  writeAuditorLog(log);
+}
+function listAuditorRuns() {
+  return readAuditorLog().runs;
+}
+var MAX_RUNS, MAX_SEEN;
+var init_lucyAuditorLog = __esm({
+  "src/services/lucyAuditorLog.ts"() {
+    "use strict";
+    init_lucyDataPaths();
+    init_logger2();
+    MAX_RUNS = 90;
+    MAX_SEEN = 3e3;
+  }
+});
+
 // src/services/lucyAuditorLlm.ts
 var lucyAuditorLlm_exports = {};
 __export(lucyAuditorLlm_exports, {
@@ -204789,7 +203581,8 @@ __export(lucyAuditorLlm_exports, {
   getAuditorQuotaSnapshot: () => getAuditorQuotaSnapshot,
   lucyQuoteIsReal: () => lucyQuoteIsReal,
   parseAuditorLlmFindings: () => parseAuditorLlmFindings,
-  runAuditorLlm: () => runAuditorLlm
+  runAuditorLlm: () => runAuditorLlm,
+  takeAuditorLlmStats: () => takeAuditorLlmStats
 });
 function getAuditorModel() {
   const raw = (process.env["LUCY_AUDITOR_MODEL"] ?? DEFAULT_AUDITOR_MODEL).trim();
@@ -204804,12 +203597,14 @@ function getAuditorMaxCallsPerDay() {
 function todayKey() {
   return (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
 }
-function getAuditorQuotaSnapshot() {
+function syncQuotaDay() {
   const key = todayKey();
-  if (key !== dayKey) {
-    dayKey = key;
-    callsToday = 0;
-  }
+  if (key === dayKey) return;
+  dayKey = key;
+  callsToday = readAuditorQuota(key);
+}
+function getAuditorQuotaSnapshot() {
+  syncQuotaDay();
   const maxPerDay = getAuditorMaxCallsPerDay();
   return {
     callsToday,
@@ -204822,12 +203617,14 @@ function canSpendAuditorCall() {
   return getAuditorQuotaSnapshot().remaining > 0 && isLlmConfigured();
 }
 function noteAuditorCall() {
-  const key = todayKey();
-  if (key !== dayKey) {
-    dayKey = key;
-    callsToday = 0;
-  }
+  syncQuotaDay();
   callsToday += 1;
+  writeAuditorQuota(dayKey, callsToday);
+}
+function takeAuditorLlmStats() {
+  const out2 = llmStats;
+  llmStats = { calls: 0, errors: 0, proposed: 0, droppedNoQuote: 0, kept: 0 };
+  return out2;
 }
 function buildAuditorPrompt(transcript, mode = "daily") {
   return [
@@ -204874,24 +203671,39 @@ function normQuote(s7) {
   return s7.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9ñ]+/g, " ").trim();
 }
 function lucyQuoteIsReal(transcript, quote) {
-  const q3 = normQuote(quote);
-  if (q3.length < 8) return false;
+  const cleaned = quote.replace(/^\s*lucy\s*:\s*/i, "");
+  const fragments = cleaned.split(/\.{3}|…/).map(normQuote).filter((f7) => f7.length >= 8);
+  if (!fragments.length) return false;
   const lines = transcript.split("\n");
   const marker = lines.lastIndexOf(AUDITOR_NEW_MARKER);
-  return lines.slice(marker + 1).filter((line2) => line2.startsWith("LUCY:")).some((line2) => normQuote(line2).includes(q3));
+  const lucyLines = lines.slice(marker + 1).filter((line2) => line2.startsWith("LUCY:")).map(normQuote);
+  if (lucyLines.some((line2) => fragments.every((f7) => line2.includes(f7)))) return true;
+  const words = normQuote(cleaned).split(" ").filter((w5) => w5.length >= 3);
+  if (words.length < 4) return false;
+  return lucyLines.some((line2) => {
+    const have = new Set(line2.split(" "));
+    return words.filter((w5) => have.has(w5)).length / words.length >= 0.85;
+  });
 }
 function parseAuditorLlmFindings(text2, transcript) {
+  return parseAuditorLlmDetailed(text2, transcript).findings;
+}
+function parseAuditorLlmDetailed(text2, transcript) {
   const parsed = JSON.parse(text2);
-  if (!Array.isArray(parsed)) return [];
+  const list = Array.isArray(parsed) ? parsed.slice(0, 8) : [];
   const allowed = new Set(AUDITOR_LLM_CATEGORIES);
   const out2 = [];
-  for (const x8 of parsed.slice(0, 8)) {
+  let droppedNoQuote = 0;
+  for (const x8 of list) {
     if (out2.length >= 3) break;
     if (!x8 || typeof x8 !== "object") continue;
     const o6 = x8;
     const lucyQuote = String(o6.lucy_quote ?? "").trim().slice(0, 160);
-    if (!lucyQuoteIsReal(transcript, lucyQuote)) continue;
-    const problem = String(o6.problem ?? o6.evidence ?? "").trim().slice(0, 140);
+    if (!lucyQuoteIsReal(transcript, lucyQuote)) {
+      droppedNoQuote += 1;
+      continue;
+    }
+    const problem = String(o6.problem ?? o6.evidence ?? "").trim().replace(/[.\s]+$/, "").slice(0, 140);
     const proposedRepair = String(o6.proposedRepair ?? "").trim().slice(0, 800);
     if (!problem || !proposedRepair) continue;
     const clientQuote = String(o6.client_quote ?? "").trim().slice(0, 200);
@@ -204904,7 +203716,7 @@ function parseAuditorLlmFindings(text2, transcript) {
       proposedRepair
     });
   }
-  return out2;
+  return { findings: out2, proposed: list.length, droppedNoQuote };
 }
 async function runAuditorLlm(transcript, mode = "daily") {
   if (!canSpendAuditorCall()) return [];
@@ -204942,15 +203754,34 @@ async function runAuditorLlm(transcript, mode = "daily") {
       });
     } catch {
     }
+    llmStats.calls += 1;
     const text2 = (result.text ?? "").trim();
-    if (!text2) return [];
-    return parseAuditorLlmFindings(text2, transcript.slice(-MAX_TRANSCRIPT_CHARS));
+    if (!text2) {
+      llmStats.errors += 1;
+      llmStats.lastError = "respuesta vac\xEDa";
+      return [];
+    }
+    let detailed;
+    try {
+      detailed = parseAuditorLlmDetailed(text2, transcript.slice(-MAX_TRANSCRIPT_CHARS));
+    } catch {
+      llmStats.errors += 1;
+      llmStats.lastError = `JSON inv\xE1lido o cortado (${text2.length} caracteres)`;
+      return [];
+    }
+    llmStats.proposed += detailed.proposed;
+    llmStats.droppedNoQuote += detailed.droppedNoQuote;
+    llmStats.kept += detailed.findings.length;
+    return detailed.findings;
   } catch (err2) {
+    llmStats.calls += 1;
+    llmStats.errors += 1;
+    llmStats.lastError = (err2 instanceof Error ? err2.message : String(err2)).slice(0, 200);
     logger.warn({ err: err2, model }, "runAuditorLlm fall\xF3");
     return [];
   }
 }
-var DEFAULT_AUDITOR_MODEL, BLOCKED_AUDITOR, dayKey, callsToday, AUDITOR_LLM_CATEGORIES, AUDITOR_NEW_MARKER, MAX_TRANSCRIPT_CHARS;
+var DEFAULT_AUDITOR_MODEL, BLOCKED_AUDITOR, dayKey, callsToday, llmStats, AUDITOR_LLM_CATEGORIES, AUDITOR_NEW_MARKER, MAX_TRANSCRIPT_CHARS;
 var init_lucyAuditorLlm = __esm({
   "src/services/lucyAuditorLlm.ts"() {
     "use strict";
@@ -204958,10 +203789,12 @@ var init_lucyAuditorLlm = __esm({
     init_llmEnv();
     init_lucyGeminiSpend();
     init_logger2();
+    init_lucyAuditorLog();
     DEFAULT_AUDITOR_MODEL = "gemini-2.5-flash";
     BLOCKED_AUDITOR = /(?:^|\/)(imagen|nano[-\s]?banana|gemini-[\w.-]*-image|gemini-.*-pro|gemini-ultra|gemini-3\.6)(?:$|\/|-)/i;
     dayKey = "";
     callsToday = 0;
+    llmStats = { calls: 0, errors: 0, proposed: 0, droppedNoQuote: 0, kept: 0 };
     AUDITOR_LLM_CATEGORIES = [
       "loop_links",
       "repeat_reply",
@@ -205287,8 +204120,8 @@ __export(cursorRepairAgent_exports, {
   tickRepairJobs: () => tickRepairJobs,
   trackedRepairIds: () => trackedRepairIds
 });
-import { existsSync as existsSync8, mkdirSync as mkdirSync4, readFileSync as readFileSync9, writeFileSync as writeFileSync2 } from "node:fs";
-import { dirname as dirname6 } from "node:path";
+import { existsSync as existsSync9, mkdirSync as mkdirSync5, readFileSync as readFileSync10, writeFileSync as writeFileSync3 } from "node:fs";
+import { dirname as dirname7 } from "node:path";
 import { randomUUID } from "node:crypto";
 function apiKey() {
   return process.env["CURSOR_API_KEY"]?.trim() ?? "";
@@ -205316,8 +204149,8 @@ function loadJobs() {
   if (jobs) return jobs;
   const path7 = getLucyRepairRunsPath();
   try {
-    if (existsSync8(path7)) {
-      const parsed = JSON.parse(readFileSync9(path7, "utf8"));
+    if (existsSync9(path7)) {
+      const parsed = JSON.parse(readFileSync10(path7, "utf8"));
       jobs = Array.isArray(parsed.jobs) ? parsed.jobs : [];
     } else {
       jobs = [];
@@ -205333,8 +204166,8 @@ function saveJobs() {
   if (list.length > MAX_JOBS_KEPT) list.splice(0, list.length - MAX_JOBS_KEPT);
   const path7 = getLucyRepairRunsPath();
   try {
-    mkdirSync4(dirname6(path7), { recursive: true });
-    writeFileSync2(path7, JSON.stringify({ savedAt: (/* @__PURE__ */ new Date()).toISOString(), jobs: list }, null, 2), "utf8");
+    mkdirSync5(dirname7(path7), { recursive: true });
+    writeFileSync3(path7, JSON.stringify({ savedAt: (/* @__PURE__ */ new Date()).toISOString(), jobs: list }, null, 2), "utf8");
   } catch (err2) {
     logger.warn({ err: err2 }, "cursorRepairAgent: no se pudo guardar repair-runs.json");
   }
@@ -206210,8 +205043,8 @@ __export(chat_history_exports, {
   getHistory: () => getHistory,
   listHistoryKeys: () => listHistoryKeys
 });
-import { readFileSync as readFileSync10, writeFileSync as writeFileSync3, existsSync as existsSync9, mkdirSync as mkdirSync5 } from "fs";
-import { join as join8, dirname as dirname7 } from "path";
+import { readFileSync as readFileSync11, writeFileSync as writeFileSync4, existsSync as existsSync10, mkdirSync as mkdirSync6 } from "fs";
+import { join as join8, dirname as dirname8 } from "path";
 import { fileURLToPath as fileURLToPath4 } from "url";
 function resolveHistoryFile() {
   const fromEnv = process.env["LUCY_CHAT_HISTORY_PATH"]?.trim();
@@ -206224,15 +205057,15 @@ function load() {
   try {
     const file = resolveHistoryFile();
     const legacy = join8(__dirname2, "../../data/chat-history.json");
-    if (!existsSync9(file) && existsSync9(legacy) && file !== legacy) {
+    if (!existsSync10(file) && existsSync10(legacy) && file !== legacy) {
       try {
-        mkdirSync5(dirname7(file), { recursive: true });
-        writeFileSync3(file, readFileSync10(legacy, "utf-8"));
+        mkdirSync6(dirname8(file), { recursive: true });
+        writeFileSync4(file, readFileSync11(legacy, "utf-8"));
       } catch {
       }
     }
-    if (existsSync9(file)) {
-      return JSON.parse(readFileSync10(file, "utf-8"));
+    if (existsSync10(file)) {
+      return JSON.parse(readFileSync11(file, "utf-8"));
     }
   } catch {
   }
@@ -206241,8 +205074,8 @@ function load() {
 function save(store2) {
   try {
     const file = resolveHistoryFile();
-    mkdirSync5(dirname7(file), { recursive: true });
-    writeFileSync3(file, JSON.stringify(store2), "utf-8");
+    mkdirSync6(dirname8(file), { recursive: true });
+    writeFileSync4(file, JSON.stringify(store2), "utf-8");
   } catch {
   }
 }
@@ -206270,7 +205103,7 @@ var __dirname2, MAX_MESSAGES, store;
 var init_chat_history = __esm({
   "src/chat-history.ts"() {
     "use strict";
-    __dirname2 = dirname7(fileURLToPath4(import.meta.url));
+    __dirname2 = dirname8(fileURLToPath4(import.meta.url));
     MAX_MESSAGES = 40;
     store = load();
   }
@@ -215349,8 +214182,8 @@ var init_kommoWebhookParse = __esm({
 });
 
 // src/lib/trainingPaths.ts
-import { existsSync as existsSync10 } from "fs";
-import { join as join9, dirname as dirname8 } from "path";
+import { existsSync as existsSync11 } from "fs";
+import { join as join9, dirname as dirname9 } from "path";
 import { fileURLToPath as fileURLToPath5 } from "url";
 function resolveTrainingJsonFile() {
   const candidates = [
@@ -215360,7 +214193,7 @@ function resolveTrainingJsonFile() {
     join9(moduleDir, "../data/training-examples.json")
   ];
   for (const path7 of candidates) {
-    if (existsSync10(path7)) return path7;
+    if (existsSync11(path7)) return path7;
   }
   return candidates[1];
 }
@@ -215368,12 +214201,12 @@ var moduleDir;
 var init_trainingPaths = __esm({
   "src/lib/trainingPaths.ts"() {
     "use strict";
-    moduleDir = dirname8(fileURLToPath5(import.meta.url));
+    moduleDir = dirname9(fileURLToPath5(import.meta.url));
   }
 });
 
 // src/services/trainingStore.ts
-import { readFileSync as readFileSync11 } from "fs";
+import { readFileSync as readFileSync12 } from "fs";
 import { randomUUID as randomUUID2 } from "crypto";
 function rowToExample(row) {
   return {
@@ -215386,7 +214219,7 @@ function rowToExample(row) {
 }
 function loadExamplesFromJsonFile() {
   try {
-    const raw = readFileSync11(resolveTrainingJsonFile(), "utf-8");
+    const raw = readFileSync12(resolveTrainingJsonFile(), "utf-8");
     const parsed = JSON.parse(raw);
     return parsed.examples ?? [];
   } catch {
@@ -229434,12 +228267,6 @@ var require_follow_redirects = __commonJS({
     RedirectableRequest.prototype._sanitizeOptions = function(options) {
       if (!options.headers) {
         options.headers = {};
-      } else if (Array.isArray(options.headers)) {
-        var headerList = options.headers;
-        options.headers = {};
-        for (var i6 = 0; i6 < headerList.length; i6 += 2) {
-          options.headers[headerList[i6]] = headerList[i6 + 1];
-        }
       }
       if (!isArray3(options.sensitiveHeaders)) {
         options.sensitiveHeaders = [];
@@ -229714,7 +228541,7 @@ var require_follow_redirects = __commonJS({
       return URL2 && value instanceof URL2;
     }
     function escapeRegex3(regex) {
-      return regex.replace(/[[\]\\/()*+?.^$|]/g, "\\$&");
+      return regex.replace(/[\]\\/()*+?.$]/g, "\\$&");
     }
     module2.exports = wrap({ http: http4, https: https3 });
     module2.exports.wrap = wrap;
@@ -234813,76 +233640,6 @@ var init_lucyAuditorHeuristics = __esm({
   }
 });
 
-// src/services/lucyAuditorLog.ts
-import { existsSync as existsSync11, mkdirSync as mkdirSync6, readFileSync as readFileSync13, writeFileSync as writeFileSync4 } from "node:fs";
-import { dirname as dirname9 } from "node:path";
-function logPath() {
-  ensureLucyDataRoot();
-  return getLucyAuditorLogPath();
-}
-function readAuditorLog() {
-  const path7 = logPath();
-  if (!existsSync11(path7)) return { flashSeen: {}, runs: [] };
-  try {
-    const parsed = JSON.parse(readFileSync13(path7, "utf8"));
-    return {
-      lastDailyAt: typeof parsed.lastDailyAt === "string" ? parsed.lastDailyAt : void 0,
-      flashSeen: parsed.flashSeen && typeof parsed.flashSeen === "object" ? parsed.flashSeen : {},
-      runs: Array.isArray(parsed.runs) ? parsed.runs : []
-    };
-  } catch (err2) {
-    logger.warn({ err: err2, path: path7 }, "lucyAuditorLog: no se pudo leer");
-    return { flashSeen: {}, runs: [] };
-  }
-}
-function writeAuditorLog(log) {
-  const path7 = logPath();
-  try {
-    const seen = Object.entries(log.flashSeen);
-    if (seen.length > MAX_SEEN) {
-      seen.sort((a4, b5) => b5[1].at.localeCompare(a4[1].at));
-      log.flashSeen = Object.fromEntries(seen.slice(0, MAX_SEEN));
-    }
-    log.runs = log.runs.slice(-MAX_RUNS);
-    mkdirSync6(dirname9(path7), { recursive: true });
-    writeFileSync4(path7, JSON.stringify(log, null, 2), "utf8");
-  } catch (err2) {
-    logger.warn({ err: err2, path: path7 }, "lucyAuditorLog: no se pudo guardar");
-  }
-}
-function getFlashSeen(leadId) {
-  return readAuditorLog().flashSeen[leadId]?.fp;
-}
-function markFlashSeen(leadId, fp) {
-  const log = readAuditorLog();
-  log.flashSeen[leadId] = { fp, at: (/* @__PURE__ */ new Date()).toISOString() };
-  writeAuditorLog(log);
-}
-function getLastDailyAuditAt() {
-  const at3 = readAuditorLog().lastDailyAt;
-  const d3 = at3 ? new Date(at3) : null;
-  return d3 && Number.isFinite(d3.getTime()) ? d3 : null;
-}
-function recordAuditorRun(run2, opts) {
-  const log = readAuditorLog();
-  log.runs.push(run2);
-  if (opts?.daily) log.lastDailyAt = run2.at;
-  writeAuditorLog(log);
-}
-function listAuditorRuns() {
-  return readAuditorLog().runs;
-}
-var MAX_RUNS, MAX_SEEN;
-var init_lucyAuditorLog = __esm({
-  "src/services/lucyAuditorLog.ts"() {
-    "use strict";
-    init_lucyDataPaths();
-    init_logger2();
-    MAX_RUNS = 90;
-    MAX_SEEN = 3e3;
-  }
-});
-
 // src/services/lucyAuditor.ts
 var lucyAuditor_exports = {};
 __export(lucyAuditor_exports, {
@@ -234902,6 +233659,14 @@ __export(lucyAuditor_exports, {
   startOfMexicoCityDay: () => startOfMexicoCityDay,
   turnFingerprint: () => turnFingerprint
 });
+function geminiRunFields(g7) {
+  return {
+    geminiProposed: g7.proposed,
+    geminiDroppedNoQuote: g7.droppedNoQuote,
+    geminiErrors: g7.errors,
+    geminiLastError: g7.lastError
+  };
+}
 function getLastDailyAuditDay() {
   return lastDailyRunDay;
 }
@@ -235064,6 +233829,8 @@ async function runLucyAuditorBatch(opts) {
   const listKommo = opts?.syncFromKommo !== false && onlyToday;
   const flashReserve = Math.max(0, opts?.flashReserve ?? 0);
   const since = onlyToday ? opts?.since ?? startOfMexicoCityDay() : null;
+  const isDaily = (opts?.kind ?? "manual") === "daily";
+  if (!isDaily) takeAuditorLlmStats();
   report({
     type: "phase",
     phase: "sync",
@@ -235234,7 +234001,9 @@ async function runLucyAuditorBatch(opts) {
     since: since?.toISOString(),
     quota: getAuditorQuotaSnapshot()
   };
-  if ((opts?.kind ?? "manual") !== "daily") {
+  if (!isDaily) {
+    const gemini = takeAuditorLlmStats();
+    result.gemini = gemini;
     recordAuditorRun({
       at: (/* @__PURE__ */ new Date()).toISOString(),
       kind: "manual",
@@ -235244,7 +234013,8 @@ async function runLucyAuditorBatch(opts) {
       withLucy,
       flashCalls,
       findings,
-      recorded
+      recorded,
+      ...geminiRunFields(gemini)
     });
   }
   report({ type: "phase", phase: "done", message: summary });
@@ -235333,6 +234103,7 @@ async function runLucyAuditorDaily(opts) {
   }
   const controlMax = getControlMaxPerDay();
   const since = dailyAuditSince(now, lastDailyAt);
+  takeAuditorLlmStats();
   const result = await runLucyAuditorBatch({
     since,
     syncFromKommo: true,
@@ -235349,6 +234120,7 @@ async function runLucyAuditorDaily(opts) {
     logger.warn({ err: err2 }, "lucyAuditor: revisi\xF3n de puntos ciegos fall\xF3");
   }
   lastDailyRunDay = mexicoCityDayKey(now);
+  const gemini = takeAuditorLlmStats();
   const merged = {
     ...result,
     findings: result.findings + silent.findings,
@@ -235356,7 +234128,8 @@ async function runLucyAuditorDaily(opts) {
     flashCalls: result.flashCalls + silent.reviewed,
     silentReviewed: silent.reviewed,
     silentFindings: silent.findings,
-    summary: `${result.summary ?? ""} Puntos ciegos: ${silent.reviewed} chat(s) donde el cliente dej\xF3 de contestar` + (silent.findings ? `, ${silent.findings} hallazgo(s).` : ", sin hallazgos."),
+    gemini,
+    summary: `${result.summary ?? ""} Puntos ciegos: ${silent.reviewed} chat(s) donde el cliente dej\xF3 de contestar` + (silent.findings ? `, ${silent.findings} hallazgo(s).` : ", sin hallazgos.") + ` Gemini propuso ${gemini.proposed}, se quedaron ${gemini.kept}` + (gemini.droppedNoQuote ? ` (${gemini.droppedNoQuote} sin cita real)` : "") + (gemini.errors ? `; ${gemini.errors} llamada(s) fallaron: ${gemini.lastError ?? "?"}` : "") + ".",
     quota: getAuditorQuotaSnapshot()
   };
   recordAuditorRun(
@@ -235371,7 +234144,8 @@ async function runLucyAuditorDaily(opts) {
       findings: merged.findings,
       recorded: merged.recorded,
       silentReviewed: silent.reviewed,
-      silentFindings: silent.findings
+      silentFindings: silent.findings,
+      ...geminiRunFields(gemini)
     },
     { daily: true }
   );
@@ -241762,7 +240536,7 @@ await init_kommoMirror();
 // src/services/stageActivation.ts
 init_lucyDataPaths();
 await init_embudo();
-import { readdirSync, readFileSync as readFileSync12 } from "node:fs";
+import { readdirSync, readFileSync as readFileSync13 } from "node:fs";
 import { join as join10 } from "node:path";
 var WHATSAPP_WINDOW_MS = 23.5 * 60 * 60 * 1e3;
 var CLIENT_JUST_WROTE_MS = 2 * 60 * 1e3;
@@ -241846,7 +240620,7 @@ function readRelayMessages(leadId, sinceMs, dir = getKommoRelayDir()) {
     if (f7.slice(0, 10) < sinceDay) continue;
     let raw;
     try {
-      raw = readFileSync12(join10(dir, f7), "utf8");
+      raw = readFileSync13(join10(dir, f7), "utf8");
     } catch {
       continue;
     }

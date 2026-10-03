@@ -7,6 +7,7 @@ import { GoogleGenAI } from "@google/genai";
 import { getGeminiApiKey, isLlmConfigured } from "../lib/llmEnv.js";
 import { recordGeminiSpend } from "../lib/lucyGeminiSpend.js";
 import { logger } from "../lib/logger.js";
+import { readAuditorQuota, writeAuditorQuota } from "./lucyAuditorLog.js";
 
 export const DEFAULT_AUDITOR_MODEL = "gemini-2.5-flash";
 
@@ -33,17 +34,21 @@ function todayKey(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** El cupo se guarda en disco: cada publicación reinicia el servidor y no debe regalar 40 llamadas más. */
+function syncQuotaDay(): void {
+  const key = todayKey();
+  if (key === dayKey) return;
+  dayKey = key;
+  callsToday = readAuditorQuota(key);
+}
+
 export function getAuditorQuotaSnapshot(): {
   callsToday: number;
   maxPerDay: number;
   model: string;
   remaining: number;
 } {
-  const key = todayKey();
-  if (key !== dayKey) {
-    dayKey = key;
-    callsToday = 0;
-  }
+  syncQuotaDay();
   const maxPerDay = getAuditorMaxCallsPerDay();
   return {
     callsToday,
@@ -58,12 +63,27 @@ export function canSpendAuditorCall(): boolean {
 }
 
 function noteAuditorCall(): void {
-  const key = todayKey();
-  if (key !== dayKey) {
-    dayKey = key;
-    callsToday = 0;
-  }
+  syncQuotaDay();
   callsToday += 1;
+  writeAuditorQuota(dayKey, callsToday);
+}
+
+/** Qué pasó con las respuestas de Gemini (para saber si encuentra poco o si se tiran sus hallazgos). */
+export interface AuditorLlmStats {
+  calls: number;
+  errors: number;
+  proposed: number;
+  droppedNoQuote: number;
+  kept: number;
+  lastError?: string;
+}
+
+let llmStats: AuditorLlmStats = { calls: 0, errors: 0, proposed: 0, droppedNoQuote: 0, kept: 0 };
+
+export function takeAuditorLlmStats(): AuditorLlmStats {
+  const out = llmStats;
+  llmStats = { calls: 0, errors: 0, proposed: 0, droppedNoQuote: 0, kept: 0 };
+  return out;
 }
 
 export interface AuditorLlmFinding {
@@ -149,30 +169,58 @@ function normQuote(s: string): string {
     .trim();
 }
 
-/** La cita de Lucy tiene que existir de verdad en algún mensaje de LUCY (filtra hallazgos inventados). */
+/**
+ * La cita de Lucy tiene que existir de verdad en algún mensaje de LUCY (filtra hallazgos inventados).
+ * Tolera «…» entre fragmentos y diferencias mínimas (≥85 % de las palabras, en un mismo mensaje).
+ */
 export function lucyQuoteIsReal(transcript: string, quote: string): boolean {
-  const q = normQuote(quote);
-  if (q.length < 8) return false;
+  const cleaned = quote.replace(/^\s*lucy\s*:\s*/i, "");
+  const fragments = cleaned
+    .split(/\.{3}|…/)
+    .map(normQuote)
+    .filter((f) => f.length >= 8);
+  if (!fragments.length) return false;
   const lines = transcript.split("\n");
   const marker = lines.lastIndexOf(AUDITOR_NEW_MARKER);
-  return lines
+  const lucyLines = lines
     .slice(marker + 1)
     .filter((line) => line.startsWith("LUCY:"))
-    .some((line) => normQuote(line).includes(q));
+    .map(normQuote);
+  if (lucyLines.some((line) => fragments.every((f) => line.includes(f)))) return true;
+  const words = normQuote(cleaned).split(" ").filter((w) => w.length >= 3);
+  if (words.length < 4) return false;
+  return lucyLines.some((line) => {
+    const have = new Set(line.split(" "));
+    return words.filter((w) => have.has(w)).length / words.length >= 0.85;
+  });
 }
 
 export function parseAuditorLlmFindings(text: string, transcript: string): AuditorLlmFinding[] {
+  return parseAuditorLlmDetailed(text, transcript).findings;
+}
+
+function parseAuditorLlmDetailed(
+  text: string,
+  transcript: string
+): { findings: AuditorLlmFinding[]; proposed: number; droppedNoQuote: number } {
   const parsed = JSON.parse(text) as unknown;
-  if (!Array.isArray(parsed)) return [];
+  const list = Array.isArray(parsed) ? parsed.slice(0, 8) : [];
   const allowed = new Set<string>(AUDITOR_LLM_CATEGORIES);
   const out: AuditorLlmFinding[] = [];
-  for (const x of parsed.slice(0, 8)) {
+  let droppedNoQuote = 0;
+  for (const x of list) {
     if (out.length >= 3) break;
     if (!x || typeof x !== "object") continue;
     const o = x as Record<string, unknown>;
     const lucyQuote = String(o.lucy_quote ?? "").trim().slice(0, 160);
-    if (!lucyQuoteIsReal(transcript, lucyQuote)) continue;
-    const problem = String(o.problem ?? o.evidence ?? "").trim().slice(0, 140);
+    if (!lucyQuoteIsReal(transcript, lucyQuote)) {
+      droppedNoQuote += 1;
+      continue;
+    }
+    const problem = String(o.problem ?? o.evidence ?? "")
+      .trim()
+      .replace(/[.\s]+$/, "")
+      .slice(0, 140);
     const proposedRepair = String(o.proposedRepair ?? "").trim().slice(0, 800);
     if (!problem || !proposedRepair) continue;
     const clientQuote = String(o.client_quote ?? "").trim().slice(0, 200);
@@ -188,7 +236,7 @@ export function parseAuditorLlmFindings(text: string, transcript: string): Audit
       proposedRepair,
     });
   }
-  return out;
+  return { findings: out, proposed: list.length, droppedNoQuote };
 }
 
 /**
@@ -240,10 +288,29 @@ export async function runAuditorLlm(
     } catch {
       /* métricas no deben tumbar el auditor */
     }
+    llmStats.calls += 1;
     const text = (result.text ?? "").trim();
-    if (!text) return [];
-    return parseAuditorLlmFindings(text, transcript.slice(-MAX_TRANSCRIPT_CHARS));
+    if (!text) {
+      llmStats.errors += 1;
+      llmStats.lastError = "respuesta vacía";
+      return [];
+    }
+    let detailed: ReturnType<typeof parseAuditorLlmDetailed>;
+    try {
+      detailed = parseAuditorLlmDetailed(text, transcript.slice(-MAX_TRANSCRIPT_CHARS));
+    } catch {
+      llmStats.errors += 1;
+      llmStats.lastError = `JSON inválido o cortado (${text.length} caracteres)`;
+      return [];
+    }
+    llmStats.proposed += detailed.proposed;
+    llmStats.droppedNoQuote += detailed.droppedNoQuote;
+    llmStats.kept += detailed.findings.length;
+    return detailed.findings;
   } catch (err) {
+    llmStats.calls += 1;
+    llmStats.errors += 1;
+    llmStats.lastError = (err instanceof Error ? err.message : String(err)).slice(0, 200);
     logger.warn({ err, model }, "runAuditorLlm falló");
     return [];
   }

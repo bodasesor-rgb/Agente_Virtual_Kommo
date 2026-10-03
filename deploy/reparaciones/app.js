@@ -446,6 +446,13 @@ async function loadQuality() {
         <td>${r.kind === "daily" ? "automática" : "manual"}</td>
         <td>${r.scannedChats}</td><td>${r.flashCalls}</td>
         <td>${r.silentReviewed ?? "—"}</td><td>${r.recorded}</td>
+        <td>${
+          r.geminiProposed == null
+            ? "—"
+            : `${r.geminiProposed} propuestos${r.geminiDroppedNoQuote ? ` · ${r.geminiDroppedNoQuote} sin cita real` : ""}${
+                r.geminiErrors ? ` · <span class="noisy">${r.geminiErrors} fallaron</span>` : ""
+              }`
+        }</td>
       </tr>`
     )
     .join("");
@@ -463,7 +470,7 @@ async function loadQuality() {
     <h3>Cobertura de las auditorías</h3>
     ${
       runs
-        ? `<table><thead><tr><th>Cuándo</th><th>Tipo</th><th>Chats revisados</th><th>Leídos por Gemini</th><th>Clientes que dejaron de contestar</th><th>Hallazgos</th></tr></thead><tbody>${runs}</tbody></table>`
+        ? `<table><thead><tr><th>Cuándo</th><th>Tipo</th><th>Chats revisados</th><th>Leídos por Gemini</th><th>Clientes que dejaron de contestar</th><th>Hallazgos</th><th>Respuestas de Gemini</th></tr></thead><tbody>${runs}</tbody></table>`
         : `<p class="muted">Aún no hay auditorías registradas con el nuevo reporte.</p>`
     }
     <h3>Cursor (últimos 30 días)</h3>

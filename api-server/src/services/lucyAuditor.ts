@@ -23,7 +23,8 @@ import {
   getAuditorModel,
   getAuditorQuotaSnapshot,
   runAuditorLlm,
-  type AuditorLlmMode,
+  takeAuditorLlmStats,
+  type AuditorLlmStats,
 } from "./lucyAuditorLlm.js";
 import {
   getFlashSeen,
@@ -66,8 +67,18 @@ export type AuditorRunResult = {
   /** Revisión de puntos ciegos: chats donde el cliente dejó de contestar tras Lucy. */
   silentReviewed?: number;
   silentFindings?: number;
+  gemini?: AuditorLlmStats;
   quota: ReturnType<typeof getAuditorQuotaSnapshot>;
 };
+
+function geminiRunFields(g: AuditorLlmStats) {
+  return {
+    geminiProposed: g.proposed,
+    geminiDroppedNoQuote: g.droppedNoQuote,
+    geminiErrors: g.errors,
+    geminiLastError: g.lastError,
+  };
+}
 
 export type AuditorProgressEvent =
   | { type: "phase"; phase: "sync" | "scan" | "done"; message: string }
@@ -393,6 +404,8 @@ export async function runLucyAuditorBatch(opts?: {
   const listKommo = opts?.syncFromKommo !== false && onlyToday;
   const flashReserve = Math.max(0, opts?.flashReserve ?? 0);
   const since = onlyToday ? (opts?.since ?? startOfMexicoCityDay()) : null;
+  const isDaily = (opts?.kind ?? "manual") === "daily";
+  if (!isDaily) takeAuditorLlmStats();
 
   report({
     type: "phase",
@@ -612,7 +625,9 @@ export async function runLucyAuditorBatch(opts?: {
     since: since?.toISOString(),
     quota: getAuditorQuotaSnapshot(),
   };
-  if ((opts?.kind ?? "manual") !== "daily") {
+  if (!isDaily) {
+    const gemini = takeAuditorLlmStats();
+    result.gemini = gemini;
     recordAuditorRun({
       at: new Date().toISOString(),
       kind: "manual",
@@ -623,6 +638,7 @@ export async function runLucyAuditorBatch(opts?: {
       flashCalls,
       findings,
       recorded,
+      ...geminiRunFields(gemini),
     });
   }
   report({ type: "phase", phase: "done", message: summary });
@@ -742,6 +758,7 @@ export async function runLucyAuditorDaily(opts?: { now?: Date }): Promise<Audito
 
   const controlMax = getControlMaxPerDay();
   const since = dailyAuditSince(now, lastDailyAt);
+  takeAuditorLlmStats();
   const result = await runLucyAuditorBatch({
     since,
     syncFromKommo: true,
@@ -759,6 +776,7 @@ export async function runLucyAuditorDaily(opts?: { now?: Date }): Promise<Audito
     logger.warn({ err }, "lucyAuditor: revisión de puntos ciegos falló");
   }
   lastDailyRunDay = mexicoCityDayKey(now);
+  const gemini = takeAuditorLlmStats();
 
   const merged: AuditorRunResult = {
     ...result,
@@ -767,9 +785,14 @@ export async function runLucyAuditorDaily(opts?: { now?: Date }): Promise<Audito
     flashCalls: result.flashCalls + silent.reviewed,
     silentReviewed: silent.reviewed,
     silentFindings: silent.findings,
+    gemini,
     summary:
       `${result.summary ?? ""} Puntos ciegos: ${silent.reviewed} chat(s) donde el cliente dejó de contestar` +
-      (silent.findings ? `, ${silent.findings} hallazgo(s).` : ", sin hallazgos."),
+      (silent.findings ? `, ${silent.findings} hallazgo(s).` : ", sin hallazgos.") +
+      ` Gemini propuso ${gemini.proposed}, se quedaron ${gemini.kept}` +
+      (gemini.droppedNoQuote ? ` (${gemini.droppedNoQuote} sin cita real)` : "") +
+      (gemini.errors ? `; ${gemini.errors} llamada(s) fallaron: ${gemini.lastError ?? "?"}` : "") +
+      ".",
     quota: getAuditorQuotaSnapshot(),
   };
   recordAuditorRun(
@@ -785,6 +808,7 @@ export async function runLucyAuditorDaily(opts?: { now?: Date }): Promise<Audito
       recorded: merged.recorded,
       silentReviewed: silent.reviewed,
       silentFindings: silent.findings,
+      ...geminiRunFields(gemini),
     },
     { daily: true }
   );
