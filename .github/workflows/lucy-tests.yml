@@ -1,0 +1,40 @@
+name: Pruebas Lucy
+
+# Corre en ramas (arreglos de Cursor antes de llegar a main) y como candado del deploy.
+on:
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      base_ref:
+        description: "Commit anterior: falla si se borró alguna prueba desde ahí"
+        type: string
+        required: false
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Dependencias
+        run: |
+          cp package.json /tmp/package.production.json
+          cp package.development.json package.json
+          npm install
+          cp /tmp/package.production.json package.json
+          npm i -g tsx
+
+      - name: Todas las pruebas (selftest + smokes)
+        working-directory: api-server
+        env:
+          TESTS_BASE_REF: ${{ inputs.base_ref || github.event.before }}
+        run: node scripts/run-all-tests.mjs

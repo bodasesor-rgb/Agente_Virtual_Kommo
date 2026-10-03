@@ -204050,9 +204050,10 @@ REGLAS
 2. Si un hallazgo es un falso positivo del supervisor, corrige la regla en lucyAuditorHeuristics.ts o rep\xF3rtalo como falso positivo.
 3. Agrega o ampl\xEDa un smoke en api-server/src/selftest/ que reproduzca cada problema arreglado.
 4. Dependencias (como .github/workflows/deploy-hostinger.yml): cp package.json /tmp/pkg.json && cp package.development.json package.json && npm install && cp /tmp/pkg.json package.json. No commitees package.json modificado.
-5. Pruebas obligatorias, todas deben pasar (no solo las que tocaste; un cambio puede romper otro caso):
-   cd api-server && npx --yes tsx ./src/selftest/lucy-flow-selftest.ts
-   cd api-server && ${ALL_SMOKES_CMD}
+5. Pruebas obligatorias, TODAS deben pasar (no solo las que tocaste; un cambio puede romper otro caso):
+   ${ALL_TESTS_CMD}
+   Debe terminar en \xABTODOS OK\xBB. El deploy corre lo mismo y no instala nada si algo falla.
+   ${KEEP_OLD_FIXES_RULE}
 6. Compila: cd api-server && npm run build. Esto actualiza api-server/dist/ y deploy/ \u2014 commitea ambos, sin eso el servidor no cambia.
 7. No toques lucy-data/, hostinger-relay/ ni archivos .env. No hagas push a main en este paso: deja tu rama y el PR.
 
@@ -204582,7 +204583,7 @@ function __resetRepairJobsForTest() {
   for (const c5 of streams.values()) c5.abort();
   streams.clear();
 }
-var ACTIVE, MAX_STEPS, MAX_JOBS_KEPT, BOOTED_AT, DEFAULT_REPO, DEFAULT_MAX_JOBS_PER_DAY, DEFAULT_MAX_PROBLEMS, DEFAULT_MODEL, jobs, CursorApiError, modelCache, ALL_SMOKES_CMD, PUBLISH_PROMPT, streams, applying, RepairJobError, timer, NOT_FIXED_COOLDOWN_MS, COVERAGE_WINDOW_MS;
+var ACTIVE, MAX_STEPS, MAX_JOBS_KEPT, BOOTED_AT, DEFAULT_REPO, DEFAULT_MAX_JOBS_PER_DAY, DEFAULT_MAX_PROBLEMS, DEFAULT_MODEL, jobs, CursorApiError, modelCache, ALL_TESTS_CMD, KEEP_OLD_FIXES_RULE, PUBLISH_PROMPT, streams, applying, RepairJobError, timer, NOT_FIXED_COOLDOWN_MS, COVERAGE_WINDOW_MS;
 var init_cursorRepairAgent = __esm({
   async "src/services/cursorRepairAgent.ts"() {
     "use strict";
@@ -204608,13 +204609,18 @@ var init_cursorRepairAgent = __esm({
       code;
     };
     modelCache = null;
-    ALL_SMOKES_CMD = 'fails=0; for f in src/selftest/*-smoke.ts scripts/_smoke-*.mjs; do [ -e "$f" ] || continue; npx --yes tsx "$f" >/tmp/smoke.log 2>&1 || { echo "FAIL $f"; tail -20 /tmp/smoke.log; fails=1; }; done; [ $fails = 0 ] && echo "TODOS OK"';
+    ALL_TESTS_CMD = "cd api-server && node scripts/run-all-tests.mjs";
+    KEEP_OLD_FIXES_RULE = `Cada prueba existente en api-server/src/selftest/ es un arreglo anterior que ya funcionaba.
+   No borres, saltes ni aflojes ninguna (no cambies lo que espera un assert para que pase).
+   Si una prueba vieja falla con tu cambio, tu cambio est\xE1 mal: aj\xFAstalo hasta que pasen las viejas y la nueva.
+   Si de plano no se puede sin romper una vieja, no publiques y rep\xF3rtalo en notFixed.`;
     PUBLISH_PROMPT = `El due\xF1o aprob\xF3 publicar este arreglo. P\xE1salo a main:
 1. git fetch origin main && git rebase origin/main (o merge si el rebase se complica).
 2. Si hay conflictos en api-server/dist/ o deploy/, toma la versi\xF3n de main para esos archivos y vuelve a compilar: cd api-server && npm run build.
-3. Vuelve a correr cd api-server && npx --yes tsx ./src/selftest/lucy-flow-selftest.ts y TODOS los smokes: cd api-server && ${ALL_SMOKES_CMD}
-   Si algo falla, arr\xE9glalo sin romper los dem\xE1s casos; si no puedes, NO publiques.
-4. Commitea dist/ y deploy/ actualizados y haz git push origin HEAD:main (sin force-push).
+3. main pudo cambiar mientras trabajabas (otros arreglos). Con tu cambio ya encima de main corre: ${ALL_TESTS_CMD}
+   Debe terminar en \xABTODOS OK\xBB. ${KEEP_OLD_FIXES_RULE}
+4. Commitea dist/ y deploy/ actualizados y haz git push origin HEAD:main. Nunca force-push.
+   Si el push es rechazado porque main avanz\xF3, repite desde el paso 1 (as\xED no pisas el arreglo de otro).
 Tu \xFAltimo mensaje debe terminar con:
 \`\`\`json
 {"published":true,"commit":"<sha corto>","text":"resumen corto"}

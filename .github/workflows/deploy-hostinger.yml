@@ -11,7 +11,14 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Candado: si una prueba falla (o se borró una), Hostinger se queda con la versión anterior.
+  tests:
+    uses: ./.github/workflows/lucy-tests.yml
+    with:
+      base_ref: ${{ github.event.before }}
+
   redeploy:
+    needs: tests
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
