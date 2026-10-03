@@ -313,7 +313,7 @@ var init_values = __esm({
 var sleep;
 var init_sleep = __esm({
   "../node_modules/openai/internal/utils/sleep.mjs"() {
-    sleep = (ms) => new Promise((resolve2) => setTimeout(resolve2, ms));
+    sleep = (ms) => new Promise((resolve3) => setTimeout(resolve3, ms));
   }
 });
 
@@ -1506,8 +1506,8 @@ var init_api_promise = __esm({
     init_parse();
     APIPromise = class _APIPromise extends Promise {
       constructor(client2, responsePromise, parseResponse2 = defaultParseResponse) {
-        super((resolve2) => {
-          resolve2(null);
+        super((resolve3) => {
+          resolve3(null);
         });
         this.responsePromise = responsePromise;
         this.parseResponse = parseResponse2;
@@ -2477,12 +2477,12 @@ var init_EventStream = __esm({
         _EventStream_errored.set(this, false);
         _EventStream_aborted.set(this, false);
         _EventStream_catchingPromiseCreated.set(this, false);
-        __classPrivateFieldSet(this, _EventStream_connectedPromise, new Promise((resolve2, reject) => {
-          __classPrivateFieldSet(this, _EventStream_resolveConnectedPromise, resolve2, "f");
+        __classPrivateFieldSet(this, _EventStream_connectedPromise, new Promise((resolve3, reject) => {
+          __classPrivateFieldSet(this, _EventStream_resolveConnectedPromise, resolve3, "f");
           __classPrivateFieldSet(this, _EventStream_rejectConnectedPromise, reject, "f");
         }), "f");
-        __classPrivateFieldSet(this, _EventStream_endPromise, new Promise((resolve2, reject) => {
-          __classPrivateFieldSet(this, _EventStream_resolveEndPromise, resolve2, "f");
+        __classPrivateFieldSet(this, _EventStream_endPromise, new Promise((resolve3, reject) => {
+          __classPrivateFieldSet(this, _EventStream_resolveEndPromise, resolve3, "f");
           __classPrivateFieldSet(this, _EventStream_rejectEndPromise, reject, "f");
         }), "f");
         __classPrivateFieldGet(this, _EventStream_connectedPromise, "f").catch(() => {
@@ -2582,11 +2582,11 @@ var init_EventStream = __esm({
        *   const message = await stream.emitted('message') // rejects if the stream errors
        */
       emitted(event) {
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve3, reject) => {
           __classPrivateFieldSet(this, _EventStream_catchingPromiseCreated, true, "f");
           if (event !== "error")
             this.once("error", reject);
-          this.once(event, resolve2);
+          this.once(event, resolve3);
         });
       }
       /**
@@ -2669,8 +2669,8 @@ var init_EventStream = __esm({
             }
             if (ended)
               return Promise.resolve(doneResult());
-            return new Promise((resolve2, reject) => {
-              readQueue.push({ resolve: resolve2, reject });
+            return new Promise((resolve3, reject) => {
+              readQueue.push({ resolve: resolve3, reject });
             });
           },
           return: () => {
@@ -3888,7 +3888,7 @@ var init_ChatCompletionStream = __esm({
               if (done) {
                 return { value: void 0, done: true };
               }
-              return new Promise((resolve2, reject) => readQueue.push({ resolve: resolve2, reject })).then((chunk2) => chunk2 ? { value: chunk2, done: false } : { value: void 0, done: true });
+              return new Promise((resolve3, reject) => readQueue.push({ resolve: resolve3, reject })).then((chunk2) => chunk2 ? { value: chunk2, done: false } : { value: void 0, done: true });
             }
             const chunk = pushQueue.shift();
             return { value: chunk, done: false };
@@ -3978,7 +3978,7 @@ var init_ChatCompletionStreamingRunner = __esm({
               if (done) {
                 return { value: void 0, done: true };
               }
-              return new Promise((resolve2, reject) => readQueue.push({ resolve: resolve2, reject })).then((event2) => event2 ? { value: event2, done: false } : { value: void 0, done: true });
+              return new Promise((resolve3, reject) => readQueue.push({ resolve: resolve3, reject })).then((event2) => event2 ? { value: event2, done: false } : { value: void 0, done: true });
             }
             const event = pushQueue.shift();
             if (!event) {
@@ -7772,7 +7772,7 @@ var init_AssistantStream = __esm({
               if (done) {
                 return { value: void 0, done: true };
               }
-              return new Promise((resolve2, reject) => readQueue.push({ resolve: resolve2, reject })).then((chunk2) => chunk2 ? { value: chunk2, done: false } : { value: void 0, done: true });
+              return new Promise((resolve3, reject) => readQueue.push({ resolve: resolve3, reject })).then((chunk2) => chunk2 ? { value: chunk2, done: false } : { value: void 0, done: true });
             }
             const chunk = pushQueue.shift();
             return { value: chunk, done: false };
@@ -10436,7 +10436,7 @@ var init_ResponseStream = __esm({
               if (done) {
                 return { value: void 0, done: true };
               }
-              return new Promise((resolve2, reject) => readQueue.push({ resolve: resolve2, reject })).then((event2) => event2 ? { value: event2, done: false } : { value: void 0, done: true });
+              return new Promise((resolve3, reject) => readQueue.push({ resolve: resolve3, reject })).then((event2) => event2 ? { value: event2, done: false } : { value: void 0, done: true });
             }
             const event = pushQueue.shift();
             return { value: event, done: false };
@@ -12545,7 +12545,7 @@ var require_p_retry = __commonJS({
       return error;
     };
     var isNetworkError = (errorMessage) => networkErrorMsgs.includes(errorMessage);
-    var pRetry2 = (input, options) => new Promise((resolve2, reject) => {
+    var pRetry2 = (input, options) => new Promise((resolve3, reject) => {
       options = {
         onFailedAttempt: () => {
         },
@@ -12555,7 +12555,7 @@ var require_p_retry = __commonJS({
       const operation = retry2.operation(options);
       operation.attempt(async (attemptNumber) => {
         try {
-          resolve2(await input(attemptNumber));
+          resolve3(await input(attemptNumber));
         } catch (error) {
           if (!(error instanceof Error)) {
             reject(new TypeError(`Non-error was thrown: "${error}". You should only throw errors.`));
@@ -13089,8 +13089,8 @@ var require_retry3 = __commonJS({
       }
       const delay2 = getNextRetryDelay(config);
       err2.config.retryConfig.currentRetryAttempt += 1;
-      const backoff = config.retryBackoff ? config.retryBackoff(err2, delay2) : new Promise((resolve2) => {
-        setTimeout(resolve2, delay2);
+      const backoff = config.retryBackoff ? config.retryBackoff(err2, delay2) : new Promise((resolve3) => {
+        setTimeout(resolve3, delay2);
       });
       if (config.onRetryAttempt) {
         await config.onRetryAttempt(err2);
@@ -13866,8 +13866,8 @@ var require_helpers = __commonJS({
     function req(url, opts = {}) {
       const href = typeof url === "string" ? url : url.href;
       const req2 = (href.startsWith("https:") ? https2 : http3).request(url, opts);
-      const promise = new Promise((resolve2, reject) => {
-        req2.once("response", resolve2).once("error", reject).end();
+      const promise = new Promise((resolve3, reject) => {
+        req2.once("response", resolve3).once("error", reject).end();
       });
       req2.then = promise.then.bind(promise);
       return req2;
@@ -14044,7 +14044,7 @@ var require_parse_proxy_response = __commonJS({
     var debug_1 = __importDefault(require_src());
     var debug2 = (0, debug_1.default)("https-proxy-agent:parse-proxy-response");
     function parseProxyResponse(socket) {
-      return new Promise((resolve2, reject) => {
+      return new Promise((resolve3, reject) => {
         let buffersLength = 0;
         const buffers = [];
         function read2() {
@@ -14110,7 +14110,7 @@ var require_parse_proxy_response = __commonJS({
           }
           debug2("got proxy server response: %o %o", firstLine, headers);
           cleanup();
-          resolve2({
+          resolve3({
             connect: {
               statusCode,
               statusText,
@@ -14352,7 +14352,7 @@ var require_ponyfill_es2018 = __commonJS({
         return new originalPromise(executor);
       }
       function promiseResolvedWith(value) {
-        return newPromise((resolve2) => resolve2(value));
+        return newPromise((resolve3) => resolve3(value));
       }
       function promiseRejectedWith(reason) {
         return originalPromiseReject(reason);
@@ -14522,8 +14522,8 @@ var require_ponyfill_es2018 = __commonJS({
         return new TypeError("Cannot " + name2 + " a stream using a released reader");
       }
       function defaultReaderClosedPromiseInitialize(reader) {
-        reader._closedPromise = newPromise((resolve2, reject) => {
-          reader._closedPromise_resolve = resolve2;
+        reader._closedPromise = newPromise((resolve3, reject) => {
+          reader._closedPromise_resolve = resolve3;
           reader._closedPromise_reject = reject;
         });
       }
@@ -14697,8 +14697,8 @@ var require_ponyfill_es2018 = __commonJS({
           }
           let resolvePromise;
           let rejectPromise;
-          const promise = newPromise((resolve2, reject) => {
-            resolvePromise = resolve2;
+          const promise = newPromise((resolve3, reject) => {
+            resolvePromise = resolve3;
             rejectPromise = reject;
           });
           const readRequest = {
@@ -14803,8 +14803,8 @@ var require_ponyfill_es2018 = __commonJS({
           const reader = this._reader;
           let resolvePromise;
           let rejectPromise;
-          const promise = newPromise((resolve2, reject) => {
-            resolvePromise = resolve2;
+          const promise = newPromise((resolve3, reject) => {
+            resolvePromise = resolve3;
             rejectPromise = reject;
           });
           const readRequest = {
@@ -15823,8 +15823,8 @@ var require_ponyfill_es2018 = __commonJS({
           }
           let resolvePromise;
           let rejectPromise;
-          const promise = newPromise((resolve2, reject) => {
-            resolvePromise = resolve2;
+          const promise = newPromise((resolve3, reject) => {
+            resolvePromise = resolve3;
             rejectPromise = reject;
           });
           const readIntoRequest = {
@@ -16136,10 +16136,10 @@ var require_ponyfill_es2018 = __commonJS({
           wasAlreadyErroring = true;
           reason = void 0;
         }
-        const promise = newPromise((resolve2, reject) => {
+        const promise = newPromise((resolve3, reject) => {
           stream._pendingAbortRequest = {
             _promise: void 0,
-            _resolve: resolve2,
+            _resolve: resolve3,
             _reject: reject,
             _reason: reason,
             _wasAlreadyErroring: wasAlreadyErroring
@@ -16156,9 +16156,9 @@ var require_ponyfill_es2018 = __commonJS({
         if (state === "closed" || state === "errored") {
           return promiseRejectedWith(new TypeError(`The stream (in ${state} state) is not in the writable state and cannot be closed`));
         }
-        const promise = newPromise((resolve2, reject) => {
+        const promise = newPromise((resolve3, reject) => {
           const closeRequest = {
-            _resolve: resolve2,
+            _resolve: resolve3,
             _reject: reject
           };
           stream._closeRequest = closeRequest;
@@ -16171,9 +16171,9 @@ var require_ponyfill_es2018 = __commonJS({
         return promise;
       }
       function WritableStreamAddWriteRequest(stream) {
-        const promise = newPromise((resolve2, reject) => {
+        const promise = newPromise((resolve3, reject) => {
           const writeRequest = {
-            _resolve: resolve2,
+            _resolve: resolve3,
             _reject: reject
           };
           stream._writeRequests.push(writeRequest);
@@ -16789,8 +16789,8 @@ var require_ponyfill_es2018 = __commonJS({
         return new TypeError("Cannot " + name2 + " a stream using a released writer");
       }
       function defaultWriterClosedPromiseInitialize(writer) {
-        writer._closedPromise = newPromise((resolve2, reject) => {
-          writer._closedPromise_resolve = resolve2;
+        writer._closedPromise = newPromise((resolve3, reject) => {
+          writer._closedPromise_resolve = resolve3;
           writer._closedPromise_reject = reject;
           writer._closedPromiseState = "pending";
         });
@@ -16826,8 +16826,8 @@ var require_ponyfill_es2018 = __commonJS({
         writer._closedPromiseState = "resolved";
       }
       function defaultWriterReadyPromiseInitialize(writer) {
-        writer._readyPromise = newPromise((resolve2, reject) => {
-          writer._readyPromise_resolve = resolve2;
+        writer._readyPromise = newPromise((resolve3, reject) => {
+          writer._readyPromise_resolve = resolve3;
           writer._readyPromise_reject = reject;
         });
         writer._readyPromiseState = "pending";
@@ -16914,7 +16914,7 @@ var require_ponyfill_es2018 = __commonJS({
         source._disturbed = true;
         let shuttingDown = false;
         let currentWrite = promiseResolvedWith(void 0);
-        return newPromise((resolve2, reject) => {
+        return newPromise((resolve3, reject) => {
           let abortAlgorithm;
           if (signal !== void 0) {
             abortAlgorithm = () => {
@@ -17059,7 +17059,7 @@ var require_ponyfill_es2018 = __commonJS({
             if (isError) {
               reject(error);
             } else {
-              resolve2(void 0);
+              resolve3(void 0);
             }
             return null;
           }
@@ -17340,8 +17340,8 @@ var require_ponyfill_es2018 = __commonJS({
         let branch1;
         let branch2;
         let resolveCancelPromise;
-        const cancelPromise = newPromise((resolve2) => {
-          resolveCancelPromise = resolve2;
+        const cancelPromise = newPromise((resolve3) => {
+          resolveCancelPromise = resolve3;
         });
         function pullAlgorithm() {
           if (reading) {
@@ -17432,8 +17432,8 @@ var require_ponyfill_es2018 = __commonJS({
         let branch1;
         let branch2;
         let resolveCancelPromise;
-        const cancelPromise = newPromise((resolve2) => {
-          resolveCancelPromise = resolve2;
+        const cancelPromise = newPromise((resolve3) => {
+          resolveCancelPromise = resolve3;
         });
         function forwardReaderError(thisReader) {
           uponRejection(thisReader._closedPromise, (r4) => {
@@ -18213,8 +18213,8 @@ var require_ponyfill_es2018 = __commonJS({
           const writableHighWaterMark = ExtractHighWaterMark(writableStrategy, 1);
           const writableSizeAlgorithm = ExtractSizeAlgorithm(writableStrategy);
           let startPromise_resolve;
-          const startPromise = newPromise((resolve2) => {
-            startPromise_resolve = resolve2;
+          const startPromise = newPromise((resolve3) => {
+            startPromise_resolve = resolve3;
           });
           InitializeTransformStream(this, startPromise, writableHighWaterMark, writableSizeAlgorithm, readableHighWaterMark, readableSizeAlgorithm);
           SetUpTransformStreamDefaultControllerFromTransformer(this, transformer);
@@ -18307,8 +18307,8 @@ var require_ponyfill_es2018 = __commonJS({
         if (stream._backpressureChangePromise !== void 0) {
           stream._backpressureChangePromise_resolve();
         }
-        stream._backpressureChangePromise = newPromise((resolve2) => {
-          stream._backpressureChangePromise_resolve = resolve2;
+        stream._backpressureChangePromise = newPromise((resolve3) => {
+          stream._backpressureChangePromise_resolve = resolve3;
         });
         stream._backpressure = backpressure;
       }
@@ -18476,8 +18476,8 @@ var require_ponyfill_es2018 = __commonJS({
           return controller._finishPromise;
         }
         const readable = stream._readable;
-        controller._finishPromise = newPromise((resolve2, reject) => {
-          controller._finishPromise_resolve = resolve2;
+        controller._finishPromise = newPromise((resolve3, reject) => {
+          controller._finishPromise_resolve = resolve3;
           controller._finishPromise_reject = reject;
         });
         const cancelPromise = controller._cancelAlgorithm(reason);
@@ -18503,8 +18503,8 @@ var require_ponyfill_es2018 = __commonJS({
           return controller._finishPromise;
         }
         const readable = stream._readable;
-        controller._finishPromise = newPromise((resolve2, reject) => {
-          controller._finishPromise_resolve = resolve2;
+        controller._finishPromise = newPromise((resolve3, reject) => {
+          controller._finishPromise_resolve = resolve3;
           controller._finishPromise_reject = reject;
         });
         const flushPromise = controller._flushAlgorithm();
@@ -18534,8 +18534,8 @@ var require_ponyfill_es2018 = __commonJS({
           return controller._finishPromise;
         }
         const writable = stream._writable;
-        controller._finishPromise = newPromise((resolve2, reject) => {
-          controller._finishPromise_resolve = resolve2;
+        controller._finishPromise = newPromise((resolve3, reject) => {
+          controller._finishPromise_resolve = resolve3;
           controller._finishPromise_reject = reject;
         });
         const cancelPromise = controller._cancelAlgorithm(reason);
@@ -20486,7 +20486,7 @@ import zlib from "node:zlib";
 import Stream3, { PassThrough as PassThrough2, pipeline as pump } from "node:stream";
 import { Buffer as Buffer3 } from "node:buffer";
 async function fetch2(url, options_) {
-  return new Promise((resolve2, reject) => {
+  return new Promise((resolve3, reject) => {
     const request = new Request2(url, options_);
     const { parsedURL, options } = getNodeRequestOptions(request);
     if (!supportedSchemas.has(parsedURL.protocol)) {
@@ -20495,7 +20495,7 @@ async function fetch2(url, options_) {
     if (parsedURL.protocol === "data:") {
       const data = dist_default(request.url);
       const response2 = new Response2(data, { headers: { "Content-Type": data.typeFull } });
-      resolve2(response2);
+      resolve3(response2);
       return;
     }
     const send = (parsedURL.protocol === "https:" ? https : http2).request;
@@ -20617,7 +20617,7 @@ async function fetch2(url, options_) {
             if (responseReferrerPolicy) {
               requestOptions.referrerPolicy = responseReferrerPolicy;
             }
-            resolve2(fetch2(new Request2(locationURL, requestOptions)));
+            resolve3(fetch2(new Request2(locationURL, requestOptions)));
             finalize();
             return;
           }
@@ -20650,7 +20650,7 @@ async function fetch2(url, options_) {
       const codings = headers.get("Content-Encoding");
       if (!request.compress || request.method === "HEAD" || codings === null || response_.statusCode === 204 || response_.statusCode === 304) {
         response = new Response2(body2, responseOptions);
-        resolve2(response);
+        resolve3(response);
         return;
       }
       const zlibOptions = {
@@ -20664,7 +20664,7 @@ async function fetch2(url, options_) {
           }
         });
         response = new Response2(body2, responseOptions);
-        resolve2(response);
+        resolve3(response);
         return;
       }
       if (codings === "deflate" || codings === "x-deflate") {
@@ -20688,12 +20688,12 @@ async function fetch2(url, options_) {
             });
           }
           response = new Response2(body2, responseOptions);
-          resolve2(response);
+          resolve3(response);
         });
         raw.once("end", () => {
           if (!response) {
             response = new Response2(body2, responseOptions);
-            resolve2(response);
+            resolve3(response);
           }
         });
         return;
@@ -20705,11 +20705,11 @@ async function fetch2(url, options_) {
           }
         });
         response = new Response2(body2, responseOptions);
-        resolve2(response);
+        resolve3(response);
         return;
       }
       response = new Response2(body2, responseOptions);
-      resolve2(response);
+      resolve3(response);
     });
     writeToStream(request_, request).catch(reject);
   });
@@ -26777,7 +26777,7 @@ var require_jwtaccess = __commonJS({
         }
       }
       fromStreamAsync(inputStream) {
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve3, reject) => {
           if (!inputStream) {
             reject(new Error("Must pass in a stream containing the service account auth settings."));
           }
@@ -26786,7 +26786,7 @@ var require_jwtaccess = __commonJS({
             try {
               const data = JSON.parse(s6);
               this.fromJSON(data);
-              resolve2();
+              resolve3();
             } catch (err2) {
               reject(err2);
             }
@@ -27025,7 +27025,7 @@ var require_jwtclient = __commonJS({
         }
       }
       fromStreamAsync(inputStream) {
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve3, reject) => {
           if (!inputStream) {
             throw new Error("Must pass in a stream containing the service account auth settings.");
           }
@@ -27034,7 +27034,7 @@ var require_jwtclient = __commonJS({
             try {
               const data = JSON.parse(s6);
               this.fromJSON(data);
-              resolve2();
+              resolve3();
             } catch (e3) {
               reject(e3);
             }
@@ -27167,7 +27167,7 @@ var require_refreshclient = __commonJS({
         }
       }
       async fromStreamAsync(inputStream) {
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve3, reject) => {
           if (!inputStream) {
             return reject(new Error("Must pass in a stream containing the user refresh token."));
           }
@@ -27176,7 +27176,7 @@ var require_refreshclient = __commonJS({
             try {
               const data = JSON.parse(s6);
               this.fromJSON(data);
-              return resolve2();
+              return resolve3();
             } catch (err2) {
               return reject(err2);
             }
@@ -29009,7 +29009,7 @@ var require_pluggable_auth_handler = __commonJS({
        * @return A promise that resolves with the executable response.
        */
       retrieveResponseFromExecutable(envMap) {
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve3, reject) => {
           const child = childProcess.spawn(this.commandComponents[0], this.commandComponents.slice(1), {
             env: { ...process.env, ...Object.fromEntries(envMap) }
           });
@@ -29031,7 +29031,7 @@ var require_pluggable_auth_handler = __commonJS({
               try {
                 const responseJson = JSON.parse(output);
                 const response = new executable_response_1.ExecutableResponse(responseJson);
-                return resolve2(response);
+                return resolve3(response);
               } catch (error) {
                 if (error instanceof executable_response_1.ExecutableResponseError) {
                   return reject(error);
@@ -30223,7 +30223,7 @@ var require_googleauth = __commonJS({
         }
       }
       fromStreamAsync(inputStream, options) {
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve3, reject) => {
           if (!inputStream) {
             throw new Error("Must pass in a stream containing the Google auth settings.");
           }
@@ -30233,7 +30233,7 @@ var require_googleauth = __commonJS({
               try {
                 const data = JSON.parse(chunks.join(""));
                 const r4 = this._cacheClientFromJSON(data, options);
-                return resolve2(r4);
+                return resolve3(r4);
               } catch (err2) {
                 if (!this.keyFilename)
                   throw err2;
@@ -30243,7 +30243,7 @@ var require_googleauth = __commonJS({
                 });
                 this.cachedCredential = client2;
                 this.setGapicJWTValues(client2);
-                return resolve2(client2);
+                return resolve3(client2);
               }
             } catch (err2) {
               return reject(err2);
@@ -30279,17 +30279,17 @@ var require_googleauth = __commonJS({
        * Run the Google Cloud SDK command that prints the default project ID
        */
       async getDefaultServiceProjectId() {
-        return new Promise((resolve2) => {
+        return new Promise((resolve3) => {
           (0, child_process_1.exec)("gcloud config config-helper --format json", (err2, stdout) => {
             if (!err2 && stdout) {
               try {
                 const projectId = JSON.parse(stdout).configuration.properties.core.project;
-                resolve2(projectId);
+                resolve3(projectId);
                 return;
               } catch (e3) {
               }
             }
-            resolve2(null);
+            resolve3(null);
           });
         });
       }
@@ -38014,14 +38014,14 @@ function __asyncValues(o5) {
   }, i5);
   function verb(n4) {
     i5[n4] = o5[n4] && function(v3) {
-      return new Promise(function(resolve2, reject) {
-        v3 = o5[n4](v3), settle(resolve2, reject, v3.done, v3.value);
+      return new Promise(function(resolve3, reject) {
+        v3 = o5[n4](v3), settle(resolve3, reject, v3.done, v3.value);
       });
     };
   }
-  function settle(resolve2, reject, d2, v3) {
+  function settle(resolve3, reject, d2, v3) {
     Promise.resolve(v3).then(function(v4) {
-      resolve2({ value: v4, done: d2 });
+      resolve3({ value: v4, done: d2 });
     }, reject);
   }
 }
@@ -38047,11 +38047,11 @@ function isValidContent(content) {
   }
   return true;
 }
-function validateHistory(history) {
-  if (history.length === 0) {
+function validateHistory(history2) {
+  if (history2.length === 0) {
     return;
   }
-  for (const content of history) {
+  for (const content of history2) {
     if (content.role !== "user" && content.role !== "model") {
       throw new Error(`Role must be user or model, but got ${content.role}.`);
     }
@@ -44941,7 +44941,7 @@ function retryIntervalFromResponse(res) {
   return 0;
 }
 async function delay(delay2) {
-  return new Promise((resolve2) => setTimeout(resolve2, delay2));
+  return new Promise((resolve3) => setTimeout(resolve3, delay2));
 }
 async function logRequest(logger2, req) {
   if (!logger2) {
@@ -51156,14 +51156,14 @@ var init_node = __esm({
       }
     };
     Chat2 = class {
-      constructor(apiClient, modelsModule, model, config = {}, history = []) {
+      constructor(apiClient, modelsModule, model, config = {}, history2 = []) {
         this.apiClient = apiClient;
         this.modelsModule = modelsModule;
         this.model = model;
         this.config = config;
-        this.history = history;
+        this.history = history2;
         this.sendPromise = Promise.resolve();
-        validateHistory(history);
+        validateHistory(history2);
       }
       /**
        * Sends a message to the model and returns the response.
@@ -51273,8 +51273,8 @@ var init_node = __esm({
        *     chat session.
        */
       getHistory(curated = false) {
-        const history = curated ? extractCuratedHistory(this.history) : this.history;
-        return structuredClone(history);
+        const history2 = curated ? extractCuratedHistory(this.history) : this.history;
+        return structuredClone(history2);
       }
       processStreamResponse(streamResponse, inputContent) {
         return __asyncGenerator(this, arguments, function* processStreamResponse_1() {
@@ -52263,8 +52263,8 @@ var init_node = __esm({
         const url = `${websocketBaseUrl}/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.BidiGenerateMusic?key=${apiKey}`;
         let onopenResolve = () => {
         };
-        const onopenPromise = new Promise((resolve2) => {
-          onopenResolve = resolve2;
+        const onopenPromise = new Promise((resolve3) => {
+          onopenResolve = resolve3;
         });
         const callbacks = params.callbacks;
         const onopenAwaitedCallback = function() {
@@ -52470,8 +52470,8 @@ var init_node = __esm({
         }
         let onopenResolve = () => {
         };
-        const onopenPromise = new Promise((resolve2) => {
-          onopenResolve = resolve2;
+        const onopenPromise = new Promise((resolve3) => {
+          onopenResolve = resolve3;
         });
         const callbacks = params.callbacks;
         const onopenAwaitedCallback = function() {
@@ -52484,8 +52484,8 @@ var init_node = __esm({
         const messageQueue = [];
         let setupCompleteResolve = () => {
         };
-        const setupCompletePromise = new Promise((resolve2) => {
-          setupCompleteResolve = resolve2;
+        const setupCompletePromise = new Promise((resolve3) => {
+          setupCompleteResolve = resolve3;
         });
         const websocketCallbacks = {
           onopen: onopenAwaitedCallback,
@@ -56957,7 +56957,27 @@ var init_lucyAuditorTime = __esm({
   }
 });
 
+// src/lib/lucyDataPaths.ts
+import { dirname, join, resolve } from "node:path";
+function getLucyDataRoot() {
+  const fromEnv = process.env["LUCY_DATA_DIR"]?.trim();
+  if (fromEnv) return resolve(fromEnv);
+  return resolve(process.cwd(), "..", "lucy-data");
+}
+function getLucyLlmSpendPath() {
+  const fromEnv = process.env["LUCY_LLM_SPEND_PATH"]?.trim();
+  if (fromEnv) return resolve(fromEnv);
+  return join(getLucyDataRoot(), "llm-spend.json");
+}
+var init_lucyDataPaths = __esm({
+  "src/lib/lucyDataPaths.ts"() {
+    "use strict";
+  }
+});
+
 // src/lib/lucyGeminiSpend.ts
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname as dirname2 } from "node:path";
 function emptyChannel() {
   return {
     calls: 0,
@@ -56969,16 +56989,66 @@ function emptyChannel() {
     lastAt: null
   };
 }
+function emptyOpenAi() {
+  return { ...emptyChannel(), chatCalls: 0, voiceCalls: 0, audioSeconds: 0, lastReason: null };
+}
+function persistEnabled() {
+  return persistOn;
+}
+function loadFromDisk() {
+  loaded = true;
+  if (!persistEnabled()) return;
+  const path7 = getLucyLlmSpendPath();
+  if (!existsSync(path7)) return;
+  try {
+    const raw = JSON.parse(readFileSync(path7, "utf8"));
+    history = raw.history && typeof raw.history === "object" ? raw.history : {};
+    if (raw.dayKey === mexicoCityDayKey()) {
+      spendDayKey = raw.dayKey;
+      chatSpend = { ...emptyChannel(), ...raw.chat };
+      auditorSpend = { ...emptyChannel(), ...raw.auditor };
+      openaiSpend = { ...emptyOpenAi(), ...raw.openai };
+    }
+  } catch {
+  }
+}
+function todayTotals() {
+  return {
+    chatUsd: chatSpend.usdEstimate,
+    auditorUsd: auditorSpend.usdEstimate,
+    openaiUsd: openaiSpend.usdEstimate,
+    chatCalls: chatSpend.calls,
+    auditorCalls: auditorSpend.calls,
+    openaiCalls: openaiSpend.calls
+  };
+}
+function saveToDisk() {
+  history[spendDayKey] = todayTotals();
+  const keep = Object.keys(history).sort().slice(-HISTORY_DAYS);
+  history = Object.fromEntries(keep.map((k4) => [k4, history[k4]]));
+  if (!persistEnabled()) return;
+  const path7 = getLucyLlmSpendPath();
+  try {
+    mkdirSync(dirname2(path7), { recursive: true });
+    const data = { dayKey: spendDayKey, chat: chatSpend, auditor: auditorSpend, openai: openaiSpend, history };
+    writeFileSync(path7, JSON.stringify(data), "utf8");
+  } catch {
+  }
+}
 function ensureToday() {
+  if (!loaded) loadFromDisk();
   const key = mexicoCityDayKey();
   if (key !== spendDayKey) {
     spendDayKey = key;
     chatSpend = emptyChannel();
     auditorSpend = emptyChannel();
+    openaiSpend = emptyOpenAi();
   }
 }
 function envRate(name2, fallback) {
-  const n4 = Number(process.env[name2] ?? "");
+  const raw = process.env[name2]?.trim();
+  if (!raw) return fallback;
+  const n4 = Number(raw);
   if (!Number.isFinite(n4) || n4 < 0) return fallback;
   return n4;
 }
@@ -57031,12 +57101,43 @@ function recordGeminiSpend(opts) {
   bucket.usdEstimate = Math.round((bucket.usdEstimate + usd) * 1e6) / 1e6;
   bucket.lastModel = model;
   bucket.lastAt = (/* @__PURE__ */ new Date()).toISOString();
+  saveToDisk();
 }
-var DEFAULT_RATES, FALLBACK_RATES, spendDayKey, chatSpend, auditorSpend;
+function recordOpenAiSpend(opts) {
+  ensureToday();
+  const model = (opts.model || "unknown").trim() || "unknown";
+  const inputTokens = asNonNegInt(opts.inputTokens);
+  const outputTokens = asNonNegInt(opts.outputTokens);
+  const audioSeconds = asNonNegInt(opts.audioSeconds);
+  let usd;
+  if (opts.kind === "voice") {
+    usd = audioSeconds / 60 * WHISPER_USD_PER_MIN;
+  } else {
+    const r4 = OPENAI_RATES[model.toLowerCase()] ?? OPENAI_RATES["gpt-4o-mini"];
+    usd = inputTokens / 1e6 * r4.inputPerM + outputTokens / 1e6 * r4.outputPerM;
+  }
+  const b4 = openaiSpend;
+  b4.calls += 1;
+  if (opts.kind === "voice") {
+    b4.voiceCalls += 1;
+    b4.audioSeconds += audioSeconds;
+  } else {
+    b4.chatCalls += 1;
+  }
+  b4.inputTokens += inputTokens;
+  b4.outputTokens += outputTokens;
+  b4.usdEstimate = Math.round((b4.usdEstimate + usd) * 1e6) / 1e6;
+  b4.lastModel = model;
+  b4.lastAt = (/* @__PURE__ */ new Date()).toISOString();
+  b4.lastReason = opts.reason?.replace(/\s+/g, " ").trim().slice(0, 160) || null;
+  saveToDisk();
+}
+var DEFAULT_RATES, FALLBACK_RATES, spendDayKey, chatSpend, auditorSpend, openaiSpend, history, loaded, HISTORY_DAYS, persistOn, OPENAI_RATES, WHISPER_USD_PER_MIN;
 var init_lucyGeminiSpend = __esm({
   "src/lib/lucyGeminiSpend.ts"() {
     "use strict";
     init_lucyAuditorTime();
+    init_lucyDataPaths();
     DEFAULT_RATES = {
       "gemini-3.1-flash-lite": { inputPerM: 0.1, outputPerM: 0.4, cachedPerM: 0.025 },
       "gemini-2.5-flash": { inputPerM: 0.15, outputPerM: 0.6, cachedPerM: 0.0375 },
@@ -57051,6 +57152,16 @@ var init_lucyGeminiSpend = __esm({
     spendDayKey = "";
     chatSpend = emptyChannel();
     auditorSpend = emptyChannel();
+    openaiSpend = emptyOpenAi();
+    history = {};
+    loaded = false;
+    HISTORY_DAYS = 14;
+    persistOn = false;
+    OPENAI_RATES = {
+      "gpt-4o-mini": { inputPerM: 0.15, outputPerM: 0.6 },
+      "gpt-4o": { inputPerM: 2.5, outputPerM: 10 }
+    };
+    WHISPER_USD_PER_MIN = 6e-3;
   }
 });
 
@@ -57201,7 +57312,7 @@ async function completeWithGemini(opts) {
   const text2 = (response.text ?? "").trim();
   return { text: text2, provider: "gemini", model: DEFAULT_GEMINI_MODEL };
 }
-async function completeWithOpenAi(opts) {
+async function completeWithOpenAi(opts, reason) {
   const model = opts.model ?? getChatModel();
   const openai = getOpenAiClient();
   const messages2 = opts.messages.map((m5) => {
@@ -57233,6 +57344,16 @@ async function completeWithOpenAi(opts) {
     ...opts.topP != null ? { top_p: opts.topP } : {},
     ...opts.json ? { response_format: { type: "json_object" } } : {}
   });
+  try {
+    recordOpenAiSpend({
+      kind: "chat",
+      model,
+      inputTokens: completion.usage?.prompt_tokens,
+      outputTokens: completion.usage?.completion_tokens,
+      reason
+    });
+  } catch {
+  }
   const text2 = (completion.choices[0]?.message?.content ?? "").trim();
   return { text: text2, provider: "openai", model };
 }
@@ -57246,14 +57367,18 @@ async function completeChat(opts) {
     if (provider === "gemini") {
       return await completeWithGemini(opts);
     }
-    return await completeWithOpenAi(opts);
+    return await completeWithOpenAi(opts, "OpenAI es el proveedor principal");
   } catch (err2) {
     if (provider === "gemini" && !noFallback && getOpenAiApiKeyForClient() !== "lucy-not-configured") {
       try {
-        return await completeWithOpenAi({
-          ...opts,
-          model: process.env["OPENAI_MODEL"]?.trim() || "gpt-4o-mini"
-        });
+        const why = (err2 instanceof Error ? err2.message : String(err2)).replace(/\s+/g, " ").replace(/key=[^&\s]+/gi, "key=\u2026").slice(0, 140);
+        return await completeWithOpenAi(
+          {
+            ...opts,
+            model: process.env["OPENAI_MODEL"]?.trim() || "gpt-4o-mini"
+          },
+          `Gemini fall\xF3 (${opts.purpose ?? "chat"}): ${why}`
+        );
       } catch {
         throw err2;
       }
@@ -60802,7 +60927,7 @@ var require_image_q = __commonJS({
       colors,
       onProgress
     } = {}) {
-      return new Promise((resolve2, reject) => {
+      return new Promise((resolve3, reject) => {
         const distanceCalculator = colorDistanceFormulaToColorDistance2(colorDistanceFormula);
         const paletteQuantizer = paletteQuantizationToPaletteQuantizer2(distanceCalculator, paletteQuantization, colors);
         images.forEach((image2) => paletteQuantizer.sample(image2));
@@ -60812,7 +60937,7 @@ var require_image_q = __commonJS({
           try {
             const result = iterator.next();
             if (result.done) {
-              resolve2(palette2);
+              resolve3(palette2);
             } else {
               if (result.value.palette)
                 palette2 = result.value.palette;
@@ -60837,7 +60962,7 @@ var require_image_q = __commonJS({
       imageQuantization,
       onProgress
     } = {}) {
-      return new Promise((resolve2, reject) => {
+      return new Promise((resolve3, reject) => {
         const distanceCalculator = colorDistanceFormulaToColorDistance2(colorDistanceFormula);
         const imageQuantizer = imageQuantizationToImageQuantizer2(distanceCalculator, imageQuantization);
         let outPointContainer;
@@ -60846,7 +60971,7 @@ var require_image_q = __commonJS({
           try {
             const result = iterator.next();
             if (result.done) {
-              resolve2(outPointContainer);
+              resolve3(outPointContainer);
             } else {
               if (result.value.pointContainer) {
                 outPointContainer = result.value.pointContainer;
@@ -61274,22 +61399,22 @@ var require_gifutil = __commonJS({
       }
     }
     function _readBinary(path7) {
-      return new Promise((resolve2, reject) => {
+      return new Promise((resolve3, reject) => {
         fs7.readFile(path7, (err2, buffer) => {
           if (err2) {
             return reject(err2);
           }
-          return resolve2(buffer);
+          return resolve3(buffer);
         });
       });
     }
     function _writeBinary(path7, buffer) {
-      return new Promise((resolve2, reject) => {
+      return new Promise((resolve3, reject) => {
         fs7.writeFile(path7, buffer, (err2) => {
           if (err2) {
             return reject(err2);
           }
-          return resolve2();
+          return resolve3();
         });
       });
     }
@@ -75008,9 +75133,9 @@ var init_Deferred = __esm({
       constructor() {
         this.resolve = () => null;
         this.reject = () => null;
-        this.promise = new Promise((resolve2, reject) => {
+        this.promise = new Promise((resolve3, reject) => {
           this.reject = reject;
-          this.resolve = resolve2;
+          this.resolve = resolve3;
         });
       }
     };
@@ -77351,7 +77476,7 @@ function readByobReaderWithSignal(reader, buffer, signal) {
     return reader.read(buffer);
   }
   signal.throwIfAborted();
-  return new Promise((resolve2, reject) => {
+  return new Promise((resolve3, reject) => {
     const cleanup = () => {
       signal.removeEventListener("abort", onAbort);
     };
@@ -77371,7 +77496,7 @@ function readByobReaderWithSignal(reader, buffer, signal) {
       try {
         const result = await reader.read(buffer);
         cleanup();
-        resolve2(result);
+        resolve3(result);
       } catch (error) {
         cleanup();
         reject(error);
@@ -79292,7 +79417,7 @@ var init_file_type = __esm({
         const { signal } = this.options;
         const normalizedSampleSize = normalizeSampleSize(sampleSize);
         signal?.throwIfAborted();
-        return new Promise((resolve2, reject) => {
+        return new Promise((resolve3, reject) => {
           let isSettled = false;
           const cleanup = () => {
             readableStream.off("error", onError);
@@ -79332,7 +79457,7 @@ var init_file_type = __esm({
                     settle(reject, error);
                   }
                 }
-                settle(resolve2, outputStream);
+                settle(resolve3, outputStream);
               } catch (error) {
                 settle(reject, error);
               }
@@ -85458,12 +85583,12 @@ var require_parser3 = __commonJS({
         };
         Parser.prototype.parseStringPromise = function(str2) {
           return new Promise(/* @__PURE__ */ (function(_this) {
-            return function(resolve2, reject) {
+            return function(resolve3, reject) {
               return _this.parseString(str2, function(err2, value) {
                 if (err2) {
                   return reject(err2);
                 } else {
-                  return resolve2(value);
+                  return resolve3(value);
                 }
               });
             };
@@ -88997,7 +89122,7 @@ var require_dist3 = __commonJS({
     function parse(stream, callback) {
       const parser = new parser_1.Parser();
       stream.on("data", (buffer) => parser.parse(buffer, callback));
-      return new Promise((resolve2) => stream.on("end", () => resolve2()));
+      return new Promise((resolve3) => stream.on("end", () => resolve3()));
     }
   }
 });
@@ -89762,12 +89887,12 @@ var require_client = __commonJS({
           this._connect(callback);
           return;
         }
-        return new this._Promise((resolve2, reject) => {
+        return new this._Promise((resolve3, reject) => {
           this._connect((error) => {
             if (error) {
               reject(error);
             } else {
-              resolve2(this);
+              resolve3(this);
             }
           });
         });
@@ -90149,8 +90274,8 @@ var require_client = __commonJS({
         } else {
           query = new Query2(config, values, callback);
           if (!query.callback) {
-            result = new this._Promise((resolve2, reject) => {
-              query.callback = (err2, res) => err2 ? reject(err2) : resolve2(res);
+            result = new this._Promise((resolve3, reject) => {
+              query.callback = (err2, res) => err2 ? reject(err2) : resolve3(res);
             }).catch((err2) => {
               Error.captureStackTrace(err2);
               throw err2;
@@ -90241,8 +90366,8 @@ var require_client = __commonJS({
         if (cb) {
           this.connection.once("end", cb);
         } else {
-          return new this._Promise((resolve2) => {
-            this.connection.once("end", resolve2);
+          return new this._Promise((resolve3) => {
+            this.connection.once("end", resolve3);
           });
         }
       }
@@ -90291,8 +90416,8 @@ var require_pg_pool = __commonJS({
       const cb = function(err2, client2) {
         err2 ? rej(err2) : res(client2);
       };
-      const result = new Promise2(function(resolve2, reject) {
-        res = resolve2;
+      const result = new Promise2(function(resolve3, reject) {
+        res = resolve3;
         rej = reject;
       }).catch((err2) => {
         Error.captureStackTrace(err2);
@@ -90353,7 +90478,7 @@ var require_pg_pool = __commonJS({
         if (typeof Promise2.try === "function") {
           return Promise2.try(f6);
         }
-        return new Promise2((resolve2) => resolve2(f6()));
+        return new Promise2((resolve3) => resolve3(f6()));
       }
       _isFull() {
         return this._clients.length >= this.options.max;
@@ -90746,8 +90871,8 @@ var require_query2 = __commonJS({
     NativeQuery.prototype._getPromise = function() {
       if (this._promise) return this._promise;
       this._promise = new Promise(
-        function(resolve2, reject) {
-          this._once("end", resolve2);
+        function(resolve3, reject) {
+          this._once("end", resolve3);
           this._once("error", reject);
         }.bind(this)
       );
@@ -90926,12 +91051,12 @@ var require_client2 = __commonJS({
         this._connect(callback);
         return;
       }
-      return new this._Promise((resolve2, reject) => {
+      return new this._Promise((resolve3, reject) => {
         this._connect((error) => {
           if (error) {
             reject(error);
           } else {
-            resolve2(this);
+            resolve3(this);
           }
         });
       });
@@ -90955,8 +91080,8 @@ var require_client2 = __commonJS({
         query = new NativeQuery(config, values, callback);
         if (!query.callback) {
           let resolveOut, rejectOut;
-          result = new this._Promise((resolve2, reject) => {
-            resolveOut = resolve2;
+          result = new this._Promise((resolve3, reject) => {
+            resolveOut = resolve3;
             rejectOut = reject;
           }).catch((err2) => {
             Error.captureStackTrace(err2);
@@ -91019,8 +91144,8 @@ var require_client2 = __commonJS({
       }
       let result;
       if (!cb) {
-        result = new this._Promise(function(resolve2, reject) {
-          cb = (err2) => err2 ? reject(err2) : resolve2();
+        result = new this._Promise(function(resolve3, reject) {
+          cb = (err2) => err2 ? reject(err2) : resolve3();
         });
       }
       const doEnd = function() {
@@ -92490,7 +92615,7 @@ var init_sql = __esm({
         return new SQL([new StringChunk(str2)]);
       }
       sql2.raw = raw;
-      function join5(chunks, separator) {
+      function join6(chunks, separator) {
         const result = [];
         for (const [i5, chunk] of chunks.entries()) {
           if (i5 > 0 && separator !== void 0) {
@@ -92500,7 +92625,7 @@ var init_sql = __esm({
         }
         return new SQL(result);
       }
-      sql2.join = join5;
+      sql2.join = join6;
       function identifier(value) {
         return new Name(value);
       }
@@ -96731,7 +96856,7 @@ var init_select2 = __esm({
           const baseTableName = this.tableName;
           const tableName = getTableLikeName(table);
           for (const item of extractUsedTable(table)) this.usedTables.add(item);
-          if (typeof tableName === "string" && this.config.joins?.some((join5) => join5.alias === tableName)) {
+          if (typeof tableName === "string" && this.config.joins?.some((join6) => join6.alias === tableName)) {
             throw new Error(`Alias "${tableName}" is already used in this query`);
           }
           if (!this.isPartialSelect) {
@@ -98258,7 +98383,7 @@ var init_update = __esm({
       createJoin(joinType) {
         return (table, on2) => {
           const tableName = getTableLikeName(table);
-          if (typeof tableName === "string" && this.config.joins.some((join5) => join5.alias === tableName)) {
+          if (typeof tableName === "string" && this.config.joins.some((join6) => join6.alias === tableName)) {
             throw new Error(`Alias "${tableName}" is already used in this query`);
           }
           if (typeof on2 === "function") {
@@ -98354,10 +98479,10 @@ var init_update = __esm({
               const fromFields = this.getTableLikeFields(this.config.from);
               fields[tableName] = fromFields;
             }
-            for (const join5 of this.config.joins) {
-              const tableName2 = getTableLikeName(join5.table);
-              if (typeof tableName2 === "string" && !is(join5.table, SQL)) {
-                const fromFields = this.getTableLikeFields(join5.table);
+            for (const join6 of this.config.joins) {
+              const tableName2 = getTableLikeName(join6.table);
+              if (typeof tableName2 === "string" && !is(join6.table, SQL)) {
+                const fromFields = this.getTableLikeFields(join6.table);
                 fields[tableName2] = fromFields;
               }
             }
@@ -108362,7 +108487,7 @@ var require_thread_stream = __commonJS({
     var { version: version2 } = require_package3();
     var { EventEmitter } = __require("events");
     var { Worker } = __require("worker_threads");
-    var { join: join5 } = __require("path");
+    var { join: join6 } = __require("path");
     var { pathToFileURL } = __require("url");
     var { wait } = require_wait();
     var {
@@ -108398,7 +108523,7 @@ var require_thread_stream = __commonJS({
     function createWorker(stream, opts) {
       const { filename, workerData } = opts;
       const bundlerOverrides = "__bundlerPathsOverrides" in globalThis ? globalThis.__bundlerPathsOverrides : {};
-      const toExecute = bundlerOverrides["thread-stream-worker"] || join5(__dirname, "lib", "worker.js");
+      const toExecute = bundlerOverrides["thread-stream-worker"] || join6(__dirname, "lib", "worker.js");
       const worker = new Worker(toExecute, {
         ...opts.workerOpts,
         trackUnmanagedFds: false,
@@ -108784,7 +108909,7 @@ var require_transport = __commonJS({
     "use strict";
     var { createRequire } = __require("module");
     var getCallers = require_caller();
-    var { join: join5, isAbsolute, sep } = __require("node:path");
+    var { join: join6, isAbsolute, sep } = __require("node:path");
     var sleep3 = require_atomic_sleep();
     var onExit = require_on_exit_leak_free();
     var ThreadStream = require_thread_stream();
@@ -108847,7 +108972,7 @@ var require_transport = __commonJS({
         throw new Error("only one of target or targets can be specified");
       }
       if (targets) {
-        target = bundlerOverrides["pino-worker"] || join5(__dirname, "worker.js");
+        target = bundlerOverrides["pino-worker"] || join6(__dirname, "worker.js");
         options.targets = targets.filter((dest) => dest.target).map((dest) => {
           return {
             ...dest,
@@ -108865,7 +108990,7 @@ var require_transport = __commonJS({
           });
         });
       } else if (pipeline3) {
-        target = bundlerOverrides["pino-worker"] || join5(__dirname, "worker.js");
+        target = bundlerOverrides["pino-worker"] || join6(__dirname, "worker.js");
         options.pipelines = [pipeline3.map((dest) => {
           return {
             ...dest,
@@ -108887,7 +109012,7 @@ var require_transport = __commonJS({
           return origin;
         }
         if (origin === "pino/file") {
-          return join5(__dirname, "..", "file.js");
+          return join6(__dirname, "..", "file.js");
         }
         let fixTarget2;
         for (const filePath of callers) {
@@ -109876,7 +110001,7 @@ var require_safe_stable_stringify = __commonJS({
               return circularValue;
             }
             let res = "";
-            let join5 = ",";
+            let join6 = ",";
             const originalIndentation = indentation;
             if (Array.isArray(value)) {
               if (value.length === 0) {
@@ -109890,7 +110015,7 @@ var require_safe_stable_stringify = __commonJS({
                 indentation += spacer;
                 res += `
 ${indentation}`;
-                join5 = `,
+                join6 = `,
 ${indentation}`;
               }
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
@@ -109898,13 +110023,13 @@ ${indentation}`;
               for (; i5 < maximumValuesToStringify - 1; i5++) {
                 const tmp2 = stringifyFnReplacer(String(i5), value, stack, replacer, spacer, indentation);
                 res += tmp2 !== void 0 ? tmp2 : "null";
-                res += join5;
+                res += join6;
               }
               const tmp = stringifyFnReplacer(String(i5), value, stack, replacer, spacer, indentation);
               res += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res += `${join5}"... ${getItemCount(removedKeys)} not stringified"`;
+                res += `${join6}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               if (spacer !== "") {
                 res += `
@@ -109925,7 +110050,7 @@ ${originalIndentation}`;
             let separator = "";
             if (spacer !== "") {
               indentation += spacer;
-              join5 = `,
+              join6 = `,
 ${indentation}`;
               whitespace = " ";
             }
@@ -109939,13 +110064,13 @@ ${indentation}`;
               const tmp = stringifyFnReplacer(key2, value, stack, replacer, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}:${whitespace}${tmp}`;
-                separator = join5;
+                separator = join6;
               }
             }
             if (keyLength > maximumBreadth) {
               const removedKeys = keyLength - maximumBreadth;
               res += `${separator}"...":${whitespace}"${getItemCount(removedKeys)} not stringified"`;
-              separator = join5;
+              separator = join6;
             }
             if (spacer !== "" && separator.length > 1) {
               res = `
@@ -109986,7 +110111,7 @@ ${originalIndentation}`;
             }
             const originalIndentation = indentation;
             let res = "";
-            let join5 = ",";
+            let join6 = ",";
             if (Array.isArray(value)) {
               if (value.length === 0) {
                 return "[]";
@@ -109999,7 +110124,7 @@ ${originalIndentation}`;
                 indentation += spacer;
                 res += `
 ${indentation}`;
-                join5 = `,
+                join6 = `,
 ${indentation}`;
               }
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
@@ -110007,13 +110132,13 @@ ${indentation}`;
               for (; i5 < maximumValuesToStringify - 1; i5++) {
                 const tmp2 = stringifyArrayReplacer(String(i5), value[i5], stack, replacer, spacer, indentation);
                 res += tmp2 !== void 0 ? tmp2 : "null";
-                res += join5;
+                res += join6;
               }
               const tmp = stringifyArrayReplacer(String(i5), value[i5], stack, replacer, spacer, indentation);
               res += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res += `${join5}"... ${getItemCount(removedKeys)} not stringified"`;
+                res += `${join6}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               if (spacer !== "") {
                 res += `
@@ -110026,7 +110151,7 @@ ${originalIndentation}`;
             let whitespace = "";
             if (spacer !== "") {
               indentation += spacer;
-              join5 = `,
+              join6 = `,
 ${indentation}`;
               whitespace = " ";
             }
@@ -110035,7 +110160,7 @@ ${indentation}`;
               const tmp = stringifyArrayReplacer(key2, value[key2], stack, replacer, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}:${whitespace}${tmp}`;
-                separator = join5;
+                separator = join6;
               }
             }
             if (spacer !== "" && separator.length > 1) {
@@ -110093,20 +110218,20 @@ ${originalIndentation}`;
               indentation += spacer;
               let res2 = `
 ${indentation}`;
-              const join6 = `,
+              const join7 = `,
 ${indentation}`;
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
               let i5 = 0;
               for (; i5 < maximumValuesToStringify - 1; i5++) {
                 const tmp2 = stringifyIndent(String(i5), value[i5], stack, spacer, indentation);
                 res2 += tmp2 !== void 0 ? tmp2 : "null";
-                res2 += join6;
+                res2 += join7;
               }
               const tmp = stringifyIndent(String(i5), value[i5], stack, spacer, indentation);
               res2 += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res2 += `${join6}"... ${getItemCount(removedKeys)} not stringified"`;
+                res2 += `${join7}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               res2 += `
 ${originalIndentation}`;
@@ -110122,16 +110247,16 @@ ${originalIndentation}`;
               return '"[Object]"';
             }
             indentation += spacer;
-            const join5 = `,
+            const join6 = `,
 ${indentation}`;
             let res = "";
             let separator = "";
             let maximumPropertiesToStringify = Math.min(keyLength, maximumBreadth);
             if (isTypedArrayWithEntries(value)) {
-              res += stringifyTypedArray(value, join5, maximumBreadth);
+              res += stringifyTypedArray(value, join6, maximumBreadth);
               keys = keys.slice(value.length);
               maximumPropertiesToStringify -= value.length;
-              separator = join5;
+              separator = join6;
             }
             if (deterministic) {
               keys = sort(keys, comparator);
@@ -110142,13 +110267,13 @@ ${indentation}`;
               const tmp = stringifyIndent(key2, value[key2], stack, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}: ${tmp}`;
-                separator = join5;
+                separator = join6;
               }
             }
             if (keyLength > maximumBreadth) {
               const removedKeys = keyLength - maximumBreadth;
               res += `${separator}"...": "${getItemCount(removedKeys)} not stringified"`;
-              separator = join5;
+              separator = join6;
             }
             if (separator !== "") {
               res = `
@@ -110758,13 +110883,13 @@ var init_embudo = __esm({
 });
 
 // src/lib/trainingPaths.ts
-import { join as join3, dirname as dirname2 } from "path";
+import { join as join4, dirname as dirname4 } from "path";
 import { fileURLToPath as fileURLToPath4 } from "url";
 var moduleDir;
 var init_trainingPaths = __esm({
   "src/lib/trainingPaths.ts"() {
     "use strict";
-    moduleDir = dirname2(fileURLToPath4(import.meta.url));
+    moduleDir = dirname4(fileURLToPath4(import.meta.url));
   }
 });
 
@@ -110864,29 +110989,29 @@ var init_kommoWebhookParse = __esm({
 });
 
 // src/chat-history.ts
-import { readFileSync as readFileSync4, writeFileSync, existsSync as existsSync5, mkdirSync as mkdirSync2 } from "fs";
-import { join as join4, dirname as dirname3 } from "path";
+import { readFileSync as readFileSync5, writeFileSync as writeFileSync2, existsSync as existsSync6, mkdirSync as mkdirSync3 } from "fs";
+import { join as join5, dirname as dirname5 } from "path";
 import { fileURLToPath as fileURLToPath5 } from "url";
 function resolveHistoryFile() {
   const fromEnv = process.env["LUCY_CHAT_HISTORY_PATH"]?.trim();
   if (fromEnv) return fromEnv;
-  const sibling = join4(process.cwd(), "..", "lucy-data", "chat-history.json");
-  const legacy = join4(__dirname2, "../../data/chat-history.json");
+  const sibling = join5(process.cwd(), "..", "lucy-data", "chat-history.json");
+  const legacy = join5(__dirname2, "../../data/chat-history.json");
   return sibling || legacy;
 }
 function load() {
   try {
     const file = resolveHistoryFile();
-    const legacy = join4(__dirname2, "../../data/chat-history.json");
-    if (!existsSync5(file) && existsSync5(legacy) && file !== legacy) {
+    const legacy = join5(__dirname2, "../../data/chat-history.json");
+    if (!existsSync6(file) && existsSync6(legacy) && file !== legacy) {
       try {
-        mkdirSync2(dirname3(file), { recursive: true });
-        writeFileSync(file, readFileSync4(legacy, "utf-8"));
+        mkdirSync3(dirname5(file), { recursive: true });
+        writeFileSync2(file, readFileSync5(legacy, "utf-8"));
       } catch {
       }
     }
-    if (existsSync5(file)) {
-      return JSON.parse(readFileSync4(file, "utf-8"));
+    if (existsSync6(file)) {
+      return JSON.parse(readFileSync5(file, "utf-8"));
     }
   } catch {
   }
@@ -110896,7 +111021,7 @@ var __dirname2, store;
 var init_chat_history = __esm({
   "src/chat-history.ts"() {
     "use strict";
-    __dirname2 = dirname3(fileURLToPath5(import.meta.url));
+    __dirname2 = dirname5(fileURLToPath5(import.meta.url));
     store = load();
   }
 });
@@ -119226,7 +119351,7 @@ var import_await_to_js = __toESM(require_await_to_js_umd(), 1);
 
 // ../node_modules/@jimp/file-ops/dist/esm/index.js
 import { promises as fs4 } from "fs";
-import { existsSync } from "fs";
+import { existsSync as existsSync2 } from "fs";
 var readFile = fs4.readFile;
 var writeFile2 = fs4.writeFile;
 
@@ -119643,7 +119768,7 @@ function createJimp({ plugins: pluginsArg, formats: formatsArg } = {}) {
       if (Buffer.isBuffer(url) || url instanceof ArrayBuffer) {
         return this.fromBuffer(url);
       }
-      if (existsSync(url)) {
+      if (existsSync2(url)) {
         return this.fromBuffer(await readFile(url));
       }
       const [fetchErr, response] = await (0, import_await_to_js.to)(fetch(url));
@@ -126135,8 +126260,8 @@ function clientSignalsSomethingWrong(message) {
   }
   return /\bno\s+est[aá]\s+bien\b/i.test(t3) && t3.split(/\s+/).length <= 6;
 }
-function historyHasDeliveryChannelChoice(history, currentMessage) {
-  const msgs = [...history];
+function historyHasDeliveryChannelChoice(history2, currentMessage) {
+  const msgs = [...history2];
   if (currentMessage?.trim()) {
     msgs.push({ role: "user", content: currentMessage });
   }
@@ -126519,9 +126644,9 @@ function stripNombrePresentationPrefix(raw) {
     ""
   ).replace(/[.!🙂😊😉]*$/u, "").trim();
 }
-function recoverClienteNombreFromHistory(history, currentMessage) {
+function recoverClienteNombreFromHistory(history2, currentMessage) {
   let lastAssistant = "";
-  for (const msg of history) {
+  for (const msg of history2) {
     if (msg.role === "assistant" && typeof msg.content === "string") {
       lastAssistant = msg.content;
       continue;
@@ -129277,15 +129402,15 @@ function recoverCorreoFromUserTexts(texts, currentMessage) {
   const blob = [...texts, currentMessage ?? ""].filter(Boolean).join("\n");
   return parseCorreoFromText(blob);
 }
-function resolveClientEmailForFunnel(history, currentMessage) {
+function resolveClientEmailForFunnel(history2, currentMessage) {
   const fromNow = parseCorreoFromText(currentMessage ?? "");
   if (fromNow && looksLikeValidClientEmail(fromNow)) return fromNow;
-  const userTexts = history.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content);
+  const userTexts = history2.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content);
   for (let i5 = userTexts.length - 1; i5 >= 0; i5--) {
     const e3 = parseCorreoFromText(userTexts[i5]);
     if (e3 && looksLikeValidClientEmail(e3)) return e3;
   }
-  const lastLucy = [...history].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string")?.content;
+  const lastLucy = [...history2].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string")?.content;
   const suggested = lastLucy?.match(/¿Tu correo es \*([^*\s]+@[^*\s]+)\*/i)?.[1] ?? lastLucy?.match(/¿me confirmas (?:tu )?correo[^*]*\*([^*\s]+@[^*\s]+)\*/i)?.[1];
   const cm = currentMessage?.trim() ?? "";
   const affirmsEmail = isAffirmativeOnlyMessage(cm) || /^(s[ií]+|sip|correcto|exacto|as[ií]\s+es|ese|ese\s+mismo|ok|va|claro)\b/i.test(cm) || /^(s[ií]+|sip)[,.\s!]*(correcto|exacto|claro|as[ií]\s+es)\b/i.test(cm);
@@ -130524,9 +130649,9 @@ function isLucyOutgoingHistoryRole(role) {
   const r4 = String(role ?? "").toLowerCase();
   return r4 === "assistant" || r4 === "human" || r4 === "bot" || r4 === "lucy";
 }
-function countLucyFieldAsks(history, field) {
+function countLucyFieldAsks(history2, field) {
   const pattern = LUCY_FIELD_ASK_PATTERNS[field];
-  return history.filter(
+  return history2.filter(
     (m5) => isLucyOutgoingHistoryRole(m5.role) && typeof m5.content === "string" && pattern.test(m5.content)
   ).length;
 }
@@ -130594,19 +130719,19 @@ function detectPresupuestoRefusalInContext(text2, lastAssistantText) {
   if (!asked.trim()) return false;
   return LUCY_FIELD_ASK_PATTERNS.presupuesto.test(asked);
 }
-function isPresupuestoResuelto(filledSet, texts = [], history) {
+function isPresupuestoResuelto(filledSet, texts = [], history2) {
   if (filledSet.has("Presupuesto (MXN)")) return true;
-  if (history && countLucyFieldAsks(history, "presupuesto") >= PRESUPUESTO_MAX_ASKS) {
+  if (history2 && countLucyFieldAsks(history2, "presupuesto") >= PRESUPUESTO_MAX_ASKS) {
     return true;
   }
-  if (findPresupuestoInTexts(texts, history)) return true;
+  if (findPresupuestoInTexts(texts, history2)) return true;
   if (texts.some((t3) => detectPresupuestoRefusal(t3))) return true;
   return false;
 }
-function findPresupuestoInTexts(texts, history) {
-  if (history?.length) {
+function findPresupuestoInTexts(texts, history2) {
+  if (history2?.length) {
     let lastAssistant = "";
-    for (const msg of history) {
+    for (const msg of history2) {
       if (msg.role === "assistant" && typeof msg.content === "string") {
         lastAssistant = msg.content;
       }
@@ -130874,17 +130999,17 @@ function presupuestoToSafeNumber(value) {
   if (/\bpor\s+(?:cada\s+)?(silla|pieza|mesa|persona)\b/i.test(t3) && n4 < 1e3) return null;
   return n4;
 }
-function getLastLucyMessage(history) {
-  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(-1)[0]?.content ?? "";
+function getLastLucyMessage(history2) {
+  return history2.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(-1)[0]?.content ?? "";
 }
-function collectUserMessages(history, currentMessage) {
-  const fromHistory = history.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content);
+function collectUserMessages(history2, currentMessage) {
+  const fromHistory = history2.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content);
   return currentMessage?.trim() ? [...fromHistory, currentMessage.trim()] : fromHistory;
 }
-function captureContextualAnswer(history, currentMessage, filledSet) {
+function captureContextualAnswer(history2, currentMessage, filledSet) {
   const msg = currentMessage.trim();
   if (!msg) return [];
-  const lastLucy = getLastLucyMessage(history);
+  const lastLucy = getLastLucyMessage(history2);
   const asked = inferLucyAskedField(lastLucy);
   const captures = [];
   const carpaVariant = parseCarpaVariantFromText(msg);
@@ -130911,7 +131036,7 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
         requerimientos: null,
         lastLucy,
         currentMessage: msg,
-        historyBlob: history.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content).join(" ")
+        historyBlob: history2.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content).join(" ")
       });
       captures.push({
         label: "Requerimientos o servicios",
@@ -130919,7 +131044,7 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
       });
     }
   }
-  if (!msgIsLocation && !filledSet.has("Nombre del cliente") && asked !== "zona" && (asked === "nombre" || !history.some((m5) => m5.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && !isQuoteIntentMessage(msg) && !isServiceRelatedMessage(msg) && !isAmbiguousShortNumber(msg) && !isLikelyUbicacionNotNombre(msg) && !isOccasionOrStyleAsNombre(msg) && !isNumberWordsAsNombre(msg) && !isMeasurementOrDimensionAsNombre(msg) && !isEventTypeOnlyMessage(msg) && !parseTipoEventoFromText(msg) && !parseZonaFromText(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
+  if (!msgIsLocation && !filledSet.has("Nombre del cliente") && asked !== "zona" && (asked === "nombre" || !history2.some((m5) => m5.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && !isQuoteIntentMessage(msg) && !isServiceRelatedMessage(msg) && !isAmbiguousShortNumber(msg) && !isLikelyUbicacionNotNombre(msg) && !isOccasionOrStyleAsNombre(msg) && !isNumberWordsAsNombre(msg) && !isMeasurementOrDimensionAsNombre(msg) && !isEventTypeOnlyMessage(msg) && !parseTipoEventoFromText(msg) && !parseZonaFromText(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
     const candidato = stripNombrePresentationPrefix(msg);
     const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
     const handoffNoise = clientAsksForHumanAdvisor(msg) || /\b(hablar|asesor|agente|humano)\b/i.test(candidato);
@@ -130938,7 +131063,7 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
   }
   if (!filledSet.has("Tipo de evento") && asked === "tipo_evento") {
     if (isUnusableTipoEventoReply(msg)) {
-      const histBlob = history.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content).join(" ");
+      const histBlob = history2.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content).join(" ");
       const tipoHist = parseTipoEventoFromText(histBlob) || (/\bbanquete\b/i.test(histBlob) ? "evento con banquete" : /\bcatering\b/i.test(histBlob) ? "evento con catering" : null);
       if (tipoHist) {
         captures.push({ label: "Tipo de evento", value: tipoHist });
@@ -130963,7 +131088,7 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
           captures.push({ label: "Tipo de evento", value: "evento con catering" });
         } else {
           const tipoHist = parseTipoEventoFromText(
-            history.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content).join(" ")
+            history2.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content).join(" ")
           );
           if (tipoHist) {
             captures.push({ label: "Tipo de evento", value: tipoHist });
@@ -131040,12 +131165,12 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
   }
   return captures;
 }
-function scanConversationForCaptures(history, currentMessage, filledSet) {
+function scanConversationForCaptures(history2, currentMessage, filledSet) {
   const captures = [];
   const pending = new Set(filledSet);
-  const userTexts = collectUserMessages(history, currentMessage).slice(-12);
+  const userTexts = collectUserMessages(history2, currentMessage).slice(-12);
   if (!pending.has("Nombre del cliente")) {
-    const nombre = recoverClienteNombreFromHistory(history, currentMessage);
+    const nombre = recoverClienteNombreFromHistory(history2, currentMessage);
     if (nombre) {
       captures.push({ label: "Nombre del cliente", value: nombre });
       pending.add("Nombre del cliente");
@@ -131626,8 +131751,8 @@ function buildCompanyEmailConfirmReply() {
 }
 
 // src/services/lucyInfoPriceCache.ts
-import { existsSync as existsSync2, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync as existsSync3, readFileSync as readFileSync2 } from "node:fs";
+import { dirname as dirname3, join as join2 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // src/services/serviceSynonyms.ts
@@ -132916,9 +133041,9 @@ function clientComplainsAboutFormat(message) {
     message ?? ""
   );
 }
-function lastDenseLucyBlock(history) {
-  for (let i5 = history.length - 1; i5 >= 0; i5--) {
-    const m5 = history[i5];
+function lastDenseLucyBlock(history2) {
+  for (let i5 = history2.length - 1; i5 >= 0; i5--) {
+    const m5 = history2[i5];
     if (m5.role !== "assistant" || typeof m5.content !== "string") continue;
     const dense = m5.content.split(/\n{2,}/).filter((p4) => p4.length > 200 && !p4.includes("\n"));
     if (!dense.length) continue;
@@ -132999,35 +133124,35 @@ function ensureCacheFromSeedSync() {
   try {
     let moduleDir2 = "";
     try {
-      moduleDir2 = dirname(fileURLToPath(import.meta.url));
+      moduleDir2 = dirname3(fileURLToPath(import.meta.url));
     } catch {
     }
     let argvDir = "";
     try {
       const entry = process.argv[1];
-      if (entry) argvDir = dirname(entry);
+      if (entry) argvDir = dirname3(entry);
     } catch {
     }
     const here = typeof __dirname === "string" && __dirname || moduleDir2 || argvDir || process.cwd();
     const candidates = [
       process.env["LUCY_INFO_SEED_PATH"]?.trim(),
-      join(here, "config", "lucy-info-seed.json"),
-      join(here, "lucy-info-seed.json"),
-      join(here, "data", "lucy-info-seed.json"),
-      join(moduleDir2, "config", "lucy-info-seed.json"),
-      join(moduleDir2, "lucy-info-seed.json"),
-      join(argvDir, "lucy-info-seed.json"),
-      join(argvDir, "config", "lucy-info-seed.json"),
-      join(process.cwd(), "config", "lucy-info-seed.json"),
-      join(process.cwd(), "lucy-info-seed.json"),
-      join(process.cwd(), "data", "lucy-info-seed.json"),
-      join(process.cwd(), "api-server", "config", "lucy-info-seed.json"),
-      join(process.cwd(), "api-server", "dist", "lucy-info-seed.json"),
-      join(process.cwd(), "deploy", "lucy-info-seed.json")
+      join2(here, "config", "lucy-info-seed.json"),
+      join2(here, "lucy-info-seed.json"),
+      join2(here, "data", "lucy-info-seed.json"),
+      join2(moduleDir2, "config", "lucy-info-seed.json"),
+      join2(moduleDir2, "lucy-info-seed.json"),
+      join2(argvDir, "lucy-info-seed.json"),
+      join2(argvDir, "config", "lucy-info-seed.json"),
+      join2(process.cwd(), "config", "lucy-info-seed.json"),
+      join2(process.cwd(), "lucy-info-seed.json"),
+      join2(process.cwd(), "data", "lucy-info-seed.json"),
+      join2(process.cwd(), "api-server", "config", "lucy-info-seed.json"),
+      join2(process.cwd(), "api-server", "dist", "lucy-info-seed.json"),
+      join2(process.cwd(), "deploy", "lucy-info-seed.json")
     ].filter(Boolean);
     for (const p4 of candidates) {
-      if (!existsSync2(p4)) continue;
-      const raw = JSON.parse(readFileSync(p4, "utf8"));
+      if (!existsSync3(p4)) continue;
+      const raw = JSON.parse(readFileSync2(p4, "utf8"));
       const docs = (raw.documents || []).filter((d2) => d2?.content?.trim());
       if (docs.length) {
         refreshLucyInfoPriceCache(docs);
@@ -133951,7 +134076,7 @@ function parseRowNotes(notas) {
 }
 
 // src/services/catalogWebKnowledge.ts
-import { readFileSync as readFileSync2 } from "node:fs";
+import { readFileSync as readFileSync3 } from "node:fs";
 import path3 from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 var CATALOG_WEB_HUB = "https://bodasesor.com/catalogos";
@@ -133969,7 +134094,7 @@ function embedsJsonPath() {
   ];
   for (const p4 of candidates) {
     try {
-      readFileSync2(p4, "utf8");
+      readFileSync3(p4, "utf8");
       return p4;
     } catch {
     }
@@ -133983,7 +134108,7 @@ function extractGammaIdFromEmbed(embedSrc) {
 function loadCatalogEmbeds() {
   if (embedsCache) return embedsCache;
   try {
-    const raw = readFileSync2(embedsJsonPath(), "utf8");
+    const raw = readFileSync3(embedsJsonPath(), "utf8");
     const parsed = JSON.parse(raw);
     embedsCache = Object.entries(parsed).map(([slug, v3]) => {
       const embedSrc = (v3.embedSrc ?? "").trim();
@@ -134162,8 +134287,8 @@ function isSoloVsCompletoMenuReply(text2) {
   if (!text2?.trim()) return false;
   return /\bsolo\s+alimentos\b/i.test(text2) && /\bservicio\s+completo\b/i.test(text2) && (/cu[aá]l\s+te\s+late/i.test(text2) || /tenemos\s+(dos\s+caminos|\*?solo)/i.test(text2));
 }
-function historyOfferedSoloVsCompletoMenu(history) {
-  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some((m5) => isSoloVsCompletoMenuReply(m5.content));
+function historyOfferedSoloVsCompletoMenu(history2) {
+  return history2.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some((m5) => isSoloVsCompletoMenuReply(m5.content));
 }
 function resolveSoloVsCompletoStationLabel(text2, family) {
   const t3 = text2?.trim() ?? "";
@@ -134504,8 +134629,8 @@ function isAlimentosModoMenuReply(text2) {
     text2
   ) || /para \*comida\* del evento/i.test(text2)) && /barra de pastas|barra de pizzas|taquiza|sushi|desayuno|brunch|canap/i.test(text2);
 }
-function historyOfferedAlimentosModoMenu(history) {
-  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some((m5) => isAlimentosModoMenuReply(m5.content));
+function historyOfferedAlimentosModoMenu(history2) {
+  return history2.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some((m5) => isAlimentosModoMenuReply(m5.content));
 }
 function clientChoseBanqueteFormal(text2) {
   const t3 = text2?.trim() ?? "";
@@ -134551,8 +134676,8 @@ function isMobiliarioPieceMenuReply(text2) {
     text2
   ) && /\bmesas\b/i.test(text2) && /\bsillas\b/i.test(text2) && /qu[eé] es lo que buscas|qu[eé] pieza|dime qu[eé]|Periqueras|te gustar[ií]a/i.test(text2);
 }
-function historyOfferedMobiliarioPieceMenu(history) {
-  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some((m5) => isMobiliarioPieceMenuReply(m5.content));
+function historyOfferedMobiliarioPieceMenu(history2) {
+  return history2.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some((m5) => isMobiliarioPieceMenuReply(m5.content));
 }
 function parseMobiliarioPieceChoice(text2) {
   const t3 = text2?.trim() ?? "";
@@ -134677,8 +134802,8 @@ function isProgressiveOptionsMenuReply(text2) {
   }
   return false;
 }
-function historyOfferedServiceOptionsMenu(history) {
-  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some((m5) => isProgressiveOptionsMenuReply(m5.content));
+function historyOfferedServiceOptionsMenu(history2) {
+  return history2.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some((m5) => isProgressiveOptionsMenuReply(m5.content));
 }
 var FAMILY_ALL_DETAIL_QUERIES = {
   banquete: [
@@ -134741,7 +134866,7 @@ function isBareProgressiveAffirmation(text2) {
     t3
   );
 }
-function clientWantsServiceDetail(text2, history) {
+function clientWantsServiceDetail(text2, history2) {
   const t3 = text2?.trim() ?? "";
   if (!t3) return false;
   const n4 = fold4(t3);
@@ -134753,12 +134878,12 @@ function clientWantsServiceDetail(text2, history) {
   if (/^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas|el\s+detalle|detallame|detállame|m[aá]ndame\s+(la\s+)?info|dame\s+(la\s+)?info|quiero\s+(ver\s+)?(el\s+)?detalle)[\s.!]*$/i.test(
     t3
   )) {
-    return !!(history && historyOfferedServiceOptionsMenu(history));
+    return !!(history2 && historyOfferedServiceOptionsMenu(history2));
   }
   if (/\b(quiero|necesito|me\s+gustar[ií]a|puedes?|me\s+puedes?)\b.{0,30}\b(ver|verlas|conocer)\b.{0,20}\b(las\s+)?opciones?\b/i.test(
     t3
   ) || /^(ver|muestra|muéstra|muestrame|muéstrame|dame|pasa|manda)\s+(las\s+)?opciones?\b/i.test(t3) || /^las\s+opciones?\b/i.test(t3)) {
-    return !!(history && historyOfferedServiceOptionsMenu(history));
+    return !!(history2 && historyOfferedServiceOptionsMenu(history2));
   }
   if (/\b(dame|pasa|manda|quiero|necesito|me\s+interes[ao])\b.{0,40}\b(detalle|info|informaci[oó]n|precios?|incluye|inclusiones)\b/i.test(
     t3
@@ -134766,14 +134891,14 @@ function clientWantsServiceDetail(text2, history) {
     return true;
   }
   for (const fam of FAMILIES) {
-    if (fam.variantPattern.test(t3) && fam.familyPattern.test(t3 + " " + (history ? "" : ""))) {
+    if (fam.variantPattern.test(t3) && fam.familyPattern.test(t3 + " " + (history2 ? "" : ""))) {
       return true;
     }
-    if (history && historyOfferedServiceOptionsMenu(history) && fam.variantPattern.test(t3)) {
+    if (history2 && historyOfferedServiceOptionsMenu(history2) && fam.variantPattern.test(t3)) {
       return true;
     }
   }
-  if (history && historyOfferedServiceOptionsMenu(history)) {
+  if (history2 && historyOfferedServiceOptionsMenu(history2)) {
     if (/\b(formal|mexicano|kosher|navide|3\s*tiempos|4\s*tiempos|tres|cuatro|led|iluminada|pintada|vinil|logo|charol|madera|premium|b[aá]sic|tradicional|solo\s+alimentos|opci[oó]n(?:es)?\s*[1-9]|paquete\s*[1-9]|nivel\s*[1-9]|(?:el\s+|la\s+)?[1-9])\b/i.test(
       t3
     ) || /^(?:el\s+|la\s+)?[1-9]$/i.test(t3)) {
@@ -135519,7 +135644,7 @@ function getServiceKnowledge(query) {
 }
 
 // src/services/catalogService.ts
-import { readFileSync as readFileSync3, existsSync as existsSync3 } from "node:fs";
+import { readFileSync as readFileSync4, existsSync as existsSync4 } from "node:fs";
 import path4 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 var GENERIC_CATERING_MENU_MARKERS = /estas son las opciones m[aá]s pedidas|cu[aá]l te interesa\?\s*con eso te paso precios/i;
@@ -135573,9 +135698,9 @@ function tryLoadSinonimosJsonFile() {
     path4.resolve(path4.dirname(fileURLToPath3(import.meta.url)), "../data/sinonimos.json")
   ];
   for (const p4 of candidates) {
-    if (!existsSync3(p4)) continue;
+    if (!existsSync4(p4)) continue;
     try {
-      const raw = JSON.parse(readFileSync3(p4, "utf8"));
+      const raw = JSON.parse(readFileSync4(p4, "utf8"));
       const n4 = loadSinonimosJson(raw);
       if (n4 > 0) return;
     } catch {
@@ -137925,15 +138050,15 @@ function looksLikeServicesMenuDump(text2) {
   }
   return false;
 }
-function historyAlreadyHadServicesCatalog(history) {
-  if (!history?.length) return false;
-  return history.some(
+function historyAlreadyHadServicesCatalog(history2) {
+  if (!history2?.length) return false;
+  return history2.some(
     (m5) => m5.role === "assistant" && typeof m5.content === "string" && looksLikeServicesMenuDump(m5.content)
   );
 }
-function appendServiciosCatalogoHint(pregunta, adicional = false, history) {
+function appendServiciosCatalogoHint(pregunta, adicional = false, history2) {
   if (mensajeMencionaCatalogoServicios(pregunta)) return pregunta;
-  if (historyAlreadyHadServicesCatalog(history)) return pregunta.trim();
+  if (historyAlreadyHadServicesCatalog(history2)) return pregunta.trim();
   if (!adicional) return pregunta.trim();
   const hint = SERVICIOS_CATALOGO_HINT_ADICIONAL;
   return `${pregunta.trim()} ${hint}`.trim();
@@ -138178,15 +138303,15 @@ function isValidRequerimientosValue(value) {
   return false;
 }
 var CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
-function detectCierreEnviado(history, lastStoredResponse) {
+function detectCierreEnviado(history2, lastStoredResponse) {
   const looksLikeCierre = (t3) => t3.includes(CLOSING_SIGNATURE) || /\bya tengo todo\b/i.test(t3) || /\bcompartir esta informaci[oó]n con nuestro equipo\b/i.test(t3) || /\bcotizaci[oó]n personalizada\b/i.test(t3);
   if (lastStoredResponse && looksLikeCierre(lastStoredResponse)) return true;
-  return history.some(
+  return history2.some(
     (m5) => m5.role === "assistant" && typeof m5.content === "string" && looksLikeCierre(m5.content)
   );
 }
-function collectUserTexts(history, currentMessage) {
-  const fromHistory = history.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content);
+function collectUserTexts(history2, currentMessage) {
+  const fromHistory = history2.filter((m5) => m5.role === "user" && typeof m5.content === "string").map((m5) => m5.content);
   return currentMessage?.trim() ? [...fromHistory, currentMessage.trim()] : fromHistory;
 }
 function detectEmailRefusal(texts) {
@@ -138198,32 +138323,32 @@ function isShortNoToEmailAsk(message, lastAssistantText) {
   if (CANT_USE_EMAIL_AFTER_ASK_RE.test(message)) return true;
   return message.split(/\n+/).some((line2) => SHORT_NO_REPLY_RE.test(line2.trim()));
 }
-function detectEmailRefusalInContext(message, history = []) {
+function detectEmailRefusalInContext(message, history2 = []) {
   if (!message?.trim()) return false;
   if (detectEmailRefusal([message])) return true;
-  const lastAssistant = [...history].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string")?.content;
+  const lastAssistant = [...history2].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string")?.content;
   return isShortNoToEmailAsk(message, lastAssistant);
 }
-function historyHasShortNoToEmailAsk(history) {
+function historyHasShortNoToEmailAsk(history2) {
   let lastAssistant;
-  for (const m5 of history) {
+  for (const m5 of history2) {
     if (typeof m5.content !== "string") continue;
     if (m5.role === "assistant") lastAssistant = m5.content;
     else if (m5.role === "user" && isShortNoToEmailAsk(m5.content, lastAssistant)) return true;
   }
   return false;
 }
-function applyEmailWaiver(filledSet, mergedLines, texts, history, currentMessage) {
+function applyEmailWaiver(filledSet, mergedLines, texts, history2, currentMessage) {
   if (filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL)) return;
-  const refused = detectEmailRefusal(texts) || !!history && (historyHasShortNoToEmailAsk(history) || detectEmailRefusalInContext(currentMessage, history));
+  const refused = detectEmailRefusal(texts) || !!history2 && (historyHasShortNoToEmailAsk(history2) || detectEmailRefusalInContext(currentMessage, history2));
   if (!refused) return;
   mergedLines.push(`- ${EMAIL_WAIVED_LABEL}: continuar por WhatsApp/chat`);
   filledSet.add(EMAIL_WAIVED_LABEL);
 }
 var INVITADOS_UNAVAILABLE_VALUE = "Sin definir (afluencia abierta / cliente no dispone del dato)";
-function detectInvitadosUnavailable(texts, history = []) {
+function detectInvitadosUnavailable(texts, history2 = []) {
   const last = texts[texts.length - 1]?.trim() ?? "";
-  const lastAssistant = [...history].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
+  const lastAssistant = [...history2].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
   const askedInvitados = !!lastAssistant && (inferLucyAskedField(lastAssistant.content) === "invitados" || /cu[aá]nt(?:os|a)\s+(?:invitados|personas)|cu[aá]nta\s+gente|asistir[aá]n/i.test(
     lastAssistant.content
   ));
@@ -138236,22 +138361,22 @@ function detectInvitadosUnavailable(texts, history = []) {
   if (askedInvitados && aunNo) return true;
   return askedInvitados && (explicitUnknown.test(last) || sponsorContext.test(last));
 }
-function applyInvitadosWaiver(filledSet, mergedLines, texts, history = []) {
+function applyInvitadosWaiver(filledSet, mergedLines, texts, history2 = []) {
   if (filledSet.has("N\xFAmero de invitados")) return;
-  if (!detectInvitadosUnavailable(texts, history)) return;
+  if (!detectInvitadosUnavailable(texts, history2)) return;
   if (!mergedLines.some((line2) => /^-?\s*Número de invitados:/i.test(line2))) {
     mergedLines.push(`- N\xFAmero de invitados: ${INVITADOS_UNAVAILABLE_VALUE}`);
   }
   filledSet.add("N\xFAmero de invitados");
 }
-function syncInvitadosFromHistory(filledSet, extracted, history, currentMessage) {
+function syncInvitadosFromHistory(filledSet, extracted, history2, currentMessage) {
   if (isFieldSatisfied("invitados", filledSet, extracted)) return false;
   if (currentMessage && isPromoTemplateMessage(currentMessage)) return false;
   const mobiliario = /\b(mobiliario|sillas?|crossback|tiffany|periquera)\b/i.test(
     extracted.requerimientos_evento ?? ""
   );
   const n4 = recoverInvitadosFromUserTexts(
-    collectUserTexts(history, currentMessage),
+    collectUserTexts(history2, currentMessage),
     currentMessage,
     { mobiliarioRenta: mobiliario }
   );
@@ -138260,10 +138385,10 @@ function syncInvitadosFromHistory(filledSet, extracted, history, currentMessage)
   filledSet.add("N\xFAmero de invitados");
   return true;
 }
-function syncHorarioFromHistory(filledSet, extracted, history, currentMessage) {
+function syncHorarioFromHistory(filledSet, extracted, history2, currentMessage) {
   if (isFieldSatisfied("horario", filledSet, extracted)) return false;
   if (currentMessage && isPromoTemplateMessage(currentMessage)) return false;
-  const texts = collectUserTexts(history, currentMessage);
+  const texts = collectUserTexts(history2, currentMessage);
   for (let i5 = texts.length - 1; i5 >= 0; i5--) {
     const h4 = parseHorarioFromText(texts[i5]);
     if (h4 && isUsableHorarioEvento(h4)) {
@@ -138275,9 +138400,9 @@ function syncHorarioFromHistory(filledSet, extracted, history, currentMessage) {
   }
   return false;
 }
-function clearPromoTemplateMisextracts(extracted, filledSet, message, history = []) {
+function clearPromoTemplateMisextracts(extracted, filledSet, message, history2 = []) {
   if (!message?.trim() || !isPromoTemplateMessage(message)) return;
-  const earlier = collectUserTexts(history).filter((t3) => !isPromoTemplateMessage(t3));
+  const earlier = collectUserTexts(history2).filter((t3) => !isPromoTemplateMessage(t3));
   const parsedInv = parseInvitadosFromText(message);
   if (extracted.num_invitados != null && (!parsedInv || !/^\d+$/.test(parsedInv))) {
     const prior = recoverInvitadosFromUserTexts(earlier, null);
@@ -138318,17 +138443,17 @@ function clearPromoTemplateMisextracts(extracted, filledSet, message, history = 
     syncLegacyFechaHorarioField(extracted);
   }
 }
-function blockResolvedInvitadosAsk(mensaje, filledSet, extracted, history, currentMessage, buildClosing, cierreYaEnviado, whatsappDisplayName, entityId, log) {
+function blockResolvedInvitadosAsk(mensaje, filledSet, extracted, history2, currentMessage, buildClosing, cierreYaEnviado, whatsappDisplayName, entityId, log) {
   if (!mensajeAsksForField(mensaje, "invitados")) return mensaje;
   applyInvitadosWaiver(
     filledSet,
     [],
-    collectUserTexts(history, currentMessage),
-    history
+    collectUserTexts(history2, currentMessage),
+    history2
   );
-  syncInvitadosFromHistory(filledSet, extracted, history, currentMessage);
+  syncInvitadosFromHistory(filledSet, extracted, history2, currentMessage);
   if (!isFieldSatisfied("invitados", filledSet, extracted)) {
-    const fromHist = parseInvitadosFromText(currentMessage ?? "", { askedInvitados: true }) || collectUserTexts(history, currentMessage).map((t3) => parseInvitadosFromText(t3, { askedInvitados: true })).find(Boolean) || null;
+    const fromHist = parseInvitadosFromText(currentMessage ?? "", { askedInvitados: true }) || collectUserTexts(history2, currentMessage).map((t3) => parseInvitadosFromText(t3, { askedInvitados: true })).find(Boolean) || null;
     if (fromHist && /^\d+$/.test(fromHist)) {
       extracted.num_invitados = Number(fromHist);
       filledSet.add("N\xFAmero de invitados");
@@ -138344,7 +138469,7 @@ function blockResolvedInvitadosAsk(mensaje, filledSet, extracted, history, curre
       extracted,
       filledSet,
       whatsappName: whatsappDisplayName,
-      history,
+      history: history2,
       currentMessage,
       entityId
     });
@@ -138357,15 +138482,15 @@ function blockResolvedInvitadosAsk(mensaje, filledSet, extracted, history, curre
   }
   return "Entendido. Anoto que la afluencia es abierta y que no disponen de ese dato.";
 }
-function applyPresupuestoWaiver(filledSet, mergedLines, texts, history) {
+function applyPresupuestoWaiver(filledSet, mergedLines, texts, history2) {
   if (filledSet.has("Presupuesto (MXN)")) return;
-  const pres = findPresupuestoInTexts(texts, history);
+  const pres = findPresupuestoInTexts(texts, history2);
   if (pres) {
     mergedLines.push(`- Presupuesto (MXN): ${pres}`);
     filledSet.add("Presupuesto (MXN)");
     return;
   }
-  const lastAssistantAsk = [...history ?? []].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string")?.content;
+  const lastAssistantAsk = [...history2 ?? []].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string")?.content;
   const softDeferral = detectPresupuestoRefusalInContext(
     texts[texts.length - 1] ?? "",
     lastAssistantAsk
@@ -138377,7 +138502,7 @@ function applyPresupuestoWaiver(filledSet, mergedLines, texts, history) {
     filledSet.add("Presupuesto (MXN)");
     return;
   }
-  const lastAssistant = [...history ?? []].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
+  const lastAssistant = [...history2 ?? []].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
   const lastAsked = lastAssistant ? inferLucyAskedField(lastAssistant.content) : null;
   if (lastAsked === "presupuesto" && texts.some(
     (t3) => /^(no\s+tengo|no\s+tenemos|no\s+cuento|sin|opciones?|propuestas?)[\s.,!]*$/i.test(
@@ -138388,7 +138513,7 @@ function applyPresupuestoWaiver(filledSet, mergedLines, texts, history) {
     filledSet.add("Presupuesto (MXN)");
     return;
   }
-  if (history && countLucyFieldAsks(history, "presupuesto") >= PRESUPUESTO_MAX_ASKS) {
+  if (history2 && countLucyFieldAsks(history2, "presupuesto") >= PRESUPUESTO_MAX_ASKS) {
     mergedLines.push(`- Presupuesto (MXN): ${PRESUPUESTO_AUTO_WAIVER}`);
     filledSet.add("Presupuesto (MXN)");
   }
@@ -138409,7 +138534,7 @@ function stripPresupuestoQuestion(text2) {
   );
   return kept.join(" ").replace(/\n{3,}/g, "\n\n").trim();
 }
-function repairKnownCatalogAndBudgetRepeat(mensaje, currentMessage, serviceHint, history) {
+function repairKnownCatalogAndBudgetRepeat(mensaje, currentMessage, serviceHint, history2) {
   let out2 = mensaje;
   if (isEventTypeOnlyMessage(currentMessage) && /no lo tengo listado|sobre el servicio de/i.test(out2)) {
     const tipo = parseTipoEventoFromText(currentMessage ?? "") ?? "evento";
@@ -138419,11 +138544,11 @@ function repairKnownCatalogAndBudgetRepeat(mensaje, currentMessage, serviceHint,
     }
   }
   if (/no lo tengo listado/i.test(out2) && (isOccasionMealEventType(currentMessage) || isStandaloneMealEventType(currentMessage) || /\*(Cena|Comida)\*[^.]{0,40}no lo tengo listado/i.test(out2))) {
-    const userBlob = collectUserTexts(history, currentMessage).join("\n");
+    const userBlob = collectUserTexts(history2, currentMessage).join("\n");
     const mealSource = isOccasionMealEventType(currentMessage) || isStandaloneMealEventType(currentMessage) ? currentMessage : conversationHasOccasionMealContext([userBlob]) ? userBlob : "Cena";
     out2 = buildGuardServiceAck(mealSource);
   }
-  const lastAssistant = [...history].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string")?.content;
+  const lastAssistant = [...history2].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string")?.content;
   const askedBudget = !!lastAssistant && (mensajeAsksForField(lastAssistant, "presupuesto") || /presupuesto|opci[oó]n\s+base/i.test(lastAssistant));
   const wantsOptions = clientAsksTeamOptionsInsteadOfBudget(currentMessage);
   if (askedBudget && wantsOptions) {
@@ -138468,16 +138593,16 @@ ${url}`.trim();
   }
   return out2.replace(/\n{3,}/g, "\n\n").trim();
 }
-function blockExcessivePresupuestoAsk(mensaje, filledSet, extracted, history, currentMessage, buildClosing, cierreYaEnviado, whatsappDisplayName, entityId, log) {
+function blockExcessivePresupuestoAsk(mensaje, filledSet, extracted, history2, currentMessage, buildClosing, cierreYaEnviado, whatsappDisplayName, entityId, log) {
   const asksPresupuesto = mensajeAsksForField(mensaje, "presupuesto") || /presupuesto|rango\s+de\s+inversi/i.test(mensaje) && mensaje.includes("?");
   if (!asksPresupuesto) return mensaje;
   if (!filledSet.has("Presupuesto (MXN)")) {
-    applyPresupuestoWaiver(filledSet, [], collectUserTexts(history, currentMessage), history);
+    applyPresupuestoWaiver(filledSet, [], collectUserTexts(history2, currentMessage), history2);
   }
   if (!filledSet.has("Presupuesto (MXN)")) return mensaje;
-  const presValue = findPresupuestoInTexts(collectUserTexts(history, currentMessage), history);
+  const presValue = findPresupuestoInTexts(collectUserTexts(history2, currentMessage), history2);
   if (presValue && /econ[oó]mic/i.test(presValue) && !isReadyForClosing(filledSet)) {
-    const nextQ2 = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    const nextQ2 = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history2, currentMessage, entityId);
     log?.info({ entityId }, "GUARD: presupuesto econ\xF3mico \u2014 no repetir pregunta");
     return nextQ2 ? `Entendido, buscamos opciones econ\xF3micas. ${nextQ2}` : "Entendido, buscamos opciones econ\xF3micas. Nuestro equipo te propone alternativas seg\xFAn lo que platicamos.";
   }
@@ -138485,7 +138610,7 @@ function blockExcessivePresupuestoAsk(mensaje, filledSet, extracted, history, cu
     log?.info({ entityId }, "GUARD: presupuesto \u2014 cierre tras waiver");
     return buildClosing(extracted.requerimientos_evento ?? extracted.tipo_evento ?? null, extracted.nombre);
   }
-  const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+  const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history2, currentMessage, entityId);
   if (nextQ && !mensajeAsksForField(nextQ, "presupuesto")) {
     log?.info({ entityId }, "GUARD: presupuesto capturado \u2014 no repetir pregunta");
     return nextQ;
@@ -138551,15 +138676,15 @@ function hasTipoEvento(filledSet, extracted) {
 function getDisplayName(extracted, whatsappName) {
   return resolveClientDisplayName(extracted.nombre, null, whatsappName);
 }
-function lucyHasPresented(history) {
-  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some(
+function lucyHasPresented(history2) {
+  return history2.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some(
     (m5) => /hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual\s+de\s+bodasesor/i.test(
       m5.content
     )
   );
 }
-function conversationAlreadyStarted(filledSet, history) {
-  if (history.some((m5) => m5.role === "assistant")) return true;
+function conversationAlreadyStarted(filledSet, history2) {
+  if (history2.some((m5) => m5.role === "assistant")) return true;
   if (filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL)) return true;
   return false;
 }
@@ -138602,23 +138727,23 @@ function normalizeAdvisorReferences2(mensaje, name2) {
 function presentationHistoryFrom(ctx) {
   return ctx.presentationHistory ?? ctx.history ?? [];
 }
-function stripRepeatLucyIntro(mensaje, history, alreadyStarted) {
-  if (!alreadyStarted && !lucyHasPresented(history)) return mensaje;
+function stripRepeatLucyIntro(mensaje, history2, alreadyStarted) {
+  if (!alreadyStarted && !lucyHasPresented(history2)) return mensaje;
   return mensaje.replace(
     /¡?Hola!?\.?\s*(?:(?:Buen\s+d[ií]a|Buenas\s+(?:tardes|noches))\.?\s*)?Soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi,
     ""
   ).replace(/Hola,?\s*soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "").replace(/\bSoy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "").replace(/¡?Hola!?\.?\s*Soy\s+Lucy[^.!?\n]{0,90}\.?/gi, "").replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "").replace(/Con gusto te ayudo(?:\.\s*|\s*$)/gi, "").replace(/^\s+/, "").trim();
 }
-function variantIndex(field, history, entityId) {
+function variantIndex(field, history2, entityId) {
   const variants = getQuestionVariants()[field];
-  const assistantTurns = history.filter((m5) => m5.role === "assistant").length;
+  const assistantTurns = history2.filter((m5) => m5.role === "assistant").length;
   const seed = entityId != null ? String(entityId).length : 0;
   return (assistantTurns + seed) % variants.length;
 }
-function pickVariant(field, history, entityId) {
+function pickVariant(field, history2, entityId) {
   const variants = getQuestionVariants()[field];
-  const lastAssistant = history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(-1)[0]?.content;
-  const start2 = variantIndex(field, history, entityId);
+  const lastAssistant = history2.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(-1)[0]?.content;
+  const start2 = variantIndex(field, history2, entityId);
   for (let i5 = 0; i5 < variants.length; i5++) {
     const candidate = variants[(start2 + i5) % variants.length];
     if (!lastAssistant || !mensajeAsksForField(lastAssistant, field)) return candidate;
@@ -138795,9 +138920,9 @@ function collapseDuplicateMedidasAsk(text2) {
     return m5;
   }).replace(/\n{3,}/g, "\n\n").trim();
 }
-function buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId, filledSet, ctx) {
+function buildPistaTarimaSalesReply(extracted, history2, currentMessage, entityId, filledSet, ctx) {
   const dims = parseSpaceDimensions(currentMessage ?? "") || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
-  const histBlob = collectUserTexts(history, currentMessage).slice(-6).join(" ");
+  const histBlob = collectUserTexts(history2, currentMessage).slice(-6).join(" ");
   const variant = parsePistaTarimaVariant(currentMessage) || parsePistaTarimaVariant(histBlob);
   if (filledSet) {
     filledSet.add("Requerimientos o servicios");
@@ -138855,7 +138980,7 @@ ${nextQ}`.trim());
       filledAfter2.add("Requerimientos o servicios");
       if (dimList.length === 0) {
         return collapseDuplicateMedidasAsk(
-          `${pickTransition(history)} Perfecto \u2014 anoto *tarima*. La cotizamos por m\xB2 seg\xFAn medidas. \xBFQu\xE9 medidas aproximadas tiene el espacio (largo \xD7 ancho)?`.trim()
+          `${pickTransition(history2)} Perfecto \u2014 anoto *tarima*. La cotizamos por m\xB2 seg\xFAn medidas. \xBFQu\xE9 medidas aproximadas tiene el espacio (largo \xD7 ancho)?`.trim()
         );
       }
       const pending2 = getNextPendingField(extracted, filledAfter2);
@@ -138863,14 +138988,14 @@ ${nextQ}`.trim());
       const ack = `Perfecto \u2014 anoto *tarima* (${dimsLabel}).`;
       if (pending2 && pending2 !== "requerimientos" && ctx) {
         const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
-        return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${ack}
+        return collapseDuplicateMedidasAsk(`${pickTransition(history2)} ${ack}
 
 ${nextQ}`.trim());
       }
-      return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${ack}`.trim());
+      return collapseDuplicateMedidasAsk(`${pickTransition(history2)} ${ack}`.trim());
     }
     const menu = buildPistaTarimaOptionsMenu(currentMessage, dims);
-    return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${menu}`.trim());
+    return collapseDuplicateMedidasAsk(`${pickTransition(history2)} ${menu}`.trim());
   }
   const fromPdf = buildLucyInfoLearnedPriceReply(variant.query);
   let intro;
@@ -138893,7 +139018,7 @@ Anoto medidas ${dims.replace(/m/gi, " m")} para afinar la cotizaci\xF3n.` : focu
 
 \xBFQu\xE9 medidas aproximadas tiene el espacio?`;
     }
-    return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${intro}`.trim());
+    return collapseDuplicateMedidasAsk(`${pickTransition(history2)} ${intro}`.trim());
   }
   const filledAfter = new Set(filledSet ?? []);
   filledAfter.add("Requerimientos o servicios");
@@ -138901,14 +139026,14 @@ Anoto medidas ${dims.replace(/m/gi, " m")} para afinar la cotizaci\xF3n.` : focu
   if (pending && pending !== "requerimientos" && ctx) {
     const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
     return collapseDuplicateMedidasAsk(
-      `${pickTransition(history)} ${intro}
+      `${pickTransition(history2)} ${intro}
 
 ${nextQ}`.trim()
     );
   }
-  return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${intro}`.trim());
+  return collapseDuplicateMedidasAsk(`${pickTransition(history2)} ${intro}`.trim());
 }
-function buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx) {
+function buildCarpasSalesReply(extracted, history2, currentMessage, filledSet, ctx) {
   const msg = currentMessage ?? "";
   {
     const concrete = buildConcreteProductQuestionReply(
@@ -138932,22 +139057,22 @@ function buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ct
       const pending2 = getNextPendingField(extracted, filledAfter2);
       if (pending2 && pending2 !== "requerimientos" && ctx) {
         const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
-        return `${pickTransition(history)} ${concrete}
+        return `${pickTransition(history2)} ${concrete}
 
 ${nextQ}`.trim();
       }
-      return `${pickTransition(history)} ${concrete}`.trim();
+      return `${pickTransition(history2)} ${concrete}`.trim();
     }
   }
   const dimsList = parseAllSpaceDimensions(msg).length > 0 ? parseAllSpaceDimensions(msg) : parseAllSpaceDimensions(extracted.requerimientos_evento ?? "").length > 0 ? parseAllSpaceDimensions(extracted.requerimientos_evento ?? "") : (() => {
-    const fromHist = collectUserTexts(history, msg).map((t3) => parseAllSpaceDimensions(t3)).find((d2) => d2.length > 0);
+    const fromHist = collectUserTexts(history2, msg).map((t3) => parseAllSpaceDimensions(t3)).find((d2) => d2.length > 0);
     return fromHist ?? [];
   })();
   const dims = dimsList[0] ?? null;
   const variant = parseCarpaVariantFromText(msg);
   const transparent = /transparent/i.test(msg) || /transparent/i.test(variant ?? "");
   const alreadyHasCarpas = /\bcarpas?\b/i.test(extracted.requerimientos_evento ?? "");
-  const alreadyPitched = history.some(
+  const alreadyPitched = history2.some(
     (m5) => m5.role === "assistant" && typeof m5.content === "string" && /carpas?\s+(?:blancas?|negras?|transparentes?)|tipo\s+domo/i.test(m5.content)
   );
   const asksCapacity = clientAsksCapacityLayout(msg);
@@ -138985,22 +139110,22 @@ ${nextQ}`.trim();
       ack2 = "Claro \u2014 seguimos con tu cotizaci\xF3n de *carpas*.";
     }
     if (!dims) {
-      const histHasDims = !!collectUserTexts(history, msg).map((t3) => parseSpaceDimensions(t3)).find(Boolean);
+      const histHasDims = !!collectUserTexts(history2, msg).map((t3) => parseSpaceDimensions(t3)).find(Boolean);
       if (!histHasDims && !/\d+\s*x\s*\d+/i.test(extracted.requerimientos_evento ?? "")) {
         const rec = buildCarpaGuestRecommendationLine(extracted.num_invitados ?? 0);
         if (rec) {
-          return `${pickTransition(history)} ${ack2} ${rec} \xBFTe late esa base o ya tienes medidas del jard\xEDn?`.trim();
+          return `${pickTransition(history2)} ${ack2} ${rec} \xBFTe late esa base o ya tienes medidas del jard\xEDn?`.trim();
         }
-        return `${pickTransition(history)} ${ack2} \xBFQu\xE9 medidas aproximadas necesitas?`.trim();
+        return `${pickTransition(history2)} ${ack2} \xBFQu\xE9 medidas aproximadas necesitas?`.trim();
       }
     }
     if (pending2 && pending2 !== "requerimientos" && ctx) {
       const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
-      return `${pickTransition(history)} ${ack2}
+      return `${pickTransition(history2)} ${ack2}
 
 ${nextQ}`.trim();
     }
-    return `${pickTransition(history)} ${ack2}`.trim();
+    return `${pickTransition(history2)} ${ack2}`.trim();
   }
   if (alsoMobiliario) {
     const ack2 = `Perfecto \u2014 anoto *carpas* y *mobiliario* para tu evento.${transparent ? " Incluyo la opci\xF3n de carpas transparentes." : ""}`;
@@ -139023,18 +139148,18 @@ ${catalog}
 
 ${rec} \xBFArmamos con esa base o ya tienes medidas del jard\xEDn?`;
       }
-      return `${pickTransition(history)} ${body2}`.trim();
+      return `${pickTransition(history2)} ${body2}`.trim();
     }
     const filledAfter2 = new Set(filledSet ?? []);
     filledAfter2.add("Requerimientos o servicios");
     const pending2 = getNextPendingField(extracted, filledAfter2);
     if (pending2 && pending2 !== "requerimientos" && ctx) {
       const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
-      return `${pickTransition(history)} ${body2}
+      return `${pickTransition(history2)} ${body2}
 
 ${nextQ}`.trim();
     }
-    return `${pickTransition(history)} ${body2}`.trim();
+    return `${pickTransition(history2)} ${body2}`.trim();
   }
   if (dimsList.length > 0 && isDimensionText(msg)) {
     const filledAfter2 = new Set(filledSet ?? []);
@@ -139044,17 +139169,17 @@ ${nextQ}`.trim();
     const kind = resolveSpaceMeasureServiceBase({
       requerimientos: extracted.requerimientos_evento,
       currentMessage: msg,
-      historyBlob: collectUserTexts(history, msg).join(" ")
+      historyBlob: collectUserTexts(history2, msg).join(" ")
     });
     const noun = kind === "pista" ? "pista" : kind === "tarima" ? "tarima" : kind === "entelado" ? "entelado" : "carpa";
     const ack2 = `Perfecto \u2014 anoto medidas *${dimsLabel}* para la ${noun}.`;
     if (pending2 && pending2 !== "requerimientos" && ctx) {
       const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
-      return `${pickTransition(history)} ${ack2}
+      return `${pickTransition(history2)} ${ack2}
 
 ${nextQ}`.trim();
     }
-    return `${pickTransition(history)} ${ack2}`.trim();
+    return `${pickTransition(history2)} ${ack2}`.trim();
   }
   if (variant && !/carpas?/i.test(msg)) {
     const filledAfter2 = new Set(filledSet ?? []);
@@ -139062,15 +139187,15 @@ ${nextQ}`.trim();
     const pending2 = getNextPendingField(extracted, filledAfter2);
     const ack2 = dims ? `Perfecto \u2014 anoto *${variant}* (${dims.replace(/m/gi, " m")}) para tu cotizaci\xF3n.` : `Perfecto \u2014 anoto *${variant}* para tu cotizaci\xF3n.`;
     if (!dims) {
-      return `${pickTransition(history)} ${ack2} \xBFQu\xE9 medidas aproximadas necesitas?`.trim();
+      return `${pickTransition(history2)} ${ack2} \xBFQu\xE9 medidas aproximadas necesitas?`.trim();
     }
     if (pending2 && pending2 !== "requerimientos" && ctx) {
       const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
-      return `${pickTransition(history)} ${ack2}
+      return `${pickTransition(history2)} ${ack2}
 
 ${nextQ}`.trim();
     }
-    return `${pickTransition(history)} ${ack2}`.trim();
+    return `${pickTransition(history2)} ${ack2}`.trim();
   }
   const ack = buildGuardServiceAck(msg || "carpas transparentes");
   if (dims && /medidas/i.test(ack)) {
@@ -139081,11 +139206,11 @@ ${nextQ}`.trim();
     const body2 = `${withoutMedidasAsk} Anoto medidas *${dims.replace(/m/gi, " m")}*.`;
     if (pending2 && pending2 !== "requerimientos" && ctx) {
       const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
-      return `${pickTransition(history)} ${body2}
+      return `${pickTransition(history2)} ${body2}
 
 ${nextQ}`.trim();
     }
-    return `${pickTransition(history)} ${body2}`.trim();
+    return `${pickTransition(history2)} ${body2}`.trim();
   }
   if (!dims) {
     const rec = buildCarpaGuestRecommendationLine(extracted.num_invitados ?? 0);
@@ -139105,24 +139230,24 @@ ${nextQ}`.trim();
       }
       const pending2 = getNextPendingField(extracted, filledAfter2);
       const nextQ = pending2 && pending2 !== "requerimientos" && ctx ? buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 }) : null;
-      return `${pickTransition(history)} ${ack} ${rec}${nextQ ? `
+      return `${pickTransition(history2)} ${ack} ${rec}${nextQ ? `
 
 ${nextQ}` : ""}`.trim();
     }
-    return `${pickTransition(history)} ${ack}`.trim();
+    return `${pickTransition(history2)} ${ack}`.trim();
   }
   const filledAfter = new Set(filledSet ?? []);
   filledAfter.add("Requerimientos o servicios");
   const pending = getNextPendingField(extracted, filledAfter);
   if (pending && pending !== "requerimientos" && ctx) {
     const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
-    return `${pickTransition(history)} ${ack}
+    return `${pickTransition(history2)} ${ack}
 
 ${nextQ}`.trim();
   }
-  return `${pickTransition(history)} ${ack}`.trim();
+  return `${pickTransition(history2)} ${ack}`.trim();
 }
-function buildEntertainmentSalesReply(extracted, history, entityId, currentMessage, filledSet, ctx) {
+function buildEntertainmentSalesReply(extracted, history2, entityId, currentMessage, filledSet, ctx) {
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
   const msg = currentMessage ?? "";
   const eventLabel = /corporativo|empresa|convenci[oó]n|convencion/.test(tipo) || /empresa|corporativo|convenci[oó]n/i.test(msg) ? "tu evento corporativo" : tipo ? `tu ${tipo}` : "tu evento";
@@ -139153,7 +139278,7 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
   const asksShowOptions = SHOW_OPTIONS_ASK_PATTERN.test(msg);
   const isGenericEntertainment = !wantsPhotoBooth && !wantsSpecialAct && !wantsMariachi && !wantsRegionalDance && !wantsBailarinas && !wantsRobots && !wantsBatucada && !wantsMc;
   if (asksShowOptions && isGenericEntertainment) {
-    const menuAlreadySent = history.some(
+    const menuAlreadySent = history2.some(
       (m5) => m5.role === "assistant" && typeof m5.content === "string" && /opciones de entretenimiento/i.test(m5.content)
     );
     if (menuAlreadySent) {
@@ -139213,7 +139338,7 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
       ...!wantsPhotoBooth && !wantsSpecialAct && !wantsMariachi && !wantsRegionalDance && !wantsBailarinas && !wantsRobots && !wantsBatucada && !wantsMc ? ["Animaci\xF3n / Hora loca", "show"] : []
     ],
     extracted,
-    history,
+    history: history2,
     currentMessage
   });
   let catalog = wantsPhotoBooth || wantsSpecialAct ? "" : buildPackageCatalogOfferBlock(
@@ -139238,7 +139363,7 @@ ${catalog}` : `${intro} ${ideas}`;
 ${nextQ}`;
     }
   } else {
-    const follow = pickVariant("requerimientos", history, entityId);
+    const follow = pickVariant("requerimientos", history2, entityId);
     body2 = `${body2}
 
 ${follow}`.trim();
@@ -139266,8 +139391,8 @@ function requerimientosFollowUpTemplate(text2, clientName) {
   }
   return null;
 }
-function bodyEqualsLastAssistant(msg, history, clientName) {
-  const last = [...history].reverse().find((m5) => m5.role === "assistant");
+function bodyEqualsLastAssistant(msg, history2, clientName) {
+  const last = [...history2].reverse().find((m5) => m5.role === "assistant");
   if (!last || typeof last.content !== "string") return false;
   const norm2 = (s6) => stripLeadingTransition(s6).trim();
   const a3 = norm2(msg);
@@ -139284,30 +139409,30 @@ function hasMeaningfulRequerimientos(extracted, filledSet) {
   const req = extracted.requerimientos_evento?.trim() ?? "";
   return req.length > 0;
 }
-function lastAssistantAskedMoreServices(history) {
-  const lastAssistant = history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(-1)[0]?.content;
+function lastAssistantAskedMoreServices(history2) {
+  const lastAssistant = history2.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(-1)[0]?.content;
   if (!lastAssistant) return false;
   if (OTRO_SERVICIO_ASK_PATTERN.test(lastAssistant)) return true;
   return inferLucyAskedField(lastAssistant) === "requerimientos" && /alg[uú]n\s+otro\s+servicio|otro\s+servicio|algo\s+m[aá]s|qu[eé]\s+otros\s+servicios/i.test(
     lastAssistant
   );
 }
-function buildFoodServiceAckIntro(extracted, history, currentMessage) {
+function buildFoodServiceAckIntro(extracted, history2, currentMessage) {
   if (!currentMessage) return null;
   const mentionedService = findMentionedService(currentMessage);
   if (!mentionedService && !clientMentionsCatering(currentMessage)) return null;
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
   const eventLabel = tipo === "cumplea\xF1os" ? "un cumplea\xF1os" : tipo === "boda" ? "una boda" : tipo === "xv a\xF1os" ? "XV a\xF1os" : tipo ? `un ${tipo}` : "tu evento";
   if (mentionedService) {
-    return `${pickTransition(history)} S\xED manejamos ${mentionedService} para ${eventLabel}.`;
+    return `${pickTransition(history2)} S\xED manejamos ${mentionedService} para ${eventLabel}.`;
   }
   if (/coffee\s*break/i.test(currentMessage)) {
-    return `${pickTransition(history)} S\xED manejamos Coffee Break para eventos corporativos y particulares.`;
+    return `${pickTransition(history2)} S\xED manejamos Coffee Break para eventos corporativos y particulares.`;
   }
-  return `${pickTransition(history)} Con gusto te ayudo con catering para ${eventLabel}.`;
+  return `${pickTransition(history2)} Con gusto te ayudo con catering para ${eventLabel}.`;
 }
-function buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId) {
-  const texts = collectUserTexts(history, currentMessage).join(" ").toLowerCase();
+function buildVagueFoodOptionsReply(extracted, history2, currentMessage, entityId) {
+  const texts = collectUserTexts(history2, currentMessage).join(" ").toLowerCase();
   const tipoFromMsg = parseTipoEventoFromText(currentMessage ?? "");
   if (tipoFromMsg && !extracted.tipo_evento?.trim()) {
     extracted.tipo_evento = tipoFromMsg;
@@ -139317,30 +139442,30 @@ function buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId
   const gettingReady = isGettingReadyContext(texts) || isGettingReadyContext(currentMessage);
   const msg = currentMessage ?? "";
   if (!gettingReady && (clientAsksForFoodMenu(msg) || isVagueFoodTerm(msg) || /\b(comidas?|alimentos?|catering|banquetes?)\b/i.test(msg))) {
-    if (historyOfferedAlimentosModoMenu(history)) {
+    if (historyOfferedAlimentosModoMenu(history2)) {
       if (clientChoseBanqueteFormal(msg)) {
-        return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
+        return `${pickTransition(history2)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
       }
       if (clientChoseCateringCasual(msg)) {
-        return `${pickTransition(history)} ${buildCateringCasualMenu()}`.trim();
+        return `${pickTransition(history2)} ${buildCateringCasualMenu()}`.trim();
       }
     }
     if (/\bbanquetes?\b/i.test(msg) && !/\b(formal|mexicano|kosher|navide|\d\s*tiempos?|catering|comida|alimentos?|taquiza|barra)\b/i.test(
       msg.replace(/\bbanquetes?\b/gi, " ")
-    ) && !historyOfferedServiceOptionsMenu(history)) {
-      return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
+    ) && !historyOfferedServiceOptionsMenu(history2)) {
+      return `${pickTransition(history2)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
     }
-    if (!historyOfferedAlimentosModoMenu(history) && !historyOfferedServiceOptionsMenu(history)) {
+    if (!historyOfferedAlimentosModoMenu(history2) && !historyOfferedServiceOptionsMenu(history2)) {
       const smallBirthday = /\bcumplea/i.test(tipo) && (inv > 0 ? inv <= 50 : /\bpeque[nñ]o\b/i.test(msg));
       if (smallBirthday) {
         return [
-          pickTransition(history),
+          pickTransition(history2),
           "Para un cumplea\xF1os m\xE1s peque\xF1o suele ir muy bien algo *casual* (barra de pastas/pizzas, taquiza, canap\xE9s\u2026) o un *banquete* m\xE1s formal si lo prefieres.",
           "",
           buildAlimentosModoMenu()
         ].join("\n").trim();
       }
-      return `${pickTransition(history)} ${buildAlimentosModoMenu()}`.trim();
+      return `${pickTransition(history2)} ${buildAlimentosModoMenu()}`.trim();
     }
   }
   let options;
@@ -139364,29 +139489,29 @@ function buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId
     options = "Manejamos ambas: *Barra de Caf\xE9* (baristas y bebidas artesanales) y *catering de comida* (banquete, barras de alimentos, meseros). \xBFQu\xE9 te late m\xE1s para tu evento?";
     linkHint = "banquete";
   } else {
-    return `${pickTransition(history)} ${buildAlimentosModoMenu()}`.trim();
+    return `${pickTransition(history2)} ${buildAlimentosModoMenu()}`.trim();
   }
-  const follow = pickVariant("requerimientos", history, entityId);
-  return `${pickTransition(history)} ${options} ${follow}`.trim();
+  const follow = pickVariant("requerimientos", history2, entityId);
+  return `${pickTransition(history2)} ${options} ${follow}`.trim();
 }
 function buildProgressiveDetailAfterMenu(opts) {
-  const { extracted, history, currentMessage, filledSet, serviceHint } = opts;
-  if (!historyOfferedServiceOptionsMenu(history)) return null;
-  if (!clientWantsServiceDetail(currentMessage, history)) return null;
+  const { extracted, history: history2, currentMessage, filledSet, serviceHint } = opts;
+  if (!historyOfferedServiceOptionsMenu(history2)) return null;
+  if (!clientWantsServiceDetail(currentMessage, history2)) return null;
   const hint = serviceHint || extracted.requerimientos_evento;
   const detailQuery = resolveProgressiveDetailQuery({
     currentMessage,
     serviceHint: hint,
-    history
+    history: history2
   });
   if (!detailQuery && isBareProgressiveAffirmation(currentMessage)) {
     const family = detectProgressiveFamily(hint) || detectProgressiveFamily(
-      collectUserTexts(history, currentMessage).join(" ")
+      collectUserTexts(history2, currentMessage).join(" ")
     );
     if (family) {
       const familyQueries = progressiveFamilyDetailQueries(family);
       const askedByClient = parseServicesFromText(
-        `${hint ?? ""} ${collectUserTexts(history, currentMessage).join(" ")}`
+        `${hint ?? ""} ${collectUserTexts(history2, currentMessage).join(" ")}`
       );
       const matchedQueries = familyQueries.filter(
         (q2) => askedByClient.some((s6) => s6.toLowerCase() === q2.toLowerCase())
@@ -139420,15 +139545,15 @@ function buildProgressiveDetailAfterMenu(opts) {
       if (chunks.length) {
         const joined = chunks.map((c4) => c4.replace(/\n*¿Te late este nivel o quieres que te detalle otro\?\s*$/i, "").trim()).join("\n\n");
         const body3 = withServiceAndGeneralCatalogLinks(joined, linkQ, hint || linkQ);
-        return `${pickTransition(history)} Te paso el detalle de las opciones:
+        return `${pickTransition(history2)} Te paso el detalle de las opciones:
 
 ${body3}`.trim();
       }
-      return `${pickTransition(history)} ${link}`.trim();
+      return `${pickTransition(history2)} ${link}`.trim();
     }
   }
   if (!detailQuery) {
-    return `${pickTransition(history)} ${SERVICE_NIVEL_DETAIL_CTA}`.trim();
+    return `${pickTransition(history2)} ${SERVICE_NIVEL_DETAIL_CTA}`.trim();
   }
   if (filledSet) {
     filledSet.add("Requerimientos o servicios");
@@ -139447,19 +139572,19 @@ ${body3}`.trim();
     detailQuery
   );
   if (usableDetail) {
-    return `${pickTransition(history)} Te detallo *${detailQuery}*:
+    return `${pickTransition(history2)} Te detallo *${detailQuery}*:
 
 ${body2}`.trim();
   }
-  return `${pickTransition(history)} ${body2}`.trim();
+  return `${pickTransition(history2)} ${body2}`.trim();
 }
-function buildFoodSalesReply(extracted, history, entityId, currentMessage, filledSet, ctx) {
+function buildFoodSalesReply(extracted, history2, entityId, currentMessage, filledSet, ctx) {
   const blob = `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`;
   if (clientMentionsLedRobotsOrBatucada(currentMessage) || clientMentionsLedRobotsOrBatucada(extracted.requerimientos_evento ?? "") || clientMentionsEntertainment(currentMessage) && !/\b(banquete|taquiza|coffee|brunch|catering|barra\s+de\s+alimentos)\b/i.test(blob)) {
     return null;
   }
   if (isVagueFoodTerm(currentMessage)) {
-    return buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
+    return buildVagueFoodOptionsReply(extracted, history2, currentMessage, entityId);
   }
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
   const tipoIsServiceSku = /^(taquiza|parrillada|pozolada|paellada|banquete|barra|coffee\s*break)$/i.test(tipo) || /taquiza|parrillada|banquete|barra de/i.test(tipo) && !/boda|cumplea|bautizo|xv|corporativ|gradu|baby/i.test(tipo);
@@ -139497,7 +139622,7 @@ ${nextQ}`;
       const merged = mergeServiceRequirements(extracted.requerimientos_evento, "banquete", 6);
       if (merged) extracted.requerimientos_evento = merged;
     }
-    return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
+    return `${pickTransition(history2)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
   }
   if (allServices.length === 1 && resolvedServiceLabel && !/^(Comida|Alimentos|Banquete)$/i.test(resolvedServiceLabel) && hasSpecificFoodService(currentMessage ?? "")) {
     if (filledSet) {
@@ -139513,9 +139638,9 @@ ${nextQ}`;
     const catalogDetail = buildCatalogServiceDetailAnswer(resolvedServiceLabel);
     const detail = soloCompleto || catalogDetail;
     return appendNext(
-      detail ? `${pickTransition(history)} Perfecto. Anoto *${resolvedServiceLabel}*.
+      detail ? `${pickTransition(history2)} Perfecto. Anoto *${resolvedServiceLabel}*.
 
-${detail}`.trim() : `${pickTransition(history)} Perfecto. Anoto *${resolvedServiceLabel}*.`.trim(),
+${detail}`.trim() : `${pickTransition(history2)} Perfecto. Anoto *${resolvedServiceLabel}*.`.trim(),
       resolvedServiceLabel
     );
   }
@@ -139525,7 +139650,7 @@ ${detail}`.trim() : `${pickTransition(history)} Perfecto. Anoto *${resolvedServi
       allServices,
       currentMessage
     );
-    return appendNext(`${pickTransition(history)} ${packageReply}`, listLabel || null);
+    return appendNext(`${pickTransition(history2)} ${packageReply}`, listLabel || null);
   }
   if (currentMessage && isServicePreferenceRefinement(currentMessage, crmService || resolvedServiceLabel)) {
     const label = resolvedServiceLabel || crmService || "tu cotizaci\xF3n";
@@ -139540,18 +139665,18 @@ ${detail}`.trim() : `${pickTransition(history)} Perfecto. Anoto *${resolvedServi
       if (merged) extracted.requerimientos_evento = merged;
     }
     return appendNext(
-      `${pickTransition(history)} Perfecto, anoto esa preferencia para *${label}* y se la paso al equipo.`,
+      `${pickTransition(history2)} Perfecto, anoto esa preferencia para *${label}* y se la paso al equipo.`,
       resolvedServiceLabel
     );
   }
   if (currentMessage && isVagueFoodTerm(currentMessage)) {
-    return buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
+    return buildVagueFoodOptionsReply(extracted, history2, currentMessage, entityId);
   }
   if (mentionedService || resolvedServiceLabel || currentMessage && isServiceRelatedMessage(currentMessage)) {
     const serviceLabel = resolvedServiceLabel;
     const optionsFirst = shouldOfferOptionsBeforeDetail({
       currentMessage,
-      history,
+      history: history2,
       serviceHint: mentionedService || serviceLabel || crmService
     });
     if (optionsFirst) {
@@ -139577,20 +139702,20 @@ https://bodasesor.com/catalogos/coffee-break`;
         }
       } else {
       }
-      return appendNext(`${pickTransition(history)} ${menu}`.trim(), serviceLabel);
+      return appendNext(`${pickTransition(history2)} ${menu}`.trim(), serviceLabel);
     }
     const detailQuery = resolveProgressiveDetailQuery({
       currentMessage,
       serviceHint: mentionedService || serviceLabel || crmService,
-      history
+      history: history2
     });
-    if (!detailQuery && historyOfferedServiceOptionsMenu(history) && clientWantsServiceDetail(currentMessage, history)) {
-      return `${pickTransition(history)} ${SERVICE_NIVEL_DETAIL_CTA}`.trim();
+    if (!detailQuery && historyOfferedServiceOptionsMenu(history2) && clientWantsServiceDetail(currentMessage, history2)) {
+      return `${pickTransition(history2)} ${SERVICE_NIVEL_DETAIL_CTA}`.trim();
     }
     const queryForDetail = detailQuery || mentionedService || serviceLabel || crmService || null;
     if (!queryForDetail) {
       return appendNext(
-        `${pickTransition(history)} Claro. \xBFDe qu\xE9 servicio te paso el detalle?`,
+        `${pickTransition(history2)} Claro. \xBFDe qu\xE9 servicio te paso el detalle?`,
         null
       );
     }
@@ -139600,7 +139725,7 @@ https://bodasesor.com/catalogos/coffee-break`;
     }
     if (detail) {
       const introLabel = detailQuery || mentionedService || serviceLabel;
-      const intro = introLabel ? `${pickTransition(history)} Te detallo *${introLabel}*${eventPhrase}.` : `${pickTransition(history)} Te detallo la opci\xF3n.`;
+      const intro = introLabel ? `${pickTransition(history2)} Te detallo *${introLabel}*${eventPhrase}.` : `${pickTransition(history2)} Te detallo la opci\xF3n.`;
       const body2 = withServiceAndGeneralCatalogLinks(detail, queryForDetail, queryForDetail);
       return `${intro}
 
@@ -139609,7 +139734,7 @@ ${body2}`.trim();
     const forced = attachAvailableSheetDetail(queryForDetail, mentionedService || serviceLabel) || null;
     if (forced) {
       const introLabel = detailQuery || mentionedService || serviceLabel;
-      const intro = introLabel ? `${pickTransition(history)} Te detallo *${introLabel}*${eventPhrase}.` : `${pickTransition(history)} Te detallo la opci\xF3n.`;
+      const intro = introLabel ? `${pickTransition(history2)} Te detallo *${introLabel}*${eventPhrase}.` : `${pickTransition(history2)} Te detallo la opci\xF3n.`;
       const body2 = withServiceAndGeneralCatalogLinks(forced, queryForDetail, queryForDetail);
       return `${intro}
 
@@ -139621,18 +139746,18 @@ ${body2}`.trim();
         const body2 = withServiceAndGeneralCatalogLinks(ack, serviceLabel, serviceLabel);
         return body2;
       }
-      return appendNext(`${pickTransition(history)} ${ack}`, serviceLabel);
+      return appendNext(`${pickTransition(history2)} ${ack}`, serviceLabel);
     }
     return null;
   }
-  return buildRecommendationsReply(extracted, history, entityId, currentMessage);
+  return buildRecommendationsReply(extracted, history2, entityId, currentMessage);
 }
-function buildRecommendationsReply(extracted, history, entityId, currentMessage) {
+function buildRecommendationsReply(extracted, history2, entityId, currentMessage) {
   if (clientAsksBanqueteVsTaquiza(currentMessage)) {
     const comparison2 = buildCatalogComparisonAnswer();
     if (comparison2) return comparison2;
   }
-  const texts = collectUserTexts(history, currentMessage).join(" ").toLowerCase();
+  const texts = collectUserTexts(history2, currentMessage).join(" ").toLowerCase();
   const tipo = (extracted.tipo_evento ?? "").toLowerCase();
   const inv = extracted.num_invitados ?? 0;
   const gettingReady = isGettingReadyContext(texts) || isGettingReadyContext(currentMessage);
@@ -139643,9 +139768,9 @@ function buildRecommendationsReply(extracted, history, entityId, currentMessage)
     const primary = focus.label;
     const comps = focus.complements.slice(0, 2).join(" y ");
     const ideas2 = `Para tu ${extracted.tipo_evento || focus.label} tenemos *${primary}*. Si quieres, tambi\xE9n podemos sumar ${comps} \u2014 sin compromiso.`;
-    const follow2 = pickVariant("invitados", history, entityId);
+    const follow2 = pickVariant("invitados", history2, entityId);
     return ensureCatalogWebLink(
-      `${pickTransition(history)} ${ideas2} ${follow2}`.trim(),
+      `${pickTransition(history2)} ${ideas2} ${follow2}`.trim(),
       primary
     );
   }
@@ -139677,7 +139802,7 @@ function buildRecommendationsReply(extracted, history, entityId, currentMessage)
 
 ${comparison}`, "banquete");
   }
-  const follow = pickVariant("requerimientos", history, entityId);
+  const follow = pickVariant("requerimientos", history2, entityId);
   const tip = buildSalesIdeasSnippet({
     tipoEvento: extracted.tipo_evento,
     messageText: currentMessage,
@@ -139703,8 +139828,8 @@ var LUCY_TRANSITIONS = [
   "Claro."
 ];
 var TRANSITION_START_PATTERN = /^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)\./i;
-function pickTransition(history) {
-  const assistants = history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").map((m5) => m5.content.trim());
+function pickTransition(history2) {
+  const assistants = history2.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").map((m5) => m5.content.trim());
   const last = assistants[assistants.length - 1] ?? "";
   const lastMatch = last.match(TRANSITION_START_PATTERN);
   const lastTransition = lastMatch ? lastMatch[0] : null;
@@ -139791,14 +139916,14 @@ function stripRobotAcknowledgments(mensaje) {
   out2 = out2.replace(/\bPerfecto,\s+\w+\.\s+Ya\s+tengo\b[^.?!]+\.\s*/gi, "");
   return squashInlineSpaces(out2);
 }
-function contextualPrefix(field, extracted, currentMessage, history = []) {
+function contextualPrefix(field, extracted, currentMessage, history2 = []) {
   const msg = currentMessage?.trim() ?? "";
   if (!msg) return "";
   if (field === "requerimientos" && clientMentionsCatering(currentMessage)) {
-    return `${pickTransition(history)} `;
+    return `${pickTransition(history2)} `;
   }
   if (field === "invitados" && (extracted.tipo_evento || /boda|xv|cumple|corporativo|baby/i.test(msg))) {
-    return `${pickTransition(history)} `;
+    return `${pickTransition(history2)} `;
   }
   if (field === "zona" && /\d+/.test(msg)) {
     return "Entendido. ";
@@ -139807,7 +139932,7 @@ function contextualPrefix(field, extracted, currentMessage, history = []) {
     return "Muy bien. ";
   }
   if (field === "presupuesto" && /fecha|junio|julio|agosto|s[aá]bado|domingo|\d{1,2}\s+de/i.test(msg)) {
-    return `${pickTransition(history)} `;
+    return `${pickTransition(history2)} `;
   }
   return "";
 }
@@ -139889,8 +140014,8 @@ function getNextPendingField(extracted, filledSet) {
   if (!filled.has("Presupuesto (MXN)") && !hasPresupuestoValue(extracted)) return "presupuesto";
   return null;
 }
-function isFirstLucyReply(history) {
-  return !history.some((m5) => m5.role === "assistant");
+function isFirstLucyReply(history2) {
+  return !history2.some((m5) => m5.role === "assistant");
 }
 function parseNombreFromCrmLines(mergedLines) {
   const line2 = mergedLines.find((l5) => /^-?\s*Nombre del cliente:/i.test(l5));
@@ -139902,8 +140027,8 @@ function guestCountFromUserText(text2) {
   const inv = parseInvitadosFromText(text2);
   return inv && /^\d+$/.test(inv) ? inv : null;
 }
-function buildOpeningAcknowledgment(history, currentMessage) {
-  const texts = collectUserTexts(history, currentMessage);
+function buildOpeningAcknowledgment(history2, currentMessage) {
+  const texts = collectUserTexts(history2, currentMessage);
   const userText = texts[texts.length - 1] ?? texts.join(" ");
   const t3 = userText.toLowerCase();
   if (isPromoTemplateMessage(userText)) {
@@ -140036,21 +140161,21 @@ ${url}` : ack;
   return "Estoy aqu\xED para ayudarte con lo que necesites para tu evento.";
 }
 function buildFirstInteractionMessage(ctx, withIntro = true) {
-  const history = ctx.history ?? [];
+  const history2 = ctx.history ?? [];
   const filledSet = ctx.filledSet ?? /* @__PURE__ */ new Set();
-  const ack = buildOpeningAcknowledgment(history, ctx.currentMessage);
+  const ack = buildOpeningAcknowledgment(history2, ctx.currentMessage);
   const intro = withIntro ? `${LUCY_INTRO} ` : "";
-  const userText = collectUserTexts(history, ctx.currentMessage).join(" ");
+  const userText = collectUserTexts(history2, ctx.currentMessage).join(" ");
   const richBrief = isRichQuoteBrief(ctx.currentMessage) || isRichQuoteBrief(userText);
   const multiServices = parseServicesFromText(userText);
   const pistaTarimaOnly = !richBrief && multiServices.length >= 1 && multiServices.every((s6) => /^(pista de baile|tarima)s?$/i.test(s6.trim()));
   const includeCatalog = !pistaTarimaOnly && (richBrief || multiServices.length >= 2);
   if (clientAsksLocation(ctx.currentMessage)) {
-    const nameQ2 = pickVariant("nombre", history, ctx.entityId);
+    const nameQ2 = pickVariant("nombre", history2, ctx.entityId);
     return `${intro}${buildLocationAnswer(ctx.currentMessage)} ${nameQ2}`.trim();
   }
   if (clientMentionsItalianTheme(ctx.currentMessage) || clientAsksForRecommendations(ctx.currentMessage) && clientMentionsItalianTheme(userText)) {
-    const nameQ2 = pickVariant("nombre", history, ctx.entityId);
+    const nameQ2 = pickVariant("nombre", history2, ctx.entityId);
     return `${intro}${buildItalianFoodPitch(ctx.currentMessage)} ${nameQ2}`.trim();
   }
   const greetingOnly = isGreetingOnlyMessage(ctx.currentMessage ?? "");
@@ -140058,7 +140183,7 @@ function buildFirstInteractionMessage(ctx, withIntro = true) {
   const vagueFoodFirst = !includeCatalog && (isVagueFoodTerm(ctx.currentMessage) || isVagueFoodTerm(userText));
   const progressiveFirst = !includeCatalog && !vagueFoodFirst && svcHint ? shouldOfferOptionsBeforeDetail({
     currentMessage: ctx.currentMessage ?? svcHint,
-    history,
+    history: history2,
     serviceHint: svcHint
   }) : null;
   const requestedCatalogDetail = clientAsksInclusion(ctx.currentMessage) || clientAsksPrice(ctx.currentMessage) || clientAsksForCatalog(ctx.currentMessage);
@@ -140081,7 +140206,7 @@ ${sheetDetail}` : "";
       `\\b(Perfecto|Excelente|Genial),\\s*${nombre.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
       "i"
     ).test(ack);
-    const greet = nombre && !ackHasName ? buildNameGreeting(nombre, history) : "";
+    const greet = nombre && !ackHasName ? buildNameGreeting(nombre, history2) : "";
     if (pending) {
       const q2 = buildNaturalQuestion(pending, ctx);
       const body3 = `${ack}${catalogBlock}
@@ -140094,7 +140219,7 @@ ${greet ? `${greet} ` : ""}${q2}`.trim();
 ${greet}`.trim() : `${ack}${catalogBlock}`.trim();
     return withIntro ? `${intro}${body2}`.trim() : body2;
   }
-  const nameQ = pickVariant("nombre", history, ctx.entityId);
+  const nameQ = pickVariant("nombre", history2, ctx.entityId);
   return `${intro}${ack}${catalogBlock}
 
 ${nameQ}`.trim();
@@ -140115,9 +140240,9 @@ function isLegacyStoredLucyResponse(text2) {
   if (isResumenClienteLargo(t3)) return true;
   return usesLegacyLucyIntro(t3);
 }
-function lastAssistantOutboundFromHistory(history) {
-  for (let i5 = history.length - 1; i5 >= 0; i5--) {
-    const m5 = history[i5];
+function lastAssistantOutboundFromHistory(history2) {
+  for (let i5 = history2.length - 1; i5 >= 0; i5--) {
+    const m5 = history2[i5];
     if (m5.role !== "assistant" || typeof m5.content !== "string") continue;
     const text2 = m5.content.trim();
     if (!text2 || isLegacyStoredLucyResponse(text2)) continue;
@@ -140345,20 +140470,20 @@ function aiLooksLikeEventServiceOffer(text2) {
   return mentionsService && invitesChoice;
 }
 function preferEventOfferReply(opts) {
-  const { aiResponse, extracted, filledSet, history, currentMessage, entityId } = opts;
+  const { aiResponse, extracted, filledSet, history: history2, currentMessage, entityId } = opts;
   if (!hasTipoEvento(filledSet, extracted)) return null;
   if (getNextPendingField(extracted, filledSet) !== "requerimientos") return null;
   if (isValidRequerimientosValue(extracted.requerimientos_evento)) return null;
   if (clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage)) return null;
   const msg = currentMessage?.trim() ?? "";
-  const userBlob = collectUserTexts(history, currentMessage).join(" ");
+  const userBlob = collectUserTexts(history2, currentMessage).join(" ");
   if (/bet[uú]n|cupcakes?|paletas?\s+de\s+hielo|helados?/i.test(aiResponse) && /\bbanquetes?\b|\bcatering\b/i.test(`${msg} ${userBlob} ${extracted.requerimientos_evento ?? ""}`)) {
     return null;
   }
   if (clientMentionsEntertainment(msg) || clientMentionsLedRobotsOrBatucada(msg)) {
     return null;
   }
-  const lastAsstOffer = lastAssistantOutboundFromHistory(history);
+  const lastAsstOffer = lastAssistantOutboundFromHistory(history2);
   if (clientConfirmsOfferReview(msg) && lastAsstOffer && /revisar\s+primero|armar\s+un\s+paquete/i.test(lastAsstOffer)) {
     return null;
   }
@@ -140384,7 +140509,7 @@ function preferEventOfferReply(opts) {
     return ai;
   }
   if (!ai || isDryRequerimientosAsk(ai)) {
-    return buildRecommendationsReply(extracted, history, entityId, currentMessage);
+    return buildRecommendationsReply(extracted, history2, entityId, currentMessage);
   }
   if (ai.length > 40 && !mensajeAsksForFilledField(ai, filledSet, extracted) && isNarrowSocialEventOffer(ai, tipo)) {
     return buildBroadLevel1Offer(tipo);
@@ -140430,19 +140555,19 @@ function lastQuestionAsksForField(mensaje, field) {
   if (SALES_CTA_NOT_FUNNEL.test(last)) return false;
   return FIELD_ASK_PATTERNS[field].test(last);
 }
-function rewriteRepeatedProductMenu(mensaje, currentMessage, history, extracted, filledSet, ctx) {
+function rewriteRepeatedProductMenu(mensaje, currentMessage, history2, extracted, filledSet, ctx) {
   if (!currentMessage?.trim() || !looksLikeNivelOptionsDump(mensaje)) return mensaje;
   if (parseServicesFromText(currentMessage).length >= 2) return mensaje;
-  const lastAsst = [...history].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
+  const lastAsst = [...history2].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
   const lastAsstText = lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : null;
   if (!lastAsstText) return mensaje;
   const pick = extractNumberedNivelFromLastAssistant(currentMessage, lastAsstText) || extractCatalogNivelFromText(currentMessage, lastAsstText) || resolveProgressiveDetailQuery({
     currentMessage,
     serviceHint: extracted.requerimientos_evento,
-    history
+    history: history2
   });
   if (!pick || /^coffee\s*break$/i.test(pick.trim()) || pick.length < 4) return mensaje;
-  const wants = clientWantsServiceDetail(currentMessage, history) || isCatalogLevelSelection(currentMessage, lastAsstText) || !!extractNumberedNivelFromLastAssistant(currentMessage, lastAsstText);
+  const wants = clientWantsServiceDetail(currentMessage, history2) || isCatalogLevelSelection(currentMessage, lastAsstText) || !!extractNumberedNivelFromLastAssistant(currentMessage, lastAsstText);
   if (!wants) return mensaje;
   const detail = buildCatalogServiceDetailAnswer(pick) || buildCatalogPriceAnswer(pick) || attachAvailableSheetDetail(pick, pick);
   if (!detail || looksLikeNivelOptionsDump(detail)) return mensaje;
@@ -140457,10 +140582,10 @@ ${detail}${nextQ ? `
 
 ${nextQ}` : ""}`.trim();
 }
-function ensureFunnelAfterSalesReply(mensaje, filledSet, extracted, ctx, currentMessage, history) {
+function ensureFunnelAfterSalesReply(mensaje, filledSet, extracted, ctx, currentMessage, history2) {
   let out2 = collapseRepeatedSentences(dedupeTransitionsInMessage(mensaje));
   {
-    const foodBlob = `${extracted.requerimientos_evento ?? ""} ${collectUserTexts(history, currentMessage).join(" ")} ${currentMessage ?? ""}`;
+    const foodBlob = `${extracted.requerimientos_evento ?? ""} ${collectUserTexts(history2, currentMessage).join(" ")} ${currentMessage ?? ""}`;
     const concrete = preferPrimaryCatalogService(
       parseServicesFromText(foodBlob).filter(
         (s6) => !/^(Comida|Alimentos|Banquete|banquete\s*\/\s*taquiza)$/i.test(s6) && /barra|sushi|pizza|pasta|panini|crepa|marisco|banquete|taquiza|pozole|paella|canap|bocadillo|coffee|puestos|desayuno|brunch/i.test(
@@ -140479,11 +140604,11 @@ function ensureFunnelAfterSalesReply(mensaje, filledSet, extracted, ctx, current
   if (isFarewellReply(out2)) {
     return out2;
   }
-  out2 = rewriteRepeatedProductMenu(out2, currentMessage, history, extracted, filledSet, ctx);
+  out2 = rewriteRepeatedProductMenu(out2, currentMessage, history2, extracted, filledSet, ctx);
   if (/quieres que te d[eé] detalles de alguno/i.test(out2) && currentMessage && clientChoseBanqueteFormal(currentMessage)) {
     const shortEmptyCta = !isProgressiveOptionsMenuReply(out2) && !/bodasesor\.com\/catalogos/i.test(out2) && out2.replace(/\s+/g, " ").trim().length < 180;
     if (shortEmptyCta) {
-      out2 = `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete", currentMessage)}`.trim();
+      out2 = `${pickTransition(history2)} ${buildProgressiveOptionsMenu("banquete", currentMessage)}`.trim();
     }
   }
   if (/la anoto para tu cotizaci[oó]n/i.test(out2) && currentMessage && /\bbanquetes?\b/i.test(currentMessage) && /\b(opciones?|manejan|tienen)\b/i.test(currentMessage)) {
@@ -140785,10 +140910,10 @@ ${pickVariant("nombre", ctx.history ?? [], ctx.entityId)}`.trim();
   }
   return mensaje;
 }
-function historyHasNameGreeting(history, firstName2) {
+function historyHasNameGreeting(history2, firstName2) {
   const first = firstName2?.trim().split(/\s+/)[0];
   if (!first) {
-    return history.some(
+    return history2.some(
       (m5) => m5.role === "assistant" && typeof m5.content === "string" && /¡?Mucho gusto,/i.test(m5.content)
     );
   }
@@ -140796,48 +140921,48 @@ function historyHasNameGreeting(history, firstName2) {
     `\xA1?Mucho gusto,\\s*${first.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
     "i"
   );
-  return history.some(
+  return history2.some(
     (m5) => m5.role === "assistant" && typeof m5.content === "string" && re3.test(m5.content)
   );
 }
-function buildNameGreeting(nombre, history = []) {
+function buildNameGreeting(nombre, history2 = []) {
   const first = nombre?.trim().split(/\s+/)[0] ?? null;
-  if (!first || historyHasNameGreeting(history, first)) return "";
+  if (!first || historyHasNameGreeting(history2, first)) return "";
   return `\xA1Mucho gusto, ${first}!`;
 }
 function buildNaturalQuestion(field, ctx) {
-  const history = ctx.history ?? [];
+  const history2 = ctx.history ?? [];
   const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
-  const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage, history);
-  const variant = pickVariant(field, history, ctx.entityId);
+  const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage, history2);
+  const variant = pickVariant(field, history2, ctx.entityId);
   const thanks = emailThanksPrefix(ctx);
   if (field === "zona" && isVentaMobiliarioReq(ctx.extracted.requerimientos_evento)) {
-    const qtyKnown = /\d/.test(ctx.extracted.requerimientos_evento ?? "") || collectUserTexts(history, ctx.currentMessage).some((t3) => /\b\d{1,4}\s+(mesas?|sillas?|periqueras?|salas?|piezas?)\b/i.test(t3));
+    const qtyKnown = /\d/.test(ctx.extracted.requerimientos_evento ?? "") || collectUserTexts(history2, ctx.currentMessage).some((t3) => /\b\d{1,4}\s+(mesas?|sillas?|periqueras?|salas?|piezas?)\b/i.test(t3));
     const q2 = qtyKnown ? "\xBFA qu\xE9 ciudad y colonia ser\xEDa la entrega?" : "\xBFCu\xE1ntas piezas de cada modelo necesitas y a qu\xE9 ciudad ser\xEDa la entrega?";
     return prefix ? `${prefix}${q2}` : q2;
   }
   if (field === "correo") {
-    return pickVariant("correo", history, ctx.entityId);
+    return pickVariant("correo", history2, ctx.entityId);
   }
   if (field === "requerimientos") {
-    if (isBareBanqueteRequirement(ctx.extracted.requerimientos_evento) && !historyOfferedServiceOptionsMenu(history)) {
-      return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
+    if (isBareBanqueteRequirement(ctx.extracted.requerimientos_evento) && !historyOfferedServiceOptionsMenu(history2)) {
+      return `${pickTransition(history2)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
     }
     if (needsAlimentosTipoClarification(ctx.extracted.requerimientos_evento) || isVagueFoodTerm(ctx.currentMessage)) {
-      if (!historyOfferedAlimentosModoMenu(history)) {
-        return `${pickTransition(history)} ${buildAlimentosModoMenu()}`.trim();
+      if (!historyOfferedAlimentosModoMenu(history2)) {
+        return `${pickTransition(history2)} ${buildAlimentosModoMenu()}`.trim();
       }
     }
-    return buildRequerimientosQuestion(ctx.extracted, history, ctx.currentMessage, ctx.entityId);
+    return buildRequerimientosQuestion(ctx.extracted, history2, ctx.currentMessage, ctx.entityId);
   }
   if (field === "tipo_evento") {
-    const tipoVariant = pickVariant("tipo_evento", history, ctx.entityId);
+    const tipoVariant = pickVariant("tipo_evento", history2, ctx.entityId);
     if (ctx.afterEmail) {
       return nombre ? `Gracias por tu correo, ${nombre}. ${tipoVariant}` : `Gracias por tu correo. ${tipoVariant}`;
     }
     return prefix ? `${prefix}${tipoVariant}` : tipoVariant;
   }
-  const fechaVariant = field === "fecha" && !horarioAlreadyKnown(ctx) ? FECHA_HORARIO_VARIANTS[variantIndex("fecha", history, ctx.entityId) % FECHA_HORARIO_VARIANTS.length] : variant;
+  const fechaVariant = field === "fecha" && !horarioAlreadyKnown(ctx) ? FECHA_HORARIO_VARIANTS[variantIndex("fecha", history2, ctx.entityId) % FECHA_HORARIO_VARIANTS.length] : variant;
   if (thanks && (field === "zona" || field === "fecha" || field === "invitados" || field === "presupuesto")) {
     return `${thanks}${fechaVariant}`;
   }
@@ -140870,34 +140995,34 @@ function isBareBanqueteRequirement(value) {
 function buildBanqueteModoClarifier(prefix) {
   return `${prefix}Para afinar el banquete/catering, \xBFlo prefieres m\xE1s *formal* (tiempos) o *casual* (taquiza / barras)?`.trim();
 }
-function buildRequerimientosQuestion(extracted, history, currentMessage, entityId) {
+function buildRequerimientosQuestion(extracted, history2, currentMessage, entityId) {
   const foodStillVague = needsAlimentosTipoClarification(extracted.requerimientos_evento) || isVagueFoodTerm(currentMessage);
-  if (isBareBanqueteRequirement(extracted.requerimientos_evento) && !historyOfferedServiceOptionsMenu(history)) {
-    return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
+  if (isBareBanqueteRequirement(extracted.requerimientos_evento) && !historyOfferedServiceOptionsMenu(history2)) {
+    return `${pickTransition(history2)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
   }
   if (foodStillVague) {
-    if (historyOfferedAlimentosModoMenu(history)) {
+    if (historyOfferedAlimentosModoMenu(history2)) {
       if (clientChoseBanqueteFormal(currentMessage)) {
-        return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
+        return `${pickTransition(history2)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
       }
       if (clientChoseCateringCasual(currentMessage)) {
-        return `${pickTransition(history)} ${buildCateringCasualMenu()}`.trim();
+        return `${pickTransition(history2)} ${buildCateringCasualMenu()}`.trim();
       }
-      return buildBanqueteModoClarifier(`${pickTransition(history)} `);
+      return buildBanqueteModoClarifier(`${pickTransition(history2)} `);
     }
-    if (!historyOfferedAlimentosModoMenu(history) && !historyOfferedServiceOptionsMenu(history)) {
-      return `${pickTransition(history)} ${buildAlimentosModoMenu()}`.trim();
+    if (!historyOfferedAlimentosModoMenu(history2) && !historyOfferedServiceOptionsMenu(history2)) {
+      return `${pickTransition(history2)} ${buildAlimentosModoMenu()}`.trim();
     }
-    return buildBanqueteModoClarifier(`${pickTransition(history)} `);
+    return buildBanqueteModoClarifier(`${pickTransition(history2)} `);
   }
-  const userText = collectUserTexts(history, currentMessage).join(" ");
+  const userText = collectUserTexts(history2, currentMessage).join(" ");
   const fromExtracted = isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento.trim() : null;
   const service = fromExtracted ?? findMentionedService(userText);
-  const prefix = contextualPrefix("requerimientos", extracted, currentMessage, history);
-  const alreadyFollowedUp = history.some(
+  const prefix = contextualPrefix("requerimientos", extracted, currentMessage, history2);
+  const alreadyFollowedUp = history2.some(
     (m5) => m5.role === "assistant" && typeof m5.content === "string" && OTRO_SERVICIO_ASK_PATTERN.test(m5.content)
   );
-  const alreadyDumpedMenu = historyAlreadyHadServicesCatalog(history);
+  const alreadyDumpedMenu = historyAlreadyHadServicesCatalog(history2);
   if (service) {
     if (requiredServiceDimensionsMissing(extracted)) {
       return `${prefix}${buildRequiredServiceDimensionsQuestion(extracted)}`.trim();
@@ -140908,7 +141033,7 @@ function buildRequerimientosQuestion(extracted, history, currentMessage, entityI
       }
       return `${prefix}Seguimos con *${service}*.`.trim();
     }
-    const idx = variantIndex("requerimientos", history, entityId);
+    const idx = variantIndex("requerimientos", history2, entityId);
     const followUps = hasPresupuestoValue(extracted) ? [
       `Adem\xE1s del ${service}, \xBFte gustar\xEDa cotizar alg\xFAn otro servicio?`,
       `\xBFSolo el ${service} o tambi\xE9n algo m\xE1s?`,
@@ -140921,12 +141046,12 @@ function buildRequerimientosQuestion(extracted, history, currentMessage, entityI
     return appendServiciosCatalogoHint(
       `${prefix}${followUps[idx % followUps.length]}`,
       true,
-      history
+      history2
     );
   }
-  const variant = !hasPresupuestoValue(extracted) ? REQUERIMIENTOS_MONTO_VARIANTS[variantIndex("requerimientos", history, entityId) % REQUERIMIENTOS_MONTO_VARIANTS.length] : pickVariant("requerimientos", history, entityId);
+  const variant = !hasPresupuestoValue(extracted) ? REQUERIMIENTOS_MONTO_VARIANTS[variantIndex("requerimientos", history2, entityId) % REQUERIMIENTOS_MONTO_VARIANTS.length] : pickVariant("requerimientos", history2, entityId);
   const core = prefix ? `${prefix}${variant}` : variant;
-  return appendServiciosCatalogoHint(core, false, history);
+  return appendServiciosCatalogoHint(core, false, history2);
 }
 function requiredServiceDimensionsMissing(extracted) {
   const req = extracted.requerimientos_evento?.trim() ?? "";
@@ -140986,20 +141111,20 @@ function requerimientosNeedsFollowUp(extracted, filledSet) {
   if (!req) return true;
   return !isValidRequerimientosValue(req);
 }
-function buildCorreoQuestion(nombre, history = [], entityId) {
-  const correoCore = pickVariant("correo", history, entityId);
-  const greet = buildNameGreeting(nombre, history);
+function buildCorreoQuestion(nombre, history2 = [], entityId) {
+  const correoCore = pickVariant("correo", history2, entityId);
+  const greet = buildNameGreeting(nombre, history2);
   return greet ? `${greet} ${correoCore}` : correoCore;
 }
-function buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId) {
+function buildRequerimientosFollowUp(extracted, filledSet, history2, currentMessage, entityId) {
   const ctx = {
     extracted,
     filledSet,
-    history: history ?? [],
+    history: history2 ?? [],
     currentMessage,
     entityId
   };
-  const followUpAlreadyAsked = (history ?? []).some(
+  const followUpAlreadyAsked = (history2 ?? []).some(
     (m5) => m5.role === "assistant" && typeof m5.content === "string" && OTRO_SERVICIO_ASK_PATTERN.test(m5.content)
   );
   if (requiredServiceDimensionsMissing(extracted)) {
@@ -141013,20 +141138,20 @@ function buildRequerimientosFollowUp(extracted, filledSet, history, currentMessa
     return buildNaturalQuestion("tipo_evento", ctx);
   }
   if (filledSet && requerimientosNeedsFollowUp(extracted, filledSet)) {
-    return buildRequerimientosQuestion(extracted, history ?? [], currentMessage, entityId);
+    return buildRequerimientosQuestion(extracted, history2 ?? [], currentMessage, entityId);
   }
   const pending = getNextPendingField(extracted, filledSet);
   if (pending) return buildNaturalQuestion(pending, ctx);
-  return buildRequerimientosQuestion(extracted, history ?? [], currentMessage, entityId);
+  return buildRequerimientosQuestion(extracted, history2 ?? [], currentMessage, entityId);
 }
-function nextFieldQuestion(extracted, filledSet, whatsappName, history, currentMessage, entityId) {
+function nextFieldQuestion(extracted, filledSet, whatsappName, history2, currentMessage, entityId) {
   const pending = getNextPendingField(extracted, filledSet);
   if (!pending) return null;
   return buildNaturalQuestion(pending, {
     extracted,
     filledSet,
     whatsappName,
-    history: history ?? [],
+    history: history2 ?? [],
     currentMessage,
     entityId
   });
@@ -141036,11 +141161,11 @@ function shouldReplaceForcedEmailQuestion(mensaje, filledSet) {
   if (!/correo|e-?mail/i.test(mensaje) || !mensaje.includes("?")) return false;
   return /obligatorio|necesito|necesario|forzoso|indispensable|debes|tienes que|es importante/i.test(mensaje);
 }
-function emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet) {
+function emailRefusalAckMessage(extracted, history2, currentMessage, entityId, filledSet) {
   const ctx = {
     extracted,
     filledSet,
-    history,
+    history: history2,
     currentMessage,
     entityId
   };
@@ -141051,20 +141176,20 @@ function emailRefusalAckMessage(extracted, history, currentMessage, entityId, fi
     return `${warm} ${buildNaturalQuestion(pending, ctx)}`;
   }
   if (extracted.tipo_evento?.trim() || filledSet?.has("Tipo de evento")) {
-    return `${warm} ${buildContinueEngagementQuestion(extracted, currentMessage, history)}`;
+    return `${warm} ${buildContinueEngagementQuestion(extracted, currentMessage, history2)}`;
   }
   const tipoQ = buildNaturalQuestion("tipo_evento", ctx);
   return `${warm} ${tipoQ}`;
 }
-function clientJustGaveEmail(history, currentMessage) {
+function clientJustGaveEmail(history2, currentMessage) {
   if (!currentMessage?.trim() || !/\S+@\S+\.\S+/.test(currentMessage)) return false;
-  const lastAssistant = history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(-1)[0]?.content;
+  const lastAssistant = history2.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(-1)[0]?.content;
   if (!lastAssistant) return false;
   return /correo|e-?mail|envío|envio/i.test(lastAssistant);
 }
-function clientJustAnsweredRequerimientosQuestion(history, currentMessage) {
+function clientJustAnsweredRequerimientosQuestion(history2, currentMessage) {
   if (!currentMessage?.trim()) return false;
-  const lastAssistant = history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(-1)[0]?.content;
+  const lastAssistant = history2.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(-1)[0]?.content;
   if (!lastAssistant) return false;
   if (inferLucyAskedField(lastAssistant) === "requerimientos") return true;
   return /platícame|qué tienes pensado|otro servicio|te gustaría cotizar|festejan|tipo de evento|servicios te gustaría|qué necesitas/i.test(
@@ -141145,9 +141270,9 @@ function buildPostCierreCallbackAck(clientName) {
   const nombre = sanitizeDisplayName(clientName);
   return nombre ? `Con gusto, ${nombre}. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo. \xBFPrefieres que te marque Ventas o Gerencia primero?` : "Con gusto. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo. \xBFPrefieres que te marque Ventas o Gerencia primero?";
 }
-function historyClientDeclinedMore(history) {
+function historyClientDeclinedMore(history2) {
   let lastAssistant = "";
-  for (const m5 of history) {
+  for (const m5 of history2) {
     if (typeof m5.content !== "string") continue;
     if (m5.role === "assistant") lastAssistant = m5.content;
     else if (m5.role === "user" && /\b(algo m[aá]s|sumar a la cotizaci[oó]n|agregar algo)\b/i.test(lastAssistant) && (clientDeclinesMoreServices(m5.content) || clientSaysThanks(m5.content))) {
@@ -141156,8 +141281,8 @@ function historyClientDeclinedMore(history) {
   }
   return false;
 }
-function buildContinueEngagementQuestion(extracted, currentMessage, history) {
-  const lastAsst = [...history ?? []].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
+function buildContinueEngagementQuestion(extracted, currentMessage, history2) {
+  const lastAsst = [...history2 ?? []].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
   const lastAsstText = lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : "";
   const softExitAlready = assistantAskedUrgencyOrSoftExit(lastAsstText);
   const msg = (currentMessage ?? "").trim();
@@ -141173,8 +141298,8 @@ function buildContinueEngagementQuestion(extracted, currentMessage, history) {
   if (clientRequestsCallback(currentMessage) || clientSignalsUrgency(currentMessage)) {
     return "\xBFTe marco el equipo hoy por tel\xE9fono, o prefieres que te escriban primero por este chat?";
   }
-  const canalDone = historyHasDeliveryChannelChoice(history ?? [], currentMessage);
-  const prevAlgoMas = (history ?? []).some(
+  const canalDone = historyHasDeliveryChannelChoice(history2 ?? [], currentMessage);
+  const prevAlgoMas = (history2 ?? []).some(
     (m5) => m5.role === "assistant" && typeof m5.content === "string" && /\b(algo m[aá]s|sumar a la cotizaci[oó]n|agregar algo)\b/i.test(m5.content)
   );
   const softExit = "\xBFTe dejo el chat abierto por si surge otra duda?";
@@ -141182,7 +141307,7 @@ function buildContinueEngagementQuestion(extracted, currentMessage, history) {
     return prevAlgoMas ? softExit : "\xBFQuieres agregar algo m\xE1s a la cotizaci\xF3n?";
   }
   if (clientDeclinesMoreServices(currentMessage) || clientSaysThanks(currentMessage)) {
-    const canalAskedBefore = (history ?? []).some(
+    const canalAskedBefore = (history2 ?? []).some(
       (m5) => m5.role === "assistant" && typeof m5.content === "string" && assistantAskedDeliveryChannel(m5.content)
     );
     if (canalDone || canalAskedBefore) {
@@ -141197,7 +141322,7 @@ function buildContinueEngagementQuestion(extracted, currentMessage, history) {
   if (/carpas?|tarima|entarim|colgantes|entelado/i.test(req)) {
     return "\xBFTe sumo mobiliario, iluminaci\xF3n o audio, o seguimos solo con lo que ya anotamos?";
   }
-  if (prevAlgoMas && historyClientDeclinedMore(history ?? [])) {
+  if (prevAlgoMas && historyClientDeclinedMore(history2 ?? [])) {
     return softExit;
   }
   return "\xBFHay algo m\xE1s que quieras sumar a la cotizaci\xF3n?";
@@ -141250,8 +141375,8 @@ ${nextQ}`.trim() : nextQ;
 
 ${hook}`.trim() : hook;
 }
-function lastAssistantWasPhoneAnswer(history) {
-  const last = [...history].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
+function lastAssistantWasPhoneAnswer(history2) {
+  const last = [...history2].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
   if (!last || typeof last.content !== "string") return false;
   return /55\s*4008\s*0373|56\s*4671\s*0585|l[ií]nea telef[oó]nica/i.test(last.content);
 }
@@ -141358,24 +141483,24 @@ function buildMappedCatalogOfferBlock(services, sourceText) {
   lines.push("", SERVICE_NIVEL_DETAIL_CTA);
   return lines.join("\n");
 }
-function historyAlreadyOfferedServiceDetail(history) {
-  return history.some((m5) => {
+function historyAlreadyOfferedServiceDetail(history2) {
+  return history2.some((m5) => {
     if (m5.role !== "assistant" || typeof m5.content !== "string") return false;
     return messageHasSheetServiceDetail(m5.content);
   });
 }
 function buildDeferredKnownServiceOffer(opts) {
-  const { extracted, filledSet, history, ctx, whatsappName } = opts;
+  const { extracted, filledSet, history: history2, ctx, whatsappName } = opts;
   if (!isFieldSatisfied("nombre", filledSet, extracted)) return null;
   if (!isValidRequerimientosValue(extracted.requerimientos_evento)) return null;
-  if (historyAlreadyOfferedServiceDetail(history)) return null;
-  if (historyOfferedServiceOptionsMenu(history)) return null;
+  if (historyAlreadyOfferedServiceDetail(history2)) return null;
+  if (historyOfferedServiceOptionsMenu(history2)) return null;
   const svc = extracted.requerimientos_evento.trim();
   const nombre = getDisplayName(extracted, whatsappName);
   const intro = nombre ? `Perfecto, ${nombre}.` : "Perfecto.";
   const optionsFirst = shouldOfferOptionsBeforeDetail({
     currentMessage: svc,
-    history,
+    history: history2,
     serviceHint: svc
   });
   if (optionsFirst) {
@@ -141534,8 +141659,8 @@ ${buildPackageCatalogOfferBlock(
     sourceText
   )}`;
 }
-function extractOfferedServicesFromHistory(history) {
-  const lastAsst = [...history].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
+function extractOfferedServicesFromHistory(history2) {
+  const lastAsst = [...history2].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
   if (!lastAsst || typeof lastAsst.content !== "string") return [];
   const text2 = lastAsst.content;
   const fromParse = parseServicesFromText(text2);
@@ -141545,12 +141670,12 @@ function extractOfferedServicesFromHistory(history) {
   );
   return bullets.slice(0, 6);
 }
-function buildGenericPriceClarifyReply(extracted, history, currentMessage) {
+function buildGenericPriceClarifyReply(extracted, history2, currentMessage) {
   const fromReq = parseServicesFromText(extracted.requerimientos_evento ?? "");
   const fromCtx = parseServicesFromText(
-    collectUserTexts(history, currentMessage).join(" ")
+    collectUserTexts(history2, currentMessage).join(" ")
   );
-  const fromOffer = extractOfferedServicesFromHistory(history);
+  const fromOffer = extractOfferedServicesFromHistory(history2);
   const options = [.../* @__PURE__ */ new Set([...fromReq, ...fromCtx, ...fromOffer])].filter(
     (s6) => !/comida\s+corrida/i.test(s6)
   );
@@ -141564,10 +141689,10 @@ function buildGenericPriceClarifyReply(extracted, history, currentMessage) {
   }
   return "Claro. \xBFDe qu\xE9 servicio te paso precios: coffee break, banquete, barra de bebidas, taquiza u otro?";
 }
-function buildGenericPackagesOverviewReply(extracted, history, currentMessage) {
+function buildGenericPackagesOverviewReply(extracted, history2, currentMessage) {
   const fromCrm = isValidRequerimientosValue(extracted.requerimientos_evento) ? parseServicesFromText(extracted.requerimientos_evento) : [];
   const fromMsg = currentMessage ? parseServicesFromText(currentMessage) : [];
-  const fromHist = extractOfferedServicesFromHistory(history);
+  const fromHist = extractOfferedServicesFromHistory(history2);
   const multi = dedupeServiceHierarchy([...fromMsg, ...fromCrm, ...fromHist]);
   const multiLevels = buildMultiServiceSheetLevelsReply(multi, currentMessage);
   if (multiLevels) {
@@ -141575,7 +141700,7 @@ function buildGenericPackagesOverviewReply(extracted, history, currentMessage) {
 
 ${multiLevels}`;
   }
-  const hint = preferPrimaryCatalogService(multi) || (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(history, currentMessage).join(" ")) || fromHist[0] || null;
+  const hint = preferPrimaryCatalogService(multi) || (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(history2, currentMessage).join(" ")) || fromHist[0] || null;
   if (hint) {
     const detail = buildCatalogPriceAnswer(hint) || resolveCatalogInclusionReply(hint, hint) || buildCatalogServiceDetailAnswer(hint);
     if (detail) {
@@ -141618,13 +141743,13 @@ function clientAsksPriceOrDetailNow(message) {
 function looksLikeClosingDraft(text2) {
   return responseLooksLikePrematureClose(text2) || /\bya tengo todo\b/i.test(text2);
 }
-function answerPriceOrDetailInsteadOfClosing(extracted, history, currentMessage) {
+function answerPriceOrDetailInsteadOfClosing(extracted, history2, currentMessage) {
   const msg = currentMessage ?? "";
   if (clientAsksPaymentOrQuoteDelivery(msg) && !clientAsksPrice(msg) && !clientAsksNamedServiceDetail(msg)) {
     const nombre = getDisplayName(extracted, null);
     return nombre ? `\xA1Claro, ${nombre}! El equipo ya tiene tus datos y te comparte la cotizaci\xF3n en breve por aqu\xED o por correo. \xBFPrefieres que te confirmen por WhatsApp?` : "\xA1Claro! El equipo ya tiene tus datos y te comparte la cotizaci\xF3n en breve. \xBFPrefieres que te confirmen por aqu\xED?";
   }
-  return buildCatalogPriceAnswer(msg) || buildCatalogServiceDetailAnswer(msg) || buildGenericPriceClarifyReply(extracted, history, currentMessage);
+  return buildCatalogPriceAnswer(msg) || buildCatalogServiceDetailAnswer(msg) || buildGenericPriceClarifyReply(extracted, history2, currentMessage);
 }
 function looksLikeDeadEndAck(mensaje) {
   const t3 = (mensaje || "").trim();
@@ -141643,8 +141768,8 @@ function looksLikeDeadEndAck(mensaje) {
   /mucho\s+gusto\b/i.test(t3) && t3.length < 140 && /(claro(\s+que\s+s[ií])?|de\s+acuerdo|perfecto|vale|\bok\b)\s*[.!]*\s*$/i.test(t3);
 }
 var MINIMAL_SERVICE_PATTERN = /\b((?:solo|so)\s+)?(mesas?\s+y\s+sillas?|sillas?\s+y\s+mesas?|renta\s+de\s+(mesas?|sillas?)|(?:solo|so)\s+(mesas?|sillas?|mobiliario))\b/i;
-function historyAlreadyOfferedComplements(history) {
-  return history.some(
+function historyAlreadyOfferedComplements(history2) {
+  return history2.some(
     (m5) => m5.role === "assistant" && typeof m5.content === "string" && /si\s+te\s+parece,?\s+tambi[eé]n\s+podemos|como\s+complemento\s+suele\s+ir|te\s+sugerir[ií]a\s+(tambi[eé]n|agregar)|opcional(es)?:\s*(mantel|postre|bebida)/i.test(
       m5.content
     )
@@ -141659,8 +141784,8 @@ function looksLikeMinimalServiceAsk(text2) {
   }
   return MINIMAL_SERVICE_PATTERN.test(text2);
 }
-function buildSoftComplementOffer(extracted, history, currentMessage) {
-  if (historyAlreadyOfferedComplements(history)) return null;
+function buildSoftComplementOffer(extracted, history2, currentMessage) {
+  if (historyAlreadyOfferedComplements(history2)) return null;
   const req = `${extracted.requerimientos_evento ?? ""} ${currentMessage ?? ""}`;
   if (!looksLikeMinimalServiceAsk(req)) return null;
   const tipo = (extracted.tipo_evento ?? "").toLowerCase();
@@ -141756,9 +141881,9 @@ function buildNameMismatchReplyIfNeeded(currentMessage, extracted, filledSet, wh
   return null;
 }
 var FOOD_MODE_ASK_RE = /\*formal\*[^?\n]{0,40}\*casual\*|\bformal\b[^?\n]{0,40}\bcasual\b|para \*?comida\*? del evento/i;
-function foodModeChosenInHistory(history, currentMessage) {
+function foodModeChosenInHistory(history2, currentMessage) {
   const turns = [
-    ...history.filter((m5) => typeof m5.content === "string"),
+    ...history2.filter((m5) => typeof m5.content === "string"),
     ...currentMessage?.trim() ? [{ role: "user", content: currentMessage }] : []
   ];
   let lastAssistant = "";
@@ -141892,7 +142017,7 @@ function applyLucyMessageGuardsRaw(input) {
     filledSet,
     readyForClosing,
     emailRefusedThisTurn,
-    history,
+    history: history2,
     currentMessage,
     whatsappDisplayName,
     buildClosing,
@@ -141903,7 +142028,7 @@ function applyLucyMessageGuardsRaw(input) {
   let { cierreYaEnviado } = input;
   let aiResponse = input.aiResponse;
   const ctx = makeQuestionCtx(input);
-  const presHistory = input.presentationHistory ?? history;
+  const presHistory = input.presentationHistory ?? history2;
   if (emailRefusedThisTurn && !extracted.correo?.trim()) filledSet.add(EMAIL_WAIVED_LABEL);
   if (!emailRefusedThisTurn && currentMessage?.trim() && detectEmailRefusal([currentMessage]) && !extracted.correo?.trim()) {
     filledSet.add(EMAIL_WAIVED_LABEL);
@@ -142269,7 +142394,7 @@ ${nextQ}` : ack;
     }
     const detail = (clientAsksPrice(currentMessage) ? buildCatalogPriceAnswer(detailQuery) : null) || buildFoodSalesReply(
       extracted,
-      history,
+      history2,
       entityId,
       currentMessage,
       filledSet,
@@ -142433,7 +142558,7 @@ ${catalogUrl}`
       const detailQuery = preferPrimaryCatalogService(fromLast) || fromLast[0] || preferPrimaryCatalogService(parseServicesFromText(extracted.requerimientos_evento ?? "")) || "tu cotizaci\xF3n";
       const detail = buildFoodSalesReply(
         extracted,
-        history,
+        history2,
         entityId,
         detailQuery,
         filledSet,
@@ -143235,7 +143360,7 @@ ${follow}` : ack,
   if (!cierreYaEnviado && currentMessage?.trim() && clientAsksForRecommendations(currentMessage) && !clientAsksPrice(currentMessage) && !clientAsksInclusion(currentMessage) && !clientMentionsCatering(currentMessage) && !parsePrimaryService(currentMessage ?? "")) {
     const rec = buildRecommendationsReply(
       extracted,
-      history,
+      history2,
       entityId,
       currentMessage
     );
@@ -143592,8 +143717,8 @@ ${userBlobForServices}`
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
     );
   }
-  const justGaveEmail = clientJustGaveEmail(history, currentMessage);
-  const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
+  const justGaveEmail = clientJustGaveEmail(history2, currentMessage);
+  const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history2, currentMessage);
   const emailOk = isEmailSatisfied(filledSet, extracted);
   const needsNextStep = emailOk && !trulyReadyForClosing && !cierreYaEnviado;
   const readyToCloseAndReqDone = trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet);
@@ -144203,7 +144328,7 @@ ${buildPackageCatalogOfferBlock(
   !(clientAsksServiceInfo(currentMessage) && servicesFromCurrentMessageConcrete.length < 2) && !clientMentionsCarpas(currentMessage) && !clientMentionsPistaTarima(currentMessage) && // Show / MC / hora loca → rama de entretenimiento (manda catálogo propio).
   !clientMentionsEntertainment(currentMessage) && // Primer turno: buildFirstInteractionMessage ya arma intro + ack + catálogo
   // (con o sin nombre — A16228 RFQ con nombre en el brief).
-  !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !lucyHasPresented(presHistory) && !history.some((m5) => m5.role === "assistant"))) {
+  !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !lucyHasPresented(presHistory) && !history2.some((m5) => m5.role === "assistant"))) {
     if (isMobiliarioRentalPedido(currentMessage) && !clientMentionsCarpas(currentMessage) && parseMobiliarioRentItems(currentMessage ?? "").length >= 1 && servicesFromCurrentMessageConcrete.filter((s6) => !/mobiliario/i.test(s6)).length === 0 && !isNonMobiliarioEquipmentListRfq(currentMessage)) {
       if (extracted.direccion_evento && (/^color\b/i.test(extracted.direccion_evento.trim()) || isNonLocationBusinessPhrase(extracted.direccion_evento))) {
         extracted.direccion_evento = null;
@@ -144394,7 +144519,7 @@ ${nextQ}` : ""}`.trim() : nextQ ? `${ack} ${nextQ}` : ack;
       }
     }
     mensaje = mergeWithPendingQuestion(
-      buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId),
+      buildVagueFoodOptionsReply(extracted, history2, currentMessage, entityId),
       filledSet,
       extracted,
       ctx
@@ -144464,7 +144589,7 @@ ${catalog}`,
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje \u2014 tem\xE1tica italiana");
-  } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !lucyHasPresented(presHistory) && !history.some((m5) => m5.role === "assistant") && isRichQuoteBrief(currentMessage)) {
+  } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !lucyHasPresented(presHistory) && !history2.some((m5) => m5.role === "assistant") && isRichQuoteBrief(currentMessage)) {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: A16228 \u2014 primer mensaje RFQ largo (intro Lucy siempre)");
@@ -144523,7 +144648,7 @@ ${pickVariant("nombre", presHistory, entityId)}` : `${LUCY_INTRO} ${buildGuardSe
     appliedDirectReply = true;
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: servicio consultivo en primer turno + detalle Sheet");
-  } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !lucyHasPresented(presHistory) && !history.some((m5) => m5.role === "assistant") && (forceFirstPresentation || !conversationAlreadyStarted(filledSet, presHistory)) && !(!forceFirstPresentation && crmAdvancedBeforeThisTurn(filledSet, extracted, currentMessage))) {
+  } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !lucyHasPresented(presHistory) && !history2.some((m5) => m5.role === "assistant") && (forceFirstPresentation || !conversationAlreadyStarted(filledSet, presHistory)) && !(!forceFirstPresentation && crmAdvancedBeforeThisTurn(filledSet, extracted, currentMessage))) {
     mensaje = buildFirstInteractionMessage(ctx, true);
     if (clientAsksPhone(currentMessage)) {
       const qIdx = mensaje.lastIndexOf("\xBF");
@@ -144705,7 +144830,7 @@ ${catalog}`,
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: correo capturado \u2014 siguiente dato tras agradecer");
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
-    mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
+    mensaje = emailRefusalAckMessage(extracted, history2, currentMessage, entityId, filledSet);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo \u2014 se contin\xFAa el flujo");
   } else if (clientSignalsUrgency(currentMessage) && !clientAsksPhone(currentMessage)) {
@@ -144831,7 +144956,7 @@ ${nextQ}` : `Entendido \u2014 nos quedamos solo con *${label}*. El equipo arma l
     const entFocusMsg = clientMentionsEntertainment(currentMessage) || clientMentionsLedRobotsOrBatucada(currentMessage) ? currentMessage : photoBoothInThread ? "Photo Booth" : /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(userEntBlob) ? "Bailarinas" : clientMentionsLedRobotsOrBatucada(userEntBlob) ? userEntBlob : clientMentionsEntertainment(userEntBlob) ? userEntBlob : currentMessage;
     const entTemplate = buildEntertainmentSalesReply(
       extracted,
-      history,
+      history2,
       entityId,
       entFocusMsg,
       filledSet,
@@ -144878,7 +145003,7 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
     }
     mensaje = buildPistaTarimaSalesReply(
       extracted,
-      history,
+      history2,
       currentMessage,
       entityId,
       filledSet,
@@ -144898,7 +145023,7 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
   !shouldSkipSalesMenuForConcreteQuestion(currentMessage)) {
     const carpasTemplate = buildCarpasSalesReply(
       extracted,
-      history,
+      history2,
       currentMessage,
       filledSet,
       ctx
@@ -145212,7 +145337,7 @@ ${link}
     } else {
       const cateringAnswer = buildFoodSalesReply(
         extracted,
-        history,
+        history2,
         entityId,
         currentMessage,
         filledSet,
@@ -145271,7 +145396,7 @@ ${nextQ}`.trim();
   !clientAsksForRecommendations(currentMessage) && (!serviceAlreadyCaptured || clientAsksServiceInfo(currentMessage) || clientAsksInclusion(currentMessage)) && !clientAsksPrice(currentMessage) && (clientMentionsCatering(currentMessage) || clientAsksServiceInfo(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage) || !!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage))) {
     const cateringAnswer = buildFoodSalesReply(
       extracted,
-      history,
+      history2,
       entityId,
       currentMessage,
       filledSet,
@@ -145280,7 +145405,7 @@ ${nextQ}`.trim();
     if (cateringAnswer) {
       mensaje = cateringAnswer;
     } else {
-      const ack = buildFoodServiceAckIntro(extracted, history, currentMessage);
+      const ack = buildFoodServiceAckIntro(extracted, history2, currentMessage);
       const aiMentionsService = !!ack && /coffee\s*break|manejamos|banquete|taquiza|catering|sí\s+tenemos/i.test(aiResponse);
       if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
         const base = ack && !aiMentionsService ? `${ack} ${aiResponse}`.trim() : aiResponse;
@@ -145288,15 +145413,15 @@ ${nextQ}`.trim();
       } else if (ack) {
         mensaje = mergeWithPendingQuestion(ack, filledSet, extracted, ctx);
       } else {
-        mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
+        mensaje = buildRecommendationsReply(extracted, history2, entityId, currentMessage);
       }
     }
-    if (!isProgressiveOptionsMenuReply(mensaje) && bodyEqualsLastAssistant(mensaje, history, extracted.nombre)) {
+    if (!isProgressiveOptionsMenuReply(mensaje) && bodyEqualsLastAssistant(mensaje, history2, extracted.nombre)) {
       const nextQ = nextFieldQuestion(
         extracted,
         filledSet,
         whatsappDisplayName,
-        history,
+        history2,
         currentMessage,
         entityId
       );
@@ -145321,14 +145446,14 @@ ${nextQ}`.trim();
     } else if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
       mensaje = aiResponse;
     } else {
-      mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
+      mensaje = buildRecommendationsReply(extracted, history2, entityId, currentMessage);
     }
-    if (bodyEqualsLastAssistant(mensaje, history, extracted.nombre)) {
+    if (bodyEqualsLastAssistant(mensaje, history2, extracted.nombre)) {
       const nextQ = nextFieldQuestion(
         extracted,
         filledSet,
         whatsappDisplayName,
-        history,
+        history2,
         currentMessage,
         entityId
       );
@@ -145337,7 +145462,7 @@ ${nextQ}`.trim();
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones/ideas \u2014 preferir modelo");
   } else if (clientAsksPrice(currentMessage) || clientAsksDistributorPricing(currentMessage)) {
-    const ctxText2 = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
+    const ctxText2 = collectUserTexts(input.presentationHistory ?? history2, currentMessage).join(" ");
     const pending = getNextPendingField(extracted, filledSet);
     if (isRichQuoteBrief(currentMessage) || clientAsksDistributorPricing(currentMessage) || clientAsksDistributorPricing(ctxText2) && parseServicesFromText(ctxText2).length >= 2) {
       const services = parseServicesFromText(
@@ -145408,11 +145533,11 @@ ${buildNaturalQuestion(pending, ctx)}` : priceReply;
       mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
       log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
     } else if (aiResponse.trim() && mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history2, currentMessage, entityId);
       mensaje = nextQ ?? (isReadyForClosing(filledSet) ? buildClosing(extracted.requerimientos_evento ?? extracted.tipo_evento ?? null, extracted.nombre) : "Entendido, sin problema. Nuestro equipo te propone opciones seg\xFAn lo que platicamos.");
       log?.info({ entityId }, "GUARD: GPT repiti\xF3 dato ya capturado \u2014 siguiente paso");
     } else {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history2, currentMessage, entityId);
       if (currentMessage && clientAsksPrice(currentMessage)) {
         const fromCatalog = buildCatalogPriceAnswer(currentMessage);
         if (fromCatalog && nextQ) {
@@ -145430,7 +145555,7 @@ ${nextQ}`;
       if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (sem\xE1ntico)");
     }
   } else if (trulyReadyForClosing && !cierreYaEnviado && !requerimientosFollowUpAlreadyAsked && (requerimientosNeedsFollowUp(extracted, filledSet) || justAnsweredReq)) {
-    mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
+    mensaje = buildRequerimientosFollowUp(extracted, filledSet, history2, currentMessage, entityId);
     log?.info({ entityId }, "GUARD: profundizar antes del cierre");
   } else if (trulyReadyForClosing && !cierreYaEnviado && requerimientosFollowUpAlreadyAsked && requerimientosNeedsFollowUp(extracted, filledSet)) {
     const pending = getNextPendingField(extracted, filledSet);
@@ -145569,7 +145694,7 @@ ${nextQ}`;
       );
       log?.info({ entityId }, "GUARD: fecha capturada \u2014 cierre");
     } else {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history2, currentMessage, entityId);
       if (nextQ && !mensajeAsksForField(nextQ, "fecha")) {
         mensaje = nextQ;
         log?.info({ entityId }, "GUARD: fecha ya capturada \u2014 no repetir pregunta");
@@ -145583,7 +145708,7 @@ ${nextQ}`;
     }
   }
   if (filledSet.has(CRM_HORARIO_LABEL) && mensajeAsksForField(mensaje, "horario")) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history2, currentMessage, entityId);
     if (nextQ && !mensajeAsksForField(nextQ, "horario")) {
       mensaje = nextQ;
       log?.info({ entityId }, "GUARD: horario ya capturado \u2014 no repetir pregunta");
@@ -145610,7 +145735,7 @@ ${nextQ}`;
         extracted,
         filledSet,
         whatsappDisplayName,
-        history,
+        history2,
         currentMessage,
         entityId
       );
@@ -145626,7 +145751,7 @@ ${nextQ}`;
         extracted,
         filledSet,
         whatsappDisplayName,
-        history,
+        history2,
         currentMessage,
         entityId
       );
@@ -145645,7 +145770,7 @@ ${nextQ}`;
       extracted,
       filledSet,
       whatsappDisplayName,
-      history,
+      history2,
       currentMessage,
       entityId
     );
@@ -145667,7 +145792,7 @@ ${nextQ}`;
     }
   }
   if (shouldReplaceForcedEmailQuestion(mensaje, filledSet)) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ?? emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history2, currentMessage, entityId) ?? emailRefusalAckMessage(extracted, history2, currentMessage, entityId, filledSet);
     log?.warn({ entityId }, "GUARD: correo forzado tras rechazo \u2014 reemplazando respuesta");
     mensaje = nextQ;
   }
@@ -145715,7 +145840,7 @@ ${nextQ}`;
   if (correoYaTenido && (mensajeAsksForField(mensaje, "correo") || softAsksFilledField(mensaje, "correo")) && !trulyReadyForClosing) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending && pending !== "correo") {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history2, currentMessage, entityId);
       if (nextQ) {
         log?.warn({ entityId }, "GUARD: GPT pregunt\xF3 correo ya capturado");
         mensaje = nextQ;
@@ -145723,7 +145848,7 @@ ${nextQ}`;
     }
   }
   if (filledSet.has(EMAIL_WAIVED_LABEL) && (mensajeAsksForField(mensaje, "correo") || softAsksFilledField(mensaje, "correo")) && !trulyReadyForClosing) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ?? emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history2, currentMessage, entityId) ?? emailRefusalAckMessage(extracted, history2, currentMessage, entityId, filledSet);
     log?.warn({ entityId }, "GUARD: GPT insisti\xF3 en correo tras rechazo");
     mensaje = nextQ;
   }
@@ -145740,7 +145865,7 @@ ${nextQ}`;
     }
   }
   if (!trulyReadyForClosing && !appliedDirectReply && responseLooksLikePrematureClose(mensaje)) {
-    const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history2, currentMessage, entityId);
     if (forcedNext) {
       log?.warn({ entityId }, "GUARD: bloqueando cierre prematuro");
       mensaje = forcedNext;
@@ -145841,7 +145966,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}` : fromCatalog;
         log?.info({ entityId }, "GUARD: precio del Sheet en rama de ventas");
       }
     }
-    if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !lucyHasPresented(presHistory) && !history.some((m5) => m5.role === "assistant")) {
+    if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !lucyHasPresented(presHistory) && !history2.some((m5) => m5.role === "assistant")) {
       if (!/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
         mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
       }
@@ -145850,7 +145975,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}` : fromCatalog;
       )) {
         mensaje = `${mensaje}
 
-${pickVariant("nombre", history, entityId)}`.trim();
+${pickVariant("nombre", history2, entityId)}`.trim();
       }
     }
     if (!cierreYaEnviado && !trulyReadyForClosing) {
@@ -145871,8 +145996,8 @@ ${pickVariant("nombre", history, entityId)}`.trim();
     return normalizeAdvisorReferences2(mensaje, extracted.nombre);
   }
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
-  const presHistoryForIntro = input.presentationHistory ?? history;
-  const isOpeningTurn = (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) && !lucyHasPresented(presHistoryForIntro) && !history.some((m5) => m5.role === "assistant") && !(!forceFirstPresentation && crmAdvancedBeforeThisTurn(filledSet, extracted, currentMessage));
+  const presHistoryForIntro = input.presentationHistory ?? history2;
+  const isOpeningTurn = (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) && !lucyHasPresented(presHistoryForIntro) && !history2.some((m5) => m5.role === "assistant") && !(!forceFirstPresentation && crmAdvancedBeforeThisTurn(filledSet, extracted, currentMessage));
   if (isOpeningTurn && !/hola[!.,]?\s*(?:(?:buen\s+d[ií]a|buenas\s+(?:tardes|noches))[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
     mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
     log?.info({ entityId }, "GUARD: A16228 \u2014 presentaci\xF3n Lucy a\xF1adida al primer mensaje");
@@ -145895,7 +146020,7 @@ ${pickVariant("nombre", history, entityId)}`.trim();
       log?.info({ entityId }, "GUARD: A15910 \u2014 soft-exit reemplazado por cierre");
     }
   }
-  const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
+  const ctxText = collectUserTexts(input.presentationHistory ?? history2, currentMessage).join(" ");
   const priceSanitized = sanitizeInventedPrices(mensaje, currentMessage, ctxText);
   if (priceSanitized !== mensaje) {
     log?.info({ entityId }, "GUARD: precios inventados eliminados de la respuesta");
@@ -146038,7 +146163,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
       extracted,
       filledSet,
       whatsappDisplayName,
-      history,
+      history2,
       currentMessage,
       entityId
     );
@@ -146068,7 +146193,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
         extracted,
         filledSet,
         whatsappDisplayName,
-        history,
+        history2,
         currentMessage,
         entityId
       );
@@ -146281,7 +146406,7 @@ ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
       const focus = currentMessage && (clientMentionsEntertainment(currentMessage) || clientMentionsLedRobotsOrBatucada(currentMessage) || /\bbailarinas?\b/i.test(currentMessage)) ? currentMessage : /\b(photo\s*booth|photobooth|cabina)/i.test(userBlob) ? "Photo Booth" : /\bcirco\b/i.test(userBlob) ? "Circo para eventos" : /\bblue\s*man|blueman/i.test(userBlob) ? "Show Blue Man" : /\bbailarinas?\b/i.test(userBlob) ? "Bailarinas" : currentMessage || userBlob;
       mensaje = buildEntertainmentSalesReply(
         extracted,
-        history,
+        history2,
         entityId,
         focus,
         filledSet,
@@ -146294,7 +146419,7 @@ ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
     if (clientMentionsEntertainment(currentMessage) || clientMentionsSpecialLiveAct(currentMessage)) {
       mensaje = buildEntertainmentSalesReply(
         extracted,
-        history,
+        history2,
         entityId,
         currentMessage,
         filledSet,
@@ -146329,7 +146454,7 @@ ${nextQ}`;
     } else if (clientMentionsEntertainment(currentMessage) || clientMentionsSpecialLiveAct(currentMessage)) {
       mensaje = buildEntertainmentSalesReply(
         extracted,
-        history,
+        history2,
         entityId,
         currentMessage,
         filledSet,
@@ -146857,9 +146982,9 @@ function lucyTextOverlapRatio(a3, b4) {
 function normalizeForOverlap(text2) {
   return text2.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}\s?]/gu, " ").replace(/\s+/g, " ").trim();
 }
-function recentAssistantTexts(history, limit2 = 6) {
-  if (!history?.length) return [];
-  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").map((m5) => m5.content.trim()).filter(Boolean).slice(-limit2);
+function recentAssistantTexts(history2, limit2 = 6) {
+  if (!history2?.length) return [];
+  return history2.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").map((m5) => m5.content.trim()).filter(Boolean).slice(-limit2);
 }
 function asExtracted(partial) {
   return {
@@ -147772,11 +147897,11 @@ var FILLER = String.raw`(?:Claro que s[ií]|Claro|Con gusto|Perfecto|Genial|Exce
 function escapeRegExp(text2) {
   return text2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-function recentAssistantTexts2(history, limit2) {
-  if (!history?.length) return [];
+function recentAssistantTexts2(history2, limit2) {
+  if (!history2?.length) return [];
   const out2 = [];
-  for (let i5 = history.length - 1; i5 >= 0 && out2.length < limit2; i5 -= 1) {
-    const m5 = history[i5];
+  for (let i5 = history2.length - 1; i5 >= 0 && out2.length < limit2; i5 -= 1) {
+    const m5 = history2[i5];
     if (m5.role !== "assistant" || typeof m5.content !== "string") continue;
     if (m5.content.trim()) out2.push(m5.content);
   }
@@ -149105,6 +149230,7 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
 // src/services/googleGrounding.ts
 init_node();
 init_llmEnv();
+init_lucyDataPaths();
 var RESEARCH_TTL_MS = 30 * 24 * 60 * 60 * 1e3;
 var TOPIC_STOPWORDS = new Set(
   "para como pero esta este esto esos esas unos unas sobre tienes tienen quiero queria quisiera puedes pueden ideas idea algo cosa cosas hacer hacemos podemos tambien tengo tenemos mucho muchos poco bien porfa favor gracias hola evento fiesta moda ubicas vimos visto donde cuando cual cuales seria ser\xEDa esta est\xE1n estan".split(
@@ -149295,7 +149421,7 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
 }
 
 // src/selftest/lucy-flow-selftest.ts
-import { readFileSync as readFileSync5 } from "node:fs";
+import { readFileSync as readFileSync6 } from "node:fs";
 import path6 from "node:path";
 import { fileURLToPath as fileURLToPath6 } from "node:url";
 init_kommoTalks();
@@ -149304,6 +149430,7 @@ init_kommoTalks();
 init_openai();
 init_openaiEnv();
 init_llmChat();
+init_lucyGeminiSpend();
 init_llmEnv();
 var AUDIO_TYPES = /* @__PURE__ */ new Set(["audio", "voice"]);
 function isVoiceNote(message) {
@@ -149572,10 +149699,10 @@ async function runAll() {
   await test('1. A14754/A15205 \u2014 "Busco comida" pregunta formal vs casual', () => {
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const extracted = emptyExtracted({ nombre: "Alejandro", tipo_evento: "cumplea\xF1os" });
-    const history = [
+    const history2 = [
       { role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar para la fiesta de cumplea\xF1os?" }
     ];
-    const lastLucy = history[0].content;
+    const lastLucy = history2[0].content;
     assert2.equal(inferLucyAskedField(lastLucy), "requerimientos");
     assert2.ok(clientMentionsCatering("Busco comida"));
     assert2.ok(isServiceRelatedMessage("Busco comida"));
@@ -149587,7 +149714,7 @@ async function runAll() {
       filledSet: filled,
       readyForClosing: false,
       currentMessage: "Busco comida",
-      history,
+      history: history2,
       debugLogs
     });
     assert2.ok(/banquete|casual|catering/i.test(reply), reply.slice(0, 300));
@@ -149770,8 +149897,8 @@ async function runAll() {
   });
   await test("10. Integraciones \u2014 m\xF3dulos conectados y features activas", () => {
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
-    const mirrorSrc = readFileSync5(path6.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
-    const healthSrc = readFileSync5(path6.join(apiRoot, "src/routes/health.ts"), "utf8");
+    const mirrorSrc = readFileSync6(path6.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
+    const healthSrc = readFileSync6(path6.join(apiRoot, "src/routes/health.ts"), "utf8");
     assert2.ok(mirrorSrc.includes("deliverLucyOutbound"));
     assert2.ok(mirrorSrc.includes("sendWhatsAppDirect"));
     assert2.ok(mirrorSrc.includes("sendKommoTalkMessage") || mirrorSrc.includes("sendViaKommoTalk"));
@@ -149959,7 +150086,7 @@ async function runAll() {
     assert2.ok(clientSaysThanks("Muchas gracias"));
     assert2.ok(buildPostCierreThanksReply("Fer").includes("Fer"));
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
-    const mirrorSrc = readFileSync5(path6.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
+    const mirrorSrc = readFileSync6(path6.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
     assert2.ok(mirrorSrc.includes("texto vac\xEDo"));
   });
   await test("17. Fer A14751 \u2014 brunch baby shower, correo, fecha y presupuesto sin bucles", () => {
@@ -152161,8 +152288,8 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(/solo por l[ií]nea telef[oó]nica/i.test(emergency));
     assert2.ok(/WhatsApp y por l[ií]nea telef[oó]nica/i.test(emergency));
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
-    const kommoSrc = readFileSync5(path6.join(apiRoot, "src/routes/kommo.ts"), "utf8");
-    const embudoSrc = readFileSync5(path6.join(apiRoot, "src/services/embudo.ts"), "utf8");
+    const kommoSrc = readFileSync6(path6.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    const embudoSrc = readFileSync6(path6.join(apiRoot, "src/services/embudo.ts"), "utf8");
     assert2.ok(/handleLucyInactiveInbound/.test(kommoSrc));
     assert2.ok(/buildSilentWatchPatchPayload/.test(kommoSrc));
     assert2.ok(/clientNeedsEmergencyContact/.test(kommoSrc));
@@ -152178,18 +152305,18 @@ ${CATALOG_OFFER_QUESTION}`
   await test("67. Aprendizaje continuo \u2014 cron + extract en Humano Trabaja", () => {
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
     const repoRoot = path6.resolve(apiRoot, "..");
-    const syncSrc = readFileSync5(path6.join(apiRoot, "src/services/learningSync.ts"), "utf8");
-    const extractorSrc = readFileSync5(path6.join(apiRoot, "src/services/learningExtractor.ts"), "utf8");
-    const ingestSrc = readFileSync5(path6.join(apiRoot, "src/services/chatIngest.ts"), "utf8");
-    const kommoSrc = readFileSync5(path6.join(apiRoot, "src/routes/kommo.ts"), "utf8");
-    const embudoSrc = readFileSync5(path6.join(apiRoot, "src/services/embudo.ts"), "utf8");
-    const learningRoutes = readFileSync5(path6.join(apiRoot, "src/routes/learning.ts"), "utf8");
-    const talksSrc = readFileSync5(path6.join(apiRoot, "src/services/kommoTalks.ts"), "utf8");
-    const keepAlive = readFileSync5(
+    const syncSrc = readFileSync6(path6.join(apiRoot, "src/services/learningSync.ts"), "utf8");
+    const extractorSrc = readFileSync6(path6.join(apiRoot, "src/services/learningExtractor.ts"), "utf8");
+    const ingestSrc = readFileSync6(path6.join(apiRoot, "src/services/chatIngest.ts"), "utf8");
+    const kommoSrc = readFileSync6(path6.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    const embudoSrc = readFileSync6(path6.join(apiRoot, "src/services/embudo.ts"), "utf8");
+    const learningRoutes = readFileSync6(path6.join(apiRoot, "src/routes/learning.ts"), "utf8");
+    const talksSrc = readFileSync6(path6.join(apiRoot, "src/services/kommoTalks.ts"), "utf8");
+    const keepAlive = readFileSync6(
       path6.join(repoRoot, ".github/workflows/keep-alive-hostinger.yml"),
       "utf8"
     );
-    const panelApp = readFileSync5(path6.join(apiRoot, "public/aprendizaje/app.js"), "utf8");
+    const panelApp = readFileSync6(path6.join(apiRoot, "public/aprendizaje/app.js"), "utf8");
     assert2.ok(/HUMANO_TRABAJA/.test(syncSrc));
     assert2.ok(/listKommoLeadsInLearningStages/.test(syncSrc), "cron lista leads vivos en Kommo");
     assert2.ok(/resolveKommoTalkId/.test(syncSrc), "sync resuelve talkId");
@@ -152208,7 +152335,7 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(/aprendizaje\/from-chats/.test(learningRoutes));
     assert2.ok(/aprendizaje\/from-chats/.test(panelApp));
     assert2.ok(/Sincronizar chats|kommo\/cron\/learning/.test(panelApp));
-    const routesIndex = readFileSync5(path6.join(apiRoot, "src/routes/index.ts"), "utf8");
+    const routesIndex = readFileSync6(path6.join(apiRoot, "src/routes/index.ts"), "utf8");
     const learningMount = routesIndex.indexOf("router.use(learningRouter)");
     const examplesMount = routesIndex.indexOf("router.use(examplesRouter)");
     assert2.ok(
@@ -154697,8 +154824,8 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(usesKommoExternalSend("instagram"));
     assert2.ok(!usesKommoExternalSend("whatsapp"));
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
-    const talksSrc = readFileSync5(path6.join(apiRoot, "src/services/kommoTalks.ts"), "utf8");
-    const mirrorSrc = readFileSync5(path6.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
+    const talksSrc = readFileSync6(path6.join(apiRoot, "src/services/kommoTalks.ts"), "utf8");
+    const mirrorSrc = readFileSync6(path6.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
     assert2.ok(/sendKommoTalkMessage|send_message/.test(talksSrc));
     assert2.ok(/sin teléfono — intentando envío por Kommo/i.test(mirrorSrc));
   });
@@ -156038,7 +156165,7 @@ ${golfText}`,
       })
     );
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
-    const silentSrc = readFileSync5(path6.join(apiRoot, "src/silentWatchCrm.ts"), "utf8");
+    const silentSrc = readFileSync6(path6.join(apiRoot, "src/silentWatchCrm.ts"), "utf8");
     assert2.ok(/shouldReplaceCrmDireccion/.test(silentSrc));
     assert2.ok(/mergeServiceRequirements\(/.test(silentSrc));
     assert2.ok(!/sanitizeCrmNombre\(text\)/.test(silentSrc));
@@ -156116,7 +156243,7 @@ ${golfText}`,
     assert2.ok(!/d[ií]a u horario|fecha/i.test(advisorReply), advisorReply.slice(0, 400));
     assert2.ok(!/cat[aá]logo/i.test(advisorReply), advisorReply.slice(0, 400));
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
-    const kommoSrc = readFileSync5(path6.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    const kommoSrc = readFileSync6(path6.join(apiRoot, "src/routes/kommo.ts"), "utf8");
     assert2.ok(!/generateSummary\(conversationText\)/.test(kommoSrc));
     assert2.ok(/clientAsksForHumanAdvisor/.test(kommoSrc));
     assert2.ok(/pide_asesor/.test(kommoSrc));
@@ -157092,7 +157219,7 @@ ${golfText}`,
     const istats = getImageCompressStats();
     assert2.ok(istats.total >= 1);
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
-    const healthSrc = readFileSync5(path6.join(apiRoot, "src/routes/health.ts"), "utf8");
+    const healthSrc = readFileSync6(path6.join(apiRoot, "src/routes/health.ts"), "utf8");
     assert2.ok(healthSrc.includes("gemini-context-cache"));
     assert2.ok(healthSrc.includes("gemini-media-once"));
     assert2.ok(healthSrc.includes("gemini-image-compress-1024"));
@@ -157155,7 +157282,7 @@ ${golfText}`,
     assert2.equal(extracted.tipo_contacto, "proveedor");
     assert2.equal(extracted.tipo_evento, null);
     assert2.ok(/PROVEEDOR:/i.test(extracted.requerimientos_evento ?? ""), extracted.requerimientos_evento);
-    const healthSrc = readFileSync5(
+    const healthSrc = readFileSync6(
       path6.join(path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../.."), "src/routes/health.ts"),
       "utf8"
     );
@@ -159460,7 +159587,7 @@ ${golfText}`,
       assert2.equal(target.nombre, "Ana P\xE9rez");
       assert2.equal(target.num_invitados, 80);
       const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
-      const healthSrc = readFileSync5(path6.join(apiRoot, "src/routes/health.ts"), "utf8");
+      const healthSrc = readFileSync6(path6.join(apiRoot, "src/routes/health.ts"), "utf8");
       assert2.equal(healthSrc.includes("gemini-unified-turn"), true);
       assert2.equal(healthSrc.includes("gemini-context-cache-default-off"), true);
     } finally {
@@ -159532,8 +159659,8 @@ ${golfText}`,
     assert2.ok(/registré tu anticipo/i.test(rewritten));
     assert2.ok(!/7800/.test(extractImageClientReply(rewritten) ?? ""));
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
-    const paySrc = readFileSync5(path6.join(apiRoot, "src/services/paymentReceiptCrm.ts"), "utf8");
-    const imgSrc = readFileSync5(path6.join(apiRoot, "src/services/imageProcessor.ts"), "utf8");
+    const paySrc = readFileSync6(path6.join(apiRoot, "src/services/paymentReceiptCrm.ts"), "utf8");
+    const imgSrc = readFileSync6(path6.join(apiRoot, "src/services/imageProcessor.ts"), "utf8");
     assert2.ok(/1049322/.test(paySrc));
     assert2.ok(/1049324/.test(paySrc));
     assert2.ok(/comprobante_pago/.test(imgSrc));
@@ -160142,7 +160269,7 @@ ${golfText}`,
     assert2.ok(/NO enviada|silencio/i.test(noteSilent), noteSilent);
     assert2.ok(!/^Respuesta enviada al cliente:/m.test(noteSilent));
     const apiRoot = path6.resolve(path6.dirname(fileURLToPath6(import.meta.url)), "../..");
-    const kommoSrc = readFileSync5(path6.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    const kommoSrc = readFileSync6(path6.join(apiRoot, "src/routes/kommo.ts"), "utf8");
     assert2.ok(/lucyDebeResponderImagenAlCliente/.test(kommoSrc));
     assert2.ok(/stripImageClientReplyForSilence/.test(kommoSrc));
     assert2.ok(/sin WhatsApp al cliente|leída en silencio/i.test(kommoSrc));
@@ -160346,11 +160473,11 @@ ${golfText}`,
       "Requerimientos o servicios",
       "Fecha del evento"
     ]);
-    const history = [
+    const history2 = [
       { role: "assistant", content: "\xBFCu\xE1ntos invitados tienen contemplados?" },
       { role: "user", content: "40 sillas, 40 invitadas" }
     ];
-    syncInvitadosFromHistory(filled, extracted, history, "C.P 05120 CDMX");
+    syncInvitadosFromHistory(filled, extracted, history2, "C.P 05120 CDMX");
     assert2.equal(extracted.num_invitados, 40);
     assert2.ok(filled.has("N\xFAmero de invitados"));
     assert2.notEqual(getNextPendingField(extracted, filled), "invitados");
@@ -160361,7 +160488,7 @@ ${golfText}`,
       readyForClosing: false,
       currentMessage: "C.P 05120 CDMX",
       history: [
-        ...history,
+        ...history2,
         { role: "assistant", content: "\xBFEn qu\xE9 ciudad lo arman?" }
       ]
     });
@@ -160448,10 +160575,10 @@ ${golfText}`,
       CRM_FECHA_LABEL,
       "N\xFAmero de invitados"
     ]);
-    const history = [
+    const history2 = [
       { role: "assistant", content: "\xBFEn qu\xE9 horario lo planean?" }
     ];
-    syncHorarioFromHistory(filled, extracted, history, "4 pm");
+    syncHorarioFromHistory(filled, extracted, history2, "4 pm");
     assert2.equal(extracted.horario_evento, "4 pm");
     assert2.ok(filled.has(CRM_HORARIO_LABEL));
     assert2.notEqual(getNextPendingField(extracted, filled), "horario");
@@ -160461,7 +160588,7 @@ ${golfText}`,
       filledSet: filled,
       readyForClosing: false,
       currentMessage: "4 pm",
-      history
+      history: history2
     });
     assert2.ok(!/a qu[eé] hora|horario lo planean/i.test(guarded), guarded);
     assert2.ok(!/Sigo aqu[ií]/i.test(guarded), guarded);
