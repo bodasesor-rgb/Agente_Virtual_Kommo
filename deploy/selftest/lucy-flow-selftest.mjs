@@ -135286,8 +135286,8 @@ function buildGuardServiceAck(rawQuery) {
       return `\xA1Va! Anoto la *${meal}*. \xBFCu\xE1ntos invitados tienen contemplados?`;
     }
     const tipoMatch = query.match(/\b(boda(\s+civil)?|bautizo|xv|cumplea[nñ]os|graduaci[oó]n|baby\s*shower)\b/i);
-    const label2 = tipoMatch?.[0] ?? "ese evento";
-    return `\xA1Qu\xE9 padre! Una *${label2}*. \xBFQu\xE9 te gustar\xEDa ir armando?`;
+    const label2 = tipoMatch?.[0];
+    return label2 ? `Perfecto, con gusto te ayudamos con tu *${label2}*. \xBFQu\xE9 te gustar\xEDa ir armando?` : "Perfecto, con gusto te ayudamos con tu evento. \xBFQu\xE9 te gustar\xEDa ir armando?";
   }
   const label = serviceLabelFromQuery(query);
   if (clientMentionsEntertainment(query) || /\bbailarin/i.test(label) || /\bbailarin(?:es|as?|a)?\b|\bhombres?\s+(?:q(?:ue)?|que)\s+bail/i.test(query)) {
@@ -147353,6 +147353,10 @@ y pegar al cliente.
 - NUNCA digas "qu\xE9 emoci\xF3n", "felicidades" o "qu\xE9 padre" si el cliente solo
   dio su nombre o a\xFAn no dijo qu\xE9 celebra. Si ya dijo boda/XV/cumplea\xF1os,
   un reconocimiento breve basta ("Anoto tu boda\u2026") \u2014 sin dramatizar.
+- Al saber el tipo de evento, acuse cordial y profesional, p. ej.
+  "Perfecto, con gusto te ayudamos con el aniversario de tu empresa."
+  NUNCA "\xA1Qu\xE9 buen plan!", "suena incre\xEDble", "\xA1Qu\xE9 padre!" ni elogios forzados
+  (sobre todo en eventos de empresa).
 - Aperturas sobrias cuando hagan falta: "Con gusto", "Claro", "Perfecto",
   "De acuerdo". No las uses en TODOS los mensajes.
 - Sin emojis (el sistema los borra).
@@ -147694,7 +147698,7 @@ function softenRobotAcks(mensaje) {
   out2 = out2.replace(/\b(lo|la|los|las)\s+anoto\b/gi, (_m, pron) => `${pron} sumo`);
   out2 = out2.replace(
     /\bPerfecto\.?\s*Anoto(\s+tu|\s+que\s+es)?\s+(\*[^*]{1,60}\*[^.!?\n*]{0,60}|[^.!?\n]{2,60})[.!]?\s*/gi,
-    (_m, tu, what) => tu ? `\xA1Perfecto! Vamos con tu ${what}. ` : `\xA1Perfecto! Vamos con ${what}. `
+    (_m, tu, what) => tu?.trim() === "tu" ? `Perfecto, con gusto te ayudamos con tu ${what}. ` : tu ? `\xA1Perfecto! Vamos con tu ${what}. ` : `\xA1Perfecto! Vamos con ${what}. `
   );
   out2 = out2.replace(/(?:¡|\b)Claro!?\.?\s*Anoto\s+/gi, "\xA1Claro! Vamos con ");
   out2 = out2.replace(/\bPerfecto\s*[—–,-]\s*anoto\s+/gi, "\xA1Va! Sumamos ");
@@ -147719,10 +147723,15 @@ function softenRobotAcks(mensaje) {
   out2 = out2.replace(/\bAnoto\s+(?:el\s+)?horario\s+/gi, "Queda el horario ");
   out2 = out2.replace(/\bAnoto\s+(?:la\s+)?fecha\s*:?\s*/gi, "Fecha ");
   out2 = out2.replace(
-    /\bAnoto\s+tu\s+([^.!?\n]{2,120})[.!]?\s*/gi,
-    (_m, rest) => `\xA1Qu\xE9 buen plan! Tu ${rest.trim()} suena incre\xEDble. `
+    /(?:¡?(?:Perfecto|Claro|Listo|Genial|Excelente|Va)!?[.,]?\s*)?\bAnoto\s+tu\s+([^.!?\n]{2,120})[.!]?\s*/gi,
+    (_m, rest) => `Perfecto, con gusto te ayudamos con tu ${rest.trim()}. `
   );
   out2 = out2.replace(/\bAnoto\s+([^.!?\n]{2,100})[.!]?\s*/gi, "Va, $1. ");
+  out2 = out2.replace(
+    /¡?Qu[eé]\s+buen\s+plan!?\.?\s*(?:Tu|El|La)\s+([^.!?\n]{2,80}?)\s+suena\s+(?:incre[ií]ble|genial|padr[ií]simo|muy\s+bien)[.!]?\s*/gi,
+    (_m, what) => `Perfecto, con gusto te ayudamos con tu ${what.trim()}. `
+  );
+  out2 = out2.replace(/(^|[.!?]\s+)¡?Qu[eé]\s+(?:buen\s+plan|padre)!?\.?\s*/gi, "$1Perfecto. ");
   out2 = out2.replace(/\bQueda\s+anotado\s+lo\s+de\s+/gi, "Seguimos con ");
   out2 = out2.replace(/\bYa\s+lo\s+tengo\s+anotad[oa]?[.!]?\s*/gi, "");
   out2 = out2.replace(/\bTomo nota de tu solicitud especial\b/gi, "Revisamos tu solicitud especial");

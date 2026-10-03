@@ -119,7 +119,11 @@ export function softenRobotAcks(mensaje: string): string {
   out = out.replace(
     /\bPerfecto\.?\s*Anoto(\s+tu|\s+que\s+es)?\s+(\*[^*]{1,60}\*[^.!?\n*]{0,60}|[^.!?\n]{2,60})[.!]?\s*/gi,
     (_m, tu: string | undefined, what: string) =>
-      tu ? `¡Perfecto! Vamos con tu ${what}. ` : `¡Perfecto! Vamos con ${what}. `
+      tu?.trim() === "tu"
+        ? `Perfecto, con gusto te ayudamos con tu ${what}. `
+        : tu
+          ? `¡Perfecto! Vamos con tu ${what}. `
+          : `¡Perfecto! Vamos con ${what}. `
   );
   // "¡Claro! Anoto *20* centros…" / "Claro! Anoto X para tu cotización."
   out = out.replace(/(?:¡|\b)Claro!?\.?\s*Anoto\s+/gi, "¡Claro! Vamos con ");
@@ -150,11 +154,17 @@ export function softenRobotAcks(mensaje: string): string {
   out = out.replace(/\bAnoto\s+(?:el\s+)?horario\s+/gi, "Queda el horario ");
   out = out.replace(/\bAnoto\s+(?:la\s+)?fecha\s*:?\s*/gi, "Fecha ");
   // A16433: "¡Mucho gusto! Anoto tu cumpleaños para 25 personas con la barra de mocteles."
+  // A16610: "¡Qué buen plan! Tu aniversario de empresa suena increíble." se oía forzado → tono asesora.
   out = out.replace(
-    /\bAnoto\s+tu\s+([^.!?\n]{2,120})[.!]?\s*/gi,
-    (_m, rest: string) => `¡Qué buen plan! Tu ${rest.trim()} suena increíble. `
+    /(?:¡?(?:Perfecto|Claro|Listo|Genial|Excelente|Va)!?[.,]?\s*)?\bAnoto\s+tu\s+([^.!?\n]{2,120})[.!]?\s*/gi,
+    (_m, rest: string) => `Perfecto, con gusto te ayudamos con tu ${rest.trim()}. `
   );
   out = out.replace(/\bAnoto\s+([^.!?\n]{2,100})[.!]?\s*/gi, "Va, $1. ");
+  out = out.replace(
+    /¡?Qu[eé]\s+buen\s+plan!?\.?\s*(?:Tu|El|La)\s+([^.!?\n]{2,80}?)\s+suena\s+(?:incre[ií]ble|genial|padr[ií]simo|muy\s+bien)[.!]?\s*/gi,
+    (_m, what: string) => `Perfecto, con gusto te ayudamos con tu ${what.trim()}. `
+  );
+  out = out.replace(/(^|[.!?]\s+)¡?Qu[eé]\s+(?:buen\s+plan|padre)!?\.?\s*/gi, "$1Perfecto. ");
   // "Queda anotado lo de Banquete."
   out = out.replace(/\bQueda\s+anotado\s+lo\s+de\s+/gi, "Seguimos con ");
   // "Ya lo tengo anotado."

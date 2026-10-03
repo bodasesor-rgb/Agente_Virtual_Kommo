@@ -353,8 +353,10 @@ export function buildGuardServiceAck(rawQuery: string): string {
       return `¡Va! Anoto la *${meal}*. ¿Cuántos invitados tienen contemplados?`;
     }
     const tipoMatch = query.match(/\b(boda(\s+civil)?|bautizo|xv|cumplea[nñ]os|graduaci[oó]n|baby\s*shower)\b/i);
-    const label = tipoMatch?.[0] ?? "ese evento";
-    return `¡Qué padre! Una *${label}*. ¿Qué te gustaría ir armando?`;
+    const label = tipoMatch?.[0];
+    return label
+      ? `Perfecto, con gusto te ayudamos con tu *${label}*. ¿Qué te gustaría ir armando?`
+      : "Perfecto, con gusto te ayudamos con tu evento. ¿Qué te gustaría ir armando?";
   }
   const label = serviceLabelFromQuery(query);
 
